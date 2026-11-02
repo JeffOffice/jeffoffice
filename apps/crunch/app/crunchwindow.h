@@ -667,7 +667,8 @@ private:
     void insertFunctionCommand();
     std::function<bool(QString *)> m_functionAsker;
     std::function<bool(FunctionArgumentsDialog *)> m_argumentsAsker;
-    void functionArguments(const crunch::FunctionDoc &doc, const QStringList &arguments, int start, int end);
+    void functionArguments(const crunch::FunctionDoc &doc, const QStringList &arguments, int start, int end, const QString &writtenName = QString(), const QStringList &raw = QStringList());
+    QPointer<FunctionArgumentsDialog> m_argsDialog;   // the Function Arguments dialog while it is open
     QString functionHelpTopic(const QString &name) const;
     // tables (crunchwindow_tables.cpp): how they are drawn, their header buttons, the commands that change them, and their ribbon tab
     void createTableActions();

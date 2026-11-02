@@ -1,4 +1,5 @@
 #include "app/crunchwindow.h"
+#include "app/functionargumentsdialog.h"
 #include "app/plaintext.h"
 
 #include "core/printjob.h"
@@ -748,6 +749,12 @@ void CrunchWindow::keyPressEvent(QKeyEvent *e)
 
 void CrunchWindow::closeEvent(QCloseEvent *e)
 {
+    // (the Function Arguments dialog is given up first, and the window stays: it is closed again from the place it is in)
+    if (m_argsDialog) {
+        m_argsDialog->reject();
+        e->ignore();
+        return;
+    }
     // an entry that is being made is finished (or the window stays, with the reason shown), and changes that are not saved are asked about
     if (!commitEdit() || !askAboutChanges()) {
         e->ignore();

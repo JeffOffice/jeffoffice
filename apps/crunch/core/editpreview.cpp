@@ -3,7 +3,11 @@
 
 #include "calc/eval.h"
 
+#include "core/loader.h"
+
 #include <QCoreApplication>
+#include <QRegularExpression>
+#include <QThread>
 
 #include <algorithm>
 
@@ -75,18 +79,43 @@ EditSession::Preview EditSession::previewFormula(const QString &typed, int sheet
         out.problem = QCoreApplication::translate("jp::crunch::EditSession", "This is not complete or not a formula JeffCrunch can read yet.");
         return out;
     }
+    static const QRegularExpression volatileNames(QStringLiteral("\\b(RAND|RANDBETWEEN|NOW|TODAY|OFFSET|INDIRECT|CELL|INFO)\\s*\\("), QRegularExpression::CaseInsensitiveOption);
+    out.volatileValue = volatileNames.match(text).hasMatch();
+    // the cells are read through the calculation, which the worker is working in: it is held back for the reading (a moment's wait, no more: this is the window's thread)
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    for (int waited = 0; !hold && waited < 30; waited += 10) {
+        QThread::msleep(10);
+        hold = m_loader->hold();
+    }
+    if (!hold) {
+        out.busy = true;
+        out.problem = QCoreApplication::translate("jp::crunch::EditSession", "Still working out the sheet…");
+        return out;
+    }
     jp::calc::Evaluator ev;
     ev.setWorkLimit(kPreviewWork);
     jp::calc::EvalContext ctx;
-    ctx.source = m_book->calc.get();
+    ctx.source = hold->calculation();
     ctx.sheet = std::max(0, sheet);
     ctx.row = row;
     ctx.col = col;
     ctx.dateSystem = m_book->book->info().dateSystem;
     const Value v = ev.evaluate(*parsed.program, ctx);
-    if (ev.status() != jp::calc::EvalStatus::Ok) {
+    const jp::calc::EvalStatus status = ev.status();
+    const int unsupported = ev.unsupportedKinds();
+    hold.reset();
+    if (status != jp::calc::EvalStatus::Ok) {
         out.tooMuch = true;
-        out.problem = QCoreApplication::translate("jp::crunch::EditSession", "This takes too long to work out here. Press OK and the sheet will work it out.");
+        switch (status) {
+        case jp::calc::EvalStatus::TooLarge: out.problem = QCoreApplication::translate("jp::crunch::EditSession", "The result is too large to show here."); break;
+        case jp::calc::EvalStatus::TooDeep: out.problem = QCoreApplication::translate("jp::crunch::EditSession", "This goes too many levels deep to show here."); break;
+        default: out.problem = QCoreApplication::translate("jp::crunch::EditSession", "This takes too long to work out here. Press OK and the sheet will work it out."); break;
+        }
+        return out;
+    }
+    if (unsupported != 0) {
+        out.unsupported = true;
+        out.problem = QCoreApplication::translate("jp::crunch::EditSession", "JeffCrunch can't work this out yet (it uses another workbook, the columns of a table, or a function JeffCrunch does not have), so no value is shown.");
         return out;
     }
     out.ok = true;

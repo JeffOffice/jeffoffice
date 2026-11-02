@@ -25,7 +25,7 @@ void CrunchWindow::createFunctionActions()
 
 void CrunchWindow::insertFunctionCommand()
 {
-    if (!m_session || !m_loaded) return;
+    if (!m_session || !m_loaded || m_argsDialog) return;
     const QChar separator = crunch::argumentSeparator(m_session->locale());
     QLineEdit *line = nullptr;
     if (m_edit.active) {
@@ -33,7 +33,7 @@ void CrunchWindow::insertFunctionCommand()
         const crunch::FunctionCall call = crunch::functionCallAt(line->text(), line->cursorPosition(), separator);
         if (call.found) {
             // the cursor is in the brackets of a function: that call is what the dialog changes
-            functionArguments(*crunch::docOf(call.name), call.arguments, call.start, call.end);
+            functionArguments(*crunch::docOf(call.name), call.arguments, call.start, call.end, call.name, call.raw);
             return;
         }
     }
@@ -58,6 +58,13 @@ void CrunchWindow::insertFunctionCommand()
         functionArguments(*doc, QStringList(), at, at);
     } else {
         if (!editingAllowed()) return;
+        // (a cell that can't be changed is told of before the dialog, not after the arguments were filled in)
+        QString why;
+        const grid::Selection &sel = m_view->selection();
+        if (!m_session->canEditCell(m_sheet, quint32(std::max<qint64>(0, sel.activeRow)), quint32(std::max<qint64>(0, sel.activeCol)), &why)) {
+            notice(tr("Edit"), why);
+            return;
+        }
         functionArguments(*doc, QStringList(), 0, 0);
     }
 }
@@ -65,8 +72,9 @@ void CrunchWindow::insertFunctionCommand()
 // The Function Arguments dialog for a call, in the formula being typed (`start` to `end` of its text is what the call replaces, or where a new one goes) or, with no entry going, for a new formula
 // of the cell with the cursor. The entry is put away while the dialog is open (the sheet is pointed at, and a click must not finish it) and is made again after: with the call in place for OK, as it
 // was for Cancel.
-void CrunchWindow::functionArguments(const crunch::FunctionDoc &doc, const QStringList &arguments, int start, int end)
+void CrunchWindow::functionArguments(const crunch::FunctionDoc &doc, const QStringList &arguments, int start, int end, const QString &writtenName, const QStringList &raw)
 {
+    if (m_argsDialog) return;   // (one at a time)
     const bool editing = m_edit.active;
     const QChar separator = crunch::argumentSeparator(m_session->locale());
     QString text;
@@ -74,7 +82,9 @@ void CrunchWindow::functionArguments(const crunch::FunctionDoc &doc, const QStri
     bool fromBar = false;
     CellEditor::Mode mode = CellEditor::Mode::Editing;
     int sheet = m_sheet;
-    quint32 row = quint32(std::max<qint64>(0, m_view->selection().activeRow)), col = quint32(std::max<qint64>(0, m_view->selection().activeCol));
+    // where the formula is of, and what is selected (the whole of it comes back, not only the cell with the cursor)
+    const grid::Selection selection = m_view->selection();
+    quint32 row = quint32(std::max<qint64>(0, selection.activeRow)), col = quint32(std::max<qint64>(0, selection.activeCol));
     if (editing) {
         QLineEdit *line = m_formulaBar->hasFocus() ? m_formulaBar : m_cellEditor;
         text = line->text();
@@ -88,17 +98,24 @@ void CrunchWindow::functionArguments(const crunch::FunctionDoc &doc, const QStri
     }
     const QString was = text;
     if (text.isEmpty()) text = QStringLiteral("=");
-    const quint32 viewRow = quint32(std::max<qint64>(0, m_view->selection().activeRow)), viewCol = quint32(std::max<qint64>(0, m_view->selection().activeCol));
     FunctionArgumentsDialog dialog(this, doc, arguments, separator);
+    if (!writtenName.isEmpty()) dialog.setCallName(writtenName);
+    dialog.setRawArguments(raw);
     crunch::EditSession *session = m_session.get();
-    dialog.setEvaluator([session, sheet, row, col](const QString &typed) { return session->previewFormula(typed, sheet, row, col); });
+    // (the session is looked for each time: a workbook that is closed while the dialog is open leaves nothing to read)
+    dialog.setEvaluator([this, session, sheet, row, col](const QString &typed) {
+        if (!m_session || m_session.get() != session) return crunch::EditSession::Preview();
+        return session->previewFormula(typed, sheet, row, col);
+    });
     dialog.setHelpTopic(functionHelpTopic(QString::fromLatin1(doc.name)));
+    m_argsDialog = &dialog;
     connect(&dialog, &FunctionArgumentsDialog::helpRequested, this, [this, &dialog](const QString &topic) {
-        // (the dialog stops blocking the window, or the Help it opens could not be read)
-        dialog.hide();
-        dialog.setWindowModality(Qt::NonModal);
-        dialog.show();
-        showHelpOver(topic);
+        // (Help is a window of the dialog's own, so the dialog that blocks this window does not block it)
+        auto *w = dialog.findChild<HelpWindow *>(QString(), Qt::FindDirectChildrenOnly);
+        if (!w) w = new HelpWindow(this, &dialog);
+        w->view()->showTopic(topic);
+        w->show();
+        w->raise();
     });
     // cells pointed at while a box is collapsed are written in it, with the sheet's name when it is another sheet
     QMetaObject::Connection pointing;
@@ -125,8 +142,11 @@ void CrunchWindow::functionArguments(const crunch::FunctionDoc &doc, const QStri
         accepted = dialog.result() == QDialog::Accepted;
     }
     QObject::disconnect(pointing);
+    m_argsDialog = nullptr;
+    if (m_session.get() != session) return;   // (the workbook was closed or replaced: there is nothing to put the call in)
+    // the sheet, selection, and entry as they were
     if (m_sheet != sheet) setActiveSheet(sheet);
-    if (m_view->selection().activeRow != qint64(viewRow) || m_view->selection().activeCol != qint64(viewCol)) m_view->selectCell(viewRow, viewCol);
+    if (!(m_view->selection() == selection)) m_view->setSelection(selection);
     // the entry again (a call that is not closed has its end where the text ends)
     auto resume = [&](const QString &entry, int cursor) {
         beginEdit(entry, mode, false);

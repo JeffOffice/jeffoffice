@@ -8,10 +8,14 @@
 #include <QEvent>
 #include <QGridLayout>
 #include <QHBoxLayout>
+#include <QGuiApplication>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPainter>
 #include <QPushButton>
+#include <QScreen>
+#include <QElapsedTimer>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QToolButton>
@@ -29,12 +33,28 @@ namespace {
 // The most arguments a call may have.
 constexpr int kMostArguments = 255;
 
+// A label that never makes its dialog wider: a text that does not fit is cut with "…" (the whole of it is in the tooltip).
+class ElidedLabel : public QLabel {
+public:
+    using QLabel::QLabel;
+    QSize minimumSizeHint() const override { return QSize(fontMetrics().horizontalAdvance(QLatin1Char('x')) * 8, QLabel::minimumSizeHint().height()); }
+    QSize sizeHint() const override { return QSize(fontMetrics().horizontalAdvance(QLatin1Char('x')) * 24, QLabel::sizeHint().height()); }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter p(this);
+        p.setPen(palette().color(isEnabled() ? QPalette::Active : QPalette::Disabled, QPalette::WindowText));
+        p.drawText(contentsRect(), int(alignment()) | Qt::TextSingleLine, fontMetrics().elidedText(text(), Qt::ElideRight, contentsRect().width()));
+    }
+};
+
 QColor problemColor(const QPalette &p) { return p.color(QPalette::Window).lightness() < 128 ? QColor(0xff, 0x8a, 0x80) : QColor(0xb0, 0x00, 0x20); }
 
 }
 
 FunctionArgumentsDialog::FunctionArgumentsDialog(QWidget *parent, const FunctionDoc &doc, const QStringList &arguments, QChar separator)
-    : QDialog(parent), m_name(QString::fromLatin1(doc.name)), m_doc(doc), m_plan(argumentPlanOf(doc)), m_separator(separator)
+    : QDialog(parent), m_name(QString::fromLatin1(doc.name)), m_callName(m_name), m_doc(doc), m_plan(argumentPlanOf(doc)), m_separator(separator), m_keep(int(arguments.size()))
 {
     setObjectName(QStringLiteral("functionArgumentsDialog"));
     setWindowTitle(tr("Function Arguments"));
@@ -59,22 +79,24 @@ FunctionArgumentsDialog::FunctionArgumentsDialog(QWidget *parent, const Function
     m_scroll->setWidgetResizable(true);
     m_scroll->setFrameShape(QFrame::NoFrame);
     m_scroll->setWidget(holder);
-    m_scroll->setMinimumHeight(110);
+    m_scroll->setMinimumHeight(int(fontMetrics().height() * 7.5));
     layout->addWidget(m_scroll, 1);
 
     m_summary = new QLabel(summaryOf(doc));
     m_summary->setObjectName(QStringLiteral("functionArgumentsSummary"));
     m_summary->setTextFormat(Qt::PlainText);
     m_summary->setWordWrap(true);
+    m_summary->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     layout->addWidget(m_summary);
     m_argumentHelp = new QLabel;
     m_argumentHelp->setObjectName(QStringLiteral("functionArgumentsHelp"));
     m_argumentHelp->setTextFormat(Qt::PlainText);
     m_argumentHelp->setWordWrap(true);
+    m_argumentHelp->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     m_argumentHelp->setMinimumHeight(2 * m_argumentHelp->fontMetrics().lineSpacing());
     m_argumentHelp->setAlignment(Qt::AlignLeft | Qt::AlignTop);
     layout->addWidget(m_argumentHelp);
-    m_result = new QLabel;
+    m_result = new ElidedLabel;
     m_result->setObjectName(QStringLiteral("functionArgumentsResult"));
     m_result->setTextFormat(Qt::PlainText);
     m_result->setAccessibleName(tr("Formula result"));
@@ -87,6 +109,7 @@ FunctionArgumentsDialog::FunctionArgumentsDialog(QWidget *parent, const Function
     m_problem->setTextFormat(Qt::PlainText);
     m_problem->setWordWrap(true);
     m_problem->setMinimumHeight(m_problem->fontMetrics().lineSpacing());
+    m_problem->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     layout->addWidget(m_problem);
     auto *bottom = new QHBoxLayout;
     m_helpLink = new QLabel(QStringLiteral("<a href=\"help\">%1</a>").arg(tr("Help on this function").toHtmlEscaped()));
@@ -112,7 +135,8 @@ FunctionArgumentsDialog::FunctionArgumentsDialog(QWidget *parent, const Function
 
     m_timer.setSingleShot(true);
     m_timer.setInterval(300);
-    connect(&m_timer, &QTimer::timeout, this, [this] { evaluateNow(); });
+    connect(&m_timer, &QTimer::timeout, this, [this] { step(30); });
+    m_result->setText(tr("Formula result ="));
 
     m_building = true;
     // the rows: the ones that are always there, then the group that repeats (the first of it, and one more to go on with)
@@ -139,16 +163,25 @@ FunctionArgumentsDialog::FunctionArgumentsDialog(QWidget *parent, const Function
         focusRow(0);
         m_rows.front().edit->selectAll();
     }
-    setMinimumWidth(520);
-    resize(560, 330 + 22 * std::min<int>(int(m_rows.size()), 5));
-    evaluateNow();
+    // sizes follow the font (and so the screen's scale), and never pass the screen
+    const int em = fontMetrics().horizontalAdvance(QLatin1Char('x'));
+    setMinimumWidth(std::min(em * 60, screenRoom().width()));
+    resize(std::min(em * 70, screenRoom().width()), std::min(sizeHint().height() + fontMetrics().height() * 2 * std::min<int>(int(m_rows.size()), 4), screenRoom().height()));
+    m_timer.start(0);   // (what each box comes to is worked out after the dialog is shown, a little at a time)
+}
+
+QSize FunctionArgumentsDialog::screenRoom() const
+{
+    const QScreen *screen = parentWidget() ? parentWidget()->screen() : QGuiApplication::primaryScreen();
+    return screen ? screen->availableGeometry().size() * 9 / 10 : QSize(1000, 700);
 }
 
 void FunctionArgumentsDialog::setEvaluator(const Evaluator &evaluator)
 {
     m_evaluator = evaluator;
     m_known.clear();
-    evaluateNow();
+    markStale();
+    m_timer.start(0);
 }
 
 void FunctionArgumentsDialog::setHelpTopic(const QString &topic)
@@ -191,10 +224,9 @@ void FunctionArgumentsDialog::addRow(const QString &name, bool optional, int gro
     row.pick->setFocusPolicy(Qt::NoFocus);
     row.pick->setToolTip(jp::plainToolTip(tr("Pick cells on the sheet")));
     row.pick->setAccessibleName(tr("Pick cells on the sheet for %1").arg(name));
-    row.value = new QLabel;
+    row.value = new ElidedLabel;
     row.value->setObjectName(QStringLiteral("functionArgumentValue%1").arg(at));
     row.value->setTextFormat(Qt::PlainText);
-    row.value->setMinimumWidth(90);
     row.value->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     row.value->setAccessibleName(tr("Value of %1").arg(name));
     m_grid->addWidget(row.label, at, 0);
@@ -231,7 +263,18 @@ QStringList FunctionArgumentsDialog::arguments() const
     return out;
 }
 
-QString FunctionArgumentsDialog::callText() const { return crunch::callText(m_name, arguments(), m_separator); }
+void FunctionArgumentsDialog::setRawArguments(const QStringList &raw) { m_raw = raw; }
+
+// The call as it goes in the formula: the name as it was written, each argument as it was written when it was not changed (its spaces too), and the empty ones at the end that the call had.
+QString FunctionArgumentsDialog::callText() const
+{
+    QStringList args;
+    for (size_t i = 0; i < m_rows.size(); ++i) {
+        const QString text = m_rows[i].edit->text().trimmed();
+        args << (int(i) < m_raw.size() && m_raw[int(i)].trimmed() == text ? m_raw[int(i)] : text);
+    }
+    return crunch::callText(m_callName, args, m_separator, m_keep);
+}
 
 void FunctionArgumentsDialog::setArgumentText(int row, const QString &text)
 {
@@ -249,14 +292,22 @@ void FunctionArgumentsDialog::setArgumentText(int row, const QString &text)
 void FunctionArgumentsDialog::textChanged(int row)
 {
     // the last repeat of a group has something in it: another one is made, so that there is always a box to go on in
-    const Row &r = m_rows[size_t(row)];
+    Row &r = m_rows[size_t(row)];
     if (m_building) return;
+    r.valueDone = false;
+    m_resultDone = false;
     if (r.group >= 0 && r.group == m_groups - 1 && !r.edit->text().trimmed().isEmpty() && int(m_rows.size()) + int(m_plan.repeating.size()) <= kMostArguments) {
         addGroup();
         m_grid->setRowStretch(int(m_rows.size()) - int(m_plan.repeating.size()), 0);
         m_grid->setRowStretch(int(m_rows.size()), 1);
     }
-    m_timer.start();
+    m_timer.start(300);
+}
+
+void FunctionArgumentsDialog::markStale()
+{
+    for (Row &r : m_rows) r.valueDone = false;
+    m_resultDone = false;
 }
 
 bool FunctionArgumentsDialog::eventFilter(QObject *watched, QEvent *event)
@@ -268,10 +319,17 @@ bool FunctionArgumentsDialog::eventFilter(QObject *watched, QEvent *event)
                 m_scroll->ensureWidgetVisible(m_rows[i].edit);
                 break;
             }
-    } else if (event->type() == QEvent::KeyPress && watched == m_strip) {
-        const int key = static_cast<QKeyEvent *>(event)->key();
-        if (key == Qt::Key_Escape || key == Qt::Key_Return || key == Qt::Key_Enter) {
-            endPicking();
+    } else if (m_strip && (watched == m_strip || watched == stripEdit())) {
+        if (event->type() == QEvent::KeyPress) {
+            const int key = static_cast<QKeyEvent *>(event)->key();
+            if (key == Qt::Key_Escape || key == Qt::Key_Return || key == Qt::Key_Enter) {
+                endPicking();
+                return true;
+            }
+        } else if (event->type() == QEvent::Close && watched == m_strip) {
+            // (closed from the window's frame: the dialog comes back, as with its own button)
+            event->ignore();
+            QTimer::singleShot(0, this, [this] { endPicking(); });
             return true;
         }
     }
@@ -285,56 +343,85 @@ void FunctionArgumentsDialog::focusRow(int row)
     m_argumentHelp->setText(what.isEmpty() ? r.name : (r.optional ? tr("%1 (optional): %2") : tr("%1: %2")).arg(r.name, what));
 }
 
-QString FunctionArgumentsDialog::expression(const QString &text) const { return text.trimmed(); }
-
-const EditSession::Preview &FunctionArgumentsDialog::previewOf(const QString &expression)
+EditSession::Preview FunctionArgumentsDialog::previewOf(const QString &expression)
 {
-    auto it = m_known.find(expression);
-    if (it == m_known.end()) it = m_known.emplace(expression, m_evaluator ? m_evaluator(expression) : EditSession::Preview()).first;
-    return it->second;
+    const auto it = m_known.find(expression);
+    if (it != m_known.end()) return it->second;
+    const EditSession::Preview p = m_evaluator ? m_evaluator(expression) : EditSession::Preview();
+    if (!p.busy && !p.volatileValue) m_known.emplace(expression, p);   // (what changes each time it is worked out is not kept)
+    return p;
 }
 
-void FunctionArgumentsDialog::showPreview(QLabel *label, const EditSession::Preview &p, bool withEquals)
+void FunctionArgumentsDialog::showPreview(QLabel *label, const EditSession::Preview &p)
 {
     QString text;
-    if (p.ok) text = (withEquals ? QStringLiteral("= ") : QString()) + p.shown;
-    else if (p.tooMuch) text = QStringLiteral("…");
+    if (p.ok) text = QStringLiteral("= ") + p.shown;
+    else if (p.busy || p.tooMuch) text = QStringLiteral("…");
+    else if (p.unsupported) text = tr("not shown");
     label->setText(text);
-    label->setToolTip(jp::plainToolTip(p.ok ? p.shown : QString()));
+    label->setToolTip(jp::plainToolTip(p.ok ? p.shown : p.problem));
 }
 
 void FunctionArgumentsDialog::evaluateNow()
 {
     m_timer.stop();
+    step(-1);
+}
+
+// Works out what is waiting, for about `budgetMs` (at least one thing each time; a negative number is no limit): the boxes in order, then the whole call. What is left is done on the timer, so a
+// call with many heavy arguments does not stop the dialog from opening or the typing from going on.
+void FunctionArgumentsDialog::step(int budgetMs)
+{
     if (!m_evaluator) return;
+    QElapsedTimer clock;
+    clock.start();
+    bool any = false, busy = false, more = false;
     QStringList missing;
-    for (const Row &r : m_rows) {
+    auto outOfTime = [&] { return any && budgetMs >= 0 && clock.elapsed() >= budgetMs; };
+    for (Row &r : m_rows) {
         const QString text = r.edit->text().trimmed();
         if (text.isEmpty()) {
             r.value->clear();
             r.value->setToolTip(QString());
+            r.valueDone = true;
             if (!r.optional) missing << r.name;
             continue;
         }
-        showPreview(r.value, previewOf(expression(text)), true);
+        if (r.valueDone) continue;
+        if (outOfTime()) {
+            more = true;
+            r.value->setText(QStringLiteral("…"));
+            continue;
+        }
+        const EditSession::Preview p = previewOf(text);
+        any = true;
+        showPreview(r.value, p);
+        if (p.busy) busy = true;
+        else r.valueDone = true;
     }
     QPalette pal = m_problem->palette();
     pal.setColor(QPalette::WindowText, palette().color(QPalette::WindowText));
-    m_problem->setPalette(pal);
     if (!missing.isEmpty()) {
         m_result->setText(tr("Formula result ="));
+        m_result->setToolTip(QString());
+        m_problem->setPalette(pal);
         m_problem->setText(tr("Still needed: %1").arg(missing.join(QStringLiteral(", "))));
-        return;
+        m_resultDone = true;
+    } else if (!m_resultDone && !more && !outOfTime()) {
+        const EditSession::Preview whole = previewOf(callText());
+        any = true;
+        m_result->setText(whole.ok ? tr("Formula result = %1").arg(whole.shown) : tr("Formula result ="));
+        m_result->setToolTip(jp::plainToolTip(whole.ok ? whole.shown : QString()));
+        m_problem->setText(whole.problem);
+        if (whole.error || whole.tooMuch || whole.unsupported) pal.setColor(QPalette::WindowText, problemColor(palette()));
+        m_problem->setPalette(pal);
+        if (whole.busy) busy = true;
+        else m_resultDone = true;
+    } else if (!m_resultDone) {
+        more = true;
     }
-    const EditSession::Preview &whole = previewOf(callText());
-    m_result->setText(whole.ok ? tr("Formula result = %1").arg(whole.shown) : tr("Formula result ="));
-    m_result->setToolTip(jp::plainToolTip(whole.ok ? whole.shown : QString()));
-    m_problem->setText(whole.problem);
-    if (!whole.problem.isEmpty() && (whole.error || whole.tooMuch)) {
-        QPalette p = m_problem->palette();
-        p.setColor(QPalette::WindowText, problemColor(palette()));
-        m_problem->setPalette(p);
-    }
+    if (busy) m_timer.start(300);   // (the sheet is being worked out: again in a moment)
+    else if (more) m_timer.start(0);
 }
 
 QLineEdit *FunctionArgumentsDialog::stripEdit() const { return m_strip ? m_strip->findChild<QLineEdit *>(QStringLiteral("functionArgumentsStripEdit")) : nullptr; }
@@ -344,15 +431,14 @@ void FunctionArgumentsDialog::beginPicking(int row)
 {
     if (m_strip || row < 0 || row >= rowCount()) return;
     m_pickRow = row;
-    m_strip = new QWidget(parentWidget(), Qt::Tool | Qt::WindowTitleHint | Qt::WindowStaysOnTopHint);
+    m_strip = new QWidget(parentWidget(), Qt::Tool | Qt::WindowTitleHint | Qt::WindowCloseButtonHint | Qt::WindowStaysOnTopHint);
     m_strip->setObjectName(QStringLiteral("functionArgumentsStrip"));
     m_strip->setWindowTitle(tr("Function Arguments: %1").arg(m_rows[size_t(row)].name));
-    m_strip->setAttribute(Qt::WA_DeleteOnClose, false);
     auto *l = new QHBoxLayout(m_strip);
     auto *edit = new QLineEdit(m_rows[size_t(row)].edit->text());
     edit->setObjectName(QStringLiteral("functionArgumentsStripEdit"));
     edit->setAccessibleName(tr("%1: select cells on the sheet").arg(m_rows[size_t(row)].name));
-    edit->setMinimumWidth(260);
+    edit->setMinimumWidth(fontMetrics().horizontalAdvance(QLatin1Char('x')) * 30);
     l->addWidget(edit, 1);
     auto *back = new QToolButton;
     back->setObjectName(QStringLiteral("functionArgumentsStripBack"));
@@ -371,31 +457,61 @@ void FunctionArgumentsDialog::beginPicking(int row)
     m_strip->installEventFilter(this);
     edit->installEventFilter(this);
     m_strip->adjustSize();
-    if (QWidget *w = parentWidget()) {
-        const QPoint at = w->mapToGlobal(QPoint(std::max(0, w->width() - m_strip->width() - 40), 120));
+    // near the top right of the window, and in the screen whatever the window is
+    const QWidget *w = parentWidget();
+    const QScreen *screen = w ? w->screen() : QGuiApplication::primaryScreen();
+    const QPoint wanted = w ? w->mapToGlobal(QPoint(std::max(0, w->width() - m_strip->width() - 40), 120)) : QPoint(100, 100);
+    auto place = [this, screen, wanted] {
+        QPoint at = wanted;
+        if (screen) {
+            const QRect room = screen->availableGeometry();
+            at.setX(std::clamp(at.x(), room.left(), std::max(room.left(), room.right() + 1 - m_strip->width())));
+            at.setY(std::clamp(at.y(), room.top(), std::max(room.top(), room.bottom() + 1 - m_strip->height())));
+        }
         m_strip->move(at);
-    }
+    };
+    place();
     hide();
     m_strip->show();
+    place();   // (once more: the size it has when shown may differ from the one asked for)
     edit->setFocus();
     edit->selectAll();
     Q_EMIT pickingStarted(row);
 }
 
-void FunctionArgumentsDialog::endPicking()
+void FunctionArgumentsDialog::dropStrip()
 {
     if (!m_strip) return;
     QWidget *strip = m_strip;
-    const int row = m_pickRow;
     m_strip = nullptr;
     m_pickRow = -1;
     strip->hide();
     strip->deleteLater();
+}
+
+void FunctionArgumentsDialog::endPicking()
+{
+    if (!m_strip) return;
+    const int row = m_pickRow;
+    dropStrip();
     Q_EMIT pickingEnded();
+    // (what the boxes come to is worked out again: the cells pointed at are new, and nothing kept from before is trusted)
+    m_known.clear();
+    markStale();
+    m_timer.start(0);
     show();
     raise();
     activateWindow();
     if (row >= 0 && row < rowCount()) m_rows[size_t(row)].edit->setFocus();
+}
+
+void FunctionArgumentsDialog::done(int result)
+{
+    if (m_strip) {
+        dropStrip();
+        Q_EMIT pickingEnded();
+    }
+    QDialog::done(result);
 }
 
 } // namespace jp

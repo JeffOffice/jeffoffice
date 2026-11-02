@@ -7,7 +7,7 @@ Digitare nella casella di ricerca un nome o ciò che si desidera fare ("arrotond
 
 Selezionare una funzione per vederne la sintassi, cosa fa e i relativi argomenti. Un argomento tra parentesi quadre è facoltativo e "altri dello stesso tipo" indica che è possibile specificarne quanti ne servono. Premere **OK** (oppure fare doppio clic sulla funzione).
 
-La cella passa in modalità di modifica con la formula già iniziata: **=SOMMA()**, con il cursore tra le parentesi, pronto per gli argomenti. Se si sta già digitando una formula, la funzione viene inserita nella posizione del cursore. Vengono elencate solo le funzioni che JeffCrunch è in grado di calcolare.
+Dopo **OK** si apre la finestra **Argomenti funzione**, dove si compilano gli argomenti e si vede il risultato mentre si digita. **OK** lì scrive la formula nella cella, per esempio **=SUM(A1:A3)**. Se si sta già digitando una formula, la funzione viene inserita nella posizione del cursore. Vengono elencate solo le funzioni che JeffCrunch è in grado di calcolare.
 
 ## Messaggi sulle celle
 

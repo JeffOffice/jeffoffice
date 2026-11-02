@@ -742,7 +742,10 @@ public:
     struct Preview {
         bool ok = false;           // a value came out
         bool error = false;        // the value is an error (`shown` is its name, `problem` says it in words)
-        bool tooMuch = false;
+        bool tooMuch = false;      // too long or too large to work out here (`problem` says which)
+        bool busy = false;         // the worker could not be held back just now: try again in a moment
+        bool unsupported = false;  // it reads what JeffCrunch does not work out yet, so no value is shown
+        bool volatileValue = false;   // it has a different value each time (RAND, NOW, ...): not to be kept
         QString shown, problem;
     };
     Preview previewFormula(const QString &typed, int sheet, quint32 row, quint32 col) const;

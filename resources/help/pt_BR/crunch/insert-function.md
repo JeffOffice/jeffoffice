@@ -7,7 +7,7 @@ Digite na caixa de pesquisa um nome ou o que você deseja fazer ("arredondar par
 
 Escolha uma função para ver como ela é escrita, o que ela faz e quais são os argumentos dela. Um argumento entre colchetes é opcional, e "mais do mesmo" significa que você pode informar quantos precisar. Pressione **OK** (ou clique duas vezes na função).
 
-A célula entra em edição com a fórmula iniciada: **=SOMA()**, com o cursor dentro dos parênteses, pronta para os argumentos. Se você já estiver digitando uma fórmula, a função será inserida na posição do cursor. Somente as funções que o JeffCrunch consegue calcular são listadas.
+Depois de **OK**, abre a caixa de diálogo **Argumentos da função**, onde você preenche os argumentos e vê o resultado enquanto digita. **OK** ali grava a fórmula na célula, por exemplo **=SUM(A1:A3)**. Se você já estiver digitando uma fórmula, a função será inserida na posição do cursor. Somente as funções que o JeffCrunch consegue calcular são listadas.
 
 ## Mensagens em células
 

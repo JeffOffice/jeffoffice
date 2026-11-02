@@ -35,6 +35,9 @@ public:
     QString helpTopic() const { return m_helpTopic; }
 
     QString functionName() const { return m_name; }
+    // The name as it was written in the formula (it keeps its case), and the arguments as they were written (with their spaces; a box that is not changed gives its text back as it was).
+    void setCallName(const QString &name) { m_callName = name; }
+    void setRawArguments(const QStringList &raw);
     // "SUM(A1:A3, 5)": the call as the formula gets it (empty arguments at the end left off).
     QString callText() const;
     QStringList arguments() const;
@@ -68,6 +71,7 @@ Q_SIGNALS:
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void done(int result) override;
 
 private:
     struct Row {
@@ -77,19 +81,25 @@ private:
         QLabel *label = nullptr, *value = nullptr;
         QLineEdit *edit = nullptr;
         QToolButton *pick = nullptr;
+        bool valueDone = false;   // what the box comes to is shown
     };
     void addRow(const QString &name, bool optional, int group, const QString &text, const QString &helpName = QString());
     void addGroup();
     void textChanged(int row);
     void focusRow(int row);
-    QString expression(const QString &text) const;
-    const crunch::EditSession::Preview &previewOf(const QString &expression);
-    QString fullCall() const;
-    void showPreview(QLabel *label, const crunch::EditSession::Preview &p, bool withEquals);
-    QString m_name;
+    crunch::EditSession::Preview previewOf(const QString &expression);
+    void showPreview(QLabel *label, const crunch::EditSession::Preview &p);
+    void step(int budgetMs);
+    void markStale();
+    void dropStrip();
+    QSize screenRoom() const;
+    QString m_name, m_callName;
     const crunch::FunctionDoc &m_doc;
     crunch::ArgumentPlan m_plan;
     QChar m_separator;
+    QStringList m_raw;
+    int m_keep = 0;           // the arguments the call had when the dialog was opened: its empty ones at the end stay
+    bool m_resultDone = false;
     Evaluator m_evaluator;
     QString m_helpTopic;
     std::vector<Row> m_rows;
