@@ -327,7 +327,8 @@
           "keytip": "ZP",
           "items": [
             {"large": "protect.sheet", "keytip": "PS"},
-            {"large": "protect.workbook", "keytip": "PW"}
+            {"large": "protect.workbook", "keytip": "PW"},
+            {"large": "protect.password", "keytip": "PP"}
           ]
         }
       ]

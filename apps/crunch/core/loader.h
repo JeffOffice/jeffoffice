@@ -32,6 +32,9 @@ namespace jp::crunch {
 // What the reading has made so far. The worker fills it in order: the workbook, the first rows, and last the calculation; it is not touched by the worker once `finished` is told.
 struct LoadedBook {
     QString path;
+    // When the file was not opened for want of a password: it needs one, or the one given is not it (the window asks, and reads the file again).
+    jp::office::sheet::PasswordNeed passwordNeed = jp::office::sheet::PasswordNeed::None;
+    bool protectedFile = false;   // the file was protected with a password (the default one included): the window saves it protected again
     std::shared_ptr<jp::office::sheet::Workbook> book;
     std::shared_ptr<jp::office::sheet::Sheet> preview;     // the first rows of one sheet
     int previewSheet = -1;                                  // which (from 0, in the workbook's order)

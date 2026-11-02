@@ -238,10 +238,12 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
         office::Package package;
         if (!package.readLazy(blank, why) || !book->open(package, why, limits)) return false;
     } else if (!book->openFile(path, why, limits)) {
+        out->passwordNeed = book->passwordNeed();
         return false;   // (any kind: the package of XML parts, the older binary form, or another format)
     }
     book->tables();   // (read now: the worker looks at the tables as it works formulas out, and the window changes them, neither of which may be the first to read them)
     out->book = book;
+    out->protectedFile = book->wasProtected();
     out->notRead = book->skippedFeatures();
     const int shownSheet = firstSheetToShow(book->info());
     if (shownSheet < 0) {

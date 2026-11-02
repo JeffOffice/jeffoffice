@@ -21,6 +21,7 @@ QString protectedMessage(office::CryptResult why, PasswordNeed need)
         return need == PasswordNeed::Needed ? QCoreApplication::translate("Sheet", "This file needs a password: it is protected with a password, and none was given.")
                                             : QCoreApplication::translate("Sheet", "The password is not correct.");
     case office::CryptResult::Unsupported: return QCoreApplication::translate("Sheet", "This file is protected in a way this program can't open (not a password, or a kind of protection it does not read).");
+    case office::CryptResult::Cancelled: return QCoreApplication::translate("Sheet", "The password was not checked: the read was stopped.");
     case office::CryptResult::TooLarge: return QCoreApplication::translate("jp::office::doc", "The file is larger than this program can open.");
     default: return QCoreApplication::translate("Sheet", "The file is damaged, or it was changed after it was protected: its protected contents can't be read.");
     }

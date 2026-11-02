@@ -1807,6 +1807,7 @@ bool Workbook::openOpenDocument(const QByteArray &given, bool flat, QString *err
     m_limits.password.clear();
     m_limits.passwordNeed = nullptr;
     QByteArray file = given;
+    bool decrypted = false;
     // (a package with parts protected by a password is read as the package of those parts, plain)
     if (!flat && odsEncrypted(file)) {
         QByteArray plain;
@@ -1815,6 +1816,7 @@ bool Workbook::openOpenDocument(const QByteArray &given, bool flat, QString *err
             return false;
         }
         file = plain;
+        decrypted = true;
     }
     const auto book = OdsBook::open(file, flat, limits, &m_info, &m_shared, &m_styles, error);
     if (!book) {
@@ -1822,6 +1824,7 @@ bool Workbook::openOpenDocument(const QByteArray &given, bool flat, QString *err
         return false;
     }
     m_foreign = book;
+    m_protected = decrypted;
     nameBaseParts();
     return true;
 }

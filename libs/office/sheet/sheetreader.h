@@ -248,6 +248,8 @@ public:
     bool openBinary(const QByteArray &file, QString *error = nullptr, const Limits &limits = Limits());
     // Why the last openFile or openBinary that failed did, if it was for a password (None for any other failure, and after one that worked).
     PasswordNeed passwordNeed() const { return m_passwordNeed; }
+    // Whether the file the workbook was read from was protected with a password (the default one included): a save writes it protected again.
+    bool wasProtected() const { return m_protected; }
     // Whether the workbook was read from the older binary form, and what such a file holds that is not read (charts, pictures, ...), in words.
     bool isBinary() const { return bool(m_xls); }
     // Whether it was read from a file that has no package of XML parts to put changes in, and so is saved as an .xlsx written from what was read: the older binary form, an
@@ -455,6 +457,7 @@ private:
     QString m_stylesError;
     Limits m_limits;
     PasswordNeed m_passwordNeed = PasswordNeed::None;
+    bool m_protected = false;
     mutable QVector<Table> m_tables;
     mutable bool m_tablesRead = false;
     mutable QStringList m_tableNotes;   // what was left out of the tables when they were read (see readTables)

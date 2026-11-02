@@ -1939,11 +1939,13 @@ bool Workbook::openStream(const QByteArray &given, bool hasMacros, QString *erro
         *this = Workbook();
         return false;
     }
+    const bool wasProtected = biffEncrypted(given);
     const auto xls = XlsBook::open(stream, hasMacros, limits, &m_info, &m_shared, &m_styles, error);
     if (!xls) {
         *this = Workbook();
         return false;
     }
+    m_protected = wasProtected;
     m_xls = xls;
     nameBaseParts();
     return true;
@@ -2188,8 +2190,10 @@ bool Workbook::openBinaryWith(const QByteArray &file, QString *error, const Limi
 bool Workbook::openProtectedPackage(const QByteArray &info, const QByteArray &package, QString *error, const Limits &limits)
 {
     QByteArray zip;
-    if (!passwordGate(limits, error, [&](const QString &password) { return office::decryptPackage(info, package, password, limits.fileBytes, false, &zip); })) return false;
-    return openPackageBytes(zip, error, limits);
+    if (!passwordGate(limits, error, [&](const QString &password) { return office::decryptPackage(info, package, password, limits.fileBytes, false, &zip, limits.cancelled); })) return false;
+    const bool ok = openPackageBytes(zip, error, limits);
+    if (ok) m_protected = true;
+    return ok;
 }
 
 bool Workbook::openFile(const QString &path, QString *error, const Limits &limits)

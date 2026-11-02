@@ -5,6 +5,8 @@
 
 #include "app/crunchwindow.h"
 
+#include "io/crypto.h"
+
 #include "app/protectdialogs.h"
 #include "sheet/protection.h"
 
@@ -85,7 +87,38 @@ void CrunchWindow::createProtectActions()
 {
     mk("protect.sheet", tr("Protect Sheet"), "lock", QKeySequence(), [this] { protectSheet(); }, false, false);
     mk("protect.workbook", tr("Protect Workbook"), "shield", QKeySequence(), [this] { protectWorkbook(); }, false, false);
+    mk("protect.password", tr("Protect with Password"), "key", QKeySequence(), [this] { protectWithPassword(); }, false, false);
     connect(m_view, &grid::GridView::selectionChanged, this, &CrunchWindow::guardSelection);
+}
+
+// "Protect with Password": the file is written enciphered, and asks for the password when it is opened. The password is asked for twice, and may be taken off again. It is kept in memory
+// while the workbook is open, so that Save writes the file protected again, and wiped when it is closed.
+void CrunchWindow::protectWithPassword()
+{
+    if (!m_session || m_saving) return;
+    SetFilePasswordRequest req;
+    req.hasPassword = m_fileProtected;
+    if (m_anchorHooks.setFilePasswordAsker) {
+        if (!m_anchorHooks.setFilePasswordAsker(&req)) return;
+    } else {
+        SetFilePasswordDialog dialog(m_fileProtected, this);
+        if (dialog.exec() != QDialog::Accepted) return;
+        req.remove = dialog.removed();
+        req.password = dialog.password();
+    }
+    jp::crypto::wipe(m_filePassword);
+    if (req.remove) {
+        m_fileProtected = false;
+        setStatus(tr("The password is removed when you save."));
+    } else {
+        m_fileProtected = true;
+        m_filePassword = req.password;
+        setStatus(tr("The workbook is protected with a password when you save."));
+    }
+    jp::crypto::wipe(req.password);
+    m_protectionChanged = true;
+    setWindowModified(true);
+    updateEditActions();
 }
 
 void CrunchWindow::connectProtection()
@@ -109,6 +142,7 @@ void CrunchWindow::updateProtectActions()
     const bool locked = m_session && m_session->workbookProtection().any();
     act("protect.workbook")->setText(locked ? tr("Unprotect Workbook") : tr("Protect Workbook"));
     act("protect.workbook")->setEnabled(m_session && !m_saving && !m_passwordJob);
+    act("protect.password")->setEnabled(m_session && !m_saving && !m_passwordJob);
 }
 
 // Asks for the password of `hash`, checks it, and, if it is the right one, goes on with `onRight` (the person is told why not otherwise). A hash with no password asks nothing. The check is

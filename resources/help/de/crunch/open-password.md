@@ -1,7 +1,7 @@
 # Kennwortgeschützte Arbeitsmappen öffnen
 <!-- keywords: kennwort, passwort, geschützt, verschlüsselt, verschlüsselung, öffnen, gesperrt, falsches kennwort, abbrechen, xlsx, xls, ods, dateischutz, standardkennwort, privat -->
 
-Manche Arbeitsmappen werden beim Speichern mit einem Kennwort geschützt: Ohne das Kennwort kann kein Programm lesen, was in der Datei steht. Das ist etwas anderes als **Blatt schützen** und **Arbeitsmappe schützen** (siehe [Blatt oder Arbeitsmappe schützen](protect)), die nur Änderungen verhindern. Eine Arbeitsmappe mit Kennwortschutz lässt sich überhaupt nicht öffnen, bevor das Kennwort eingegeben wurde.
+Manche Arbeitsmappen werden beim Speichern mit einem Kennwort geschützt: Ohne das Kennwort kann kein Programm lesen, was in der Datei steht. Das ist etwas anderes als **Blatt schützen** und **Arbeitsmappe schützen** (siehe [Blatt oder Arbeitsmappe schützen](protect)), die nur Änderungen verhindern. Eine Arbeitsmappe mit Kennwortschutz lässt sich überhaupt nicht öffnen, bevor das Kennwort eingegeben wurde. Diese Seite sagt, wie Sie eine solche Arbeitsmappe öffnen und wie Sie eine erstellen.
 
 ## Eine Arbeitsmappe öffnen
 
@@ -28,6 +28,10 @@ Manche Dateien sind mit einem Kennwort gesperrt, das jeder kennt, damit sie jede
 - **„Diese Datei ist auf eine Weise geschützt, die dieses Programm nicht öffnen kann.“** Die Datei ist durch etwas anderes als ein Kennwort gesperrt (zum Beispiel durch einen Schlüssel, der in einem Zertifikat liegt) oder in einer Form, die JeffCrunch nicht liest.
 - **„Die Datei ist beschädigt oder wurde nach dem Schützen verändert.“** Das Kennwort war richtig, aber der Inhalt der Datei entspricht nicht dem, was gesperrt wurde: Sie wurde abgeschnitten, beschädigt oder von einem anderen Programm verändert. Kopieren Sie sie erneut vom Original.
 
-## Speichern
+## Mit Kennwort speichern
 
-Eine auf diese Weise geöffnete Arbeitsmappe ist für JeffCrunch eine neue Arbeitsmappe: Wenn Sie sie speichern, ist die Kopie **nicht** durch ein Kennwort geschützt, und die geöffnete Datei wird nie verändert. Um die Kopie wieder zu schützen, verwenden Sie das Programm, das das Original erstellt hat.
+Klicken Sie auf **Datei** und dann auf **Mit Kennwort schützen** (oder auf **Überprüfen > Mit Kennwort schützen**), geben Sie das Kennwort zweimal ein, und klicken Sie auf **Schützen**. Die Arbeitsmappe wird beim nächsten Speichern geschützt geschrieben: Wer die Datei öffnet, muss das Kennwort eingeben. Um das Kennwort zu ändern, wählen Sie denselben Befehl und geben ein neues ein; um es zu entfernen, klicken Sie auf **Kennwort entfernen** und speichern.
+
+Eine Arbeitsmappe, die Sie mit einem Kennwort geöffnet haben, behält es, solange sie geöffnet ist. **Speichern** schreibt die Datei daher wieder mit demselben Kennwort geschützt. JeffCrunch hält das Kennwort nur im Arbeitsspeicher, bis Sie die Arbeitsmappe schließen, und löscht es dann. Die Datei wird nicht versehentlich ungeschützt gespeichert: Wenn Sie eine Kopie als .xls- oder .ods-Datei speichern, die JeffCrunch nicht schützen kann, sagt es Ihnen vorher, dass die Kopie nicht geschützt ist, und Sie können abbrechen.
+
+Verwenden Sie ein langes Kennwort, und bewahren Sie es an einem sicheren Ort auf: Niemand, auch wir nicht, kann die Datei ohne das Kennwort öffnen.

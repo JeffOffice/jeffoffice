@@ -57,6 +57,8 @@
 //                                                  functions (tools/crunch_recalc.py does the work)
 
 #include "sheet/sheetcrypt.h"
+#include "office/officecrypt.h"
+#include "office/package.h"
 #include "office/package.h"
 #include "calc/functions.h"
 #include "calc/numfmt.h"
@@ -699,6 +701,7 @@ int usage()
              "       jcrunchtool filter-roundtrip <file.xlsx> [out.xlsx]\n"
              "       jcrunchtool xls-save-check <file.xls>\n"
              "       jcrunchtool functions\n"
+             "       jcrunchtool protect-file <in.xlsx> <out.xlsx> <password> [keyBits=256] [hash=SHA512] [rounds=100000]\n"
              "(a workbook protected with a password is opened with the one in the environment variable JCRUNCH_PASSWORD)\n"
              "       jcrunchtool eval <file.xlsx|file.xls> <sheet> <cell> <formula>\n"
              "       jcrunchtool recalc <keys.txt> <out-dir> [jobs]\n"
@@ -779,6 +782,26 @@ int main(int argc, char **argv)
         if (args.size() == (tsv ? 3 : 2)) return info(args.last(), tsv);
     }
     if (args.size() == 2 && args[0] == QLatin1String("names")) return names(args[1]);
+    // protect-file <in.xlsx> <out.xlsx> <password> [keyBits=256] [hash=SHA512] [rounds=100000]: the workbook's package written protected with a password, as Protect with Password does
+    if (args.size() >= 4 && args.size() <= 7 && args[0] == QLatin1String("protect-file")) {
+        QByteArray plain;
+        QString why;
+        if (!jp::office::readWholeFile(args[1], &plain, &why)) {
+            err() << args[1] << ": " << why << "\n";
+            return 1;
+        }
+        jp::office::EncryptOptions options;
+        if (args.size() > 4) options.keyBits = args[4].toInt();
+        if (args.size() > 5) options.hash = args[5];
+        if (args.size() > 6) options.spinCount = args[6].toInt();
+        const QByteArray file = jp::office::encryptPackage(plain, args[3], options);
+        QFile out(args[2]);
+        if (file.isEmpty() || !out.open(QIODevice::WriteOnly) || out.write(file) != file.size()) {
+            err() << "could not write " << args[2] << "\n";
+            return 1;
+        }
+        return 0;
+    }
     if (args.size() >= 3 && args[0] == QLatin1String("compare-one")) return jp::crunchtool::compareMain(args.mid(1));
     if (args.size() >= 2 && args.size() <= 5 && args[0] == QLatin1String("convert-fuzz")) {
         const int code = jp::crunchtool::odsFuzzMain(args.mid(1));

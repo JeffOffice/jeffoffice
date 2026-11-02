@@ -150,13 +150,17 @@ QByteArray hashWith(QCryptographicHash::Algorithm alg, const QByteArray &a, cons
 }
 
 // The hash of the salt and the password, spun round `spin` times.
-QByteArray spun(QCryptographicHash::Algorithm alg, const QByteArray &salt, const QString &password, qint64 spin)
+QByteArray spun(QCryptographicHash::Algorithm alg, const QByteArray &salt, const QString &password, qint64 spin, const std::function<bool()> &cancelled = nullptr, bool *stopped = nullptr)
 {
     QByteArray pw = utf16le(password);
     QByteArray h = hashWith(alg, salt, pw);
     crypto::wipe(pw);
     QCryptographicHash round(alg);
     for (qint64 i = 0; i < spin; ++i) {
+        if ((i & 0x3FFF) == 0 && cancelled && cancelled()) {
+            if (stopped) *stopped = true;
+            return QByteArray();
+        }
         round.reset();
         round.addData(le32(quint32(i)));
         round.addData(h);
@@ -177,10 +181,11 @@ QByteArray agileStep(const AgileInfo &info, const QByteArray &h, const QByteArra
 }
 
 // The secret key, or empty if the password is not the one.
-QByteArray agileSecretKey(const AgileInfo &info, const QString &password)
+QByteArray agileSecretKey(const AgileInfo &info, const QString &password, const std::function<bool()> &cancelled, bool *stopped)
 {
     const Encryptor &e = info.password;
-    QByteArray h = spun(e.hash, e.salt, password, e.spinCount);
+    QByteArray h = spun(e.hash, e.salt, password, e.spinCount, cancelled, stopped);
+    if (*stopped) return QByteArray();
     const QByteArray iv = fitTo(e.salt, 16);
     QByteArray k1 = agileStep(info, h, kBlockVerifierInput), k2 = agileStep(info, h, kBlockVerifierValue), k3 = agileStep(info, h, kBlockKeyValue);
     crypto::wipe(h);
@@ -194,9 +199,11 @@ QByteArray agileSecretKey(const AgileInfo &info, const QString &password)
 
 QByteArray segmentIv(const AgileInfo &info, quint32 index) { return fitTo(hashWith(info.hash, info.salt, le32(index)), 16); }
 
-CryptResult decryptAgile(const AgileInfo &info, const QByteArray &package, const QString &password, qint64 maxBytes, bool verifyOnly, QByteArray *zip)
+CryptResult decryptAgile(const AgileInfo &info, const QByteArray &package, const QString &password, qint64 maxBytes, bool verifyOnly, QByteArray *zip, const std::function<bool()> &cancelled)
 {
-    QByteArray secret = agileSecretKey(info, password);
+    bool stopped = false;
+    QByteArray secret = agileSecretKey(info, password, cancelled, &stopped);
+    if (stopped) return CryptResult::Cancelled;
     if (secret.isEmpty()) return CryptResult::WrongPassword;
     if (verifyOnly) {
         crypto::wipe(secret);
@@ -333,7 +340,47 @@ QByteArray randomBytes(int n)
     return b;
 }
 
-QByteArray container(const QByteArray &info, const QByteArray &package)
+// A string as the data-space structures keep it: its length in bytes, the characters in two bytes each, and zeros to a whole number of four bytes.
+QByteArray spaceString(const QString &text)
+{
+    QByteArray b = le32(quint32(text.size() * 2));
+    b.append(utf16le(text));
+    b.append(QByteArray((4 - b.size() % 4) % 4, 0));
+    return b;
+}
+
+// The storage that tells a reader the package is enciphered by the strong encryption transform (the original program refuses a package without it).
+void addDataSpaces(jp::cfb::File *f)
+{
+    auto add = [&](const QString &name, jp::cfb::Entry::Type type, const QByteArray &data) {
+        jp::cfb::Entry e;
+        e.name = name;
+        e.type = type;
+        e.data = data;
+        f->entries.append(e);
+        return int(f->entries.size() - 1);
+    };
+    const QByteArray version1 = le32(1), versions = version1 + version1 + version1;
+    const int spaces = add(QStringLiteral("\u0006DataSpaces"), jp::cfb::Entry::Storage, QByteArray());
+    const int version = add(QStringLiteral("Version"), jp::cfb::Entry::Stream, spaceString(QStringLiteral("Microsoft.Container.DataSpaces")) + versions);
+    QByteArray entry = le32(1) + le32(0) + spaceString(QStringLiteral("EncryptedPackage")) + spaceString(QStringLiteral("StrongEncryptionDataSpace"));
+    entry.prepend(le32(quint32(entry.size() + 4)));
+    const int map = add(QStringLiteral("DataSpaceMap"), jp::cfb::Entry::Stream, le32(8) + le32(1) + entry);
+    const int info = add(QStringLiteral("DataSpaceInfo"), jp::cfb::Entry::Storage, QByteArray());
+    const int strong = add(QStringLiteral("StrongEncryptionDataSpace"), jp::cfb::Entry::Stream, le32(8) + le32(1) + spaceString(QStringLiteral("StrongEncryptionTransform")));
+    const int transforms = add(QStringLiteral("TransformInfo"), jp::cfb::Entry::Storage, QByteArray());
+    const int transform = add(QStringLiteral("StrongEncryptionTransform"), jp::cfb::Entry::Storage, QByteArray());
+    const QByteArray id = spaceString(QStringLiteral("{FF9A3F03-56EF-4613-BDD5-5A41C1D07246}"));
+    const int primary = add(QStringLiteral("\u0006Primary"), jp::cfb::Entry::Stream,
+                            le32(quint32(8 + id.size())) + le32(1) + id + spaceString(QStringLiteral("Microsoft.Container.EncryptionTransform")) + versions + le32(0) + le32(0) + le32(0) + le32(4));
+    f->entries[0].children.append(spaces);
+    f->entries[spaces].children = {version, map, info, transforms};
+    f->entries[info].children = {strong};
+    f->entries[transforms].children = {transform};
+    f->entries[transform].children = {primary};
+}
+
+QByteArray container(const QByteArray &info, const QByteArray &package, bool dataSpaces = false)
 {
     jp::cfb::File f;
     f.entries.resize(3);
@@ -344,12 +391,13 @@ QByteArray container(const QByteArray &info, const QByteArray &package)
     f.entries[1].data = info;
     f.entries[2].name = QStringLiteral("EncryptedPackage");
     f.entries[2].data = package;
+    if (dataSpaces) addDataSpaces(&f);
     return jp::cfb::write(f);
 }
 
 } // namespace
 
-CryptResult decryptPackage(const QByteArray &info, const QByteArray &package, const QString &password, qint64 maxBytes, bool verifyOnly, QByteArray *zip)
+CryptResult decryptPackage(const QByteArray &info, const QByteArray &package, const QString &password, qint64 maxBytes, bool verifyOnly, QByteArray *zip, const std::function<bool()> &cancelled)
 {
     if (info.size() < 8) return CryptResult::Damaged;
     const quint16 major = quint16(quint8(info[0]) | quint8(info[1]) << 8), minor = quint16(quint8(info[2]) | quint8(info[3]) << 8);
@@ -357,7 +405,7 @@ CryptResult decryptPackage(const QByteArray &info, const QByteArray &package, co
         AgileInfo agile;
         const CryptResult r = parseAgile(info, &agile);
         if (r != CryptResult::Ok) return r;
-        return decryptAgile(agile, package, password, maxBytes, verifyOnly, zip);
+        return decryptAgile(agile, package, password, maxBytes, verifyOnly, zip, cancelled);
     }
     if ((major == 2 || major == 3 || major == 4) && minor == 2) return decryptStandard(info, package, password, maxBytes, verifyOnly, zip);
     return CryptResult::Unsupported;
@@ -417,7 +465,7 @@ QByteArray encryptPackage(const QByteArray &zip, const QString &password, const 
                      + cipher + " saltValue=\"" + e.salt.toBase64() + "\" encryptedVerifierHashInput=\"" + e.verifierInput.toBase64() + "\" encryptedVerifierHashValue=\"" + e.verifierValue.toBase64()
                      + "\" encryptedKeyValue=\"" + e.keyValue.toBase64() + "\"/></keyEncryptor></keyEncryptors></encryption>";
     const QByteArray head = QByteArray::fromHex("0400040040000000");
-    return container(head + xml, stream);
+    return container(head + xml, stream, true);
 }
 
 QByteArray encryptPackageStandard(const QByteArray &zip, const QString &password)

@@ -6,6 +6,7 @@
 #include <QFormLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QVBoxLayout>
 #include "app/plaintext.h"
 
@@ -39,6 +40,64 @@ const Item kItems[] = {
 };
 
 } // namespace
+
+SetFilePasswordDialog::SetFilePasswordDialog(bool hasPassword, QWidget *parent) : QDialog(parent)
+{
+    setObjectName(QStringLiteral("setFilePasswordDialog"));
+    setWindowTitle(tr("Protect with Password"));
+    auto *layout = new QVBoxLayout(this);
+    auto *intro = new QLabel(hasPassword ? tr("This workbook is protected with a password. Type a new one to change it, or remove the password.")
+                                         : tr("Anyone who opens this workbook will have to type the password. The password protects the file when you save it."), this);
+    intro->setWordWrap(true);
+    layout->addWidget(intro);
+    auto *form = new QFormLayout;
+    m_password = new QLineEdit(this);
+    m_password->setObjectName(QStringLiteral("filePassword"));
+    m_password->setAccessibleName(tr("Password"));
+    m_password->setEchoMode(QLineEdit::Password);
+    form->addRow(tr("Password:"), m_password);
+    m_again = new QLineEdit(this);
+    m_again->setObjectName(QStringLiteral("filePasswordAgain"));
+    m_again->setAccessibleName(tr("Password again"));
+    m_again->setEchoMode(QLineEdit::Password);
+    form->addRow(tr("Type it again:"), m_again);
+    layout->addLayout(form);
+    auto *warn = new QLabel(tr("A password can't be found again if it is forgotten. Keep it somewhere safe."), this);
+    warn->setWordWrap(true);
+    layout->addWidget(warn);
+    m_problem = plainLabel(new QLabel(this));
+    m_problem->setObjectName(QStringLiteral("filePasswordProblem"));
+    m_problem->setWordWrap(true);
+    layout->addWidget(m_problem);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    buttons->button(QDialogButtonBox::Ok)->setText(tr("Protect"));
+    if (hasPassword) {
+        QPushButton *remove = buttons->addButton(tr("Remove Password"), QDialogButtonBox::DestructiveRole);
+        remove->setObjectName(QStringLiteral("filePasswordRemove"));
+        connect(remove, &QPushButton::clicked, this, [this] {
+            m_removed = true;
+            QDialog::accept();
+        });
+    }
+    connect(buttons, &QDialogButtonBox::accepted, this, &SetFilePasswordDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    layout->addWidget(buttons);
+}
+
+QString SetFilePasswordDialog::password() const { return m_password->text(); }
+
+void SetFilePasswordDialog::accept()
+{
+    if (m_password->text().isEmpty()) {
+        m_problem->setText(tr("Type a password, or cancel."));
+        return;
+    }
+    if (m_password->text() != m_again->text()) {
+        m_problem->setText(tr("The two passwords are not the same."));
+        return;
+    }
+    QDialog::accept();
+}
 
 ProtectSheetDialog::ProtectSheetDialog(const ProtectRequest &request, QWidget *parent) : QDialog(parent), m_request(request)
 {

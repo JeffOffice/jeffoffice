@@ -1037,8 +1037,11 @@ private:
     bool openAddress(const QUrl &url);
     // ---- opening a text file of values (crunchwindow_text.cpp)
     bool askTextImport(const QString &path, std::shared_ptr<const jp::office::sheet::CsvImport> *chosen);
-    // A file that is protected with a password: asks for it (again when it is not the one) until it fits or the person cancels (false: nothing is opened). `password` is empty for a file with none.
-    bool askFilePassword(const QString &path, QString *password);
+    // A file that needs a password (or was given a wrong one): asks for it, and reads the file again with it (false: the person cancelled, and the open ends).
+    bool askFilePasswordAgain(bool wrong);
+    // "Protect with Password": the password the workbook is saved with (asked twice), or none (removed). It is kept in memory while the workbook is open, and wiped when it is closed.
+    void protectWithPassword();
+    void forgetFilePassword();
     bool m_promptForText = false, m_forceTextPrompt = false;
     // ---- automatic row heights (crunchwindow_autoheight.cpp)
     void scheduleAutoHeights();
@@ -1062,6 +1065,10 @@ private:
     void updateProtectActions();
     void protectSheet();
     void protectWorkbook();
+    QString m_filePassword, m_pendingPassword;
+    bool m_fileProtected = false;      // the workbook is written protected with a password (m_filePassword; empty: the password every program knows)
+    bool m_diskProtected = false;      // the file on disk is protected: what it holds is not what the package's bytes are
+    bool m_protectionChanged = false;  // a password was set or removed since the last save: that is a change to save
     void guardSelection();
     void askPassword(const QString &what, const jp::office::sheet::PasswordHash &hash, const std::function<void()> &onRight);
     void hashPassword(const QString &typed, const std::function<void(const jp::office::sheet::PasswordHash &)> &done);

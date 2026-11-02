@@ -74,7 +74,9 @@ QByteArray protectBiff(const QByteArray &stream, Biff kind, const QString &passw
     const QByteArray salt = hex("00112233445566778899aabbccddeeff"), verifier = hex("0f1e2d3c4b5a69788796a5b4c3d2e1f0");
     auto blockKey = [&](quint32 block) {
         if (kind == Biff::Rc4) return QCryptographicHash::hash(base + le32(block), QCryptographicHash::Md5);
-        return QCryptographicHash::hash(base + le32(block), QCryptographicHash::Sha1).left(keyBytes);
+        // (a key of fewer than 128 bits is padded with zeros to 16 bytes)
+        QByteArray key = QCryptographicHash::hash(base + le32(block), QCryptographicHash::Sha1).left(keyBytes);
+        return key + QByteArray(16 - key.size(), 0);
     };
     if (kind == Biff::Xor) {
         QByteArray pw;
@@ -426,7 +428,7 @@ private Q_SLOTS:
         const QByteArray file = oc::encryptPackage(randomBytes(100, 9), QStringLiteral("x"), options);
         QByteArray info = packageOf(file, "EncryptionInfo");
         QVERIFY(info.contains("spinCount=\"10\""));
-        for (const char *huge : {"2000000000", "10000001", "99999999999999999999", "-5"}) {
+        for (const char *huge : {"2000000000", "2000001", "99999999999999999999", "-5"}) {
             QByteArray changed = info;
             changed.replace("spinCount=\"10\"", QByteArray("spinCount=\"") + huge + "\"");
             QElapsedTimer t;
@@ -443,6 +445,51 @@ private Q_SLOTS:
             QByteArray out;
             QVERIFY2(oc::decryptPackage(changed, packageOf(file, "EncryptedPackage"), QStringLiteral("x"), 1 << 30, false, &out) != oc::CryptResult::Ok, change.second);
         }
+    }
+
+    // A package written here has the structures that tell a reader how it is enciphered, of the sizes the format gives them.
+    void aWrittenPackageHasTheDataSpaces()
+    {
+        oc::EncryptOptions options;
+        options.spinCount = 10;
+        const QByteArray file = oc::encryptPackage(randomBytes(500, 4), QStringLiteral("x"), options);
+        jp::cfb::File f;
+        QString why;
+        QVERIFY2(jp::cfb::read(file, &f, &why), qPrintable(why));
+        const QString spaces = QStringLiteral("\u0006DataSpaces/");
+        QCOMPARE(f.stream(spaces + QStringLiteral("Version")), hex("3c000000") + QByteArray("M\0i\0c\0r\0o\0s\0o\0f\0t\0.\0C\0o\0n\0t\0a\0i\0n\0e\0r\0.\0D\0a\0t\0a\0S\0p\0a\0c\0e\0s\0", 60) + hex("010000000100000001000000"));
+        const QByteArray map = f.stream(spaces + QStringLiteral("DataSpaceMap"));
+        QCOMPARE(map.size(), 8 + 104);
+        QCOMPARE(map.left(16), hex("08000000010000006800000001000000"));
+        QVERIFY(map.contains(QByteArray("E\0n\0c\0r\0y\0p\0t\0e\0d\0P\0a\0c\0k\0a\0g\0e\0", 32)));
+        QCOMPARE(f.stream(spaces + QStringLiteral("DataSpaceInfo/StrongEncryptionDataSpace")).size(), 8 + 4 + 52);
+        const QByteArray primary = f.stream(spaces + QStringLiteral("TransformInfo/StrongEncryptionTransform/\u0006Primary"));
+        QCOMPARE(primary.size(), 200);
+        QCOMPARE(primary.left(12), hex("580000000100000000004c00").left(8) + hex("4c000000"));
+        QVERIFY(primary.contains(QByteArray("{\0F\0F\0" "9\0A\0" "3\0F\0" "0\0" "3\0", 18)));
+        QCOMPARE(primary.right(4), hex("04000000"));
+        // (the package is still read back)
+        QByteArray out;
+        QCOMPARE(oc::decryptPackage(f.stream(QStringLiteral("EncryptionInfo")), f.stream(QStringLiteral("EncryptedPackage")), QStringLiteral("x"), 1 << 30, false, &out), oc::CryptResult::Ok);
+    }
+
+    // The key of a long spin is made in pieces: a stop is seen at once, and a file that asks for more than the limit is refused with no work.
+    void theKeyIsMadeInPiecesAndCanBeStopped()
+    {
+        oc::EncryptOptions options;
+        options.spinCount = 10;
+        const QByteArray file = oc::encryptPackage(randomBytes(100, 9), QStringLiteral("x"), options);
+        QByteArray info = packageOf(file, "EncryptionInfo");
+        info.replace("spinCount=\"10\"", "spinCount=\"1500000\"");
+        QElapsedTimer t;
+        t.start();
+        int asked = 0;
+        QByteArray out;
+        QCOMPARE(oc::decryptPackage(info, packageOf(file, "EncryptedPackage"), QStringLiteral("x"), 1 << 30, false, &out, [&asked] { return ++asked > 1; }), oc::CryptResult::Cancelled);
+        QVERIFY(t.elapsed() < 1000);
+        QVERIFY(asked >= 2);
+        info.replace("spinCount=\"1500000\"", "spinCount=\"2000001\"");
+        QCOMPARE(oc::decryptPackage(info, packageOf(file, "EncryptedPackage"), QStringLiteral("x"), 1 << 30, false, &out), oc::CryptResult::Damaged);
     }
 
     void thePasswordAloneCanBeCheckedWithoutTheBulkWork()

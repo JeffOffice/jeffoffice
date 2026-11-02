@@ -122,7 +122,12 @@ struct Rc4Keys {
     int keyBytes = 16;
     QByteArray forBlock(quint32 block) const
     {
-        if (cryptoApi) return QCryptographicHash::hash(base + le32(block), QCryptographicHash::Sha1).left(keyBytes);
+        if (cryptoApi) {
+            // (a key shorter than 128 bits is made up to 16 bytes with zeros, as the provider does: a 40-bit key is five bytes and eleven zeros)
+            QByteArray key = QCryptographicHash::hash(base + le32(block), QCryptographicHash::Sha1).left(keyBytes);
+            key.append(QByteArray(std::max(0, 16 - int(key.size())), 0));
+            return key;
+        }
         return QCryptographicHash::hash(base + le32(block), QCryptographicHash::Md5);
     }
 };

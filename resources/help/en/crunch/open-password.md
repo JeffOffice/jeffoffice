@@ -1,7 +1,7 @@
 # Open password-protected workbooks
 <!-- keywords: password, protected, encrypted, encryption, open, locked, wrong password, cancel, xlsx, xls, ods, file protection, default password, private -->
 
-Some workbooks are protected with a password when they are saved: without it, no program can read what is in the file. This is different from **Protect Sheet** and **Protect Workbook** (see [Protect a sheet or the workbook](protect)), which only stop changes. A workbook that is protected with a password cannot be opened at all until the password is typed.
+Some workbooks are protected with a password when they are saved: without it, no program can read what is in the file. This is different from **Protect Sheet** and **Protect Workbook** (see [Protect a sheet or the workbook](protect)), which only stop changes. A workbook that is protected with a password cannot be opened at all until the password is typed. This page says how to open one, and how to make one.
 
 ## Open one
 
@@ -28,6 +28,10 @@ Some files are locked with a password that everyone knows, so that they can be o
 - **"This file is protected in a way this program can't open."** The file is locked by something other than a password (for example a key held by a certificate), or in a form JeffCrunch does not read.
 - **"The file is damaged, or it was changed after it was protected."** The password was right, but the file's contents are not what was locked: it was cut short, damaged, or changed by another program. Copy it again from the original.
 
-## Saving
+## Save with a password
 
-A workbook you opened this way is a new workbook as far as JeffCrunch is concerned: when you save it, the copy is **not** protected with a password, and the file you opened is never changed. To protect the copy again, use the program that made the original.
+Click **File**, then **Protect with Password** (or **Review > Protect with Password**), type the password twice, and click **Protect**. The workbook is written protected the next time you save it: anyone who opens the file must type the password. To change the password, choose the same command and type a new one; to take it off, click **Remove Password**, and save.
+
+A workbook you opened with a password keeps it while it is open, so **Save** writes the file protected again with the same password. JeffCrunch holds the password in memory only until you close the workbook, and then wipes it. The file you opened with the password is not left unprotected by accident: if you save a copy as an .xls or .ods file, which JeffCrunch can't protect, it tells you first that the copy will not be protected, and you can cancel.
+
+Use a long password, and keep it somewhere safe: nobody, including us, can open the file without it.
