@@ -1300,7 +1300,7 @@ void EditSession::noteResults(const std::vector<ValueStore::Item> &items)
     }
 }
 
-bool EditSession::takeSnapshot(Snapshot *out, QString *why)
+bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
 {
     auto refuse = [&](const QString &text) {
         if (why) *why = text;
@@ -1634,7 +1634,15 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         changes.sharedStringsBefore = book.sharedStringsInFile();
     }
     changes.replacedParts = book.changedTableParts();
-    for (auto &[part, bytes] : book.changedPivotParts()) changes.replacedParts[part] = std::move(bytes);
+    // (the pivot parts are made by the thread that writes the file: a cache with many records takes long to write; a copy in another form does not take them)
+    if (pivotParts) {
+        for (auto &[part, make] : book.changedPivotPartProducers()) changes.producedParts[part] = std::move(make);
+        // (the selection a sheet's view keeps for a table that changed is left out of the sheets that have one)
+        const jp::office::sheet::PivotBook &pb = book.pivots();
+        for (int t = 0; t < pb.tableCount(); ++t) {
+            if (pb.tableChanged(t)) changes.sheets[pb.sheetOfTable(t)].dropPivotSelection = true;
+        }
+    }
     for (const Workbook::TableAdd &a : book.addedTables()) changes.addedTables.push_back({a.sheet, a.part, a.xml});
     for (const Workbook::TableGone &g : book.removedTables()) changes.removedTables.push_back({g.sheet, g.part});
     changes.tableRewrites = m_tableRewrites;

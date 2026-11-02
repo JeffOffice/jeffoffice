@@ -43,16 +43,28 @@ QString esc(const QString &s)
 {
     QString out;
     out.reserve(s.size() + 8);
-    for (const QChar c : s) {
+    auto hex = [](ushort u) { return QStringLiteral("_x%1_").arg(u, 4, 16, QLatin1Char('0')).toUpper().replace(QLatin1String("_X"), QLatin1String("_x")); };
+    for (qsizetype i = 0; i < s.size(); ++i) {
+        const QChar c = s[i];
         const ushort u = c.unicode();
         if (u == '&') out += QLatin1String("&amp;");
         else if (u == '<') out += QLatin1String("&lt;");
         else if (u == '>') out += QLatin1String("&gt;");
         else if (u == '"') out += QLatin1String("&quot;");
-        else if (u < 0x20 && u != 9 && u != 10 && u != 13) out += QStringLiteral("_x%1_").arg(u, 4, 16, QLatin1Char('0')).toUpper().replace(QLatin1String("_X"), QLatin1String("_x"));
+        else if (u < 0x20 && u != 9 && u != 10 && u != 13) out += hex(u);
         else if (u == 10) out += QLatin1String("&#10;");
         else if (u == 13) out += QLatin1String("&#13;");
         else if (u == 9) out += QLatin1String("&#9;");
+        // (what XML 1.0 has no character for: U+FFFE, U+FFFF, and half of a pair of surrogates, written as the file's escape of a code unit)
+        else if (u == 0xFFFE || u == 0xFFFF) out += hex(u);
+        else if (c.isHighSurrogate()) {
+            if (i + 1 < s.size() && s[i + 1].isLowSurrogate()) {
+                out += c;
+                out += s[++i];
+            } else {
+                out += hex(u);
+            }
+        } else if (c.isLowSurrogate()) out += hex(u);
         else out += c;
     }
     return out;
@@ -169,6 +181,7 @@ QByteArray writePivotCacheDefinition(const QByteArray &original, const PivotCach
     QDomElement source = childNamed(root, QStringLiteral("cacheSource"));
     QDomElement ws = source.isNull() ? QDomElement() : childNamed(source, QStringLiteral("worksheetSource"));
     if (!ws.isNull()) {
+        ws.removeAttribute(QStringLiteral("r:id"));   // (a source that was in another workbook is now where the cache says)
         if (!cache.name.isEmpty()) {
             ws.setAttribute(QStringLiteral("name"), cache.name);
             ws.removeAttribute(QStringLiteral("ref"));

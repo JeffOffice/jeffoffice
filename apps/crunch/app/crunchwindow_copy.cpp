@@ -45,7 +45,7 @@ bool CrunchWindow::exportCopy(const QString &path)
     syncPanes();
     auto snapshot = std::make_shared<crunch::EditSession::Snapshot>();
     QString why;
-    if (!m_session->takeSnapshot(snapshot.get(), &why)) {
+    if (!m_session->takeSnapshot(snapshot.get(), &why, false)) {
         m_closeAfterSave = false;
         notice(tr("Save"), why);
         return false;

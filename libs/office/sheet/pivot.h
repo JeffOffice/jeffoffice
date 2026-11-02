@@ -30,12 +30,17 @@ constexpr qint64 kPivotMaxOutputCells = 4000000;
 constexpr qint64 kPivotMaxLeaves = 8000000;
 constexpr qint64 kPivotMaxItemsPerTable = 2000000;   // the items of all the fields of one table together
 constexpr int kPivotMaxDataFields = 1000;
+constexpr int kPivotMaxLevels = 64;                    // the fields on one axis
+constexpr qint64 kPivotMaxLevelCells = 40000000;       // the leaves of an axis times its levels
+constexpr qint64 kPivotMaxFanOut = 60000000;           // each group of records is put in the lines it is a part of, on both axes: the most of those it is put in
+constexpr int kPivotMaxSubtotalKinds = 12;             // the functions a field has for its subtotal lines, one line of each
 constexpr qint64 kPivotMaxRows = 1048576;            // lines of the rows' axis, and of the columns' (a sheet's rows and columns)
 constexpr qint64 kPivotMaxCols = 16384;
 // What a part of a pivot table or cache may be once inflated (a table's, a cache definition's, the records').
-constexpr qint64 kPivotMaxTablePartBytes = qint64(128) << 20;
-constexpr qint64 kPivotMaxDefinitionBytes = qint64(256) << 20;
-constexpr qint64 kPivotMaxRecordsBytes = qint64(2) << 30;
+// (the biggest of the practice workbooks' parts are a table of 0.9 MB, a definition of 0.12 MB, and records of 10 MB; the limits are about thirty times those)
+constexpr qint64 kPivotMaxTablePartBytes = qint64(32) << 20;
+constexpr qint64 kPivotMaxDefinitionBytes = qint64(64) << 20;
+constexpr qint64 kPivotMaxRecordsBytes = qint64(256) << 20;
 constexpr int kPivotMaxXmlDepth = 64;
 // For the tests: other limits for the parts a pivot book takes in (0 for the usual ones).
 void pivotSetPartLimitsForTest(qint64 table, qint64 definition, qint64 records);
@@ -57,11 +62,13 @@ struct PivotCacheField {
     bool hasShared = false;      // the file lists shared items (`items` begins with them)
     QVector<qint32> records;     // for each record, the place of its value in `items`
     QString sharedAttrs;         // the attributes of <sharedItems> (kept for writing: containsBlank and the like are made again when written)
+    mutable qint8 numericKnown = -1;   // pivotFieldIsNumeric's answer, once it is worked out (-1: not yet; the items of a cache that is read are not changed after)
 };
 
 struct PivotCache {
     QString sourceType = QStringLiteral("worksheet");
     QString sheet, ref, name;    // the source: a range on a sheet, or a table or a name
+    bool externalSource = false; // (from the head of the definition only) the source names a link to another workbook
     QVector<PivotCacheField> fields;
     qint64 recordCount = 0;
     bool saveData = true, refreshOnLoad = false;
@@ -201,6 +208,8 @@ void matchPivotItems(PivotTable *table, const PivotCache &previous, const PivotC
 void pivotNormalizeLayout(PivotTable *table);
 // Makes sure each field on an axis or a page has shared items in the cache and a list of items in the table (all the field's items, in order, and the subtotal line). True if the cache changed.
 bool pivotPrepareFields(PivotTable *table, PivotCache *cache);
+// Whether pivotPrepareFields would change the cache (a field on an axis or a page has no shared items yet): a copy of the cache is made only when it would.
+bool pivotNeedsSharedItems(const PivotTable &table, const PivotCache &cache);
 // Whether the field holds numbers only (blanks apart): a field that is checked in goes to the values if it does, else to the rows.
 bool pivotFieldIsNumeric(const PivotCache &cache, int field);
 // "Sum" for sum, "Count Numbers" for countNums, and so on; and the name a value gets, "Sum of Amount", made different from every field's and every value's name by spaces after it.

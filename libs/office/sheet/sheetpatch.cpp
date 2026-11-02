@@ -1048,6 +1048,7 @@ public:
         m_tabSelected = changes.tabSelected;
         m_viewKind = changes.viewKind;
         if (changes.setPane) m_pane = &changes.pane;
+        m_dropPivotSelection = changes.dropPivotSelection;
         m_hfSet = changes.hfSet;
         m_hfRel = changes.hfRel.toLatin1();
         m_legacyId = changes.legacyRelId.toLatin1();
@@ -1207,7 +1208,7 @@ private:
         if (m_tabSelected >= 0) before = tabSelectedFromChange(before, m_tabSelected != 0, m_prefix);
         if (m_viewKind >= 0) before = viewKindFromChange(before, m_viewKind, m_viewZoom, m_viewNormalZoom, m_prefix);
         if (m_pane) before = paneFromChange(before, *m_pane, m_prefix);
-        if (before.contains("pivotSelection")) before = withoutPivotSelections(before);
+        if (m_dropPivotSelection && before.contains("pivotSelection")) before = withoutPivotSelections(before);
         if (m_format) before = formatFromChange(before, *m_format, m_prefix, m_formatOutline);
         if (m_columns) before = columnsFromRuns(before, *m_columns, m_prefix);
         if (m_page) before = patchFitToPageHead(before, *m_page);
@@ -1633,6 +1634,7 @@ private:
     int m_tabSelected = -1;
     int m_viewKind = -1, m_viewZoom = 0, m_viewNormalZoom = 0;
     const SheetView *m_pane = nullptr;
+    bool m_dropPivotSelection = false;
     bool m_formatOutline = false;
     bool m_hfSet = false;
     QByteArray m_hfRel;

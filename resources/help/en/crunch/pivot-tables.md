@@ -31,7 +31,7 @@ The words used here:
 
 - **Field** is a column of the list. Region, Month, and Amount are the fields.
 - **Rows**, **Columns**, and **Values** are the three places a field can go. A field in Rows gives one line for each of its different entries; a field in Columns gives one column for each; a field in Values is the one that is added up. A fourth place, **Filters**, holds a field that leaves out the rows you do not choose.
-- A **cache** is the copy of the list that the pivot table keeps. The report is worked out from the cache, not from the cells, so it does not change when the cells change. **Refresh** copies the cells into the cache again.
+- A **cache** (the pivot cache) is a copy of your list that the pivot table keeps inside the file, so it can show totals without looking at the cells. The report is worked out from the cache, not from the cells, so it does not change when the cells change. **Refresh** copies the cells into the cache again.
 
 ## What JeffCrunch does with a pivot table
 
@@ -81,4 +81,4 @@ Move **Month** from **Columns** to **Filters**. The report loses its columns, an
 
 ## Limits
 
-A pivot table can have up to 2,000 fields, and a list of up to five million rows, and a report of up to four million cells. A file that goes past these is shown as saved and cannot be changed. A refresh of a hundred thousand rows with twenty columns takes under a second.
+A pivot table can have up to 2,000 fields, and a list of up to five million rows, and a report of up to four million cells. A file that goes past these is shown as saved and cannot be changed. Reading a hundred thousand rows of twenty columns again and working out the report took about half a second on the computer this was measured on; a slower computer takes longer.

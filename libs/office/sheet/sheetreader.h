@@ -365,6 +365,7 @@ public:
     PivotBook &pivots() const;
     // The parts of the pivot tables and caches that are not as the file has them, as they would be written, by the part's name.
     std::map<QString, QByteArray> changedPivotParts() const;
+    std::map<QString, std::function<QByteArray()>> changedPivotPartProducers() const;
     // Whether the tables allow the edit (not when it would cut through one, or remove one or its header row); if not, why.
     bool tablesAllow(const StructEdit &edit, QString *why) const;
     // Moves the tables for the edit (those it changes), and says where each was; putTablesBack puts them there again.

@@ -9,6 +9,7 @@
 #include "sheet/pivotbook.h"
 
 #include <QAction>
+#include <QGuiApplication>
 #include <QDockWidget>
 #include <QInputDialog>
 
@@ -158,7 +159,7 @@ void CrunchWindow::createPivotActions()
 
 void CrunchWindow::pivotRibbonParts(RibbonParts &)
 {
-    // (the PivotTable tab is made of commands alone; it has the Table tab's color)
+    // (the Pivot Table tab is made of commands alone; it has the Table tab's color)
 }
 
 void CrunchWindow::askValueField(int dataIndex)
@@ -254,9 +255,12 @@ void CrunchWindow::updatePivotTab()
         return;
     }
     const PivotTableEntry &entry = m_session->workbook()->pivots().table(t);
-    if (!entry.table || m_pivotShown == entry.table.get()) return;
-    m_pivotShown = entry.table.get();
+    if (!entry.table || m_pivotShown == entry.table) return;
+    m_pivotShown = entry.table;
     m_pivotShownIndex = t;
+    // (the first time a table of a big workbook is clicked its data is read: the wait is shown)
+    QGuiApplication::setOverrideCursor(Qt::WaitCursor);
+    const struct Restore { ~Restore() { QGuiApplication::restoreOverrideCursor(); } } restore;
     const PivotCache *cache = entry.cache >= 0 ? m_session->workbook()->pivots().cache(entry.cache).cache.get() : nullptr;
     if (!cache) {
         m_pivotPane->showNothing();

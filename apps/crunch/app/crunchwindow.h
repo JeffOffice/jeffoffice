@@ -696,7 +696,7 @@ private:
     void pivotProblem(const QString &title, const jp::crunch::EditSession::Outcome &o);
     PivotFieldsPane *m_pivotPane = nullptr;
     QDockWidget *m_pivotDock = nullptr;
-    const void *m_pivotShown = nullptr;                        // the table the pane shows (its address, to see when it changed)
+    std::shared_ptr<const jp::office::sheet::PivotTable> m_pivotShown;   // the table the pane shows (held, so that what is compared is never another one at a freed one's address)
     int m_pivotShownIndex = -1;
     std::function<bool(QString *)> m_pivotSourceAsker;         // test hook: the cells the data is in
     std::function<bool(QString *, QString *)> m_valueFieldAsker;   // test hook: the name and function of a value

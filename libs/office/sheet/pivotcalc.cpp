@@ -199,8 +199,17 @@ bool buildAxis(Axis *ax, const AxisOptions &o, QString *why)
             ++nReal;
         }
     const int D = std::max(1, o.dataCount);
+    // the work: the lines made, and the places leaves are put in them, are counted as they are made (a bound inside each step, not after the leaves)
+    bool tooMuch = false;
+    qint64 memberTotal = 0;
+    auto charge = [&](qint64 n) {
+        memberTotal += n;
+        if (memberTotal > kPivotMaxFanOut || ax->items.size() > 4000000) tooMuch = true;
+        return !tooMuch;
+    };
     auto add = [&](const PivotAxisItem &it) {
         ax->items.append(it);
+        if (ax->items.size() > 4000000) tooMuch = true;
         return int(ax->items.size()) - 1;
     };
     auto grandLines = [&]() {
@@ -212,6 +221,7 @@ bool buildAxis(Axis *ax, const AxisOptions &o, QString *why)
             it.x.append(0);
             it.i = ax->dSlot >= 0 ? d : 0;
             const int id = add(it);
+            if (!charge(n)) return;
             for (int k = 0; k < n; ++k)
                 if (ax->dSlot < 0 || ax->leaves[k][ax->dSlot] == d) ax->members[k].push_back(id);
         }
@@ -224,13 +234,14 @@ bool buildAxis(Axis *ax, const AxisOptions &o, QString *why)
     auto subtotal = [&](int level, int lo, int hi) {
         for (const QString &t : o.subtotals[level]) {
             const int copies = (ax->dSlot > level) ? D : 1;
-            for (int d = 0; d < copies; ++d) {
+            for (int d = 0; d < copies && !tooMuch; ++d) {
                 PivotAxisItem it;
                 it.t = t;
                 it.r = level;
                 it.x.append(ax->leaves[lo][level]);
                 it.i = ax->dSlot >= 0 && ax->dSlot < level ? ax->leaves[lo][ax->dSlot] : (ax->dSlot > level ? d : 0);
                 const int id = add(it);
+                if (!charge(hi - lo)) return;
                 for (int k = lo; k < hi; ++k)
                     if (ax->dSlot <= level || ax->leaves[k][ax->dSlot] == d) ax->members[k].push_back(id);
             }
@@ -240,13 +251,14 @@ bool buildAxis(Axis *ax, const AxisOptions &o, QString *why)
     auto header = [&](int level, int lo, int hi) {
         const bool carries = !o.bottom[level] && o.subtotals[level].contains(QStringLiteral("default"));
         const int copies = (ax->dSlot > level) ? D : 1;
-        for (int d = 0; d < copies; ++d) {
+        for (int d = 0; d < copies && !tooMuch; ++d) {
             PivotAxisItem it;
             it.r = level;
             it.x.append(ax->leaves[lo][level]);
             it.i = ax->dSlot >= 0 && ax->dSlot < level ? ax->leaves[lo][ax->dSlot] : (ax->dSlot > level ? d : 0);
             it.labelOnly = !carries;
             const int id = add(it);
+            if (carries && !charge(hi - lo)) return;
             if (carries)
                 for (int k = lo; k < hi; ++k)
                     if (ax->dSlot <= level || ax->leaves[k][ax->dSlot] == d) ax->members[k].push_back(id);
@@ -267,7 +279,7 @@ bool buildAxis(Axis *ax, const AxisOptions &o, QString *why)
     int prevDepth = 0;
     auto closeGroups = [&](int from, int downTo, int hi) {
         // the groups of levels from..downTo end at hi
-        for (int l = from; l >= downTo; --l) {
+        for (int l = from; l >= downTo && !tooMuch; --l) {
             if (l < 0 || l >= nL - 1) continue;
             if (l < lastReal && ax->fields[l] != -2 && !o.subtotals[l].isEmpty() && o.bottom[l]) {
                 subtotal(l, groupStart[l], hi);
@@ -306,14 +318,22 @@ bool buildAxis(Axis *ax, const AxisOptions &o, QString *why)
         ax->members[k].push_back(id);
         prevPath.assign(cur.begin(), cur.begin() + dp);
         prevDepth = dp;
-        if (ax->items.size() > 4000000) {
+        if (tooMuch) {
             if (why) *why = QStringLiteral("too many lines");
             return false;
         }
     }
+    if (tooMuch) {
+        if (why) *why = QStringLiteral("too many lines");
+        return false;
+    }
     if (prevDepth > 0 && prevDepth - 1 < lastReal && o.blankRow[prevDepth - 1] && ax->fields[prevDepth - 1] != -2) blank(prevDepth - 1, n - 1);
     closeGroups(prevDepth - 2, 0, n);
     grandLines();
+    if (tooMuch) {
+        if (why) *why = QStringLiteral("too many lines");
+        return false;
+    }
     return true;
 }
 
@@ -349,6 +369,7 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             }
         }
     }
+    if (t.rowFields.size() > kPivotMaxLevels || t.colFields.size() > kPivotMaxLevels) return fail(QStringLiteral("more fields on an axis than this works out"));
     if (D > 1 && dataSlotRow < 0 && dataSlotCol < 0) return fail(QStringLiteral("several values and no place for them"));
     for (const PivotPageField &p : t.pageFields)
         if (p.fld < 0 || p.fld >= nf) return fail(QStringLiteral("a filter names a field that is not in the cache"));
@@ -493,6 +514,7 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             if (ci.second) colTuples.push_back(ct);
             // (more lines than a sheet has rows, or columns than it has, are refused before the lines are made)
             if (rowTuples.size() > size_t(kPivotMaxRows) || colTuples.size() > size_t(kPivotMaxCols)) return fail(QStringLiteral("the table would have too many lines"));
+            if (qint64(rowTuples.size()) * (rt.size() + 1) > kPivotMaxLevelCells || qint64(colTuples.size()) * (ct.size() + 1) > kPivotMaxLevelCells) return fail(QStringLiteral("the table would have too many lines"));
             entries.push_back({ri.first->second, ci.first->second, qint32(r), qint32(d)});
             if (D > 0) {
                 const PivotValue &val = c.fields[t.dataFields[d].fld].items[c.fields[t.dataFields[d].fld].records[r]];
@@ -587,7 +609,11 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
                 bottom = form == 0 || !pf.subtotalTop;
                 blankRow = pf.insertBlankRow;
             }
-            o.subtotals.push_back(subs);
+            // (one line of each function, and no more than there are functions: a part that lists a million of them gets the first ones)
+            QStringList kinds;
+            for (const QString &k : subs)
+                if (!kinds.contains(k) && kinds.size() < kPivotMaxSubtotalKinds) kinds << k;
+            o.subtotals.push_back(kinds);
             o.bottom.push_back(bottom);
             o.blankRow.push_back(blankRow);
         }
@@ -625,6 +651,12 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             leaves[at].acc.add(val);
         }
         std::sort(leaves.begin(), leaves.end(), [](const Leaf &a, const Leaf &b) { return std::tie(a.row, a.col, a.value) < std::tie(b.row, b.col, b.value); });
+        // (each group goes to the lines it is a part of on both axes: the work is the groups times the lines of each, which is bounded before it is done)
+        qint64 fan = 0;
+        for (const Leaf &l : leaves) {
+            fan += qint64(rowAx.members[l.row].size()) * qint64(colAx.members[l.col].size());
+            if (fan > kPivotMaxFanOut) return fail(QStringLiteral("the table would take too much work to total"));
+        }
         for (const Leaf &l : leaves)
             for (int ri : rowAx.members[l.row])
                 for (int ci : colAx.members[l.col]) {

@@ -8,6 +8,7 @@
 #include "sheet/pivot.h"
 #include "sheet/refshift.h"
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <vector>
@@ -24,6 +25,7 @@ struct PivotCacheEntry {
     QString fileSheetName;                         // the sheet the file names as the source's
     QString sourceName;                            // a defined name or a table the source is
     bool unreadable = false;                       // too big, or nested too deep, to be worked with (the part is kept as it is)
+    bool external = false;                         // the data is in another workbook (the source names a link): it is not worked from, moved, or read again here
 };
 
 struct PivotTableEntry {
@@ -34,6 +36,7 @@ struct PivotTableEntry {
     bool structureChanged = false;                 // the fields were moved: the formats the file has for the old layout are left out of the part
     QString why;                                   // when the table can't be read
     CellRange fallback;                            // where the cells are, read apart, for a table that can't be read whole
+    bool loaded = false;                           // the part was read (it is when it is first asked for)
 };
 
 class PivotBook {
@@ -42,7 +45,8 @@ public:
     PivotBook(const Package *package, const QVector<QString> &sheetParts, const QStringList &sheetNames, jp::calc::DateSystem dates);
 
     int tableCount() const { return int(m_tables.size()); }
-    const PivotTableEntry &table(int i) const { return m_tables[size_t(i)]; }
+    // (a table is read when it is first asked for; where it is, and which cache it is made from, are known from the start)
+    const PivotTableEntry &table(int i) const;
     int cacheCount() const { return int(m_caches.size()); }
     // The cache, read now if it was not (null, with `why`, when it can't be).
     const PivotCacheEntry &cache(int i) const;
@@ -52,7 +56,10 @@ public:
     std::vector<int> tablesOfCache(int cache) const;
     // The cells the table covers (not valid when it can't be read: then it is taken to be the whole sheet by whoever asks).
     CellRange locationOf(int i) const;
-    bool unreadable(int i) const { return !m_tables[size_t(i)].table; }
+    bool unreadable(int i) const;
+    // The table was changed (and so was read), and the sheet it is on.
+    bool tableChanged(int i) const { return m_tables[size_t(i)].table != m_tables[size_t(i)].fileTable; }
+    int sheetOfTable(int i) const { return m_tables[size_t(i)].sheet; }
 
     // ---- changes (the window's thread). The same call puts a state back for Undo.
     void setTable(int i, std::shared_ptr<const PivotTable> table, bool structureChanged);
@@ -67,14 +74,18 @@ public:
 
     // The parts that are not as the file has them, as they will be written (by the part's name). `sheetNames` are the names of the sheets now.
     std::map<QString, QByteArray> changedParts(const QStringList &sheetNames) const;
+    // The same parts, to be made later by the thread that writes the file: what is needed is taken now (the files' own small parts, the table and cache as they are), and the work, which for
+    // a cache with many records is long, is done by the caller of each function.
+    std::map<QString, std::function<QByteArray()>> changedPartProducers(const QStringList &sheetNames) const;
     bool changed() const;
 
 private:
     void load(int i) const;
+    void loadTable(int i) const;
     const Package *m_package;
     QStringList m_names;
     jp::calc::DateSystem m_dates;
-    std::vector<PivotTableEntry> m_tables;
+    mutable std::vector<PivotTableEntry> m_tables;
     mutable std::vector<PivotCacheEntry> m_caches;
 };
 

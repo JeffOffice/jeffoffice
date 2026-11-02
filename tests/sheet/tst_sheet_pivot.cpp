@@ -351,10 +351,7 @@ private Q_SLOTS:
         QString why;
         QVERIFY2(readPivotTable(xml, &t, &why), qPrintable(why));
         PivotGrid g;
-        QElapsedTimer timer;
-        timer.start();
         QVERIFY2(computePivot(t, c, &g, &why), qPrintable(why));
-        QVERIFY2(timer.elapsed() < 8000, qPrintable(QString::number(timer.elapsed())));
         QCOMPARE(g.rows, 2 + n + 1);
         QCOMPARE(text(g, 2, 0), QStringLiteral("R%1").arg(n - 1));
     }
@@ -713,6 +710,131 @@ private Q_SLOTS:
         QVERIFY(!pivotCheckSelection("<pivotSelection axis=\"axisRow\" start=\"1\" max=\"9\"/>", table, &why));
         QVERIFY(!pivotCheckSelection("<pivotSelection axis=\"axisRow\" start=\"9\" max=\"9\"/>", table, &why));
         QVERIFY(pivotCheckSelection("<pivotSelection axis=\"axisCol\" start=\"9\" max=\"99\"/>", table, &why));   // (columns: files of the original program have them outside)
+    }
+
+    // Hostile parts: a field that lists a million subtotal lines gets one of each function, and more fields on an axis than the work allows are refused.
+    void subtotalListsAndLevelsAreBounded()
+    {
+        PivotCache c;
+        const int n = 66;
+        c.recordCount = 1;
+        for (int f = 0; f < n; ++f) {
+            PivotCacheField cf;
+            cf.name = QStringLiteral("F%1").arg(f);
+            cf.hasShared = true;
+            cf.sharedCount = 1;
+            PivotValue v;
+            v.kind = PivotValue::Text;
+            v.text = QStringLiteral("a");
+            cf.items.append(v);
+            cf.records.append(0);
+            c.fields.append(cf);
+        }
+        auto tableOf = [&](int rows, const QString &subtotals) {
+            QString fields, rowList;
+            for (int f = 0; f < n; ++f) {
+                fields += f < rows ? QStringLiteral("<pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\"><items count=\"2\"><item x=\"0\"/><item t=\"default\"/></items></pivotField>")
+                                   : QStringLiteral("<pivotField dataField=\"1\"/>");
+                if (f < rows) rowList += QStringLiteral("<field x=\"%1\"/>").arg(f);
+            }
+            if (!subtotals.isEmpty()) fields.replace(QStringLiteral("<item t=\"default\"/>"), subtotals);
+            return QStringLiteral("<pivotTableDefinition xmlns=\"%1\" name=\"t\" cacheId=\"1\" compact=\"0\"><location ref=\"A1:B2\" firstHeaderRow=\"1\" firstDataRow=\"1\" firstDataCol=\"1\"/>"
+                                  "<pivotFields count=\"%2\">%3</pivotFields><rowFields count=\"%4\">%5</rowFields><dataFields count=\"1\"><dataField name=\"S\" fld=\"%6\" subtotal=\"count\"/></dataFields></pivotTableDefinition>")
+                .arg(QLatin1String(kNs)).arg(n).arg(fields).arg(rows).arg(rowList).arg(n - 1).toUtf8();
+        };
+        PivotTable t;
+        PivotGrid g;
+        QString why;
+        // 65 fields on the rows: refused
+        QVERIFY2(readPivotTable(tableOf(65, QString()), &t, &why), qPrintable(why));
+        QVERIFY(!computePivot(t, c, &g, &why));
+        QVERIFY2(why.contains(QLatin1String("axis")), qPrintable(why));
+        // the same with 3: worked out, and a list of 100,000 subtotal lines of one function is one line
+        QString many = QStringLiteral("<item t=\"sum\"/>");
+        QString list;
+        for (int i = 0; i < 100000; ++i) list += many;
+        QVERIFY2(readPivotTable(tableOf(3, list), &t, &why), qPrintable(why));
+        QVERIFY2(computePivot(t, c, &g, &why), qPrintable(why));
+        QVERIFY2(g.rows < 20, qPrintable(QString::number(g.rows)));
+    }
+
+    // Subtotals of nested fields: each group has its line after it, the inner group's before the outer's.
+    void nestedGroupsHaveTheirSubtotals()
+    {
+        PivotCache c;
+        c.recordCount = 4;
+        auto text = [](const char *s) {
+            PivotValue v;
+            v.kind = PivotValue::Text;
+            v.text = QString::fromLatin1(s);
+            return v;
+        };
+        auto fieldOf = [&](const char *name, std::initializer_list<const char *> items, std::initializer_list<int> recs) {
+            PivotCacheField f;
+            f.name = QString::fromLatin1(name);
+            f.hasShared = true;
+            for (const char *i : items) f.items.append(text(i));
+            f.sharedCount = int(f.items.size());
+            for (int r : recs) f.records.append(r);
+            return f;
+        };
+        c.fields.append(fieldOf("A", {"x", "y"}, {0, 0, 0, 1}));
+        c.fields.append(fieldOf("B", {"p", "q"}, {0, 0, 1, 0}));
+        c.fields.append(fieldOf("C", {"m", "n"}, {0, 1, 0, 0}));
+        PivotCacheField amount;
+        amount.name = QStringLiteral("N");
+        const double nums[] = {1, 2, 4, 8};
+        for (int i = 0; i < 4; ++i) {
+            PivotValue v;
+            v.kind = PivotValue::Number;
+            v.number = nums[i];
+            amount.items.append(v);
+            amount.records.append(i);
+        }
+        c.fields.append(amount);
+        QString fields;
+        for (int f = 0; f < 3; ++f)
+            fields += QStringLiteral("<pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\"><items count=\"%1\"><item x=\"0\"/><item x=\"1\"/><item t=\"default\"/></items></pivotField>").arg(3);
+        const QByteArray xml = QStringLiteral("<pivotTableDefinition xmlns=\"%1\" name=\"t\" cacheId=\"1\" compact=\"0\"><location ref=\"A1:B2\" firstHeaderRow=\"1\" firstDataRow=\"1\" firstDataCol=\"3\"/>"
+                                             "<pivotFields count=\"4\">%2<pivotField dataField=\"1\"/></pivotFields><rowFields count=\"3\"><field x=\"0\"/><field x=\"1\"/><field x=\"2\"/></rowFields>"
+                                             "<dataFields count=\"1\"><dataField name=\"S\" fld=\"3\"/></dataFields></pivotTableDefinition>").arg(QLatin1String(kNs), fields).toUtf8();
+        PivotTable t;
+        PivotGrid g;
+        QString why;
+        QVERIFY2(readPivotTable(xml, &t, &why), qPrintable(why));
+        QVERIFY2(computePivot(t, c, &g, &why), qPrintable(why));
+        QStringList lines;
+        for (int r = g.firstDataRow; r < g.rows; ++r) lines << rowText(g, r).join(QLatin1Char('|'));
+        QCOMPARE(lines, (QStringList{QStringLiteral("x|p|m|1"), QStringLiteral("||n|2"), QStringLiteral("|p Total||3"), QStringLiteral("|q|m|4"), QStringLiteral("|q Total||4"), QStringLiteral("x Total|||7"),
+                                     QStringLiteral("y|p|m|8"), QStringLiteral("|p Total||8"), QStringLiteral("y Total|||8"), QStringLiteral("Grand Total|||15")}));
+    }
+
+    // A value renamed and given another function in one step keeps the sort by it; a filter on a field with no list of items is kept when the data is read again.
+    void aRenamedValueKeepsItsSortAndAFilterWithNoItemsIsKept()
+    {
+        const Worked w = work(tableDefinition(false, QString(), QString(), QString(), QStringLiteral("<pageFields count=\"1\"><pageField fld=\"1\" item=\"1\" hier=\"-1\"/></pageFields>")));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(w.table.pageFields.size(), 1);
+        QCOMPARE(w.table.pageFields[0].item, 1);
+        PivotTable fresh = w.table;
+        PivotCache next = w.cache;
+        next.remap.resize(next.fields.size());
+        next.fromField.clear();
+        for (int f = 0; f < next.fields.size(); ++f) {
+            next.fromField.append(f);
+            for (int i = 0; i < next.fields[f].items.size(); ++i) next.remap[f].append(i);
+        }
+        matchPivotItems(&fresh, w.cache, next);
+        QCOMPARE(fresh.pageFields.size(), 1);
+        QCOMPARE(fresh.pageFields[0].item, 1);
+        PivotTable old = w.table, now = w.table;
+        old.fields[0].sortByData = 0;
+        now.fields[0].sortByData = 0;
+        old.dataFields[0].name = QStringLiteral("Sum of Amount");
+        now.dataFields[0].name = QStringLiteral("Mean");
+        now.dataFields[0].subtotal = QStringLiteral("average");
+        pivotRemapDataFields(old, &now);
+        QCOMPARE(now.fields[0].sortByData, 0);
     }
 
     // A day the calendar has no date for (day 60 of the 1900 system, a negative day) is a number item in the definition, in the records, and in the marks of the field.

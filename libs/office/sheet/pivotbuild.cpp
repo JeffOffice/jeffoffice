@@ -277,20 +277,24 @@ void matchPivotItems(PivotTable *t, const PivotCache &prev, const PivotCache &fr
         n.fld = newOfOld[pg.fld];
         if (pg.item >= 0) {
             int oldX = -1, pos = 0;
-            for (const PivotTableItem &it : old.fields[pg.fld].items) {
-                if (!it.t.isEmpty()) continue;
-                if (pos++ == pg.item) oldX = it.x;
-            }
+            if (!old.fields[pg.fld].hasItems) oldX = pg.item;   // (a field with no list of items: the place is the shared item's)
+            else
+                for (const PivotTableItem &it : old.fields[pg.fld].items) {
+                    if (!it.t.isEmpty()) continue;
+                    if (pos++ == pg.item) oldX = it.x;
+                }
             const int p = pg.fld;
             const QVector<qint32> &map = p < fresh.remap.size() ? fresh.remap[p] : QVector<qint32>();
             const int newX = oldX >= 0 && oldX < map.size() ? map[oldX] : -1;
             n.item = -1;
             pos = 0;
-            for (const PivotTableItem &it : t->fields[n.fld].items) {
-                if (!it.t.isEmpty()) continue;
-                if (it.x == newX && newX >= 0) n.item = pos;
-                ++pos;
-            }
+            if (!t->fields[n.fld].hasItems) n.item = newX >= 0 ? newX : -1;
+            else
+                for (const PivotTableItem &it : t->fields[n.fld].items) {
+                    if (!it.t.isEmpty()) continue;
+                    if (it.x == newX && newX >= 0) n.item = pos;
+                    ++pos;
+                }
         }
         t->pageFields.append(n);
     }
@@ -303,12 +307,14 @@ void pivotRemapDataFields(const PivotTable &old, PivotTable *now)
 {
     QVector<int> map(old.dataFields.size(), -1);
     QVector<bool> taken(now->dataFields.size(), false);
-    for (int pass = 0; pass < 2; ++pass)
+    for (int pass = 0; pass < 3; ++pass)
         for (int i = 0; i < old.dataFields.size(); ++i) {
             if (map[i] >= 0) continue;
             for (int k = 0; k < now->dataFields.size(); ++k) {
                 if (taken[k]) continue;
-                const bool same = pass == 0 ? now->dataFields[k].name == old.dataFields[i].name : (now->dataFields[k].fld == old.dataFields[i].fld && now->dataFields[k].subtotal == old.dataFields[i].subtotal);
+                // (by name; else by field and function; else, when a value was renamed and its function changed in one step, by the field alone)
+                const bool same = pass == 0 ? now->dataFields[k].name == old.dataFields[i].name
+                                            : (pass == 1 ? (now->dataFields[k].fld == old.dataFields[i].fld && now->dataFields[k].subtotal == old.dataFields[i].subtotal) : now->dataFields[k].fld == old.dataFields[i].fld);
                 if (!same) continue;
                 map[i] = k;
                 taken[k] = true;
@@ -359,13 +365,19 @@ void pivotNormalizeLayout(PivotTable *t)
 bool pivotFieldIsNumeric(const PivotCache &c, int f)
 {
     if (f < 0 || f >= c.fields.size()) return false;
-    bool any = false;
-    for (const PivotValue &v : c.fields[f].items) {
+    const PivotCacheField &cf = c.fields[f];
+    if (cf.numericKnown >= 0) return cf.numericKnown != 0;
+    bool any = false, numeric = true;
+    for (const PivotValue &v : cf.items) {
         if (v.kind == PivotValue::Missing) continue;
-        if (v.kind != PivotValue::Number) return false;
+        if (v.kind != PivotValue::Number) {
+            numeric = false;
+            break;
+        }
         any = true;
     }
-    return any;
+    cf.numericKnown = (numeric && any) ? 1 : 0;
+    return numeric && any;
 }
 
 bool pivotPrepareFields(PivotTable *t, PivotCache *c)
@@ -400,6 +412,7 @@ bool pivotPrepareFields(PivotTable *t, PivotCache *c)
             }
             cf.hasShared = true;
             cf.sharedCount = int(cf.items.size());
+            cf.numericKnown = -1;
             changed = true;
         }
         PivotField &pf = t->fields[f];
@@ -424,6 +437,18 @@ bool pivotPrepareFields(PivotTable *t, PivotCache *c)
     for (int f : t->colFields) prepare(f);
     for (const PivotPageField &p : t->pageFields) prepare(p.fld);
     return changed;
+}
+
+bool pivotNeedsSharedItems(const PivotTable &t, const PivotCache &c)
+{
+    auto needs = [&](int f) { return f >= 0 && f < c.fields.size() && f < t.fields.size() && !c.fields[f].hasShared; };
+    for (int f : t.rowFields)
+        if (needs(f)) return true;
+    for (int f : t.colFields)
+        if (needs(f)) return true;
+    for (const PivotPageField &p : t.pageFields)
+        if (needs(p.fld)) return true;
+    return false;
 }
 
 QString pivotFunctionName(const QString &fn)

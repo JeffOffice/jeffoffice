@@ -245,6 +245,7 @@ bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp:
                 out->ref = a.value(QLatin1String("ref")).toString();
                 out->sheet = a.value(QLatin1String("sheet")).toString();
                 out->name = a.value(QLatin1String("name")).toString();
+                out->externalSource = !a.value(QLatin1String("http://schemas.openxmlformats.org/officeDocument/2006/relationships"), QLatin1String("id")).isEmpty();
             } else if (n == QLatin1String("cacheField") && depth == 3) {
                 if (out->fields.size() >= kPivotMaxFields) return fail(QStringLiteral("too many fields"));
                 out->fields.append(PivotCacheField());
@@ -630,6 +631,7 @@ bool readPivotCacheSource(const QByteArray &definition, PivotCache *out)
                 out->ref = a.value(QLatin1String("ref")).toString();
                 out->sheet = a.value(QLatin1String("sheet")).toString();
                 out->name = a.value(QLatin1String("name")).toString();
+                out->externalSource = !a.value(QLatin1String("http://schemas.openxmlformats.org/officeDocument/2006/relationships"), QLatin1String("id")).isEmpty();
                 return true;
             } else if (n == QLatin1String("cacheFields")) {
                 return true;

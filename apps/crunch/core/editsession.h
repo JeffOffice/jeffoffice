@@ -795,7 +795,8 @@ public:
         std::map<quint64, jp::calc::Value> touchedResults;
         std::map<int, QString> headerDrawings;                 // set by the save: the drawing of header and footer pictures each sheet names now (see SaveReport)
     };
-    bool takeSnapshot(Snapshot *out, QString *why);
+    // `pivotParts` false: the pivot tables' changed parts are not made (a copy as .xls or .ods does not keep the tables, only what they show in the cells)
+    bool takeSnapshot(Snapshot *out, QString *why, bool pivotParts = true);
     // The file was written from this snapshot: it is the base now. `package` is the new file's.
     void saved(const Snapshot &snapshot, const jp::office::Package &package);
 

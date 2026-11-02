@@ -106,6 +106,9 @@ struct SheetChanges {
     // the file's; `frozenRows` and `frozenCols` count the rows and columns held, `topRow` and `leftCol` are where they begin, `paneRow` and `paneCol` where the part that scrolls does.
     bool setPane = false;
     SheetView pane;
+    // A pivot table on the sheet was changed: the selection the view keeps for a table (`pivotSelection`) names lines the table had, and is taken out (the sheet's other changes are written when it is
+    // written at all; this alone does not make the sheet be).
+    bool dropPivotSelection = false;
     // The relationship the sheet's `legacyDrawingHF` is to name (empty: the element is taken out), when the pictures of its headers and footers are not as the file has them (saving sets
     // this from the page setup's pictures; whoever asks for a save does not).
     bool hfSet = false;

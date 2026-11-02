@@ -632,6 +632,48 @@ private Q_SLOTS:
         QVERIFY(!after.value(kSheetPart).contains("pivotSelection"));
     }
 
+    // A cache whose data is in another workbook (its source names a link) is not read again from this one, is not moved when rows are put in, and is saved as the file has it.
+    void aSourceInAnotherWorkbookIsLeftAlone()
+    {
+        PivotBookOptions o;
+        o.otherSheet = true;
+        o.tweak = [](Parts &p) {
+            p[QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml")].replace("<worksheetSource ref=\"A1:C7\" sheet=\"Sheet1\"/>", "<worksheetSource ref=\"A1:C7\" sheet=\"Sheet1\" r:id=\"rId9\"/>");
+        };
+        const QByteArray book = pivotWorkbook(o);
+        EditWindow e;
+        QVERIFY(e.open(book));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->workbook()->pivots().cache(0).external);
+        const auto refreshed = s->refreshPivot(0);
+        QVERIFY(!refreshed.ok);
+        QVERIFY2(refreshed.problem.contains(QLatin1String("another workbook")), qPrintable(refreshed.problem));
+        QVERIFY(s->insertRows(0, 1, 1).ok);   // a row inside what would be the data
+        finish(e);
+        QVERIFY2(!s->workbook()->pivots().cache(0).source.valid, qPrintable(QString::number(s->workbook()->pivots().cache(0).source.row2)));
+        QVERIFY(saveNow(e));
+        Parts original;
+        readZip(book, original);
+        const Parts after = readParts(e.path);
+        QVERIFY2(after.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml")) == original.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml")), after.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml")).constData());
+    }
+
+    // The selection a sheet's view keeps for a table is left as it is in a sheet that is written for something else (a table that was not changed has no reason to lose it).
+    void anUntouchedTablesSelectionSurvivesASaveOfOtherCells()
+    {
+        PivotBookOptions o;
+        o.tweak = [](Parts &p) {
+            p[kSheetPart].replace("<sheetData>", "<sheetViews><sheetView workbookViewId=\"0\"><pivotSelection pane=\"bottomRight\" axis=\"axisRow\" start=\"2\" max=\"3\" r:id=\"rIdPv1\"><pivotArea dataOnly=\"0\" outline=\"0\" fieldPosition=\"0\"/></pivotSelection></sheetView></sheetViews><sheetData>");
+        };
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(o)));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, 20, 25, QStringLiteral("5")).ok);
+        finish(e);
+        QVERIFY(saveNow(e));
+        QVERIFY(readParts(e.path).value(kSheetPart).contains("pivotSelection"));
+    }
+
     // ---- the review
 
     // A table that can't be read whole still says where its cells are, so that an edit that would cut through it is refused (it does not shut the whole sheet).
@@ -692,15 +734,18 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(pivotWorkbook(o)));
         crunch::EditSession *s = e.win.w.session();
+        // (the date is the moment of the save, in this workbook's count of days: between the moment before and the moment after, to the second)
+        const double before = double(QDateTime::currentDateTimeUtc().toSecsSinceEpoch()) / 86400.0 + 24107.0;
         QVERIFY(s->refreshPivot(0).ok);
         finish(e);
         QVERIFY(saveNow(e));
+        const double after = double(QDateTime::currentDateTimeUtc().toSecsSinceEpoch()) / 86400.0 + 24107.0;
         const QString def = QString::fromUtf8(readParts(e.path).value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml")));
         const QRegularExpression re(QStringLiteral("refreshedDate=\"([0-9.]+)\""));
         const auto m = re.match(def);
         QVERIFY2(m.hasMatch(), qPrintable(def));
-        const double expected = double(QDateTime::currentDateTimeUtc().toSecsSinceEpoch()) / 86400.0 + 24107.0;
-        QVERIFY2(std::abs(m.captured(1).toDouble() - expected) < 2, qPrintable(m.captured(1)));
+        const double written = m.captured(1).toDouble();
+        QVERIFY2(written >= before - 1e-9 && written <= after + 1e-9, qPrintable(m.captured(1)));
     }
 
     // Rows put in above the data move the range the cache is made from: it is saved so (only that, the rest of the part is the file's), and a refresh of the file saved reads the right cells.

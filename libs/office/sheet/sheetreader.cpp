@@ -2633,6 +2633,14 @@ std::map<QString, QByteArray> Workbook::changedPivotParts() const
     return m_pivotBook->changedParts(names);
 }
 
+std::map<QString, std::function<QByteArray()>> Workbook::changedPivotPartProducers() const
+{
+    if (!m_pivotBook) return {};
+    QStringList names;
+    for (const SheetEntry &e : m_info.sheets) names.append(e.deleted ? QString() : e.name);
+    return m_pivotBook->changedPartProducers(names);
+}
+
 int Workbook::tableHeaderAt(int sheet, quint32 row, quint32 col, int *column) const
 {
     const QVector<Table> &all = tables();

@@ -117,6 +117,11 @@ bool EditSession::pivotSourceRange(int cache, int *sheet, CellRange *range, QStr
         c.source = over->range;
         c.sourceSheet = over->sheet;
         c.sourceName = over->name;
+        c.external = false;
+    }
+    if (c.external) {
+        if (why) *why = tr("The data of this pivot table is in another workbook, which JeffCrunch does not open, so it can't be read again here. The table keeps the values the file has. To read it from this workbook, use Change Data Source.");
+        return false;
     }
     const auto &sheets = m_book->book->info().sheets;
     auto usableSheet = [&](int s) { return s >= 0 && s < sheets.size() && !sheets[s].deleted && sheets[s].kind == SheetKind::Worksheet; };
@@ -205,7 +210,9 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
         // (the format a number shows in is the one of the cell above that shows that very number; looked for once for each number in a column, and no farther than 512 lines up: past that, or with no
         // such cell, it is the field's own)
         auto formats = std::make_shared<std::map<std::pair<int, double>, int>>();
-        options.format = [&, formats](double v, int id, int gridRow, int gridCol) {
+        // (and the looking is bounded as a whole, so that many different numbers over many lines don't each look a long way up: past the budget a number has the field's own format)
+        auto budget = std::make_shared<int>(20000);
+        options.format = [&, formats, budget](double v, int id, int gridRow, int gridCol) {
             const auto key = std::make_pair(gridCol, v);
             auto known = formats->find(key);
             int use = id;
@@ -214,7 +221,8 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
             } else {
                 int found = id;
                 const qint64 top = std::max<qint64>(qint64(oldLoc.row1), qint64(oldLoc.row1) + gridRow - 512);
-                for (qint64 r = qint64(oldLoc.row1) + gridRow; r >= top; --r) {
+                for (qint64 r = qint64(oldLoc.row1) + gridRow; r >= top && *budget > 0; --r) {
+                    --*budget;
                     const Calculation::CellContent c = m_book->calc->content(sheet, quint32(r), oldLoc.col1 + quint32(gridCol));
                     if (c.exists && !c.isFormula && c.value.isNumber() && c.value.number() == v) {
                         found = book.styles().numFmtId(c.style);
@@ -617,7 +625,8 @@ EditSession::Outcome EditSession::changePivotSource(int table, const QString &wh
         refPart = text.mid(bang + 1);
     }
     refPart.remove(QLatin1Char('$'));
-    if (!parseRangeRef(refPart, &range) || range.row1 == range.row2) {
+    if (parseRangeRef(refPart, &range) && range.row1 == range.row2) return refuse(tr("The data needs a row of names and at least one row of data under it. Type more than one row, for example Sheet1!A1:D100."));
+    if (!parseRangeRef(refPart, &range)) {
         // a table's name, or a name
         bool found = false;
         for (const Table &t : m_book->book->tables())
@@ -661,8 +670,15 @@ EditSession::Outcome EditSession::setPivot(int table, const PivotTable &changed,
     // a field put on an axis or a page needs its items shared in the cache and listed in the table
     const int ci = pb.table(table).cache;
     const PivotCacheEntry &ce = pb.cache(ci);
-    auto cache = std::make_shared<PivotCache>(*ce.cache);
-    if (pivotPrepareFields(ch.now.get(), cache.get())) {
+    std::shared_ptr<PivotCache> cache;
+    if (pivotNeedsSharedItems(*ch.now, *ce.cache)) cache = std::make_shared<PivotCache>(*ce.cache);   // (the records are copied only when a field gets its shared items)
+    else {
+        // (the table still gets its lists of items, which need no copy of the records)
+        PivotCache none;
+        none.fields = ce.cache->fields;
+        pivotPrepareFields(ch.now.get(), &none);
+    }
+    if (cache && pivotPrepareFields(ch.now.get(), cache.get())) {
         ch.cache = ci;
         ch.cacheNow = cache;
         ch.source = ce.source;
