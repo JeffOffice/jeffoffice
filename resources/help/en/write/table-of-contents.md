@@ -21,6 +21,10 @@ Click inside the table and press **F9**, or click **References > Update Table**.
 
 Updating is one step that **Undo** takes back.
 
+## A very long table
+
+A table holds up to 20,000 lines. If your document has more headings than that, the table stops there, and JeffWrite tells you so when it makes or updates the table.
+
 ## Remove the table
 
 Click inside the table and click **References > Remove Table of Contents**.

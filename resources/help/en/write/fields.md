@@ -20,6 +20,10 @@ Updating is one step: **Undo** puts every result back. Updating is not a tracked
 
 A field in a header or footer that shows the page number, the page count, or a heading is always right, and needs no update.
 
+## Show the codes
+
+Press **Shift+F9** to show the code of the field the caret is in, in braces such as `{ PAGE }`, in place of its result. Press **Alt+F9** to show the codes of every field, and press it again to show the results. This only changes what you see: the file is saved as it was, and the document is not marked as changed.
+
 ## Unlink or lock a field
 
 - **Ctrl+Shift+F9** turns the field into plain text. The result stays, and it is no longer a field.

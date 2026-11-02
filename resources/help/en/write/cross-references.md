@@ -19,7 +19,7 @@ Hold **Ctrl** and click a reference that is a hyperlink. The caret goes to the p
 
 ## Keep the words right
 
-After you add pages, change headings, or move figures, select the text and press **F9**. Every reference works out its words again. If the place a reference points to has been deleted, the field shows `Error! Reference source not found.`, and you can pick a new target.
+After you add pages, change headings, or move figures, select the text and press **F9**. Every reference works out its words again. If the place a reference points to has been deleted, the field shows `Error: the bookmark this refers to is missing.`, and you can pick a new target.
 
 ## What happens behind the scenes
 
