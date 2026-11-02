@@ -29,6 +29,7 @@
     <binary>jeffwrite</binary>
     <mediatype>application/vnd.openxmlformats-officedocument.wordprocessingml.document</mediatype>
     <mediatype>application/msword</mediatype>
+    <mediatype>application/vnd.oasis.opendocument.text</mediatype>
   </provides>
   <supports>
     <control>pointing</control>

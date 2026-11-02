@@ -41,7 +41,7 @@ namespace {
 bool isWrittenEnding(const QString &path)
 {
     const QString ending = QFileInfo(path).suffix().toLower();
-    return ending == QLatin1String("docx") || ending == QLatin1String("dotx");
+    return ending == QLatin1String("docx") || ending == QLatin1String("dotx") || ending == QLatin1String("odt");
 }
 
 // The old binary kinds, which are read and never written over.
@@ -53,7 +53,7 @@ bool isOldBinary(const QString &path)
 
 QString fileKind(const QString &path)
 {
-    static const QStringList kinds = {QStringLiteral("docx"), QStringLiteral("dotx"), QStringLiteral("docm"), QStringLiteral("dotm"), QStringLiteral("doc"), QStringLiteral("dot")};
+    static const QStringList kinds = {QStringLiteral("docx"), QStringLiteral("dotx"), QStringLiteral("docm"), QStringLiteral("dotm"), QStringLiteral("doc"), QStringLiteral("dot"), QStringLiteral("odt"), QStringLiteral("fodt"), QStringLiteral("ott")};
     const QString ending = QFileInfo(path).suffix().toLower();
     return kinds.contains(ending) ? ending : QStringLiteral("other");
 }
@@ -69,7 +69,7 @@ void WriteWindow::createFileActions()
     });
     mk("file.open", tr("Open"), "folder-open", QKeySequence::Open, [this] {
         const QString p = QFileDialog::getOpenFileName(this, tr("Open Document"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
-                                                       tr("Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot)") + QStringLiteral(";;") + tr("All Files (*)"));
+                                                       tr("Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.odt *.fodt *.ott)") + QStringLiteral(";;") + tr("All Files (*)"));
         if (p.isEmpty()) return;
         Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
         openFile(p);
@@ -123,7 +123,7 @@ bool WriteWindow::openFile(const QString &path)
     }
     // A template opens as a new document made from it.
     const QString ending = QFileInfo(path).suffix().toLower();
-    const bool tmpl = ending == QLatin1String("dotx") || ending == QLatin1String("dotm") || ending == QLatin1String("dot");
+    const bool tmpl = ending == QLatin1String("dotx") || ending == QLatin1String("dotm") || ending == QLatin1String("dot") || ending == QLatin1String("ott");
     const bool leftOut = doc->leftSomethingOut();
     target->setDocument(std::move(doc), tmpl ? QString() : path);
     target->m_macrosNoted = false;
@@ -161,13 +161,13 @@ bool WriteWindow::saveAs()
     const QString dir = from.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(from).absolutePath();
     const QString name = from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName();
     // The dialog hands back the filter text it showed, so the choice is recognized by comparing with these same (translated) texts.
-    const QString docxFilter = tr("Document (*.docx)"), dotxFilter = tr("Template (*.dotx)");
+    const QString docxFilter = tr("Document (*.docx)"), dotxFilter = tr("Template (*.dotx)"), odtFilter = tr("OpenDocument Text (*.odt)");
     const QString fromEnding = QFileInfo(from).suffix().toLower();
-    QString selected = fromEnding == QLatin1String("dotx") || fromEnding == QLatin1String("dot") ? dotxFilter : docxFilter;
-    auto endingOf = [&](const QString &filter) { return filter == dotxFilter ? QStringLiteral(".dotx") : QStringLiteral(".docx"); };
+    QString selected = fromEnding == QLatin1String("dotx") || fromEnding == QLatin1String("dot") ? dotxFilter : fromEnding == QLatin1String("odt") ? odtFilter : docxFilter;
+    auto endingOf = [&](const QString &filter) { return filter == dotxFilter ? QStringLiteral(".dotx") : filter == odtFilter ? QStringLiteral(".odt") : QStringLiteral(".docx"); };
     const QString suggested = dir + QLatin1Char('/') + name + endingOf(selected);
     QString path = m_pathChooser ? m_pathChooser(suggested, selected)
-                                 : askSavePath(this, tr("Save As"), suggested, docxFilter + QStringLiteral(";;") + dotxFilter, &selected);
+                                 : askSavePath(this, tr("Save As"), suggested, docxFilter + QStringLiteral(";;") + dotxFilter + QStringLiteral(";;") + odtFilter, &selected);
     if (path.isEmpty()) return false;
     if (!isWrittenEnding(path)) path += endingOf(selected);
     return saveTo(path);
@@ -187,8 +187,10 @@ bool WriteWindow::saveTo(const QString &path)
     }
     QString err;
     const bool tmpl = QFileInfo(path).suffix().compare(QLatin1String("dotx"), Qt::CaseInsensitive) == 0;
+    const bool odt = QFileInfo(path).suffix().compare(QLatin1String("odt"), Qt::CaseInsensitive) == 0;
+    QStringList notKept;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    const QByteArray bytes = m_doc->toDocx(&err, tmpl);
+    const QByteArray bytes = odt ? m_doc->toOdt(&err, &notKept) : m_doc->toDocx(&err, tmpl);
     bool ok = !bytes.isEmpty();
     if (ok) {
         QSaveFile out(path);
@@ -199,6 +201,10 @@ bool WriteWindow::saveTo(const QString &path)
     if (!ok) {
         jp::plainWarning(this, tr("Save"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
+    }
+    if (odt && !notKept.isEmpty() && !m_odtNoted) {
+        m_odtNoted = true;
+        notice(tr("Save"), tr("An OpenDocument text file can't hold some of what this document has, so those parts were saved as they stand now or left out:\n\n%1").arg(notKept.join(QLatin1Char('\n'))));
     }
     m_doc->setModified(false);
     m_path = path;
