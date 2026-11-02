@@ -1,5 +1,5 @@
 # Recuperar trabalho não guardado
-<!-- keywords: recuperar, recuperação, recuperação automática, autorecover, guardar automaticamente, gravação automática, falha, bloqueio, trabalho perdido, não guardado, falha de energia, corte de energia, restaurar, bloqueado, fechado por engano, cópia de segurança -->
+<!-- keywords: recuperar, recuperação, recuperação automática, guardar automaticamente, gravação automática, falha, bloqueio, trabalho perdido, não guardado, falha de energia, corte de energia, restaurar, bloqueado, fechado por engano, cópia de segurança -->
 
 Se o JeffDeck fechar inesperadamente ou houver um corte de energia, o seu trabalho mais recente poderá estar a salvo. Enquanto trabalha, o JeffDeck mantém uma cópia de reserva de qualquer apresentação com alterações que ainda não guardou. Esta funcionalidade chama-se **Recuperação Automática**.
 

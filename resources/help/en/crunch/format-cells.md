@@ -1,5 +1,5 @@
 # Format cells
-<!-- keywords: format, formatting, font, size, bold, italic, underline, double underline, strikethrough, color, font color, fill, fill color, background, border, borders, align, alignment, center, left, right, top, middle, bottom, wrap text, indent, rotate, rotated, orientation, angle, vertical text, merge, merge and center, unmerge, Format Cells, Ctrl+1, Format Painter, copy format, clear, clear formats, protection, locked, hidden, right-to-left, text direction, shrink to fit, justify -->
+<!-- keywords: format, formatting, font, size, bold, italic, underline, double underline, strikethrough, color, font color, fill, fill color, background, border, borders, align, alignment, center, left, right, top, middle, bottom, wrap text, indent, rotate, rotated, orientation, angle, vertical text, merge, merge and center, unmerge, Format Cells, Ctrl+1, Copy Formatting, copy format, clear, clear formats, protection, locked, hidden, right-to-left, text direction, shrink to fit, justify -->
 
 **Formatting** changes how cells look: the font, the colors, the borders, where the text sits, and how a number is written. It never changes what a cell holds. Select the cells first, then use the **Home** tab. Each change is one step you can undo.
 
@@ -27,9 +27,9 @@
 
 **Editing group**: **Clear** has **Clear All** (contents and formats), **Clear Formats** (the cells keep what they hold and show General with no fill or border), and **Clear Contents**.
 
-## Format Painter
+## Copy Formatting
 
-Select cells that look the way you want, click **Format Painter** (the brush in the Clipboard group), and then select the cells to give that look to. They take the font, fill, borders, number format, and alignment. **Double-click** the brush to paint more than once; click it again, or press **Esc**, to stop.
+Select cells that look the way you want, click **Copy Formatting** (the brush in the Clipboard group), and then select the cells to give that look to. They take the font, fill, borders, number format, and alignment. **Double-click** the brush to paint more than once; click it again, or press **Esc**, to stop.
 
 ## The Format Cells window
 

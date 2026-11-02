@@ -1,5 +1,5 @@
 # Formatar células
-<!-- keywords: formatar, formatação, fonte, tamanho, negrito, itálico, sublinhado, sublinhado duplo, tachado, cor, cor da fonte, preenchimento, cor de preenchimento, plano de fundo, fundo, borda, bordas, alinhar, alinhamento, centralizar, esquerda, direita, superior, meio, inferior, quebra de texto, quebrar texto, recuo, girar, girado, orientação, ângulo, texto vertical, mesclar, mesclar e centralizar, desfazer mesclagem, Formatar Células, Ctrl+1, Pincel de Formatação, copiar formatação, limpar, limpar formatos, proteção, bloqueada, oculta, da direita para a esquerda, direção do texto, reduzir para ajustar, justificar -->
+<!-- keywords: formatar, formatação, fonte, tamanho, negrito, itálico, sublinhado, sublinhado duplo, tachado, cor, cor da fonte, preenchimento, cor de preenchimento, plano de fundo, fundo, borda, bordas, alinhar, alinhamento, centralizar, esquerda, direita, superior, meio, inferior, quebra de texto, quebrar texto, recuo, girar, girado, orientação, ângulo, texto vertical, mesclar, mesclar e centralizar, desfazer mesclagem, Formatar Células, Ctrl+1, Copiar Formatação, copiar formatação, limpar, limpar formatos, proteção, bloqueada, oculta, da direita para a esquerda, direção do texto, reduzir para ajustar, justificar -->
 
 A **formatação** altera a aparência das células: a fonte, as cores, as bordas, a posição do texto e a forma como um número é escrito. Ela nunca altera o conteúdo de uma célula. Selecione as células primeiro e use a guia **Página Inicial**. Cada alteração é uma etapa que você pode desfazer.
 
@@ -27,9 +27,9 @@ A **formatação** altera a aparência das células: a fonte, as cores, as borda
 
 **Grupo Edição**: **Limpar** tem **Limpar Tudo** (conteúdo e formatos), **Limpar Formatos** (as células mantêm o conteúdo e passam a mostrar Geral, sem preenchimento nem borda) e **Limpar Conteúdo**.
 
-## Pincel de Formatação
+## Copiar Formatação
 
-Selecione células com a aparência desejada, clique em **Pincel de Formatação** (o pincel no grupo Área de transferência) e selecione as células que devem receber essa aparência. Elas recebem a fonte, o preenchimento, as bordas, o formato de número e o alinhamento. **Clique duas vezes** no pincel para aplicar mais de uma vez; clique nele novamente ou pressione **Esc** para parar.
+Selecione células com a aparência desejada, clique em **Copiar Formatação** (o pincel no grupo Área de transferência) e selecione as células que devem receber essa aparência. Elas recebem a fonte, o preenchimento, as bordas, o formato de número e o alinhamento. **Clique duas vezes** no pincel para aplicar mais de uma vez; clique nele novamente ou pressione **Esc** para parar.
 
 ## A janela Formatar Células
 

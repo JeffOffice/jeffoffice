@@ -31,7 +31,7 @@ Esta versión de JeffDeck es una **versión preliminar**. Está lista para proba
 - Presentaciones personalizadas, presentaciones que se repiten solas e intervalos ensayados.
 - Vista Esquema, el Clasificador de diapositivas y la vista Patrón de diapositivas.
 - Impresión, archivos PDF e imágenes de diapositivas.
-- Autorrecuperación, que guarda una copia de reserva del trabajo no guardado.
+- La recuperación automática, que guarda una copia de reserva del trabajo no guardado.
 
 **Qué no funciona todavía**
 

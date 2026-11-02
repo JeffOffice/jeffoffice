@@ -31,7 +31,7 @@ Diese Version von JeffDeck ist eine **Vorschauversion** (Preview). Sie können s
 - Zielgruppenorientierte Präsentationen, Präsentationen, die sich selbst wiederholen, und getestete Anzeigedauern.
 - Die Gliederungsansicht, die Foliensortierung und die Folienmasteransicht.
 - Drucken, PDF-Dateien und Folienbilder.
-- AutoWiederherstellen, das eine Ersatzkopie nicht gespeicherter Arbeit aufbewahrt.
+- Die automatische Wiederherstellung, die eine Ersatzkopie nicht gespeicherter Arbeit aufbewahrt.
 
 **Was noch nicht funktioniert**
 

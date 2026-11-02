@@ -24,8 +24,8 @@ Il riempimento non entra in celle unite né ne esce, perché lascerebbe valori i
 
 **Riempimento > Tra fogli di lavoro** copia le celle selezionate nelle stesse celle dei fogli selezionati in un elenco: tutto, solo il contenuto o solo i formati. È un unico passaggio di Annulla.
 
-## Somma automatica
+## Somma
 
-**Home > Somma automatica** (**Alt e il segno di uguale**) inserisce un totale nella cella selezionata. Considera i numeri sopra la cella; se non ce ne sono, quelli alla sua sinistra. La formula viene inserita nella cella perché tu possa controllarla, e **Invio** la conferma. La freccia accanto a Somma automatica offre gli altri totali: **Media**, **Conta numeri**, **Max** e **Min**.
+**Home > Somma** (**Alt e il segno di uguale**) inserisce un totale nella cella selezionata. Considera i numeri sopra la cella; se non ce ne sono, quelli alla sua sinistra. La formula viene inserita nella cella perché tu possa controllarla, e **Invio** la conferma. La freccia accanto a Somma offre gli altri totali: **Media**, **Conta numeri**, **Max** e **Min**.
 
 Se selezioni prima un blocco di celle, ogni colonna del blocco riceve la propria formula nelle celle vuote sottostanti (oppure, per una sola riga, alla sua destra).

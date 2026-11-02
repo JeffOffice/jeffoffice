@@ -1,16 +1,16 @@
 # Recuperar trabalho não salvo
-<!-- keywords: recuperar, recuperação, autorecuperação, auto recuperação, salvamento automático, salvar automaticamente, travamento, falha, trabalho perdido, não salvo, queda de energia, falta de luz, restaurar, travado, congelado, fechado por engano, fechou sem querer, backup, cópia de segurança -->
+<!-- keywords: recuperar, recuperação, recuperação automática, auto recuperação, salvamento automático, salvar automaticamente, travamento, falha, trabalho perdido, não salvo, queda de energia, falta de luz, restaurar, travado, congelado, fechado por engano, fechou sem querer, backup, cópia de segurança -->
 
-Se o JeffPub fechar inesperadamente ou faltar energia, seu trabalho mais recente ainda pode estar seguro. Enquanto você trabalha, o JeffPub mantém uma cópia reserva de cada publicação com alterações não salvas. Esse recurso se chama **AutoRecuperação**.
+Se o JeffPub fechar inesperadamente ou faltar energia, seu trabalho mais recente ainda pode estar seguro. Enquanto você trabalha, o JeffPub mantém uma cópia reserva de cada publicação com alterações não salvas. Esse recurso se chama **recuperação automática**.
 
-## Como a AutoRecuperação funciona
+## Como a recuperação automática funciona
 
 - A cada poucos minutos, o JeffPub salva uma cópia reserva de cada publicação com alterações não salvas. O padrão é a cada 10 minutos.
-- O JeffPub guarda as cópias em uma pasta de AutoRecuperação, dentro da pasta onde mantém seus próprios dados. Você nunca precisa procurar nela.
+- O JeffPub guarda as cópias em uma pasta de recuperação automática, dentro da pasta onde mantém seus próprios dados. Você nunca precisa procurar nela.
 - A cópia reserva nunca substitui o seu arquivo de verdade.
 - A cópia é removida quando você salva a publicação, fecha a publicação ou sai do JeffPub normalmente.
 
-A AutoRecuperação não substitui o salvamento. Se o JeffPub parar, você pode perder o trabalho dos últimos minutos. Pressione Ctrl+S com frequência.
+A recuperação automática não substitui o salvamento. Se o JeffPub parar, você pode perder o trabalho dos últimos minutos. Pressione Ctrl+S com frequência.
 
 ## Recuperar seu trabalho
 
@@ -37,7 +37,7 @@ Se você fechou a janela e quer suas cópias de volta, clique em **Arquivo > Abr
 
 ## Alterar a frequência de salvamento
 
-Clique em **Arquivo > Opções** e depois na guia **Salvar**. Altere **Salvar informações de AutoRecuperação a cada** para um número de 1 a 120 minutos. Um número menor significa menos trabalho a perder. O novo intervalo passa a valer totalmente na próxima vez que você iniciar o JeffPub.
+Clique em **Arquivo > Opções** e depois na guia **Salvar**. Altere **Salvar informações de recuperação automática a cada** para um número de 1 a 120 minutos. Um número menor significa menos trabalho a perder. O novo intervalo passa a valer totalmente na próxima vez que você iniciar o JeffPub.
 
 ## Tópicos relacionados
 

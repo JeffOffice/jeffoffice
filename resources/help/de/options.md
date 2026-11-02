@@ -1,5 +1,5 @@
 # JeffPub-Einstellungen ändern
-<!-- keywords: Optionen, Einstellungen, Voreinstellungen, Design, Dunkelmodus, dunkles Design, Maßeinheiten, Zoll, Zentimeter, AutoWiederherstellen, Sicherungskopie, Backup, Sprache, Anzeigesprache, Benutzername, Verschieben, Updates, Aktualisierungen, Beta, Nutzungsstatistiken, Info -->
+<!-- keywords: Optionen, Einstellungen, Voreinstellungen, Design, Dunkelmodus, dunkles Design, Maßeinheiten, Zoll, Zentimeter, automatische Wiederherstellung, Sicherungskopie, Backup, Sprache, Anzeigesprache, Benutzername, Verschieben, Updates, Aktualisierungen, Beta, Nutzungsstatistiken, Info -->
 
 Ihre Einstellungen finden Sie im Fenster **JeffPub-Optionen**. Klicken Sie auf **Datei > Optionen**, um es zu öffnen. Es hat vier Registerkarten. Klicken Sie auf **OK**, um Ihre Änderungen zu übernehmen, oder auf **Abbrechen**, um sie zu verwerfen.
 
@@ -25,7 +25,7 @@ Diese Kontrollkästchen steuern die Hilfen für Rechtschreibung und Eingabe. Sie
 
 ## Speichern
 
-- **AutoWiederherstellen-Informationen speichern alle** legt fest, wie oft JeffPub Ersatzkopien nicht gespeicherter Arbeit anlegt, zwischen 1 und 120 Minuten. Siehe [Nicht gespeicherte Arbeit wiederherstellen](recover).
+- **Informationen für die automatische Wiederherstellung speichern alle** legt fest, wie oft JeffPub Ersatzkopien nicht gespeicherter Arbeit anlegt, zwischen 1 und 120 Minuten. Siehe [Nicht gespeicherte Arbeit wiederherstellen](recover).
 - **Immer Sicherungskopie erstellen** behält bei jedem Speichern die ältere Datei unter dem Namen „Sicherungskopie von“ und ihrem Dateinamen.
 
 ## Erweitert

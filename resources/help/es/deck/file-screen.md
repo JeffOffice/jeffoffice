@@ -8,7 +8,7 @@ A la izquierda hay una lista. Algunas entradas abren una página y otras realiza
 ## Iniciar
 
 - **Nuevo** muestra una **Presentación en blanco** en la que hacer clic. Consulte [Abrir y guardar presentaciones](open-save).
-- **Abrir** contiene **Examinar** para elegir un archivo, **Recuperar trabajo no guardado** para recuperar las copias que guardó Autorrecuperación, y las listas **Anclado** y **Presentaciones recientes**. Consulte [Abrir y guardar presentaciones](open-save) y [Recuperar trabajo no guardado](recover).
+- **Abrir** contiene **Examinar** para elegir un archivo, **Recuperar trabajo no guardado** para recuperar las copias que guardó la recuperación automática, y las listas **Anclado** y **Presentaciones recientes**. Consulte [Abrir y guardar presentaciones](open-save) y [Recuperar trabajo no guardado](recover).
 
 ## Esta presentación
 

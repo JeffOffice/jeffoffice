@@ -19,7 +19,7 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te v
 
 - [Het uiterlijk van tekst wijzigen](font)
 - [Stijlen gebruiken](styles)
-- [Opmaak kopiëren met Opmaak kopiëren/plakken](format-painter)
+- [Opmaak kopiëren met Opmaak kopiëren](format-painter)
 - [Kopteksten, voetteksten en paginanummers toevoegen](headers-footers)
 - [Tabellen maken en wijzigen](tables)
 - [Voetnoten en eindnoten toevoegen](footnotes-endnotes)

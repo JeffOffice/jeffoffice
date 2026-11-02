@@ -38,7 +38,7 @@ Su un Mac, il tasto **Comando** (⌘) svolge la funzione di **CTRL** nelle tabel
 | CTRL+ALT+V | Incolla speciale |
 | CTRL e il tasto più, CTRL e il tasto meno | Inserisci, elimina (righe o colonne se sono selezionate per intero) |
 | CTRL+D, CTRL+R | Riempi in basso, riempi a destra |
-| ALT e il segno di uguale | Somma automatica |
+| ALT e il segno di uguale | Somma |
 | CTRL+0, CTRL+9 | Nasconde le colonne, nasconde le righe |
 | ALT+GIÙ | Apre l'elenco di una cella che ne ha uno |
 | {key:Find} | Trova |

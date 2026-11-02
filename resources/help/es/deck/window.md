@@ -1,5 +1,5 @@
 # Conozca la ventana
-<!-- keywords: cinta de opciones, pestañas, barra de herramientas, interfaz, diseño de la pantalla, panel de diapositivas, miniaturas, notas, barra de estado, zoom, barra de herramientas de acceso rápido, contraer la cinta de opciones, minimizar la cinta de opciones, partes de la ventana, vista normal, barra de título, paneles -->
+<!-- keywords: cinta de opciones, pestañas, barra de herramientas, interfaz, diseño de la pantalla, panel de diapositivas, miniaturas, notas, barra de estado, zoom, barra de herramientas rápida, contraer la cinta de opciones, minimizar la cinta de opciones, partes de la ventana, vista normal, barra de título, paneles -->
 
 La ventana de JeffDeck tiene cinco partes principales: la cinta de opciones en la parte superior, el panel de diapositivas a la izquierda, la diapositiva en el centro con sus notas debajo, los paneles que se abren a la derecha y la barra de estado en la parte inferior. La barra de título muestra el nombre de la presentación, con un asterisco (*) cuando tiene cambios sin guardar.
 
@@ -9,11 +9,11 @@ La cinta de opciones es la franja de botones de la parte superior. Sus botones s
 
 Para dejar más espacio a la diapositiva, contraiga la cinta de opciones. Haga clic en la flecha del extremo derecho de la fila de pestañas o haga doble clic en una pestaña. Solo se mantienen los nombres de las pestañas. Haga clic en una pestaña para volver a mostrar los botones. El botón **?** situado junto a la flecha abre la Ayuda.
 
-## El botón Archivo y la barra de herramientas de acceso rápido
+## El botón Archivo y la barra de herramientas rápida
 
 El botón **Archivo** está a la izquierda de las pestañas. Abre la pantalla Archivo, donde puede crear, abrir, guardar, imprimir y exportar presentaciones. Presione Esc o haga clic en **Volver a la presentación** para regresar. Consulte [La pantalla Archivo](file-screen).
 
-La barra de herramientas de acceso rápido es la fila de tres pequeños botones situada encima del botón **Archivo**. Contiene **Deshacer**, **Rehacer** y **Desde el principio**, que reproduce la presentación con diapositivas desde la primera diapositiva.
+La barra de herramientas rápida es la fila de tres pequeños botones situada encima del botón **Archivo**. Contiene **Deshacer**, **Rehacer** y **Desde el principio**, que reproduce la presentación con diapositivas desde la primera diapositiva.
 
 ## El panel de diapositivas
 

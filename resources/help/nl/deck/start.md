@@ -31,7 +31,7 @@ Deze versie van JeffDeck is een **voorbeeldversie** (Preview). U kunt hem al voo
 - Aangepaste voorstellingen, voorstellingen die zichzelf herhalen en gerepeteerde tijdsinstellingen.
 - De overzichtsweergave, de diasorteerder en de diamodelweergave.
 - Afdrukken, PDF-bestanden en dia's als afbeelding.
-- AutoHerstel, dat een reservekopie van niet-opgeslagen werk bewaart.
+- Automatisch herstel, dat een reservekopie van niet-opgeslagen werk bewaart.
 
 **Wat nog niet werkt**
 

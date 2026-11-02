@@ -213,7 +213,7 @@ private Q_SLOTS:
                  w->act(QStringLiteral("style.pane"))->trigger();
                  asWrite(w)->refreshNow();
              }, false},
-            {QStringLiteral("the Format Painter on"), [typed](AppWindow *w, bool f) {
+            {QStringLiteral("Copy Formatting on"), [typed](AppWindow *w, bool f) {
                  typed(w, f);
                  w->act(QStringLiteral("edit.selectAll"))->trigger();
                  w->act(QStringLiteral("edit.formatPainter"))->trigger();

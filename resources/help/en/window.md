@@ -1,5 +1,5 @@
 # Find your way around the window
-<!-- keywords: ribbon, tabs, toolbar, interface, screen layout, pages list, thumbnails, status bar, zoom, rulers, task pane, quick access toolbar, collapse ribbon, minimize ribbon, parts of the window -->
+<!-- keywords: ribbon, tabs, toolbar, interface, screen layout, pages list, thumbnails, status bar, zoom, rulers, task pane, quick toolbar, collapse ribbon, minimize ribbon, parts of the window -->
 
 The JeffPub window has five main parts: the ribbon across the top, the Pages list on the left, the page area in the middle, task panes on the right, and the status bar along the bottom. The title bar shows the name of your publication, with a star (*) when it has changes you have not saved.
 
@@ -11,11 +11,11 @@ More tabs appear when you select something. Select a picture, and **Picture Form
 
 To make more room for the page, collapse the ribbon. Click the arrow at the far right of the tab row, double-click a tab, or press Ctrl+F1. Only the tab names stay. Click a tab to show the buttons again. The **?** button next to the arrow opens Help.
 
-## The File button and the Quick Access Toolbar
+## The File button and the Quick Toolbar
 
 The **File** button is left of the tabs. It opens the File page, where you start, open, save, print, and share. Press Esc or click **Back to publication** to return. See [File tab](tab-file).
 
-The Quick Access Toolbar is the row of four small buttons left of the **File** button. It holds **Save**, **Undo**, **Redo**, and **Print**.
+The quick toolbar is the row of four small buttons left of the **File** button. It holds **Save**, **Undo**, **Redo**, and **Print**.
 
 ## The Pages list
 

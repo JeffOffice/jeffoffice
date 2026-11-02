@@ -29,7 +29,7 @@ JeffPub passa alla pagina e seleziona l'oggetto. Una volta corretto il problema,
 | L'oggetto è parzialmente fuori dalla pagina | Una parte di un oggetto si trova fuori dalla pagina. | Spostarlo oppure lasciarlo dov'è se si tratta di un'abbondanza. |
 | La casella di testo è vuota | Una casella di testo non contiene testo. | Digitare del testo o eliminarla. |
 | Articolo con testo in eccesso | Un articolo è il testo che scorre attraverso caselle collegate. Questo contiene più testo di quanto ne possa entrare. | Ingrandire una casella, ridurre il testo o [collegare un'altra casella](linked-text). |
-| Il testo è stato ridotto notevolmente per adattarlo | L'adattamento automatico, che riduce il testo per farlo entrare nella casella, lo ha ridotto a meno della metà delle sue dimensioni. | Ingrandire la casella o ridurre il testo. |
+| Il testo è stato ridotto notevolmente per adattarlo | L'adattamento, che riduce il testo per farlo entrare nella casella, lo ha ridotto a meno della metà delle sue dimensioni. | Ingrandire la casella o ridurre il testo. |
 | Il segnaposto immagine è vuoto | Una cornice per immagine non contiene immagini. | Fare clic sulla cornice per aggiungerne una o eliminarla. |
 | L'immagine non è ridimensionata in modo proporzionale | L'immagine è allungata o schiacciata. | Ridimensionarla per ripristinarne le proporzioni. |
 | L'immagine è collegata, non incorporata | L'immagine è legata a un file e nella pubblicazione è memorizzata solo una piccola anteprima. Un'immagine inserita con **Inserisci e collega** viene memorizzata per intero e non compare nell'elenco. | Conservare il file originale insieme alla pubblicazione oppure fare clic su **Incorpora immagine** in [Gestione grafica](graphics-manager). |

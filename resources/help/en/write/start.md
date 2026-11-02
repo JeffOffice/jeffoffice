@@ -48,7 +48,7 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 - Paragraph alignment, indents, spacing, and line spacing. The **Paragraph** box (the small arrow at the corner of the Paragraph group) has them all.
 - Bulleted and numbered lists, with levels.
 - Styles. The gallery has Normal, headings, Title, and more. The **Styles** pane (Ctrl+Alt+Shift+S) lists them all, and you can make a style from your text and change any style (see [Use styles](styles)).
-- The Format Painter, which copies the look of some text onto other text (see [Copy a look with the Format Painter](format-painter)).
+- Copy Formatting, which copies the look of some text onto other text (see [Copy a look with Copy Formatting](format-painter)).
 - Go To (Ctrl+G) a page, section, line, bookmark, footnote, or heading, and dragging selected text to move it, or Ctrl-dragging it to copy it (see [Go to a place and move text](go-to-and-move-text)).
 - Pages: paper size, orientation, margins, columns (one, two, or three), page breaks, and section breaks that start a new page. **Layout > Page Setup** sets the margins, paper, and layout of a section or of the whole document (see [Set up the page](page-setup)).
 - Pictures: **Insert > Pictures** puts in a picture from a file or the clipboard; you can size it with its handles, move it, wrap the text round it, and give it alt text (see [Add and change pictures](pictures)).
@@ -61,7 +61,7 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 - Page numbers in headers and footers. They are worked out as the pages are laid out, and so is the number of pages. **Insert Page Number** is on the **Header & Footer** tab.
 - Zoom, and showing the paragraph marks (the **¶** button).
 - Spelling: red lines as you type, suggestions when you right-click, and the Spelling pane (**F7**). See [Check your spelling](spelling).
-- Printing, with a preview, copies, and page ranges, PDF files, and AutoRecover, which keeps a spare copy of unsaved work. See [Print](print).
+- Printing, with a preview, copies, and page ranges, PDF files, and automatic recovery, which keeps a spare copy of unsaved work. See [Print](print).
 
 **What does not work yet**
 

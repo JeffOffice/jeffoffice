@@ -29,7 +29,7 @@ O JeffPub vai até a página e seleciona o objeto. Corrija-o, e o item sai da li
 | O objeto está parcialmente fora da página | Parte de um objeto está fora da página. | Mova-o ou deixe-o assim se for uma sangria. |
 | A caixa de texto está vazia | Uma caixa de texto não contém texto. | Digite nela ou exclua-a. |
 | Matéria com texto em excesso | Uma matéria é o texto que passa por caixas vinculadas. Esta tem mais texto do que cabe. | Aumente uma caixa, corte texto ou [vincule outra caixa](linked-text). |
-| O texto foi muito reduzido para caber | O ajuste automático, que reduz o texto para caber na caixa, deixou o texto com menos da metade do tamanho. | Aumente a caixa ou use menos texto. |
+| O texto foi muito reduzido para caber | O ajuste, que reduz o texto para caber na caixa, deixou o texto com menos da metade do tamanho. | Aumente a caixa ou use menos texto. |
 | O espaço reservado para imagem está vazio | Um quadro de imagem não tem imagem. | Clique nele para adicionar uma ou exclua-o. |
 | A imagem não está dimensionada proporcionalmente | A imagem está esticada ou achatada. | Redimensione-a para restaurar a forma original. |
 | A imagem está vinculada, não inserida | A imagem está ligada a um arquivo e somente uma pequena visualização é armazenada na publicação. Uma imagem inserida com **Inserir e Vincular** é armazenada inteira e não aparece na lista. | Mantenha o arquivo original junto com a publicação ou clique em **Inserir Imagem** no [Gerenciador de Elementos Gráficos](graphics-manager). |

@@ -19,7 +19,7 @@ Geben Sie oben in das Suchfeld etwas ein, um ein Thema oder einen auszuführende
 
 - [Aussehen von Text ändern](font)
 - [Formatvorlagen verwenden](styles)
-- [Formatierung mit „Format übertragen“ kopieren](format-painter)
+- [Formatierung mit der Schaltfläche kopieren](format-painter)
 - [Kopfzeilen, Fußzeilen und Seitenzahlen hinzufügen](headers-footers)
 - [Tabellen erstellen und ändern](tables)
 - [Fußnoten und Endnoten hinzufügen](footnotes-endnotes)

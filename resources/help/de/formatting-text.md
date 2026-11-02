@@ -1,5 +1,5 @@
 # Text formatieren
-<!-- keywords: Schriftart, Schrift, Schriftgrad, Schriftgröße, fett, kursiv, unterstrichen, Schriftfarbe, Textfarbe, Zeichenabstand, Unterschneidung, Text ausrichten, Zeilenabstand, Einzug, Initiale, Format übertragen, Formatierung kopieren, Formatierung einfügen, Groß-/Kleinschreibung -->
+<!-- keywords: Schriftart, Schrift, Schriftgrad, Schriftgröße, fett, kursiv, unterstrichen, Schriftfarbe, Textfarbe, Zeichenabstand, Unterschneidung, Text ausrichten, Zeilenabstand, Einzug, Initiale, Formatierung kopieren, Formatierung kopieren, Formatierung einfügen, Groß-/Kleinschreibung -->
 
 Text formatieren Sie auf der Registerkarte **Start**. Die Gruppe **Schriftart** ändert Buchstaben. Die Gruppe **Absatz** ändert ganze Absätze.
 
@@ -38,10 +38,10 @@ Klicken Sie auf **Schriftfarbe**, und wählen Sie eine Schemafarbe, eine Standar
 
 Auf der Registerkarte **Textfeld** fügt **Effekte** den Buchstaben Schatten, Kontur, Relief, Gravur, Leuchten und Farbverlaufsfüllungen hinzu. Eine Initiale ist ein großer Anfangsbuchstabe: Klicken Sie in den Absatz, und wählen Sie **Textfeld > Typografie > Initiale**. Wählen Sie 2 bis 5 Zeilen oder **Benutzerdefinierte Initiale…**. Die übrigen Optionen unter **Typografie**, etwa Ligaturen und stilistische Sätze, hängen davon ab, was die Schriftart bietet.
 
-## Formatierung mit „Format übertragen“ kopieren
+## Formatierung mit der Schaltfläche kopieren
 
 1. Klicken Sie in Text, der so aussieht, wie Sie es möchten.
-2. Klicken Sie auf **Start > Zwischenablage > Format übertragen**.
+2. Klicken Sie auf **Start > Zwischenablage > Formatierung kopieren**.
 3. Klicken Sie auf das Textfeld, das Sie ändern möchten.
 
 Das gesamte Feld übernimmt das Aussehen des ersten Textes sowie dessen Füllung und Kontur. Halten Sie beim Klicken auf die Schaltfläche die Umschalttaste gedrückt, um das Format mehrmals zu übertragen. Drücken Sie Esc, um aufzuhören.

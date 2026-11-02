@@ -3,7 +3,7 @@
 
 O separador **Base** está sempre no friso. Contém as ferramentas que mais utiliza enquanto escreve e compõe uma página.
 
-- **Área de Transferência** tem **Colar**, **Cortar**, **Copiar** e **Pincel de Formatação**, que copia o aspeto do texto para outra caixa. Consulte [Formatar texto](formatting-text).
+- **Área de Transferência** tem **Colar**, **Cortar**, **Copiar** e **Copiar Formatação**, que copia o aspeto do texto para outra caixa. Consulte [Formatar texto](formatting-text).
 - **Tipo de Letra** altera o tipo de letra, o tamanho, a cor e o estilo das letras. Consulte [Formatar texto](formatting-text).
 - **Parágrafo** tem marcas, numeração, avanços, alinhamento e espaçamento para parágrafos inteiros. Consulte [Marcas, numeração e tabulações](lists-tabs).
 - **Estilos** é uma galeria de aspetos com nome que pode aplicar com um clique, e uma forma de criar os seus próprios. Consulte [Utilizar estilos](styles).

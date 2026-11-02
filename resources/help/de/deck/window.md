@@ -1,5 +1,5 @@
 # Im Programmfenster zurechtfinden
-<!-- keywords: Menüband, Registerkarten, Symbolleiste, Oberfläche, Benutzeroberfläche, Bildschirmaufbau, Folienbereich, Miniaturansichten, Notizen, Statusleiste, Zoom, Symbolleiste für den Schnellzugriff, Menüband reduzieren, Menüband ausblenden, Teile des Fensters, Normalansicht, Titelleiste, Bereiche -->
+<!-- keywords: Menüband, Registerkarten, Symbolleiste, Oberfläche, Benutzeroberfläche, Bildschirmaufbau, Folienbereich, Miniaturansichten, Notizen, Statusleiste, Zoom, Schnellsymbolleiste, Menüband reduzieren, Menüband ausblenden, Teile des Fensters, Normalansicht, Titelleiste, Bereiche -->
 
 Das JeffDeck-Fenster besteht aus fünf Hauptteilen: dem Menüband am oberen Rand, dem Folienbereich links, der Folie in der Mitte mit den Notizen darunter, Bereichen, die sich rechts öffnen, und der Statusleiste am unteren Rand. Die Titelleiste zeigt den Namen Ihrer Präsentation an, mit einem Sternchen (*), wenn sie nicht gespeicherte Änderungen enthält.
 
@@ -9,11 +9,11 @@ Das Menüband ist die Leiste mit Schaltflächen am oberen Rand. Seine Schaltflä
 
 Um mehr Platz für die Folie zu schaffen, reduzieren Sie das Menüband. Klicken Sie auf den Pfeil ganz rechts in der Registerkartenzeile, oder doppelklicken Sie auf eine Registerkarte. Nur die Namen der Registerkarten bleiben sichtbar. Klicken Sie auf eine Registerkarte, um die Schaltflächen wieder anzuzeigen. Die Schaltfläche **?** neben dem Pfeil öffnet die Hilfe.
 
-## Die Schaltfläche „Datei“ und die Symbolleiste für den Schnellzugriff
+## Die Schaltfläche „Datei“ und die Schnellsymbolleiste
 
 Die Schaltfläche **Datei** befindet sich links neben den Registerkarten. Sie öffnet die Dateiansicht, in der Sie Präsentationen neu erstellen, öffnen, speichern, drucken und exportieren. Drücken Sie Esc, oder klicken Sie auf **Zurück zur Präsentation**, um zurückzukehren. Siehe [Die Dateiansicht](file-screen).
 
-Die Symbolleiste für den Schnellzugriff ist die Reihe aus drei kleinen Schaltflächen über der Schaltfläche **Datei**. Sie enthält **Rückgängig**, **Wiederholen** und **Von Beginn an**, womit die Bildschirmpräsentation ab der ersten Folie abgespielt wird.
+Die Schnellsymbolleiste ist die Reihe aus drei kleinen Schaltflächen über der Schaltfläche **Datei**. Sie enthält **Rückgängig**, **Wiederholen** und **Von Beginn an**, womit die Bildschirmpräsentation ab der ersten Folie abgespielt wird.
 
 ## Der Folienbereich
 

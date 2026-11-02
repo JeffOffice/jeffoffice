@@ -1,5 +1,5 @@
 # Spaltenbreite und Zeilenhöhe ändern
-<!-- keywords: Standardbreite, Standardzeilenhöhe, Standardgröße, Breite, Höhe, Spalte, Zeile, Größe, breiter, höher, schmaler, niedriger, anpassen, automatisch anpassen, optimale Breite, ausblenden, einblenden, ziehen, Rahmen, Doppelklick, Zeichen, Punkt, Strg+0, Strg+9, Pixel, Zahl zu breit, Rautenzeichen, ### -->
+<!-- keywords: Standardbreite, Standardzeilenhöhe, Standardgröße, Breite, Höhe, Spalte, Zeile, Größe, breiter, höher, schmaler, niedriger, anpassen, anpassen, optimale Breite, ausblenden, einblenden, ziehen, Rahmen, Doppelklick, Zeichen, Punkt, Strg+0, Strg+9, Pixel, Zahl zu breit, Rautenzeichen, ### -->
 
 Die **Breite einer Spalte** wird in Zeichen gemessen: wie viele Ziffern nebeneinander hineinpassen. Die **Höhe einer Zeile** wird in Punkt gemessen, einer Einheit aus der Typografie (72 Punkt ergeben ein Zoll). Eine normale Spalte fasst etwa 8 Ziffern, und eine normale Zeile ist 15 Punkt hoch.
 
@@ -11,7 +11,7 @@ Wenn ganze Spalten (oder Zeilen) markiert sind und Sie den Rahmen einer davon zi
 
 ## An den Inhalt anpassen
 
-**Doppelklicken** Sie auf den Rahmen, damit die Spalte genau so breit wird wie ihr längster Eintrag oder die Zeile genau so hoch wie ihre höchste Zeile. Das geht auch über **Start > Format > Spaltenbreite automatisch anpassen** und **Zeilenhöhe automatisch anpassen**, für alle markierten Spalten oder Zeilen auf einmal. Eine leere Spalte oder Zeile behält ihre Größe.
+**Doppelklicken** Sie auf den Rahmen, damit die Spalte genau so breit wird wie ihr längster Eintrag oder die Zeile genau so hoch wie ihre höchste Zeile. Das geht auch über **Start > Format > Spaltenbreite anpassen** und **Zeilenhöhe anpassen**, für alle markierten Spalten oder Zeilen auf einmal. Eine leere Spalte oder Zeile behält ihre Größe.
 
 ## Größe eingeben
 

@@ -143,8 +143,8 @@ stylistic sets
 small caps
 superscript
 subscript
-AutoRecover
-Quick Access Toolbar
+Automatic Recovery
+Quick Toolbar
 ribbon
 KeyTips
 task pane
@@ -165,7 +165,7 @@ contrast
 transparency
 adjustment handle
 rotation handle
-Format Painter
+Copy Formatting
 paste special
 clipboard
 find and replace

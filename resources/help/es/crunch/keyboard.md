@@ -38,7 +38,7 @@ En un Mac, la tecla **Comando** (⌘) hace lo mismo que **Ctrl** en las tablas s
 | Ctrl+Alt+V | Pegado especial |
 | Ctrl y la tecla más, Ctrl y la tecla menos | Insertar, eliminar (filas o columnas si están seleccionadas completas) |
 | Ctrl+D, Ctrl+R | Rellenar hacia abajo, rellenar hacia la derecha |
-| Alt y el signo igual | Autosuma |
+| Alt y el signo igual | Suma |
 | Ctrl+0, Ctrl+9 | Ocultar las columnas, ocultar las filas |
 | Alt+Abajo | Abre la lista de una celda que la tenga |
 | {key:Find} | Buscar |

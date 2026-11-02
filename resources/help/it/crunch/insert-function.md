@@ -1,7 +1,7 @@
 # Scegliere una funzione
 <!-- keywords: funzione, scegli una funzione, inserisci funzione, fx, formula, argomento, categoria, cerca, tutte le funzioni, somma automatica, MAIUSC+F3 -->
 
-Scegliere **Scegli una funzione** nella scheda Formule (**MAIUSC+F3**) oppure **Tutte le funzioni…** nel menu **Somma automatica**.
+Scegliere **Scegli una funzione** nella scheda Formule (**MAIUSC+F3**) oppure **Tutte le funzioni…** nel menu **Somma**.
 
 Digitare nella casella di ricerca un nome o ciò che si desidera fare ("arrotonda per difetto", "unisci testo"): l'elenco mostra le funzioni corrispondenti, con prima quelle il cui nome inizia con le parole digitate. **Tipo** limita l'elenco alle funzioni finanziarie, di data e ora, matematiche e trigonometriche, statistiche, di ricerca e riferimento, di testo, logiche, informative o di database.
 

@@ -7,7 +7,7 @@ Pode fazer quase tudo no JeffDeck sem rato. Existem teclas de atalho para os com
 
 As Sugestões de Teclas são pequenas letras que aparecem no friso. Permitem aceder a qualquer botão sem o rato.
 
-1. Prima e solte **Alt**. Aparecem letras no botão **Ficheiro**, em cada separador e na Barra de Ferramentas de Acesso Rápido. Os botões da Barra de Ferramentas de Acesso Rápido utilizam os números 1 a 3.
+1. Prima e solte **Alt**. Aparecem letras no botão **Ficheiro**, em cada separador e na Barra de Ferramentas Rápida. Os botões da Barra de Ferramentas Rápida utilizam os números 1 a 3.
 2. Prima a letra do separador pretendido. Os separadores utilizam **H** para **Base**, **N** para **Inserir**, **G** para **Estrutura**, **K** para **Transições**, **S** para **Apresentação de Diapositivos**, **R** para **Rever** e **W** para **Ver**. Aparecem as letras dos botões desse separador.
 3. Escreva as letras do botão pretendido. Por exemplo, prima **Alt**, depois **S** e depois **B** para reproduzir a apresentação de diapositivos **Do Início**.
 

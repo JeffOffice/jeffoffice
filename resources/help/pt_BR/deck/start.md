@@ -31,7 +31,7 @@ Esta versão do JeffDeck é uma versão de **Visualização**. Ela está pronta 
 - Apresentações personalizadas, apresentações que se repetem sozinhas e intervalos testados.
 - Modo de Exibição de Estrutura de Tópicos, Classificação de Slides e modo de exibição Slide Mestre.
 - Impressão, arquivos PDF e imagens de slides.
-- AutoRecuperação, que mantém uma cópia reserva do trabalho não salvo.
+- A recuperação automática, que mantém uma cópia reserva do trabalho não salvo.
 
 **O que ainda não funciona**
 

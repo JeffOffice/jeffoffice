@@ -24,8 +24,8 @@ Une recopie ne peut pas entrer dans des cellules fusionnées ni en sortir, car e
 
 **Recopier > Dans toutes les feuilles de calcul** copie les cellules sélectionnées dans les mêmes cellules des feuilles que vous cochez dans une liste : tout, le contenu seulement ou les formats seulement. Il s'agit d'une seule étape d'annulation.
 
-## Somme automatique
+## Somme
 
-**Accueil > Somme automatique** (**Alt+=**) place un total dans la cellule sélectionnée. La commande prend en compte les nombres situés au-dessus de la cellule ; s'il n'y en a pas, ceux situés à sa gauche. La formule est insérée dans la cellule pour que vous la vérifiiez, et **Entrée** la valide. La flèche à côté de Somme automatique propose les autres totaux : **Moyenne**, **Nombre de valeurs numériques**, **Max** et **Min**.
+**Accueil > Somme** (**Alt+=**) place un total dans la cellule sélectionnée. La commande prend en compte les nombres situés au-dessus de la cellule ; s'il n'y en a pas, ceux situés à sa gauche. La formule est insérée dans la cellule pour que vous la vérifiiez, et **Entrée** la valide. La flèche à côté de Somme propose les autres totaux : **Moyenne**, **Nombre de valeurs numériques**, **Max** et **Min**.
 
 Si vous sélectionnez d'abord une plage, chaque colonne de la plage reçoit sa propre formule dans les cellules vides situées en dessous (ou, pour une seule ligne, à sa droite).

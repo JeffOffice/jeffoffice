@@ -61,7 +61,7 @@ Questa versione di JeffWrite è una **Preview**. Puoi già provarla sul lavoro r
 - Numeri di pagina nelle intestazioni e nei piè di pagina. Vengono calcolati durante l'impaginazione, così come il numero totale di pagine. **Inserisci numero di pagina** si trova nella scheda **Intestazione e piè di pagina**.
 - Lo zoom e la visualizzazione dei segni di paragrafo (il pulsante **¶**).
 - Controllo ortografia: sottolineature rosse durante la digitazione, suggerimenti facendo clic con il pulsante destro del mouse e il riquadro Controllo ortografia (**F7**). Vedi [Controllare l'ortografia](spelling).
-- Stampa, con anteprima, copie e intervalli di pagine, file PDF e Salvataggio automatico, che conserva una copia di riserva del lavoro non salvato. Vedi [Stampare](print).
+- Stampa, con anteprima, copie e intervalli di pagine, file PDF e recupero automatico, che conserva una copia di riserva del lavoro non salvato. Vedi [Stampare](print).
 
 **Cosa non funziona ancora**
 

@@ -1,12 +1,12 @@
 # Tableaux
-<!-- keywords: tableau, tableaux, insérer un tableau, lignes, colonnes, cellule, cellules, fusionner les cellules, fractionner les cellules, bordures, trame de fond, remplissage, taille de la cellule, largeur de colonne, hauteur de ligne, ajustement automatique, distribuer les lignes, distribuer les colonnes, propriétés du tableau, ligne d'en-tête, répéter l'en-tête, style de tableau, styles de tableau, lignes à bandes, alignement, aligner le texte dans une cellule, supprimer une ligne, supprimer une colonne, grille, quadrillage, clic droit, disposition du tableau, création de tableau -->
+<!-- keywords: tableau, tableaux, insérer un tableau, lignes, colonnes, cellule, cellules, fusionner les cellules, fractionner les cellules, bordures, trame de fond, remplissage, taille de la cellule, largeur de colonne, hauteur de ligne, ajustement, distribuer les lignes, distribuer les colonnes, propriétés du tableau, ligne d'en-tête, répéter l'en-tête, style de tableau, styles de tableau, lignes à bandes, alignement, aligner le texte dans une cellule, supprimer une ligne, supprimer une colonne, grille, quadrillage, clic droit, disposition du tableau, création de tableau -->
 
 Un **tableau** est une grille de **cellules** organisées en **lignes** et en **colonnes**. Chaque cellule contient du texte, que vous tapez comme n'importe où ailleurs sur la page. Cette rubrique explique comment ajouter un tableau, modifier sa forme et son apparence, et le préparer pour les pages sur lesquelles il s'étend.
 
 ## Ajouter un tableau
 
 - Cliquez sur **Insertion > Tableau**, pointez sur la grille et cliquez sur la taille voulue. Le premier nombre indique les colonnes en largeur et le second les lignes en hauteur.
-- Vous pouvez aussi cliquer sur **Insertion > Tableau > Insérer un tableau** pour taper le nombre de colonnes et de lignes, et indiquer comment les colonnes sont ajustées. **Largeur de colonne fixe** conserve à chaque colonne la largeur indiquée (ou, avec *Auto*, répartit la largeur de la zone de texte entre les colonnes). **Ajustement automatique au contenu** dimensionne les colonnes selon les mots qu'elles contiennent. **Ajustement automatique à la fenêtre** donne au tableau la largeur de la zone de texte. Cochez **Mémoriser les dimensions pour les nouveaux tableaux** pour commencer le prochain avec les mêmes valeurs.
+- Vous pouvez aussi cliquer sur **Insertion > Tableau > Insérer un tableau** pour taper le nombre de colonnes et de lignes, et indiquer comment les colonnes sont ajustées. **Largeur de colonne fixe** conserve à chaque colonne la largeur indiquée (ou, avec *Auto*, répartit la largeur de la zone de texte entre les colonnes). **Ajustement au contenu** dimensionne les colonnes selon les mots qu'elles contiennent. **Ajustement à la fenêtre** donne au tableau la largeur de la zone de texte. Cochez **Mémoriser les dimensions pour les nouveaux tableaux** pour commencer le prochain avec les mêmes valeurs.
 
 Le tableau est inséré à l'emplacement du curseur. Si le curseur se trouve au milieu d'un paragraphe, celui-ci est coupé en deux et le tableau s'insère entre les deux parties. Le curseur se place alors dans la première cellule. Appuyez sur **Tab** pour passer à la cellule suivante et sur **Maj+Tab** pour revenir en arrière. Appuyer sur **Tab** dans la dernière cellule ajoute une ligne. Cette méthode ne permet pas d'insérer un tableau dans une cellule.
 
@@ -46,7 +46,7 @@ Les options à gauche de la galerie indiquent les parties mises en forme par le 
 Dans **Disposition du tableau** :
 
 - Tapez une valeur dans **Hauteur** pour définir la hauteur des lignes contenant le curseur, et dans **Largeur** pour définir la largeur de sa colonne. La hauteur est une hauteur minimale : la ligne s'agrandit avec son texte. Pour une hauteur fixe, utilisez les propriétés du tableau.
-- **Ajustement automatique** ajuste les colonnes à leur contenu ou à la fenêtre, ou les fixe à leur largeur actuelle.
+- **Ajustement** ajuste les colonnes à leur contenu ou à la fenêtre, ou les fixe à leur largeur actuelle.
 - **Distribuer les lignes** et **Distribuer les colonnes** donnent la même hauteur aux lignes sélectionnées, ou la même largeur aux colonnes sélectionnées. Si une seule ligne ou colonne est sélectionnée, elles s'appliquent au tableau entier.
 
 ## Position du texte dans une cellule

@@ -8,7 +8,7 @@ A sinistra si trova un elenco. Alcune voci aprono una pagina, altre eseguono sub
 ## Inizia
 
 - **Nuovo** mostra una **Presentazione vuota** su cui fare clic. Vedere [Aprire e salvare presentazioni](open-save).
-- **Apri** contiene **Sfoglia** per scegliere un file, **Recupera lavoro non salvato** per recuperare le copie conservate dal Salvataggio automatico e gli elenchi **Aggiunti** e **Presentazioni recenti**. Vedere [Aprire e salvare presentazioni](open-save) e [Recuperare il lavoro non salvato](recover).
+- **Apri** contiene **Sfoglia** per scegliere un file, **Recupera lavoro non salvato** per recuperare le copie conservate dal recupero automatico e gli elenchi **Aggiunti** e **Presentazioni recenti**. Vedere [Aprire e salvare presentazioni](open-save) e [Recuperare il lavoro non salvato](recover).
 
 ## Questa presentazione
 

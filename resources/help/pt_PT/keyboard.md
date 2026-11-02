@@ -13,7 +13,7 @@ Prima **F1** para obter Ajuda sobre o que está a fazer. Prima **Ctrl+F1** para 
 
 As Sugestões de Teclas são pequenas letras que aparecem no friso. Permitem aceder a qualquer botão sem o rato.
 
-1. Prima e solte **Alt**. Aparecem letras no botão **Ficheiro**, em cada separador e na Barra de Ferramentas de Acesso Rápido. Os botões da Barra de Ferramentas de Acesso Rápido utilizam os números 1 a 4.
+1. Prima e solte **Alt**. Aparecem letras no botão **Ficheiro**, em cada separador e na Barra de Ferramentas Rápida. Os botões da Barra de Ferramentas Rápida utilizam os números 1 a 4.
 2. Prima a letra do separador pretendido, como **H** para **Base**. Aparecem as letras dos botões desse separador.
 3. Escreva as letras do botão pretendido. Por exemplo, **T** seguido de **B** corresponde a **Desenhar caixa de texto**.
 

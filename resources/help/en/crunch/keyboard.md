@@ -38,7 +38,7 @@ On a Mac, the **Command** key (⌘) does what **Ctrl** does in the tables below,
 | Ctrl+Alt+V | Paste Special |
 | Ctrl and the plus key, Ctrl and the minus key | Insert, delete (rows or columns if whole ones are selected) |
 | Ctrl+D, Ctrl+R | Fill down, fill right |
-| Alt and the equals sign | AutoSum |
+| Alt and the equals sign | Sum |
 | Ctrl+0, Ctrl+9 | Hide the columns, hide the rows |
 | Alt+Down | Open the list of a cell that has one |
 | {key:Find} | Find |

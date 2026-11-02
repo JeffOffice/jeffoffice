@@ -256,7 +256,7 @@ QHash<QString, QString> commandPlaces(AppWindow *win, QHash<QString, int> *order
     }
     for (QToolButton *b : r->quickAccessButtons())
         if (QAction *a = b->defaultAction(); a && !places.contains(a->objectName())) {
-            places.insert(a->objectName(), QCoreApplication::translate("Help", "Quick Access Toolbar"));
+            places.insert(a->objectName(), QCoreApplication::translate("Help", "Quick Toolbar"));
             if (order) order->insert(a->objectName(), n++);
         }
     return places;

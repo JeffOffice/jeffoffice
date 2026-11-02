@@ -61,7 +61,7 @@ Esta versión de JeffWrite es una **versión preliminar**. Está lista para prob
 - Números de página en encabezados y pies de página. Se calculan a medida que se componen las páginas, al igual que el número total de páginas. **Insertar número de página** está en la pestaña **Encabezado y pie de página**.
 - Zoom y mostrar las marcas de párrafo (el botón **¶**).
 - Ortografía: líneas rojas mientras escribe, sugerencias al hacer clic con el botón derecho y el panel Ortografía (**F7**). Vea [Revisar la ortografía](spelling).
-- Imprimir, con vista previa, copias e intervalos de páginas, archivos PDF y Autorrecuperación, que guarda una copia de reserva del trabajo no guardado. Vea [Imprimir](print).
+- Imprimir, con vista previa, copias e intervalos de páginas, archivos PDF y la recuperación automática, que guarda una copia de reserva del trabajo no guardado. Vea [Imprimir](print).
 
 **Qué no funciona todavía**
 

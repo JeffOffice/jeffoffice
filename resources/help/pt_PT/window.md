@@ -11,11 +11,11 @@ Quando seleciona algo, aparecem mais separadores. Selecione uma imagem e aparece
 
 Para ter mais espaço para a página, feche o friso. Clique na seta na extremidade direita da linha de separadores, faça duplo clique num separador ou prima Ctrl+F1. Ficam visíveis apenas os nomes dos separadores. Clique num separador para voltar a mostrar os botões. O botão **?** junto à seta abre a Ajuda.
 
-## O botão Ficheiro e a Barra de Ferramentas de Acesso Rápido
+## O botão Ficheiro e a Barra de Ferramentas Rápida
 
 O botão **Ficheiro** fica à esquerda dos separadores. Abre a página Ficheiro, onde pode criar, abrir, guardar, imprimir e partilhar publicações. Prima Esc ou clique em **Voltar à publicação** para regressar. Consulte [Separador Ficheiro](tab-file).
 
-A Barra de Ferramentas de Acesso Rápido é a linha de quatro pequenos botões à esquerda do botão **Ficheiro**. Contém os botões **Guardar**, **Anular**, **Refazer** e **Imprimir**.
+A Barra de Ferramentas Rápida é a linha de quatro pequenos botões à esquerda do botão **Ficheiro**. Contém os botões **Guardar**, **Anular**, **Refazer** e **Imprimir**.
 
 ## A lista de páginas
 

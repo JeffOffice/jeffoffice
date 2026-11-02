@@ -5,7 +5,7 @@ Gedruckt wird auf der Seite **Drucken**. Links wählen Sie die Einstellungen, re
 
 ## Eine Publikation drucken
 
-1. Drücken Sie Strg+P, oder klicken Sie auf **Datei > Drucken**. Auch die **Symbolleiste für den Schnellzugriff** enthält eine Schaltfläche **Drucken**.
+1. Drücken Sie Strg+P, oder klicken Sie auf **Datei > Drucken**. Auch die **Schnellsymbolleiste** enthält eine Schaltfläche **Drucken**.
 2. Legen Sie neben der Schaltfläche **Drucken** die Anzahl der **Exemplare** fest.
 3. Wählen Sie einen **Drucker** aus. Am Ende der Liste steht **Als PDF speichern**. Damit erstellen Sie statt eines Ausdrucks eine PDF-Datei.
 4. Wählen Sie unter **Einstellungen** die Option **Alle Seiten drucken**, **Aktuelle Seite drucken** oder **Benutzerdefinierter Druck**. Geben Sie für einen benutzerdefinierten Druck die Seiten in das Feld **Seiten** ein: Seitenzahlen und Seitenbereiche, durch Kommas getrennt, zum Beispiel 1-3, 5.

@@ -5,7 +5,7 @@ A apresentação de diapositivos reproduz os diapositivos um de cada vez, em ecr
 
 ## Iniciar a apresentação
 
-- Prima **F5** ou clique em **Apresentação de Diapositivos > Iniciar Apresentação de Diapositivos > Do Início**. O botão **Do Início** também está na Barra de Ferramentas de Acesso Rápido, no canto superior esquerdo.
+- Prima **F5** ou clique em **Apresentação de Diapositivos > Iniciar Apresentação de Diapositivos > Do Início**. O botão **Do Início** também está na Barra de Ferramentas Rápida, no canto superior esquerdo.
 - Prima **Shift+F5** ou clique em **Do Diapositivo Atual** para começar no diapositivo em que se encontra. O botão de apresentação de diapositivos da barra de estado faz o mesmo.
 - Clique em **Apresentação de Diapositivos Personalizada** e escolha uma apresentação personalizada para reproduzir apenas os diapositivos que contém. Consulte "Criar uma apresentação personalizada" abaixo.
 

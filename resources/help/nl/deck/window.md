@@ -1,5 +1,5 @@
 # Wegwijs in het venster
-<!-- keywords: lint, tabbladen, werkbalk, interface, schermindeling, scherm, diavenster, miniaturen, notities, statusbalk, zoomen, in- en uitzoomen, werkbalk Snelle toegang, lint samenvouwen, lint minimaliseren, onderdelen van het venster, normale weergave, titelbalk, deelvensters, vensters -->
+<!-- keywords: lint, tabbladen, werkbalk, interface, schermindeling, scherm, diavenster, miniaturen, notities, statusbalk, zoomen, in- en uitzoomen, snelle werkbalk, lint samenvouwen, lint minimaliseren, onderdelen van het venster, normale weergave, titelbalk, deelvensters, vensters -->
 
 Het JeffDeck-venster bestaat uit vijf hoofdonderdelen: het lint bovenaan, het diavenster links, de dia in het midden met de notities eronder, deelvensters die aan de rechterkant worden geopend en de statusbalk onderaan. De titelbalk toont de naam van uw presentatie, met een sterretje (*) als er wijzigingen zijn die u nog niet hebt opgeslagen.
 
@@ -9,11 +9,11 @@ Het lint is de strook met knoppen bovenaan. De knoppen zijn verdeeld over **tabb
 
 Als u meer ruimte voor de dia wilt, vouwt u het lint samen. Klik op de pijl helemaal rechts in de rij met tabbladen of dubbelklik op een tabblad. Alleen de namen van de tabbladen blijven staan. Klik op een tabblad om de knoppen weer te zien. Met de knop **?** naast de pijl opent u Help.
 
-## De knop Bestand en de werkbalk Snelle toegang
+## De knop Bestand en de snelle werkbalk
 
 De knop **Bestand** staat links van de tabbladen. Hiermee opent u het scherm Bestand, waar u presentaties maakt, opent, opslaat, afdrukt en exporteert. Druk op Esc of klik op **Terug naar presentatie** om terug te gaan. Zie [Het scherm Bestand](file-screen).
 
-De werkbalk Snelle toegang is de rij met drie kleine knoppen boven de knop **Bestand**. Hierop staan **Ongedaan maken**, **Opnieuw** en **Vanaf begin**, waarmee u de diavoorstelling vanaf de eerste dia afspeelt.
+De snelle werkbalk is de rij met drie kleine knoppen boven de knop **Bestand**. Hierop staan **Ongedaan maken**, **Opnieuw** en **Vanaf begin**, waarmee u de diavoorstelling vanaf de eerste dia afspeelt.
 
 ## Het diavenster
 

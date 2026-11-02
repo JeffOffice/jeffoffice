@@ -48,7 +48,7 @@ Esta versão do JeffWrite é uma **versão de pré-visualização**. Está pront
 - Alinhamento, avanços, espaçamento e espaçamento entre linhas dos parágrafos. A caixa **Parágrafo** (a pequena seta no canto do grupo Parágrafo) tem todas estas opções.
 - Listas com marcas e listas numeradas, com níveis.
 - Estilos. A galeria tem Normal, títulos, Título e mais. O painel **Estilos** (Ctrl+Alt+Shift+S) lista-os todos, e pode criar um estilo a partir do texto e alterar qualquer estilo (consulte [Utilizar estilos](styles)).
-- O Pincel de Formatação, que copia o aspeto de um texto para outro texto (consulte [Copiar um aspeto com o Pincel de Formatação](format-painter)).
+- O Copiar Formatação, que copia o aspeto de um texto para outro texto (consulte [Copiar um aspeto com o Copiar Formatação](format-painter)).
 - Ir Para (Ctrl+G) uma página, secção, linha, marcador, nota de rodapé ou título, e arrastar o texto selecionado para o mover, ou arrastá-lo com Ctrl premido para o copiar (consulte [Ir para um local e mover texto](go-to-and-move-text)).
 - Páginas: tamanho do papel, orientação, margens, colunas (uma, duas ou três), quebras de página e quebras de secção que começam uma nova página. **Esquema > Configurar Página** define as margens, o papel e o esquema de uma secção ou de todo o documento (consulte [Configurar a página](page-setup)).
 - Imagens: **Inserir > Imagens** insere uma imagem a partir de um ficheiro ou da área de transferência; pode redimensioná-la com as alças, movê-la, moldar o texto à volta dela e atribuir-lhe texto alternativo (consulte [Adicionar e alterar imagens](pictures)).

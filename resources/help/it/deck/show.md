@@ -5,7 +5,7 @@ La presentazione mostra le diapositive una alla volta, a schermo intero. La visu
 
 ## Avviare la presentazione
 
-- Premere **F5** oppure fare clic su **Presentazione > Avvia presentazione > Dall'inizio**. Il pulsante **Dall'inizio** si trova anche nella barra di accesso rapido, in alto a sinistra.
+- Premere **F5** oppure fare clic su **Presentazione > Avvia presentazione > Dall'inizio**. Il pulsante **Dall'inizio** si trova anche nella barra degli strumenti rapida, in alto a sinistra.
 - Premere **MAIUSC+F5** oppure fare clic su **Dalla diapositiva corrente** per iniziare dalla diapositiva in cui ci si trova. Il pulsante della presentazione sulla barra di stato ha lo stesso effetto.
 - Fare clic su **Presentazione personalizzata** e scegliere una presentazione personalizzata per mostrare solo le diapositive che contiene. Vedere "Creare una presentazione personalizzata" più avanti.
 

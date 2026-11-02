@@ -29,7 +29,7 @@ JeffPub goes to the page and selects the object. Fix it, and the item drops off 
 | Object is partially off the page | Part of an object is outside the page. | Move it, or leave it if it is a bleed. |
 | Text box is empty | A text box holds no text. | Type in it, or delete it. |
 | Story with text in overflow area | A story is the text that runs through linked boxes. This one has more text than fits. | Enlarge a box, cut text, or [link another box](linked-text). |
-| Text is shrunk a great deal to fit | Autofit, which shrinks text to fit its box, made the text less than half its size. | Enlarge the box or use less text. |
+| Text is shrunk a great deal to fit | Shrinking text to fit its box made the text less than half its size. | Enlarge the box or use less text. |
 | Picture placeholder is empty | A picture frame has no picture. | Click it to add one, or delete it. |
 | Picture is not scaled proportionally | The picture is stretched or squeezed. | Resize it to restore its shape. |
 | Picture is linked, not embedded | The picture is tied to a file and only a small preview is stored in the publication. A picture inserted with **Insert and Link** is stored whole and is not listed. | Keep the original file with your publication, or click **Embed Picture** in the [Graphics Manager](graphics-manager). |

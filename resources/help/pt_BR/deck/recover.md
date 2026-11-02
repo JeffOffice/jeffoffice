@@ -1,16 +1,16 @@
 # Recuperar trabalho não salvo
-<!-- keywords: recuperar, recuperação, autorecuperação, AutoRecuperação, salvamento automático, autosalvar, travamento, falha, trabalho perdido, não salvo, queda de energia, falta de luz, restaurar, travou, fechado sem querer, backup, cópia de segurança -->
+<!-- keywords: recuperar, recuperação, recuperação automática, recuperação automática, salvamento automático, autosalvar, travamento, falha, trabalho perdido, não salvo, queda de energia, falta de luz, restaurar, travou, fechado sem querer, backup, cópia de segurança -->
 
-Se o JeffDeck fechar de repente ou faltar energia, seu trabalho mais recente pode estar a salvo. Enquanto você trabalha, o JeffDeck mantém uma cópia reserva de cada apresentação que tenha alterações não salvas. Esse recurso se chama **AutoRecuperação**.
+Se o JeffDeck fechar de repente ou faltar energia, seu trabalho mais recente pode estar a salvo. Enquanto você trabalha, o JeffDeck mantém uma cópia reserva de cada apresentação que tenha alterações não salvas. Esse recurso se chama **recuperação automática**.
 
-## Como a AutoRecuperação funciona
+## Como a recuperação automática funciona
 
 - A cada 10 minutos, o JeffDeck salva uma cópia reserva de cada apresentação com alterações não salvas.
-- O JeffDeck guarda as cópias em uma pasta de AutoRecuperação, dentro da pasta onde ele mantém os próprios dados. Você nunca precisa procurar nela.
+- O JeffDeck guarda as cópias em uma pasta de recuperação automática, dentro da pasta onde ele mantém os próprios dados. Você nunca precisa procurar nela.
 - A cópia reserva nunca substitui o seu arquivo de verdade.
 - A cópia é removida quando você salva a apresentação, fecha a apresentação ou sai do JeffDeck normalmente.
 
-A AutoRecuperação não substitui o salvamento. Se o JeffDeck parar, você pode perder o trabalho dos últimos minutos. Pressione Ctrl+S com frequência.
+A recuperação automática não substitui o salvamento. Se o JeffDeck parar, você pode perder o trabalho dos últimos minutos. Pressione Ctrl+S com frequência.
 
 ## Recuperar o seu trabalho
 

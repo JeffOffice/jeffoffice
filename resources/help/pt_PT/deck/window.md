@@ -9,11 +9,11 @@ O friso é a faixa de botões na parte superior. Os botões estão organizados e
 
 Para ter mais espaço para o diapositivo, feche o friso. Clique na seta na extremidade direita da linha de separadores ou faça duplo clique num separador. Ficam visíveis apenas os nomes dos separadores. Clique num separador para mostrar novamente os botões. O botão **?** junto à seta abre a Ajuda.
 
-## O botão Ficheiro e a Barra de Ferramentas de Acesso Rápido
+## O botão Ficheiro e a Barra de Ferramentas Rápida
 
 O botão **Ficheiro** encontra-se à esquerda dos separadores. Abre o ecrã Ficheiro, onde pode criar, abrir, guardar, imprimir e exportar. Prima Esc ou clique em **Voltar à apresentação** para regressar. Consulte [O ecrã Ficheiro](file-screen).
 
-A Barra de Ferramentas de Acesso Rápido é a linha de três pequenos botões por cima do botão **Ficheiro**. Contém **Anular**, **Refazer** e **Do Início**, que reproduz a apresentação de diapositivos a partir do primeiro diapositivo.
+A Barra de Ferramentas Rápida é a linha de três pequenos botões por cima do botão **Ficheiro**. Contém **Anular**, **Refazer** e **Do Início**, que reproduz a apresentação de diapositivos a partir do primeiro diapositivo.
 
 ## O painel de diapositivos
 

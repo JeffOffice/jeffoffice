@@ -38,7 +38,7 @@ Sur un Mac, la touche **Commande** (⌘) remplace la touche **Ctrl** dans les ta
 | Ctrl+Alt+V | Collage spécial |
 | Ctrl et la touche plus, Ctrl et la touche moins | Insérer, supprimer (des lignes ou des colonnes si des lignes ou colonnes entières sont sélectionnées) |
 | Ctrl+D, Ctrl+R | Recopier vers le bas, recopier vers la droite |
-| Alt et le signe égal | Somme automatique |
+| Alt et le signe égal | Somme |
 | Ctrl+0, Ctrl+9 | Masquer les colonnes, masquer les lignes |
 | Alt+Bas | Ouvrir la liste d'une cellule qui en possède une |
 | {key:Find} | Rechercher |

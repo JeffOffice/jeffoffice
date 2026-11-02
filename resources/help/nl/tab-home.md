@@ -3,7 +3,7 @@
 
 Het tabblad **Start** staat altijd op het lint. Hierop vindt u de hulpmiddelen die u het meest gebruikt bij het schrijven en indelen van een pagina.
 
-- **Klembord** bevat **Plakken**, **Knippen**, **Kopiëren** en **Opmaak kopiëren/plakken**, waarmee u de opmaak van tekst overneemt naar een ander vak. Zie [Tekst opmaken](formatting-text).
+- **Klembord** bevat **Plakken**, **Knippen**, **Kopiëren** en **Opmaak kopiëren**, waarmee u de opmaak van tekst overneemt naar een ander vak. Zie [Tekst opmaken](formatting-text).
 - Met **Lettertype** wijzigt u het lettertype, de grootte, de kleur en de stijl van letters. Zie [Tekst opmaken](formatting-text).
 - **Alinea** bevat opsommingstekens, nummering, inspringingen, uitlijning en afstand voor hele alinea's. Zie [Opsommingstekens, nummering en tabs](lists-tabs).
 - **Stijlen** is een galerie met benoemde opmaak die u met één klik toepast, en waarmee u ook uw eigen stijlen maakt. Zie [Stijlen gebruiken](styles).

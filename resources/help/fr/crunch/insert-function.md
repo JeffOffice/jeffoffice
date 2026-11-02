@@ -1,7 +1,7 @@
 # Choisir une fonction
 <!-- keywords: fonction, choisir une fonction, fx, formule, argument, catégorie, rechercher, toutes les fonctions, somme automatique, Maj+F3 -->
 
-Choisissez **Choisir une fonction** dans l'onglet Formules (**Maj+F3**), ou **Toutes les fonctions** dans le menu **Somme automatique**.
+Choisissez **Choisir une fonction** dans l'onglet Formules (**Maj+F3**), ou **Toutes les fonctions** dans le menu **Somme**.
 
 Tapez dans la zone de recherche un nom ou ce que vous voulez faire (« arrondir à l'inférieur », « assembler du texte ») : la liste affiche les fonctions correspondantes, en commençant par celles dont le nom commence par les mots saisis. **Catégorie** limite la liste aux fonctions de finances, de date et heure, de maths et trigonométrie, de statistiques, de recherche et référence, de texte, de logique, d'information ou de base de données.
 

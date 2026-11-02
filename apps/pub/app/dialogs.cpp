@@ -742,7 +742,7 @@ void formatObjectDialog(QWidget *p, Editor *ed, int tab)
     auto *va = new QComboBox(tb);
     va->addItems({QCoreApplication::translate("Dialogs", "Top"), QCoreApplication::translate("Dialogs", "Middle"), QCoreApplication::translate("Dialogs", "Bottom")});
     auto *fit = new QComboBox(tb);
-    fit->addItems({QCoreApplication::translate("Dialogs", "Do Not Autofit"), QCoreApplication::translate("Dialogs", "Best Fit"), QCoreApplication::translate("Dialogs", "Shrink Text On Overflow"), QCoreApplication::translate("Dialogs", "Grow Text Box to Fit")});
+    fit->addItems({QCoreApplication::translate("Dialogs", "Do Not Fit"), QCoreApplication::translate("Dialogs", "Best Fit"), QCoreApplication::translate("Dialogs", "Shrink Text On Overflow"), QCoreApplication::translate("Dialogs", "Grow Text Box to Fit")});
     auto *cols = new QSpinBox(tb);
     cols->setRange(1, 63);
     auto *gap = measure(9, tb);
@@ -762,7 +762,7 @@ void formatObjectDialog(QWidget *p, Editor *ed, int tab)
     cOn->setChecked(contOn);
     cFrom->setChecked(contFrom);
     tbf->addRow(QCoreApplication::translate("Dialogs", "Vertical alignment:"), va);
-    if (isText) tbf->addRow(QCoreApplication::translate("Dialogs", "Text autofitting:"), fit);
+    if (isText) tbf->addRow(QCoreApplication::translate("Dialogs", "Text fitting:"), fit);
     tbf->addRow(QCoreApplication::translate("Dialogs", "Left margin:"), tl);
     tbf->addRow(QCoreApplication::translate("Dialogs", "Right margin:"), tr);
     tbf->addRow(QCoreApplication::translate("Dialogs", "Top margin:"), tt);
@@ -1353,7 +1353,7 @@ void optionsDialog(QWidget *p, Editor *ed)
         recover->setSuffix(QCoreApplication::translate("Dialogs", " minutes"));
         auto *backup = new QCheckBox(QCoreApplication::translate("Dialogs", "Always create backup copy"), save);
         backup->setChecked(st.value("save/backup", false).toBool());
-        sf->addRow(QCoreApplication::translate("Dialogs", "Save AutoRecover information every:"), recover);
+        sf->addRow(QCoreApplication::translate("Dialogs", "Save automatic recovery information every:"), recover);
         sf->addRow(backup);
         f->recover = recover;
         f->backup = backup;

@@ -72,7 +72,7 @@ Markieren Sie die Zellen, und drücken Sie **Entf**. Dadurch wird der Inhalt der
 
 ## Rückgängig und Wiederholen
 
-**{key:Undo}** macht die letzte Änderung rückgängig, **{key:Redo}** wiederholt sie. Beide Befehle finden Sie auch oben in der Symbolleiste für den Schnellzugriff. Jede Zelle, in die Sie eingeben, ist ein Schritt, ebenso jedes Leeren. „Rückgängig“ stellt die Zelle wieder her, wie sie war: ihren Wert, ihre Formel, ihr Format und die davon abhängigen Formeln. JeffCrunch merkt sich bis zu 1.000 Schritte, weniger, wenn sehr viele Zellen geändert wurden, damit nie viel Arbeitsspeicher belegt wird.
+**{key:Undo}** macht die letzte Änderung rückgängig, **{key:Redo}** wiederholt sie. Beide Befehle finden Sie auch oben in der Schnellsymbolleiste. Jede Zelle, in die Sie eingeben, ist ein Schritt, ebenso jedes Leeren. „Rückgängig“ stellt die Zelle wieder her, wie sie war: ihren Wert, ihre Formel, ihr Format und die davon abhängigen Formeln. JeffCrunch merkt sich bis zu 1.000 Schritte, weniger, wenn sehr viele Zellen geändert wurden, damit nie viel Arbeitsspeicher belegt wird.
 
 ## Während JeffCrunch die Formeln berechnet
 

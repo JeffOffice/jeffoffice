@@ -30,7 +30,7 @@ De kleine knop met drie puntjes in de hoek van de groep opent het venster **Lett
 
 Woorden kunnen **effecten** hebben. Een effect is een uiterlijk dat aan de letters wordt toegevoegd, zoals een schaduw, een gloed of een weerspiegeling. Een **schaduw** is een zachte, donkere kopie van de woorden, iets naar rechtsonder verschoven. Een **gloed** is een zachte kleurrand rond de letters. Een **weerspiegeling** is een vervaagde, omgekeerde kopie van de woorden eronder. Een **binnenschaduw** maakt de letters donkerder langs één binnenrand. JeffDeck toont de effecten die een presentatie al heeft en behoudt ze bij het opslaan. De knop **Schaduw** geeft de geselecteerde woorden een schaduw; met een tweede klik verwijdert u die weer. Een schaduw wordt direct onder de letters getekend, zodat deze nooit andere woorden bedekt. In een presentatie die is verkleind om te passen, worden de schaduwen mee verkleind.
 
-**Opmaak kopiëren/plakken** kopieert het uiterlijk van tekst of een object. Selecteer wat u wilt kopiëren, klik op **Opmaak kopiëren/plakken** en klik of sleep vervolgens over wat er hetzelfde uit moet zien. Houd Shift ingedrukt terwijl u op de knop klikt om de opmaak meerdere keren toe te passen. Klik nogmaals op de knop of druk op Esc om te stoppen.
+**Opmaak kopiëren** kopieert het uiterlijk van tekst of een object. Selecteer wat u wilt kopiëren, klik op **Opmaak kopiëren** en klik of sleep vervolgens over wat er hetzelfde uit moet zien. Houd Shift ingedrukt terwijl u op de knop klikt om de opmaak meerdere keren toe te passen. Klik nogmaals op de knop of druk op Esc om te stoppen.
 
 ## Alinea's opmaken
 

@@ -1,5 +1,5 @@
 # Cellen opmaken
-<!-- keywords: opmaak, opmaken, celopmaak, lettertype, tekengrootte, grootte, vet, cursief, onderstrepen, dubbel onderstrepen, doorhalen, kleur, tekstkleur, opvulling, opvulkleur, achtergrond, achtergrondkleur, rand, randen, uitlijnen, uitlijning, centreren, links, rechts, boven, midden, onder, tekstterugloop, terugloop, inspringen, inspringing, draaien, gedraaid, stand, hoek, verticale tekst, samenvoegen, samenvoegen en centreren, splitsen, Celeigenschappen, Ctrl+1, Opmaak kopiëren/plakken, opmaak kopiëren, wissen, opmaak wissen, beveiliging, vergrendeld, verborgen, van rechts naar links, tekstrichting, passend maken, uitvullen -->
+<!-- keywords: opmaak, opmaken, celopmaak, lettertype, tekengrootte, grootte, vet, cursief, onderstrepen, dubbel onderstrepen, doorhalen, kleur, tekstkleur, opvulling, opvulkleur, achtergrond, achtergrondkleur, rand, randen, uitlijnen, uitlijning, centreren, links, rechts, boven, midden, onder, tekstterugloop, terugloop, inspringen, inspringing, draaien, gedraaid, stand, hoek, verticale tekst, samenvoegen, samenvoegen en centreren, splitsen, Celeigenschappen, Ctrl+1, Opmaak kopiëren, opmaak kopiëren, wissen, opmaak wissen, beveiliging, vergrendeld, verborgen, van rechts naar links, tekstrichting, passend maken, uitvullen -->
 
 **Opmaak** bepaalt hoe cellen eruitzien: het lettertype, de kleuren, de randen, waar de tekst staat en hoe een getal wordt geschreven. De inhoud van een cel verandert er nooit door. Selecteer eerst de cellen en gebruik dan het tabblad **Start**. Elke wijziging is één stap die u ongedaan kunt maken.
 
@@ -27,9 +27,9 @@
 
 **Groep Bewerken**: **Wissen** bevat **Alles wissen** (inhoud en opmaak), **Opmaak wissen** (de cellen behouden hun inhoud en krijgen de notatie Standaard zonder opvulling of rand) en **Inhoud wissen**.
 
-## Opmaak kopiëren/plakken
+## Opmaak kopiëren
 
-Selecteer cellen die eruitzien zoals u wilt, klik op **Opmaak kopiëren/plakken** (het kwastje in de groep Klembord) en selecteer dan de cellen die die opmaak moeten krijgen. Ze krijgen het lettertype, de opvulling, de randen, de getalnotatie en de uitlijning. **Dubbelklik** op het kwastje om meer dan eens te plakken; klik er nogmaals op of druk op **Esc** om te stoppen.
+Selecteer cellen die eruitzien zoals u wilt, klik op **Opmaak kopiëren** (het kwastje in de groep Klembord) en selecteer dan de cellen die die opmaak moeten krijgen. Ze krijgen het lettertype, de opvulling, de randen, de getalnotatie en de uitlijning. **Dubbelklik** op het kwastje om meer dan eens te plakken; klik er nogmaals op of druk op **Esc** om te stoppen.
 
 ## Het venster Celeigenschappen
 

@@ -62,5 +62,5 @@ Mettez en forme un paragraphe comme vous le souhaitez. Cliquez ensuite sur **Met
 ## Voir aussi
 
 - [Modifier l'apparence du texte](font)
-- [Copier une mise en forme avec Reproduire la mise en forme](format-painter)
+- [Copier une mise en forme avec Copier la mise en forme](format-painter)
 - [Utiliser JeffWrite au clavier](keyboard)

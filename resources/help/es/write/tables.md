@@ -1,12 +1,12 @@
 # Tablas
-<!-- keywords: tabla, tablas, insertar tabla, filas, columnas, celda, celdas, combinar celdas, dividir celdas, bordes, sombreado, relleno, tamaño de celda, ancho de columna, alto de fila, autoajustar, distribuir filas, distribuir columnas, propiedades de tabla, fila de encabezado, repetir encabezado, estilo de tabla, estilos de tabla, filas con bandas, alineación, alinear texto en una celda, eliminar fila, eliminar columna, cuadrícula, líneas de cuadrícula, clic derecho, menú contextual, disposición de tabla, diseño de tabla -->
+<!-- keywords: tabla, tablas, insertar tabla, filas, columnas, celda, celdas, combinar celdas, dividir celdas, bordes, sombreado, relleno, tamaño de celda, ancho de columna, alto de fila, ajustar, distribuir filas, distribuir columnas, propiedades de tabla, fila de encabezado, repetir encabezado, estilo de tabla, estilos de tabla, filas con bandas, alineación, alinear texto en una celda, eliminar fila, eliminar columna, cuadrícula, líneas de cuadrícula, clic derecho, menú contextual, disposición de tabla, diseño de tabla -->
 
 Una **tabla** es una cuadrícula de **celdas** organizadas en **filas** y **columnas**. Cada celda contiene texto, que se escribe igual que en cualquier otra parte de la página. En este tema se explica cómo agregar una tabla, cambiar su forma y su aspecto, y prepararla para las páginas que ocupa.
 
 ## Agregar una tabla
 
 - Haga clic en **Insertar > Tabla**, señale la cuadrícula y haga clic en el tamaño que desee. El primer número indica las columnas en horizontal y el segundo, las filas en vertical.
-- O haga clic en **Insertar > Tabla > Insertar tabla** para escribir el número de columnas y filas, e indicar cómo se ajustan las columnas. **Ancho de columna fijo** mantiene cada columna con el ancho que le asigne (o, con *Automático*, reparte el ancho del área de texto entre las columnas). **Autoajustar al contenido** ajusta las columnas a las palabras que contienen. **Autoajustar a la ventana** hace que la tabla ocupe todo el ancho del área de texto. Active **Recordar dimensiones para tablas nuevas** para que la siguiente tabla empiece con los mismos valores.
+- O haga clic en **Insertar > Tabla > Insertar tabla** para escribir el número de columnas y filas, e indicar cómo se ajustan las columnas. **Ancho de columna fijo** mantiene cada columna con el ancho que le asigne (o, con *Automático*, reparte el ancho del área de texto entre las columnas). **Ajustar al contenido** ajusta las columnas a las palabras que contienen. **Ajustar a la ventana** hace que la tabla ocupe todo el ancho del área de texto. Active **Recordar dimensiones para tablas nuevas** para que la siguiente tabla empiece con los mismos valores.
 
 La tabla se inserta donde está el cursor. Si el cursor está en medio de un párrafo, el párrafo se divide en dos y la tabla se coloca entre ambas partes. El cursor queda en la primera celda. Presione **Tab** para ir a la celda siguiente y **Mayús+Tab** para volver a la anterior. Si presiona **Tab** en la última celda, se agrega una fila. De este modo no se puede insertar una tabla dentro de una celda.
 
@@ -46,7 +46,7 @@ Las opciones situadas a la izquierda de la galería indican a qué partes se apl
 En **Disposición de tabla**:
 
 - Escriba un valor en **Alto** para establecer el alto de las filas en las que está el cursor, y en **Ancho** para establecer el ancho de su columna. El alto es un alto mínimo: la fila crece con su contenido. Para un alto que no crezca, use Propiedades de tabla.
-- **Autoajustar** ajusta las columnas a su contenido o a la ventana, o las fija tal como están.
+- **Ajustar** ajusta las columnas a su contenido o a la ventana, o las fija tal como están.
 - **Distribuir filas** y **Distribuir columnas** igualan el alto de las filas seleccionadas o el ancho de las columnas seleccionadas. Si solo hay una fila o columna seleccionada, se aplican a toda la tabla.
 
 ## Posición del texto en una celda

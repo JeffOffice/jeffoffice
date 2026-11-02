@@ -1,16 +1,16 @@
 # Recuperar el trabajo no guardado
-<!-- keywords: recuperar, recuperación, autorrecuperación, autoguardado, guardado automático, bloqueo, cierre inesperado, trabajo perdido, no guardado, corte de luz, apagón, restaurar, congelado, bloqueado, cerrado por error, copia de seguridad -->
+<!-- keywords: recuperar, recuperación, recuperación automática, autoguardado, guardado automático, bloqueo, cierre inesperado, trabajo perdido, no guardado, corte de luz, apagón, restaurar, congelado, bloqueado, cerrado por error, copia de seguridad -->
 
-Si JeffPub se cierra de forma inesperada o se va la luz, es posible que su trabajo más reciente esté a salvo. Mientras trabaja, JeffPub guarda una copia de reserva de cada publicación que tenga cambios sin guardar. Esta función se llama **Autorrecuperación**.
+Si JeffPub se cierra de forma inesperada o se va la luz, es posible que su trabajo más reciente esté a salvo. Mientras trabaja, JeffPub guarda una copia de reserva de cada publicación que tenga cambios sin guardar. Esta función se llama **recuperación automática**.
 
-## Cómo funciona la Autorrecuperación
+## Cómo funciona la recuperación automática
 
 - Cada pocos minutos, JeffPub guarda una copia de reserva de cada publicación que tenga cambios sin guardar. El valor predeterminado es cada 10 minutos.
-- JeffPub guarda las copias en una carpeta de Autorrecuperación, dentro de la carpeta donde guarda sus propios datos. No es necesario que la busque usted.
+- JeffPub guarda las copias en una carpeta de recuperación automática, dentro de la carpeta donde guarda sus propios datos. No es necesario que la busque usted.
 - La copia de reserva nunca reemplaza el archivo real.
 - La copia desaparece cuando guarda la publicación, la cierra o sale de JeffPub de la forma habitual.
 
-La Autorrecuperación no sustituye a guardar. Si JeffPub se detiene, puede perder el trabajo de los últimos minutos. Presione Ctrl+S a menudo.
+La recuperación automática no sustituye a guardar. Si JeffPub se detiene, puede perder el trabajo de los últimos minutos. Presione Ctrl+S a menudo.
 
 ## Recuperar el trabajo
 
@@ -37,7 +37,7 @@ Si cerró la ventana y quiere recuperar las copias, haga clic en **Archivo > Abr
 
 ## Cambiar la frecuencia de guardado
 
-Haga clic en **Archivo > Opciones** y, después, en la pestaña **Guardar**. Cambie **Guardar información de Autorrecuperación cada** a un número entre 1 y 120 minutos. Cuanto menor sea el número, menos podrá perder. El nuevo intervalo se aplica por completo la próxima vez que inicie JeffPub.
+Haga clic en **Archivo > Opciones** y, después, en la pestaña **Guardar**. Cambie **Guardar información de recuperación automática cada** a un número entre 1 y 120 minutos. Cuanto menor sea el número, menos podrá perder. El nuevo intervalo se aplica por completo la próxima vez que inicie JeffPub.
 
 ## Temas relacionados
 

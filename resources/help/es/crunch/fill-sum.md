@@ -1,5 +1,5 @@
 # Rellenar celdas y sumarlas
-<!-- keywords: rellenar, relleno, serie, series, arrastrar, controlador de relleno, Autorrellenar, Ctrl+D, Ctrl+R, abajo, derecha, arriba, izquierda, número, fecha, día laborable, mes, año, incremento, límite, copiar, Autosuma, suma, sumar, promedio, media, contar, recuento, máximo, mínimo, Alt+igual, total, totales -->
+<!-- keywords: rellenar, relleno, serie, series, arrastrar, controlador de relleno, Autorrellenar, Ctrl+D, Ctrl+R, abajo, derecha, arriba, izquierda, número, fecha, día laborable, mes, año, incremento, límite, copiar, Suma, suma, sumar, promedio, media, contar, recuento, máximo, mínimo, Alt+igual, total, totales -->
 
 ## Rellenar
 
@@ -24,8 +24,8 @@ Un relleno no entra en celdas combinadas ni sale de ellas, porque dejaría valor
 
 **Rellenar > En varias hojas** copia las celdas seleccionadas en las mismas celdas de las hojas que active en una lista: todo, solo el contenido o solo los formatos. Es un solo paso de Deshacer.
 
-## Autosuma
+## Suma
 
-**Inicio > Autosuma** (**Alt y el signo igual**) coloca un total en la celda que seleccione. Busca los números situados encima de la celda; si no hay ninguno, los situados a su izquierda. La fórmula se coloca en la celda para que la compruebe, y **Entrar** la conserva. La flecha junto a Autosuma ofrece los otros totales: **Promedio**, **Contar números**, **Máx.** y **Mín.**
+**Inicio > Suma** (**Alt y el signo igual**) coloca un total en la celda que seleccione. Busca los números situados encima de la celda; si no hay ninguno, los situados a su izquierda. La fórmula se coloca en la celda para que la compruebe, y **Entrar** la conserva. La flecha junto a Suma ofrece los otros totales: **Promedio**, **Contar números**, **Máx.** y **Mín.**
 
 Si selecciona antes un bloque, cada columna del bloque obtiene su propia fórmula en las celdas vacías que hay debajo (o, en el caso de una sola fila, a su derecha).

@@ -1,5 +1,5 @@
 # Agregar cuadros de texto y aplicarles formato
-<!-- keywords: cuadro de texto, marco de texto, escribir texto, agregar texto, añadir texto, insertar texto, ajuste del texto, autoajuste, ajuste perfecto, reducir texto, texto vertical, columnas, márgenes, desbordamiento, texto desbordado, marco -->
+<!-- keywords: cuadro de texto, marco de texto, escribir texto, agregar texto, añadir texto, insertar texto, ajuste del texto, ajuste, ajuste perfecto, reducir texto, texto vertical, columnas, márgenes, desbordamiento, texto desbordado, marco -->
 
 Un cuadro de texto es un rectángulo de la página que contiene texto.
 
@@ -33,7 +33,7 @@ Para indicar valores exactos, haga clic con el botón derecho en el cuadro, elij
 
 Elija **Cuadro de texto > Texto > Ajuste del texto**, o haga clic con el botón derecho en el cuadro y elija **Ajuste del texto**.
 
-- **No autoajustar:** no cambia nada. Los cuadros nuevos empiezan con esta opción.
+- **No ajustar:** no cambia nada. Los cuadros nuevos empiezan con esta opción.
 - **Ajuste perfecto:** muestra el texto más grande o más pequeño para llenar el cuadro.
 - **Reducir texto al desbordarse:** muestra el texto más pequeño solo cuando no cabe.
 - **Ajustar cuadro de texto al texto:** cambia el alto del cuadro para adaptarlo al texto.

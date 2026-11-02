@@ -1,5 +1,5 @@
 # Open, save, print, and export
-<!-- keywords: open, save, save as, docx, doc, dot, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, autorecover, unsaved, crash, file screen, file formats -->
+<!-- keywords: open, save, save as, docx, doc, dot, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats -->
 
 Click **File** at the top left to see the File screen. It has pages for New, Open, Print, and Export, and commands for Save and Save As. Press **Esc** to go back to your document.
 

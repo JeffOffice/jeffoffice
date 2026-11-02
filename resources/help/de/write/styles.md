@@ -62,5 +62,5 @@ Formatieren Sie einen Absatz so, wie Sie es möchten. Klicken Sie dann auf der R
 ## Verwandte Themen
 
 - [Aussehen von Text ändern](font)
-- [Formatierung mit „Format übertragen“ kopieren](format-painter)
+- [Formatierung mit der Schaltfläche kopieren](format-painter)
 - [JeffWrite mit der Tastatur bedienen](keyboard)

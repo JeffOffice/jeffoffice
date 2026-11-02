@@ -1,5 +1,5 @@
 # Change JeffPub's settings
-<!-- keywords: options, settings, preferences, theme, dark mode, units, inches, autorecover, backup, language, user name, nudge, updates, beta, usage statistics, about -->
+<!-- keywords: options, settings, preferences, theme, dark mode, units, inches, automatic recovery, backup, language, user name, nudge, updates, beta, usage statistics, about -->
 
 Your settings are in the **JeffPub Options** window. Click **File > Options** to open it. It has four tabs. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
@@ -25,7 +25,7 @@ These check boxes control spelling and typing help. See [Check spelling and hyph
 
 ## Save
 
-- **Save AutoRecover information every** sets how often JeffPub makes spare copies of unsaved work, from 1 to 120 minutes. See [Get back unsaved work](recover).
+- **Save automatic recovery information every** sets how often JeffPub makes spare copies of unsaved work, from 1 to 120 minutes. See [Get back unsaved work](recover).
 - **Always create backup copy** keeps the older file as "Backup of" plus its name each time you save.
 
 ## Advanced

@@ -30,7 +30,7 @@ Le petit bouton à trois points, dans le coin du groupe, ouvre la fenêtre **Pol
 
 Les mots peuvent avoir des **effets**. Un effet est un aspect ajouté aux lettres, comme une ombre, une lumière ou une réflexion. Une **ombre** est une copie sombre et floue des mots, légèrement décalée vers le bas et la droite. Une **lumière** est un halo de couleur autour des lettres. Une **réflexion** est une copie estompée et renversée des mots, placée en dessous. Une **ombre intérieure** assombrit les lettres le long d'un de leurs bords intérieurs. JeffDeck affiche les effets déjà présents dans une présentation et les conserve à l'enregistrement. Le bouton **Ombre** ajoute une ombre aux mots sélectionnés ; un second clic la retire. L'ombre est dessinée juste sous ses lettres et ne recouvre donc jamais d'autres mots. Dans une présentation réduite pour s'ajuster, les ombres sont réduites avec les mots.
 
-**Reproduire la mise en forme** copie l'aspect d'un texte ou d'un objet. Sélectionnez ce que vous voulez copier, cliquez sur **Reproduire la mise en forme**, puis cliquez ou faites glisser sur ce qui doit prendre le même aspect. Maintenez Maj enfoncée en cliquant sur le bouton pour l'appliquer plusieurs fois. Cliquez de nouveau sur le bouton, ou appuyez sur Échap, pour arrêter.
+**Copier la mise en forme** copie l'aspect d'un texte ou d'un objet. Sélectionnez ce que vous voulez copier, cliquez sur **Copier la mise en forme**, puis cliquez ou faites glisser sur ce qui doit prendre le même aspect. Maintenez Maj enfoncée en cliquant sur le bouton pour l'appliquer plusieurs fois. Cliquez de nouveau sur le bouton, ou appuyez sur Échap, pour arrêter.
 
 ## Mettre en forme les paragraphes
 

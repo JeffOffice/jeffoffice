@@ -9,11 +9,11 @@ Le ruban est la bande de boutons située en haut de la fenêtre. Ses boutons son
 
 Pour laisser plus de place à la diapositive, réduisez le ruban. Cliquez sur la flèche située à l'extrémité droite de la rangée d'onglets, ou double-cliquez sur un onglet. Seuls les noms des onglets restent affichés. Cliquez sur un onglet pour afficher de nouveau les boutons. Le bouton **?** situé à côté de la flèche ouvre l'Aide.
 
-## Le bouton Fichier et la barre d'outils Accès rapide
+## Le bouton Fichier et la barre d'outils rapide
 
 Le bouton **Fichier** se trouve à gauche des onglets. Il ouvre l'écran Fichier, d'où vous pouvez créer, ouvrir, enregistrer, imprimer et exporter. Appuyez sur Échap ou cliquez sur **Retour à la présentation** pour revenir. Voir [L'écran Fichier](file-screen).
 
-La barre d'outils Accès rapide est la rangée de trois petits boutons située au-dessus du bouton **Fichier**. Elle contient **Annuler**, **Rétablir** et **À partir du début**, qui lance le diaporama à partir de la première diapositive.
+La barre d'outils rapide est la rangée de trois petits boutons située au-dessus du bouton **Fichier**. Elle contient **Annuler**, **Rétablir** et **À partir du début**, qui lance le diaporama à partir de la première diapositive.
 
 ## Le volet des diapositives
 

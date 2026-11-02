@@ -7,7 +7,7 @@ U kunt de meeste dingen in JeffDeck zonder muis doen. Er zijn sneltoetsen voor v
 
 Toetsenblokjes zijn kleine letters die op het lint verschijnen. Hiermee bereikt u elke knop zonder muis.
 
-1. Druk op **Alt** en laat de toets los. Er verschijnen letters op de knop **Bestand**, op elk tabblad en op de werkbalk Snelle toegang. De knoppen op de werkbalk Snelle toegang gebruiken de cijfers 1 tot en met 3.
+1. Druk op **Alt** en laat de toets los. Er verschijnen letters op de knop **Bestand**, op elk tabblad en op de snelle werkbalk. De knoppen op de snelle werkbalk gebruiken de cijfers 1 tot en met 3.
 2. Druk op de letter van het gewenste tabblad. De tabbladen gebruiken **H** voor **Start**, **N** voor **Invoegen**, **G** voor **Ontwerp**, **K** voor **Overgangen**, **S** voor **Diavoorstelling**, **R** voor **Controleren** en **W** voor **Beeld**. De letters voor de knoppen van dat tabblad verschijnen.
 3. Typ de letters van de gewenste knop. Druk bijvoorbeeld op **Alt**, dan op **S** en dan op **B** om de diavoorstelling **Vanaf begin** af te spelen.
 

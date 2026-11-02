@@ -9,7 +9,7 @@ O JeffCrunch utiliza os sinais do idioma definido no seu computador. Em inglês 
 
 Isto aplica-se a todos os locais onde um número é mostrado ou escrito:
 
-- Uma célula, a cópia de uma célula e a largura que o **Ajuste automático** dá a uma coluna seguem os sinais do seu idioma.
+- Uma célula, a cópia de uma célula e a largura que o **Ajuste** dá a uma coluna seguem os sinais do seu idioma.
 - A **barra de fórmulas** e uma célula que edita com **F2** aceitam um número tal como o escreve. Se o seu idioma escreve os decimais com vírgula, escreva **2,5** e não 2.5.
 - Num idioma que escreve os decimais com vírgula, uma fórmula tem **pontos e vírgulas** entre os argumentos: **=SUM(A1;A2)**. Os nomes das funções mantêm-se em inglês.
 - As datas e horas seguem o código do formato: um formato que indica "mês, dia, ano" mostra-as por essa ordem, e um formato próprio do seu idioma (os formatos prontos da lista) utiliza a ordem e os nomes do seu idioma.

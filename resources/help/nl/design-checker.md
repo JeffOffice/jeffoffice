@@ -29,7 +29,7 @@ JeffPub gaat naar de pagina en selecteert het object. Herstel het probleem; het 
 | Object valt gedeeltelijk buiten de pagina | Een deel van een object ligt buiten de pagina. | Verplaats het, of laat het staan als het afloop is. |
 | Tekstvak is leeg | Een tekstvak bevat geen tekst. | Typ er tekst in of verwijder het. |
 | Artikel met overlooptekst | Een artikel is de tekst die door gekoppelde tekstvakken loopt. Dit artikel bevat meer tekst dan er past. | Vergroot een tekstvak, kort de tekst in of [koppel een ander tekstvak](linked-text). |
-| Tekst is sterk verkleind om te passen | Automatisch aanpassen, waarmee tekst wordt verkleind zodat die in het tekstvak past, heeft de tekst tot minder dan de helft van de grootte verkleind. | Vergroot het tekstvak of gebruik minder tekst. |
+| Tekst is sterk verkleind om te passen | Aanpassen, waarmee tekst wordt verkleind zodat die in het tekstvak past, heeft de tekst tot minder dan de helft van de grootte verkleind. | Vergroot het tekstvak of gebruik minder tekst. |
 | Tijdelijke aanduiding voor afbeelding is leeg | Een afbeeldingskader bevat geen afbeelding. | Klik erop om een afbeelding toe te voegen, of verwijder het. |
 | Afbeelding is niet proportioneel geschaald | De afbeelding is uitgerekt of samengedrukt. | Wijzig het formaat om de oorspronkelijke verhoudingen te herstellen. |
 | Afbeelding is gekoppeld, niet ingesloten | De afbeelding is gekoppeld aan een bestand en in de publicatie is alleen een klein voorbeeld opgeslagen. Een afbeelding die u met **Invoegen en koppelen** hebt ingevoegd, is volledig opgeslagen en wordt niet vermeld. | Bewaar het oorspronkelijke bestand bij uw publicatie, of klik op **Afbeelding insluiten** in [Afbeeldingenbeheer](graphics-manager). |

@@ -1,16 +1,16 @@
 # Nicht gespeicherte Arbeit wiederherstellen
-<!-- keywords: wiederherstellen, Wiederherstellung, AutoWiederherstellen, automatisch wiederherstellen, automatisch speichern, Absturz, abgestürzt, verlorene Arbeit, nicht gespeichert, Stromausfall, zurückholen, eingefroren, hängt, versehentlich geschlossen, Sicherung, Sicherungskopie -->
+<!-- keywords: wiederherstellen, Wiederherstellung, automatische Wiederherstellung, automatisch wiederherstellen, automatisch speichern, Absturz, abgestürzt, verlorene Arbeit, nicht gespeichert, Stromausfall, zurückholen, eingefroren, hängt, versehentlich geschlossen, Sicherung, Sicherungskopie -->
 
-Wenn JeffPub unerwartet beendet wird oder der Strom ausfällt, ist Ihre letzte Arbeit möglicherweise noch vorhanden. Während Sie arbeiten, hält JeffPub eine Ersatzkopie jeder Publikation bereit, die nicht gespeicherte Änderungen enthält. Diese Funktion heißt **AutoWiederherstellen**.
+Wenn JeffPub unerwartet beendet wird oder der Strom ausfällt, ist Ihre letzte Arbeit möglicherweise noch vorhanden. Während Sie arbeiten, hält JeffPub eine Ersatzkopie jeder Publikation bereit, die nicht gespeicherte Änderungen enthält. Diese Funktion heißt **automatische Wiederherstellung**.
 
-## So funktioniert AutoWiederherstellen
+## So funktioniert die automatische Wiederherstellung
 
 - Alle paar Minuten speichert JeffPub eine Ersatzkopie jeder Publikation mit nicht gespeicherten Änderungen. Standardmäßig geschieht das alle 10 Minuten.
-- JeffPub legt die Kopien in einem AutoWiederherstellen-Ordner ab, der sich in dem Ordner für die eigenen Programmdaten befindet. Sie müssen dort nie selbst nachsehen.
+- JeffPub legt die Kopien in einem Ordner für die automatische Wiederherstellung ab, der sich in dem Ordner für die eigenen Programmdaten befindet. Sie müssen dort nie selbst nachsehen.
 - Die Ersatzkopie ersetzt nie Ihre eigentliche Datei.
 - Die Kopie wird entfernt, wenn Sie die Publikation speichern, schließen oder JeffPub normal beenden.
 
-AutoWiederherstellen ersetzt nicht das Speichern. Wenn JeffPub abbricht, kann die Arbeit der letzten Minuten verloren gehen. Drücken Sie oft Strg+S.
+Die automatische Wiederherstellung ersetzt nicht das Speichern. Wenn JeffPub abbricht, kann die Arbeit der letzten Minuten verloren gehen. Drücken Sie oft Strg+S.
 
 ## Arbeit wiederherstellen
 
@@ -37,7 +37,7 @@ Wenn Sie das Fenster geschlossen haben und Ihre Kopien zurückhaben möchten, kl
 
 ## Speicherintervall ändern
 
-Klicken Sie auf **Datei > Optionen** und dann auf die Registerkarte **Speichern**. Ändern Sie **AutoWiederherstellen-Informationen speichern alle** auf einen Wert zwischen 1 und 120 Minuten. Je kleiner der Wert, desto weniger kann verloren gehen. Die neue Zeit wird erst beim nächsten Start von JeffPub vollständig wirksam.
+Klicken Sie auf **Datei > Optionen** und dann auf die Registerkarte **Speichern**. Ändern Sie **Informationen für die automatische Wiederherstellung speichern alle** auf einen Wert zwischen 1 und 120 Minuten. Je kleiner der Wert, desto weniger kann verloren gehen. Die neue Zeit wird erst beim nächsten Start von JeffPub vollständig wirksam.
 
 ## Verwandte Themen
 

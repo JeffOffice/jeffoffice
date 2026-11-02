@@ -1,19 +1,19 @@
-# Copiar um aspeto com o Pincel de Formatação
+# Copiar um aspeto com o Copiar Formatação
 <!-- keywords: pincel de formatação, copiar formato, colar formato, copiar formatação, colar formatação, pincel, pintar, mesmo aspeto, ctrl+shift+c, ctrl+shift+v, duplo clique, faz clique duplo -->
 
-O **Pincel de Formatação** copia o aspeto de um texto e aplica-o a outro texto. Utilize-o quando pretender que uma palavra ou um parágrafo tenha exatamente o mesmo aspeto que outro.
+O **Copiar Formatação** copia o aspeto de um texto e aplica-o a outro texto. Utilize-o quando pretender que uma palavra ou um parágrafo tenha exatamente o mesmo aspeto que outro.
 
 ## Copiar um aspeto para um local
 
 1. Selecione as palavras que têm o aspeto pretendido. Em alternativa, clique no parágrafo.
-2. Clique em **Pincel de Formatação** no separador **Base**. O botão fica premido e a barra de estado lembra-lhe o que fazer.
-3. Selecione com o rato as palavras que pretende alterar. Quando soltar o botão do rato, estas adotam o aspeto e o Pincel de Formatação é desativado.
+2. Clique em **Copiar Formatação** no separador **Base**. O botão fica premido e a barra de estado lembra-lhe o que fazer.
+3. Selecione com o rato as palavras que pretende alterar. Quando soltar o botão do rato, estas adotam o aspeto e o Copiar Formatação é desativado.
 
 Se clicar numa palavra sem selecionar, a palavra adota o aspeto.
 
 ## Copiar um aspeto para vários locais
 
-Faça duplo clique em **Pincel de Formatação**. O pincel permanece ativo. Sempre que selecionar texto com o rato, esse texto adota o aspeto. Prima **Esc** ou clique novamente no botão para parar.
+Faça duplo clique em **Copiar Formatação**. O pincel permanece ativo. Sempre que selecionar texto com o rato, esse texto adota o aspeto. Prima **Esc** ou clique novamente no botão para parar.
 
 ## O que é copiado
 
@@ -23,7 +23,7 @@ Faça duplo clique em **Pincel de Formatação**. O pincel permanece ativo. Semp
 
 A lista em que um parágrafo se encontra e a respetiva posição no documento não são alteradas.
 
-Cada aplicação do Pincel de Formatação corresponde a um passo. **Anular** (Ctrl+Z) reverte-a.
+Cada aplicação do Copiar Formatação corresponde a um passo. **Anular** (Ctrl+Z) reverte-a.
 
 ## Utilizar o teclado
 

@@ -1,5 +1,5 @@
 # Abrir, salvar, imprimir e exportar
-<!-- keywords: abrir, salvar, salvar como, docx, doc, dot, arquivos antigos, modelo, dotx, recentes, fixar, novo, fechar, imprimir, pdf, exportar, recuperar, autorecuperação, não salvo, falha, travamento, tela arquivo, formatos de arquivo -->
+<!-- keywords: abrir, salvar, salvar como, docx, doc, dot, arquivos antigos, modelo, dotx, recentes, fixar, novo, fechar, imprimir, pdf, exportar, recuperar, recuperação automática, não salvo, falha, travamento, tela arquivo, formatos de arquivo -->
 
 Clique em **Arquivo** no canto superior esquerdo para ver a tela Arquivo. Ela tem páginas para Novo, Abrir, Imprimir e Exportar, e comandos para Salvar e Salvar Como. Pressione **Esc** para voltar ao documento.
 

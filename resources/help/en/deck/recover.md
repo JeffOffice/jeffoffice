@@ -1,16 +1,16 @@
 # Get back unsaved work
-<!-- keywords: recover, recovery, autorecover, auto recover, autosave, crash, lost work, unsaved, power failure, restore, frozen, closed by accident, backup -->
+<!-- keywords: recover, recovery, automatic recovery, automatic recovery, autosave, crash, lost work, unsaved, power failure, restore, frozen, closed by accident, backup -->
 
-If JeffDeck closes by surprise, or the power goes out, your latest work may still be safe. While you work, JeffDeck keeps a spare copy of any presentation that has changes you have not saved. This is called **AutoRecover**.
+If JeffDeck closes by surprise, or the power goes out, your latest work may still be safe. While you work, JeffDeck keeps a spare copy of any presentation that has changes you have not saved. This is called **automatic recovery**.
 
-## How AutoRecover works
+## How automatic recovery works
 
 - Every 10 minutes, JeffDeck saves a spare copy of each presentation that has unsaved changes.
-- JeffDeck keeps the copies in an AutoRecover folder, inside the folder where it keeps its own data. You never have to look there yourself.
+- JeffDeck keeps the copies in an automatic recovery folder, inside the folder where it keeps its own data. You never have to look there yourself.
 - The spare copy never replaces your real file.
 - The copy goes away when you save the presentation, close it, or quit JeffDeck in the normal way.
 
-AutoRecover does not replace saving. If JeffDeck stops, you can lose the work from the last few minutes. Press Ctrl+S often.
+Automatic recovery does not replace saving. If JeffDeck stops, you can lose the work from the last few minutes. Press Ctrl+S often.
 
 ## Recover your work
 

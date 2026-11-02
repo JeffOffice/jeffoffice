@@ -3,7 +3,7 @@
 
 A guia **Página Inicial** reúne as ferramentas mais usadas durante a criação de slides.
 
-- **Área de transferência** tem **Colar**, **Recortar**, **Copiar** e **Pincel de Formatação**, que copia a aparência de um texto ou objeto para outro. Veja [Digitar e formatar texto](text).
+- **Área de transferência** tem **Colar**, **Recortar**, **Copiar** e **Copiar Formatação**, que copia a aparência de um texto ou objeto para outro. Veja [Digitar e formatar texto](text).
 - **Slides** tem **Novo Slide** (Ctrl+M, com uma seta para os layouts e **Reutilizar slides…**), **Layout**, **Redefinir**, **Seção** e **Excluir Slide**. Veja [Adicionar, alterar e excluir slides](slides).
 - **Fonte** altera a fonte, o tamanho, a cor e o estilo das letras, além do espaçamento entre elas e o uso de maiúsculas e minúsculas. Veja [Digitar e formatar texto](text).
 - **Parágrafo** tem marcadores, numeração, níveis de lista, espaçamento entre linhas, colunas, alinhamento, direção do texto e a posição do texto na caixa. Veja [Digitar e formatar texto](text).

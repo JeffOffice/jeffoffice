@@ -48,7 +48,7 @@ Diese Version von JeffWrite ist eine **Preview**. Sie ist bereit, an echten Aufg
 - Absatzausrichtung, Einzüge, Abstände und Zeilenabstand. Das Dialogfeld **Absatz** (der kleine Pfeil in der Ecke der Gruppe „Absatz“) enthält alle diese Einstellungen.
 - Aufzählungen und nummerierte Listen mit Ebenen.
 - Formatvorlagen. Der Katalog enthält „Standard“, Überschriften, „Titel“ und mehr. Der Bereich **Formatvorlagen** (Strg+Alt+Umschalt+S) listet alle auf. Sie können eine Formatvorlage aus Ihrem Text erstellen und jede Formatvorlage ändern (siehe [Formatvorlagen verwenden](styles)).
-- „Format übertragen“, womit Sie das Aussehen von Text auf anderen Text übertragen (siehe [Aussehen mit „Format übertragen“ kopieren](format-painter)).
+- „Formatierung kopieren“, womit Sie das Aussehen von Text auf anderen Text übertragen (siehe [Aussehen mit „Formatierung kopieren“ übernehmen](format-painter)).
 - „Gehe zu“ (Strg+G) zu einer Seite, einem Abschnitt, einer Zeile, einer Textmarke, einer Fußnote oder einer Überschrift sowie das Ziehen von markiertem Text zum Verschieben oder mit gedrückter Strg-Taste zum Kopieren (siehe [Zu einer Stelle springen und Text verschieben](go-to-and-move-text)).
 - Seiten: Papierformat, Ausrichtung, Seitenränder, Spalten (eine, zwei oder drei), Seitenumbrüche und Abschnittsumbrüche, die eine neue Seite beginnen. Mit **Layout > Seite einrichten** legen Sie Seitenränder, Papier und Layout eines Abschnitts oder des ganzen Dokuments fest (siehe [Seite einrichten](page-setup)).
 - Bilder: **Einfügen > Bilder** fügt ein Bild aus einer Datei oder aus der Zwischenablage ein. Sie können die Größe mit den Ziehpunkten ändern, das Bild verschieben, Text darum herumfließen lassen und Alternativtext hinzufügen (siehe [Bilder hinzufügen und ändern](pictures)).
@@ -61,7 +61,7 @@ Diese Version von JeffWrite ist eine **Preview**. Sie ist bereit, an echten Aufg
 - Seitenzahlen in Kopf- und Fußzeilen. Sie werden beim Umbrechen der Seiten berechnet, ebenso die Seitenanzahl. **Seitenzahl einfügen** finden Sie auf der Registerkarte **Kopf- und Fußzeile**.
 - Zoom und das Anzeigen der Absatzmarken (Schaltfläche **¶**).
 - Rechtschreibung: rote Linien während der Eingabe, Vorschläge per Rechtsklick und der Bereich „Rechtschreibung“ (**F7**). Siehe [Rechtschreibung prüfen](spelling).
-- Drucken mit Vorschau, Exemplaren und Seitenbereichen, PDF-Dateien sowie AutoWiederherstellen, das eine Ersatzkopie nicht gespeicherter Arbeit aufbewahrt. Siehe [Drucken](print).
+- Drucken mit Vorschau, Exemplaren und Seitenbereichen, PDF-Dateien sowie automatische Wiederherstellung, die eine Ersatzkopie nicht gespeicherter Arbeit aufbewahrt. Siehe [Drucken](print).
 
 **Was noch nicht funktioniert**
 

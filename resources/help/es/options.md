@@ -1,5 +1,5 @@
 # Cambiar la configuración de JeffPub
-<!-- keywords: opciones, configuración, preferencias, ajustes, tema, modo oscuro, unidades, pulgadas, centímetros, autorrecuperación, copia de seguridad, idioma, nombre de usuario, desplazar, actualizaciones, beta, estadísticas de uso, acerca de -->
+<!-- keywords: opciones, configuración, preferencias, ajustes, tema, modo oscuro, unidades, pulgadas, centímetros, recuperación automática, copia de seguridad, idioma, nombre de usuario, desplazar, actualizaciones, beta, estadísticas de uso, acerca de -->
 
 La configuración se encuentra en la ventana **Opciones de JeffPub**. Haga clic en **Archivo > Opciones** para abrirla. Tiene cuatro pestañas. Haga clic en **Aceptar** para conservar los cambios o en **Cancelar** para descartarlos.
 
@@ -25,7 +25,7 @@ Estas casillas controlan la ayuda con la ortografía y la escritura. Consulte [C
 
 ## Guardar
 
-- **Guardar información de Autorrecuperación cada** establece cada cuánto tiempo JeffPub guarda copias de reserva del trabajo no guardado, de 1 a 120 minutos. Consulte [Recuperar trabajo no guardado](recover).
+- **Guardar información de recuperación automática cada** establece cada cuánto tiempo JeffPub guarda copias de reserva del trabajo no guardado, de 1 a 120 minutos. Consulte [Recuperar trabajo no guardado](recover).
 - **Crear siempre una copia de seguridad** conserva el archivo anterior como "Copia de seguridad de" seguido de su nombre cada vez que guarda.
 
 ## Avanzado

@@ -1,16 +1,16 @@
 # Niet-opgeslagen werk terughalen
-<!-- keywords: herstellen, herstel, autoherstel, automatisch herstellen, automatisch opslaan, vastgelopen, crash, verloren werk, niet opgeslagen, stroomstoring, terugzetten, bevroren, per ongeluk gesloten, reservekopie, back-up -->
+<!-- keywords: herstellen, herstel, automatisch herstel, automatisch herstellen, automatisch opslaan, vastgelopen, crash, verloren werk, niet opgeslagen, stroomstoring, terugzetten, bevroren, per ongeluk gesloten, reservekopie, back-up -->
 
-Als JeffPub onverwacht wordt afgesloten of de stroom uitvalt, is uw laatste werk mogelijk nog veilig. Terwijl u werkt, bewaart JeffPub een reservekopie van elke publicatie met wijzigingen die u nog niet hebt opgeslagen. Dit heet **AutoHerstel**.
+Als JeffPub onverwacht wordt afgesloten of de stroom uitvalt, is uw laatste werk mogelijk nog veilig. Terwijl u werkt, bewaart JeffPub een reservekopie van elke publicatie met wijzigingen die u nog niet hebt opgeslagen. Dit heet **automatisch herstel**.
 
-## Zo werkt AutoHerstel
+## Zo werkt automatisch herstel
 
 - Om de paar minuten slaat JeffPub een reservekopie op van elke publicatie met niet-opgeslagen wijzigingen. Standaard gebeurt dit elke 10 minuten.
-- JeffPub bewaart de kopieën in een AutoHerstel-map, in de map waarin het programma zijn eigen gegevens bewaart. U hoeft daar zelf nooit te kijken.
+- JeffPub bewaart de kopieën in een automatisch herstel-map, in de map waarin het programma zijn eigen gegevens bewaart. U hoeft daar zelf nooit te kijken.
 - De reservekopie vervangt nooit uw eigenlijke bestand.
 - De kopie verdwijnt wanneer u de publicatie opslaat of sluit, of JeffPub op de normale manier afsluit.
 
-AutoHerstel is geen vervanging voor opslaan. Als JeffPub stopt, kunt u het werk van de laatste paar minuten kwijtraken. Druk regelmatig op Ctrl+S.
+Automatisch herstel is geen vervanging voor opslaan. Als JeffPub stopt, kunt u het werk van de laatste paar minuten kwijtraken. Druk regelmatig op Ctrl+S.
 
 ## Uw werk herstellen
 
@@ -37,7 +37,7 @@ Als u het venster hebt gesloten en uw kopieën toch terug wilt, klikt u op **Bes
 
 ## Instellen hoe vaak wordt opgeslagen
 
-Klik op **Bestand > Opties** en vervolgens op het tabblad **Opslaan**. Wijzig **AutoHerstel-gegevens opslaan elke** in een getal van 1 tot 120 minuten. Hoe kleiner het getal, hoe minder u kunt kwijtraken. De nieuwe tijd is volledig van kracht wanneer u JeffPub de volgende keer start.
+Klik op **Bestand > Opties** en vervolgens op het tabblad **Opslaan**. Wijzig **Gegevens voor automatisch herstel opslaan elke** in een getal van 1 tot 120 minuten. Hoe kleiner het getal, hoe minder u kunt kwijtraken. De nieuwe tijd is volledig van kracht wanneer u JeffPub de volgende keer start.
 
 ## Verwante onderwerpen
 

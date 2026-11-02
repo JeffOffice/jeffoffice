@@ -175,10 +175,10 @@ void buildSizePage(FormatPane *pane, PanePage *page)
         auto *align = choices(w, "textAlign", {FormatPane::tr("Top"), FormatPane::tr("Top Centered"), FormatPane::tr("Middle"), FormatPane::tr("Middle Centered"),
                                                FormatPane::tr("Bottom"), FormatPane::tr("Bottom Centered")});
         auto *direction = choices(w, "textDirection", {FormatPane::tr("Horizontal"), FormatPane::tr("Rotate all text 90°")});
-        auto *autofit = choices(w, "textAutofit", {FormatPane::tr("Do not Autofit"), FormatPane::tr("Shrink text on overflow"), FormatPane::tr("Resize shape to fit text")});
+        auto *autofit = choices(w, "textAutofit", {FormatPane::tr("Do Not Fit"), FormatPane::tr("Shrink text on overflow"), FormatPane::tr("Resize shape to fit text")});
         form->addRow(FormatPane::tr("Vertical alignment"), align);
         form->addRow(FormatPane::tr("Text direction"), direction);
-        form->addRow(FormatPane::tr("Autofit"), autofit);
+        form->addRow(FormatPane::tr("Fit"), autofit);
         auto *left = measure(w, "marginLeft", 0, 500), *right = measure(w, "marginRight", 0, 500);
         auto *top = measure(w, "marginTop", 0, 500), *bottom = measure(w, "marginBottom", 0, 500);
         form->addRow(FormatPane::tr("Left margin"), left);

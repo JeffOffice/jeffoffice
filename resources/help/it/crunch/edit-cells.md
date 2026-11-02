@@ -72,7 +72,7 @@ Seleziona le celle e premi **CANC**. Il contenuto delle celle viene cancellato, 
 
 ## Annulla e Ripeti
 
-**{key:Undo}** annulla l'ultima modifica e **{key:Redo}** la ripete. Questi comandi si trovano anche nella barra di accesso rapido in alto. Ogni cella in cui digiti è un passaggio, così come ogni cancellazione. Annulla ripristina la cella com'era: valore, formula, formato e formule che dipendono da essa. JeffCrunch ricorda fino a 1.000 passaggi, meno se hanno modificato moltissime celle, per non occupare troppa memoria.
+**{key:Undo}** annulla l'ultima modifica e **{key:Redo}** la ripete. Questi comandi si trovano anche nella barra degli strumenti rapida in alto. Ogni cella in cui digiti è un passaggio, così come ogni cancellazione. Annulla ripristina la cella com'era: valore, formula, formato e formule che dipendono da essa. JeffCrunch ricorda fino a 1.000 passaggi, meno se hanno modificato moltissime celle, per non occupare troppa memoria.
 
 ## Mentre JeffCrunch calcola le formule
 

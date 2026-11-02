@@ -1,5 +1,5 @@
 # Alterar a largura das colunas e a altura das linhas
-<!-- keywords: largura padrão, altura padrão da linha, largura padrão da coluna, altura padrão, largura, altura, coluna, linha, tamanho, redimensionar, mais larga, mais alta, mais estreita, mais baixa, ajustar, autoajuste, ajuste automático, ocultar, reexibir, mostrar, arrastar, borda, clique duplo, caracteres, pontos, Ctrl+0, Ctrl+9, pixels, número muito largo, cerquilhas, ### -->
+<!-- keywords: largura padrão, altura padrão da linha, largura padrão da coluna, altura padrão, largura, altura, coluna, linha, tamanho, redimensionar, mais larga, mais alta, mais estreita, mais baixa, ajustar, ajuste, ajuste, ocultar, reexibir, mostrar, arrastar, borda, clique duplo, caracteres, pontos, Ctrl+0, Ctrl+9, pixels, número muito largo, cerquilhas, ### -->
 
 A **largura de uma coluna** é contada em caracteres: quantos dígitos cabem nela. A **altura de uma linha** é contada em pontos, uma unidade usada para tipos (72 pontos equivalem a uma polegada). A coluna padrão comporta cerca de 8 dígitos, e a linha padrão tem 15 pontos de altura.
 

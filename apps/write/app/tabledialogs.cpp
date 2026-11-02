@@ -64,9 +64,9 @@ bool insertTableDialog(QWidget *parent, NewTable *table)
     form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Number of columns:")), columns);
     form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Number of rows:")), rows);
     v->addWidget(size);
-    auto *fit = new QGroupBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "AutoFit behavior")), &dlg);
+    auto *fit = new QGroupBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Fit behavior")), &dlg);
     auto *fv = new QVBoxLayout(fit);
-    auto *fixed = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Fixed column width")), fit), *contents = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "AutoFit to contents")), fit), *window = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "AutoFit to window")), fit);
+    auto *fixed = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Fixed column width")), fit), *contents = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Fit to contents")), fit), *window = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Fit to window")), fit);
     fixed->setObjectName(QStringLiteral("fixedWidth"));
     contents->setObjectName(QStringLiteral("fitContents"));
     window->setObjectName(QStringLiteral("fitWindow"));

@@ -1,5 +1,5 @@
 # Aggiungere e formattare caselle di testo
-<!-- keywords: casella di testo, riquadro di testo, cornice di testo, digitare testo, aggiungere testo, scrivere testo, adattamento testo, adattamento automatico, adattamento ottimale, ridurre testo, testo verticale, colonne, margini, testo in eccesso, overflow, cornice -->
+<!-- keywords: casella di testo, riquadro di testo, cornice di testo, digitare testo, aggiungere testo, scrivere testo, adattamento testo, adattamento, adattamento ottimale, ridurre testo, testo verticale, colonne, margini, testo in eccesso, overflow, cornice -->
 
 Una casella di testo è un rettangolo nella pagina che contiene testo.
 

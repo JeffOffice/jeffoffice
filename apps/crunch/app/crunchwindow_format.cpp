@@ -1,5 +1,5 @@
 // The formatting commands of JeffCrunch's Home tab and the Format Cells dialog: the font, its size and color, bold, italic, and the underlines, the fill, the borders, the alignment
-// (horizontal, vertical, wrap, indent, orientation), merging, the number format and its buttons, the cell styles, the Format Painter, and Clear. Each is one step of Undo (the edit
+// (horizontal, vertical, wrap, indent, orientation), merging, the number format and its buttons, the cell styles, the Copy Formatting, and Clear. Each is one step of Undo (the edit
 // session makes them; this part says what the buttons mean and keeps the buttons in step with the cell with the cursor).
 #include "app/crunchwindow.h"
 #include "app/plaintext.h"
@@ -122,8 +122,8 @@ void CrunchWindow::createFormatActions()
     add(QStringLiteral("edit.clear"), tr("Clear"), "eraser", QKeySequence(), [this] { clearCommand(0); });
     // the dialog, styles, the painter
     add(QStringLiteral("format.cells"), tr("Format Cells…"), "", QKeySequence(Qt::CTRL | Qt::Key_1), [this] { formatCellsDialog(0); });
-    add(QStringLiteral("fmt.painter"), tr("Format Painter"), "paintbrush", QKeySequence(), [this] { formatPainterCommand(); }, true);
-    act(QStringLiteral("fmt.painter"))->setToolTip(tr("Format Painter: copies the format of the selected cells to the cells you select next. Double-click to paint more than once."));
+    add(QStringLiteral("fmt.painter"), tr("Copy Formatting"), "paintbrush", QKeySequence(), [this] { formatPainterCommand(); }, true);
+    act(QStringLiteral("fmt.painter"))->setToolTip(tr("Copy Formatting: copies the format of the selected cells to the cells you select next. Double-click to paint more than once."));
     add(QStringLiteral("fmt.fontDialog"), tr("Format Cells: Font"), "", QKeySequence(), [this] { formatCellsDialog(2); });
     add(QStringLiteral("fmt.alignDialog"), tr("Format Cells: Alignment"), "", QKeySequence(), [this] { formatCellsDialog(1); });
     add(QStringLiteral("fmt.numberDialog"), tr("More Number Formats…"), "", QKeySequence(), [this] { formatCellsDialog(0); });
@@ -160,7 +160,7 @@ void CrunchWindow::updateFormatState(bool force)
         if (m_numberBox) m_numberBox->setEnabled(open);
     }
     if (!open || m_formatting) return;
-    // (the format the buttons show is that of the cell format of the cell with the cursor, with whether it is merged and what the Format Painter is doing: a cell that has the same as the
+    // (the format the buttons show is that of the cell format of the cell with the cursor, with whether it is merged and what the Copy Formatting is doing: a cell that has the same as the
     // last one shown needs nothing done, and a person's edit, which keeps the cursor on cells of the same format, then costs the buttons nothing)
     FormatShown shown;
     shown.book = m_loaded ? m_loaded->book.get() : nullptr;
@@ -684,7 +684,7 @@ QMenu *CrunchWindow::buildStylesMenu(QWidget *owner)
     return menu;
 }
 
-// The Format Painter: the first click takes the format of the cells selected and waits; the cells selected next are given it (and the painter is done); a second click soon after the first
+// The Copy Formatting: the first click takes the format of the cells selected and waits; the cells selected next are given it (and the painter is done); a second click soon after the first
 // (a double click) keeps it on until it is clicked again or Esc is pressed.
 void CrunchWindow::formatPainterCommand()
 {
@@ -710,7 +710,7 @@ void CrunchWindow::formatPainterCommand()
     m_painter.clip = m_session->copyCells(m_sheet, selectedRange(), false);
     if (!m_painter.clip.valid()) {
         act(QStringLiteral("fmt.painter"))->setChecked(false);
-        notice(tr("Format Painter"), tr("Those cells are too many to copy the format of."));
+        notice(tr("Copy Formatting"), tr("Those cells are too many to copy the format of."));
         return;
     }
     m_painter.mode = PainterMode::Once;
@@ -739,7 +739,7 @@ void CrunchWindow::paintFormats()
     Options o;
     o.what = Options::What::Formats;
     const crunch::EditSession::Outcome out = m_session->paste(m_sheet, selectedRange(), m_painter.clip, o);
-    if (!out.ok) notice(tr("Format Painter"), out.problem);
+    if (!out.ok) notice(tr("Copy Formatting"), out.problem);
     if (m_painter.mode == PainterMode::Once) cancelFormatPainter();
     updateFormatState();
 }

@@ -1,5 +1,5 @@
 # Cambiar el ancho de las columnas y el alto de las filas
-<!-- keywords: ancho predeterminado, alto de fila predeterminado, ancho estándar, alto estándar, ancho, alto, altura, columna, fila, tamaño, más ancha, más alta, más estrecha, más baja, ajustar, autoajustar, ocultar, mostrar, arrastrar, borde, doble clic, caracteres, puntos, Ctrl+0, Ctrl+9, píxeles, número demasiado ancho, almohadillas -->
+<!-- keywords: ancho predeterminado, alto de fila predeterminado, ancho estándar, alto estándar, ancho, alto, altura, columna, fila, tamaño, más ancha, más alta, más estrecha, más baja, ajustar, ajustar, ocultar, mostrar, arrastrar, borde, doble clic, caracteres, puntos, Ctrl+0, Ctrl+9, píxeles, número demasiado ancho, almohadillas -->
 
 El **ancho de una columna** se mide en caracteres: cuántos dígitos caben en ella. El **alto de una fila** se mide en puntos, una unidad tipográfica (72 puntos equivalen a una pulgada). La columna habitual admite unos 8 dígitos, y la fila habitual mide 15 puntos de alto.
 
@@ -11,7 +11,7 @@ Si hay columnas (o filas) completas seleccionadas y arrastra el borde de una de 
 
 ## Ajustar al contenido
 
-**Haga doble clic** en el borde para que la columna tenga el ancho justo para su contenido más largo, o la fila el alto justo para su línea más alta. También puede hacerlo con **Inicio > Formato > Autoajustar ancho de columna** y **Autoajustar alto de fila**, para todas las columnas o filas seleccionadas a la vez. Una columna o fila vacía conserva su tamaño.
+**Haga doble clic** en el borde para que la columna tenga el ancho justo para su contenido más largo, o la fila el alto justo para su línea más alta. También puede hacerlo con **Inicio > Formato > Ajustar ancho de columna** y **Ajustar alto de fila**, para todas las columnas o filas seleccionadas a la vez. Una columna o fila vacía conserva su tamaño.
 
 ## Escribir un tamaño
 

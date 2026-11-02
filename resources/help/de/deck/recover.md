@@ -1,16 +1,16 @@
 # Nicht gespeicherte Arbeit wiederherstellen
-<!-- keywords: wiederherstellen, Wiederherstellung, AutoWiederherstellen, automatisch wiederherstellen, automatisch speichern, Absturz, abgestürzt, verlorene Arbeit, nicht gespeichert, Stromausfall, zurückholen, eingefroren, hängt, versehentlich geschlossen, Sicherung, Sicherungskopie -->
+<!-- keywords: wiederherstellen, Wiederherstellung, automatische Wiederherstellung, automatisch wiederherstellen, automatisch speichern, Absturz, abgestürzt, verlorene Arbeit, nicht gespeichert, Stromausfall, zurückholen, eingefroren, hängt, versehentlich geschlossen, Sicherung, Sicherungskopie -->
 
-Wenn JeffDeck unerwartet geschlossen wird oder der Strom ausfällt, ist Ihre letzte Arbeit möglicherweise noch sicher. Während Sie arbeiten, legt JeffDeck eine Ersatzkopie jeder Präsentation an, die nicht gespeicherte Änderungen enthält. Diese Funktion heißt **AutoWiederherstellen**.
+Wenn JeffDeck unerwartet geschlossen wird oder der Strom ausfällt, ist Ihre letzte Arbeit möglicherweise noch sicher. Während Sie arbeiten, legt JeffDeck eine Ersatzkopie jeder Präsentation an, die nicht gespeicherte Änderungen enthält. Diese Funktion heißt **automatische Wiederherstellung**.
 
-## So funktioniert AutoWiederherstellen
+## So funktioniert die automatische Wiederherstellung
 
 - Alle 10 Minuten speichert JeffDeck eine Ersatzkopie jeder Präsentation mit nicht gespeicherten Änderungen.
-- JeffDeck legt die Kopien in einem AutoWiederherstellen-Ordner ab, der sich in dem Ordner befindet, in dem JeffDeck seine eigenen Daten speichert. Sie müssen dort nie selbst nachsehen.
+- JeffDeck legt die Kopien in einem Ordner für die automatische Wiederherstellung ab, der sich in dem Ordner befindet, in dem JeffDeck seine eigenen Daten speichert. Sie müssen dort nie selbst nachsehen.
 - Die Ersatzkopie ersetzt niemals Ihre eigentliche Datei.
 - Die Kopie wird entfernt, wenn Sie die Präsentation speichern, sie schließen oder JeffDeck normal beenden.
 
-AutoWiederherstellen ersetzt nicht das Speichern. Wenn JeffDeck abstürzt, kann die Arbeit der letzten Minuten verloren gehen. Drücken Sie häufig Strg+S.
+Die automatische Wiederherstellung ersetzt nicht das Speichern. Wenn JeffDeck abstürzt, kann die Arbeit der letzten Minuten verloren gehen. Drücken Sie häufig Strg+S.
 
 ## Arbeit wiederherstellen
 

@@ -879,7 +879,7 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("A4")), QStringLiteral("n:9"));
         QCOMPARE(e.valueAt(QStringLiteral("B4")), QStringLiteral("n:12"));
         QCOMPARE(e.win.w.undoStack()->count(), 1);
-        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("AutoSum"));
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Sum"));
         pressUndo(&e.win.w);
         QCOMPARE(e.valueAt(QStringLiteral("A4")), QStringLiteral("-"));
         QCOMPARE(e.valueAt(QStringLiteral("B4")), QStringLiteral("-"));

@@ -1,12 +1,12 @@
 # Tables
-<!-- keywords: table, tables, insert table, rows, columns, cell, cells, merge cells, split cells, borders, shading, fill, cell size, column width, row height, autofit, distribute rows, distribute columns, table properties, header row, repeat header, table style, table styles, banded rows, alignment, align text in a cell, delete row, delete column, grid, gridlines, right click, table layout, table design -->
+<!-- keywords: table, tables, insert table, rows, columns, cell, cells, merge cells, split cells, borders, shading, fill, cell size, column width, row height, fit, distribute rows, distribute columns, table properties, header row, repeat header, table style, table styles, banded rows, alignment, align text in a cell, delete row, delete column, grid, gridlines, right click, table layout, table design -->
 
 A **table** is a grid of **cells** in **rows** and **columns**. Each cell holds text, and you type in it as you do anywhere on the page. This topic shows how to add a table, change its shape and its look, and set it up for the pages it runs over.
 
 ## Add a table
 
 - Click **Insert > Table**, then point at the grid and click the size you want. The first number is the columns across and the second is the rows down.
-- Or click **Insert > Table > Insert Table** to type the number of columns and rows, and to say how the columns are fitted. **Fixed column width** keeps each column the width you give it (or, with *Auto*, shares the width of the text area among the columns). **AutoFit to contents** sizes the columns to the words in them. **AutoFit to window** makes the table as wide as the text area. Check **Remember dimensions for new tables** to start the next one with the same numbers.
+- Or click **Insert > Table > Insert Table** to type the number of columns and rows, and to say how the columns are fitted. **Fixed column width** keeps each column the width you give it (or, with *Auto*, shares the width of the text area among the columns). **Fit to contents** sizes the columns to the words in them. **Fit to window** makes the table as wide as the text area. Check **Remember dimensions for new tables** to start the next one with the same numbers.
 
 The table goes where the caret is. If the caret is in the middle of a paragraph, the paragraph is cut in two and the table goes between the halves. The caret ends up in the first cell. Press **Tab** to go to the next cell, and **Shift+Tab** to go back. **Tab** in the last cell adds a row. A table can't be put inside a cell this way.
 
@@ -46,7 +46,7 @@ The options at the left of the gallery say which parts the style dresses: **Head
 On **Table Layout**:
 
 - Type in **Height** to set the height of the rows the caret is in, and in **Width** to set the width of its column. A height is a least height; the row grows with its words. For a height that does not grow, use Table Properties.
-- **AutoFit** sizes the columns to their contents, to the window, or fixes them where they are.
+- **Fit** sizes the columns to their contents, to the window, or fixes them where they are.
 - **Distribute Rows** and **Distribute Columns** make the selected rows as tall, or the selected columns as wide, as each other. With one row or column selected, they work on the whole table.
 
 ## Where the text sits in a cell

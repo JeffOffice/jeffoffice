@@ -446,7 +446,7 @@ private Q_SLOTS:
         const QString keys = jp::help::displayMarkdown(jp::help::topic(QStringLiteral("keyboard")), &w);
         QVERIFY(!keys.contains(QLatin1String("<!--")));
         const QString save = QKeySequence(QKeySequence::Save).toString(QKeySequence::NativeText);
-        QVERIFY2(keys.contains(QStringLiteral("| Save | %1 | Quick Access Toolbar |").arg(save)), qPrintable(keys.right(3000)));
+        QVERIFY2(keys.contains(QStringLiteral("| Save | %1 | Quick Toolbar |").arg(save)), qPrintable(keys.right(3000)));
         QVERIFY(keys.contains(QStringLiteral("| Collapse the Ribbon | %1 |").arg(QKeySequence(Qt::CTRL | Qt::Key_F1).toString(QKeySequence::NativeText))));
     }
 

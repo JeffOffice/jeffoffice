@@ -2491,7 +2491,7 @@ void Canvas::mouseReleaseEvent(QMouseEvent *e)
     }
     case Drag::TextSelect:
         if (m_ed->tool() == Tool::FormatPainter && m_ed->painterHasText && m_ed->cursor().hasSelection()) {
-            m_ed->mergeCharFormat(m_ed->painterText, QCoreApplication::translate("Canvas", "Format Painter"));
+            m_ed->mergeCharFormat(m_ed->painterText, QCoreApplication::translate("Canvas", "Copy Formatting"));
             if (!m_ed->painterLocked) m_ed->setTool(Tool::Select);
         }
         break;

@@ -19,7 +19,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Alterar o aspeto do texto](font)
 - [Utilizar estilos](styles)
-- [Copiar um aspeto com o Pincel de Formatação](format-painter)
+- [Copiar um aspeto com o Copiar Formatação](format-painter)
 - [Adicionar cabeçalhos, rodapés e números de página](headers-footers)
 - [Criar e alterar tabelas](tables)
 - [Adicionar notas de rodapé e notas de fim](footnotes-endnotes)

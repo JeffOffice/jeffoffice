@@ -121,8 +121,8 @@ void WriteWindow::createTableActions()
         tableCommand([=](write::WriteDoc &d, QTextCursor &c) { write::splitCells(d, c, columns, rows); });
     });
     // Size.
-    cmd(QStringLiteral("table.autofitContents"), tr("AutoFit Contents"), "unfold-horizontal", [](write::WriteDoc &d, QTextCursor &c) { write::fitTable(d, c, write::TableFit::Contents); });
-    cmd(QStringLiteral("table.autofitWindow"), tr("AutoFit Window"), "move-horizontal", [](write::WriteDoc &d, QTextCursor &c) { write::fitTable(d, c, write::TableFit::Window); });
+    cmd(QStringLiteral("table.autofitContents"), tr("Fit to Contents"), "unfold-horizontal", [](write::WriteDoc &d, QTextCursor &c) { write::fitTable(d, c, write::TableFit::Contents); });
+    cmd(QStringLiteral("table.autofitWindow"), tr("Fit to Window"), "move-horizontal", [](write::WriteDoc &d, QTextCursor &c) { write::fitTable(d, c, write::TableFit::Window); });
     cmd(QStringLiteral("table.fixedWidth"), tr("Fixed Column Width"), "panel-left-dashed", [](write::WriteDoc &d, QTextCursor &c) { write::fitTable(d, c, write::TableFit::Fixed); });
     cmd(QStringLiteral("table.distributeRows"), tr("Distribute Rows"), "align-vertical-distribute-center", [](write::WriteDoc &d, QTextCursor &c) { write::distributeRows(d, c); });
     cmd(QStringLiteral("table.distributeColumns"), tr("Distribute Columns"), "align-horizontal-distribute-center", [](write::WriteDoc &d, QTextCursor &c) { write::distributeColumns(d, c); });
@@ -354,7 +354,7 @@ void WriteWindow::addTableContextMenu(QMenu &menu)
     menu.addAction(act("table.split"));
     menu.addSeparator();
     menu.addAction(act("table.bordersShading"));
-    auto *fit = menu.addMenu(tr("AutoFit"));
+    auto *fit = menu.addMenu(tr("Fit"));
     for (const char *id : {"table.autofitContents", "table.autofitWindow", "table.fixedWidth"}) fit->addAction(act(QString::fromLatin1(id)));
     menu.addAction(act("table.distributeRows"));
     menu.addAction(act("table.distributeColumns"));

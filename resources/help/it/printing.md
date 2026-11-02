@@ -5,7 +5,7 @@ La stampa avviene nella pagina **Stampa**. Si scelgono le impostazioni a sinistr
 
 ## Stampare una pubblicazione
 
-1. Premere CTRL+P oppure fare clic su **File > Stampa**. Anche la **Barra di accesso rapido** include un pulsante **Stampa**.
+1. Premere CTRL+P oppure fare clic su **File > Stampa**. Anche la **Barra degli strumenti rapida** include un pulsante **Stampa**.
 2. Accanto al pulsante **Stampa**, impostare **Copie**.
 3. Scegliere una **Stampante**. L'elenco termina con **Salva come PDF**, che crea un file PDF anziché stampare su carta.
 4. In **Impostazioni**, scegliere **Stampa tutte le pagine**, **Stampa pagina corrente** o **Stampa personalizzata**. Per una stampa personalizzata, digitare le pagine nella casella **Pagine**: numeri di pagina e intervalli separati da virgole, ad esempio 1-3, 5.

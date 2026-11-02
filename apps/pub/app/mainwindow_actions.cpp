@@ -95,7 +95,7 @@ void MainWindow::createActions()
     mk("edit.pasteSpecial", tr("Paste Special…"), "clipboard-list", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V), [this] { pasteSpecialDialog(this, m_ed); });
     mk("edit.duplicate", tr("Duplicate"), "copy-plus", QKeySequence(Qt::CTRL | Qt::Key_D), [ed] { ed->duplicateSelection(); });
     mk("edit.delete", tr("Delete Object"), "trash-2", QKeySequence(), [ed] { ed->deleteSelection(); });
-    mk("edit.formatPainter", tr("Format Painter"), "paintbrush", QKeySequence(), [ed] {
+    mk("edit.formatPainter", tr("Copy Formatting"), "paintbrush", QKeySequence(), [ed] {
         if (ed->tool() == Tool::FormatPainter) { ed->setTool(Tool::Select); return; }
         ed->copyFormatting();
         ed->painterLocked = QApplication::keyboardModifiers() & Qt::ShiftModifier;
@@ -963,7 +963,7 @@ void MainWindow::createActions()
     mk("fit.best", tr("Best Fit"), "", QKeySequence(), [setAutofit] { setAutofit(TextItem::BestFit); }, true);
     mk("fit.shrink", tr("Shrink Text On Overflow"), "", QKeySequence(), [setAutofit] { setAutofit(TextItem::ShrinkOnOverflow); }, true);
     mk("fit.grow", tr("Grow Text Box to Fit"), "", QKeySequence(), [setAutofit] { setAutofit(TextItem::GrowBox); }, true);
-    mk("fit.none", tr("Do Not Autofit"), "", QKeySequence(), [setAutofit] { setAutofit(TextItem::NoAutofit); }, true);
+    mk("fit.none", tr("Do Not Fit"), "", QKeySequence(), [setAutofit] { setAutofit(TextItem::NoAutofit); }, true);
     mk("tb.textFit", tr("Text Fit"), "fold-vertical", QKeySequence(), [] {});
     mk("tb.direction", tr("Text Direction"), "arrow-down-wide-narrow", QKeySequence(), [ed] {
         Item *it = ed->isEditingText() ? ed->doc()->item(ed->textTarget().itemId) : ed->single();

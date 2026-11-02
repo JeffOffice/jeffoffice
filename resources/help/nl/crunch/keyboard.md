@@ -38,7 +38,7 @@ Op een Mac doet de **Command**-toets (⌘) wat **Ctrl** doet in de onderstaande 
 | Ctrl+Alt+V | Plakken speciaal |
 | Ctrl en de plustoets, Ctrl en de mintoets | Invoegen, verwijderen (rijen of kolommen als hele rijen of kolommen zijn geselecteerd) |
 | Ctrl+D, Ctrl+R | Omlaag doorvoeren, naar rechts doorvoeren |
-| Alt en het isgelijkteken | AutoSom |
+| Alt en het isgelijkteken | Som |
 | Ctrl+0, Ctrl+9 | De kolommen verbergen, de rijen verbergen |
 | Alt+pijl-omlaag | De lijst openen van een cel die een lijst heeft |
 | {key:Find} | Zoeken |

@@ -1,5 +1,5 @@
 # Openen, opslaan, afdrukken en exporteren
-<!-- keywords: openen, opslaan, opslaan als, docx, doc, dot, oudere bestanden, sjabloon, dotx, recent, vastmaken, nieuw, sluiten, afdrukken, printen, pdf, exporteren, herstellen, autoherstel, niet opgeslagen, vastlopen, crash, bestandsscherm, Bestand, bestandsindelingen, bestandstypen -->
+<!-- keywords: openen, opslaan, opslaan als, docx, doc, dot, oudere bestanden, sjabloon, dotx, recent, vastmaken, nieuw, sluiten, afdrukken, printen, pdf, exporteren, herstellen, automatisch herstel, niet opgeslagen, vastlopen, crash, bestandsscherm, Bestand, bestandsindelingen, bestandstypen -->
 
 Klik linksboven op **Bestand** om het scherm Bestand te openen. Hier vindt u de pagina's Nieuw, Openen, Afdrukken en Exporteren, en de opdrachten Opslaan en Opslaan als. Druk op **Esc** om terug te gaan naar uw document.
 

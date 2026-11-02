@@ -3,7 +3,7 @@
 
 L'onglet **Accueil** est toujours présent sur le ruban. Il regroupe les outils que vous utilisez le plus souvent pour rédiger et mettre en page.
 
-- **Presse-papiers** contient **Coller**, **Couper**, **Copier** et **Reproduire la mise en forme**, qui copie l'apparence du texte sur une autre zone. Voir [Mettre en forme le texte](formatting-text).
+- **Presse-papiers** contient **Coller**, **Couper**, **Copier** et **Copier la mise en forme**, qui copie l'apparence du texte sur une autre zone. Voir [Mettre en forme le texte](formatting-text).
 - **Police** permet de modifier la police, la taille, la couleur et le style des caractères. Voir [Mettre en forme le texte](formatting-text).
 - **Paragraphe** contient les puces, la numérotation, les retraits, l'alignement et l'espacement de paragraphes entiers. Voir [Puces, numérotation et tabulations](lists-tabs).
 - **Styles** est une galerie d'apparences nommées que vous pouvez appliquer d'un clic, et permet de créer les vôtres. Voir [Utiliser les styles](styles).
