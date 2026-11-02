@@ -24,6 +24,7 @@ struct StyleDef {
     Props props;
     QByteArray tabsXml;        // the style's tab stops, as <w:tabs>
     bool automatic = false;
+    bool noList = false;       // style:list-style-name="" : no numbering, whatever the parent says
     int outlineLevel = 0;      // style:default-outline-level
 };
 
@@ -71,6 +72,12 @@ extern const char kWml[];
 // Whether a style of the family with this name as the person sees it is one the .docx format names (and that name).
 bool builtInStyleName(const QString &family, const QString &display, QString *name);
 
+constexpr qint64 kMaxSpacesPerParagraph = 1 << 20;
+constexpr qint64 kMaxSpacesPerDocument = qint64(32) << 20;
+// The most bytes of output the copies of repeated cells and rows may come to, together.
+constexpr qint64 kMaxRepeatedBytes = qint64(256) << 20;
+bool linkIsSafe(const QString &href);
+
 class Reader {
 public:
     Reader() = default;
@@ -93,8 +100,17 @@ private:
     QByteArray tabStopsXml(const Odf &o, int tabsNode) const;
     const StyleDef *style(const QString &family, const QString &name) const;
     // The properties a named style has of its own and from the automatic styles it follows, down to the first style that is named; `named` gets that one's name.
-    Props ownProps(const QString &family, const QString &name, QString *named, QByteArray *tabs = nullptr, QString *listStyle = nullptr, QString *masterPage = nullptr) const;
-    Props resolved(const QString &family, const QString &name, int depth = 0) const;   // all of it, parents under
+    const Props &ownProps(const QString &family, const QString &name, QString *named, QByteArray *tabs = nullptr, QString *listStyle = nullptr, QString *masterPage = nullptr) const;
+    const Props &resolved(const QString &family, const QString &name) const;   // all of it, parents under
+    Props resolvedUncached(const QString &family, const QString &name, int depth) const;
+    struct Own {
+        Props props;
+        QString named, listStyle, masterPage;
+        QByteArray tabs;
+    };
+    mutable QHash<QString, std::shared_ptr<Own>> m_ownCache;         // (styles are all read before the body: nothing here is ever out of date)
+    mutable QHash<QString, std::shared_ptr<Props>> m_resolvedCache;
+    QHash<QByteArray, QByteArray> m_rPrCache;
     // ---- the parts of the package that are made
     QString styleId(const QString &family, const QString &name);
     QString displayOf(const QString &family, const QString &name) const;
@@ -220,6 +236,8 @@ private:
     QHash<QString, Change> m_changes;
     QString m_openInsertion;                          // the id of an insertion that goes on past the end of a paragraph
     int m_revisionId = 0;
+    qint64 m_spaces = 0, m_repeatedBytes = 0;
+    QHash<QString, int> m_listById;                   // a list's xml:id -> its number
     bool m_inNote = false, m_sectionsOn = false, m_sectionStarted = false;
     QByteArray m_body, m_finalSect;
     QStringList m_styleOrder;

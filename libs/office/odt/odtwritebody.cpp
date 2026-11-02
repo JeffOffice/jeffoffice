@@ -308,7 +308,8 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
         if (first && !master.isEmpty()) attrs += " style:master-page-name=\"" + master.toUtf8() + "\"";
         if (!pa.isEmpty() || !tabs.isEmpty()) inner = "<style:paragraph-properties" + pa + (tabs.isEmpty() ? "/>" : ">" + tabs + "</style:paragraph-properties>");
         // An empty paragraph has the look of its mark (a paragraph with text has the looks of its runs).
-        if (!anyContent && pPr >= 0) {
+        // (A numbered paragraph's label takes the look of the paragraph, not of its runs.)
+        if ((!anyContent || inList) && pPr >= 0) {
             const QByteArray mark = textAttrs(t, t.child(pPr, "rPr"));
             if (!mark.isEmpty()) inner += "<style:text-properties" + mark + "/>";
         }
@@ -811,9 +812,7 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
     const int rPr = t.child(run, "rPr");
     const QString span = spanFor(t, rPr, pc);
     // (The text and marks of the run, made into one span.)
-    const QByteArray before = pc->xml;
-    pc->xml.clear();
-    const QString plainBefore = pc->plain;
+    qsizetype start = pc->xml.size();
     bool spanned = true;
     for (int c = t.firstChild(run); c >= 0; c = t.next(c)) {
         const QByteArray name = t.localName(c);
@@ -828,14 +827,11 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
             const QString type = t.attr(c, "type");
             if (type == QLatin1String("page")) {
                 // A page break ends the paragraph so far; what follows begins a page.
-                const QByteArray content = pc->xml;
+                if (!pc->fields.isEmpty()) continue;
+                const QByteArray content = pc->xml.mid(start);
+                const QByteArray all = pc->xml.left(start) + (span.isEmpty() || content.isEmpty() ? content : "<text:span text:style-name=\"" + esc(span) + "\">" + content + "</text:span>");
                 pc->xml.clear();
-                if (!pc->fields.isEmpty()) {
-                    pc->xml = content;
-                    continue;
-                }
-                const QByteArray all = before + (span.isEmpty() || content.isEmpty() ? content : "<text:span text:style-name=\"" + esc(span) + "\">" + content + "</text:span>");
-                const_cast<QByteArray &>(before) = QByteArray();
+                start = 0;
                 if (!all.isEmpty() || !pc->fragments.isEmpty() || pc->hasContent) pc->fragments.push_back({all, pc->pageBreak || pc->firstHasBreak});
                 else pc->firstHasBreak = true;
                 pc->pageBreak = true;
@@ -871,20 +867,18 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
                     pc->fields.push_back(f);
                     pc->xml.clear();
                     pc->plain.clear();
+                    start = 0;
                 }
             } else if (type == QLatin1String("separate")) {
                 if (!pc->fields.isEmpty()) {
                     pc->fields.last().result = true;
                     pc->xml.clear();
                     pc->plain.clear();
+                    start = 0;
                 }
             } else if (type == QLatin1String("end")) {
-                // (The run's own text goes into the field that ends.)
-                if (!span.isEmpty() && !pc->xml.isEmpty()) {
-                    pc->xml = "<text:span text:style-name=\"" + esc(span) + "\">" + pc->xml + "</text:span>";
-                    spanned = false;
-                }
                 fieldEnd(pc);
+                start = pc->xml.size();
             }
         } else if (name == "instrText") {
             if (!pc->fields.isEmpty()) pc->fields.last().instr += t.text(c);
@@ -955,11 +949,10 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
         } else if (name == "object") left(QCoreApplication::translate("odt", "embedded objects"));
     }
     // The span round the run's content.
-    QByteArray content = pc->xml;
-    pc->xml = before;
+    const QByteArray content = pc->xml.mid(start);
+    pc->xml.truncate(start);
     if (spanned && !content.isEmpty()) emitSpan(pc, span, content);
     else pc->xml += content;
-    Q_UNUSED(plainBefore);
 }
 
 void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
@@ -1073,7 +1066,7 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
     QVector<qint64> cols;
     if (grid >= 0)
         for (int g = t.firstChild(grid); g >= 0 && cols.size() < kMaxColumns; g = t.next(g))
-            if (t.is(g, "gridCol")) cols.push_back(std::max<qint64>(0, qint64(t.attr(g, "w").toDouble())));
+            if (t.is(g, "gridCol")) cols.push_back(std::max<qint64>(0, clampedInt(t.attr(g, "w").toDouble())));
     // The cells of each row, with where each begins in the grid.
     struct Cell {
         int node = -1, col = 0, span = 1, vmerge = 0, rowspan = 1;
@@ -1183,7 +1176,7 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
                 int n = mt->child(cm, names[i]);
                 if (n < 0 && i == 1) n = mt->child(cm, "start");
                 if (n < 0 && i == 3) n = mt->child(cm, "end");
-                if (n >= 0) mar[i] = qint64(mt->attr(n, "w").toDouble());
+                if (n >= 0) mar[i] = clampedInt(mt->attr(n, "w").toDouble());
             }
         }
     }
@@ -1202,7 +1195,7 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
             align = v == QLatin1String("center") ? "center" : (v == QLatin1String("right") || v == QLatin1String("end")) ? "right" : "left";
         }
         const int ind = t.child(tblPr, "tblInd");
-        if (ind >= 0) indent = qint64(t.attr(ind, "w").toDouble());
+        if (ind >= 0) indent = clampedInt(t.attr(ind, "w").toDouble());
         const int tw = t.child(tblPr, "tblW");
         if (tw >= 0 && t.attr(tw, "type") == QLatin1String("pct")) {
             relWidth = true;
@@ -1327,7 +1320,7 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
                         int n = ct.child(tm, names[i]);
                         if (n < 0 && i == 1) n = ct.child(tm, "start");
                         if (n < 0 && i == 3) n = ct.child(tm, "end");
-                        if (n >= 0) m4[i] = qint64(ct.attr(n, "w").toDouble());
+                        if (n >= 0) m4[i] = clampedInt(ct.attr(n, "w").toDouble());
                     }
                 }
                 cp += " fo:padding-top=\"" + inchesFromTwips(double(m4[0])).toUtf8() + "\" fo:padding-left=\"" + inchesFromTwips(double(m4[1])).toUtf8() + "\" fo:padding-bottom=\"" +

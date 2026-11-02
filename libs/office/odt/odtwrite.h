@@ -105,6 +105,7 @@ private:
     QByteArray headerBody(const QString &rid, bool header, int depth);
     int tocDepthOf(const T &t, int p, bool *startsToc, QString *instr) const;
     QByteArray contentXml();
+    QByteArray fontFacesXml() const;
     QByteArray metaXml();
     void left(const QString &what);
 

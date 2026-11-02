@@ -179,6 +179,7 @@ void Reader::collectStyle(const Odf &o, int node, bool automatic)
     d.display = o.at(node, "style:display-name");
     d.next = o.at(node, "style:next-style-name");
     d.listStyle = o.at(node, "style:list-style-name");
+    d.noList = o.has(node, "style:list-style-name") && d.listStyle.isEmpty();
     d.masterPage = o.at(node, "style:master-page-name");
     d.outlineLevel = o.at(node, "style:default-outline-level").toInt();
     d.automatic = automatic;
@@ -367,41 +368,59 @@ const StyleDef *Reader::style(const QString &family, const QString &name) const
     return it == m_styleDefs.constEnd() ? nullptr : &it.value();
 }
 
-Props Reader::ownProps(const QString &family, const QString &name, QString *named, QByteArray *tabs, QString *listStyle, QString *masterPage) const
+const Props &Reader::ownProps(const QString &family, const QString &name, QString *named, QByteArray *tabs, QString *listStyle, QString *masterPage) const
 {
-    // The automatic styles on the way up to the first named one, the nearest last.
-    QVector<const StyleDef *> chain;
-    QString current = name;
-    named->clear();
-    for (int depth = 0; depth < kMaxStyleChain && !current.isEmpty(); ++depth) {
-        const StyleDef *d = style(family, current);
-        if (!d) break;
-        if (!d->automatic) {
-            *named = current;
-            break;
+    const QString key = family + QLatin1Char('\n') + name;
+    auto it = m_ownCache.constFind(key);
+    if (it == m_ownCache.constEnd()) {
+        auto own = std::make_shared<Own>();
+        // The automatic styles on the way up to the first named one, the nearest last.
+        QVector<const StyleDef *> chain;
+        QString current = name;
+        for (int depth = 0; depth < kMaxStyleChain && !current.isEmpty(); ++depth) {
+            const StyleDef *d = style(family, current);
+            if (!d) break;
+            if (!d->automatic) {
+                own->named = current;
+                break;
+            }
+            chain.push_back(d);
+            current = d->parent;
         }
-        chain.push_back(d);
-        current = d->parent;
+        for (int i = int(chain.size()) - 1; i >= 0; --i) {
+            for (auto p = chain[i]->props.constBegin(); p != chain[i]->props.constEnd(); ++p) own->props.insert(p.key(), p.value());
+            if (!chain[i]->tabsXml.isEmpty()) own->tabs = chain[i]->tabsXml;
+            if (!chain[i]->listStyle.isEmpty()) own->listStyle = chain[i]->listStyle;
+            if (chain[i]->noList) own->listStyle = QStringLiteral("\x01none");
+            if (!chain[i]->masterPage.isEmpty()) own->masterPage = chain[i]->masterPage;
+        }
+        it = m_ownCache.insert(key, own);
     }
-    Props out;
-    for (int i = int(chain.size()) - 1; i >= 0; --i) {
-        for (auto it = chain[i]->props.constBegin(); it != chain[i]->props.constEnd(); ++it) out.insert(it.key(), it.value());
-        if (tabs && !chain[i]->tabsXml.isEmpty()) *tabs = chain[i]->tabsXml;
-        if (listStyle && !chain[i]->listStyle.isEmpty()) *listStyle = chain[i]->listStyle;
-        if (masterPage && !chain[i]->masterPage.isEmpty()) *masterPage = chain[i]->masterPage;
-    }
-    return out;
+    const Own &own = *it.value();
+    if (named) *named = own.named;
+    if (tabs && !own.tabs.isEmpty()) *tabs = own.tabs;
+    if (listStyle && !own.listStyle.isEmpty()) *listStyle = own.listStyle;
+    if (masterPage && !own.masterPage.isEmpty()) *masterPage = own.masterPage;
+    return own.props;
 }
 
-Props Reader::resolved(const QString &family, const QString &name, int depth) const
+Props Reader::resolvedUncached(const QString &family, const QString &name, int depth) const
 {
     Props out;
     if (depth >= kMaxStyleChain) return out;
     const StyleDef *d = style(family, name);
     if (!d) return m_defaults.value(family);
-    out = d->parent.isEmpty() ? m_defaults.value(family) : resolved(family, d->parent, depth + 1);
+    out = d->parent.isEmpty() ? m_defaults.value(family) : resolvedUncached(family, d->parent, depth + 1);
     for (auto it = d->props.constBegin(); it != d->props.constEnd(); ++it) out.insert(it.key(), it.value());
     return out;
+}
+
+const Props &Reader::resolved(const QString &family, const QString &name) const
+{
+    const QString key = family + QLatin1Char('\n') + name;
+    auto it = m_resolvedCache.constFind(key);
+    if (it == m_resolvedCache.constEnd()) it = m_resolvedCache.insert(key, std::make_shared<Props>(resolvedUncached(family, name, 0)));
+    return *it.value();
 }
 
 // ---- the ids and names of the styles in the .docx
@@ -611,8 +630,10 @@ QByteArray Reader::sectPrXml(const SectionState &s)
     qint64 top = margin("top", 1440), bottom = margin("bottom", 1440), left = margin("left", 1440), right = margin("right", 1440);
     const bool hasHeader = use.header >= 0 || use.headerLeft >= 0 || use.headerFirst >= 0, hasFooter = use.footer >= 0 || use.footerLeft >= 0 || use.footerFirst >= 0;
     const qint64 headerDistance = top, footerDistance = bottom;
-    if (hasHeader) top += std::max<qint64>(0, len(layout.props.value(QStringLiteral("hdr:fo:min-height")), 0)) + std::max<qint64>(0, len(layout.props.value(QStringLiteral("hdr:fo:margin-bottom")), 0));
-    if (hasFooter) bottom += std::max<qint64>(0, len(layout.props.value(QStringLiteral("ftr:fo:min-height")), 0)) + std::max<qint64>(0, len(layout.props.value(QStringLiteral("ftr:fo:margin-top")), 0));
+    // (With dynamic spacing the space between the header or footer and the text is inside its height, not added to it.)
+    const bool dynHeader = layout.props.value(QStringLiteral("hdr:style:dynamic-spacing")) == QLatin1String("true"), dynFooter = layout.props.value(QStringLiteral("ftr:style:dynamic-spacing")) == QLatin1String("true");
+    if (hasHeader) top += std::max<qint64>(0, len(layout.props.value(QStringLiteral("hdr:fo:min-height")), 0)) + (dynHeader ? 0 : std::max<qint64>(0, len(layout.props.value(QStringLiteral("hdr:fo:margin-bottom")), 0)));
+    if (hasFooter) bottom += std::max<qint64>(0, len(layout.props.value(QStringLiteral("ftr:fo:min-height")), 0)) + (dynFooter ? 0 : std::max<qint64>(0, len(layout.props.value(QStringLiteral("ftr:fo:margin-top")), 0)));
     w = std::max<qint64>(720, std::min<qint64>(w, 31680));
     h = std::max<qint64>(720, std::min<qint64>(h, 31680));
     x += "<w:pgSz w:w=\"" + num(w) + "\" w:h=\"" + num(h) + "\"" + (lp("style:print-orientation") == QLatin1String("landscape") ? " w:orient=\"landscape\"" : "") + "/>";

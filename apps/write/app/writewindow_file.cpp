@@ -127,6 +127,7 @@ bool WriteWindow::openFile(const QString &path)
     const bool leftOut = doc->leftSomethingOut();
     target->setDocument(std::move(doc), tmpl ? QString() : path);
     target->m_macrosNoted = false;
+    target->m_odtNoted = false;
     target->m_protectedPath = leftOut && !tmpl && !isOldBinary(path) ? path : QString();
     if (tmpl) target->m_doc->setModified(true);
     Settings::get().addRecentFile(path);
@@ -183,7 +184,8 @@ bool WriteWindow::saveTo(const QString &path)
     }
     if (m_doc->hadMacros() && !m_macrosNoted) {
         m_macrosNoted = true;
-        notice(tr("Save"), tr("The macros in this document aren't saved, because a .docx file can't hold them."));
+        const QString kind = QFileInfo(path).suffix().toLower() == QLatin1String("odt") ? QStringLiteral(".odt") : QStringLiteral(".docx");
+        notice(tr("Save"), tr("The macros in this document aren't saved, because a %1 file can't hold them.").arg(kind));
     }
     QString err;
     const bool tmpl = QFileInfo(path).suffix().compare(QLatin1String("dotx"), Qt::CaseInsensitive) == 0;

@@ -107,7 +107,7 @@ qint64 lengthToTwips(const QString &text, bool *ok)
     double pt = 0;
     const bool good = lengthToPoints(text, &pt);
     if (ok) *ok = good;
-    return good ? qint64(std::llround(pt * 20)) : 0;
+    return good ? qint64(std::llround(clampPoints(pt) * 20)) : 0;
 }
 
 qint64 lengthToEmu(const QString &text, bool *ok)
@@ -115,7 +115,7 @@ qint64 lengthToEmu(const QString &text, bool *ok)
     double pt = 0;
     const bool good = lengthToPoints(text, &pt);
     if (ok) *ok = good;
-    return good ? qint64(std::llround(pt * 12700)) : 0;
+    return good ? qint64(std::llround(clampPoints(pt) * 12700)) : 0;
 }
 
 QString colorHex(const QString &text)
@@ -127,12 +127,12 @@ QString colorHex(const QString &text)
 
 QString inchesFromTwips(double twips)
 {
-    return QString::number(twips / 1440.0, 'f', 4) + QStringLiteral("in");
+    return QString::number(std::max(-1e9, std::min(1e9, std::isfinite(twips) ? twips : 0.0)) / 1440.0, 'f', 4) + QStringLiteral("in");
 }
 
 QString inchesFromEmu(double emu)
 {
-    return QString::number(emu / 914400.0, 'f', 4) + QStringLiteral("in");
+    return QString::number(std::max(-1e12, std::min(1e12, std::isfinite(emu) ? emu : 0.0)) / 914400.0, 'f', 4) + QStringLiteral("in");
 }
 
 bool percentOf(const QString &text, double *value)
@@ -175,9 +175,56 @@ QString encodeStyleName(const QString &display)
     return out;
 }
 
+double clampPoints(double points)
+{
+    if (!std::isfinite(points)) return 0;
+    return std::max(-kMaxLengthPoints, std::min(kMaxLengthPoints, points));
+}
+
+qint64 clampedInt(double v)
+{
+    if (!std::isfinite(v)) return 0;
+    return qint64(std::max(-1e12, std::min(1e12, v)));
+}
+
+QString xmlSafeText(const QString &text)
+{
+    QString out;
+    out.reserve(text.size());
+    for (qsizetype i = 0; i < text.size(); ++i) {
+        const ushort u = text[i].unicode();
+        if (u < 0x20 && u != 0x9 && u != 0xA && u != 0xD) continue;
+        if (u == 0xFFFE || u == 0xFFFF) continue;
+        if (QChar::isHighSurrogate(u)) {
+            if (i + 1 < text.size() && QChar::isLowSurrogate(text[i + 1].unicode())) {
+                out += text[i];
+                out += text[++i];
+            }
+            continue;
+        }
+        if (QChar::isLowSurrogate(u)) continue;
+        out += text[i];
+    }
+    return out;
+}
+
+QString hexColorOrEmpty(const QString &text)
+{
+    static const QRegularExpression re(QStringLiteral("^[0-9A-Fa-f]{6}$"));
+    return re.match(text).hasMatch() ? text.toUpper() : QString();
+}
+
+QString quoteFieldArgument(const QString &name)
+{
+    QString q = xmlSafeText(name);
+    q.replace(QLatin1Char('\\'), QLatin1String("\\\\"));
+    q.replace(QLatin1Char('"'), QLatin1String("\\\""));
+    return QLatin1Char('"') + q + QLatin1Char('"');
+}
+
 QByteArray esc(const QString &text, bool attribute)
 {
-    return wml::escapeXml(text, attribute);
+    return wml::escapeXml(xmlSafeText(text), attribute);
 }
 
 } // namespace jp::office::odt

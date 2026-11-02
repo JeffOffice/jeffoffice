@@ -188,7 +188,8 @@ QString Writer::shadeColor(const T &t, int shd) const
     if (fill.isEmpty() || fill == QLatin1String("auto")) return QString();
     const QString val = t.attr(shd, "val");
     if (val == QLatin1String("nil")) return QString();
-    return QStringLiteral("#") + fill.toUpper();
+    const QString hex = hexColorOrEmpty(fill);
+    return hex.isEmpty() ? QString() : QStringLiteral("#") + hex;
 }
 
 QString Writer::borderValue(const T &t, int side, int *space, QString *lineWidth) const
@@ -198,7 +199,7 @@ QString Writer::borderValue(const T &t, int side, int *space, QString *lineWidth
     if (val == QLatin1String("nil") || val == QLatin1String("none")) return QStringLiteral("none");
     const double pt = std::max(0.25, std::min(12.0, t.attr(side, "sz").toDouble() / 8.0));
     QString color = t.attr(side, "color");
-    color = color.isEmpty() || color == QLatin1String("auto") ? QStringLiteral("#000000") : QStringLiteral("#") + color.toUpper();
+    color = color.isEmpty() || color == QLatin1String("auto") ? QStringLiteral("#000000") : QStringLiteral("#") + (hexColorOrEmpty(color).isEmpty() ? QStringLiteral("000000") : hexColorOrEmpty(color));
     QString style = QStringLiteral("solid");
     if (val == QLatin1String("double")) style = QStringLiteral("double");
     else if (val == QLatin1String("dotted")) style = QStringLiteral("dotted");
@@ -265,7 +266,7 @@ QByteArray Writer::textAttrs(const T &t, int rPr)
         else if (name == "color") {
             const QString v = t.val(c);
             if (v == QLatin1String("auto")) x += " style:use-window-font-color=\"true\"";
-            else if (!v.isEmpty()) x += " fo:color=\"#" + v.toUpper().toUtf8() + "\"";
+            else if (!hexColorOrEmpty(v).isEmpty()) x += " fo:color=\"#" + hexColorOrEmpty(v).toUtf8() + "\"";
         } else if (name == "spacing") {
             bool ok = false;
             const qint64 tw = t.val(c).toLongLong(&ok);
@@ -310,7 +311,7 @@ QByteArray Writer::textAttrs(const T &t, int rPr)
                 if (v.endsWith(QLatin1String("Heavy"))) width = "bold";
                 x += " style:text-underline-style=\"" + style + "\" style:text-underline-type=\"" + type + "\"" + (width.isEmpty() ? QByteArray() : " style:text-underline-width=\"" + width + "\"");
                 const QString col = t.attr(c, "color");
-                if (!col.isEmpty() && col != QLatin1String("auto")) x += " style:text-underline-color=\"#" + col.toUpper().toUtf8() + "\"";
+                if (!hexColorOrEmpty(col).isEmpty()) x += " style:text-underline-color=\"#" + hexColorOrEmpty(col).toUtf8() + "\"";
                 else x += " style:text-underline-color=\"font-color\"";
             }
         } else if (name == "vertAlign") {
@@ -507,9 +508,9 @@ void Writer::collectNumbering()
                     else if (t.is(k, "pPr")) {
                         const int ind = t.child(k, "ind");
                         if (ind >= 0) {
-                            ld.left = qint64(t.has(ind, "left") ? t.attr(ind, "left").toDouble() : t.attr(ind, "start").toDouble());
-                            ld.hanging = qint64(t.attr(ind, "hanging").toDouble());
-                            if (t.has(ind, "firstLine") && ld.hanging == 0) ld.hanging = -qint64(t.attr(ind, "firstLine").toDouble());
+                            ld.left = clampedInt(t.has(ind, "left") ? t.attr(ind, "left").toDouble() : t.attr(ind, "start").toDouble());
+                            ld.hanging = clampedInt(t.attr(ind, "hanging").toDouble());
+                            if (t.has(ind, "firstLine") && ld.hanging == 0) ld.hanging = -clampedInt(t.attr(ind, "firstLine").toDouble());
                         }
                     }
                 }
@@ -625,7 +626,7 @@ SectionInfo Writer::sectionOf(const T &t, int sectPr)
         const QString v = t.attr(n, a);
         bool ok = false;
         const double d = v.toDouble(&ok);
-        return ok ? qint64(std::llround(d)) : fallback;
+        return ok ? clampedInt(std::round(d)) : fallback;
     };
     for (int c = t.firstChild(sectPr); c >= 0; c = t.next(c)) {
         const QByteArray name = t.localName(c);
@@ -780,11 +781,23 @@ QByteArray Writer::metaXml()
     return x + "</office:meta></office:document-meta>";
 }
 
-QByteArray Writer::contentXml()
+QByteArray Writer::fontFacesXml() const
 {
     QByteArray faces;
-    for (auto it = m_fontFaces.constBegin(); it != m_fontFaces.constEnd(); ++it)
-        faces += "<style:font-face style:name=\"" + esc(it.key()) + "\" svg:font-family=\"" + esc(it.key().contains(QLatin1Char(' ')) ? QStringLiteral("'") + it.key() + QStringLiteral("'") : it.key()) + "\"/>";
+    for (auto it = m_fontFaces.constBegin(); it != m_fontFaces.constEnd(); ++it) {
+        const QString n = it.key().toLower();
+        const char *generic = "";
+        if (n.contains(QLatin1String("courier")) || n.contains(QLatin1String("mono")) || n.contains(QLatin1String("consolas"))) generic = " style:font-family-generic=\"modern\" style:font-pitch=\"fixed\"";
+        else if (n.contains(QLatin1String("times")) || n.contains(QLatin1String("serif")) && !n.contains(QLatin1String("sans")) || n.contains(QLatin1String("georgia")) || n.contains(QLatin1String("cambria")) || n.contains(QLatin1String("garamond"))) generic = " style:font-family-generic=\"roman\" style:font-pitch=\"variable\"";
+        else generic = " style:font-family-generic=\"swiss\" style:font-pitch=\"variable\"";
+        faces += "<style:font-face style:name=\"" + esc(it.key()) + "\" svg:font-family=\"" + esc(it.key().contains(QLatin1Char(' ')) ? QStringLiteral("'") + it.key() + QStringLiteral("'") : it.key()) + "\"" + generic + "/>";
+    }
+    return faces;
+}
+
+QByteArray Writer::contentXml()
+{
+    const QByteArray faces = fontFacesXml();
     QByteArray lists;
     {
         // (In the order of the numbers: a file is the same bytes whatever the order of a hash.)
@@ -835,9 +848,7 @@ bool Writer::run(const QByteArray &docx, QByteArray *out, QString *error, QStrin
     jp::ZipWriter zip;
     zip.add(QStringLiteral("mimetype"), QByteArray("application/vnd.oasis.opendocument.text"), false);
     const QByteArray styles = stylesPart();   // (after the body: it names the list styles it uses)
-    QByteArray faces;
-    for (auto it = m_fontFaces.constBegin(); it != m_fontFaces.constEnd(); ++it)
-        faces += "<style:font-face style:name=\"" + esc(it.key()) + "\" svg:font-family=\"" + esc(it.key().contains(QLatin1Char(' ')) ? QStringLiteral("'") + it.key() + QStringLiteral("'") : it.key()) + "\"/>";
+    const QByteArray faces = fontFacesXml();
     zip.add(QStringLiteral("content.xml"), contentXml(), true);
     QByteArray stylesXml = QByteArray(kXml) + "<office:document-styles" + kOdfNamespaces + " office:version=\"1.2\"><office:font-face-decls>" + faces + "</office:font-face-decls><office:styles>" + styles +
                            "</office:styles><office:automatic-styles>" + m_layouts + m_stylesSink.xml + "</office:automatic-styles><office:master-styles>" + masters + "</office:master-styles></office:document-styles>";

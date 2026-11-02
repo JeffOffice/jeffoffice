@@ -3,6 +3,7 @@
 #include "io/zip.h"
 #include "io/zipindex.h"
 #include "odt/odt.h"
+#include "odt/odtcommon.h"
 #include "office/package.h"
 #include "wml/wml.h"
 #include "wml/xmltree.h"
@@ -74,6 +75,23 @@ bool wellFormed(const QByteArray &xml)
 {
     wml::XmlTree t;
     return t.parse(xml, nullptr);
+}
+
+// The first element of the XML with this local name, found by walking the tree (-1 for none): for checks of what a value is, not how the file spells it.
+int findElement(const wml::XmlTree &t, const char *local, int from = -1)
+{
+    for (int i = from + 1; i < t.count(); ++i)
+        if (t.localName(i) == local) return i;
+    return -1;
+}
+
+QString instructionsOf(const QString &documentXml)
+{
+    QString all;
+    wml::XmlTree t;
+    if (!t.parse(documentXml.toUtf8(), nullptr)) return all;
+    for (int i = findElement(t, "instrText"); i >= 0; i = findElement(t, "instrText", i)) all += t.text(i) + QLatin1Char('\n');
+    return all;
 }
 
 } // namespace
@@ -359,10 +377,10 @@ private Q_SLOTS:
         QVERIFY(d.lastIndexOf(QLatin1String("fldCharType=\"end\"")) > d.indexOf(QLatin1String(">Two<")));
         QVERIFY(d.contains(QLatin1String("<w:bookmarkStart w:id=\"1\" w:name=\"here\"/>")));
         QVERIFY(d.contains(QLatin1String("w:name=\"point\"")));
-        QVERIFY(d.contains(QLatin1String("REF here \\h")));
-        QVERIFY(d.contains(QLatin1String("PAGEREF here \\h")));
+        QVERIFY(d.contains(QLatin1String("REF \"here\" \\h")));
+        QVERIFY(d.contains(QLatin1String("PAGEREF \"here\" \\h")));
         QVERIFY(d.contains(QLatin1String("TITLE")));
-        QVERIFY(d.contains(QLatin1String("SEQ Figure")));
+        QVERIFY(d.contains(QLatin1String("SEQ \"Figure\"")));
         QVERIFY(d.contains(QLatin1String("<w:hyperlink r:id=")));
         QVERIFY(d.contains(QLatin1String("<w:hyperlink w:anchor=\"here\"")));
         Package p;
@@ -835,6 +853,227 @@ private Q_SLOTS:
         const QString again = part(docxOf(odt), QStringLiteral("/word/document.xml"));
         for (const char *word : {"Chapter", "step one", "sub step", "interrupted", "step two", "a bullet", "tall", "b2", "note here", "commented", "jump"}) QVERIFY2(again.contains(QLatin1String(word)), word);
         QVERIFY(again.contains(QLatin1String("<w:titlePg/>")));
+    }
+
+    // ---- what the review found
+
+    void spacesAreBoundedForAParagraphAndTheDocument()
+    {
+        Made m;
+        QByteArray para = "<text:p>";
+        for (int i = 0; i < 1000; ++i) para += "<text:s text:c=\"10000\"/>";
+        para += "x</text:p>";
+        for (int i = 0; i < 100; ++i) m.body += para;   // (10 million spaces asked for in each paragraph, a billion in all)
+        QElapsedTimer timer;
+        timer.start();
+        QStringList notes;
+        const QString d = document(m, &notes);
+        QVERIFY(timer.elapsed() < 30000);
+        QVERIFY2(d.size() < 120 * 1024 * 1024, qPrintable(QString::number(d.size())));
+        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("spaces")));
+    }
+
+    void repeatedCellsAndRowsAreBoundedInBytes()
+    {
+        Made m;
+        const QByteArray big(200 * 1024, 'w');
+        m.body = "<table:table><table:table-column table:number-columns-repeated=\"1000\"/><table:table-row table:number-rows-repeated=\"200\"><table:table-cell table:number-columns-repeated=\"1000\"><text:p>" + big +
+                 "</text:p></table:table-cell></table:table-row></table:table>";
+        QElapsedTimer timer;
+        timer.start();
+        QStringList notes;
+        const QByteArray docx = docxOf(m.build(), &notes);
+        QVERIFY(timer.elapsed() < 120000);
+        QVERIFY(!docx.isEmpty());
+        Package p;
+        QVERIFY(p.read(docx));
+        QVERIFY2(p.partSize(QStringLiteral("/word/document.xml")) < qint64(400) << 20, qPrintable(QString::number(p.partSize(QStringLiteral("/word/document.xml")))));
+        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("repeated")));
+    }
+
+    void hugeLengthsAreClamped()
+    {
+        bool ok = false;
+        QCOMPARE(lengthToTwips(QStringLiteral("1e300pt"), &ok), qint64(kMaxLengthPoints * 20));
+        QVERIFY(ok);
+        QCOMPARE(lengthToTwips(QStringLiteral("-1e300cm"), &ok), qint64(-kMaxLengthPoints * 20));
+        QCOMPARE(lengthToEmu(QStringLiteral("1e300in"), &ok), qint64(kMaxLengthPoints * 12700));
+        QCOMPARE(clampedInt(1e300), qint64(1e12));
+        QCOMPARE(clampedInt(std::nan("")), qint64(0));
+        Made m;
+        m.autoStyles = "<style:style style:name=\"P1\" style:family=\"paragraph\"><style:paragraph-properties fo:margin-left=\"1e300pt\" fo:text-indent=\"-1e300cm\"/></style:style>";
+        m.body = "<text:p text:style-name=\"P1\">x<draw:frame text:anchor-type=\"as-char\" svg:width=\"1e300in\" svg:height=\"1e300cm\"><draw:image xlink:href=\"Pictures/a.png\"/></draw:frame></text:p>";
+        m.extra.insert(QStringLiteral("Pictures/a.png"), kPng);
+        const QByteArray docx = docxOf(m.build());
+        QVERIFY(!docx.isEmpty());
+        QVERIFY(wellFormed(part(docx, QStringLiteral("/word/document.xml")).toUtf8()));
+        // And the other way: a .docx whose numbers are far past what a length can be.
+        const char kW[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+        PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"),
+                  QByteArray("<w:document ") + kW + "><w:body><w:p><w:pPr><w:ind w:left=\"1e300\" w:hanging=\"-1e300\"/><w:spacing w:before=\"1e999\"/></w:pPr><w:r><w:t>x</w:t></w:r></w:p><w:tbl><w:tblGrid><w:gridCol w:w=\"1e300\"/></w:tblGrid>"
+                                                             "<w:tr><w:tc><w:p/></w:tc></w:tr></w:tbl><w:sectPr><w:pgSz w:w=\"1e300\" w:h=\"-1e300\"/></w:sectPr></w:body></w:document>",
+                  QStringLiteral("application/xml"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        const QByteArray odt = fromDocxPackage(w.finish());
+        QVERIFY(!odt.isEmpty());
+        QMap<QString, QByteArray> files;
+        QVERIFY(jp::readZip(odt, files));
+        QVERIFY(wellFormed(files.value(QStringLiteral("content.xml"))));
+        QVERIFY(wellFormed(files.value(QStringLiteral("styles.xml"))));
+    }
+
+    void charactersXmlCannotHoldAreDroppedBothWays()
+    {
+        QCOMPARE(esc(QStringLiteral("a\x01" "b\x0b" "c")), QByteArray("abc"));
+        QCOMPARE(esc(QString(QChar(0xD800)) + QStringLiteral("x") + QChar(0xDC00)), QByteArray("x"));
+        QCOMPARE(esc(QStringLiteral("a\xF0\x9F\x98\x80"), false), QByteArray("a\xC3\xB0\xC2\x9F\xC2\x98\xC2\x80"));   // (Latin-1 text: its characters are kept)
+        Made m;
+        m.body = "<text:p><text:bookmark text:name=\"b&#1;m\"/><draw:frame draw:name=\"n&#2;&#xFFFE;\" text:anchor-type=\"as-char\" svg:width=\"1in\" svg:height=\"1in\"><draw:image xlink:href=\"Pictures/a.png\"/></draw:frame>"
+                 "<text:a xlink:href=\"http://e.com/&#3;x\">l</text:a><office:annotation><dc:creator>A&#4;B</dc:creator><text:p>c</text:p></office:annotation>"
+                 "<text:change-start text:change-id=\"c1\"/>t<text:change-end text:change-id=\"c1\"/></text:p>"
+                 "<text:tracked-changes><text:changed-region text:id=\"c1\"><text:insertion><office:change-info><dc:creator>Z&#5;Z</dc:creator></office:change-info></text:insertion></text:changed-region></text:tracked-changes>";
+        m.extra.insert(QStringLiteral("Pictures/a.png"), kPng);
+        const QByteArray docx = docxOf(m.build());
+        QVERIFY(!docx.isEmpty());
+        Package p;
+        QVERIFY(p.read(docx));
+        for (const QString &n : p.partNames())
+            if (n.endsWith(QLatin1String(".xml"))) QVERIFY2(wellFormed(p.part(n)), qPrintable(n));
+        // The writer, from a .docx whose names and authors hold them.
+        const char kW[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"),
+                  QByteArray("<w:document ") + kW + "><w:body><w:p><w:bookmarkStart w:id=\"1\" w:name=\"b&#1;m\"/><w:r><w:t>x</w:t></w:r><w:bookmarkEnd w:id=\"1\"/><w:ins w:id=\"2\" w:author=\"A&#2;B\"><w:r><w:t>i</w:t></w:r></w:ins>"
+                                                            "<w:r><w:rPr><w:color w:val=\"12&quot; x=&quot;\"/></w:rPr><w:t>c</w:t></w:r></w:p></w:body></w:document>",
+                  QStringLiteral("application/xml"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        const QByteArray odt = fromDocxPackage(w.finish());
+        QVERIFY(!odt.isEmpty());
+        QMap<QString, QByteArray> files;
+        QVERIFY(jp::readZip(odt, files));
+        QVERIFY(wellFormed(files.value(QStringLiteral("content.xml"))));
+        QVERIFY(!QString::fromUtf8(files.value(QStringLiteral("content.xml"))).contains(QLatin1String("x=")));   // (a color that is no hex adds no attribute)
+    }
+
+    void namesInFieldCodesCannotAddSwitches()
+    {
+        Made m;
+        m.body = "<text:p><text:bookmark-ref text:ref-name=\"x&quot; \\* MERGEFORMAT \\h &quot;y\" text:reference-format=\"text\">r</text:bookmark-ref>"
+                 "<text:sequence text:name=\"F&quot; \\r 9\">1</text:sequence></text:p>"
+                 "<text:illustration-index><text:illustration-index-source text:caption-sequence-name=\"c&quot; \\o &quot;1-9\"/><text:index-body><text:p>e</text:p></text:index-body></text:illustration-index>";
+        const QString instr = instructionsOf(document(m));
+        QRegularExpression ref(QStringLiteral("^ REF \"(?:[^\"\\\\]|\\\\.)*\" \\\\h $"), QRegularExpression::MultilineOption);
+        QVERIFY2(instr.contains(ref), qPrintable(instr));
+        QRegularExpression seq(QStringLiteral("^ SEQ \"(?:[^\"\\\\]|\\\\.)*\" \\\\\\* ARABIC $"), QRegularExpression::MultilineOption);
+        QVERIFY2(instr.contains(seq), qPrintable(instr));
+        QRegularExpression toc(QStringLiteral("^ TOC \\\\h \\\\z \\\\c \"(?:[^\"\\\\]|\\\\.)*\" $"), QRegularExpression::MultilineOption);
+        QVERIFY2(instr.contains(toc), qPrintable(instr));
+    }
+
+    void linksOfUnsafeKindsStayText()
+    {
+        Made m;
+        m.body = "<text:p><text:a xlink:href=\"http://example.com/a\">web</text:a> <text:a xlink:href=\"mailto:a@b.c\">mail</text:a> <text:a xlink:href=\"javascript:alert(1)\">js</text:a> "
+                 "<text:a xlink:href=\"file:///etc/passwd\">file</text:a> <text:a xlink:href=\"vbscript:x\">vb</text:a> <text:a xlink:href=\"../other.odt\">rel</text:a>"
+                 "<draw:frame text:anchor-type=\"as-char\" svg:width=\"1in\" svg:height=\"1in\"><draw:image xlink:href=\"../Pictures/a.png\"/></draw:frame></text:p>";
+        m.extra.insert(QStringLiteral("Pictures/a.png"), kPng);
+        QStringList notes;
+        const QByteArray docx = docxOf(m.build(), &notes);
+        Package p;
+        QVERIFY(p.read(docx));
+        QStringList targets;
+        for (const Relationship &r : p.relationships(QStringLiteral("/word/document.xml")))
+            if (r.external) targets << r.target;
+        targets.sort();
+        QCOMPARE(targets, QStringList({QStringLiteral("../other.odt"), QStringLiteral("http://example.com/a"), QStringLiteral("mailto:a@b.c")}));
+        const QString d = part(docx, QStringLiteral("/word/document.xml"));
+        QCOMPARE(d.count(QLatin1String("<w:hyperlink ")), 3);
+        for (const char *word : {"js", "file", "vb"}) QVERIFY2(d.contains(QLatin1String(">") + QLatin1String(word) + QLatin1String("<")), word);
+        QVERIFY(!d.contains(QLatin1String("<wp:inline")));   // (a picture named by a path that climbs out is not read)
+        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("links")));
+    }
+
+    void aListGoesOnFromTheListItNames()
+    {
+        Made m;
+        m.autoStyles = "<text:list-style style:name=\"L1\"><text:list-level-style-number text:level=\"1\" style:num-format=\"1\"/></text:list-style>";
+        auto list = [](const char *id, const char *continues, const char *text) {
+            return QByteArray("<text:list text:style-name=\"L1\" xml:id=\"") + id + "\"" + (*continues ? QByteArray(" text:continue-list=\"") + continues + "\"" : QByteArray()) + "><text:list-item><text:p>" + text + "</text:p></text:list-item></text:list>";
+        };
+        m.body = list("a", "", "a1") + list("b", "", "b1") + list("a2", "a", "a2") + list("b2", "b", "b2") + list("a3", "a2", "a3");
+        const QString d = part(docxOf(m.build()), QStringLiteral("/word/document.xml"));
+        QRegularExpression ids(QStringLiteral("<w:numId w:val=\"(\\d+)\"/>"));
+        QStringList used;
+        for (auto it = ids.globalMatch(d); it.hasNext();) used << it.next().captured(1);
+        QCOMPARE(used.size(), 5);
+        QVERIFY(used[0] != used[1]);          // two lists of one style, each its own count
+        QCOMPARE(used[2], used[0]);           // a2 goes on from a
+        QCOMPARE(used[3], used[1]);           // b2 goes on from b
+        QCOMPARE(used[4], used[0]);           // a3 goes on from a2, which was a's
+    }
+
+    void valuesAreCheckedFromTheParsedXml()
+    {
+        // What a value is, read from the tree (not how the file spells it).
+        Made m;
+        m.autoStyles = "<style:style style:name=\"P1\" style:family=\"paragraph\"><style:paragraph-properties fo:margin-left=\"1in\" fo:line-height=\"200%\"/></style:style>";
+        m.body = "<text:p text:style-name=\"P1\">x</text:p>";
+        wml::XmlTree t;
+        QVERIFY(t.parse(document(m).toUtf8(), nullptr));
+        const int ind = findElement(t, "ind"), spacing = findElement(t, "spacing");
+        QVERIFY(ind >= 0 && spacing >= 0);
+        QCOMPARE(t.attr(ind, "left").toInt(), 1440);
+        QCOMPARE(t.attr(spacing, "line").toInt(), 480);
+        QCOMPARE(t.attr(spacing, "lineRule"), QStringLiteral("auto"));
+    }
+
+    void anEmptyParagraphWithNoListInAListStyleIsNotNumbered()
+    {
+        Made m;
+        m.styles = "<style:style style:name=\"Standard\" style:family=\"paragraph\"/><style:style style:name=\"Numbered\" style:family=\"paragraph\" style:list-style-name=\"L1\"/>";
+        m.autoStyles = "<text:list-style style:name=\"L1\"><text:list-level-style-number text:level=\"1\" style:num-format=\"1\"/></text:list-style>"
+                       "<style:style style:name=\"P1\" style:family=\"paragraph\" style:parent-style-name=\"Numbered\" style:list-style-name=\"\"/>";
+        m.body = "<text:p text:style-name=\"P1\">plain</text:p>";
+        const QString d = document(m);
+        wml::XmlTree t;
+        QVERIFY(t.parse(d.toUtf8(), nullptr));
+        const int numId = findElement(t, "numId");
+        QVERIFY(numId >= 0);
+        QCOMPARE(t.val(numId), QStringLiteral("0"));
+    }
+
+    void dynamicSpacingIsInsideTheFooter()
+    {
+        Made m;
+        m.layouts = "<style:page-layout style:name=\"pm1\"><style:page-layout-properties fo:page-width=\"8.5in\" fo:page-height=\"11in\" fo:margin-top=\"1in\" fo:margin-bottom=\"0.5in\" fo:margin-left=\"1in\" fo:margin-right=\"1in\"/>"
+                    "<style:footer-style><style:header-footer-properties fo:min-height=\"0.5in\" fo:margin-top=\"0.46in\" style:dynamic-spacing=\"true\"/></style:footer-style></style:page-layout>";
+        m.masters = "<style:master-page style:name=\"Standard\" style:page-layout-name=\"pm1\"><style:footer><text:p>f</text:p></style:footer></style:master-page>";
+        m.body = "<text:p>x</text:p>";
+        wml::XmlTree t;
+        QVERIFY(t.parse(document(m).toUtf8(), nullptr));
+        const int mar = findElement(t, "pgMar");
+        QVERIFY(mar >= 0);
+        QCOMPARE(t.attr(mar, "bottom").toInt(), 1440);   // 0.5 in and the footer's 0.5 in; its spacing is inside it
+    }
+
+    void aFieldIsWrittenOnceWithItsResult()
+    {
+        const char kW[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+        PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"),
+                  QByteArray("<w:document ") + kW + "><w:body><w:p><w:r><w:t xml:space=\"preserve\">before </w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+                                                            "<w:r><w:t>7</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r><w:r><w:t xml:space=\"preserve\"> after</w:t></w:r></w:p></w:body></w:document>",
+                  QStringLiteral("application/xml"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        QMap<QString, QByteArray> files;
+        QVERIFY(jp::readZip(fromDocxPackage(w.finish()), files));
+        const QString c = QString::fromUtf8(files.value(QStringLiteral("content.xml")));
+        QCOMPARE(c.count(QLatin1String("before")), 1);
+        QCOMPARE(c.count(QLatin1String(">7<")), 1);
+        QCOMPARE(c.count(QLatin1String(" after")), 1);
+        QVERIFY(c.indexOf(QLatin1String("before")) < c.indexOf(QLatin1String("<text:page-number")));
+        QVERIFY(c.indexOf(QLatin1String("<text:page-number")) < c.indexOf(QLatin1String(" after")));
     }
 };
 

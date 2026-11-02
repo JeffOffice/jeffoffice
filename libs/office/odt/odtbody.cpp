@@ -4,6 +4,7 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QRegularExpression>
 #include <QFileInfo>
 #include <algorithm>
 #include <cmath>
@@ -41,14 +42,14 @@ bool isWhite(QChar c)
 // What a paragraph's content is made of while it is read.
 struct Reader::ParaCtx {
     QByteArray runs;
-    Props base;               // the text properties the paragraph's style gives every run
+    const Props *base = nullptr;   // the text properties the paragraph's style gives every run (in the cache of the styles)
     bool lastSpace = true;    // the last character was a space, or the line has none yet
     int depth = 0;
     bool inNote = false;
-    QHash<QByteArray, QByteArray> rPrCache;
     QString insId;               // an insertion that is open, and where its runs begin
     qsizetype insAt = 0;
     int linkDepth = 0, insLinkDepth = 0;
+    qint64 spaces = 0;
     // A field being made over several runs (the table of contents's entries): none here.
 };
 
@@ -65,15 +66,15 @@ QByteArray Reader::RunFmt::key() const
 
 void Reader::addRun(ParaCtx *pc, const QByteArray &content, const RunFmt &fmt)
 {
-    Props merged = pc->base;
-    for (auto it = fmt.direct.constBegin(); it != fmt.direct.constEnd(); ++it) merged.insert(it.key(), it.value());
-    const QByteArray key = fmt.key();
-    auto cached = pc->rPrCache.constFind(key);
-    QByteArray rpr;
-    if (cached == pc->rPrCache.constEnd()) {
-        rpr = rPrXml(merged, fmt.rStyle);
-        pc->rPrCache.insert(key, rpr);
-    } else rpr = cached.value();
+    // (The look of a run is made once for each paragraph style and run format.)
+    const QByteArray key = QByteArray::number(quintptr(pc->base)) + '#' + fmt.key();
+    auto cached = m_rPrCache.constFind(key);
+    if (cached == m_rPrCache.constEnd()) {
+        Props merged = pc->base ? *pc->base : Props();
+        for (auto it = fmt.direct.constBegin(); it != fmt.direct.constEnd(); ++it) merged.insert(it.key(), it.value());
+        cached = m_rPrCache.insert(key, rPrXml(merged, fmt.rStyle));
+    }
+    const QByteArray &rpr = cached.value();
     pc->runs += "<w:r>";
     if (!rpr.isEmpty()) pc->runs += "<w:rPr>" + rpr + "</w:rPr>";
     pc->runs += content + "</w:r>";
@@ -106,6 +107,13 @@ void Reader::addSpaces(ParaCtx *pc, const QString &raw, const RunFmt &fmt)
     int n = raw.isEmpty() ? 1 : raw.toInt(&ok);
     if (!raw.isEmpty() && !ok) n = 1;
     n = std::max(1, std::min(n, 10000));
+    // (Spaces a file asks for are bounded for a paragraph, and for the document.)
+    if (pc->spaces + n > kMaxSpacesPerParagraph || m_spaces + n > kMaxSpacesPerDocument) {
+        left(QCoreApplication::translate("odt", "more spaces than are kept"));
+        return;
+    }
+    pc->spaces += n;
+    m_spaces += n;
     addRun(pc, "<w:t xml:space=\"preserve\">" + QByteArray(n, ' ') + "</w:t>", fmt);
     pc->lastSpace = false;
 }
@@ -153,6 +161,16 @@ QString sniffExtension(const QByteArray &b)
 }
 
 } // namespace
+
+bool linkIsSafe(const QString &href)
+{
+    // An address with no scheme is a place in the file's own folder; one with a scheme is followed only if it is a kind that opens a page, a mail message, or a call.
+    static const QRegularExpression scheme(QStringLiteral("^\\s*([A-Za-z][A-Za-z0-9+.-]*):"));
+    const auto m = scheme.match(href);
+    if (!m.hasMatch()) return true;
+    const QString s = m.captured(1).toLower();
+    return s == QLatin1String("http") || s == QLatin1String("https") || s == QLatin1String("mailto") || s == QLatin1String("ftp") || s == QLatin1String("ftps") || s == QLatin1String("tel");
+}
 
 QString Reader::imageRelationship(const Odf &o, int image)
 {
@@ -205,7 +223,7 @@ QString Reader::imageRelationship(const Odf &o, int image)
 QByteArray Reader::anchorXml(const Odf &o, int frame, const QString &styleName, qint64 cx, qint64 cy, const QByteArray &graphic, int docPrId)
 {
     Q_UNUSED(styleName);
-    const Props gp = resolved(QStringLiteral("graphic"), o.at(frame, "draw:style-name"));
+    const Props &gp = resolved(QStringLiteral("graphic"), o.at(frame, "draw:style-name"));
     auto g = [&](const char *k) { return gp.value(QStringLiteral("gr:") + QLatin1String(k)); };
     const QString name = o.at(frame, "draw:name");
     const QString desc = [&] {
@@ -374,7 +392,7 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
         const QString name = o.at(n, "text:style-name");
         if (!name.isEmpty()) {
             QString named;
-            const Props own = ownProps(QStringLiteral("text"), name, &named);
+            const Props &own = ownProps(QStringLiteral("text"), name, &named);
             for (auto it = own.constBegin(); it != own.constEnd(); ++it) f.direct.insert(it.key(), it.value());
             if (!named.isEmpty()) f.rStyle = styleId(QStringLiteral("text"), named);
         }
@@ -392,7 +410,7 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
         const QString name = o.at(n, "text:style-name");
         if (!name.isEmpty() && style(QStringLiteral("text"), name)) {
             QString named;
-            const Props own = ownProps(QStringLiteral("text"), name, &named);
+            const Props &own = ownProps(QStringLiteral("text"), name, &named);
             for (auto it = own.constBegin(); it != own.constEnd(); ++it) f.direct.insert(it.key(), it.value());
             if (!named.isEmpty()) f.rStyle = styleId(QStringLiteral("text"), named);
         }
@@ -406,7 +424,11 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
         pc->runs = saved;
         if (href.isEmpty() || inner.isEmpty()) pc->runs += inner;
         else if (href.startsWith(QLatin1Char('#'))) pc->runs += "<w:hyperlink w:anchor=\"" + esc(bookmarkNameOf(href.mid(1))) + "\" w:history=\"1\">" + inner + "</w:hyperlink>";
-        else {
+        else if (!linkIsSafe(href)) {
+            // (A link of a kind that runs something or opens a file stays text.)
+            left(QCoreApplication::translate("odt", "links of a kind that isn't followed"));
+            pc->runs += inner;
+        } else {
             const QString key = m_owner + QLatin1Char('|') + href;
             QString rid = m_linkRel.value(key);
             if (rid.isEmpty() && m_linkRel.size() < kMaxMadeParts * 5) {
@@ -481,7 +503,7 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
         else if (format == QLatin1String("number") || format == QLatin1String("number-no-superior") || format == QLatin1String("number-all-superior")) instr = QStringLiteral("REF %1 \\n \\h");
         else instr = QStringLiteral("REF %1 \\h");
         if (name.isEmpty()) addText(pc, t.text(n), fmt);
-        else addField(pc, instr.arg(name.contains(QLatin1Char(' ')) ? QLatin1Char('"') + name + QLatin1Char('"') : name), t.text(n), fmt);
+        else addField(pc, instr.arg(quoteFieldArgument(name)), t.text(n), fmt);
     } else if (o.is(n, "text:sequence")) {
         const QString name = o.at(n, "text:name");
         const QString refName = o.at(n, "text:ref-name");
@@ -492,7 +514,7 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
             pc->runs += "<w:bookmarkStart w:id=\"" + num(id) + "\" w:name=\"" + esc(refName) + "\"/>";
         }
         if (name.isEmpty()) addText(pc, t.text(n), fmt);
-        else addField(pc, QStringLiteral("SEQ %1 \\* ARABIC").arg(name), t.text(n), fmt);
+        else addField(pc, QStringLiteral("SEQ %1 \\* ARABIC").arg(quoteFieldArgument(name)), t.text(n), fmt);
         if (id >= 0) pc->runs += "<w:bookmarkEnd w:id=\"" + num(id) + "\"/>";
     } else if (o.is(n, "text:ruby")) {
         const int base = o.child(n, "text:ruby-base");
@@ -562,7 +584,7 @@ QByteArray Reader::deletionXml(const Odf &o, const QString &id, ParaCtx *pc)
         inner.depth = pc->depth + 1;
         inner.inNote = true;   // (a note or comment in deleted text is not kept)
         QString named, listStyle;
-        inner.base = ownProps(QStringLiteral("paragraph"), o.at(c, "text:style-name"), &named);
+        inner.base = &ownProps(QStringLiteral("paragraph"), o.at(c, "text:style-name"), &named);
         if (!first) inner.runs += "<w:r><w:br/></w:r>";
         inlineContent(o, c, &inner, RunFmt(), 0);
         runs += inner.runs;
@@ -748,7 +770,7 @@ void Reader::convertBlock(const Odf &o, int n, QVector<Block> *out, int depth, i
 void Reader::convertSection(const Odf &o, int n, QVector<Block> *out, int depth, int listLevel, const QString &listStyle, int listNum)
 {
     const QString name = o.at(n, "text:style-name");
-    const Props sp = resolved(QStringLiteral("section"), name);
+    const Props &sp = resolved(QStringLiteral("section"), name);
     const int count = sp.value(QStringLiteral("sect:count")).toInt();
     const bool main = depth == 0 && listLevel < 0 && m_sectionsOn;
     const SectionState outer = m_sect;
@@ -784,8 +806,14 @@ void Reader::convertList(const Odf &o, int n, QVector<Block> *out, int depth, in
     int num = listNum;
     if (level == 0 || (!style.isEmpty() && style != listStyle)) {
         if (style.isEmpty()) style = listStyle;
-        const bool cont = o.at(n, "text:continue-numbering") == QLatin1String("true") || !o.at(n, "text:continue-list").isEmpty();
-        num = numberOf(style, !cont);
+        const QString continues = o.at(n, "text:continue-list");
+        const bool cont = o.at(n, "text:continue-numbering") == QLatin1String("true") || !continues.isEmpty();
+        // (A list that names the list it goes on from goes on from that one, not from the last of its style.)
+        const auto named = continues.isEmpty() ? m_listById.constEnd() : m_listById.constFind(continues);
+        num = named != m_listById.constEnd() ? named.value() : numberOf(style, !cont);
+        const int xmlNs = t.namespaceId("http://www.w3.org/XML/1998/namespace");
+        const QString id = xmlNs >= 0 ? t.attr(n, "id", xmlNs) : QString();
+        if (!id.isEmpty() && m_listById.size() < kMaxMadeParts) m_listById.insert(id, num);
     } else style = listStyle;
     if (num <= 0) {
         convertBlocks(o, n, out, depth + 1, std::max(listLevel, 0), listStyle, listNum);
@@ -842,7 +870,7 @@ void Reader::convertParagraph(const Odf &o, int n, QVector<Block> *out, int list
     const QString styleName = o.at(n, "text:style-name");
     QString named, listFromStyle, master;
     QByteArray tabs;
-    const Props pp = ownProps(QStringLiteral("paragraph"), styleName, &named, &tabs, &listFromStyle, &master);
+    const Props &pp = ownProps(QStringLiteral("paragraph"), styleName, &named, &tabs, &listFromStyle, &master);
     if (named.isEmpty() && !styleName.isEmpty()) {
         // (A style that has no named parent: the ones the paragraph's own parent chain gave it are the whole.)
         const StyleDef *d = style(QStringLiteral("paragraph"), styleName);
@@ -876,6 +904,7 @@ void Reader::convertParagraph(const Odf &o, int n, QVector<Block> *out, int list
     QByteArray numPr;
     if (numbered && listLevel >= 0 && listNum > 0) numPr = "<w:numPr><w:ilvl w:val=\"" + num(std::min(listLevel, 8)) + "\"/><w:numId w:val=\"" + num(listNum) + "\"/></w:numPr>";
     else if (listLevel >= 0 && !numbered && listNum > 0) numPr = "<w:numPr><w:ilvl w:val=\"" + num(std::min(listLevel, 8)) + "\"/><w:numId w:val=\"0\"/></w:numPr>";
+    if (numPr.isEmpty() && listLevel < 0 && listFromStyle == QLatin1String("\x01none")) numPr = "<w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"0\"/></w:numPr>";
     if (numPr.isEmpty() && heading && m_hasOutline && listFromStyle.isEmpty()) {
         // A heading of an outline whose level is numbered is numbered.
         const int lv = std::max(1, std::min(9, o.at(n, "text:outline-level").isEmpty() ? 1 : o.at(n, "text:outline-level").toInt()));
@@ -893,14 +922,14 @@ void Reader::convertParagraph(const Odf &o, int n, QVector<Block> *out, int list
         const QString marker = o.at(n, "loext:marker-style-name");
         if (!marker.isEmpty()) {
             QString markNamed;
-            const Props own = ownProps(QStringLiteral("text"), marker, &markNamed);
+            const Props &own = ownProps(QStringLiteral("text"), marker, &markNamed);
             for (auto it = own.constBegin(); it != own.constEnd(); ++it) markBase.insert(it.key(), it.value());
         }
     }
     const QByteArray markProps = rPrXml(markBase, QString());
     if (!markProps.isEmpty()) ppr += "<w:rPr>" + markProps + "</w:rPr>";
     ParaCtx pc;
-    pc.base = pp;
+    pc.base = &pp;
     pc.depth = depth;
     pc.inNote = m_inNote;
     RunFmt fmt;
@@ -939,7 +968,7 @@ void Reader::convertIndex(const Odf &o, int n, QVector<Block> *out, int depth)
         const int src = o.child(n, o.is(n, "text:illustration-index") ? "text:illustration-index-source" : "text:table-index-source");
         QString cat = src >= 0 ? o.at(src, "text:caption-sequence-name") : QString();
         if (cat.isEmpty()) cat = o.is(n, "text:illustration-index") ? QStringLiteral("Illustration") : QStringLiteral("Table");
-        instr = " TOC \\h \\z \\c \"" + esc(cat, true) + "\" ";
+        instr = " TOC \\h \\z \\c " + esc(quoteFieldArgument(cat), false) + " ";
     }
     const int body = o.child(n, "text:index-body");
     if (body < 0) return;
@@ -976,7 +1005,7 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
         return;
     }
     const QString styleName = o.at(n, "table:style-name");
-    const Props tp = resolved(QStringLiteral("table"), styleName);
+    const Props &tp = resolved(QStringLiteral("table"), styleName);
     auto tg = [&](const char *k) { return tp.value(QStringLiteral("tbl:") + QLatin1String(k)); };
     // The master page of the table's style begins a page.
     {
@@ -1019,7 +1048,7 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
         f.next = t.next(c);
         const bool header = f.header;
         if (o.is(c, "table:table-column")) {
-            const Props cp = resolved(QStringLiteral("table-column"), o.at(c, "table:style-name"));
+            const Props &cp = resolved(QStringLiteral("table-column"), o.at(c, "table:style-name"));
             bool ok = false;
             qint64 w = lengthToTwips(cp.value(QStringLiteral("col:style:column-width")), &ok);
             double rel = 0;
@@ -1079,7 +1108,7 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
     QVector<QByteArray> rowXmls;
     for (const RowRef &rr : std::as_const(rows)) {
         const int rowRepeat = std::max(1, std::min(o.at(rr.node, "table:number-rows-repeated").isEmpty() ? 1 : o.at(rr.node, "table:number-rows-repeated").toInt(), kMaxRepeat));
-        const Props rp = resolved(QStringLiteral("table-row"), o.at(rr.node, "table:style-name"));
+        const Props &rp = resolved(QStringLiteral("table-row"), o.at(rr.node, "table:style-name"));
         QByteArray trPr;
         {
             bool ok = false;
@@ -1133,7 +1162,7 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
                     // The cell: its content once, and the properties.
                     int span = std::max(1, std::min(o.at(c, "table:number-columns-spanned").isEmpty() ? 1 : o.at(c, "table:number-columns-spanned").toInt(), kMaxColumns));
                     const int rowSpan = std::max(1, std::min(o.at(c, "table:number-rows-spanned").isEmpty() ? 1 : o.at(c, "table:number-rows-spanned").toInt(), 100000));
-                    const Props cp = resolved(QStringLiteral("table-cell"), o.at(c, "table:style-name"));
+                    const Props &cp = resolved(QStringLiteral("table-cell"), o.at(c, "table:style-name"));
                     QVector<Block> blocks;
                     convertBlocks(o, c, &blocks, depth + 1);
                     QByteArray tcPr;
@@ -1173,6 +1202,10 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
                 const int span = curSpan;
                 QByteArray xml = cellXml;
                 xml.replace("@W@", num(widthOf(col, span)));
+                if ((m_repeatedBytes += xml.size()) > kMaxRepeatedBytes) {
+                    left(QCoreApplication::translate("odt", "a table with more repeated cells than are kept"));
+                    break;
+                }
                 cells += xml;
                 if (curRowSpan > 1) {
                     vmRemaining[col] = curRowSpan - 1;
@@ -1198,6 +1231,10 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
         const qint64 cellsInRow = std::max<qint64>(1, col);
         for (int r = 0; r < rowRepeat && rowCount < 200000; ++r, ++rowCount) {
             if (r > 0 && (cellsMade += cellsInRow) > kMaxTableCells) break;
+            if ((m_repeatedBytes += row.size()) > kMaxRepeatedBytes) {
+                left(QCoreApplication::translate("odt", "a table with more repeated rows than are kept"));
+                break;
+            }
             rowXmls.push_back(row);
         }
         // (The remaining counts of the merged cells go down with each repeat of the row: they were set for one.)

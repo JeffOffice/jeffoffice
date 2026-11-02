@@ -50,6 +50,19 @@ QString decodeStyleName(const QString &name);
 // A name fit for an OpenDocument style: letters, digits, and _ . - only.
 QString encodeStyleName(const QString &display);
 
+// The most a length may be, in points (a file's 1e300pt would overflow what it is turned into).
+constexpr double kMaxLengthPoints = 1e5;
+double clampPoints(double points);
+// A number out of a file's text made fit to be an integer (no overflow, nothing not finite).
+qint64 clampedInt(double v);
+// Text without the characters XML 1.0 has no place for (controls, U+FFFE and U+FFFF, a half of a surrogate pair).
+QString xmlSafeText(const QString &text);
+// Six hex digits in capitals, or empty.
+QString hexColorOrEmpty(const QString &text);
+// A name as an argument of a field's code: in quotes, with the quote and the backslash escaped, so it can't add a switch.
+QString quoteFieldArgument(const QString &name);
+
+// Text or an attribute value written into XML: what XML has no place for is left out, and & < > (and the quotes of an attribute) are escaped. For both directions.
 QByteArray esc(const QString &text, bool attribute = true);
 
 } // namespace jp::office::odt
