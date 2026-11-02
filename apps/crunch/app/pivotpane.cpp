@@ -43,6 +43,7 @@ PivotFieldsPane::PivotFieldsPane(QWidget *parent) : QWidget(parent)
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(6, 6, 6, 6);
     m_title = new QLabel(tr("Choose fields to add to the report"), this);
+    m_title->setTextFormat(Qt::PlainText);   // (a table's name comes from a file)
     m_title->setWordWrap(true);
     layout->addWidget(m_title);
     m_fields = new QListWidget(this);
@@ -324,6 +325,7 @@ ValueFieldDialog::ValueFieldDialog(const QString &sourceName, const QString &nam
     setWindowTitle(tr("Value Field Settings"));
     auto *form = new QFormLayout(this);
     m_source = new QLabel(sourceName, this);
+    m_source->setTextFormat(Qt::PlainText);   // (a field's name comes from a file)
     form->addRow(tr("Source name:"), m_source);
     m_name = new QLineEdit(name, this);
     m_name->setObjectName(QStringLiteral("pivot.valueName"));
