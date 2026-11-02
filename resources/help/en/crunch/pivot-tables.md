@@ -1,7 +1,7 @@
-# PivotTables
-<!-- keywords: pivot table, pivottable, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average -->
+# Pivot tables
+<!-- keywords: pivot table, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average -->
 
-A PivotTable is a small report made from a long list. The list has one row for each sale, say; the report adds the sales up by region and month. You do not write any formulas. You say which columns of the list go down the side, which go across the top, and which one is added up, and the report fills itself in.
+A pivot table is a small report made from a long list. The list has one row for each sale, say; the report adds the sales up by region and month. You do not write any formulas. You say which columns of the list go down the side, which go across the top, and which one is added up, and the report fills itself in.
 
 ## An example
 
@@ -16,7 +16,7 @@ Here is a list in the cells A1 to C7. Each row is one sale.
 | West | Feb | 3 |
 | West | Feb | 4 |
 
-A PivotTable with **Region** down the side, **Month** across the top, and the sum of **Amount** in the middle looks like this.
+A pivot table with **Region** down the side, **Month** across the top, and the sum of **Amount** in the middle looks like this.
 
 | Sum of Amount | Month | | |
 |---|---|---|---|
@@ -31,21 +31,21 @@ The words used here:
 
 - **Field** is a column of the list. Region, Month, and Amount are the fields.
 - **Rows**, **Columns**, and **Values** are the three places a field can go. A field in Rows gives one line for each of its different entries; a field in Columns gives one column for each; a field in Values is the one that is added up. A fourth place, **Filters**, holds a field that leaves out the rows you do not choose.
-- A **cache** is the copy of the list that the PivotTable keeps. The report is worked out from the cache, not from the cells, so it does not change when the cells change. **Refresh** copies the cells into the cache again.
+- A **cache** is the copy of the list that the pivot table keeps. The report is worked out from the cache, not from the cells, so it does not change when the cells change. **Refresh** copies the cells into the cache again.
 
-## What JeffCrunch does with a PivotTable
+## What JeffCrunch does with a pivot table
 
-A PivotTable in a workbook is shown as it was saved. If you change nothing about it, the file is saved with the PivotTable exactly as it was. When you refresh it or change it, JeffCrunch works the report out again, puts the new numbers in the cells, and writes the PivotTable back so that the program that made it opens it without complaint.
+A pivot table in a workbook is shown as it was saved. If you change nothing about it, the file is saved with the pivot table exactly as it was. When you refresh it or change it, JeffCrunch works the report out again, puts the new numbers in the cells, and writes the pivot table back so that the program that made it opens it without complaint.
 
-JeffCrunch works out PivotTables that add, count, average, and so on. A PivotTable that groups dates or numbers, has a calculated field or item, shows values as a percent, a difference, or a rank, or uses a data model is shown and kept as saved, and the commands tell you they cannot change it.
+JeffCrunch works out pivot tables that add, count, average, and so on. A pivot table that groups dates or numbers, has a calculated field or item, shows values as a percent, a difference, or a rank, or uses a data model is shown and kept as saved, and the commands tell you they cannot change it.
 
-Click any cell of a PivotTable. The **PivotTable** tab appears.
+Click any cell of a pivot table. The **Pivot Table** tab appears.
 
 ## Refresh
 
-**Refresh** reads the cells the PivotTable is made from and works the report out again. New entries come after the ones already there; entries that are gone are dropped. Column widths, and the layout you chose, stay. **Refresh All**, on the **Data** tab and on the **PivotTable** tab, does the same for every PivotTable in the workbook.
+**Refresh** reads the cells the pivot table is made from and works the report out again. New entries come after the ones already there; entries that are gone are dropped. Column widths, and the layout you chose, stay. **Refresh All**, on the **Data** tab and on the **Pivot Table** tab, does the same for every pivot table in the workbook.
 
-If the report would grow over cells that have something in them, JeffCrunch does not refresh. It tells you which cells are in the way. Clear them or move the PivotTable, and refresh again.
+If the report would grow over cells that have something in them, JeffCrunch does not refresh. It tells you which cells are in the way. Clear them or move the pivot table, and refresh again.
 
 **Undo** takes back a refresh in one step.
 
@@ -59,7 +59,7 @@ If the report would grow over cells that have something in them, JeffCrunch does
 
 ## The fields pane
 
-**Field List** on the **PivotTable** tab opens the **PivotTable Fields** pane. It lists the fields of the list with a box beside each, and below it the four places: **Filters**, **Columns**, **Rows**, and **Values**.
+**Field List** on the **Pivot Table** tab opens the **Pivot Table Fields** pane. It lists the fields of the list with a box beside each, and below it the four places: **Filters**, **Columns**, **Rows**, and **Values**.
 
 - Check a field to add it. A field that holds only numbers goes to **Values** and is added up; any other goes to **Rows**.
 - Uncheck a field to take it out everywhere.
@@ -81,4 +81,4 @@ Move **Month** from **Columns** to **Filters**. The report loses its columns, an
 
 ## Limits
 
-A PivotTable can have up to 2,000 fields, and a list of up to five million rows, and a report of up to four million cells. A file that goes past these is shown as saved and cannot be changed. A refresh of a hundred thousand rows with twenty columns takes under a second.
+A pivot table can have up to 2,000 fields, and a list of up to five million rows, and a report of up to four million cells. A file that goes past these is shown as saved and cannot be changed. A refresh of a hundred thousand rows with twenty columns takes under a second.

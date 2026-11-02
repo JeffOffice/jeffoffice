@@ -508,9 +508,9 @@
       ]
     },
     {
-      "name": "PivotTable",
+      "name": "Pivot Table",
       "keytip": "JP",
-      "context": "PivotTable",
+      "context": "Pivot Table",
       "color": "tableDesign",
       "groups": [
         {

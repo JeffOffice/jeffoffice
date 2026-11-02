@@ -3,6 +3,7 @@
 #include <QDateTime>
 #include <QDomDocument>
 #include <QDomElement>
+#include <QRegularExpression>
 
 #include <algorithm>
 #include <cmath>
@@ -17,10 +18,13 @@ QString num(double d)
     return QString::number(d, 'g', 17);
 }
 
+// The date and time of a day number as the schema writes one; empty for a number the calendar has no date for (day 60 of the 1900 system, a negative number, a year past 9999).
 QString isoDate(double serial, jp::calc::DateSystem dates)
 {
     int y = 1899, m = 12, d = 31;
-    if (!(serial < 1 && dates == jp::calc::DateSystem::Date1900) && !jp::calc::serialToDate(serial, dates, &y, &m, &d)) return QStringLiteral("1900-01-01T00:00:00");
+    if (!std::isfinite(serial) || serial < 0) return QString();
+    if (dates == jp::calc::DateSystem::Date1900 && std::floor(serial) == 60) return QString();
+    if (!(serial < 1 && dates == jp::calc::DateSystem::Date1900) && !jp::calc::serialToDate(serial, dates, &y, &m, &d)) return QString();
     double frac = serial - std::floor(serial);
     qint64 secs = qint64(std::llround(frac * 86400.0));
     if (secs >= 86400) secs = 86399;
@@ -57,16 +61,19 @@ QString valueTag(const PivotValue &v, jp::calc::DateSystem dates)
     switch (v.kind) {
     case PivotValue::Missing: return QStringLiteral("<m/>");
     case PivotValue::Number: return QStringLiteral("<n v=\"%1\"/>").arg(num(v.number));
-    case PivotValue::Date: return QStringLiteral("<d v=\"%1\"/>").arg(isoDate(v.number, dates));
+    case PivotValue::Date: {
+        const QString iso = isoDate(v.number, dates);
+        return iso.isEmpty() ? QStringLiteral("<n v=\"%1\"/>").arg(num(v.number)) : QStringLiteral("<d v=\"%1\"/>").arg(iso);
+    }
     case PivotValue::Bool: return QStringLiteral("<b v=\"%1\"/>").arg(v.number != 0 ? 1 : 0);
-    case PivotValue::Text: return QStringLiteral("<s v=\"%1\"/>").arg(esc(v.text));
-    case PivotValue::Error: return QStringLiteral("<e v=\"%1\"/>").arg(esc(v.text));
+    case PivotValue::Text: return QStringLiteral("<s v=\"%1\"/>").arg(esc(pivotEncodeXString(v.text)));
+    case PivotValue::Error: return QStringLiteral("<e v=\"%1\"/>").arg(esc(pivotEncodeXString(v.text)));
     }
     return QString();
 }
 
 // The attributes of <sharedItems> that say what a field holds.
-void sharedAttributes(const PivotCacheField &f, QVector<std::pair<QString, QString>> *attrs)
+void sharedAttributes(const PivotCacheField &f, jp::calc::DateSystem dates, QVector<std::pair<QString, QString>> *attrs)
 {
     bool text = false, number = false, blank = false, date = false, nonDate = false, bools = false, errors = false, integer = true;
     double lo = 0, hi = 0, dlo = 0, dhi = 0;
@@ -79,6 +86,28 @@ void sharedAttributes(const PivotCacheField &f, QVector<std::pair<QString, QStri
         case PivotValue::Missing: blank = true; break;
         case PivotValue::Bool: bools = true; nonDate = true; break;
         case PivotValue::Error: errors = true; nonDate = true; break;
+        case PivotValue::Date:
+            if (isoDate(v.number, dates).isEmpty()) {
+                // (a day that has no date is written, and counted, as a number)
+                number = true;
+                nonDate = true;
+                if (v.number != std::floor(v.number)) integer = false;
+                if (firstNum) lo = hi = v.number;
+                else {
+                    lo = std::min(lo, v.number);
+                    hi = std::max(hi, v.number);
+                }
+                firstNum = false;
+                break;
+            }
+            date = true;
+            if (firstDate) dlo = dhi = v.number;
+            else {
+                dlo = std::min(dlo, v.number);
+                dhi = std::max(dhi, v.number);
+            }
+            firstDate = false;
+            break;
         case PivotValue::Number:
             number = true;
             nonDate = true;
@@ -89,15 +118,6 @@ void sharedAttributes(const PivotCacheField &f, QVector<std::pair<QString, QStri
                 hi = std::max(hi, v.number);
             }
             firstNum = false;
-            break;
-        case PivotValue::Date:
-            date = true;
-            if (firstDate) dlo = dhi = v.number;
-            else {
-                dlo = std::min(dlo, v.number);
-                dhi = std::max(dhi, v.number);
-            }
-            firstDate = false;
             break;
         }
     }
@@ -116,8 +136,8 @@ void sharedAttributes(const PivotCacheField &f, QVector<std::pair<QString, QStri
         attrs->append({QStringLiteral("maxValue"), num(hi)});
     }
     if (date) {
-        attrs->append({QStringLiteral("minDate"), QStringLiteral("%1").arg(dlo)});
-        attrs->append({QStringLiteral("maxDate"), QStringLiteral("%1").arg(dhi)});
+        attrs->append({QStringLiteral("minDate"), isoDate(dlo, dates)});
+        attrs->append({QStringLiteral("maxDate"), isoDate(dhi, dates)});
     }
 }
 
@@ -163,10 +183,10 @@ QByteArray writePivotCacheDefinition(const QByteArray &original, const PivotCach
     // (the fields the original had, by name: what the program has no model of — a caption, say — is kept)
     QHash<QString, QDomElement> was;
     for (QDomNode n = fields.firstChild(); !n.isNull(); n = n.nextSibling())
-        if (n.isElement()) was.insert(n.toElement().attribute(QStringLiteral("name")), n.toElement());
+        if (n.isElement()) was.insert(pivotDecodeXString(n.toElement().attribute(QStringLiteral("name"))), n.toElement());
     for (const PivotCacheField &f : cache.fields) {
         QDomElement e = doc.createElement(QStringLiteral("cacheField"));
-        e.setAttribute(QStringLiteral("name"), f.name);
+        e.setAttribute(QStringLiteral("name"), pivotEncodeXString(f.name));
         if (was.contains(f.name)) {
             const QDomElement w = was.value(f.name);
             const QDomNamedNodeMap attrs = w.attributes();
@@ -178,21 +198,22 @@ QByteArray writePivotCacheDefinition(const QByteArray &original, const PivotCach
         e.setAttribute(QStringLiteral("numFmtId"), QString::number(f.numFmtId));
         QDomElement shared = doc.createElement(QStringLiteral("sharedItems"));
         QVector<std::pair<QString, QString>> attrs;
-        sharedAttributes(f, &attrs);
+        sharedAttributes(f, dates, &attrs);
         for (const auto &a : attrs) shared.setAttribute(a.first, a.second);
         if (f.hasShared) {
             shared.setAttribute(QStringLiteral("count"), QString::number(f.sharedCount));
             for (int i = 0; i < f.sharedCount; ++i) {
                 const PivotValue &v = f.items[i];
                 static const char *tags[] = {"m", "n", "s", "b", "e", "d"};
-                QDomElement ve = doc.createElement(QLatin1String(tags[v.kind == PivotValue::Missing ? 0 : v.kind == PivotValue::Number ? 1 : v.kind == PivotValue::Text ? 2 : v.kind == PivotValue::Bool ? 3 : v.kind == PivotValue::Error ? 4 : 5]));
+                const bool asNumber = v.kind == PivotValue::Date && isoDate(v.number, dates).isEmpty();
+                QDomElement ve = doc.createElement(QLatin1String(tags[asNumber ? 1 : v.kind == PivotValue::Missing ? 0 : v.kind == PivotValue::Number ? 1 : v.kind == PivotValue::Text ? 2 : v.kind == PivotValue::Bool ? 3 : v.kind == PivotValue::Error ? 4 : 5]));
                 switch (v.kind) {
                 case PivotValue::Missing: break;
                 case PivotValue::Number: ve.setAttribute(QStringLiteral("v"), num(v.number)); break;
-                case PivotValue::Date: ve.setAttribute(QStringLiteral("v"), isoDate(v.number, dates)); break;
+                case PivotValue::Date: ve.setAttribute(QStringLiteral("v"), isoDate(v.number, dates).isEmpty() ? num(v.number) : isoDate(v.number, dates)); break;
                 case PivotValue::Bool: ve.setAttribute(QStringLiteral("v"), v.number != 0 ? QStringLiteral("1") : QStringLiteral("0")); break;
                 case PivotValue::Text:
-                case PivotValue::Error: ve.setAttribute(QStringLiteral("v"), v.text); break;
+                case PivotValue::Error: ve.setAttribute(QStringLiteral("v"), pivotEncodeXString(v.text)); break;
                 }
                 shared.appendChild(ve);
             }
@@ -271,31 +292,32 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool
 
     // the fields
     QDomElement fields = childNamed(root, QStringLiteral("pivotFields"));
+    // each field's element is its own, found by the place it had in the part: its marks and children (a sort by a value, an extension) go with its column; a field made here has a plain one
+    QVector<QDomElement> ordered;
     {
-        // (as many as the table has: fields the source gained or lost)
-        int have = 0;
-        QList<QDomElement> extra;
+        QVector<QDomElement> original;
         for (QDomNode n = fields.firstChild(); !n.isNull(); n = n.nextSibling())
-            if (n.isElement() && n.toElement().tagName() == QLatin1String("pivotField") && ++have > t.fields.size()) extra.append(n.toElement());
-        for (const QDomElement &e : extra) fields.removeChild(e);
-        for (; have < t.fields.size(); ++have) {
-            QDomElement e = doc.createElement(QStringLiteral("pivotField"));
-            e.setAttribute(QStringLiteral("showAll"), QStringLiteral("0"));
-            fields.appendChild(e);
+            if (n.isElement() && n.toElement().tagName() == QLatin1String("pivotField")) original.append(n.toElement());
+        for (const PivotField &pf : t.fields) {
+            if (pf.src >= 0 && pf.src < original.size()) {
+                ordered.append(original[pf.src].cloneNode(true).toElement());
+            } else {
+                QDomElement e = doc.createElement(QStringLiteral("pivotField"));
+                e.setAttribute(QStringLiteral("showAll"), QStringLiteral("0"));
+                ordered.append(e);
+            }
         }
+        for (const QDomElement &e : original) fields.removeChild(e);
+        for (const QDomElement &e : ordered) fields.appendChild(e);
     }
-    int fi = 0;
-    for (QDomNode n = fields.firstChild(); !n.isNull(); n = n.nextSibling()) {
-        if (!n.isElement()) continue;
-        QDomElement e = n.toElement();
-        if (e.tagName() != QLatin1String("pivotField")) continue;
-        if (fi >= t.fields.size()) break;
-        const PivotField &pf = t.fields[fi++];
+    for (int fi = 0; fi < ordered.size(); ++fi) {
+        QDomElement e = ordered[fi];
+        const PivotField &pf = t.fields[fi];
         if (pf.axis.isEmpty()) e.removeAttribute(QStringLiteral("axis"));
         else e.setAttribute(QStringLiteral("axis"), pf.axis);
         setBool(e, QStringLiteral("dataField"), pf.dataField, false);
         if (pf.name.isEmpty()) e.removeAttribute(QStringLiteral("name"));
-        else e.setAttribute(QStringLiteral("name"), pf.name);
+        else e.setAttribute(QStringLiteral("name"), pivotEncodeXString(pf.name));
         // the subtotal marks follow the items that say them
         static const std::pair<const char *, const char *> subs[] = {
             {"sumSubtotal", "sum"}, {"countASubtotal", "countA"}, {"avgSubtotal", "avg"}, {"maxSubtotal", "max"}, {"minSubtotal", "min"},
@@ -314,9 +336,21 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool
         else e.setAttribute(QStringLiteral("sortType"), pf.sortType);
         if (pf.numFmtId > 0) e.setAttribute(QStringLiteral("numFmtId"), QString::number(pf.numFmtId));
         else e.removeAttribute(QStringLiteral("numFmtId"));
+        // a sort by the values of a data field follows the data field's place; one whose data field is gone is dropped
+        QDomElement scope = childNamed(e, QStringLiteral("autoSortScope"));
+        if (!scope.isNull()) {
+            QDomElement x;
+            for (QDomNode n = scope.firstChild(); !n.isNull() && x.isNull(); n = n.nextSibling()) {
+                // (the x of the one reference: pivotArea > references > reference > x)
+                QDomElement area = n.toElement(), refs = childNamed(area, QStringLiteral("references")), ref = childNamed(refs, QStringLiteral("reference"));
+                x = childNamed(ref, QStringLiteral("x"));
+            }
+            if (pf.sortByData >= 0 && !x.isNull()) x.setAttribute(QStringLiteral("v"), QString::number(pf.sortByData));
+            else e.removeChild(scope);
+        }
         QDomElement items = childNamed(e, QStringLiteral("items"));
         if (!items.isNull()) e.removeChild(items);
-        if (pf.hasItems) {
+        if (pf.hasItems && !pf.items.isEmpty()) {
             QDomElement made = doc.createElement(QStringLiteral("items"));
             made.setAttribute(QStringLiteral("count"), QString::number(pf.items.size()));
             for (const PivotTableItem &it : pf.items) {
@@ -325,7 +359,7 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool
                     if (it.hidden) ie.setAttribute(QStringLiteral("h"), QStringLiteral("1"));
                     if (it.missing) ie.setAttribute(QStringLiteral("m"), QStringLiteral("1"));
                     if (!it.showDetails) ie.setAttribute(QStringLiteral("sd"), QStringLiteral("0"));
-                    if (!it.n.isEmpty()) ie.setAttribute(QStringLiteral("n"), it.n);
+                    if (!it.n.isEmpty()) ie.setAttribute(QStringLiteral("n"), pivotEncodeXString(it.n));
                     ie.setAttribute(QStringLiteral("x"), QString::number(it.x));
                 } else {
                     ie.setAttribute(QStringLiteral("t"), it.t);
@@ -357,6 +391,7 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool
     };
     auto lines = [&](const char *name, const QVector<PivotAxisItem> &items) {
         drop(name);
+        if (items.isEmpty()) return QDomElement();
         QDomElement e = doc.createElement(QLatin1String(name));
         e.setAttribute(QStringLiteral("count"), QString::number(items.size()));
         for (const PivotAxisItem &it : items) {
@@ -404,7 +439,7 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool
         df.setAttribute(QStringLiteral("count"), QString::number(t.dataFields.size()));
         for (const PivotDataField &d : t.dataFields) {
             QDomElement x = doc.createElement(QStringLiteral("dataField"));
-            x.setAttribute(QStringLiteral("name"), d.name);
+            x.setAttribute(QStringLiteral("name"), pivotEncodeXString(d.name));
             x.setAttribute(QStringLiteral("fld"), QString::number(d.fld));
             if (d.subtotal != QLatin1String("sum")) x.setAttribute(QStringLiteral("subtotal"), d.subtotal);
             if (d.showDataAs != QLatin1String("normal")) x.setAttribute(QStringLiteral("showDataAs"), d.showDataAs);
@@ -444,6 +479,28 @@ void pivotApplyGrid(PivotTable *t, const PivotGrid &grid, quint32 row, quint32 c
     t->rowItems = grid.rowItems;
     t->colItems = grid.colItems;
     t->ref = pivotRangeRef(row, col, row + quint32(std::max(grid.rows, 1)) - 1, col + quint32(std::max(grid.cols, 1)) - 1);
+}
+
+} // namespace jp::office::sheet
+
+namespace jp::office::sheet {
+
+QByteArray patchPivotCacheSource(const QByteArray &def, const QString &sheet, const QString &ref)
+{
+    const qsizetype at = def.indexOf("worksheetSource");
+    if (at < 0) return def;
+    const qsizetype start = def.lastIndexOf('<', at), end = def.indexOf('>', at);
+    if (start < 0 || end < 0) return def;
+    QString tag = QString::fromUtf8(def.mid(start, end - start + 1));
+    auto set = [&](const QString &name, const QString &value) {
+        const QRegularExpression re(QStringLiteral("(\\s%1\\s*=\\s*)(\"[^\"]*\"|'[^']*')").arg(name));
+        const QString quoted = QLatin1Char('"') + value.toHtmlEscaped().replace(QLatin1Char('"'), QLatin1String("&quot;")) + QLatin1Char('"');
+        if (tag.contains(re)) tag.replace(re, QStringLiteral("\\1") + quoted);
+        else tag.insert(tag.indexOf(QLatin1String("worksheetSource")) + 15, QLatin1Char(' ') + name + QLatin1Char('=') + quoted);
+    };
+    set(QStringLiteral("ref"), ref);
+    set(QStringLiteral("sheet"), sheet);
+    return def.left(start) + tag.toUtf8() + def.mid(end + 1);
 }
 
 } // namespace jp::office::sheet

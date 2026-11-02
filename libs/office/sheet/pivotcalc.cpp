@@ -345,7 +345,7 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
         if (f.records.size() != nrec) return fail(QStringLiteral("the cache records are uneven"));
 
     // the place of each shared item in its field's list of items (-1: hidden, or not listed)
-    auto positions = [&](int f, QVector<qint32> *pos, QVector<int> *itemOfPos) {
+    auto positions = [&](int f, QVector<qint32> *pos, QVector<const PivotTableItem *> *itemOfPos) {
         const PivotField &pf = t.fields[f];
         pos->assign(c.fields[f].items.size(), -1);
         if (!pf.hasItems) {
@@ -356,13 +356,13 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
         for (const PivotTableItem &it : pf.items) {
             if (!it.t.isEmpty()) continue;
             if (it.x >= 0 && it.x < pos->size() && !it.hidden) (*pos)[it.x] = p;
-            itemOfPos->append(it.x);
+            itemOfPos->append(&it);
             ++p;
         }
     };
     // the fields that filter: those on an axis or a page
     QVector<QVector<qint32>> posOf(nf);
-    QVector<QVector<int>> itemOfPos(nf);
+    QVector<QVector<const PivotTableItem *>> itemOfPos(nf);   // for each field on an axis or a page, its items by place
     QVector<bool> used(nf, false);
     for (int f : t.rowFields) if (f >= 0) used[f] = true;
     for (int f : t.colFields) if (f >= 0) used[f] = true;
@@ -384,14 +384,8 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
 
     // an item that is collapsed (its details are not shown) takes in the items under it
     auto collapsedAt = [&](int f, int pos) {
-        const PivotField &pf = t.fields[f];
-        if (!pf.hasItems) return false;
-        int p = 0;
-        for (const PivotTableItem &it : pf.items) {
-            if (!it.t.isEmpty()) continue;
-            if (p++ == pos) return !it.showDetails;
-        }
-        return false;
+        const auto &list = itemOfPos[f];
+        return pos >= 0 && pos < list.size() && !list[pos]->showDetails;
     };
     bool anyCollapsed = false;
     for (int f = 0; f < nf && !anyCollapsed; ++f)
@@ -478,6 +472,8 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             if (ri.second) rowTuples.push_back(rt);
             auto ci = colId.emplace(keyOf(ct), int(colTuples.size()));
             if (ci.second) colTuples.push_back(ct);
+            // (more lines than a sheet has rows, or columns than it has, are refused before the lines are made)
+            if (rowTuples.size() > size_t(kPivotMaxRows) || colTuples.size() > size_t(kPivotMaxCols)) return fail(QStringLiteral("the table would have too many lines"));
             Acc &a = leafAcc[(quint64(ri.first->second) << 32) | quint32(ci.first->second)];
             if (D > 0) {
                 const PivotValue &val = c.fields[t.dataFields[d].fld].items[c.fields[t.dataFields[d].fld].records[r]];
@@ -650,15 +646,10 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
         const PivotField &pf = t.fields[f];
         int shared = -1;
         if (pf.hasItems) {
-            int p = 0;
-            for (const PivotTableItem &it : pf.items) {
-                if (!it.t.isEmpty()) continue;
-                if (p == pos) {
-                    shared = it.x;
-                    if (!it.n.isEmpty()) return text(it.n);
-                    break;
-                }
-                ++p;
+            const auto &list = itemOfPos[f];
+            if (pos >= 0 && pos < list.size()) {
+                shared = list[pos]->x;
+                if (!list[pos]->n.isEmpty()) return text(list[pos]->n);
             }
         } else {
             shared = pos;

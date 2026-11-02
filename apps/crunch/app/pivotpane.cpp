@@ -47,7 +47,7 @@ PivotFieldsPane::PivotFieldsPane(QWidget *parent) : QWidget(parent)
     layout->addWidget(m_title);
     m_fields = new QListWidget(this);
     m_fields->setObjectName(QStringLiteral("pivot.fields"));
-    m_fields->setAccessibleName(tr("PivotTable fields"));
+    m_fields->setAccessibleName(tr("Pivot table fields"));
     layout->addWidget(m_fields, 3);
     auto *grid = new QGridLayout();
     const char *titles[4] = {QT_TR_NOOP("Filters"), QT_TR_NOOP("Columns"), QT_TR_NOOP("Rows"), QT_TR_NOOP("Values")};
@@ -131,7 +131,7 @@ void PivotFieldsPane::showNothing()
     m_table = PivotTable();
     m_names.clear();
     m_numeric.clear();
-    m_title->setText(tr("Click a PivotTable to see its fields."));
+    m_title->setText(tr("Click a pivot table to see its fields."));
     m_filling = false;
 }
 
@@ -234,7 +234,7 @@ void PivotFieldsPane::checkField(int field, bool on)
         } else {
             t.rowFields.append(field);
         }
-        changed(t, tr("Add Field to PivotTable"));
+        changed(t, tr("Add Field to Pivot Table"));
     } else {
         t.rowFields.removeAll(field);
         t.colFields.removeAll(field);
@@ -242,7 +242,7 @@ void PivotFieldsPane::checkField(int field, bool on)
             if (t.pageFields[i].fld == field) t.pageFields.remove(i);
         for (int i = t.dataFields.size() - 1; i >= 0; --i)
             if (t.dataFields[i].fld == field) t.dataFields.remove(i);
-        changed(t, tr("Remove Field from PivotTable"));
+        changed(t, tr("Remove Field from Pivot Table"));
     }
 }
 
@@ -257,7 +257,7 @@ void PivotFieldsPane::removeSelected()
     else if (b == 2 && e.index < t.rowFields.size()) t.rowFields.remove(e.index);
     else if (b == 3 && e.data >= 0 && e.data < t.dataFields.size()) t.dataFields.remove(e.data);
     else return;
-    changed(t, tr("Remove Field from PivotTable"));
+    changed(t, tr("Remove Field from Pivot Table"));
 }
 
 void PivotFieldsPane::moveSelected(int target)
@@ -274,7 +274,7 @@ void PivotFieldsPane::moveSelected(int target)
         t.colFields.removeAll(-2);
         (target == 1 ? t.colFields : t.rowFields).append(-2);
         t.dataOnRows = target == 2;
-        changed(t, tr("Move Field in PivotTable"));
+        changed(t, tr("Move Field in Pivot Table"));
         return;
     }
     const int field = e.field;
@@ -294,7 +294,7 @@ void PivotFieldsPane::moveSelected(int target)
     } else {
         t.dataFields.append(newValue(t, field));
     }
-    changed(t, tr("Move Field in PivotTable"));
+    changed(t, tr("Move Field in Pivot Table"));
 }
 
 void PivotFieldsPane::shiftSelected(int by)
@@ -314,7 +314,7 @@ void PivotFieldsPane::shiftSelected(int by)
     else if (b == 1) done = swapIn(t.colFields, e.index);
     else if (b == 2) done = swapIn(t.rowFields, e.index);
     else done = swapIn(t.dataFields, e.index);
-    if (done) changed(t, tr("Move Field in PivotTable"));
+    if (done) changed(t, tr("Move Field in Pivot Table"));
 }
 
 // ---------------------------------------------------------------- Value Field Settings

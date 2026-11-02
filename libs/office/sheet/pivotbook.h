@@ -21,7 +21,9 @@ struct PivotCacheEntry {
     QString why;                                   // when it can't be used
     int sourceSheet = -1;                          // the sheet the source range is on (its place), -1 for a source that is a name or a table, or a sheet that is gone
     CellRange source, fileSource;                  // the range now, and as the file has it
+    QString fileSheetName;                         // the sheet the file names as the source's
     QString sourceName;                            // a defined name or a table the source is
+    bool unreadable = false;                       // too big, or nested too deep, to be worked with (the part is kept as it is)
 };
 
 struct PivotTableEntry {
@@ -31,6 +33,7 @@ struct PivotTableEntry {
     std::shared_ptr<const PivotTable> table, fileTable;
     bool structureChanged = false;                 // the fields were moved: the formats the file has for the old layout are left out of the part
     QString why;                                   // when the table can't be read
+    CellRange fallback;                            // where the cells are, read apart, for a table that can't be read whole
 };
 
 class PivotBook {

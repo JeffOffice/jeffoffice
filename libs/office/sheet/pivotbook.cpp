@@ -17,12 +17,23 @@ PivotBook::PivotBook(const Package *package, const QVector<QString> &sheetParts,
             PivotTableEntry e;
             e.sheet = sheet;
             e.part = resolvePartName(sheetParts[sheet], rel.target);
-            auto parsed = std::make_shared<PivotTable>();
             QString why;
-            if (e.part.isEmpty() || !readPivotTable(package->part(e.part), parsed.get(), &why)) {
-                e.why = why.isEmpty() ? QStringLiteral("the pivot table is not in the file") : why;
+            const qint64 size = e.part.isEmpty() ? -1 : package->partSize(e.part);
+            if (size < 0 || size > kPivotMaxTablePartBytes) {
+                e.why = size < 0 ? QStringLiteral("the pivot table is not in the file") : QStringLiteral("the pivot table is too big");
             } else {
-                e.table = e.fileTable = parsed;
+                // (a table that can't be read whole still says where it is)
+                const QByteArray bytes = package->part(e.part);
+                QString ref;
+                CellRange where;
+                if (readPivotTableLocation(bytes, &ref) && parseRangeRef(ref, &where)) e.fallback = where;
+                if (pivotXmlDepth(bytes, kPivotMaxXmlDepth) > kPivotMaxXmlDepth) {
+                    e.why = QStringLiteral("the pivot table is nested too deep");
+                } else {
+                    auto parsed = std::make_shared<PivotTable>();
+                    if (!readPivotTable(bytes, parsed.get(), &why)) e.why = why.isEmpty() ? QStringLiteral("the pivot table can't be read") : why;
+                    else e.table = e.fileTable = parsed;
+                }
             }
             QString definition;
             for (const Relationship &cr : package->relationshipsOfType(e.part, QStringLiteral("/pivotCacheDefinition")))
@@ -34,6 +45,29 @@ PivotBook::PivotBook(const Package *package, const QVector<QString> &sheetParts,
                     c.definitionPart = definition;
                     for (const Relationship &rr : package->relationshipsOfType(definition, QStringLiteral("/pivotCacheRecords")))
                         if (!rr.external) c.recordsPart = resolvePartName(definition, rr.target);
+                    // where the data is, read now: the edits of rows and columns that move it are followed from the start, whether or not the cache is ever read
+                    const qint64 defSize = package->partSize(definition);
+                    if (defSize < 0 || defSize > kPivotMaxDefinitionBytes || (!c.recordsPart.isEmpty() && package->partSize(c.recordsPart) > kPivotMaxRecordsBytes)) {
+                        c.unreadable = true;
+                        c.why = QStringLiteral("the cache is too big");
+                    } else {
+                        const QByteArray def = package->part(definition);
+                        if (pivotXmlDepth(def, kPivotMaxXmlDepth) > kPivotMaxXmlDepth) {
+                            c.unreadable = true;
+                            c.why = QStringLiteral("the cache is nested too deep");
+                        }
+                        PivotCache head;
+                        if (readPivotCacheSource(def, &head)) {
+                            c.sourceName = head.name;
+                            c.fileSheetName = head.sheet;
+                            if (head.sourceType == QLatin1String("worksheet") && head.name.isEmpty()) {
+                                for (int s2 = 0; s2 < m_names.size(); ++s2)
+                                    if (!m_names[s2].isEmpty() && m_names[s2].compare(head.sheet, Qt::CaseInsensitive) == 0) c.sourceSheet = s2;
+                                CellRange r;
+                                if (parseRangeRef(head.ref, &r)) c.source = c.fileSource = r;
+                            }
+                        }
+                    }
                     m_caches.push_back(c);
                     at = cacheOfPart.insert(definition, int(m_caches.size()) - 1);
                 }
@@ -49,6 +83,7 @@ void PivotBook::load(int i) const
     PivotCacheEntry &c = m_caches[size_t(i)];
     if (c.tried) return;
     c.tried = true;
+    if (c.unreadable) return;
     auto cache = std::make_shared<PivotCache>();
     QString why;
     if (!readPivotCache(m_package->part(c.definitionPart), c.recordsPart.isEmpty() ? QByteArray() : m_package->part(c.recordsPart), m_dates, cache.get(), &why)) {
@@ -56,13 +91,6 @@ void PivotBook::load(int i) const
         return;
     }
     c.cache = c.fileCache = cache;
-    c.sourceName = cache->name;
-    if (cache->sourceType == QLatin1String("worksheet") && cache->name.isEmpty()) {
-        for (int s = 0; s < m_names.size(); ++s)
-            if (!m_names[s].isEmpty() && m_names[s].compare(cache->sheet, Qt::CaseInsensitive) == 0) c.sourceSheet = s;
-        CellRange r;
-        if (parseRangeRef(cache->ref, &r)) c.source = c.fileSource = r;
-    }
     if (!cache->unsupported.isEmpty()) c.why = cache->unsupported;
 }
 
@@ -93,6 +121,7 @@ CellRange PivotBook::locationOf(int i) const
     CellRange r;
     const PivotTableEntry &e = m_tables[size_t(i)];
     if (e.table) parseRangeRef(e.table->ref, &r);
+    else r = e.fallback;
     return r;
 }
 
@@ -117,7 +146,7 @@ std::vector<PivotBook::SourcePlace> PivotBook::moveSources(const StructEdit &edi
     std::vector<SourcePlace> before;
     for (size_t i = 0; i < m_caches.size(); ++i) {
         PivotCacheEntry &c = m_caches[i];
-        if (!c.tried || !c.source.valid || c.sourceSheet < 0) continue;
+        if (!c.source.valid || c.sourceSheet < 0) continue;
         CellRange now = c.source;
         if (!adjustRange(edit, c.sourceSheet, &now) || now == c.source) continue;
         before.push_back({int(i), c.source});
@@ -136,7 +165,7 @@ bool PivotBook::changed() const
     for (const PivotTableEntry &t : m_tables)
         if (t.table != t.fileTable) return true;
     for (const PivotCacheEntry &c : m_caches)
-        if (c.tried && c.cache != c.fileCache) return true;
+        if ((c.tried && c.cache != c.fileCache) || !(c.source == c.fileSource)) return true;
     return false;
 }
 
@@ -148,21 +177,29 @@ std::map<QString, QByteArray> PivotBook::changedParts(const QStringList &sheetNa
         const QByteArray bytes = writePivotTable(m_package->part(t.part), *t.table, t.structureChanged);
         if (!bytes.isEmpty()) out[t.part] = bytes;
     }
+    // the date a refresh is made, in the workbook's own count of days
+    const double unixDays = double(QDateTime::currentDateTimeUtc().toSecsSinceEpoch()) / 86400.0;
+    const double now = unixDays + (m_dates == jp::calc::DateSystem::Date1904 ? 24107.0 : 25569.0);
     for (const PivotCacheEntry &c : m_caches) {
-        if (!c.tried || !c.cache || c.cache == c.fileCache) continue;
-        PivotCache cache = *c.cache;
-        if (c.sourceSheet >= 0 && c.sourceSheet < sheetNames.size() && c.source.valid) {
-            cache.sheet = sheetNames[c.sourceSheet];
-            cache.ref = pivotRangeRef(c.source.row1, c.source.col1, c.source.row2, c.source.col2);
-            cache.name.clear();
-        } else {
-            cache.name = c.sourceName;
+        const bool sourceMoved = c.sourceSheet >= 0 && c.sourceSheet < sheetNames.size() && !sheetNames[c.sourceSheet].isEmpty() && c.source.valid && c.fileSource.valid
+                                 && (!(c.source == c.fileSource) || sheetNames[c.sourceSheet].compare(c.fileSheetName, Qt::CaseInsensitive) != 0);
+        if (c.tried && c.cache && c.cache != c.fileCache) {
+            PivotCache cache = *c.cache;
+            if (c.sourceSheet >= 0 && c.sourceSheet < sheetNames.size() && c.source.valid) {
+                cache.sheet = sheetNames[c.sourceSheet];
+                cache.ref = pivotRangeRef(c.source.row1, c.source.col1, c.source.row2, c.source.col2);
+                cache.name.clear();
+            } else {
+                cache.name = c.sourceName;
+            }
+            const QByteArray def = writePivotCacheDefinition(m_package->part(c.definitionPart), cache, cache.recordCount, now, m_dates);
+            if (def.isEmpty()) continue;
+            out[c.definitionPart] = def;
+            if (!c.recordsPart.isEmpty()) out[c.recordsPart] = writePivotCacheRecords(cache, m_dates);
+        } else if (sourceMoved) {
+            // (the data was not read again; only where it is changed: that one attribute is written and the rest of the part is the file's own)
+            out[c.definitionPart] = patchPivotCacheSource(m_package->part(c.definitionPart), sheetNames[c.sourceSheet], pivotRangeRef(c.source.row1, c.source.col1, c.source.row2, c.source.col2));
         }
-        const double now = double(QDateTime::currentDateTimeUtc().toSecsSinceEpoch()) / 86400.0 + 25569.0;
-        const QByteArray def = writePivotCacheDefinition(m_package->part(c.definitionPart), cache, cache.recordCount, now, m_dates);
-        if (def.isEmpty()) continue;
-        out[c.definitionPart] = def;
-        if (!c.recordsPart.isEmpty()) out[c.recordsPart] = writePivotCacheRecords(cache, m_dates);
     }
     return out;
 }

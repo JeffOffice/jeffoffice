@@ -28,6 +28,15 @@ constexpr qint64 kPivotMaxRecords = 5000000;
 constexpr qint64 kPivotMaxRecordCells = 60000000;   // records times fields
 constexpr qint64 kPivotMaxOutputCells = 4000000;
 constexpr qint64 kPivotMaxLeaves = 8000000;
+constexpr qint64 kPivotMaxItemsPerTable = 2000000;   // the items of all the fields of one table together
+constexpr int kPivotMaxDataFields = 1000;
+constexpr qint64 kPivotMaxRows = 1048576;            // lines of the rows' axis, and of the columns' (a sheet's rows and columns)
+constexpr qint64 kPivotMaxCols = 16384;
+// What a part of a pivot table or cache may be once inflated (a table's, a cache definition's, the records').
+constexpr qint64 kPivotMaxTablePartBytes = qint64(128) << 20;
+constexpr qint64 kPivotMaxDefinitionBytes = qint64(256) << 20;
+constexpr qint64 kPivotMaxRecordsBytes = qint64(2) << 30;
+constexpr int kPivotMaxXmlDepth = 64;
 
 struct PivotValue {
     enum Kind : quint8 { Missing, Number, Text, Bool, Error, Date };
@@ -90,6 +99,7 @@ struct PivotField {
     QVector<PivotTableItem> items;
     bool hasItems = false;
     int sortByData = -1;         // the field is sorted by the values of this data field (autoSortScope)
+    int src = -1;                // the place of its element in the part the table was read from (-1: a field made here)
 };
 
 struct PivotDataField {
@@ -155,6 +165,10 @@ struct PivotGrid {
 // well formed or is past a bound.
 bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp::calc::DateSystem dates, PivotCache *out, QString *why);
 bool readPivotTable(const QByteArray &xml, PivotTable *out, QString *why);
+// Only where a cache's data is (the source type, sheet, range, and name), from the head of its definition: cheap, whatever else the part holds.
+bool readPivotCacheSource(const QByteArray &definition, PivotCache *out);
+// Only the cells a table covers, read by streaming: for a table that can't be read whole.
+bool readPivotTableLocation(const QByteArray &xml, QString *ref);
 
 // ---- working out
 // The cells the table shows. The table's `location` is not read, the grid has the size the table needs. False, with `why`, when the table or the
@@ -201,6 +215,20 @@ QByteArray writePivotCacheRecords(const PivotCache &cache, jp::calc::DateSystem 
 QByteArray writePivotTable(const QByteArray &original, const PivotTable &table, bool structureChanged);
 // Puts the lines and the place of the header of a worked-out grid in the table (what writePivotTable writes), and the grid's place at `row`, `col`.
 void pivotApplyGrid(PivotTable *table, const PivotGrid &grid, quint32 row, quint32 col);
+
+// The file's way of writing a character XML can't hold (_xHHHH_), and of writing an underscore that starts the same: the text a file's string is, and the string a text is written as.
+QString pivotDecodeXString(const QString &s);
+QString pivotEncodeXString(const QString &s);
+// How deep the elements of a part nest (at most the limit counted; a part that is not well formed is taken to be as deep as it is).
+int pivotXmlDepth(const QByteArray &xml, int limit);
+// The data fields of `old` that are in `now` (by name, else by field and function): the places in `now` of the data fields of `old`, -1 for one that is gone; and the sorts by value follow them.
+void pivotRemapDataFields(const PivotTable &old, PivotTable *now);
+// Checks that the parts of a pivot table, its cache, and the records are as the schema has them: the order of the elements, the counts, the places an index points to, the marks of the shared
+// items, and the dates. `records` may be empty. False, with the first thing wrong in `why`.
+bool pivotCheckShape(const QByteArray &table, const QByteArray &definition, const QByteArray &records, QString *why);
+
+// A cache definition with its source (the sheet and the range) put in, and nothing else of it changed.
+QByteArray patchPivotCacheSource(const QByteArray &definition, const QString &sheet, const QString &ref);
 
 // "A1:C9" for the cells of a grid placed at a row and column.
 QString pivotRangeRef(quint32 row1, quint32 col1, quint32 row2, quint32 col2);

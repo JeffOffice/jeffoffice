@@ -199,7 +199,11 @@ int pivotRefreshMain(const QStringList &args)
                 PivotTable t2;
                 PivotCache c2;
                 PivotGrid g2;
-                if (tableXml.isEmpty() || defXml.isEmpty()) {
+                QString shape;
+                if (!tableXml.isEmpty() && !defXml.isEmpty() && !pivotCheckShape(tableXml, defXml, recXml, &shape)) {
+                    ok = false;
+                    detail = QStringLiteral("shape: ") + shape;
+                } else if (tableXml.isEmpty() || defXml.isEmpty()) {
                     ok = false;
                     detail = QStringLiteral("a part was not written");
                 } else if (!readPivotTable(tableXml, &t2, &why) || !readPivotCache(defXml, recXml, book.info().dateSystem, &c2, &why)) {

@@ -31,7 +31,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Find, replace, and go to](find-replace)
 - [Sort and filter](sort-filter)
 - [Tables](tables)
-- [PivotTables](pivot-tables)
+- [Pivot tables](pivot-tables)
 - [Insert a function](insert-function)
 - [Charts, pictures, and shapes](charts)
 - [Notes and links](notes-links)

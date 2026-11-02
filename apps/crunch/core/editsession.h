@@ -917,7 +917,7 @@ private:
         int sourceSheet = -1;
         QString sourceName;
     };
-    Outcome pivotStep(std::vector<PivotChange> changes, const QString &text);
+    Outcome pivotStep(std::vector<PivotChange> changes, const QString &text, QStringList *skipped = nullptr);
     // Where a cache's data is now: the sheet and the cells (a table or a name resolved). `over`, if given, is where the person has just said it is.
     struct SourceOver {
         int cache = -1;
@@ -926,7 +926,7 @@ private:
         QString name;
     };
     bool pivotSourceRange(int cache, int *sheet, jp::office::sheet::CellRange *range, QString *why, const SourceOver *over = nullptr) const;
-    Outcome refreshPivotCaches(const std::vector<int> &caches, const QString &text, const SourceOver *over = nullptr);
+    Outcome refreshPivotCaches(const std::vector<int> &caches, const QString &text, const SourceOver *over = nullptr, bool partial = false);
     // A change that puts text (never read as anything else) or a formula (as the file writes it) in a cell, or clears it.
     CellChange textCell(int sheet, quint32 row, quint32 col, const QString &text);
     CellChange formulaCell(int sheet, quint32 row, quint32 col, const QString &formula);

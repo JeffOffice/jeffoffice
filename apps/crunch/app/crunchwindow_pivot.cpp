@@ -1,5 +1,5 @@
-// Pivot tables in the window (core/editpivot.cpp does the work): the PivotTable tab (Refresh, Change Data Source, Clear, the Field List, and the Design choices: subtotals, grand totals, and
-// the layout of the report), the PivotTable Fields pane, and Refresh All on the Data tab. Every command is one step of Undo; a refusal is told in words.
+// Pivot tables in the window (core/editpivot.cpp does the work): the Pivot Table tab (Refresh, Change Data Source, Clear, the Field List, and the Design choices: subtotals, grand totals, and
+// the layout of the report), the Pivot Table Fields pane, and Refresh All on the Data tab. Every command is one step of Undo; a refusal is told in words.
 #include "app/crunchwindow.h"
 
 #include "app/pivotpane.h"
@@ -32,14 +32,14 @@ void CrunchWindow::editPivot(const std::function<void(PivotTable *)> &change, co
 {
     const int t = selectedPivot();
     if (t < 0) {
-        notice(tr("PivotTable"), tr("Click a cell in a PivotTable first."), false);
+        notice(tr("Pivot Table"), tr("Click a cell in a pivot table first."), false);
         return;
     }
     if (!editingAllowed()) return;
     if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
     QString why;
     if (!m_session->pivotUsable(t, &why)) {
-        notice(tr("PivotTable"), why);
+        notice(tr("Pivot Table"), why);
         return;
     }
     PivotTable table = *m_session->workbook()->pivots().table(t).table;
@@ -52,7 +52,7 @@ void CrunchWindow::createPivotActions()
     mk("pivot.refresh", tr("Refresh"), "refresh-cw", QKeySequence(), [this] {
         const int t = selectedPivot();
         if (t < 0) {
-            notice(tr("Refresh"), tr("Click a cell in a PivotTable first."), false);
+            notice(tr("Refresh"), tr("Click a cell in a pivot table first."), false);
             return;
         }
         if (!editingAllowed()) return;
@@ -67,7 +67,7 @@ void CrunchWindow::createPivotActions()
     mk("pivot.changeSource", tr("Change Data Source…"), "database", QKeySequence(), [this] {
         const int t = selectedPivot();
         if (t < 0) {
-            notice(tr("Change Data Source"), tr("Click a cell in a PivotTable first."), false);
+            notice(tr("Change Data Source"), tr("Click a cell in a pivot table first."), false);
             return;
         }
         if (!editingAllowed()) return;
@@ -77,7 +77,7 @@ void CrunchWindow::createPivotActions()
             if (!m_pivotSourceAsker(&where)) return;
         } else {
             bool ok = false;
-            where = QInputDialog::getText(this, tr("Change PivotTable Data Source"), tr("The cells the data is in, with a row of names above it (for example Sheet1!A1:D100), or the name of a table:"), QLineEdit::Normal, where, &ok);
+            where = QInputDialog::getText(this, tr("Change Pivot Table Data Source"), tr("The cells the data is in, with a row of names above it (for example Sheet1!A1:D100), or the name of a table:"), QLineEdit::Normal, where, &ok);
             if (!ok) return;
         }
         pivotProblem(tr("Change Data Source"), m_session->changePivotSource(t, where));
@@ -164,12 +164,12 @@ void CrunchWindow::askValueField(int dataIndex)
 {
     const int t = selectedPivot();
     if (t < 0 || !m_session) {
-        notice(tr("Value Field Settings"), tr("Click a cell in a PivotTable first."), false);
+        notice(tr("Value Field Settings"), tr("Click a cell in a pivot table first."), false);
         return;
     }
     const PivotTableEntry &entry = m_session->workbook()->pivots().table(t);
     if (!entry.table || dataIndex < 0 || dataIndex >= entry.table->dataFields.size()) {
-        notice(tr("Value Field Settings"), tr("This PivotTable has no values to set."), false);
+        notice(tr("Value Field Settings"), tr("This pivot table has no values to set."), false);
         return;
     }
     const PivotDataField &d = entry.table->dataFields[dataIndex];
@@ -207,7 +207,7 @@ void CrunchWindow::askValueField(int dataIndex)
 void CrunchWindow::showPivotFields(bool show)
 {
     if (show && !m_pivotPane) {
-        m_pivotDock = new QDockWidget(tr("PivotTable Fields"), this);
+        m_pivotDock = new QDockWidget(tr("Pivot Table Fields"), this);
         m_pivotDock->setObjectName(QStringLiteral("pivotDock"));
         m_pivotDock->setFeatures(QDockWidget::DockWidgetClosable);
         m_pivotPane = new PivotFieldsPane(m_pivotDock);
@@ -242,7 +242,7 @@ void CrunchWindow::showPivotFields(bool show)
 void CrunchWindow::updatePivotTab()
 {
     const int t = selectedPivot();
-    if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("PivotTable"), t >= 0);
+    if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Pivot Table"), t >= 0);
     if (!m_pivotPane || !m_pivotDock || !m_pivotDock->isVisible()) return;
     if (t < 0 || !m_session) {
         if (m_pivotShownIndex != -1 || m_pivotShown) {

@@ -291,8 +291,29 @@ void matchPivotItems(PivotTable *t, const PivotCache &prev, const PivotCache &fr
         }
         t->pageFields.append(n);
     }
+    pivotRemapDataFields(old, t);
     pivotSyncRoles(t);
     Q_UNUSED(prev)
+}
+
+void pivotRemapDataFields(const PivotTable &old, PivotTable *now)
+{
+    QVector<int> map(old.dataFields.size(), -1);
+    QVector<bool> taken(now->dataFields.size(), false);
+    for (int pass = 0; pass < 2; ++pass)
+        for (int i = 0; i < old.dataFields.size(); ++i) {
+            if (map[i] >= 0) continue;
+            for (int k = 0; k < now->dataFields.size(); ++k) {
+                if (taken[k]) continue;
+                const bool same = pass == 0 ? now->dataFields[k].name == old.dataFields[i].name : (now->dataFields[k].fld == old.dataFields[i].fld && now->dataFields[k].subtotal == old.dataFields[i].subtotal);
+                if (!same) continue;
+                map[i] = k;
+                taken[k] = true;
+                break;
+            }
+        }
+    for (PivotField &f : now->fields)
+        if (f.sortByData >= 0) f.sortByData = f.sortByData < map.size() ? map[f.sortByData] : -1;
 }
 
 void pivotSyncRoles(PivotTable *t)

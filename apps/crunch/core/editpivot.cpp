@@ -67,29 +67,29 @@ bool EditSession::pivotUsable(int table, QString *why) const
     if (table >= pb.tableCount()) return false;
     const PivotTableEntry &e = pb.table(table);
     if (!e.table) {
-        if (why) *why = tr("JeffCrunch can't read this PivotTable.");
+        if (why) *why = tr("JeffCrunch can't read this pivot table.");
         return false;
     }
     if (e.cache < 0) {
-        if (why) *why = tr("This PivotTable has lost the data it is made from.");
+        if (why) *why = tr("This pivot table has lost the data it is made from.");
         return false;
     }
     const PivotCacheEntry &c = pb.cache(e.cache);
     if (!c.cache) {
-        if (why) *why = tr("JeffCrunch can't read the data this PivotTable is made from (%1).").arg(c.why);
+        if (why) *why = tr("JeffCrunch can't read the data this pivot table is made from (%1).").arg(c.why);
         return false;
     }
     if (!c.cache->unsupported.isEmpty()) {
-        if (why) *why = tr("This PivotTable uses %1, which JeffCrunch doesn't work out yet. It stays as it is.").arg(c.cache->unsupported);
+        if (why) *why = tr("This pivot table uses %1, which JeffCrunch doesn't work out yet. It stays as it is.").arg(c.cache->unsupported);
         return false;
     }
     if (!e.table->unsupported.isEmpty()) {
-        if (why) *why = tr("This PivotTable uses %1, which JeffCrunch doesn't work out yet. It stays as it is.").arg(e.table->unsupported);
+        if (why) *why = tr("This pivot table uses %1, which JeffCrunch doesn't work out yet. It stays as it is.").arg(e.table->unsupported);
         return false;
     }
     for (const PivotDataField &d : e.table->dataFields)
         if (d.showDataAs != QLatin1String("normal")) {
-            if (why) *why = tr("This PivotTable shows a value as a percent, a difference, or a rank, which JeffCrunch doesn't work out yet. It stays as it is.");
+            if (why) *why = tr("This pivot table shows a value as a percent, a difference, or a rank, which JeffCrunch doesn't work out yet. It stays as it is.");
             return false;
         }
     return true;
@@ -121,7 +121,7 @@ bool EditSession::pivotSourceRange(int cache, int *sheet, CellRange *range, QStr
     auto usableSheet = [&](int s) { return s >= 0 && s < sheets.size() && !sheets[s].deleted && sheets[s].kind == SheetKind::Worksheet; };
     if (c.source.valid && c.sourceSheet >= 0 && c.sourceName.isEmpty()) {
         if (!usableSheet(c.sourceSheet)) {
-            if (why) *why = tr("The sheet this PivotTable is made from is not in the workbook any more.");
+            if (why) *why = tr("The sheet this pivot table is made from is not in the workbook any more.");
             return false;
         }
         *sheet = c.sourceSheet;
@@ -159,7 +159,7 @@ bool EditSession::pivotSourceRange(int cache, int *sheet, CellRange *range, QStr
             break;
         }
     }
-    if (why) *why = tr("JeffCrunch can't find the data this PivotTable is made from.");
+    if (why) *why = tr("JeffCrunch can't find the data this pivot table is made from.");
     return false;
 }
 
@@ -174,7 +174,7 @@ QString codeOfFormat(const Styles &styles, int id)
 
 } // namespace
 
-EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, const QString &text)
+EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, const QString &text, QStringList *skipped)
 {
     Outcome out;
     auto refuse = [&](const QString &why) {
@@ -189,26 +189,36 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
     Step step;
     // the cells every table of the step covers now (so that two tables don't cover the same cell)
     std::vector<std::pair<int, CellRange>> placed;
-    for (PivotChange &ch : changes) {
+    auto one = [&](PivotChange &ch) -> QString {
         const PivotTableEntry &entry = pb.table(ch.table);
         const int sheet = entry.sheet;
-        if (!canEditSheet(sheet, &why) || !allows(sheet, Allow::Pivot, &why)) return refuse(why);
+        if (!canEditSheet(sheet, &why) || !allows(sheet, Allow::Pivot, &why)) return why;
         const int ci = entry.cache;
         const std::shared_ptr<const PivotCache> cache = ch.cacheNow ? std::shared_ptr<const PivotCache>(ch.cacheNow) : pb.cache(ci).cache;
-        if (!cache) return refuse(tr("JeffCrunch can't read the data this PivotTable is made from."));
+        if (!cache) return tr("JeffCrunch can't read the data this pivot table is made from.");
         const CellRange oldLoc = pb.locationOf(ch.table);
-        if (!oldLoc.valid) return refuse(tr("JeffCrunch can't read this PivotTable."));
+        if (!oldLoc.valid) return tr("JeffCrunch can't read this pivot table.");
         const PivotTable &old = *entry.table;
         const CellRange oldPage = pageArea(old, oldLoc);
         PivotOptions options;
-        options.format = [&](double v, int id, int gridRow, int gridCol) {
+        // (the format of the cell that shows a number is looked for once for each column of the table: the first label there that has the cell above it with that number)
+        auto columnFormats = std::make_shared<QHash<int, int>>();
+        options.format = [&, columnFormats](double v, int id, int gridRow, int gridCol) {
             int use = id;
-            for (qint64 r = qint64(oldLoc.row1) + gridRow; r >= qint64(oldLoc.row1) && r >= 0; --r) {
-                const Calculation::CellContent c = m_book->calc->content(sheet, quint32(r), oldLoc.col1 + quint32(gridCol));
-                if (c.exists && !c.isFormula && c.value.isNumber() && c.value.number() == v) {
-                    use = book.styles().numFmtId(c.style);
-                    break;
+            auto known = columnFormats->find(gridCol);
+            if (known != columnFormats->end()) {
+                use = known.value();
+            } else {
+                int found = id;
+                for (qint64 r = qint64(oldLoc.row1) + gridRow; r >= qint64(oldLoc.row1) && r >= 0; --r) {
+                    const Calculation::CellContent c = m_book->calc->content(sheet, quint32(r), oldLoc.col1 + quint32(gridCol));
+                    if (c.exists && !c.isFormula && c.value.isNumber() && c.value.number() == v) {
+                        found = book.styles().numFmtId(c.style);
+                        break;
+                    }
                 }
+                columnFormats->insert(gridCol, found);
+                use = found;
             }
             const QString code = codeOfFormat(book.styles(), use);
             QString shown;
@@ -217,15 +227,15 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
         };
         PivotGrid grid;
         QString problem;
-        if (!computePivot(*ch.now, *cache, &grid, &problem, options)) return refuse(tr("This PivotTable can't be worked out: %1.").arg(problem));
+        if (!computePivot(*ch.now, *cache, &grid, &problem, options)) return tr("This pivot table can't be worked out: %1.").arg(problem);
         const int pages = int(ch.now->pageFields.size());
-        if (oldLoc.row1 < quint32(pages) + 1) return refuse(tr("There is no room above the PivotTable for its filters. Move the table down first."));
+        if (oldLoc.row1 < quint32(pages) + 1) return tr("There is no room above the pivot table for its filters. Move the table down first.");
         ch.now->rowPageCount = pages;
         ch.now->colPageCount = pages > 0 ? 1 : 0;
         pivotApplyGrid(ch.now.get(), grid, oldLoc.row1, oldLoc.col1);
         CellRange newLoc;
         parseRangeRef(ch.now->ref, &newLoc);
-        if (!newLoc.valid || newLoc.row2 >= 1048576 || newLoc.col2 >= 16384) return refuse(tr("The PivotTable would go past the edge of the sheet."));
+        if (!newLoc.valid || newLoc.row2 >= 1048576 || newLoc.col2 >= 16384) return tr("The pivot table would go past the edge of the sheet.");
         const CellRange newPage = pageArea(*ch.now, newLoc);
         // the new area must be free: cells of the table's own, or empty
         auto freeOfOthers = [&](const CellRange &area) {
@@ -246,12 +256,37 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
                 }
                 return true;
             });
-            return free;
+            if (!free) return false;
+            // merged cells, links, notes, rules of validation, and conditional formats under the part the table grows over are in the way too
+            auto insideOld = [&](const CellRange &r) { return (oldLoc.valid && r.row1 >= oldLoc.row1 && r.row2 <= oldLoc.row2 && r.col1 >= oldLoc.col1 && r.col2 <= oldLoc.col2) || (oldPage.valid && r.row1 >= oldPage.row1 && r.row2 <= oldPage.row2 && r.col1 >= oldPage.col1 && r.col2 <= oldPage.col2); };
+            auto meets = [&](const CellRange &r) {
+                if (!overlap(area, r)) return false;
+                CellRange i;
+                i.valid = true;
+                i.row1 = std::max(area.row1, r.row1);
+                i.row2 = std::min(area.row2, r.row2);
+                i.col1 = std::max(area.col1, r.col1);
+                i.col2 = std::min(area.col2, r.col2);
+                return !insideOld(i);
+            };
+            const Sheet &sh = m_book->calc->sheet(sheet);
+            for (const CellRange &r : sh.merges) if (meets(r)) return false;
+            for (const Validation &v : sh.validations) for (const CellRange &r : v.ranges) if (meets(r)) return false;
+            for (const CondRule &c : sh.conditionalFormats) for (const CellRange &r : c.ranges) if (meets(r)) return false;
+            for (const LinkSpec &l : m_anchors.links(sheet)) if (meets(l.range)) return false;
+            for (const auto &n : m_anchors.notes(sheet)) {
+                CellRange r;
+                r.valid = true;
+                r.row1 = r.row2 = quint32(n.first >> 32);
+                r.col1 = r.col2 = quint32(n.first & 0xffffffffu);
+                if (meets(r)) return false;
+            }
+            return true;
         };
         if (!freeOfOthers(newLoc) || !freeOfOthers(newPage))
-            return refuse(tr("The PivotTable would cover cells that have something in them (%1). Clear those cells, or move the PivotTable, and try again.").arg(rangeName(newLoc)));
+            return tr("The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.").arg(rangeName(newLoc));
         placed.push_back({ch.table, newLoc});
-        if (qint64(newLoc.cellCount()) > kMaxCellsPerEdit * 40) return refuse(tr("The PivotTable would be larger than JeffCrunch changes at once."));
+        if (qint64(newLoc.cellCount()) > kMaxCellsPerEdit * 40) return tr("The pivot table would be larger than JeffCrunch changes at once.");
 
         // the cells
         std::set<std::pair<quint32, quint32>> written;
@@ -333,8 +368,37 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
             pe.nameAfter = ch.sourceName;
         }
         step.pivots.push_back(std::move(pe));
+        return QString();
+    };
+    QStringList failed;
+    // (the tables made from one cache are done or left alone together: a table left as it is must not meet a cache that was read again)
+    for (size_t i = 0; i < changes.size();) {
+        size_t j = i + 1;
+        while (j < changes.size() && changes[i].cache >= 0 && changes[j].cache == changes[i].cache) ++j;
+        const size_t cells = step.cells.size(), pivots = step.pivots.size(), placedBefore = placed.size();
+        QString problem;
+        QString name;
+        for (size_t k = i; k < j && problem.isEmpty(); ++k) {
+            problem = one(changes[k]);
+            if (!problem.isEmpty() && pb.table(changes[k].table).table) name = pb.table(changes[k].table).table->name;
+        }
+        if (!problem.isEmpty()) {
+            if (!skipped) return refuse(problem);
+            step.cells.resize(cells);
+            step.pivots.resize(pivots);
+            placed.resize(placedBefore);
+            failed << (name.isEmpty() ? problem : name + QStringLiteral(": ") + problem);
+        }
+        i = j;
     }
-    return pushTableStep(std::move(step), text);
+    if (skipped) *skipped = failed;
+    if (step.empty()) {
+        if (!failed.isEmpty()) return refuse(failed.join(QLatin1Char('\n')));
+        return out;
+    }
+    out = pushTableStep(std::move(step), text);
+    if (!failed.isEmpty()) out.problem = tr("These pivot tables were not refreshed:\n%1").arg(failed.join(QLatin1Char('\n')));
+    return out;
 }
 
 void EditSession::applyPivotEdits(Step *step, bool forward, Workbook &book)
@@ -350,7 +414,7 @@ void EditSession::applyPivotEdits(Step *step, bool forward, Workbook &book)
     }
 }
 
-EditSession::Outcome EditSession::refreshPivotCaches(const std::vector<int> &caches, const QString &text, const SourceOver *over)
+EditSession::Outcome EditSession::refreshPivotCaches(const std::vector<int> &caches, const QString &text, const SourceOver *over, bool partial)
 {
     Outcome out;
     auto refuse = [&](const QString &why) {
@@ -363,13 +427,16 @@ EditSession::Outcome EditSession::refreshPivotCaches(const std::vector<int> &cac
     Workbook &book = *m_book->book;
     PivotBook &pb = book.pivots();
     std::vector<PivotChange> changes;
+    QStringList notDone;
     for (int ci : caches) {
+        const size_t changesBefore = changes.size();
+        const QString problem = [&]() -> QString {
         const PivotCacheEntry &ce = pb.cache(ci);
-        if (!ce.cache) return refuse(tr("JeffCrunch can't read the data this PivotTable is made from."));
-        if (!ce.cache->unsupported.isEmpty()) return refuse(tr("This PivotTable uses %1, which JeffCrunch can't read again yet.").arg(ce.cache->unsupported));
+        if (!ce.cache) return tr("JeffCrunch can't read the data this pivot table is made from.");
+        if (!ce.cache->unsupported.isEmpty()) return tr("This pivot table uses %1, which JeffCrunch can't read again yet.").arg(ce.cache->unsupported);
         int sheet = -1;
         CellRange range;
-        if (!pivotSourceRange(ci, &sheet, &range, &why, over)) return refuse(why);
+        if (!pivotSourceRange(ci, &sheet, &range, &why, over)) return why;
         // the source: its first row names the fields
         std::vector<int> tables = pb.tablesOfCache(ci);
         PivotSource ps;
@@ -405,7 +472,7 @@ EditSession::Outcome EditSession::refreshPivotCaches(const std::vector<int> &cac
         };
         for (int t : tables) {
             const PivotTableEntry &te = pb.table(t);
-            if (!te.table) return refuse(tr("JeffCrunch can't read a PivotTable made from this data."));
+            if (!te.table) return tr("JeffCrunch can't read a pivot table made from this data.");
             for (int f : te.table->rowFields) if (f >= 0) ps.axisFields.insert(f);
             for (int f : te.table->colFields) if (f >= 0) ps.axisFields.insert(f);
             for (const PivotPageField &p : te.table->pageFields) ps.axisFields.insert(p.fld);
@@ -418,7 +485,7 @@ EditSession::Outcome EditSession::refreshPivotCaches(const std::vector<int> &cac
         }
         auto fresh = std::make_shared<PivotCache>();
         QString problem;
-        if (!buildPivotCache(ps, *ce.cache, fresh.get(), &problem)) return refuse(tr("The data can't be read again: %1.").arg(problem));
+        if (!buildPivotCache(ps, *ce.cache, fresh.get(), &problem)) return tr("The data can't be read again: %1.").arg(problem);
         fresh->sourceType = ce.cache->sourceType;
         for (int t : tables) {
             PivotChange ch;
@@ -430,12 +497,28 @@ EditSession::Outcome EditSession::refreshPivotCaches(const std::vector<int> &cac
             ch.source = over && over->cache == ci ? (over->name.isEmpty() ? over->range : CellRange()) : (ce.sourceName.isEmpty() ? range : CellRange());
             ch.sourceSheet = over && over->cache == ci ? (over->name.isEmpty() ? over->sheet : -1) : (ce.sourceName.isEmpty() ? sheet : -1);
             ch.sourceName = over && over->cache == ci ? over->name : ce.sourceName;
-            ch.structure = false;
+            // a lone value has no place of its own among the rows and columns; fields that came or went move the places the part's other elements name
+            pivotNormalizeLayout(ch.now.get());
+            bool sameFields = fresh->fields.size() == ce.cache->fields.size();
+            for (int f = 0; sameFields && f < fresh->fromField.size(); ++f) sameFields = fresh->fromField[f] == f;
+            ch.structure = !sameFields;
             changes.push_back(std::move(ch));
         }
+        return QString();
+        }();
+        if (problem.isEmpty()) continue;
+        changes.resize(changesBefore);
+        if (!partial) return refuse(problem);
+        const auto tables = pb.tablesOfCache(ci);
+        const QString name = !tables.empty() && pb.table(tables.front()).table ? pb.table(tables.front()).table->name : QString();
+        notDone << (name.isEmpty() ? problem : name + QStringLiteral(": ") + problem);
     }
-    if (changes.empty()) return out;
-    return pivotStep(std::move(changes), text);
+    if (changes.empty()) return notDone.isEmpty() ? out : refuse(notDone.join(QLatin1Char('\n')));
+    QStringList skipped;
+    Outcome result = pivotStep(std::move(changes), text, partial ? &skipped : nullptr);
+    notDone << skipped;
+    if (result.ok && !notDone.isEmpty()) result.problem = tr("These pivot tables were not refreshed:\n%1").arg(notDone.join(QLatin1Char('\n')));
+    return result;
 }
 
 EditSession::Outcome EditSession::refreshPivot(int table)
@@ -444,10 +527,10 @@ EditSession::Outcome EditSession::refreshPivot(int table)
     QString why;
     if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) {
         out.ok = false;
-        out.problem = why.isEmpty() ? tr("There is no PivotTable here.") : why;
+        out.problem = why.isEmpty() ? tr("There is no pivot table here.") : why;
         return out;
     }
-    return refreshPivotCaches({m_book->book->pivots().table(table).cache}, tr("Refresh PivotTable"));
+    return refreshPivotCaches({m_book->book->pivots().table(table).cache}, tr("Refresh Pivot Table"));
 }
 
 EditSession::Outcome EditSession::refreshAllPivots()
@@ -468,10 +551,10 @@ EditSession::Outcome EditSession::refreshAllPivots()
     }
     if (caches.empty()) {
         out.ok = false;
-        out.problem = tr("There are no PivotTables in this workbook that JeffCrunch can read again.");
+        out.problem = tr("There are no pivot tables in this workbook that JeffCrunch can read again.");
         return out;
     }
-    return refreshPivotCaches(caches, tr("Refresh All"));
+    return refreshPivotCaches(caches, tr("Refresh All"), nullptr, true);
 }
 
 EditSession::Outcome EditSession::changePivotSource(int table, const QString &where)
@@ -484,7 +567,7 @@ EditSession::Outcome EditSession::changePivotSource(int table, const QString &wh
     };
     QString why;
     if (!canEdit(&why)) return refuse(why);
-    if (table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) return refuse(why.isEmpty() ? tr("There is no PivotTable here.") : why);
+    if (table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) return refuse(why.isEmpty() ? tr("There is no pivot table here.") : why);
     PivotBook &pb = m_book->book->pivots();
     const int ci = pb.table(table).cache;
     const PivotCacheEntry &ce = pb.cache(ci);
@@ -528,7 +611,7 @@ EditSession::Outcome EditSession::changePivotSource(int table, const QString &wh
     over.sheet = name.isEmpty() ? sheet : -1;
     over.range = name.isEmpty() ? range : CellRange();
     over.name = name;
-    return refreshPivotCaches({ci}, tr("Change PivotTable Data Source"), &over);
+    return refreshPivotCaches({ci}, tr("Change Pivot Table Data Source"), &over);
 }
 
 EditSession::Outcome EditSession::setPivot(int table, const PivotTable &changed, bool structureChanged, const QString &text)
@@ -537,13 +620,14 @@ EditSession::Outcome EditSession::setPivot(int table, const PivotTable &changed,
     QString why;
     if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) {
         out.ok = false;
-        out.problem = why.isEmpty() ? tr("There is no PivotTable here.") : why;
+        out.problem = why.isEmpty() ? tr("There is no pivot table here.") : why;
         return out;
     }
     PivotBook &pb = m_book->book->pivots();
     PivotChange ch;
     ch.table = table;
     ch.now = std::make_shared<PivotTable>(changed);
+    pivotRemapDataFields(*pb.table(table).table, ch.now.get());
     pivotSyncRoles(ch.now.get());
     pivotNormalizeLayout(ch.now.get());
     ch.structure = structureChanged;
@@ -567,7 +651,7 @@ EditSession::Outcome EditSession::clearPivot(int table, bool filtersOnly)
     QString why;
     if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) {
         out.ok = false;
-        out.problem = why.isEmpty() ? tr("There is no PivotTable here.") : why;
+        out.problem = why.isEmpty() ? tr("There is no pivot table here.") : why;
         return out;
     }
     PivotTable t = *m_book->book->pivots().table(table).table;
@@ -590,7 +674,7 @@ EditSession::Outcome EditSession::clearPivot(int table, bool filtersOnly)
     ch.table = table;
     ch.now = std::make_shared<PivotTable>(std::move(t));
     ch.structure = !filtersOnly;
-    return pivotStep({ch}, filtersOnly ? tr("Clear Filters") : tr("Clear PivotTable"));
+    return pivotStep({ch}, filtersOnly ? tr("Clear Filters") : tr("Clear Pivot Table"));
 }
 
 } // namespace jp::crunch

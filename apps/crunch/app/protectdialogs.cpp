@@ -33,7 +33,7 @@ const Item kItems[] = {
     {"insertLinks", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Add or remove links"), &SheetProtection::allowInsertLinks},
     {"sort", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Sort ranges"), &SheetProtection::allowSort},
     {"filter", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Filter lists"), &SheetProtection::allowFilter},
-    {"pivot", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Work with PivotTables"), &SheetProtection::allowPivot},
+    {"pivot", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Work with pivot tables"), &SheetProtection::allowPivot},
     {"selectUnlocked", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Click cells that are unlocked"), &SheetProtection::allowSelectUnlocked},
     {"selectLocked", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Click cells that are locked"), &SheetProtection::allowSelectLocked},
 };

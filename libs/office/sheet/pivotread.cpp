@@ -1,6 +1,7 @@
 #include "sheet/pivot.h"
 
 #include <QDate>
+#include <QSet>
 #include <QXmlStreamReader>
 
 #include <cmath>
@@ -84,7 +85,7 @@ bool valueOf(const QXmlStreamReader &r, jp::calc::DateSystem dates, PivotValue *
     const QStringView v = r.attributes().value(QLatin1String("v"));
     if (name == QLatin1String("s")) {
         out->kind = PivotValue::Text;
-        out->text = v.toString();
+        out->text = pivotDecodeXString(v.toString());
         return true;
     }
     if (name == QLatin1String("n")) {
@@ -109,7 +110,7 @@ bool valueOf(const QXmlStreamReader &r, jp::calc::DateSystem dates, PivotValue *
     }
     if (name == QLatin1String("e")) {
         out->kind = PivotValue::Error;
-        out->text = v.toString();
+        out->text = pivotDecodeXString(v.toString());
         return true;
     }
     if (name == QLatin1String("m")) {
@@ -192,7 +193,7 @@ static bool readRecordsFast(const QByteArray &data, jp::calc::DateSystem dates, 
             } else if (kind == 's' || kind == 'e') {
                 if (body.contains('&') || body.contains('<')) return false;
                 v.kind = kind == 's' ? PivotValue::Text : PivotValue::Error;
-                v.text = QString::fromUtf8(body.data(), body.size());
+                v.text = pivotDecodeXString(QString::fromUtf8(body.data(), body.size()));
             } else if (kind == 'b') {
                 v.kind = PivotValue::Bool;
                 v.number = body == "1" || body == "true" ? 1 : 0;
@@ -250,7 +251,7 @@ bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp:
                 interns.emplace_back();
                 cur = &out->fields.last();
                 const auto a = r.attributes();
-                cur->name = a.value(QLatin1String("name")).toString();
+                cur->name = pivotDecodeXString(a.value(QLatin1String("name")).toString());
                 cur->numFmtId = toInt(a.value(QLatin1String("numFmtId")), 0);
                 if (!flag(a.value(QLatin1String("databaseField")), true) || !a.value(QLatin1String("formula")).isEmpty())
                     out->unsupported = QStringLiteral("a calculated field");
@@ -374,6 +375,7 @@ bool readPivotTable(const QByteArray &xml, PivotTable *out, QString *why)
     QVector<PivotAxisItem> *axis = nullptr;
     PivotAxisItem *line = nullptr;
     QVector<int> *fieldList = nullptr;
+    qint64 totalItems = 0;
     while (!r.atEnd()) {
         const auto tok = r.readNext();
         if (tok == QXmlStreamReader::StartElement) {
@@ -383,7 +385,7 @@ bool readPivotTable(const QByteArray &xml, PivotTable *out, QString *why)
             if (depth == 1) {
                 if (n != QLatin1String("pivotTableDefinition")) return fail(QStringLiteral("not a pivot table"));
                 sawRoot = true;
-                out->name = a.value(QLatin1String("name")).toString();
+                out->name = pivotDecodeXString(a.value(QLatin1String("name")).toString());
                 out->cacheId = toInt(a.value(QLatin1String("cacheId")), 0);
                 out->dataOnRows = flag(a.value(QLatin1String("dataOnRows")), false);
                 if (a.hasAttribute(QLatin1String("dataCaption"))) out->dataCaption = a.value(QLatin1String("dataCaption")).toString();
@@ -423,7 +425,8 @@ bool readPivotTable(const QByteArray &xml, PivotTable *out, QString *why)
                     if (out->fields.size() >= kPivotMaxFields) return fail(QStringLiteral("too many fields"));
                     out->fields.append(PivotField());
                     field = &out->fields.last();
-                    field->name = a.value(QLatin1String("name")).toString();
+                    field->src = int(out->fields.size()) - 1;
+                    field->name = pivotDecodeXString(a.value(QLatin1String("name")).toString());
                     field->axis = a.value(QLatin1String("axis")).toString();
                     field->dataField = flag(a.value(QLatin1String("dataField")), false);
                     field->defaultSubtotal = flag(a.value(QLatin1String("defaultSubtotal")), true);
@@ -448,15 +451,18 @@ bool readPivotTable(const QByteArray &xml, PivotTable *out, QString *why)
                     line->r = toInt(a.value(QLatin1String("r")), 0);
                     line->i = toInt(a.value(QLatin1String("i")), 0);
                 } else if ((section == QLatin1String("rowFields") || section == QLatin1String("colFields")) && n == QLatin1String("field") && fieldList) {
+                    if (fieldList->size() >= kPivotMaxFields) return fail(QStringLiteral("too many fields on an axis"));
                     fieldList->append(toInt(a.value(QLatin1String("x")), -1));
                 } else if (section == QLatin1String("pageFields") && n == QLatin1String("pageField")) {
+                    if (out->pageFields.size() >= kPivotMaxFields) return fail(QStringLiteral("too many filters"));
                     PivotPageField p;
                     p.fld = toInt(a.value(QLatin1String("fld")), 0);
                     p.item = a.hasAttribute(QLatin1String("item")) ? toInt(a.value(QLatin1String("item")), -1) : -1;
                     out->pageFields.append(p);
                 } else if (section == QLatin1String("dataFields") && n == QLatin1String("dataField")) {
+                    if (out->dataFields.size() >= kPivotMaxDataFields) return fail(QStringLiteral("too many values"));
                     PivotDataField d;
-                    d.name = a.value(QLatin1String("name")).toString();
+                    d.name = pivotDecodeXString(a.value(QLatin1String("name")).toString());
                     d.fld = toInt(a.value(QLatin1String("fld")), 0);
                     if (a.hasAttribute(QLatin1String("subtotal"))) d.subtotal = a.value(QLatin1String("subtotal")).toString();
                     if (a.hasAttribute(QLatin1String("showDataAs"))) d.showDataAs = a.value(QLatin1String("showDataAs")).toString();
@@ -468,14 +474,14 @@ bool readPivotTable(const QByteArray &xml, PivotTable *out, QString *why)
             } else if (depth == 4 && field && section == QLatin1String("pivotFields") && n == QLatin1String("items")) {
                 field->hasItems = true;
             } else if (depth == 5 && field && section == QLatin1String("pivotFields") && n == QLatin1String("item")) {
-                if (field->items.size() >= kPivotMaxItemsPerField) return fail(QStringLiteral("too many items"));
+                if (field->items.size() >= kPivotMaxItemsPerField || ++totalItems > kPivotMaxItemsPerTable) return fail(QStringLiteral("too many items"));
                 PivotTableItem it;
                 it.t = a.value(QLatin1String("t")).toString();
                 it.x = a.hasAttribute(QLatin1String("x")) ? toInt(a.value(QLatin1String("x")), -1) : -1;
                 it.hidden = flag(a.value(QLatin1String("h")), false);
                 it.missing = flag(a.value(QLatin1String("m")), false);
                 it.showDetails = flag(a.value(QLatin1String("sd")), true);
-                it.n = a.value(QLatin1String("n")).toString();
+                it.n = pivotDecodeXString(a.value(QLatin1String("n")).toString());
                 field->items.append(it);
             } else if (field && section == QLatin1String("pivotFields") && n == QLatin1String("reference") && a.value(QLatin1String("field")) == QLatin1String("4294967294")) {
                 field->sortByData = -2;   // (the data field is the x inside)
@@ -498,7 +504,151 @@ bool readPivotTable(const QByteArray &xml, PivotTable *out, QString *why)
     }
     if (r.hasError() || !sawRoot) return fail(QStringLiteral("the pivot table is not well formed"));
     if (out->ref.isEmpty()) return fail(QStringLiteral("the pivot table has no location"));
+    // a field is on one axis or one filter, once (the values once on all)
+    QSet<int> seen;
+    int values = 0;
+    auto once = [&](int f) {
+        if (f == -2) return ++values <= 1;
+        if (seen.contains(f)) return false;
+        seen.insert(f);
+        return true;
+    };
+    for (int f : out->rowFields) if (!once(f)) return fail(QStringLiteral("a field is placed twice"));
+    for (int f : out->colFields) if (!once(f)) return fail(QStringLiteral("a field is placed twice"));
+    for (const PivotPageField &p : out->pageFields) if (!once(p.fld)) return fail(QStringLiteral("a field is placed twice"));
     return true;
+}
+
+QString pivotDecodeXString(const QString &s)
+{
+    if (!s.contains(QLatin1String("_x"))) return s;
+    QString out;
+    out.reserve(s.size());
+    for (qsizetype i = 0; i < s.size(); ++i) {
+        if (s[i] == QLatin1Char('_') && i + 6 < s.size() + 0 && s[i + 1] == QLatin1Char('x') && s[i + 6] == QLatin1Char('_')) {
+            bool ok = false;
+            const ushort code = s.mid(i + 2, 4).toUShort(&ok, 16);
+            if (ok) {
+                out += QChar(code);
+                i += 6;
+                continue;
+            }
+        }
+        out += s[i];
+    }
+    return out;
+}
+
+QString pivotEncodeXString(const QString &s)
+{
+    bool plain = true;
+    for (const QChar c : s)
+        if (c.unicode() < 0x20 || c == QLatin1Char('_')) {
+            plain = false;
+            break;
+        }
+    if (plain) return s;
+    QString out;
+    out.reserve(s.size() + 8);
+    for (qsizetype i = 0; i < s.size(); ++i) {
+        const ushort u = s[i].unicode();
+        if (u < 0x20 && u != 9 && u != 10 && u != 13) {
+            out += QStringLiteral("_x%1_").arg(u, 4, 16, QLatin1Char('0')).toUpper().replace(QLatin1String("_X"), QLatin1String("_x"));
+        } else if (u == '_' && i + 6 < s.size() && s[i + 1] == QLatin1Char('x') && s[i + 6] == QLatin1Char('_')) {
+            bool ok = false;
+            s.mid(i + 2, 4).toUShort(&ok, 16);
+            out += ok ? QStringLiteral("_x005F_") : QStringLiteral("_");
+        } else {
+            out += s[i];
+        }
+    }
+    return out;
+}
+
+int pivotXmlDepth(const QByteArray &xml, int limit)
+{
+    int depth = 0, deepest = 0;
+    const char *p = xml.constData(), *end = p + xml.size();
+    while (p < end) {
+        const char *lt = static_cast<const char *>(memchr(p, '<', size_t(end - p)));
+        if (!lt) break;
+        p = lt + 1;
+        if (p >= end) break;
+        if (*p == '?' || *p == '!') {
+            // a declaration, a comment, or a CDATA section: skipped to its end
+            if (end - p >= 3 && p[0] == '!' && p[1] == '-' && p[2] == '-') {
+                const qsizetype at = xml.indexOf("-->", qsizetype(p - xml.constData()));
+                p = at < 0 ? end : xml.constData() + at + 3;
+            } else if (end - p >= 8 && memcmp(p, "![CDATA[", 8) == 0) {
+                const qsizetype at = xml.indexOf("]]>", qsizetype(p - xml.constData()));
+                p = at < 0 ? end : xml.constData() + at + 3;
+            }
+            continue;
+        }
+        if (*p == '/') {
+            --depth;
+            continue;
+        }
+        // a start tag: is it self-closing?
+        const char *q = p;
+        char quote = 0;
+        while (q < end && (quote || *q != '>')) {
+            if (quote) {
+                if (*q == quote) quote = 0;
+            } else if (*q == '"' || *q == '\'') {
+                quote = *q;
+            }
+            ++q;
+        }
+        if (q > p && q[-1] == '/') {
+            // (self-closing: depth + 1 only for the moment)
+            deepest = std::max(deepest, depth + 1);
+        } else {
+            ++depth;
+            deepest = std::max(deepest, depth);
+        }
+        if (deepest > limit) return deepest;
+        p = q;
+    }
+    return deepest;
+}
+
+bool readPivotCacheSource(const QByteArray &definition, PivotCache *out)
+{
+    QXmlStreamReader r(definition);
+    int depth = 0;
+    while (!r.atEnd()) {
+        const auto tok = r.readNext();
+        if (tok == QXmlStreamReader::StartElement) {
+            ++depth;
+            const QStringView n = r.name();
+            if (n == QLatin1String("cacheSource") && depth == 2) {
+                out->sourceType = r.attributes().value(QLatin1String("type")).toString();
+            } else if (n == QLatin1String("worksheetSource")) {
+                const auto a = r.attributes();
+                out->ref = a.value(QLatin1String("ref")).toString();
+                out->sheet = a.value(QLatin1String("sheet")).toString();
+                out->name = a.value(QLatin1String("name")).toString();
+                return true;
+            } else if (n == QLatin1String("cacheFields")) {
+                return true;
+            }
+        } else if (tok == QXmlStreamReader::EndElement) {
+            --depth;
+        }
+    }
+    return !r.hasError();
+}
+
+bool readPivotTableLocation(const QByteArray &xml, QString *ref)
+{
+    QXmlStreamReader r(xml);
+    while (!r.atEnd()) {
+        if (r.readNext() != QXmlStreamReader::StartElement || r.name() != QLatin1String("location")) continue;
+        *ref = r.attributes().value(QLatin1String("ref")).toString();
+        return !ref->isEmpty();
+    }
+    return false;
 }
 
 QString pivotRangeRef(quint32 row1, quint32 col1, quint32 row2, quint32 col2)
