@@ -887,7 +887,17 @@ void Reader::convertParagraph(const Odf &o, int n, QVector<Block> *out, int list
     }
     QByteArray ppr = pPrXml(pp, tabs, pStyle, numPr, outline, m_pendingPageBreak);
     m_pendingPageBreak = pp.value(QStringLiteral("para:fo:break-after")) == QLatin1String("page");
-    const QByteArray markProps = rPrXml(pp, QString());
+    Props markBase = pp;
+    {
+        // The look of the paragraph mark, when the file keeps it (loext:marker-style-name).
+        const QString marker = o.at(n, "loext:marker-style-name");
+        if (!marker.isEmpty()) {
+            QString markNamed;
+            const Props own = ownProps(QStringLiteral("text"), marker, &markNamed);
+            for (auto it = own.constBegin(); it != own.constEnd(); ++it) markBase.insert(it.key(), it.value());
+        }
+    }
+    const QByteArray markProps = rPrXml(markBase, QString());
     if (!markProps.isEmpty()) ppr += "<w:rPr>" + markProps + "</w:rPr>";
     ParaCtx pc;
     pc.base = pp;

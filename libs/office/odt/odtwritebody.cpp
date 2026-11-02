@@ -291,6 +291,12 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
         } else return;
     }
     if (!inList) closeLists(lc);
+    // The look of the paragraph mark of a paragraph with text (it makes the height of the last line), as the program that made the format keeps it.
+    QByteArray markerAttr;
+    if (anyContent && pPr >= 0) {
+        const QByteArray mark = textAttrs(t, t.child(pPr, "rPr"));
+        if (!mark.isEmpty()) markerAttr = " loext:marker-style-name=\"" + esc(m_sink->make("T", "text", "", "<style:text-properties" + mark + "/>")) + "\"";
+    }
     bool first = true;
     for (const auto &frag : std::as_const(pc.fragments)) {
         const bool pageBreak = frag.second || (first && (breakBefore || m_pendingBreak));
@@ -338,7 +344,7 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
             }
         }
         const QByteArray tag = heading ? "text:h" : "text:p";
-        *out += "<" + tag + " text:style-name=\"" + esc(styleName) + "\"" + (heading ? " text:outline-level=\"" + num(headingLevel) + "\"" : QByteArray());
+        *out += "<" + tag + " text:style-name=\"" + esc(styleName) + "\"" + (heading ? " text:outline-level=\"" + num(headingLevel) + "\"" : QByteArray()) + markerAttr;
         *out += frag.first.isEmpty() ? QByteArray("/>") : ">" + frag.first + "</" + tag + ">";
         first = false;
     }
