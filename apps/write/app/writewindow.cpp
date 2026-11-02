@@ -28,7 +28,12 @@
 #include <QApplication>
 #include <QDockWidget>
 #include <QCloseEvent>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFileInfo>
+#include <QMimeData>
+#include <QTimer>
+#include <QUrl>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QMenu>
@@ -54,6 +59,7 @@ int s_untitledCount = 0;
 WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
 {
     setObjectName(QStringLiteral("writeWindow"));
+    setAcceptDrops(true);
     setWindowIcon(drawnIcon([](QPainter *p, const QRectF &r) {
         p->setPen(Qt::NoPen);
         p->setBrush(appInfo().accent);
@@ -201,7 +207,7 @@ void WriteWindow::updateTitle()
 {
     // A document that came from an old binary file shows its whole name, so its kind is plain until it is saved as a .docx.
     const QString ending = QFileInfo(m_path).suffix().toLower();
-    const QString shown = ending == QLatin1String("doc") || ending == QLatin1String("dot") ? QFileInfo(m_path).fileName() : displayName();
+    const QString shown = ending == QLatin1String("doc") || ending == QLatin1String("dot") || ending == QLatin1String("rtf") ? QFileInfo(m_path).fileName() : displayName();
     setWindowTitle(QStringLiteral("%1%2 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name));
 }
 
@@ -639,6 +645,42 @@ bool WriteWindow::maybeSave()
     if (box.clickedButton() != box.button(QMessageBox::Discard)) return false;
     dropRecoveryCopy();
     return true;
+}
+
+namespace {
+// The document files a window takes when they are dropped on it (a picture dropped on the pages is the pages' own).
+bool isDocumentFile(const QString &path)
+{
+    static const QStringList kinds = {QStringLiteral("docx"), QStringLiteral("docm"), QStringLiteral("dotx"), QStringLiteral("dotm"), QStringLiteral("doc"), QStringLiteral("dot"), QStringLiteral("rtf")};
+    return kinds.contains(QFileInfo(path).suffix().toLower());
+}
+} // namespace
+
+void WriteWindow::dragEnterEvent(QDragEnterEvent *e)
+{
+    if (e->mimeData()->hasUrls())
+        for (const QUrl &u : e->mimeData()->urls())
+            if (u.isLocalFile() && isDocumentFile(u.toLocalFile())) {
+                e->acceptProposedAction();
+                return;
+            }
+    e->ignore();
+}
+
+void WriteWindow::dropEvent(QDropEvent *e)
+{
+    QStringList paths;
+    for (const QUrl &u : e->mimeData()->urls())
+        if (u.isLocalFile() && isDocumentFile(u.toLocalFile()) && paths.size() < 20) paths << u.toLocalFile();
+    if (paths.isEmpty()) {
+        e->ignore();
+        return;
+    }
+    e->acceptProposedAction();
+    // (After the drop is over: opening can show a message, which must not run inside the drag.)
+    QTimer::singleShot(0, this, [this, paths] {
+        for (const QString &p : paths) openFile(p);
+    });
 }
 
 void WriteWindow::closeEvent(QCloseEvent *e)

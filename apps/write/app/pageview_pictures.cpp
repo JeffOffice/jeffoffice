@@ -365,12 +365,25 @@ bool wantsDrop(const QMimeData *mime)
 
 void PageView::dragEnterEvent(QDragEnterEvent *e)
 {
-    if (m_doc && (wantsDrop(e->mimeData()) || wantsTextDrop(e->mimeData()))) e->acceptProposedAction();
-    else e->ignore();
+    m_documentDrag = false;
+    if (m_doc && (wantsDrop(e->mimeData()) || wantsTextDrop(e->mimeData()))) {
+        e->acceptProposedAction();
+        return;
+    }
+    // (A document file is the window's: it opens.)
+    e->ignore();
+    if (window() && window() != this) {
+        QCoreApplication::sendEvent(window(), e);
+        m_documentDrag = e->isAccepted();
+    }
 }
 
 void PageView::dragMoveEvent(QDragMoveEvent *e)
 {
+    if (m_documentDrag) {
+        e->acceptProposedAction();
+        return;
+    }
     if (!m_doc || !(wantsDrop(e->mimeData()) || wantsTextDrop(e->mimeData()))) {
         e->ignore();
         return;
@@ -386,6 +399,11 @@ void PageView::dragMoveEvent(QDragMoveEvent *e)
 
 void PageView::dropEvent(QDropEvent *e)
 {
+    if (m_documentDrag) {
+        m_documentDrag = false;
+        QCoreApplication::sendEvent(window(), e);
+        return;
+    }
     if (dropText(e)) return;
     if (!m_doc || !wantsDrop(e->mimeData())) {
         e->ignore();

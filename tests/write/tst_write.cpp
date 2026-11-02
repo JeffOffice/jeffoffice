@@ -1050,6 +1050,87 @@ private Q_SLOTS:
         QVERIFY(WriteDoc::fromFile(WriteDoc::blank()->toDocx()));
     }
 
+    // ---- Rich Text Format files
+
+    static QString writeFile(const QTemporaryDir &dir, const QString &name, const QByteArray &bytes)
+    {
+        const QString path = dir.filePath(name);
+        QFile f(path);
+        if (f.open(QIODevice::WriteOnly)) f.write(bytes);
+        return path;
+    }
+
+    void anRtfFileOpensByItsContentAndShowsItsText()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray rtf = "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Arial;}}\\pard Dear reader,\\par {\\b This is the old letter.}\\par "
+                               "\\trowd\\cellx2000\\cellx4000\\pard\\intbl one\\cell two\\cell\\row\\pard {\\field{\\*\\fldinst PAGE}{\\fldrslt 7}} \\u8364?\\par}";
+        WriteWindow w;
+        QStringList notices;
+        w.setNotifier([&](const QString &, const QString &text) { notices << text; });
+        QVERIFY(w.openFile(writeFile(dir, QStringLiteral("letter.rtf"), rtf)));
+        const QString text = w.document()->story()->toPlainText();
+        QVERIFY2(text.startsWith(QLatin1String("Dear reader,\nThis is the old letter.\n")), qPrintable(text));
+        QVERIFY2(text.contains(QLatin1String("one")) && text.contains(QLatin1String("two")) && text.contains(QString::fromUtf8("\u20AC")), qPrintable(text));
+        QVERIFY(!w.isModified());
+        QVERIFY(notices.isEmpty());
+        QVERIFY2(w.windowTitle().startsWith(QLatin1String("letter.rtf")), qPrintable(w.windowTitle()));
+        QVERIFY(w.document()->pager().pageCount() >= 1);
+        // The bold run is bold.
+        QTextCursor c(w.document()->story());
+        c.setPosition(w.document()->story()->toPlainText().indexOf(QLatin1String("This")) + 1);
+        QVERIFY(c.charFormat().fontWeight() >= QFont::Bold);
+        // The kind is told by what is in the file, not by its name.
+        WriteWindow other;
+        QVERIFY(other.openFile(writeFile(dir, QStringLiteral("letter.txt"), rtf)));
+        QCOMPARE(other.document()->story()->toPlainText(), text);
+        QVERIFY(WriteDoc::fromFile(rtf));
+    }
+
+    void savingAnRtfFileAsksForADocxName()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray rtf = "{\\rtf1\\ansi Old text\\par}";
+        const QString path = writeFile(dir, QStringLiteral("old.rtf"), rtf);
+        WriteWindow w;
+        QStringList notices;
+        QString suggested;
+        w.setNotifier([&](const QString &, const QString &text) { notices << text; });
+        w.setSavePathChooser([&](const QString &name, const QString &) {
+            suggested = name;
+            return dir.filePath(QStringLiteral("new.docx"));
+        });
+        QVERIFY(w.openFile(path));
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("!"));
+        QVERIFY(w.save());
+        QCOMPARE(notices.size(), 1);
+        QVERIFY2(notices[0].contains(QLatin1String(".docx")) && notices[0].contains(QLatin1String(".rtf")), qPrintable(notices[0]));
+        QVERIFY2(suggested.endsWith(QLatin1String("old.docx")), qPrintable(suggested));
+        QFile again(path);
+        QVERIFY(again.open(QIODevice::ReadOnly));
+        QCOMPARE(again.readAll(), rtf);
+        WriteWindow b;
+        QVERIFY(b.openFile(w.filePath()));
+        QCOMPARE(b.document()->story()->toPlainText().left(9), QStringLiteral("!Old text"));
+    }
+
+    void anRtfFileWithPartsTheLimitsCutSaysSoAndKeepsTheRest()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QByteArray rtf = "{\\rtf1\\ansi Kept text ";
+        rtf += "{\\pict\\pngblip 0102}\\par}";
+        WriteWindow w;
+        QStringList notices;
+        w.setNotifier([&](const QString &, const QString &text) { notices << text; });
+        QVERIFY(w.openFile(writeFile(dir, QStringLiteral("cut.rtf"), rtf)));
+        QVERIFY(w.document()->story()->toPlainText().contains(QLatin1String("Kept text")));
+        QVERIFY(w.document()->leftSomethingOut());
+        QCOMPARE(notices.size(), 1);
+    }
+
     void unsavedWorkIsKeptAndComesBack()
     {
         QTemporaryDir dir;
