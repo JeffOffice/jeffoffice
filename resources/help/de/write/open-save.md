@@ -1,5 +1,5 @@
 # Öffnen, Speichern, Drucken und Exportieren
-<!-- keywords: öffnen, speichern, speichern unter, docx, doc, dot, ältere Dateien, Vorlage, dotx, zuletzt verwendet, anheften, neu, schließen, drucken, pdf, exportieren, wiederherstellen, automatische Wiederherstellung, nicht gespeichert, Absturz, Dateiansicht, Backstage, Dateiformate -->
+<!-- keywords: öffnen, speichern, speichern unter, docx, doc, dot, rtf, ältere Dateien, Vorlage, dotx, zuletzt verwendet, anheften, neu, schließen, drucken, pdf, exportieren, wiederherstellen, automatische Wiederherstellung, nicht gespeichert, Absturz, Dateiansicht, Backstage, Dateiformate -->
 
 Klicken Sie oben links auf **Datei**, um die Dateiansicht anzuzeigen. Sie enthält Seiten für „Neu“, „Öffnen“, „Drucken“ und „Exportieren“ sowie die Befehle „Speichern“ und „Speichern unter“. Drücken Sie **Esc**, um zu Ihrem Dokument zurückzukehren.
 
@@ -15,6 +15,7 @@ Drücken Sie **Strg+O**, oder klicken Sie auf **Datei > Öffnen**. Klicken Sie a
 - **.dotx** ist eine Vorlage. Eine Vorlage wird als neues Dokument geöffnet, das auf ihr basiert, sodass die Vorlage selbst unverändert bleibt.
 - **.docm** und **.dotm** lassen sich ebenfalls öffnen. JeffWrite übernimmt ihre Makros nicht. Darauf werden Sie beim ersten Speichern eines solchen Dokuments hingewiesen, und JeffWrite speichert eine .docx-Datei.
 - **.doc** und **.dot** sind die älteren Dokument- und Vorlagenformate. JeffWrite kann sie lesen und speichert Ihre Änderungen als neue .docx-Datei.
+- **.rtf** ist das Rich Text Format. JeffWrite kann es lesen und speichert Ihre Änderungen als neue .docx-Datei. Siehe [RTF-Dateien öffnen](open-rtf).
 
 Auf der Seite **Öffnen** werden außerdem die Dokumente aufgeführt, die Sie zuletzt geöffnet oder gespeichert haben. Klicken Sie auf ein Dokument, um es zu öffnen. Klicken Sie mit der rechten Maustaste darauf, um es oben in der Liste anzuheften oder aus der Liste zu entfernen.
 

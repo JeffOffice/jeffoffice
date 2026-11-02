@@ -5,6 +5,7 @@
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "doc/doc.h"
+#include "rtf/rtf.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
@@ -319,11 +320,25 @@ std::unique_ptr<WriteDoc> WriteDoc::fromDoc(const QByteArray &bytes, QString *er
     return doc;
 }
 
-std::unique_ptr<WriteDoc> WriteDoc::fromFile(const QByteArray &bytes, QString *error, QStringList *notes)
+std::unique_ptr<WriteDoc> WriteDoc::fromRtf(const QByteArray &bytes, QString *error, QStringList *notes)
 {
-    return office::doc::looksLikeCompoundFile(bytes) ? fromDoc(bytes, error, notes) : fromDocx(bytes, error, notes);
+    office::wml::Document d;
+    ReadNotes rn;
+    if (!office::rtf::readRtf(bytes, &d, error, &rn)) return nullptr;
+    std::unique_ptr<WriteDoc> doc(new WriteDoc());
+    doc->readNotes = rn.notes;
+    doc->m_hadMacros = rn.hadMacros;
+    doc->m_leftOut = rn.leftOut;
+    if (notes) *notes = rn.notes;
+    doc->build(std::move(d));
+    return doc;
 }
 
+std::unique_ptr<WriteDoc> WriteDoc::fromFile(const QByteArray &bytes, QString *error, QStringList *notes)
+{
+    if (office::rtf::looksLikeRtf(bytes)) return fromRtf(bytes, error, notes);
+    return office::doc::looksLikeCompoundFile(bytes) ? fromDoc(bytes, error, notes) : fromDocx(bytes, error, notes);
+}
 void WriteDoc::build(office::wml::Document &&doc)
 {
     m_wml = std::move(doc);

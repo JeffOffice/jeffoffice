@@ -373,6 +373,7 @@ Section /o "${WRITE}: documents (preview)" SecWrite
   !insertmacro WriteOpensWith ".dotm"
   !insertmacro WriteOpensWith ".doc"
   !insertmacro WriteOpensWith ".dot"
+  !insertmacro WriteOpensWith ".rtf"
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd
 !else
@@ -713,6 +714,7 @@ Section "Uninstall"
   !insertmacro un.WriteOpensWith ".dotm"
   !insertmacro un.WriteOpensWith ".doc"
   !insertmacro un.WriteOpensWith ".dot"
+  !insertmacro un.WriteOpensWith ".rtf"
   DeleteRegKey HKCU "Software\Classes\JeffWrite.Document"
   DeleteRegKey HKCU "Software\Classes\Applications\${WRITEEXE}"
   DeleteRegKey HKCU "${WRITESETKEY}"

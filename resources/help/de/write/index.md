@@ -7,6 +7,7 @@ Geben Sie oben in das Suchfeld etwas ein, um ein Thema oder einen auszuführende
 
 - [Willkommen bei JeffWrite](start)
 - [Öffnen, Speichern, Drucken und Exportieren](open-save)
+- [RTF-Dateien öffnen](open-rtf)
 - [Drucken](print)
 
 ## Text bearbeiten
