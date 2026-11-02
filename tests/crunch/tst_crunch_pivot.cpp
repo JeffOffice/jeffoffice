@@ -890,6 +890,46 @@ private Q_SLOTS:
             QVERIFY2(after.value(part) == before.value(part), qPrintable(part));
     }
 
+    // A table at the top of its sheet, with no filters, can be changed; filters that would need lines above the first are what is refused.
+    void aTableAtTheTopOfASheetWithNoFiltersCanBeChanged()
+    {
+        PivotBookOptions o;
+        o.tweak = [](Parts &p) { p[QStringLiteral("xl/pivotTables/pivotTable1.xml")].replace("ref=\"E3:H7\"", "ref=\"E1:H5\""); };
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(o)));
+        crunch::EditSession *s = e.win.w.session();
+        const auto refreshed = s->refreshPivot(0);
+        QVERIFY2(refreshed.ok, qPrintable(refreshed.problem));
+        PivotTable t = *s->workbook()->pivots().table(0).table;
+        PivotPageField page;
+        page.fld = 1;
+        t.colFields.removeAll(1);
+        t.pageFields.append(page);
+        const auto o2 = s->setPivot(0, t, true, QStringLiteral("Filter"));
+        QVERIFY(!o2.ok);
+        QVERIFY2(o2.problem.contains(QLatin1String("no room above")), qPrintable(o2.problem));
+    }
+
+    // Clear is never refused for the cells it covers: what is left claims no more than the table had, and what is beside the table is not in its way.
+    void clearIsNotRefusedForCellsBesideTheTable()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, rowOf(QStringLiteral("F12")), colOf(QStringLiteral("F12")), QStringLiteral("mine")).ok);   // (under where an empty area of 18 lines would reach)
+        QVERIFY(e.settle());
+        const auto o = s->clearPivot(0, false);
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("F5")), QStringLiteral("-"));
+        QCOMPARE(valueOf(e, QStringLiteral("F12")), QStringLiteral("s:mine"));
+        const CellRange loc = s->workbook()->pivots().locationOf(0);
+        QVERIFY(loc.row2 <= 6 && loc.col2 <= 7);
+        s->undoStack()->undo();
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("F5")), QStringLiteral("n:15"));
+    }
+
     // A lone value has no place of its own among the columns: a refresh takes the stale one out.
     void aRefreshTakesTheValuesOutOfTheAxesWhenThereIsOne()
     {

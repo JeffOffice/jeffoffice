@@ -233,7 +233,15 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
         QString problem;
         if (!computePivot(*ch.now, *cache, &grid, &problem, options)) return tr("This pivot table can't be worked out: %1.").arg(problem);
         const int pages = int(ch.now->pageFields.size());
-        if (oldLoc.row1 < quint32(pages) + 1) return tr("There is no room above the pivot table for its filters. Move the table down first.");
+        if (pages > 0 && oldLoc.row1 < quint32(pages) + 1) return tr("There is no room above the pivot table for its filters. Move the table down first.");
+        // (a table with nothing in it claims no more than it had)
+        if (ch.now->rowFields.isEmpty() && ch.now->colFields.isEmpty() && ch.now->dataFields.isEmpty()) {
+            const int rows = std::max(1, std::min<int>(grid.rows, int(oldLoc.row2 - oldLoc.row1 + 1))), cols = std::max(1, std::min<int>(grid.cols, int(oldLoc.col2 - oldLoc.col1 + 1)));
+            grid.rows = rows;
+            grid.cols = cols;
+            grid.cells.resize(qsizetype(rows) * cols);
+            grid.cells.fill(PivotCell());
+        }
         ch.now->rowPageCount = pages;
         ch.now->colPageCount = pages > 0 ? 1 : 0;
         pivotApplyGrid(ch.now.get(), grid, oldLoc.row1, oldLoc.col1);
