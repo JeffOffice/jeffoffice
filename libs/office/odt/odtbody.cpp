@@ -339,10 +339,31 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
         QVector<Block> blocks;
         convertBlocks(o, box, &blocks, pc->depth + 1);
         const QByteArray content = bodyBlocksXml(blocks, true);
+        const Props &gp = resolved(QStringLiteral("graphic"), o.at(frame, "draw:style-name"));
+        auto g = [&](const char *k) { return gp.value(QStringLiteral("gr:") + QLatin1String(k)); };
+        // The padding (the room between the box and its text), the fill, and the line the style gives it.
+        auto pad = [&](const char *side) {
+            QString v = g((QStringLiteral("fo:padding-") + QLatin1String(side)).toLatin1().constData());
+            if (v.isEmpty()) v = g("fo:padding");
+            bool okp = false;
+            const qint64 e = lengthToEmu(v, &okp);
+            return okp ? std::max<qint64>(0, e) : qint64(0);
+        };
+        QByteArray fill = "<a:noFill/>";
+        if (g("draw:fill") == QLatin1String("solid") && !colorHex(g("draw:fill-color")).isEmpty()) fill = "<a:solidFill><a:srgbClr val=\"" + colorHex(g("draw:fill-color")).toLatin1() + "\"/></a:solidFill>";
+        QByteArray line = "<a:ln><a:noFill/></a:ln>";
+        const QString border = g("fo:border");
+        if (!border.isEmpty() && border != QLatin1String("none")) line = "<a:ln w=\"6350\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln>";
+        else if (!g("draw:stroke").isEmpty() && g("draw:stroke") != QLatin1String("none")) {
+            const QString c = colorHex(g("svg:stroke-color"));
+            bool okw = false;
+            const qint64 w = lengthToEmu(g("svg:stroke-width"), &okw);
+            line = "<a:ln w=\"" + num(okw && w > 0 ? std::min<qint64>(w, 1270000) : 9525) + "\"><a:solidFill><a:srgbClr val=\"" + (c.isEmpty() ? QByteArray("000000") : c.toLatin1()) + "\"/></a:solidFill></a:ln>";
+        }
         const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" +
-                                   num(cx) + "\" cy=\"" + num(cy) + "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>" +
-                                   (resolved(QStringLiteral("graphic"), o.at(frame, "draw:style-name")).value(QStringLiteral("gr:fo:border")).isEmpty() ? "<a:noFill/><a:ln><a:noFill/></a:ln>" : "<a:noFill/><a:ln w=\"6350\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln>") +
-                                   "</wps:spPr><wps:txbx><w:txbxContent>" + content + "</w:txbxContent></wps:txbx><wps:bodyPr rot=\"0\" vert=\"horz\" wrap=\"square\" lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\" anchor=\"t\"><a:noAutofit/></wps:bodyPr></wps:wsp></a:graphicData></a:graphic>";
+                                   num(cx) + "\" cy=\"" + num(cy) + "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>" + fill + line +
+                                   "</wps:spPr><wps:txbx><w:txbxContent>" + content + "</w:txbxContent></wps:txbx><wps:bodyPr rot=\"0\" vert=\"horz\" wrap=\"square\" lIns=\"" + num(pad("left")) + "\" tIns=\"" + num(pad("top")) +
+                                   "\" rIns=\"" + num(pad("right")) + "\" bIns=\"" + num(pad("bottom")) + "\" anchor=\"t\"><a:noAutofit/></wps:bodyPr></wps:wsp></a:graphicData></a:graphic>";
         *ok = true;
         return anchorXml(o, frame, QString(), cx, cy, graphic, id);
     }

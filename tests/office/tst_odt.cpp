@@ -1072,6 +1072,57 @@ private Q_SLOTS:
         QVERIFY(QString::fromUtf8(files.value(QStringLiteral("content.xml"))).contains(QLatin1String("style:contextual-spacing=\"true\"")));
     }
 
+    void aTextBoxKeepsItsPaddingFillAndLineBothWays()
+    {
+        Made m;
+        m.autoStyles = "<style:style style:name=\"gr1\" style:family=\"graphic\"><style:graphic-properties draw:fill=\"solid\" draw:fill-color=\"#99ffcc\" draw:stroke=\"solid\" svg:stroke-color=\"#112233\" svg:stroke-width=\"0.02in\" "
+                       "fo:padding-top=\"0.05in\" fo:padding-bottom=\"0.05in\" fo:padding-left=\"0.1in\" fo:padding-right=\"0.1in\"/></style:style>";
+        m.body = "<text:p><draw:custom-shape text:anchor-type=\"char\" draw:style-name=\"gr1\" svg:width=\"2in\" svg:height=\"1in\"><text:p>boxed</text:p></draw:custom-shape></text:p>";
+        const QByteArray docx = docxOf(m.build());
+        wml::XmlTree t;
+        QVERIFY(t.parse(part(docx, QStringLiteral("/word/document.xml")).toUtf8(), nullptr));
+        const int body = findElement(t, "bodyPr");
+        QVERIFY(body >= 0);
+        QCOMPARE(t.attr(body, "lIns").toInt(), 91440);
+        QCOMPARE(t.attr(body, "tIns").toInt(), 45720);
+        const int clr = findElement(t, "srgbClr");
+        QVERIFY(clr >= 0);
+        QCOMPARE(t.attr(clr, "val"), QStringLiteral("99FFCC"));
+        // Back in an .odt: the frame has them again.
+        QMap<QString, QByteArray> files;
+        QVERIFY(jp::readZip(fromDocxPackage(docx), files));
+        wml::XmlTree c;
+        QVERIFY(c.parse(files.value(QStringLiteral("content.xml")), nullptr));
+        bool found = false;
+        for (int i = findElement(c, "graphic-properties"); i >= 0 && !found; i = findElement(c, "graphic-properties", i))
+            found = c.attrAny(i, "fill-color") == QLatin1String("#99FFCC") && c.attrAny(i, "padding-left") == QLatin1String("0.1000in") && c.attrAny(i, "stroke-color") == QLatin1String("#112233");
+        QVERIFY(found);
+    }
+
+    void anOdtsLayoutSettingsGoBackAsTheyWere()
+    {
+        Made m;
+        m.body = "<text:p>x</text:p>";
+        m.extra.insert(QStringLiteral("settings.xml"),
+                       "<?xml version=\"1.0\"?><office:document-settings xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\" xmlns:ooo=\"http://openoffice.org/2004/office\">"
+                       "<office:settings><config:config-item-set config:name=\"ooo:view-settings\"><config:config-item config:name=\"ViewAreaTop\" config:type=\"long\">5</config:config-item></config:config-item-set>"
+                       "<config:config-item-set config:name=\"ooo:configuration-settings\"><config:config-item config:name=\"AddExternalLeading\" config:type=\"boolean\">false</config:config-item>"
+                       "<config:config-item config:name=\"PrinterName\" config:type=\"string\">Secret</config:config-item></config:config-item-set></office:settings></office:document-settings>");
+        QMap<QString, QByteArray> files;
+        QVERIFY(jp::readZip(fromDocxPackage(docxOf(m.build())), files));
+        const QString s = QString::fromUtf8(files.value(QStringLiteral("settings.xml")));
+        QVERIFY(s.contains(QLatin1String("config:name=\"AddExternalLeading\" config:type=\"boolean\">false<")));
+        QVERIFY(!s.contains(QLatin1String("PrinterName")));   // (nothing of the machine it was made on)
+        QVERIFY(!s.contains(QLatin1String("ViewAreaTop")));
+        // A document that did not come from an .odt gets the usual ones.
+        const char kW[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+        PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<w:document ") + kW + "><w:body><w:p/></w:body></w:document>", QStringLiteral("application/xml"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        QVERIFY(jp::readZip(fromDocxPackage(w.finish()), files));
+        QVERIFY(QString::fromUtf8(files.value(QStringLiteral("settings.xml"))).contains(QLatin1String("config:name=\"AddExternalLeading\" config:type=\"boolean\">true<")));
+    }
+
     void anEmptyParagraphWithNoListInAListStyleIsNotNumbered()
     {
         Made m;

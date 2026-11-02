@@ -12,7 +12,7 @@ namespace jp::office::odt {
 
 // The namespaces of an OpenDocument file, by the prefix the standard gives each.
 extern const char *const kNsOffice, *const kNsStyle, *const kNsText, *const kNsTable, *const kNsDraw, *const kNsFo, *const kNsSvg, *const kNsXlink, *const kNsDc, *const kNsMeta,
-    *const kNsNumber, *const kNsManifest, *const kNsLoext, *const kNsChart, *const kNsOf;
+    *const kNsNumber, *const kNsManifest, *const kNsLoext, *const kNsChart, *const kNsOf, *const kNsConfig;
 
 // An XML tree looked at with OpenDocument's names: "text:p" is the element p of the text namespace, in the file's own prefix or none.
 class Odf {

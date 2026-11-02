@@ -91,6 +91,12 @@ bool Writer::loadParts(QString *error)
         const auto rels = m_pkg.relationshipsOfType(m_main, QString::fromLatin1(type));
         return rels.isEmpty() ? QString() : rels.first().target;
     };
+    if (const QString s = related("/odfSettings"); !s.isEmpty() && m_pkg.hasPart(s)) {
+        T st;
+        if (st.parse(m_pkg.part(s), nullptr))
+            for (int c = st.firstChild(st.root()); c >= 0; c = st.next(c))
+                if (st.localName(c) == "config-item") m_odfItems += "<config:config-item config:name=\"" + esc(st.attrAny(c, "name")) + "\" config:type=\"" + esc(st.attrAny(c, "type")) + "\">" + esc(st.text(c), false) + "</config:config-item>";
+    }
     if (const QString s = related("/fontTable"); !s.isEmpty() && m_pkg.hasPart(s)) {
         T ft;
         if (ft.parse(m_pkg.part(s), nullptr))
@@ -185,8 +191,14 @@ QString Writer::themeFont(const QString &theme) const
 
 QString Writer::fontNameOf(const QString &family, QString *generic)
 {
-    Q_UNUSED(generic);
     if (family.isEmpty()) return QString();
+    if (generic && *generic == QLatin1String("system")) {
+        // (A font for East Asian or complex script is a face of its own, of the "system" kind, as the other programs name it.)
+        const QString face = family + QLatin1Char('1');
+        m_systemFaces.insert(face, family);
+        if (!m_fontFaces.contains(face)) m_fontFaces.insert(face, QString());
+        return face;
+    }
     if (!m_fontFaces.contains(family)) m_fontFaces.insert(family, QString());
     return family;
 }
@@ -865,6 +877,7 @@ QByteArray Writer::settingsXml() const
                   {"UseVariableWidthNBSP", "boolean", "false"}};
     QByteArray x = QByteArray(kXml) + "<office:document-settings" + kOdfNamespaces + " xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\" xmlns:ooo=\"http://openoffice.org/2004/office\" office:version=\"1.2\"><office:settings>"
                                        "<config:config-item-set config:name=\"ooo:configuration-settings\">";
+    if (!m_odfItems.isEmpty()) return x + m_odfItems + "</config:config-item-set></office:settings></office:document-settings>";
     for (const auto &f : kFlags) x += QByteArray("<config:config-item config:name=\"") + f.name + "\" config:type=\"" + f.type + "\">" + f.value + "</config:config-item>";
     return x + "</config:config-item-set></office:settings></office:document-settings>";
 }
@@ -873,6 +886,12 @@ QByteArray Writer::fontFacesXml() const
 {
     QByteArray faces;
     for (auto it = m_fontFaces.constBegin(); it != m_fontFaces.constEnd(); ++it) {
+        if (m_systemFaces.contains(it.key())) {
+            const QString family = m_systemFaces.value(it.key());
+            faces += "<style:font-face style:name=\"" + esc(it.key()) + "\" svg:font-family=\"" + esc(family.contains(QLatin1Char(' ')) ? QStringLiteral("'") + family + QStringLiteral("'") : family) +
+                     "\" style:font-family-generic=\"system\" style:font-pitch=\"variable\"/>";
+            continue;
+        }
         const QString n = it.key().toLower();
         QString kind = m_fontKinds.value(it.key()).first;
         const QString pitchIn = m_fontKinds.value(it.key()).second;

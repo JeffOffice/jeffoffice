@@ -88,6 +88,7 @@ private:
     // ---- the parts and what the styles say
     bool openParts(const QByteArray &file, QString *error);
     void collectFonts(const Odf &o, int root);
+    QByteArray layoutSettings() const;
     void collectStyles(const Odf &o, int root, bool automatic);
     void collectDefaults(const Odf &o, int styleNode);
     void collectStyle(const Odf &o, int node, bool automatic);

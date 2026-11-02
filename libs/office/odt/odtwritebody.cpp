@@ -733,7 +733,38 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
                 }
             }
     }
-    const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"" + QByteArray(blip >= 0 ? "Graphics" : "Frame") + "\"", "<style:graphic-properties" + gp + (txbx >= 0 ? " fo:padding=\"0in\" fo:border=\"none\"" : "") + "/>");
+    // A text box's padding, fill, and line, from its shape.
+    QByteArray boxProps;
+    if (txbx >= 0) {
+        boxProps = " fo:padding=\"0in\" fo:border=\"none\" draw:fill=\"none\" draw:stroke=\"none\"";
+        int body = -1, sp = -1;
+        QVector<int> stack{anchor};
+        for (int guard = 0; !stack.isEmpty() && guard < 4000; ++guard) {
+            const int n = stack.takeLast();
+            if (t.localName(n) == "bodyPr" && body < 0) body = n;
+            else if (t.localName(n) == "spPr" && sp < 0 && t.ns(t.parent(n)) != wml::NsW) sp = n;
+            for (int k = t.firstChild(n); k >= 0; k = t.next(k)) stack.push_back(k);
+        }
+        if (body >= 0) {
+            auto ins = [&](const char *a) { return emuLength(std::max<qint64>(0, t.attr(body, a).toLongLong())); };
+            boxProps += " fo:padding-left=\"" + ins("lIns") + "\" fo:padding-top=\"" + ins("tIns") + "\" fo:padding-right=\"" + ins("rIns") + "\" fo:padding-bottom=\"" + ins("bIns") + "\"";
+        }
+        if (sp >= 0) {
+            for (int k = t.firstChild(sp); k >= 0; k = t.next(k)) {
+                if (t.localName(k) == "solidFill") {
+                    const int clr = t.firstChild(k);
+                    const QString hex = clr >= 0 ? hexColorOrEmpty(t.attr(clr, "val")) : QString();
+                    if (!hex.isEmpty()) boxProps += " draw:fill=\"solid\" draw:fill-color=\"#" + hex.toUtf8() + "\"";
+                } else if (t.localName(k) == "ln" && t.child(k, "noFill", t.ns(k)) < 0) {
+                    const int sf = t.child(k, "solidFill", t.ns(k));
+                    const int clr = sf >= 0 ? t.firstChild(sf) : -1;
+                    const QString hex = clr >= 0 ? hexColorOrEmpty(t.attr(clr, "val")) : QString();
+                    boxProps += " draw:stroke=\"solid\" svg:stroke-color=\"#" + (hex.isEmpty() ? QByteArray("000000") : hex.toUtf8()) + "\" svg:stroke-width=\"" + emuLength(std::max<qint64>(6350, t.attr(k, "w").toLongLong())) + "\"";
+                }
+            }
+        }
+    }
+    const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"" + QByteArray(blip >= 0 ? "Graphics" : "Frame") + "\"", "<style:graphic-properties" + gp + boxProps + "/>");
     QByteArray x = "<draw:frame draw:style-name=\"" + esc(style) + "\"" + frameAttrs + " svg:width=\"" + emuLength(cx) + "\"";
     if (blip >= 0) {
         QString href;

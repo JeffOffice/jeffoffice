@@ -23,6 +23,7 @@ const char *const kNsManifest = "urn:oasis:names:tc:opendocument:xmlns:manifest:
 const char *const kNsLoext = "urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0";
 const char *const kNsChart = "urn:oasis:names:tc:opendocument:xmlns:chart:1.0";
 const char *const kNsOf = "urn:oasis:names:tc:opendocument:xmlns:of:1.2";
+const char *const kNsConfig = "urn:oasis:names:tc:opendocument:xmlns:config:1.0";
 
 namespace {
 const struct {
@@ -30,7 +31,7 @@ const struct {
     const char *const *uri;
 } kAll[] = {{"office", &kNsOffice}, {"style", &kNsStyle}, {"text", &kNsText},     {"table", &kNsTable},       {"draw", &kNsDraw},     {"fo", &kNsFo},
             {"svg", &kNsSvg},       {"xlink", &kNsXlink}, {"dc", &kNsDc},         {"meta", &kNsMeta},         {"number", &kNsNumber}, {"manifest", &kNsManifest},
-            {"loext", &kNsLoext},   {"chart", &kNsChart}, {"of", &kNsOf}};
+            {"loext", &kNsLoext},   {"chart", &kNsChart}, {"of", &kNsOf},         {"config", &kNsConfig}};
 constexpr int kAllCount = int(sizeof(kAll) / sizeof(kAll[0]));
 }
 

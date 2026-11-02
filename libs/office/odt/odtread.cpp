@@ -119,6 +119,34 @@ bool Reader::openParts(const QByteArray &file, QString *error)
 
 // ---- styles
 
+QByteArray Reader::layoutSettings() const
+{
+    // The items of the layout settings, but not what is of the person or the machine (the printer, the databases, the view).
+    wml::XmlTree t;
+    const wml::XmlTree *tree = nullptr;
+    if (m_flat) tree = &m_content;
+    else if (m_pkg.hasPart(QStringLiteral("/settings.xml"))) {
+        if (m_pkg.partSize(QStringLiteral("/settings.xml")) > (qint64(8) << 20) || !t.parse(m_pkg.part(QStringLiteral("/settings.xml")), nullptr)) return QByteArray();
+        tree = &t;
+    } else return QByteArray();
+    const Odf o(*tree);
+    static const QRegularExpression skip(QStringLiteral("^(Print|Printer|Current|Rsid|Embed|Save|Load|Protect|FieldAutoUpdate|ChartAutoUpdate|UpdateFromTemplate|ApplyUserData|IsLabelDocument|EmptyDbFieldHidesPara|AllowPrintJobCancel|LinkUpdateMode|StylesNoDefault|ShowRedline|View|Zoom|Language|Country|BeginLine|EndLine)"));
+    QByteArray out;
+    int kept = 0;
+    for (int i = 0; i < tree->count() && kept < 400; ++i) {
+        if (!o.is(i, "config:config-item-set") || o.at(i, "config:name") != QLatin1String("ooo:configuration-settings")) continue;
+        for (int c = tree->firstChild(i); c >= 0 && kept < 400; c = tree->next(c)) {
+            if (!o.is(c, "config:config-item")) continue;
+            const QString name = o.at(c, "config:name"), type = o.at(c, "config:type");
+            if (skip.match(name).hasMatch() || (type != QLatin1String("boolean") && type != QLatin1String("int") && type != QLatin1String("short") && type != QLatin1String("long"))) continue;
+            out += "<config:config-item config:name=\"" + esc(name) + "\" config:type=\"" + esc(type) + "\">" + esc(tree->text(c), false) + "</config:config-item>";
+            ++kept;
+        }
+        break;
+    }
+    return out;
+}
+
 void Reader::collectFonts(const Odf &o, int root)
 {
     const int decls = o.child(root, "office:font-face-decls");
@@ -130,6 +158,9 @@ void Reader::collectFonts(const Odf &o, int root)
             family.remove(QLatin1Char('\''));
             family.remove(QLatin1Char('"'));
             if (family.isEmpty()) family = o.at(c, "style:name");
+            // (A list of families, "Batang, 바탕": the face is the first, the way a name is in a .docx.)
+            if (family.contains(QLatin1Char(','))) family = family.section(QLatin1Char(','), 0, 0);
+            if (family.contains(QLatin1Char(';'))) family = family.section(QLatin1Char(';'), 0, 0);
             m_fonts.insert(o.at(c, "style:name"), family.trimmed());
             const QString generic = o.at(c, "style:font-family-generic");
             if (!generic.isEmpty() && !m_fontKinds.contains(family.trimmed())) m_fontKinds.insert(family.trimmed(), {generic, o.at(c, "style:font-pitch")});
@@ -729,6 +760,15 @@ bool Reader::read(const QByteArray &file, QString *error, QStringList *notes)
     if (!m_nums.isEmpty()) {
         m_out.addPart(QStringLiteral("/word/numbering.xml"), numberingXml(), wml + QStringLiteral("numbering+xml"));
         m_out.addRelationship(mainName, rel + QStringLiteral("numbering"), QStringLiteral("/word/numbering.xml"));
+    }
+    {
+        // How the file says its text is laid out, kept with the document so that saving it as an .odt says the same.
+        const QByteArray items = layoutSettings();
+        if (!items.isEmpty()) {
+            m_out.addPart(QStringLiteral("/word/odfSettings.xml"), QByteArray(kXmlHeader) + "<odf:settings xmlns:odf=\"http://jeffoffice.com/odf\" xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\">" + items + "</odf:settings>",
+                          QStringLiteral("application/xml"));
+            m_out.addRelationship(mainName, QStringLiteral("http://jeffoffice.com/relationships/odfSettings"), QStringLiteral("/word/odfSettings.xml"));
+        }
     }
     if (!m_fontKinds.isEmpty()) {
         QByteArray f = QByteArray(kXmlHeader) + "<w:fonts " + docxNamespaces() + ">";

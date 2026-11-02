@@ -117,6 +117,8 @@ private:
     QString m_source;                                  // the part being read (its relationships find the pictures and links)
     QStringList *m_notes = nullptr;
     QSet<QString> m_leftKeys;
+    QHash<QString, QString> m_systemFaces;              // a face for East Asian or complex script -> its family
+    QByteArray m_odfItems;                              // the layout settings an .odt had, as config items
     QHash<QString, QPair<QString, QString>> m_fontKinds;   // font name -> the family kind and pitch the .docx font table gives
     QHash<QString, DStyle> m_dstyles;                  // by id
     QStringList m_styleOrder;
