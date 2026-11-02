@@ -794,7 +794,7 @@ protected:
                 }
             // Past the ends: the File button, or the More button (when tabs overflowed) or the collapse chevron.
             if (dir > 0)
-                if (QWidget *more = m_r->moreButton()) { more->setFocus(Qt::TabFocusReason); return; }
+                if (QWidget *more = m_r->moreButton()) { more->setFocus(Qt::OtherFocusReason); return; }
             if (QWidget *w = m_r->findChild<QWidget *>(dir < 0 ? QStringLiteral("jpRibbonFile") : QStringLiteral("jpRibbonCollapse"))) w->setFocus(Qt::TabFocusReason);
             return;
         }

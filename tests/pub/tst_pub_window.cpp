@@ -979,10 +979,11 @@ private Q_SLOTS:
         while (!r->tabVisible(lastTab)) --lastTab;
         r->showTab(r->tabAt(lastTab));
         QTRY_VERIFY(r->moreButton());
-        QVERIFY(r->moreButton()->focusPolicy() & Qt::TabFocus);
-        r->tabButton(lastTab)->setFocus(Qt::TabFocusReason);
+        // (the window's own focus widget: it needs no active window, and no platform setting that keeps buttons out of the Tab order, as on a Mac without full keyboard access)
+        r->tabButton(lastTab)->setFocus(Qt::OtherFocusReason);
+        QTRY_COMPARE(w.focusWidget(), r->tabButton(lastTab));
         QTest::keyClick(r->tabButton(lastTab), Qt::Key_Right);
-        QCOMPARE(QApplication::focusWidget(), r->moreButton());
+        QTRY_COMPARE(w.focusWidget(), r->moreButton());
         // Wider by a pixel at a time: no tab button is hidden and shown again, and the menu is not made again unless its tabs change.
         int hides = 0;
         struct Counter : QObject {
