@@ -236,6 +236,8 @@ const ArgumentHelp kArgumentHelp[] = {
     {"LOG:base", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The base of the logarithm (10 if left out).")},
     {"PERCENTILE:k", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The share of the values, from 0 to 1, to give the value at.")},
     {"SMALL:k", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Which place to give, counting from the smallest: 1 is the smallest.")},
+    {"SUBSTITUTE:old_text", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The text to find.")},
+    {"SWITCH:default", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The result to give when no value matches (the #N/A error if left out).")},
     {"...", QT_TRANSLATE_NOOP("jp::crunch::Functions", "As many more as you need.")},
     {"a1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "True or left out to read the address as a column letter and row number; false to read it as row and column numbers.")},
     {"abs_num", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How much of the address is fixed: 1 all of it, 2 the row only, 3 the column only, 4 none of it.")},
@@ -319,7 +321,7 @@ const ArgumentHelp kArgumentHelp[] = {
     {"number", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The number to work on.")},
     {"number1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The first number, or block of cells.")},
     {"number_chosen", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many items to pick in each group.")},
-    {"number_times", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many items there are in all.")},
+    {"number_times", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many times to repeat the text.")},
     {"numerator", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The number to be divided.")},
     {"old_text", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The text to change.")},
     {"order", QT_TRANSLATE_NOOP("jp::crunch::Functions", "0 or left out puts the largest first; any other number puts the smallest first.")},
@@ -449,6 +451,7 @@ ArgumentPlan argumentPlanOf(const FunctionDoc &doc)
         plan.fixed << (optional ? n.mid(1, n.size() - 2) : n);
         plan.fixedOptional << optional;
     }
+    if (QLatin1String(doc.name) == QLatin1String("SWITCH")) plan.trailing = QStringLiteral("default");
     return plan;
 }
 

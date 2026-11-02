@@ -288,10 +288,13 @@ private Q_SLOTS:
         QCOMPARE(three.edit(2)->text(), QStringLiteral("C1"));
         // a group of two (a value and its result) grows two rows at a time; the ones before it stay as they are
         FunctionArgumentsDialog sw(nullptr, *crunch::docOf(QStringLiteral("SWITCH")), QStringList(), QLatin1Char(','));
-        QCOMPARE(sw.rowCount(), 5);                                                 // expression, value1, result1, value2, result2
+        QCOMPARE(sw.rowCount(), 6);                                                 // expression, value1, result1, value2, result2, and the default after them
         QCOMPARE(sw.argumentName(4), QStringLiteral("result2"));
+        QCOMPARE(sw.argumentName(5), QStringLiteral("default"));
         sw.edit(3)->setText(QStringLiteral("2"));
-        QCOMPARE(sw.rowCount(), 7);
+        QCOMPARE(sw.rowCount(), 8);                                                 // (the default stays last)
+        QCOMPARE(sw.argumentName(5), QStringLiteral("value3"));
+        QCOMPARE(sw.argumentName(7), QStringLiteral("default"));
         // optional arguments are rows that can be left empty and are left off the call
         FunctionArgumentsDialog vl(nullptr, *crunch::docOf(QStringLiteral("VLOOKUP")), QStringList(), QLatin1Char(','));
         QCOMPARE(vl.rowCount(), 4);
@@ -304,6 +307,113 @@ private Q_SLOTS:
         // the semicolon of a locale that writes a comma for the point
         FunctionArgumentsDialog de(nullptr, *crunch::docOf(QStringLiteral("SUM")), {"A1", "1,5"}, QLatin1Char(';'));
         QCOMPARE(de.callText(), QStringLiteral("SUM(A1;1,5)"));
+    }
+
+    void aSwitchesOddLastArgumentIsItsDefaultInABoxOfItsOwn()
+    {
+        const crunch::FunctionDoc &doc = *crunch::docOf(QStringLiteral("SWITCH"));
+        QCOMPARE(crunch::argumentPlanOf(doc).trailing, QStringLiteral("default"));
+        QVERIFY(crunch::argumentPlanOf(*crunch::docOf(QStringLiteral("SUM"))).trailing.isEmpty());
+        QVERIFY(!crunch::argumentHelpOf(QStringLiteral("SWITCH"), QStringLiteral("default")).isEmpty());
+        // a call with a default: the last argument is in the "default" box, and the pair after the filled ones is empty
+        FunctionArgumentsDialog withDefault(nullptr, doc, {"A1", "1", "\"one\"", "2", "\"two\"", "\"other\""}, QLatin1Char(','));
+        QCOMPARE(withDefault.rowCount(), 8);                                        // expression, two pairs, a spare pair, the default
+        QCOMPARE(withDefault.argumentName(7), QStringLiteral("default"));
+        QCOMPARE(withDefault.edit(7)->text(), QStringLiteral("\"other\""));
+        QCOMPARE(withDefault.edit(5)->text(), QString());                           // (value3 is empty, not the default)
+        QVERIFY(withDefault.isOptional(7));
+        QCOMPARE(withDefault.callText(), QStringLiteral("SWITCH(A1,1,\"one\",2,\"two\",\"other\")"));
+        // the same with one pair
+        FunctionArgumentsDialog one(nullptr, doc, {"A1", "1", "\"one\"", "\"other\""}, QLatin1Char(','));
+        QCOMPARE(one.edit(3)->text(), QString());                                   // (value2)
+        QCOMPARE(one.edit(one.rowCount() - 1)->text(), QStringLiteral("\"other\""));
+        QCOMPARE(one.argumentName(one.rowCount() - 1), QStringLiteral("default"));
+        QCOMPARE(one.callText(), QStringLiteral("SWITCH(A1,1,\"one\",\"other\")"));
+        // typing another pair keeps the default last and in its place in the call
+        one.edit(3)->setText(QStringLiteral("2"));
+        one.edit(4)->setText(QStringLiteral("\"two\""));
+        QCOMPARE(one.argumentName(one.rowCount() - 1), QStringLiteral("default"));
+        QCOMPARE(one.edit(one.rowCount() - 1)->text(), QStringLiteral("\"other\""));
+        QCOMPARE(one.callText(), QStringLiteral("SWITCH(A1,1,\"one\",2,\"two\",\"other\")"));
+        // no default: the spare pairs are left off, and a default typed after them is not taken for a value
+        FunctionArgumentsDialog none(nullptr, doc, QStringList(), QLatin1Char(','));
+        none.edit(0)->setText(QStringLiteral("A1"));
+        none.edit(1)->setText(QStringLiteral("1"));
+        none.edit(2)->setText(QStringLiteral("5"));
+        QCOMPARE(none.callText(), QStringLiteral("SWITCH(A1,1,5)"));
+        none.edit(none.rowCount() - 1)->setText(QStringLiteral("0"));
+        QCOMPARE(none.callText(), QStringLiteral("SWITCH(A1,1,5,0)"));
+        // a call with an even number of arguments has no default
+        FunctionArgumentsDialog even(nullptr, doc, {"A1", "1", "5"}, QLatin1Char(','));
+        QCOMPARE(even.edit(even.rowCount() - 1)->text(), QString());
+        QCOMPARE(even.edit(1)->text(), QStringLiteral("1"));
+    }
+
+    void theHintsOfReptAndSubstituteSayWhatTheirArgumentsAre()
+    {
+        QCOMPARE(crunch::argumentHelpOf(QStringLiteral("REPT"), QStringLiteral("number_times")), QStringLiteral("How many times to repeat the text."));
+        QCOMPARE(crunch::argumentHelpOf(QStringLiteral("SUBSTITUTE"), QStringLiteral("old_text")), QStringLiteral("The text to find."));
+        QCOMPARE(crunch::argumentHelpOf(QStringLiteral("REPLACE"), QStringLiteral("old_text")), QStringLiteral("The text to change."));
+    }
+
+    void withNoEntryGoingAFormulaInTheCursorCellIsWhatTheDialogOpensOn()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "B1==SUM(A1:A2,10)", "B2==1+IF(A1>0,5,6)", "B3=7"})));
+        CrunchWindow &w = e.win.w;
+        bool picked = false;
+        w.setFunctionAsker([&picked](QString *name) {
+            picked = true;
+            *name = QStringLiteral("SQRT");
+            return true;
+        });
+        // a formula that is a call: the dialog is on that call, with its arguments, and the picker is not shown
+        QStringList seen;
+        w.setArgumentsAsker([&seen](FunctionArgumentsDialog *d) {
+            seen << d->functionName() << d->arguments();
+            d->edit(1)->setText(QStringLiteral("20"));
+            return true;
+        });
+        e.select(QStringLiteral("B1"));
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QVERIFY(!picked);
+        QCOMPARE(seen, (QStringList{"SUM", "A1:A2", "10", ""}));
+        QVERIFY(!w.isEditing());
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->editText(0, 0, 1), QStringLiteral("=SUM(A1:A2,20)"));
+        // a call inside a longer formula: only that call is changed
+        seen.clear();
+        w.setArgumentsAsker([&seen](FunctionArgumentsDialog *d) {
+            seen << d->functionName();
+            d->edit(2)->setText(QStringLiteral("9"));
+            return true;
+        });
+        e.select(QStringLiteral("B2"));
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QCOMPARE(seen, QStringList{"IF"});
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->editText(0, 1, 1), QStringLiteral("=1+IF(A1>0,5,9)"));
+        // given up: the formula is as it was and no entry is left going
+        w.setArgumentsAsker([](FunctionArgumentsDialog *d) {
+            d->edit(0)->setText(QStringLiteral("junk"));
+            return false;
+        });
+        e.select(QStringLiteral("B1"));
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QVERIFY(!w.isEditing());
+        QCOMPARE(w.session()->editText(0, 0, 1), QStringLiteral("=SUM(A1:A2,20)"));
+        // a cell that holds a constant starts with an empty call, after the function is picked
+        picked = false;
+        seen.clear();
+        w.setArgumentsAsker([&seen](FunctionArgumentsDialog *d) {
+            seen << d->functionName() << QString::number(d->rowCount()) << d->edit(0)->text();
+            return false;
+        });
+        e.select(QStringLiteral("B3"));
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QVERIFY(picked);
+        QCOMPARE(seen, (QStringList{"SQRT", "1", ""}));
+        QCOMPARE(w.session()->editText(0, 2, 1), QStringLiteral("7"));
     }
 
     void theResultAndTheValueOfEachArgumentAreWorkedOutAsTheyAreTyped()
