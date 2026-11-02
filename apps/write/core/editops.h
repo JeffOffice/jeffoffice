@@ -110,6 +110,9 @@ void insertTab(WriteDoc &doc, QTextCursor &c, bool back);
 // Puts a field that shows the number of the page it is on (PAGE) where the cursor is, as one piece that is a single character of the story: the text typed beside it is
 // not in it, a delete takes all of it, and the characters of the text it is put in are its look.
 void insertPageNumber(WriteDoc &doc, QTextCursor &c);
+// Puts a field that is one character (kFieldGroupTag: its runs, its result as `display`, and `key`, the code the pages answer it with, empty for the rest) at the caret, or in place of
+// the selection. False where it can't be put (the caret is in the endnotes the pages set, or in an element kept as XML).
+bool insertFieldAtom(WriteDoc &doc, QTextCursor &c, const office::wml::Inline &field);
 
 // Puts a drawn object (a picture: the element of a run that is kept as XML) where the cursor is, in place of a selection, as one step that undoes. `made`, if given, gets the
 // character format the object was given. False (nothing done) where it can't go: in a header, footer, or note, in a paragraph that stands for a kept element, or when the

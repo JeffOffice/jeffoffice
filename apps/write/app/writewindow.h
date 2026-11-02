@@ -166,6 +166,8 @@ private:
     void createEditingActions();
     void createHeaderFooterActions();
     void createNoteActions();
+    void createFieldActions();
+    void updateFieldsNow();
     void createTableActions();
     void createPictureActions();
     void createStyleActions();

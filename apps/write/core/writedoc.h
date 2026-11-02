@@ -273,7 +273,13 @@ public:
     // ---- one history
     // The steps of the text and of the headers and footers in the order they were made: an undo undoes the last, wherever it was, and a redo does it again. Returns the story the
     // step was in (null when there was none); the cursor, if given, is put where the step changed the story.
-    bool canUndo() const { return !m_undoLog.isEmpty(); }
+    // (A step that only changed what is shown, such as the field codes, is not one the person can undo by itself: it is undone with the step before it.)
+    bool canUndo() const
+    {
+        for (int i = int(m_undoLog.size()) - 1; i >= 0; --i)
+            if (!m_undoLog[i].view) return true;
+        return false;
+    }
     bool canRedo() const { return !m_redoLog.isEmpty(); }
     QTextDocument *undo(QTextCursor *cursor = nullptr);
     QTextDocument *redo(QTextCursor *cursor = nullptr);
@@ -304,6 +310,18 @@ public:
         }
         StepGroup(const StepGroup &) = delete;
         StepGroup &operator=(const StepGroup &) = delete;
+
+    private:
+        WriteDoc &m_doc;
+    };
+    // The edits made while one of these lives change only what is shown (Show Field Codes): they are steps that Undo does not stop at, undone with the step before them, and they do not
+    // make the document modified.
+    class ViewEdit {
+    public:
+        explicit ViewEdit(WriteDoc &doc) : m_doc(doc) { ++m_doc.m_viewDepth; }
+        ~ViewEdit() { --m_doc.m_viewDepth; }
+        ViewEdit(const ViewEdit &) = delete;
+        ViewEdit &operator=(const ViewEdit &) = delete;
 
     private:
         WriteDoc &m_doc;
@@ -671,10 +689,11 @@ private:
         quint64 serial = 0;
         int raw = 0;
         quint64 group = 0;   // the steps made while a StepGroup lived have the same: they are undone and done again together
+        bool view = false;   // made while a ViewEdit lived: a change of what is shown, which no Undo stops at
     };
     QVector<Step> m_undoLog, m_redoLog;
     quint64 m_openGroup = 0, m_nextGroup = 1;
-    int m_groupDepth = 0;
+    int m_groupDepth = 0, m_viewDepth = 0;
     QTextDocument *undoOne(QTextCursor *cursor);
     quint64 m_nextSerial = 1, m_cleanSerial = 0;
     bool m_forcedDirty = false;

@@ -216,6 +216,7 @@ void WriteWindow::createActions()
     createEditingActions();
     createHeaderFooterActions();
     createNoteActions();
+    createFieldActions();
     createTableActions();
     createPictureActions();
     createStyleActions();
