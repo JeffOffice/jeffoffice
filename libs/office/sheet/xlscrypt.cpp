@@ -57,11 +57,16 @@ std::array<quint16, 105> xorMatrix()
     return m;
 }
 
-QByteArray ansiPassword(const QString &password)
+// The password as the obfuscation takes it: the first 15 characters, one byte each. A password with a letter outside the Western set (Latin-1) has no such form, and is not the one
+// (it is not turned into another password).
+bool ansiPassword(const QString &password, QByteArray *out)
 {
-    QByteArray b;
-    for (const QChar c : password.left(15)) b.append(c.unicode() < 256 ? char(c.unicode()) : '?');
-    return b;
+    out->clear();
+    for (const QChar c : password.left(15)) {
+        if (c.unicode() > 255) return false;
+        out->append(char(c.unicode()));
+    }
+    return true;
 }
 
 quint16 xorKey(const QByteArray &pw)
@@ -267,10 +272,10 @@ CryptResult decryptBiff(QByteArray *stream, const QString &password, bool verify
     if (xorForm) {
         const qsizetype at = biff8 ? 2 : 0;
         if (body.size() < at + 4) return CryptResult::Damaged;
-        QByteArray pw = ansiPassword(password);
+        QByteArray pw;
         Wiper pwWiper;
         pwWiper.add(&pw);
-        if (pw.isEmpty()) return CryptResult::WrongPassword;
+        if (!ansiPassword(password, &pw) || pw.isEmpty()) return CryptResult::WrongPassword;
         const quint16 key = u16(body, at), verifier = u16(body, at + 2);
         const bool fits = ((xorVerifier(pw) ^ verifier) | (xorKey(pw) ^ key)) == 0;   // (no early exit)
         if (!fits) return CryptResult::WrongPassword;

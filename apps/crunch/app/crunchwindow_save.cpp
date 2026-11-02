@@ -112,8 +112,9 @@ bool CrunchWindow::fileChangedOnDisk() const
     if (!m_loaded || !m_loaded->book || m_path.isEmpty()) return false;
     if (m_diskProtected) {
         // (the file is enciphered, so its bytes are not the package's: they are compared with what this program last read or wrote of it, by their digest)
-        if (!QFileInfo::exists(m_path) || m_diskDigest.isEmpty()) return false;
-        return crunch::fileDigest(m_path) != m_diskDigest;
+        if (!QFileInfo::exists(m_path)) return false;
+        // (a digest that is not there does not make the check go away: the file is taken to be changed, and the person is asked)
+        return m_diskDigest.isEmpty() || crunch::fileDigest(m_path) != m_diskDigest;
     }
     const QByteArray mine = m_loaded->book->package().fileBytes();
     QFile f(m_path);

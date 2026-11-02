@@ -56,6 +56,7 @@
 //                                                  matched, how many workbooks matched whole, how each function fared, the commonest mismatches, and the commonest unsupported
 //                                                  functions (tools/crunch_recalc.py does the work)
 
+#include "io/crypto.h"
 #include "sheet/sheetcrypt.h"
 #include "office/officecrypt.h"
 #include "office/package.h"
@@ -754,7 +755,12 @@ int main(int argc, char **argv)
 {
     qputenv("JP_NO_TELEMETRY", "1");
     // (a workbook that is protected with a password is opened with the one in JCRUNCH_PASSWORD; without it, the message says that a password is needed)
-    if (!qEnvironmentVariableIsEmpty("JCRUNCH_PASSWORD")) ::jp::office::sheet::setFallbackPassword(qEnvironmentVariable("JCRUNCH_PASSWORD"));
+    if (!qEnvironmentVariableIsEmpty("JCRUNCH_PASSWORD")) {
+        QString typed = qEnvironmentVariable("JCRUNCH_PASSWORD");
+        ::jp::office::sheet::setFallbackPassword(typed);
+        ::jp::crypto::wipe(typed);              // (this copy goes; the one the opening uses is wiped when the program ends)
+        qunsetenv("JCRUNCH_PASSWORD");          // (and the program's own environment no longer holds it, for what it starts)
+    }
 #ifdef JC_GRID
     // the grid commands draw: they need the program's own window system parts (offscreen unless the person chose another)
     if (argc > 1 && (QByteArray(argv[1]).startsWith("grid-") || QByteArray(argv[1]).startsWith("roundtrip") || QByteArray(argv[1]).startsWith("edit-") || QByteArray(argv[1]).startsWith("model-") || QByteArray(argv[1]).startsWith("print-") || QByteArray(argv[1]).startsWith("charts-") || QByteArray(argv[1]).startsWith("make-check-") || QByteArray(argv[1]).startsWith("check-files-"))) {

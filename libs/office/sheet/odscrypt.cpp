@@ -91,6 +91,10 @@ bool readManifest(const QByteArray &zip, const QVector<jp::ZipEntry> &entries, Q
 QByteArray pbkdf2Sha1(const QByteArray &password, const QByteArray &salt, qint64 rounds, int length, const std::function<bool()> &cancelled)
 {
     QMessageAuthenticationCode mac(QCryptographicHash::Sha1, password);
+    struct ClearKey {
+        QMessageAuthenticationCode &m;
+        ~ClearKey() { m.setKey(QByteArray()); }   // (the code's own copy of the password goes with it)
+    } clearKey{mac};
     QByteArray out;
     for (quint32 block = 1; out.size() < length; ++block) {
         QByteArray index(4, 0);
@@ -158,6 +162,29 @@ CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 ma
     if (!jp::readZipDirectory(zip, &entries)) return CryptResult::Damaged;
     QHash<QString, Protection> protection;
     if (!readManifest(zip, entries, &protection) || protection.isEmpty()) return CryptResult::Damaged;
+    // Every part's sizes and counts are checked, all of them, before any key is made for any: a manifest with one bad part costs no work.
+    auto checkPart = [](const Protection &p, bool *aes, int *keySize) {
+        *aes = p.algorithm.contains(QLatin1String("aes"), Qt::CaseInsensitive);
+        const bool blowfish = p.algorithm.contains(QLatin1String("blowfish"), Qt::CaseInsensitive);
+        if ((!*aes && !blowfish) || (!p.derivation.isEmpty() && p.derivation.compare(QLatin1String("PBKDF2"), Qt::CaseInsensitive) != 0)) return CryptResult::Unsupported;
+        QCryptographicHash::Algorithm checksum;
+        if (!checksumHash(p.checksumType, &checksum) || p.checksum.isEmpty()) return CryptResult::Unsupported;
+        *keySize = p.keySize;
+        if (*keySize <= 0) *keySize = !*aes ? 16 : p.algorithm.contains(QLatin1String("128")) ? 16 : p.algorithm.contains(QLatin1String("192")) ? 24 : 32;
+        const bool keyFits = *aes ? (*keySize == 16 || *keySize == 24 || *keySize == 32) : (*keySize >= 4 && *keySize <= 56);
+        if (!keyFits || p.rounds < 1 || p.rounds > kMaxOdsKeyRounds || p.salt.isEmpty() || p.salt.size() > 1024 || p.iv.size() != (*aes ? 16 : 8) || p.size < 0 || p.size > jp::kMaxZipEntryBytes)
+            return CryptResult::Damaged;
+        return CryptResult::Ok;
+    };
+    qint64 roundsOfAll = 0;
+    for (auto it = protection.constBegin(); it != protection.constEnd(); ++it) {
+        bool aes = false;
+        int keySize = 0;
+        const CryptResult r = checkPart(it.value(), &aes, &keySize);
+        if (r != CryptResult::Ok) return r;
+        roundsOfAll += it.value().rounds;   // (each is within the limit: the sum of some thousands of them cannot overflow)
+        if (roundsOfAll > kMaxOdsKeyRounds * 64) return CryptResult::Damaged;
+    }
     QByteArray pw = password.toUtf8();
     qint64 rounds = 0, total = 0;
     QHash<QByteArray, QByteArray> keys;   // by the salt, the rounds, the size, and the start hash: one stretch for parts that share them
@@ -191,33 +218,28 @@ CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 ma
             if (!verifyOnly) out.add(e.name, QByteArray(), false);
             continue;
         }
-        const bool aes = p.algorithm.contains(QLatin1String("aes"), Qt::CaseInsensitive), blowfish = p.algorithm.contains(QLatin1String("blowfish"), Qt::CaseInsensitive);
-        if ((!aes && !blowfish) || (!p.derivation.isEmpty() && p.derivation.compare(QLatin1String("PBKDF2"), Qt::CaseInsensitive) != 0)) {
-            result = CryptResult::Unsupported;
-            break;
-        }
-        // every size the manifest gives is checked before any work is done for it
-        int keySize = p.keySize;
-        if (keySize <= 0) keySize = !aes ? 16 : p.algorithm.contains(QLatin1String("128")) ? 16 : p.algorithm.contains(QLatin1String("192")) ? 24 : 32;
-        const bool keyFits = aes ? (keySize == 16 || keySize == 24 || keySize == 32) : (keySize >= 4 && keySize <= 56);
-        if (!keyFits || p.rounds < 1 || p.rounds > kMaxOdsKeyRounds || p.salt.isEmpty() || p.salt.size() > 1024 || p.iv.size() != (aes ? 16 : 8) || p.size < 0 || p.size > jp::kMaxZipEntryBytes) {
+        bool aes = false;
+        int keySize = 0;
+        if (checkPart(p, &aes, &keySize) != CryptResult::Ok) {   // (checked above: only a part that was not in the list of the manifest's can reach this)
             result = CryptResult::Damaged;
             break;
         }
         QCryptographicHash::Algorithm checksum;
-        if (!checksumHash(p.checksumType, &checksum) || p.checksum.isEmpty()) {
-            result = CryptResult::Unsupported;
-            break;
-        }
+        checksumHash(p.checksumType, &checksum);
         // (a manifest that names no start key is from the oldest files, which hashed the password with SHA-1, and from some that used SHA-256 and did not say so: both are tried)
         QVector<QCryptographicHash::Algorithm> starts;
         if (p.startKey.isEmpty()) starts = {QCryptographicHash::Sha1, QCryptographicHash::Sha256};
         else starts = {startHash(p.startKey)};
         QByteArray plainBytes;
+        struct Wipe {
+            QByteArray &b;
+            ~Wipe() { crypto::wipe(b); }
+        } wipePlain{plainBytes};   // (what was deciphered is not left behind once the part is done with)
         bool matched = false, broke = false;
         for (const QCryptographicHash::Algorithm start : starts) {
             const QByteArray cacheKey = p.salt + QByteArray::number(p.rounds) + ':' + QByteArray::number(keySize) + ':' + QByteArray::number(int(start));
-            QByteArray key = keys.value(cacheKey);
+            // (the key is held in the cache only, and used from there: no second copy of it is left to be wiped)
+            QByteArray &key = keys[cacheKey];
             if (key.isEmpty()) {
                 // (each part was checked against the limit above, so the sum cannot overflow)
                 rounds += p.rounds;
@@ -234,7 +256,6 @@ CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 ma
                     broke = true;
                     break;
                 }
-                keys.insert(cacheKey, key);
             }
             QByteArray data = QByteArray::fromRawData(zip.constData() + e.dataAt, qsizetype(e.csize));
             if (aes) {

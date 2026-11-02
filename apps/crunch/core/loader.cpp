@@ -257,7 +257,7 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     out->book = book;
     out->protectedFile = book->wasProtected();
     out->defaultPasswordOnly = book->openedWithDefaultPassword();
-    if (out->protectedFile) out->diskDigest = fileDigest(path);
+    out->diskDigest = book->fileDigest();   // (of the bytes the reader read, not of a second read of the file)
     out->notRead = book->skippedFeatures();
     const int shownSheet = firstSheetToShow(book->info());
     if (shownSheet < 0) {

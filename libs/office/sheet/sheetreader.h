@@ -253,6 +253,8 @@ public:
     bool wasProtected() const { return m_protected; }
     // ... and whether that was only the password every program knows (a file protected only against changes by accident, which opens with no question).
     bool openedWithDefaultPassword() const { return m_defaultPassword; }
+    // The SHA-256 of the bytes of a protected file as they were read (empty for any other file).
+    QByteArray fileDigest() const { return m_fileDigest; }
     // Whether the workbook was read from the older binary form, and what such a file holds that is not read (charts, pictures, ...), in words.
     bool isBinary() const { return bool(m_xls); }
     // Whether it was read from a file that has no package of XML parts to put changes in, and so is saved as an .xlsx written from what was read: the older binary form, an
@@ -406,6 +408,7 @@ public:
 private:
     bool openStream(const QByteArray &stream, bool hasMacros, QString *error, const Limits &limits);
     bool openFileWith(const QString &path, QString *error, const Limits &limits);
+    bool openProtectedFile(const QString &path, QString *error, const Limits &limits);
     bool openBinaryWith(const QByteArray &file, QString *error, const Limits &limits);
     bool openProtectedPackage(const QByteArray &info, const QByteArray &package, QString *error, const Limits &limits);
     bool openPackageBytes(const QByteArray &bytes, QString *error, const Limits &limits);
@@ -462,6 +465,7 @@ private:
     PasswordNeed m_passwordNeed = PasswordNeed::None;
     bool m_protected = false;
     bool m_defaultPassword = false;
+    QByteArray m_fileDigest;
     mutable QVector<Table> m_tables;
     mutable bool m_tablesRead = false;
     mutable QStringList m_tableNotes;   // what was left out of the tables when they were read (see readTables)

@@ -20,7 +20,7 @@ JeffCrunch does not write the password anywhere. It keeps it in memory while the
 - **.xls workbooks** protected in any of the three ways of that format: the simple scrambling of the oldest files, the 40-bit kind, and the stronger kind that uses the computer's own key service.
 - **.ods spreadsheets** protected with a password, both the current kind (256 bits) and the older kind that older versions of LibreOffice and OpenOffice wrote.
 
-Older .xls files have limits on the password itself: the simple scrambling of the oldest files uses only the first 15 characters of a password, the 40-bit kind only the first 16, and both can use only letters, digits, and signs of the Western (Latin-1) character set, so a password with other letters (such as Greek or Chinese) can't be typed for them. JeffCrunch does not write .xls files with a password.
+Older .xls files have limits on the password itself. The simple scrambling of the oldest files uses only the first 15 characters of a password and can hold only letters, digits, and signs of the Western (Latin-1) character set: a password with other letters (such as Greek or Chinese) is never taken for the right one there. The 40-bit kind takes any letters, but only the first 16 characters. JeffCrunch does not write .xls files with a password.
 
 Some files are locked with a password that everyone knows, so that they can be opened by anyone but not changed by accident. JeffCrunch opens those without asking.
 

@@ -14,7 +14,6 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFileInfo>
-#include <QRegularExpression>
 #include <QPasswordDigestor>
 #include <QTemporaryDir>
 
@@ -508,27 +507,41 @@ private Q_SLOTS:
 
     // ---- what the review asked for
 
-    // Every size an OpenDocument manifest gives is checked before any work is done for it.
-    void aManifestWithSizesNoCipherHasIsRefusedAtOnce()
+    // Every size an OpenDocument manifest gives, of every part, is checked before any key is made: a bad one in the last part is refused with no work done for the first. The refusal is
+    // the specific one (damaged), and quick.
+    void aManifestWithSizesNoCipherHasIsRefusedBeforeAnyWork()
     {
         OdsMake blowfish;
         blowfish.blowfish = true;
         blowfish.sha256 = false;
-        const QByteArray bf = protectOds(odsBook(), blowfish), aes = protectOds(odsBook(), OdsMake());
-        const QByteArray longSalt = "manifest:salt=\"" + QByteArray(2000, 'A');
+        blowfish.rounds = 1500000;   // (a key for the first part would take a second or more)
+        OdsMake aesMake;
+        aesMake.rounds = 1500000;
+        const QByteArray bf = protectOds(odsBook(), blowfish), aes = protectOds(odsBook(), aesMake);
         struct Change {
             const QByteArray *file;
-            const char *from, *to;
+            QByteArray from, to;
+            const char *name;
         };
-        for (const Change &c : {Change{&bf, "key-size=\"16\"", "key-size=\"2000000000\""}, Change{&bf, "key-size=\"16\"", "key-size=\"3\""}, Change{&bf, "key-size=\"16\"", "key-size=\"57\""},
-                                Change{&aes, "key-size=\"32\" manifest:iteration", "key-size=\"7\" manifest:iteration"}, Change{&aes, "iteration-count=\"1024\"", "iteration-count=\"0\""},
-                                Change{&aes, "iteration-count=\"1024\"", "iteration-count=\"9223372036854775807\""}, Change{&bf, "iteration-count=\"1024\"", "iteration-count=\"9223372036854775807\""},
-                                Change{&aes, "manifest:salt=\"", longSalt.constData()}}) {
+        const QByteArray salt = "manifest:salt=\"";
+        const QVector<Change> changes = {
+            {&bf, "manifest:key-size=\"16\"", "manifest:key-size=\"2000000000\"", "blowfish key of 2 GB"},
+            {&bf, "manifest:key-size=\"16\"", "manifest:key-size=\"3\"", "blowfish key of 3 bytes"},
+            {&bf, "manifest:key-size=\"16\"", "manifest:key-size=\"57\"", "blowfish key of 57 bytes"},
+            {&aes, "manifest:key-size=\"32\" manifest:iteration", "manifest:key-size=\"7\" manifest:iteration", "aes key of 7 bytes"},
+            {&aes, "manifest:iteration-count=\"1500000\"", "manifest:iteration-count=\"0\"", "no rounds"},
+            {&aes, "manifest:iteration-count=\"1500000\"", "manifest:iteration-count=\"9223372036854775807\"", "rounds of LLONG_MAX"},
+            {&bf, "manifest:iteration-count=\"1500000\"", "manifest:iteration-count=\"-4\"", "negative rounds"},
+            {&aes, salt, salt + QByteArray(2000, 'A'), "a salt of 1500 bytes"},
+        };
+        for (const Change &c : changes) {
+            // (the change is made in the manifest's last part only: the parts before it are well formed, and would each take a key)
             QMap<QString, QByteArray> parts;
             QVERIFY(jp::readZip(*c.file, parts));
             QByteArray manifest = parts.value(QStringLiteral("META-INF/manifest.xml"));
-            QVERIFY2(manifest.contains(c.from), c.from);
-            manifest.replace(c.from, c.to);
+            const qsizetype at = manifest.lastIndexOf(c.from);
+            QVERIFY2(at > 0 && manifest.indexOf(c.from) < at, c.name);
+            manifest.replace(at, c.from.size(), c.to);
             jp::ZipWriter z;
             z.add(QStringLiteral("mimetype"), parts.value(QStringLiteral("mimetype")), false);
             for (auto it = parts.constBegin(); it != parts.constEnd(); ++it)
@@ -536,9 +549,103 @@ private Q_SLOTS:
             QElapsedTimer t;
             t.start();
             QByteArray out;
-            QVERIFY2(oc::sheet::decryptOds(z.finish(), QStringLiteral("test"), 1 << 30, false, &out) != oc::CryptResult::Ok, c.from);
-            QVERIFY2(t.elapsed() < 2000, c.to);
+            QCOMPARE(oc::sheet::decryptOds(z.finish(), QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::Damaged);
+            QVERIFY2(t.elapsed() < 300, c.name);
         }
+    }
+
+    // Two parts, the first with a fair number of rounds and the second with the largest number there is.
+    void aSecondPartWithAnEnormousNumberOfRoundsIsRefusedAtOnce()
+    {
+        OdsMake make;
+        make.rounds = 1024;
+        const QByteArray file = protectOds(odsBook(), make);
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(file, parts));
+        QByteArray manifest = parts.value(QStringLiteral("META-INF/manifest.xml"));
+        const QByteArray from = "manifest:iteration-count=\"1024\"";
+        const qsizetype first = manifest.indexOf(from), second = manifest.indexOf(from, first + 1);
+        QVERIFY(first > 0 && second > first);
+        manifest.replace(second, from.size(), "manifest:iteration-count=\"9223372036854775807\"");
+        jp::ZipWriter z;
+        z.add(QStringLiteral("mimetype"), parts.value(QStringLiteral("mimetype")), false);
+        for (auto it = parts.constBegin(); it != parts.constEnd(); ++it)
+            if (it.key() != QLatin1String("mimetype")) z.add(it.key(), it.key() == QLatin1String("META-INF/manifest.xml") ? manifest : it.value(), false);
+        QByteArray out;
+        QCOMPARE(oc::sheet::decryptOds(z.finish(), QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::Damaged);
+    }
+
+    // The digest that tells a protected file from one another program changed is of the bytes the reader read; a file that is not protected has none.
+    void aProtectedFilesDigestIsOfTheBytesRead()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        oc::EncryptOptions options;
+        options.spinCount = 20;
+        struct Case {
+            const char *name;
+            QByteArray bytes;
+            QString password;
+        };
+        const QVector<Case> cases = {{"a.xlsx", oc::encryptPackage(xlsxBook(), QStringLiteral("pw"), options), QStringLiteral("pw")},
+                                     {"b.xls", compound(protectBiff(biffBook().stream(), Biff::Rc4, QStringLiteral("pw"))), QStringLiteral("pw")},
+                                     {"c.ods", protectOds(odsBook(), OdsMake()), QStringLiteral("test")},
+                                     {"d.xlsx", xlsxBook(), QString()}};
+        for (const Case &c : cases) {
+            QFile f(dir.filePath(QString::fromLatin1(c.name)));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(c.bytes);
+            f.close();
+            Limits limits;
+            limits.password = c.password;
+            Workbook wb;
+            QString why;
+            QVERIFY2(wb.openFile(f.fileName(), &why, limits), c.name);
+            if (c.password.isEmpty()) QVERIFY2(wb.fileDigest().isEmpty(), c.name);
+            else QCOMPARE(wb.fileDigest(), QCryptographicHash::hash(c.bytes, QCryptographicHash::Sha256));
+        }
+    }
+
+    void twoByteStringsAreComparedWholeAndByLength()
+    {
+        QVERIFY(crypto::equal(QByteArray("abcdef"), QByteArray("abcdef")));
+        QVERIFY(crypto::equal(QByteArray(), QByteArray()));
+        QVERIFY(!crypto::equal(QByteArray("abcdef"), QByteArray("abcdeg")));
+        QVERIFY(!crypto::equal(QByteArray("abcdef"), QByteArray("Abcdef")));
+        QVERIFY(!crypto::equal(QByteArray("abcdef"), QByteArray("abcde")));   // (a prefix is not the same)
+        QVERIFY(!crypto::equal(QByteArray("abcde"), QByteArray("abcdef")));
+        QVERIFY(!crypto::equal(QByteArray(), QByteArray("a")));
+        QVERIFY(!crypto::equal(QByteArray(1, '\0'), QByteArray()));
+    }
+
+    // The obfuscation of the oldest files can only hold a password of the Western (Latin-1) letters: another password is said not to be the one, not turned into question marks.
+    void aPasswordOfOtherLettersDoesNotMatchTheOldObfuscation()
+    {
+        const QByteArray stream = protectBiff(biffBook().stream(), Biff::Xor, QStringLiteral("abc"));
+        for (const QString &typed : {QStringLiteral("\u0430\u0431\u0432"), QStringLiteral("abc\u0430"), QStringLiteral("\u4e2d")}) {
+            Limits limits;
+            limits.password = typed;
+            Workbook wb;
+            QString why;
+            QVERIFY(!wb.openBinary(compound(stream), &why, limits));
+            QCOMPARE(wb.passwordNeed(), PasswordNeed::Wrong);
+        }
+        // (even a password that would turn into the same question marks is not the one)
+        const QByteArray marks = protectBiff(biffBook().stream(), Biff::Xor, QStringLiteral("???"));
+        Limits cyrillic;
+        cyrillic.password = QStringLiteral("\u0430\u0431\u0432");
+        Workbook marked;
+        QString text;
+        QVERIFY(!marked.openBinary(compound(marks), &text, cyrillic));
+        QCOMPARE(marked.passwordNeed(), PasswordNeed::Wrong);
+        // (a password that has letters of the 40-bit form's own kind: any letters, as two bytes each)
+        const QString greek = QStringLiteral("\u03b1\u03b2\u03b3");
+        const QByteArray rc4 = protectBiff(biffBook().stream(), Biff::Rc4, greek);
+        Limits limits;
+        limits.password = greek;
+        Workbook wb;
+        QString why;
+        QVERIFY2(wb.openBinary(compound(rc4), &why, limits), qPrintable(why));
     }
 
     // A stop is seen while an OpenDocument key is made, as it is for a package's.
@@ -633,7 +740,9 @@ private Q_SLOTS:
         QTest::addColumn<QString>("password");
         QTest::addColumn<QString>("cell");
         QTest::addColumn<QString>("expected");
-        const QString poi = QStringLiteral("/media/user/volume2/jo-corpora/poi/test-data/spreadsheet/"), lo = QStringLiteral("/media/user/volume2/jo-corpora/libreoffice/sc/qa/unit/data/ods/");
+        // (the collections of other programs' files are where JO_CORPORA says; without it, the rows skip)
+        const QString root = qEnvironmentVariable("JO_CORPORA");
+        const QString poi = root + QStringLiteral("/poi/test-data/spreadsheet/"), lo = root + QStringLiteral("/libreoffice/sc/qa/unit/data/ods/");
         QTest::newRow("xls, 40-bit RC4") << poi + QStringLiteral("password.xls") << QStringLiteral("password") << QStringLiteral("D5") << QStringLiteral("s:A ZIP bomb is a variant");
         QTest::newRow("xls, obfuscation (XOR)") << poi + QStringLiteral("xor-encryption-abc.xls") << QStringLiteral("abc") << QStringLiteral("A2") << QStringLiteral("n:2");
         QTest::newRow("xls, type 4") << poi + QStringLiteral("35897-type4.xls") << QStringLiteral("freedom") << QStringLiteral("A1") << QStringLiteral("s:hello there!");
@@ -649,7 +758,7 @@ private Q_SLOTS:
         QFETCH(QString, password);
         QFETCH(QString, cell);
         QFETCH(QString, expected);
-        if (!QFileInfo::exists(path)) QSKIP("the collection is not on this machine");
+        if (qEnvironmentVariableIsEmpty("JO_CORPORA") || !QFileInfo::exists(path)) QSKIP("set JO_CORPORA to the folder of the collections of other programs' files");
         Workbook wb;
         Limits limits;
         limits.password = password;
@@ -670,16 +779,16 @@ private Q_SLOTS:
                  qPrintable(show(s, wb.sharedStrings(), cell)));
     }
 
-    // Files the original program wrote with passwords (made by this program first), when they were brought back to this machine.
+    // Files the original program wrote with passwords (made by this program first), when JO_ENC_SAMPLES names the folder they were brought back to.
     void filesTheOriginalProgramWroteOpen()
     {
-        const QString dir = QStringLiteral("/home/user/jo-scratch/encvm-run/back");
-        QFile readme(QStringLiteral("/home/user/jo-scratch/encvm/README.txt"));
-        if (!QDir(dir).exists() || !readme.open(QIODevice::ReadOnly)) QSKIP("the files are not on this machine");
-        QMap<QString, QString> passwords;
-        static const QRegularExpression line(QStringLiteral("^(\\S+\\.xlsx)\\s{2,}(.+?)\\s{2,}"));
-        for (const QString &l : QString::fromUtf8(readme.readAll()).split(QLatin1Char('\n')))
-            if (const auto m = line.match(l); m.hasMatch()) passwords.insert(m.captured(1), m.captured(2));
+        const QString dir = qEnvironmentVariable("JO_ENC_SAMPLES");
+        if (dir.isEmpty() || !QDir(dir).exists()) QSKIP("set JO_ENC_SAMPLES to the folder of the files the original program re-saved");
+        // (the passwords the files were made with)
+        const QMap<QString, QString> passwords = {{QStringLiteral("agile256-sha512.xlsx"), QStringLiteral("Sesame-42")},
+                                                  {QStringLiteral("agile256-sha512-unicode.xlsx"), QStringLiteral("p\u00e4ssw\u00f6rd \u00f1 1")},
+                                                  {QStringLiteral("agile128-sha1.xlsx"), QStringLiteral("abc123")},
+                                                  {QStringLiteral("agile256-sha256.xlsx"), QStringLiteral("Quiet River")}};
         const QStringList files = QDir(dir).entryList({QStringLiteral("*.xlsx")}, QDir::Files);
         if (files.isEmpty()) QSKIP("no files were brought back");
         int opened = 0;

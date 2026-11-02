@@ -20,6 +20,7 @@
 #include "sheet/pagesetup.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QFileInfo>
 #include <QSet>
@@ -2145,6 +2146,7 @@ bool Workbook::openBinary(const QByteArray &file, QString *error, const Limits &
     mine.passwordNeed = &need;
     mine.usedDefaultPassword = &usedDefault;
     const bool ok = openBinaryWith(file, error, mine);
+    if (ok && m_protected) m_fileDigest = QCryptographicHash::hash(file, QCryptographicHash::Sha256);
     m_limits.password.clear();
     m_limits.passwordNeed = nullptr;
     m_limits.usedDefaultPassword = nullptr;
@@ -2217,6 +2219,16 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
     return ok;
 }
 
+// A file that is protected with a password, whole: its bytes are read once, and the digest that tells later whether another program changed the file is of those same bytes.
+bool Workbook::openProtectedFile(const QString &path, QString *error, const Limits &limits)
+{
+    QByteArray bytes;
+    if (!readWholeFile(path, &bytes, error, limits.fileBytes)) return false;
+    const bool ok = openBinaryWith(bytes, error, limits);
+    if (ok && m_protected) m_fileDigest = QCryptographicHash::hash(bytes, QCryptographicHash::Sha256);
+    return ok;
+}
+
 bool Workbook::openFileWith(const QString &path, QString *error, const Limits &limits)
 {
     QFile file(path);
@@ -2239,8 +2251,7 @@ bool Workbook::openFileWith(const QString &path, QString *error, const Limits &l
         if (stream.isEmpty()) stream = jp::cfb::readStream(path, QStringLiteral("Book"), &whyBook);
         if (stream.isEmpty() && why.startsWith(QLatin1String("no stream")) && whyBook.startsWith(QLatin1String("no stream"))) {
             // (a package protected with a password: the stream that says how, and the one that holds the package)
-            const QByteArray info = jp::cfb::readStream(path, QStringLiteral("EncryptionInfo"));
-            if (!info.isEmpty()) return openProtectedPackage(info, jp::cfb::readStream(path, QStringLiteral("EncryptedPackage")), error, limits);
+            if (!jp::cfb::readStream(path, QStringLiteral("EncryptionInfo")).isEmpty()) return openProtectedFile(path, error, limits);
         }
         if (stream.isEmpty()) {
             if (error) {
@@ -2255,6 +2266,7 @@ bool Workbook::openFileWith(const QString &path, QString *error, const Limits &l
             }
             return false;
         }
+        if (biffEncrypted(stream)) return openProtectedFile(path, error, limits);
         const bool macros = holdsMacroProject([&](const QString &stream) { return !jp::cfb::readStream(path, stream).isEmpty(); });
         return openStream(stream, macros, error, limits);
     }
@@ -2284,7 +2296,11 @@ bool Workbook::openFileWith(const QString &path, QString *error, const Limits &l
     }
     QByteArray bytes;
     if (!readWholeFile(path, &bytes, error, limits.fileBytes)) return false;
-    if (zip && looksLikeOpenDocumentZip(bytes)) return openOpenDocument(bytes, false, error, limits);
+    if (zip && looksLikeOpenDocumentZip(bytes)) {
+        const bool ok = openOpenDocument(bytes, false, error, limits);
+        if (ok && m_protected) m_fileDigest = QCryptographicHash::hash(bytes, QCryptographicHash::Sha256);   // (of the very bytes that were read)
+        return ok;
+    }
     return openPackageBytes(bytes, error, limits);
 }
 

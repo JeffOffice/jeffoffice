@@ -20,7 +20,7 @@ JeffCrunch schreibt das Kennwort nirgendwohin. Es hält es im Arbeitsspeicher, s
 - **.xls-Arbeitsmappen**, die auf eine der drei Arten dieses Formats geschützt sind: die einfache Verschleierung der ältesten Dateien, die 40-Bit-Art und die stärkere Art, die den Schlüsseldienst des Computers verwendet.
 - **.ods-Tabellen** mit Kennwortschutz, sowohl die aktuelle Art (256 Bit) als auch die ältere Art, die frühere Versionen von LibreOffice und OpenOffice geschrieben haben.
 
-Für ältere .xls-Dateien gelten Grenzen für das Kennwort selbst: Die einfache Verschleierung der ältesten Dateien verwendet nur die ersten 15 Zeichen eines Kennworts, die 40-Bit-Art nur die ersten 16, und beide können nur Zeichen des westlichen Zeichensatzes (Latin-1) verwenden. Ein Kennwort mit anderen Buchstaben (etwa griechischen oder chinesischen) lässt sich dafür nicht eingeben. JeffCrunch schreibt keine .xls-Dateien mit Kennwort.
+Für ältere .xls-Dateien gelten Grenzen für das Kennwort selbst. Die einfache Verschleierung der ältesten Dateien verwendet nur die ersten 15 Zeichen eines Kennworts und kann nur Buchstaben, Ziffern und Zeichen des westlichen Zeichensatzes (Latin-1) enthalten: Ein Kennwort mit anderen Buchstaben (etwa griechischen oder chinesischen) wird dort nie als das richtige erkannt. Die 40-Bit-Art akzeptiert beliebige Buchstaben, aber nur die ersten 16 Zeichen. JeffCrunch schreibt keine .xls-Dateien mit Kennwort.
 
 Manche Dateien sind mit einem Kennwort gesperrt, das jeder kennt, damit sie jeder öffnen, aber niemand versehentlich ändern kann. JeffCrunch öffnet diese, ohne zu fragen.
 

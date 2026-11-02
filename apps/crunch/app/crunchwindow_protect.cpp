@@ -159,13 +159,22 @@ void CrunchWindow::askPassword(const QString &what, const PasswordHash &hash, co
     if (m_anchorHooks.passwordAsker) {
         if (!m_anchorHooks.passwordAsker(&req)) return;
     } else {
-        bool ok = false;
-        req.password = QInputDialog::getText(this, tr("Password"), tr("Type the password for %1:").arg(what), QLineEdit::Password, QString(), &ok);
-        if (!ok) return;
+        QInputDialog dialog(this);
+        dialog.setWindowTitle(tr("Password"));
+        dialog.setLabelText(tr("Type the password for %1:").arg(what));
+        dialog.setTextEchoMode(QLineEdit::Password);
+        if (dialog.exec() != QDialog::Accepted) return;
+        req.password = dialog.textValue();
+        dialog.setTextValue(QString());   // (the box does not keep what was typed)
     }
-    const QString typed = req.password;
-    req.password.clear();
-    runPasswordJob(tr("Checking the password…"), [hash, typed](const std::atomic<bool> *stop) { return int(jp::office::sheet::checkPassword(hash, typed, stop)); },
+    // (the check is made off the window's thread, with its own copy of the password, which it wipes when it is done; the request's copy is wiped here)
+    QString typed = req.password;
+    jp::crypto::wipe(req.password);
+    runPasswordJob(tr("Checking the password…"), [hash, typed](const std::atomic<bool> *stop) mutable {
+                       const int result = int(jp::office::sheet::checkPassword(hash, typed, stop));
+                       jp::crypto::wipe(typed);
+                       return result;
+                   },
                    [this, onRight](int result) {
                        switch (PasswordResult(result)) {
                        case PasswordResult::Match: onRight(); return;
