@@ -10365,7 +10365,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+5"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+2"/>
         <source>Clipboard</source>
         <translation type="unfinished">Klembord</translation>
@@ -10572,6 +10572,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+2"/>
         <source>Links</source>
         <translation type="unfinished">Koppelingen</translation>
@@ -10588,7 +10589,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+2"/>
         <source>Margins</source>
         <translation type="unfinished">Marges</translation>
@@ -10870,7 +10871,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+3"/>
         <source>Tables</source>
         <translation type="unfinished">Tabellen</translation>
@@ -11097,7 +11098,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-55"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-57"/>
         <source>Cell Size</source>
         <translation type="unfinished">Celgrootte</translation>
     </message>
@@ -11311,7 +11312,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+33"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+34"/>
         <source>Table Style Options</source>
         <translation type="unfinished">Opties voor tabelstijlen</translation>
     </message>
@@ -11378,12 +11379,12 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
         <source>Width:</source>
         <translation type="unfinished">Breedte:</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-60"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-63"/>
         <source>Accept</source>
         <translation type="unfinished">Accepteren</translation>
     </message>
@@ -11402,6 +11403,11 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-11"/>
         <source>Breaks</source>
         <translation type="unfinished">Eindemarkeringen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Captions and References</source>
+        <translation type="unfinished">Bijschriften en verwijzingen</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -11434,7 +11440,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Regel- en alinea-afstand</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Options</source>
         <translation type="unfinished">Opties</translation>
     </message>
@@ -11464,7 +11470,12 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Afstand voor:</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+8"/>
+        <source>Table of Contents</source>
+        <translation type="unfinished">Inhoudsopgave</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Text Highlight Color</source>
         <translation type="unfinished">Markeringskleur voor tekst</translation>
     </message>
@@ -14767,7 +14778,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Vervolg van pagina %1)</translation>
     </message>
     <message>
-        <location line="+6091"/>
+        <location line="+6093"/>
         <source>Notes</source>
         <translation type="unfinished">Notities</translation>
     </message>
@@ -35333,7 +35344,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="+66"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+68"/>
         <source>Document%1</source>
         <translation type="unfinished">Document%1</translation>
     </message>
@@ -35353,7 +35364,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+103"/>
+        <location line="+104"/>
         <source>Undo</source>
         <translation type="unfinished">Ongedaan maken</translation>
     </message>
@@ -35909,12 +35920,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Celuitlijning</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="+136"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+137"/>
         <source>This document has the most notes JeffWrite can hold (%1), so no more can be added.</source>
         <translation type="unfinished">Dit document bevat het maximale aantal notities dat JeffWrite aankan (%1), dus er kunnen geen notities meer worden toegevoegd.</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+46"/>
         <source>Page %1 of %2</source>
         <translation type="unfinished">Pagina %1 van %2</translation>
     </message>
@@ -36698,6 +36709,122 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+51"/>
         <source>Copy Formatting: select the text to paint. Press Esc to stop.</source>
         <translation type="unfinished">Opmaak kopiëren: selecteer de tekst waarop u de opmaak wilt toepassen. Druk op Esc om te stoppen.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_fields.cpp" line="+40"/>
+        <source>The table of contents is updated.</source>
+        <translation type="unfinished">De inhoudsopgave is bijgewerkt.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The table of contents has more than %1 lines, so it stops there.</source>
+        <translation type="unfinished">De inhoudsopgave heeft meer dan %1 regels en stopt daarom daar.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>There is no field here to update. Select text, or press Ctrl+A first, to update every field in it.</source>
+        <translation type="unfinished">Er is hier geen veld om bij te werken. Selecteer tekst of druk eerst op Ctrl+A om alle velden daarin bij te werken.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Fields updated: %1.</source>
+        <translation type="unfinished">Bijgewerkte velden: %1.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Update Field</source>
+        <translation type="unfinished">Veld bijwerken</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Unlink Field</source>
+        <translation type="unfinished">Veldkoppeling verbreken</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Lock Field</source>
+        <translation type="unfinished">Veld vergrendelen</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Unlock Field</source>
+        <translation type="unfinished">Veld ontgrendelen</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Toggle Field Code</source>
+        <translation type="unfinished">Veldcode in-/uitschakelen</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Toggle All Field Codes</source>
+        <translation type="unfinished">Alle veldcodes in-/uitschakelen</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Field…</source>
+        <translation type="unfinished">Veld…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Bookmark…</source>
+        <translation type="unfinished">Bladwijzer…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Cross-reference…</source>
+        <translation type="unfinished">Kruisverwijzing…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Table of Contents…</source>
+        <translation type="unfinished">Inhoudsopgave…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Update Table</source>
+        <translation type="unfinished">Inhoudsopgave bijwerken</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+5"/>
+        <source>Put the caret in a table of contents first.</source>
+        <translation type="unfinished">Plaats de cursor eerst in een inhoudsopgave.</translation>
+    </message>
+    <message>
+        <location line="-1"/>
+        <source>Remove Table of Contents</source>
+        <translation type="unfinished">Inhoudsopgave verwijderen</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>There is no other endnote in that direction.</source>
+        <translation type="unfinished">Er is geen andere eindnoot in die richting.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>There is no other footnote in that direction.</source>
+        <translation type="unfinished">Er is geen andere voetnoot in die richting.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Next Footnote</source>
+        <translation type="unfinished">Volgende voetnoot</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Previous Footnote</source>
+        <translation type="unfinished">Vorige voetnoot</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Next Endnote</source>
+        <translation type="unfinished">Volgende eindnoot</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Previous Endnote</source>
+        <translation type="unfinished">Vorige eindnoot</translation>
     </message>
 </context>
 <context>
@@ -39908,6 +40035,54 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
 </context>
 <context>
+    <name>jp::write::Bookmarks</name>
+    <message>
+        <location filename="../apps/write/core/refops.cpp" line="+111"/>
+        <source>Type a name for the bookmark.</source>
+        <translation type="unfinished">Typ een naam voor de bladwijzer.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A bookmark name has 40 characters at most.</source>
+        <translation type="unfinished">Een bladwijzernaam heeft maximaal 40 tekens.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A bookmark name must begin with a letter.</source>
+        <translation type="unfinished">Een bladwijzernaam moet met een letter beginnen.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>A bookmark name has letters, numbers, and underscores only (no spaces).</source>
+        <translation type="unfinished">Een bladwijzernaam bevat alleen letters, cijfers en onderstrepingstekens (geen spaties).</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>A bookmark goes in the text, not in a header, a footer, or a note.</source>
+        <translation type="unfinished">Een bladwijzer hoort in de tekst, niet in een koptekst, voettekst of noot.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This document has the most bookmarks JeffWrite holds.</source>
+        <translation type="unfinished">Dit document heeft het maximale aantal bladwijzers dat JeffWrite kan bevatten.</translation>
+    </message>
+    <message>
+        <location line="+219"/>
+        <source>A cross-reference goes in the text, not in a header, a footer, or a note.</source>
+        <translation type="unfinished">Een kruisverwijzing hoort in de tekst, niet in een koptekst, voettekst of noot.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>That cannot be referred to that way.</source>
+        <translation type="unfinished">Daar kan niet op die manier naar worden verwezen.</translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>The reference could not be put there.</source>
+        <translation type="unfinished">De verwijzing kan daar niet worden geplaatst.</translation>
+    </message>
+</context>
+<context>
     <name>jp::write::Dialogs</name>
     <message>
         <location filename="../apps/write/app/writedialogs.cpp" line="+427"/>
@@ -40395,6 +40570,336 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
 </context>
 <context>
+    <name>jp::write::FieldDialogs</name>
+    <message>
+        <location filename="../apps/write/app/fielddialogs.cpp" line="+39"/>
+        <location line="+102"/>
+        <source>Bookmark</source>
+        <translation type="unfinished">Bladwijzer</translation>
+    </message>
+    <message>
+        <location line="-100"/>
+        <source>Bookmark name:</source>
+        <translation type="unfinished">Naam van bladwijzer:</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Bookmarks</source>
+        <translation type="unfinished">Bladwijzers</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Sort by:</source>
+        <translation type="unfinished">Sorteren op:</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Name</source>
+        <translation type="unfinished">Naam</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Location</source>
+        <translation type="unfinished">Locatie</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Hidden bookmarks</source>
+        <translation type="unfinished">Verborgen bladwijzers</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Add</source>
+        <translation type="unfinished">Toevoegen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Delete</source>
+        <translation type="unfinished">Verwijderen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Go To</source>
+        <translation type="unfinished">Ga naar</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <location line="+6"/>
+        <source>There is no such bookmark.</source>
+        <translation type="unfinished">Deze bladwijzer bestaat niet.</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Cross-reference</source>
+        <translation type="unfinished">Kruisverwijzing</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Heading</source>
+        <translation type="unfinished">Kop</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Footnote</source>
+        <translation type="unfinished">Voetnoot</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Endnote</source>
+        <translation type="unfinished">Eindnoot</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Numbered item</source>
+        <translation type="unfinished">Genummerd item</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Reference type:</source>
+        <translation type="unfinished">Type verwijzing:</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Insert reference to:</source>
+        <translation type="unfinished">Verwijzing invoegen naar:</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Insert as hyperlink</source>
+        <translation type="unfinished">Als hyperlink invoegen</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>For which item:</source>
+        <translation type="unfinished">Voor welk item:</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Items</source>
+        <translation type="unfinished">Items</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Insert</source>
+        <translation type="unfinished">Invoegen</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Heading text</source>
+        <translation type="unfinished">Tekst van kop</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+2"/>
+        <location line="+3"/>
+        <location line="+2"/>
+        <location line="+1"/>
+        <source>Page number</source>
+        <translation type="unfinished">Paginanummer</translation>
+    </message>
+    <message>
+        <location line="-8"/>
+        <source>Heading number</source>
+        <translation type="unfinished">Kopnummer</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Heading number (no context)</source>
+        <translation type="unfinished">Kopnummer (geen context)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Heading number (full context)</source>
+        <translation type="unfinished">Kopnummer (volledige context)</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+2"/>
+        <location line="+2"/>
+        <location line="+2"/>
+        <location line="+2"/>
+        <source>Above/below</source>
+        <translation type="unfinished">Boven/onder</translation>
+    </message>
+    <message>
+        <location line="-7"/>
+        <source>Bookmark text</source>
+        <translation type="unfinished">Bladwijzertekst</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+4"/>
+        <source>Paragraph number</source>
+        <translation type="unfinished">Alineanummer</translation>
+    </message>
+    <message>
+        <location line="-4"/>
+        <location line="+4"/>
+        <source>Paragraph number (no context)</source>
+        <translation type="unfinished">Alineanummer (geen context)</translation>
+    </message>
+    <message>
+        <location line="-3"/>
+        <location line="+3"/>
+        <source>Paragraph number (full context)</source>
+        <translation type="unfinished">Alineanummer (volledige context)</translation>
+    </message>
+    <message>
+        <location line="-1"/>
+        <source>Note number</source>
+        <translation type="unfinished">Notenummer</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Note number (formatted)</source>
+        <translation type="unfinished">Notenummer (opgemaakt)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Paragraph text</source>
+        <translation type="unfinished">Alineatekst</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Entire caption</source>
+        <translation type="unfinished">Volledig bijschrift</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Only label and number</source>
+        <translation type="unfinished">Alleen label en nummer</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Only caption text</source>
+        <translation type="unfinished">Alleen bijschrifttekst</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Choose an item to refer to.</source>
+        <translation type="unfinished">Kies een item om naar te verwijzen.</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>Field</source>
+        <translation type="unfinished">Veld</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Field names:</source>
+        <translation type="unfinished">Veldnamen:</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Field names</source>
+        <translation type="unfinished">Veldnamen</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>Field codes:</source>
+        <translation type="unfinished">Veldcodes:</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>This field is kept as it is and not worked out.</source>
+        <translation type="unfinished">Dit veld blijft ongewijzigd en wordt niet uitgewerkt.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <location line="+49"/>
+        <source>Table of Contents</source>
+        <translation type="unfinished">Inhoudsopgave</translation>
+    </message>
+    <message>
+        <location line="-47"/>
+        <source>Show page numbers</source>
+        <translation type="unfinished">Paginanummers weergeven</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Right align page numbers</source>
+        <translation type="unfinished">Paginanummers rechts uitlijnen</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Use hyperlinks</source>
+        <translation type="unfinished">Hyperlinks gebruiken</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>(none)</source>
+        <translation type="unfinished">(geen)</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Tab leader:</source>
+        <translation type="unfinished">Opvulteken:</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Show levels:</source>
+        <translation type="unfinished">Niveaus weergeven:</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>The document has more headings than a table of contents holds, so the table stops at the first 20,000.</source>
+        <translation type="unfinished">Het document bevat meer koppen dan een inhoudsopgave kan bevatten. De inhoudsopgave stopt daarom bij de eerste 20.000.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Update Table of Contents</source>
+        <translation type="unfinished">Inhoudsopgave bijwerken</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>What do you want to update?</source>
+        <translation type="unfinished">Wat wilt u bijwerken?</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Update page numbers only</source>
+        <translation type="unfinished">Alleen paginanummers bijwerken</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Update entire table</source>
+        <translation type="unfinished">Hele inhoudsopgave bijwerken</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::Fields</name>
+    <message>
+        <location filename="../apps/write/core/fieldcode.cpp" line="+952"/>
+        <location line="+10"/>
+        <location filename="../apps/write/core/fieldops.cpp" line="+469"/>
+        <source>above</source>
+        <translation type="unfinished">boven</translation>
+    </message>
+    <message>
+        <location line="-10"/>
+        <location line="+10"/>
+        <location filename="../apps/write/core/fieldops.cpp" line="+0"/>
+        <source>below</source>
+        <translation type="unfinished">onder</translation>
+    </message>
+    <message>
+        <location line="+48"/>
+        <source>Error: the bookmark this refers to is missing.</source>
+        <translation type="unfinished">Fout: de bladwijzer waarnaar wordt verwezen, ontbreekt.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Error: no bookmark by this name.</source>
+        <translation type="unfinished">Fout: er is geen bladwijzer met deze naam.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/core/tocops.cpp" line="+282"/>
+        <location line="+52"/>
+        <source>No headings were found for this table of contents.</source>
+        <translation type="unfinished">Er zijn geen koppen gevonden voor deze inhoudsopgave.</translation>
+    </message>
+</context>
+<context>
     <name>jp::write::GoTo</name>
     <message>
         <location filename="../apps/write/core/gotoops.cpp" line="+29"/>
@@ -40583,7 +41088,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 kan niet als afbeelding worden geopend.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+2002"/>
+        <location filename="../apps/write/core/editops.cpp" line="+2017"/>
         <location filename="../apps/write/core/pictureops.cpp" line="+487"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">De afbeeldingen in dit document hebben samen de maximale grootte die JeffWrite in één document toestaat. Deze afbeelding wordt daarom niet toegevoegd.</translation>

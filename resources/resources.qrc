@@ -1666,7 +1666,10 @@
     <file alias="de/text-boxes.md">help/de/text-boxes.md</file>
     <file alias="de/window.md">help/de/window.md</file>
     <file alias="de/wrap.md">help/de/wrap.md</file>
+    <file alias="de/write/bookmarks.md">help/de/write/bookmarks.md</file>
     <file alias="de/write/comments.md">help/de/write/comments.md</file>
+    <file alias="de/write/cross-references.md">help/de/write/cross-references.md</file>
+    <file alias="de/write/fields.md">help/de/write/fields.md</file>
     <file alias="de/write/find-replace.md">help/de/write/find-replace.md</file>
     <file alias="de/write/font.md">help/de/write/font.md</file>
     <file alias="de/write/footnotes-endnotes.md">help/de/write/footnotes-endnotes.md</file>
@@ -1683,6 +1686,7 @@
     <file alias="de/write/spelling.md">help/de/write/spelling.md</file>
     <file alias="de/write/start.md">help/de/write/start.md</file>
     <file alias="de/write/styles.md">help/de/write/styles.md</file>
+    <file alias="de/write/table-of-contents.md">help/de/write/table-of-contents.md</file>
     <file alias="de/write/tables.md">help/de/write/tables.md</file>
     <file alias="de/write/track-changes.md">help/de/write/track-changes.md</file>
     <file alias="en/accessibility.md">help/en/accessibility.md</file>
@@ -1933,7 +1937,10 @@
     <file alias="es/text-boxes.md">help/es/text-boxes.md</file>
     <file alias="es/window.md">help/es/window.md</file>
     <file alias="es/wrap.md">help/es/wrap.md</file>
+    <file alias="es/write/bookmarks.md">help/es/write/bookmarks.md</file>
     <file alias="es/write/comments.md">help/es/write/comments.md</file>
+    <file alias="es/write/cross-references.md">help/es/write/cross-references.md</file>
+    <file alias="es/write/fields.md">help/es/write/fields.md</file>
     <file alias="es/write/find-replace.md">help/es/write/find-replace.md</file>
     <file alias="es/write/font.md">help/es/write/font.md</file>
     <file alias="es/write/footnotes-endnotes.md">help/es/write/footnotes-endnotes.md</file>
@@ -1950,6 +1957,7 @@
     <file alias="es/write/spelling.md">help/es/write/spelling.md</file>
     <file alias="es/write/start.md">help/es/write/start.md</file>
     <file alias="es/write/styles.md">help/es/write/styles.md</file>
+    <file alias="es/write/table-of-contents.md">help/es/write/table-of-contents.md</file>
     <file alias="es/write/tables.md">help/es/write/tables.md</file>
     <file alias="es/write/track-changes.md">help/es/write/track-changes.md</file>
     <file alias="fr/accessibility.md">help/fr/accessibility.md</file>
@@ -2063,7 +2071,10 @@
     <file alias="fr/text-boxes.md">help/fr/text-boxes.md</file>
     <file alias="fr/window.md">help/fr/window.md</file>
     <file alias="fr/wrap.md">help/fr/wrap.md</file>
+    <file alias="fr/write/bookmarks.md">help/fr/write/bookmarks.md</file>
     <file alias="fr/write/comments.md">help/fr/write/comments.md</file>
+    <file alias="fr/write/cross-references.md">help/fr/write/cross-references.md</file>
+    <file alias="fr/write/fields.md">help/fr/write/fields.md</file>
     <file alias="fr/write/find-replace.md">help/fr/write/find-replace.md</file>
     <file alias="fr/write/font.md">help/fr/write/font.md</file>
     <file alias="fr/write/footnotes-endnotes.md">help/fr/write/footnotes-endnotes.md</file>
@@ -2080,6 +2091,7 @@
     <file alias="fr/write/spelling.md">help/fr/write/spelling.md</file>
     <file alias="fr/write/start.md">help/fr/write/start.md</file>
     <file alias="fr/write/styles.md">help/fr/write/styles.md</file>
+    <file alias="fr/write/table-of-contents.md">help/fr/write/table-of-contents.md</file>
     <file alias="fr/write/tables.md">help/fr/write/tables.md</file>
     <file alias="fr/write/track-changes.md">help/fr/write/track-changes.md</file>
     <file alias="it/accessibility.md">help/it/accessibility.md</file>
@@ -2193,7 +2205,10 @@
     <file alias="it/text-boxes.md">help/it/text-boxes.md</file>
     <file alias="it/window.md">help/it/window.md</file>
     <file alias="it/wrap.md">help/it/wrap.md</file>
+    <file alias="it/write/bookmarks.md">help/it/write/bookmarks.md</file>
     <file alias="it/write/comments.md">help/it/write/comments.md</file>
+    <file alias="it/write/cross-references.md">help/it/write/cross-references.md</file>
+    <file alias="it/write/fields.md">help/it/write/fields.md</file>
     <file alias="it/write/find-replace.md">help/it/write/find-replace.md</file>
     <file alias="it/write/font.md">help/it/write/font.md</file>
     <file alias="it/write/footnotes-endnotes.md">help/it/write/footnotes-endnotes.md</file>
@@ -2210,6 +2225,7 @@
     <file alias="it/write/spelling.md">help/it/write/spelling.md</file>
     <file alias="it/write/start.md">help/it/write/start.md</file>
     <file alias="it/write/styles.md">help/it/write/styles.md</file>
+    <file alias="it/write/table-of-contents.md">help/it/write/table-of-contents.md</file>
     <file alias="it/write/tables.md">help/it/write/tables.md</file>
     <file alias="it/write/track-changes.md">help/it/write/track-changes.md</file>
     <file alias="nl/accessibility.md">help/nl/accessibility.md</file>
@@ -2323,7 +2339,10 @@
     <file alias="nl/text-boxes.md">help/nl/text-boxes.md</file>
     <file alias="nl/window.md">help/nl/window.md</file>
     <file alias="nl/wrap.md">help/nl/wrap.md</file>
+    <file alias="nl/write/bookmarks.md">help/nl/write/bookmarks.md</file>
     <file alias="nl/write/comments.md">help/nl/write/comments.md</file>
+    <file alias="nl/write/cross-references.md">help/nl/write/cross-references.md</file>
+    <file alias="nl/write/fields.md">help/nl/write/fields.md</file>
     <file alias="nl/write/find-replace.md">help/nl/write/find-replace.md</file>
     <file alias="nl/write/font.md">help/nl/write/font.md</file>
     <file alias="nl/write/footnotes-endnotes.md">help/nl/write/footnotes-endnotes.md</file>
@@ -2340,6 +2359,7 @@
     <file alias="nl/write/spelling.md">help/nl/write/spelling.md</file>
     <file alias="nl/write/start.md">help/nl/write/start.md</file>
     <file alias="nl/write/styles.md">help/nl/write/styles.md</file>
+    <file alias="nl/write/table-of-contents.md">help/nl/write/table-of-contents.md</file>
     <file alias="nl/write/tables.md">help/nl/write/tables.md</file>
     <file alias="nl/write/track-changes.md">help/nl/write/track-changes.md</file>
     <file alias="pt_BR/accessibility.md">help/pt_BR/accessibility.md</file>
@@ -2453,7 +2473,10 @@
     <file alias="pt_BR/text-boxes.md">help/pt_BR/text-boxes.md</file>
     <file alias="pt_BR/window.md">help/pt_BR/window.md</file>
     <file alias="pt_BR/wrap.md">help/pt_BR/wrap.md</file>
+    <file alias="pt_BR/write/bookmarks.md">help/pt_BR/write/bookmarks.md</file>
     <file alias="pt_BR/write/comments.md">help/pt_BR/write/comments.md</file>
+    <file alias="pt_BR/write/cross-references.md">help/pt_BR/write/cross-references.md</file>
+    <file alias="pt_BR/write/fields.md">help/pt_BR/write/fields.md</file>
     <file alias="pt_BR/write/find-replace.md">help/pt_BR/write/find-replace.md</file>
     <file alias="pt_BR/write/font.md">help/pt_BR/write/font.md</file>
     <file alias="pt_BR/write/footnotes-endnotes.md">help/pt_BR/write/footnotes-endnotes.md</file>
@@ -2470,6 +2493,7 @@
     <file alias="pt_BR/write/spelling.md">help/pt_BR/write/spelling.md</file>
     <file alias="pt_BR/write/start.md">help/pt_BR/write/start.md</file>
     <file alias="pt_BR/write/styles.md">help/pt_BR/write/styles.md</file>
+    <file alias="pt_BR/write/table-of-contents.md">help/pt_BR/write/table-of-contents.md</file>
     <file alias="pt_BR/write/tables.md">help/pt_BR/write/tables.md</file>
     <file alias="pt_BR/write/track-changes.md">help/pt_BR/write/track-changes.md</file>
     <file alias="pt_PT/accessibility.md">help/pt_PT/accessibility.md</file>
@@ -2583,7 +2607,10 @@
     <file alias="pt_PT/text-boxes.md">help/pt_PT/text-boxes.md</file>
     <file alias="pt_PT/window.md">help/pt_PT/window.md</file>
     <file alias="pt_PT/wrap.md">help/pt_PT/wrap.md</file>
+    <file alias="pt_PT/write/bookmarks.md">help/pt_PT/write/bookmarks.md</file>
     <file alias="pt_PT/write/comments.md">help/pt_PT/write/comments.md</file>
+    <file alias="pt_PT/write/cross-references.md">help/pt_PT/write/cross-references.md</file>
+    <file alias="pt_PT/write/fields.md">help/pt_PT/write/fields.md</file>
     <file alias="pt_PT/write/find-replace.md">help/pt_PT/write/find-replace.md</file>
     <file alias="pt_PT/write/font.md">help/pt_PT/write/font.md</file>
     <file alias="pt_PT/write/footnotes-endnotes.md">help/pt_PT/write/footnotes-endnotes.md</file>
@@ -2600,6 +2627,7 @@
     <file alias="pt_PT/write/spelling.md">help/pt_PT/write/spelling.md</file>
     <file alias="pt_PT/write/start.md">help/pt_PT/write/start.md</file>
     <file alias="pt_PT/write/styles.md">help/pt_PT/write/styles.md</file>
+    <file alias="pt_PT/write/table-of-contents.md">help/pt_PT/write/table-of-contents.md</file>
     <file alias="pt_PT/write/tables.md">help/pt_PT/write/tables.md</file>
     <file alias="pt_PT/write/track-changes.md">help/pt_PT/write/track-changes.md</file>
   </qresource>

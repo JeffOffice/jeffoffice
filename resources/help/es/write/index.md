@@ -1,7 +1,7 @@
 # Ayuda de JeffWrite
-<!-- keywords: contenido, ayuda, temas, inicio, índice, empezar -->
+<!-- keywords: contenido, ayuda, temas, inicio, índice, empezar, comenzar -->
 
-Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que ejecutar. Presione **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
+Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que desee ejecutar. Presione **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
 
 ## Introducción
 
@@ -12,8 +12,8 @@ Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que
 ## Revisar el texto
 
 - [Revisar la ortografía](spelling)
-- [Controlar los cambios y aceptarlos o rechazarlos](track-changes)
-- [Agregar comentarios y responderlos](comments)
+- [Realizar el control de cambios y aceptarlos o rechazarlos](track-changes)
+- [Agregar comentarios y responder a ellos](comments)
 
 ## Escribir y modificar texto
 
@@ -23,6 +23,10 @@ Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que
 - [Agregar encabezados, pies de página y números de página](headers-footers)
 - [Crear y modificar tablas](tables)
 - [Agregar notas al pie y notas al final](footnotes-endnotes)
+- [Crear una tabla de contenido](table-of-contents)
+- [Usar campos](fields)
+- [Remitir a otro lugar con referencias cruzadas](cross-references)
+- [Marcar lugares con marcadores](bookmarks)
 - [Agregar y modificar imágenes](pictures)
 - [Configurar la página](page-setup)
 - [Usar la regla](ruler)
