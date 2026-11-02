@@ -301,6 +301,11 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
         if (pageBreak && master.isEmpty()) pa += " fo:break-before=\"page\"";
         if (first && !master.isEmpty()) attrs += " style:master-page-name=\"" + master.toUtf8() + "\"";
         if (!pa.isEmpty() || !tabs.isEmpty()) inner = "<style:paragraph-properties" + pa + (tabs.isEmpty() ? "/>" : ">" + tabs + "</style:paragraph-properties>");
+        // An empty paragraph has the look of its mark (a paragraph with text has the looks of its runs).
+        if (!anyContent && pPr >= 0) {
+            const QByteArray mark = textAttrs(t, t.child(pPr, "rPr"));
+            if (!mark.isEmpty()) inner += "<style:text-properties" + mark + "/>";
+        }
         QString styleName = odfStyle;
         if (attrs.size() > 0 && (!inner.isEmpty() || !master.isEmpty() || pageBreak)) styleName = m_sink->make("P", "paragraph", attrs, inner);
         if (first) m_pendingBreak = false;
@@ -1252,6 +1257,10 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
         QHash<int, int> startAt;
         for (int i = 0; i < rows[r].size(); ++i) startAt.insert(rows[r][i].col, i);
         for (int col = 0; col < ncols;) {
+            if (++m_cellsMade > kMaxTableCells) {
+                left(QCoreApplication::translate("odt", "a table with more cells than are kept"));
+                break;
+            }
             if (!startAt.contains(col)) {
                 x += "<table:table-cell office:value-type=\"string\"><text:p text:style-name=\"Standard\"/></table:table-cell>";
                 ++col;
@@ -1259,6 +1268,7 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
             }
             const Cell &cell = rows[r][startAt[col]];
             if (cell.vmerge == 2) {
+                m_cellsMade += cell.span;
                 for (int k = 0; k < cell.span; ++k) x += "<table:covered-table-cell/>";
                 col += cell.span;
                 continue;
@@ -1326,6 +1336,7 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
             emitBlocks(ct, cell.node, &inner, depth + 1, false);
             if (inner.isEmpty()) inner = "<text:p text:style-name=\"Standard\"/>";
             x += inner + "</table:table-cell>";
+            m_cellsMade += cell.span;
             for (int k = 1; k < cell.span; ++k) x += "<table:covered-table-cell/>";
             col += cell.span;
         }

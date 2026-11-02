@@ -736,6 +736,106 @@ private Q_SLOTS:
         QVERIFY(s.contains(QLatin1String("<style:columns fo:column-count=\"2\"")) || c.contains(QLatin1String("<style:columns fo:column-count=\"2\"")));
         QVERIFY(wellFormed(files.value(QStringLiteral("styles.xml"))));
     }
+
+    void writesTablesListsHeadersNotesAndComments()
+    {
+        const char kW[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        auto xml = [&](const char *root, const QByteArray &body) { return QByteArray("<?xml version=\"1.0\"?><w:") + root + " " + kW + ">" + body + "</w:" + root + ">"; };
+        const QByteArray body =
+            "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Chapter</w:t></w:r></w:p>"
+            "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>step one</w:t></w:r></w:p>"
+            "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"1\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>sub step</w:t></w:r></w:p>"
+            "<w:p><w:r><w:t>interrupted</w:t></w:r></w:p>"
+            "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>step two</w:t></w:r></w:p>"
+            "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"2\"/></w:numPr></w:pPr><w:r><w:t>a bullet</w:t></w:r></w:p>"
+            "<w:tbl><w:tblPr><w:tblW w:w=\"5000\" w:type=\"pct\"/><w:tblBorders><w:top w:val=\"single\" w:sz=\"8\" w:color=\"FF0000\"/><w:insideH w:val=\"single\" w:sz=\"4\"/></w:tblBorders></w:tblPr>"
+            "<w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"3000\"/></w:tblGrid>"
+            "<w:tr><w:trPr><w:tblHeader/></w:trPr><w:tc><w:tcPr><w:vMerge w:val=\"restart\"/><w:shd w:val=\"clear\" w:fill=\"DDEEFF\"/></w:tcPr><w:p><w:r><w:t>tall</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>b1</w:t></w:r></w:p></w:tc></w:tr>"
+            "<w:tr><w:tc><w:tcPr><w:vMerge/></w:tcPr><w:p/></w:tc><w:tc><w:p><w:r><w:t>b2</w:t></w:r></w:p></w:tc></w:tr></w:tbl>"
+            "<w:p><w:pPr><w:tabs><w:tab w:val=\"right\" w:pos=\"4320\"/></w:tabs></w:pPr><w:r><w:t>note here</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r>"
+            "<w:commentRangeStart w:id=\"5\"/><w:r><w:t>commented</w:t></w:r><w:commentRangeEnd w:id=\"5\"/><w:r><w:commentReference w:id=\"5\"/></w:r>"
+            "<w:hyperlink w:anchor=\"target\"><w:r><w:t>jump</w:t></w:r></w:hyperlink></w:p>"
+            "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdH1\"/><w:headerReference w:type=\"first\" r:id=\"rIdH2\"/><w:footerReference w:type=\"default\" r:id=\"rIdF1\"/><w:titlePg/>"
+            "<w:pgSz w:w=\"11906\" w:h=\"16838\" w:orient=\"portrait\"/><w:pgMar w:top=\"1700\" w:right=\"1000\" w:bottom=\"1700\" w:left=\"1200\" w:header=\"600\" w:footer=\"700\" w:gutter=\"0\"/></w:sectPr>";
+        PackageWriter w;
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QString type = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+        w.addPart(QStringLiteral("/word/document.xml"), xml("document", "<w:body>" + body + "</w:body>"), type + QStringLiteral("document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addPart(QStringLiteral("/word/styles.xml"),
+                  xml("styles", "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                                "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:keepNext/><w:outlineLvl w:val=\"0\"/></w:pPr><w:rPr><w:b/><w:sz w:val=\"32\"/></w:rPr></w:style>"),
+                  type + QStringLiteral("styles+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+        w.addPart(QStringLiteral("/word/numbering.xml"),
+                  xml("numbering", "<w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1)\"/><w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr></w:lvl>"
+                                   "<w:lvl w:ilvl=\"1\"><w:start w:val=\"1\"/><w:numFmt w:val=\"lowerRoman\"/><w:lvlText w:val=\"%1.%2\"/></w:lvl></w:abstractNum>"
+                                   "<w:abstractNum w:abstractNumId=\"1\"><w:lvl w:ilvl=\"0\"><w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"o\"/></w:lvl></w:abstractNum>"
+                                   "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num><w:num w:numId=\"2\"><w:abstractNumId w:val=\"1\"/></w:num>"),
+                  type + QStringLiteral("numbering+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("numbering"), QStringLiteral("/word/numbering.xml"));
+        w.addPart(QStringLiteral("/word/settings.xml"), xml("settings", "<w:evenAndOddHeaders/>"), type + QStringLiteral("settings+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
+        auto addPart = [&](const QString &name, const char *root, const QByteArray &inner, const QString &suffix, const QString &id) {
+            w.addPart(name, xml(root, inner), type + suffix);
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), id, rel + suffix.left(suffix.indexOf(QLatin1Char('+'))), name);
+        };
+        addPart(QStringLiteral("/word/header1.xml"), "hdr", "<w:p><w:r><w:t>default header</w:t></w:r></w:p>", QStringLiteral("header+xml"), QStringLiteral("rIdH1"));
+        addPart(QStringLiteral("/word/header2.xml"), "hdr", "<w:p><w:r><w:t>first page header</w:t></w:r></w:p>", QStringLiteral("header+xml"), QStringLiteral("rIdH2"));
+        addPart(QStringLiteral("/word/footer1.xml"), "ftr", "<w:p><w:r><w:t xml:space=\"preserve\">page </w:t></w:r><w:fldSimple w:instr=\" PAGE \"><w:r><w:t>1</w:t></w:r></w:fldSimple></w:p>", QStringLiteral("footer+xml"), QStringLiteral("rIdF1"));
+        addPart(QStringLiteral("/word/footnotes.xml"), "footnotes", "<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t>the note text</w:t></w:r></w:p></w:footnote>", QStringLiteral("footnotes+xml"), QStringLiteral("rIdN"));
+        addPart(QStringLiteral("/word/comments.xml"), "comments", "<w:comment w:id=\"5\" w:author=\"Cy\" w:initials=\"C\"><w:p><w:r><w:t>comment text</w:t></w:r></w:p></w:comment>", QStringLiteral("comments+xml"), QStringLiteral("rIdC"));
+        QString error;
+        const QByteArray odt = fromDocxPackage(w.finish(), &error);
+        QVERIFY2(!odt.isEmpty(), qPrintable(error));
+        QMap<QString, QByteArray> files;
+        QVERIFY(jp::readZip(odt, files));
+        const QString c = QString::fromUtf8(files.value(QStringLiteral("content.xml"))), st = QString::fromUtf8(files.value(QStringLiteral("styles.xml")));
+        QVERIFY(wellFormed(files.value(QStringLiteral("content.xml"))));
+        QVERIFY(wellFormed(files.value(QStringLiteral("styles.xml"))));
+        // The heading, and its numbering of the style's own.
+        QVERIFY(c.contains(QLatin1String("<text:h text:style-name=\"P1\" text:outline-level=\"1\">Chapter</text:h>")));
+        // (The first paragraph names the master page, so its style is an automatic one that follows the heading's.)
+        QVERIFY(c.contains(QLatin1String("style:name=\"P1\" style:family=\"paragraph\" style:parent-style-name=\"Heading_20_1\" style:master-page-name=\"MP1\"")));
+        // Lists: the second run of the first list goes on (continue-numbering), nested items are a list in an item, and the bullet list is its own.
+        QCOMPARE(c.count(QLatin1String("<text:list text:style-name=\"L1\"")), 2);
+        QVERIFY(c.contains(QLatin1String("<text:list text:style-name=\"L1\" text:continue-numbering=\"true\">")));
+        QVERIFY(c.contains(QRegularExpression(QStringLiteral("sub step</text:p>"))));
+        QVERIFY(c.contains(QLatin1String("<text:list text:style-name=\"L2\">")));
+        QVERIFY(c.contains(QLatin1String("style:num-suffix=\")\"")));
+        QVERIFY(c.contains(QLatin1String("style:num-format=\"i\"")));
+        QVERIFY(c.contains(QLatin1String("text:display-levels=\"2\"")));
+        // The table: percent width, header row, merged cells, borders and fill.
+        QVERIFY(c.contains(QLatin1String("style:rel-width=\"100%\"")));
+        QVERIFY(c.contains(QLatin1String("<table:table-header-rows>")));
+        QVERIFY(c.contains(QLatin1String("table:number-rows-spanned=\"2\"")));
+        QVERIFY(c.contains(QLatin1String("<table:covered-table-cell/>")));
+        QVERIFY(c.contains(QLatin1String("fo:background-color=\"#DDEEFF\"")));
+        QVERIFY(c.contains(QLatin1String("fo:border-top=\"1.000pt solid #FF0000\"")));
+        QVERIFY(c.contains(QLatin1String("fo:border-bottom=\"0.500pt solid #000000\"")));
+        // The tab stop, the note, the comment, and the link.
+        QVERIFY(c.contains(QLatin1String("<style:tab-stop style:position=\"3.0000in\" style:type=\"right\"/>")));
+        QVERIFY(c.contains(QRegularExpression(QStringLiteral("<text:note text:id=\"ftn1\" text:note-class=\"footnote\"><text:note-citation>1</text:note-citation><text:note-body><text:p [^>]*>the note text</text:p>"))));
+        QVERIFY(c.contains(QLatin1String("<office:annotation office:name=\"cmt5\">")));
+        QVERIFY(c.contains(QLatin1String("<dc:creator>Cy</dc:creator>")));
+        QVERIFY(c.contains(QLatin1String("<office:annotation-end office:name=\"cmt5\"/>")));
+        QVERIFY(c.indexOf(QLatin1String("<office:annotation ")) < c.indexOf(QLatin1String("commented")) && c.indexOf(QLatin1String("commented")) < c.indexOf(QLatin1String("<office:annotation-end")));
+        QVERIFY(c.contains(QLatin1String("xlink:href=\"#target\"")));
+        // The page: A4, margins (the header and footer's room is the rest of the top and bottom margin), headers of three kinds, the footer's field.
+        QVERIFY(st.contains(QLatin1String("fo:page-width=\"8.2681in\"")));
+        QVERIFY(st.contains(QLatin1String("fo:margin-top=\"0.4167in\"")));
+        QVERIFY(st.contains(QLatin1String("fo:margin-left=\"0.8333in\"")));
+        QVERIFY(st.contains(QLatin1String("<style:header>")));
+        QVERIFY(st.contains(QLatin1String("<style:header-left>")));
+        QVERIFY(st.contains(QLatin1String("<style:header-first>")));
+        QVERIFY(st.contains(QLatin1String("first page header")));
+        QVERIFY(st.contains(QLatin1String("<style:footer>")));
+        QVERIFY(st.contains(QLatin1String("<text:page-number text:select-page=\"current\">1</text:page-number>")));
+        // The reader takes the file back as the same document.
+        const QString again = part(docxOf(odt), QStringLiteral("/word/document.xml"));
+        for (const char *word : {"Chapter", "step one", "sub step", "interrupted", "step two", "a bullet", "tall", "b2", "note here", "commented", "jump"}) QVERIFY2(again.contains(QLatin1String(word)), word);
+        QVERIFY(again.contains(QLatin1String("<w:titlePg/>")));
+    }
 };
 
 QTEST_MAIN(OdtTests)

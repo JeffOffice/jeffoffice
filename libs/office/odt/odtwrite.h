@@ -165,6 +165,7 @@ private:
     QByteArray m_layouts, m_masterXml;
     QByteArray m_pendingBookmarks, m_changeRegions;
     int m_changeCount = 0;
+    qint64 m_cellsMade = 0;
     int m_tocDepth = 0;
     bool m_inToc = false;
     int m_innerSections = 0;
