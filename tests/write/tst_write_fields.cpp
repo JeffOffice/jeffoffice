@@ -515,9 +515,15 @@ private Q_SLOTS:
         QVERIFY(lines(*d2)[0].size() < 100);
         auto cycle = open(makeDocx(para(bookmark(1, "A", run("a") + field("REF B", "x"))) + para(bookmark(2, "B", run("b") + field("REF A", "y")))));
         QVERIFY(cycle);
+        resetFieldWorkForTest();
         updateFields(*cycle);
         updateFields(*cycle);
         QVERIFY(lines(*cycle)[0].size() < 100 && lines(*cycle)[1].size() < 100);
+        // (The work is counted, not timed: two fields, two updates of at most a few passes each.)
+        QVERIFY2(fieldComputationsForTest() > 0 && fieldComputationsForTest() <= 2 * 2 * 3, qPrintable(QString::number(fieldComputationsForTest())));
+        resetFieldWorkForTest();
+        updateFields(*d2);
+        QVERIFY2(fieldComputationsForTest() > 0 && fieldComputationsForTest() <= 3, qPrintable(QString::number(fieldComputationsForTest())));
         // IF with a pattern of stars that a backtracking matcher takes forever over: the matcher's steps are counted, and are at most the product of the two lengths.
         {
             QByteArray pattern;
@@ -945,6 +951,7 @@ private Q_SLOTS:
             return t;
         };
         QCOMPARE(shown(), QStringLiteral("a stale b old"));
+        QVERIFY(!doc->canUndo());
         // Shift+F9: the field at the caret.
         const StoryScan scan = scanStory(doc->story());
         QTextCursor c(doc->story());
@@ -952,6 +959,8 @@ private Q_SLOTS:
         QCOMPARE(toggleFieldCodes(*doc, c, false), 1);
         QCOMPARE(shown(), QStringLiteral("a stale b { QUOTE \"two\" }"));
         QCOMPARE(documentXml(doc->toDocx()), saved);
+        QVERIFY(!doc->canUndo());      // (a view is no step to undo)
+        QVERIFY(!doc->isModified());   // (and no change to the document)
         // Alt+F9: every field (the ones shown stay, the rest are shown).
         QCOMPARE(toggleFieldCodes(*doc, c, true), 1);
         QCOMPARE(shown(), QStringLiteral("a { QUOTE \"fresh\" } b { QUOTE \"two\" }"));
@@ -965,6 +974,21 @@ private Q_SLOTS:
         updateFields(*doc);
         toggleFieldCodes(*doc, c, true);
         QCOMPARE(shown(), QStringLiteral("a fresh b two"));
+        // The update was the one step; a view after it is undone with it, and Undo stops at nothing else.
+        QVERIFY(doc->canUndo());
+        toggleFieldCodes(*doc, c, true);
+        QCOMPARE(shown(), QStringLiteral("a { QUOTE \"fresh\" } b { QUOTE \"two\" }"));
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->canUndo());     // (what is left are views)
+        QVERIFY(doc->canRedo());
+        QVERIFY(doc->redo());         // (the update and the view after it come back together)
+        QVERIFY(doc->canUndo());
+        toggleFieldCodes(*doc, c, true);
+        QCOMPARE(shown(), QStringLiteral("a fresh b two"));
+        QVERIFY(doc->undo());
+        toggleFieldCodes(*doc, c, true);
+        QCOMPARE(shown(), QStringLiteral("a stale b old"));   // (the update is undone: the old results)
+        QCOMPARE(documentXml(doc->toDocx()), saved);   // (the update undone, the views no part of the file)
     }
 
     void aTableOfContentsIsBuiltFromTheHeadings()
@@ -1171,6 +1195,67 @@ private Q_SLOTS:
         QCOMPARE(lines(*w.document())[0], QStringLiteral("a fresh b two"));
         w.act(QStringLiteral("fields.unlink"))->trigger();
         QVERIFY(!documentXml(w.document()->toDocx()).contains("fldChar"));
+    }
+
+    void aBookmarkCoveringAHeadingWithBlanksOrANumberStillMatches()
+    {
+        auto head = [](const QByteArray &content) { return para(content, "<w:pStyle w:val=\"Heading1\"/>"); };
+        const QByteArray tab = "<w:r><w:tab/></w:r>";
+        const QByteArray body =
+            head(bookmark(1, "_Ref100000001", run("  Alpha  "))) +                                       // blanks inside the bookmark
+            head(tab + bookmark(2, "_Ref100000002", run("Beta")) + run("   ")) +                          // a tab before it, blanks after it
+            head(run("2.1") + tab + bookmark(3, "_Ref100000003", run("Gamma"))) +                         // a number and its tab before it
+            head(run("Delta"));                                                                          // none
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const QVector<RefTarget> t = crossReferenceTargets(*doc, RefKind::Heading);
+        QCOMPARE(t.size(), 4);
+        QVERIFY2(!t[0].newBookmark && t[0].bookmark == QLatin1String("_Ref100000001"), qPrintable(t[0].bookmark));
+        QVERIFY2(!t[1].newBookmark && t[1].bookmark == QLatin1String("_Ref100000002"), qPrintable(t[1].bookmark));
+        QVERIFY2(!t[2].newBookmark && t[2].bookmark == QLatin1String("_Ref100000003"), qPrintable(t[2].bookmark));
+        QVERIFY(t[3].newBookmark);
+    }
+
+    void aFlagOnACutOffMarkChangesNothing()
+    {
+        const QByteArray cut = "<w:r><w:fldChar w:fldCharType=\"begin\"";
+        QCOMPARE(fieldFlagForTest(cut, "fldLock", true), cut);
+        QCOMPARE(fieldFlagForTest(cut, "dirty", false), cut);
+        const QByteArray whole = "<w:fldChar w:fldCharType=\"begin\" w:dirty=\"true\"/>";
+        const QByteArray locked = fieldFlagForTest(whole, "fldLock", true);
+        QVERIFY2(locked.contains("w:fldLock=\"1\"") && locked.contains("w:dirty=\"true\""), locked.constData());
+        const QByteArray clean = fieldFlagForTest(locked, "dirty", false);
+        QVERIFY(!clean.contains("dirty") && clean.contains("fldLock"));
+        QCOMPARE(fieldFlagForTest(clean, "fldLock", false), QByteArray("<w:fldChar w:fldCharType=\"begin\"/>"));
+    }
+
+    void numbersThatRoundToNothingHaveNoSign()
+    {
+        QCOMPARE(plainNumber(-1e-7), QStringLiteral("0"));
+        QCOMPARE(plainNumber(-0.0000004), QStringLiteral("0"));
+        QCOMPARE(plainNumber(-0.0000005), QStringLiteral("-0.000001"));
+        QCOMPARE(plainNumber(-1.5), QStringLiteral("-1.5"));
+        QCOMPARE(plainNumber(0.0), QStringLiteral("0"));
+    }
+
+    void aConditionWithoutWildcardsComparesTheWholeStrings()
+    {
+        Env env;
+        auto test = [&](const QString &left, const QString &op, const QString &right) {
+            Code code;
+            code.name = QStringLiteral("IF");
+            code.arguments = {left, op, right, QStringLiteral("yes"), QStringLiteral("no")};
+            return compute(code, env).value_or(QStringLiteral("none"));
+        };
+        const QString same = QString(6000, QLatin1Char('a'));
+        QCOMPARE(test(same + QLatin1Char('x'), QStringLiteral("="), same + QLatin1Char('y')), QStringLiteral("no"));   // (they differ past the length a code can hold)
+        QCOMPARE(test(same + QLatin1Char('x'), QStringLiteral("<>"), same + QLatin1Char('y')), QStringLiteral("yes"));
+        QCOMPARE(test(same + QLatin1Char('x'), QStringLiteral("="), same + QLatin1Char('X')), QStringLiteral("yes"));
+        // A wildcard match past the length is made, with its work bounded.
+        fields::resetGlobStepsForTest();
+        QCOMPARE(test(same + QLatin1Char('x'), QStringLiteral("="), QStringLiteral("a*x")), QStringLiteral("yes"));
+        QCOMPARE(test(same, QStringLiteral("="), QString(3000, QLatin1Char('a')) + QStringLiteral("*b")), QStringLiteral("no"));
+        QVERIFY(fields::globStepsForTest() > 0 && fields::globStepsForTest() < qint64(4096) * 4096 + 20000);
     }
 };
 

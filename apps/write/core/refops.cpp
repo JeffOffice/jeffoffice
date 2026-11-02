@@ -211,17 +211,48 @@ QVector<RefTarget> crossReferenceTargets(WriteDoc &doc, RefKind kind, const QStr
     const StoryScan scan = scanStory(story);
     QVector<RefTarget> out;
     int serial = 0;
-    // The bookmark a paragraph's text already has (a hidden _Ref over all of it, give or take the marks beside the text), if any: found by where it begins and ends.
-    QHash<quint64, QString> refBookmarks;
+    // The bookmark a paragraph's text already has (a hidden _Ref over its text, give or take the blanks, the tab after a number, and the marks beside it), if any: the bookmarks are
+    // listed by where they end, and a paragraph looks at the places its text can end.
+    QHash<int, QVector<const BookmarkSpan *>> refByEnd;
     for (const BookmarkSpan &s : scan.bookmarks)
-        if (s.name.startsWith(QLatin1String("_Ref")) && s.start >= 0 && s.end >= 0) refBookmarks.insert(quint64(s.start) << 32 | quint32(s.end), s.name);
-    auto existing = [&](int from, int to) -> QString {
-        for (int a = -1; a <= 1; ++a)
-            for (int b = -1; b <= 1; ++b) {
+        if (s.name.startsWith(QLatin1String("_Ref")) && s.start >= 0 && s.end >= 0) refByEnd[s.end].push_back(&s);
+    auto existing = [&](const QTextBlock &b, int from, int to, bool paragraph) -> QString {
+        if (!paragraph) {
+            // (A note's reference mark: the bookmark is over just that character.)
+            for (int e = to - 1; e <= to + 1; ++e) {
                 ++g_probes;
-                const auto found = refBookmarks.constFind(quint64(std::max(0, from + a)) << 32 | quint32(std::max(0, to + b)));
-                if (found != refBookmarks.constEnd()) return found.value();
+                for (const BookmarkSpan *s : refByEnd.value(e))
+                    if (s->start >= from - 1 && s->start <= from + 1) return s->name;
             }
+            return QString();
+        }
+        const QString t = b.text();
+        const int a = std::max(0, from - b.position());
+        // Where the text begins: past blanks, and past a number and its tab ("2.1<tab>").
+        int k = a;
+        auto blank = [&](int i) { return t[i] == QLatin1Char(' ') || t[i] == QLatin1Char('\t') || t[i] == QChar(0x00A0) || t[i] == QChar::ObjectReplacementCharacter; };
+        while (k < t.size() && blank(k)) ++k;
+        const int tab = int(t.indexOf(QLatin1Char('\t'), k));
+        if (tab > k && tab - k <= 11) {
+            bool number = true;
+            for (int i = k; i < tab; ++i) number = number && (t[i].isLetterOrNumber() || t[i] == QLatin1Char('.') || t[i] == QLatin1Char('(') || t[i] == QLatin1Char(')'));
+            if (number) {
+                k = tab + 1;
+                while (k < t.size() && blank(k)) ++k;
+            }
+        }
+        const int startMax = b.position() + k + 1;
+        // Where it ends: at the last word, or after the blanks that follow it.
+        int last = int(t.size());
+        while (last > k && blank(last - 1)) --last;
+        const int endMin = b.position() + last - 1, endMax = to + 1;
+        for (int e = endMin; e <= endMax && e < endMin + 256; ++e) {
+            ++g_probes;
+            const auto found = refByEnd.constFind(e);
+            if (found == refByEnd.constEnd()) continue;
+            for (const BookmarkSpan *s : found.value())
+                if (s->start >= b.position() && s->start <= startMax) return s->name;
+        }
         return QString();
     };
     auto add = [&](const QString &text, int position, int from, int to, const QString &number) {
@@ -231,7 +262,7 @@ QVector<RefTarget> crossReferenceTargets(WriteDoc &doc, RefKind kind, const QStr
         t.from = from;
         t.to = to;
         t.number = number;
-        t.bookmark = existing(from, to);
+        t.bookmark = existing(story->findBlock(position), from, to, kind != RefKind::Footnote && kind != RefKind::Endnote);
         if (t.bookmark.isEmpty()) {
             t.bookmark = hiddenName(scan, serial);
             t.newBookmark = true;

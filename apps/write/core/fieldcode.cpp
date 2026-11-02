@@ -315,12 +315,13 @@ QString roundedDigits(double a, int places)
 QString plainNumber(double value)
 {
     if (!std::isfinite(value)) return QString();
-    QString s = (value < 0 ? QStringLiteral("-") : QString()) + roundedDigits(std::fabs(value), 6);
+    // Rounded first, then the sign: a number that rounds to nothing has none.
+    QString s = roundedDigits(std::fabs(value), 6);
     if (s.contains(QLatin1Char('.'))) {
         while (s.endsWith(QLatin1Char('0'))) s.chop(1);
         if (s.endsWith(QLatin1Char('.'))) s.chop(1);
     }
-    if (s == QLatin1String("-0")) s = QStringLiteral("0");
+    if (value < 0 && s != QLatin1String("0")) s.prepend(QLatin1Char('-'));
     return s;
 }
 
@@ -873,15 +874,17 @@ bool numberOf(const QString &s, double *v)
     return ok;
 }
 
-// A pattern with * (any run) and ? (any one character), compared without regard to case, in time at most the product of the two lengths (the longest ones are cut at the most a code
-// can hold, the same for both).
-bool wildcardMatch(const QString &patternIn, const QString &textIn)
+// A pattern with * (any run) and ? (any one character), compared without regard to case, in time at most the product of the two lengths; past that many steps (a pattern and a text that
+// are both huge) it says there is no match.
+bool wildcardMatch(const QString &pattern, const QString &text)
 {
-    const QString pattern = patternIn.left(kMostCodeChars), text = textIn.left(kMostCodeChars);
     const qsizetype m = pattern.size(), n = text.size();
+    const qint64 most = qint64(kMostCodeChars) * kMostCodeChars;
+    qint64 steps = 0;
     qsizetype p = 0, t = 0, star = -1, mark = 0;
     while (t < n) {
         ++g_globSteps;
+        if (++steps > most) return false;
         if (p < m && pattern[p] == QLatin1Char('*')) {
             while (p < m && pattern[p] == QLatin1Char('*')) ++p;   // (a run of stars is one)
             star = p;
@@ -898,6 +901,13 @@ bool wildcardMatch(const QString &patternIn, const QString &textIn)
     }
     while (p < m && pattern[p] == QLatin1Char('*')) ++p;
     return p == m;
+}
+
+// Whether the pattern has a wildcard at all; if it has none, the whole of the two strings are compared.
+bool matches(const QString &pattern, const QString &text)
+{
+    if (!pattern.contains(QLatin1Char('*')) && !pattern.contains(QLatin1Char('?'))) return pattern.size() == text.size() && pattern.compare(text, Qt::CaseInsensitive) == 0;
+    return wildcardMatch(pattern, text);
 }
 
 std::optional<QString> propertyValue(const Properties &p, const QString &nameIn, const Code &code)
@@ -984,8 +994,8 @@ std::optional<QString> condition(const Code &code)
     double a = 0, b = 0;
     const bool numeric = numberOf(w[0], &a) && numberOf(w[2], &b);
     bool result;
-    if (op == QLatin1String("=")) result = numeric ? a == b : wildcardMatch(w[2], w[0]);
-    else if (op == QLatin1String("<>")) result = numeric ? a != b : !wildcardMatch(w[2], w[0]);
+    if (op == QLatin1String("=")) result = numeric ? a == b : matches(w[2], w[0]);
+    else if (op == QLatin1String("<>")) result = numeric ? a != b : !matches(w[2], w[0]);
     else if (op == QLatin1String("<")) result = numeric ? a < b : w[0].compare(w[2], Qt::CaseInsensitive) < 0;
     else if (op == QLatin1String("<=")) result = numeric ? a <= b : w[0].compare(w[2], Qt::CaseInsensitive) <= 0;
     else if (op == QLatin1String(">")) result = numeric ? a > b : w[0].compare(w[2], Qt::CaseInsensitive) > 0;

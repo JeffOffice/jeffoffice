@@ -110,6 +110,10 @@ int toggleFieldCodes(WriteDoc &doc, const QTextCursor &c, bool all);
 // Counted work, for tests: the paragraphs looked at to find the paragraph of a style, and the checks of results made again, since the counts were reset.
 qint64 styleRefParagraphVisitsForTest();
 qint64 resultOverlapChecksForTest();
+// How many times the engine was asked for a result since the counts were reset (a bound on what a pass over hostile fields costs).
+qint64 fieldComputationsForTest();
+// The bytes of a field mark with its lock (`name` fldLock) or dirty flag set or cleared; a mark that is not whole is returned as it is.
+QByteArray fieldFlagForTest(const QByteArray &raw, const char *name, bool on);
 void resetFieldWorkForTest();
 
 // The innermost field of the text that holds the position (the caret), -1 for none.

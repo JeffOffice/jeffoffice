@@ -23,11 +23,12 @@ using namespace jp::office::wml;
 namespace jp::write {
 
 namespace {
-qint64 g_styleVisits = 0, g_overlapChecks = 0;
+qint64 g_styleVisits = 0, g_overlapChecks = 0, g_computations = 0;
 }
+qint64 fieldComputationsForTest() { return g_computations; }
 qint64 styleRefParagraphVisitsForTest() { return g_styleVisits; }
 qint64 resultOverlapChecksForTest() { return g_overlapChecks; }
-void resetFieldWorkForTest() { g_styleVisits = g_overlapChecks = 0; }
+void resetFieldWorkForTest() { g_styleVisits = g_overlapChecks = g_computations = 0; }
 
 namespace {
 
@@ -134,6 +135,10 @@ QByteArray withFlag(QByteArray raw, const char *name, bool on)
     out.replace(m.capturedStart(), tagEnd - m.capturedStart(), tag);
     return out.toUtf8();
 }
+
+} // namespace
+QByteArray fieldFlagForTest(const QByteArray &raw, const char *name, bool on);
+namespace {
 
 enum class LookMode { First, Merge, Code };
 
@@ -283,6 +288,8 @@ QString withoutTrailingPeriods(QString s)
 }
 
 } // namespace
+
+QByteArray fieldFlagForTest(const QByteArray &raw, const char *name, bool on) { return withFlag(raw, name, on); }
 
 QString paragraphNumberOf(const QTextBlock &b) { return withoutTrailingPeriods(blockLabel(b)); }
 QString paragraphLabelOf(const QTextBlock &b) { return blockLabel(b); }
@@ -687,6 +694,7 @@ PassResult updatePass(WriteDoc &doc, const UpdateOptions &options, bool keepChan
         }
         if (code.name == QLatin1String("PAGE") || code.name == QLatin1String("NUMPAGES") || code.name == QLatin1String("SECTIONPAGES")) ctx.placePages(f);
         if (code.name == QLatin1String("NUMWORDS") || code.name == QLatin1String("NUMCHARS") || code.name == QLatin1String("DOCPROPERTY")) ctx.statistics();
+        ++g_computations;
         const std::optional<QString> result = fields::compute(code, ctx.env);
         if (!result) {
             note(FieldChange::Kept, change.before);
@@ -1037,8 +1045,7 @@ int toggleFieldCodes(WriteDoc &doc, const QTextCursor &c, bool all)
         if (shownNow(i) != show) todo << i;
     if (todo.isEmpty()) return 0;
     const bool wasModified = doc.isModified();
-    WriteDoc::StepGroup group(doc);
-    EditScope scope(doc, story);
+    WriteDoc::ViewEdit view(doc);   // (what is shown is no step of the person's: Undo does not stop at it)
     QTextCursor edit(story);
     edit.beginEditBlock();
     int budget = kMostToggledChars;
