@@ -73,6 +73,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     }));
     m_untitled = tr("Document%1").arg(++s_untitledCount);
     m_view = new write::PageView(this);
+    connect(m_view, &write::PageView::documentsDropped, this, &WriteWindow::openDropped);
     m_view->setAccessibleName(tr("Document"));
     m_view->setAccessibleDescription(tr("The pages of the document. Type to write; the arrow keys move the caret."));
     m_ribbon = new Ribbon(this);
@@ -647,36 +648,25 @@ bool WriteWindow::maybeSave()
     return true;
 }
 
-namespace {
-// The document files a window takes when they are dropped on it (a picture dropped on the pages is the pages' own).
-bool isDocumentFile(const QString &path)
-{
-    static const QStringList kinds = {QStringLiteral("docx"), QStringLiteral("docm"), QStringLiteral("dotx"), QStringLiteral("dotm"), QStringLiteral("doc"), QStringLiteral("dot"), QStringLiteral("rtf")};
-    return kinds.contains(QFileInfo(path).suffix().toLower());
-}
-} // namespace
-
 void WriteWindow::dragEnterEvent(QDragEnterEvent *e)
 {
-    if (e->mimeData()->hasUrls())
-        for (const QUrl &u : e->mimeData()->urls())
-            if (u.isLocalFile() && isDocumentFile(u.toLocalFile())) {
-                e->acceptProposedAction();
-                return;
-            }
-    e->ignore();
+    if (!write::PageView::documentFilesIn(e->mimeData()).isEmpty()) e->acceptProposedAction();
+    else e->ignore();
 }
 
 void WriteWindow::dropEvent(QDropEvent *e)
 {
-    QStringList paths;
-    for (const QUrl &u : e->mimeData()->urls())
-        if (u.isLocalFile() && isDocumentFile(u.toLocalFile()) && paths.size() < 20) paths << u.toLocalFile();
+    const QStringList paths = write::PageView::documentFilesIn(e->mimeData());
     if (paths.isEmpty()) {
         e->ignore();
         return;
     }
     e->acceptProposedAction();
+    openDropped(paths);
+}
+
+void WriteWindow::openDropped(const QStringList &paths)
+{
     // (After the drop is over: opening can show a message, which must not run inside the drag.)
     QTimer::singleShot(0, this, [this, paths] {
         for (const QString &p : paths) openFile(p);

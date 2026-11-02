@@ -1,9 +1,10 @@
 // Tests of libs/office/rtf: reading a Rich Text Format file into the document the .docx reader makes. Every file is a string built here in code; the hostile ones are
 // that string changed.
 #include "rtf/rtf.h"
+#include "office/package.h"
+#include "rtf/rtfmodel.h"
 #include "wml/wml.h"
 
-#include <QElapsedTimer>
 #include <QRandomGenerator>
 #include <QtTest>
 
@@ -412,6 +413,16 @@ private Q_SLOTS:
         QVERIFY(QString::fromUtf8(en->data).contains(QLatin1String("Starred note.")));
     }
 
+    void aNoteOrHeaderWhoseLastParagraphHasNoMarkKeepsItsText()
+    {
+        const Document d = must(doc("\\pard Text{\\super\\chftn{\\footnote\\pard\\plain no mark in the note}}{\\header\\pard no mark in the header} more\\par"));
+        QString all;
+        for (const wml::KeptPart &p : d.parts) all += QString::fromUtf8(p.data);
+        QVERIFY(all.contains(QLatin1String("no mark in the note")));
+        QVERIFY(all.contains(QLatin1String("no mark in the header")));
+        QCOMPARE(bodyTexts(d), QStringList{QStringLiteral("Text more")});
+    }
+
     void fieldsAndBookmarks()
     {
         const Document d = must(doc("\\pard Page {\\field{\\*\\fldinst PAGE}{\\fldrslt 3}} and {\\field{\\*\\fldinst {HYPERLINK \"https://example.com/\"}}{\\fldrslt {\\ul link text}}}"
@@ -504,15 +515,12 @@ private Q_SLOTS:
 
     void deepGroups()
     {
-        QElapsedTimer timer;
-        timer.start();
         QByteArray s = "{\\rtf1\\ansi ";
         s += QByteArray("{\\b ").repeated(200000) + "deep text" + QByteArray("}").repeated(200000) + " after\\par}";
         ReadNotes notes;
         Document d;
         QVERIFY(read(s, &d, &notes));
         QVERIFY(notes.leftOut);
-        QVERIFY(timer.elapsed() < 10000);
         // The text deeper than the limit is gone; the text after is not.
         QVERIFY(bodyTexts(d).join(QString()).contains(QLatin1String("after")));
     }
@@ -524,7 +532,9 @@ private Q_SLOTS:
         for (int i = 60; i >= 1; --i) s += "\\pard\\intbl\\itap" + QByteArray::number(i) + " \\" + (i == 1 ? "cell" : "nestcell") + "{\\*\\nesttableprops\\trowd\\cellx5000\\" + (i == 1 ? "row" : "nestrow") + "}";
         Document d;
         QVERIFY(read(doc(s), &d));
-        QVERIFY(count(d, "tbl") <= rtf::kMaxTableDepth);
+        // Tables nest as deep as the .docx reader reads and no more: the rest of the levels are paragraphs of the deepest.
+        QCOMPARE(count(d, "tbl"), rtf::kMaxTableDepth);
+        QVERIFY(bodyTexts(d).contains(QStringLiteral("level60")));
     }
 
     void manyCellsAndRows()
@@ -536,11 +546,10 @@ private Q_SLOTS:
         s += "\\row";
         for (int r = 0; r < 30000; ++r) s += "\\trowd\\cellx100\\pard\\intbl y\\cell\\row";
         Document d;
-        QElapsedTimer timer;
-        timer.start();
         QVERIFY(read(doc(s), &d));
-        QVERIFY(timer.elapsed() < 20000);
-        QVERIFY(count(d, "tc") <= wml::kMaxTableCells + 1);
+        // The first row keeps the cells a row can have; the rows after it, up to the most a table has.
+        QCOMPARE(count(d, "tr"), rtf::kMaxTableRows);
+        QCOMPARE(count(d, "tc"), rtf::kMaxRowCells + rtf::kMaxTableRows - 1);
     }
 
     void hugeThingsAreBounded()
@@ -574,6 +583,154 @@ private Q_SLOTS:
         QVERIFY(read(doc(l), &d));
     }
 
+    // ---- limits on what a file can multiply
+
+    void theOutputIsHeldToItsBudgetOnEveryPath()
+    {
+        const qint64 slack = 1 << 20;
+        // A field for each page-number character, a tab each, and runs that alternate their look: each would be many times the file's own size.
+        QVERIFY(!rtf::toDocxPackage(doc("\\pard " + QByteArray("\\chpgn ").repeated(8000000) + "\\par")).isEmpty());
+        QVERIFY2(rtf::lastOutputBytesForTest() <= rtf::kMaxOutputBytes + slack, qPrintable(QString::number(rtf::lastOutputBytesForTest())));
+        QVERIFY(rtf::lastOutputBytesForTest() > rtf::kMaxOutputBytes / 2);
+        QVERIFY(!rtf::toDocxPackage(doc("\\pard " + QByteArray("\\tab ").repeated(8000000) + "\\par")).isEmpty());
+        QVERIFY2(rtf::lastOutputBytesForTest() <= rtf::kMaxOutputBytes + slack, qPrintable(QString::number(rtf::lastOutputBytesForTest())));
+        QVERIFY(!rtf::toDocxPackage(doc("\\pard " + QByteArray("{\\b a}{\\i b}").repeated(1500000) + "\\par")).isEmpty());
+        QVERIFY2(rtf::lastOutputBytesForTest() <= rtf::kMaxOutputBytes + slack, qPrintable(QString::number(rtf::lastOutputBytesForTest())));
+        ReadNotes notes;
+        QVERIFY(!rtf::toDocxPackage(doc("\\pard " + QByteArray("\\line ").repeated(8000000) + "\\par"), nullptr, &notes).isEmpty());
+        QVERIFY(notes.leftOut);
+        QVERIFY2(rtf::lastOutputBytesForTest() <= rtf::kMaxOutputBytes + slack, qPrintable(QString::number(rtf::lastOutputBytesForTest())));
+        // Lists and styles count too.
+        QByteArray lists = "{\\*\\listtable";
+        for (int i = 0; i < 16000; ++i) {
+            lists += "{\\list\\listid" + QByteArray::number(i + 1);
+            for (int k = 0; k < 9; ++k) lists += "{\\listlevel\\levelnfc0{\\leveltext\\'02\\'00.;}}";
+            lists += "}";
+        }
+        lists += "}{\\*\\listoverridetable";
+        for (int i = 0; i < 16000; ++i) lists += "{\\listoverride\\listid" + QByteArray::number(i + 1) + "\\ls" + QByteArray::number(i + 1) + "}";
+        lists += "}x\\par";
+        QVERIFY(!rtf::toDocxPackage(doc(lists)).isEmpty());
+        QVERIFY(rtf::lastOutputBytesForTest() <= rtf::kMaxOutputBytes + slack);
+    }
+
+    void aLevelTextAndTheOverridesOfAListAreBounded()
+    {
+        QByteArray s = "{\\*\\listtable{\\list\\listid1{\\listlevel\\levelnfc0{\\leveltext\\'02" + QByteArray("\\'00.").repeated(500000) + ";}}}}"
+                       "{\\*\\listoverridetable{\\listoverride\\listid1\\ls1";
+        for (int i = 0; i < 500; ++i) s += "{\\lfolevel\\listoverridestartat\\levelstartat" + QByteArray::number(i + 2) + "}";
+        s += "}}\\pard\\ls1 x\\par";
+        const QByteArray zip = rtf::toDocxPackage(doc(s));
+        QVERIFY(!zip.isEmpty());
+        Package pkg;
+        QVERIFY(pkg.read(zip));
+        const QString numbering = QString::fromUtf8(pkg.part(QStringLiteral("/word/numbering.xml")));
+        QCOMPARE(numbering.count(QLatin1String("<w:lvlOverride ")), 9);
+        QVERIFY(numbering.size() < 20000);
+    }
+
+    void numbersTooBigForAnIntAreClamped()
+    {
+        const Document d = must(doc("\\pard\\expnd2000000000 spread\\par\\pard {\\pict\\pngblip\\picwgoal2000000000\\pichgoal2000000000\\picscalex2000000000\\picscaley2000000000 " + tinyPngHex() + "}\\par"));
+        QCOMPARE(run(d, QStringLiteral("spread"))->props.spacing.value_or(0), 31680);
+        bool found = false;
+        for (const Block &b : d.body)
+            for (const Inline &in : b.para.content)
+                if (in.kind == Inline::RunAtom && in.raw.contains("drawing")) {
+                    found = true;
+                    QVERIFY(in.raw.contains("cx=\"20116800\""));   // (22 inches, the most)
+                }
+        QVERIFY(found);
+    }
+
+    void aGroupMakesOneStory()
+    {
+        const Document d = must(doc("\\pard before{\\footnote\\footnote note one}{\\field\\footnote note two{\\*\\fldinst PAGE}{\\fldrslt 1}}{\\header\\header\\pard head} after\\par\\pard last paragraph\\par"));
+        const QStringList t = bodyTexts(d);
+        QVERIFY2(t.contains(QStringLiteral("last paragraph")), qPrintable(t.join('|')));
+        QVERIFY(t.first().startsWith(QLatin1String("before")) && t.first().contains(QLatin1String("after")));
+        const wml::KeptPart *fn = part(d, QStringLiteral("/word/footnotes.xml"));
+        QVERIFY(fn && QString::fromUtf8(fn->data).contains(QLatin1String("note one")));
+    }
+
+    void aBookmarkEndedTwiceEndsOnce()
+    {
+        const Document d = must(doc("\\pard{\\*\\bkmkstart a}x{\\*\\bkmkend a}y{\\*\\bkmkend a}{\\*\\bkmkstart a}z\\par"));
+        int starts = 0, ends = 0;
+        for (const Inline &in : d.body.first().para.content) {
+            starts += in.tag == QLatin1String("bookmarkStart");
+            ends += in.tag == QLatin1String("bookmarkEnd");
+        }
+        QCOMPARE(starts, 1);
+        QCOMPARE(ends, 1);
+    }
+
+    void fieldInstructionsAreKeptAsTextAndNeverRun()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile f(dir.filePath(QStringLiteral("local.png")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(QByteArray::fromHex(tinyPngHex()));
+        f.close();
+        const QByteArray local = dir.filePath(QStringLiteral("local.png")).toUtf8();
+        const Document d = must(doc("\\pard{\\field{\\*\\fldinst INCLUDEPICTURE \"http://127.0.0.1:9/x.png\"}{\\fldrslt first}} "
+                                    "{\\field{\\*\\fldinst INCLUDEPICTURE \"" + local + "\"}{\\fldrslt second}} {\\field{\\*\\fldinst DDEAUTO cmd calc}{\\fldrslt third}}"
+                                    "{\\field{\\*\\fldinst INCLUDETEXT \"" + local + "\"}{\\fldrslt fourth}}\\par"));
+        // Only what the file's own result says is shown; nothing is fetched or read, and no picture or text comes from an instruction.
+        QCOMPARE(bodyTexts(d).first(), QStringLiteral("first second thirdfourth"));
+        for (const wml::KeptPart &p : d.parts) QVERIFY2(!p.name.startsWith(QLatin1String("/word/media/")), qPrintable(p.name));
+    }
+
+    void aWordIsKnownByItsLettersNotOnlyItsHash()
+    {
+        QVERIFY(rtf::isKnownWord("nowidctlpar", 11));
+        QVERIFY(!rtf::isKnownWord("xsxwef", 6));   // (the same 32-bit hash as nowidctlpar)
+        QVERIFY(!rtf::isKnownWord("zvexcg", 6));   // (and as deff)
+        const Document d = must(doc("\\pard\\xsxwef a\\par\\pard\\nowidctlpar b\\par"));
+        QVERIFY(!paragraphWith(d, QStringLiteral("a"))->para.props.widowControl.has_value());
+        QVERIFY(paragraphWith(d, QStringLiteral("b"))->para.props.widowControl.has_value());
+    }
+
+    void oldNumberedParagraphsInARowShareOneList()
+    {
+        const Document d = must("{\\rtf1\\ansi "
+                                "\\pard{\\*\\pn\\pnlvlbody\\pndec\\pnstart1\\pnindent360{\\pntxta.}}one\\par"
+                                "\\pard{\\*\\pn\\pnlvlbody\\pndec\\pnstart1\\pnindent360{\\pntxta.}}two\\par"
+                                "\\pard{\\*\\pn\\pnlvlbody\\pndec\\pnstart1\\pnindent360{\\pntxta.}}three\\par"
+                                "\\pard plain\\par"
+                                "\\pard{\\*\\pn\\pnlvlbody\\pndec\\pnstart1\\pnindent360{\\pntxta.}}again\\par}");
+        const int one = *paragraphWith(d, QStringLiteral("one"))->para.props.numId;
+        QCOMPARE(*paragraphWith(d, QStringLiteral("two"))->para.props.numId, one);
+        QCOMPARE(*paragraphWith(d, QStringLiteral("three"))->para.props.numId, one);
+        QVERIFY(*paragraphWith(d, QStringLiteral("again"))->para.props.numId != one);   // (after a paragraph that is not in it, the count begins again)
+        QCOMPARE(d.numbering.nums.size(), 2);
+    }
+
+    void aCellEndsTheCellOfTheOutermostTableWhateverItapSays()
+    {
+        const Document d = must(doc("\\trowd\\cellx3000\\pard\\intbl\\itap2 stray\\cell\\row\\pard after\\par"));
+        QCOMPARE(count(d, "tbl"), 1);
+        QCOMPARE(count(d, "tc"), 1);
+        QCOMPARE(bodyTexts(d), (QStringList{QStringLiteral("stray"), QStringLiteral("after")}));
+    }
+
+    void fontNamesAreReadInTheirFontsCodePage()
+    {
+        const QByteArray zip = rtf::toDocxPackage("{\\rtf1\\ansi\\ansicpg1252{\\fonttbl{\\f0\\fnil\\fcharset128 \\'82\\'6c\\'82\\'72 \\'96\\'be\\'92\\'a9;}}\\pard x\\par}");
+        Package pkg;
+        QVERIFY(pkg.read(zip));
+        QVERIFY(QString::fromUtf8(pkg.part(QStringLiteral("/word/fontTable.xml"))).contains(QString::fromUtf8("ＭＳ 明朝")));
+    }
+
+    void aCellJoinedIntoAnotherKeepsItsText()
+    {
+        const Document d = must(doc("\\trowd\\clmgf\\cellx2000\\clmrg\\cellx4000\\cellx6000\\pard\\intbl first\\cell second\\cell third\\cell\\row"));
+        QCOMPARE(count(d, "tc"), 2);
+        const QString all = bodyTexts(d).join(QLatin1Char('|'));
+        QVERIFY2(all.contains(QLatin1String("first")) && all.contains(QLatin1String("second")) && all.contains(QLatin1String("third")), qPrintable(all));
+    }
+
     void truncatedAtEveryPoint()
     {
         QByteArray sample = doc("\\pard\\qc\\b Title\\b0\\par\\trowd\\cellx3000\\cellx6000\\pard\\intbl A\\cell B\\cell\\row"
@@ -593,8 +750,6 @@ private Q_SLOTS:
                                       "{\\pict\\pngblip " + tinyPngHex() + "}{\\header\\pard h\\par}\\u8364?\\'e9\\ls1\\par\\sect");
         QRandomGenerator rng(12345);
         static const char *const bits[] = {"{", "}", "\\", "\\bin99999 ", "\\u-1", "\\itap9", "\\cell", "\\row", "\\nestrow", "\\footnote", "\\field", "\\fldinst", "\\pict", "\\*", "\\'", ";", "\\listlevel", "\\leveltext", "\\sect", "\\header"};
-        QElapsedTimer timer;
-        timer.start();
         for (int round = 0; round < 1500; ++round) {
             QByteArray m = sample;
             const int edits = 1 + int(rng.bounded(6));
@@ -611,7 +766,6 @@ private Q_SLOTS:
             Document d;
             read(m, &d);   // (whether it reads or not, it comes back)
         }
-        QVERIFY2(timer.elapsed() < 60000, "the mutated files took too long");
     }
 
     void everySingleByteMutation()

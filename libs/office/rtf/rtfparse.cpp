@@ -37,6 +37,11 @@ const char kWml[] = "application/vnd.openxmlformats-officedocument.wordprocessin
 
 QByteArray num(qint64 v) { return QByteArray::number(v); }
 
+const char *const kKnownWords[] = {
+#include "rtf/rtfwords.inc"
+};
+
+
 enum class Dest {
     Normal, Skip, FontTbl, ColorTbl, StyleSheet, StyleDef, ListTable, ListDef, ListLevel, LevelText, ListOverrideTable, ListOverride, LfoLevel,
     FldInst, Field, BkmkStart, BkmkEnd, Pict, Header, Footnote, NestProps, Pn, PnText, ShapeProp
@@ -140,6 +145,7 @@ class Reader {
 public:
     Reader(const QByteArray &bytes, wml::ReadNotes *notes) : m_d(bytes.constData()), m_n(bytes.size()), m_notes(notes) {}
     QByteArray run(QString *error);
+    qint64 outputBytes() const { return m_outputBytes; }
 
 private:
     // ---- input
@@ -169,6 +175,7 @@ private:
     QHash<QByteArray, QString> m_mediaOf;
     QHash<QString, QString> m_relOfMedia;
     QHash<QString, int> m_bookmarks;
+    QSet<QString> m_endedBookmarks;
     QByteArray m_pendingLead;
     int m_ucSkip = 0;
     int m_lastShppict = 0;
@@ -198,6 +205,8 @@ private:
     CellDef m_pendCell;
     bool m_pendCellBlank = true;
     int m_pnStyleCounter = 0;
+    QString m_pnKey;
+    int m_pnLs = 0, m_pnParagraph = -10;
 
     Story &story() { return m_stories.empty() ? m_main : *m_stories.back(); }
     State &st() { return m_stack.back(); }
@@ -215,11 +224,31 @@ private:
     bool spend(qint64 bytes)
     {
         m_outputBytes += bytes;
-        if (m_outputBytes > kMaxOutputBytes && !m_stopped) {
-            m_stopped = true;
-            left(QStringLiteral("size"), QCoreApplication::translate("jp::office::rtf", "The document is larger than the limit, so the rest of it was left out."));
+        if (m_outputBytes > kMaxOutputBytes) {
+            if (!m_stopped) {
+                m_stopped = true;
+                left(QStringLiteral("size"), QCoreApplication::translate("jp::office::rtf", "The document is larger than the limit, so the rest of it was left out."));
+            }
+            return false;
+        }
+        return true;
+    }
+    // One more character of text (a tab, a break, a field): counted against the limit on the text.
+    bool room(int n = 1)
+    {
+        m_chars += n;
+        if (m_chars > kMaxChars) {
+            if (!m_stopped) {
+                m_stopped = true;
+                left(QStringLiteral("chars"), QCoreApplication::translate("jp::office::rtf", "The text is longer than the limit, so the rest of it was left out."));
+            }
+            return false;
         }
         return !m_stopped;
+    }
+    void addLevelRaw(quint32 v)
+    {
+        if (m_levelRaw.size() < 1000) m_levelRaw.append(v);
     }
 
     // ---- the loop and the tokens
@@ -254,6 +283,8 @@ private:
     void rowEnd(const State &g, int level);
     void sectionEnd(const State &g);
     RowDef &rowDefFor(const State &g);
+    // The level a nested cell or row belongs to: the paragraph's own, between the second and the one past the deepest table open.
+    int nestLevel(const State &g) { return std::clamp(g.par.itap, 2, std::max(2, int(story().levels.size()))); }
     Border *borderFor(State &g, int side);
 
     // ---- the things a group ends with
@@ -340,7 +371,7 @@ void Reader::routeText(const QString &s)
         if (m_instr.size() < kMaxFieldInstructionChars) m_instr += s.toUtf8();
         break;
     case Dest::LevelText:
-        for (QChar c : s) m_levelRaw.append(c.unicode());
+        for (QChar c : s) addLevelRaw(c.unicode());
         break;
     default:
         break;
@@ -355,13 +386,14 @@ void Reader::onByte(uchar b)
         return;
     }
     if (g.dest == Dest::Skip) return;
-    const int cp = codepageFor(g.chr.font);
+    int cp = codepageFor(g.chr.font);
+    if (g.dest == Dest::FontTbl) cp = m_font.codepage ? m_font.codepage : m_docCp;
     if (g.dest == Dest::LevelText && b < 0x20) {
-        m_levelRaw.append(0x80000000u | b);
+        addLevelRaw(0x80000000u | b);
         return;
     }
     if (g.dest == Dest::LevelText && b >= 0x80) {
-        m_levelRaw.append(0x80000000u | b);
+        addLevelRaw(0x80000000u | b);
         return;
     }
     if (!m_pendingLead.isEmpty()) {
@@ -458,8 +490,8 @@ void Reader::flushText(Story &s)
     QByteArray x = "<w:r>";
     if (!rpr.isEmpty()) x += "<w:rPr>" + rpr + "</w:rPr>";
     x += "<w:t xml:space=\"preserve\">" + xmlEscape(s.text) + "</w:t></w:r>";
-    s.runs += x;
     s.text.clear();
+    if (spend(x.size())) s.runs += x;
 }
 
 void Reader::addText(Story &s, const QString &text, const Chr &c)
@@ -476,13 +508,14 @@ void Reader::addRaw(Story &s, const QByteArray &inner, const Chr &c, bool withPr
 {
     flushText(s);
     const QByteArray rpr = withProperties ? runPropertiesXml(c, t) : QByteArray();
-    s.runs += "<w:r>" + (rpr.isEmpty() ? QByteArray() : "<w:rPr>" + rpr + "</w:rPr>") + inner + "</w:r>";
+    const QByteArray x = "<w:r>" + (rpr.isEmpty() ? QByteArray() : "<w:rPr>" + rpr + "</w:rPr>") + inner + "</w:r>";
+    if (spend(x.size())) s.runs += x;
 }
 
 void Reader::addInline(Story &s, const QByteArray &xml)
 {
     flushText(s);
-    s.runs += xml;
+    if (spend(xml.size())) s.runs += xml;
 }
 
 void Reader::addField(const QByteArray &instr, const QString &result)
@@ -564,7 +597,7 @@ void Reader::endParagraph(const State &g, int level, bool force)
         return;
     }
     const QByteArray ppr = paragraphPropertiesXml(g.par, t, styleIdOf(g.par.style), false);
-    spend(ppr.size() + s.runs.size() + 16);
+    spend(ppr.size() + 16);
     if (level <= 0) {
         closeTables(s);
         flushHeld(s);
@@ -740,6 +773,7 @@ QByteArray Reader::tableXml(const QVector<Story::RowRec> &rows)
             if (c.mergeCont && !outs.isEmpty() && !outs.last().cont) {
                 outs.last().span += endCol - col;
                 outs.last().width += c.right - prevRight;
+                if (r.cells[i].contains("<w:r>")) outs.last().content += r.cells[i];   // (what the joined cell holds is kept)
                 prevRight = c.right;
                 col = endCol;
                 continue;
@@ -775,7 +809,10 @@ QByteArray Reader::tableXml(const QVector<Story::RowRec> &rows)
         x += "</w:tr>";
     }
     x += "</w:tbl>";
-    spend(x.size());
+    qint64 inner = 0;
+    for (const Story::RowRec &r : rows)
+        for (const QByteArray &c : r.cells) inner += c.size();
+    spend(std::max<qint64>(0, x.size() - inner));
     return x;
 }
 
@@ -872,7 +909,7 @@ void Reader::popGroup()
             break;
         case Dest::LfoLevel:
             m_lfo.present = m_lfo.present;
-            m_overrides.append(m_lfo);
+            if (m_overrides.size() < 9) m_overrides.append(m_lfo);
             m_lfo = ListLevel();
             break;
         case Dest::FldInst: {
@@ -908,9 +945,10 @@ void Reader::popGroup()
         case Dest::BkmkEnd: {
             const QString name = m_name.trimmed().left(40);
             const auto it = m_bookmarks.constFind(name);
-            if (it != m_bookmarks.constEnd() && !m_stopped) {
+            if (it != m_bookmarks.constEnd() && !m_stopped && !m_endedBookmarks.contains(name)) {
                 addInline(story(), "<w:bookmarkEnd w:id=\"" + num(it.value()) + "\"/>");
-                m_bookmarks.insert(name, -it.value() - 1 > 0 ? it.value() : it.value());
+                m_bookmarks.insert(name, it.value());
+                m_endedBookmarks.insert(name);
             }
             m_name.clear();
             break;
@@ -940,6 +978,15 @@ void Reader::finishPn(State &parent)
         m_pn = PnScratch();
         return;
     }
+    const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7").arg(m_pn.bullet).arg(m_pn.nfc).arg(m_pn.start).arg(m_pn.indent).arg(m_pn.font).arg(m_pn.before, m_pn.after);
+    // (The paragraph right after one with the same settings goes on counting in its list.)
+    if (key == m_pnKey && m_paragraphs == m_pnParagraph + 1) {
+        parent.par.ls = m_pnLs;
+        parent.par.ilvl = 0;
+        m_pnParagraph = m_paragraphs;
+        m_pn = PnScratch();
+        return;
+    }
     ListDef l;
     l.simple = true;
     l.id = -1 - m_pnStyleCounter;
@@ -956,9 +1003,12 @@ void Reader::finishPn(State &parent)
     Tables::Num n;
     n.list = t.lists.size() - 1;
     t.nums.append(n);
-    const int key = -1 - m_pnStyleCounter++;
-    t.numAt.insert(key, t.nums.size());
-    parent.par.ls = key;
+    const int ls = -1 - m_pnStyleCounter++;
+    t.numAt.insert(ls, t.nums.size());
+    m_pnKey = key;
+    m_pnLs = ls;
+    m_pnParagraph = m_paragraphs;
+    parent.par.ls = ls;
     parent.par.ilvl = 0;
     m_pn = PnScratch();
 }
@@ -1054,11 +1104,11 @@ void Reader::finishListLevel(const State &g)
 void Reader::finishHeader(const State &g)
 {
     if (m_stories.empty()) return;
+    // (Finished while it is still the story text goes to: what its last paragraph has, with no mark to end it, is in it.)
+    const QByteArray body = finishStory(*m_stories.back(), g);
     std::unique_ptr<Story> s = std::move(m_stories.back());
     m_stories.pop_back();
-    const QByteArray body = finishStory(*s, g);
     if (m_stopped || s->slot < 0) return;
-    spend(body.size());
     const bool isHeader = s->slot < 3;
     pkg.addPart(s->part, header(isHeader ? "w:hdr" : "w:ftr", body), QString::fromLatin1(kWml) + (isHeader ? QStringLiteral("header+xml") : QStringLiteral("footer+xml")));
     m_secRef[s->slot] = pkg.addRelationship(QStringLiteral("/word/document.xml"), QString::fromLatin1(kRel) + (isHeader ? QStringLiteral("header") : QStringLiteral("footer")), s->part);
@@ -1067,13 +1117,13 @@ void Reader::finishHeader(const State &g)
 void Reader::finishNote(const State &g)
 {
     if (m_stories.empty()) return;
+    // (Finished while it is still the story text goes to: what its last paragraph has, with no mark to end it, is in it.)
+    const QByteArray body = finishStory(*m_stories.back(), g);
     std::unique_ptr<Story> s = std::move(m_stories.back());
     m_stories.pop_back();
-    const QByteArray body = finishStory(*s, g);
     if (m_stopped) return;
     const int kind = s->endnote ? 1 : 0;
     const int id = ++m_noteCount[kind];
-    spend(body.size());
     const char *tag = kind ? "w:endnote" : "w:footnote";
     m_notesXml[kind] += QByteArray("<") + tag + " w:id=\"" + num(id) + "\">" + body + "</" + tag + ">";
     Chr c = m_stack[m_stack.size() - 2].chr;
@@ -1103,10 +1153,10 @@ QByteArray Reader::drawingXml(const Picture &p, const QString &rid)
 {
     double w = 0, h = 0;
     if (p.wGoal > 0 && p.hGoal > 0) {
-        w = p.wGoal * (p.scaleX > 0 ? p.scaleX : 100) / 100.0 / 20.0;
-        h = p.hGoal * (p.scaleY > 0 ? p.scaleY : 100) / 100.0 / 20.0;
+        w = double(p.wGoal) * (p.scaleX > 0 ? p.scaleX : 100) / 100.0 / 20.0;
+        h = double(p.hGoal) * (p.scaleY > 0 ? p.scaleY : 100) / 100.0 / 20.0;
     } else if (p.w > 0 && p.h > 0) {
-        w = p.w * 72.0 / 2540.0 * (p.scaleX > 0 ? p.scaleX : 100) / 100.0;
+        w = double(p.w) * 72.0 / 2540.0 * (p.scaleX > 0 ? p.scaleX : 100) / 100.0;
         h = p.h * 72.0 / 2540.0 * (p.scaleY > 0 ? p.scaleY : 100) / 100.0;
     }
     if (w < 1 || h < 1) {
@@ -1246,6 +1296,15 @@ void Reader::listWord(State &g, uint32_t h, bool has, int param)
 void Reader::destWord(State &g, uint32_t h, bool has, int param, bool *handled)
 {
     *handled = true;
+    // (A group makes one thing: a second word that would make another in the same group is no more than a word.)
+    if (g.owns) {
+        switch (h) {
+        case H("field"): case H("fldinst"): case H("footnote"): case H("header"): case H("headerr"): case H("headerl"): case H("headerf"): case H("footer"): case H("footerr"):
+        case H("footerl"): case H("footerf"): case H("pict"): case H("bkmkstart"): case H("bkmkend"): case H("pn"): case H("nesttableprops"):
+            return;
+        default: break;
+        }
+    }
     auto enter = [&](Dest d) {
         g.dest = d;
         g.owns = true;
@@ -1411,7 +1470,7 @@ void Reader::charWord(State &g, uint32_t h, bool has, int param, bool *handled)
     case H("cf"): if (has) c.color = param; break;
     case H("highlight"): if (has) c.hl = param; break;
     case H("cb"): case H("chcbpat"): if (has) c.shd = param; break;
-    case H("expnd"): if (has) c.spacing = param * 5 / 4; break;
+    case H("expnd"): if (has) c.spacing = int(std::clamp<qint64>(qint64(param) * 5 / 4, -31680, 31680)); break;
     case H("expndtw"): if (has) c.spacing = param; break;
     case H("charscalex"): if (has) c.scale = param; break;
     case H("lang"): if (has) c.lang = param; break;
@@ -1547,7 +1606,7 @@ void Reader::tableWord(State &g, uint32_t h, bool has, int param, bool *handled)
         break;
     case H("cellx"):
         if (has && d.cells.size() < kMaxRowCells) {
-            m_pendCell.right = param;
+            m_pendCell.right = std::clamp(param, -1000000, 1000000);
             d.cells.append(m_pendCell);
         }
         m_pendCell = CellDef();
@@ -1579,10 +1638,10 @@ void Reader::tableWord(State &g, uint32_t h, bool has, int param, bool *handled)
     case H("clvertalt"): m_pendCell.valign = 0; break;
     case H("clvertalc"): m_pendCell.valign = 1; break;
     case H("clvertalb"): m_pendCell.valign = 2; break;
-    case H("cell"): cellEnd(g, std::max(g.par.itap, 1)); break;
-    case H("nestcell"): cellEnd(g, std::max(g.par.itap, 2)); break;
+    case H("cell"): cellEnd(g, 1); break;
+    case H("nestcell"): cellEnd(g, nestLevel(g)); break;
     case H("row"): rowEnd(g, 1); break;
-    case H("nestrow"): rowEnd(g, std::max(g.par.itap, 2)); break;
+    case H("nestrow"): rowEnd(g, nestLevel(g)); break;
     default: *handled = false; break;
     }
     (void)s;
@@ -1681,7 +1740,7 @@ void Reader::word(uint32_t h, const char *name, int len, bool has, int param)
         if (m_ucSkip > 0) m_ucSkip = 0;
         flushLead();
         if (g.dest != Dest::Pict && g.dest != Dest::ColorTbl) {
-            if (g.dest == Dest::LevelText) m_levelRaw.append(v & 0xFFFF);
+            if (g.dest == Dest::LevelText) addLevelRaw(v & 0xFFFF);
             else routeText(QString(QChar(ushort(v & 0xFFFF))));
         }
         m_ucSkip = uc;
@@ -1702,7 +1761,7 @@ void Reader::word(uint32_t h, const char *name, int len, bool has, int param)
         case H("fmodern"): m_font.family = 3; return;
         case H("fscript"): m_font.family = 4; return;
         case H("fdecor"): m_font.family = 5; return;
-        case H("fcharset"): m_font.charset = param; return;
+        case H("fcharset"): m_font.charset = param; if (!m_font.codepage) m_font.codepage = codepageOfCharset(param); return;
         case H("fprq"): m_font.prq = param; return;
         case H("cpg"): if (has) m_font.codepage = param; return;
         case H("u"): break;
@@ -1795,10 +1854,10 @@ void Reader::word(uint32_t h, const char *name, int len, bool has, int param)
             if (!m_stopped) endParagraph(g, std::clamp(g.par.itap, 0, kMaxTableDepth), true);
         }
         break;
-    case H("tab"): if (g.dest == Dest::Normal || g.dest == Dest::Header || g.dest == Dest::Footnote || g.dest == Dest::Field) { if (!m_stopped) addRaw(story(), "<w:tab/>", g.chr); } break;
-    case H("line"): if (g.dest == Dest::Normal || g.dest == Dest::Header || g.dest == Dest::Footnote || g.dest == Dest::Field) { if (!m_stopped) addRaw(story(), "<w:br/>", g.chr); } break;
-    case H("page"): if (g.dest == Dest::Normal || g.dest == Dest::Header || g.dest == Dest::Footnote || g.dest == Dest::Field) { if (!m_stopped) addRaw(story(), "<w:br w:type=\"page\"/>", g.chr); } break;
-    case H("column"): if (g.dest == Dest::Normal || g.dest == Dest::Header || g.dest == Dest::Footnote || g.dest == Dest::Field) { if (!m_stopped) addRaw(story(), "<w:br w:type=\"column\"/>", g.chr); } break;
+    case H("tab"): if (g.dest == Dest::Normal || g.dest == Dest::Header || g.dest == Dest::Footnote || g.dest == Dest::Field) { if (room()) addRaw(story(), "<w:tab/>", g.chr); } break;
+    case H("line"): if (g.dest == Dest::Normal || g.dest == Dest::Header || g.dest == Dest::Footnote || g.dest == Dest::Field) { if (room()) addRaw(story(), "<w:br/>", g.chr); } break;
+    case H("page"): if (g.dest == Dest::Normal || g.dest == Dest::Header || g.dest == Dest::Footnote || g.dest == Dest::Field) { if (room()) addRaw(story(), "<w:br w:type=\"page\"/>", g.chr); } break;
+    case H("column"): if (g.dest == Dest::Normal || g.dest == Dest::Header || g.dest == Dest::Footnote || g.dest == Dest::Field) { if (room()) addRaw(story(), "<w:br w:type=\"column\"/>", g.chr); } break;
     case H("emdash"): routeText(QString(QChar(0x2014))); break;
     case H("endash"): routeText(QString(QChar(0x2013))); break;
     case H("emspace"): routeText(QString(QChar(0x2003))); break;
@@ -1813,9 +1872,9 @@ void Reader::word(uint32_t h, const char *name, int len, bool has, int param)
     case H("zwnj"): routeText(QString(QChar(0x200C))); break;
     case H("ltrmark"): routeText(QString(QChar(0x200E))); break;
     case H("rtlmark"): routeText(QString(QChar(0x200F))); break;
-    case H("chpgn"): if (g.dest == Dest::Normal || g.dest == Dest::Header || g.dest == Dest::Footnote) { if (!m_stopped) addField("PAGE", QStringLiteral("1")); } break;
-    case H("chdate"): case H("chdpl"): case H("chdpa"): if (g.dest == Dest::Normal || g.dest == Dest::Header || g.dest == Dest::Footnote) { if (!m_stopped) addField("DATE", QString()); } break;
-    case H("chtime"): if (g.dest == Dest::Normal || g.dest == Dest::Header || g.dest == Dest::Footnote) { if (!m_stopped) addField("TIME", QString()); } break;
+    case H("chpgn"): if (g.dest == Dest::Normal || g.dest == Dest::Header || g.dest == Dest::Footnote) { if (room(4)) addField("PAGE", QStringLiteral("1")); } break;
+    case H("chdate"): case H("chdpl"): case H("chdpa"): if (g.dest == Dest::Normal || g.dest == Dest::Header || g.dest == Dest::Footnote) { if (room(4)) addField("DATE", QString()); } break;
+    case H("chtime"): if (g.dest == Dest::Normal || g.dest == Dest::Header || g.dest == Dest::Footnote) { if (room(4)) addField("TIME", QString()); } break;
     case H("chftn"):
         if (g.dest == Dest::Footnote && !m_stopped) {
             Chr c = g.chr;
@@ -1858,7 +1917,8 @@ void Reader::control()
         }
         if (m_pos < m_n && m_d[m_pos] == ' ') ++m_pos;
         const int p = int(std::clamp<qint64>(neg ? -param : param, -2000000000LL, 2000000000LL));
-        const uint32_t h = hashOf(m_d + start, len);
+        // (A word is acted on only if its letters are one this reader knows, not just its hash: another word with the same hash is no word of the format's.)
+        const uint32_t h = isKnownWord(m_d + start, len) ? hashOf(m_d + start, len) : 0u;
         if (h == H("bin") && has && p > 0) {
             // Binary data follows: that many bytes, whatever they are.
             const qint64 take = std::min<qint64>(p, m_n - m_pos);
@@ -1927,10 +1987,12 @@ QByteArray Reader::build(const State &g)
     const QString mainName = QStringLiteral("/word/document.xml");
     const QString rel = QString::fromLatin1(kRel), wml = QString::fromLatin1(kWml);
     pkg.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), mainName);
-    pkg.addPart(QStringLiteral("/word/styles.xml"), stylesXml(t), wml + QStringLiteral("styles+xml"));
+    const QByteArray styles = stylesXml(t);
+    spend(styles.size());
+    pkg.addPart(QStringLiteral("/word/styles.xml"), styles, wml + QStringLiteral("styles+xml"));
     pkg.addRelationship(mainName, rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
     const QByteArray numbering = numberingXml(t);
-    if (!numbering.isEmpty()) {
+    if (!numbering.isEmpty() && spend(numbering.size())) {
         pkg.addPart(QStringLiteral("/word/numbering.xml"), numbering, wml + QStringLiteral("numbering+xml"));
         pkg.addRelationship(mainName, rel + QStringLiteral("numbering"), QStringLiteral("/word/numbering.xml"));
     }
@@ -2023,6 +2085,20 @@ QByteArray Reader::run(QString *error)
 
 } // namespace
 
+thread_local qint64 g_lastOutputBytes = 0;
+
+qint64 lastOutputBytesForTest() { return g_lastOutputBytes; }
+
+bool isKnownWord(const char *letters, int length)
+{
+    static const QSet<QByteArray> words = [] {
+        QSet<QByteArray> w;
+        for (const char *k : kKnownWords) w.insert(QByteArray(k));
+        return w;
+    }();
+    return length > 0 && length <= 32 && words.contains(QByteArray(letters, length));
+}
+
 bool looksLikeRtf(const QByteArray &bytes)
 {
     qsizetype i = 0;
@@ -2042,7 +2118,9 @@ QByteArray toDocxPackage(const QByteArray &bytes, QString *error, wml::ReadNotes
         return QByteArray();
     }
     Reader r(bytes, notes);
-    return r.run(error);
+    const QByteArray out = r.run(error);
+    g_lastOutputBytes = r.outputBytes();
+    return out;
 }
 
 bool readRtf(const QByteArray &bytes, wml::Document *doc, QString *error, wml::ReadNotes *notes)

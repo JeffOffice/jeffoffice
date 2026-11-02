@@ -3,6 +3,7 @@
 //   rtfsweep file            the text, on standard output; the reason on standard error and exit code 2 if it can't be opened
 //   rtfsweep --count file    "words paragraphs notes" instead of the text
 #include "core/writedoc.h"
+#include "rtf/rtf.h"
 
 #include <QApplication>
 #include <QFile>
@@ -26,6 +27,12 @@ int main(int argc, char **argv)
         return 2;
     }
     const QByteArray bytes = f.readAll();
+    if (args.contains(QStringLiteral("--package"))) {
+        // The .docx package the .rtf comes to, on standard output.
+        const QByteArray zip = jp::office::rtf::toDocxPackage(bytes);
+        std::fwrite(zip.constData(), 1, size_t(zip.size()), stdout);
+        return 0;
+    }
     QString error;
     QStringList notes;
     const auto doc = jp::write::WriteDoc::fromFile(bytes, &error, &notes);

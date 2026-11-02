@@ -47,6 +47,9 @@
 #include "wml/wml.h"
 
 #include <QAccessible>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
 #include <QBuffer>
 #include <QImageReader>
 #include <QUrl>
@@ -1114,6 +1117,59 @@ private Q_SLOTS:
         WriteWindow b;
         QVERIFY(b.openFile(w.filePath()));
         QCOMPARE(b.document()->story()->toPlainText().left(9), QStringLiteral("!Old text"));
+    }
+
+    // Document files dropped on the pages open; a picture dropped there is put in the text; and several files at once each open.
+    void droppingDocumentFilesOpensThemAndAPictureStaysAPicture()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString one = writeFile(dir, QStringLiteral("one.rtf"), "{\\rtf1\\ansi First dropped\\par}");
+        const QString two = writeFile(dir, QStringLiteral("two.rtf"), "{\\rtf1\\ansi Second dropped\\par}");
+        const QString pic = dir.filePath(QStringLiteral("pic.png"));
+        QImage image(8, 8, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        QVERIFY(image.save(pic));
+        auto windows = [] {
+            int n = 0;
+            for (QWidget *top : QApplication::topLevelWidgets())
+                if (qobject_cast<WriteWindow *>(top)) ++n;
+            return n;
+        };
+        auto drop = [](QWidget *target, const QStringList &paths) {
+            QMimeData mime;
+            QList<QUrl> urls;
+            for (const QString &path : paths) urls << QUrl::fromLocalFile(path);
+            mime.setUrls(urls);
+            QDragEnterEvent enter(QPoint(10, 10), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(target, &enter);
+            const bool accepted = enter.isAccepted();
+            QDropEvent dropped(QPointF(10, 10), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(target, &dropped);
+            return accepted;
+        };
+        WriteWindow w;
+        w.show();
+        const int base = windows();
+        // One .rtf: opened in this window, which was empty and untouched.
+        QVERIFY(drop(w.view()->viewport(), {one}));
+        QTRY_VERIFY2(windows() > base || w.document()->story()->toPlainText().contains(QLatin1String("First dropped")), "nothing opened");
+        QVERIFY2(w.document()->story()->toPlainText().contains(QLatin1String("First dropped")), qPrintable(QStringLiteral("windows %1 base %2").arg(windows()).arg(base)));
+        QCOMPARE(windows(), base);
+        // A picture: put in the text, and no window opens.
+        QVERIFY(drop(w.view()->viewport(), {pic}));
+        QCOMPARE(windows(), base);
+        QVERIFY(w.isModified());
+        // Two files together: a window for each.
+        QVERIFY(drop(w.view()->viewport(), {one, two}));
+        QTRY_COMPARE(windows(), base + 2);
+        // Something that is neither is not taken.
+        QVERIFY(!drop(w.view()->viewport(), {dir.filePath(QStringLiteral("none.xyz"))}));
+        QCOMPARE(windows(), base + 2);
+        QList<WriteWindow *> extra;
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (auto *ww = qobject_cast<WriteWindow *>(top); ww && ww != &w) extra << ww;
+        for (WriteWindow *ww : extra) ww->close();
     }
 
     void anRtfFileWithPartsTheLimitsCutSaysSoAndKeepsTheRest()

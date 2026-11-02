@@ -51,6 +51,9 @@ bool looksLikeRtf(const QByteArray &bytes);
 // thing left out.
 QByteArray toDocxPackage(const QByteArray &bytes, QString *error = nullptr, wml::ReadNotes *notes = nullptr);
 
+// For tests of cost: the XML the last file read on this thread came to, counted against kMaxOutputBytes.
+qint64 lastOutputBytesForTest();
+
 // The document: the package above read as a .docx is. False, with the reason, if the file can't be read.
 bool readRtf(const QByteArray &bytes, wml::Document *doc, QString *error = nullptr, wml::ReadNotes *notes = nullptr);
 

@@ -370,12 +370,20 @@ void PageView::dragEnterEvent(QDragEnterEvent *e)
         e->acceptProposedAction();
         return;
     }
-    // (A document file is the window's: it opens.)
-    e->ignore();
-    if (window() && window() != this) {
-        QCoreApplication::sendEvent(window(), e);
-        m_documentDrag = e->isAccepted();
-    }
+    // (A document file is the window's to open.)
+    m_documentDrag = !documentFilesIn(e->mimeData()).isEmpty();
+    if (m_documentDrag) e->acceptProposedAction();
+    else e->ignore();
+}
+
+QStringList PageView::documentFilesIn(const QMimeData *mime)
+{
+    static const QStringList kinds = {QStringLiteral("docx"), QStringLiteral("docm"), QStringLiteral("dotx"), QStringLiteral("dotm"), QStringLiteral("doc"), QStringLiteral("dot"), QStringLiteral("rtf")};
+    QStringList out;
+    if (!mime || !mime->hasUrls()) return out;
+    for (const QUrl &u : mime->urls())
+        if (u.isLocalFile() && kinds.contains(QFileInfo(u.toLocalFile()).suffix().toLower()) && out.size() < 20) out << u.toLocalFile();
+    return out;
 }
 
 void PageView::dragMoveEvent(QDragMoveEvent *e)
@@ -401,7 +409,8 @@ void PageView::dropEvent(QDropEvent *e)
 {
     if (m_documentDrag) {
         m_documentDrag = false;
-        QCoreApplication::sendEvent(window(), e);
+        e->acceptProposedAction();
+        Q_EMIT documentsDropped(documentFilesIn(e->mimeData()));
         return;
     }
     if (dropText(e)) return;
