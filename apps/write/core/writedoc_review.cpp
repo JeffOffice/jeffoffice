@@ -151,13 +151,19 @@ void WriteDoc::setRevisionView(int view)
 void WriteDoc::setFieldCodes(bool all, const QSet<int> &ids)
 {
     if (all == m_fieldCodesAll && ids == m_fieldCodeIds) return;
-    for (int id : std::as_const(m_fieldCodeIds)) tp::shownFieldCodeIds().remove(id);
+    // (The token in the view's high bits is this document's own for as long as it shows codes singly, and is new with each change, so that what was laid out for the last view is laid out again.)
+    static int s_lastToken = 0;
+    if (m_fieldCodesCount > 0) tp::shownFieldCodeSets().remove(m_fieldCodesCount);
     m_fieldCodesAll = all;
     m_fieldCodeIds = ids;
-    for (int id : std::as_const(m_fieldCodeIds)) tp::shownFieldCodeIds().insert(id);
-    // (The count in the high bits makes each change a different view, so what was laid out for the last is laid out again.)
-    m_fieldCodesCount = m_fieldCodesCount % 100000 + 1;
-    m_fieldCodeView = !all && ids.isEmpty() ? 0 : (all ? tp::kShowFieldCodes : 0) | (m_fieldCodesCount << tp::kFieldCodesCountShift);
+    m_fieldCodesCount = 0;
+    m_fieldCodeView = 0;
+    if (all || !ids.isEmpty()) {
+        s_lastToken = s_lastToken % 4000000 + 1;
+        m_fieldCodesCount = s_lastToken;
+        if (!ids.isEmpty()) tp::shownFieldCodeSets().insert(m_fieldCodesCount, ids);
+        m_fieldCodeView = (all ? tp::kShowFieldCodes : 0) | (m_fieldCodesCount << tp::kFieldCodesCountShift);
+    }
     m_flow->env.revisionView = m_revisionView | m_fieldCodeView;
     story()->setProperty(tp::kRevisionViewProperty, m_revisionView | m_fieldCodeView);
     if (m_pager) m_pager->invalidateFrom(0);

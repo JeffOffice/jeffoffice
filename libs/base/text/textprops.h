@@ -4,6 +4,7 @@
 #include <QColor>
 #include <QString>
 #include <QStringList>
+#include <QHash>
 #include <QSet>
 #include <QTextFormat>
 #include <QTextListFormat>
@@ -129,21 +130,23 @@ inline QColor revisionColor(int author)
     static const char *const colors[] = {"#c0392b", "#1f6fb2", "#2e8b57", "#9b3fa0", "#b8860b", "#00838f", "#d35400", "#5d6d7e"};
     return QColor(QLatin1String(colors[(author < 0 ? 0 : author) % 8]));
 }
-// Show Field Codes: a view of the text, not a change to it. `view` has kShowFieldCodes for every field's codes, or the ids of single fields are in shownFieldCodeIds(); the high bits of `view`
+// Show Field Codes: a view of the text, not a change to it. `view` has kShowFieldCodes for every field's codes, or the ids of single fields are in the set kept for the token in its high bits (shownFieldCodeSets()); the high bits of `view`
 // are a count that changes with each toggle, so that what was laid out for the old view is laid out again.
 constexpr int kShowFieldCodes = 8;
 constexpr int kFieldCodesCountShift = 8;
-inline QSet<int> &shownFieldCodeIds()
+// The fields whose codes a document shows singly, by the token in the high bits of the view that document lays out with: each document has a token of its own, so what one shows is no
+// other's.
+inline QHash<int, QSet<int>> &shownFieldCodeSets()
 {
-    static QSet<int> ids;
-    return ids;
+    static QHash<int, QSet<int>> sets;
+    return sets;
 }
 // Whether the field the run belongs to has its codes shown in this view.
 inline bool fieldCodesShown(const QTextFormat &f, int view)
 {
     if (!(view & ~(kRevisionShowDeleted | kRevisionMark | kRevisionHideInserted))) return false;
     const int id = f.intProperty(FieldId);
-    return id > 0 && ((view & kShowFieldCodes) || shownFieldCodeIds().contains(id));
+    return id > 0 && ((view & kShowFieldCodes) || shownFieldCodeSets().value(view >> kFieldCodesCountShift).contains(id));
 }
 // Whether the run (or paragraph mark) the format is of is left out of the lines when changes are shown as `view` says.
 inline bool hiddenInView(const QTextFormat &f, int view)

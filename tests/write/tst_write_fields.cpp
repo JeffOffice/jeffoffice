@@ -998,6 +998,40 @@ private Q_SLOTS:
         QCOMPARE(shown(), QStringLiteral("a stale b old"));
     }
 
+    void twoDocumentsShowTheCodesOfTheirOwnFields()
+    {
+        const QByteArray body = para(run("a ") + field("QUOTE \"one\"", "r1") + run(" b ") + field("QUOTE \"two\"", "r2"));
+        auto first = open(makeDocx(body));
+        auto second = open(makeDocx(body));
+        QVERIFY(first && second);
+        auto shown = [](WriteDoc &doc) {
+            FrameSpec fs;
+            fs.size = QSizeF(468, 600);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            StoryLayout layout;
+            layout.build(doc.story(), {fs}, doc.flow().env);
+            QStringList out;
+            for (const auto &l : layout.lineInfo(0)) out << QString(l.text).remove(QChar(0x2060)).trimmed();
+            return out.join(QLatin1Char('|'));
+        };
+        // (The same file read twice numbers its fields the same: the numbers are the same in both.)
+        const StoryScan a = scanStory(first->story()), b = scanStory(second->story());
+        QTextCursor onFirstField(first->story()), onSecondField(second->story());
+        onFirstField.setPosition(a.fields[0].begin + 1);
+        onSecondField.setPosition(b.fields[1].begin + 1);
+        QCOMPARE(toggleFieldCodes(*first, onFirstField, false), 1);
+        QCOMPARE(toggleFieldCodes(*second, onSecondField, false), 1);
+        QCOMPARE(shown(*first), QStringLiteral("a { QUOTE \"one\" } b r2"));
+        QCOMPARE(shown(*second), QStringLiteral("a r1 b { QUOTE \"two\" }"));
+        // One closing, or changing, leaves the other as it is.
+        QCOMPARE(toggleFieldCodes(*first, onFirstField, false), 1);
+        QCOMPARE(shown(*first), QStringLiteral("a r1 b r2"));
+        QCOMPARE(shown(*second), QStringLiteral("a r1 b { QUOTE \"two\" }"));
+        first.reset();
+        QCOMPARE(shown(*second), QStringLiteral("a r1 b { QUOTE \"two\" }"));
+    }
+
     void aTableOfContentsIsBuiltFromTheHeadings()
     {
         const QByteArray toc = para(run("Contents")) + para(field("TOC \\o \"1-2\" \\h \\z \\u", "Old"));
