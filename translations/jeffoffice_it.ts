@@ -1115,12 +1115,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Modifica di %1</translation>
     </message>
     <message>
-        <location line="+1245"/>
-        <source>Format Painter</source>
-        <translation type="unfinished">Copia formato</translation>
-    </message>
-    <message>
-        <location line="-790"/>
+        <location line="+455"/>
         <source>Create Text Box Link</source>
         <translation type="unfinished">Crea collegamento casella di testo</translation>
     </message>
@@ -1246,7 +1241,12 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Sposta testo</translation>
     </message>
     <message>
-        <location line="+451"/>
+        <location line="+23"/>
+        <source>Copy Formatting</source>
+        <translation type="unfinished">Copia formato</translation>
+    </message>
+    <message>
+        <location line="+428"/>
         <source>Insert Row</source>
         <translation type="unfinished">Inserisci riga</translation>
     </message>
@@ -3154,11 +3154,6 @@ Articolo dell&apos;ultima pagina	4</translation>
     </message>
     <message>
         <location line="-38"/>
-        <source>Do Not Autofit</source>
-        <translation type="unfinished">Non adattare</translation>
-    </message>
-    <message>
-        <location line="+0"/>
         <source>Best Fit</source>
         <translation type="unfinished">Adattamento ottimale</translation>
     </message>
@@ -3171,6 +3166,11 @@ Articolo dell&apos;ultima pagina	4</translation>
         <location line="+0"/>
         <source>Grow Text Box to Fit</source>
         <translation type="unfinished">Adatta casella di testo al contenuto</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Do Not Fit</source>
+        <translation type="unfinished">Non adattare</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -3189,12 +3189,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Allineamento verticale:</translation>
     </message>
     <message>
-        <location line="-44"/>
-        <source>Text autofitting:</source>
-        <translation type="unfinished">Adattamento automatico testo:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="-43"/>
         <location line="+44"/>
         <source>Left margin:</source>
         <translation type="unfinished">Margine sinistro:</translation>
@@ -4270,12 +4265,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Crea sempre una copia di backup</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Save AutoRecover information every:</source>
-        <translation type="unfinished">Salva informazioni di Salvataggio automatico ogni:</translation>
-    </message>
-    <message>
-        <location line="-10"/>
+        <location line="-8"/>
         <source>Save</source>
         <translation type="unfinished">Salvataggio</translation>
     </message>
@@ -4350,7 +4340,17 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">JeffPub mostrerà il testo nella nuova lingua al prossimo avvio.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+46"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-600"/>
+        <source>Text fitting:</source>
+        <translation type="unfinished">Adattamento testo:</translation>
+    </message>
+    <message>
+        <location line="+591"/>
+        <source>Save automatic recovery information every:</source>
+        <translation type="unfinished">Salva informazioni di recupero automatico ogni:</translation>
+    </message>
+    <message>
+        <location line="+55"/>
         <location line="+22"/>
         <source>Page Number</source>
         <translation type="unfinished">Numero di pagina</translation>
@@ -5046,8 +5046,8 @@ Articolo dell&apos;ultima pagina	4</translation>
     </message>
     <message>
         <location line="-587"/>
-        <source>AutoSum</source>
-        <translation type="unfinished">Somma automatica</translation>
+        <source>Sum</source>
+        <translation type="unfinished">Somma</translation>
     </message>
     <message>
         <location line="+180"/>
@@ -6857,8 +6857,8 @@ Oppure salva in una cartella non protetta.</translation>
     <name>Help</name>
     <message>
         <location filename="../libs/shell/app/help.cpp" line="+259"/>
-        <source>Quick Access Toolbar</source>
-        <translation type="unfinished">Barra di accesso rapido</translation>
+        <source>Quick Toolbar</source>
+        <translation type="unfinished">Barra degli strumenti rapida</translation>
     </message>
     <message>
         <location line="+36"/>
@@ -11389,7 +11389,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>AutoFit</source>
+        <source>Fit</source>
         <translation type="unfinished">Adatta</translation>
     </message>
     <message>
@@ -17824,13 +17824,15 @@ Origine: %3</translation>
         <translation type="unfinished">Incolla</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+35"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+34"/>
+        <location line="+1"/>
+        <location line="+38"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+461"/>
         <source>Sum</source>
         <translation type="unfinished">Somma</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-37"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-1"/>
         <source>Average</source>
         <translation type="unfinished">Media</translation>
@@ -18048,12 +18050,6 @@ Origine: %3</translation>
         <translation type="unfinished">Cancella</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-382"/>
-        <location line="+39"/>
-        <source>AutoSum</source>
-        <translation type="unfinished">Somma automatica</translation>
-    </message>
-    <message>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-576"/>
         <location line="+282"/>
         <source>Bold</source>
@@ -18249,12 +18245,12 @@ Origine: %3</translation>
         <location line="+1"/>
         <location line="+588"/>
         <location line="+29"/>
-        <source>Format Painter</source>
+        <source>Copy Formatting</source>
         <translation type="unfinished">Copia formato</translation>
     </message>
     <message>
         <location line="-616"/>
-        <source>Format Painter: copies the format of the selected cells to the cells you select next. Double-click to paint more than once.</source>
+        <source>Copy Formatting: copies the format of the selected cells to the cells you select next. Double-click to paint more than once.</source>
         <translation type="unfinished">Copia formato: copia il formato delle celle selezionate nelle celle selezionate successivamente. Fare doppio clic per applicarlo più volte.</translation>
     </message>
     <message>
@@ -19019,12 +19015,12 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>AutoFit Row Height</source>
+        <source>Fit Row Height</source>
         <translation type="unfinished">Adatta altezza righe</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>AutoFit Column Width</source>
+        <source>Fit Column Width</source>
         <translation type="unfinished">Adatta larghezza colonne</translation>
     </message>
     <message>
@@ -19199,7 +19195,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+239"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-104"/>
         <source>Columns</source>
         <translation type="unfinished">Colonne</translation>
     </message>
@@ -22237,7 +22233,7 @@ Impossibile leggere il file.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-292"/>
-        <source>Format Painter</source>
+        <source>Copy Formatting</source>
         <translation type="unfinished">Copia formato</translation>
     </message>
     <message>
@@ -26966,12 +26962,12 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Ruota tutto il testo di 90°</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Do not Autofit</source>
-        <translation type="unfinished">Non adattare</translation>
+        <location line="+4"/>
+        <source>Fit</source>
+        <translation type="unfinished">Adatta</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-3"/>
         <source>Shrink text on overflow</source>
         <translation type="unfinished">Riduci testo in eccesso</translation>
     </message>
@@ -26979,6 +26975,11 @@ Impossibile leggere il file.</translation>
         <location line="+0"/>
         <source>Resize shape to fit text</source>
         <translation type="unfinished">Adatta forma al testo</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Do Not Fit</source>
+        <translation type="unfinished">Non adattare</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -26991,12 +26992,7 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Direzione testo</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Autofit</source>
-        <translation type="unfinished">Adattamento automatico</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Left margin</source>
         <translation type="unfinished">Margine sinistro</translation>
     </message>
@@ -28899,10 +28895,6 @@ Questi elementi vengono mantenuti se si salva come pubblicazione JeffPub (.jpub)
     </message>
     <message>
         <location line="+1"/>
-        <source>Format Painter</source>
-        <translation type="unfinished">Copia formato</translation>
-    </message>
-    <message>
         <location line="+8"/>
         <source>Copy Formatting</source>
         <translation type="unfinished">Copia formattazione</translation>
@@ -30726,12 +30718,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Adatta casella di testo al contenuto</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Do Not Autofit</source>
-        <translation type="unfinished">Non adattare</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <location line="+2"/>
         <source>Text Direction</source>
         <translation type="unfinished">Direzione testo</translation>
@@ -31144,7 +31131,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Dividi verso l&apos;alto</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-243"/>
+        <source>Do Not Fit</source>
+        <translation type="unfinished">Non adattare</translation>
+    </message>
+    <message>
+        <location line="+243"/>
         <source>No Division</source>
         <translation type="unfinished">Nessuna divisione</translation>
     </message>
@@ -35713,12 +35705,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+7"/>
-        <source>AutoFit Contents</source>
+        <source>Fit to Contents</source>
         <translation type="unfinished">Adatta al contenuto</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>AutoFit Window</source>
+        <source>Fit to Window</source>
         <translation type="unfinished">Adatta alla finestra</translation>
     </message>
     <message>
@@ -35908,7 +35900,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+6"/>
-        <source>AutoFit</source>
+        <source>Fit</source>
         <translation type="unfinished">Adatta</translation>
     </message>
     <message>
@@ -36669,13 +36661,13 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+8"/>
-        <source>Format Painter</source>
+        <source>Copy Formatting</source>
         <translation type="unfinished">Copia formato</translation>
     </message>
     <message>
         <location line="+13"/>
-        <source>Format Painter: click to paint once, double-click to keep painting, and press Esc to stop.</source>
-        <translation type="unfinished">Copia formato: fai clic per applicare una volta, fai doppio clic per continuare ad applicare e premi Esc per interrompere.</translation>
+        <source>Copy Formatting: click to paint once, double-click to keep painting, and press Esc to stop.</source>
+        <translation type="unfinished">Copia formato: fare clic per applicare una volta, doppio clic per continuare ad applicare e premere ESC per interrompere.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36704,8 +36696,8 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+51"/>
-        <source>Format Painter: select the text to paint. Press Esc to stop.</source>
-        <translation type="unfinished">Copia formato: seleziona il testo a cui applicare il formato. Premi Esc per interrompere.</translation>
+        <source>Copy Formatting: select the text to paint. Press Esc to stop.</source>
+        <translation type="unfinished">Copia formato: selezionare il testo a cui applicare il formato. Premere ESC per interrompere.</translation>
     </message>
 </context>
 <context>

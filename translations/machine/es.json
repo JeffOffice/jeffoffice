@@ -49,8 +49,8 @@
 "out": "3d685695d17b0eb6"
 },
 "crunch/format-cells": {
-"en": "a13e87d94d35c623",
-"out": "86b547df58229696"
+"en": "a047f6fd8e9ac8ce",
+"out": "90e0c8a91d5e9226"
 },
 "crunch/formulas": {
 "en": "5a696c6175dff6c4",
@@ -213,7 +213,7 @@
 "out": "c71bcc07c0a60b79"
 },
 "deck/tab-home": {
-"en": "26cb6fbbdaf98656",
+"en": "c8bf5e8ff4d08c43",
 "out": "f269ac05c619ceb2"
 },
 "deck/tab-insert": {
@@ -241,8 +241,8 @@
 "out": "f2212fabe8b40fb1"
 },
 "deck/text": {
-"en": "0f47e00c1d1064a5",
-"out": "84e09cd4332a54c3"
+"en": "95528ec37a649136",
+"out": "c5fca1b0541e2de3"
 },
 "deck/transitions": {
 "en": "43d897e87e3c1f52",
@@ -269,8 +269,8 @@
 "out": "88a9dbca09bf5182"
 },
 "formatting-text": {
-"en": "25c4667bfb12b3fa",
-"out": "7245112254d2a828"
+"en": "eb74b4c8d895d07e",
+"out": "3f6189d1a1e20f3b"
 },
 "graphics-manager": {
 "en": "12e520565b4c39d0",
@@ -377,8 +377,8 @@
 "out": "c1cdaf7484185090"
 },
 "tab-home": {
-"en": "a13a2ff10141fbbf",
-"out": "3d6c2708b3e302f6"
+"en": "bf3a7c274432c1c9",
+"out": "6a11f5c9cd66e6cf"
 },
 "tab-insert": {
 "en": "a2968b7def1f8ae3",
@@ -461,8 +461,8 @@
 "out": "21ebad52049eaf51"
 },
 "write/format-painter": {
-"en": "de3fc05686110657",
-"out": "b6befc006d1392e4"
+"en": "4259466a965e36bf",
+"out": "e84b6dba2af32447"
 },
 "write/go-to-and-move-text": {
 "en": "1ed74b8821b13775",
@@ -473,8 +473,8 @@
 "out": "0545abd7c69a9679"
 },
 "write/index": {
-"en": "652901956efe46dd",
-"out": "235eaca21658a395"
+"en": "22fb820593e8d657",
+"out": "2b8dfa9e77c32f76"
 },
 "write/keyboard": {
 "en": "62882ed7b9faf46c",
@@ -509,8 +509,8 @@
 "out": "204fef38d7a94534"
 },
 "write/styles": {
-"en": "95fd1751fa24e530",
-"out": "c08229c84913d74a"
+"en": "eb9e72131cb7ddfc",
+"out": "2930dd98394e559d"
 },
 "write/tables": {
 "en": "7d56ef0c246c65f0",
@@ -573,6 +573,7 @@
 "018c1253567167e7": "22b6bbf43363cb90",
 "019bcd31798a626d": "0982d6879f12bee5",
 "019e2143929db9de": "131fdc34e99babbe",
+"01a4e2807e6ed15b": "e2dd4fa9973a1fd7",
 "01b060d240cd8aa8": "1fba65c889e2af0b",
 "01b4887aa856d46a": "325bfec72cbb6392",
 "01b69543aa0d8341": "8ee7a6e5cb673926",
@@ -1395,6 +1396,7 @@
 "1b0f05a77ac333cf": "1f2ca14a63ab75ed",
 "1b2119a90aecb3fb": "b7539e5f72a26623",
 "1b34898b9acfdb18": "bc860c1e3e596783",
+"1b41e34381a56436": "ca18dd615b0fe65f",
 "1b56aa5de4f28684": "24746347c4a30829",
 "1b5847d41fd59528": "f74a00267a845421",
 "1b5a9b5d081e8135": "80bcd397d3bba9ce",
@@ -2707,6 +2709,7 @@
 "47a3577a9d599d2b": "2726f42b4bc50c58",
 "47aa92f3b562ca2e": "75f2800171087dab",
 "47bd8e31e00cc5c0": "184f894fa7b48569",
+"47c35a54d87d6700": "67d3a3ccc0c0fc23",
 "47dbb1dc215ba126": "53a29226cb562320",
 "47e4ec92984f4246": "4194a257c3894d94",
 "47ecbf84584f24a1": "48b402e949255830",
@@ -3009,6 +3012,7 @@
 "51200a5ade41dc71": "d9192d71b29b4474",
 "5132fdb11b921cf9": "5f4fe32883277688",
 "513b6d8873712de7": "e0b65b0ac18bf56e",
+"513c4113ac9b224d": "eb05f8be105c9acc",
 "5141215dc827477b": "c62f1bb2ac0649c9",
 "5145f991d88411de": "2ee157c139dfd512",
 "51602064fcc71be0": "519df70de2eb2da0",
@@ -3473,6 +3477,7 @@
 "60d4597266a6d36e": "fb93b57a207deae9",
 "60d723df3d78cf70": "3869ef3f573778ce",
 "60d72717ace4585b": "e4fbd3aaada06a81",
+"60fbc3514912bfe8": "943bf1c1154fac41",
 "6111ca0e403328aa": "8a4d4618492042f0",
 "61132237dfd9c9cd": "220a38c2aa779798",
 "61241d432a917656": "86bf236318622909",
@@ -3836,6 +3841,7 @@
 "6cdec47776e341cf": "260833e00b729a5d",
 "6ce76600759e4660": "9ae8f14bd293b455",
 "6cec373038fff622": "f909942ad9596362",
+"6cf00ff411a3e3b0": "e029f7d8d87f0ed9",
 "6cfad9872923270f": "6dd35fdf678a838e",
 "6d022d264cf8f026": "92debda3f3a400f0",
 "6d097a980cf82573": "87f7f8947d8024be",
@@ -4072,6 +4078,7 @@
 "746993ef9d6a4a89": "f097dd3493a47c18",
 "74743b34d897ba79": "c27713e63abaa39c",
 "747bb9a63ad7c467": "9f32dc38862bbe68",
+"747cf1c200cbc796": "8c01c28609e4630a",
 "747f0b37738e757b": "6f22262b9e4c7536",
 "74846bbc507984db": "0ac023212d0e673e",
 "74898c36c8d7bd9d": "eb6b861a481389ff",
@@ -4237,6 +4244,7 @@
 "7942e4083a3dc906": "80de7ce4126c03d0",
 "7950beef3cd371e5": "a47e9974cc52eb54",
 "7952fbed20df1258": "747edffde236983a",
+"7955c85ae7a5124a": "e2dd4fa9973a1fd7",
 "79703c626647dc0f": "9e6384b75e293014",
 "7980e2f902f8e233": "517e649d190dae7c",
 "7981cb389b2d2116": "0d31f55b4ee80955",
@@ -4613,6 +4621,7 @@
 "864bcb892345a490": "4e638f0d4cda276e",
 "864fc2a47672b99e": "82474a29bd25fd13",
 "865908b627fdb8f6": "08dc0f8eeebd7205",
+"865b65dc6558659f": "d7581b713158c32e",
 "8664c2418808f00b": "552467fe8cbf5847",
 "8675efa904896362": "853601e0cf6682a1",
 "8679ddfbbf0c72f5": "1789fbe19a3e959f",
@@ -4729,6 +4738,7 @@
 "8a3b125dd6473620": "aa709774a379dd0b",
 "8a4b30ef4f0855ad": "ee64437c09321661",
 "8a4ddff50af6a084": "a8bde947bedbc726",
+"8a5d21593abbdf9a": "943bf1c1154fac41",
 "8a5d5194edec98cc": "879781a059a281c8",
 "8a604a0b7a3822e7": "ae35fba831b64c62",
 "8a64e47911120ee0": "b68a83122865c0bd",
@@ -4915,6 +4925,7 @@
 "906eb5543b7cd5aa": "8ce5abd720ba3eb4",
 "9079a52769ddd325": "bd4899200d636258",
 "907cbbbfd8c13a6c": "0a55157432e203cf",
+"908033d2a91c88ff": "af00eef2638e9991",
 "90807cceb7248676": "089a79e7b891d708",
 "90886be539a2e65e": "adb57d4f1d2827e5",
 "90951c4c017280d1": "d9aff822d0f466b2",
@@ -5098,6 +5109,7 @@
 "972ac71e5d2b7ea2": "4fc7a19d0a82bfb3",
 "97353d09363c345b": "40d13a78569b714f",
 "974357c8ff0cea2c": "57710a24f8fcdf08",
+"97514083cca74d06": "e2dd4fa9973a1fd7",
 "9768f66fd11821e1": "a879305d3ac3cc8f",
 "976c227afbcfc1d0": "325143bb96860d10",
 "977c1f73f85bff49": "274f2532faa2736f",
@@ -5458,6 +5470,7 @@
 "a423e508f3da74fb": "d9cb6e1a0bc768c3",
 "a42ad779d16a004d": "36494abd00b7e473",
 "a435942c1e76299f": "877e5924967d2649",
+"a43de104a90b4c06": "a2472a6ee3188c09",
 "a43f5a69f285e34a": "cdaba29cb3c115eb",
 "a447aab041b11ef2": "4b58c6dc219b2272",
 "a45254c7729af9ce": "184fee0b7816f637",
@@ -6121,6 +6134,7 @@
 "b94ff71c23cce575": "ad8dbb49cb6ded81",
 "b957e30b9fbcec15": "82f39e22c402bf7c",
 "b95a573566279588": "726805982fb953b4",
+"b95effd13cae056e": "943bf1c1154fac41",
 "b96ac1f86d39127f": "ec8ac8f7b0b3a2da",
 "b96fea712d8b8f75": "f03878dee2d67a8f",
 "b970902c8858ae0e": "6a86cc4df17a9f4a",
@@ -6598,6 +6612,7 @@
 "c83702c3d38a38df": "545ec4b2965728ae",
 "c83dccd7a2f5c33f": "3f1a2d0f523d5b6f",
 "c852aacadbd33d51": "c2cfa1e400a9b406",
+"c85a2d7c93137d5d": "943bf1c1154fac41",
 "c85cb27bb49e1cc8": "f0888991ff4a4831",
 "c85e48865402d1c7": "3740bb150f53195f",
 "c86dfff65a4d28dc": "5a8f0df9da78abd7",
@@ -6840,6 +6855,7 @@
 "d06efc3b2f5d82e0": "4efd244e4f694f1b",
 "d06f6d8ebaf53a63": "14a6c047d4174327",
 "d07ae5a6a9bccd87": "71150b66bf772321",
+"d09d381c8d928217": "99cb1fd10e288eb1",
 "d0a73051716497da": "7f6976ac8d4a217e",
 "d0a7a08a558daa37": "dc6d27e2b3a1792b",
 "d0a853044b780b66": "ac26419cd43ddfab",
@@ -6869,6 +6885,7 @@
 "d1d8b3e52da789c3": "0f45c65116f6d646",
 "d1eb0aaf5de305b2": "f5214bd15e298c3a",
 "d1ec3db6040ffed4": "d9765bbd517d2d0e",
+"d1f742dc79ce8274": "a084a34b4e9936ed",
 "d1fc005f6471e0ac": "94deef78f36ce2e4",
 "d2012eca52ca1b5f": "f4548d0bde7e918e",
 "d20d6313820e9e7b": "c83f4a6ef1892115",
@@ -7351,6 +7368,7 @@
 "e1116f4765f93cb4": "a3110ce6affd9d9c",
 "e11998c6c089ef92": "dcaff5facfe4aabb",
 "e11d3e5ca2489c92": "bc6df763f97b2a6f",
+"e1335bd656f08645": "eb05f8be105c9acc",
 "e136c6c99e2113de": "d65d70d32c590a6f",
 "e13acb06c9105b62": "1692512f5f25d87c",
 "e13cdcff70256b0c": "4f53aa3b70d47cce",
@@ -7451,6 +7469,7 @@
 "e533d9db28f75d5f": "0a78b11709013343",
 "e536d7c8dec05599": "d09c578d395aa146",
 "e53891b5a570f660": "6dfbc2bad626799a",
+"e53c5e0025404b04": "3d2d8bf76c1b81bb",
 "e54ad5e2340bb141": "e6e61fc2b339dcfd",
 "e54b7c6c956a95df": "19ab334fd623763f",
 "e54cb75d5e0ee1a6": "a51e1fcb8fc02128",
@@ -7966,6 +7985,7 @@
 "f5fe1a5838793f26": "0b58a24daee63ee2",
 "f6020c9e4ae18572": "bdbe937528925fcc",
 "f60bbed4725d8f3b": "9a1f64338229489b",
+"f60ce928f00d9d82": "35b99ed8781286c0",
 "f6140c23be31b22a": "e933385721f41c98",
 "f61716cded9292a3": "534145e097872a2c",
 "f6278bcbfe3bb2de": "75c6827f01e0f5a5",
@@ -8028,6 +8048,7 @@
 "f7e5d260fe793917": "9d356e7b348845bb",
 "f7e7da2ca8c75df3": "5ffc23e021a47211",
 "f7e95031e7d79834": "cce5cbcf13258e72",
+"f7ed9138f34992cd": "eed6bd0519a66deb",
 "f7f957e43586b973": "c4fa4aaf3d31fe21",
 "f7fe7dc064579326": "cdad8f9cf3e8b332",
 "f802a9d475a54d61": "022d21707791f79c",
