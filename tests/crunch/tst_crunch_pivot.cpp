@@ -707,6 +707,23 @@ private Q_SLOTS:
         QCOMPARE(valueOf(again, QStringLiteral("F5"), 1), QStringLiteral("n:1015"));
     }
 
+    // A refresh made after rows were put in above the data reads the cells where the data is now (the cache was not read before the edit, and its range is the file's, moved).
+    void aRefreshAfterRowsWerePutInReadsTheMovedSource()
+    {
+        PivotBookOptions o;
+        o.otherSheet = true;
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(o)));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->insertRows(0, 0, 2).ok);   // two rows above the whole list
+        QVERIFY(e.settle());
+        QCOMPARE(s->pivotSourceText(0), QStringLiteral("Sheet1!A3:C9"));
+        QVERIFY(s->refreshPivot(0).ok);
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("F5"), 1), QStringLiteral("n:15"));
+        QCOMPARE(valueOf(e, QStringLiteral("H7"), 1), QStringLiteral("n:49"));
+    }
+
     // A lone value has no place of its own among the columns: a refresh takes the stale one out.
     void aRefreshTakesTheValuesOutOfTheAxesWhenThereIsOne()
     {
