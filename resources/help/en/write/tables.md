@@ -6,7 +6,7 @@ A **table** is a grid of **cells** in **rows** and **columns**. Each cell holds 
 ## Add a table
 
 - Click **Insert > Table**, then point at the grid and click the size you want. The first number is the columns across and the second is the rows down.
-- Or click **Insert > Table > Insert Table** to type the number of columns and rows, and to say how the columns are fitted. **Fixed column width** keeps each column the width you give it (or, with *Auto*, shares the width of the text area among the columns). **AutoFit to contents** sizes the columns to the words in them. **AutoFit to window** makes the table as wide as the text area. Check **Remember dimensions for new tables** to start the next one with the same numbers.
+- Or click **Insert > Table > Insert Table** to type the number of columns and rows, and to say how the columns are fitted. **Fixed column width** keeps each column the width you give it (or, with *Auto*, shares the width of the text area among the columns). **Fit to contents** sizes the columns to the words in them. **Fit to window** makes the table as wide as the text area. Check **Remember dimensions for new tables** to start the next one with the same numbers.
 
 The table goes where the caret is. If the caret is in the middle of a paragraph, the paragraph is cut in two and the table goes between the halves. The caret ends up in the first cell. Press **Tab** to go to the next cell, and **Shift+Tab** to go back. **Tab** in the last cell adds a row. A table can't be put inside a cell this way.
 

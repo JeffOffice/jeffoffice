@@ -1,7 +1,7 @@
 # Escolher uma função
-<!-- keywords: função, funções, escolher uma função, inserir função, fx, fórmula, argumento, argumentos, categoria, pesquisar, procurar, todas as funções, AutoSoma, Shift+F3 -->
+<!-- keywords: função, funções, escolher uma função, inserir função, fx, fórmula, argumento, argumentos, categoria, pesquisar, procurar, todas as funções, Soma, Shift+F3 -->
 
-Escolha **Escolher uma Função** na guia Fórmulas (**Shift+F3**) ou **Todas as Funções…** no menu **AutoSoma**.
+Escolha **Escolher uma Função** na guia Fórmulas (**Shift+F3**) ou **Todas as Funções…** no menu **Soma**.
 
 Digite na caixa de pesquisa um nome ou o que você deseja fazer ("arredondar para baixo", "unir texto"), e a lista mostrará as funções correspondentes, primeiro aquelas cujos nomes começam com as palavras digitadas. **Tipo** limita a lista a funções financeiras, de data e hora, de matemática e trigonometria, estatísticas, de pesquisa e referência, de texto, lógicas, de informação ou de banco de dados.
 

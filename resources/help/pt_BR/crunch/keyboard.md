@@ -38,7 +38,7 @@ No Mac, a tecla **Command** (⌘) faz o que a tecla **Ctrl** faz nas tabelas aba
 | Ctrl+Alt+V | Colar Especial |
 | Ctrl e a tecla de adição, Ctrl e a tecla de subtração | Inserir, excluir (linhas ou colunas, se houver linhas ou colunas inteiras selecionadas) |
 | Ctrl+D, Ctrl+R | Preencher para baixo, preencher para a direita |
-| Alt e o sinal de igual | AutoSoma |
+| Alt e o sinal de igual | Soma |
 | Ctrl+0, Ctrl+9 | Ocultar as colunas, ocultar as linhas |
 | Alt+Seta para baixo | Abre a lista de uma célula que tenha uma |
 | {key:Find} | Localizar |
