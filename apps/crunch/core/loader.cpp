@@ -293,6 +293,7 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
         if (cancelled()) return false;
         out->cellsRead = cells;
         if (pace && pace->load() > 0) QThread::usleep(ulong(pace->load()));
+        while (pace && pace->load() < 0 && !cancelled()) QThread::usleep(200);   // (held, for a test: until the pace is set to 0 or more, or the read is cancelled)
         if (progress && (cells == 0 || sinceTold.elapsed() > 100)) {
             sinceTold.restart();
             progress(sheet, cells);
@@ -484,7 +485,8 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
             } else {
                 lock.unlock();
             }
-            if (const int pace = state->pace.load()) QThread::usleep(pace);
+            if (const int pace = state->pace.load(); pace > 0) QThread::usleep(pace);
+            while (state->pace.load() < 0 && !state->cancel.load()) QThread::usleep(200);   // (held, for a test)
             while (state->holds.load() > 0 && !state->cancel.load()) QThread::usleep(20);
             lock.lock();
             if (state->stopCalc.load() || state->cancel.load()) {

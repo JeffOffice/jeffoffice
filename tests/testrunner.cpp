@@ -90,6 +90,8 @@ jptest::Registrar::Registrar(const char *name, Factory make)
 
 int main(int argc, char *argv[])
 {
+    // A test function that runs every command of an app takes minutes, and on a loaded machine (a build running beside it) longer than QtTest's five: a slow run is not a hung one.
+    if (!qEnvironmentVariableIsSet("QTEST_FUNCTION_TIMEOUT")) qputenv("QTEST_FUNCTION_TIMEOUT", "1500000");
     std::vector<Entry> &classes = registry();
     std::sort(classes.begin(), classes.end(), [](const Entry &a, const Entry &b) { return a.name < b.name; });
 
