@@ -1,7 +1,7 @@
 # Elegir una función
-<!-- keywords: función, funciones, elegir una función, insertar función, fx, fórmula, argumento, categoría, buscar, todas las funciones, Autosuma, Mayús+F3 -->
+<!-- keywords: función, funciones, elegir una función, insertar función, fx, fórmula, argumento, categoría, buscar, todas las funciones, Suma, Mayús+F3 -->
 
-Elija **Elegir una función** en la pestaña Fórmulas (**Mayús+F3**) o **Todas las funciones** en el menú **Autosuma**.
+Elija **Elegir una función** en la pestaña Fórmulas (**Mayús+F3**) o **Todas las funciones** en el menú **Suma**.
 
 Escriba en el cuadro de búsqueda un nombre o lo que quiere hacer ("redondear hacia abajo", "unir texto") y la lista mostrará las funciones coincidentes, primero las que empiezan por las palabras que escribió. **Tipo** limita la lista a funciones financieras, de fecha y hora, matemáticas y trigonométricas, estadísticas, de búsqueda y referencia, de texto, lógicas, de información o de base de datos.
 

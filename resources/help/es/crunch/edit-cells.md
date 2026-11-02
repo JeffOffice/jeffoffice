@@ -72,7 +72,7 @@ Seleccione las celdas y presione **Supr**. Así se borra el contenido de las cel
 
 ## Deshacer y Rehacer
 
-**{key:Undo}** deshace el último cambio y **{key:Redo}** lo vuelve a hacer. También están en la barra de herramientas de acceso rápido, en la parte superior. Cada celda en la que escribe es un paso, igual que cada borrado. Deshacer devuelve la celda a su estado anterior: su valor, su fórmula, su formato y las fórmulas que dependen de ella. JeffCrunch recuerda hasta 1.000 pasos, menos si cambiaron muchísimas celdas, para no ocupar nunca mucha memoria.
+**{key:Undo}** deshace el último cambio y **{key:Redo}** lo vuelve a hacer. También están en la barra de herramientas rápida, en la parte superior. Cada celda en la que escribe es un paso, igual que cada borrado. Deshacer devuelve la celda a su estado anterior: su valor, su fórmula, su formato y las fórmulas que dependen de ella. JeffCrunch recuerda hasta 1.000 pasos, menos si cambiaron muchísimas celdas, para no ocupar nunca mucha memoria.
 
 ## Mientras JeffCrunch calcula las fórmulas
 

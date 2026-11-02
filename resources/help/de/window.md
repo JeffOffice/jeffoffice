@@ -1,5 +1,5 @@
 # Das Programmfenster im Überblick
-<!-- keywords: Menüband, Registerkarten, Symbolleiste, Benutzeroberfläche, Oberfläche, Bildschirmaufbau, Seitenliste, Miniaturansichten, Statusleiste, Zoom, Lineale, Aufgabenbereich, Symbolleiste für den Schnellzugriff, Menüband reduzieren, Menüband minimieren, Fensterbereiche -->
+<!-- keywords: Menüband, Registerkarten, Symbolleiste, Benutzeroberfläche, Oberfläche, Bildschirmaufbau, Seitenliste, Miniaturansichten, Statusleiste, Zoom, Lineale, Aufgabenbereich, Schnellsymbolleiste, Menüband reduzieren, Menüband minimieren, Fensterbereiche -->
 
 Das JeffPub-Fenster besteht aus fünf Hauptbereichen: dem Menüband oben, der Seitenliste links, dem Seitenbereich in der Mitte, den Aufgabenbereichen rechts und der Statusleiste unten. Die Titelleiste zeigt den Namen Ihrer Publikation an, mit einem Stern (*), wenn sie nicht gespeicherte Änderungen enthält.
 
@@ -11,11 +11,11 @@ Wenn Sie etwas auswählen, werden weitere Registerkarten angezeigt. Wählen Sie 
 
 Um mehr Platz für die Seite zu schaffen, reduzieren Sie das Menüband. Klicken Sie auf den Pfeil ganz rechts in der Registerkartenzeile, doppelklicken Sie auf eine Registerkarte, oder drücken Sie Strg+F1. Nur die Namen der Registerkarten bleiben sichtbar. Klicken Sie auf eine Registerkarte, um die Schaltflächen wieder anzuzeigen. Die Schaltfläche **?** neben dem Pfeil öffnet die Hilfe.
 
-## Die Schaltfläche „Datei“ und die Symbolleiste für den Schnellzugriff
+## Die Schaltfläche „Datei“ und die Schnellsymbolleiste
 
 Die Schaltfläche **Datei** befindet sich links neben den Registerkarten. Sie öffnet die Dateiseite, auf der Sie Publikationen neu erstellen, öffnen, speichern, drucken und freigeben. Drücken Sie Esc, oder klicken Sie auf **Zurück zur Publikation**, um zurückzukehren. Siehe [Registerkarte „Datei“](tab-file).
 
-Die Symbolleiste für den Schnellzugriff ist die Reihe mit vier kleinen Schaltflächen links neben der Schaltfläche **Datei**. Sie enthält **Speichern**, **Rückgängig**, **Wiederholen** und **Drucken**.
+Die Schnellsymbolleiste ist die Reihe mit vier kleinen Schaltflächen links neben der Schaltfläche **Datei**. Sie enthält **Speichern**, **Rückgängig**, **Wiederholen** und **Drucken**.
 
 ## Die Seitenliste
 

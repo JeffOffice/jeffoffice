@@ -5,7 +5,7 @@ JeffPub slaat uw werk op in .jpub-bestanden. Het programma kan ook .pub-bestande
 
 ## Opslaan
 
-Druk op Ctrl+S, klik op de knop **Opslaan** op de werkbalk Snelle toegang of klik op **Bestand > Opslaan**. De eerste keer vraagt JeffPub om een naam en een locatie. Daarna vervangt Opslaan het bestand door uw nieuwste werk.
+Druk op Ctrl+S, klik op de knop **Opslaan** op de snelle werkbalk of klik op **Bestand > Opslaan**. De eerste keer vraagt JeffPub om een naam en een locatie. Daarna vervangt Opslaan het bestand door uw nieuwste werk.
 
 Een sterretje (*) achter de naam in de titelbalk betekent dat u wijzigingen hebt die nog niet zijn opgeslagen. Sla regelmatig op. Als JeffPub onverwacht stopt, raadpleegt u [Niet-opgeslagen werk terughalen](recover).
 

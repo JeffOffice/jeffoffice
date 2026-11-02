@@ -5,7 +5,7 @@ JeffPub speichert Ihre Arbeit in .jpub-Dateien. Es öffnet und speichert auch .p
 
 ## Speichern
 
-Drücken Sie Strg+S, klicken Sie auf der Symbolleiste für den Schnellzugriff auf **Speichern**, oder klicken Sie auf **Datei > Speichern**. Beim ersten Mal fragt JeffPub nach einem Namen und einem Speicherort. Danach ersetzt Speichern die Datei durch Ihren aktuellen Stand.
+Drücken Sie Strg+S, klicken Sie auf der Schnellsymbolleiste auf **Speichern**, oder klicken Sie auf **Datei > Speichern**. Beim ersten Mal fragt JeffPub nach einem Namen und einem Speicherort. Danach ersetzt Speichern die Datei durch Ihren aktuellen Stand.
 
 Ein Sternchen (*) nach dem Namen in der Titelleiste bedeutet, dass Sie nicht gespeicherte Änderungen haben. Speichern Sie häufig. Wenn JeffPub unerwartet beendet wird, lesen Sie [Nicht gespeicherte Arbeit wiederherstellen](recover).
 

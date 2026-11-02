@@ -13,7 +13,7 @@ Drücken Sie **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun. Mit **Strg
 
 Zugriffstasteninfos sind kleine Buchstaben, die im Menüband angezeigt werden. Mit ihnen erreichen Sie jede Schaltfläche ohne Maus.
 
-1. Drücken Sie kurz **Alt**. Auf der Schaltfläche **Datei**, auf jeder Registerkarte und in der Symbolleiste für den Schnellzugriff werden Buchstaben angezeigt. Die Schaltflächen der Symbolleiste für den Schnellzugriff verwenden die Ziffern 1 bis 4.
+1. Drücken Sie kurz **Alt**. Auf der Schaltfläche **Datei**, auf jeder Registerkarte und in der Schnellsymbolleiste werden Buchstaben angezeigt. Die Schaltflächen der Schnellsymbolleiste verwenden die Ziffern 1 bis 4.
 2. Drücken Sie den Buchstaben der gewünschten Registerkarte, z. B. **H** für **Start**. Die Buchstaben für die Schaltflächen dieser Registerkarte werden angezeigt.
 3. Geben Sie die Buchstaben der gewünschten Schaltfläche ein. Zum Beispiel steht **T** und dann **B** für **Textfeld zeichnen**.
 

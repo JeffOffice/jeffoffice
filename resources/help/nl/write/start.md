@@ -48,7 +48,7 @@ Deze versie van JeffWrite is een **Preview**. U kunt hem uitproberen met echt we
 - Uitlijning, inspringingen, afstand en regelafstand van alinea's. Het venster **Alinea** (het pijltje in de hoek van de groep Alinea) bevat ze allemaal.
 - Lijsten met opsommingstekens en genummerde lijsten, met niveaus.
 - Stijlen. De galerie bevat Standaard, koppen, Titel en meer. Het deelvenster **Stijlen** (Ctrl+Alt+Shift+S) bevat ze allemaal, en u kunt een stijl maken op basis van uw tekst en elke stijl wijzigen (zie [Stijlen gebruiken](styles)).
-- Opmaak kopiëren/plakken, waarmee u de opmaak van tekst overneemt op andere tekst (zie [Opmaak kopiëren met Opmaak kopiëren/plakken](format-painter)).
+- Opmaak kopiëren, waarmee u de opmaak van tekst overneemt op andere tekst (zie [Opmaak kopiëren met Opmaak kopiëren](format-painter)).
 - Ga naar (Ctrl+G) een pagina, sectie, regel, bladwijzer, voetnoot of kop, en geselecteerde tekst slepen om die te verplaatsen, of met Ctrl slepen om die te kopiëren (zie [Naar een plaats gaan en tekst verplaatsen](go-to-and-move-text)).
 - Pagina's: papierformaat, afdrukstand, marges, kolommen (een, twee of drie), pagina-einden en sectie-einden die een nieuwe pagina beginnen. Met **Indeling > Pagina-instelling** stelt u de marges, het papier en de indeling van een sectie of van het hele document in (zie [De pagina instellen](page-setup)).
 - Afbeeldingen: met **Invoegen > Afbeeldingen** voegt u een afbeelding in uit een bestand of van het klembord. U kunt de afbeelding met de grepen van grootte veranderen, verplaatsen, de tekst eromheen laten lopen en alternatieve tekst geven (zie [Afbeeldingen toevoegen en wijzigen](pictures)).
@@ -61,7 +61,7 @@ Deze versie van JeffWrite is een **Preview**. U kunt hem uitproberen met echt we
 - Paginanummers in kopteksten en voetteksten. Ze worden berekend terwijl de pagina's worden opgemaakt, net als het aantal pagina's. **Paginanummer invoegen** staat op het tabblad **Koptekst en voettekst**.
 - Zoomen en alineamarkeringen weergeven (de knop **¶**).
 - Spelling: rode lijnen tijdens het typen, suggesties wanneer u met de rechtermuisknop klikt, en het deelvenster Spelling (**F7**). Zie [Uw spelling controleren](spelling).
-- Afdrukken, met een voorbeeld, aantal exemplaren en paginabereiken, PDF-bestanden, en AutoHerstel, dat een reservekopie bijhoudt van niet-opgeslagen werk. Zie [Afdrukken](print).
+- Afdrukken, met een voorbeeld, aantal exemplaren en paginabereiken, PDF-bestanden, en automatisch herstel, dat een reservekopie bijhoudt van niet-opgeslagen werk. Zie [Afdrukken](print).
 
 **Wat nog niet werkt**
 

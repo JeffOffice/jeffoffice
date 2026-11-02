@@ -1,5 +1,5 @@
 # Orientarsi nella finestra
-<!-- keywords: barra multifunzione, schede, barra degli strumenti, interfaccia, layout dello schermo, riquadro diapositive, anteprime, miniature, note, barra di stato, zoom, barra di accesso rapido, comprimere la barra multifunzione, ridurre a icona la barra multifunzione, parti della finestra, visualizzazione normale, barra del titolo, riquadri -->
+<!-- keywords: barra multifunzione, schede, barra degli strumenti, interfaccia, layout dello schermo, riquadro diapositive, anteprime, miniature, note, barra di stato, zoom, barra degli strumenti rapida, comprimere la barra multifunzione, ridurre a icona la barra multifunzione, parti della finestra, visualizzazione normale, barra del titolo, riquadri -->
 
 La finestra di JeffDeck è composta da cinque parti principali: la barra multifunzione in alto, il riquadro delle diapositive a sinistra, la diapositiva al centro con le note sotto, i riquadri che si aprono a destra e la barra di stato in basso. La barra del titolo mostra il nome della presentazione, seguito da un asterisco (*) se contiene modifiche non salvate.
 
@@ -9,11 +9,11 @@ La barra multifunzione è la striscia di pulsanti in alto. I pulsanti sono suddi
 
 Per lasciare più spazio alla diapositiva, comprimere la barra multifunzione. Fare clic sulla freccia all'estremità destra della riga delle schede, oppure fare doppio clic su una scheda. Restano visibili solo i nomi delle schede. Fare clic su una scheda per visualizzare di nuovo i pulsanti. Il pulsante **?** accanto alla freccia apre la Guida.
 
-## Il pulsante File e la barra di accesso rapido
+## Il pulsante File e la barra degli strumenti rapida
 
 Il pulsante **File** si trova a sinistra delle schede. Apre la schermata File, da cui è possibile creare, aprire, salvare, stampare ed esportare le presentazioni. Premere ESC o fare clic su **Torna alla presentazione** per tornare indietro. Vedere [La schermata File](file-screen).
 
-La barra di accesso rapido è la riga di tre piccoli pulsanti sopra il pulsante **File**. Contiene **Annulla**, **Ripeti** e **Dall'inizio**, che avvia la presentazione dalla prima diapositiva.
+La barra degli strumenti rapida è la riga di tre piccoli pulsanti sopra il pulsante **File**. Contiene **Annulla**, **Ripeti** e **Dall'inizio**, che avvia la presentazione dalla prima diapositiva.
 
 ## Il riquadro delle diapositive
 

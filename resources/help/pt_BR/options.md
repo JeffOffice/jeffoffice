@@ -1,5 +1,5 @@
 # Alterar as configurações do JeffPub
-<!-- keywords: opções, configurações, preferências, tema, modo escuro, unidades, polegadas, centímetros, autorrecuperação, AutoRecuperação, backup, cópia de segurança, idioma, nome de usuário, deslocar, atualizações, beta, estatísticas de uso, sobre -->
+<!-- keywords: opções, configurações, preferências, tema, modo escuro, unidades, polegadas, centímetros, autorrecuperação, recuperação automática, backup, cópia de segurança, idioma, nome de usuário, deslocar, atualizações, beta, estatísticas de uso, sobre -->
 
 Suas configurações ficam na janela **Opções do JeffPub**. Clique em **Arquivo > Opções** para abri-la. Ela tem quatro guias. Clique em **OK** para manter as alterações ou em **Cancelar** para descartá-las.
 
@@ -25,7 +25,7 @@ Estas caixas de seleção controlam a ajuda com ortografia e digitação. Consul
 
 ## Salvar
 
-- **Salvar informações de AutoRecuperação a cada** define com que frequência o JeffPub faz cópias de reserva do trabalho não salvo, de 1 a 120 minutos. Consulte [Recuperar trabalho não salvo](recover).
+- **Salvar informações de recuperação automática a cada** define com que frequência o JeffPub faz cópias de reserva do trabalho não salvo, de 1 a 120 minutos. Consulte [Recuperar trabalho não salvo](recover).
 - **Sempre criar cópia de backup** mantém o arquivo anterior como "Backup de" seguido do nome dele cada vez que você salva.
 
 ## Avançado

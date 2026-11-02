@@ -5,7 +5,7 @@ JeffPub guarda su trabajo en archivos .jpub. También abre y guarda archivos .pu
 
 ## Guardar
 
-Presione Ctrl+S, haga clic en el botón **Guardar** de la barra de herramientas de acceso rápido o haga clic en **Archivo > Guardar**. La primera vez, JeffPub le pide un nombre y una ubicación. A partir de entonces, Guardar reemplaza el archivo con su trabajo más reciente.
+Presione Ctrl+S, haga clic en el botón **Guardar** de la barra de herramientas rápida o haga clic en **Archivo > Guardar**. La primera vez, JeffPub le pide un nombre y una ubicación. A partir de entonces, Guardar reemplaza el archivo con su trabajo más reciente.
 
 Un asterisco (*) después del nombre en la barra de título indica que hay cambios sin guardar. Guarde a menudo. Si JeffPub se cierra inesperadamente, consulte [Recuperar trabajo no guardado](recover).
 

@@ -1,5 +1,5 @@
 # Tekstvakken toevoegen en opmaken
-<!-- keywords: tekstvak, tekstkader, tekst typen, tekst toevoegen, tekst schrijven, tekst passend maken, automatisch aanpassen, beste passing, tekst verkleinen, verticale tekst, kolommen, marges, overloop, overlooptekst, kader -->
+<!-- keywords: tekstvak, tekstkader, tekst typen, tekst toevoegen, tekst schrijven, tekst passend maken, aanpassen, beste passing, tekst verkleinen, verticale tekst, kolommen, marges, overloop, overlooptekst, kader -->
 
 Een tekstvak is een rechthoek op de pagina waarin tekst staat.
 
@@ -33,7 +33,7 @@ Voor exacte waarden klikt u met de rechtermuisknop op het vak, kiest u **Object 
 
 Kies **Tekstvak > Tekst > Tekst passend maken**, of klik met de rechtermuisknop op het vak en kies **Tekst passend maken**.
 
-- **Niet automatisch aanpassen:** er verandert niets. Nieuwe vakken hebben deze instelling.
+- **Niet aanpassen:** er verandert niets. Nieuwe vakken hebben deze instelling.
 - **Beste passing:** de tekst wordt groter of kleiner weergegeven, zodat het vak gevuld is.
 - **Tekst verkleinen bij overloop:** de tekst wordt alleen kleiner weergegeven als die niet past.
 - **Tekstvak aanpassen aan tekst:** de hoogte van het vak wordt aangepast aan de tekst.

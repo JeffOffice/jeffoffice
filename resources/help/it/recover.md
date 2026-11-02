@@ -1,16 +1,16 @@
 # Recuperare il lavoro non salvato
 <!-- keywords: recuperare, recupero, ripristino, ripristinare, salvataggio automatico, autosalvataggio, arresto anomalo, blocco, crash, lavoro perso, non salvato, interruzione di corrente, programma bloccato, chiuso per errore, backup, copia di sicurezza -->
 
-Se JeffPub si chiude improvvisamente o va via la corrente, il lavoro più recente potrebbe essere ancora al sicuro. Mentre si lavora, JeffPub conserva una copia di riserva di ogni pubblicazione con modifiche non salvate. Questa funzionalità si chiama **Salvataggio automatico**.
+Se JeffPub si chiude improvvisamente o va via la corrente, il lavoro più recente potrebbe essere ancora al sicuro. Mentre si lavora, JeffPub conserva una copia di riserva di ogni pubblicazione con modifiche non salvate. Questa funzionalità si chiama **Recupero automatico**.
 
-## Come funziona il Salvataggio automatico
+## Come funziona il recupero automatico
 
 - A intervalli di pochi minuti, JeffPub salva una copia di riserva di ogni pubblicazione con modifiche non salvate. L'intervallo predefinito è di 10 minuti.
-- JeffPub conserva le copie in una cartella di Salvataggio automatico, all'interno della cartella in cui tiene i propri dati. Non è mai necessario aprirla.
+- JeffPub conserva le copie in una cartella di recupero automatico, all'interno della cartella in cui tiene i propri dati. Non è mai necessario aprirla.
 - La copia di riserva non sostituisce mai il file vero e proprio.
 - La copia viene eliminata quando si salva la pubblicazione, la si chiude o si esce da JeffPub normalmente.
 
-Il Salvataggio automatico non sostituisce il salvataggio. Se JeffPub si interrompe, si può perdere il lavoro degli ultimi minuti. Premere spesso CTRL+S.
+Il recupero automatico non sostituisce il salvataggio. Se JeffPub si interrompe, si può perdere il lavoro degli ultimi minuti. Premere spesso CTRL+S.
 
 ## Recuperare il lavoro
 
@@ -37,7 +37,7 @@ Se la finestra è stata chiusa e si desidera recuperare le copie, fare clic su *
 
 ## Modificare la frequenza di salvataggio
 
-Fare clic su **File > Opzioni**, quindi sulla scheda **Salvataggio**. Impostare **Salva informazioni di Salvataggio automatico ogni** su un valore compreso tra 1 e 120 minuti. Un valore più basso riduce il lavoro che si rischia di perdere. Il nuovo intervallo diventa pienamente effettivo al successivo avvio di JeffPub.
+Fare clic su **File > Opzioni**, quindi sulla scheda **Salvataggio**. Impostare **Salva informazioni di recupero automatico ogni** su un valore compreso tra 1 e 120 minuti. Un valore più basso riduce il lavoro che si rischia di perdere. Il nuovo intervallo diventa pienamente effettivo al successivo avvio di JeffPub.
 
 ## Argomenti correlati
 

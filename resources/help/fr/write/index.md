@@ -19,7 +19,7 @@ Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une comma
 
 - [Modifier l'apparence du texte](font)
 - [Utiliser les styles](styles)
-- [Copier une mise en forme avec Reproduire la mise en forme](format-painter)
+- [Copier une mise en forme avec Copier la mise en forme](format-painter)
 - [Ajouter des en-têtes, des pieds de page et des numéros de page](headers-footers)
 - [Créer et modifier des tableaux](tables)
 - [Ajouter des notes de bas de page et des notes de fin](footnotes-endnotes)

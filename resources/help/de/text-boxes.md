@@ -1,5 +1,5 @@
 # Textfelder hinzufügen und formatieren
-<!-- keywords: Textfeld, Textrahmen, Text eingeben, Text hinzufügen, Text schreiben, Textanpassung, automatisch anpassen, optimale Anpassung, Text verkleinern, vertikaler Text, Textrichtung, Spalten, Ränder, Überlauf, Textüberlauf, Rahmen -->
+<!-- keywords: Textfeld, Textrahmen, Text eingeben, Text hinzufügen, Text schreiben, Textanpassung, anpassen, optimale Anpassung, Text verkleinern, vertikaler Text, Textrichtung, Spalten, Ränder, Überlauf, Textüberlauf, Rahmen -->
 
 Ein Textfeld ist ein Rechteck auf der Seite, das Text enthält.
 
@@ -33,7 +33,7 @@ Für genaue Werte klicken Sie mit der rechten Maustaste auf das Feld, wählen **
 
 Wählen Sie **Textfeld > Text > Textanpassung**, oder klicken Sie mit der rechten Maustaste auf das Feld, und wählen Sie **Textanpassung**.
 
-- **Nicht automatisch anpassen:** Ändert nichts. Neue Felder verwenden diese Einstellung.
+- **Nicht anpassen:** Ändert nichts. Neue Felder verwenden diese Einstellung.
 - **Optimale Anpassung:** Stellt den Text größer oder kleiner dar, sodass er das Feld ausfüllt.
 - **Text bei Überlauf verkleinern:** Stellt den Text nur dann kleiner dar, wenn er nicht hineinpasst.
 - **Textfeld an Text anpassen:** Passt die Höhe des Felds an den Text an.

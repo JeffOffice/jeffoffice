@@ -38,10 +38,10 @@ Met **Tekenafstand** zet u letters dichter bij elkaar of verder uit elkaar. Kies
 
 Op het tabblad **Tekstvak** voegt u met **Effecten** schaduw, omtrek, reliëf, gravering, gloed en opvulling met kleurovergang toe aan letters. Een initiaal is een grote eerste letter: klik in de alinea en kies **Tekstvak > Typografie > Initiaal**. Kies 2 tot 5 regels, of **Aangepaste initiaal…**. De overige opties van **Typografie**, zoals ligaturen en stijlsets, hangen af van wat het lettertype biedt.
 
-## Opmaak kopiëren met Opmaak kopiëren/plakken
+## Opmaak kopiëren met Opmaak kopiëren
 
 1. Klik in tekst die eruitziet zoals u wilt.
-2. Klik op **Start > Klembord > Opmaak kopiëren/plakken**.
+2. Klik op **Start > Klembord > Opmaak kopiëren**.
 3. Klik op het tekstvak dat u wilt wijzigen.
 
 Het hele vak krijgt de opmaak van de eerste tekst, plus de opvulling en omtrek. Houd Shift ingedrukt terwijl u op de knop klikt om de opmaak meerdere keren toe te passen. Druk op Esc om te stoppen.

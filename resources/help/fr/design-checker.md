@@ -29,7 +29,7 @@ JeffPub affiche la page et sélectionne l'objet. Une fois le problème corrigé,
 | L'objet dépasse partiellement de la page | Une partie d'un objet se trouve hors de la page. | Déplacez-le, ou laissez-le s'il s'agit d'un fond perdu. |
 | La zone de texte est vide | Une zone de texte ne contient aucun texte. | Tapez du texte ou supprimez-la. |
 | Article avec du texte en excès | Un article est le texte qui s'écoule dans des zones liées. Celui-ci contient plus de texte qu'il ne peut en tenir. | Agrandissez une zone, réduisez le texte ou [liez une autre zone](linked-text). |
-| Le texte est fortement réduit pour tenir | L'ajustement automatique, qui réduit le texte pour qu'il tienne dans sa zone, l'a ramené à moins de la moitié de sa taille. | Agrandissez la zone ou raccourcissez le texte. |
+| Le texte est fortement réduit pour tenir | L'ajustement, qui réduit le texte pour qu'il tienne dans sa zone, l'a ramené à moins de la moitié de sa taille. | Agrandissez la zone ou raccourcissez le texte. |
 | L'espace réservé pour l'image est vide | Un cadre d'image ne contient aucune image. | Cliquez dessus pour en ajouter une, ou supprimez-le. |
 | L'image n'est pas mise à l'échelle proportionnellement | L'image est étirée ou écrasée. | Redimensionnez-la pour lui rendre ses proportions. |
 | L'image est liée, non incorporée | L'image est rattachée à un fichier et seul un petit aperçu est stocké dans la composition. Une image insérée avec **Insérer et lier** est stockée en entier et n'apparaît pas dans la liste. | Conservez le fichier d'origine avec votre composition, ou cliquez sur **Incorporer l'image** dans le [Gestionnaire de graphiques](graphics-manager). |

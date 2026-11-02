@@ -29,7 +29,7 @@ JeffPub va a la página y selecciona el objeto. Corríjalo y el elemento desapar
 | El objeto está parcialmente fuera de la página | Parte de un objeto queda fuera de la página. | Muévalo, o déjelo si es un sangrado. |
 | El cuadro de texto está vacío | Un cuadro de texto no contiene texto. | Escriba en él o elimínelo. |
 | Artículo con texto desbordado | Un artículo es el texto que recorre varios cuadros vinculados. Este tiene más texto del que cabe. | Amplíe un cuadro, recorte texto o [vincule otro cuadro](linked-text). |
-| El texto está muy reducido para ajustarse | El autoajuste, que reduce el texto para que quepa en su cuadro, lo ha dejado a menos de la mitad de su tamaño. | Amplíe el cuadro o use menos texto. |
+| El texto está muy reducido para ajustarse | El ajuste, que reduce el texto para que quepa en su cuadro, lo ha dejado a menos de la mitad de su tamaño. | Amplíe el cuadro o use menos texto. |
 | El marcador de posición de imagen está vacío | Un marco de imagen no tiene imagen. | Haga clic en él para agregar una, o elimínelo. |
 | La imagen no tiene una escala proporcional | La imagen está estirada o comprimida. | Cambie su tamaño para recuperar su forma. |
 | La imagen está vinculada, no incrustada | La imagen está ligada a un archivo y en la publicación solo se guarda una vista previa pequeña. Una imagen insertada con **Insertar y vincular** se guarda completa y no aparece en la lista. | Conserve el archivo original junto con la publicación, o haga clic en **Incrustar imagen** en el [Administrador de gráficos](graphics-manager). |

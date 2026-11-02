@@ -1,5 +1,5 @@
 # Modificare la larghezza delle colonne e l'altezza delle righe
-<!-- keywords: larghezza predefinita, altezza riga predefinita, larghezza standard, altezza standard, larghezza, altezza, colonna, riga, dimensioni, più larga, più alta, più stretta, più bassa, adatta, adattamento automatico, nascondi, scopri, mostra, trascina, bordo, doppio clic, caratteri, punti, Ctrl+0, Ctrl+9, pixel, numero troppo largo, cancelletti, ridimensionare -->
+<!-- keywords: larghezza predefinita, altezza riga predefinita, larghezza standard, altezza standard, larghezza, altezza, colonna, riga, dimensioni, più larga, più alta, più stretta, più bassa, adatta, adattamento, nascondi, scopri, mostra, trascina, bordo, doppio clic, caratteri, punti, Ctrl+0, Ctrl+9, pixel, numero troppo largo, cancelletti, ridimensionare -->
 
 La **larghezza di una colonna** si misura in caratteri, cioè quante cifre vi stanno in orizzontale. L'**altezza di una riga** si misura in punti, un'unità usata per i caratteri tipografici (72 punti corrispondono a un pollice). La colonna standard contiene circa 8 cifre e la riga standard è alta 15 punti.
 

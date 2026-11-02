@@ -1,5 +1,5 @@
 # Formatar células
-<!-- keywords: formatar, formatação, tipo de letra, fonte, tamanho, negrito, itálico, sublinhado, sublinhado duplo, rasurado, cor, cor do tipo de letra, preenchimento, cor de preenchimento, fundo, limite, limites, contornos, alinhar, alinhamento, centrar, esquerda, direita, em cima, ao meio, em baixo, moldar texto, quebra de texto, avanço, recuo, rodar, rodado, orientação, ângulo, texto vertical, unir, unir e centrar, intercalar, anular união, Formatar Células, Ctrl+1, Pincel de Formatação, copiar formato, limpar, limpar formatos, proteção, bloqueada, oculta, da direita para a esquerda, direção do texto, reduzir para caber, justificar -->
+<!-- keywords: formatar, formatação, tipo de letra, fonte, tamanho, negrito, itálico, sublinhado, sublinhado duplo, rasurado, cor, cor do tipo de letra, preenchimento, cor de preenchimento, fundo, limite, limites, contornos, alinhar, alinhamento, centrar, esquerda, direita, em cima, ao meio, em baixo, moldar texto, quebra de texto, avanço, recuo, rodar, rodado, orientação, ângulo, texto vertical, unir, unir e centrar, intercalar, anular união, Formatar Células, Ctrl+1, Copiar Formatação, copiar formato, limpar, limpar formatos, proteção, bloqueada, oculta, da direita para a esquerda, direção do texto, reduzir para caber, justificar -->
 
 A **formatação** altera o aspeto das células: o tipo de letra, as cores, os limites, a posição do texto e a forma como um número é escrito. Nunca altera o conteúdo de uma célula. Selecione primeiro as células e, em seguida, utilize o separador **Base**. Cada alteração é um passo que pode anular.
 
@@ -27,9 +27,9 @@ A **formatação** altera o aspeto das células: o tipo de letra, as cores, os l
 
 **Grupo Edição**: **Limpar** inclui **Limpar Tudo** (conteúdo e formatos), **Limpar Formatos** (as células mantêm o conteúdo e mostram o formato Geral, sem preenchimento nem limite) e **Limpar Conteúdo**.
 
-## Pincel de Formatação
+## Copiar Formatação
 
-Selecione células com o aspeto pretendido, clique em **Pincel de Formatação** (o pincel no grupo Área de Transferência) e, em seguida, selecione as células às quais pretende dar esse aspeto. Estas recebem o tipo de letra, o preenchimento, os limites, o formato de número e o alinhamento. **Faça duplo clique** no pincel para aplicar mais do que uma vez; clique novamente no pincel, ou prima **Esc**, para parar.
+Selecione células com o aspeto pretendido, clique em **Copiar Formatação** (o pincel no grupo Área de Transferência) e, em seguida, selecione as células às quais pretende dar esse aspeto. Estas recebem o tipo de letra, o preenchimento, os limites, o formato de número e o alinhamento. **Faça duplo clique** no pincel para aplicar mais do que uma vez; clique novamente no pincel, ou prima **Esc**, para parar.
 
 ## A janela Formatar Células
 

@@ -1,5 +1,5 @@
 # Abrir, guardar, imprimir y exportar
-<!-- keywords: abrir, guardar, guardar como, docx, doc, dot, archivos antiguos, plantilla, dotx, recientes, anclar, nuevo, cerrar, imprimir, pdf, exportar, recuperar, autorrecuperación, no guardado, sin guardar, bloqueo, cierre inesperado, pantalla Archivo, formatos de archivo -->
+<!-- keywords: abrir, guardar, guardar como, docx, doc, dot, archivos antiguos, plantilla, dotx, recientes, anclar, nuevo, cerrar, imprimir, pdf, exportar, recuperar, recuperación automática, no guardado, sin guardar, bloqueo, cierre inesperado, pantalla Archivo, formatos de archivo -->
 
 Haga clic en **Archivo**, en la parte superior izquierda, para ver la pantalla Archivo. Contiene las páginas Nuevo, Abrir, Imprimir y Exportar, y los comandos Guardar y Guardar como. Presione **Esc** para volver al documento.
 

@@ -1,5 +1,5 @@
 # Zellen ausfüllen und addieren
-<!-- keywords: ausfüllen, Datenreihe, Reihe, ziehen, Ausfüllkästchen, AutoAusfüllen, Strg+D, Strg+R, nach unten, nach rechts, nach oben, nach links, Zahl, Datum, Wochentag, Monat, Jahr, Inkrement, Schrittweite, Endwert, kopieren, AutoSumme, Summe, Mittelwert, Durchschnitt, Anzahl, Max, Min, Maximum, Minimum, Alt+Gleichheitszeichen, Ergebnis -->
+<!-- keywords: ausfüllen, Datenreihe, Reihe, ziehen, Ausfüllkästchen, AutoAusfüllen, Strg+D, Strg+R, nach unten, nach rechts, nach oben, nach links, Zahl, Datum, Wochentag, Monat, Jahr, Inkrement, Schrittweite, Endwert, kopieren, Summe, Summe, Mittelwert, Durchschnitt, Anzahl, Max, Min, Maximum, Minimum, Alt+Gleichheitszeichen, Ergebnis -->
 
 ## Ausfüllen
 
@@ -24,8 +24,8 @@ Das Ausfüllen erfolgt nicht in verbundene Zellen hinein oder aus ihnen heraus, 
 
 **Ausfüllen > Über Arbeitsblätter** kopiert die markierten Zellen in dieselben Zellen der Blätter, die Sie in einer Liste aktivieren: alles, nur die Inhalte oder nur die Formate. Dies ist ein einziger Schritt für „Rückgängig“.
 
-## AutoSumme
+## Summe
 
-**Start > AutoSumme** (**Alt+Gleichheitszeichen**) fügt in die markierte Zelle eine Summe ein. Dabei werden die Zahlen oberhalb der Zelle berücksichtigt, und falls dort keine stehen, die Zahlen links davon. Die Formel wird zur Kontrolle in die Zelle eingefügt; mit der **Eingabetaste** übernehmen Sie sie. Über den Pfeil neben „AutoSumme“ erhalten Sie die anderen Ergebnisse: **Mittelwert**, **Anzahl Zahlen**, **Max** und **Min**.
+**Start > Summe** (**Alt+Gleichheitszeichen**) fügt in die markierte Zelle eine Summe ein. Dabei werden die Zahlen oberhalb der Zelle berücksichtigt, und falls dort keine stehen, die Zahlen links davon. Die Formel wird zur Kontrolle in die Zelle eingefügt; mit der **Eingabetaste** übernehmen Sie sie. Über den Pfeil neben „Summe“ erhalten Sie die anderen Ergebnisse: **Mittelwert**, **Anzahl Zahlen**, **Max** und **Min**.
 
 Markieren Sie vorher einen Bereich, erhält jede Spalte des Bereichs eine eigene Formel in den leeren Zellen darunter (bei einer einzelnen Zeile rechts davon).

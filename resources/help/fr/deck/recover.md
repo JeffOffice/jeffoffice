@@ -6,7 +6,7 @@ Si JeffDeck se ferme de façon inattendue ou si le courant est coupé, votre tra
 ## Fonctionnement de la Récupération automatique
 
 - Toutes les 10 minutes, JeffDeck enregistre une copie de secours de chaque présentation comportant des modifications non enregistrées.
-- JeffDeck conserve ces copies dans un dossier AutoRecover, à l'intérieur du dossier où il stocke ses propres données. Vous n'avez jamais besoin d'y accéder vous-même.
+- JeffDeck conserve ces copies dans un dossier de récupération automatique, à l'intérieur du dossier où il stocke ses propres données. Vous n'avez jamais besoin d'y accéder vous-même.
 - La copie de secours ne remplace jamais votre véritable fichier.
 - La copie disparaît lorsque vous enregistrez la présentation, la fermez ou quittez JeffDeck normalement.
 

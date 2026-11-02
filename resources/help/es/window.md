@@ -1,5 +1,5 @@
 # Conozca la ventana de JeffPub
-<!-- keywords: cinta de opciones, pestañas, fichas, barra de herramientas, interfaz, pantalla, distribución de la pantalla, lista de páginas, miniaturas, barra de estado, zoom, reglas, panel de tareas, barra de herramientas de acceso rápido, contraer cinta de opciones, minimizar cinta de opciones, partes de la ventana -->
+<!-- keywords: cinta de opciones, pestañas, fichas, barra de herramientas, interfaz, pantalla, distribución de la pantalla, lista de páginas, miniaturas, barra de estado, zoom, reglas, panel de tareas, barra de herramientas rápida, contraer cinta de opciones, minimizar cinta de opciones, partes de la ventana -->
 
 La ventana de JeffPub tiene cinco partes principales: la cinta de opciones en la parte superior, la lista de páginas a la izquierda, el área de la página en el centro, los paneles de tareas a la derecha y la barra de estado en la parte inferior. La barra de título muestra el nombre de la publicación, con un asterisco (*) si tiene cambios sin guardar.
 
@@ -11,11 +11,11 @@ Al seleccionar algo, aparecen más pestañas. Seleccione una imagen y aparecerá
 
 Para dejar más espacio a la página, contraiga la cinta de opciones. Haga clic en la flecha del extremo derecho de la fila de pestañas, haga doble clic en una pestaña o presione Ctrl+F1. Solo quedan visibles los nombres de las pestañas. Haga clic en una pestaña para volver a mostrar los botones. El botón **?** situado junto a la flecha abre la Ayuda.
 
-## El botón Archivo y la barra de herramientas de acceso rápido
+## El botón Archivo y la barra de herramientas rápida
 
 El botón **Archivo** está a la izquierda de las pestañas. Abre la página Archivo, desde la que puede crear, abrir, guardar, imprimir y compartir publicaciones. Presione Esc o haga clic en **Volver a la publicación** para regresar. Consulte [Pestaña Archivo](tab-file).
 
-La barra de herramientas de acceso rápido es la fila de cuatro botones pequeños situada a la izquierda del botón **Archivo**. Contiene **Guardar**, **Deshacer**, **Rehacer** e **Imprimir**.
+La barra de herramientas rápida es la fila de cuatro botones pequeños situada a la izquierda del botón **Archivo**. Contiene **Guardar**, **Deshacer**, **Rehacer** e **Imprimir**.
 
 ## La lista de páginas
 

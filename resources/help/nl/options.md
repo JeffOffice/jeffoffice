@@ -1,5 +1,5 @@
 # De instellingen van JeffPub wijzigen
-<!-- keywords: opties, instellingen, voorkeuren, thema, donkere modus, eenheden, maateenheden, centimeters, inches, autoherstel, reservekopie, back-up, taal, gebruikersnaam, verschuiven, updates, bèta, gebruiksstatistieken, info -->
+<!-- keywords: opties, instellingen, voorkeuren, thema, donkere modus, eenheden, maateenheden, centimeters, inches, automatisch herstel, reservekopie, back-up, taal, gebruikersnaam, verschuiven, updates, bèta, gebruiksstatistieken, info -->
 
 Uw instellingen staan in het venster **Opties voor JeffPub**. Klik op **Bestand > Opties** om het te openen. Het venster heeft vier tabbladen. Klik op **OK** om uw wijzigingen te bewaren of op **Annuleren** om ze te verwerpen.
 
@@ -25,7 +25,7 @@ Met deze selectievakjes bepaalt u de hulp bij spelling en typen. Zie [Spelling e
 
 ## Opslaan
 
-- **AutoHerstel-gegevens opslaan elke** bepaalt hoe vaak JeffPub reservekopieën maakt van niet-opgeslagen werk, van 1 tot 120 minuten. Zie [Niet-opgeslagen werk terughalen](recover).
+- **Gegevens voor automatisch herstel opslaan elke** bepaalt hoe vaak JeffPub reservekopieën maakt van niet-opgeslagen werk, van 1 tot 120 minuten. Zie [Niet-opgeslagen werk terughalen](recover).
 - **Altijd een reservekopie maken** bewaart bij elke keer opslaan het oudere bestand als 'Reservekopie van' plus de naam.
 
 ## Geavanceerd

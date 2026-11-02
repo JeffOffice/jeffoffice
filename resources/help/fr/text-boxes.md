@@ -1,5 +1,5 @@
 # Ajouter et mettre en forme des zones de texte
-<!-- keywords: zone de texte, cadre de texte, bloc de texte, saisir du texte, taper du texte, ajouter du texte, écrire du texte, ajustement du texte, ajustement automatique, ajustement optimal, réduire le texte, texte vertical, colonnes, marges, texte en excès, débordement, dépassement, cadre -->
+<!-- keywords: zone de texte, cadre de texte, bloc de texte, saisir du texte, taper du texte, ajouter du texte, écrire du texte, ajustement du texte, ajustement, ajustement optimal, réduire le texte, texte vertical, colonnes, marges, texte en excès, débordement, dépassement, cadre -->
 
 Une zone de texte est un rectangle placé sur la page qui contient du texte.
 
@@ -33,7 +33,7 @@ Pour des valeurs précises, cliquez avec le bouton droit sur la zone, choisissez
 
 Choisissez **Zone de texte > Texte > Ajustement du texte**, ou cliquez avec le bouton droit sur la zone et choisissez **Ajustement du texte**.
 
-- **Pas d'ajustement automatique :** ne modifie rien. C'est le réglage des nouvelles zones.
+- **Pas d'ajustement :** ne modifie rien. C'est le réglage des nouvelles zones.
 - **Ajustement optimal :** affiche le texte plus grand ou plus petit pour remplir la zone.
 - **Réduire le texte dans la zone de texte :** affiche le texte plus petit uniquement lorsqu'il ne tient pas.
 - **Agrandir la zone de texte pour l'ajuster :** modifie la hauteur de la zone pour l'adapter au texte.

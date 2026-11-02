@@ -1,5 +1,5 @@
 # Öffnen, Speichern, Drucken und Exportieren
-<!-- keywords: öffnen, speichern, speichern unter, docx, doc, dot, ältere Dateien, Vorlage, dotx, zuletzt verwendet, anheften, neu, schließen, drucken, pdf, exportieren, wiederherstellen, AutoWiederherstellen, nicht gespeichert, Absturz, Dateiansicht, Backstage, Dateiformate -->
+<!-- keywords: öffnen, speichern, speichern unter, docx, doc, dot, ältere Dateien, Vorlage, dotx, zuletzt verwendet, anheften, neu, schließen, drucken, pdf, exportieren, wiederherstellen, automatische Wiederherstellung, nicht gespeichert, Absturz, Dateiansicht, Backstage, Dateiformate -->
 
 Klicken Sie oben links auf **Datei**, um die Dateiansicht anzuzeigen. Sie enthält Seiten für „Neu“, „Öffnen“, „Drucken“ und „Exportieren“ sowie die Befehle „Speichern“ und „Speichern unter“. Drücken Sie **Esc**, um zu Ihrem Dokument zurückzukehren.
 

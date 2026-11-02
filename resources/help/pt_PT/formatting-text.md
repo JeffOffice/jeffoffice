@@ -38,10 +38,10 @@ Clique em **Cor do Tipo de Letra** e escolha uma cor do esquema, uma cor padrão
 
 No separador **Caixa de Texto**, **Efeitos** adiciona às letras sombra, contorno, relevo, gravação, brilho e preenchimentos com gradação. Uma capitular é uma primeira letra grande: clique no parágrafo e escolha **Caixa de Texto > Tipografia > Capitular**. Escolha entre 2 e 5 linhas ou **Capitular personalizada…**. As restantes opções de **Tipografia**, como as ligaduras e os conjuntos estilísticos, dependem do que o tipo de letra oferece.
 
-## Copiar a formatação com o Pincel de Formatação
+## Copiar a formatação com o Copiar Formatação
 
 1. Clique num texto com o aspeto pretendido.
-2. Clique em **Base > Área de Transferência > Pincel de Formatação**.
+2. Clique em **Base > Área de Transferência > Copiar Formatação**.
 3. Clique na caixa de texto que pretende alterar.
 
 Toda a caixa adquire o aspeto do primeiro texto, bem como o respetivo preenchimento e contorno. Mantenha premida a tecla Shift ao clicar no botão para continuar a aplicar a formatação. Prima Esc para parar.

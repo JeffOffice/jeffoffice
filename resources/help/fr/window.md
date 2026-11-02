@@ -1,5 +1,5 @@
 # Se repérer dans la fenêtre
-<!-- keywords: ruban, onglets, barre d'outils, interface, disposition de l'écran, liste des pages, miniatures, barre d'état, zoom, règles, volet, volet latéral, barre d'outils Accès rapide, réduire le ruban, masquer le ruban, éléments de la fenêtre -->
+<!-- keywords: ruban, onglets, barre d'outils, interface, disposition de l'écran, liste des pages, miniatures, barre d'état, zoom, règles, volet, volet latéral, barre d'outils rapide, réduire le ruban, masquer le ruban, éléments de la fenêtre -->
 
 La fenêtre de JeffPub comporte cinq parties principales : le ruban en haut, la liste des pages à gauche, la zone de la page au centre, les volets à droite et la barre d'état en bas. La barre de titre affiche le nom de votre composition, suivi d'un astérisque (*) si elle contient des modifications non enregistrées.
 
@@ -11,11 +11,11 @@ D'autres onglets apparaissent lorsque vous sélectionnez un élément. Sélectio
 
 Pour laisser plus de place à la page, réduisez le ruban. Cliquez sur la flèche située tout à droite de la rangée d'onglets, double-cliquez sur un onglet ou appuyez sur Ctrl+F1. Seuls les noms des onglets restent visibles. Cliquez sur un onglet pour afficher de nouveau les boutons. Le bouton **?** situé à côté de la flèche ouvre l'Aide.
 
-## Le bouton Fichier et la barre d'outils Accès rapide
+## Le bouton Fichier et la barre d'outils rapide
 
 Le bouton **Fichier** se trouve à gauche des onglets. Il ouvre la page Fichier, à partir de laquelle vous pouvez créer, ouvrir, enregistrer, imprimer et partager. Appuyez sur Échap ou cliquez sur **Retour à la composition** pour revenir. Voir [Onglet Fichier](tab-file).
 
-La barre d'outils Accès rapide est la rangée de quatre petits boutons située à gauche du bouton **Fichier**. Elle contient **Enregistrer**, **Annuler**, **Rétablir** et **Imprimer**.
+La barre d'outils rapide est la rangée de quatre petits boutons située à gauche du bouton **Fichier**. Elle contient **Enregistrer**, **Annuler**, **Rétablir** et **Imprimer**.
 
 ## La liste des pages
 

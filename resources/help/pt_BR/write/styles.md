@@ -62,5 +62,5 @@ Formate um parágrafo do jeito que desejar. Depois, clique em **Atualizar Estilo
 ## Tópicos relacionados
 
 - [Alterar a aparência do texto](font)
-- [Copiar uma formatação com o Pincel de Formatação](format-painter)
+- [Copiar uma formatação com o Copiar Formatação](format-painter)
 - [Usar o JeffWrite com o teclado](keyboard)

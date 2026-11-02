@@ -1,5 +1,5 @@
 # Zellen formatieren
-<!-- keywords: formatieren, Formatierung, Schriftart, Schriftgrad, Schriftgröße, fett, kursiv, unterstrichen, doppelt unterstrichen, durchgestrichen, Farbe, Schriftfarbe, Füllung, Füllfarbe, Hintergrund, Hintergrundfarbe, Rahmen, Rahmenlinien, ausrichten, Ausrichtung, zentrieren, linksbündig, rechtsbündig, oben, mittig, unten, Textumbruch, Zeilenumbruch, Einzug, drehen, gedreht, Textausrichtung, Winkel, vertikaler Text, verbinden, Zellen verbinden, verbinden und zentrieren, Zellverbund aufheben, Zellen formatieren, Strg+1, Format übertragen, Formatierung kopieren, löschen, Formate löschen, Schutz, gesperrt, ausgeblendet, von rechts nach links, Textrichtung, an Zellgröße anpassen, Blocksatz -->
+<!-- keywords: formatieren, Formatierung, Schriftart, Schriftgrad, Schriftgröße, fett, kursiv, unterstrichen, doppelt unterstrichen, durchgestrichen, Farbe, Schriftfarbe, Füllung, Füllfarbe, Hintergrund, Hintergrundfarbe, Rahmen, Rahmenlinien, ausrichten, Ausrichtung, zentrieren, linksbündig, rechtsbündig, oben, mittig, unten, Textumbruch, Zeilenumbruch, Einzug, drehen, gedreht, Textausrichtung, Winkel, vertikaler Text, verbinden, Zellen verbinden, verbinden und zentrieren, Zellverbund aufheben, Zellen formatieren, Strg+1, Formatierung kopieren, Formatierung kopieren, löschen, Formate löschen, Schutz, gesperrt, ausgeblendet, von rechts nach links, Textrichtung, an Zellgröße anpassen, Blocksatz -->
 
 Die **Formatierung** bestimmt, wie Zellen aussehen: die Schriftart, die Farben, die Rahmenlinien, die Position des Textes und die Schreibweise einer Zahl. Sie ändert nie, was eine Zelle enthält. Markieren Sie zuerst die Zellen, und verwenden Sie dann die Registerkarte **Start**. Jede Änderung ist ein Schritt, den Sie rückgängig machen können.
 
@@ -27,9 +27,9 @@ Die **Formatierung** bestimmt, wie Zellen aussehen: die Schriftart, die Farben, 
 
 **Gruppe „Bearbeiten“**: **Löschen** bietet **Alle löschen** (Inhalte und Formate), **Formate löschen** (die Zellen behalten ihren Inhalt und erhalten das Format „Standard“ ohne Füllung und Rahmen) und **Inhalte löschen**.
 
-## Format übertragen
+## Formatierung kopieren
 
-Markieren Sie Zellen, die so aussehen, wie Sie es möchten, klicken Sie auf **Format übertragen** (den Pinsel in der Gruppe „Zwischenablage“), und markieren Sie dann die Zellen, die dieses Aussehen erhalten sollen. Sie übernehmen Schriftart, Füllung, Rahmen, Zahlenformat und Ausrichtung. **Doppelklicken** Sie auf den Pinsel, um mehrmals zu übertragen; klicken Sie erneut darauf oder drücken Sie **Esc**, um aufzuhören.
+Markieren Sie Zellen, die so aussehen, wie Sie es möchten, klicken Sie auf **Formatierung kopieren** (den Pinsel in der Gruppe „Zwischenablage“), und markieren Sie dann die Zellen, die dieses Aussehen erhalten sollen. Sie übernehmen Schriftart, Füllung, Rahmen, Zahlenformat und Ausrichtung. **Doppelklicken** Sie auf den Pinsel, um mehrmals zu übertragen; klicken Sie erneut darauf oder drücken Sie **Esc**, um aufzuhören.
 
 ## Das Fenster „Zellen formatieren“
 

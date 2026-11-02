@@ -31,7 +31,7 @@ Questa versione di JeffDeck è un'**anteprima**. È pronta per essere provata su
 - Presentazioni personalizzate, presentazioni ripetute automaticamente a ciclo continuo e intervalli provati.
 - Visualizzazione struttura, Sequenza diapositive e visualizzazione Schema diapositiva.
 - Stampa, file PDF e immagini delle diapositive.
-- Salvataggio automatico, che conserva una copia di riserva del lavoro non salvato.
+- Il recupero automatico, che conserva una copia di riserva del lavoro non salvato.
 
 **Funzionalità non ancora disponibili**
 

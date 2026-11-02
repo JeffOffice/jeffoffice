@@ -13,7 +13,7 @@ Appuyez sur **F1** pour obtenir de l'aide sur ce que vous êtes en train de fair
 
 Les Info-touches sont de petites lettres qui s'affichent sur le ruban. Elles permettent d'atteindre n'importe quel bouton sans la souris.
 
-1. Appuyez sur **Alt** puis relâchez la touche. Des lettres apparaissent sur le bouton **Fichier**, sur chaque onglet et sur la barre d'outils Accès rapide. Les boutons de la barre d'outils Accès rapide utilisent les chiffres 1 à 4.
+1. Appuyez sur **Alt** puis relâchez la touche. Des lettres apparaissent sur le bouton **Fichier**, sur chaque onglet et sur la barre d'outils rapide. Les boutons de la barre d'outils rapide utilisent les chiffres 1 à 4.
 2. Appuyez sur la lettre de l'onglet voulu, par exemple **H** pour **Accueil**. Les lettres des boutons de cet onglet apparaissent.
 3. Tapez les lettres du bouton voulu. Par exemple, **T** puis **B** correspond à **Dessiner une zone de texte**.
 

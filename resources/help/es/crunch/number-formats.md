@@ -9,7 +9,7 @@ JeffCrunch usa los signos del idioma configurado en su equipo. En inglés (Estad
 
 Esto se aplica en todos los lugares donde se muestra o se escribe un número:
 
-- Una celda, la copia de una celda y el ancho que **Autoajustar** da a una columna siguen los signos de su idioma.
+- Una celda, la copia de una celda y el ancho que **Ajustar** da a una columna siguen los signos de su idioma.
 - La **barra de fórmulas** y una celda que modifica con **F2** muestran el número tal como lo escribe. Si su idioma escribe los decimales con coma, escriba **2,5**, no 2.5.
 - En un idioma que escribe los decimales con coma, una fórmula lleva **punto y coma** entre sus argumentos: **=SUM(A1;A2)**. Los nombres de las funciones se mantienen en inglés.
 - Las fechas y horas siguen el código del formato: un formato que indica "mes, día, año" las muestra en ese orden, y un formato pensado para su idioma (los predefinidos de la lista) usa el orden y los nombres de su idioma.

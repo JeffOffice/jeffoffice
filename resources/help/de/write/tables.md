@@ -1,5 +1,5 @@
 # Tabellen
-<!-- keywords: Tabelle, Tabellen, Tabelle einfügen, Zeilen, Spalten, Zelle, Zellen, Zellen verbinden, Zellen teilen, Rahmen, Rahmenlinien, Schattierung, Füllung, Zellengröße, Spaltenbreite, Zeilenhöhe, automatisch anpassen, Zeilen verteilen, Spalten verteilen, Tabelleneigenschaften, Kopfzeile, Überschriftenzeile wiederholen, Tabellenformatvorlage, Tabellenformatvorlagen, gebänderte Zeilen, Ausrichtung, Text in Zelle ausrichten, Zeile löschen, Spalte löschen, Raster, Gitternetzlinien, Rechtsklick, Kontextmenü, Tabellenlayout, Tabellenentwurf -->
+<!-- keywords: Tabelle, Tabellen, Tabelle einfügen, Zeilen, Spalten, Zelle, Zellen, Zellen verbinden, Zellen teilen, Rahmen, Rahmenlinien, Schattierung, Füllung, Zellengröße, Spaltenbreite, Zeilenhöhe, anpassen, Zeilen verteilen, Spalten verteilen, Tabelleneigenschaften, Kopfzeile, Überschriftenzeile wiederholen, Tabellenformatvorlage, Tabellenformatvorlagen, gebänderte Zeilen, Ausrichtung, Text in Zelle ausrichten, Zeile löschen, Spalte löschen, Raster, Gitternetzlinien, Rechtsklick, Kontextmenü, Tabellenlayout, Tabellenentwurf -->
 
 Eine **Tabelle** ist ein Raster aus **Zellen** in **Zeilen** und **Spalten**. Jede Zelle enthält Text, den Sie wie an jeder anderen Stelle der Seite eingeben. In diesem Thema erfahren Sie, wie Sie eine Tabelle hinzufügen, ihre Form und ihr Aussehen ändern und sie für mehrere Seiten einrichten.
 
@@ -46,7 +46,7 @@ Die Optionen links neben dem Katalog legen fest, welche Teile die Formatvorlage 
 Auf **Tabellenlayout**:
 
 - Geben Sie unter **Höhe** die Höhe der Zeilen mit der Einfügemarke und unter **Breite** die Breite ihrer Spalte ein. Die Höhe ist eine Mindesthöhe; die Zeile wächst mit ihrem Text. Für eine Höhe, die nicht wächst, verwenden Sie „Tabelleneigenschaften“.
-- **AutoAnpassen** passt die Spalten an ihren Inhalt oder an das Fenster an oder fixiert sie in ihrer aktuellen Breite.
+- **Anpassen** passt die Spalten an ihren Inhalt oder an das Fenster an oder fixiert sie in ihrer aktuellen Breite.
 - **Zeilen verteilen** und **Spalten verteilen** machen die markierten Zeilen gleich hoch bzw. die markierten Spalten gleich breit. Ist nur eine Zeile oder Spalte markiert, wirken sie auf die ganze Tabelle.
 
 ## Position des Texts in einer Zelle

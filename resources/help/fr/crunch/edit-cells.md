@@ -72,7 +72,7 @@ Sélectionnez les cellules et appuyez sur **Suppr**. Le contenu des cellules est
 
 ## Annuler et Rétablir
 
-**{key:Undo}** annule la dernière modification, et **{key:Redo}** la rétablit. Ces commandes figurent aussi dans la barre d'outils Accès rapide, en haut. Chaque cellule saisie compte pour une étape, de même que chaque effacement. L'annulation rétablit la cellule telle qu'elle était : sa valeur, sa formule, son format et les formules qui en dépendent. JeffCrunch mémorise jusqu'à 1 000 étapes, moins lorsqu'elles ont modifié un très grand nombre de cellules, afin de ne jamais occuper beaucoup de mémoire.
+**{key:Undo}** annule la dernière modification, et **{key:Redo}** la rétablit. Ces commandes figurent aussi dans la barre d'outils rapide, en haut. Chaque cellule saisie compte pour une étape, de même que chaque effacement. L'annulation rétablit la cellule telle qu'elle était : sa valeur, sa formule, son format et les formules qui en dépendent. JeffCrunch mémorise jusqu'à 1 000 étapes, moins lorsqu'elles ont modifié un très grand nombre de cellules, afin de ne jamais occuper beaucoup de mémoire.
 
 ## Pendant le calcul des formules
 

@@ -3,7 +3,7 @@
 
 Die Registerkarte **Start** enthält die Tools, die Sie beim Erstellen von Folien am häufigsten verwenden.
 
-- **Zwischenablage** enthält **Einfügen**, **Ausschneiden**, **Kopieren** und **Format übertragen**, womit Sie das Aussehen von Text oder einem Objekt auf ein anderes übertragen. Siehe [Text eingeben und formatieren](text).
+- **Zwischenablage** enthält **Einfügen**, **Ausschneiden**, **Kopieren** und **Formatierung kopieren**, womit Sie das Aussehen von Text oder einem Objekt auf ein anderes übertragen. Siehe [Text eingeben und formatieren](text).
 - **Folien** enthält **Neue Folie** (Strg+M, mit einem Pfeil für die Layouts und **Folien wiederverwenden…**), **Layout**, **Zurücksetzen**, **Abschnitt** und **Folie löschen**. Siehe [Folien hinzufügen, ändern und löschen](slides).
 - **Schriftart** ändert Schriftart, Schriftgrad, Farbe und Schriftschnitt der Buchstaben sowie ihren Abstand und ihre Groß-/Kleinschreibung. Siehe [Text eingeben und formatieren](text).
 - **Absatz** enthält Aufzählungszeichen, Nummerierung, Listenebenen, Zeilenabstand, Spalten, Ausrichtung, Textrichtung und die Position des Texts in seinem Feld. Siehe [Text eingeben und formatieren](text).

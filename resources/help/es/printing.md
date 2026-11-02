@@ -5,7 +5,7 @@ La impresión se realiza en la página **Imprimir**. Elija la configuración a l
 
 ## Imprimir una publicación
 
-1. Presione Ctrl+P o haga clic en **Archivo > Imprimir**. La **Barra de herramientas de acceso rápido** también tiene un botón **Imprimir**.
+1. Presione Ctrl+P o haga clic en **Archivo > Imprimir**. La **Barra de herramientas rápida** también tiene un botón **Imprimir**.
 2. Junto al botón **Imprimir**, establezca el número de **Copias**.
 3. Elija una **Impresora**. La lista termina con **Guardar como PDF**, que crea un archivo PDF en lugar de imprimir en papel.
 4. En **Configuración**, elija **Imprimir todas las páginas**, **Imprimir página actual** o **Impresión personalizada**. Para una impresión personalizada, escriba las páginas en el cuadro **Páginas**: números de página e intervalos, separados por comas, por ejemplo, 1-3, 5.

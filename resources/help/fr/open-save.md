@@ -5,7 +5,7 @@ JeffPub enregistre votre travail dans des fichiers .jpub. Il ouvre et enregistre
 
 ## Enregistrer
 
-Appuyez sur Ctrl+S, cliquez sur le bouton **Enregistrer** dans la barre d'outils Accès rapide ou cliquez sur **Fichier > Enregistrer**. La première fois, JeffPub vous demande un nom et un emplacement. Ensuite, Enregistrer remplace le fichier par votre travail le plus récent.
+Appuyez sur Ctrl+S, cliquez sur le bouton **Enregistrer** dans la barre d'outils rapide ou cliquez sur **Fichier > Enregistrer**. La première fois, JeffPub vous demande un nom et un emplacement. Ensuite, Enregistrer remplace le fichier par votre travail le plus récent.
 
 Un astérisque (*) après le nom dans la barre de titre signale des modifications non enregistrées. Enregistrez souvent. Si JeffPub s'arrête de manière inattendue, voir [Récupérer le travail non enregistré](recover).
 

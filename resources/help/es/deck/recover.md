@@ -1,16 +1,16 @@
 # Recuperar trabajo no guardado
-<!-- keywords: recuperar, recuperación, autorrecuperación, autorecuperación, autoguardado, guardado automático, bloqueo, cierre inesperado, trabajo perdido, no guardado, corte de luz, apagón, restaurar, congelado, cerrado por error, copia de seguridad -->
+<!-- keywords: recuperar, recuperación, recuperación automática, autorecuperación, autoguardado, guardado automático, bloqueo, cierre inesperado, trabajo perdido, no guardado, corte de luz, apagón, restaurar, congelado, cerrado por error, copia de seguridad -->
 
-Si JeffDeck se cierra de forma inesperada o se va la luz, es posible que su trabajo más reciente siga a salvo. Mientras trabaja, JeffDeck guarda una copia de reserva de cada presentación que tenga cambios sin guardar. Esto se llama **Autorrecuperación**.
+Si JeffDeck se cierra de forma inesperada o se va la luz, es posible que su trabajo más reciente siga a salvo. Mientras trabaja, JeffDeck guarda una copia de reserva de cada presentación que tenga cambios sin guardar. Esto se llama **recuperación automática**.
 
-## Cómo funciona la Autorrecuperación
+## Cómo funciona la recuperación automática
 
 - Cada 10 minutos, JeffDeck guarda una copia de reserva de cada presentación que tenga cambios sin guardar.
-- JeffDeck guarda las copias en una carpeta de Autorrecuperación, dentro de la carpeta donde guarda sus propios datos. No tiene que buscarlas usted.
+- JeffDeck guarda las copias en una carpeta de recuperación automática, dentro de la carpeta donde guarda sus propios datos. No tiene que buscarlas usted.
 - La copia de reserva nunca reemplaza el archivo real.
 - La copia desaparece al guardar la presentación, cerrarla o salir de JeffDeck de la forma normal.
 
-La Autorrecuperación no sustituye a guardar. Si JeffDeck se detiene, puede perder el trabajo de los últimos minutos. Presione Ctrl+S a menudo.
+La recuperación automática no sustituye a guardar. Si JeffDeck se detiene, puede perder el trabajo de los últimos minutos. Presione Ctrl+S a menudo.
 
 ## Recuperar el trabajo
 

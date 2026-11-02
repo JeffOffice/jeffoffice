@@ -8,7 +8,7 @@ Links staat een lijst. Sommige items openen een pagina, andere voeren hun taak m
 ## Starten
 
 - **Nieuw** toont een **Lege presentatie** waarop u kunt klikken. Zie [Presentaties openen en opslaan](open-save).
-- **Openen** bevat **Bladeren** om een bestand te kiezen, **Niet-opgeslagen werk herstellen** om kopieën terug te halen die AutoHerstel heeft bewaard, en lijsten met **Vastgemaakt** en **Recente presentaties**. Zie [Presentaties openen en opslaan](open-save) en [Niet-opgeslagen werk terughalen](recover).
+- **Openen** bevat **Bladeren** om een bestand te kiezen, **Niet-opgeslagen werk herstellen** om kopieën terug te halen die automatisch herstel heeft bewaard, en lijsten met **Vastgemaakt** en **Recente presentaties**. Zie [Presentaties openen en opslaan](open-save) en [Niet-opgeslagen werk terughalen](recover).
 
 ## Deze presentatie
 

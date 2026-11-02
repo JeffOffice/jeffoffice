@@ -1,7 +1,7 @@
 # Funktion auswählen
-<!-- keywords: Funktion, Funktion auswählen, Funktion einfügen, fx, Formel, Argument, Kategorie, Suche, Alle Funktionen, AutoSumme, Funktionsassistent, Umschalt+F3 -->
+<!-- keywords: Funktion, Funktion auswählen, Funktion einfügen, fx, Formel, Argument, Kategorie, Suche, Alle Funktionen, Summe, Funktionsassistent, Umschalt+F3 -->
 
-Wählen Sie auf der Registerkarte **Formeln** den Befehl **Funktion auswählen** (**Umschalt+F3**) oder im Menü **AutoSumme** den Befehl **Alle Funktionen**.
+Wählen Sie auf der Registerkarte **Formeln** den Befehl **Funktion auswählen** (**Umschalt+F3**) oder im Menü **Summe** den Befehl **Alle Funktionen**.
 
 Geben Sie in das Suchfeld einen Namen ein oder das, was Sie tun möchten („abrunden“, „Text verbinden“). Die Liste zeigt dann die passenden Funktionen an, wobei Namen, die mit Ihren Wörtern beginnen, zuerst erscheinen. Mit **Art** beschränken Sie die Liste auf Funktionen der Kategorien Finanzmathematik, Datum und Uhrzeit, Mathematik und Trigonometrie, Statistik, Nachschlagen und Verweisen, Text, Logik, Information oder Datenbank.
 

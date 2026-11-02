@@ -5,7 +5,7 @@ De diavoorstelling speelt uw dia's een voor een af op het volledige scherm. De p
 
 ## De voorstelling starten
 
-- Druk op **F5** of klik op **Diavoorstelling > Diavoorstelling starten > Vanaf begin**. De knop **Vanaf begin** staat ook op de werkbalk Snelle toegang linksboven.
+- Druk op **F5** of klik op **Diavoorstelling > Diavoorstelling starten > Vanaf begin**. De knop **Vanaf begin** staat ook op de snelle werkbalk linksboven.
 - Druk op **Shift+F5** of klik op **Vanaf huidige dia** om te beginnen bij de dia waarop u staat. De diavoorstellingsknop op de statusbalk doet hetzelfde.
 - Klik op **Aangepaste diavoorstelling** en kies een aangepaste voorstelling om alleen de dia's daarin af te spelen. Zie "Een aangepaste voorstelling maken" hieronder.
 

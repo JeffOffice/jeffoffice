@@ -1,5 +1,5 @@
 # Orientarsi nella finestra
-<!-- keywords: barra multifunzione, schede, barra degli strumenti, interfaccia, layout dello schermo, elenco pagine, anteprime, miniature, barra di stato, zoom, righelli, riquadro attività, barra di accesso rapido, comprimere barra multifunzione, ridurre barra multifunzione, parti della finestra -->
+<!-- keywords: barra multifunzione, schede, barra degli strumenti, interfaccia, layout dello schermo, elenco pagine, anteprime, miniature, barra di stato, zoom, righelli, riquadro attività, barra degli strumenti rapida, comprimere barra multifunzione, ridurre barra multifunzione, parti della finestra -->
 
 La finestra di JeffPub è composta da cinque parti principali: la barra multifunzione in alto, l'elenco Pagine a sinistra, l'area della pagina al centro, i riquadri attività a destra e la barra di stato in basso. La barra del titolo mostra il nome della pubblicazione, seguito da un asterisco (*) se contiene modifiche non salvate.
 
@@ -11,11 +11,11 @@ Quando si seleziona un elemento, vengono visualizzate altre schede. Ad esempio, 
 
 Per lasciare più spazio alla pagina, è possibile comprimere la barra multifunzione. Fare clic sulla freccia all'estrema destra della riga delle schede, fare doppio clic su una scheda oppure premere CTRL+F1. Rimangono visibili solo i nomi delle schede. Fare clic su una scheda per visualizzare di nuovo i pulsanti. Il pulsante **?** accanto alla freccia apre la Guida.
 
-## Il pulsante File e la barra di accesso rapido
+## Il pulsante File e la barra degli strumenti rapida
 
 Il pulsante **File** si trova a sinistra delle schede. Apre la pagina File, da cui è possibile creare, aprire, salvare, stampare e condividere le pubblicazioni. Per tornare alla pubblicazione, premere ESC o fare clic su **Torna alla pubblicazione**. Vedere [Scheda File](tab-file).
 
-La barra di accesso rapido è la riga di quattro piccoli pulsanti a sinistra del pulsante **File**. Contiene i pulsanti **Salva**, **Annulla**, **Ripeti** e **Stampa**.
+La barra degli strumenti rapida è la riga di quattro piccoli pulsanti a sinistra del pulsante **File**. Contiene i pulsanti **Salva**, **Annulla**, **Ripeti** e **Stampa**.
 
 ## L'elenco Pagine
 

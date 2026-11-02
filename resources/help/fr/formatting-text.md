@@ -38,10 +38,10 @@ Cliquez sur **Couleur de police** et choisissez une couleur du jeu, une couleur 
 
 Dans l'onglet **Zone de texte**, **Effets** applique aux lettres une ombre, un contour, un relief, une gravure, une lumière ou un remplissage dégradé. Une lettrine est une grande première lettre : cliquez dans le paragraphe et choisissez **Zone de texte > Typographie > Lettrine**. Choisissez une hauteur de 2 à 5 lignes, ou **Lettrine personnalisée…**. Les autres options de **Typographie**, comme les ligatures et les ensembles stylistiques, dépendent de ce que propose la police.
 
-## Copier la mise en forme avec Reproduire la mise en forme
+## Copier la mise en forme avec Copier la mise en forme
 
 1. Cliquez dans un texte qui a l'apparence souhaitée.
-2. Cliquez sur **Accueil > Presse-papiers > Reproduire la mise en forme**.
+2. Cliquez sur **Accueil > Presse-papiers > Copier la mise en forme**.
 3. Cliquez sur la zone de texte à modifier.
 
 Toute la zone prend l'apparence du premier texte, ainsi que son remplissage et son contour. Maintenez la touche Maj enfoncée en cliquant sur le bouton pour appliquer la mise en forme plusieurs fois. Appuyez sur Échap pour arrêter.

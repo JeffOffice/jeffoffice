@@ -1,5 +1,5 @@
 # Cellen doorvoeren en optellen
-<!-- keywords: doorvoeren, vullen, reeks, slepen, vulgreep, AutoAanvullen, Ctrl+D, Ctrl+R, omlaag, rechts, omhoog, links, getal, datum, weekdag, maand, jaar, stap, stapwaarde, eindwaarde, kopiëren, AutoSom, som, optellen, gemiddelde, aantal, max, min, Alt+is-gelijkteken, totaal -->
+<!-- keywords: doorvoeren, vullen, reeks, slepen, vulgreep, AutoAanvullen, Ctrl+D, Ctrl+R, omlaag, rechts, omhoog, links, getal, datum, weekdag, maand, jaar, stap, stapwaarde, eindwaarde, kopiëren, Som, som, optellen, gemiddelde, aantal, max, min, Alt+is-gelijkteken, totaal -->
 
 ## Doorvoeren
 
@@ -24,8 +24,8 @@ Doorvoeren werkt niet naar of vanuit samengevoegde cellen, omdat er dan waarden 
 
 **Doorvoeren > Over werkbladen…** kopieert de geselecteerde cellen naar dezelfde cellen van de werkbladen die u in een lijst aanvinkt: alles, alleen de inhoud of alleen de opmaak. Dit is één stap voor Ongedaan maken.
 
-## AutoSom
+## Som
 
-**Start > AutoSom** (**Alt+=**) zet een totaal in de cel die u selecteert. AutoSom kijkt naar de getallen boven de cel; als die er niet zijn, naar de getallen links ervan. De formule wordt in de cel gezet zodat u deze kunt controleren, en met **Enter** behoudt u de formule. De pijl naast AutoSom geeft de andere totalen: **Gemiddelde**, **Aantal getallen**, **Max** en **Min**.
+**Start > Som** (**Alt+=**) zet een totaal in de cel die u selecteert. Som kijkt naar de getallen boven de cel; als die er niet zijn, naar de getallen links ervan. De formule wordt in de cel gezet zodat u deze kunt controleren, en met **Enter** behoudt u de formule. De pijl naast Som geeft de andere totalen: **Gemiddelde**, **Aantal getallen**, **Max** en **Min**.
 
 Selecteer eerst een blok; dan krijgt elke kolom van het blok een eigen formule in de lege cellen eronder (of, bij één rij, rechts ervan).

@@ -13,7 +13,7 @@ Premere **F1** per visualizzare la Guida relativa all'operazione in corso. Preme
 
 I Suggerimenti tasti sono piccole lettere che compaiono sulla barra multifunzione. Consentono di raggiungere qualsiasi pulsante senza usare il mouse.
 
-1. Premere e rilasciare **ALT**. Le lettere compaiono sul pulsante **File**, su ogni scheda e sulla Barra di accesso rapido. I pulsanti della Barra di accesso rapido usano i numeri da 1 a 4.
+1. Premere e rilasciare **ALT**. Le lettere compaiono sul pulsante **File**, su ogni scheda e sulla Barra degli strumenti rapida. I pulsanti della Barra degli strumenti rapida usano i numeri da 1 a 4.
 2. Premere la lettera della scheda desiderata, ad esempio **H** per **Home**. Compaiono le lettere dei pulsanti di quella scheda.
 3. Digitare le lettere del pulsante desiderato. Ad esempio, **T** seguito da **B** corrisponde a **Disegna casella di testo**.
 

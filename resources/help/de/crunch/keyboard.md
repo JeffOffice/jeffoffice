@@ -38,7 +38,7 @@ Auf einem Mac übernimmt die **Befehlstaste** (⌘) die Funktion der Taste **Str
 | Strg+Alt+V | Inhalte einfügen |
 | Strg und Plustaste, Strg und Minustaste | Einfügen, Löschen (Zeilen oder Spalten, wenn ganze Zeilen oder Spalten markiert sind) |
 | Strg+D, Strg+R | Nach unten ausfüllen, nach rechts ausfüllen |
-| Alt und Gleichheitszeichen | AutoSumme |
+| Alt und Gleichheitszeichen | Summe |
 | Strg+0, Strg+9 | Spalten ausblenden, Zeilen ausblenden |
 | Alt+Nach-unten | Liste einer Zelle öffnen, die eine Liste hat |
 | {key:Find} | Suchen |

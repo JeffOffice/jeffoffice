@@ -13,7 +13,7 @@ Druk op **F1** voor Help bij waar u mee bezig bent. Druk op **Ctrl+F1** om het l
 
 Toetsenblokjes zijn kleine letters die op het lint verschijnen. Hiermee bereikt u elke knop zonder muis.
 
-1. Druk op **Alt** en laat de toets los. Er verschijnen letters op de knop **Bestand**, op elk tabblad en op de werkbalk Snelle toegang. De knoppen van de werkbalk Snelle toegang gebruiken de cijfers 1 tot en met 4.
+1. Druk op **Alt** en laat de toets los. Er verschijnen letters op de knop **Bestand**, op elk tabblad en op de snelle werkbalk. De knoppen van de snelle werkbalk gebruiken de cijfers 1 tot en met 4.
 2. Druk op de letter van het gewenste tabblad, bijvoorbeeld **H** voor **Start**. De letters voor de knoppen van dat tabblad verschijnen.
 3. Typ de letters van de gewenste knop. Met **T** en daarna **B** kiest u bijvoorbeeld **Tekstvak tekenen**.
 

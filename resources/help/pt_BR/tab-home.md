@@ -3,7 +3,7 @@
 
 A guia **Página Inicial** está sempre na faixa de opções. Ela reúne as ferramentas que você mais usa ao escrever e diagramar uma página.
 
-- **Área de transferência** tem **Colar**, **Recortar**, **Copiar** e **Pincel de Formatação**, que copia a aparência do texto para outra caixa. Consulte [Formatar texto](formatting-text).
+- **Área de transferência** tem **Colar**, **Recortar**, **Copiar** e **Copiar Formatação**, que copia a aparência do texto para outra caixa. Consulte [Formatar texto](formatting-text).
 - **Fonte** altera a fonte, o tamanho, a cor e o estilo das letras. Consulte [Formatar texto](formatting-text).
 - **Parágrafo** tem marcadores, numeração, recuos, alinhamento e espaçamento para parágrafos inteiros. Consulte [Marcadores, numeração e tabulações](lists-tabs).
 - **Estilos** é uma galeria de aparências nomeadas que você aplica com um clique, além de permitir criar as suas. Consulte [Usar estilos](styles).

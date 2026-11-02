@@ -13,7 +13,7 @@ Cada imagem, caixa de texto, forma e linha numa página é um objeto. Este tópi
 
 ## Mover e redimensionar
 
-- Arraste um objeto para o mover. Mantenha premida a tecla **Shift** para o mover apenas na horizontal ou na vertical. Mantenha premida a tecla **Alt** para desativar o ajuste automático. Mantenha premida a tecla **Ctrl** enquanto arrasta para criar uma cópia.
+- Arraste um objeto para o mover. Mantenha premida a tecla **Shift** para o mover apenas na horizontal ou na vertical. Mantenha premida a tecla **Alt** para desativar o ajuste. Mantenha premida a tecla **Ctrl** enquanto arrasta para criar uma cópia.
 - Prima as teclas de seta para deslocar o objeto 0,3 cm. **Alt** com uma tecla de seta move-o um píxel do ecrã. Pode alterar a distância de deslocamento em **Ficheiro > Opções > Avançadas**.
 - Arraste uma alça quadrada para redimensionar. Uma alça de canto altera a largura e a altura em simultâneo. Uma alça lateral altera apenas uma delas.
 - Caixas de texto e formas: mantenha premida a tecla **Shift** enquanto arrasta um canto para manter as proporções.
@@ -55,5 +55,5 @@ Clique com o botão direito do rato num objeto e escolha **Bloquear Posição e 
 ## Relacionados
 
 - [Moldar texto à volta de objetos](wrap)
-- [Réguas, guias e ajuste automático](guides)
+- [Réguas, guias e ajuste](guides)
 - [O separador Formato da Forma](tab-shape-format)

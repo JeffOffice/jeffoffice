@@ -1,16 +1,16 @@
 # Recuperare il lavoro non salvato
 <!-- keywords: recupera, recupero, ripristina, ripristino, salvataggio automatico, autosalvataggio, arresto anomalo, crash, blocco, lavoro perso, non salvato, interruzione di corrente, chiuso per errore, backup, copia di sicurezza -->
 
-Se JeffDeck si chiude improvvisamente o manca la corrente, il lavoro più recente potrebbe essere ancora al sicuro. Durante il lavoro, JeffDeck conserva una copia di riserva di ogni presentazione con modifiche non salvate. Questa funzione si chiama **Salvataggio automatico**.
+Se JeffDeck si chiude improvvisamente o manca la corrente, il lavoro più recente potrebbe essere ancora al sicuro. Durante il lavoro, JeffDeck conserva una copia di riserva di ogni presentazione con modifiche non salvate. Questa funzione si chiama **Recupero automatico**.
 
-## Come funziona il Salvataggio automatico
+## Come funziona il recupero automatico
 
 - Ogni 10 minuti JeffDeck salva una copia di riserva di ogni presentazione con modifiche non salvate.
-- JeffDeck conserva le copie in una cartella di Salvataggio automatico, all'interno della cartella in cui conserva i propri dati. Non è mai necessario aprirla.
+- JeffDeck conserva le copie in una cartella di recupero automatico, all'interno della cartella in cui conserva i propri dati. Non è mai necessario aprirla.
 - La copia di riserva non sostituisce mai il file originale.
 - La copia viene eliminata quando si salva la presentazione, la si chiude o si esce normalmente da JeffDeck.
 
-Il Salvataggio automatico non sostituisce il salvataggio. Se JeffDeck si interrompe, si può perdere il lavoro degli ultimi minuti. Premere spesso CTRL+S.
+Il recupero automatico non sostituisce il salvataggio. Se JeffDeck si interrompe, si può perdere il lavoro degli ultimi minuti. Premere spesso CTRL+S.
 
 ## Recuperare il lavoro
 

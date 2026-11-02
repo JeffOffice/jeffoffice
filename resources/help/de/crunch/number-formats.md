@@ -9,7 +9,7 @@ JeffCrunch verwendet die Zeichen der Sprache, auf die Ihr Computer eingestellt i
 
 Das gilt überall, wo eine Zahl angezeigt oder eingegeben wird:
 
-- Eine Zelle, die Kopie einer Zelle und die Breite, die **Spaltenbreite automatisch anpassen** einer Spalte gibt, richten sich nach den Zeichen Ihrer Sprache.
+- Eine Zelle, die Kopie einer Zelle und die Breite, die **Spaltenbreite anpassen** einer Spalte gibt, richten sich nach den Zeichen Ihrer Sprache.
 - Die **Bearbeitungsleiste** und eine Zelle, die Sie mit **F2** bearbeiten, übernehmen eine Zahl so, wie Sie sie eingeben. Wenn Ihre Sprache Dezimalzahlen mit Komma schreibt, geben Sie **2,5** ein, nicht 2.5.
 - In einer Sprache, die Dezimalzahlen mit Komma schreibt, stehen zwischen den Argumenten einer Formel **Semikolons**: **=SUM(A1;A2)**. Die Funktionsnamen bleiben englisch.
 - Datum und Uhrzeit richten sich nach dem Code des Formats: Ein Format, das „Monat, Tag, Jahr“ vorgibt, zeigt sie in dieser Reihenfolge an, und ein Format für Ihre Sprache (die vorgefertigten Formate in der Liste) verwendet die Reihenfolge und die Namen Ihrer Sprache.

@@ -5,7 +5,7 @@ JeffPub salva il lavoro in file .jpub. Apre e salva anche file .pub. Vedere [Usa
 
 ## Salvare
 
-Premere CTRL+S, fare clic sul pulsante **Salva** nella barra di accesso rapido oppure scegliere **File > Salva**. La prima volta JeffPub chiede un nome e una posizione. In seguito, Salva sostituisce il file con la versione più recente del lavoro.
+Premere CTRL+S, fare clic sul pulsante **Salva** nella barra degli strumenti rapida oppure scegliere **File > Salva**. La prima volta JeffPub chiede un nome e una posizione. In seguito, Salva sostituisce il file con la versione più recente del lavoro.
 
 Un asterisco (*) dopo il nome nella barra del titolo indica che ci sono modifiche non salvate. Salvare spesso. Se JeffPub si chiude in modo imprevisto, vedere [Recuperare il lavoro non salvato](recover).
 

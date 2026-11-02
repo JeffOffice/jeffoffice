@@ -5,7 +5,7 @@ La presentación con diapositivas muestra las diapositivas de una en una, a pant
 
 ## Iniciar la presentación
 
-- Presione **F5** o haga clic en **Presentación con diapositivas > Iniciar presentación con diapositivas > Desde el principio**. El botón **Desde el principio** también está en la Barra de herramientas de acceso rápido, arriba a la izquierda.
+- Presione **F5** o haga clic en **Presentación con diapositivas > Iniciar presentación con diapositivas > Desde el principio**. El botón **Desde el principio** también está en la Barra de herramientas rápida, arriba a la izquierda.
 - Presione **Mayús+F5** o haga clic en **Desde la diapositiva actual** para empezar en la diapositiva en la que se encuentra. El botón de presentación con diapositivas de la barra de estado hace lo mismo.
 - Haga clic en **Presentación personalizada** y elija una presentación personalizada para reproducir solo las diapositivas que contiene. Consulte "Crear una presentación personalizada" más abajo.
 

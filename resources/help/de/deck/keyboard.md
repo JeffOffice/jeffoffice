@@ -7,7 +7,7 @@ Die meisten Aufgaben in JeffDeck können Sie ohne Maus erledigen. Es gibt Tasten
 
 Zugriffstasteninfos sind kleine Buchstaben, die im Menüband angezeigt werden. Mit ihnen erreichen Sie jede Schaltfläche ohne Maus.
 
-1. Drücken Sie kurz **Alt**. Auf der Schaltfläche **Datei**, auf jeder Registerkarte und auf der Symbolleiste für den Schnellzugriff erscheinen Buchstaben. Die Schaltflächen der Symbolleiste für den Schnellzugriff verwenden die Ziffern 1 bis 3.
+1. Drücken Sie kurz **Alt**. Auf der Schaltfläche **Datei**, auf jeder Registerkarte und auf der Schnellsymbolleiste erscheinen Buchstaben. Die Schaltflächen der Schnellsymbolleiste verwenden die Ziffern 1 bis 3.
 2. Drücken Sie den Buchstaben der gewünschten Registerkarte. Die Registerkarten verwenden **H** für **Start**, **N** für **Einfügen**, **G** für **Entwurf**, **K** für **Übergänge**, **S** für **Bildschirmpräsentation**, **R** für **Überprüfen** und **W** für **Ansicht**. Die Buchstaben für die Schaltflächen dieser Registerkarte werden angezeigt.
 3. Geben Sie die Buchstaben der gewünschten Schaltfläche ein. Drücken Sie beispielsweise **Alt**, dann **S** und dann **B**, um die Bildschirmpräsentation **Von Beginn an** vorzuführen.
 

@@ -1,7 +1,7 @@
 # Een functie kiezen
-<!-- keywords: functie, functie kiezen, fx, formule, argument, categorie, zoeken, alle functies, AutoSom, Shift+F3 -->
+<!-- keywords: functie, functie kiezen, fx, formule, argument, categorie, zoeken, alle functies, Som, Shift+F3 -->
 
-Kies **Een functie kiezen** op het tabblad **Formules** (**Shift+F3**), of **Alle functies** in het menu **AutoSom**.
+Kies **Een functie kiezen** op het tabblad **Formules** (**Shift+F3**), of **Alle functies** in het menu **Som**.
 
 Typ in het zoekvak een naam of wat u wilt doen ('naar beneden afronden', 'tekst samenvoegen'). De lijst toont dan de passende functies, met eerst de namen die met uw woorden beginnen. Met **Soort** beperkt u de lijst tot financiële functies, datum- en tijdfuncties, wiskundige en trigonometrische functies, statistische functies, zoek- en verwijzingsfuncties, tekstfuncties, logische functies, informatiefuncties of databasefuncties.
 

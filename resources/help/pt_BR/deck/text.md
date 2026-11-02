@@ -30,7 +30,7 @@ O pequeno botão com três pontos no canto do grupo abre a janela **Fonte** (Ctr
 
 As palavras podem ter **efeitos**. Um efeito é uma aparência adicionada às letras, como sombra, brilho ou reflexo. Uma **sombra** é uma cópia escura e suave das palavras, um pouco abaixo e à direita. Um **brilho** é um anel suave de cor ao redor das letras. Um **reflexo** é uma cópia esmaecida e invertida das palavras, abaixo delas. Uma **sombra interna** escurece as letras ao longo de uma borda interna. O JeffDeck mostra os efeitos que uma apresentação já tem e os mantém ao salvar. O botão **Sombra** aplica uma sombra às palavras selecionadas, e um segundo clique a remove. A sombra é desenhada logo abaixo das letras, por isso nunca cobre outras palavras. Em uma apresentação reduzida para caber, as sombras diminuem junto com as palavras.
 
-O **Pincel de Formatação** copia a aparência de um texto ou objeto. Selecione o que deseja copiar, clique em **Pincel de Formatação** e depois clique ou arraste sobre o que deve ficar com a mesma aparência. Mantenha Shift pressionada ao clicar no botão para aplicar mais de uma vez. Clique no botão novamente, ou pressione Esc, para parar.
+O **Copiar Formatação** copia a aparência de um texto ou objeto. Selecione o que deseja copiar, clique em **Copiar Formatação** e depois clique ou arraste sobre o que deve ficar com a mesma aparência. Mantenha Shift pressionada ao clicar no botão para aplicar mais de uma vez. Clique no botão novamente, ou pressione Esc, para parar.
 
 ## Formatar parágrafos
 

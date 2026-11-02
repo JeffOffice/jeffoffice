@@ -72,7 +72,7 @@ Selecteer de cellen en druk op **Delete**. Hiermee wist u de inhoud van de celle
 
 ## Ongedaan maken en Opnieuw
 
-Met **{key:Undo}** maakt u de laatste wijziging ongedaan, en met **{key:Redo}** voert u die opnieuw uit. Deze opdrachten staan ook op de werkbalk Snelle toegang bovenaan. Elke cel waarin u typt is één stap, en dat geldt ook voor elke keer dat u cellen wist. Ongedaan maken zet de cel terug zoals hij was: de waarde, de formule, de opmaak en de formules die ervan afhangen. JeffCrunch onthoudt maximaal 1.000 stappen, minder als ze heel veel cellen wijzigden, zodat het nooit veel geheugen gebruikt.
+Met **{key:Undo}** maakt u de laatste wijziging ongedaan, en met **{key:Redo}** voert u die opnieuw uit. Deze opdrachten staan ook op de snelle werkbalk bovenaan. Elke cel waarin u typt is één stap, en dat geldt ook voor elke keer dat u cellen wist. Ongedaan maken zet de cel terug zoals hij was: de waarde, de formule, de opmaak en de formules die ervan afhangen. JeffCrunch onthoudt maximaal 1.000 stappen, minder als ze heel veel cellen wijzigden, zodat het nooit veel geheugen gebruikt.
 
 ## Terwijl JeffCrunch de formules berekent
 

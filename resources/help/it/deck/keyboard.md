@@ -7,7 +7,7 @@ In JeffDeck è possibile fare quasi tutto senza mouse. Sono disponibili tasti di
 
 I Suggerimenti tasti sono piccole lettere visualizzate sulla barra multifunzione. Permettono di raggiungere qualsiasi pulsante senza usare il mouse.
 
-1. Premere e rilasciare **ALT**. Vengono visualizzate delle lettere sul pulsante **File**, su ogni scheda e sulla Barra di accesso rapido. I pulsanti della Barra di accesso rapido usano i numeri da 1 a 3.
+1. Premere e rilasciare **ALT**. Vengono visualizzate delle lettere sul pulsante **File**, su ogni scheda e sulla Barra degli strumenti rapida. I pulsanti della Barra degli strumenti rapida usano i numeri da 1 a 3.
 2. Premere la lettera della scheda desiderata. Le schede usano **H** per **Home**, **N** per **Inserisci**, **G** per **Struttura**, **K** per **Transizioni**, **S** per **Presentazione**, **R** per **Revisione** e **W** per **Visualizza**. Vengono visualizzate le lettere dei pulsanti della scheda.
 3. Digitare le lettere del pulsante desiderato. Ad esempio, premere **ALT**, quindi **S** e poi **B** per avviare la presentazione **Dall'inizio**.
 

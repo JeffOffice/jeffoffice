@@ -25,7 +25,7 @@ Queste caselle di controllo gestiscono il controllo ortografia e gli aiuti alla 
 
 ## Salvataggio
 
-- **Salva informazioni di Salvataggio automatico ogni** imposta la frequenza con cui JeffPub crea copie di riserva del lavoro non salvato, da 1 a 120 minuti. Vedere [Recuperare il lavoro non salvato](recover).
+- **Salva informazioni di recupero automatico ogni** imposta la frequenza con cui JeffPub crea copie di riserva del lavoro non salvato, da 1 a 120 minuti. Vedere [Recuperare il lavoro non salvato](recover).
 - **Crea sempre una copia di backup** conserva il file precedente con il nome "Backup di" seguito dal nome del file, ogni volta che si salva.
 
 ## Avanzate

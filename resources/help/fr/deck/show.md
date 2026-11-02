@@ -5,7 +5,7 @@ Le diaporama affiche vos diapositives une à une, en plein écran. Le mode Prés
 
 ## Lancer le diaporama
 
-- Appuyez sur **F5**, ou cliquez sur **Diaporama > Démarrage du diaporama > À partir du début**. Le bouton **À partir du début** figure aussi dans la barre d'outils Accès rapide, en haut à gauche.
+- Appuyez sur **F5**, ou cliquez sur **Diaporama > Démarrage du diaporama > À partir du début**. Le bouton **À partir du début** figure aussi dans la barre d'outils rapide, en haut à gauche.
 - Appuyez sur **Maj+F5**, ou cliquez sur **À partir de la diapositive actuelle**, pour commencer à la diapositive où vous vous trouvez. Le bouton de diaporama de la barre d'état a le même effet.
 - Cliquez sur **Diaporama personnalisé** et choisissez un diaporama personnalisé pour ne présenter que les diapositives qu'il contient. Consultez « Créer un diaporama personnalisé » plus bas.
 

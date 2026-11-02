@@ -62,5 +62,5 @@ Maak een alinea op zoals u wilt. Klik vervolgens op het tabblad **Start** op **S
 ## Verwant
 
 - [Het uiterlijk van tekst wijzigen](font)
-- [Opmaak kopiëren met Opmaak kopiëren/plakken](format-painter)
+- [Opmaak kopiëren met Opmaak kopiëren](format-painter)
 - [JeffWrite gebruiken met het toetsenbord](keyboard)

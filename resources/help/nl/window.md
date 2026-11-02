@@ -1,5 +1,5 @@
 # Werken in het venster
-<!-- keywords: lint, tabbladen, werkbalk, interface, schermindeling, paginalijst, pagina's, miniaturen, statusbalk, zoomen, linialen, taakvenster, werkbalk Snelle toegang, lint samenvouwen, lint minimaliseren, onderdelen van het venster, venster -->
+<!-- keywords: lint, tabbladen, werkbalk, interface, schermindeling, paginalijst, pagina's, miniaturen, statusbalk, zoomen, linialen, taakvenster, snelle werkbalk, lint samenvouwen, lint minimaliseren, onderdelen van het venster, venster -->
 
 Het venster van JeffPub bestaat uit vijf hoofdonderdelen: het lint bovenaan, de lijst Pagina's links, het paginagebied in het midden, taakvensters rechts en de statusbalk onderaan. De titelbalk toont de naam van uw publicatie, met een sterretje (*) als die wijzigingen bevat die u nog niet hebt opgeslagen.
 
@@ -11,11 +11,11 @@ Er verschijnen meer tabbladen wanneer u iets selecteert. Selecteer een afbeeldin
 
 Vouw het lint samen als u meer ruimte voor de pagina wilt. Klik op de pijl helemaal rechts in de rij met tabbladen, dubbelklik op een tabblad of druk op Ctrl+F1. Alleen de namen van de tabbladen blijven zichtbaar. Klik op een tabblad om de knoppen weer te zien. Met de knop **?** naast de pijl opent u Help.
 
-## De knop Bestand en de werkbalk Snelle toegang
+## De knop Bestand en de snelle werkbalk
 
 De knop **Bestand** staat links van de tabbladen. Hiermee opent u de pagina Bestand, waar u publicaties maakt, opent, opslaat, afdrukt en deelt. Druk op Esc of klik op **Terug naar publicatie** om terug te gaan. Zie [Tabblad Bestand](tab-file).
 
-De werkbalk Snelle toegang is de rij met vier kleine knoppen links van de knop **Bestand**. Hierop staan **Opslaan**, **Ongedaan maken**, **Opnieuw** en **Afdrukken**.
+De snelle werkbalk is de rij met vier kleine knoppen links van de knop **Bestand**. Hierop staan **Opslaan**, **Ongedaan maken**, **Opnieuw** en **Afdrukken**.
 
 ## De lijst Pagina's
 

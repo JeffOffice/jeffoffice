@@ -1,19 +1,19 @@
-# Opmaak kopiëren met Opmaak kopiëren/plakken
+# Opmaak kopiëren met Opmaak kopiëren
 <!-- keywords: opmaak kopiëren/plakken, opmaak kopiëren, opmaak plakken, opmaak overnemen, kwast, penseel, verfkwast, hetzelfde uiterlijk, ctrl+shift+c, ctrl+shift+v, dubbelklikken -->
 
-Met **Opmaak kopiëren/plakken** kopieert u het uiterlijk van tekst en past u het toe op andere tekst. Gebruik deze functie als u wilt dat een woord of alinea er precies zo uitziet als een andere.
+Met **Opmaak kopiëren** kopieert u het uiterlijk van tekst en past u het toe op andere tekst. Gebruik deze functie als u wilt dat een woord of alinea er precies zo uitziet als een andere.
 
 ## Opmaak naar één plek kopiëren
 
 1. Selecteer de woorden met de opmaak die u wilt gebruiken. Of klik in de alinea.
-2. Klik op het tabblad **Start** op **Opmaak kopiëren/plakken**. De knop blijft ingedrukt en de statusbalk herinnert u eraan wat u moet doen.
-3. Selecteer met de muis de woorden die u wilt wijzigen. Wanneer u de muisknop loslaat, krijgen ze de opmaak en wordt Opmaak kopiëren/plakken uitgeschakeld.
+2. Klik op het tabblad **Start** op **Opmaak kopiëren**. De knop blijft ingedrukt en de statusbalk herinnert u eraan wat u moet doen.
+3. Selecteer met de muis de woorden die u wilt wijzigen. Wanneer u de muisknop loslaat, krijgen ze de opmaak en wordt Opmaak kopiëren uitgeschakeld.
 
 Als u in een woord klikt zonder te selecteren, krijgt dat woord de opmaak.
 
 ## Opmaak naar meerdere plekken kopiëren
 
-Dubbelklik op **Opmaak kopiëren/plakken**. De functie blijft dan ingeschakeld. Elke keer dat u met de muis tekst selecteert, krijgt die tekst de opmaak. Druk op **Esc** of klik nogmaals op de knop om te stoppen.
+Dubbelklik op **Opmaak kopiëren**. De functie blijft dan ingeschakeld. Elke keer dat u met de muis tekst selecteert, krijgt die tekst de opmaak. Druk op **Esc** of klik nogmaals op de knop om te stoppen.
 
 ## Wat wordt gekopieerd
 
@@ -23,7 +23,7 @@ Dubbelklik op **Opmaak kopiëren/plakken**. De functie blijft dan ingeschakeld. 
 
 De lijst waarin een alinea staat en de plaats van de alinea in het document worden niet gewijzigd.
 
-Elke keer dat Opmaak kopiëren/plakken opmaak toepast, telt dat als één stap. Met **Ongedaan maken** (Ctrl+Z) maakt u die stap ongedaan.
+Elke keer dat Opmaak kopiëren opmaak toepast, telt dat als één stap. Met **Ongedaan maken** (Ctrl+Z) maakt u die stap ongedaan.
 
 ## Het toetsenbord gebruiken
 

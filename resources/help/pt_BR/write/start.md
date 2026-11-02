@@ -48,7 +48,7 @@ Esta versão do JeffWrite é uma **versão prévia**. Ela está pronta para ser 
 - Alinhamento, recuos, espaçamento e espaçamento entre linhas dos parágrafos. A caixa **Parágrafo** (a pequena seta no canto do grupo Parágrafo) tem todos eles.
 - Listas com marcadores e numeradas, com níveis.
 - Estilos. A galeria tem Normal, títulos, Título e outros. O painel **Estilos** (Ctrl+Alt+Shift+S) lista todos eles, e você pode criar um estilo a partir do seu texto e alterar qualquer estilo (consulte [Usar estilos](styles)).
-- O Pincel de Formatação, que copia a aparência de um texto para outro (consulte [Copiar uma aparência com o Pincel de Formatação](format-painter)).
+- O Copiar Formatação, que copia a aparência de um texto para outro (consulte [Copiar uma aparência com o Copiar Formatação](format-painter)).
 - Ir Para (Ctrl+G) uma página, seção, linha, indicador, nota de rodapé ou título, e arrastar o texto selecionado para movê-lo, ou arrastá-lo com Ctrl pressionada para copiá-lo (consulte [Ir para um local e mover texto](go-to-and-move-text)).
 - Páginas: tamanho do papel, orientação, margens, colunas (uma, duas ou três), quebras de página e quebras de seção que começam uma nova página. **Layout > Configurar Página** define as margens, o papel e o layout de uma seção ou do documento inteiro (consulte [Configurar a página](page-setup)).
 - Imagens: **Inserir > Imagens** insere uma imagem de um arquivo ou da área de transferência; você pode dimensioná-la pelas alças, movê-la, fazer o texto contorná-la e adicionar texto alternativo (consulte [Adicionar e alterar imagens](pictures)).
@@ -61,7 +61,7 @@ Esta versão do JeffWrite é uma **versão prévia**. Ela está pronta para ser 
 - Números de página em cabeçalhos e rodapés. Eles são calculados à medida que as páginas são diagramadas, assim como o número de páginas. **Inserir Número de Página** fica na guia **Cabeçalho e Rodapé**.
 - Zoom e exibição das marcas de parágrafo (o botão **¶**).
 - Ortografia: sublinhado vermelho ao digitar, sugestões ao clicar com o botão direito e o painel Ortografia (**F7**). Consulte [Verificar a ortografia](spelling).
-- Impressão, com visualização, cópias e intervalos de páginas, arquivos PDF e AutoRecuperação, que mantém uma cópia reserva do trabalho não salvo. Consulte [Imprimir](print).
+- Impressão, com visualização, cópias e intervalos de páginas, arquivos PDF e recuperação automática, que mantém uma cópia reserva do trabalho não salvo. Consulte [Imprimir](print).
 
 **O que ainda não funciona**
 

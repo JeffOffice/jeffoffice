@@ -1,16 +1,16 @@
 # Niet-opgeslagen werk terughalen
-<!-- keywords: herstellen, herstel, autoherstel, automatisch herstellen, automatisch opslaan, crash, vastgelopen, werk kwijt, verloren werk, niet opgeslagen, stroomstoring, terugzetten, vastgelopen, per ongeluk gesloten, reservekopie, back-up -->
+<!-- keywords: herstellen, herstel, automatisch herstel, automatisch herstellen, automatisch opslaan, crash, vastgelopen, werk kwijt, verloren werk, niet opgeslagen, stroomstoring, terugzetten, vastgelopen, per ongeluk gesloten, reservekopie, back-up -->
 
-Als JeffDeck onverwacht wordt afgesloten of de stroom uitvalt, is uw laatste werk misschien nog veilig. Terwijl u werkt, bewaart JeffDeck een reservekopie van elke presentatie met wijzigingen die u nog niet hebt opgeslagen. Dit heet **AutoHerstel**.
+Als JeffDeck onverwacht wordt afgesloten of de stroom uitvalt, is uw laatste werk misschien nog veilig. Terwijl u werkt, bewaart JeffDeck een reservekopie van elke presentatie met wijzigingen die u nog niet hebt opgeslagen. Dit heet **automatisch herstel**.
 
-## Hoe AutoHerstel werkt
+## Hoe automatisch herstel werkt
 
 - Elke 10 minuten slaat JeffDeck een reservekopie op van elke presentatie met niet-opgeslagen wijzigingen.
-- JeffDeck bewaart de kopieën in een map voor AutoHerstel, in de map waarin het programma zijn eigen gegevens bewaart. U hoeft daar zelf nooit te kijken.
+- JeffDeck bewaart de kopieën in een map voor automatisch herstel, in de map waarin het programma zijn eigen gegevens bewaart. U hoeft daar zelf nooit te kijken.
 - De reservekopie vervangt nooit uw eigenlijke bestand.
 - De kopie verdwijnt wanneer u de presentatie opslaat of sluit, of JeffDeck op de normale manier afsluit.
 
-AutoHerstel is geen vervanging voor opslaan. Als JeffDeck stopt, kunt u het werk van de laatste paar minuten kwijtraken. Druk dus regelmatig op Ctrl+S.
+Automatisch herstel is geen vervanging voor opslaan. Als JeffDeck stopt, kunt u het werk van de laatste paar minuten kwijtraken. Druk dus regelmatig op Ctrl+S.
 
 ## Uw werk herstellen
 

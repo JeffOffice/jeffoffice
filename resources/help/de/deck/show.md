@@ -5,7 +5,7 @@ Die Bildschirmpräsentation zeigt Ihre Folien nacheinander im Vollbild. Die Refe
 
 ## Präsentation starten
 
-- Drücken Sie **F5**, oder klicken Sie auf **Bildschirmpräsentation > Bildschirmpräsentation starten > Von Beginn an**. Die Schaltfläche **Von Beginn an** befindet sich auch in der Symbolleiste für den Schnellzugriff oben links.
+- Drücken Sie **F5**, oder klicken Sie auf **Bildschirmpräsentation > Bildschirmpräsentation starten > Von Beginn an**. Die Schaltfläche **Von Beginn an** befindet sich auch in der Schnellsymbolleiste oben links.
 - Drücken Sie **Umschalt+F5**, oder klicken Sie auf **Ab aktueller Folie**, um bei der Folie zu beginnen, auf der Sie sich befinden. Die Schaltfläche für die Bildschirmpräsentation in der Statusleiste bewirkt dasselbe.
 - Klicken Sie auf **Zielgruppenorientierte Präsentation**, und wählen Sie eine zielgruppenorientierte Präsentation aus, um nur die darin enthaltenen Folien vorzuführen. Siehe „Zielgruppenorientierte Präsentation erstellen“ weiter unten.
 

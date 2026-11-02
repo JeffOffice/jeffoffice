@@ -8,7 +8,7 @@ Links befindet sich eine Liste. Einige Einträge öffnen eine Seite, andere füh
 ## Beginnen
 
 - **Neu** zeigt eine **Leere Präsentation** an, auf die Sie klicken können. Siehe [Präsentationen öffnen und speichern](open-save).
-- **Öffnen** enthält **Durchsuchen** zum Auswählen einer Datei, **Nicht gespeicherte Arbeit wiederherstellen** zum Zurückholen von Kopien, die AutoWiederherstellen aufbewahrt hat, sowie Listen der **angehefteten** und **zuletzt verwendeten Präsentationen**. Siehe [Präsentationen öffnen und speichern](open-save) und [Nicht gespeicherte Arbeit wiederherstellen](recover).
+- **Öffnen** enthält **Durchsuchen** zum Auswählen einer Datei, **Nicht gespeicherte Arbeit wiederherstellen** zum Zurückholen von Kopien, die automatische Wiederherstellung aufbewahrt hat, sowie Listen der **angehefteten** und **zuletzt verwendeten Präsentationen**. Siehe [Präsentationen öffnen und speichern](open-save) und [Nicht gespeicherte Arbeit wiederherstellen](recover).
 
 ## Diese Präsentation
 

@@ -1,5 +1,5 @@
 # Kolombreedte en rijhoogte wijzigen
-<!-- keywords: standaardbreedte, standaardrijhoogte, standaardhoogte, breedte, hoogte, kolom, rij, grootte, formaat, breder, hoger, smaller, lager, passend maken, automatisch aanpassen, verbergen, zichtbaar maken, slepen, rand, dubbelklikken, tekens, punten, Ctrl+0, Ctrl+9, pixels, getal te breed, hekjes, kolombreedte, rijhoogte -->
+<!-- keywords: standaardbreedte, standaardrijhoogte, standaardhoogte, breedte, hoogte, kolom, rij, grootte, formaat, breder, hoger, smaller, lager, passend maken, aanpassen, verbergen, zichtbaar maken, slepen, rand, dubbelklikken, tekens, punten, Ctrl+0, Ctrl+9, pixels, getal te breed, hekjes, kolombreedte, rijhoogte -->
 
 De **breedte van een kolom** wordt geteld in tekens: hoeveel cijfers erin passen. De **hoogte van een rij** wordt geteld in punten, een eenheid voor letters (72 punten vormen een inch). Een gewone kolom biedt plaats aan ongeveer 8 cijfers en een gewone rij is 15 punten hoog.
 
@@ -11,7 +11,7 @@ Als hele kolommen (of rijen) zijn geselecteerd en u de rand van een ervan sleept
 
 ## Aanpassen aan de inhoud
 
-**Dubbelklik** op de rand om de kolom precies breed genoeg te maken voor de langste inhoud, of de rij precies hoog genoeg voor de hoogste regel. Dit kan ook via **Start > Opmaak > Kolombreedte automatisch aanpassen** en **Rijhoogte automatisch aanpassen**, voor alle geselecteerde kolommen of rijen tegelijk. Een kolom of rij zonder inhoud behoudt zijn grootte.
+**Dubbelklik** op de rand om de kolom precies breed genoeg te maken voor de langste inhoud, of de rij precies hoog genoeg voor de hoogste regel. Dit kan ook via **Start > Opmaak > Kolombreedte aanpassen** en **Rijhoogte aanpassen**, voor alle geselecteerde kolommen of rijen tegelijk. Een kolom of rij zonder inhoud behoudt zijn grootte.
 
 ## Een grootte typen
 

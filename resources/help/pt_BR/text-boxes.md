@@ -1,5 +1,5 @@
 # Adicionar e formatar caixas de texto
-<!-- keywords: caixa de texto, quadro de texto, digitar texto, adicionar texto, escrever texto, ajuste de texto, ajuste automático, melhor ajuste, reduzir texto, texto vertical, colunas, margens, excesso, texto em excesso, moldura -->
+<!-- keywords: caixa de texto, quadro de texto, digitar texto, adicionar texto, escrever texto, ajuste de texto, ajuste, melhor ajuste, reduzir texto, texto vertical, colunas, margens, excesso, texto em excesso, moldura -->
 
 Uma caixa de texto é um retângulo na página que contém texto.
 

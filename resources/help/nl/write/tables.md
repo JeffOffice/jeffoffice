@@ -1,12 +1,12 @@
 # Tabellen
-<!-- keywords: tabel, tabellen, tabel invoegen, rijen, kolommen, cel, cellen, cellen samenvoegen, cellen splitsen, randen, arcering, opvulling, celgrootte, kolombreedte, rijhoogte, automatisch aanpassen, rijen verdelen, kolommen verdelen, tabeleigenschappen, koprij, koprij herhalen, tabelstijl, tabelstijlen, gestreepte rijen, uitlijning, tekst uitlijnen in cel, rij verwijderen, kolom verwijderen, raster, rasterlijnen, rechtsklikken, tabelindeling, tabelontwerp -->
+<!-- keywords: tabel, tabellen, tabel invoegen, rijen, kolommen, cel, cellen, cellen samenvoegen, cellen splitsen, randen, arcering, opvulling, celgrootte, kolombreedte, rijhoogte, aanpassen, rijen verdelen, kolommen verdelen, tabeleigenschappen, koprij, koprij herhalen, tabelstijl, tabelstijlen, gestreepte rijen, uitlijning, tekst uitlijnen in cel, rij verwijderen, kolom verwijderen, raster, rasterlijnen, rechtsklikken, tabelindeling, tabelontwerp -->
 
 Een **tabel** is een raster van **cellen** in **rijen** en **kolommen**. Elke cel bevat tekst, en u typt erin zoals overal op de pagina. In dit onderwerp leest u hoe u een tabel toevoegt, de vorm en het uiterlijk ervan wijzigt en de tabel instelt voor de pagina's waarover deze doorloopt.
 
 ## Een tabel toevoegen
 
 - Klik op **Invoegen > Tabel**, wijs het raster aan en klik op de gewenste grootte. Het eerste getal is het aantal kolommen naast elkaar, het tweede het aantal rijen onder elkaar.
-- Of klik op **Invoegen > Tabel > Tabel invoegen** om het aantal kolommen en rijen te typen en aan te geven hoe de kolommen worden aangepast. **Vaste kolombreedte** geeft elke kolom de breedte die u opgeeft (of verdeelt, met *Automatisch*, de breedte van het tekstgebied over de kolommen). **Automatisch aanpassen aan inhoud** past de kolommen aan de woorden erin aan. **Automatisch aanpassen aan venster** maakt de tabel even breed als het tekstgebied. Schakel **Afmetingen onthouden voor nieuwe tabellen** in om de volgende tabel met dezelfde getallen te beginnen.
+- Of klik op **Invoegen > Tabel > Tabel invoegen** om het aantal kolommen en rijen te typen en aan te geven hoe de kolommen worden aangepast. **Vaste kolombreedte** geeft elke kolom de breedte die u opgeeft (of verdeelt, met *Automatisch*, de breedte van het tekstgebied over de kolommen). **Aanpassen aan inhoud** past de kolommen aan de woorden erin aan. **Aanpassen aan venster** maakt de tabel even breed als het tekstgebied. Schakel **Afmetingen onthouden voor nieuwe tabellen** in om de volgende tabel met dezelfde getallen te beginnen.
 
 De tabel komt op de plaats van de cursor. Staat de cursor midden in een alinea, dan wordt de alinea in tweeën gesplitst en komt de tabel tussen de twee delen. De cursor komt in de eerste cel te staan. Druk op **Tab** om naar de volgende cel te gaan en op **Shift+Tab** om terug te gaan. **Tab** in de laatste cel voegt een rij toe. Op deze manier kunt u geen tabel in een cel plaatsen.
 

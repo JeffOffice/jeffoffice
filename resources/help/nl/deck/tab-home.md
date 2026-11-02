@@ -3,7 +3,7 @@
 
 Op het tabblad **Start** vindt u de hulpmiddelen die u het meest gebruikt bij het maken van dia's.
 
-- **Klembord** bevat **Plakken**, **Knippen**, **Kopiëren** en **Opmaak kopiëren/plakken**, waarmee u het uiterlijk van tekst of een object overneemt op iets anders. Zie [Tekst typen en opmaken](text).
+- **Klembord** bevat **Plakken**, **Knippen**, **Kopiëren** en **Opmaak kopiëren**, waarmee u het uiterlijk van tekst of een object overneemt op iets anders. Zie [Tekst typen en opmaken](text).
 - **Dia's** bevat **Nieuwe dia** (Ctrl+M, met een pijl voor de indelingen en **Dia's opnieuw gebruiken…**), **Indeling**, **Opnieuw instellen**, **Sectie** en **Dia verwijderen**. Zie [Dia's toevoegen, wijzigen en verwijderen](slides).
 - Met **Lettertype** wijzigt u het lettertype, de grootte, de kleur en de stijl van letters, de tekenafstand en het hoofdlettergebruik. Zie [Tekst typen en opmaken](text).
 - **Alinea** bevat opsommingstekens, nummering, lijstniveaus, regelafstand, kolommen, uitlijning, tekstrichting en de plaats van de tekst in het vak. Zie [Tekst typen en opmaken](text).

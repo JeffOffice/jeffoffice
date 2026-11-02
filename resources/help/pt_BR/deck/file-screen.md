@@ -8,7 +8,7 @@ O botão **Arquivo**, à esquerda das guias, abre a tela Arquivo. Ela cobre a ja
 ## Iniciar
 
 - **Novo** mostra uma **Apresentação em Branco** para clicar. Consulte [Abrir e salvar apresentações](open-save).
-- **Abrir** tem **Procurar** para escolher um arquivo, **Recuperar Trabalho Não Salvo** para trazer de volta as cópias que a AutoRecuperação guardou, e listas de apresentações **Fixado** e **Apresentações Recentes**. Consulte [Abrir e salvar apresentações](open-save) e [Recuperar trabalho não salvo](recover).
+- **Abrir** tem **Procurar** para escolher um arquivo, **Recuperar Trabalho Não Salvo** para trazer de volta as cópias que a recuperação automática guardou, e listas de apresentações **Fixado** e **Apresentações Recentes**. Consulte [Abrir e salvar apresentações](open-save) e [Recuperar trabalho não salvo](recover).
 
 ## Esta apresentação
 

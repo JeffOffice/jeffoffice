@@ -13,7 +13,7 @@ Presione **F1** para obtener Ayuda sobre lo que está haciendo. Presione **Ctrl+
 
 Los KeyTips son pequeñas letras que aparecen en la cinta de opciones. Permiten llegar a cualquier botón sin el ratón.
 
-1. Presione y suelte **Alt**. Aparecen letras en el botón **Archivo**, en cada pestaña y en la Barra de herramientas de acceso rápido. Los botones de la Barra de herramientas de acceso rápido usan los números del 1 al 4.
+1. Presione y suelte **Alt**. Aparecen letras en el botón **Archivo**, en cada pestaña y en la Barra de herramientas rápida. Los botones de la Barra de herramientas rápida usan los números del 1 al 4.
 2. Presione la letra de la pestaña que desee, como **H** para **Inicio**. Aparecen las letras de los botones de esa pestaña.
 3. Escriba las letras del botón que desee. Por ejemplo, **T** y después **B** corresponde a **Dibujar cuadro de texto**.
 

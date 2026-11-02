@@ -1,5 +1,5 @@
 # Mettre en forme les cellules
-<!-- keywords: mise en forme, format, formater, police, taille, gras, italique, souligné, soulignement double, barré, couleur, couleur de police, remplissage, couleur de remplissage, arrière-plan, fond, bordure, bordures, aligner, alignement, centrer, gauche, droite, haut, milieu, bas, renvoyer à la ligne, retour à la ligne, retrait, rotation, faire pivoter, orientation, angle, texte vertical, fusionner, fusionner et centrer, annuler la fusion, Format de cellule, Ctrl+1, Reproduire la mise en forme, copier la mise en forme, effacer, effacer les formats, protection, verrouillée, masquée, de droite à gauche, orientation du texte, ajuster, justifier -->
+<!-- keywords: mise en forme, format, formater, police, taille, gras, italique, souligné, soulignement double, barré, couleur, couleur de police, remplissage, couleur de remplissage, arrière-plan, fond, bordure, bordures, aligner, alignement, centrer, gauche, droite, haut, milieu, bas, renvoyer à la ligne, retour à la ligne, retrait, rotation, faire pivoter, orientation, angle, texte vertical, fusionner, fusionner et centrer, annuler la fusion, Format de cellule, Ctrl+1, Copier la mise en forme, copier la mise en forme, effacer, effacer les formats, protection, verrouillée, masquée, de droite à gauche, orientation du texte, ajuster, justifier -->
 
 La **mise en forme** modifie l'apparence des cellules : la police, les couleurs, les bordures, la position du texte et la façon dont un nombre est écrit. Elle ne modifie jamais le contenu d'une cellule. Sélectionnez d'abord les cellules, puis utilisez l'onglet **Accueil**. Chaque modification est une étape que vous pouvez annuler.
 
@@ -27,9 +27,9 @@ La **mise en forme** modifie l'apparence des cellules : la police, les couleurs,
 
 **Groupe Modification** : **Effacer** propose **Effacer tout** (contenu et formats), **Effacer les formats** (les cellules conservent leur contenu et s'affichent au format Standard, sans remplissage ni bordure) et **Effacer le contenu**.
 
-## Reproduire la mise en forme
+## Copier la mise en forme
 
-Sélectionnez des cellules qui ont l'apparence voulue, cliquez sur **Reproduire la mise en forme** (le pinceau du groupe Presse-papiers), puis sélectionnez les cellules auxquelles appliquer cette apparence. Elles reçoivent la police, le remplissage, les bordures, le format de nombre et l'alignement. **Double-cliquez** sur le pinceau pour l'appliquer plusieurs fois ; cliquez à nouveau dessus ou appuyez sur **Échap** pour arrêter.
+Sélectionnez des cellules qui ont l'apparence voulue, cliquez sur **Copier la mise en forme** (le pinceau du groupe Presse-papiers), puis sélectionnez les cellules auxquelles appliquer cette apparence. Elles reçoivent la police, le remplissage, les bordures, le format de nombre et l'alignement. **Double-cliquez** sur le pinceau pour l'appliquer plusieurs fois ; cliquez à nouveau dessus ou appuyez sur **Échap** pour arrêter.
 
 ## La fenêtre Format de cellule
 

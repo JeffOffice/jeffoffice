@@ -1,5 +1,5 @@
 # Modifier la largeur des colonnes et la hauteur des lignes
-<!-- keywords: largeur par défaut, hauteur de ligne par défaut, largeur standard, hauteur standard, largeur, hauteur, colonne, ligne, taille, dimension, élargir, agrandir, rétrécir, réduire, ajuster, ajustement automatique, masquer, afficher, faire glisser, bordure, double-clic, caractères, points, Ctrl+0, Ctrl+9, pixels, nombre trop large, dièses, ### -->
+<!-- keywords: largeur par défaut, hauteur de ligne par défaut, largeur standard, hauteur standard, largeur, hauteur, colonne, ligne, taille, dimension, élargir, agrandir, rétrécir, réduire, ajuster, ajustement, masquer, afficher, faire glisser, bordure, double-clic, caractères, points, Ctrl+0, Ctrl+9, pixels, nombre trop large, dièses, ### -->
 
 La **largeur d'une colonne** se mesure en caractères : le nombre de chiffres qu'elle peut contenir. La **hauteur d'une ligne** se mesure en points, une unité typographique (72 points font un pouce). Une colonne standard contient environ 8 chiffres, et une ligne standard mesure 15 points de haut.
 

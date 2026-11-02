@@ -1,5 +1,5 @@
 # Alterar a largura das colunas e a altura das linhas
-<!-- keywords: largura predefinida, altura predefinida da linha, largura padrão, altura padrão, largura, altura, coluna, linha, tamanho, mais larga, mais alta, mais estreita, mais baixa, ajustar, ajuste automático, ocultar, mostrar, arrastar, limite, duplo clique, carateres, pontos, Ctrl+0, Ctrl+9, píxeis, número demasiado largo, cardinais -->
+<!-- keywords: largura predefinida, altura predefinida da linha, largura padrão, altura padrão, largura, altura, coluna, linha, tamanho, mais larga, mais alta, mais estreita, mais baixa, ajustar, ajuste, ocultar, mostrar, arrastar, limite, duplo clique, carateres, pontos, Ctrl+0, Ctrl+9, píxeis, número demasiado largo, cardinais -->
 
 A **largura de uma coluna** é contada em carateres: quantos algarismos cabem nela. A **altura de uma linha** é contada em pontos, uma unidade usada em tipografia (72 pontos equivalem a uma polegada). A coluna habitual leva cerca de 8 algarismos e a linha habitual tem 15 pontos de altura.
 
