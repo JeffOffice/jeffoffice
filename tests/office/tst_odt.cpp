@@ -649,6 +649,16 @@ private Q_SLOTS:
         }
         QVERIFY(files.contains(QStringLiteral("Pictures/image1.png")));
         QCOMPARE(files.value(QStringLiteral("Pictures/image1.png")), kPng);
+        // The settings say how the text is laid out, with the prefix they name the set by declared (another program ignores the set without it).
+        {
+            wml::XmlTree st;
+            QVERIFY(st.parse(files.value(QStringLiteral("settings.xml")), nullptr));
+            QVERIFY(st.namespaceId("http://openoffice.org/2004/office") >= 0);
+            bool found = false;
+            for (int i = findElement(st, "config-item"); i >= 0 && !found; i = findElement(st, "config-item", i))
+                found = st.attrAny(i, "name") == QLatin1String("AddParaTableSpacing") && st.text(i) == QLatin1String("false");
+            QVERIFY(found);
+        }
         QVERIFY(QString::fromUtf8(files.value(QStringLiteral("content.xml"))).contains(QLatin1String("<text:h")));
         // And it reads again.
         QVERIFY(looksLikeOdt(odt));
@@ -1026,6 +1036,20 @@ private Q_SLOTS:
         QCOMPARE(t.attr(ind, "left").toInt(), 1440);
         QCOMPARE(t.attr(spacing, "line").toInt(), 480);
         QCOMPARE(t.attr(spacing, "lineRule"), QStringLiteral("auto"));
+    }
+
+    void contextualSpacingGoesBothWays()
+    {
+        Made m;
+        m.autoStyles = "<style:style style:name=\"P1\" style:family=\"paragraph\"><style:paragraph-properties style:contextual-spacing=\"true\"/></style:style>";
+        m.body = "<text:p text:style-name=\"P1\">x</text:p>";
+        const QByteArray docx = docxOf(m.build());
+        wml::XmlTree t;
+        QVERIFY(t.parse(part(docx, QStringLiteral("/word/document.xml")).toUtf8(), nullptr));
+        QVERIFY(findElement(t, "contextualSpacing") >= 0);
+        QMap<QString, QByteArray> files;
+        QVERIFY(jp::readZip(fromDocxPackage(docx), files));
+        QVERIFY(QString::fromUtf8(files.value(QStringLiteral("content.xml"))).contains(QLatin1String("style:contextual-spacing=\"true\"")));
     }
 
     void anEmptyParagraphWithNoListInAListStyleIsNotNumbered()

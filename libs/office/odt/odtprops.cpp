@@ -279,6 +279,7 @@ QByteArray Reader::pPrXml(const Props &p, const QByteArray &tabs, const QByteArr
         if (ok) ind += v >= 0 ? " w:firstLine=\"" + num(v) + "\"" : " w:hanging=\"" + num(-v) + "\"";
         if (!ind.isEmpty()) x += "<w:ind" + ind + "/>";
     }
+    if (has("style:contextual-spacing")) x += g("style:contextual-spacing") == QLatin1String("true") ? "<w:contextualSpacing/>" : "<w:contextualSpacing w:val=\"0\"/>";
     if (has("fo:text-align")) {
         const QString a = g("fo:text-align");
         const char *jc = a == QLatin1String("center") ? "center" : a == QLatin1String("justify") ? "both" : (a == QLatin1String("end") || a == QLatin1String("right")) ? "right" : "left";

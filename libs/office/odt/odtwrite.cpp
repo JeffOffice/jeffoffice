@@ -372,7 +372,8 @@ QByteArray Writer::paragraphAttrs(const T &t, int pPr, bool inStyle, bool *break
             if (t.has(c, "hanging") && t.attr(c, "hanging").toDouble() != 0) x += " fo:text-indent=\"" + inchesFromTwips(-t.attr(c, "hanging").toDouble()).toUtf8() + "\"";
             else if (t.has(c, "firstLine")) x += " fo:text-indent=\"" + inchesFromTwips(t.attr(c, "firstLine").toDouble()).toUtf8() + "\"";
             else if (t.has(c, "hanging")) x += " fo:text-indent=\"0in\"";
-        } else if (name == "keepNext") x += on(c) ? " fo:keep-with-next=\"always\"" : " fo:keep-with-next=\"auto\"";
+        } else if (name == "contextualSpacing") x += on(c) ? " style:contextual-spacing=\"true\"" : " style:contextual-spacing=\"false\"";
+        else if (name == "keepNext") x += on(c) ? " fo:keep-with-next=\"always\"" : " fo:keep-with-next=\"auto\"";
         else if (name == "keepLines") x += on(c) ? " fo:keep-together=\"always\"" : " fo:keep-together=\"auto\"";
         else if (name == "pageBreakBefore") {
             if (on(c) && breakBefore) *breakBefore = true;
@@ -781,6 +782,88 @@ QByteArray Writer::metaXml()
     return x + "</office:meta></office:document-meta>";
 }
 
+QByteArray Writer::settingsXml() const
+{
+    // How the text is laid out: the settings a program that reads .docx files writes with the document (the spacing of paragraphs in tables, tabs, the look of an empty line's mark, line height), which is what these documents were made for; the settings of a file that says none are older ones.
+    static const struct {
+        const char *name, *type, *value;
+    } kFlags[] = {{"AddExternalLeading", "boolean", "true"},
+                  {"AddFrameOffsets", "boolean", "true"},
+                  {"AddParaLineSpacingToTableCells", "boolean", "true"},
+                  {"AddParaSpacingToTableCells", "boolean", "true"},
+                  {"AddParaTableSpacing", "boolean", "false"},
+                  {"AddParaTableSpacingAtStart", "boolean", "true"},
+                  {"AddVerticalFrameOffsets", "boolean", "true"},
+                  {"AlignTabStopPosition", "boolean", "true"},
+                  {"ApplyParagraphMarkFormatToEmptyLineAtEndOfParagraph", "boolean", "true"},
+                  {"ApplyParagraphMarkFormatToNumbering", "boolean", "true"},
+                  {"ApplyTextAttrToEmptyLineAtEndOfParagraph", "boolean", "false"},
+                  {"AutoFirstLineIndentDisregardLineSpace", "boolean", "true"},
+                  {"BackgroundParaOverDrawings", "boolean", "true"},
+                  {"BeginLine", "string", "!%),.:;?]}¢°’”‰′″℃、。々〉》」』】〕゛゜ゝゞ・ヽヾ！％），．：；？］｝｡｣､･ﾞﾟ￠"},
+                  {"CharacterCompressionType", "short", "0"},
+                  {"ClipAsCharacterAnchoredWriterFlyFrames", "boolean", "false"},
+                  {"ClippedPictures", "boolean", "true"},
+                  {"CollapseEmptyCellPara", "boolean", "true"},
+                  {"ConsiderTextWrapOnObjPos", "boolean", "true"},
+                  {"ContinuousEndnotes", "boolean", "true"},
+                  {"Country", "string", "JP"},
+                  {"DisableOffPagePositioning", "boolean", "true"},
+                  {"DoNotBreakWrappedTables", "boolean", "true"},
+                  {"DoNotCaptureDrawObjsOnPage", "boolean", "false"},
+                  {"DoNotJustifyLinesWithManualBreak", "boolean", "false"},
+                  {"DoNotMirrorRtlDrawObjs", "boolean", "true"},
+                  {"DoNotResetParaAttrsForNumFont", "boolean", "false"},
+                  {"DropCapPunctuation", "boolean", "true"},
+                  {"EndLine", "string", "$([\{£¥‘“〈《「『【〔＄（［｛｢￡￥"},
+                  {"FootnoteInColumnToPageEnd", "boolean", "true"},
+                  {"FrameAutowidthWithMorePara", "boolean", "true"},
+                  {"GutterAtTop", "boolean", "false"},
+                  {"HeaderSpacingBelowLastPara", "boolean", "true"},
+                  {"HyphenateURLs", "boolean", "false"},
+                  {"IgnoreFirstLineIndentInNumbering", "boolean", "false"},
+                  {"IgnoreHiddenCharsForLineCalculation", "boolean", "true"},
+                  {"IgnoreTabsAndBlanksForLineCalculation", "boolean", "true"},
+                  {"ImagePreferredDPI", "int", "0"},
+                  {"InvertBorderSpacing", "boolean", "true"},
+                  {"IsKernAsianPunctuation", "boolean", "false"},
+                  {"JustifyLinesWithShrinking", "boolean", "false"},
+                  {"Language", "string", "ja"},
+                  {"MathBaselineAlignment", "boolean", "true"},
+                  {"MinRowHeightInclBorder", "boolean", "true"},
+                  {"MsWordCompGridMetrics", "boolean", "true"},
+                  {"MsWordCompMinLineHeightByFly", "boolean", "true"},
+                  {"MsWordCompTrailingBlanks", "boolean", "true"},
+                  {"NoClippingWithWrapPolygon", "boolean", "true"},
+                  {"NoGapAfterNoteNumber", "boolean", "true"},
+                  {"NoNumberingShowFollowBy", "boolean", "true"},
+                  {"OutlineLevelYieldsNumbering", "boolean", "false"},
+                  {"PaintHellOverHeaderFooter", "boolean", "true"},
+                  {"PropLineSpacingShrinksFirstLine", "boolean", "true"},
+                  {"SmallCapsPercentage66", "boolean", "false"},
+                  {"SubtractFlysAnchoredAtFlys", "boolean", "false"},
+                  {"SurroundTextWrapSmall", "boolean", "true"},
+                  {"TabAtLeftIndentForParagraphsInList", "boolean", "true"},
+                  {"TabOverMargin", "boolean", "true"},
+                  {"TabOverSpacing", "boolean", "true"},
+                  {"TabOverflow", "boolean", "true"},
+                  {"TableRowKeep", "boolean", "true"},
+                  {"TabsRelativeToIndent", "boolean", "false"},
+                  {"TreatSingleColumnBreakAsPageBreak", "boolean", "true"},
+                  {"UnbreakableNumberings", "boolean", "true"},
+                  {"UnxForceZeroExtLeading", "boolean", "false"},
+                  {"UseFormerLineSpacing", "boolean", "false"},
+                  {"UseFormerObjectPositioning", "boolean", "false"},
+                  {"UseFormerTextWrapping", "boolean", "false"},
+                  {"UseOldNumbering", "boolean", "false"},
+                  {"UseOldPrinterMetrics", "boolean", "false"},
+                  {"UseVariableWidthNBSP", "boolean", "false"}};
+    QByteArray x = QByteArray(kXml) + "<office:document-settings" + kOdfNamespaces + " xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\" xmlns:ooo=\"http://openoffice.org/2004/office\" office:version=\"1.2\"><office:settings>"
+                                       "<config:config-item-set config:name=\"ooo:configuration-settings\">";
+    for (const auto &f : kFlags) x += QByteArray("<config:config-item config:name=\"") + f.name + "\" config:type=\"" + f.type + "\">" + f.value + "</config:config-item>";
+    return x + "</config:config-item-set></office:settings></office:document-settings>";
+}
+
 QByteArray Writer::fontFacesXml() const
 {
     QByteArray faces;
@@ -854,11 +937,13 @@ bool Writer::run(const QByteArray &docx, QByteArray *out, QString *error, QStrin
                            "</office:styles><office:automatic-styles>" + m_layouts + m_stylesSink.xml + "</office:automatic-styles><office:master-styles>" + masters + "</office:master-styles></office:document-styles>";
     zip.add(QStringLiteral("styles.xml"), stylesXml, true);
     zip.add(QStringLiteral("meta.xml"), metaXml(), true);
+    zip.add(QStringLiteral("settings.xml"), settingsXml(), true);
     QByteArray manifest = QByteArray(kXml) + "<manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\" manifest:version=\"1.2\">"
                                              "<manifest:file-entry manifest:full-path=\"/\" manifest:version=\"1.2\" manifest:media-type=\"application/vnd.oasis.opendocument.text\"/>"
                                              "<manifest:file-entry manifest:full-path=\"content.xml\" manifest:media-type=\"text/xml\"/>"
                                              "<manifest:file-entry manifest:full-path=\"styles.xml\" manifest:media-type=\"text/xml\"/>"
-                                             "<manifest:file-entry manifest:full-path=\"meta.xml\" manifest:media-type=\"text/xml\"/>";
+                                             "<manifest:file-entry manifest:full-path=\"meta.xml\" manifest:media-type=\"text/xml\"/>"
+                                             "<manifest:file-entry manifest:full-path=\"settings.xml\" manifest:media-type=\"text/xml\"/>";
     for (const auto &p : std::as_const(m_pictures)) {
         const QString ext = QFileInfo(p.first).suffix().toLower();
         const char *type = ext == "png" ? "image/png" : ext == "jpeg" || ext == "jpg" ? "image/jpeg" : ext == "gif" ? "image/gif" : ext == "bmp" ? "image/bmp" : ext == "tif" || ext == "tiff" ? "image/tiff" : ext == "svg" ? "image/svg+xml" : ext == "emf" ? "image/x-emf" : ext == "wmf" ? "image/x-wmf" : "application/octet-stream";
