@@ -797,7 +797,11 @@ private Q_SLOTS:
         };
         Settings::get().setValue(QStringLiteral("crunch/generateGetPivotData"), true);
         typeAndClick("=GETPIVOTDATA(\"Sum of Amount\",$E$3,\"Region\",\"East\",\"Month\",\"Jan\")");
-        e.win.w.act(QStringLiteral("pivot.getPivotData"))->trigger();   // (turned off)
+        e.win.w.setPivotOptionsAsker([](bool *generate) {
+            *generate = false;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("pivot.options"))->trigger();   // (turned off)
         QVERIFY(!Settings::get().value(QStringLiteral("crunch/generateGetPivotData"), true).toBool());
         typeAndClick("=");   // (turned off: the click is a plain click, which puts nothing in the formula, as a click on any other cell)
         Settings::get().setValue(QStringLiteral("crunch/generateGetPivotData"), true);

@@ -550,7 +550,7 @@
           "name": "Options",
           "keytip": "ZO",
           "items": [
-            {"small": "pivot.getPivotData", "keytip": "PO"}
+            {"large": "pivot.options", "keytip": "PO"}
           ]
         }
       ]

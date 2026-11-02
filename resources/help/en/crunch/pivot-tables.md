@@ -54,7 +54,7 @@ A new sheet is its own step of Undo, and so is the table. When you save as .xlsx
 - After that come pairs of a field and one of its items. Name only Region, East, and you get East's total, 35. Name nothing, and you get the grand total, 49. The fields you name must be the first fields on the rows, or the first fields on the columns, in order.
 - If the table does not show the number, the cell shows `#REF!`.
 
-When you click a value of a pivot table while you type a formula, JeffCrunch writes this formula for you, so that it still reads the right number after the table is rearranged. To get the plain cell address instead, turn off **Generate GETPIVOTDATA** on the **Pivot Table** tab, under **Options**.
+When you click a value of a pivot table while you type a formula, JeffCrunch writes this formula for you, so that it still reads the right number after the table is rearranged. To turn this off, choose **Options** on the **Pivot Table** tab and clear the check box about GETPIVOTDATA.
 
 ## What JeffCrunch does with a pivot table
 

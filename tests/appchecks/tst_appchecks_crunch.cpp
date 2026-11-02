@@ -13,6 +13,8 @@
 #include "core/fonts.h"
 #include "core/editsession.h"
 #include "office/package.h"
+#include "sheet/pivot.h"
+#include "sheet/pivotbook.h"
 #include "sheet/sheetreader.h"
 #include "crunch/editwindow.h"
 #include "grid/gridview.h"
@@ -208,6 +210,31 @@ private Q_SLOTS:
                 w->view()->selectCell(1, 1);
                 w->act(QStringLiteral("insert.table"))->trigger();
                 waitFor([&] { return quiet(w); });
+            }),
+            in(QStringLiteral("the cursor in a pivot table"), [](CrunchWindow *w) {
+                for (quint32 r = 0; r < 5; ++r) {
+                    enter(w, r, 0, r == 0 ? QStringLiteral("Region") : (r % 2 ? QStringLiteral("East") : QStringLiteral("West")));
+                    enter(w, r, 1, r == 0 ? QStringLiteral("Month") : (r < 3 ? QStringLiteral("Jan") : QStringLiteral("Feb")));
+                    enter(w, r, 2, r == 0 ? QStringLiteral("Amount") : QString::number(r * 10));
+                }
+                w->setPivotCreateAsker([](QString *source, bool *newSheet, QString *where) {
+                    *source = QStringLiteral("A1:C5");
+                    *newSheet = false;
+                    *where = QStringLiteral("E3");
+                    return true;
+                });
+                w->view()->selectCell(0, 0);
+                w->act(QStringLiteral("insert.pivot"))->trigger();
+                waitFor([&] { return quiet(w); });
+                jp::office::sheet::PivotTable table = *w->session()->workbook()->pivots().table(0).table;
+                table.rowFields = {0};
+                jp::office::sheet::PivotDataField d;
+                d.fld = 2;
+                d.name = QStringLiteral("Sum of Amount");
+                table.dataFields.append(d);
+                w->session()->setPivot(0, table, true, QStringLiteral("Add Field to Pivot Table"));
+                waitFor([&] { return quiet(w); });
+                w->view()->selectCell(3, 4);
             }),
             in(QStringLiteral("a chart selected"), [](CrunchWindow *w) {
                 w->view()->selectRange(0, 0, 1, 1);

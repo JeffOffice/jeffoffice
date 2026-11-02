@@ -14,6 +14,7 @@
 #include "sheet/pivotbook.h"
 
 #include <QAction>
+#include <QCheckBox>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -190,11 +191,29 @@ bool CrunchWindow::pointAtPivotCell(qint64 row, qint64 col)
 void CrunchWindow::createPivotActions()
 {
     mk("insert.pivot", tr("Pivot Table"), "table-properties", QKeySequence(), [this] { insertPivotCommand(); });
-    mk("pivot.getPivotData", tr("Generate GETPIVOTDATA"), "square-check", QKeySequence(), [this] {
-        Settings::get().setValue(QStringLiteral("crunch/generateGetPivotData"), act("pivot.getPivotData")->isChecked());
-    }, true);
-    if (QAction *a = act("pivot.getPivotData")) a->setChecked(Settings::get().value(QStringLiteral("crunch/generateGetPivotData"), true).toBool());
-    m_opsActions << QStringLiteral("insert.pivot") << QStringLiteral("pivot.getPivotData");
+    mk("pivot.options", tr("Pivot Table Options…"), "settings", QKeySequence(), [this] {
+        bool generate = Settings::get().value(QStringLiteral("crunch/generateGetPivotData"), true).toBool();
+        if (m_pivotOptionsAsker) {
+            if (!m_pivotOptionsAsker(&generate)) return;
+        } else {
+            QDialog dialog(this);
+            dialog.setWindowTitle(tr("Pivot Table Options"));
+            dialog.setObjectName(QStringLiteral("pivotOptionsDialog"));
+            auto *layout = new QVBoxLayout(&dialog);
+            auto *box = new QCheckBox(tr("Write GETPIVOTDATA when I click a value of a pivot table while typing a formula"), &dialog);
+            box->setObjectName(QStringLiteral("pivotOptions.generate"));
+            box->setChecked(generate);
+            layout->addWidget(box);
+            auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+            QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+            QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+            layout->addWidget(buttons);
+            if (dialog.exec() != QDialog::Accepted) return;
+            generate = box->isChecked();
+        }
+        Settings::get().setValue(QStringLiteral("crunch/generateGetPivotData"), generate);
+    });
+    m_opsActions << QStringLiteral("insert.pivot") << QStringLiteral("pivot.options");
     mk("pivot.refresh", tr("Refresh"), "refresh-cw", QKeySequence(), [this] {
         const int t = selectedPivot();
         if (t < 0) {
