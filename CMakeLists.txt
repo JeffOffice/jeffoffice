@@ -194,6 +194,7 @@ qt_add_executable(officetests
   tests/office/tst_office_fonts.cpp
   tests/office/tst_office_odraw.cpp
   tests/office/tst_office_package.cpp
+  tests/office/tst_office_rtf.cpp
   tests/office/tst_office_text.cpp
   tests/office/tst_office_theme.cpp
   tests/office/tst_office_xmlwrite.cpp)
@@ -446,6 +447,9 @@ target_compile_definitions(writetests PRIVATE JW_SOURCE_DIR="${CMAKE_SOURCE_DIR}
 set_target_properties(writetests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME writetests COMMAND writetests)
 set_tests_properties(writetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+qt_add_executable(rtfsweep tests/write/rtfsweep.cpp)
+target_link_libraries(rtfsweep PRIVATE jwcore)
+set_target_properties(rtfsweep PROPERTIES WIN32_EXECUTABLE OFF)
 qt_add_executable(writereviewtests tests/write/tst_write_review.cpp)
 target_link_libraries(writereviewtests PRIVATE jwcore Qt6::Test)
 set_target_properties(writereviewtests PROPERTIES WIN32_EXECUTABLE OFF)
