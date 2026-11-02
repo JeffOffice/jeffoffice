@@ -12,6 +12,7 @@
 #include <QRegularExpression>
 
 #include <algorithm>
+#include <map>
 
 namespace jp::crunch {
 
@@ -201,23 +202,26 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
         const PivotTable &old = *entry.table;
         const CellRange oldPage = pageArea(old, oldLoc);
         PivotOptions options;
-        // (the format of the cell that shows a number is looked for once for each column of the table: the first label there that has the cell above it with that number)
-        auto columnFormats = std::make_shared<QHash<int, int>>();
-        options.format = [&, columnFormats](double v, int id, int gridRow, int gridCol) {
+        // (the format a number shows in is the one of the cell above that shows that very number; looked for once for each number in a column, and no farther than 512 lines up: past that, or with no
+        // such cell, it is the field's own)
+        auto formats = std::make_shared<std::map<std::pair<int, double>, int>>();
+        options.format = [&, formats](double v, int id, int gridRow, int gridCol) {
+            const auto key = std::make_pair(gridCol, v);
+            auto known = formats->find(key);
             int use = id;
-            auto known = columnFormats->find(gridCol);
-            if (known != columnFormats->end()) {
-                use = known.value();
+            if (known != formats->end()) {
+                use = known->second;
             } else {
                 int found = id;
-                for (qint64 r = qint64(oldLoc.row1) + gridRow; r >= qint64(oldLoc.row1) && r >= 0; --r) {
+                const qint64 top = std::max<qint64>(qint64(oldLoc.row1), qint64(oldLoc.row1) + gridRow - 512);
+                for (qint64 r = qint64(oldLoc.row1) + gridRow; r >= top; --r) {
                     const Calculation::CellContent c = m_book->calc->content(sheet, quint32(r), oldLoc.col1 + quint32(gridCol));
                     if (c.exists && !c.isFormula && c.value.isNumber() && c.value.number() == v) {
                         found = book.styles().numFmtId(c.style);
                         break;
                     }
                 }
-                columnFormats->insert(gridCol, found);
+                (*formats)[key] = found;
                 use = found;
             }
             const QString code = codeOfFormat(book.styles(), use);

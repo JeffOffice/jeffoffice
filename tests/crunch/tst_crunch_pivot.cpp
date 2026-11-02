@@ -80,6 +80,7 @@ const char *const kNs = "http://schemas.openxmlformats.org/spreadsheetml/2006/ma
 struct PivotBookOptions {
     bool second = false, otherSheet = false, d1904 = false;
     std::function<void(Parts &)> tweak;
+    QByteArray styles;
 };
 
 QByteArray pivotWorkbook(const PivotBookOptions &o);
@@ -128,7 +129,7 @@ QByteArray pivotWorkbook(const PivotBookOptions &o)
     const QString pivotSheetRels = o.otherSheet ? QStringLiteral("xl/worksheets/_rels/sheet2.xml.rels") : QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels");
     QVector<QByteArray> sheets{sheet1};
     if (o.otherSheet) sheets.append(sheet2);
-    return repack(buildXlsx(sheets, QByteArray(), o.d1904 ? QStringLiteral("date1904=\"1\"") : QString()), [&](Parts &p) {
+    return repack(buildXlsx(sheets, QByteArray(), o.d1904 ? QStringLiteral("date1904=\"1\"") : QString(), QString(), o.styles), [&](Parts &p) {
         int caches = 0;
         for (int n = 1; n <= (second ? 2 : 1); ++n) {
             ++caches;
@@ -724,6 +725,171 @@ private Q_SLOTS:
         QCOMPARE(valueOf(e, QStringLiteral("H7"), 1), QStringLiteral("n:49"));
     }
 
+    // A subtotal's label shows a number as the cell that has it shows it: two numbers of one column, one a date and one not, are each as their own cell has it.
+    void aSubtotalLabelTakesTheFormatOfItsOwnNumber()
+    {
+        PivotBookOptions o;
+        o.styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"14\" applyNumberFormat=\"1\"/>"));
+        o.tweak = [](Parts &p) {
+            p[kSheetPart] = worksheet(row(1, text(QStringLiteral("A1"), QStringLiteral("N")) + text(QStringLiteral("B1"), QStringLiteral("Region")) + text(QStringLiteral("C1"), QStringLiteral("Amount")))
+                                      + row(2, QStringLiteral("<c r=\"A2\" s=\"1\"><v>45000</v></c>") + text(QStringLiteral("B2"), QStringLiteral("East")) + num(QStringLiteral("C2"), 10))
+                                      + row(3, num(QStringLiteral("A3"), 5) + text(QStringLiteral("B3"), QStringLiteral("East")) + num(QStringLiteral("C3"), 3))
+                                      + row(5, QStringLiteral("<c r=\"E5\" s=\"1\"><v>45000</v></c>"))
+                                      + row(7, QStringLiteral("<c r=\"E7\"><v>5</v></c>")));
+            p[QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml")] = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheDefinition xmlns=\"%1\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"rId1\" "
+                                                                           "recordCount=\"2\"><cacheSource type=\"worksheet\"><worksheetSource ref=\"A1:C3\" sheet=\"Sheet1\"/></cacheSource><cacheFields count=\"3\">"
+                                                                           "<cacheField name=\"N\" numFmtId=\"0\"><sharedItems containsSemiMixedTypes=\"0\" containsNonDate=\"1\" containsDate=\"1\" containsString=\"0\" containsNumber=\"1\" containsInteger=\"1\" minValue=\"5\" maxValue=\"5\" minDate=\"2023-03-15T00:00:00\" maxDate=\"2023-03-15T00:00:00\" count=\"2\"><d v=\"2023-03-15T00:00:00\"/><n v=\"5\"/></sharedItems></cacheField>"
+                                                                           "<cacheField name=\"Region\" numFmtId=\"0\"><sharedItems count=\"1\"><s v=\"East\"/></sharedItems></cacheField>"
+                                                                           "<cacheField name=\"Amount\" numFmtId=\"0\"><sharedItems containsSemiMixedTypes=\"0\" containsString=\"0\" containsNumber=\"1\" containsInteger=\"1\" minValue=\"3\" maxValue=\"10\"/></cacheField>"
+                                                                           "</cacheFields></pivotCacheDefinition>").arg(QLatin1String(kNs)).toUtf8();
+            p[QStringLiteral("xl/pivotCache/pivotCacheRecords1.xml")] = QStringLiteral("<pivotCacheRecords xmlns=\"%1\" count=\"2\"><r><x v=\"0\"/><x v=\"0\"/><n v=\"10\"/></r><r><x v=\"1\"/><x v=\"0\"/><n v=\"3\"/></r></pivotCacheRecords>").arg(QLatin1String(kNs)).toUtf8();
+            p[QStringLiteral("xl/pivotTables/pivotTable1.xml")] = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotTableDefinition xmlns=\"%1\" name=\"PivotTable1\" cacheId=\"1\" dataCaption=\"Values\" compact=\"0\" compactData=\"0\">"
+                                                                      "<location ref=\"E3:G9\" firstHeaderRow=\"1\" firstDataRow=\"2\" firstDataCol=\"2\"/><pivotFields count=\"3\">"
+                                                                      "<pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\" subtotalTop=\"0\" showAll=\"0\"><items count=\"3\"><item x=\"0\"/><item x=\"1\"/><item t=\"default\"/></items></pivotField>"
+                                                                      "<pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\" showAll=\"0\" defaultSubtotal=\"0\"><items count=\"1\"><item x=\"0\"/></items></pivotField>"
+                                                                      "<pivotField dataField=\"1\" compact=\"0\" outline=\"0\" showAll=\"0\"/></pivotFields><rowFields count=\"2\"><field x=\"0\"/><field x=\"1\"/></rowFields>"
+                                                                      "<dataFields count=\"1\"><dataField name=\"Sum of Amount\" fld=\"2\" baseField=\"0\" baseItem=\"0\"/></dataFields></pivotTableDefinition>").arg(QLatin1String(kNs)).toUtf8();
+        };
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(o)));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY2(s->refreshPivot(0).ok, "refresh");
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("E5")), QStringLiteral("n:45000"));
+        QCOMPARE(valueOf(e, QStringLiteral("E6")), QStringLiteral("s:3/15/2023 Total"));
+        QCOMPARE(valueOf(e, QStringLiteral("E8")), QStringLiteral("s:5 Total"));
+    }
+
+    // Growth over a validation, a conditional format, a hyperlink, or a note is refused as growth over content is, and nothing is changed.
+    void growthOverRulesLinksAndNotesIsRefused()
+    {
+        struct Case {
+            const char *name;
+            QByteArray sheetTail;
+            std::function<void(crunch::EditSession *)> setup;
+        };
+        const QVector<Case> cases = {
+            {"validation", "<dataValidations count=\"1\"><dataValidation type=\"whole\" sqref=\"I4:I5\"><formula1>1</formula1></dataValidation></dataValidations>", nullptr},
+            {"conditional format", "<conditionalFormatting sqref=\"I4:I5\"><cfRule type=\"expression\" priority=\"1\"><formula>TRUE</formula></cfRule></conditionalFormatting>", nullptr},
+            {"link", QByteArray(), [](crunch::EditSession *s) {
+                 jp::office::sheet::LinkSpec link;
+                 link.target = QStringLiteral("https://example.org/");
+                 CellRange r;
+                 parseRangeRef(QStringLiteral("I4"), &r);
+                 link.range = r;
+                 QVERIFY(s->setLink(0, r, link, QStringLiteral("Link")).ok);
+             }},
+            {"note", QByteArray(), [](crunch::EditSession *s) { QVERIFY(s->setNote(0, 3, 8, QStringLiteral("hi"), QStringLiteral("me"), false, QStringLiteral("Note")).ok); }}};
+        for (const Case &c : cases) {
+            PivotBookOptions o;
+            const QByteArray tail = c.sheetTail;
+            o.tweak = [tail](Parts &p) { p[kSheetPart].replace("</sheetData>", "</sheetData>" + tail); };
+            EditWindow e;
+            QVERIFY2(e.open(pivotWorkbook(o)), c.name);
+            crunch::EditSession *s = e.win.w.session();
+            QVERIFY(s->type(0, 7, 0, QStringLiteral("North")).ok);
+            QVERIFY(s->type(0, 7, 1, QStringLiteral("Mar")).ok);
+            QVERIFY(s->type(0, 7, 2, QStringLiteral("9")).ok);
+            if (c.setup) c.setup(s);
+            QVERIFY(e.settle());
+            const int steps = s->undoStack()->count();
+            const auto out = s->changePivotSource(0, QStringLiteral("Sheet1!A1:C8"));
+            QVERIFY2(!out.ok, c.name);
+            QVERIFY2(out.problem.contains(QLatin1String("something in them")), c.name);
+            QCOMPARE(s->undoStack()->count(), steps);
+        }
+    }
+
+    // A part past the limits for the parts of a pivot table is not read: the table or the cache is left as it is, and a table that is too big still shuts the cells it has.
+    void partsPastTheLimitsAreLeftAlone()
+    {
+        const QByteArray book = pivotWorkbook();
+        struct Limits {
+            qint64 table, definition, records;
+        };
+        for (const Limits &l : {Limits{500, 0, 0}, Limits{0, 500, 0}, Limits{0, 0, 100}}) {
+            jp::office::sheet::pivotSetPartLimitsForTest(l.table, l.definition, l.records);
+            EditWindow e;
+            const bool opened = e.open(book);
+            const bool usable = opened && e.win.w.session()->pivotUsable(0);
+            const int found = opened ? e.win.w.session()->workbook()->pivotTablesOn(0).size() : -1;
+            jp::office::sheet::pivotSetPartLimitsForTest(0, 0, 0);
+            QVERIFY(opened);
+            QVERIFY2(!usable, qPrintable(QString::number(l.table) + QLatin1Char(' ') + QString::number(l.definition)));
+            QCOMPARE(found, 1);
+        }
+        // (a table too big to read is the whole sheet's as far as edits go: it is not known where it is)
+        jp::office::sheet::pivotSetPartLimitsForTest(500, 0, 0);
+        EditWindow e;
+        QVERIFY(e.open(book));
+        const QVector<CellRange> ranges = e.win.w.session()->workbook()->pivotTablesOn(0);
+        jp::office::sheet::pivotSetPartLimitsForTest(0, 0, 0);
+        QVERIFY(ranges.size() == 1 && ranges[0].row2 >= 1048575);
+    }
+
+    // The sheet a cache is made from is renamed: the cache is saved naming the new name (only that of the part changes), and a refresh of the file saved reads the cells.
+    void aRenamedSourceSheetIsSavedAndRefreshed()
+    {
+        PivotBookOptions o;
+        o.otherSheet = true;
+        const QByteArray book = pivotWorkbook(o);
+        EditWindow e;
+        QVERIFY(e.open(book));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->pivotUsable(0));
+        QVERIFY2(s->renameSheet(0, QStringLiteral("Data")).ok, "rename");
+        QVERIFY(e.settle());
+        QVERIFY(saveNow(e));
+        Parts before;
+        readZip(book, before);
+        const Parts after = readParts(e.path);
+        QByteArray expected = before.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml"));
+        expected.replace("sheet=\"Sheet1\"", "sheet=\"Data\"");
+        QCOMPARE(after.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml")), expected);
+        QCOMPARE(after.value(QStringLiteral("xl/pivotCache/pivotCacheRecords1.xml")), before.value(QStringLiteral("xl/pivotCache/pivotCacheRecords1.xml")));
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        EditWindow again;
+        QVERIFY(again.open(f.readAll(), QStringLiteral("again.xlsx")));
+        QCOMPARE(again.win.w.session()->pivotSourceText(0), QStringLiteral("Data!A1:C7"));
+        QVERIFY(again.win.w.session()->type(1, 20, 0, QStringLiteral("x")).ok);   // (an edit elsewhere on the pivot sheet)
+        QVERIFY(again.win.w.session()->refreshPivot(0).ok);
+        finish(again);
+        QCOMPARE(valueOf(again, QStringLiteral("F5"), 1), QStringLiteral("n:15"));
+    }
+
+    // A table part nested a hundred thousand deep is not given to a recursive reader either: the table is left as it is, and still shuts its cells.
+    void aHostilelyDeepTableIsLeftAloneAndKeepsItsLocation()
+    {
+        const QByteArray book = [] {
+            PivotBookOptions o;
+            o.tweak = [](Parts &p) {
+                QByteArray deep = "<extLst>";
+                for (int i = 0; i < 100000; ++i) deep += "<a>";
+                for (int i = 0; i < 100000; ++i) deep += "</a>";
+                deep += "</extLst>";
+                p[QStringLiteral("xl/pivotTables/pivotTable1.xml")].replace("</pivotTableDefinition>", deep + "</pivotTableDefinition>");
+            };
+            return pivotWorkbook(o);
+        }();
+        EditWindow e;
+        QVERIFY(e.open(book));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(!s->pivotUsable(0));
+        QVERIFY(!s->refreshPivot(0).ok);
+        const QVector<CellRange> ranges = s->workbook()->pivotTablesOn(0);
+        QCOMPARE(ranges.size(), 1);
+        QCOMPARE(int(ranges[0].row1), 2);
+        QCOMPARE(int(ranges[0].col2), 7);
+        QVERIFY(s->type(0, 0, 8, QStringLiteral("1")).ok);
+        QVERIFY(saveNow(e));
+        Parts before;
+        readZip(book, before);
+        const Parts after = readParts(e.path);
+        for (const QString &part : {QStringLiteral("xl/pivotTables/pivotTable1.xml"), QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml"), QStringLiteral("xl/pivotCache/pivotCacheRecords1.xml")})
+            QVERIFY2(after.value(part) == before.value(part), qPrintable(part));
+    }
+
     // A lone value has no place of its own among the columns: a refresh takes the stale one out.
     void aRefreshTakesTheValuesOutOfTheAxesWhenThereIsOne()
     {
@@ -739,6 +905,11 @@ private Q_SLOTS:
         finish(e);
         QCOMPARE(s->workbook()->pivots().table(0).table->colFields, (QVector<int>{1}));
         QVERIFY(!s->workbook()->pivots().table(0).table->rowFields.contains(-2));
+        // and in the saved part: one value, and no place for the values among the fields
+        QVERIFY(saveNow(e));
+        const QString xml = QString::fromUtf8(readParts(e.path).value(QStringLiteral("xl/pivotTables/pivotTable1.xml")));
+        QVERIFY2(!xml.contains(QLatin1String("x=\"-2\"")), qPrintable(xml));
+        QVERIFY(xml.contains(QLatin1String("<colFields count=\"1\">")));
     }
 
     // Refresh All refreshes what it can, one step, and says which tables it could not.

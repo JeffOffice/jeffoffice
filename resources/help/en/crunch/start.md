@@ -26,7 +26,7 @@ This version of JeffCrunch is a **Preview**. It is ready to try on real work, bu
 - You can't change what a cell style is, or make a new one.
 - A function JeffCrunch does not have yet leaves a new formula without a value; a formula that came with the workbook keeps the result the file stored.
 - Macros are kept and saved back, but never run.
-- A pivot table is shown and kept, but can't be made or changed here.
+- A pivot table is shown and kept. It can be refreshed, be given other data, and be changed in its fields and layout (see [Pivot tables](pivot-tables)); a new one can't be made here yet.
 - A workbook opened from .xls, .ods, or a text file is saved as a new .xlsx file. JeffCrunch does not save .xls or .ods files yet.
 
 ## Do these five things first

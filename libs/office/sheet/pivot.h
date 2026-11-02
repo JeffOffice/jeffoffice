@@ -37,6 +37,8 @@ constexpr qint64 kPivotMaxTablePartBytes = qint64(128) << 20;
 constexpr qint64 kPivotMaxDefinitionBytes = qint64(256) << 20;
 constexpr qint64 kPivotMaxRecordsBytes = qint64(2) << 30;
 constexpr int kPivotMaxXmlDepth = 64;
+// For the tests: other limits for the parts a pivot book takes in (0 for the usual ones).
+void pivotSetPartLimitsForTest(qint64 table, qint64 definition, qint64 records);
 
 struct PivotValue {
     enum Kind : quint8 { Missing, Number, Text, Bool, Error, Date };

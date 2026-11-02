@@ -6,6 +6,20 @@
 
 namespace jp::office::sheet {
 
+namespace {
+qint64 gTableLimit = 0, gDefinitionLimit = 0, gRecordsLimit = 0;
+qint64 tableLimit() { return gTableLimit > 0 ? gTableLimit : kPivotMaxTablePartBytes; }
+qint64 definitionLimit() { return gDefinitionLimit > 0 ? gDefinitionLimit : kPivotMaxDefinitionBytes; }
+qint64 recordsLimit() { return gRecordsLimit > 0 ? gRecordsLimit : kPivotMaxRecordsBytes; }
+} // namespace
+
+void pivotSetPartLimitsForTest(qint64 table, qint64 definition, qint64 records)
+{
+    gTableLimit = table;
+    gDefinitionLimit = definition;
+    gRecordsLimit = records;
+}
+
 PivotBook::PivotBook(const Package *package, const QVector<QString> &sheetParts, const QStringList &sheetNames, jp::calc::DateSystem dates)
     : m_package(package), m_names(sheetNames), m_dates(dates)
 {
@@ -19,7 +33,7 @@ PivotBook::PivotBook(const Package *package, const QVector<QString> &sheetParts,
             e.part = resolvePartName(sheetParts[sheet], rel.target);
             QString why;
             const qint64 size = e.part.isEmpty() ? -1 : package->partSize(e.part);
-            if (size < 0 || size > kPivotMaxTablePartBytes) {
+            if (size < 0 || size > tableLimit()) {
                 e.why = size < 0 ? QStringLiteral("the pivot table is not in the file") : QStringLiteral("the pivot table is too big");
             } else {
                 // (a table that can't be read whole still says where it is)
@@ -47,7 +61,7 @@ PivotBook::PivotBook(const Package *package, const QVector<QString> &sheetParts,
                         if (!rr.external) c.recordsPart = resolvePartName(definition, rr.target);
                     // where the data is, read now: the edits of rows and columns that move it are followed from the start, whether or not the cache is ever read
                     const qint64 defSize = package->partSize(definition);
-                    if (defSize < 0 || defSize > kPivotMaxDefinitionBytes || (!c.recordsPart.isEmpty() && package->partSize(c.recordsPart) > kPivotMaxRecordsBytes)) {
+                    if (defSize < 0 || defSize > definitionLimit() || (!c.recordsPart.isEmpty() && package->partSize(c.recordsPart) > recordsLimit())) {
                         c.unreadable = true;
                         c.why = QStringLiteral("the cache is too big");
                     } else {

@@ -579,6 +579,36 @@ private Q_SLOTS:
         swapped.insert(swapped.indexOf("</pivotCacheDefinition>"), src);
         QVERIFY(!pivotCheckShape(table, swapped, rec, &why));
     }
+
+    // A day the calendar has no date for (day 60 of the 1900 system, a negative day) is a number item in the definition, in the records, and in the marks of the field.
+    void daysWithNoDateAreWrittenAsNumbers()
+    {
+        PivotCache c;
+        PivotCacheField shared, inlined;
+        shared.name = QStringLiteral("S");
+        shared.hasShared = true;
+        inlined.name = QStringLiteral("I");
+        const double serials[] = {60, -5, 45000};
+        for (int i = 0; i < 3; ++i) {
+            PivotValue v;
+            v.kind = PivotValue::Date;
+            v.number = serials[i];
+            shared.items.append(v);
+            inlined.items.append(v);
+            shared.records.append(i);
+            inlined.records.append(i);
+        }
+        shared.sharedCount = 3;
+        c.fields = {shared, inlined};
+        c.recordCount = 3;
+        const QByteArray original = "<pivotCacheDefinition xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><cacheSource type=\"worksheet\"><worksheetSource ref=\"A1:B4\" sheet=\"S\"/></cacheSource><cacheFields count=\"2\"/></pivotCacheDefinition>";
+        const QByteArray def = writePivotCacheDefinition(original, c, 3, 45000, DateSystem::Date1900);
+        QVERIFY2(def.contains("<n v=\"60\"/>") && def.contains("<n v=\"-5\"/>") && def.contains("<d v=\"2023-03-15T00:00:00\"/>"), def.constData());
+        QVERIFY2(def.contains("minValue=\"-5\"") && def.contains("maxValue=\"60\"") && def.contains("minDate=\"2023-03-15T00:00:00\""), def.constData());
+        const QByteArray rec = writePivotCacheRecords(c, DateSystem::Date1900);
+        QVERIFY2(rec.contains("<n v=\"60\"/>") && rec.contains("<n v=\"-5\"/>") && rec.contains("<d v=\"2023-03-15T00:00:00\"/>"), rec.constData());
+        QVERIFY(!rec.contains("1900-"));
+    }
 };
 
 JP_TEST_CLASS(SheetPivotTests)
