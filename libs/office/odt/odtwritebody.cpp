@@ -310,7 +310,14 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
         // An empty paragraph has the look of its mark (a paragraph with text has the looks of its runs).
         // (A numbered paragraph's label takes the look of the paragraph, not of its runs.)
         if ((!anyContent || inList) && pPr >= 0) {
-            const QByteArray mark = textAttrs(t, t.child(pPr, "rPr"));
+            QByteArray mark = textAttrs(t, t.child(pPr, "rPr"));
+            if (anyContent) {
+                // (A label takes the size of the paragraph's mark; the weight and color of the mark are not the text's.)
+                QByteArray kept;
+                for (const QByteArray &a : mark.split(' '))
+                    if (a.startsWith("fo:font-size=") || a.startsWith("style:font-size-")) kept += " " + a;
+                mark = kept;
+            }
             if (!mark.isEmpty()) inner += "<style:text-properties" + mark + "/>";
         }
         QString styleName = odfStyle;
