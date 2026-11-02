@@ -336,6 +336,10 @@ Value fnMod(Call &c)
     double n, d;
     if (!c.number(0, &n) || !c.number(1, &d)) return c.failure();
     if (d == 0) return c.error(ErrorKind::Div0);
+    // (the definition: n - d * INT(n / d), which is what the original program's results carry the rounding of; a ratio past what a double holds in whole numbers has no fraction left to
+    // take INT of, and is worked out exactly)
+    const double q = n / d;
+    if (std::fabs(q) < 4503599627370496.0) return numberResult(n - d * std::floor(q));
     double r = std::fmod(n, d);
     if (r != 0 && ((r < 0) != (d < 0))) r += d;
     return numberResult(r);
