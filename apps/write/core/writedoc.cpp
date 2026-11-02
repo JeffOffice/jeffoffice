@@ -5,6 +5,7 @@
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "doc/doc.h"
+#include "odt/odt.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
@@ -319,9 +320,27 @@ std::unique_ptr<WriteDoc> WriteDoc::fromDoc(const QByteArray &bytes, QString *er
     return doc;
 }
 
+std::unique_ptr<WriteDoc> WriteDoc::fromOdt(const QByteArray &bytes, QString *error, QStringList *notes)
+{
+    QStringList left;
+    const QByteArray zip = office::odt::toDocxPackage(bytes, error, &left);
+    if (zip.isEmpty()) return nullptr;
+    std::unique_ptr<WriteDoc> doc = fromDocx(zip, error, notes);
+    if (!doc) return nullptr;
+    // What the file had that is left out is said with what the reader left out; the document is then not written back over the file it came from.
+    for (const QString &l : std::as_const(left)) {
+        doc->readNotes << l;
+        if (notes) *notes << l;
+    }
+    if (!left.isEmpty()) doc->m_leftOut = true;
+    return doc;
+}
+
 std::unique_ptr<WriteDoc> WriteDoc::fromFile(const QByteArray &bytes, QString *error, QStringList *notes)
 {
-    return office::doc::looksLikeCompoundFile(bytes) ? fromDoc(bytes, error, notes) : fromDocx(bytes, error, notes);
+    if (office::doc::looksLikeCompoundFile(bytes)) return fromDoc(bytes, error, notes);
+    if (office::odt::looksLikeOdt(bytes)) return fromOdt(bytes, error, notes);
+    return fromDocx(bytes, error, notes);
 }
 
 void WriteDoc::build(office::wml::Document &&doc)
