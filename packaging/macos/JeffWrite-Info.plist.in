@@ -95,6 +95,18 @@
                 <string>dot</string>
             </array>
         </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Rich Text Format (.rtf)</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>rtf</string>
+            </array>
+        </dict>
     </array>
 </dict>
 </plist>

@@ -7,7 +7,7 @@ Type in the search box a name or what you want to do ("round down", "join text")
 
 Pick a function to see how it is written, what it does, and its arguments. An argument in brackets is optional, and "more of the same" means you can give as many as you need. Press **OK** (or double-click the function).
 
-The cell goes into editing with the formula begun: **=SUM()**, with the cursor inside the brackets, ready for the arguments. If you are already typing a formula, the function goes in at the cursor. Only the functions JeffCrunch can work out are listed.
+After **OK** the **Function Arguments** dialog opens for the function, to fill in its arguments with the result shown as you type (see [Enter a function with the Function Arguments dialog](function-arguments)). **OK** there writes the formula into the cell, for example **=SUM(A1:A3)**. If you are already typing a formula, the function goes in at the cursor. Only the functions JeffCrunch can work out are listed.
 
 ## Messages on cells
 

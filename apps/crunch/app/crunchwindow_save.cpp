@@ -3,6 +3,9 @@
 // place of the old one, so a save that fails leaves the old file as it was.
 
 #include "app/crunchwindow.h"
+
+#include "io/crypto.h"
+#include "office/officecrypt.h"
 #include "app/plaintext.h"
 
 #include "app/oldformat.h"
@@ -15,6 +18,7 @@
 #include "sheet/xlsxsave.h"
 
 #include <QAction>
+#include <QCryptographicHash>
 #include <QApplication>
 #include <QFileDialog>
 #include <QFile>
@@ -69,7 +73,18 @@ bool CrunchWindow::snapshotBytesForTest(QByteArray *bytes, QString *why)
 bool CrunchWindow::saveAs(const QString &pathIn)
 {
     if (!m_session || !m_loaded) return false;
-    if (crunch::isCsvName(pathIn) || crunch::isCopyName(pathIn)) return startSave(pathIn);
+    if (crunch::isCsvName(pathIn) || crunch::isCopyName(pathIn)) {
+        // a workbook that is protected with a password is written protected only as .xlsx: the person is told before the copy is made without it, and may cancel
+        if (hasUserPassword()) {
+            const LossAnswer answer = askBeforeLosing(tr("Save"), tr("This workbook is protected with a password, but a copy in this kind of file can't be. The copy you are saving will not be protected: anyone who has it can read it."),
+                                                      tr("Save Without Password"), QString());
+            if (answer != LossAnswer::Continue) {
+                m_closeAfterSave = false;
+                return false;
+            }
+        }
+        return startSave(pathIn);
+    }
     QString path = pathIn;
     const QString kind = saveKind();
     const QString ending = QFileInfo(path).suffix().toLower();
@@ -95,6 +110,12 @@ bool CrunchWindow::saveAs(const QString &pathIn)
 bool CrunchWindow::fileChangedOnDisk() const
 {
     if (!m_loaded || !m_loaded->book || m_path.isEmpty()) return false;
+    if (m_diskProtected) {
+        // (the file is enciphered, so its bytes are not the package's: they are compared with what this program last read or wrote of it, by their digest)
+        if (!QFileInfo::exists(m_path)) return false;
+        // (a digest that is not there does not make the check go away: the file is taken to be changed, and the person is asked)
+        return m_diskDigest.isEmpty() || crunch::fileDigest(m_path) != m_diskDigest;
+    }
     const QByteArray mine = m_loaded->book->package().fileBytes();
     QFile f(m_path);
     if (!f.exists()) return false;
@@ -125,13 +146,13 @@ bool CrunchWindow::startSave(const QString &path)
     }
     const bool samePath = crunch::sameFile(path, m_path);
     // nothing to save over the file it was read from
-    if (samePath && !m_session->isModified() && !m_session->viewsChanged()) {
+    if (samePath && !m_session->isModified() && !m_session->viewsChanged() && !m_protectionChanged) {
         setStatus(tr("Nothing to save: %1 is as it was.").arg(QFileInfo(path).fileName()));
         Q_EMIT saved(path, true);
         return true;
     }
     // the file has what the formulas are worth: a calculation that is going is waited for
-    if (m_calculating && m_session->isModified()) {
+    if (m_calculating && (m_session->isModified() || m_protectionChanged)) {
         m_saveAfterCalculation = path;
         setStatus(tr("Saving when the calculation is done…"));
         return true;
@@ -183,13 +204,30 @@ bool CrunchWindow::startSave(const QString &path)
     setStatus(tr("Saving %1…").arg(QFileInfo(path).fileName()));
     const std::shared_ptr<office::sheet::Workbook> book = m_loaded->book;
     const QPointer<CrunchWindow> self(this);
-    QThread *thread = QThread::create([self, book, snapshot, path] {
+    // (a protected workbook is enciphered here, on the thread that saves, with the password it was opened or protected with; the copy of the password goes with the thread and is wiped)
+    const bool protect = m_fileProtected;
+    const auto secret = std::make_shared<QString>(m_filePassword.isEmpty() ? office::defaultPassword() : m_filePassword);
+    m_savedDigest = std::make_shared<QByteArray>();
+    const auto digest = m_savedDigest;
+    QThread *thread = QThread::create([self, book, snapshot, path, protect, secret, digest] {
         QByteArray bytes;
         QString message;
         SaveReport report;
         bool ok = office::sheet::saveXlsx(*book, snapshot->changes, &bytes, &message, &report);
         snapshot->headerDrawings = report.headerDrawings;   // (read by the window after this thread has told it the save is over)
-        if (ok) ok = office::sheet::writeFileAtomically(path, bytes, &message);
+        if (ok) {
+            QByteArray file = bytes;
+            if (protect) {
+                file = office::encryptPackage(bytes, *secret);
+                if (file.isEmpty()) {
+                    ok = false;
+                    message = QCoreApplication::translate("jp::CrunchWindow", "The workbook could not be protected with the password.");
+                }
+            }
+            if (ok) ok = office::sheet::writeFileAtomically(path, file, &message);
+            if (ok && protect) *digest = QCryptographicHash::hash(file, QCryptographicHash::Sha256);
+        }
+        jp::crypto::wipe(*secret);
         QMetaObject::invokeMethod(qApp, [self, ok, message, path, bytes, snapshot] {
             if (self) self->onSaved(ok, message, path, bytes, snapshot);
         }, Qt::QueuedConnection);
@@ -221,6 +259,11 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
             m_blank = false;
             updateTitle();
         }
+        // (what is on disk now is enciphered when the workbook is, and the change of password is saved)
+        m_diskProtected = m_fileProtected;
+        m_diskDigest = m_fileProtected && m_savedDigest ? *m_savedDigest : QByteArray();
+        m_protectionChanged = false;
+        setWindowModified(m_session->isModified());
         Settings::get().addRecentFile(path);
         telemetry::count(QStringLiteral("file.save.") + crunch::fileKind(path));
         // (a save is the point after which what it saved of rows, columns, or cells deleted is not given back by Undo: that is said)
@@ -242,7 +285,7 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
 // Whether the window may be closed: the changes that are not saved are asked about. Save saves them first (and the window closes when that is done).
 bool CrunchWindow::askAboutChanges()
 {
-    if (!m_session || (!m_session->isModified() && !m_saving)) return true;
+    if (!m_session || (!m_session->isModified() && !m_saving && !m_protectionChanged)) return true;
     // (the person chose to write the values of the sheet as a .csv from this question: that was the answer, and the window closes when it is written)
     if (m_closing) return true;
     if (m_saving) {

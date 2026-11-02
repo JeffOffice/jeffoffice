@@ -1,6 +1,10 @@
 // JeffPub's tests of the window: ribbon, help, keyboard, accessibility, themes, and translations.
 #include "pubhelpers.h"
 #include "canvas/canvasaccessible.h"
+#include <QDoubleSpinBox>
+#include <QStackedWidget>
+#include <QTimer>
+#include <QVBoxLayout>
 
 class PubWindowTests : public QObject {
     Q_OBJECT
@@ -916,6 +920,180 @@ private Q_SLOTS:
         QVERIFY2(typing && (typing->inherits("jp::FontCombo") || (typing->parentWidget() && typing->parentWidget()->inherits("jp::FontCombo"))),
                  typing ? typing->metaObject()->className() : "nothing");
     }
+
+    // The tabs that don't fit the row go into the More menu: their KeyTips still open them, the More button has its own, the keyboard reaches it after the last tab, its menu is made
+    // again only when the tabs in it change, and the buttons of the row are not hidden and shown again as the window changes size.
+    void tabsThatDoNotFitStayReachable()
+    {
+        jp::MainWindow w;
+        w.resize(560, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        auto *r = w.findChild<jp::Ribbon *>();
+        jp::KeyTips *kt = w.keyTips();
+        QVERIFY(r && kt);
+        QTRY_VERIFY(r->moreButton());
+        int hiddenTab = -1;
+        for (int i = 0; i < r->tabCount(); ++i)
+            if (r->tabVisible(i) && r->tabButton(i) && !r->tabButton(i)->isVisible()) hiddenTab = i;
+        QVERIFY(hiddenTab >= 0);
+        const QString letters = r->tabKeytip(hiddenTab);
+        QVERIFY(!letters.isEmpty());
+        // Its letters open it, though no button shows them.
+        QTest::keyPress(&w, Qt::Key_Alt);
+        QTest::keyRelease(&w, Qt::Key_Alt);
+        QCOMPARE(kt->level(), jp::KeyTips::Top);
+        QStringList shown;
+        for (const auto &p : kt->shown()) shown << p.first;
+        QVERIFY(shown.contains(QStringLiteral("0")));   // the More button's
+        QVERIFY(!shown.contains(letters));
+        for (const QChar c : letters) QTest::keyClick(&w, c.toLatin1());
+        QCOMPARE(r->current(), r->tabAt(hiddenTab));
+        QVERIFY(r->tabButton(hiddenTab)->isVisible());   // (the current tab stays in the row)
+        // The More button's letters open its menu.
+        QTest::keyClick(&w, Qt::Key_Escape);
+        QTest::keyClick(&w, Qt::Key_Escape);
+        QTest::keyPress(&w, Qt::Key_Alt);
+        QTest::keyRelease(&w, Qt::Key_Alt);
+        auto *more = qobject_cast<QToolButton *>(r->moreButton());
+        QVERIFY(more);
+        // (the menu runs its own loop: what is checked while it is open is checked from a timer)
+        bool opened = false, namesOk = true, sameWhileOpen = false;
+        QTimer::singleShot(150, &w, [&] {
+            opened = more->menu()->isVisible();
+            const QList<QAction *> open = more->menu()->actions();
+            for (QAction *a : open)
+                if (a->text().contains(QLatin1Char('&')) && !a->text().contains(QStringLiteral("&&"))) namesOk = false;
+            // While it is open the window changes size: the menu is left as it is.
+            w.resize(561, 700);
+            QTest::qWait(60);
+            sameWhileOpen = more->menu()->actions() == open && !open.isEmpty();
+            more->menu()->close();
+        });
+        QTest::keyClick(&w, Qt::Key_0);
+        QVERIFY(opened);
+        QVERIFY(namesOk);
+        QVERIFY(sameWhileOpen);
+        // The keyboard goes on from the last tab to the More button (arrow and Tab).
+        int lastTab = r->tabCount() - 1;
+        while (!r->tabVisible(lastTab)) --lastTab;
+        r->showTab(r->tabAt(lastTab));
+        QTRY_VERIFY(r->moreButton());
+        // (the window's own focus widget: it needs no active window, and no platform setting that keeps buttons out of the Tab order, as on a Mac without full keyboard access)
+        r->tabButton(lastTab)->setFocus(Qt::OtherFocusReason);
+        QTRY_COMPARE(w.focusWidget(), r->tabButton(lastTab));
+        QTest::keyClick(r->tabButton(lastTab), Qt::Key_Right);
+        QTRY_COMPARE(w.focusWidget(), r->moreButton());
+        // Wider by a pixel at a time: no tab button is hidden and shown again, and the menu is not made again unless its tabs change.
+        int hides = 0;
+        struct Counter : QObject {
+            int *n;
+            bool eventFilter(QObject *, QEvent *e) override
+            {
+                if (e->type() == QEvent::Hide) ++*n;
+                return false;
+            }
+        } counter;
+        counter.n = &hides;
+        for (int i = 0; i < r->tabCount(); ++i)
+            if (r->tabButton(i) && r->tabButton(i)->isVisible()) r->tabButton(i)->installEventFilter(&counter);
+        for (int width = 561; width < 570; ++width) {
+            w.resize(width, 700);
+            QTest::qWait(10);
+        }
+        // (a tab may give its place to a narrower one when more room appears; a hide and show for every pixel is what must not happen)
+        QVERIFY2(hides <= 2, qPrintable(QString::number(hides)));
+    }
+
+    // A check box in a collapsed group's dropdown is ticked and the dropdown stays; a toggle reads from the leading edge in either direction.
+    void ribbonCheckBoxesAndTogglesFollowTheirPlaces()
+    {
+        auto *tab = new jp::RibbonTab;
+        std::unique_ptr<QWidget> host(new QWidget);
+        auto *lay = new QVBoxLayout(host.get());
+        lay->addWidget(tab);
+        auto *g = tab->addGroup(QStringLiteral("Options"));
+        auto *box = new QAction(QStringLiteral("Show"), tab);
+        box->setCheckable(true);
+        auto *plain = new QAction(QStringLiteral("Gridlines"), tab);
+        plain->setCheckable(true);
+        g->addGrid({{new QLabel(QString()), new QLabel(QStringLiteral("A"))}, {new QLabel(QStringLiteral("View")), jp::ribbonCheck(box, nullptr)}});
+        QToolButton *toggle = g->addSmall(plain);
+        QVERIFY(jp::isRibbonToggle(toggle));
+        tab->finish();
+        host->resize(60, 200);   // too narrow: the group folds into its button
+        host->show();
+        QVERIFY(QTest::qWaitForWindowExposed(host.get()));
+        QTRY_VERIFY(tab->isCollapsed(0));
+        tab->popUp(0);
+        QFrame *pop = tab->findChild<QFrame *>(QStringLiteral("jpRibbonPop"), Qt::FindDirectChildrenOnly);
+        QVERIFY(pop);
+        QToolButton *check = nullptr;
+        for (QToolButton *b : pop->findChildren<QToolButton *>())
+            if (jp::isRibbonCheck(b)) check = b;
+        QVERIFY(check);
+        check->click();
+        QVERIFY(box->isChecked());
+        QVERIFY(pop->isVisible());
+        pop->close();
+        // The toggle's words start at the left of a left-to-right button and at the right of a right-to-left one.
+        auto inkSide = [&](Qt::LayoutDirection dir) {
+            QWidget page;
+            page.setLayoutDirection(dir);
+            QToolButton *b = jp::ribbonButton(plain, false, &page);
+            b->setFixedWidth(240);
+            b->move(0, 0);
+            page.resize(240, b->height());
+            page.show();
+            QTest::qWaitForWindowExposed(&page);
+            const QImage img = page.grab().toImage();
+            int left = img.width(), right = -1;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x)
+                    if (qGray(img.pixel(x, y)) < 100) {
+                        left = std::min(left, x);
+                        right = std::max(right, x);
+                    }
+            return QPair<int, int>(left, right);
+        };
+        const auto ltr = inkSide(Qt::LeftToRight), rtl = inkSide(Qt::RightToLeft);
+        QVERIFY2(ltr.second < 160, qPrintable(QString::number(ltr.second)));
+        QVERIFY2(rtl.first > 80, qPrintable(QString::number(rtl.first)));
+    }
+
+    // The ribbon's sizes follow the font: the body and the rows are taller for a larger font (and 100 and 22 for the usual one), the number boxes take the width their number needs.
+    void ribbonSizesFollowTheFont()
+    {
+        const QFont before = QApplication::font();
+        QFont big = before;
+        big.setPointSizeF(15);
+        auto *ribbon = new jp::Ribbon;
+        std::unique_ptr<QWidget> own(ribbon);
+        auto *tab = ribbon->addTab(QStringLiteral("Home"));
+        auto *g = tab->addGroup(QStringLiteral("Size"));
+        auto *spin = new QDoubleSpinBox;
+        spin->setFixedWidth(300);
+        spin->setDecimals(3);
+        spin->setSuffix(QStringLiteral("\""));
+        auto *label = new QLabel(QStringLiteral("Width:"));
+        g->addRow({label, spin});
+        tab->finish();
+        ribbon->show();
+        QVERIFY(QTest::qWaitForWindowExposed(ribbon));
+        auto *stack = ribbon->findChild<QStackedWidget *>();
+        QVERIFY(stack);
+        const int body = stack->height(), row = spin->height();
+        QVERIFY(body >= 100 && row >= 22);
+        QVERIFY2(spin->width() < 300, "a number box is as wide as its number needs");
+        QVERIFY(spin->width() >= spin->fontMetrics().horizontalAdvance(spin->text()));
+        QApplication::setFont(big);
+        QTRY_VERIFY(stack->height() > body);
+        QTRY_VERIFY(spin->height() > row);
+        QApplication::setFont(before);
+        QTRY_COMPARE(stack->height(), body);
+        QTRY_COMPARE(spin->height(), row);
+    }
+
 
     // Tab belongs to the page: while typing it types a tab, otherwise it
     // selects the next object (Shift+Tab the one before), and the keyboard

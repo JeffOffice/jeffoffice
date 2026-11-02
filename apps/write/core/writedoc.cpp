@@ -6,6 +6,7 @@
 #include "core/writeprops.h"
 #include "doc/doc.h"
 #include "odt/odt.h"
+#include "rtf/rtf.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
@@ -336,13 +337,27 @@ std::unique_ptr<WriteDoc> WriteDoc::fromOdt(const QByteArray &bytes, QString *er
     return doc;
 }
 
-std::unique_ptr<WriteDoc> WriteDoc::fromFile(const QByteArray &bytes, QString *error, QStringList *notes)
+std::unique_ptr<WriteDoc> WriteDoc::fromRtf(const QByteArray &bytes, QString *error, QStringList *notes)
 {
-    if (office::doc::looksLikeCompoundFile(bytes)) return fromDoc(bytes, error, notes);
-    if (office::odt::looksLikeOdt(bytes)) return fromOdt(bytes, error, notes);
-    return fromDocx(bytes, error, notes);
+    office::wml::Document d;
+    ReadNotes rn;
+    if (!office::rtf::readRtf(bytes, &d, error, &rn)) return nullptr;
+    std::unique_ptr<WriteDoc> doc(new WriteDoc());
+    doc->readNotes = rn.notes;
+    doc->m_hadMacros = rn.hadMacros;
+    doc->m_leftOut = rn.leftOut;
+    if (notes) *notes = rn.notes;
+    doc->build(std::move(d));
+    return doc;
 }
 
+std::unique_ptr<WriteDoc> WriteDoc::fromFile(const QByteArray &bytes, QString *error, QStringList *notes)
+{
+    // By what is inside: an OpenDocument text (a ZIP whose mimetype says so), then Rich Text Format ("{\\rtf"), then an old binary file (a compound file), else a .docx.
+    if (office::odt::looksLikeOdt(bytes)) return fromOdt(bytes, error, notes);
+    if (office::rtf::looksLikeRtf(bytes)) return fromRtf(bytes, error, notes);
+    return office::doc::looksLikeCompoundFile(bytes) ? fromDoc(bytes, error, notes) : fromDocx(bytes, error, notes);
+}
 void WriteDoc::build(office::wml::Document &&doc)
 {
     m_wml = std::move(doc);

@@ -2,6 +2,7 @@
 // The ribbon: Quick Access Toolbar, File button, tabs (including colored
 // contextual tabs), and groups of large/small buttons with dialog launchers.
 
+#include <QFontMetrics>
 #include <QFrame>
 #include <QMap>
 #include <QToolButton>
@@ -31,6 +32,8 @@ public:
     void beginColumn();
     QToolButton *addSmall(QAction *a, QMenu *menu = nullptr, bool split = false, bool iconOnly = false);
     void addRow(const QList<QWidget *> &widgets);   // a row of widgets in the current column
+    // A column of rows whose cells line up: the first row heads the columns, the first cell of each other row names it.
+    void addGrid(const QList<QList<QWidget *>> &rows);
     void addWidget(QWidget *w);                       // its own column
     void addSeparator();
     void setLauncher(const std::function<void()> &fn, const QString &tip = QString());
@@ -46,6 +49,7 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *e) override;
+    void changeEvent(QEvent *e) override;   // a new font: the rows take their new height
 
 private:
     QFont titleFont() const;   // small capitals, as drawn
@@ -53,6 +57,8 @@ private:
     QHBoxLayout *m_cols;
     QVBoxLayout *m_col = nullptr;
     int m_rows = 0;
+    QList<QToolButton *> m_colToggles;   // the small toggles of the current column
+    QList<QLabel *> m_rowLabels;   // the labels that start the rows of the current column
     QString m_title;
     QToolButton *m_launcher = nullptr;
     QMetaObject::Connection m_launcherClicked;
@@ -116,11 +122,14 @@ public:
     RibbonTab *tabAt(int i) const { return m_tabs.value(i).page; }
     QString tabName(int i) const { return m_tabs.value(i).name; }
     QString tabTitle(int i) const { return m_tabs.value(i).title; }
+    QString tabContextGroup(int i) const { return m_tabs.value(i).group; }   // empty for a tab that is always there
     QString tabKeytip(int i) const { return m_tabs.value(i).keytip; }
     bool tabVisible(int i) const { return m_tabs.value(i).visible; }
     RibbonTab *tabPage(int i) const { return m_tabs.value(i).page; }
     QWidget *tabButton(int i) const;   // the tab's control in the top row
     QWidget *fileButton() const;
+    QRect brandRect(QFont *font = nullptr) const;   // where the program's name is drawn in the top row (and its font), in the ribbon's coordinates
+    QWidget *moreButton() const;   // the chevron that holds the tabs that don't fit (null while all do)
     void setTabKeytip(RibbonTab *t, const QString &k);
     // The File button isn't a tab; it only records its KeyTip.
     QString fileKeytip() const { return m_fileKeytip; }
@@ -142,8 +151,10 @@ Q_SIGNALS:
 
 protected:
     void keyPressEvent(QKeyEvent *e) override;
+    bool event(QEvent *e) override;   // a new font or screen: the body's height again
 
 private:
+    void updateBodyHeight();
     friend class RibbonHeader;
     friend class HeaderButton;
     struct Tab {
@@ -166,9 +177,20 @@ private:
     bool m_minimized = false;
 };
 
+// The height of a small button and of every row of controls beside it (22 at the usual font, taller for a larger one): three rows fit the ribbon's body.
+constexpr int kMinRowHeight = 22;
+int ribbonRowHeight(const QFontMetrics &fm);
+// The side of a large button's icon.
+constexpr int kLargeIcon = 30;
 QToolButton *ribbonButton(QAction *a, bool large, QWidget *parent);
+bool isRibbonToggle(const QToolButton *b);   // a small button for a checkable command
+// A check box (the box alone) for a checkable command, for a ribbon grid.
+QToolButton *ribbonCheck(QAction *a, QWidget *parent);
+bool isRibbonCheck(const QToolButton *b);
 // Drawing shared by every large ribbon button (icon over a label wrapped to two lines).
 QSize largeRibbonButtonHint(const QToolButton *b);
+// The lines a large button's label is drawn on (one or two).
+QStringList largeRibbonLabelLines(const QToolButton *b);
 void paintLargeRibbonButton(QToolButton *b);
 
 } // namespace jp

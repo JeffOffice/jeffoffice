@@ -2,6 +2,7 @@
 // EditSession (core/editsession.h), which holds the worker back for the moment the cell is put in; the worker works out what depends on it and tells the window in batches.
 
 #include "app/crunchwindow.h"
+#include "app/functionargumentsdialog.h"
 #include "app/formulahelper.h"
 #include "app/settings.h"
 
@@ -97,6 +98,10 @@ bool CrunchWindow::editingAllowed()
     }
     if (m_applying) {
         setStatus(tr("A large change is still being made. It can be changed again when that is done."));
+        return false;
+    }
+    if (m_argsDialog) {
+        setStatus(tr("Finish the Function Arguments dialog first."));
         return false;
     }
     if (!m_session->canEdit(&why)) {

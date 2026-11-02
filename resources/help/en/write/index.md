@@ -8,6 +8,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Welcome to JeffWrite](start)
 - [Open, save, print, and export](open-save)
 - [Open and save OpenDocument files](open-odt)
+- [Open RTF files](open-rtf)
 - [Print](print)
 
 ## Work on your text

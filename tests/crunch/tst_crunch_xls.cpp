@@ -2,7 +2,11 @@
 // new name ending in .xlsx and never offers the file the workbook came from. Every workbook is built here, in a temporary folder.
 #include "../sheet/xlshelpers.h"
 #include "app/crunchinfo.h"
+#include "app/anchordialogs.h"
 #include "app/crunchwindow.h"
+#include "io/cfb.h"
+#include "office/officecrypt.h"
+#include "sheet/sheetcrypt.h"
 #include "savedok.h"
 #include "app/oldformat.h"
 #include "app/settings.h"
@@ -40,6 +44,46 @@ struct Window {
         return first.wait(20000) && (loaded.count() > 0 || loaded.wait(20000)) && (done.count() > 0 || done.wait(20000));
     }
 };
+
+// A workbook with the number 7 in A1, protected with the password (a small number of rounds of hashing, as the tests need).
+QByteArray protectedBook(const QString &password)
+{
+    jp::office::EncryptOptions options;
+    options.spinCount = 20;
+    const QByteArray sheet = sheettest::worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>7</v></c></row>"));
+    return jp::office::encryptPackage(sheettest::buildXlsx({sheet}), password, options);
+}
+
+jp::office::sheet::PasswordNeed passwordNeedOf(const QString &path, const QString &password)
+{
+    jp::office::sheet::Workbook wb;
+    jp::office::sheet::Limits limits;
+    limits.password = password;
+    QString why;
+    (void)wb.openFile(path, &why, limits);
+    return wb.passwordNeed();
+}
+
+// A1 of the first sheet of the file, opened with the password, as the tests show a value ("" if it could not be opened).
+QString valueOf(const QString &path, const QString &password)
+{
+    jp::office::sheet::Workbook wb;
+    jp::office::sheet::Limits limits;
+    limits.password = password;
+    QString why;
+    if (!wb.openFile(path, &why, limits)) return QStringLiteral("(") + why + QLatin1Char(')');
+    jp::office::sheet::Sheet s;
+    if (!wb.readSheet(0, &s)) return QStringLiteral("(not read)");
+    return sheettest::show(s, wb.sharedStrings(), QStringLiteral("A1"));
+}
+
+// Saves in place and waits until it is written.
+bool saveAndWait(CrunchWindow &w)
+{
+    QSignalSpy saved(&w, &CrunchWindow::saved);
+    if (!w.save()) return false;
+    return saved.count() > 0 || saved.wait(20000);
+}
 
 struct Folder {
     QTemporaryDir dir;
@@ -179,21 +223,214 @@ private Q_SLOTS:
         QVERIFY(win.w.hasWorkbook());
     }
 
-    // A workbook that asks for a password is refused in words, and the window stays ready for another.
-    void anEncryptedWorkbookIsRefused()
+    // A workbook that asks for a password: the window asks for it, and a person who cancels leaves nothing open and is told nothing.
+    void anEncryptedWorkbookAsksForItsPassword()
     {
         Folder folder;
         Window win;
         xlstest::Book b;
-        b.globals(xlstest::rec(0x002F, xlstest::W().u16(1).u16(1).u16(0x1234).u16(0x5678)));
+        b.globals(xlstest::rec(0x002F, xlstest::W().u16(1).u16(1).u16(1).raw(QByteArray(48, 'x'))));   // (a salt and a check that no password fits)
         b.sheet(QStringLiteral("S"), xlstest::number(0, 0, 1));
+        const QString path = folder.write(QStringLiteral("locked.xls"), b.file());
+        QStringList asked;
+        win.w.anchorHooks().filePasswordAsker = [&asked](FilePasswordRequest *r) {
+            asked << QStringLiteral("%1:%2").arg(r->file).arg(r->wrong ? "again" : "first");
+            if (asked.size() == 2) return false;   // (cancelled the second time)
+            r->password = QStringLiteral("no");
+            return true;
+        };
         QSignalSpy loaded(&win.w, &CrunchWindow::loadFinished);
-        QVERIFY(win.w.openFile(folder.write(QStringLiteral("locked.xls"), b.file())));
+        QVERIFY(win.w.openFile(path));
         QVERIFY(loaded.wait(20000));
         QCOMPARE(loaded.first().first().toBool(), false);
+        QCOMPARE(asked, (QStringList{QStringLiteral("locked.xls:first"), QStringLiteral("locked.xls:again")}));
         QVERIFY(!win.w.hasWorkbook());
-        QCOMPARE(win.told.size(), 1);
-        QVERIFY2(win.told.first().contains(QLatin1String("encrypted")), qPrintable(win.told.first()));
+        QCOMPARE(win.told.size(), 0);
+    }
+
+    // The right password opens the workbook, after a wrong one is refused.
+    void aProtectedWorkbookOpensWithItsPassword()
+    {
+        Folder folder;
+        const QString path = folder.write(QStringLiteral("secret.xlsx"), protectedBook(QStringLiteral("open up")));
+        Window win;
+        QStringList asked;
+        win.w.anchorHooks().filePasswordAsker = [&asked](FilePasswordRequest *r) {
+            asked << (r->wrong ? QStringLiteral("again") : QStringLiteral("first"));
+            r->password = asked.size() == 1 ? QStringLiteral("not it") : QStringLiteral("open up");
+            return true;
+        };
+        QVERIFY(win.open(path));
+        QCOMPARE(asked, (QStringList{QStringLiteral("first"), QStringLiteral("again")}));
+        QVERIFY(win.w.hasWorkbook());
+        QCOMPARE(win.w.view()->sheet().valueOf(0, 0, *win.w.view()->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:7"));
+        QCOMPARE(win.told.size(), 0);
+    }
+
+    // A workbook opened with a password is saved with it again, and a changed value is in the file; Protect with Password changes the password, and removing it saves the workbook plain.
+    void aProtectedWorkbookIsSavedProtected()
+    {
+        Folder folder;
+        const QString path = folder.write(QStringLiteral("secret.xlsx"), protectedBook(QStringLiteral("open up")));
+        Window win;
+        win.w.anchorHooks().filePasswordAsker = [](FilePasswordRequest *r) {
+            r->password = QStringLiteral("open up");
+            return true;
+        };
+        QVERIFY(win.open(path));
+        win.w.view()->selectCell(0, 0);
+        QTest::keyClick(win.w.view(), '9');
+        QTest::keyClick(win.w.cellEditor(), Qt::Key_Return);
+        QVERIFY(saveAndWait(win.w));
+        QCOMPARE(passwordNeedOf(path, QString()), jp::office::sheet::PasswordNeed::Needed);
+        QCOMPARE(passwordNeedOf(path, QStringLiteral("other")), jp::office::sheet::PasswordNeed::Wrong);
+        QCOMPARE(valueOf(path, QStringLiteral("open up")), QStringLiteral("n:9"));
+        // a new password: the file is saved with it, though nothing else changed
+        win.w.anchorHooks().setFilePasswordAsker = [](SetFilePasswordRequest *r) {
+            r->password = QStringLiteral("second");
+            return true;
+        };
+        win.w.act("protect.password")->trigger();
+        QVERIFY(win.w.isWindowModified());
+        QVERIFY(saveAndWait(win.w));
+        QCOMPARE(passwordNeedOf(path, QStringLiteral("open up")), jp::office::sheet::PasswordNeed::Wrong);
+        QCOMPARE(valueOf(path, QStringLiteral("second")), QStringLiteral("n:9"));
+        // and with the password removed, it is plain
+        win.w.anchorHooks().setFilePasswordAsker = [](SetFilePasswordRequest *r) {
+            r->remove = true;
+            return true;
+        };
+        win.w.act("protect.password")->trigger();
+        QVERIFY(saveAndWait(win.w));
+        QCOMPARE(passwordNeedOf(path, QString()), jp::office::sheet::PasswordNeed::None);
+        QCOMPARE(valueOf(path, QString()), QStringLiteral("n:9"));
+        QCOMPARE(win.told.size(), 0);
+    }
+
+    // A copy of a protected workbook in a kind of file that can't be protected is said to be unprotected before it is made, and the person may cancel.
+    void aProtectedWorkbookSavedAsAnOpenDocumentCopyIsWarnedAbout()
+    {
+        Folder folder;
+        const QString path = folder.write(QStringLiteral("secret.xlsx"), protectedBook(QStringLiteral("pw")));
+        Window win;
+        win.w.anchorHooks().filePasswordAsker = [](FilePasswordRequest *r) {
+            r->password = QStringLiteral("pw");
+            return true;
+        };
+        QVERIFY(win.open(path));
+        QStringList said;
+        bool go = false;
+        win.w.setLossAsker([&](const QString &, const QString &text) {
+            said << text;
+            return go ? CrunchWindow::LossAnswer::Continue : CrunchWindow::LossAnswer::Cancel;
+        });
+        const QString copy = folder.dir.filePath(QStringLiteral("copy.ods"));
+        QVERIFY(!win.w.saveAs(copy));
+        QCOMPARE(said.size(), 1);
+        QVERIFY2(said.first().contains(QLatin1String("protected with a password")) && said.first().contains(QLatin1String("not be protected")), qPrintable(said.first()));
+        QVERIFY(!QFile::exists(copy));
+    }
+
+    // A file protected only with the password every program knows opens with no question, says nothing of a password of the person's (no Remove, no warning on a copy), and is saved the way it came.
+    void aFileWithOnlyTheDefaultPasswordIsSavedTheWayItCame()
+    {
+        Folder folder;
+        jp::office::EncryptOptions options;
+        options.spinCount = 20;
+        const QByteArray sheet = sheettest::worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>7</v></c></row>"));
+        const QString path = folder.write(QStringLiteral("shared.xlsx"), jp::office::encryptPackage(sheettest::buildXlsx({sheet}), jp::office::defaultPassword(), options));
+        Window win;
+        bool asked = false, warned = false, hadPassword = true;
+        win.w.anchorHooks().filePasswordAsker = [&asked](FilePasswordRequest *) {
+            asked = true;
+            return false;
+        };
+        win.w.setLossAsker([&warned](const QString &, const QString &) {
+            warned = true;
+            return CrunchWindow::LossAnswer::Continue;
+        });
+        QVERIFY(win.open(path));
+        QVERIFY(!asked);
+        win.w.anchorHooks().setFilePasswordAsker = [&hadPassword](SetFilePasswordRequest *r) {
+            hadPassword = r->hasPassword;
+            return false;
+        };
+        win.w.act("protect.password")->trigger();
+        QVERIFY(!hadPassword);
+        QVERIFY(win.w.saveAs(folder.dir.filePath(QStringLiteral("copy.ods"))));
+        QTRY_VERIFY(!win.w.isSaving());
+        QVERIFY(!warned);
+        win.w.view()->selectCell(0, 0);
+        QTest::keyClick(win.w.view(), '5');
+        QTest::keyClick(win.w.cellEditor(), Qt::Key_Return);
+        QVERIFY(saveAndWait(win.w));
+        QFile in(path);
+        QVERIFY(in.open(QIODevice::ReadOnly));
+        QCOMPARE(in.read(4), QByteArray("\xD0\xCF\x11\xE0"));   // (still enciphered)
+        QCOMPARE(valueOf(path, QString()), QStringLiteral("n:5"));
+        QVERIFY(!asked && !warned);
+    }
+
+    // A protected file that another program changed since it was opened is told to be changed, though its bytes are not the package's.
+    void aProtectedFileChangedByAnotherProgramIsNoticed()
+    {
+        Folder folder;
+        const QString path = folder.write(QStringLiteral("secret.xlsx"), protectedBook(QStringLiteral("pw")));
+        Window win;
+        win.w.anchorHooks().filePasswordAsker = [](FilePasswordRequest *r) {
+            r->password = QStringLiteral("pw");
+            return true;
+        };
+        QVERIFY(win.open(path));
+        QStringList asked;
+        win.w.setChangedAsker([&asked](const QString &name) {
+            asked << name;
+            return CrunchWindow::ChangedAnswer::Cancel;
+        });
+        // an edit saves with no question while the file is as it was read
+        win.w.view()->selectCell(0, 0);
+        QTest::keyClick(win.w.view(), '8');
+        QTest::keyClick(win.w.cellEditor(), Qt::Key_Return);
+        QVERIFY(saveAndWait(win.w));
+        QVERIFY(asked.isEmpty());
+        QCOMPARE(valueOf(path, QStringLiteral("pw")), QStringLiteral("n:8"));
+        // another program writes the file; the next save asks, and the answer Cancel leaves what the other program wrote
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            f.write(protectedBook(QStringLiteral("pw")));
+        }
+        QTest::keyClick(win.w.view(), '9');
+        QTest::keyClick(win.w.cellEditor(), Qt::Key_Return);
+        QVERIFY(!saveAndWait(win.w));
+        QCOMPARE(asked, QStringList{QStringLiteral("secret.xlsx")});
+        QCOMPARE(valueOf(path, QStringLiteral("pw")), QStringLiteral("n:7"));
+    }
+
+    // A workbook that had no password is protected by Protect with Password and saved so; the file holds the structures the original program looks for.
+    void aPlainWorkbookCanBeProtected()
+    {
+        Folder folder;
+        const QByteArray sheet = sheettest::worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>4</v></c></row>"));
+        const QString path = folder.write(QStringLiteral("plain.xlsx"), sheettest::buildXlsx({sheet}));
+        Window win;
+        QVERIFY(win.open(path));
+        win.w.anchorHooks().setFilePasswordAsker = [](SetFilePasswordRequest *r) {
+            r->password = QStringLiteral("fresh");
+            return true;
+        };
+        win.w.act("protect.password")->trigger();
+        QVERIFY(saveAndWait(win.w));
+        QCOMPARE(passwordNeedOf(path, QString()), jp::office::sheet::PasswordNeed::Needed);
+        QCOMPARE(valueOf(path, QStringLiteral("fresh")), QStringLiteral("n:4"));
+        jp::cfb::File f;
+        QString why;
+        QFile in(path);
+        QVERIFY(in.open(QIODevice::ReadOnly));
+        QVERIFY(jp::cfb::read(in.readAll(), &f, &why));
+        for (const char *name : {"EncryptionInfo", "EncryptedPackage", "\x06""DataSpaces/Version", "\x06""DataSpaces/DataSpaceMap", "\x06""DataSpaces/DataSpaceInfo/StrongEncryptionDataSpace",
+                                 "\x06""DataSpaces/TransformInfo/StrongEncryptionTransform/\x06Primary"})
+            QVERIFY2(f.find(QString::fromLatin1(name)) >= 0, name);
     }
 
     // Save (by the keys of the computer) on a workbook that came from an .xls file: the person is told in plain words that it is saved as .xlsx and asked for a name (offered with that

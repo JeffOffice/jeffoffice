@@ -47,6 +47,10 @@
 #include "wml/wml.h"
 
 #include <QAccessible>
+#include <QTcpServer>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
 #include <QBuffer>
 #include <QImageReader>
 #include <QUrl>
@@ -1048,6 +1052,157 @@ private Q_SLOTS:
         old.text = QStringLiteral("old kind\r");
         QVERIFY(WriteDoc::fromFile(old.build()));
         QVERIFY(WriteDoc::fromFile(WriteDoc::blank()->toDocx()));
+    }
+
+    // ---- Rich Text Format files
+
+    static QString writeFile(const QTemporaryDir &dir, const QString &name, const QByteArray &bytes)
+    {
+        const QString path = dir.filePath(name);
+        QFile f(path);
+        if (f.open(QIODevice::WriteOnly)) f.write(bytes);
+        return path;
+    }
+
+    void anRtfFileOpensByItsContentAndShowsItsText()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray rtf = "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Arial;}}\\pard Dear reader,\\par {\\b This is the old letter.}\\par "
+                               "\\trowd\\cellx2000\\cellx4000\\pard\\intbl one\\cell two\\cell\\row\\pard {\\field{\\*\\fldinst PAGE}{\\fldrslt 7}} \\u8364?\\par}";
+        WriteWindow w;
+        QStringList notices;
+        w.setNotifier([&](const QString &, const QString &text) { notices << text; });
+        QVERIFY(w.openFile(writeFile(dir, QStringLiteral("letter.rtf"), rtf)));
+        const QString text = w.document()->story()->toPlainText();
+        QVERIFY2(text.startsWith(QLatin1String("Dear reader,\nThis is the old letter.\n")), qPrintable(text));
+        QVERIFY2(text.contains(QLatin1String("one")) && text.contains(QLatin1String("two")) && text.contains(QString::fromUtf8("\u20AC")), qPrintable(text));
+        QVERIFY(!w.isModified());
+        QVERIFY(notices.isEmpty());
+        QVERIFY2(w.windowTitle().startsWith(QLatin1String("letter.rtf")), qPrintable(w.windowTitle()));
+        QVERIFY(w.document()->pager().pageCount() >= 1);
+        // The bold run is bold.
+        QTextCursor c(w.document()->story());
+        c.setPosition(w.document()->story()->toPlainText().indexOf(QLatin1String("This")) + 1);
+        QVERIFY(c.charFormat().fontWeight() >= QFont::Bold);
+        // The kind is told by what is in the file, not by its name.
+        WriteWindow other;
+        QVERIFY(other.openFile(writeFile(dir, QStringLiteral("letter.txt"), rtf)));
+        QCOMPARE(other.document()->story()->toPlainText(), text);
+        QVERIFY(WriteDoc::fromFile(rtf));
+    }
+
+    void savingAnRtfFileAsksForADocxName()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray rtf = "{\\rtf1\\ansi Old text\\par}";
+        const QString path = writeFile(dir, QStringLiteral("old.rtf"), rtf);
+        WriteWindow w;
+        QStringList notices;
+        QString suggested;
+        w.setNotifier([&](const QString &, const QString &text) { notices << text; });
+        w.setSavePathChooser([&](const QString &name, const QString &) {
+            suggested = name;
+            return dir.filePath(QStringLiteral("new.docx"));
+        });
+        QVERIFY(w.openFile(path));
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("!"));
+        QVERIFY(w.save());
+        QCOMPARE(notices.size(), 1);
+        QVERIFY2(notices[0].contains(QLatin1String(".docx")) && notices[0].contains(QLatin1String(".rtf")), qPrintable(notices[0]));
+        QVERIFY2(suggested.endsWith(QLatin1String("old.docx")), qPrintable(suggested));
+        QFile again(path);
+        QVERIFY(again.open(QIODevice::ReadOnly));
+        QCOMPARE(again.readAll(), rtf);
+        WriteWindow b;
+        QVERIFY(b.openFile(w.filePath()));
+        QCOMPARE(b.document()->story()->toPlainText().left(9), QStringLiteral("!Old text"));
+    }
+
+    // Document files dropped on the pages open; a picture dropped there is put in the text; and several files at once each open.
+    void droppingDocumentFilesOpensThemAndAPictureStaysAPicture()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString one = writeFile(dir, QStringLiteral("one.rtf"), "{\\rtf1\\ansi First dropped\\par}");
+        const QString two = writeFile(dir, QStringLiteral("two.rtf"), "{\\rtf1\\ansi Second dropped\\par}");
+        const QString pic = dir.filePath(QStringLiteral("pic.png"));
+        QImage image(8, 8, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        QVERIFY(image.save(pic));
+        auto windows = [] {
+            int n = 0;
+            for (QWidget *top : QApplication::topLevelWidgets())
+                if (qobject_cast<WriteWindow *>(top)) ++n;
+            return n;
+        };
+        auto drop = [](QWidget *target, const QStringList &paths) {
+            QMimeData mime;
+            QList<QUrl> urls;
+            for (const QString &path : paths) urls << QUrl::fromLocalFile(path);
+            mime.setUrls(urls);
+            QDragEnterEvent enter(QPoint(10, 10), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(target, &enter);
+            const bool accepted = enter.isAccepted();
+            QDropEvent dropped(QPointF(10, 10), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(target, &dropped);
+            return accepted;
+        };
+        WriteWindow w;
+        w.show();
+        const int base = windows();
+        // One .rtf: opened in this window, which was empty and untouched.
+        QVERIFY(drop(w.view()->viewport(), {one}));
+        QTRY_VERIFY2(windows() > base || w.document()->story()->toPlainText().contains(QLatin1String("First dropped")), "nothing opened");
+        QVERIFY2(w.document()->story()->toPlainText().contains(QLatin1String("First dropped")), qPrintable(QStringLiteral("windows %1 base %2").arg(windows()).arg(base)));
+        QCOMPARE(windows(), base);
+        // A picture: put in the text, and no window opens.
+        QVERIFY(drop(w.view()->viewport(), {pic}));
+        QCOMPARE(windows(), base);
+        QVERIFY(w.isModified());
+        // Two files together: a window for each.
+        QVERIFY(drop(w.view()->viewport(), {one, two}));
+        QTRY_COMPARE(windows(), base + 2);
+        // Something that is neither is not taken.
+        QVERIFY(!drop(w.view()->viewport(), {dir.filePath(QStringLiteral("none.xyz"))}));
+        QCOMPARE(windows(), base + 2);
+        QList<WriteWindow *> extra;
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (auto *ww = qobject_cast<WriteWindow *>(top); ww && ww != &w) extra << ww;
+        for (WriteWindow *ww : extra) ww->close();
+    }
+
+    // A field's instruction is never run: opening a document with one that names an address on this machine reaches nothing, and no picture comes of it.
+    void aFieldThatNamesAPictureOrAnAddressIsNeverFollowed()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QTcpServer server;
+        QVERIFY(server.listen(QHostAddress::LocalHost));
+        const QByteArray url = "http://127.0.0.1:" + QByteArray::number(server.serverPort()) + "/x.png";
+        const QString path = writeFile(dir, QStringLiteral("fields.rtf"),
+                                       "{\\rtf1\\ansi\\pard {\\field{\\*\\fldinst INCLUDEPICTURE \"" + url + "\"}{\\fldrslt shown}} {\\field{\\*\\fldinst HYPERLINK \"" + url + "\"}{\\fldrslt link}}\\par}");
+        WriteWindow w;
+        QVERIFY(w.openFile(path));
+        QVERIFY(w.document()->pager().pageCount() >= 1);
+        QVERIFY(!server.waitForNewConnection(300));
+        QVERIFY(w.document()->story()->toPlainText().contains(QLatin1String("shown")));
+    }
+
+    void anRtfFileWithPartsTheLimitsCutSaysSoAndKeepsTheRest()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QByteArray rtf = "{\\rtf1\\ansi Kept text ";
+        rtf += "{\\pict\\pngblip 0102}\\par}";
+        WriteWindow w;
+        QStringList notices;
+        w.setNotifier([&](const QString &, const QString &text) { notices << text; });
+        QVERIFY(w.openFile(writeFile(dir, QStringLiteral("cut.rtf"), rtf)));
+        QVERIFY(w.document()->story()->toPlainText().contains(QLatin1String("Kept text")));
+        QVERIFY(w.document()->leftSomethingOut());
+        QCOMPARE(notices.size(), 1);
     }
 
     void unsavedWorkIsKeptAndComesBack()

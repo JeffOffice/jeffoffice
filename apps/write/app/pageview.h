@@ -34,6 +34,8 @@ class PageView : public QAbstractScrollArea {
     Q_OBJECT
 public:
     enum class ZoomMode { Percent, PageWidth, OnePage, ManyPages };
+    // The local document files (.docx, .doc, .rtf...) a drag holds, at most 20.
+    static QStringList documentFilesIn(const QMimeData *mime);
 
     explicit PageView(QWidget *parent = nullptr);
     ~PageView() override;
@@ -185,6 +187,8 @@ public:
     void refresh();
 
 Q_SIGNALS:
+    // Document files dropped on the pages (the window opens them).
+    void documentsDropped(const QStringList &paths);
     void zoomChanged(double zoom);
     void pagesChanged();                    // how many pages there are, or whether all are known
     void caretChanged();                    // the caret moved or the selection changed
@@ -208,6 +212,7 @@ protected:
     void dragEnterEvent(QDragEnterEvent *e) override;
     void dragMoveEvent(QDragMoveEvent *e) override;
     void dropEvent(QDropEvent *e) override;
+    bool m_documentDrag = false;   // what is being dragged over is a document file, which the window opens
     void contextMenuEvent(QContextMenuEvent *e) override;
     void focusInEvent(QFocusEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;

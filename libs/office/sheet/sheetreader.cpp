@@ -13,10 +13,14 @@
 #include "sheet/csv.h"
 #include "sheet/ods.h"
 #include "sheet/xls.h"
+#include "sheet/xlscrypt.h"
+#include "sheet/odscrypt.h"
+#include "sheet/sheetcrypt.h"
 #include "sheet/xlsxbase.h"
 #include "sheet/pagesetup.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QFileInfo>
 #include <QSet>
@@ -1925,15 +1929,25 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
     return true;
 }
 
-bool Workbook::openStream(const QByteArray &stream, bool hasMacros, QString *error, const Limits &limits)
+bool Workbook::openStream(const QByteArray &given, bool hasMacros, QString *error, const Limits &limits)
 {
     *this = Workbook();
     m_limits = limits;
+    m_limits.password.clear();
+    m_limits.passwordNeed = nullptr;
+    m_limits.usedDefaultPassword = nullptr;
+    QByteArray stream = given;
+    if (biffEncrypted(stream) && !passwordGate(limits, error, [&](const QString &password) { return decryptBiff(&stream, password, false); })) {
+        *this = Workbook();
+        return false;
+    }
+    const bool wasProtected = biffEncrypted(given);
     const auto xls = XlsBook::open(stream, hasMacros, limits, &m_info, &m_shared, &m_styles, error);
     if (!xls) {
         *this = Workbook();
         return false;
     }
+    m_protected = wasProtected;
     m_xls = xls;
     nameBaseParts();
     return true;
@@ -2072,9 +2086,6 @@ QString plainKindOfText(const QByteArray &bytes)
     return QString();
 }
 
-// The message for a workbook that asks for a password (an encrypted package, or an encrypted .xls): the same words for both.
-QString encryptedMessage() { return QCoreApplication::translate("Sheet", "The workbook is encrypted, and this program can't open an encrypted workbook yet."); }
-
 // What a file that is none of the kinds this program opens says it is, from its first bytes, in words for the person (never empty: a file nothing is known of is said to be that).
 QString notAWorkbookMessage(const QByteArray &head, qint64 size)
 {
@@ -2129,6 +2140,23 @@ QString otherPackageMessage(const Package &package)
 
 bool Workbook::openBinary(const QByteArray &file, QString *error, const Limits &limits)
 {
+    PasswordNeed need = PasswordNeed::None;
+    bool usedDefault = false;
+    Limits mine = limits;
+    mine.passwordNeed = &need;
+    mine.usedDefaultPassword = &usedDefault;
+    const bool ok = openBinaryWith(file, error, mine);
+    if (ok && m_protected) m_fileDigest = QCryptographicHash::hash(file, QCryptographicHash::Sha256);
+    m_limits.password.clear();
+    m_limits.passwordNeed = nullptr;
+    m_limits.usedDefaultPassword = nullptr;
+    m_passwordNeed = need;
+    m_defaultPassword = ok && usedDefault;
+    return ok;
+}
+
+bool Workbook::openBinaryWith(const QByteArray &file, QString *error, const Limits &limits)
+{
     if (file.size() > limits.fileBytes) {
         if (error) *error = tooLargeMessage();
         return false;
@@ -2156,16 +2184,52 @@ bool Workbook::openBinary(const QByteArray &file, QString *error, const Limits &
     if (stream.isEmpty()) {
         // (a workbook that is there and can't be read is damaged; the file that has none is another thing)
         const bool there = container.find(QStringLiteral("Workbook")) >= 0 || container.find(QStringLiteral("Book")) >= 0;
-        if (error) *error = !container.stream(QStringLiteral("EncryptionInfo")).isEmpty() ? encryptedMessage()
-                            : there ? QCoreApplication::translate("Sheet", "The file is damaged: the workbook in it can't be read.")
-                                    : QCoreApplication::translate("Sheet", "This file is a compound file, but it has no workbook in it.");
+        const QByteArray info = container.stream(QStringLiteral("EncryptionInfo"));
+        if (!info.isEmpty()) return openProtectedPackage(info, container.stream(QStringLiteral("EncryptedPackage")), error, limits);
+        if (error) *error = there ? QCoreApplication::translate("Sheet", "The file is damaged: the workbook in it can't be read.")
+                                  : QCoreApplication::translate("Sheet", "This file is a compound file, but it has no workbook in it.");
         return false;
     }
     const bool macros = holdsMacroProject([&](const QString &path) { return !container.stream(path).isEmpty(); });
     return openStream(stream, macros, error, limits);
 }
 
+bool Workbook::openProtectedPackage(const QByteArray &info, const QByteArray &package, QString *error, const Limits &limits)
+{
+    QByteArray zip;
+    if (!passwordGate(limits, error, [&](const QString &password) { return office::decryptPackage(info, package, password, limits.fileBytes, false, &zip, limits.cancelled); })) return false;
+    const bool ok = openPackageBytes(zip, error, limits);
+    if (ok) m_protected = true;
+    return ok;
+}
+
 bool Workbook::openFile(const QString &path, QString *error, const Limits &limits)
+{
+    PasswordNeed need = PasswordNeed::None;
+    bool usedDefault = false;
+    Limits mine = limits;
+    mine.passwordNeed = &need;
+    mine.usedDefaultPassword = &usedDefault;
+    const bool ok = openFileWith(path, error, mine);
+    m_limits.password.clear();
+    m_limits.passwordNeed = nullptr;
+    m_limits.usedDefaultPassword = nullptr;
+    m_passwordNeed = need;
+    m_defaultPassword = ok && usedDefault;
+    return ok;
+}
+
+// A file that is protected with a password, whole: its bytes are read once, and the digest that tells later whether another program changed the file is of those same bytes.
+bool Workbook::openProtectedFile(const QString &path, QString *error, const Limits &limits)
+{
+    QByteArray bytes;
+    if (!readWholeFile(path, &bytes, error, limits.fileBytes)) return false;
+    const bool ok = openBinaryWith(bytes, error, limits);
+    if (ok && m_protected) m_fileDigest = QCryptographicHash::hash(bytes, QCryptographicHash::Sha256);
+    return ok;
+}
+
+bool Workbook::openFileWith(const QString &path, QString *error, const Limits &limits)
 {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -2185,12 +2249,15 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
         QString why, whyBook;
         QByteArray stream = jp::cfb::readStream(path, QStringLiteral("Workbook"), &why);
         if (stream.isEmpty()) stream = jp::cfb::readStream(path, QStringLiteral("Book"), &whyBook);
+        if (stream.isEmpty() && why.startsWith(QLatin1String("no stream")) && whyBook.startsWith(QLatin1String("no stream"))) {
+            // (a package protected with a password: the stream that says how, and the one that holds the package)
+            if (!jp::cfb::readStream(path, QStringLiteral("EncryptionInfo")).isEmpty()) return openProtectedFile(path, error, limits);
+        }
         if (stream.isEmpty()) {
             if (error) {
                 const bool workbookMissing = why.startsWith(QLatin1String("no stream")), bookMissing = whyBook.startsWith(QLatin1String("no stream"));
                 if (workbookMissing && bookMissing)
-                    *error = !jp::cfb::readStream(path, QStringLiteral("EncryptionInfo")).isEmpty() ? encryptedMessage()
-                                                                                                    : QCoreApplication::translate("Sheet", "This file is a compound file, but it has no workbook in it.");
+                    *error = QCoreApplication::translate("Sheet", "This file is a compound file, but it has no workbook in it.");
                 else {
                     // (one of them is there and can't be read: with no reason given, it is still damaged)
                     const QString reason = !workbookMissing ? why : whyBook;
@@ -2199,6 +2266,7 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
             }
             return false;
         }
+        if (biffEncrypted(stream)) return openProtectedFile(path, error, limits);
         const bool macros = holdsMacroProject([&](const QString &stream) { return !jp::cfb::readStream(path, stream).isEmpty(); });
         return openStream(stream, macros, error, limits);
     }
@@ -2228,7 +2296,16 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
     }
     QByteArray bytes;
     if (!readWholeFile(path, &bytes, error, limits.fileBytes)) return false;
-    if (zip && looksLikeOpenDocumentZip(bytes)) return openOpenDocument(bytes, false, error, limits);
+    if (zip && looksLikeOpenDocumentZip(bytes)) {
+        const bool ok = openOpenDocument(bytes, false, error, limits);
+        if (ok && m_protected) m_fileDigest = QCryptographicHash::hash(bytes, QCryptographicHash::Sha256);   // (of the very bytes that were read)
+        return ok;
+    }
+    return openPackageBytes(bytes, error, limits);
+}
+
+bool Workbook::openPackageBytes(const QByteArray &bytes, QString *error, const Limits &limits)
+{
     Package package;
     QString why;
     if (!package.readLazy(bytes, &why)) {

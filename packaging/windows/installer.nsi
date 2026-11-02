@@ -112,10 +112,12 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW DirShow
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
+; A suite starts nothing when it's done: the finish page names the apps that
+; were installed and says where to find them.
+Var FinishText
+!define MUI_PAGE_CUSTOMFUNCTION_PRE FinishPre
 !define MUI_FINISHPAGE_TITLE "${SUITE} is ready"
-!define MUI_FINISHPAGE_TEXT "${SUITE} ${VERSION} is installed. You'll find its apps in the Start menu."
-!define MUI_FINISHPAGE_RUN "$INSTDIR\${EXE}"
-!define MUI_FINISHPAGE_RUN_TEXT "Start ${APP}"
+!define MUI_FINISHPAGE_TEXT "$FinishText"
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_WELCOME
 !insertmacro MUI_UNPAGE_CONFIRM
@@ -372,6 +374,7 @@ Section /o "${WRITE}: documents (preview)" SecWrite
   !insertmacro WriteOpensWith ".doc"
   !insertmacro WriteOpensWith ".dot"
   !insertmacro WriteOpensWith ".odt"
+  !insertmacro WriteOpensWith ".rtf"
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd
 !else
@@ -448,6 +451,61 @@ Section "Send anonymous usage statistics" SecStats
 SectionEnd
 
 SectionGroupEnd
+
+; The finish page reads the section flags, so these come after the sections.
+; Builds "To start an app, open the Start menu and click A, B, or C." from the
+; apps that were selected, with "or" before the last and commas from three up.
+Function FinishPre
+  StrCpy $R0 0
+  StrCpy $R1 ""
+  StrCpy $R3 ""
+  ${If} ${SectionIsSelected} ${SecMain}
+    IntOp $R0 $R0 + 1
+    StrCpy $R2 "${APP}"
+    Call FinishAddName
+  ${EndIf}
+  ${If} ${SectionIsSelected} ${SecDeck}
+    IntOp $R0 $R0 + 1
+    StrCpy $R2 "${DECK}"
+    Call FinishAddName
+  ${EndIf}
+  !ifdef WITH_WRITE
+  ${If} ${SectionIsSelected} ${SecWrite}
+    IntOp $R0 $R0 + 1
+    StrCpy $R2 "${WRITE}"
+    Call FinishAddName
+  ${EndIf}
+  !endif
+  !ifdef WITH_CRUNCH
+  ${If} ${SectionIsSelected} ${SecCrunch}
+    IntOp $R0 $R0 + 1
+    StrCpy $R2 "${CRUNCH}"
+    Call FinishAddName
+  ${EndIf}
+  !endif
+  ; $R3 holds the last name until the end, so it gets the "or".
+  ${If} $R0 == 0
+    StrCpy $FinishText "${SUITE} ${VERSION} is installed."
+  ${ElseIf} $R0 == 1
+    StrCpy $FinishText "${SUITE} ${VERSION} is installed.$\r$\n$\r$\nTo start it, open the Start menu and click $R3."
+  ${ElseIf} $R0 == 2
+    StrCpy $FinishText "${SUITE} ${VERSION} is installed.$\r$\n$\r$\nTo start an app, open the Start menu and click $R1 or $R3."
+  ${Else}
+    StrCpy $FinishText "${SUITE} ${VERSION} is installed.$\r$\n$\r$\nTo start an app, open the Start menu and click $R1, or $R3."
+  ${EndIf}
+FunctionEnd
+
+; Moves the previous last name ($R3) onto the list ($R1) and makes $R2 the last.
+Function FinishAddName
+  ${If} $R3 != ""
+    ${If} $R1 == ""
+      StrCpy $R1 "$R3"
+    ${Else}
+      StrCpy $R1 "$R1, $R3"
+    ${EndIf}
+  ${EndIf}
+  StrCpy $R3 "$R2"
+FunctionEnd
 
 ; Lays the components page out so every option shows at once, with no scrolling: the list spans the
 ; page and is as tall as its 12 rows, the description and the space needed sit under it, and the
@@ -658,6 +716,7 @@ Section "Uninstall"
   !insertmacro un.WriteOpensWith ".doc"
   !insertmacro un.WriteOpensWith ".dot"
   !insertmacro un.WriteOpensWith ".odt"
+  !insertmacro un.WriteOpensWith ".rtf"
   DeleteRegKey HKCU "Software\Classes\JeffWrite.Document"
   DeleteRegKey HKCU "Software\Classes\Applications\${WRITEEXE}"
   DeleteRegKey HKCU "${WRITESETKEY}"

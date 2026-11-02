@@ -75,6 +75,7 @@ class PageLayoutSource;
 }
 namespace office::sheet { struct PageSetup; }
 class FormulaHelper;
+class FunctionArgumentsDialog;
 class HelpView;
 class HelpWindow;
 class Ribbon;
@@ -173,6 +174,9 @@ public:
     bool insertFunction(const QString &name);
     // What Pick a Function asks (the function's name): a dialog unless this stands in for it (tests); false gives it up.
     void setFunctionAsker(const std::function<bool(QString *)> &asker) { m_functionAsker = asker; }
+    // The Function Arguments dialog that follows (or comes first, when the cursor is in a function's brackets): a stand-in for the person (tests) gets the dialog, fills it, and says whether OK was
+    // pressed. When Pick a Function is stood in for and this is not, the formula is only begun with the function (see insertFunction).
+    void setArgumentsAsker(const std::function<bool(FunctionArgumentsDialog *)> &asker) { m_argumentsAsker = asker; }
 
     // ---- the Formulas tab (crunchwindow_formulas.cpp, crunchwindow_names.cpp, crunchwindow_calc.cpp, crunchwindow_audit.cpp)
     // The help while a formula is typed (the list of functions and names that fit, and the arguments of the function being typed).
@@ -662,6 +666,10 @@ private:
     void createFunctionActions();
     void insertFunctionCommand();
     std::function<bool(QString *)> m_functionAsker;
+    std::function<bool(FunctionArgumentsDialog *)> m_argumentsAsker;
+    void functionArguments(const crunch::FunctionDoc &doc, const QStringList &arguments, int start, int end, const QString &writtenName = QString(), const QStringList &raw = QStringList());
+    QPointer<FunctionArgumentsDialog> m_argsDialog;   // the Function Arguments dialog while it is open
+    QString functionHelpTopic(const QString &name) const;
     // tables (crunchwindow_tables.cpp): how they are drawn, their header buttons, the commands that change them, and their ribbon tab
     void createTableActions();
     void tableRibbonParts(RibbonParts &parts);
@@ -1037,6 +1045,11 @@ private:
     bool openAddress(const QUrl &url);
     // ---- opening a text file of values (crunchwindow_text.cpp)
     bool askTextImport(const QString &path, std::shared_ptr<const jp::office::sheet::CsvImport> *chosen);
+    // A file that needs a password (or was given a wrong one): asks for it, and reads the file again with it (false: the person cancelled, and the open ends).
+    bool askFilePasswordAgain(bool wrong);
+    // "Protect with Password": the password the workbook is saved with (asked twice), or none (removed). It is kept in memory while the workbook is open, and wiped when it is closed.
+    void protectWithPassword();
+    void forgetFilePassword();
     bool m_promptForText = false, m_forceTextPrompt = false;
     // ---- automatic row heights (crunchwindow_autoheight.cpp)
     void scheduleAutoHeights();
@@ -1060,6 +1073,13 @@ private:
     void updateProtectActions();
     void protectSheet();
     void protectWorkbook();
+    QString m_filePassword, m_pendingPassword;
+    bool m_fileProtected = false;      // the workbook is written protected with a password (m_filePassword; empty: the password every program knows)
+    bool m_diskProtected = false;      // the file on disk is protected: what it holds is not what the package's bytes are
+    QByteArray m_diskDigest;           // the digest of the protected file's bytes as this program last read or wrote them
+    std::shared_ptr<QByteArray> m_savedDigest;   // what the save that is going writes (the thread fills it)
+    bool m_protectionChanged = false;
+    bool hasUserPassword() const { return m_fileProtected && !m_filePassword.isEmpty(); }   // (a file protected only with the password every program knows has none of a person's)  // a password was set or removed since the last save: that is a change to save
     void guardSelection();
     void askPassword(const QString &what, const jp::office::sheet::PasswordHash &hash, const std::function<void()> &onRight);
     void hashPassword(const QString &typed, const std::function<void(const jp::office::sheet::PasswordHash &)> &done);

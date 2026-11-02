@@ -1,4 +1,6 @@
 #include "sheet/ods.h"
+#include "sheet/odscrypt.h"
+#include "sheet/sheetcrypt.h"
 
 #include "calc/dates.h"
 #include "io/zipindex.h"
@@ -1798,16 +1800,32 @@ QStringList OdsBook::changed() const
     return out;
 }
 
-bool Workbook::openOpenDocument(const QByteArray &file, bool flat, QString *error, const Limits &limits)
+bool Workbook::openOpenDocument(const QByteArray &given, bool flat, QString *error, const Limits &limits)
 {
     *this = Workbook();
     m_limits = limits;
+    m_limits.password.clear();
+    m_limits.passwordNeed = nullptr;
+    m_limits.usedDefaultPassword = nullptr;
+    QByteArray file = given;
+    bool decrypted = false;
+    // (a package with parts protected by a password is read as the package of those parts, plain)
+    if (!flat && odsEncrypted(file)) {
+        QByteArray plain;
+        if (!passwordGate(limits, error, [&](const QString &password) { return decryptOds(file, password, limits.fileBytes, false, &plain, limits.cancelled); })) {
+            *this = Workbook();
+            return false;
+        }
+        file = plain;
+        decrypted = true;
+    }
     const auto book = OdsBook::open(file, flat, limits, &m_info, &m_shared, &m_styles, error);
     if (!book) {
         *this = Workbook();
         return false;
     }
     m_foreign = book;
+    m_protected = decrypted;
     nameBaseParts();
     return true;
 }

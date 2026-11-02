@@ -80,6 +80,7 @@ void MainWindow::createActions()
     mk("file.close", tr("Close"), "x", QKeySequence(Qt::CTRL | Qt::Key_F4), [this] {
         if (maybeSave()) newPublication(Document::blank(QSizeF(612, 792)));
     });
+    act("file.close")->setShortcuts({QKeySequence(Qt::CTRL | Qt::Key_F4), QKeySequence(Qt::CTRL | Qt::Key_W)});   // (Ctrl+W is Close in other programs on every desktop)
     mk("file.properties", tr("Properties"), "info", QKeySequence(), [this] { documentPropertiesDialog(this, m_ed); });
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] { optionsDialog(this, m_ed); });
     mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [ed] { ed->undo(); });

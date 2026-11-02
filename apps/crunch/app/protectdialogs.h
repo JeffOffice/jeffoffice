@@ -31,6 +31,23 @@ struct PasswordRequest {
     QString password;   // out
 };
 
+// The box that protects the whole file with a password: the password and its confirmation, and, when the file has one, a button that removes it.
+class SetFilePasswordDialog : public QDialog {
+    Q_OBJECT
+public:
+    explicit SetFilePasswordDialog(bool hasPassword, QWidget *parent = nullptr);
+    QString password() const;
+    bool removed() const { return m_removed; }
+    // Empties the two boxes (the password is not left in them once it has been read).
+    void clearPasswords();
+
+private:
+    void accept() override;
+    QLineEdit *m_password = nullptr, *m_again = nullptr;
+    QLabel *m_problem = nullptr;
+    bool m_removed = false;
+};
+
 class ProtectSheetDialog : public QDialog {
     Q_OBJECT
 public:

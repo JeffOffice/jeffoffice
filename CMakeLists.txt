@@ -194,6 +194,7 @@ qt_add_executable(officetests
   tests/office/tst_office_fonts.cpp
   tests/office/tst_office_odraw.cpp
   tests/office/tst_office_package.cpp
+  tests/office/tst_office_rtf.cpp
   tests/office/tst_office_text.cpp
   tests/office/tst_office_theme.cpp
   tests/office/tst_office_xmlwrite.cpp)
@@ -228,6 +229,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_chartedit.cpp
   tests/sheet/tst_sheet_drawing.cpp
   tests/sheet/tst_sheet_cells.cpp
+  tests/sheet/tst_sheet_crypt.cpp
   tests/sheet/tst_sheet_tablemodel.cpp
   tests/sheet/tst_sheet_edit.cpp
   tests/sheet/tst_sheet_entry.cpp
@@ -453,6 +455,9 @@ target_compile_definitions(writetests PRIVATE JW_SOURCE_DIR="${CMAKE_SOURCE_DIR}
 set_target_properties(writetests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME writetests COMMAND writetests)
 set_tests_properties(writetests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+qt_add_executable(rtfsweep tests/write/rtfsweep.cpp)
+target_link_libraries(rtfsweep PRIVATE jwcore)
+set_target_properties(rtfsweep PROPERTIES WIN32_EXECUTABLE OFF EXCLUDE_FROM_ALL TRUE)
 qt_add_executable(writereviewtests tests/write/tst_write_review.cpp)
 target_link_libraries(writereviewtests PRIVATE jwcore Qt6::Test)
 set_target_properties(writereviewtests PROPERTIES WIN32_EXECUTABLE OFF)
@@ -532,6 +537,7 @@ endif()
 
 # The checks every app's window must pass, one program for each app (they share tests/appchecks/appchecks.h): the first five minutes of a person who
 # launches the app with no file, the standard commands of every app, and every command run once on a blank document and on one opened from a file.
+option(JO_XCB_RIBBON_CHECKS "Also run each app's ribbon layout check on a real X screen (needs DISPLAY)" OFF)
 function(jo_app_checks name core source)
   qt_add_executable(${name} tests/testrunner.cpp tests/appchecks/appchecks.cpp tests/appchecks/${source})
   target_link_libraries(${name} PRIVATE ${core} Qt6::Test)
@@ -540,6 +546,11 @@ function(jo_app_checks name core source)
   set_target_properties(${name} PROPERTIES WIN32_EXECUTABLE OFF)
   add_test(NAME ${name} COMMAND ${name})
   set_tests_properties(${name} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+  # The ribbon's layout again on a real X screen, as a person sees it (opt-in: -DJO_XCB_RIBBON_CHECKS=ON; with no DISPLAY the test is skipped, not failed).
+  if(JO_XCB_RIBBON_CHECKS AND UNIX AND NOT APPLE)
+    add_test(NAME ${name}_xcb COMMAND sh -c "[ -n \"$DISPLAY\" ] || exit 77; QT_QPA_PLATFORM=xcb exec $<TARGET_FILE:${name}> ribbonLayout")
+    set_tests_properties(${name}_xcb PROPERTIES SKIP_RETURN_CODE 77)
+  endif()
 endfunction()
 jo_app_checks(pubchecks jpcore tst_appchecks_pub.cpp)
 if(TARGET jdcore)

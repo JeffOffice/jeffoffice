@@ -10365,7 +10365,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+5"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+2"/>
         <source>Clipboard</source>
         <translation type="unfinished">Área de Transferência</translation>
@@ -10572,6 +10572,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+2"/>
         <source>Links</source>
         <translation type="unfinished">Ligações</translation>
@@ -10588,7 +10589,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+2"/>
         <source>Margins</source>
         <translation type="unfinished">Margens</translation>
@@ -10870,7 +10871,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+3"/>
         <source>Tables</source>
         <translation type="unfinished">Tabelas</translation>
@@ -11097,7 +11098,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-55"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-57"/>
         <source>Cell Size</source>
         <translation type="unfinished">Tamanho da Célula</translation>
     </message>
@@ -11311,7 +11312,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+33"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+34"/>
         <source>Table Style Options</source>
         <translation type="unfinished">Opções de Estilo de Tabela</translation>
     </message>
@@ -11378,12 +11379,12 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
         <source>Width:</source>
         <translation type="unfinished">Largura:</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-60"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-63"/>
         <source>Accept</source>
         <translation type="unfinished">Aceitar</translation>
     </message>
@@ -11402,6 +11403,11 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-11"/>
         <source>Breaks</source>
         <translation type="unfinished">Quebras</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Captions and References</source>
+        <translation type="unfinished">Legendas e Referências</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -11434,7 +11440,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Espaçamento entre Linhas e Parágrafos</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Options</source>
         <translation type="unfinished">Opções</translation>
     </message>
@@ -11464,7 +11470,12 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Espaçamento Antes:</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+8"/>
+        <source>Table of Contents</source>
+        <translation type="unfinished">Índice</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Text Highlight Color</source>
         <translation type="unfinished">Cor de Realce do Texto</translation>
     </message>
@@ -14767,7 +14778,7 @@ Paginação eletrónica</translation>
         <translation type="unfinished">(Continuação da página %1)</translation>
     </message>
     <message>
-        <location line="+6091"/>
+        <location line="+6093"/>
         <source>Notes</source>
         <translation type="unfinished">Notas</translation>
     </message>
@@ -35333,7 +35344,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="+66"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+68"/>
         <source>Document%1</source>
         <translation type="unfinished">Documento%1</translation>
     </message>
@@ -35353,7 +35364,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+103"/>
+        <location line="+104"/>
         <source>Undo</source>
         <translation type="unfinished">Anular</translation>
     </message>
@@ -35909,12 +35920,12 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Alinhamento da Célula</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="+136"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+137"/>
         <source>This document has the most notes JeffWrite can hold (%1), so no more can be added.</source>
         <translation type="unfinished">Este documento tem o número máximo de notas que o JeffWrite suporta (%1), pelo que não é possível adicionar mais.</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+46"/>
         <source>Page %1 of %2</source>
         <translation type="unfinished">Página %1 de %2</translation>
     </message>
@@ -36698,6 +36709,122 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+51"/>
         <source>Copy Formatting: select the text to paint. Press Esc to stop.</source>
         <translation type="unfinished">Copiar formatação: selecione o texto ao qual pretende aplicar a formatação. Prima Esc para parar.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_fields.cpp" line="+40"/>
+        <source>The table of contents is updated.</source>
+        <translation type="unfinished">O índice foi atualizado.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The table of contents has more than %1 lines, so it stops there.</source>
+        <translation type="unfinished">O índice tem mais de %1 linhas, pelo que termina aí.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>There is no field here to update. Select text, or press Ctrl+A first, to update every field in it.</source>
+        <translation type="unfinished">Não existe nenhum campo aqui para atualizar. Selecione texto, ou prima Ctrl+A primeiro, para atualizar todos os campos nele contidos.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Fields updated: %1.</source>
+        <translation type="unfinished">Campos atualizados: %1.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Update Field</source>
+        <translation type="unfinished">Atualizar Campo</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Unlink Field</source>
+        <translation type="unfinished">Desligar Campo</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Lock Field</source>
+        <translation type="unfinished">Bloquear Campo</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Unlock Field</source>
+        <translation type="unfinished">Desbloquear Campo</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Toggle Field Code</source>
+        <translation type="unfinished">Alternar Código de Campo</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Toggle All Field Codes</source>
+        <translation type="unfinished">Alternar Todos os Códigos de Campo</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Field…</source>
+        <translation type="unfinished">Campo…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Bookmark…</source>
+        <translation type="unfinished">Marcador…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Cross-reference…</source>
+        <translation type="unfinished">Referência cruzada…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Table of Contents…</source>
+        <translation type="unfinished">Índice…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Update Table</source>
+        <translation type="unfinished">Atualizar Índice</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+5"/>
+        <source>Put the caret in a table of contents first.</source>
+        <translation type="unfinished">Coloque primeiro o cursor num índice.</translation>
+    </message>
+    <message>
+        <location line="-1"/>
+        <source>Remove Table of Contents</source>
+        <translation type="unfinished">Remover Índice</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>There is no other endnote in that direction.</source>
+        <translation type="unfinished">Não existe nenhuma outra nota de fim nessa direção.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>There is no other footnote in that direction.</source>
+        <translation type="unfinished">Não existe nenhuma outra nota de rodapé nessa direção.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Next Footnote</source>
+        <translation type="unfinished">Nota de Rodapé Seguinte</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Previous Footnote</source>
+        <translation type="unfinished">Nota de Rodapé Anterior</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Next Endnote</source>
+        <translation type="unfinished">Nota de Fim Seguinte</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Previous Endnote</source>
+        <translation type="unfinished">Nota de Fim Anterior</translation>
     </message>
 </context>
 <context>
@@ -39908,6 +40035,54 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     </message>
 </context>
 <context>
+    <name>jp::write::Bookmarks</name>
+    <message>
+        <location filename="../apps/write/core/refops.cpp" line="+111"/>
+        <source>Type a name for the bookmark.</source>
+        <translation type="unfinished">Escreva um nome para o marcador.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A bookmark name has 40 characters at most.</source>
+        <translation type="unfinished">O nome de um marcador tem, no máximo, 40 carateres.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A bookmark name must begin with a letter.</source>
+        <translation type="unfinished">O nome de um marcador tem de começar por uma letra.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>A bookmark name has letters, numbers, and underscores only (no spaces).</source>
+        <translation type="unfinished">O nome de um marcador só pode ter letras, números e carateres de sublinhado (sem espaços).</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>A bookmark goes in the text, not in a header, a footer, or a note.</source>
+        <translation type="unfinished">Um marcador tem de ficar no texto, não num cabeçalho, num rodapé ou numa nota.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This document has the most bookmarks JeffWrite holds.</source>
+        <translation type="unfinished">Este documento já tem o número máximo de marcadores que o JeffWrite suporta.</translation>
+    </message>
+    <message>
+        <location line="+219"/>
+        <source>A cross-reference goes in the text, not in a header, a footer, or a note.</source>
+        <translation type="unfinished">Uma referência cruzada tem de ficar no texto, não num cabeçalho, num rodapé ou numa nota.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>That cannot be referred to that way.</source>
+        <translation type="unfinished">Não é possível fazer referência a isso dessa forma.</translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>The reference could not be put there.</source>
+        <translation type="unfinished">Não foi possível colocar a referência aí.</translation>
+    </message>
+</context>
+<context>
     <name>jp::write::Dialogs</name>
     <message>
         <location filename="../apps/write/app/writedialogs.cpp" line="+427"/>
@@ -40395,6 +40570,336 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     </message>
 </context>
 <context>
+    <name>jp::write::FieldDialogs</name>
+    <message>
+        <location filename="../apps/write/app/fielddialogs.cpp" line="+39"/>
+        <location line="+102"/>
+        <source>Bookmark</source>
+        <translation type="unfinished">Marcador</translation>
+    </message>
+    <message>
+        <location line="-100"/>
+        <source>Bookmark name:</source>
+        <translation type="unfinished">Nome do marcador:</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Bookmarks</source>
+        <translation type="unfinished">Marcadores</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Sort by:</source>
+        <translation type="unfinished">Ordenar por:</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Name</source>
+        <translation type="unfinished">Nome</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Location</source>
+        <translation type="unfinished">Localização</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Hidden bookmarks</source>
+        <translation type="unfinished">Marcadores ocultos</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Add</source>
+        <translation type="unfinished">Adicionar</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Delete</source>
+        <translation type="unfinished">Eliminar</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Go To</source>
+        <translation type="unfinished">Ir Para</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <location line="+6"/>
+        <source>There is no such bookmark.</source>
+        <translation type="unfinished">Esse marcador não existe.</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Cross-reference</source>
+        <translation type="unfinished">Referência cruzada</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Heading</source>
+        <translation type="unfinished">Título</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Footnote</source>
+        <translation type="unfinished">Nota de rodapé</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Endnote</source>
+        <translation type="unfinished">Nota de fim</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Numbered item</source>
+        <translation type="unfinished">Item numerado</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Reference type:</source>
+        <translation type="unfinished">Tipo de referência:</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Insert reference to:</source>
+        <translation type="unfinished">Inserir referência a:</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Insert as hyperlink</source>
+        <translation type="unfinished">Inserir como hiperligação</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>For which item:</source>
+        <translation type="unfinished">Para que item:</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Items</source>
+        <translation type="unfinished">Itens</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Insert</source>
+        <translation type="unfinished">Inserir</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Heading text</source>
+        <translation type="unfinished">Texto do título</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+2"/>
+        <location line="+3"/>
+        <location line="+2"/>
+        <location line="+1"/>
+        <source>Page number</source>
+        <translation type="unfinished">Número de página</translation>
+    </message>
+    <message>
+        <location line="-8"/>
+        <source>Heading number</source>
+        <translation type="unfinished">Número do título</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Heading number (no context)</source>
+        <translation type="unfinished">Número do título (sem contexto)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Heading number (full context)</source>
+        <translation type="unfinished">Número do título (contexto completo)</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+2"/>
+        <location line="+2"/>
+        <location line="+2"/>
+        <location line="+2"/>
+        <source>Above/below</source>
+        <translation type="unfinished">Acima/abaixo</translation>
+    </message>
+    <message>
+        <location line="-7"/>
+        <source>Bookmark text</source>
+        <translation type="unfinished">Texto do marcador</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+4"/>
+        <source>Paragraph number</source>
+        <translation type="unfinished">Número do parágrafo</translation>
+    </message>
+    <message>
+        <location line="-4"/>
+        <location line="+4"/>
+        <source>Paragraph number (no context)</source>
+        <translation type="unfinished">Número do parágrafo (sem contexto)</translation>
+    </message>
+    <message>
+        <location line="-3"/>
+        <location line="+3"/>
+        <source>Paragraph number (full context)</source>
+        <translation type="unfinished">Número do parágrafo (contexto completo)</translation>
+    </message>
+    <message>
+        <location line="-1"/>
+        <source>Note number</source>
+        <translation type="unfinished">Número da nota</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Note number (formatted)</source>
+        <translation type="unfinished">Número da nota (formatado)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Paragraph text</source>
+        <translation type="unfinished">Texto do parágrafo</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Entire caption</source>
+        <translation type="unfinished">Legenda completa</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Only label and number</source>
+        <translation type="unfinished">Apenas etiqueta e número</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Only caption text</source>
+        <translation type="unfinished">Apenas texto da legenda</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Choose an item to refer to.</source>
+        <translation type="unfinished">Escolha um item a que fazer referência.</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>Field</source>
+        <translation type="unfinished">Campo</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Field names:</source>
+        <translation type="unfinished">Nomes dos campos:</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Field names</source>
+        <translation type="unfinished">Nomes dos campos</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>Field codes:</source>
+        <translation type="unfinished">Códigos de campo:</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>This field is kept as it is and not worked out.</source>
+        <translation type="unfinished">Este campo é mantido tal como está e não é calculado.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <location line="+49"/>
+        <source>Table of Contents</source>
+        <translation type="unfinished">Índice</translation>
+    </message>
+    <message>
+        <location line="-47"/>
+        <source>Show page numbers</source>
+        <translation type="unfinished">Mostrar números de página</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Right align page numbers</source>
+        <translation type="unfinished">Alinhar números de página à direita</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Use hyperlinks</source>
+        <translation type="unfinished">Utilizar hiperligações</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>(none)</source>
+        <translation type="unfinished">(nenhum)</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Tab leader:</source>
+        <translation type="unfinished">Carácter de preenchimento:</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Show levels:</source>
+        <translation type="unfinished">Mostrar níveis:</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>The document has more headings than a table of contents holds, so the table stops at the first 20,000.</source>
+        <translation type="unfinished">O documento tem mais títulos do que um índice pode conter, pelo que o índice termina nos primeiros 20 000.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Update Table of Contents</source>
+        <translation type="unfinished">Atualizar Índice</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>What do you want to update?</source>
+        <translation type="unfinished">O que pretende atualizar?</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Update page numbers only</source>
+        <translation type="unfinished">Atualizar apenas os números de página</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Update entire table</source>
+        <translation type="unfinished">Atualizar todo o índice</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::Fields</name>
+    <message>
+        <location filename="../apps/write/core/fieldcode.cpp" line="+952"/>
+        <location line="+10"/>
+        <location filename="../apps/write/core/fieldops.cpp" line="+469"/>
+        <source>above</source>
+        <translation type="unfinished">acima</translation>
+    </message>
+    <message>
+        <location line="-10"/>
+        <location line="+10"/>
+        <location filename="../apps/write/core/fieldops.cpp" line="+0"/>
+        <source>below</source>
+        <translation type="unfinished">abaixo</translation>
+    </message>
+    <message>
+        <location line="+48"/>
+        <source>Error: the bookmark this refers to is missing.</source>
+        <translation type="unfinished">Erro: o marcador a que isto se refere não existe.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Error: no bookmark by this name.</source>
+        <translation type="unfinished">Erro: não existe nenhum marcador com este nome.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/core/tocops.cpp" line="+282"/>
+        <location line="+52"/>
+        <source>No headings were found for this table of contents.</source>
+        <translation type="unfinished">Não foram encontrados títulos para este índice.</translation>
+    </message>
+</context>
+<context>
     <name>jp::write::GoTo</name>
     <message>
         <location filename="../apps/write/core/gotoops.cpp" line="+29"/>
@@ -40583,7 +41088,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Não é possível abrir %1 como imagem.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+2002"/>
+        <location filename="../apps/write/core/editops.cpp" line="+2017"/>
         <location filename="../apps/write/core/pictureops.cpp" line="+487"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">As imagens deste documento já atingem, no total, o tamanho máximo que o JeffWrite permite num documento, pelo que esta não é adicionada.</translation>

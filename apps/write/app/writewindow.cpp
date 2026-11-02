@@ -28,7 +28,12 @@
 #include <QApplication>
 #include <QDockWidget>
 #include <QCloseEvent>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFileInfo>
+#include <QMimeData>
+#include <QTimer>
+#include <QUrl>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QMenu>
@@ -54,6 +59,7 @@ int s_untitledCount = 0;
 WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
 {
     setObjectName(QStringLiteral("writeWindow"));
+    setAcceptDrops(true);
     setWindowIcon(drawnIcon([](QPainter *p, const QRectF &r) {
         p->setPen(Qt::NoPen);
         p->setBrush(appInfo().accent);
@@ -67,6 +73,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     }));
     m_untitled = tr("Document%1").arg(++s_untitledCount);
     m_view = new write::PageView(this);
+    connect(m_view, &write::PageView::documentsDropped, this, &WriteWindow::openDropped);
     m_view->setAccessibleName(tr("Document"));
     m_view->setAccessibleDescription(tr("The pages of the document. Type to write; the arrow keys move the caret."));
     m_ribbon = new Ribbon(this);
@@ -201,7 +208,7 @@ void WriteWindow::updateTitle()
 {
     // A document that came from an old binary file shows its whole name, so its kind is plain until it is saved as a .docx.
     const QString ending = QFileInfo(m_path).suffix().toLower();
-    const QString shown = ending == QLatin1String("doc") || ending == QLatin1String("dot") ? QFileInfo(m_path).fileName() : displayName();
+    const QString shown = ending == QLatin1String("doc") || ending == QLatin1String("dot") || ending == QLatin1String("rtf") ? QFileInfo(m_path).fileName() : displayName();
     setWindowTitle(QStringLiteral("%1%2 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name));
 }
 
@@ -639,6 +646,31 @@ bool WriteWindow::maybeSave()
     if (box.clickedButton() != box.button(QMessageBox::Discard)) return false;
     dropRecoveryCopy();
     return true;
+}
+
+void WriteWindow::dragEnterEvent(QDragEnterEvent *e)
+{
+    if (!write::PageView::documentFilesIn(e->mimeData()).isEmpty()) e->acceptProposedAction();
+    else e->ignore();
+}
+
+void WriteWindow::dropEvent(QDropEvent *e)
+{
+    const QStringList paths = write::PageView::documentFilesIn(e->mimeData());
+    if (paths.isEmpty()) {
+        e->ignore();
+        return;
+    }
+    e->acceptProposedAction();
+    openDropped(paths);
+}
+
+void WriteWindow::openDropped(const QStringList &paths)
+{
+    // (After the drop is over: opening can show a message, which must not run inside the drag.)
+    QTimer::singleShot(0, this, [this, paths] {
+        for (const QString &p : paths) openFile(p);
+    });
 }
 
 void WriteWindow::closeEvent(QCloseEvent *e)

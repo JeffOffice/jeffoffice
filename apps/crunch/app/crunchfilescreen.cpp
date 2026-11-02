@@ -35,6 +35,10 @@ CrunchFileScreen::CrunchFileScreen(CrunchWindow *win) : FileScreen(win), m_win(w
         Q_EMIT closeRequested();
         if (m_win->act("file.saveAs")->isEnabled()) m_win->act("file.saveAs")->trigger();
     });
+    addCommand(QStringLiteral("protectPassword"), QStringLiteral("key"), tr("Protect with Password"), [this] {
+        Q_EMIT closeRequested();
+        if (m_win->act("protect.password")->isEnabled()) m_win->act("protect.password")->trigger();
+    });
     addPage(QStringLiteral("print"), QStringLiteral("printer"), tr("Print"));
     addPage(QStringLiteral("export"), QStringLiteral("file-output"), tr("Export"));
     addCommand(QStringLiteral("close"), QStringLiteral("circle-x"), tr("Close"), [this] { m_win->act("file.close")->trigger(); Q_EMIT closeRequested(); });

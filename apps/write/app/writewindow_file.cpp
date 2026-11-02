@@ -48,12 +48,14 @@ bool isWrittenEnding(const QString &path)
 bool isOldBinary(const QString &path)
 {
     const QString ending = QFileInfo(path).suffix().toLower();
-    return ending == QLatin1String("doc") || ending == QLatin1String("dot");
+    return ending == QLatin1String("doc") || ending == QLatin1String("dot") || ending == QLatin1String("rtf");
 }
+
+bool isRichText(const QString &path) { return QFileInfo(path).suffix().compare(QLatin1String("rtf"), Qt::CaseInsensitive) == 0; }
 
 QString fileKind(const QString &path)
 {
-    static const QStringList kinds = {QStringLiteral("docx"), QStringLiteral("dotx"), QStringLiteral("docm"), QStringLiteral("dotm"), QStringLiteral("doc"), QStringLiteral("dot"), QStringLiteral("odt"), QStringLiteral("fodt"), QStringLiteral("ott")};
+    static const QStringList kinds = {QStringLiteral("docx"), QStringLiteral("dotx"), QStringLiteral("docm"), QStringLiteral("dotm"), QStringLiteral("doc"), QStringLiteral("dot"), QStringLiteral("rtf"), QStringLiteral("odt"), QStringLiteral("fodt"), QStringLiteral("ott")};
     const QString ending = QFileInfo(path).suffix().toLower();
     return kinds.contains(ending) ? ending : QStringLiteral("other");
 }
@@ -69,7 +71,7 @@ void WriteWindow::createFileActions()
     });
     mk("file.open", tr("Open"), "folder-open", QKeySequence::Open, [this] {
         const QString p = QFileDialog::getOpenFileName(this, tr("Open Document"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
-                                                       tr("Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.odt *.fodt *.ott)") + QStringLiteral(";;") + tr("All Files (*)"));
+                                                       tr("Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott)") + QStringLiteral(";;") + tr("Rich Text Format (*.rtf)") + QStringLiteral(";;") + tr("OpenDocument Text (*.odt *.fodt *.ott)") + QStringLiteral(";;") + tr("All Files (*)"));
         if (p.isEmpty()) return;
         Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
         openFile(p);
@@ -144,7 +146,8 @@ bool WriteWindow::save()
         notice(tr("Save"), tr("Part of this file couldn't be opened, so saving it here would lose that part: choose a new name for the copy."));
         return saveAs();
     }
-    if (isOldBinary(m_path)) notice(tr("Save"), tr("This document came from an older .doc file, which %1 doesn't write, so it is saved as a new .docx file.").arg(appInfo().name));
+    if (isRichText(m_path)) notice(tr("Save"), tr("This document came from an .rtf file, which %1 doesn't write, so it is saved as a new .docx file.").arg(appInfo().name));
+    else if (isOldBinary(m_path)) notice(tr("Save"), tr("This document came from an older .doc file, which %1 doesn't write, so it is saved as a new .docx file.").arg(appInfo().name));
     if (m_path.isEmpty() || !isWrittenEnding(m_path)) return saveAs();
     return saveTo(m_path);
 }
