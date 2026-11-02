@@ -144,6 +144,7 @@ void CrunchWindow::createPivotActions()
             for (PivotField &pf : t->fields) {
                 pf.compact = form == 2;
                 pf.outline = form != 0;
+                pf.subtotalTop = form != 0;   // (the compact and outline forms have their subtotals at the top of the group, the tabular form at the bottom)
             }
         }, tr("Report Layout"), true);
     };

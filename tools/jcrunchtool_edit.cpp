@@ -2492,6 +2492,7 @@ int pivotEdit(const QString &in, const QString &outPath, const QString &op)
                 for (jp::office::sheet::PivotField &pf : table.fields) {
                     pf.compact = form == 2;
                     pf.outline = form != 0;
+                    pf.subtotalTop = form != 0;
                 }
                 structure = true;
             } else if (op == QLatin1String("grandtotals-off")) {

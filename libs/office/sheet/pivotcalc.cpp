@@ -52,9 +52,17 @@ Fn fnOfLine(const QString &t)
     return fnOf(t);
 }
 
+// A sum as the original program adds: a result that is only the rounding left over from two nearly equal numbers cancelling is zero.
+static double addNumbers(double a, double b, double big)
+{
+    const double r = a + b;
+    if (r != 0 && std::fabs(r) < 1e-15 * std::max(big, std::max(std::fabs(a), std::fabs(b)))) return 0;
+    return r;
+}
+
 struct Acc {
     qint64 n = 0, nn = 0;   // values that are not missing, and those of them that are numbers
-    double sum = 0, mean = 0, m2 = 0, prod = 1;
+    double sum = 0, big = 0, mean = 0, m2 = 0, prod = 1;
     double mn = std::numeric_limits<double>::infinity(), mx = -std::numeric_limits<double>::infinity();
     QString error;
     void add(const PivotValue &v)
@@ -68,7 +76,8 @@ struct Acc {
         if (!v.isNumeric()) return;
         ++nn;
         const double x = v.number;
-        sum += x;
+        sum = addNumbers(sum, x, big);
+        big = std::max(big, std::max(std::fabs(x), std::fabs(sum)));
         prod *= x;
         const double delta = x - mean;
         mean += delta / double(nn);
@@ -86,7 +95,8 @@ struct Acc {
             m2 += o.m2 + delta * delta * double(nn) * double(o.nn) / double(total);
             mean += delta * double(o.nn) / double(total);
             nn = total;
-            sum += o.sum;
+            sum = addNumbers(sum, o.sum, std::max(big, o.big));
+            big = std::max(big, o.big);
             prod *= o.prod;
             mn = std::min(mn, o.mn);
             mx = std::max(mx, o.mx);
@@ -419,7 +429,14 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
     struct LeafKey {
         int row, col;
     };
-    std::unordered_map<quint64, Acc> leafAcc;
+    // what each record adds to, in the order of the records: its place on each axis, the record, and which value (the original program adds the values of a cell in the order of the records,
+    // one at a time, so that the last digits of a total are those it has)
+    struct Entry {
+        int row, col;
+        qint32 record;
+        qint32 value;
+    };
+    std::vector<Entry> entries;
     // the fields sorted by a value: the value of each group of items is worked out in the order of the records, as the program that made the file does (ties and the last digits depend on it)
     struct SortSpec {
         std::vector<char> byValue, desc;
@@ -474,10 +491,9 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             if (ci.second) colTuples.push_back(ct);
             // (more lines than a sheet has rows, or columns than it has, are refused before the lines are made)
             if (rowTuples.size() > size_t(kPivotMaxRows) || colTuples.size() > size_t(kPivotMaxCols)) return fail(QStringLiteral("the table would have too many lines"));
-            Acc &a = leafAcc[(quint64(ri.first->second) << 32) | quint32(ci.first->second)];
+            entries.push_back({ri.first->second, ci.first->second, qint32(r), qint32(d)});
             if (D > 0) {
                 const PivotValue &val = c.fields[t.dataFields[d].fld].items[c.fields[t.dataFields[d].fld].records[r]];
-                a.add(val);
                 for (int pass = 0; pass < 2; ++pass) {
                     SortSpec &sp = pass == 0 ? rowSort : colSort;
                     if (!sp.any) continue;
@@ -486,7 +502,7 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
                         if (sp.byValue[l] && sp.data[l] == d) sp.groups[l][keyOf(Tuple(tp.begin(), tp.begin() + l + 1))].add(val);
                 }
             }
-            if (qint64(leafAcc.size()) > kPivotMaxLeaves) return fail(QStringLiteral("too many combinations"));
+            if (qint64(entries.size()) > kPivotMaxLeaves) return fail(QStringLiteral("too many combinations"));
         }
     }
 
@@ -584,11 +600,12 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
 
     // the values
     std::vector<Acc> acc(size_t(nRI) * size_t(nCI));
-    for (const auto &kv : leafAcc) {
-        const int rl = rowNew[int(kv.first >> 32)], cl = colNew[int(kv.first & 0xffffffffu)];
-        for (int ri : rowAx.members[rl])
-            for (int ci : colAx.members[cl]) acc[size_t(ri) * nCI + ci].merge(kv.second);
-    }
+    if (D > 0)
+        for (const Entry &e : entries) {
+            const PivotValue &val = c.fields[t.dataFields[e.value].fld].items[c.fields[t.dataFields[e.value].fld].records[e.record]];
+            for (int ri : rowAx.members[rowNew[e.row]])
+                for (int ci : colAx.members[colNew[e.col]]) acc[size_t(ri) * nCI + ci].add(val);
+        }
 
     // the grid
     out->rowItems = rowAx.items;
@@ -600,13 +617,15 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
     const bool tabular = rowForm == 0;
     const int labelCols = compact ? 1 : std::max(1, nR);
     const bool lone = nC == 0 && dataSlotRow < 0;   // no column field and one value
-    const int captionRow = tabular ? ((nC > 0 || lone) ? 1 : 0) : (realC > 0 ? 1 : 0);
-    const int itemRows = std::max(nC, 1);
+    const bool bare = lone && nR == 0;               // and no row field: the value's name, and one line "Total" with the value
+    // (a table with the classic grid has the line of the value's name over the others in every form, the tabular one's own and the others' too)
+    const int captionRow = bare ? 1 : (tabular ? ((nC > 0 || lone) ? 1 : 0) : ((realC > 0 || (lone && t.gridDropZones)) ? 1 : 0));
+    const int itemRows = bare ? 0 : std::max(nC, 1);
     const int headerRows = captionRow + itemRows;
     const int lastItemsRow = headerRows - 1;
     out->firstDataRow = headerRows;
     out->firstDataCol = labelCols;
-    out->firstHeaderRow = captionRow > 0 ? 1 : 0;
+    out->firstHeaderRow = nC == 0 ? headerRows : captionRow;
     out->rows = headerRows + nRI;
     out->cols = std::max(labelCols + nCI, (tabular && captionRow > 0) ? labelCols + nC : 0);
     if (qint64(out->rows) * out->cols > kPivotMaxOutputCells) return fail(QStringLiteral("the table would have too many cells"));
@@ -733,9 +752,9 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             }
         }
     }
-    rowLabels(lastItemsRow);
-    if (nC == 0) {
-        if (tabular || !oneValue) set(lastItemsRow, labelCols, text(QStringLiteral("Total")));
+    if (!bare) rowLabels(lastItemsRow);
+    if (nC == 0 && !bare) {
+        if (tabular || captionRow > 0 || !oneValue) set(lastItemsRow, labelCols, text(QStringLiteral("Total")));
         else set(lastItemsRow, labelCols, text(t.dataFields[0].name));
     }
     // the values

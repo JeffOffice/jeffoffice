@@ -539,6 +539,9 @@ private Q_SLOTS:
         // Region checked out, then in
         pane->checkField(0, false);
         finish(e);
+        // (a table with no rows is two lines high, so the cursor on the old last line is outside it; the pane follows the cursor)
+        QCOMPARE(pivotShown(e, QStringLiteral("E3:F4")), QStringLiteral("Sum of Amount|\nTotal|49"));
+        e.select(QStringLiteral("F4"));
         QCOMPARE(pane->box(2)->count(), 0);
         pane->checkField(0, true);
         finish(e);
@@ -600,6 +603,14 @@ private Q_SLOTS:
         QVERIFY2(computePivot(table, cache, &grid, &why), qPrintable(why));
         QCOMPARE(grid.rows, 5);
         QCOMPARE(grid.at(4, 3).number, 49.0);
+        QVERIFY(!table.fields[0].subtotalTop);   // the tabular form has its subtotals at the bottom of a group
+        // the compact form puts them on top
+        e.win.w.act(QStringLiteral("pivot.layout.compact"))->trigger();
+        finish(e);
+        QVERIFY(saveNow(e));
+        PivotTable compact;
+        QVERIFY2(readPivotTable(readParts(e.path).value(QStringLiteral("xl/pivotTables/pivotTable1.xml")), &compact, &why), qPrintable(why));
+        QVERIFY(compact.fields[0].subtotalTop);
         Q_UNUSED(s)
     }
 

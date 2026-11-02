@@ -580,6 +580,70 @@ private Q_SLOTS:
         QVERIFY(!pivotCheckShape(table, swapped, rec, &why));
     }
 
+    // A sum is added in the order of the records, and what is left of two numbers that cancel is nothing (the original program shows 0, not 5.5e-17).
+    void sumsAreAddedInRecordOrderAndCancelToZero()
+    {
+        const QByteArray rec = "<pivotCacheRecords xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"6\">"
+                               "<r><x v=\"0\"/><x v=\"0\"/><n v=\"0.1\"/></r><r><x v=\"0\"/><x v=\"0\"/><n v=\"0.2\"/></r><r><x v=\"0\"/><x v=\"1\"/><n v=\"-0.3\"/></r>"
+                               "<r><x v=\"1\"/><x v=\"0\"/><n v=\"1e16\"/></r><r><x v=\"1\"/><x v=\"1\"/><n v=\"1\"/></r><r><x v=\"1\"/><x v=\"1\"/><n v=\"-1e16\"/></r></pivotCacheRecords>";
+        const Worked w = work(tableDefinition(false), cacheDefinition(), rec);
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(rowText(w.grid, 2), (QStringList{QStringLiteral("East"), QStringLiteral("0")}));   // 0.1 + 0.2 - 0.3
+        QCOMPARE(w.grid.at(3, 1).number, (1e16 + 1.0) - 1e16);
+    }
+
+    // The line of the value's name: there in every form of a table with the classic grid, and a table with nothing on its sides has one line for it and one for "Total".
+    void theCaptionLineAndABareTable()
+    {
+        QString xml = QString::fromUtf8(tableDefinition(false));
+        xml.replace(QStringLiteral("<rowFields count=\"1\"><field x=\"0\"/></rowFields>"), QString());
+        xml.replace(QStringLiteral("axis=\"axisRow\" "), QString());
+        xml.replace(QStringLiteral("<items count=\"3\"><item x=\"0\"/><item x=\"1\"/><item t=\"default\"/></items>"), QString());
+        Worked w = work(xml.toUtf8());
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(w.grid.rows, 2);
+        QCOMPARE(rowText(w.grid, 0), (QStringList{QStringLiteral("Sum of Amount"), QString()}));
+        QCOMPARE(rowText(w.grid, 1), (QStringList{QStringLiteral("Total"), QStringLiteral("49")}));
+        QCOMPARE(w.grid.firstDataRow, 1);
+        // one row field in the compact form: the caption line only with the classic grid
+        QString compact = QString::fromUtf8(tableDefinition(false));
+        compact.replace(QStringLiteral("compact=\"0\" outline=\"0\" showAll=\"0\""), QStringLiteral("showAll=\"0\""));
+        compact.replace(QStringLiteral("compact=\"0\" compactData=\"0\""), QStringLiteral("compactData=\"0\""));
+        w = work(compact.toUtf8());
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(rowText(w.grid, 0), (QStringList{QStringLiteral("Row Labels"), QStringLiteral("Sum of Amount")}));
+        QCOMPARE(w.grid.firstDataRow, 1);
+        QString classic = compact;
+        classic.replace(QStringLiteral("<pivotTableDefinition "), QStringLiteral("<pivotTableDefinition gridDropZones=\"1\" "));
+        w = work(classic.toUtf8());
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(rowText(w.grid, 0), (QStringList{QStringLiteral("Sum of Amount"), QString()}));
+        QCOMPARE(rowText(w.grid, 1), (QStringList{QStringLiteral("Row Labels"), QStringLiteral("Total")}));
+    }
+
+    // Marks that do not agree with the items are what the original program will not open: a date among numbers, a blank among dates, shared strings that differ only in case.
+    void theShapeCheckRefusesWhatTheOriginalRefuses()
+    {
+        const Worked w = work(tableDefinition(true));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        PivotTable placed = w.table;
+        pivotApplyGrid(&placed, w.grid, 2, 4);
+        const QByteArray def = writePivotCacheDefinition(cacheDefinition(), w.cache, w.cache.recordCount, 45001.5, DateSystem::Date1900);
+        const QByteArray rec = writePivotCacheRecords(w.cache, DateSystem::Date1900);
+        const QByteArray table = writePivotTable(tableDefinition(true), placed, false);
+        QString why;
+        QVERIFY2(pivotCheckShape(table, def, rec, &why), qPrintable(why));
+        QByteArray d = def;
+        d.replace("<s v=\"West\"/>", "<s v=\"east\"/>");
+        QVERIFY(!pivotCheckShape(table, d, rec, &why));
+        d = def;
+        d.replace("<s v=\"West\"/>", "<d v=\"2023-03-15T00:00:00\"/>");
+        QVERIFY(!pivotCheckShape(table, d, rec, &why));   // a date item among the strings, with nothing saying so
+        d = def;
+        d.replace("containsInteger=\"1\"", "containsInteger=\"1\" containsDate=\"1\"");
+        QVERIFY(!pivotCheckShape(table, d, rec, &why));
+    }
+
     // A day the calendar has no date for (day 60 of the 1900 system, a negative day) is a number item in the definition, in the records, and in the marks of the field.
     void daysWithNoDateAreWrittenAsNumbers()
     {
@@ -604,7 +668,7 @@ private Q_SLOTS:
         const QByteArray original = "<pivotCacheDefinition xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><cacheSource type=\"worksheet\"><worksheetSource ref=\"A1:B4\" sheet=\"S\"/></cacheSource><cacheFields count=\"2\"/></pivotCacheDefinition>";
         const QByteArray def = writePivotCacheDefinition(original, c, 3, 45000, DateSystem::Date1900);
         QVERIFY2(def.contains("<n v=\"60\"/>") && def.contains("<n v=\"-5\"/>") && def.contains("<d v=\"2023-03-15T00:00:00\"/>"), def.constData());
-        QVERIFY2(def.contains("minValue=\"-5\"") && def.contains("maxValue=\"60\"") && def.contains("minDate=\"2023-03-15T00:00:00\""), def.constData());
+        QVERIFY2(def.contains("containsMixedTypes=\"1\"") && !def.contains("minValue") && def.contains("minDate=\"2023-03-15T00:00:00\""), def.constData());
         const QByteArray rec = writePivotCacheRecords(c, DateSystem::Date1900);
         QVERIFY2(rec.contains("<n v=\"60\"/>") && rec.contains("<n v=\"-5\"/>") && rec.contains("<d v=\"2023-03-15T00:00:00\"/>"), rec.constData());
         QVERIFY(!rec.contains("1900-"));
