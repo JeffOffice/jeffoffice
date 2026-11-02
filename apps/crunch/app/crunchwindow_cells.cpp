@@ -54,8 +54,8 @@ void CrunchWindow::createCellsActions()
     mk("format.columnWidth", tr("Column Width…"), "", QKeySequence(), [this] { setSizeDialog(true); });
     mk("format.defaultWidth", tr("Default Width…"), "", QKeySequence(), [this] { defaultSizeDialog(true); });
     mk("format.defaultHeight", tr("Default Row Height…"), "", QKeySequence(), [this] { defaultSizeDialog(false); });
-    mk("format.fitRow", tr("AutoFit Row Height"), "", QKeySequence(), [this] { fitSelection(false); });
-    mk("format.fitColumn", tr("AutoFit Column Width"), "", QKeySequence(), [this] { fitSelection(true); });
+    mk("format.fitRow", tr("Fit Row Height"), "", QKeySequence(), [this] { fitSelection(false); });
+    mk("format.fitColumn", tr("Fit Column Width"), "", QKeySequence(), [this] { fitSelection(true); });
     mk("format.hideRows", tr("Hide Rows"), "", QKeySequence(Qt::CTRL | Qt::Key_9), [this] { hideSelection(false, true); });
     mk("format.hideColumns", tr("Hide Columns"), "", QKeySequence(Qt::CTRL | Qt::Key_0), [this] { hideSelection(true, true); });
     mk("format.unhideRows", tr("Unhide Rows"), "", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_ParenLeft), [this] { hideSelection(false, false); });

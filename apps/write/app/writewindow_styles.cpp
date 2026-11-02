@@ -1,4 +1,4 @@
-// JeffWrite's styles and the tools beside them: the Styles pane, Create Style and Modify Style, Update Style to Match Selection, the Format Painter, and Go To (the work on the
+// JeffWrite's styles and the tools beside them: the Styles pane, Create Style and Modify Style, Update Style to Match Selection, the Copy Formatting, and Go To (the work on the
 // document is core/styleops.h and core/gotoops.h).
 
 #include "app/writewindow.h"
@@ -31,7 +31,7 @@ void WriteWindow::createStyleActions()
         if (!write::updateStyleToSelection(*m_doc, m_view->cursor(), &why) && !why.isEmpty()) statusBar()->showMessage(why, 8000);
         m_view->setFocus(Qt::OtherFocusReason);
     });
-    QAction *painter = mk("edit.formatPainter", tr("Format Painter"), "paintbrush", QKeySequence(), [this] {
+    QAction *painter = mk("edit.formatPainter", tr("Copy Formatting"), "paintbrush", QKeySequence(), [this] {
         // A second click within the time of a double click keeps the painter on (a double click on the button does the same through its own event).
         const qint64 now = QDateTime::currentMSecsSinceEpoch();
         if (m_painter == PainterMode::Once && now - m_painterPicked < QApplication::doubleClickInterval()) {
@@ -44,7 +44,7 @@ void WriteWindow::createStyleActions()
         }
         act(QStringLiteral("edit.formatPainter"))->setChecked(m_painter != PainterMode::Off);
     }, true);
-    painter->setToolTip(tr("Format Painter: click to paint once, double-click to keep painting, and press Esc to stop."));
+    painter->setToolTip(tr("Copy Formatting: click to paint once, double-click to keep painting, and press Esc to stop."));
     mk("edit.copyFormat", tr("Copy Format"), "", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C), [this] {
         if (!m_doc) return;
         m_brush = write::copyFormat(*m_doc, m_view->cursor());
@@ -110,7 +110,7 @@ void WriteWindow::setPainterMode(PainterMode mode)
     act(QStringLiteral("edit.formatPainter"))->setChecked(mode != PainterMode::Off);
     m_view->setTextDragAllowed(mode == PainterMode::Off);
     if (mode == PainterMode::Off) statusBar()->clearMessage();
-    else statusBar()->showMessage(tr("Format Painter: select the text to paint. Press Esc to stop."));
+    else statusBar()->showMessage(tr("Copy Formatting: select the text to paint. Press Esc to stop."));
 }
 
 void WriteWindow::paintFormatNow()

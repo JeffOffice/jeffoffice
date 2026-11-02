@@ -7,7 +7,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Accept"),
     QT_TRANSLATE_NOOP("Ribbon", "Alignment"),
     QT_TRANSLATE_NOOP("Ribbon", "Arrange"),
-    QT_TRANSLATE_NOOP("Ribbon", "AutoFit"),
+    QT_TRANSLATE_NOOP("Ribbon", "Fit"),
     QT_TRANSLATE_NOOP("Ribbon", "Borders"),
     QT_TRANSLATE_NOOP("Ribbon", "Borders and Shading"),
     QT_TRANSLATE_NOOP("Ribbon", "Breaks"),

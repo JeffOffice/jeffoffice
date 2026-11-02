@@ -6,7 +6,7 @@ JeffOffice is a free, open-source office suite for **Windows, macOS, and Linux**
 
 - **JeffPub**, for desktop publishing: flyers, newsletters, brochures, business cards, certificates, and other print pieces. It opens and saves Microsoft Publisher files.
 - **JeffDeck**, for presentations: it makes slides, plays slide shows, and opens PowerPoint files (`.pptx` and the older `.ppt`) and OpenDocument presentations (`.odp`), and saves `.pptx` and `.odp`.
-- **JeffWrite** (a preview), for documents: it opens Word files (`.docx` and the older `.doc`) and saves `.docx`, with tables, headers and footers, footnotes and endnotes, pictures (insert, size, move, and wrap them) and text boxes, page setup, a ruler, styles (a Styles pane, and making and changing styles), a Format Painter, Go To, drag-and-drop of text, spelling, printing, and PDF export.
+- **JeffWrite** (a preview), for documents: it opens Word files (`.docx` and the older `.doc`) and saves `.docx`, with tables, headers and footers, footnotes and endnotes, pictures (insert, size, move, and wrap them) and text boxes, page setup, a ruler, styles (a Styles pane, and making and changing styles), Copy Formatting, Go To, drag-and-drop of text, spelling, printing, and PDF export.
 - **JeffCrunch** (a preview), for spreadsheets: it opens workbooks (`.xlsx` and `.xlsm`, the older `.xls`, OpenDocument `.ods`, and text files of values such as `.csv`) and saves `.xlsx` (and `.xls` and `.ods` copies), with formulas, formatting, sorting and filtering, charts, and printing.
 
 More apps are on the way: JeffMail for email and calendars, and JeffBase for databases. Each will come in an update once it's ready.

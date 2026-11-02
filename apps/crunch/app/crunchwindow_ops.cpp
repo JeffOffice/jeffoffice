@@ -31,7 +31,7 @@ using jp::office::sheet::CellRange;
 void CrunchWindow::createOpsActions()
 {
     // AutoSum, and the functions of its menu
-    mk("edit.autosum", tr("AutoSum"), "sigma", crunch::autoSumKey(), [this] { autoSum(QStringLiteral("SUM")); });
+    mk("edit.autosum", tr("Sum"), "sigma", crunch::autoSumKey(), [this] { autoSum(QStringLiteral("SUM")); });
     mk("edit.autosum.sum", tr("Sum"), "sigma", QKeySequence(), [this] { autoSum(QStringLiteral("SUM")); });
     mk("edit.autosum.average", tr("Average"), "", QKeySequence(), [this] { autoSum(QStringLiteral("AVERAGE")); });
     mk("edit.autosum.count", tr("How Many Numbers"), "", QKeySequence(), [this] { autoSum(QStringLiteral("COUNT")); });
@@ -70,7 +70,7 @@ void CrunchWindow::autoSum(const QString &function)
     const qint64 before = m_loader.changesMade();
     const crunch::EditSession::AutoSumResult r = m_session->autoSum(m_sheet, range, function);
     if (!r.outcome.ok) {
-        notice(tr("AutoSum"), r.outcome.problem);
+        notice(tr("Sum"), r.outcome.problem);
         return;
     }
     if (r.kind == crunch::EditSession::AutoSumResult::Kind::Edit) {

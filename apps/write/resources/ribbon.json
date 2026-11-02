@@ -836,7 +836,7 @@
             {
               "large": {
                 "id": "ribbon.tableAutoFit",
-                "text": "AutoFit",
+                "text": "Fit",
                 "icon": "unfold-horizontal"
               },
               "keytip": "AF",

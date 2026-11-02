@@ -92,7 +92,7 @@ void changeLevel(Editor *ed, int dir)
 void DeckWindow::createFormatActions()
 {
     Editor *ed = m_ed;
-    mk("edit.formatPainter", tr("Format Painter"), "paintbrush", QKeySequence(), [ed] {
+    mk("edit.formatPainter", tr("Copy Formatting"), "paintbrush", QKeySequence(), [ed] {
         if (ed->tool() == Tool::FormatPainter) {
             ed->setTool(Tool::Select);
             return;

@@ -138,7 +138,7 @@ EditSession::AutoSumResult EditSession::autoSum(int sheet, const CellRange &sel,
         return out;
     }
     out.kind = AutoSumResult::Kind::Done;
-    pushStep(std::move(step), tr("AutoSum"));
+    pushStep(std::move(step), tr("Sum"));
     return out;
 }
 
