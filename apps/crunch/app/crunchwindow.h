@@ -1068,7 +1068,10 @@ private:
     QString m_filePassword, m_pendingPassword;
     bool m_fileProtected = false;      // the workbook is written protected with a password (m_filePassword; empty: the password every program knows)
     bool m_diskProtected = false;      // the file on disk is protected: what it holds is not what the package's bytes are
-    bool m_protectionChanged = false;  // a password was set or removed since the last save: that is a change to save
+    QByteArray m_diskDigest;           // the digest of the protected file's bytes as this program last read or wrote them
+    std::shared_ptr<QByteArray> m_savedDigest;   // what the save that is going writes (the thread fills it)
+    bool m_protectionChanged = false;
+    bool hasUserPassword() const { return m_fileProtected && !m_filePassword.isEmpty(); }   // (a file protected only with the password every program knows has none of a person's)  // a password was set or removed since the last save: that is a change to save
     void guardSelection();
     void askPassword(const QString &what, const jp::office::sheet::PasswordHash &hash, const std::function<void()> &onRight);
     void hashPassword(const QString &typed, const std::function<void(const jp::office::sheet::PasswordHash &)> &done);

@@ -9,7 +9,7 @@
 
 #include <QCryptographicHash>
 #include <QHash>
-#include <QPasswordDigestor>
+#include <QMessageAuthenticationCode>
 #include <QRegularExpression>
 #include <QXmlStreamReader>
 
@@ -87,6 +87,41 @@ bool readManifest(const QByteArray &zip, const QVector<jp::ZipEntry> &entries, Q
     return true;
 }
 
+// PBKDF2 with HMAC-SHA-1 (RFC 8018), in pieces that ask `cancelled` now and then; empty if it was stopped.
+QByteArray pbkdf2Sha1(const QByteArray &password, const QByteArray &salt, qint64 rounds, int length, const std::function<bool()> &cancelled)
+{
+    QMessageAuthenticationCode mac(QCryptographicHash::Sha1, password);
+    QByteArray out;
+    for (quint32 block = 1; out.size() < length; ++block) {
+        QByteArray index(4, 0);
+        index[0] = char(block >> 24);
+        index[1] = char(block >> 16);
+        index[2] = char(block >> 8);
+        index[3] = char(block);
+        mac.reset();
+        mac.addData(salt);
+        mac.addData(index);
+        QByteArray u = mac.result(), t = u;
+        for (qint64 i = 1; i < rounds; ++i) {
+            if ((i & 0x1FFF) == 0 && cancelled && cancelled()) {
+                crypto::wipe(u);
+                crypto::wipe(t);
+                crypto::wipe(out);
+                return QByteArray();
+            }
+            mac.reset();
+            mac.addData(u);
+            u = mac.result();
+            for (int k = 0; k < t.size(); ++k) t[k] = char(t[k] ^ u[k]);
+        }
+        out.append(t);
+        crypto::wipe(u);
+        crypto::wipe(t);
+    }
+    out.truncate(length);
+    return out;
+}
+
 QString cleanName(const QString &n) { return n.startsWith(QLatin1Char('/')) ? n.mid(1) : n; }
 
 QCryptographicHash::Algorithm startHash(const QString &name)
@@ -117,7 +152,7 @@ bool odsEncrypted(const QByteArray &zip)
     return readManifest(zip, entries, &found) && !found.isEmpty();
 }
 
-CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 maxBytes, bool verifyOnly, QByteArray *plain)
+CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 maxBytes, bool verifyOnly, QByteArray *plain, const std::function<bool()> &cancelled)
 {
     QVector<jp::ZipEntry> entries;
     if (!jp::readZipDirectory(zip, &entries)) return CryptResult::Damaged;
@@ -161,9 +196,11 @@ CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 ma
             result = CryptResult::Unsupported;
             break;
         }
+        // every size the manifest gives is checked before any work is done for it
         int keySize = p.keySize;
         if (keySize <= 0) keySize = !aes ? 16 : p.algorithm.contains(QLatin1String("128")) ? 16 : p.algorithm.contains(QLatin1String("192")) ? 24 : 32;
-        if (p.rounds < 1 || p.salt.isEmpty() || p.iv.isEmpty() || p.size < 0 || p.size > jp::kMaxZipEntryBytes || (aes && keySize != 16 && keySize != 24 && keySize != 32)) {
+        const bool keyFits = aes ? (keySize == 16 || keySize == 24 || keySize == 32) : (keySize >= 4 && keySize <= 56);
+        if (!keyFits || p.rounds < 1 || p.rounds > kMaxOdsKeyRounds || p.salt.isEmpty() || p.salt.size() > 1024 || p.iv.size() != (aes ? 16 : 8) || p.size < 0 || p.size > jp::kMaxZipEntryBytes) {
             result = CryptResult::Damaged;
             break;
         }
@@ -182,6 +219,7 @@ CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 ma
             const QByteArray cacheKey = p.salt + QByteArray::number(p.rounds) + ':' + QByteArray::number(keySize) + ':' + QByteArray::number(int(start));
             QByteArray key = keys.value(cacheKey);
             if (key.isEmpty()) {
+                // (each part was checked against the limit above, so the sum cannot overflow)
                 rounds += p.rounds;
                 if (rounds > kMaxOdsKeyRounds) {
                     result = CryptResult::Damaged;
@@ -189,8 +227,13 @@ CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 ma
                     break;
                 }
                 QByteArray startKey = QCryptographicHash::hash(pw, start);
-                key = QPasswordDigestor::deriveKeyPbkdf2(QCryptographicHash::Sha1, startKey, p.salt, quint64(p.rounds), quint64(keySize));
+                key = pbkdf2Sha1(startKey, p.salt, p.rounds, keySize, cancelled);
                 crypto::wipe(startKey);
+                if (key.isEmpty()) {
+                    result = CryptResult::Cancelled;
+                    broke = true;
+                    break;
+                }
                 keys.insert(cacheKey, key);
             }
             QByteArray data = QByteArray::fromRawData(zip.constData() + e.dataAt, qsizetype(e.csize));
@@ -214,7 +257,7 @@ CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 ma
                 broke = true;
                 break;
             }
-            if (QCryptographicHash::hash(QByteArrayView(plainBytes).left(1024), checksum) == p.checksum) {
+            if (crypto::equal(QCryptographicHash::hash(QByteArrayView(plainBytes).left(1024), checksum), p.checksum)) {
                 matched = true;
                 break;
             }

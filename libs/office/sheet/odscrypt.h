@@ -8,6 +8,8 @@
 #include <QByteArray>
 #include <QString>
 
+#include <functional>
+
 namespace jp::office::sheet {
 
 // True if the manifest of the zip says any part is enciphered.
@@ -15,7 +17,7 @@ bool odsEncrypted(const QByteArray &zip);
 
 // Checks the password against every enciphered part (or, with `verifyOnly`, the first one) and, unless `verifyOnly`, gives the zip with those parts deciphered and inflated.
 // More than `maxBytes` of parts is TooLarge.
-CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 maxBytes, bool verifyOnly, QByteArray *plain);
+CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 maxBytes, bool verifyOnly, QByteArray *plain, const std::function<bool()> &cancelled = nullptr);
 
 // The most rounds of key stretching that all the parts of a package may ask for together.
 constexpr qint64 kMaxOdsKeyRounds = 2000000;

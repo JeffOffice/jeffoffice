@@ -16,6 +16,9 @@ QByteArray aesCbc(const QByteArray &key, const QByteArray &iv, const QByteArray 
 class Rc4 {
 public:
     explicit Rc4(const QByteArray &key);
+    ~Rc4();
+    Rc4(const Rc4 &) = default;
+    Rc4 &operator=(const Rc4 &) = default;
     void apply(char *data, qsizetype size);
     QByteArray apply(const QByteArray &data);
     // Passes over `count` bytes of the keystream without using them.
@@ -30,6 +33,11 @@ private:
 QByteArray blowfishCfb(const QByteArray &key, const QByteArray &iv, const QByteArray &data, bool encrypt);
 // One block, for the tests of the cipher against the published values.
 QByteArray blowfishEcbBlock(const QByteArray &key, const QByteArray &block, bool encrypt);
+
+// Whether two byte strings are the same, taking the same time whatever the bytes are (for what a password is checked against).
+bool equal(const QByteArray &a, const QByteArray &b);
+// Zeroes memory with writes the compiler may not drop (a key schedule, a state of a cipher).
+void secureZero(void *where, size_t size);
 
 // Overwrites the bytes of a secret before it is let go (a password, a key): the block is zeroed with writes the compiler may not drop.
 void wipe(QByteArray &bytes);

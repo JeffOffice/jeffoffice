@@ -35,6 +35,8 @@ struct LoadedBook {
     // When the file was not opened for want of a password: it needs one, or the one given is not it (the window asks, and reads the file again).
     jp::office::sheet::PasswordNeed passwordNeed = jp::office::sheet::PasswordNeed::None;
     bool protectedFile = false;   // the file was protected with a password (the default one included): the window saves it protected again
+    bool defaultPasswordOnly = false;   // ... with only the password every program knows: there is no password of a person's to show or remove
+    QByteArray diskDigest;              // the digest of a protected file's bytes as they were read, to tell whether another program changed it
     std::shared_ptr<jp::office::sheet::Workbook> book;
     std::shared_ptr<jp::office::sheet::Sheet> preview;     // the first rows of one sheet
     int previewSheet = -1;                                  // which (from 0, in the workbook's order)
@@ -84,6 +86,9 @@ constexpr qint64 kFirstScreenRows = 1000;
 // The two steps of a read, as the worker does them (and a tool does them one after the other). `cancelled` is asked every few thousand cells: true stops it.
 // The first: opens the package and the workbook's own parts, and reads the first kFirstScreenRows rows of the sheet to show first. False, with a message, if the file can't be opened.
 // `blank`, if not empty, is the package of a workbook made in memory (see blankWorkbookBytes) and is read in place of the file at `path`.
+// The SHA-256 of the file's bytes (empty if it can't be read): how a protected file is told to be as this program last read or wrote it.
+QByteArray fileDigest(const QString &path);
+
 bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv = nullptr, const QByteArray &blank = QByteArray(),
                      const QString &password = QString());
 // The second: reads every sheet whole and registers the formulas in the calculation (out->calc). `progress` is told the sheet being read and the cells read of it. False if

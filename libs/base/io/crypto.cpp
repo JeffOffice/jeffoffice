@@ -5,6 +5,7 @@
 
 #include <QString>
 
+#include <algorithm>
 #include <cstring>
 
 namespace jp::crypto {
@@ -391,6 +392,20 @@ struct Blowfish {
 
 } // namespace
 
+void secureZero(void *where, size_t size)
+{
+    volatile unsigned char *p = static_cast<volatile unsigned char *>(where);
+    for (size_t i = 0; i < size; ++i) p[i] = 0;
+}
+
+bool equal(const QByteArray &a, const QByteArray &b)
+{
+    unsigned diff = unsigned(a.size() != b.size());
+    const qsizetype n = std::min(a.size(), b.size());
+    for (qsizetype i = 0; i < n; ++i) diff |= unsigned(quint8(a[i]) ^ quint8(b[i]));
+    return diff == 0;
+}
+
 QByteArray aesEcb(const QByteArray &key, const QByteArray &data, bool encrypt)
 {
     AesKey k;
@@ -402,7 +417,7 @@ QByteArray aesEcb(const QByteArray &key, const QByteArray &data, bool encrypt)
         if (encrypt) k.encryptBlock(in + at, o + at);
         else k.decryptBlock(in + at, o + at);
     }
-    std::memset(&k, 0, sizeof k);
+    secureZero(&k, sizeof k);
     return out;
 }
 
@@ -426,7 +441,9 @@ QByteArray aesCbc(const QByteArray &key, const QByteArray &iv, const QByteArray 
             std::memcpy(chain, in + at, 16);
         }
     }
-    std::memset(&k, 0, sizeof k);
+    secureZero(&k, sizeof k);
+    secureZero(chain, sizeof chain);
+    secureZero(block, sizeof block);
     return out;
 }
 
@@ -439,6 +456,12 @@ Rc4::Rc4(const QByteArray &key)
         j = quint8(j + m_s[size_t(i)] + quint8(key[i % key.size()]));
         std::swap(m_s[size_t(i)], m_s[j]);
     }
+}
+
+Rc4::~Rc4()
+{
+    secureZero(m_s.data(), m_s.size());
+    m_i = m_j = 0;
 }
 
 void Rc4::apply(char *data, qsizetype size)
@@ -488,7 +511,7 @@ QByteArray blowfishCfb(const QByteArray &key, const QByteArray &iv, const QByteA
         const quint8 *cipher = encrypt ? o + at : in + at;
         if (n == 8) std::memcpy(reg, cipher, 8);
     }
-    std::memset(&bf, 0, sizeof bf);
+    secureZero(&bf, sizeof bf);
     return out;
 }
 
@@ -510,8 +533,7 @@ void wipe(QByteArray &bytes)
 {
     if (bytes.isEmpty()) return;
     bytes.detach();
-    volatile char *p = bytes.data();
-    for (qsizetype i = 0; i < bytes.size(); ++i) p[i] = 0;
+    secureZero(bytes.data(), size_t(bytes.size()));
     bytes.clear();
 }
 
@@ -519,8 +541,7 @@ void wipe(QString &text)
 {
     if (text.isEmpty()) return;
     text.detach();
-    volatile char16_t *p = reinterpret_cast<char16_t *>(text.data());
-    for (qsizetype i = 0; i < text.size(); ++i) p[i] = 0;
+    secureZero(text.data(), size_t(text.size()) * sizeof(QChar));
     text.clear();
 }
 

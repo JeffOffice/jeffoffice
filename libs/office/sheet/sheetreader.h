@@ -150,6 +150,7 @@ struct Limits {
     // openFile and openBinary clear their copy when they end. `passwordNeed`, when given, is told why a protected file was refused.
     QString password;
     PasswordNeed *passwordNeed = nullptr;
+    bool *usedDefaultPassword = nullptr;   // told true when the file opened with the password every program knows
 };
 
 enum class CalcMode { Auto, AutoNoTable, Manual };
@@ -250,6 +251,8 @@ public:
     PasswordNeed passwordNeed() const { return m_passwordNeed; }
     // Whether the file the workbook was read from was protected with a password (the default one included): a save writes it protected again.
     bool wasProtected() const { return m_protected; }
+    // ... and whether that was only the password every program knows (a file protected only against changes by accident, which opens with no question).
+    bool openedWithDefaultPassword() const { return m_defaultPassword; }
     // Whether the workbook was read from the older binary form, and what such a file holds that is not read (charts, pictures, ...), in words.
     bool isBinary() const { return bool(m_xls); }
     // Whether it was read from a file that has no package of XML parts to put changes in, and so is saved as an .xlsx written from what was read: the older binary form, an
@@ -458,6 +461,7 @@ private:
     Limits m_limits;
     PasswordNeed m_passwordNeed = PasswordNeed::None;
     bool m_protected = false;
+    bool m_defaultPassword = false;
     mutable QVector<Table> m_tables;
     mutable bool m_tablesRead = false;
     mutable QStringList m_tableNotes;   // what was left out of the tables when they were read (see readTables)

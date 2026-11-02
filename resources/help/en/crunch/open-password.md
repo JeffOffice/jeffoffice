@@ -12,13 +12,15 @@ Open the file as you open any other: press **{key:Open}**, choose it, or drag it
 
 If the password is not the right one, JeffCrunch says so and asks again, as many times as you like. Click **Cancel** to stop: nothing is opened, and the workbooks you already have open stay as they are. Passwords are exact: the capital letters, the spaces, and the accents all count.
 
-JeffCrunch uses the password only to open the file. It does not save the password, does not write it anywhere, and forgets it as soon as the file is read, so the next time you open the same file it asks again.
+JeffCrunch does not write the password anywhere. It keeps it in memory while the workbook is open, so that **Save** can protect the file again, and wipes it when you close the workbook. The next time you open the file, it asks again.
 
 ## What can be opened
 
-- **.xlsx and .xlsm workbooks** protected in either of the two ways the original program has used since 2007: the newer one (the key is 128, 192, or 256 bits, and JeffCrunch also checks that nobody changed the file after it was protected) and the older one (128 bits).
+- **.xlsx and .xlsm workbooks** protected in either of the two ways the original program has used since 2007: the newer one (the key is 128, 192, or 256 bits, and JeffCrunch also checks that nobody changed the file after it was protected) and the older one (AES with a key of 128, 192, or 256 bits).
 - **.xls workbooks** protected in any of the three ways of that format: the simple scrambling of the oldest files, the 40-bit kind, and the stronger kind that uses the computer's own key service.
 - **.ods spreadsheets** protected with a password, both the current kind (256 bits) and the older kind that older versions of LibreOffice and OpenOffice wrote.
+
+Older .xls files have limits on the password itself: the simple scrambling of the oldest files uses only the first 15 characters of a password, the 40-bit kind only the first 16, and both can use only letters, digits, and signs of the Western (Latin-1) character set, so a password with other letters (such as Greek or Chinese) can't be typed for them. JeffCrunch does not write .xls files with a password.
 
 Some files are locked with a password that everyone knows, so that they can be opened by anyone but not changed by accident. JeffCrunch opens those without asking.
 

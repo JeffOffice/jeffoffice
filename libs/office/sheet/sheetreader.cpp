@@ -1934,6 +1934,7 @@ bool Workbook::openStream(const QByteArray &given, bool hasMacros, QString *erro
     m_limits = limits;
     m_limits.password.clear();
     m_limits.passwordNeed = nullptr;
+    m_limits.usedDefaultPassword = nullptr;
     QByteArray stream = given;
     if (biffEncrypted(stream) && !passwordGate(limits, error, [&](const QString &password) { return decryptBiff(&stream, password, false); })) {
         *this = Workbook();
@@ -2139,12 +2140,16 @@ QString otherPackageMessage(const Package &package)
 bool Workbook::openBinary(const QByteArray &file, QString *error, const Limits &limits)
 {
     PasswordNeed need = PasswordNeed::None;
+    bool usedDefault = false;
     Limits mine = limits;
     mine.passwordNeed = &need;
+    mine.usedDefaultPassword = &usedDefault;
     const bool ok = openBinaryWith(file, error, mine);
     m_limits.password.clear();
     m_limits.passwordNeed = nullptr;
+    m_limits.usedDefaultPassword = nullptr;
     m_passwordNeed = need;
+    m_defaultPassword = ok && usedDefault;
     return ok;
 }
 
@@ -2199,12 +2204,16 @@ bool Workbook::openProtectedPackage(const QByteArray &info, const QByteArray &pa
 bool Workbook::openFile(const QString &path, QString *error, const Limits &limits)
 {
     PasswordNeed need = PasswordNeed::None;
+    bool usedDefault = false;
     Limits mine = limits;
     mine.passwordNeed = &need;
+    mine.usedDefaultPassword = &usedDefault;
     const bool ok = openFileWith(path, error, mine);
     m_limits.password.clear();
     m_limits.passwordNeed = nullptr;
+    m_limits.usedDefaultPassword = nullptr;
     m_passwordNeed = need;
+    m_defaultPassword = ok && usedDefault;
     return ok;
 }
 

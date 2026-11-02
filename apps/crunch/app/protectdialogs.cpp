@@ -84,6 +84,12 @@ SetFilePasswordDialog::SetFilePasswordDialog(bool hasPassword, QWidget *parent) 
     layout->addWidget(buttons);
 }
 
+void SetFilePasswordDialog::clearPasswords()
+{
+    m_password->clear();
+    m_again->clear();
+}
+
 QString SetFilePasswordDialog::password() const { return m_password->text(); }
 
 void SetFilePasswordDialog::accept()

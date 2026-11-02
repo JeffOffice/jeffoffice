@@ -38,6 +38,8 @@ public:
     explicit SetFilePasswordDialog(bool hasPassword, QWidget *parent = nullptr);
     QString password() const;
     bool removed() const { return m_removed; }
+    // Empties the two boxes (the password is not left in them once it has been read).
+    void clearPasswords();
 
 private:
     void accept() override;

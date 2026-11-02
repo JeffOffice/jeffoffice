@@ -97,14 +97,15 @@ void CrunchWindow::protectWithPassword()
 {
     if (!m_session || m_saving) return;
     SetFilePasswordRequest req;
-    req.hasPassword = m_fileProtected;
+    req.hasPassword = hasUserPassword();
     if (m_anchorHooks.setFilePasswordAsker) {
         if (!m_anchorHooks.setFilePasswordAsker(&req)) return;
     } else {
-        SetFilePasswordDialog dialog(m_fileProtected, this);
+        SetFilePasswordDialog dialog(hasUserPassword(), this);
         if (dialog.exec() != QDialog::Accepted) return;
         req.remove = dialog.removed();
         req.password = dialog.password();
+        dialog.clearPasswords();
     }
     jp::crypto::wipe(m_filePassword);
     if (req.remove) {

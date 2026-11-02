@@ -11,7 +11,10 @@
 #include "sheet/xlscrypt.h"
 
 #include <QCryptographicHash>
+#include <QDir>
 #include <QElapsedTimer>
+#include <QFileInfo>
+#include <QRegularExpression>
 #include <QPasswordDigestor>
 #include <QTemporaryDir>
 
@@ -22,6 +25,17 @@ namespace crypto = jp::crypto;
 namespace oc = jp::office;
 
 namespace {
+
+// Why a file was not opened with the password (None: it opened, or was refused for another reason).
+PasswordNeed needOf(const QString &path, const QString &password)
+{
+    Workbook wb;
+    Limits limits;
+    limits.password = password;
+    QString why;
+    (void)wb.openFile(path, &why, limits);
+    return wb.passwordNeed();
+}
 
 QByteArray hex(const char *h) { return QByteArray::fromHex(h); }
 
@@ -492,6 +506,201 @@ private Q_SLOTS:
         QCOMPARE(oc::decryptPackage(info, packageOf(file, "EncryptedPackage"), QStringLiteral("x"), 1 << 30, false, &out), oc::CryptResult::Damaged);
     }
 
+    // ---- what the review asked for
+
+    // Every size an OpenDocument manifest gives is checked before any work is done for it.
+    void aManifestWithSizesNoCipherHasIsRefusedAtOnce()
+    {
+        OdsMake blowfish;
+        blowfish.blowfish = true;
+        blowfish.sha256 = false;
+        const QByteArray bf = protectOds(odsBook(), blowfish), aes = protectOds(odsBook(), OdsMake());
+        const QByteArray longSalt = "manifest:salt=\"" + QByteArray(2000, 'A');
+        struct Change {
+            const QByteArray *file;
+            const char *from, *to;
+        };
+        for (const Change &c : {Change{&bf, "key-size=\"16\"", "key-size=\"2000000000\""}, Change{&bf, "key-size=\"16\"", "key-size=\"3\""}, Change{&bf, "key-size=\"16\"", "key-size=\"57\""},
+                                Change{&aes, "key-size=\"32\" manifest:iteration", "key-size=\"7\" manifest:iteration"}, Change{&aes, "iteration-count=\"1024\"", "iteration-count=\"0\""},
+                                Change{&aes, "iteration-count=\"1024\"", "iteration-count=\"9223372036854775807\""}, Change{&bf, "iteration-count=\"1024\"", "iteration-count=\"9223372036854775807\""},
+                                Change{&aes, "manifest:salt=\"", longSalt.constData()}}) {
+            QMap<QString, QByteArray> parts;
+            QVERIFY(jp::readZip(*c.file, parts));
+            QByteArray manifest = parts.value(QStringLiteral("META-INF/manifest.xml"));
+            QVERIFY2(manifest.contains(c.from), c.from);
+            manifest.replace(c.from, c.to);
+            jp::ZipWriter z;
+            z.add(QStringLiteral("mimetype"), parts.value(QStringLiteral("mimetype")), false);
+            for (auto it = parts.constBegin(); it != parts.constEnd(); ++it)
+                if (it.key() != QLatin1String("mimetype")) z.add(it.key(), it.key() == QLatin1String("META-INF/manifest.xml") ? manifest : it.value(), false);
+            QElapsedTimer t;
+            t.start();
+            QByteArray out;
+            QVERIFY2(oc::sheet::decryptOds(z.finish(), QStringLiteral("test"), 1 << 30, false, &out) != oc::CryptResult::Ok, c.from);
+            QVERIFY2(t.elapsed() < 2000, c.to);
+        }
+    }
+
+    // A stop is seen while an OpenDocument key is made, as it is for a package's.
+    void anOpenDocumentKeyCanBeStopped()
+    {
+        OdsMake make;
+        make.rounds = 1500000;
+        const QByteArray file = protectOds(odsBook(), make);
+        QElapsedTimer t;
+        t.start();
+        int asked = 0;
+        QByteArray out;
+        QCOMPARE(oc::sheet::decryptOds(file, QStringLiteral("test"), 1 << 30, false, &out, [&asked] { return ++asked > 1; }), oc::CryptResult::Cancelled);
+        QVERIFY(t.elapsed() < 2000);
+    }
+
+    // The key the reader makes is the standard's: PBKDF2 with HMAC-SHA-1 (Qt's own, which gives RFC 6070's value for 4096 rounds, is what the file here was made with).
+    void theOpenDocumentKeyIsPbkdf2()
+    {
+        OdsMake make;
+        make.rounds = 4096;
+        QCOMPARE(QPasswordDigestor::deriveKeyPbkdf2(QCryptographicHash::Sha1, "password", "salt", 4096, 20), hex("4b007901b765489abead49d926f721d065a429c1"));
+        const QByteArray file = protectOds(odsBook(), make);
+        QByteArray out;
+        QCOMPARE(oc::sheet::decryptOds(file, QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::Ok);
+    }
+
+    void aPackageWithNoCheckOfChangesIsDamaged()
+    {
+        oc::EncryptOptions options;
+        options.spinCount = 10;
+        const QByteArray file = oc::encryptPackage(randomBytes(100, 9), QStringLiteral("x"), options);
+        QByteArray info = packageOf(file, "EncryptionInfo");
+        const qsizetype from = info.indexOf("<dataIntegrity"), to = info.indexOf("/>", from) + 2;
+        QVERIFY(from > 0 && to > from);
+        info.remove(from, to - from);
+        QByteArray out;
+        QCOMPARE(oc::decryptPackage(info, packageOf(file, "EncryptedPackage"), QStringLiteral("x"), 1 << 30, false, &out), oc::CryptResult::Damaged);
+    }
+
+    void aKeyOfOneSizeAndHashOfAnotherAreRefused()
+    {
+        oc::EncryptOptions options;
+        options.spinCount = 10;
+        const QByteArray file = oc::encryptPackage(randomBytes(100, 9), QStringLiteral("x"), options);
+        const QByteArray info = packageOf(file, "EncryptionInfo"), package = packageOf(file, "EncryptedPackage");
+        // (the second element that names them is the key encryptor's)
+        auto changeSecond = [&](const QByteArray &from, const QByteArray &to, QByteArray changed = QByteArray()) {
+            if (changed.isEmpty()) changed = info;
+            const qsizetype first = changed.indexOf(from), second = changed.indexOf(from, first + 1);
+            [&] { QVERIFY(first > 0 && second > first); }();
+            changed.replace(second, from.size(), to);
+            return changed;
+        };
+        QByteArray out;
+        QCOMPARE(oc::decryptPackage(changeSecond("keyBits=\"256\"", "keyBits=\"128\""), package, QStringLiteral("x"), 1 << 30, false, &out), oc::CryptResult::Damaged);
+        QCOMPARE(oc::decryptPackage(changeSecond("hashSize=\"64\"", "hashSize=\"32\"", changeSecond("hashAlgorithm=\"SHA512\"", "hashAlgorithm=\"SHA256\"")), package, QStringLiteral("x"), 1 << 30, false, &out), oc::CryptResult::Unsupported);
+    }
+
+    // The password that every program knows is tried first, whatever password was typed.
+    void theDefaultPasswordIsTriedWhateverWasTyped()
+    {
+        oc::EncryptOptions options;
+        options.spinCount = 20;
+        const QByteArray file = oc::encryptPackage(xlsxBook(), oc::defaultPassword(), options);
+        Limits limits;
+        limits.password = QStringLiteral("something else");
+        Workbook wb;
+        QString why;
+        QVERIFY2(wb.openBinary(file, &why, limits), qPrintable(why));
+        QVERIFY(wb.wasProtected());
+        QVERIFY(wb.openedWithDefaultPassword());
+        // a file with a password of its own is not "default only"
+        Limits right;
+        right.password = QStringLiteral("mine");
+        Workbook mine;
+        QVERIFY(mine.openBinary(oc::encryptPackage(xlsxBook(), QStringLiteral("mine"), options), &why, right));
+        QVERIFY(mine.wasProtected());
+        QVERIFY(!mine.openedWithDefaultPassword());
+        // and the same for the old binary form
+        const QByteArray old = compound(protectBiff(biffBook().stream(), Biff::Rc4, oc::defaultPassword()));
+        Workbook oldBook;
+        QVERIFY(oldBook.openBinary(old, &why, limits));
+        QVERIFY(oldBook.openedWithDefaultPassword());
+    }
+
+    // ---- real files of other programs, when the collections are there (never copied into the repository)
+
+    void realFilesOfOtherProgramsOpen_data()
+    {
+        QTest::addColumn<QString>("path");
+        QTest::addColumn<QString>("password");
+        QTest::addColumn<QString>("cell");
+        QTest::addColumn<QString>("expected");
+        const QString poi = QStringLiteral("/media/user/volume2/jo-corpora/poi/test-data/spreadsheet/"), lo = QStringLiteral("/media/user/volume2/jo-corpora/libreoffice/sc/qa/unit/data/ods/");
+        QTest::newRow("xls, 40-bit RC4") << poi + QStringLiteral("password.xls") << QStringLiteral("password") << QStringLiteral("D5") << QStringLiteral("s:A ZIP bomb is a variant");
+        QTest::newRow("xls, obfuscation (XOR)") << poi + QStringLiteral("xor-encryption-abc.xls") << QStringLiteral("abc") << QStringLiteral("A2") << QStringLiteral("n:2");
+        QTest::newRow("xls, type 4") << poi + QStringLiteral("35897-type4.xls") << QStringLiteral("freedom") << QStringLiteral("A1") << QStringLiteral("s:hello there!");
+        QTest::newRow("xlsx, agile") << poi + QStringLiteral("protected_passtika.xlsx") << QStringLiteral("tika") << QStringLiteral("A1") << QStringLiteral("s:This is an Encrypted");
+        QTest::newRow("xlsx, default password") << poi + QStringLiteral("58616.xlsx") << QString() << QStringLiteral("A1") << QStringLiteral("s:EPQ Manual Template");
+        QTest::newRow("ods, AES") << lo + QStringLiteral("password.ods") << QStringLiteral("test") << QString() << QString();
+        QTest::newRow("ods, Blowfish") << lo + QStringLiteral("passwordOld.ods") << QStringLiteral("test") << QStringLiteral("A1") << QStringLiteral("n:2");
+    }
+
+    void realFilesOfOtherProgramsOpen()
+    {
+        QFETCH(QString, path);
+        QFETCH(QString, password);
+        QFETCH(QString, cell);
+        QFETCH(QString, expected);
+        if (!QFileInfo::exists(path)) QSKIP("the collection is not on this machine");
+        Workbook wb;
+        Limits limits;
+        limits.password = password;
+        QString why;
+        QVERIFY2(wb.openFile(path, &why, limits), qPrintable(why));
+        QVERIFY(wb.wasProtected());
+        if (!password.isEmpty()) {
+            Workbook wrong;
+            Limits bad;
+            bad.password = QStringLiteral("not it");
+            QVERIFY(!wrong.openFile(path, &why, bad));
+            QCOMPARE(wrong.passwordNeed(), PasswordNeed::Wrong);
+        }
+        if (cell.isEmpty()) return;   // (a document with no cell to look at: that it opens is the check)
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QVERIFY2(show(s, wb.sharedStrings(), cell).startsWith(expected) || (wb.isBinary() && xlstest::shown(wb, s, cell).startsWith(expected.mid(0, 2) == QLatin1String("s:") ? QStringLiteral("i:") + expected.mid(2) : expected)),
+                 qPrintable(show(s, wb.sharedStrings(), cell)));
+    }
+
+    // Files the original program wrote with passwords (made by this program first), when they were brought back to this machine.
+    void filesTheOriginalProgramWroteOpen()
+    {
+        const QString dir = QStringLiteral("/home/user/jo-scratch/encvm-run/back");
+        QFile readme(QStringLiteral("/home/user/jo-scratch/encvm/README.txt"));
+        if (!QDir(dir).exists() || !readme.open(QIODevice::ReadOnly)) QSKIP("the files are not on this machine");
+        QMap<QString, QString> passwords;
+        static const QRegularExpression line(QStringLiteral("^(\\S+\\.xlsx)\\s{2,}(.+?)\\s{2,}"));
+        for (const QString &l : QString::fromUtf8(readme.readAll()).split(QLatin1Char('\n')))
+            if (const auto m = line.match(l); m.hasMatch()) passwords.insert(m.captured(1), m.captured(2));
+        const QStringList files = QDir(dir).entryList({QStringLiteral("*.xlsx")}, QDir::Files);
+        if (files.isEmpty()) QSKIP("no files were brought back");
+        int opened = 0;
+        for (const QString &name : files) {
+            // (re-saved files carry the name of the file they came from, after a prefix)
+            QString original = name;
+            if (original.startsWith(QLatin1String("resaved-"))) original = original.mid(8);
+            if (!passwords.contains(original)) continue;
+            Workbook wb;
+            Limits limits;
+            limits.password = passwords.value(original);
+            QString why;
+            QVERIFY2(wb.openFile(QDir(dir).filePath(name), &why, limits), qPrintable(name + QLatin1String(": ") + why));
+            Sheet s;
+            QVERIFY(wb.readSheet(0, &s));
+            QVERIFY2(show(s, wb.sharedStrings(), QStringLiteral("A1")) == QLatin1String("s:Item"), qPrintable(name));
+            ++opened;
+        }
+        QVERIFY(opened > 0);
+    }
+
     void thePasswordAloneCanBeCheckedWithoutTheBulkWork()
     {
         oc::EncryptOptions options;
@@ -575,7 +784,7 @@ private Q_SLOTS:
         QCOMPARE(wb.passwordNeed(), PasswordNeed::None);
     }
 
-    void thePasswordCheckTellsWhatAFileNeeds()
+    void theReaderTellsWhatAFileNeeds()
     {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
@@ -591,15 +800,15 @@ private Q_SLOTS:
         const QString xls = write(QStringLiteral("c.xls"), compound(protectBiff(biffBook().stream(), Biff::Rc4, QStringLiteral("pw"))));
         const QString ods = write(QStringLiteral("d.ods"), protectOds(odsBook(), OdsMake()));
         for (const QString &path : {xlsx, xls}) {
-            QCOMPARE(passwordCheck(path, QString()), PasswordNeed::Needed);
-            QCOMPARE(passwordCheck(path, QStringLiteral("no")), PasswordNeed::Wrong);
-            QCOMPARE(passwordCheck(path, QStringLiteral("pw")), PasswordNeed::None);
+            QCOMPARE(needOf(path, QString()), PasswordNeed::Needed);
+            QCOMPARE(needOf(path, QStringLiteral("no")), PasswordNeed::Wrong);
+            QCOMPARE(needOf(path, QStringLiteral("pw")), PasswordNeed::None);
         }
-        QCOMPARE(passwordCheck(ods, QString()), PasswordNeed::Needed);
-        QCOMPARE(passwordCheck(ods, QStringLiteral("no")), PasswordNeed::Wrong);
-        QCOMPARE(passwordCheck(ods, QStringLiteral("test")), PasswordNeed::None);
-        QCOMPARE(passwordCheck(plain, QString()), PasswordNeed::None);
-        QCOMPARE(passwordCheck(dir.filePath(QStringLiteral("missing.xlsx")), QString()), PasswordNeed::None);
+        QCOMPARE(needOf(ods, QString()), PasswordNeed::Needed);
+        QCOMPARE(needOf(ods, QStringLiteral("no")), PasswordNeed::Wrong);
+        QCOMPARE(needOf(ods, QStringLiteral("test")), PasswordNeed::None);
+        QCOMPARE(needOf(plain, QString()), PasswordNeed::None);
+        QCOMPARE(needOf(dir.filePath(QStringLiteral("missing.xlsx")), QString()), PasswordNeed::None);
     }
 
     // ---- the old binary form

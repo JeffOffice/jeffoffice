@@ -131,7 +131,12 @@ CryptResult parseAgile(const QByteArray &info, AgileInfo *out)
     }
     if (xml.hasError() || !keyData) return CryptResult::Damaged;
     if (!out->havePassword) return CryptResult::Unsupported;   // (a key held by a certificate)
+    // (the original program always writes the check of changes: a package with none is not one of its own, and nothing vouches for it)
+    if (!out->integrity) return CryptResult::Damaged;
     const Encryptor &e = out->password;
+    // (the key that is unlocked is the data's key: its size, and the hash that makes the package's check, are the ones the data names)
+    if (e.keyBits != out->keyBits) return CryptResult::Damaged;
+    if (e.hash != out->hash) return CryptResult::Unsupported;
     if (e.spinCount < 0 || e.spinCount > kMaxPackageSpinCount) return CryptResult::Damaged;
     if (out->salt.size() != out->saltSize || e.salt.size() != e.saltSize) return CryptResult::Damaged;
     const qsizetype keyBytes = e.keyBits / 8;
@@ -192,7 +197,7 @@ QByteArray agileSecretKey(const AgileInfo &info, const QString &password, const 
     QByteArray input = crypto::aesCbc(k1, iv, e.verifierInput, false);
     QByteArray value = crypto::aesCbc(k2, iv, e.verifierValue, false);
     QByteArray secret;
-    if (!input.isEmpty() && !value.isEmpty() && hashWith(e.hash, input.left(e.saltSize)) == value.left(e.hashSize)) secret = crypto::aesCbc(k3, iv, e.keyValue, false).left(e.keyBits / 8);
+    if (!input.isEmpty() && !value.isEmpty() && crypto::equal(hashWith(e.hash, input.left(e.saltSize)), value.left(e.hashSize))) secret = crypto::aesCbc(k3, iv, e.keyValue, false).left(e.keyBits / 8);
     for (QByteArray *k : {&k1, &k2, &k3, &input, &value}) crypto::wipe(*k);
     return secret;
 }
@@ -229,7 +234,7 @@ CryptResult decryptAgile(const AgileInfo &info, const QByteArray &package, const
         QByteArray key = crypto::aesCbc(secret, salt, info.hmacKey, false).left(info.hashSize), expected = crypto::aesCbc(secret, saltV, info.hmacValue, false).left(info.hashSize);
         const QByteArray actual = QMessageAuthenticationCode::hash(package, key, info.hash);
         crypto::wipe(key);
-        if (actual != expected) {
+        if (!crypto::equal(actual, expected)) {
             crypto::wipe(secret);
             return CryptResult::Damaged;
         }
@@ -301,7 +306,7 @@ CryptResult decryptStandard(const QByteArray &info, const QByteArray &package, c
     const QByteArray encHash = info.mid(at + 40, 32);
     QByteArray key = standardKey(salt, password, int(keySize / 8));
     const QByteArray verifier = crypto::aesEcb(key, encVerifier, false), hash = crypto::aesEcb(key, encHash, false);
-    if (verifier.isEmpty() || hash.isEmpty() || hashWith(QCryptographicHash::Sha1, verifier) != hash.left(20)) {
+    if (verifier.isEmpty() || hash.isEmpty() || !crypto::equal(hashWith(QCryptographicHash::Sha1, verifier), hash.left(20))) {
         crypto::wipe(key);
         return CryptResult::WrongPassword;
     }

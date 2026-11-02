@@ -4,6 +4,8 @@
 #include "office/package.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
+#include <QFile>
 #include <QElapsedTimer>
 #include <QFileInfo>
 #include <QMetaObject>
@@ -222,6 +224,16 @@ std::unique_ptr<WorkbookLoader::Hold> WorkbookLoader::hold()
     return std::unique_ptr<Hold>(new Hold(m_state, m_result->calc.get()));
 }
 
+// The SHA-256 of the file's bytes (empty if it can't be read).
+QByteArray fileDigest(const QString &path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) return QByteArray();
+    QCryptographicHash h(QCryptographicHash::Sha256);
+    if (!h.addData(&f)) return QByteArray();
+    return h.result();
+}
+
 bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank,
                      const QString &password)
 {
@@ -244,6 +256,8 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     book->tables();   // (read now: the worker looks at the tables as it works formulas out, and the window changes them, neither of which may be the first to read them)
     out->book = book;
     out->protectedFile = book->wasProtected();
+    out->defaultPasswordOnly = book->openedWithDefaultPassword();
+    if (out->protectedFile) out->diskDigest = fileDigest(path);
     out->notRead = book->skippedFeatures();
     const int shownSheet = firstSheetToShow(book->info());
     if (shownSheet < 0) {

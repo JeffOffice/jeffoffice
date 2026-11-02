@@ -115,6 +115,17 @@ QByteArray utf16(const QString &text, int most)
     return b;
 }
 
+// Wipes the secrets it was given when it goes out of scope, whatever way the function leaves.
+struct Wiper {
+    QByteArray *items[8] = {};
+    int count = 0;
+    void add(QByteArray *b) { items[count++] = b; }
+    ~Wiper()
+    {
+        for (int i = 0; i < count; ++i) crypto::wipe(*items[i]);
+    }
+};
+
 // How the keys of the blocks are made, for the two forms.
 struct Rc4Keys {
     bool cryptoApi = false;
@@ -139,20 +150,28 @@ CryptResult rc4Setup(const QByteArray &fp, bool verifyOnly, const QString &passw
     // wEncryptionType, then the version of the form
     if (fp.size() < 6) return CryptResult::Damaged;
     const quint16 major = u16(fp, 2), minor = u16(fp, 4);
-    QByteArray salt, encVerifier, encHash;
+    QByteArray salt, encVerifier, encHash, h0, rep, plain, derived, typed, seeded;
+    Wiper wiper;
+    wiper.add(&typed);
+    wiper.add(&seeded);
+    wiper.add(&h0);
+    wiper.add(&rep);
+    wiper.add(&plain);
+    wiper.add(&derived);
     if (major == 1 && minor == 1) {
         if (fp.size() < 54) return CryptResult::Damaged;
         salt = fp.mid(6, 16);
         encVerifier = fp.mid(22, 16);
         encHash = fp.mid(38, 16);
-        const QByteArray h0 = QCryptographicHash::hash(utf16(password, 16), QCryptographicHash::Md5);
-        QByteArray rep;
+        typed = utf16(password, 16);
+        h0 = QCryptographicHash::hash(typed, QCryptographicHash::Md5);
         for (int i = 0; i < 16; ++i) rep.append(h0.left(5) + salt);
         keys->cryptoApi = false;
         keys->base = QCryptographicHash::hash(rep, QCryptographicHash::Md5).left(5);
-        crypto::Rc4 rc4(keys->forBlock(0));
-        const QByteArray plain = rc4.apply(encVerifier + encHash);
-        return QCryptographicHash::hash(plain.left(16), QCryptographicHash::Md5) == plain.mid(16, 16) ? CryptResult::Ok : CryptResult::WrongPassword;
+        derived = keys->forBlock(0);
+        crypto::Rc4 rc4(derived);
+        plain = rc4.apply(encVerifier + encHash);
+        return crypto::equal(QCryptographicHash::hash(plain.left(16), QCryptographicHash::Md5), plain.mid(16, 16)) ? CryptResult::Ok : CryptResult::WrongPassword;
     }
     if ((major == 2 || major == 3 || major == 4) && minor == 2) {
         // the same structures as an encrypted package's standard form: a header (flags, the provider's, the cipher, the hash, the size of the key), then the verifier
@@ -172,10 +191,13 @@ CryptResult rc4Setup(const QByteArray &fp, bool verifyOnly, const QString &passw
         encHash = fp.mid(v + 40, 20);
         keys->cryptoApi = true;
         keys->keyBytes = int(keySize / 8);
-        keys->base = QCryptographicHash::hash(salt + utf16(password, 255), QCryptographicHash::Sha1);
-        crypto::Rc4 rc4(keys->forBlock(0));
-        const QByteArray plain = rc4.apply(encVerifier + encHash);
-        return QCryptographicHash::hash(plain.left(16), QCryptographicHash::Sha1) == plain.mid(16, 20) ? CryptResult::Ok : CryptResult::WrongPassword;
+        typed = utf16(password, 255);
+        seeded = salt + typed;
+        keys->base = QCryptographicHash::hash(seeded, QCryptographicHash::Sha1);
+        derived = keys->forBlock(0);
+        crypto::Rc4 rc4(derived);
+        plain = rc4.apply(encVerifier + encHash);
+        return crypto::equal(QCryptographicHash::hash(plain.left(16), QCryptographicHash::Sha1), plain.mid(16, 20)) ? CryptResult::Ok : CryptResult::WrongPassword;
     }
     return CryptResult::Unsupported;
 }
@@ -233,13 +255,25 @@ CryptResult decryptBiff(QByteArray *stream, const QString &password, bool verify
     }
     std::array<quint8, 16> table{};
     Rc4Keys keys;
+    QByteArray blockKeystream, blockKey;
+    Wiper wiper;
+    wiper.add(&keys.base);
+    wiper.add(&blockKeystream);
+    wiper.add(&blockKey);
+    struct TableWipe {
+        std::array<quint8, 16> *t;
+        ~TableWipe() { crypto::secureZero(t->data(), t->size()); }
+    } tableWipe{&table};
     if (xorForm) {
         const qsizetype at = biff8 ? 2 : 0;
         if (body.size() < at + 4) return CryptResult::Damaged;
-        const QByteArray pw = ansiPassword(password);
+        QByteArray pw = ansiPassword(password);
+        Wiper pwWiper;
+        pwWiper.add(&pw);
         if (pw.isEmpty()) return CryptResult::WrongPassword;
         const quint16 key = u16(body, at), verifier = u16(body, at + 2);
-        if (xorVerifier(pw) != verifier || xorKey(pw) != key) return CryptResult::WrongPassword;
+        const bool fits = ((xorVerifier(pw) ^ verifier) | (xorKey(pw) ^ key)) == 0;   // (no early exit)
+        if (!fits) return CryptResult::WrongPassword;
         table = xorArray(pw, key);
     } else {
         const CryptResult r = rc4Setup(body, verifyOnly, password, &keys);
@@ -250,7 +284,6 @@ CryptResult decryptBiff(QByteArray *stream, const QString &password, bool verify
     stream->detach();
     char *d = stream->data();
     const qsizetype size = stream->size();
-    QByteArray blockKeystream;
     qint64 haveBlock = -1;
     qsizetype p = after;
     while (p + 4 <= size) {
@@ -269,7 +302,8 @@ CryptResult decryptBiff(QByteArray *stream, const QString &password, bool verify
                 for (qsizetype q = from; q < end; ++q) {
                     const qint64 block = q / 1024;
                     if (block != haveBlock) {
-                        crypto::Rc4 rc4(keys.forBlock(quint32(block)));
+                        blockKey = keys.forBlock(quint32(block));
+                        crypto::Rc4 rc4(blockKey);
                         blockKeystream = rc4.apply(QByteArray(1024, 0));
                         haveBlock = block;
                     }

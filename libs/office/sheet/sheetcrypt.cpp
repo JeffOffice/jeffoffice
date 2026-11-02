@@ -1,6 +1,6 @@
 #include "sheet/sheetcrypt.h"
 
-#include "io/cfb.h"
+#include "io/crypto.h"
 #include "office/package.h"
 #include "sheet/odscrypt.h"
 #include "sheet/xlscrypt.h"
@@ -30,55 +30,42 @@ QString protectedMessage(office::CryptResult why, PasswordNeed need)
 } // namespace
 
 namespace {
-QString &fallback()
+// The password the command-line tools were given: held in a static that wipes itself when the program ends.
+struct Fallback {
+    QString password;
+    ~Fallback() { jp::crypto::wipe(password); }
+};
+Fallback &fallback()
 {
-    static QString password;
-    return password;
+    static Fallback f;
+    return f;
 }
 } // namespace
 
-void setFallbackPassword(const QString &password) { fallback() = password; }
+void setFallbackPassword(const QString &password)
+{
+    jp::crypto::wipe(fallback().password);
+    fallback().password = password;
+}
 
 bool passwordGate(const Limits &limits, QString *error, const std::function<office::CryptResult(const QString &)> &attempt)
 {
-    const QString &chosen = !limits.password.isEmpty() ? limits.password : fallback();
+    const QString &chosen = !limits.password.isEmpty() ? limits.password : fallback().password;
     const bool given = !chosen.isEmpty();
-    const office::CryptResult r = attempt(given ? chosen : office::defaultPassword());
-    if (r == office::CryptResult::Ok) return true;
+    // (the password every program knows is tried first: a file protected only against changes by accident opens with no question, whatever was typed)
+    office::CryptResult r = attempt(office::defaultPassword());
+    if (r == office::CryptResult::Ok) {
+        if (limits.usedDefaultPassword) *limits.usedDefaultPassword = true;
+        return true;
+    }
+    if (given && r == office::CryptResult::WrongPassword) {
+        r = attempt(chosen);
+        if (r == office::CryptResult::Ok) return true;
+    }
     const PasswordNeed need = r != office::CryptResult::WrongPassword ? PasswordNeed::None : given ? PasswordNeed::Wrong : PasswordNeed::Needed;
     if (limits.passwordNeed) *limits.passwordNeed = need;
     if (error) *error = protectedMessage(r, need);
     return false;
-}
-
-PasswordNeed passwordCheck(const QString &path, const QString &password)
-{
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) return PasswordNeed::None;
-    const QByteArray head = file.read(16384);
-    file.close();
-    const bool given = !password.isEmpty();
-    auto verdict = [&](CryptResult r) {
-        if (r == CryptResult::Ok) return PasswordNeed::None;
-        if (r == CryptResult::WrongPassword) return given ? PasswordNeed::Wrong : PasswordNeed::Needed;
-        return PasswordNeed::None;   // (a protection that is not read, or damage: opening says so)
-    };
-    const QString pw = given ? password : defaultPassword();
-    if (startsCompoundFile(head)) {
-        const QByteArray info = jp::cfb::readStream(path, QStringLiteral("EncryptionInfo"));
-        if (!info.isEmpty()) return verdict(decryptPackage(info, QByteArray(), pw, 0, true, nullptr));
-        QByteArray stream = jp::cfb::readStream(path, QStringLiteral("Workbook"));
-        if (stream.isEmpty()) stream = jp::cfb::readStream(path, QStringLiteral("Book"));
-        if (!stream.isEmpty() && biffEncrypted(stream)) return verdict(decryptBiff(&stream, pw, true));
-        return PasswordNeed::None;
-    }
-    // (only an OpenDocument package can be protected: its first part is the one named mimetype)
-    if (head.startsWith(QByteArrayView("PK\x03\x04", 4)) && head.mid(30, 8) == "mimetype") {
-        QByteArray bytes;
-        if (!readWholeFile(path, &bytes, nullptr, kMaxOpenFileBytes) || !odsEncrypted(bytes)) return PasswordNeed::None;
-        return verdict(decryptOds(bytes, pw, 0, true, nullptr));
-    }
-    return PasswordNeed::None;
 }
 
 } // namespace jp::office::sheet

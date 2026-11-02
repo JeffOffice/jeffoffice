@@ -18,6 +18,7 @@
 #include "sheet/xlsxsave.h"
 
 #include <QAction>
+#include <QCryptographicHash>
 #include <QApplication>
 #include <QFileDialog>
 #include <QFile>
@@ -74,7 +75,7 @@ bool CrunchWindow::saveAs(const QString &pathIn)
     if (!m_session || !m_loaded) return false;
     if (crunch::isCsvName(pathIn) || crunch::isCopyName(pathIn)) {
         // a workbook that is protected with a password is written protected only as .xlsx: the person is told before the copy is made without it, and may cancel
-        if (m_fileProtected) {
+        if (hasUserPassword()) {
             const LossAnswer answer = askBeforeLosing(tr("Save"), tr("This workbook is protected with a password, but a copy in this kind of file can't be. The copy you are saving will not be protected: anyone who has it can read it."),
                                                       tr("Save Without Password"), QString());
             if (answer != LossAnswer::Continue) {
@@ -109,7 +110,11 @@ bool CrunchWindow::saveAs(const QString &pathIn)
 bool CrunchWindow::fileChangedOnDisk() const
 {
     if (!m_loaded || !m_loaded->book || m_path.isEmpty()) return false;
-    if (m_diskProtected) return false;   // (the file is enciphered: its bytes are not the package's to be compared)
+    if (m_diskProtected) {
+        // (the file is enciphered, so its bytes are not the package's: they are compared with what this program last read or wrote of it, by their digest)
+        if (!QFileInfo::exists(m_path) || m_diskDigest.isEmpty()) return false;
+        return crunch::fileDigest(m_path) != m_diskDigest;
+    }
     const QByteArray mine = m_loaded->book->package().fileBytes();
     QFile f(m_path);
     if (!f.exists()) return false;
@@ -201,7 +206,9 @@ bool CrunchWindow::startSave(const QString &path)
     // (a protected workbook is enciphered here, on the thread that saves, with the password it was opened or protected with; the copy of the password goes with the thread and is wiped)
     const bool protect = m_fileProtected;
     const auto secret = std::make_shared<QString>(m_filePassword.isEmpty() ? office::defaultPassword() : m_filePassword);
-    QThread *thread = QThread::create([self, book, snapshot, path, protect, secret] {
+    m_savedDigest = std::make_shared<QByteArray>();
+    const auto digest = m_savedDigest;
+    QThread *thread = QThread::create([self, book, snapshot, path, protect, secret, digest] {
         QByteArray bytes;
         QString message;
         SaveReport report;
@@ -217,6 +224,7 @@ bool CrunchWindow::startSave(const QString &path)
                 }
             }
             if (ok) ok = office::sheet::writeFileAtomically(path, file, &message);
+            if (ok && protect) *digest = QCryptographicHash::hash(file, QCryptographicHash::Sha256);
         }
         jp::crypto::wipe(*secret);
         QMetaObject::invokeMethod(qApp, [self, ok, message, path, bytes, snapshot] {
@@ -252,6 +260,7 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
         }
         // (what is on disk now is enciphered when the workbook is, and the change of password is saved)
         m_diskProtected = m_fileProtected;
+        m_diskDigest = m_fileProtected && m_savedDigest ? *m_savedDigest : QByteArray();
         m_protectionChanged = false;
         setWindowModified(m_session->isModified());
         Settings::get().addRecentFile(path);
