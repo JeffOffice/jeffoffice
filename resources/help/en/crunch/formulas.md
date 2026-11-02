@@ -31,6 +31,8 @@ The arrow keys work too. Press an arrow and a pointer moves away from the cell y
 
 To point at a cell on another sheet, click that sheet's tab while the cursor is where a cell can go, and then click the cell. The sheet's name is written with it, in quotes when it needs them, as in 'My Sheet'!B3. **Enter** takes you back to the sheet you started on and puts the formula in its cell. **Esc** gives everything up, the change of sheet too.
 
+You can also drag the border of an outlined block on the sheet to move that address, or drag its corner square to stretch it; the formula changes as you drag.
+
 Press **F4** with the cursor in or just after an address to fix parts of it with a dollar sign: A1 becomes $A$1, then A$1, then $A1, and then A1 again.
 
 Each address in the formula is colored in the text, and the cells it names are outlined on the sheet in the same color, so you can see at a glance what the formula reads. A click after a whole address, such as =A1, ends the entry and selects the cell you clicked, as it does for any other text.

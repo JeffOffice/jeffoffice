@@ -49,25 +49,36 @@ bool columnOf(const QString &letters, quint32 *col)
 
 std::vector<FormulaRef> findReferences(const QString &text)
 {
+    // (what comes before a reference, and what after, so that part of a longer word, a 3-D or another workbook's reference, or the cells of a sheet's name are not taken for one; a sheet's
+    // name is written plain with the same characters sheetNamePrefix leaves without apostrophes)
     static const QRegularExpression re(QStringLiteral(
-        "(?<![A-Za-z0-9_.$\\\\'])((?:'(?:[^']|'')+'|[A-Za-z_][A-Za-z0-9_.]*)!)?"
-        "(\\$?[A-Za-z]{1,3}\\$?[0-9]+(?::\\$?[A-Za-z]{1,3}\\$?[0-9]+)?|\\$?[A-Za-z]{1,3}:\\$?[A-Za-z]{1,3}|\\$?[0-9]+:\\$?[0-9]+)(?![A-Za-z0-9_(.!\\[\\\\])"));
+        "(?<![\\p{L}\\p{N}_.$\\\\':!\\]])((?:'(?:[^']|'')+'|[\\p{L}_][\\p{L}\\p{N}_.]*)!)?"
+        "(\\$?[A-Za-z]{1,3}\\$?[0-9]+(?::\\$?[A-Za-z]{1,3}\\$?[0-9]+)?|\\$?[A-Za-z]{1,3}:\\$?[A-Za-z]{1,3}|\\$?[0-9]+:\\$?[0-9]+)(?![\\p{L}\\p{N}_(.!\\[\\\\])"),
+        QRegularExpression::UseUnicodePropertiesOption);
     std::vector<FormulaRef> out;
     const std::vector<bool> skip = shielded(text);
-    auto it = re.globalMatch(text);
-    while (it.hasNext()) {
-        const QRegularExpressionMatch m = it.next();
-        const int start = int(m.capturedStart(0));
-        if (skip[size_t(start)]) continue;
-        FormulaRef r;
-        r.start = start;
-        r.length = int(m.capturedLength(0));
-        r.bodyStart = int(m.capturedStart(2));
+    int pos = 0;
+    while (pos < text.size()) {
+        const QRegularExpressionMatch m = re.match(text, pos);
+        if (!m.hasMatch()) break;
+        const int start = int(m.capturedStart(0)), end = start + int(m.capturedLength(0));
+        // (a match that touches a text in quotes or a table's brackets is not one: the search goes on just after its start, for it may have run into the text from outside)
+        bool touches = false;
+        for (int i = start; i < end && !touches; ++i) touches = skip[size_t(i)];
         QString sheet = m.captured(1);
         if (!sheet.isEmpty()) {
             sheet.chop(1);
             if (sheet.startsWith(QLatin1Char('\''))) sheet = sheet.mid(1, sheet.size() - 2).replace(QLatin1String("''"), QLatin1String("'"));
         }
+        if (touches || sheet.contains(QLatin1Char(':')) || sheet.contains(QLatin1Char('['))) {   // (a name with a colon is a 3-D reference, with brackets another workbook's)
+            pos = start + 1;
+            continue;
+        }
+        pos = end;
+        FormulaRef r;
+        r.start = start;
+        r.length = end - start;
+        r.bodyStart = int(m.capturedStart(2));
         r.sheet = sheet;
         const QStringList parts = m.captured(2).split(QLatin1Char(':'));
         bool ok = false;
@@ -109,14 +120,50 @@ std::vector<FormulaRef> findReferences(const QString &text)
     return out;
 }
 
+namespace {
+
+// One end of a reference as written ($B$2, C, $3): its letters and digits, and whether the column and the row are fixed (the "$" before digits alone is the row's).
+struct Part {
+    QString letters, digits;
+    bool col = false, row = false;
+    bool ok = false;
+};
+
+Part parsePart(const QString &p)
+{
+    static const QRegularExpression re(QStringLiteral("^(\\$?)([A-Za-z]*)(\\$?)([0-9]*)$"));
+    Part out;
+    const QRegularExpressionMatch m = re.match(p);
+    if (!m.hasMatch()) return out;
+    out.ok = true;
+    out.letters = m.captured(2);
+    out.digits = m.captured(4);
+    if (out.letters.isEmpty()) {
+        out.row = !m.captured(1).isEmpty() || !m.captured(3).isEmpty();
+    } else {
+        out.col = !m.captured(1).isEmpty();
+        out.row = !m.captured(3).isEmpty();
+    }
+    return out;
+}
+
+QString writePart(const Part &p, bool col, bool row)
+{
+    QString s;
+    if (!p.letters.isEmpty()) s += (col ? QStringLiteral("$") : QString()) + p.letters;
+    if (!p.digits.isEmpty()) s += (row ? QStringLiteral("$") : QString()) + p.digits;
+    return s;
+}
+
+} // namespace
+
 QString nextFixedForm(const QString &body)
 {
-    static const QRegularExpression part(QStringLiteral("^(\\$?)([A-Za-z]*)(\\$?)([0-9]*)$"));
     const QStringList parts = body.split(QLatin1Char(':'));
-    const QRegularExpressionMatch first = part.match(parts[0]);
-    if (!first.hasMatch()) return body;
-    const bool hasCol = !first.captured(2).isEmpty(), hasRow = !first.captured(4).isEmpty();
-    bool col = first.captured(1) == QLatin1String("$"), row = first.captured(3) == QLatin1String("$");
+    const Part first = parsePart(parts[0]);
+    if (!first.ok) return body;
+    const bool hasCol = !first.letters.isEmpty(), hasRow = !first.digits.isEmpty();
+    bool col = first.col, row = first.row;
     if (hasCol && !hasRow) col = !col;
     else if (hasRow && !hasCol) row = !row;
     else if (!col && !row) col = row = true;       // A1 -> $A$1
@@ -125,12 +172,9 @@ QString nextFixedForm(const QString &body)
     else col = row = false;                        // $A1 -> A1
     QStringList out;
     for (const QString &p : parts) {
-        const QRegularExpressionMatch m = part.match(p);
-        if (!m.hasMatch()) return body;
-        QString s;
-        if (!m.captured(2).isEmpty()) s += (col ? QStringLiteral("$") : QString()) + m.captured(2);
-        if (!m.captured(4).isEmpty()) s += (row ? QStringLiteral("$") : QString()) + m.captured(4);
-        out << s;
+        const Part part = parsePart(p);
+        if (!part.ok) return body;
+        out << writePart(part, col, row);
     }
     return out.join(QLatin1Char(':'));
 }
@@ -138,16 +182,12 @@ QString nextFixedForm(const QString &body)
 QString refitBody(const QString &oldBody, const QString &newBody)
 {
     if (!oldBody.contains(QLatin1Char('$'))) return newBody;
-    static const QRegularExpression part(QStringLiteral("^(\\$?)([A-Za-z]*)(\\$?)([0-9]*)$"));
     const QStringList olds = oldBody.split(QLatin1Char(':')), news = newBody.split(QLatin1Char(':'));
     QStringList out;
     for (int i = 0; i < news.size(); ++i) {
-        const QRegularExpressionMatch o = part.match(olds[std::min<int>(i, int(olds.size()) - 1)]), n = part.match(news[i]);
-        if (!o.hasMatch() || !n.hasMatch()) return newBody;
-        QString s;
-        if (!n.captured(2).isEmpty()) s += o.captured(1) + n.captured(2);
-        if (!n.captured(4).isEmpty()) s += o.captured(3) + n.captured(4);
-        out << s;
+        const Part o = parsePart(olds[std::min<int>(i, int(olds.size()) - 1)]), n = parsePart(news[i]);
+        if (!o.ok || !n.ok) return newBody;
+        out << writePart(n, o.col, o.row);
     }
     return out.join(QLatin1Char(':'));
 }

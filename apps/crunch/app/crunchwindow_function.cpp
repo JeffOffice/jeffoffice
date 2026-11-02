@@ -77,6 +77,7 @@ void CrunchWindow::functionArguments(const crunch::FunctionDoc &doc, const QStri
 {
     if (m_argsDialog) return;   // (one at a time)
     const bool editing = m_edit.active;
+    returnToEditSheet();   // (an entry that was pointing at another sheet is of its own: what is selected and shown is that sheet's)
     const QChar separator = crunch::argumentSeparator(m_session->locale());
     QString text;
     int caret = 0;

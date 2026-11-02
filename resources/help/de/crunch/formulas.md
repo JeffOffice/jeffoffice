@@ -31,6 +31,8 @@ Auch die Pfeiltasten funktionieren. Drücken Sie eine Pfeiltaste, dann bewegt si
 
 Um auf eine Zelle in einem anderen Blatt zu zeigen, klicken Sie auf die Registerkarte dieses Blatts, während der Cursor an einer Stelle steht, an der eine Zelle stehen darf, und dann auf die Zelle. Der Name des Blatts wird mitgeschrieben, bei Bedarf in Anführungszeichen, wie in 'Mein Blatt'!B3. Mit der **Eingabetaste** kehren Sie zum Blatt zurück, auf dem Sie begonnen haben, und die Formel wird in ihre Zelle eingetragen. Mit **Esc** geben Sie alles auf, auch den Wechsel des Blatts.
 
+Sie können auch den Rand eines umrandeten Bereichs auf dem Blatt ziehen, um diese Adresse zu verschieben, oder sein Eckquadrat ziehen, um ihn aufzuziehen; die Formel ändert sich beim Ziehen mit.
+
 Drücken Sie **F4**, während der Cursor in oder direkt hinter einer Adresse steht, um Teile davon mit einem Dollarzeichen festzusetzen: A1 wird zu $A$1, dann zu A$1, dann zu $A1 und danach wieder zu A1.
 
 Jede Adresse in der Formel ist im Text farbig, und die Zellen, die sie nennt, sind auf dem Blatt in derselben Farbe umrandet, sodass Sie auf einen Blick sehen, was die Formel liest. Ein Klick nach einer vollständigen Adresse, etwa nach =A1, beendet die Eingabe und wählt die angeklickte Zelle aus, wie bei jedem anderen Text.

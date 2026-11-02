@@ -14,6 +14,7 @@
 #include <QKeyEvent>
 #include <QLineEdit>
 #include <QTextCharFormat>
+#include <QTimer>
 
 namespace jp {
 
@@ -22,6 +23,12 @@ namespace {
 QChar separatorOf(const crunch::EditSession *session) { return crunch::argumentSeparator(session ? session->locale() : QLocale()); }
 
 } // namespace
+
+// A formula is being typed (the entry begins with "=": a cell formatted as text reads a formula as one too).
+bool CrunchWindow::formulaTyped(const QLineEdit *line) const
+{
+    return m_edit.active && m_session && line && line->text().startsWith(QLatin1Char('='));
+}
 
 QLineEdit *CrunchWindow::editLine() const
 {
@@ -65,7 +72,7 @@ bool CrunchWindow::pointAtCells(const grid::GridView::PointSpan &span, bool firs
 {
     if (!m_edit.active || !m_session || !m_loaded) return false;
     QLineEdit *line = editLine();
-    if (!line || !line->text().startsWith(QLatin1Char('='))) return false;
+    if (!formulaTyped(line)) return false;
     const bool valid = pointValid(line);
     if (first && !valid) {
         const crunch::FormulaSpot spot = crunch::spotAt(line->text(), line->cursorPosition(), separatorOf(m_session.get()));
@@ -95,7 +102,7 @@ bool CrunchWindow::pointKey(QLineEdit *line, QKeyEvent *key)
         updatePointStatus();
         return true;
     }
-    if (!line->text().startsWith(QLatin1Char('='))) return false;
+    if (!formulaTyped(line)) return false;
     if (key->key() == Qt::Key_F4 && !(key->modifiers() & ~Qt::KeypadModifier)) {
         cycleFixedParts(line);
         return true;
@@ -130,7 +137,9 @@ bool CrunchWindow::pointKey(QLineEdit *line, QKeyEvent *key)
         anchorRow = headRow;
         anchorCol = headCol;
     }
-    QString ref = crunch::referenceText(crunch::FormulaRef::Kind::Range, quint32(anchorRow), quint32(anchorCol), quint32(headRow), quint32(headCol));
+    // (a merged range the pointer is on, or reaches into, is written whole)
+    const grid::GridRange block = m_view->expandMerges(grid::GridRange{std::min(anchorRow, headRow), std::min(anchorCol, headCol), std::max(anchorRow, headRow), std::max(anchorCol, headCol)});
+    QString ref = crunch::referenceText(crunch::FormulaRef::Kind::Range, quint32(block.row1), quint32(block.col1), quint32(block.row2), quint32(block.col2));
     if (m_sheet != m_edit.sheet) ref = jp::office::sheet::sheetNamePrefix(m_loaded->book->info().sheets[size_t(m_sheet)].name) + ref;
     writePoint(line, ref, valid, false);
     m_point.sheet = m_sheet;
@@ -200,7 +209,7 @@ bool CrunchWindow::keepEditOnSheetChange(int target) const
     if (!m_edit.active || !m_session) return false;
     if (target == m_edit.sheet) return true;
     const QLineEdit *line = editLine();
-    if (!line || !line->text().startsWith(QLatin1Char('='))) return false;
+    if (!formulaTyped(line)) return false;
     if (pointValid(line)) return true;
     const crunch::FormulaSpot spot = crunch::spotAt(line->text(), line->cursorPosition(), separatorOf(m_session.get()));
     return spot.canPoint && !spot.inText;
@@ -211,13 +220,24 @@ void CrunchWindow::returnToEditSheet()
     if (m_edit.active && m_sheet != m_edit.sheet) setActiveSheet(m_edit.sheet);
 }
 
+// The views are made once for the changes of a turn of the event loop (a drag changes the text at each move).
+void CrunchWindow::schedulePointViews()
+{
+    if (m_pointViewsPending) return;
+    m_pointViewsPending = true;
+    QTimer::singleShot(0, this, [this] {
+        if (!m_pointViewsPending) return;
+        updatePointViews();
+    });
+}
+
 void CrunchWindow::updatePointStatus()
 {
-    if (!m_edit.active) return;
+    if (!m_edit.active || m_calculating || m_loading) return;   // (what the program is busy with stays in the status bar)
     QString mode = tr("Enter");
     if (m_cellEditor->mode() == CellEditor::Mode::Editing) {
         mode = tr("Edit");
-    } else if (const QLineEdit *line = editLine(); line && line->text().startsWith(QLatin1Char('='))) {
+    } else if (const QLineEdit *line = editLine(); formulaTyped(line)) {
         const crunch::FormulaSpot spot = crunch::spotAt(line->text(), line->cursorPosition(), separatorOf(m_session.get()));
         if (pointValid(line) || (spot.canPoint && !spot.inText)) mode = tr("Point");
     }
@@ -227,10 +247,11 @@ void CrunchWindow::updatePointStatus()
 // The references of the formula being typed: each outlined on the sheet that has its cells, in a color of its own, and its text in the same color in both lines.
 void CrunchWindow::updatePointViews()
 {
+    m_pointViewsPending = false;
     std::vector<grid::PointMark> marks;
     std::vector<crunch::FormulaRef> refs;
     const QLineEdit *line = editLine();
-    const bool formula = m_edit.active && m_loaded && line && line->text().startsWith(QLatin1Char('='));
+    const bool formula = m_loaded && formulaTyped(line);
     if (formula) {
         refs = crunch::findReferences(line->text());
         const QVector<quint32> colors = crunch::referenceColors();
@@ -252,7 +273,7 @@ void CrunchWindow::updatePointViews()
     const QVector<quint32> colors = crunch::referenceColors();
     for (QLineEdit *l : {static_cast<QLineEdit *>(m_cellEditor), m_formulaBar}) {
         if (l->text().isEmpty() && refs.empty()) continue;
-        if (m_coloring) continue;
+        if (m_coloring || m_composing.contains(l)) continue;   // (a text being composed with an input method is left alone: the formats would end it)
         QList<QInputMethodEvent::Attribute> attrs;
         const int caret = l->cursorPosition();
         if (formula && l->text() == line->text()) {

@@ -259,6 +259,8 @@ public:
     void setPointAdjuster(std::function<void(int, const GridRange &, bool)> adjuster) { m_pointAdjuster = std::move(adjuster); }
     // The cell Ctrl and an arrow go to from a cell, as on the sheet (the walk is made whole at once).
     // The cell an arrow goes to from a cell, as the cell cursor goes (over hidden rows and columns, a merged range in one step).
+    // The block made larger until no merged range is half in it.
+    GridRange expandMerges(GridRange range) const;
     void stepFrom(qint64 row, qint64 col, int dRow, int dCol, qint64 *toRow, qint64 *toCol);
     void edgeFrom(qint64 row, qint64 col, int dRow, int dCol, qint64 *toRow, qint64 *toCol);
 
@@ -389,6 +391,7 @@ private:
     std::vector<PointMark> m_pointMarks;
     std::function<void(int, const GridRange &, bool)> m_pointAdjuster;
     int m_markId = -1;
+    GridRange m_pointLast;                   // the block the drag last reported (a move to the same cells reports nothing)
     GridRange m_markFrom;                    // the block of the mark being dragged, as it was
     GridRange markRect(const PointMark &mark, QRect *rect) const;
     bool markGrab(const QPoint &lp, int *index, bool *corner) const;

@@ -420,7 +420,7 @@ bool CrunchWindow::pointAtTableCell(qint64 row, qint64 col)
 {
     if (!m_edit.active || !m_session || !m_loaded || row < 0 || col < 0) return false;
     QLineEdit *line = editLine();   // (the line the entry is in: the click has taken the focus to the grid)
-    if (!line || !line->text().startsWith(QLatin1Char('='))) return false;
+    if (!formulaTyped(line)) return false;
     const int index = m_session->tableAt(m_sheet, quint32(row), quint32(col));
     if (index < 0) return false;
     const bool valid = pointValid(line);   // (a second click replaces the reference the first wrote)

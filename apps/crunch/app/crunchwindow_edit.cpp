@@ -132,6 +132,7 @@ void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool
     m_edit.row = row;
     m_edit.col = col;
     m_edit.original = m_formulaFull;
+    m_edit.view = m_view->viewState();
     m_view->ensureVisible(row, col);
     m_syncingEditors = true;
     m_cellEditor->setMode(mode);
@@ -232,7 +233,7 @@ void CrunchWindow::finishEdit(CellEditor::Way way)
     m_cellEditor->hide();
     const quint32 row = m_edit.row, col = m_edit.col;
     m_edit.active = false;
-    m_view->setPointMarks({});
+    updatePointViews();   // (the outlines go, and the colors of the text in both lines)
     if (!m_calculating && !m_loading) setStatus(tr("Ready"));
     m_view->setFocus(Qt::OtherFocusReason);
     using Way = CellEditor::Way;
@@ -283,7 +284,8 @@ void CrunchWindow::cancelEdit()
     if (m_helper) m_helper->close();
     m_cellEditor->hide();
     m_edit.active = false;
-    m_view->setPointMarks({});
+    updatePointViews();
+    if (m_edit.view.valid && m_view->viewState().valid) m_view->setViewState(m_edit.view);   // (the sheet is scrolled as it was, and the cell with the cursor is where it was)
     if (!m_calculating && !m_loading) setStatus(tr("Ready"));
     m_view->setFocus(Qt::OtherFocusReason);
     updateBars();

@@ -17,6 +17,7 @@
 #include "testrunner.h"
 
 #include <QApplication>
+#include <QImage>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QUndoStack>
@@ -33,7 +34,7 @@ QPoint cellPoint(EditWindow &e, const QString &ref)
     quint32 r = 0, c = 0;
     parseCellRef(ref, &r, &c);
     const QRect cell = e.view()->cellRect(r, c);
-    return QPoint(cell.left() + 6, cell.top() + 4);
+    return cell.center();
 }
 
 void click(EditWindow &e, const QString &ref, Qt::KeyboardModifiers m = Qt::NoModifier) { QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, m, cellPoint(e, ref)); }
@@ -109,9 +110,112 @@ private Q_SLOTS:
         QCOMPARE(crunch::nextFixedForm(QStringLiteral("$A1")), QStringLiteral("A1"));
         QCOMPARE(crunch::nextFixedForm(QStringLiteral("B2:C3")), QStringLiteral("$B$2:$C$3"));
         QCOMPARE(crunch::nextFixedForm(QStringLiteral("D:E")), QStringLiteral("$D:$E"));
+        // rows and columns by themselves: the "$" before a row's number is the row's
+        QCOMPARE(crunch::nextFixedForm(QStringLiteral("3:3")), QStringLiteral("$3:$3"));
+        QCOMPARE(crunch::nextFixedForm(QStringLiteral("$3:$3")), QStringLiteral("3:3"));
+        QCOMPARE(crunch::nextFixedForm(QStringLiteral("$A:$A")), QStringLiteral("A:A"));
+        QCOMPARE(crunch::nextFixedForm(QStringLiteral("A:A")), QStringLiteral("$A:$A"));
+        QCOMPARE(crunch::refitBody(QStringLiteral("$1:$1"), QStringLiteral("2:2")), QStringLiteral("$2:$2"));
+        QCOMPARE(crunch::refitBody(QStringLiteral("$A:$A"), QStringLiteral("C:C")), QStringLiteral("$C:$C"));
         QCOMPARE(crunch::referenceText(FormulaRef::Kind::Range, 4, 3, 1, 1), QStringLiteral("B2:D5"));
         QCOMPARE(crunch::referenceText(FormulaRef::Kind::Columns, 0, 1, 0, 3), QStringLiteral("B:D"));
         QCOMPARE(crunch::referenceText(FormulaRef::Kind::Rows, 1, 0, 4, 0), QStringLiteral("2:5"));
+    }
+
+
+    // Sheets named with letters that are not ASCII are read as sheets (written plain, as the program writes them); 3-D and other workbooks' references are not read as one sheet's; a text
+    // in quotes that a match runs into does not hide a real reference.
+    void referencesOfAnyKindAreReadAsTheyAre()
+    {
+        auto refs = crunch::findReferences(QStringLiteral("=\u00dcbersicht!A1+\u65e5\u672c!B2:C3"));
+        QCOMPARE(int(refs.size()), 2);
+        QCOMPARE(refs[0].sheet, QStringLiteral("\u00dcbersicht"));
+        QCOMPARE(refs[0].start, 1);
+        QCOMPARE(refs[1].sheet, QStringLiteral("\u65e5\u672c"));
+        refs = crunch::findReferences(QStringLiteral("=SUM(Sheet1:Sheet3!A1)+'A:B'!X1+[Book]Sheet1!B2+'[Book]Sheet1'!B3+C3"));
+        QCOMPARE(int(refs.size()), 1);
+        QCOMPARE(refs[0].row1, quint32(2));
+        QCOMPARE(refs[0].sheet, QString());
+        refs = crunch::findReferences(QStringLiteral("=\"'\"&A1&\"'!B2\""));
+        QCOMPARE(int(refs.size()), 1);
+        QCOMPARE(refs[0].start, 5);
+    }
+
+    // F4 on a row or a column by itself goes round its two forms, and a dragged row keeps its "$".
+    void f4CyclesWholeRowsAndColumns()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("F1"));
+        e.type(QStringLiteral("=SUM(3:3"));
+        for (const char *want : {"=SUM($3:$3", "=SUM(3:3", "=SUM($3:$3"}) {
+            e.key(Qt::Key_F4);
+            QCOMPARE(w.cellEditor()->text(), QString::fromLatin1(want));
+        }
+        e.key(Qt::Key_Escape);
+        e.type(QStringLiteral("=SUM($A:$A"));
+        for (const char *want : {"=SUM(A:A", "=SUM($A:$A"}) {
+            e.key(Qt::Key_F4);
+            QCOMPARE(w.cellEditor()->text(), QString::fromLatin1(want));
+        }
+        e.key(Qt::Key_Escape);
+    }
+
+    // Function Arguments opened after pointing at another sheet comes back to the formula's own sheet, with its selection.
+    void functionArgumentsAfterPointingKeepsTheFormulasSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(twoSheets()));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("D1"));
+        e.type(QStringLiteral("=SUM("));
+        w.sheetTabs()->setCurrentIndex(1);
+        click(e, QStringLiteral("B3"));
+        w.setFunctionAsker([](QString *name) {
+            *name = QStringLiteral("SUM");
+            return true;
+        });
+        w.setArgumentsAsker([](FunctionArgumentsDialog *) { return false; });
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QCOMPARE(w.activeSheet(), 0);
+        QCOMPARE(e.selected(), QStringLiteral("D1"));
+        if (w.isEditing()) e.key(Qt::Key_Escape);
+    }
+
+    // A click that cannot point, made while another sheet is shown, ends the entry on the formula's sheet and selects nothing there.
+    void aClickThatCannotPointDoesNotSelectOnTheOtherSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(twoSheets()));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("D1"));
+        e.type(QStringLiteral("="));
+        w.sheetTabs()->setCurrentIndex(1);
+        click(e, QStringLiteral("B3"));
+        QTest::keyClicks(w.formulaBar(), QStringLiteral("+1"));
+        click(e, QStringLiteral("E5"));
+        QVERIFY(!w.isEditing());
+        QCOMPARE(w.activeSheet(), 0);
+        QCOMPARE(w.session()->editText(0, 0, 3), QStringLiteral("='My Sheet'!B3+1"));
+        QCOMPARE(e.selected(), QStringLiteral("D1"));
+    }
+
+    // Esc puts the scroll back that pointing with the keys moved.
+    void escPutsTheScrollBack()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("F1"));
+        const auto before = e.view()->viewState();
+        e.type(QStringLiteral("="));
+        e.key(Qt::Key_Down, Qt::ControlModifier);
+        QVERIFY(e.view()->viewState().scrollY != before.scrollY);
+        e.key(Qt::Key_Escape);
+        QVERIFY(!w.isEditing());
+        QCOMPARE(e.view()->viewState().scrollY, before.scrollY);
+        QCOMPARE(e.selected(), QStringLiteral("F1"));
     }
 
     // A click on a cell writes its address, a second click before anything else is typed replaces it, a click after an operator writes another, and the selection stays where it was.
@@ -197,22 +301,22 @@ private Q_SLOTS:
         CrunchWindow &w = e.win.w;
         e.select(QStringLiteral("F1"));
         e.type(QStringLiteral("="));
-        QCOMPARE(w.statusText(), QStringLiteral("Point"));
+        QTRY_COMPARE(w.statusText(), QStringLiteral("Point"));
         e.key(Qt::Key_F2);
-        QCOMPARE(w.statusText(), QStringLiteral("Edit"));
+        QTRY_COMPARE(w.statusText(), QStringLiteral("Edit"));
         e.key(Qt::Key_Down);
         QCOMPARE(w.cellEditor()->text(), QStringLiteral("="));   // (the arrow does not point in the text's mode)
         e.key(Qt::Key_F2);
-        QCOMPARE(w.statusText(), QStringLiteral("Point"));
+        QTRY_COMPARE(w.statusText(), QStringLiteral("Point"));
         e.key(Qt::Key_Down);
         QCOMPARE(w.cellEditor()->text(), QStringLiteral("=F2"));
         QTest::keyClicks(w.cellEditor(), QStringLiteral("+1"));
-        QCOMPARE(w.statusText(), QStringLiteral("Enter"));
+        QTRY_COMPARE(w.statusText(), QStringLiteral("Enter"));
         e.key(Qt::Key_Escape);
-        QCOMPARE(w.statusText(), QStringLiteral("Ready"));
+        QTRY_COMPARE(w.statusText(), QStringLiteral("Ready"));
         // the entry of text has no pointing to show
         e.type(QStringLiteral("ab"));
-        QCOMPARE(w.statusText(), QStringLiteral("Enter"));
+        QTRY_COMPARE(w.statusText(), QStringLiteral("Enter"));
         e.key(Qt::Key_Escape);
     }
 
@@ -256,7 +360,7 @@ private Q_SLOTS:
         QCOMPARE(w.formulaBar()->text(), QStringLiteral("='My Sheet'!B3"));
         QTest::keyClicks(w.formulaBar(), QStringLiteral("+"));
         QTest::keyClick(w.formulaBar(), Qt::Key_Down);
-        QVERIFY(w.formulaBar()->text().startsWith(QStringLiteral("='My Sheet'!B3+'My Sheet'!")));
+        QCOMPARE(w.formulaBar()->text(), QStringLiteral("='My Sheet'!B3+'My Sheet'!A2"));
         click(e, QStringLiteral("B3"));
         QCOMPARE(w.formulaBar()->text(), QStringLiteral("='My Sheet'!B3+'My Sheet'!B3"));
         w.sheetTabs()->setCurrentIndex(0);
@@ -444,7 +548,7 @@ private Q_SLOTS:
         const int steps = w.undoStack()->index();
         e.select(QStringLiteral("F1"));
         e.type(QStringLiteral("=SUM($B$2:C3)"));
-        QCOMPARE(int(e.view()->pointMarks().size()), 1);
+        QTRY_COMPARE(int(e.view()->pointMarks().size()), 1);
         QWidget *vp = e.view()->viewport();
         const QRect b2 = e.view()->cellRect(1, 1);
         // the left border of the block, dragged one column and one row on
@@ -456,6 +560,7 @@ private Q_SLOTS:
         QVERIFY(w.isEditing());
         QVERIFY(w.cellEditor()->hasFocus());
         QCOMPARE(e.selected(), QStringLiteral("F1"));
+        QTRY_COMPARE(e.view()->pointMarks()[0].range.row1, qint64(2));   // (the outline follows the text)
         // the corner square stretched to E6
         const QRect d4 = e.view()->cellRect(3, 3);
         const QPoint corner = d4.bottomRight() - QPoint(1, 1);
@@ -487,7 +592,7 @@ private Q_SLOTS:
         e.key(Qt::Key_Left);
         QCOMPARE(w.cellEditor()->text(), QStringLiteral("=D3"));
         e.key(Qt::Key_Left);
-        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=B3"));   // (the merged range B3:C4 is one step)
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=B3:C4"));   // (the merged range B3:C4 is one step, and is written whole)
         e.key(Qt::Key_Right);
         QCOMPARE(w.cellEditor()->text(), QStringLiteral("=D3"));
         e.key(Qt::Key_Escape);
@@ -540,8 +645,8 @@ private Q_SLOTS:
         CrunchWindow &w = e.win.w;
         e.select(QStringLiteral("F1"));
         e.type(QStringLiteral("=A1+SUM(B2:C3)*D4"));
+        QTRY_COMPARE(int(e.view()->pointMarks().size()), 3);
         const auto &marks = e.view()->pointMarks();
-        QCOMPARE(int(marks.size()), 3);
         QCOMPARE(marks[0].range.row1, qint64(0));
         QCOMPARE(marks[1].range.row2, qint64(2));
         QCOMPARE(marks[1].range.col2, qint64(2));
@@ -550,6 +655,19 @@ private Q_SLOTS:
         QVERIFY(marks[0].color.isValid());
         QCOMPARE(w.cellEditor()->text(), QStringLiteral("=A1+SUM(B2:C3)*D4"));   // (the colors leave the text and the cursor alone)
         QCOMPARE(w.cellEditor()->cursorPosition(), 17);
+        // the colors reach the line: the pixels of its text have each reference's color
+        QVERIFY(w.cellEditor()->isVisible());
+        const QImage shot = w.cellEditor()->grab().toImage();
+        for (int i = 0; i < 3; ++i) {
+            const QColor c = marks[size_t(i)].color;
+            int near = 0;
+            for (int y = 0; y < shot.height(); ++y)
+                for (int x = 0; x < shot.width(); ++x) {
+                    const QColor p = shot.pixelColor(x, y);
+                    if (std::abs(p.red() - c.red()) + std::abs(p.green() - c.green()) + std::abs(p.blue() - c.blue()) < 90) ++near;
+                }
+            QVERIFY2(near > 3, qPrintable(QStringLiteral("no text in the color of reference %1").arg(i)));
+        }
         saveShot(&e.win.w, QStringLiteral("point-light"));
         applyUiTheme(2);
         saveShot(&e.win.w, QStringLiteral("point-dark"));

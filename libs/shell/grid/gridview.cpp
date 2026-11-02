@@ -718,6 +718,8 @@ bool GridView::markGrab(const QPoint &lp, int *index, bool *corner) const
     return false;
 }
 
+GridRange GridView::expandMerges(GridRange range) const { return Navigator(&m_sheet.layout(), m_nav.get()).expanded(range); }
+
 void GridView::stepFrom(qint64 row, qint64 col, int dRow, int dCol, qint64 *toRow, qint64 *toCol)
 {
     Navigator nav(&m_sheet.layout(), m_nav.get());
@@ -1092,7 +1094,10 @@ void GridView::dragTo(const QPoint &pos)
         } else {
             r = GridRange{std::min(r.row1, h.row), std::min(r.col1, h.col), std::max(r.row1, h.row), std::max(r.col1, h.col)};
         }
-        m_pointAdjuster(m_markId, r, false);
+        if (!(r == m_pointLast)) {
+            m_pointLast = r;
+            m_pointAdjuster(m_markId, r, false);
+        }
     } else if (m_drag == Drag::Point) {
         const bool here = m_pointKind == PointSpan::Kind::Cells ? h.kind == Hit::Kind::Cell : m_pointKind == PointSpan::Kind::Rows ? h.row >= 0 : h.col >= 0;
         if (here && m_pointer) {
@@ -1100,7 +1105,10 @@ void GridView::dragTo(const QPoint &pos)
             span.kind = m_pointKind;
             span.range = GridRange{std::min(m_pointRow, h.row), std::min(m_pointCol, h.col), std::max(m_pointRow, h.row), std::max(m_pointCol, h.col)};
             if (span.kind == PointSpan::Kind::Cells) span.range = nav.expanded(span.range);
-            m_pointer(span, false, Qt::NoModifier);
+            if (!(span.range == m_pointLast)) {
+                m_pointLast = span.range;
+                m_pointer(span, false, Qt::NoModifier);
+            }
         }
     } else if (m_drag == Drag::Cells && h.kind == Hit::Kind::Cell) setSelectionInternal(nav.extendTo(m_selection, h.row, h.col), false);
     else if (m_drag == Drag::Rows && h.row >= 0) setSelectionInternal(nav.extendRows(m_selection, h.row), false);
@@ -1125,6 +1133,7 @@ void GridView::mousePressEvent(QMouseEvent *e)
         const Hit at = m_sheet.layout().hit(lp);
         if (at.kind == Hit::Kind::Cell && markGrab(lp, &index, &corner)) {
             m_drag = corner ? Drag::MarkResize : Drag::MarkMove;
+            m_pointLast = GridRange{-1, -1, -1, -1};
             m_markId = m_pointMarks[size_t(index)].id;
             m_markFrom = m_pointMarks[size_t(index)].range;
             m_pointRow = at.row;
@@ -1146,6 +1155,7 @@ void GridView::mousePressEvent(QMouseEvent *e)
             if (span.kind == PointSpan::Kind::Cells) span.range = Navigator(&m_sheet.layout(), m_nav.get()).expanded(span.range);   // (a merged range is one cell)
             if (m_pointer(span, true, e->modifiers())) {
                 m_drag = Drag::Point;
+                m_pointLast = span.range;
                 m_pointKind = span.kind;
                 m_pointRow = row;
                 m_pointCol = col;
