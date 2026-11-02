@@ -232,6 +232,37 @@ void checkShapes(const Parts &parts)
     QVERIFY(checked > 0);
 }
 
+// The package as the original program reads it: every link a part names is a part that is there; every relationship a workbook names is in its list; every part has a type; and the
+// list of pivot caches comes where the format has it in the workbook (after the calculation settings, before anything that follows it).
+void checkPackage(const Parts &parts)
+{
+    const QString workbook = QString::fromUtf8(parts.value(QStringLiteral("xl/workbook.xml")));
+    const QString rels = QString::fromUtf8(parts.value(QStringLiteral("xl/_rels/workbook.xml.rels")));
+    QSet<QString> ids;
+    for (auto m = QRegularExpression(QStringLiteral("Id=\"([^\"]+)\"")).globalMatch(rels); m.hasNext();) {
+        const QString id = m.next().captured(1);
+        QVERIFY2(!ids.contains(id), qPrintable(QStringLiteral("the workbook's relationship %1 is there twice").arg(id)));
+        ids.insert(id);
+    }
+    for (auto m = QRegularExpression(QStringLiteral("r:id=\"([^\"]+)\"")).globalMatch(workbook); m.hasNext();) {
+        const QString id = m.next().captured(1);
+        QVERIFY2(ids.contains(id), qPrintable(QStringLiteral("the workbook names %1, which its relationships do not have").arg(id)));
+    }
+    const QString types = QString::fromUtf8(parts.value(QStringLiteral("[Content_Types].xml")));
+    for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
+        const QString name = it.key();
+        if (name.endsWith(QLatin1String(".rels")) || name == QLatin1String("[Content_Types].xml") || !name.endsWith(QLatin1String(".xml"))) continue;
+        QVERIFY2(types.contains(QStringLiteral("PartName=\"/%1\"").arg(name)) || types.contains(QLatin1String("Extension=\"xml\"")), qPrintable(name + QStringLiteral(" has no type")));
+    }
+    const qsizetype caches = workbook.indexOf(QLatin1String("<pivotCaches>"));
+    if (caches >= 0) {
+        for (const char *before : {"<calcPr", "<definedNames", "<sheets>"})
+            if (const qsizetype at = workbook.indexOf(QLatin1String(before)); at >= 0) QVERIFY2(at < caches, before);
+        for (const char *after : {"<extLst", "<webPublishing", "<fileRecoveryPr", "<smartTagPr"})
+            if (const qsizetype at = workbook.indexOf(QLatin1String(after)); at >= 0) QVERIFY2(at > caches, after);
+    }
+}
+
 void finish(EditWindow &e)
 {
     e.win.w.session()->finishFills();
@@ -703,8 +734,15 @@ private Q_SLOTS:
     // A pivot table made by a person: an empty table with its cache, the layout filled in from the fields, saved with the parts the original program writes, read again, and taken back by Undo.
     void aPivotTableIsMadeSavedAndReadAgain()
     {
+        // (a workbook with a calculation chain: the save takes the chain out, and the workbook's relationships, which it changes for that, must keep the link to the new cache)
+        PivotBookOptions chain;
+        chain.tweak = [](Parts &p) {
+            p[QStringLiteral("xl/calcChain.xml")] = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<calcChain xmlns=\"%1\"><c r=\"A1\" i=\"1\"/></calcChain>").arg(QLatin1String(kNs)).toUtf8();
+            addType(p, QStringLiteral("xl/calcChain.xml"), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.calcChain+xml"));
+            relate(p, QStringLiteral("xl/_rels/workbook.xml.rels"), QStringLiteral("rIdChain"), QStringLiteral("calcChain"), QStringLiteral("calcChain.xml"));
+        };
         EditWindow e;
-        QVERIFY(e.open(pivotWorkbook()));
+        QVERIFY(e.open(pivotWorkbook(chain)));
         crunch::EditSession *s = e.win.w.session();
         const int steps = s->undoStack()->count();
         int made = -1;
@@ -731,6 +769,8 @@ private Q_SLOTS:
         QVERIFY(saveNow(e));
         const Parts after = readParts(e.path);
         checkShapes(after);
+        checkPackage(after);
+        QVERIFY(!after.contains(QStringLiteral("xl/calcChain.xml")));
         QVERIFY(after.contains(QStringLiteral("xl/pivotTables/pivotTable2.xml")));
         QVERIFY(after.contains(QStringLiteral("xl/pivotCache/pivotCacheDefinition2.xml")));
         QVERIFY(after.contains(QStringLiteral("xl/pivotCache/pivotCacheRecords2.xml")));

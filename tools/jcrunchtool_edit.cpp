@@ -2569,7 +2569,7 @@ int pivotCreate(const QString &in, const QString &outPath, const QString &varian
         return ok ? 0 : 2;
     };
     static const QStringList variants = {QStringLiteral("empty"), QStringLiteral("rows"), QStringLiteral("rows-cols"), QStringLiteral("two-rows"), QStringLiteral("tabular"), QStringLiteral("outline"),
-                                         QStringLiteral("count"), QStringLiteral("average"), QStringLiteral("filter"), QStringLiteral("two-values"), QStringLiteral("no-grand")};
+                                         QStringLiteral("count"), QStringLiteral("average"), QStringLiteral("filter"), QStringLiteral("two-values"), QStringLiteral("no-grand"), QStringLiteral("control")};
     if (!variants.contains(variant)) return say(false, QStringLiteral("unknown variant; the variants are ") + variants.join(QLatin1Char(' ')));
     CrunchWindow w;
     QString told;
@@ -2595,9 +2595,10 @@ int pivotCreate(const QString &in, const QString &outPath, const QString &varian
     }
     if (source.isEmpty()) return say(false, QStringLiteral("no data of a pivot table's own to make one from"));
     int made = -1;
-    crunch::EditSession::Outcome result = session->createPivot(source, -1, 0, 0, &made);
+    crunch::EditSession::Outcome result;
+    if (variant != QLatin1String("control")) result = session->createPivot(source, -1, 0, 0, &made);   // (the control is the same workbook saved with no pivot table made)
     if (!result.ok) return say(false, result.problem);
-    if (variant != QLatin1String("empty")) {
+    if (variant != QLatin1String("empty") && variant != QLatin1String("control")) {
         PivotTable table = *book.table(made).table;
         const PivotCache *cache = book.cache(book.table(made).cache).cache.get();
         QVector<int> texts, numbers;

@@ -1995,6 +1995,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         for (const SaveChanges::AddedPivot &a : changes.addedPivots) {
             if (a.sheet < 0 || a.sheet >= book.info().sheets.size()) return bad();
             const SheetEntry &se = book.info().sheets[a.sheet];
+            if (se.deleted) continue;   // (a table on a sheet that was deleted: nothing of it is written)
             if (!cacheIdOf.count(a.definitionPart)) {
                 cacheIdOf[a.definitionPart] = nextCacheId++;
                 if (a.newCache) {
@@ -2194,7 +2195,9 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             const int relsEntry = entryAt.value(plain(relsName), -1);
             QByteArray types, rels, newTypes, newRels;
             const bool haveTypes = typesEntry >= 0 && (replaced.contains(typesEntry) ? (types = replaced.value(typesEntry), true) : inflate(typesEntry, &types));
-            if (chainEntry >= 0 && haveTypes && relsEntry >= 0 && inflate(relsEntry, &rels) && removeContentTypeOverride(types, part, &newTypes)
+            // (the workbook's relationships as an earlier block left them: the links to new pivot caches are in them)
+            const bool haveRels = relsEntry >= 0 && (replaced.contains(relsEntry) ? (rels = replaced.value(relsEntry), true) : inflate(relsEntry, &rels));
+            if (chainEntry >= 0 && haveTypes && haveRels && removeContentTypeOverride(types, part, &newTypes)
                 && removeRelationshipOfType(rels, QStringLiteral("/calcChain"), &newRels)) {
                 replaced.insert(typesEntry, newTypes);
                 replaced.insert(relsEntry, newRels);
