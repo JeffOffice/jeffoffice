@@ -751,7 +751,7 @@ bool looksLikeOpenDocumentZip(const QByteArray &zip)
     bool content = false;
     for (const jp::ZipEntry &e : std::as_const(entries)) {
         if (e.name == QLatin1String("[Content_Types].xml")) return false;
-        if (e.name == QLatin1String("content.xml")) content = true;
+        if (e.name == QLatin1String("content.xml") || e.name == QLatin1String("encrypted-package")) content = true;   // (the newest protected files hold the whole package enciphered as one part)
     }
     return content;
 }

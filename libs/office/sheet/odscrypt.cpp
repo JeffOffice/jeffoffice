@@ -25,6 +25,7 @@ struct Protection {
     QByteArray checksum, iv, salt;
     qint64 rounds = 0;
     int keySize = 0;
+    qint64 argonIterations = 0, argonMemory = 0, argonLanes = 0;   // (the newest files: Argon2id, with the memory in KiB)
 };
 
 // What the manifest says of each part that has encryption-data, by the part's name.
@@ -78,6 +79,9 @@ bool readManifest(const QByteArray &zip, const QVector<jp::ZipEntry> &entries, Q
             current->salt = QByteArray::fromBase64(attr("salt").toLatin1());
             current->rounds = attr("iteration-count").toLongLong();
             current->keySize = attr("key-size").toInt();
+            current->argonIterations = attr("argon2-iterations").toLongLong();
+            current->argonMemory = attr("argon2-memory").toLongLong();
+            current->argonLanes = attr("argon2-lanes").toLongLong();
         } else if (current && r.name() == QLatin1String("start-key-generation")) {
             current->startKey = attr("start-key-generation-name");
         }
@@ -126,6 +130,8 @@ QByteArray pbkdf2Sha1(const QByteArray &password, const QByteArray &salt, qint64
     return out;
 }
 
+bool isArgon(const Protection &p) { return p.derivation.contains(QLatin1String("argon2id"), Qt::CaseInsensitive); }
+
 QString cleanName(const QString &n) { return n.startsWith(QLatin1Char('/')) ? n.mid(1) : n; }
 
 QCryptographicHash::Algorithm startHash(const QString &name)
@@ -146,6 +152,42 @@ bool checksumHash(const QString &type, QCryptographicHash::Algorithm *alg)
     return true;
 }
 
+
+// The newest files: the whole package, deflated, then enciphered as the one part "encrypted-package" (AES-GCM, the key made by Argon2id from the SHA-256 of the password). The part is the 12 bytes
+// of the iv (the manifest has them too), the enciphered bytes, and the 16 of the tag.
+CryptResult decryptArgonPackage(const QByteArray &zip, const QVector<jp::ZipEntry> &entries, const Protection &p, const QString &password, qint64 maxBytes, bool verifyOnly, QByteArray *plain,
+                                const std::function<bool()> &cancelled)
+{
+    const jp::ZipEntry *part = nullptr;
+    for (const jp::ZipEntry &e : entries)
+        if (cleanName(e.name) == QLatin1String("encrypted-package")) part = &e;
+    if (!part || part->dataAt < 0 || part->csize < 12 + 16 || part->dataAt + part->csize > zip.size()) return CryptResult::Damaged;
+    if (p.size > maxBytes) return CryptResult::TooLarge;
+    QByteArray sealed;
+    if (!jp::inflateZipEntry(zip, *part, &sealed) || sealed.size() < 12 + 16 || sealed.left(12) != p.iv) return CryptResult::Damaged;
+    QByteArray pw = password.toUtf8();
+    QByteArray start = QCryptographicHash::hash(pw, startHash(p.startKey.isEmpty() ? QStringLiteral("sha256") : p.startKey));
+    crypto::wipe(pw);
+    int keySize = p.keySize > 0 ? p.keySize : 32;
+    QByteArray key = crypto::argon2id(start, p.salt, quint32(p.argonIterations), quint32(p.argonMemory), quint32(p.argonLanes), keySize, QByteArray(), QByteArray(), cancelled);
+    crypto::wipe(start);
+    if (key.isEmpty()) return cancelled && cancelled() ? CryptResult::Cancelled : CryptResult::Damaged;
+    bool ok = false;
+    QByteArray packed = crypto::aesGcmOpen(key, p.iv, QByteArray(), sealed.mid(12), &ok);
+    crypto::wipe(key);
+    if (!ok) return CryptResult::WrongPassword;
+    if (verifyOnly) {
+        crypto::wipe(packed);
+        return CryptResult::Ok;
+    }
+    bool inflated = false;
+    const QByteArray inner = jp::office::odrawInflate(packed, p.size, &inflated);
+    crypto::wipe(packed);
+    if (!inflated || inner.size() != p.size) return CryptResult::Damaged;
+    *plain = inner;
+    return CryptResult::Ok;
+}
+
 } // namespace
 
 bool odsEncrypted(const QByteArray &zip)
@@ -164,6 +206,18 @@ CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 ma
     if (!readManifest(zip, entries, &protection) || protection.isEmpty()) return CryptResult::Damaged;
     // Every part's sizes and counts are checked, all of them, before any key is made for any: a manifest with one bad part costs no work.
     auto checkPart = [](const Protection &p, bool *aes, int *keySize) {
+        if (isArgon(p)) {
+            *aes = true;
+            const bool gcm = p.algorithm.contains(QLatin1String("aes"), Qt::CaseInsensitive) && p.algorithm.contains(QLatin1String("gcm"), Qt::CaseInsensitive);
+            if (!gcm) return CryptResult::Unsupported;
+            *keySize = p.keySize > 0 ? p.keySize : p.algorithm.contains(QLatin1String("128")) ? 16 : p.algorithm.contains(QLatin1String("192")) ? 24 : 32;
+            if (p.argonIterations > kMaxOdsArgonIterations || p.argonMemory > kMaxOdsArgonMemoryKiB || p.argonLanes > kMaxOdsArgonLanes) return CryptResult::TooCostly;
+            if (p.argonIterations < 1 || p.argonLanes < 1 || p.argonMemory < 8 * p.argonLanes) return CryptResult::Damaged;
+            if ((*keySize != 16 && *keySize != 24 && *keySize != 32) || p.salt.size() < 8 || p.salt.size() > 1024 || p.iv.size() != 12 || p.size < 0 || p.size > jp::kMaxZipEntryBytes)
+                return CryptResult::Damaged;
+            return CryptResult::Ok;
+        }
+        if (p.algorithm.contains(QLatin1String("gcm"), Qt::CaseInsensitive)) return CryptResult::Unsupported;   // (that cipher is read only with the key stretching it comes with)
         *aes = p.algorithm.contains(QLatin1String("aes"), Qt::CaseInsensitive);
         const bool blowfish = p.algorithm.contains(QLatin1String("blowfish"), Qt::CaseInsensitive);
         if ((!*aes && !blowfish) || (!p.derivation.isEmpty() && p.derivation.compare(QLatin1String("PBKDF2"), Qt::CaseInsensitive) != 0)) return CryptResult::Unsupported;
@@ -185,6 +239,8 @@ CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 ma
         roundsOfAll += it.value().rounds;   // (each is within the limit: the sum of some thousands of them cannot overflow)
         if (roundsOfAll > kMaxOdsKeyRounds * 64) return CryptResult::Damaged;
     }
+    for (const Protection &p : std::as_const(protection))
+        if (isArgon(p)) return protection.size() == 1 && protection.contains(QStringLiteral("encrypted-package")) ? decryptArgonPackage(zip, entries, protection.constBegin().value(), password, maxBytes, verifyOnly, plain, cancelled) : CryptResult::Unsupported;
     QByteArray pw = password.toUtf8();
     qint64 rounds = 0, total = 0;
     QHash<QByteArray, QByteArray> keys;   // by the salt, the rounds, the size, and the start hash: one stretch for parts that share them
