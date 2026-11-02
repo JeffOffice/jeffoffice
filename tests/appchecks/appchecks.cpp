@@ -22,6 +22,7 @@
 #include <QElapsedTimer>
 #include <QGuiApplication>
 #include <QDialog>
+#include <QFile>
 #include <QFileInfo>
 #include <QLabel>
 #include <QLayout>
@@ -1235,6 +1236,9 @@ QStringList checkRibbonLayout(Adapter &app)
             }
         }
     }
+    // (JP_RIBBON_REPORT=<file> keeps every failure line: a test's message is cut short)
+    if (const QString report = qEnvironmentVariable("JP_RIBBON_REPORT"); !report.isEmpty())
+        if (QFile f(report); f.open(QIODevice::WriteOnly | QIODevice::Truncate)) f.write(fails.join('\n').toUtf8());
     return fails;
 }
 
