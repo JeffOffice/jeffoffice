@@ -161,7 +161,8 @@
           "name": "Tables",
           "keytip": "ZT",
           "items": [
-            {"large": "insert.table", "keytip": "T"}
+            {"large": "insert.table", "keytip": "T"},
+            {"large": "insert.pivot", "keytip": "V"}
           ]
         },
         {
@@ -543,6 +544,13 @@
             {"large": {"id": "ribbon.pivotSubtotals", "text": "Subtotals", "icon": "sigma"}, "keytip": "PS", "menu": ["pivot.sub.none", "pivot.sub.top", "pivot.sub.bottom"]},
             {"large": {"id": "ribbon.pivotGrand", "text": "Grand Totals", "icon": "calculator"}, "keytip": "PG", "menu": ["pivot.grand.off", "pivot.grand.both", "pivot.grand.rows", "pivot.grand.cols"]},
             {"large": {"id": "ribbon.pivotLayout", "text": "Report Layout", "icon": "layout-list"}, "keytip": "PR", "menu": ["pivot.layout.compact", "pivot.layout.outline", "pivot.layout.tabular"]}
+          ]
+        },
+        {
+          "name": "Options",
+          "keytip": "ZO",
+          "items": [
+            {"small": "pivot.getPivotData", "keytip": "PO"}
           ]
         }
       ]

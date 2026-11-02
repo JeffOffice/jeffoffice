@@ -1,5 +1,5 @@
 # Pivot tables
-<!-- keywords: pivot table, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average -->
+<!-- keywords: pivot table, insert pivot table, create, make, getpivotdata, generate getpivotdata, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average -->
 
 A pivot table is a small report made from a long list. The list has one row for each sale, say; the report adds the sales up by region and month. You do not write any formulas. You say which columns of the list go down the side, which go across the top, and which one is added up, and the report fills itself in.
 
@@ -32,6 +32,29 @@ The words used here:
 - **Field** is a column of the list. Region, Month, and Amount are the fields.
 - **Rows**, **Columns**, and **Values** are the three places a field can go. A field in Rows gives one line for each of its different entries; a field in Columns gives one column for each; a field in Values is the one that is added up. A fourth place, **Filters**, holds a field that leaves out the rows you do not choose.
 - A **cache** (the pivot cache) is a copy of your list that the pivot table keeps inside the file, so it can show totals without looking at the cells. The report is worked out from the cache, not from the cells, so it does not change when the cells change. **Refresh** copies the cells into the cache again.
+
+## Make a pivot table
+
+1. Click a cell in the list, or select the cells you want to use. The list needs a row of names above its data.
+2. Choose **Insert**, then **Pivot Table**.
+3. The box shows the cells the data is in. Change them if they are not right. You can also type the name of a table.
+4. Choose where the pivot table goes: **A new sheet** (the default), or a cell on this sheet or another. Pick a place where nothing else is, because the empty table covers about eighteen rows and three columns.
+5. Choose **OK**. The table starts empty, and the **Pivot Table Fields** pane opens. Check the fields you want: a field of numbers is added up, and any other field becomes a row. Then move fields to the boxes as the next sections say.
+
+A new sheet is its own step of Undo, and so is the table. When you save as .xlsx the table is written the way the original program writes one, so it opens there as a pivot table. A copy saved as .xls or .ods keeps the numbers the table shows in its cells, but not the table itself, and the save tells you so.
+
+## GETPIVOTDATA: reading one number from a pivot table
+
+`GETPIVOTDATA` gives the number a pivot table shows for the values and the rows and columns you name. For the example above:
+
+`=GETPIVOTDATA("Sum of Amount", $E$3, "Region", "East", "Month", "Jan")` gives 15.
+
+- The first argument is the name of the value, as the table shows it (for example Sum of Amount). The name of the field it adds up (Amount) works too.
+- The second argument is any cell of the pivot table.
+- After that come pairs of a field and one of its items. Name only Region, East, and you get East's total, 35. Name nothing, and you get the grand total, 49. The fields you name must be the first fields on the rows, or the first fields on the columns, in order.
+- If the table does not show the number, the cell shows `#REF!`.
+
+When you click a value of a pivot table while you type a formula, JeffCrunch writes this formula for you, so that it still reads the right number after the table is rearranged. To get the plain cell address instead, turn off **Generate GETPIVOTDATA** on the **Pivot Table** tab, under **Options**.
 
 ## What JeffCrunch does with a pivot table
 

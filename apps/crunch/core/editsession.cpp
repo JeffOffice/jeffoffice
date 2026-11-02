@@ -1642,6 +1642,23 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
         for (int t = 0; t < pb.tableCount(); ++t) {
             if (pb.tableChanged(t)) changes.sheets[pb.sheetOfTable(t)].dropPivotSelection = true;
         }
+        // the tables made here: their parts, made by the thread that writes the file
+        QStringList sheetNames;
+        for (const jp::office::sheet::SheetEntry &se : book.info().sheets) sheetNames << (se.deleted ? QString() : se.name);
+        for (const jp::office::sheet::PivotBook::AddedParts &a : pb.addedParts()) {
+            SaveChanges::AddedPivot added;
+            added.sheet = a.sheet;
+            added.tablePart = a.tablePart;
+            added.definitionPart = a.definitionPart;
+            added.recordsPart = a.recordsPart;
+            added.newCache = a.newCache;
+            added.table = pb.tableProducer(a.table);
+            if (a.newCache) {
+                added.definition = pb.definitionProducer(a.cache, sheetNames);
+                added.records = pb.recordsProducer(a.cache);
+            }
+            changes.addedPivots.push_back(std::move(added));
+        }
     }
     for (const Workbook::TableAdd &a : book.addedTables()) changes.addedTables.push_back({a.sheet, a.part, a.xml});
     for (const Workbook::TableGone &g : book.removedTables()) changes.removedTables.push_back({g.sheet, g.part});

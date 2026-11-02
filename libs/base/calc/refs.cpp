@@ -201,7 +201,7 @@ ProgramTraits traitsOf(const Program &program)
         if (std::strcmp(f.name, "INDIRECT") == 0 || std::strcmp(f.name, "OFFSET") == 0) t.dynamic = true;
         else if (f.flags & kFnVolatile) t.changesByItself = true;
         if (f.flags & kFnIterative) t.iterative = true;
-        if (std::strcmp(f.name, "SUMIF") == 0 || std::strcmp(f.name, "AVERAGEIF") == 0) t.reachesBeyond = true;
+        if (std::strcmp(f.name, "SUMIF") == 0 || std::strcmp(f.name, "AVERAGEIF") == 0 || std::strcmp(f.name, "GETPIVOTDATA") == 0) t.reachesBeyond = true;   // (GETPIVOTDATA reads the cells of the table it names)
         if (observesPositionFunction(f.name)) t.observesPosition = true;
     }
     const BlockUse use = blockUseOf(program);

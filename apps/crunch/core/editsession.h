@@ -99,6 +99,10 @@ struct PivotEdit {
     jp::office::sheet::CellRange sourceBefore, sourceAfter;
     int sheetBefore = -1, sheetAfter = -1;
     QString nameBefore, nameAfter;
+    // A table that this step makes (done: it is in the book, with its cache when `newCache`; undone: it is gone again): its sheet and the definitions its parts are made from.
+    bool created = false, newCache = false;
+    int sheet = -1;
+    QByteArray tableCreated, cacheCreated;
 };
 
 // A formula put in the cells of a column of a sheet by a step, rows `row1` to `row2`, each as it reads in its own row (the text is written for the row `base`): what a calculated column fills. The cells
@@ -349,10 +353,16 @@ public:
     // table's parts as they are to be saved. A table nobody changed is saved as the file has it, to the byte.
     // The table whose cells (or filters above it) include the cell, or -1.
     int pivotAt(int sheet, quint32 row, quint32 col) const;
+    // The GETPIVOTDATA formula (with its "=") that reads the value of a pivot table's cell, for a formula on `formulaSheet` (the table's sheet is named when it is another); empty for a cell that
+    // is not a value of a table (a label, a filter, a cell outside).
+    QString pivotDataFormula(int sheet, quint32 row, quint32 col, int formulaSheet) const;
     // Whether a table can be worked out and changed here; if not, why (the file has a part this does not read, or the data behind it is not kept).
     bool pivotUsable(int table, QString *why = nullptr) const;
     // Reads the data again from the source (the cells of a sheet, a table, or a name) and works out every table made from it. Keeps each table's layout and the widths of columns.
     Outcome refreshPivot(int table);
+    // Makes a pivot table from the cells or the table `source` names (as Change Data Source takes them), with an empty layout, at the cell (row, col) of the sheet `sheet`, or on a sheet of its own at A3
+    // when `sheet` is -1 (the sheet is made first: a step of Undo of its own). The cells the empty table covers must be empty. `*made` is the new table's place.
+    Outcome createPivot(const QString &source, int sheet, quint32 row, quint32 col, int *made = nullptr);
     Outcome refreshAllPivots();
     // Makes the table from other cells ("Sheet1!A1:D100", "A1:D100" on the same sheet as the source now is, a table's name, or a defined name), then reads them.
     Outcome changePivotSource(int table, const QString &where);
@@ -927,6 +937,11 @@ private:
         QString name;
     };
     bool pivotSourceRange(int cache, int *sheet, jp::office::sheet::CellRange *range, QString *why, const SourceOver *over = nullptr) const;
+    // A pivot source's cells and their number formats, read from the sheet as the calculation has them.
+    // What the text of a source says: a range (of the sheet named, else `defaultSheet`), or the name of a table or defined name (given in `*name`, with its cells in `*sheet` and `*range`). False, with `why`.
+    bool parsePivotSource(const QString &text, int defaultSheet, int *sheet, jp::office::sheet::CellRange *range, QString *name, QString *why) const;
+    bool pivotNameRange(const QString &name, int *sheet, jp::office::sheet::CellRange *range) const;
+    void fillPivotSource(jp::office::sheet::PivotSource *source, int sheet, const jp::office::sheet::CellRange &range);
     Outcome refreshPivotCaches(const std::vector<int> &caches, const QString &text, const SourceOver *over = nullptr, bool partial = false);
     // A change that puts text (never read as anything else) or a formula (as the file writes it) in a cell, or clears it.
     CellChange textCell(int sheet, quint32 row, quint32 col, const QString &text);

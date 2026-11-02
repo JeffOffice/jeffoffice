@@ -227,6 +227,8 @@ public:
     bool showTotalsMenu(qint64 row, qint64 col);
     void setTableMakeAsker(std::function<bool(QString *, bool *)> asker) { m_tableMakeAsker = std::move(asker); }
     void setTableSizeAsker(std::function<bool(jp::office::sheet::CellRange *)> asker) { m_tableSizeAsker = std::move(asker); }
+    // test hook: the cells or table the new pivot table is made from, whether it goes on a sheet of its own, and where on a sheet (a cell, with the sheet's name before it if it is another)
+    void setPivotCreateAsker(std::function<bool(QString *, bool *, QString *)> asker) { m_pivotCreateAsker = std::move(asker); }
     void setPivotSourceAsker(std::function<bool(QString *)> asker) { m_pivotSourceAsker = std::move(asker); }
     void setValueFieldAsker(std::function<bool(QString *, QString *)> asker) { m_valueFieldAsker = std::move(asker); }
     // The PivotTable Fields pane (null until the Field List was shown).
@@ -679,6 +681,8 @@ private:
     void insertTableCommand();
     void tableDialog(int mode);
     void addTableMenu(QMenu *menu);   // the table's commands in the cell menu, when the cursor is in a table
+    bool pointAtPivotCell(qint64 row, qint64 col);   // a click on a value of a pivot table while a formula is typed writes GETPIVOTDATA (unless that is turned off)
+    void insertPivotCommand();
     bool pointAtTableCell(qint64 row, qint64 col);   // a click on a cell of a table while a formula is typed writes a reference by the table's names
     jp::office::sheet::TableStyleBook m_tableStyleBook;
     bool m_tableStylesFor = false;
@@ -698,6 +702,7 @@ private:
     QDockWidget *m_pivotDock = nullptr;
     std::shared_ptr<const jp::office::sheet::PivotTable> m_pivotShown;   // the table the pane shows (held, so that what is compared is never another one at a freed one's address)
     int m_pivotShownIndex = -1;
+    std::function<bool(QString *, bool *, QString *)> m_pivotCreateAsker;
     std::function<bool(QString *)> m_pivotSourceAsker;         // test hook: the cells the data is in
     std::function<bool(QString *, QString *)> m_valueFieldAsker;   // test hook: the name and function of a value
     // the filter (crunchwindow_filter.cpp)

@@ -2,6 +2,7 @@
 // table nobody changed is the file's own to the byte, and the parts of one that was changed are well formed and read back to the cells the sheet holds. The workbook is built here.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "app/settings.h"
 #include "app/pivotpane.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
@@ -672,6 +673,134 @@ private Q_SLOTS:
         finish(e);
         QVERIFY(saveNow(e));
         QVERIFY(readParts(e.path).value(kSheetPart).contains("pivotSelection"));
+    }
+
+    // GETPIVOTDATA in a cell: sums, a total, the grand total, and #REF! for what the table does not show; it follows the table when the table changes.
+    void getPivotDataIsWorkedOutFromTheTable()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, 9, 9, QStringLiteral("=GETPIVOTDATA(\"Sum of Amount\",$E$3,\"Region\",\"East\",\"Month\",\"Jan\")")).ok);
+        QVERIFY(s->type(0, 10, 9, QStringLiteral("=GETPIVOTDATA(\"Amount\",E3,\"Region\",\"West\")")).ok);
+        QVERIFY(s->type(0, 11, 9, QStringLiteral("=GETPIVOTDATA(\"Sum of Amount\",F5)")).ok);
+        QVERIFY(s->type(0, 12, 9, QStringLiteral("=GETPIVOTDATA(\"Sum of Amount\",$E$3,\"Region\",\"North\")")).ok);
+        QVERIFY(s->type(0, 13, 9, QStringLiteral("=GETPIVOTDATA(\"Sum of Amount\",A1)")).ok);
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("J10")), QStringLiteral("n:15"));
+        QCOMPARE(valueOf(e, QStringLiteral("J11")), QStringLiteral("n:14"));
+        QCOMPARE(valueOf(e, QStringLiteral("J12")), QStringLiteral("n:49"));
+        QCOMPARE(valueOf(e, QStringLiteral("J13")), QStringLiteral("e:#REF!"));
+        QCOMPARE(valueOf(e, QStringLiteral("J14")), QStringLiteral("e:#REF!"));
+        // the data changes and the table is read again: the cell follows
+        QVERIFY(s->type(0, rowOf(QStringLiteral("C2")), colOf(QStringLiteral("C2")), QStringLiteral("100")).ok);
+        finish(e);
+        QVERIFY(s->refreshPivot(0).ok);
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("J10")), QStringLiteral("n:105"));
+    }
+
+    // A pivot table made by a person: an empty table with its cache, the layout filled in from the fields, saved with the parts the original program writes, read again, and taken back by Undo.
+    void aPivotTableIsMadeSavedAndReadAgain()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        const int steps = s->undoStack()->count();
+        int made = -1;
+        QVERIFY(!s->createPivot(QStringLiteral("Sheet1!A1:C1"), 0, 9, 9).ok);          // a row of names and nothing under it
+        QVERIFY(!s->createPivot(QStringLiteral("Sheet1!A1:C7"), 0, 2, 4).ok);          // over the table that is there
+        QVERIFY(!s->createPivot(QStringLiteral("Sheet1!A1:C7"), 0, 0, 0).ok);          // over the data
+        const auto o = s->createPivot(QStringLiteral("Sheet1!A1:C7"), 0, 9, 9, &made);
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        QCOMPARE(made, 1);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(s->pivotAt(0, 9, 9), 1);
+        QCOMPARE(s->pivotAt(0, 26, 11), 1);
+        // the fields drive it as they do any table
+        PivotTable t = *s->workbook()->pivots().table(1).table;
+        QCOMPARE(t.fields.size(), 3);
+        t.rowFields = {0};
+        PivotDataField d;
+        d.fld = 2;
+        d.name = QStringLiteral("Sum of Amount");
+        t.dataFields.append(d);
+        QVERIFY2(s->setPivot(1, t, true, QStringLiteral("Add Field to Pivot Table")).ok, "layout");
+        finish(e);
+        QCOMPARE(pivotShown(e, QStringLiteral("J10:K13")), QStringLiteral("Row Labels|Sum of Amount\nEast|35\nWest|14\nGrand Total|49"));
+        QVERIFY(saveNow(e));
+        const Parts after = readParts(e.path);
+        checkShapes(after);
+        QVERIFY(after.contains(QStringLiteral("xl/pivotTables/pivotTable2.xml")));
+        QVERIFY(after.contains(QStringLiteral("xl/pivotCache/pivotCacheDefinition2.xml")));
+        QVERIFY(after.contains(QStringLiteral("xl/pivotCache/pivotCacheRecords2.xml")));
+        QVERIFY(after.value(QStringLiteral("[Content_Types].xml")).contains("pivotTable2.xml"));
+        QVERIFY(after.value(QStringLiteral("xl/workbook.xml")).contains("<pivotCache cacheId=\"2\""));
+        QVERIFY(after.value(QStringLiteral("xl/_rels/workbook.xml.rels")).contains("pivotCacheDefinition2.xml"));
+        QVERIFY(after.value(QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")).contains("pivotTable2.xml"));
+        // the file as saved opens with both tables, and the new one works out as it was
+        EditWindow again;
+        QFile saved(e.path);
+        QVERIFY(saved.open(QIODevice::ReadOnly));
+        QVERIFY(again.open(saved.readAll(), QStringLiteral("again.xlsx")));
+        QCOMPARE(again.win.w.session()->workbook()->pivots().tableCount(), 2);
+        QVERIFY(again.win.w.session()->refreshPivot(1).ok);
+        again.settle();
+        QCOMPARE(pivotShown(again, QStringLiteral("J10:K13")), QStringLiteral("Row Labels|Sum of Amount\nEast|35\nWest|14\nGrand Total|49"));
+        // Undo takes the layout away, then the table
+        s->undoStack()->undo();
+        s->undoStack()->undo();
+        QCOMPARE(s->workbook()->pivots().tableCount(), 1);
+        QCOMPARE(s->pivotAt(0, 9, 9), -1);
+        s->undoStack()->redo();
+        QCOMPARE(s->workbook()->pivots().tableCount(), 2);
+    }
+
+    // Insert > Pivot Table: asks for the data and the place, makes the table on a sheet of its own, and shows its fields.
+    void thePivotTableCommandMakesATableOnANewSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        QString asked;
+        e.win.w.setPivotCreateAsker([&](QString *source, bool *newSheet, QString *) {
+            asked = *source;
+            *source = QStringLiteral("Sheet1!A1:C7");
+            *newSheet = true;
+            return true;
+        });
+        e.select(QStringLiteral("A3"));
+        e.win.w.act(QStringLiteral("insert.pivot"))->trigger();
+        finish(e);
+        QCOMPARE(asked, QStringLiteral("Sheet1!A1:C7"));   // (the block of data around the cursor)
+        crunch::EditSession *s = e.win.w.session();
+        QCOMPARE(s->workbook()->pivots().tableCount(), 2);
+        const PivotTableEntry &made = s->workbook()->pivots().table(1);
+        QCOMPARE(s->workbook()->info().sheets[made.sheet].name, QStringLiteral("Pivot Table 1"));
+        QCOMPARE(int(s->workbook()->pivots().locationOf(1).row1), 2);
+        QVERIFY(e.win.w.pivotPane());   // (the pane of fields is up)
+    }
+
+    // A click on a value of a pivot table while a formula is typed writes GETPIVOTDATA with the names of its lines; the option turns that off.
+    void clickingAPivotValueWhileTypingWritesGetPivotData()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        QCOMPARE(e.win.w.session()->pivotDataFormula(0, 4, 5, 0), QStringLiteral("=GETPIVOTDATA(\"Sum of Amount\",$E$3,\"Region\",\"East\",\"Month\",\"Jan\")"));
+        QCOMPARE(e.win.w.session()->pivotDataFormula(0, 4, 4, 0), QString());   // (a label)
+        auto typeAndClick = [&](const char *expect) {
+            e.select(QStringLiteral("J20"));
+            QTest::keyClick(e.view(), '=');
+            QVERIFY(e.win.w.cellEditor()->isVisible());
+            QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, e.view()->cellRect(4, 5).center());   // F5: East, Jan
+            QVERIFY2(e.win.w.cellEditor()->text() == QLatin1String(expect) || e.win.w.formulaBar()->text() == QLatin1String(expect), qPrintable(e.win.w.cellEditor()->text() + QStringLiteral(" / ") + e.win.w.formulaBar()->text()));
+            QTest::keyClick(e.win.w.cellEditor(), Qt::Key_Escape);
+        };
+        Settings::get().setValue(QStringLiteral("crunch/generateGetPivotData"), true);
+        typeAndClick("=GETPIVOTDATA(\"Sum of Amount\",$E$3,\"Region\",\"East\",\"Month\",\"Jan\")");
+        e.win.w.act(QStringLiteral("pivot.getPivotData"))->trigger();   // (turned off)
+        QVERIFY(!Settings::get().value(QStringLiteral("crunch/generateGetPivotData"), true).toBool());
+        typeAndClick("=");   // (turned off: the click is a plain click, which puts nothing in the formula, as a click on any other cell)
+        Settings::get().setValue(QStringLiteral("crunch/generateGetPivotData"), true);
     }
 
     // ---- the review

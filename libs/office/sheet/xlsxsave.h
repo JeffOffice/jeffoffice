@@ -254,6 +254,16 @@ struct SaveChanges {
         QByteArray xml;
     };
     std::vector<AddedTable> addedTables;
+    // Pivot tables made here: the sheet, the names of the parts (the cache's are those of the first table made from the cache), and what makes each part's bytes when the file is written (the table
+    // takes the id the file's list of caches gives its cache). The parts, their types, the sheet's link to the table, and the workbook's link to a new cache are made.
+    struct AddedPivot {
+        int sheet = 0;
+        QString tablePart, definitionPart, recordsPart;
+        bool newCache = false;
+        std::function<QByteArray(int cacheId)> table;
+        std::function<QByteArray()> definition, records;
+    };
+    std::vector<AddedPivot> addedPivots;
     struct RemovedTable {
         int sheet = 0;
         QString part;

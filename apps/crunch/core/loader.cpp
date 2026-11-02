@@ -235,6 +235,7 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     } else if (!book->openFile(path, why, limits)) {
         return false;   // (any kind: the package of XML parts, the older binary form, or another format)
     }
+    book->pivots();   // (the same for the pivot tables: only where they are is read here; GETPIVOTDATA asks the book from the worker)
     book->tables();   // (read now: the worker looks at the tables as it works formulas out, and the window changes them, neither of which may be the first to read them)
     out->book = book;
     out->notRead = book->skippedFeatures();

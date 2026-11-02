@@ -189,6 +189,14 @@ struct PivotOptions {
 };
 bool computePivot(const PivotTable &table, const PivotCache &cache, PivotGrid *out, QString *why, const PivotOptions &options = PivotOptions());
 
+// ---- GETPIVOTDATA
+// The value a table shows for a data field (by its name, or the name of the field it adds up) at the lines the items name: the pairs are a field's name and one of its items, in any order. The fields
+// must be the first fields of an axis, in order (the values count as a field wherever they are): the line is then the group those items name, or the subtotal or the grand total when fewer are named.
+// False when no such value is shown. `*cell` is the grid's cell.
+bool pivotGetData(const PivotTable &table, const PivotCache &cache, const PivotGrid &grid, const QString &dataField, const std::vector<std::pair<QString, PivotValue>> &items, PivotCell *cell);
+// The other way: for the cell of a grid (counted from the table's first cell) that is a value, the name of its data field and the fields and items that name its lines, as GETPIVOTDATA takes them. False for any other cell.
+bool pivotGetDataArguments(const PivotTable &table, const PivotCache &cache, const PivotGrid &grid, int gridRow, int gridCol, QString *dataField, std::vector<std::pair<QString, PivotValue>> *items);
+
 // ---- reading the list again from the sheet
 // What a cell of the source holds, by row and column.
 using PivotSourceCell = std::function<PivotValue(quint32 row, quint32 col)>;

@@ -3,13 +3,25 @@
 #include "app/crunchwindow.h"
 
 #include "app/pivotpane.h"
+#include "app/settings.h"
+#include "core/formulaspot.h"
+#include "core/gotospecial.h"
+#include "sheet/cellref.h"
+#include "sheet/refshift.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "sheet/pivot.h"
 #include "sheet/pivotbook.h"
 
 #include <QAction>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QFormLayout>
 #include <QGuiApplication>
+#include <QLabel>
+#include <QLineEdit>
+#include <QRadioButton>
+#include <QVBoxLayout>
 #include <QDockWidget>
 #include <QInputDialog>
 
@@ -48,8 +60,141 @@ void CrunchWindow::editPivot(const std::function<void(PivotTable *)> &change, co
     pivotProblem(text, m_session->setPivot(t, table, structureChanged, text));
 }
 
+namespace {
+
+// Insert > Pivot Table: where the data is, and where the table goes.
+class PivotCreateDialog : public QDialog {
+public:
+    PivotCreateDialog(const QString &source, QWidget *parent) : QDialog(parent)
+    {
+        setWindowTitle(tr("Create Pivot Table"));
+        setObjectName(QStringLiteral("pivotCreateDialog"));
+        auto *layout = new QVBoxLayout(this);
+        auto *form = new QFormLayout;
+        m_source = new QLineEdit(source, this);
+        m_source->setObjectName(QStringLiteral("pivotCreate.source"));
+        form->addRow(tr("The cells the data is in, with a row of names above it, or the name of a table:"), m_source);
+        layout->addLayout(form);
+        m_newSheet = new QRadioButton(tr("A new sheet"), this);
+        m_newSheet->setObjectName(QStringLiteral("pivotCreate.newSheet"));
+        m_newSheet->setChecked(true);
+        m_existing = new QRadioButton(tr("This sheet or another, at the cell:"), this);
+        m_existing->setObjectName(QStringLiteral("pivotCreate.existing"));
+        m_where = new QLineEdit(this);
+        m_where->setObjectName(QStringLiteral("pivotCreate.where"));
+        m_where->setEnabled(false);
+        QObject::connect(m_existing, &QRadioButton::toggled, m_where, &QLineEdit::setEnabled);
+        layout->addWidget(new QLabel(tr("Where the pivot table goes:"), this));
+        layout->addWidget(m_newSheet);
+        layout->addWidget(m_existing);
+        layout->addWidget(m_where);
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+        QObject::connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+        QObject::connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+        layout->addWidget(buttons);
+    }
+    QString source() const { return m_source->text(); }
+    bool newSheet() const { return m_newSheet->isChecked(); }
+    QString where() const { return m_where->text(); }
+
+private:
+    QLineEdit *m_source = nullptr, *m_where = nullptr;
+    QRadioButton *m_newSheet = nullptr, *m_existing = nullptr;
+};
+
+} // namespace
+
+void CrunchWindow::insertPivotCommand()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed() || !m_session || !m_loaded) return;
+    // the data: the table the cursor is in, the cells selected, or the block of data around the cursor
+    QString source;
+    if (const int table = m_session->tableAt(m_sheet, quint32(std::max<qint64>(0, m_view->selection().activeRow)), quint32(std::max<qint64>(0, m_view->selection().activeCol))); table >= 0) {
+        source = m_session->workbook()->tables()[table].name;
+    } else {
+        CellRange range = selectedRange();
+        const grid::Selection &sel = m_view->selection();
+        if (range.row1 == range.row2 && range.col1 == range.col2 && sel.whole == grid::Selection::Whole::None) {
+            bool truncated = false;
+            range = crunch::currentRegion(*m_session, m_sheet, range.row1, range.col1, &truncated);
+        }
+        if (range.valid && range.row2 > range.row1) source = sheetNamePrefix(m_loaded->book->info().sheets[m_sheet].name) + rangeName(range);
+    }
+    bool newSheet = true;
+    QString where;
+    if (m_pivotCreateAsker) {
+        if (!m_pivotCreateAsker(&source, &newSheet, &where)) return;
+    } else {
+        PivotCreateDialog dialog(source, this);
+        if (dialog.exec() != QDialog::Accepted) return;
+        source = dialog.source();
+        newSheet = dialog.newSheet();
+        where = dialog.where();
+    }
+    int sheet = -1;
+    quint32 row = 0, col = 0;
+    if (!newSheet) {
+        // "J10", or "Sheet2!J10"
+        sheet = m_sheet;
+        QString cell = where.trimmed();
+        const int bang = cell.lastIndexOf(QLatin1Char('!'));
+        if (bang > 0) {
+            QString name = cell.left(bang);
+            if (name.startsWith(QLatin1Char('\'')) && name.endsWith(QLatin1Char('\'')) && name.size() > 1) name = name.mid(1, name.size() - 2).replace(QLatin1String("''"), QLatin1String("'"));
+            sheet = -1;
+            const auto &sheets = m_loaded->book->info().sheets;
+            for (int s = 0; s < sheets.size(); ++s)
+                if (!sheets[s].deleted && sheets[s].name.compare(name, Qt::CaseInsensitive) == 0) sheet = s;
+            cell = cell.mid(bang + 1);
+        }
+        cell.remove(QLatin1Char('$'));
+        if (sheet < 0 || !parseCellRef(cell, &row, &col)) {
+            notice(tr("Create Pivot Table"), tr("Type a cell for the pivot table, for example J10 or Sheet2!A3."));
+            return;
+        }
+    }
+    int made = -1;
+    const auto o = m_session->createPivot(source, sheet, row, col, &made);
+    if (!o.ok) {
+        notice(tr("Create Pivot Table"), o.problem);
+        return;
+    }
+    // the table is shown, with its fields to be chosen
+    if (made >= 0) {
+        const PivotTableEntry &entry = m_session->workbook()->pivots().table(made);
+        const CellRange at = m_session->workbook()->pivots().locationOf(made);
+        if (at.valid) goToFound(entry.sheet, at.row1, at.col1);
+    }
+    showPivotFields(true);
+}
+
+// While a formula is typed, a click on a value of a pivot table is GETPIVOTDATA with the names of its lines, as the original program writes it (on unless the pivot table tab's option says not).
+bool CrunchWindow::pointAtPivotCell(qint64 row, qint64 col)
+{
+    if (!m_edit.active || !m_session || !m_loaded || row < 0 || col < 0) return false;
+    if (!Settings::get().value(QStringLiteral("crunch/generateGetPivotData"), true).toBool()) return false;
+    QLineEdit *line = m_formulaBar && m_formulaBar->hasFocus() ? static_cast<QLineEdit *>(m_formulaBar) : static_cast<QLineEdit *>(m_cellEditor);
+    if (!line || !line->text().startsWith(QLatin1Char('='))) return false;
+    if (m_session->pivotAt(m_sheet, quint32(row), quint32(col)) < 0) return false;
+    const crunch::FormulaSpot spot = crunch::spotAt(line->text(), line->cursorPosition(), crunch::argumentSeparator(m_session->locale()));
+    if (!spot.canPoint) return false;
+    QString text = m_session->pivotDataFormula(m_sheet, quint32(row), quint32(col), m_edit.sheet);
+    if (text.isEmpty()) return false;
+    text.remove(0, 1);   // (the formula's own "=" is already typed)
+    line->insert(text);
+    Q_EMIT line->textEdited(line->text());
+    return true;
+}
+
 void CrunchWindow::createPivotActions()
 {
+    mk("insert.pivot", tr("Pivot Table"), "table-properties", QKeySequence(), [this] { insertPivotCommand(); });
+    mk("pivot.getPivotData", tr("Generate GETPIVOTDATA"), "square-check", QKeySequence(), [this] {
+        Settings::get().setValue(QStringLiteral("crunch/generateGetPivotData"), act("pivot.getPivotData")->isChecked());
+    }, true);
+    if (QAction *a = act("pivot.getPivotData")) a->setChecked(Settings::get().value(QStringLiteral("crunch/generateGetPivotData"), true).toBool());
+    m_opsActions << QStringLiteral("insert.pivot") << QStringLiteral("pivot.getPivotData");
     mk("pivot.refresh", tr("Refresh"), "refresh-cw", QKeySequence(), [this] {
         const int t = selectedPivot();
         if (t < 0) {

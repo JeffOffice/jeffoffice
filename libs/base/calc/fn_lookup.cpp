@@ -402,6 +402,51 @@ Value fnColumn(Call &c)
     return Value::number(double(a.col1) + 1);
 }
 
+
+// GETPIVOTDATA(data_field, pivot_table, [field1, item1, ...]): what the pivot table that covers the cell `pivot_table` names shows for the data field at the lines the items give.
+Value fnGetPivotData(Call &c)
+{
+    const Item &table = c.item(1);
+    if (!table.isRef() || table.areaCount() != 1) return c.error(ErrorKind::Ref);
+    QString dataField;
+    {
+        const Value v = c.scalar(0);
+        if (v.isError()) return v;
+        ErrorKind e = ErrorKind::Value;
+        if (!coerceText(v, &dataField, &e)) return Value::error(e);
+    }
+    if ((c.argc() - 2) % 2 != 0) return c.error(ErrorKind::Ref);
+    CellSource::PivotRequest request;
+    request.dataField = dataField;
+    for (int i = 2; i + 1 < c.argc(); i += 2) {
+        const Value name = c.scalar(i);
+        const Value item = c.scalar(i + 1);
+        if (name.isError()) return name;
+        if (item.isError()) return item;
+        QString field;
+        ErrorKind e = ErrorKind::Value;
+        if (!coerceText(name, &field, &e)) return Value::error(e);
+        request.items.emplace_back(field, item);
+    }
+    const EvalContext &ctx = c.context();
+    if (!ctx.source) return c.error(ErrorKind::Ref);
+    const RefArea &where = table.area;
+    Value result;
+    CellArea covered;
+    covered.sheet1 = covered.sheet2 = -1;
+    switch (ctx.source->pivotData(where.sheet1, where.row1, where.col1, request, &result, &covered)) {
+    case CellSource::PivotAnswer::Found:
+        if (covered.sheet1 >= 0) c.noteRead(covered);
+        return result;
+    case CellSource::PivotAnswer::NotFound:
+        if (covered.sheet1 >= 0) c.noteRead(covered);
+        return c.error(ErrorKind::Ref);
+    case CellSource::PivotAnswer::NotKnown:
+        break;
+    }
+    return c.error(ErrorKind::Ref);
+}
+
 Value fnRows(Call &c)
 {
     const Item &it = c.item(0);
@@ -518,6 +563,7 @@ void registerLookupFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"ADDRESS", 2, 5, "vvvvv", 0, fnAddress});
     r.push_back({"CELL", 1, 2, "vn", 0, fnCell});
     r.push_back({"TRANSPOSE", 1, 1, "a", 0, fnTranspose});
+    r.push_back({"GETPIVOTDATA", 2, 255, "vxv", 0, fnGetPivotData});
 }
 
 } // namespace jp::calc

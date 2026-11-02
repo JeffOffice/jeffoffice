@@ -109,6 +109,7 @@ PivotBook::PivotBook(const Package *package, const QVector<QString> &sheetParts,
 
 void PivotBook::loadTable(int i) const
 {
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
     PivotTableEntry &e = m_tables[size_t(i)];
     if (e.loaded) return;
     e.loaded = true;
@@ -137,6 +138,7 @@ bool PivotBook::unreadable(int i) const
 
 void PivotBook::load(int i) const
 {
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
     PivotCacheEntry &c = m_caches[size_t(i)];
     if (c.tried) return;
     c.tried = true;
@@ -161,6 +163,44 @@ const PivotCacheEntry &PivotBook::cache(int i) const
 {
     load(i);
     return m_caches[size_t(i)];
+}
+
+bool PivotBook::viewAt(int sheet, quint32 row, quint32 col, View *out) const
+{
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    for (size_t i = 0; i < m_tables.size(); ++i) {
+        if (m_tables[i].sheet != sheet) continue;
+        loadTable(int(i));
+        const PivotTableEntry &e = m_tables[i];
+        if (!e.table || e.cache < 0) continue;
+        const CellRange where = locationOf(int(i));
+        if (!where.valid) continue;
+        // (the cells of the table, and the lines of its filters above them)
+        const quint32 pages = e.table->rowPageCount > 0 ? quint32(e.table->rowPageCount) + 1 : 0;
+        const quint32 top = where.row1 >= pages ? where.row1 - pages : 0;
+        if (row < top || row > where.row2 || col < where.col1 || col > where.col2) continue;
+        load(e.cache);
+        const PivotCacheEntry &c = m_caches[size_t(e.cache)];
+        if (!c.cache || !c.cache->unsupported.isEmpty()) continue;
+        std::shared_ptr<const PivotGrid> grid;
+        for (const GridMemo &m : m_grids)
+            if (m.table == e.table && m.cache == c.cache) grid = m.grid;
+        if (!grid) {
+            auto made = std::make_shared<PivotGrid>();
+            QString why;
+            if (!computePivot(*e.table, *c.cache, made.get(), &why)) continue;
+            grid = made;
+            if (m_grids.size() >= 8) m_grids.erase(m_grids.begin());
+            m_grids.push_back({e.table, c.cache, grid});
+        }
+        out->table = e.table;
+        out->cache = c.cache;
+        out->grid = grid;
+        out->where = where;
+        out->index = int(i);
+        return true;
+    }
+    return false;
 }
 
 std::vector<int> PivotBook::tablesOn(int sheet) const
@@ -190,6 +230,7 @@ CellRange PivotBook::locationOf(int i) const
 
 void PivotBook::setTable(int i, std::shared_ptr<const PivotTable> table, bool structureChanged)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
     loadTable(i);
     m_tables[size_t(i)].table = std::move(table);
     m_tables[size_t(i)].structureChanged = structureChanged;
@@ -197,6 +238,7 @@ void PivotBook::setTable(int i, std::shared_ptr<const PivotTable> table, bool st
 
 void PivotBook::setCache(int i, std::shared_ptr<const PivotCache> cache, const CellRange &source, int sourceSheet, const QString &sourceName)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
     load(i);
     PivotCacheEntry &c = m_caches[size_t(i)];
     c.cache = std::move(cache);
@@ -233,11 +275,152 @@ bool PivotBook::changed() const
     return false;
 }
 
+namespace {
+
+// The number after `stem` in the names of the package's parts ("/xl/pivotTables/pivotTable7.xml" with stem "/xl/pivotTables/pivotTable" is 7), the greatest.
+int greatestNumber(const Package *package, const QString &stem, const QStringList &also)
+{
+    int most = 0;
+    auto look = [&](const QString &name) {
+        if (!name.startsWith(stem, Qt::CaseInsensitive) || !name.endsWith(QLatin1String(".xml"), Qt::CaseInsensitive)) return;
+        bool ok = false;
+        const int n = name.mid(stem.size(), name.size() - stem.size() - 4).toInt(&ok);
+        if (ok) most = std::max(most, n);
+    };
+    for (const QString &name : package->partNames()) look(name.startsWith(QLatin1Char('/')) ? name : QLatin1Char('/') + name);
+    for (const QString &name : also) look(name);
+    return most;
+}
+
+} // namespace
+
+int PivotBook::addCache(std::shared_ptr<const PivotCache> cache, const CellRange &source, int sourceSheet, const QString &sourceName, const QByteArray &created)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    PivotCacheEntry c;
+    QStringList used;
+    for (const PivotCacheEntry &o : m_caches) used << o.definitionPart << o.recordsPart;
+    const int n = greatestNumber(m_package, QStringLiteral("/xl/pivotCache/pivotCacheDefinition"), used) + 1;
+    const int r = greatestNumber(m_package, QStringLiteral("/xl/pivotCache/pivotCacheRecords"), used) + 1;
+    c.definitionPart = QStringLiteral("/xl/pivotCache/pivotCacheDefinition%1.xml").arg(std::max(n, r));
+    c.recordsPart = QStringLiteral("/xl/pivotCache/pivotCacheRecords%1.xml").arg(std::max(n, r));
+    c.cache = std::move(cache);
+    c.tried = true;
+    c.source = source;
+    c.sourceSheet = sourceSheet;
+    c.sourceName = sourceName;
+    c.isNew = true;
+    c.created = created;
+    m_caches.push_back(std::move(c));
+    return int(m_caches.size()) - 1;
+}
+
+int PivotBook::addTable(int sheet, std::shared_ptr<const PivotTable> table, int cache, const QByteArray &created)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    PivotTableEntry e;
+    QStringList used;
+    for (const PivotTableEntry &o : m_tables) used << o.part;
+    const int n = greatestNumber(m_package, QStringLiteral("/xl/pivotTables/pivotTable"), used) + 1;
+    e.sheet = sheet;
+    e.part = QStringLiteral("/xl/pivotTables/pivotTable%1.xml").arg(n);
+    e.cache = cache;
+    e.table = std::move(table);
+    e.loaded = true;
+    e.isNew = true;
+    e.created = created;
+    m_tables.push_back(std::move(e));
+    return int(m_tables.size()) - 1;
+}
+
+void PivotBook::removeLastTable()
+{
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    if (!m_tables.empty()) m_tables.pop_back();
+}
+
+void PivotBook::removeLastCache()
+{
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    if (!m_caches.empty()) m_caches.pop_back();
+}
+
+std::vector<PivotBook::AddedParts> PivotBook::addedParts() const
+{
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    std::vector<AddedParts> out;
+    QSet<int> cachesSeen;
+    for (size_t i = 0; i < m_tables.size(); ++i) {
+        const PivotTableEntry &t = m_tables[i];
+        if (!t.isNew || t.cache < 0) continue;
+        AddedParts a;
+        a.table = int(i);
+        a.cache = t.cache;
+        a.sheet = t.sheet;
+        a.tablePart = t.part;
+        const PivotCacheEntry &c = m_caches[size_t(t.cache)];
+        a.definitionPart = c.definitionPart;
+        a.recordsPart = c.recordsPart;
+        a.newCache = c.isNew && !cachesSeen.contains(t.cache);
+        cachesSeen.insert(t.cache);
+        out.push_back(a);
+    }
+    return out;
+}
+
+std::function<QByteArray(int)> PivotBook::tableProducer(int table) const
+{
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    const PivotTableEntry &t = m_tables[size_t(table)];
+    const QByteArray original = t.created;
+    const std::shared_ptr<const PivotTable> now = t.table;
+    return [original, now](int cacheId) {
+        QByteArray xml = original;
+        xml.replace("@CACHEID@", QByteArray::number(cacheId));
+        const QByteArray made = writePivotTable(xml, *now, false);
+        return made.isEmpty() ? xml : made;
+    };
+}
+
+std::function<QByteArray()> PivotBook::definitionProducer(int cache, const QStringList &sheetNames) const
+{
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    const PivotCacheEntry &c = m_caches[size_t(cache)];
+    const QByteArray original = c.created;
+    const std::shared_ptr<const PivotCache> now = c.cache;
+    QString sheet, ref, name;
+    if (c.sourceSheet >= 0 && c.sourceSheet < sheetNames.size() && c.source.valid && c.sourceName.isEmpty()) {
+        sheet = sheetNames[c.sourceSheet];
+        ref = pivotRangeRef(c.source.row1, c.source.col1, c.source.row2, c.source.col2);
+    } else {
+        name = c.sourceName;
+    }
+    const double unixDays = double(QDateTime::currentDateTimeUtc().toSecsSinceEpoch()) / 86400.0;
+    const jp::calc::DateSystem dates = m_dates;
+    const double day = unixDays + (dates == jp::calc::DateSystem::Date1904 ? 24107.0 : 25569.0);
+    return [original, now, sheet, ref, name, day, dates] {
+        PivotCache made = *now;
+        made.sheet = sheet;
+        made.ref = ref;
+        made.name = name;
+        const QByteArray def = writePivotCacheDefinition(original, made, made.recordCount, day, dates);
+        return def.isEmpty() ? original : def;
+    };
+}
+
+std::function<QByteArray()> PivotBook::recordsProducer(int cache) const
+{
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    const std::shared_ptr<const PivotCache> now = m_caches[size_t(cache)].cache;
+    const jp::calc::DateSystem dates = m_dates;
+    return [now, dates] { return writePivotCacheRecords(*now, dates); };
+}
+
 std::map<QString, std::function<QByteArray()>> PivotBook::changedPartProducers(const QStringList &sheetNames) const
 {
     std::map<QString, std::function<QByteArray()>> out;
     for (const PivotTableEntry &t : m_tables) {
-        if (!t.table || t.table == t.fileTable) continue;
+        if (t.isNew || !t.table || t.table == t.fileTable) continue;
         const QByteArray original = m_package->part(t.part);
         const std::shared_ptr<const PivotTable> table = t.table;
         const bool structure = t.structureChanged;
@@ -251,6 +434,7 @@ std::map<QString, std::function<QByteArray()>> PivotBook::changedPartProducers(c
     const jp::calc::DateSystem dates = m_dates;
     const double now = unixDays + (dates == jp::calc::DateSystem::Date1904 ? 24107.0 : 25569.0);
     for (const PivotCacheEntry &c : m_caches) {
+        if (c.isNew) continue;
         const bool sourceMoved = c.sourceSheet >= 0 && c.sourceSheet < sheetNames.size() && !sheetNames[c.sourceSheet].isEmpty() && c.source.valid && c.fileSource.valid
                                  && (!(c.source == c.fileSource) || sheetNames[c.sourceSheet].compare(c.fileSheetName, Qt::CaseInsensitive) != 0);
         if (c.tried && c.cache && c.cache != c.fileCache) {

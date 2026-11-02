@@ -18,6 +18,7 @@
 //   jcrunchtool copy-check <file> <xls|ods|xlsx>   the workbook written as a copy in that format, read back, and compared with itself (see jcrunchtool_copycheck.cpp;
 //                                                tools/crunch_copy_check.py runs it over a list)
 //   jcrunchtool pivot-check <file> [-v]   the pivot tables of a workbook worked out from their caches and compared with the cells the file stored (see jcrunchtool_pivot.cpp)
+//   jcrunchtool pivot-create <in.xlsx> <out.xlsx> <variant>   a pivot table made from the data of the workbook's first pivot table, on a sheet of its own (variants: empty rows rows-cols two-rows tabular outline count average filter two-values no-grand)
 //   jcrunchtool pivot-edit <in.xlsx> <out.xlsx> <op>   one change to the first pivot table that can be changed, saved by the window's own save: ops refresh-all, layout-compact, layout-outline, layout-tabular, grandtotals-off, subtotals-off, remove-row-field, add-col-field, value-average, clear (see tools/jcrunchtool_edit.cpp)
 //   jcrunchtool pivot-refresh <file>   every pivot table read again from its source on the sheet, worked out, written, and read back: the result of each (see jcrunchtool_pivot.cpp)
 //   jcrunchtool datatable-check <file>   the what-if tables of a workbook worked out, and compared with what the file stored (see jcrunchtool_datatable.cpp)
@@ -756,7 +757,7 @@ int main(int argc, char **argv)
     qputenv("JP_NO_TELEMETRY", "1");
 #ifdef JC_GRID
     // the grid commands draw: they need the program's own window system parts (offscreen unless the person chose another)
-    if (argc > 1 && (QByteArray(argv[1]).startsWith("grid-") || QByteArray(argv[1]).startsWith("roundtrip") || QByteArray(argv[1]).startsWith("edit-") || QByteArray(argv[1]) == "pivot-edit" || QByteArray(argv[1]).startsWith("model-") || QByteArray(argv[1]).startsWith("print-") || QByteArray(argv[1]).startsWith("charts-") || QByteArray(argv[1]).startsWith("make-check-") || QByteArray(argv[1]).startsWith("check-files-"))) {
+    if (argc > 1 && (QByteArray(argv[1]).startsWith("grid-") || QByteArray(argv[1]).startsWith("roundtrip") || QByteArray(argv[1]).startsWith("edit-") || QByteArray(argv[1]) == "pivot-edit" || QByteArray(argv[1]) == "pivot-create" || QByteArray(argv[1]).startsWith("model-") || QByteArray(argv[1]).startsWith("print-") || QByteArray(argv[1]).startsWith("charts-") || QByteArray(argv[1]).startsWith("make-check-") || QByteArray(argv[1]).startsWith("check-files-"))) {
         if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) qputenv("QT_QPA_PLATFORM", "offscreen");
         Q_INIT_RESOURCE(resources);
         Q_INIT_RESOURCE(crunch);

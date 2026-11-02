@@ -1060,6 +1060,44 @@ bool appendBefore(const QByteArray &xml, const char *container, const QByteArray
     return true;
 }
 
+// The workbook part with `pivotCache` elements added to its list of caches (made, in the place the format has it, if there is none).
+bool addPivotCaches(const QByteArray &xml, const std::vector<std::pair<int, QString>> &caches, QByteArray *out)
+{
+    QByteArray elements;
+    for (const auto &[id, rel] : caches) elements += "<pivotCache cacheId=\"" + QByteArray::number(id) + "\" r:id=\"" + rel.toUtf8() + "\"/>";
+    Tag list;
+    if (findStart(xml, "pivotCaches", &list) && !list.selfClosing) return appendBefore(xml, "pivotCaches", elements, out);
+    Tag root;
+    if (!xmlscan::nextTag(xml, 0, &root) || root.closing) return false;
+    const QByteArray prefix(xmlscan::prefixOf(root.name));
+    QByteArray e = elements;
+    e.replace("<", "<" + prefix);
+    const QByteArray made = "<" + prefix + "pivotCaches>" + e + "</" + prefix + "pivotCaches>";
+    // (before the first child that follows the list in the format: smartTagPr, smartTagTypes, webPublishing, fileRecoveryPr, webPublishObjects, extLst)
+    static const char *const after[] = {"smartTagPr", "smartTagTypes", "webPublishing", "fileRecoveryPr", "webPublishObjects", "extLst"};
+    Tag t;
+    qsizetype pos = root.end;
+    int depth = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                *out = xml.left(t.start) + made + xml.mid(t.start);
+                return true;
+            }
+            continue;
+        }
+        if (depth == 0)
+            for (const char *name : after)
+                if (t.local == name) {
+                    *out = xml.left(t.start) + made + xml.mid(t.start);
+                    return true;
+                }
+        if (!t.selfClosing) ++depth;
+    }
+    return false;
+}
+
 // Where a part's own relationships are kept: "/xl/worksheets/sheet2.xml" has "/xl/worksheets/_rels/sheet2.xml.rels".
 QString relationshipsPartOf(const QString &part)
 {
@@ -1926,6 +1964,86 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         }
         replaced.insert(typesEntry, types);
     }
+    // ---- the pivot tables that were made: their parts and types, the sheet's link to each table, and the workbook's link to each new cache
+    std::vector<std::pair<int, QString>> newPivotCaches;   // the id of each new cache and the relationship the workbook names it by
+    if (!changes.addedPivots.empty()) {
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        QByteArray types;
+        if (typesEntry < 0 || !(replaced.contains(typesEntry) ? (types = replaced.value(typesEntry), true) : inflate(typesEntry, &types)))
+            return fail(QCoreApplication::translate("jp::office::sheet::Save", "The file's list of part types is not in it."));
+        auto bad = [&] { return fail(QCoreApplication::translate("jp::office::sheet::Save", "A pivot table could not be put in the file's list of parts.")); };
+        auto entryName = [](const QString &part) { return part.startsWith(QLatin1Char('/')) ? part.mid(1) : part; };
+        // the workbook: its part and its relationships (the ids the caches are named by must be new)
+        const int mainEntry = entryOfPart(book.mainPart());
+        QByteArray mainXml;
+        if (mainEntry < 0 || !inflate(mainEntry, &mainXml)) return bad();
+        const QString mainRelsName = relationshipsPartOf(package.entryName(book.mainPart()));
+        const int mainRelsEntry = entryAt.value(plain(entryName(mainRelsName)), -1);
+        QByteArray mainRels;
+        if (mainRelsEntry < 0 || !(replaced.contains(mainRelsEntry) ? (mainRels = replaced.value(mainRelsEntry), true) : inflate(mainRelsEntry, &mainRels))) return bad();
+        int nextCacheId = 1;
+        {
+            static const QRegularExpression ids(QStringLiteral("cacheId=\"(\\d+)\""));
+            for (auto m = ids.globalMatch(QString::fromUtf8(mainXml)); m.hasNext();) nextCacheId = std::max(nextCacheId, m.next().captured(1).toInt() + 1);
+        }
+        std::map<QString, int> cacheIdOf;
+        for (const SaveChanges::AddedPivot &a : changes.addedPivots) {
+            if (a.sheet < 0 || a.sheet >= book.info().sheets.size()) return bad();
+            const SheetEntry &se = book.info().sheets[a.sheet];
+            if (!cacheIdOf.count(a.definitionPart)) {
+                cacheIdOf[a.definitionPart] = nextCacheId++;
+                if (a.newCache) {
+                    const QString relId = QStringLiteral("rIdPivotCache%1").arg(cacheIdOf[a.definitionPart]);
+                    newPivotCaches.emplace_back(cacheIdOf[a.definitionPart], relId);
+                    QByteArray r2;
+                    if (!addRelationship(mainRels, relId, QStringLiteral("pivotCacheDefinition"), relativeTarget(book.mainPart(), a.definitionPart), &r2)) return bad();
+                    mainRels = r2;
+                    QByteArray t2;
+                    if (!addContentOverride(types, a.definitionPart, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheDefinition+xml"), &t2)) return bad();
+                    types = t2;
+                    if (!addContentOverride(types, a.recordsPart, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheRecords+xml"), &t2)) return bad();
+                    types = t2;
+                    newEntries.emplace_back(entryName(a.definitionPart), a.definition());
+                    newEntries.emplace_back(entryName(relationshipsPartOf(a.definitionPart)),
+                                            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                                                + relationshipXml(QStringLiteral("rId1"), QStringLiteral("pivotCacheRecords"), relativeTarget(a.definitionPart, a.recordsPart)) + "</Relationships>");
+                    newEntries.emplace_back(entryName(a.recordsPart), a.records());
+                }
+            }
+            newEntries.emplace_back(entryName(a.tablePart), a.table(cacheIdOf[a.definitionPart]));
+            newEntries.emplace_back(entryName(relationshipsPartOf(a.tablePart)),
+                                    "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                                        + relationshipXml(QStringLiteral("rId1"), QStringLiteral("pivotCacheDefinition"), relativeTarget(a.tablePart, a.definitionPart)) + "</Relationships>");
+            QByteArray t2;
+            if (!addContentOverride(types, a.tablePart, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml"), &t2)) return bad();
+            types = t2;
+            // the sheet's link to the table
+            const QString relId = QStringLiteral("rIdPivotTable%1").arg(cacheIdOf[a.definitionPart] * 1000 + int(&a - changes.addedPivots.data()));
+            const QString target = relativeTarget(se.part, a.tablePart);
+            if (se.isNew) {
+                newSheetRels[a.sheet] += relationshipXml(relId, QStringLiteral("pivotTable"), target);
+            } else {
+                const QString name = entryName(relationshipsPartOf(se.part));
+                const int sheetRelsEntry = entryAt.value(plain(name), -1);
+                QByteArray sheetRels, r2;
+                auto made = std::find_if(newEntries.begin(), newEntries.end(), [&](const auto &e) { return e.first == name; });
+                if (sheetRelsEntry >= 0 && !(replaced.contains(sheetRelsEntry) ? (sheetRels = replaced.value(sheetRelsEntry), true) : inflate(sheetRelsEntry, &sheetRels))) return bad();
+                if (sheetRelsEntry < 0 && made != newEntries.end()) sheetRels = made->second;
+                if (sheetRelsEntry < 0 && made == newEntries.end()) sheetRels = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"></Relationships>";
+                if (!addRelationship(sheetRels, relId, QStringLiteral("pivotTable"), target, &r2)) return bad();
+                if (sheetRelsEntry >= 0) replaced.insert(sheetRelsEntry, r2);
+                else if (made != newEntries.end()) made->second = r2;
+                else newEntries.emplace_back(name, r2);
+            }
+        }
+        replaced.insert(mainRelsEntry, mainRels);
+        replaced.insert(typesEntry, types);
+    }
     // (the objects drawn in another order: the children of the drawing, as what is above leaves them)
     for (const auto &[part, order] : changes.drawingOrder) {
         QByteArray xml, now;
@@ -2272,7 +2390,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         }
         filterNames.push_back(name);
     }
-    if (changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged || changes.setWorkbookProtection) {
+    if (!newPivotCaches.empty() || changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged || changes.setWorkbookProtection) {
         const int index = entryOfPart(book.mainPart());
         QByteArray xml, patched;
         if (index >= 0 && inflate(index, &xml)) {
@@ -2305,6 +2423,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             if (changes.setWorkbookProtection) {
                 if (!patchWorkbookProtection(xml, changes.workbookProtection, &patched)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's protection could not be saved."));
                 changed = changed || patched != xml;
+                xml = patched;
+            }
+            if (!newPivotCaches.empty()) {
+                if (!addPivotCaches(xml, newPivotCaches, &patched)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook part is not in the form this program changes."));
+                changed = true;
                 xml = patched;
             }
             if (changes.fullCalcOnLoad && setFullCalcOnLoad(xml, &patched)) {

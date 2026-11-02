@@ -109,6 +109,88 @@ QString EditSession::pivotSourceText(int table) const
     return QString();
 }
 
+bool EditSession::pivotNameRange(const QString &nameText, int *sheet, CellRange *range) const
+{
+    const auto &sheets = m_book->book->info().sheets;
+    auto usableSheet = [&](int s) { return s >= 0 && s < sheets.size() && !sheets[s].deleted && sheets[s].kind == SheetKind::Worksheet; };
+    for (const Table &t : m_book->book->tables())
+        if (t.name.compare(nameText, Qt::CaseInsensitive) == 0) {
+            *sheet = t.sheet;
+            range->valid = true;
+            range->row1 = t.row1;
+            range->col1 = t.col1;
+            range->row2 = t.totalsRows > 0 ? t.row2 - 1 : t.row2;
+            range->col2 = t.col2;
+            return usableSheet(t.sheet);
+        }
+    for (const DefinedName &n : m_book->book->info().definedNames) {
+        if (n.name.compare(nameText, Qt::CaseInsensitive) != 0) continue;
+        // "Sheet1!$A$1:$D$10" or "'My Sheet'!$A$1:$D$10"
+        const int bang = n.ref.lastIndexOf(QLatin1Char('!'));
+        if (bang <= 0) break;
+        QString sheetName = n.ref.left(bang);
+        if (sheetName.startsWith(QLatin1Char('\'')) && sheetName.endsWith(QLatin1Char('\'')) && sheetName.size() > 1) sheetName = sheetName.mid(1, sheetName.size() - 2).replace(QLatin1String("''"), QLatin1String("'"));
+        QString ref = n.ref.mid(bang + 1);
+        ref.remove(QLatin1Char('$'));
+        CellRange r;
+        if (!parseRangeRef(ref, &r)) break;
+        for (int s = 0; s < sheets.size(); ++s)
+            if (!sheets[s].deleted && sheets[s].name.compare(sheetName, Qt::CaseInsensitive) == 0 && usableSheet(s)) {
+                *sheet = s;
+                *range = r;
+                return true;
+            }
+        break;
+    }
+    return false;
+}
+
+bool EditSession::parsePivotSource(const QString &where, int defaultSheet, int *sheet, CellRange *range, QString *name, QString *why) const
+{
+    const QString text = where.trimmed();
+    if (text.isEmpty()) {
+        *why = tr("Type the cells the data is in, for example Sheet1!A1:D100, or the name of a table.");
+        return false;
+    }
+    *sheet = defaultSheet;
+    *name = QString();
+    const int bang = text.lastIndexOf(QLatin1Char('!'));
+    QString refPart = text;
+    if (bang > 0) {
+        QString sheetName = text.left(bang);
+        if (sheetName.startsWith(QLatin1Char('\'')) && sheetName.endsWith(QLatin1Char('\'')) && sheetName.size() > 1) sheetName = sheetName.mid(1, sheetName.size() - 2).replace(QLatin1String("''"), QLatin1String("'"));
+        *sheet = -1;
+        const auto &sheets = m_book->book->info().sheets;
+        for (int s = 0; s < sheets.size(); ++s)
+            if (!sheets[s].deleted && sheets[s].kind == SheetKind::Worksheet && sheets[s].name.compare(sheetName, Qt::CaseInsensitive) == 0) *sheet = s;
+        if (*sheet < 0) {
+            *why = tr("There is no sheet called \"%1\".").arg(sheetName);
+            return false;
+        }
+        refPart = text.mid(bang + 1);
+    }
+    refPart.remove(QLatin1Char('$'));
+    if (parseRangeRef(refPart, range) && range->row1 == range->row2) {
+        *why = tr("The data needs a row of names and at least one row of data under it. Type more than one row, for example Sheet1!A1:D100.");
+        return false;
+    }
+    if (!parseRangeRef(refPart, range)) {
+        // a table's name, or a name
+        QString found;
+        for (const Table &t : m_book->book->tables())
+            if (t.name.compare(text, Qt::CaseInsensitive) == 0) found = t.name;
+        if (found.isEmpty())
+            for (const DefinedName &n : m_book->book->info().definedNames)
+                if (n.name.compare(text, Qt::CaseInsensitive) == 0) found = n.name;
+        if (found.isEmpty()) {
+            *why = tr("\"%1\" is not a range of cells, a table, or a name. Type the cells the data is in, with its first row of names, for example Sheet1!A1:D100.").arg(text);
+            return false;
+        }
+        *name = found;
+    }
+    return true;
+}
+
 bool EditSession::pivotSourceRange(int cache, int *sheet, CellRange *range, QString *why, const SourceOver *over) const
 {
     PivotBook &pb = m_book->book->pivots();
@@ -135,35 +217,7 @@ bool EditSession::pivotSourceRange(int cache, int *sheet, CellRange *range, QStr
         return true;
     }
     if (!c.sourceName.isEmpty()) {
-        for (const Table &t : m_book->book->tables())
-            if (t.name.compare(c.sourceName, Qt::CaseInsensitive) == 0) {
-                *sheet = t.sheet;
-                range->valid = true;
-                range->row1 = t.row1;
-                range->col1 = t.col1;
-                range->row2 = t.totalsRows > 0 ? t.row2 - 1 : t.row2;
-                range->col2 = t.col2;
-                return usableSheet(t.sheet);
-            }
-        for (const DefinedName &n : m_book->book->info().definedNames) {
-            if (n.name.compare(c.sourceName, Qt::CaseInsensitive) != 0) continue;
-            // "Sheet1!$A$1:$D$10" or "'My Sheet'!$A$1:$D$10"
-            const int bang = n.ref.lastIndexOf(QLatin1Char('!'));
-            if (bang <= 0) break;
-            QString sheetName = n.ref.left(bang);
-            if (sheetName.startsWith(QLatin1Char('\'')) && sheetName.endsWith(QLatin1Char('\'')) && sheetName.size() > 1) sheetName = sheetName.mid(1, sheetName.size() - 2).replace(QLatin1String("''"), QLatin1String("'"));
-            QString ref = n.ref.mid(bang + 1);
-            ref.remove(QLatin1Char('$'));
-            CellRange r;
-            if (!parseRangeRef(ref, &r)) break;
-            for (int s = 0; s < sheets.size(); ++s)
-                if (!sheets[s].deleted && sheets[s].name.compare(sheetName, Qt::CaseInsensitive) == 0 && usableSheet(s)) {
-                    *sheet = s;
-                    *range = r;
-                    return true;
-                }
-            break;
-        }
+        if (pivotNameRange(c.sourceName, sheet, range)) return true;
     }
     if (why) *why = tr("JeffCrunch can't find the data this pivot table is made from.");
     return false;
@@ -436,16 +490,204 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
     return out;
 }
 
+EditSession::Outcome EditSession::createPivot(const QString &source, int sheet, quint32 row, quint32 col, int *made)
+{
+    Outcome out;
+    auto refuse = [&](const QString &why) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    };
+    QString why;
+    if (!canEdit(&why)) return refuse(why);
+    Workbook &book = *m_book->book;
+    PivotBook &pb = book.pivots();
+    // the data
+    int srcSheet = -1;
+    CellRange range;
+    QString name;
+    if (!parsePivotSource(source, sheet >= 0 ? sheet : 0, &srcSheet, &range, &name, &why)) return refuse(why);
+    if (!name.isEmpty() && !pivotNameRange(name, &srcSheet, &range)) return refuse(tr("JeffCrunch can't find the cells \"%1\" stands for.").arg(name));
+    const auto &sheets = book.info().sheets;
+    if (srcSheet < 0 || srcSheet >= sheets.size() || sheets[srcSheet].deleted || sheets[srcSheet].kind != SheetKind::Worksheet) return refuse(tr("The data must be on a sheet of cells."));
+    if (range.row2 <= range.row1) return refuse(tr("The data needs a row of names and at least one row of data under it."));
+    if (range.col2 - range.col1 + 1 > quint32(kPivotMaxFields) || range.row2 - range.row1 > quint32(kPivotMaxRecords)) return refuse(tr("There is too much data for a pivot table."));
+    PivotSource ps;
+    fillPivotSource(&ps, srcSheet, range);
+    auto cache = std::make_shared<PivotCache>();
+    if (!buildPivotCache(ps, PivotCache(), cache.get(), &why)) return refuse(tr("The data can't be read: %1.").arg(why));
+    cache->sourceType = QStringLiteral("worksheet");
+    // where it goes: its own sheet (made now), or the cell
+    int target = sheet;
+    if (target < 0) {
+        QString newName;
+        for (int n = 1;; ++n) {
+            newName = tr("Pivot Table %1").arg(n);
+            bool taken = false;
+            for (const SheetEntry &se : sheets)
+                if (!se.deleted && se.name.compare(newName, Qt::CaseInsensitive) == 0) taken = true;
+            if (!taken) break;
+        }
+        row = 2;
+        col = 0;
+        // (the sheet is made at the end; the checks of the place come first for a sheet that exists, and a new sheet is empty)
+        const Outcome inserted = insertSheet(int(sheets.size()), newName, &target);
+        if (!inserted.ok) return inserted;
+    } else {
+        if (target >= sheets.size() || sheets[target].deleted || sheets[target].kind != SheetKind::Worksheet) return refuse(tr("Pick a sheet of cells for the pivot table."));
+        if (!canEditSheet(target, &why) || !allows(target, Allow::Pivot, &why)) return refuse(why);
+    }
+    // the cells the empty table covers (three columns of eighteen lines, as the original program makes it): free of other tables, of cells that hold anything, and of the data
+    CellRange area;
+    area.valid = true;
+    area.row1 = row;
+    area.col1 = col;
+    area.row2 = row + 17;
+    area.col2 = col + 2;
+    if (area.row2 >= 1048576 || area.col2 >= 16384) return refuse(tr("There is no room for a pivot table there."));
+    for (int t = 0; t < pb.tableCount(); ++t) {
+        if (pb.table(t).sheet != target) continue;
+        const CellRange other = pb.locationOf(t);
+        if (!other.valid || (other.row2 < area.row1 || other.row1 > area.row2 || other.col2 < area.col1 || other.col1 > area.col2)) continue;
+        return refuse(tr("There is a pivot table there already. Pick a cell that is clear of it."));
+    }
+    if (!cellsEmpty(target, area) || !tableFree(target, area, -1, &why)) return refuse(why.isEmpty() ? tr("There is something in the cells a pivot table would cover (%1). Pick a clear place.").arg(rangeName(area)) : why);
+    // a name no table of the workbook has
+    QSet<QString> taken;
+    for (int t = 0; t < pb.tableCount(); ++t)
+        if (pb.table(t).table) taken.insert(pb.table(t).table->name.toLower());
+    QString tableName;
+    for (int n = 1;; ++n) {
+        tableName = QStringLiteral("PivotTable%1").arg(n);
+        if (!taken.contains(tableName.toLower())) break;
+    }
+    // the table: made as the original program makes an empty one (in the compact form, the style it gives), and read back so that it is the model's
+    QString fields;
+    for (int f = 0; f < cache->fields.size(); ++f) fields += QStringLiteral("<pivotField showAll=\"0\"/>");
+    const QString ns = QStringLiteral("http://schemas.openxmlformats.org/spreadsheetml/2006/main");
+    const QString tableXml = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotTableDefinition xmlns=\"%1\" name=\"%2\" cacheId=\"@CACHEID@\" applyNumberFormats=\"0\" applyBorderFormats=\"0\" "
+                                            "applyFontFormats=\"0\" applyPatternFormats=\"0\" applyAlignmentFormats=\"0\" applyWidthHeightFormats=\"1\" dataCaption=\"Values\" updatedVersion=\"6\" minRefreshableVersion=\"3\" "
+                                            "useAutoFormatting=\"1\" itemPrintTitles=\"1\" createdVersion=\"6\" indent=\"0\" outline=\"1\" outlineData=\"1\" multipleFieldFilters=\"0\"><location ref=\"%3\" firstHeaderRow=\"1\" "
+                                            "firstDataRow=\"1\" firstDataCol=\"1\"/><pivotFields count=\"%4\">%5</pivotFields><pivotTableStyleInfo name=\"PivotStyleLight16\" showRowHeaders=\"1\" showColHeaders=\"1\" "
+                                            "showRowStripes=\"0\" showColStripes=\"0\" showLastColumn=\"1\"/></pivotTableDefinition>")
+                                .arg(ns, tableName, rangeName(area)).arg(cache->fields.size()).arg(fields);
+    auto table = std::make_shared<PivotTable>();
+    {
+        QByteArray readable = tableXml.toUtf8();
+        readable.replace("@CACHEID@", "0");
+        if (!readPivotTable(readable, table.get(), &why)) return refuse(tr("The pivot table could not be made: %1.").arg(why));
+    }
+    const QString definitionXml = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheDefinition xmlns=\"%1\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                                                  "r:id=\"rId1\" refreshedBy=\"JeffCrunch\" refreshedDate=\"0\" createdVersion=\"6\" refreshedVersion=\"6\" minRefreshableVersion=\"3\" recordCount=\"0\"><cacheSource type=\"worksheet\">"
+                                                  "<worksheetSource ref=\"A1:A2\" sheet=\"Sheet1\"/></cacheSource><cacheFields count=\"0\"/></pivotCacheDefinition>")
+                                      .arg(ns);
+    Step step;
+    PivotEdit pe;
+    pe.created = true;
+    pe.newCache = true;
+    pe.cache = pb.cacheCount();
+    pe.table = pb.tableCount();
+    pe.sheet = target;
+    pe.tableAfter = table;
+    pe.cacheAfter = cache;
+    pe.sourceAfter = name.isEmpty() ? range : CellRange();
+    pe.sheetAfter = name.isEmpty() ? srcSheet : -1;
+    pe.nameAfter = name;
+    pe.tableCreated = tableXml.toUtf8();
+    pe.cacheCreated = definitionXml.toUtf8();
+    step.pivots.push_back(std::move(pe));
+    const int index = pb.tableCount();
+    out = pushTableStep(std::move(step), tr("Create Pivot Table"));
+    if (out.ok && made) *made = index;
+    return out;
+}
+
+QString EditSession::pivotDataFormula(int sheet, quint32 row, quint32 col, int formulaSheet) const
+{
+    if (!m_book || !m_book->book) return QString();
+    PivotBook::View view;
+    if (!m_book->book->pivots().viewAt(sheet, row, col, &view) || !view.where.valid || row < view.where.row1 || col < view.where.col1) return QString();
+    QString data;
+    std::vector<std::pair<QString, PivotValue>> items;
+    if (!pivotGetDataArguments(*view.table, *view.cache, *view.grid, int(row - view.where.row1), int(col - view.where.col1), &data, &items)) return QString();
+    auto quoted = [](const QString &t) { return QStringLiteral("\"") + QString(t).replace(QLatin1Char('"'), QLatin1String("\"\"")) + QStringLiteral("\""); };
+    QString text = QStringLiteral("=GETPIVOTDATA(") + quoted(data) + QLatin1Char(',');
+    if (sheet != formulaSheet) text += sheetNamePrefix(m_book->book->info().sheets[sheet].name);
+    text += QStringLiteral("$") + columnName(view.where.col1) + QStringLiteral("$") + QString::number(view.where.row1 + 1);
+    for (const auto &[field, item] : items) {
+        text += QLatin1Char(',') + quoted(field) + QLatin1Char(',');
+        switch (item.kind) {
+        case PivotValue::Number:
+        case PivotValue::Date: text += QString::number(item.number, 'g', 15); break;
+        case PivotValue::Bool: text += item.number != 0 ? QStringLiteral("TRUE") : QStringLiteral("FALSE"); break;
+        case PivotValue::Missing: text += quoted(QStringLiteral("(blank)")); break;
+        default: text += quoted(item.text); break;
+        }
+    }
+    return text + QLatin1Char(')');
+}
+
 void EditSession::applyPivotEdits(Step *step, bool forward, Workbook &book)
 {
     if (step->pivots.empty()) return;
     PivotBook &pb = book.pivots();
     for (const PivotEdit &e : step->pivots) {
+        if (e.created) {
+            if (forward) {
+                if (e.newCache) pb.addCache(e.cacheAfter, e.sourceAfter, e.sheetAfter, e.nameAfter, e.cacheCreated);
+                pb.addTable(e.sheet, e.tableAfter, e.cache, e.tableCreated);
+            } else {
+                pb.removeLastTable();
+                if (e.newCache) pb.removeLastCache();
+            }
+            continue;
+        }
         if (e.cache >= 0) {
             if (forward) pb.setCache(e.cache, e.cacheAfter, e.sourceAfter, e.sheetAfter, e.nameAfter);
             else pb.setCache(e.cache, e.cacheBefore, e.sourceBefore, e.sheetBefore, e.nameBefore);
         }
         pb.setTable(e.table, forward ? e.tableAfter : e.tableBefore, forward ? e.structureAfter : e.structureBefore);
+    }
+}
+
+void EditSession::fillPivotSource(PivotSource *ps, int sheet, const CellRange &range)
+{
+    const Workbook &book = *m_book->book;
+    ps->row1 = range.row1;
+    ps->col1 = range.col1;
+    ps->row2 = range.row2;
+    ps->col2 = range.col2;
+    auto dateStyle = std::make_shared<QHash<quint32, bool>>();
+    const Sheet *src = &m_book->calc->sheet(sheet);
+    ps->cell = [this, sheet, dateStyle, src](quint32 r, quint32 c) {
+        PivotValue pv;
+        const Value v = valueAt(sheet, r, c);
+        switch (v.kind()) {
+        case Value::Kind::Empty: break;
+        case Value::Kind::Number: {
+            const Cell *cell = src->cells.find(r, c);
+            bool date = false;
+            if (cell) {
+                auto it = dateStyle->find(cell->style);
+                if (it == dateStyle->end()) it = dateStyle->insert(cell->style, formatOfStyle(cell->style).kind() == jp::calc::FormatKind::Date);
+                date = it.value();
+            }
+            pv.kind = date ? PivotValue::Date : PivotValue::Number;
+            pv.number = v.number();
+            break;
+        }
+        case Value::Kind::Text: pv.kind = PivotValue::Text; pv.text = v.text(); break;
+        case Value::Kind::Bool: pv.kind = PivotValue::Bool; pv.number = v.boolean() ? 1 : 0; break;
+        case Value::Kind::Error: pv.kind = PivotValue::Error; pv.text = jp::calc::errorKindText(v.errorKind()); break;
+        case Value::Kind::Array: break;
+        }
+        return pv;
+    };
+    // (the format of the first cell of data of each column is the field's)
+    for (quint32 c = range.col1; c <= range.col2; ++c) {
+        const Calculation::CellContent first = m_book->calc->content(sheet, range.row1 + 1, c);
+        ps->numFmtIds.append(first.exists ? int(book.styles().numFmtId(first.style)) : 0);
+        if (range.col2 - range.col1 > quint32(kPivotMaxFields)) break;
     }
 }
 
@@ -475,48 +717,13 @@ EditSession::Outcome EditSession::refreshPivotCaches(const std::vector<int> &cac
         // the source: its first row names the fields
         std::vector<int> tables = pb.tablesOfCache(ci);
         PivotSource ps;
-        ps.row1 = range.row1;
-        ps.col1 = range.col1;
-        ps.row2 = range.row2;
-        ps.col2 = range.col2;
-        QHash<quint32, bool> dateStyle;
-        const Sheet &src = m_book->calc->sheet(sheet);
-        ps.cell = [&](quint32 r, quint32 c) {
-            PivotValue pv;
-            const Value v = valueAt(sheet, r, c);
-            switch (v.kind()) {
-            case Value::Kind::Empty: break;
-            case Value::Kind::Number: {
-                const Cell *cell = src.cells.find(r, c);
-                bool date = false;
-                if (cell) {
-                    auto it = dateStyle.find(cell->style);
-                    if (it == dateStyle.end()) it = dateStyle.insert(cell->style, formatOfStyle(cell->style).kind() == jp::calc::FormatKind::Date);
-                    date = it.value();
-                }
-                pv.kind = date ? PivotValue::Date : PivotValue::Number;
-                pv.number = v.number();
-                break;
-            }
-            case Value::Kind::Text: pv.kind = PivotValue::Text; pv.text = v.text(); break;
-            case Value::Kind::Bool: pv.kind = PivotValue::Bool; pv.number = v.boolean() ? 1 : 0; break;
-            case Value::Kind::Error: pv.kind = PivotValue::Error; pv.text = jp::calc::errorKindText(v.errorKind()); break;
-            case Value::Kind::Array: break;
-            }
-            return pv;
-        };
+        fillPivotSource(&ps, sheet, range);
         for (int t : tables) {
             const PivotTableEntry &te = pb.table(t);
             if (!te.table) return tr("JeffCrunch can't read a pivot table made from this data.");
             for (int f : te.table->rowFields) if (f >= 0) ps.axisFields.insert(f);
             for (int f : te.table->colFields) if (f >= 0) ps.axisFields.insert(f);
             for (const PivotPageField &p : te.table->pageFields) ps.axisFields.insert(p.fld);
-        }
-        // (the format of the first cell of data of each column is the field's)
-        for (quint32 c = range.col1; c <= range.col2; ++c) {
-            const Calculation::CellContent first = m_book->calc->content(sheet, range.row1 + 1, c);
-            ps.numFmtIds.append(first.exists ? int(book.styles().numFmtId(first.style)) : 0);
-            if (range.col2 - range.col1 > quint32(kPivotMaxFields)) break;
         }
         auto fresh = std::make_shared<PivotCache>();
         QString problem;
@@ -607,41 +814,10 @@ EditSession::Outcome EditSession::changePivotSource(int table, const QString &wh
     const int ci = pb.table(table).cache;
     const PivotCacheEntry &ce = pb.cache(ci);
     // what the person typed: "Sheet1!A1:D100", "A1:D100", the name of a table, or a defined name
-    QString text = where.trimmed();
-    if (text.isEmpty()) return refuse(tr("Type the cells the data is in, for example Sheet1!A1:D100, or the name of a table."));
     int sheet = ce.sourceSheet >= 0 ? ce.sourceSheet : pb.table(table).sheet;
     CellRange range;
     QString name;
-    const int bang = text.lastIndexOf(QLatin1Char('!'));
-    QString refPart = text;
-    if (bang > 0) {
-        QString sheetName = text.left(bang);
-        if (sheetName.startsWith(QLatin1Char('\'')) && sheetName.endsWith(QLatin1Char('\'')) && sheetName.size() > 1) sheetName = sheetName.mid(1, sheetName.size() - 2).replace(QLatin1String("''"), QLatin1String("'"));
-        sheet = -1;
-        const auto &sheets = m_book->book->info().sheets;
-        for (int s = 0; s < sheets.size(); ++s)
-            if (!sheets[s].deleted && sheets[s].kind == SheetKind::Worksheet && sheets[s].name.compare(sheetName, Qt::CaseInsensitive) == 0) sheet = s;
-        if (sheet < 0) return refuse(tr("There is no sheet called \"%1\".").arg(sheetName));
-        refPart = text.mid(bang + 1);
-    }
-    refPart.remove(QLatin1Char('$'));
-    if (parseRangeRef(refPart, &range) && range.row1 == range.row2) return refuse(tr("The data needs a row of names and at least one row of data under it. Type more than one row, for example Sheet1!A1:D100."));
-    if (!parseRangeRef(refPart, &range)) {
-        // a table's name, or a name
-        bool found = false;
-        for (const Table &t : m_book->book->tables())
-            if (t.name.compare(text, Qt::CaseInsensitive) == 0) {
-                name = t.name;
-                found = true;
-            }
-        if (!found)
-            for (const DefinedName &n : m_book->book->info().definedNames)
-                if (n.name.compare(text, Qt::CaseInsensitive) == 0) {
-                    name = n.name;
-                    found = true;
-                }
-        if (!found) return refuse(tr("\"%1\" is not a range of cells, a table, or a name. Type the cells the data is in, with its first row of names, for example Sheet1!A1:D100.").arg(text));
-    }
+    if (!parsePivotSource(where, sheet, &sheet, &range, &name, &why)) return refuse(why);
     SourceOver over;
     over.cache = ci;
     over.sheet = name.isEmpty() ? sheet : -1;

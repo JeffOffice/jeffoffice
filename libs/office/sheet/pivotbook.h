@@ -10,6 +10,7 @@
 
 #include <functional>
 #include <map>
+#include <mutex>
 #include <memory>
 #include <vector>
 
@@ -25,6 +26,8 @@ struct PivotCacheEntry {
     QString fileSheetName;                         // the sheet the file names as the source's
     QString sourceName;                            // a defined name or a table the source is
     bool unreadable = false;                       // too big, or nested too deep, to be worked with (the part is kept as it is)
+    bool isNew = false;                            // made by a person in this session: its parts are not in the file
+    QByteArray created;                            // for a new one: the definition the parts are made from
     bool external = false;                         // the data is in another workbook (the source names a link): it is not worked from, moved, or read again here
 };
 
@@ -37,6 +40,9 @@ struct PivotTableEntry {
     QString why;                                   // when the table can't be read
     CellRange fallback;                            // where the cells are, read apart, for a table that can't be read whole
     bool loaded = false;                           // the part was read (it is when it is first asked for)
+    bool isNew = false;                            // made by a person in this session
+    QByteArray created;                            // for a new one: the definition the part is made from
+    QString name;                                  // for a new one: what it is called
 };
 
 class PivotBook {
@@ -50,6 +56,16 @@ public:
     int cacheCount() const { return int(m_caches.size()); }
     // The cache, read now if it was not (null, with `why`, when it can't be).
     const PivotCacheEntry &cache(int i) const;
+    // What a formula that asks about a pivot table needs, taken together under a lock (the calculation runs on another thread): the table that covers the cell (its own cells, or the
+    // filters above them), its cache, and the cells it shows worked out from them (kept for the next ask until the table or the cache is changed).
+    struct View {
+        std::shared_ptr<const PivotTable> table;
+        std::shared_ptr<const PivotCache> cache;
+        std::shared_ptr<const PivotGrid> grid;
+        CellRange where;   // the table's cells
+        int index = -1;
+    };
+    bool viewAt(int sheet, quint32 row, quint32 col, View *out) const;
     // The tables of a sheet, by their places.
     std::vector<int> tablesOn(int sheet) const;
     // The tables that are made from a cache.
@@ -77,6 +93,23 @@ public:
     // The same parts, to be made later by the thread that writes the file: what is needed is taken now (the files' own small parts, the table and cache as they are), and the work, which for
     // a cache with many records is long, is done by the caller of each function.
     std::map<QString, std::function<QByteArray()>> changedPartProducers(const QStringList &sheetNames) const;
+    // ---- a table made by a person (Undo takes the last one away again, in the order they were made)
+    // The cache for a new table, and the table; both in the book at the end. The parts they will be written as get names no part of the file has.
+    int addCache(std::shared_ptr<const PivotCache> cache, const CellRange &source, int sourceSheet, const QString &sourceName, const QByteArray &created);
+    int addTable(int sheet, std::shared_ptr<const PivotTable> table, int cache, const QByteArray &created);
+    void removeLastTable();
+    void removeLastCache();
+    // What a save must add to the file for the tables that are new: for each, its sheet, the names of its parts (the cache's are the same for tables that share one), and whether the cache is new.
+    struct AddedParts {
+        int table = -1, cache = -1, sheet = -1;
+        QString tablePart, definitionPart, recordsPart;
+        bool newCache = false;
+    };
+    std::vector<AddedParts> addedParts() const;
+    // The bytes of the parts of a new table and its cache, made when called (the table's takes the id the file's list of caches gives its cache).
+    std::function<QByteArray(int cacheId)> tableProducer(int table) const;
+    std::function<QByteArray()> definitionProducer(int cache, const QStringList &sheetNames) const;
+    std::function<QByteArray()> recordsProducer(int cache) const;
     bool changed() const;
 
 private:
@@ -87,6 +120,13 @@ private:
     jp::calc::DateSystem m_dates;
     mutable std::vector<PivotTableEntry> m_tables;
     mutable std::vector<PivotCacheEntry> m_caches;
+    mutable std::recursive_mutex m_lock;
+    struct GridMemo {
+        std::shared_ptr<const PivotTable> table;
+        std::shared_ptr<const PivotCache> cache;
+        std::shared_ptr<const PivotGrid> grid;
+    };
+    mutable std::vector<GridMemo> m_grids;
 };
 
 } // namespace jp::office::sheet

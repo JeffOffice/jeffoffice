@@ -150,7 +150,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     connect(m_view, &grid::GridView::viewChanged, this, &CrunchWindow::placeEditor);
     connect(m_view, &grid::GridView::viewChanged, this, &CrunchWindow::scheduleAutoHeights);
     m_view->setClickGuard([this] { return commitEdit(CellEditor::Way::Stay); });
-    m_view->setPointGuard([this](qint64 row, qint64 col) { return pointAtTableCell(row, col); });
+    m_view->setPointGuard([this](qint64 row, qint64 col) { return pointAtPivotCell(row, col) || pointAtTableCell(row, col); });
     connect(m_cellEditor, &CellEditor::finished, this, [this](CellEditor::Way way) { commitEdit(way); });
     connect(m_cellEditor, &CellEditor::cancelled, this, &CrunchWindow::cancelEdit);
     connect(m_cellEditor, &QLineEdit::textEdited, this, [this](const QString &text) {

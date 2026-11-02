@@ -837,6 +837,51 @@ private Q_SLOTS:
         QCOMPARE(now.fields[0].sortByData, 0);
     }
 
+    // GETPIVOTDATA: a value of the table by its data field and the items of its lines; the totals when fewer fields are named; nothing for what the table does not show; and the arguments of a cell.
+    void aValueOfTheTableIsFoundByItsItemsAndItsArgumentsAreMade()
+    {
+        const Worked w = work(tableDefinition(true));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        auto text = [](const char *s) {
+            PivotValue v;
+            v.kind = PivotValue::Text;
+            v.text = QString::fromLatin1(s);
+            return v;
+        };
+        PivotCell cell;
+        QVERIFY(pivotGetData(w.table, w.cache, w.grid, QStringLiteral("Sum of Amount"), {{QStringLiteral("Region"), text("East")}, {QStringLiteral("Month"), text("Jan")}}, &cell));
+        QCOMPARE(cell.number, 15.0);
+        // in the other order of the fields, in other case, and by the name of the field the value adds up
+        QVERIFY(pivotGetData(w.table, w.cache, w.grid, QStringLiteral("amount"), {{QStringLiteral("month"), text("feb")}, {QStringLiteral("REGION"), text("west")}}, &cell));
+        QCOMPARE(cell.number, 7.0);
+        // the total of a region, of a month, and of all
+        QVERIFY(pivotGetData(w.table, w.cache, w.grid, QStringLiteral("Sum of Amount"), {{QStringLiteral("Region"), text("East")}}, &cell));
+        QCOMPARE(cell.number, 35.0);
+        QVERIFY(pivotGetData(w.table, w.cache, w.grid, QStringLiteral("Sum of Amount"), {}, &cell));
+        QCOMPARE(cell.number, 49.0);
+        // what is not shown: an item that is not there, a field that is not in the table, a month named without its region (not a group the rows give), another value
+        QVERIFY(!pivotGetData(w.table, w.cache, w.grid, QStringLiteral("Sum of Amount"), {{QStringLiteral("Region"), text("North")}}, &cell));
+        QVERIFY(!pivotGetData(w.table, w.cache, w.grid, QStringLiteral("Sum of Amount"), {{QStringLiteral("Color"), text("Red")}}, &cell));
+        QVERIFY(!pivotGetData(w.table, w.cache, w.grid, QStringLiteral("Sum of Price"), {}, &cell));
+        // the arguments of the cell East, Jan; of the grand total; of the total of West
+        QString data;
+        std::vector<std::pair<QString, PivotValue>> items;
+        QVERIFY(pivotGetDataArguments(w.table, w.cache, w.grid, w.grid.firstDataRow, w.grid.firstDataCol, &data, &items));
+        QCOMPARE(data, QStringLiteral("Sum of Amount"));
+        QCOMPARE(int(items.size()), 2);
+        QCOMPARE(items[0].first, QStringLiteral("Region"));
+        QCOMPARE(items[0].second.text, QStringLiteral("East"));
+        QCOMPARE(items[1].first, QStringLiteral("Month"));
+        QCOMPARE(items[1].second.text, QStringLiteral("Jan"));
+        QVERIFY(pivotGetDataArguments(w.table, w.cache, w.grid, w.grid.rows - 1, w.grid.cols - 1, &data, &items));
+        QVERIFY(items.empty());
+        QVERIFY(pivotGetDataArguments(w.table, w.cache, w.grid, w.grid.firstDataRow + 1, w.grid.cols - 1, &data, &items));
+        QCOMPARE(int(items.size()), 1);
+        QCOMPARE(items[0].second.text, QStringLiteral("West"));
+        // a label is not a value
+        QVERIFY(!pivotGetDataArguments(w.table, w.cache, w.grid, 0, 0, &data, &items));
+    }
+
     // A day the calendar has no date for (day 60 of the 1900 system, a negative day) is a number item in the definition, in the records, and in the marks of the field.
     void daysWithNoDateAreWrittenAsNumbers()
     {
