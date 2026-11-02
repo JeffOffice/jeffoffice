@@ -45,6 +45,7 @@ private:
 GridView::GridView(QWidget *parent) : QAbstractScrollArea(parent)
 {
     setObjectName(QStringLiteral("gridView"));
+    setProperty("jpOwnFocus", true);   // the selection shows the focus: no focus ring around the sheet
     setFocusPolicy(Qt::StrongFocus);
     setAttribute(Qt::WA_InputMethodEnabled, true);
     setFrameShape(QFrame::NoFrame);

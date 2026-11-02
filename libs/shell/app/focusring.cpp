@@ -79,11 +79,13 @@ public:
     }
 
 private:
-    // Controls with a focus of their own to show (the page, where the
-    // selection and the text cursor show it; menus) get no ring.
+    // Controls with a focus of their own to show (the pages and the sheet's
+    // grid, where the selection and the text cursor
+    // show it: they say so with "jpOwnFocus"; menus) get no ring.
     static bool wants(QWidget *w)
     {
         if (!w || w->focusPolicy() == Qt::NoFocus || !w->isVisible()) return false;
+        if (w->property("jpOwnFocus").toBool()) return false;
         if (w->inherits("jp::Canvas") || qobject_cast<QMenu *>(w)) return false;
         return !w->window()->inherits("QMenu");
     }
