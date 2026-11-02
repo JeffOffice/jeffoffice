@@ -901,6 +901,21 @@ private Q_SLOTS:
         QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("repeated")));
     }
 
+    void repeatedCellsAloneAreBoundedInBytes()
+    {
+        // One row, so only the copies of the cell are what could multiply.
+        Made m;
+        const QByteArray big(600 * 1024, 'w');
+        m.body = "<table:table><table:table-column table:number-columns-repeated=\"1000\"/><table:table-row><table:table-cell table:number-columns-repeated=\"1000\"><text:p>" + big + "</text:p></table:table-cell></table:table-row></table:table>";
+        QStringList notes;
+        const QByteArray docx = docxOf(m.build(), &notes);
+        QVERIFY(!docx.isEmpty());
+        Package p;
+        QVERIFY(p.read(docx));
+        QVERIFY2(p.partSize(QStringLiteral("/word/document.xml")) < qint64(400) << 20, qPrintable(QString::number(p.partSize(QStringLiteral("/word/document.xml")))));
+        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("repeated")));
+    }
+
     void hugeLengthsAreClamped()
     {
         bool ok = false;
@@ -981,27 +996,32 @@ private Q_SLOTS:
         QVERIFY2(instr.contains(toc), qPrintable(instr));
     }
 
-    void linksOfUnsafeKindsStayText()
+    void everyLinkStaysALinkAsWritten()
     {
+        const QStringList hrefs = {QStringLiteral("http://example.com/a"), QStringLiteral("mailto:a@b.c"), QStringLiteral("javascript:alert(1)"), QStringLiteral("file:///etc/passwd"),
+                                   QStringLiteral("vbscript:x"), QStringLiteral("../other.odt")};
         Made m;
-        m.body = "<text:p><text:a xlink:href=\"http://example.com/a\">web</text:a> <text:a xlink:href=\"mailto:a@b.c\">mail</text:a> <text:a xlink:href=\"javascript:alert(1)\">js</text:a> "
-                 "<text:a xlink:href=\"file:///etc/passwd\">file</text:a> <text:a xlink:href=\"vbscript:x\">vb</text:a> <text:a xlink:href=\"../other.odt\">rel</text:a>"
-                 "<draw:frame text:anchor-type=\"as-char\" svg:width=\"1in\" svg:height=\"1in\"><draw:image xlink:href=\"../Pictures/a.png\"/></draw:frame></text:p>";
+        m.body = "<text:p>";
+        for (const QString &h : hrefs) m.body += "<text:a xlink:href=\"" + h.toUtf8() + "\">l</text:a>";
+        m.body += "<draw:frame text:anchor-type=\"as-char\" svg:width=\"1in\" svg:height=\"1in\"><draw:image xlink:href=\"../Pictures/a.png\"/></draw:frame></text:p>";
         m.extra.insert(QStringLiteral("Pictures/a.png"), kPng);
-        QStringList notes;
-        const QByteArray docx = docxOf(m.build(), &notes);
+        const QByteArray docx = docxOf(m.build());
         Package p;
         QVERIFY(p.read(docx));
         QStringList targets;
         for (const Relationship &r : p.relationships(QStringLiteral("/word/document.xml")))
             if (r.external) targets << r.target;
+        QStringList want = hrefs;
         targets.sort();
-        QCOMPARE(targets, QStringList({QStringLiteral("../other.odt"), QStringLiteral("http://example.com/a"), QStringLiteral("mailto:a@b.c")}));
-        const QString d = part(docx, QStringLiteral("/word/document.xml"));
-        QCOMPARE(d.count(QLatin1String("<w:hyperlink ")), 3);
-        for (const char *word : {"js", "file", "vb"}) QVERIFY2(d.contains(QLatin1String(">") + QLatin1String(word) + QLatin1String("<")), word);
-        QVERIFY(!d.contains(QLatin1String("<wp:inline")));   // (a picture named by a path that climbs out is not read)
-        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("links")));
+        want.sort();
+        QCOMPARE(targets, want);
+        QCOMPARE(part(docx, QStringLiteral("/word/document.xml")).count(QLatin1String("<w:hyperlink ")), hrefs.size());
+        QVERIFY(!part(docx, QStringLiteral("/word/document.xml")).contains(QLatin1String("<wp:inline")));   // (a picture named by a path that climbs out is not read)
+        // And back: the .odt holds each as it was.
+        QMap<QString, QByteArray> files;
+        QVERIFY(jp::readZip(fromDocxPackage(docx), files));
+        const QString c = QString::fromUtf8(files.value(QStringLiteral("content.xml")));
+        for (const QString &h : hrefs) QVERIFY2(c.contains(QLatin1String("xlink:href=\"") + h + QLatin1String("\"")), qPrintable(h));
     }
 
     void aListGoesOnFromTheListItNames()
@@ -1093,6 +1113,14 @@ private Q_SLOTS:
         QMap<QString, QByteArray> files;
         QVERIFY(jp::readZip(fromDocxPackage(w.finish()), files));
         const QString c = QString::fromUtf8(files.value(QStringLiteral("content.xml")));
+        {
+            // (The paragraph reads as it was: the field's result is once, where the field is.)
+            wml::XmlTree t;
+            QVERIFY(t.parse(files.value(QStringLiteral("content.xml")), nullptr));
+            const int p = findElement(t, "p");
+            QVERIFY(p >= 0);
+            QCOMPARE(t.text(p), QStringLiteral("before 7 after"));
+        }
         QCOMPARE(c.count(QLatin1String("before")), 1);
         QCOMPARE(c.count(QLatin1String(">7<")), 1);
         QCOMPARE(c.count(QLatin1String(" after")), 1);

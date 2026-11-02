@@ -76,7 +76,6 @@ constexpr qint64 kMaxSpacesPerParagraph = 1 << 20;
 constexpr qint64 kMaxSpacesPerDocument = qint64(32) << 20;
 // The most bytes of output the copies of repeated cells and rows may come to, together.
 constexpr qint64 kMaxRepeatedBytes = qint64(256) << 20;
-bool linkIsSafe(const QString &href);
 
 class Reader {
 public:

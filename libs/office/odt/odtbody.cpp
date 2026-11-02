@@ -162,16 +162,6 @@ QString sniffExtension(const QByteArray &b)
 
 } // namespace
 
-bool linkIsSafe(const QString &href)
-{
-    // An address with no scheme is a place in the file's own folder; one with a scheme is followed only if it is a kind that opens a page, a mail message, or a call.
-    static const QRegularExpression scheme(QStringLiteral("^\\s*([A-Za-z][A-Za-z0-9+.-]*):"));
-    const auto m = scheme.match(href);
-    if (!m.hasMatch()) return true;
-    const QString s = m.captured(1).toLower();
-    return s == QLatin1String("http") || s == QLatin1String("https") || s == QLatin1String("mailto") || s == QLatin1String("ftp") || s == QLatin1String("ftps") || s == QLatin1String("tel");
-}
-
 QString Reader::imageRelationship(const Odf &o, int image)
 {
     QByteArray bytes;
@@ -424,11 +414,7 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
         pc->runs = saved;
         if (href.isEmpty() || inner.isEmpty()) pc->runs += inner;
         else if (href.startsWith(QLatin1Char('#'))) pc->runs += "<w:hyperlink w:anchor=\"" + esc(bookmarkNameOf(href.mid(1))) + "\" w:history=\"1\">" + inner + "</w:hyperlink>";
-        else if (!linkIsSafe(href)) {
-            // (A link of a kind that runs something or opens a file stays text.)
-            left(QCoreApplication::translate("odt", "links of a kind that isn't followed"));
-            pc->runs += inner;
-        } else {
+        else {
             const QString key = m_owner + QLatin1Char('|') + href;
             QString rid = m_linkRel.value(key);
             if (rid.isEmpty() && m_linkRel.size() < kMaxMadeParts * 5) {

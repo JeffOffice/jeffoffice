@@ -10,6 +10,7 @@
 #include "core/writedoc.h"
 #include "io/zip.h"
 #include "odt/odt.h"
+#include "office/package.h"
 #include "text/textengine.h"
 
 #include <QFile>
@@ -168,6 +169,29 @@ private Q_SLOTS:
         QVERIFY(p1.read(docx1) && p2.read(docx2));
         QCOMPARE(p1.part(QStringLiteral("/word/document.xml")).count("<w:tc>"), p2.part(QStringLiteral("/word/document.xml")).count("<w:tc>"));
         QCOMPARE(p1.part(QStringLiteral("/word/document.xml")).count("<w:numId"), p2.part(QStringLiteral("/word/document.xml")).count("<w:numId"));
+    }
+
+    void theMacroNoticeNamesTheFormatSavedTo()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"),
+                  "<?xml version=\"1.0\"?><w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>with macros</w:t></w:r></w:p></w:body></w:document>",
+                  QStringLiteral("application/vnd.ms-word.document.macroEnabled.main+xml"));
+        w.addPart(QStringLiteral("/word/vbaProject.bin"), QByteArray("VBA-project"), QStringLiteral("application/vnd.ms-office.vbaProject"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdVba"), QStringLiteral("http://schemas.microsoft.com/office/2006/relationships/vbaProject"), QStringLiteral("/word/vbaProject.bin"));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = writeFile(dir.filePath(QStringLiteral("macros.docm")), w.finish());
+        WriteWindow win;
+        QStringList said;
+        win.setNotifier([&](const QString &, const QString &text) { said << text; });
+        QVERIFY(win.openFile(path));
+        QVERIFY(win.document()->hadMacros());
+        QVERIFY(win.saveTo(dir.filePath(QStringLiteral("plain.odt"))));
+        QVERIFY(!said.isEmpty());
+        QVERIFY2(said[0].contains(QLatin1String("macros")) && said[0].contains(QLatin1String(".odt")) && !said[0].contains(QLatin1String(".docx")), qPrintable(said[0]));
     }
 
     // Not a test of its own: the work of a process that the next function starts.
