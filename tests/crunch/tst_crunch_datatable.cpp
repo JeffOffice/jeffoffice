@@ -127,12 +127,13 @@ private Q_SLOTS:
         f.write(book());
         f.close();
         crunch::WorkbookLoader loader;
-        loader.setPace(3000);   // (microseconds at each step of the read: the load takes long enough for the window to say its word in the middle of it)
+        loader.setPace(-1);   // (the read is held where it is: the window says its word in the middle of it, however busy the machine is)
         QSignalSpy first(&loader, &crunch::WorkbookLoader::firstScreen), finished(&loader, &crunch::WorkbookLoader::finished);
         loader.start(path);
         QVERIFY(first.wait(20000));
         QVERIFY(finished.isEmpty());
         loader.setTablesAutomatic(false);
+        loader.setPace(0);   // (let go)
         QVERIFY(finished.wait(20000));
         QVERIFY(loader.result() && loader.result()->calc);
         QVERIFY(!loader.result()->calc->dataTablesAutomatic());

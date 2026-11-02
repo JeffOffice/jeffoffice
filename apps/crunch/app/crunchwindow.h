@@ -341,7 +341,7 @@ public:
     qint64 workerCpuMicros() const { return m_workerCpuMicros; }
     // The most values one batch had (what taking a batch costs the window is in proportion to it, whatever the machine's speed).
     qint64 longestBatchItems() const { return m_longestBatchItems; }
-    // For tests: slows the worker (see WorkbookLoader::setPace).
+    // For tests: slows the worker, or with a negative number holds it (see WorkbookLoader::setPace).
     void setWorkerPace(int micros) { m_loader.setPace(micros); }
     const crunch::LoadedBook *loaded() const { return m_loaded.get(); }
     // The workbook as read so far, held by whoever keeps it (a test, after the window is gone).

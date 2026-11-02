@@ -156,7 +156,8 @@ public:
     // How many changes have been made (holds let go with a change, and requests to work everything out again): a last batch whose epoch is this many has all of them worked out.
     qint64 changesMade() const;
     // For tests: how long the worker waits (in microseconds) at each step of its work (every 4,096 cells read, and between slices of the calculation), so that a test can do what it does
-    // while the worker is at work. 0 is no wait.
+    // while the worker is at work. 0 is no wait. A negative number holds the worker where it waits until the pace is set to 0 or more (or the read is cancelled): what a test does
+    // in the middle of a read then cannot be late, however busy the machine is.
     void setPace(int micros);
     // Workers that have not ended (all loaders'): a window that is closed leaves its worker to stop by itself.
     static int workersRunning();

@@ -468,7 +468,7 @@ private Q_SLOTS:
         w->setNotifier([](const QString &, const QString &) {});
         w->show();
         QSignalSpy first(w, &CrunchWindow::firstScreenShown);
-        w->setWorkerPace(5000);   // (each step of the read waits: it has seconds to go when the window is closed)
+        w->setWorkerPace(-1);   // (the read is held: it is still going when the window is closed)
         QVERIFY(w->openFile(path));
         QVERIFY(first.wait(20000));
         QVERIFY(w->isLoading());   // (the read is going: what is closed is a window that is reading)
@@ -636,7 +636,7 @@ private Q_SLOTS:
         Folder folder;
         Window win;
         QSignalSpy first(&win.w, &CrunchWindow::firstScreenShown), loaded(&win.w, &CrunchWindow::loadFinished);
-        win.w.setWorkerPace(20000);   // (each step of the read waits: it takes the time that a test of it needs)
+        win.w.setWorkerPace(-1);   // (the read is held where it is, for as long as the test needs)
         QVERIFY(win.w.openFile(folder.write(QStringLiteral("reading.xlsx"), buildXlsx({worksheet(rows)}))));
         QVERIFY(first.wait(60000));
         QVERIFY(win.w.isLoading());
@@ -778,7 +778,7 @@ private Q_SLOTS:
         const QString head = QStringLiteral("<sheetViews><sheetView workbookViewId=\"0\" topLeftCell=\"A5001\"><selection activeCell=\"A5003\" sqref=\"A5003\"/></sheetView></sheetViews>");
         Folder folder;
         Window win;
-        win.w.setWorkerPace(200000);   // (the rest of the read takes long enough to look at the first screen)
+        win.w.setWorkerPace(-1);   // (the rest of the read is held while the first screen is looked at)
         QSignalSpy first(&win.w, &CrunchWindow::firstScreenShown), loaded(&win.w, &CrunchWindow::loadFinished);
         QVERIFY(win.w.openFile(folder.write(QStringLiteral("scrolled.xlsx"), buildXlsx({worksheet(rows, QString(), head)}))));
         QVERIFY(first.wait(60000));
