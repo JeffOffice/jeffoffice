@@ -502,6 +502,7 @@ struct Shape {
     enum Side { SideBoth, SideLeft, SideRight, SideLargest };
     Kind kind = Rect;
     bool floating = false;
+    bool room = false;                    // an empty object in the line that holds the room of a group set in the line (its members are set from it)
     double width = 0, height = 0;
     double left = 0, top = 0;             // from the reference, when the object is not aligned
     double x1 = 0, y1 = 0, x2 = 0, y2 = 0;   // a line's ends from the anchor

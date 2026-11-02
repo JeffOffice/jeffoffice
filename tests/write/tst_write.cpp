@@ -16785,6 +16785,59 @@ private Q_SLOTS:
         QCOMPARE(documentXml(back->toDocx()), documentXml(saved));
     }
 
+    // A table whose every paragraph is in one frame that nothing sits beside is set at the frame's place, as a table that says so is; one whose frame has the text going round it, or
+    // whose paragraphs are not all framed, is a table in the text.
+    void aTableOfFramedParagraphsHasTheFramesPlace()
+    {
+        const QByteArray frame = "<w:framePr w:hSpace=\"180\" w:wrap=\"notBeside\" w:vAnchor=\"text\" w:hAnchor=\"page\" w:x=\"1701\" w:y=\"471\"/>";
+        auto framed = [&](const QByteArray &text, const QByteArray &fr) { return "<w:p><w:pPr>" + fr + "</w:pPr><w:r><w:t>" + text + "</w:t></w:r></w:p>"; };
+        auto placeOf = [&](const QByteArray &table) {
+            auto doc = open(makeDocx(plainP("Before") + table + plainP("After"), kStyles));
+            std::optional<flow::TableData::Place> place;
+            if (!doc) return std::make_pair(false, place);
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+                if (const int key = b.blockFormat().intProperty(flow::fp::Cell)) {
+                    place = doc->flow().tables.get(key)->table->place;
+                    break;
+                }
+            return std::make_pair(true, place);
+        };
+        const auto all = placeOf(tableX(rowX(cellX(framed("a", frame)) + cellX(framed("b", frame))), 2, 1600));
+        QVERIFY(all.first && all.second.has_value());
+        using Place = flow::TableData::Place;
+        QVERIFY(all.second->across == Place::From::Page && all.second->down == Place::From::Text);
+        QCOMPARE(all.second->x, 85.05);
+        QCOMPARE(all.second->y, 23.55);
+        QCOMPARE(all.second->room.left(), 9.0);
+        QVERIFY(!placeOf(tableX(rowX(cellX(framed("a", frame)) + cellX(cellP("b"))), 2, 1600)).second.has_value());
+        QByteArray around = frame;
+        around.replace("notBeside", "around");
+        QVERIFY(!placeOf(tableX(rowX(cellX(framed("a", around)) + cellX(framed("b", around))), 2, 1600)).second.has_value());
+    }
+
+    // A group of drawn objects that is not set at a place is in the line, as tall and as wide as it says: an empty object holds its room, and the shapes of a picture type that
+    // name no picture have neither line nor fill, while a picture whose shape says it has a line is drawn with it.
+    void aGroupInTheLineHoldsItsRoomAndAPictureTypeHasNoLine()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
+                              "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        using jp::office::wml::Shape;
+        const QVector<Shape> shapes = jp::office::wml::readShapes("<w:pict " + ns + "><v:group id='g' style='width:468pt;height:235pt' coordorigin='0,0' coordsize='7200,3615'>"
+            "<v:shape id='bg' type='#_x0000_t75' style='position:absolute;left:0;top:0;width:7200;height:3615'/>"
+            "<v:shape id='pic' type='#_x0000_t75' style='position:absolute;left:0;top:0;width:3600;height:2702' stroked='t'><v:imagedata r:id='rId1'/></v:shape></v:group></w:pict>");
+        QCOMPARE(int(shapes.size()), 3);
+        QVERIFY(shapes[0].room && !shapes[0].floating);
+        QCOMPARE(shapes[0].width, 468.0);
+        QCOMPARE(shapes[0].height, 235.0);
+        QVERIFY(!shapes[1].room && !shapes[1].stroked && !shapes[1].filled);
+        QCOMPARE(shapes[2].kind, Shape::Picture);
+        QVERIFY(shapes[2].borderWeight > 0 && shapes[2].borderSides[0] > 0 && shapes[2].borderSides[3] > 0);
+        const QVector<Shape> placed = jp::office::wml::readShapes("<w:pict " + ns + "><v:group id='g' style='position:absolute;width:468pt;height:235pt' coordorigin='0,0' coordsize='7200,3615'>"
+            "<v:shape id='bg' type='#_x0000_t75' style='position:absolute;left:0;top:0;width:7200;height:3615'/></v:group></w:pict>");
+        QCOMPARE(int(placed.size()), 1);
+        QVERIFY(!placed[0].room);
+    }
+
     // ---- frames
 
     static QByteArray framedP(const QByteArray &text, const QByteArray &framePr)

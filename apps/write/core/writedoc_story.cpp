@@ -1595,6 +1595,16 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             }
             if (lettering) continue;   // (past the bounds it is left out, not drawn as the box it is)
         }
+        if (s.room && !inlinePicture) {
+            auto room = std::make_shared<ShapeItem>();
+            room->rect = QRectF(0, 0, s.width, s.height);
+            room->fill = Fill::none();
+            room->stroke = Stroke::none();
+            room->wrap.left = room->wrap.right = room->wrap.top = room->wrap.bottom = 0;
+            format->setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(room->toJson()).toJson(QJsonDocument::Compact)));
+            inlinePicture = true;
+            continue;
+        }
         if (s.kind == Shape::Picture && !s.floating && !inlinePicture) {
             const int image = pictureOf(s);
             if (image < 0 || s.width <= 0 || s.height <= 0) continue;

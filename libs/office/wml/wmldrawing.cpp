@@ -170,7 +170,11 @@ public:
         if (!m_typesRead) {
             m_typesRead = true;
             for (int i = 0; i < t.count() && i < 4000; ++i)
-                if (t.localName(i) == "shapetype") m_types.insert(t.attr(i, "id"), t.attrAny(i, "spt").toInt());
+                if (t.localName(i) == "shapetype") {
+                    m_types.insert(t.attr(i, "id"), t.attrAny(i, "spt").toInt());
+                    m_typeLine.insert(t.attr(i, "id"), t.attr(i, "stroked"));
+                    m_typeFill.insert(t.attr(i, "id"), t.attr(i, "filled"));
+                }
         }
         if (const int spt = m_types.value(id, 0); spt > 0) return spt;
         static const QRegularExpression named(QStringLiteral("^_x0000_t(\\d{1,4})$"));
@@ -179,6 +183,18 @@ public:
     }
     mutable bool m_typesRead = false;
     mutable QHash<QString, int> m_types;
+    mutable QHash<QString, QString> m_typeLine, m_typeFill;
+
+    // A shape that does not say whether it has a line or a fill takes it from its shape type (the picture type has neither).
+    QString fromType(int n, const char *what) const
+    {
+        QString type = t.attr(n, "type");
+        if (type.startsWith(QLatin1Char('#'))) type = type.mid(1);
+        if (type.isEmpty()) return QString();
+        // (The picture's type is not always in the part that holds the shape: it has neither a line nor a fill.)
+        if (shapeTypeOf(n) == 75 && !m_typeLine.contains(type)) return QStringLiteral("f");
+        return (QLatin1String(what) == QLatin1String("stroked") ? m_typeLine : m_typeFill).value(type);
+    }
 
     // A text box's content, the wrap, and a picture's data are children of the shape.
     void shape(int n, const QByteArray &kind, double sx, double sy, double ox, double oy, int depth)
@@ -215,8 +231,9 @@ public:
         s.shapeType = shapeTypeOf(n);
         // (A shape type that is a line, an arc, a bracket, or a brace is not filled unless the shape says so.)
         const bool openType = s.shapeType == 19 || s.shapeType == 20 || s.shapeType == 32 || (s.shapeType >= 85 && s.shapeType <= 88);
-        s.filled = (t.has(n, "filled") ? !offOf(t.attr(n, "filled")) : !openType) && !picture;
-        s.stroked = !offOf(t.attr(n, "stroked")) && !picture;
+        const QString typeFill = fromType(n, "filled");
+        s.filled = (t.has(n, "filled") ? !offOf(t.attr(n, "filled")) : !typeFill.isEmpty() ? !offOf(typeFill) : !openType) && !picture;
+        s.stroked = !offOf(t.has(n, "stroked") ? t.attr(n, "stroked") : fromType(n, "stroked")) && !picture;
         s.fillColor = colorOf(t.attr(n, "fillcolor"));
         if (s.fillColor.isEmpty() && s.filled) s.fillColor = QStringLiteral("FFFFFF");
         s.strokeColor = colorOf(t.attr(n, "strokecolor"));
@@ -368,6 +385,12 @@ public:
                 }
             }
         }
+        // A picture whose shape says it has a line (stroked) is drawn with that line round it, as a border on all four sides.
+        if (picture && s.borderWeight == 0 && t.has(n, "stroked") && !offOf(t.attr(n, "stroked")) && s.strokeWeight > 0) {
+            for (double &side : s.borderSides) side = s.strokeWeight;
+            s.borderWeight = s.strokeWeight;
+            s.borderColor = s.strokeColor;
+        }
         // The shape's own numbers (an empty place or a word is not a number, nor a number too large to be one).
         if (const QString adj = t.attr(n, "adj"); !adj.isEmpty()) {
             const QStringList numbers = adj.split(QLatin1Char(','));
@@ -406,6 +429,20 @@ public:
         walkMembers(c, fin(kx * sx), fin(ky * sy), fin(gx - originX * kx * sx), fin(gy - originY * ky * sy), depth + 1);
     }
 
+    // A group that is not set at a place is in the line, as tall and wide as it says: an empty object of its size holds the room, and its members are set from it.
+    void inlineGroupRoom(int group, int depth)
+    {
+        if (depth != 0) return;
+        const QHash<QString, QString> st = styleOf(t.attr(group, "style"));
+        if (st.value(QStringLiteral("position")) == QLatin1String("absolute")) return;
+        Shape room;
+        room.kind = Shape::Rect;
+        room.room = true;
+        room.width = std::clamp(fin(lengthOf(st.value(QStringLiteral("width")), 0)), 0.0, 10000.0);
+        room.height = std::clamp(fin(lengthOf(st.value(QStringLiteral("height")), 0)), 0.0, 10000.0);
+        if (room.width > 0 && room.height > 0 && out.size() < kMostShapes) out << room;
+    }
+
     void walk(int n, double sx, double sy, double ox, double oy, int depth)
     {
         for (int c = t.firstChild(n); c >= 0 && out.size() < kMostShapes; c = t.next(c)) {
@@ -414,6 +451,7 @@ public:
             if (name == "shape" || name == "rect" || name == "roundrect" || name == "oval" || name == "line") {
                 shape(c, name == "roundrect" ? QByteArray("rect") : name, sx, sy, ox, oy, depth);
             } else if (name == "group" && depth < kMostGroupDepth) {
+                inlineGroupRoom(c, depth);
                 inGroup(c, sx, sy, ox, oy, depth);
             } else if (name == "shapetype") {
                 continue;

@@ -21,18 +21,44 @@ bool tagIs(const Block &b, const char *tag) { return b.tag == QLatin1String(tag)
 
 // Where a table that is set at a place says it goes (its w:tblpPr, found in the table's own bytes: the properties come first in them), as the flowing document has it; the
 // distances are twentieths of a point in the file.
-std::optional<flow::TableData::Place> floatingPlaceOf(const QByteArray &original)
+std::optional<flow::TableData::Place> floatingPlaceOf(const QByteArray &original, bool setAtPlace)
 {
     using Place = flow::TableData::Place;
     static const QRegularExpression element(QStringLiteral("<(?:[\\w.-]+:)?tblpPr\\b([^>]*)>"));
     static const QRegularExpression attribute(QStringLiteral("\\s(?!xmlns)(?:[\\w.-]+:)?([\\w.-]+)\\s*=\\s*\"([^\"]*)\""));
-    const QRegularExpressionMatch found = element.match(QString::fromUtf8(original.left(20000)));
-    if (!found.hasMatch()) return std::nullopt;
+    QRegularExpressionMatch found = setAtPlace ? element.match(QString::fromUtf8(original.left(20000))) : QRegularExpressionMatch();
     QHash<QString, QString> at;
-    auto it = attribute.globalMatch(found.captured(1));
-    while (it.hasNext()) {
-        const QRegularExpressionMatch m = it.next();
-        at.insert(m.captured(1), m.captured(2));
+    if (!found.hasMatch()) {
+        // A table whose every paragraph is in the same frame is set at that frame's place, as a table that says so is (its distances and anchors have the frame's names).
+        static const QRegularExpression frame(QStringLiteral("<(?:[\\w.-]+:)?framePr\\b([^>]*)>"));
+        static const QRegularExpression paragraph(QStringLiteral("<(?:[\\w.-]+:)?p[\\s>]"));
+        if (original.size() > 4000000) return std::nullopt;
+        const QString text = QString::fromUtf8(original);
+        found = frame.match(text);
+        if (!found.hasMatch()) return std::nullopt;
+        int frames = 0, paragraphs = 0;
+        for (auto f = frame.globalMatch(text); f.hasNext(); f.next()) ++frames;
+        for (auto q = paragraph.globalMatch(text); q.hasNext(); q.next()) ++paragraphs;
+        if (frames != paragraphs) return std::nullopt;
+        // (Text that goes round the frame is not kept off it by a table: only a frame that nothing sits beside sets the table apart.)
+        if (!found.captured(1).contains(QLatin1String("notBeside"))) return std::nullopt;
+        auto it = attribute.globalMatch(found.captured(1));
+        while (it.hasNext()) {
+            const QRegularExpressionMatch m = it.next();
+            const QString name = m.captured(1);
+            at.insert(name == QLatin1String("hAnchor") ? QStringLiteral("horzAnchor") : name == QLatin1String("vAnchor") ? QStringLiteral("vertAnchor")
+                      : name == QLatin1String("x") ? QStringLiteral("tblpX") : name == QLatin1String("y") ? QStringLiteral("tblpY")
+                      : name == QLatin1String("xAlign") ? QStringLiteral("tblpXSpec") : name == QLatin1String("yAlign") ? QStringLiteral("tblpYSpec")
+                      : name == QLatin1String("hSpace") ? QStringLiteral("leftFromText") : name == QLatin1String("vSpace") ? QStringLiteral("topFromText") : name, m.captured(2));
+        }
+        if (at.contains(QStringLiteral("leftFromText"))) at.insert(QStringLiteral("rightFromText"), at.value(QStringLiteral("leftFromText")));
+        if (at.contains(QStringLiteral("topFromText"))) at.insert(QStringLiteral("bottomFromText"), at.value(QStringLiteral("topFromText")));
+    } else {
+        auto it = attribute.globalMatch(found.captured(1));
+        while (it.hasNext()) {
+            const QRegularExpressionMatch m = it.next();
+            at.insert(m.captured(1), m.captured(2));
+        }
     }
     auto points = [&](const char *name) {
         const double v = at.value(QString::fromLatin1(name)).toDouble() / 20.0;
@@ -239,7 +265,7 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
             // (Before the 2013 program, the indent is to the first cell's text, and the table's edge is left of it by the cell's margin.)
             t.indent = points(m.indent);
             t.indentToText = m_compat < 15;
-            if (direct.floating) t.place = floatingPlaceOf(direct.original);
+            t.place = floatingPlaceOf(direct.original, direct.floating);
             l.tablePart = std::make_shared<TablePart>();
             l.tablePart->open = blk.raw;
             l.tablePart->mark = blk.table;
