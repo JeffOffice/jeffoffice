@@ -821,24 +821,39 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QCOMPARE(w.session()->editText(0, 0, 2), QStringLiteral("=SUM(Sheet2!A1)"));
         QCOMPARE(w.session()->editText(1, 0, 2), QString());                          // (not in the cell of the sheet that was looked at)
-        // Cancel after pointing: the sheet and the whole selection are as they were
-        e.view()->selectRange(1, 1, 3, 2);
+        // Cancel after pointing at E9:E12 on both sheets: the sheet and the whole selection (B2:D5, the cursor in C3) are as they were
         w.setFunctionAsker([](QString *name) {
             *name = QStringLiteral("SUM");
             return true;
         });
+        e.view()->selectCell(2, 2);
+        e.view()->selectRange(1, 1, 4, 3);
+        grid::Selection want = e.view()->selection();
+        want.activeRow = 2;
+        want.activeCol = 2;
+        e.view()->setSelection(want);
         const grid::Selection before = e.view()->selection();
+        QCOMPARE(before.range.row1, qint64(1));
+        QCOMPARE(before.range.col2, qint64(3));
+        QCOMPARE(before.activeRow, qint64(2));
         w.setArgumentsAsker([&e, &w](FunctionArgumentsDialog *d) {
             d->show();
             d->pickButton(0)->click();
+            e.view()->selectRange(8, 4, 11, 4);                                       // (E9:E12 of the same sheet: the selection moves)
             w.setActiveSheet(1);
-            e.view()->selectCell(4, 4);
+            e.view()->selectRange(8, 4, 11, 4);                                       // (and on Sheet2)
             d->endPicking();
             return false;
         });
         w.act(QStringLiteral("formulas.insertFunction"))->trigger();
         QCOMPARE(w.activeSheet(), 0);
-        QVERIFY(e.view()->selection() == before);
+        const grid::Selection after = e.view()->selection();
+        QCOMPARE(after.range.row1, qint64(1));
+        QCOMPARE(after.range.col1, qint64(1));
+        QCOMPARE(after.range.row2, qint64(4));
+        QCOMPARE(after.range.col2, qint64(3));
+        QCOMPARE(after.activeRow, qint64(2));
+        QCOMPARE(after.activeCol, qint64(2));
         QVERIFY(!w.isEditing());
     }
 
