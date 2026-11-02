@@ -56,6 +56,7 @@
 //                                                  matched, how many workbooks matched whole, how each function fared, the commonest mismatches, and the commonest unsupported
 //                                                  functions (tools/crunch_recalc.py does the work)
 
+#include "sheet/sheetcrypt.h"
 #include "office/package.h"
 #include "calc/functions.h"
 #include "calc/numfmt.h"
@@ -698,6 +699,7 @@ int usage()
              "       jcrunchtool filter-roundtrip <file.xlsx> [out.xlsx]\n"
              "       jcrunchtool xls-save-check <file.xls>\n"
              "       jcrunchtool functions\n"
+             "(a workbook protected with a password is opened with the one in the environment variable JCRUNCH_PASSWORD)\n"
              "       jcrunchtool eval <file.xlsx|file.xls> <sheet> <cell> <formula>\n"
              "       jcrunchtool recalc <keys.txt> <out-dir> [jobs]\n"
              "       jcrunchtool recalc-full-one <file.xlsx|file.xls> [matches=3] [seconds=100]\n"
@@ -748,6 +750,8 @@ int sideRoundtripMain(const QStringList &args);   // (jcrunchtool_side.cpp)
 int main(int argc, char **argv)
 {
     qputenv("JP_NO_TELEMETRY", "1");
+    // (a workbook that is protected with a password is opened with the one in JCRUNCH_PASSWORD; without it, the message says that a password is needed)
+    if (!qEnvironmentVariableIsEmpty("JCRUNCH_PASSWORD")) ::jp::office::sheet::setFallbackPassword(qEnvironmentVariable("JCRUNCH_PASSWORD"));
 #ifdef JC_GRID
     // the grid commands draw: they need the program's own window system parts (offscreen unless the person chose another)
     if (argc > 1 && (QByteArray(argv[1]).startsWith("grid-") || QByteArray(argv[1]).startsWith("roundtrip") || QByteArray(argv[1]).startsWith("edit-") || QByteArray(argv[1]).startsWith("model-") || QByteArray(argv[1]).startsWith("print-") || QByteArray(argv[1]).startsWith("charts-") || QByteArray(argv[1]).startsWith("make-check-") || QByteArray(argv[1]).startsWith("check-files-"))) {

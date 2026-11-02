@@ -103,6 +103,9 @@ constexpr qint64 kMaxOdsDataParts = 1000000;    // the parts of all the number f
 // are kept without their runs).
 constexpr qint64 kMaxRichRuns = 5000000;
 
+// Why a file was not opened for want of a password: it needs one and none was given, or the one given is not it.
+enum class PasswordNeed { None, Needed, Wrong };
+
 struct Limits {
     // The bytes of a workbook file (the most the apps open for every kind: office/package.h); a larger file is refused before any of it is read.
     qint64 fileBytes = kMaxOpenFileBytes;
@@ -143,6 +146,10 @@ struct Limits {
     std::shared_ptr<const CsvImport> csv;
     // The most bytes the links of all the sheets hold (see kMaxLinkBytesPerBook).
     qint64 linkBytes = kMaxLinkBytesPerBook;
+    // The password of a file that is protected with one (none: the password the original program gives every file it protects only against changes is tried). The workbook does not keep it:
+    // openFile and openBinary clear their copy when they end. `passwordNeed`, when given, is told why a protected file was refused.
+    QString password;
+    PasswordNeed *passwordNeed = nullptr;
 };
 
 enum class CalcMode { Auto, AutoNoTable, Manual };
@@ -235,10 +242,12 @@ public:
     // fatal: sharedStringsError() says, and the strings before the damage stay.
     bool open(const Package &package, QString *error = nullptr, const Limits &limits = Limits());
     // Opens a workbook file of either kind, told by its first bytes: the package of XML parts (.xlsx, .xlsm), or the older binary form (a compound file holding a
-    // workbook stream: BIFF5 to BIFF8). A package is read lazily, as readLazyFile does. False, with a message, if the file is neither, is damaged, or is encrypted.
+    // workbook stream: BIFF5 to BIFF8). A package is read lazily, as readLazyFile does. False, with a message, if the file is neither, is damaged, or is protected with a password that was not given (limits.password) or is not the one.
     bool openFile(const QString &path, QString *error = nullptr, const Limits &limits = Limits());
     // The same for the bytes of a whole binary workbook file.
     bool openBinary(const QByteArray &file, QString *error = nullptr, const Limits &limits = Limits());
+    // Why the last openFile or openBinary that failed did, if it was for a password (None for any other failure, and after one that worked).
+    PasswordNeed passwordNeed() const { return m_passwordNeed; }
     // Whether the workbook was read from the older binary form, and what such a file holds that is not read (charts, pictures, ...), in words.
     bool isBinary() const { return bool(m_xls); }
     // Whether it was read from a file that has no package of XML parts to put changes in, and so is saved as an .xlsx written from what was read: the older binary form, an
@@ -391,6 +400,10 @@ public:
 
 private:
     bool openStream(const QByteArray &stream, bool hasMacros, QString *error, const Limits &limits);
+    bool openFileWith(const QString &path, QString *error, const Limits &limits);
+    bool openBinaryWith(const QByteArray &file, QString *error, const Limits &limits);
+    bool openProtectedPackage(const QByteArray &info, const QByteArray &package, QString *error, const Limits &limits);
+    bool openPackageBytes(const QByteArray &bytes, QString *error, const Limits &limits);
     void prepareSheetList();
     bool openOpenDocument(const QByteArray &file, bool flat, QString *error, const Limits &limits);
     bool openDelimited(const QByteArray &file, const QString &path, QString *error, const Limits &limits);
@@ -441,6 +454,7 @@ private:
     Styles m_styles;
     QString m_stylesError;
     Limits m_limits;
+    PasswordNeed m_passwordNeed = PasswordNeed::None;
     mutable QVector<Table> m_tables;
     mutable bool m_tablesRead = false;
     mutable QStringList m_tableNotes;   // what was left out of the tables when they were read (see readTables)

@@ -1,4 +1,5 @@
 #include "core/loader.h"
+#include "io/crypto.h"
 
 #include "office/package.h"
 
@@ -119,11 +120,11 @@ void WorkbookLoader::startThread(std::function<void()> work, const std::shared_p
     m_thread->start();
 }
 
-void WorkbookLoader::start(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv) { begin(path, csv, QByteArray()); }
+void WorkbookLoader::start(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QString &password) { begin(path, csv, QByteArray(), password); }
 
 void WorkbookLoader::startBlank() { begin(QString(), nullptr, blankWorkbookBytes()); }
 
-void WorkbookLoader::begin(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank)
+void WorkbookLoader::begin(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank, const QString &password)
 {
     cancel();
     m_state = std::make_shared<State>();
@@ -135,7 +136,9 @@ void WorkbookLoader::begin(const QString &path, const std::shared_ptr<const jp::
     const std::shared_ptr<LoadedBook> result = m_result;
     const std::shared_ptr<State> state = m_state;
     const QPointer<WorkbookLoader> self(this);
-    startThread([path, csv, blank, result, state, self] { run(path, csv, blank, result, state, self); }, state);
+    // (the worker holds the password for the read of the file and no longer)
+    const auto secret = std::make_shared<QString>(password);
+    startThread([path, csv, blank, secret, result, state, self] { run(path, csv, blank, secret, result, state, self); }, state);
 }
 
 bool WorkbookLoader::recalculate()
@@ -219,7 +222,8 @@ std::unique_ptr<WorkbookLoader::Hold> WorkbookLoader::hold()
     return std::unique_ptr<Hold>(new Hold(m_state, m_result->calc.get()));
 }
 
-bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank)
+bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank,
+                     const QString &password)
 {
     QElapsedTimer total;
     total.start();
@@ -229,6 +233,7 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     Limits limits;
     limits.cancelled = cancelled;
     limits.csv = csv;
+    limits.password = password;
     if (!blank.isEmpty()) {
         office::Package package;
         if (!package.readLazy(blank, why) || !book->open(package, why, limits)) return false;
@@ -491,7 +496,7 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
     calc->setCancel(nullptr);
 }
 
-void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self)
+void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank, const std::shared_ptr<QString> &password, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self)
 {
     // A signal goes to the window only if the read has not been stopped (and the loader is still there), and is sent from the window's own thread.
     auto send = [state, self](const std::function<void()> &fn) {
@@ -506,7 +511,9 @@ void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::of
         ~Done() { book->workerEnded = true; }
     } done{result};
     QString why;
-    if (!loadFirstScreen(path, result.get(), cancelled, &why, csv, blank)) {
+    const bool opened = loadFirstScreen(path, result.get(), cancelled, &why, csv, blank, *password);
+    jp::crypto::wipe(*password);
+    if (!opened) {
         send([self, why] { if (self) Q_EMIT self->finished(false, why); });
         return;
     }

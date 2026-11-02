@@ -449,7 +449,7 @@ private Q_SLOTS:
         container.entries[2].name = QStringLiteral("EncryptedPackage");
         container.entries[2].data = QByteArray(4096, '\x05');
         const QString said = refusalOf(cfb::write(container), QStringLiteral("locked.xlsx"));
-        QVERIFY2(said.contains(QLatin1String("encrypted")), qPrintable(said));
+        QVERIFY2(said.contains(QLatin1String("protected")), qPrintable(said));
     }
 
     void aCompoundFileWithNoWorkbookSaysSo()

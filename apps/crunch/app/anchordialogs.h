@@ -37,6 +37,13 @@ struct LinkRequest {
     int sheet = 0;                               // the position of the sheet the cell is on, among sheetNames
 };
 
+// The question put when a file that is protected with a password is opened: `wrong` is true when the password just given was not it (the question is put again).
+struct FilePasswordRequest {
+    QString file;       // the file's name, as a person knows it
+    bool wrong = false;
+    QString password;   // out
+};
+
 // The functions the window asks, and how it opens an address. A function left empty makes the window use the dialog.
 struct AnchorHooks {
     std::function<bool(NoteRequest *)> noteAsker;
@@ -49,6 +56,8 @@ struct AnchorHooks {
     std::function<bool(PasswordRequest *)> passwordAsker;
     // Opening a text file of values: the dialog that says how it is read (the request holds the file's first bytes and what it is found to be).
     std::function<bool(TextImportRequest *)> textImportAsker;
+    // Opening a file that is protected with a password: the question (false: the person cancelled).
+    std::function<bool(FilePasswordRequest *)> filePasswordAsker;
 };
 
 class NoteDialog : public QDialog {

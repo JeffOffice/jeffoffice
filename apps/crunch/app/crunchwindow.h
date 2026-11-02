@@ -1037,6 +1037,8 @@ private:
     bool openAddress(const QUrl &url);
     // ---- opening a text file of values (crunchwindow_text.cpp)
     bool askTextImport(const QString &path, std::shared_ptr<const jp::office::sheet::CsvImport> *chosen);
+    // A file that is protected with a password: asks for it (again when it is not the one) until it fits or the person cancels (false: nothing is opened). `password` is empty for a file with none.
+    bool askFilePassword(const QString &path, QString *password);
     bool m_promptForText = false, m_forceTextPrompt = false;
     // ---- automatic row heights (crunchwindow_autoheight.cpp)
     void scheduleAutoHeights();

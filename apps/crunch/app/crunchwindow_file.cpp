@@ -2,7 +2,9 @@
 
 #include "app/crunchwindow.h"
 
+#include "io/crypto.h"
 #include "sheet/csv.h"
+#include "sheet/sheetcrypt.h"
 
 #include "app/crunchfilescreen.h"
 #include "app/oldformat.h"
@@ -16,6 +18,7 @@
 #include <QApplication>
 #include <QAbstractButton>
 #include <QFileInfo>
+#include <QInputDialog>
 #include <QLabel>
 #include <QLocale>
 #include <QMessageBox>
@@ -135,6 +138,9 @@ bool CrunchWindow::openFile(const QString &path)
         m_forceTextPrompt = false;
         if (!askTextImport(path, &csv)) return false;
     }
+    // a file protected with a password: it is asked for here, and a person who cancels leaves everything as it was
+    QString password;
+    if (!askFilePassword(path, &password)) return false;
     if (replacing) dropWorkbook();
     m_path = path;
     m_loading = true;
@@ -143,13 +149,52 @@ bool CrunchWindow::openFile(const QString &path)
     m_values.clear();
     m_longestBatchMicros = m_batches = m_longestBatchItems = 0;
     m_loadProblem.clear();
-    m_loader.start(path, csv);
+    m_loader.start(path, csv, password);
+    jp::crypto::wipe(password);
     setStatus(tr("Opening %1…").arg(name));
     updateTitle();
     hideFileScreen();
     Settings::get().addRecentFile(path);
     telemetry::count(QStringLiteral("file.open.") + crunch::fileKind(path));
     return true;
+}
+
+bool CrunchWindow::askFilePassword(const QString &path, QString *password)
+{
+    password->clear();
+    auto check = [&](const QString &typed) {
+        QGuiApplication::setOverrideCursor(Qt::WaitCursor);
+        const jp::office::sheet::PasswordNeed need = jp::office::sheet::passwordCheck(path, typed);
+        QGuiApplication::restoreOverrideCursor();
+        return need;
+    };
+    if (check(QString()) == jp::office::sheet::PasswordNeed::None) return true;
+    bool wrong = false;
+    for (;;) {
+        FilePasswordRequest req;
+        req.file = QFileInfo(path).fileName();
+        req.wrong = wrong;
+        if (m_anchorHooks.filePasswordAsker) {
+            if (!m_anchorHooks.filePasswordAsker(&req)) return false;
+        } else {
+            QInputDialog dialog(this);
+            dialog.setWindowTitle(tr("Password"));
+            dialog.setLabelText(wrong ? tr("The password is not correct.\n\nThis file is protected with a password. Password:") : tr("This file is protected with a password. Password:"));
+            dialog.setTextEchoMode(QLineEdit::Password);
+            dialog.setOkButtonText(tr("Open"));
+            dialog.setCancelButtonText(tr("Cancel"));
+            if (dialog.exec() != QDialog::Accepted) return false;
+            req.password = dialog.textValue();
+        }
+        const jp::office::sheet::PasswordNeed need = req.password.isEmpty() ? jp::office::sheet::PasswordNeed::Wrong : check(req.password);
+        if (need == jp::office::sheet::PasswordNeed::None) {
+            *password = req.password;
+            jp::crypto::wipe(req.password);
+            return true;
+        }
+        jp::crypto::wipe(req.password);
+        wrong = true;
+    }
 }
 
 void CrunchWindow::onFirstScreen()

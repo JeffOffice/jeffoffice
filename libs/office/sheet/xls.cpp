@@ -401,7 +401,7 @@ public:
             }
             switch (r.id) {
             case kEof: done = true; break;
-            case kFilePass: return fail(QCoreApplication::translate("Sheet", "The workbook is encrypted, and this program can't open an encrypted workbook yet."));
+            case kFilePass: return fail(QCoreApplication::translate("Sheet", "This file is protected with a password, and it was not opened with one."));
             case kCodepage: {
                 Bytes b(m_d, r.pos, r.pos + r.len);
                 m_codepage = b.u16();

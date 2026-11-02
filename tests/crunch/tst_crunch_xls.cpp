@@ -2,7 +2,9 @@
 // new name ending in .xlsx and never offers the file the workbook came from. Every workbook is built here, in a temporary folder.
 #include "../sheet/xlshelpers.h"
 #include "app/crunchinfo.h"
+#include "app/anchordialogs.h"
 #include "app/crunchwindow.h"
+#include "office/officecrypt.h"
 #include "savedok.h"
 #include "app/oldformat.h"
 #include "app/settings.h"
@@ -179,21 +181,48 @@ private Q_SLOTS:
         QVERIFY(win.w.hasWorkbook());
     }
 
-    // A workbook that asks for a password is refused in words, and the window stays ready for another.
-    void anEncryptedWorkbookIsRefused()
+    // A workbook that asks for a password: the window asks for it, and a person who cancels leaves nothing open; a wrong one is said to be wrong and asked for again; the right one opens it.
+    void anEncryptedWorkbookAsksForItsPassword()
     {
         Folder folder;
         Window win;
         xlstest::Book b;
-        b.globals(xlstest::rec(0x002F, xlstest::W().u16(1).u16(1).u16(0x1234).u16(0x5678)));
+        b.globals(xlstest::rec(0x002F, xlstest::W().u16(1).u16(1).u16(1).raw(QByteArray(48, 'x'))));   // (a salt and a check that no password fits)
         b.sheet(QStringLiteral("S"), xlstest::number(0, 0, 1));
-        QSignalSpy loaded(&win.w, &CrunchWindow::loadFinished);
-        QVERIFY(win.w.openFile(folder.write(QStringLiteral("locked.xls"), b.file())));
-        QVERIFY(loaded.wait(20000));
-        QCOMPARE(loaded.first().first().toBool(), false);
+        const QString path = folder.write(QStringLiteral("locked.xls"), b.file());
+        QStringList asked;
+        win.w.anchorHooks().filePasswordAsker = [&asked](FilePasswordRequest *r) {
+            asked << QStringLiteral("%1:%2").arg(r->file).arg(r->wrong ? "again" : "first");
+            if (asked.size() == 2) return false;   // (cancelled the second time)
+            r->password = QStringLiteral("no");
+            return true;
+        };
+        QVERIFY(!win.w.openFile(path));
+        QCOMPARE(asked, (QStringList{QStringLiteral("locked.xls:first"), QStringLiteral("locked.xls:again")}));
         QVERIFY(!win.w.hasWorkbook());
-        QCOMPARE(win.told.size(), 1);
-        QVERIFY2(win.told.first().contains(QLatin1String("encrypted")), qPrintable(win.told.first()));
+        QCOMPARE(win.told.size(), 0);
+    }
+
+    // The right password opens the workbook, after a wrong one is refused; the same file opened with a cancelled question is not opened at all.
+    void aProtectedWorkbookOpensWithItsPassword()
+    {
+        Folder folder;
+        jp::office::EncryptOptions options;
+        options.spinCount = 20;
+        const QByteArray sheet = sheettest::worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>7</v></c></row>"));
+        const QString path = folder.write(QStringLiteral("secret.xlsx"), jp::office::encryptPackage(sheettest::buildXlsx({sheet}), QStringLiteral("open up"), options));
+        Window win;
+        QStringList asked;
+        win.w.anchorHooks().filePasswordAsker = [&asked](FilePasswordRequest *r) {
+            asked << (r->wrong ? QStringLiteral("again") : QStringLiteral("first"));
+            r->password = asked.size() == 1 ? QStringLiteral("not it") : QStringLiteral("open up");
+            return true;
+        };
+        QVERIFY(win.open(path));
+        QCOMPARE(asked, (QStringList{QStringLiteral("first"), QStringLiteral("again")}));
+        QVERIFY(win.w.hasWorkbook());
+        QCOMPARE(win.w.view()->sheet().valueOf(0, 0, *win.w.view()->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:7"));
+        QCOMPARE(win.told.size(), 0);
     }
 
     // Save (by the keys of the computer) on a workbook that came from an .xls file: the person is told in plain words that it is saved as .xlsx and asked for a name (offered with that
