@@ -846,6 +846,7 @@ public:
         m_more->setFocusPolicy(Qt::TabFocus);   // the keyboard reaches it (Tab, the arrow keys, KeyTips)
         m_more->setIcon(icon("chevron-down"));
         m_more->setPopupMode(QToolButton::InstantPopup);
+        m_more->setStyleSheet(QStringLiteral("QToolButton::menu-indicator { image: none; width: 0px; }"));   // (the chevron is the whole picture)
         m_more->setMenu(new QMenu(m_more));
         m_more->setToolTip(QCoreApplication::translate("Ribbon", "More tabs"));
         m_more->setAccessibleName(QCoreApplication::translate("Ribbon", "More tabs"));
@@ -853,9 +854,28 @@ public:
         connect(m_more->menu(), &QMenu::aboutToHide, this, [this] { QTimer::singleShot(0, this, [this] { layoutButtons(); }); });   // (a change that came while it was open)
         m_more->hide();
     }
+    // Where the program's name and the four dots at the right of the top row go: as wide as the name needs at this font (the row's tabs leave this corner free).
+    struct Brand {
+        QFont font;
+        QRect text, dots;
+    };
+    Brand brand() const
+    {
+        Brand b;
+        b.font = font();
+        b.font.setBold(true);
+        b.font.setPointSizeF(b.font.pointSizeF() * 0.85);
+        const QFontMetrics bm(b.font);
+        const int nameW = std::max(74, bm.horizontalAdvance(appInfo().name) + 6);
+        b.text = QRect(width() - nameW - 6, 1, nameW, std::max(16, bm.height()));
+        b.dots = QRect(b.text.left() - 43, 6, 31, 6);
+        return b;
+    }
     // The height of the pills (tabs, File, Help, the chevrons) and of the row: 26 and 50 for the usual font, more for a larger one.
     int pillHeight() const { return std::max(26, fontMetrics().height() + 10); }
-    void updateMetrics() { setFixedHeight(std::max(50, 19 + pillHeight() + 5)); }
+    // The pills sit below the brand's line (19 down for the usual font, lower for a larger one).
+    int top() const { return std::max(19, QFontMetrics(brand().font).height() + 3); }
+    void updateMetrics() { setFixedHeight(std::max(50, top() + pillHeight() + 5)); }
     QVector<QToolButton *> qatButtons;
     QVector<HeaderButton *> tabButtons;
     HeaderButton *m_file, *m_collapse, *m_help;
@@ -872,7 +892,7 @@ public:
     {
         int x = 6;
         for (auto *b : qatButtons) {
-            b->setGeometry(x, 18, 26, 26);
+            b->setGeometry(x, top() - 1, 26, 26);
             x += 28;
         }
         layoutButtons();
@@ -908,7 +928,7 @@ public:
         updateMetrics();
         const int pillH = pillHeight();
         int x = qatWidth();
-        m_file->setGeometry(x + 2, 19, fm.horizontalAdvance(m_file->text()) + 58, pillH);
+        m_file->setGeometry(x + 2, top(), fm.horizontalAdvance(m_file->text()) + 58, pillH);
         x += 6 + m_file->width() + 4;
         // The tabs sit in the room between File and Help. Each is its text with 26 of padding (not under 14, so the labels stay apart); when they still don't fit, the last ones go into
         // a "more tabs" menu (the current tab always stays in the row).
@@ -959,7 +979,7 @@ public:
         QWidget *last = m_file;
         for (HeaderButton *b : shown) {
             const int w = widthOf(b) - 4;
-            const QRect g(x, 19, w, pillH);
+            const QRect g(x, top(), w, pillH);
             if (b->geometry() != g) b->setGeometry(g);
             x += w + 4;
             QWidget::setTabOrder(last, b);
@@ -967,7 +987,7 @@ public:
         }
         if (m_more->isHidden() == !hidden.isEmpty()) m_more->setVisible(!hidden.isEmpty());
         if (!hidden.isEmpty()) {
-            m_more->setGeometry(x, 19, 28, pillH);
+            m_more->setGeometry(x, top(), 28, pillH);
             QWidget::setTabOrder(last, m_more);   // (the keyboard goes on from the last tab to it)
             QStringList pages;
             for (HeaderButton *b : hidden) pages << QString::number(reinterpret_cast<quintptr>(m_r->m_tabs[b->tab()].page));
@@ -980,8 +1000,8 @@ public:
         } else {
             m_moreShown.clear();
         }
-        m_collapse->setGeometry(width() - 30, 18, 28, pillH);
-        m_help->setGeometry(width() - 60, 18, 28, pillH);
+        m_collapse->setGeometry(width() - 30, top() - 1, 28, pillH);
+        m_help->setGeometry(width() - 60, top() - 1, 28, pillH);
         m_collapse->setToolTip(m_r->m_minimized ? QCoreApplication::translate("Ribbon", "Expand the Ribbon (Ctrl+F1)") : QCoreApplication::translate("Ribbon", "Collapse the Ribbon (Ctrl+F1)"));
         m_collapse->setAccessibleName(m_r->m_minimized ? QCoreApplication::translate("Ribbon", "Expand the Ribbon") : QCoreApplication::translate("Ribbon", "Collapse the Ribbon"));
         m_collapse->setAccessibleDescription(m_r->m_minimized ? QCoreApplication::translate("Ribbon", "Shows the ribbon's commands again.")
@@ -1000,21 +1020,17 @@ protected:
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing);
         p.fillRect(rect(), headerBg());
-        // Brand mark: four CMYK dots, and the program's name (as wide as it needs at this font).
-        QFont brand = font();
-        brand.setBold(true);
-        brand.setPointSizeF(brand.pointSizeF() * 0.85);
-        const QFontMetrics bm(brand);
-        const int nameW = std::max(74, bm.horizontalAdvance(appInfo().name) + 6);
+        // Brand mark: four CMYK dots, and the program's name.
+        const Brand br = brand();
         const QColor dots[4] = {QColor(0, 163, 224), QColor(229, 0, 126), QColor(255, 212, 0), dark() ? QColor(220, 220, 220) : QColor(28, 35, 48)};
         for (int i = 0; i < 4; ++i) {
             p.setPen(Qt::NoPen);
             p.setBrush(dots[i]);
-            p.drawEllipse(QPointF(width() - nameW - 46 + i * 9, 9), 3, 3);
+            p.drawEllipse(QPointF(br.dots.left() + 3 + i * 9, 9), 3, 3);
         }
-        p.setFont(brand);
+        p.setFont(br.font);
         p.setPen(mutedText());
-        p.drawText(QRect(width() - nameW - 6, 1, nameW, 16), Qt::AlignLeft | Qt::AlignVCenter, appInfo().name);
+        p.drawText(br.text, Qt::AlignLeft | Qt::AlignVCenter, appInfo().name);
         p.setPen(lineColor());
         p.drawLine(0, height() - 1, width(), height() - 1);
     }
@@ -1238,6 +1254,13 @@ QWidget *Ribbon::tabButton(int i) const
     for (HeaderButton *b : m_header->tabButtons)
         if (b->tab() == i) return b;
     return nullptr;
+}
+
+QRect Ribbon::brandRect(QFont *font) const
+{
+    const auto b = m_header->brand();
+    if (font) *font = b.font;
+    return b.text.translated(m_header->pos());
 }
 
 QWidget *Ribbon::moreButton() const { return m_header->m_more && m_header->m_more->isVisible() ? m_header->m_more : nullptr; }

@@ -37,6 +37,13 @@ void CrunchWindow::createFindActions()
         if (m_findDialog && !m_findDialog->findText().isEmpty()) startSearch(SearchFor::Next);
         else showFindDialog(false);
     });
+    // (Ctrl+G is Go To, as in any spreadsheet; Find Next keeps the system's other keys and F3: two commands on one key fire neither)
+    {
+        QList<QKeySequence> next{QKeySequence(Qt::Key_F3)};
+        for (const QKeySequence &k : QKeySequence::keyBindings(QKeySequence::FindNext))
+            if (k != QKeySequence(Qt::CTRL | Qt::Key_G) && !next.contains(k)) next << k;
+        act("find.next")->setShortcuts(next);
+    }
     mk("find.goto", tr("Go To…"), "locate", QKeySequence(Qt::CTRL | Qt::Key_G), [this] { goToDialog(); });
     act("find.goto")->setShortcuts({QKeySequence(Qt::Key_F5), QKeySequence(Qt::CTRL | Qt::Key_G)});
     mk("find.gotoSpecial", tr("Select by Kind…"), "", QKeySequence(), [this] { goToSpecialDialog(); });

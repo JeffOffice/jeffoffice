@@ -5,6 +5,7 @@
 #include "app/ribbon.h"
 #include "app/settings.h"
 #include "app/icons.h"
+#include "core/appinfo.h"
 #include "app/theme.h"
 #include "io/zip.h"
 
@@ -1104,9 +1105,23 @@ QStringList checkRibbonLayout(Adapter &app)
                 if (r->tabVisible(i) && r->tabButton(i) && r->tabButton(i)->isVisible()) parts << r->tabButton(i);
             for (const char *name : {"jpRibbonMore", "jpRibbonHelp", "jpRibbonCollapse"})
                 if (QWidget *b = r->findChild<QWidget *>(QString::fromLatin1(name)); b && b->isVisible()) parts << b;
+            // the program's name in the corner: whole, inside the window, and clear of every control of the row
+            QFont brandFont;
+            const QRect brand = r->brandRect(&brandFont);
+            const int nameWidth = QFontMetrics(brandFont).horizontalAdvance(jp::appInfo().name);
+            if (nameWidth > brand.width() || brand.left() < 0 || brand.right() > r->width())
+                fails << QStringLiteral("%1/%2 at %3: the name %4 is cut (it needs %5 wide, its place %6 in a ribbon %7 wide)").arg(app.name, what).arg(at).arg(jp::appInfo().name).arg(nameWidth).arg(rectText(brand)).arg(r->width());
+            for (QWidget *part : std::as_const(parts))
+                if (QRect(part->mapTo(r, QPoint(0, 0)), part->size()).intersects(brand))
+                    fails << QStringLiteral("%1/%2 at %3: %4 %5 overlaps the program's name %6").arg(app.name, what).arg(at).arg(controlName(part), rectText(QRect(part->mapTo(r, QPoint(0, 0)), part->size())), rectText(brand));
             for (int i = 0; i < parts.size(); ++i) {
                 const QRect a(parts[i]->mapTo(r, QPoint(0, 0)), parts[i]->size());
                 const QString name = controlName(parts[i]);
+                // a control of the row shows its whole text, and lies inside the window
+                if (auto *tb = qobject_cast<QAbstractButton *>(parts[i]); tb && !tb->text().isEmpty() && tb->fontMetrics().horizontalAdvance(tb->text()) > a.width())
+                    fails << QStringLiteral("%1/%2 at %3: %4 %5 is too narrow for its text").arg(app.name, what).arg(at).arg(name, rectText(a));
+                if (a.left() < 0 || a.top() < 0 || a.bottom() >= r->findChild<QWidget *>(QStringLiteral("jpRibbonTabs"))->height())
+                    fails << QStringLiteral("%1/%2 at %3: %4 %5 is cut by the row").arg(app.name, what).arg(at).arg(name, rectText(a));
                 if (auto *tb = qobject_cast<QAbstractButton *>(parts[i]); tb && parts[i]->objectName() == QLatin1String("jpRibbonTab") && a.width() - tb->fontMetrics().horizontalAdvance(tb->text()) < 14)
                     fails << QStringLiteral("%1/%2 at %3: the tab %4 %5 has less than 14 px around its text (the texts are then under 8 px apart)").arg(app.name, what).arg(at).arg(name, rectText(a));
                 // the tab labels of the row: no pill touches the next (8 px between the texts at least)
