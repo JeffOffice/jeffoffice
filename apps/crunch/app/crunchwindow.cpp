@@ -150,6 +150,11 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     connect(m_view, &grid::GridView::viewChanged, this, &CrunchWindow::scheduleAutoHeights);
     m_view->setClickGuard([this] { return commitEdit(CellEditor::Way::Stay); });
     m_view->setPointGuard([this](qint64 row, qint64 col) { return pointAtTableCell(row, col); });
+    m_view->setPointer([this](const grid::GridView::PointSpan &span, bool first, Qt::KeyboardModifiers modifiers) { return pointAtCells(span, first, modifiers); });
+    for (QLineEdit *line : {static_cast<QLineEdit *>(m_cellEditor), m_formulaBar}) {
+        connect(line, &QLineEdit::cursorPositionChanged, this, [this] { updatePointViews(); });
+        connect(line, &QLineEdit::textChanged, this, [this] { updatePointViews(); });
+    }
     connect(m_cellEditor, &CellEditor::finished, this, [this](CellEditor::Way way) { commitEdit(way); });
     connect(m_cellEditor, &CellEditor::cancelled, this, &CrunchWindow::cancelEdit);
     connect(m_cellEditor, &QLineEdit::textEdited, this, [this](const QString &text) {
@@ -312,6 +317,7 @@ void CrunchWindow::buildCentral()
     setCentralWidget(central);
     connect(m_nameBox, &QLineEdit::returnPressed, this, &CrunchWindow::goToName);
     m_formulaBar->installEventFilter(this);
+    m_cellEditor->installEventFilter(this);   // (the keys of pointing)
     m_view->installEventFilter(this);   // (Tab and Enter on the grid)
     createFormulaHelper();
 }
@@ -646,8 +652,12 @@ void CrunchWindow::resizeEvent(QResizeEvent *e)
 
 bool CrunchWindow::eventFilter(QObject *o, QEvent *e)
 {
+    if ((o == m_cellEditor || o == m_formulaBar) && m_edit.active) {
+        if (e->type() == QEvent::FocusIn) m_point.line = static_cast<QLineEdit *>(o);
+        if (e->type() == QEvent::KeyPress && pointKey(static_cast<QLineEdit *>(o), static_cast<QKeyEvent *>(e))) return true;
+    }
     // the formula bar has the whole of a long text once it has the focus
-    if (o == m_formulaBar && e->type() == QEvent::FocusIn && m_formulaBar->text() != m_formulaFull) {
+    if (o == m_formulaBar && e->type() == QEvent::FocusIn && !m_edit.active && m_formulaBar->text() != m_formulaFull) {
         m_formulaBar->setText(m_formulaFull);
         m_formulaBar->setCursorPosition(0);
     }

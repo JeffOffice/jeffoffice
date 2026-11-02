@@ -126,6 +126,8 @@ void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool
         return;
     }
     m_edit.active = true;
+    m_point = PointState();
+    m_point.line = fromBar ? static_cast<QLineEdit *>(m_formulaBar) : static_cast<QLineEdit *>(m_cellEditor);
     m_edit.sheet = sheet;
     m_edit.row = row;
     m_edit.col = col;
@@ -144,6 +146,7 @@ void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool
         m_cellEditor->setCursorPosition(int(initial.size()));
         m_formulaBar->setCursorPosition(int(initial.size()));
     }
+    updatePointViews();
 }
 
 void CrunchWindow::placeEditor()
@@ -182,6 +185,7 @@ void CrunchWindow::setEnterMove(EnterMove move)
 bool CrunchWindow::commitEdit(CellEditor::Way way)
 {
     if (!m_edit.active) return true;
+    returnToEditSheet();   // (an entry made while pointing at another sheet is put in its own cell, and the selection goes on from there)
     const QString text = m_cellEditor->text();
     // What F2 showed, put in again as it is (Enter, or a click on another cell), is not a change: nothing is put in, there is nothing to undo, and the cell keeps what it had (a formula
     // with a function this program lacks keeps the result the file stored, and is not written again as this program reads it back)
@@ -228,6 +232,8 @@ void CrunchWindow::finishEdit(CellEditor::Way way)
     m_cellEditor->hide();
     const quint32 row = m_edit.row, col = m_edit.col;
     m_edit.active = false;
+    m_view->setPointMarks({});
+    if (!m_calculating && !m_loading) setStatus(tr("Ready"));
     m_view->setFocus(Qt::OtherFocusReason);
     using Way = CellEditor::Way;
     // Tab after Tab goes on along the row, and Enter then goes down to the column the Tabs began in
@@ -273,9 +279,12 @@ void CrunchWindow::finishEdit(CellEditor::Way way)
 void CrunchWindow::cancelEdit()
 {
     if (!m_edit.active) return;
+    returnToEditSheet();   // (Esc puts everything back, the sheet that was shown too)
     if (m_helper) m_helper->close();
     m_cellEditor->hide();
     m_edit.active = false;
+    m_view->setPointMarks({});
+    if (!m_calculating && !m_loading) setStatus(tr("Ready"));
     m_view->setFocus(Qt::OtherFocusReason);
     updateBars();
 }

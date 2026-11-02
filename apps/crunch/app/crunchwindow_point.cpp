@@ -1,0 +1,248 @@
+// Pointing at cells while a formula is typed: a click on a cell writes its address where a reference may go, a drag writes the block, a click on a header the whole column or row, a click
+// on another sheet's tab goes on pointing there, the arrow keys move a pointer from the formula's cell, and F4 changes which parts of the reference are fixed. The cells the formula names
+// are outlined in the grid, each in the color its reference has in the text.
+
+#include "app/crunchwindow.h"
+#include "core/formularefs.h"
+#include "core/formulaspot.h"
+#include "grid/gridview.h"
+#include "sheet/refshift.h"
+
+#include <QColor>
+#include <QCoreApplication>
+#include <QInputMethodEvent>
+#include <QKeyEvent>
+#include <QLineEdit>
+#include <QTextCharFormat>
+
+namespace jp {
+
+namespace {
+
+QChar separatorOf(const crunch::EditSession *session) { return crunch::argumentSeparator(session ? session->locale() : QLocale()); }
+
+} // namespace
+
+QLineEdit *CrunchWindow::editLine() const
+{
+    if (m_point.line && (m_point.line != m_cellEditor || m_cellEditor->isVisible())) return m_point.line;
+    return m_cellEditor->isVisible() ? static_cast<QLineEdit *>(m_cellEditor) : m_formulaBar;
+}
+
+// The reference written by pointing is the last thing done to the line: the text is as it left it and the cursor is after the reference. Anything typed or moved ends that, and the next
+// click writes a new reference.
+bool CrunchWindow::pointValid(const QLineEdit *line) const
+{
+    return m_point.active && line && line->text() == m_point.text && line->cursorPosition() == m_point.caret && !line->hasSelectedText();
+}
+
+void CrunchWindow::writePoint(QLineEdit *line, const QString &text, bool replace, bool append)
+{
+    int at = line->cursorPosition();
+    if (replace) {
+        line->setSelection(m_point.start, m_point.length);
+        at = m_point.start;
+        line->insert(text);
+    } else {
+        const QString put = append ? QString(separatorOf(m_session.get())) + text : text;
+        line->deselect();
+        line->insert(put);
+        if (append) ++at;
+    }
+    m_point.active = true;
+    m_point.start = at;
+    m_point.length = int(text.size());
+    m_point.text = line->text();
+    m_point.caret = line->cursorPosition();
+    Q_EMIT line->textEdited(line->text());   // (the other line shows it too)
+    m_point.text = line->text();
+    m_point.caret = line->cursorPosition();
+    line->setFocus(Qt::OtherFocusReason);
+    updatePointViews();
+}
+
+bool CrunchWindow::pointAtCells(const grid::GridView::PointSpan &span, bool first, Qt::KeyboardModifiers modifiers)
+{
+    if (!m_edit.active || !m_session || !m_loaded) return false;
+    QLineEdit *line = editLine();
+    if (!line || !line->text().startsWith(QLatin1Char('='))) return false;
+    const bool valid = pointValid(line);
+    if (first && !valid) {
+        const crunch::FormulaSpot spot = crunch::spotAt(line->text(), line->cursorPosition(), separatorOf(m_session.get()));
+        if (!spot.canPoint || spot.inText) return false;
+    }
+    if (!first && !valid) return true;   // (a drag goes on with the reference its press wrote)
+    using Kind = crunch::FormulaRef::Kind;
+    const Kind kind = span.kind == grid::GridView::PointSpan::Kind::Rows ? Kind::Rows : span.kind == grid::GridView::PointSpan::Kind::Columns ? Kind::Columns : Kind::Range;
+    QString ref = crunch::referenceText(kind, quint32(span.range.row1), quint32(span.range.col1), quint32(span.range.row2), quint32(span.range.col2));
+    if (m_sheet != m_edit.sheet && m_sheet >= 0 && m_sheet < int(m_loaded->book->info().sheets.size())) ref = jp::office::sheet::sheetNamePrefix(m_loaded->book->info().sheets[size_t(m_sheet)].name) + ref;
+    const bool ctrl = first && (modifiers & Qt::ControlModifier);
+    writePoint(line, ref, valid && !ctrl, valid && ctrl);
+    m_point.sheet = m_sheet;
+    m_point.anchorRow = span.range.row1;
+    m_point.anchorCol = span.range.col1;
+    m_point.headRow = span.range.row2;
+    m_point.headCol = span.range.col2;
+    return true;
+}
+
+// F2 changes between pointing and editing the text; with the cursor where a reference may go, an arrow moves the pointer (Shift extends it to a block), and F4 changes the fixed parts.
+bool CrunchWindow::pointKey(QLineEdit *line, QKeyEvent *key)
+{
+    if (!m_edit.active || !m_session) return false;
+    if (key->key() == Qt::Key_F2 && key->modifiers() == Qt::NoModifier) {
+        m_cellEditor->setMode(m_cellEditor->mode() == CellEditor::Mode::Typing ? CellEditor::Mode::Editing : CellEditor::Mode::Typing);
+        updatePointStatus();
+        return true;
+    }
+    if (!line->text().startsWith(QLatin1Char('='))) return false;
+    if (key->key() == Qt::Key_F4 && !(key->modifiers() & ~Qt::KeypadModifier)) {
+        cycleFixedParts(line);
+        return true;
+    }
+    const int k = key->key();
+    if (k != Qt::Key_Up && k != Qt::Key_Down && k != Qt::Key_Left && k != Qt::Key_Right) return false;
+    if (m_cellEditor->mode() != CellEditor::Mode::Typing || (key->modifiers() & ~(Qt::ShiftModifier | Qt::KeypadModifier))) return false;
+    const bool valid = pointValid(line);
+    if (!valid) {
+        const crunch::FormulaSpot spot = crunch::spotAt(line->text(), line->cursorPosition(), separatorOf(m_session.get()));
+        if (!spot.canPoint || spot.inText) return false;
+    }
+    const bool shift = key->modifiers() & Qt::ShiftModifier;
+    qint64 anchorRow, anchorCol, headRow, headCol;
+    if (valid && m_point.sheet == m_sheet) {
+        anchorRow = m_point.anchorRow;
+        anchorCol = m_point.anchorCol;
+        headRow = m_point.headRow;
+        headCol = m_point.headCol;
+    } else if (m_sheet == m_edit.sheet) {
+        anchorRow = headRow = m_edit.row;
+        anchorCol = headCol = m_edit.col;
+    } else {
+        anchorRow = headRow = std::max<qint64>(0, m_view->selection().activeRow);
+        anchorCol = headCol = std::max<qint64>(0, m_view->selection().activeCol);
+    }
+    const qint64 maxRow = qint64(jp::office::sheet::kMaxRows) - 1, maxCol = qint64(jp::office::sheet::kMaxColumns) - 1;
+    headRow = std::clamp<qint64>(headRow + (k == Qt::Key_Down ? 1 : k == Qt::Key_Up ? -1 : 0), 0, maxRow);
+    headCol = std::clamp<qint64>(headCol + (k == Qt::Key_Right ? 1 : k == Qt::Key_Left ? -1 : 0), 0, maxCol);
+    if (!shift) {
+        anchorRow = headRow;
+        anchorCol = headCol;
+    }
+    QString ref = crunch::referenceText(crunch::FormulaRef::Kind::Range, quint32(anchorRow), quint32(anchorCol), quint32(headRow), quint32(headCol));
+    if (m_sheet != m_edit.sheet) ref = jp::office::sheet::sheetNamePrefix(m_loaded->book->info().sheets[size_t(m_sheet)].name) + ref;
+    writePoint(line, ref, valid, false);
+    m_point.sheet = m_sheet;
+    m_point.anchorRow = anchorRow;
+    m_point.anchorCol = anchorCol;
+    m_point.headRow = headRow;
+    m_point.headCol = headCol;
+    m_view->ensureVisible(headRow, headCol);
+    return true;
+}
+
+// F4: the reference the cursor is in, or just after, goes through $A$1, A$1, $A1, and A1.
+void CrunchWindow::cycleFixedParts(QLineEdit *line)
+{
+    const QString text = line->text();
+    const int caret = line->cursorPosition();
+    const auto refs = crunch::findReferences(text);
+    const crunch::FormulaRef *at = nullptr;
+    for (const auto &r : refs)
+        if (caret >= r.start && caret <= r.end() && (!at || r.end() == caret)) at = &r;
+    if (!at) return;
+    const bool wasPointed = pointValid(line) && m_point.start == at->start;
+    const QString body = text.mid(at->bodyStart, at->end() - at->bodyStart);
+    const QString changed = crunch::nextFixedForm(body);
+    const int start = at->bodyStart, length = int(body.size());
+    line->setSelection(start, length);
+    line->insert(changed);
+    line->setCursorPosition(start + int(changed.size()));
+    Q_EMIT line->textEdited(line->text());
+    if (wasPointed) {
+        m_point.length += int(changed.size()) - length;
+        m_point.text = line->text();
+        m_point.caret = line->cursorPosition();
+    }
+    updatePointViews();
+}
+
+bool CrunchWindow::keepEditOnSheetChange(int target) const
+{
+    if (!m_edit.active || !m_session) return false;
+    if (target == m_edit.sheet) return true;
+    const QLineEdit *line = editLine();
+    if (!line || !line->text().startsWith(QLatin1Char('='))) return false;
+    if (pointValid(line)) return true;
+    const crunch::FormulaSpot spot = crunch::spotAt(line->text(), line->cursorPosition(), separatorOf(m_session.get()));
+    return spot.canPoint && !spot.inText;
+}
+
+void CrunchWindow::returnToEditSheet()
+{
+    if (m_edit.active && m_sheet != m_edit.sheet) setActiveSheet(m_edit.sheet);
+}
+
+void CrunchWindow::updatePointStatus()
+{
+    if (!m_edit.active) return;
+    QString mode = tr("Enter");
+    if (m_cellEditor->mode() == CellEditor::Mode::Editing) {
+        mode = tr("Edit");
+    } else if (const QLineEdit *line = editLine(); line && line->text().startsWith(QLatin1Char('='))) {
+        const crunch::FormulaSpot spot = crunch::spotAt(line->text(), line->cursorPosition(), separatorOf(m_session.get()));
+        if (pointValid(line) || (spot.canPoint && !spot.inText)) mode = tr("Point");
+    }
+    setStatus(mode);
+}
+
+// The references of the formula being typed: each outlined on the sheet that has its cells, in a color of its own, and its text in the same color in both lines.
+void CrunchWindow::updatePointViews()
+{
+    std::vector<grid::PointMark> marks;
+    std::vector<crunch::FormulaRef> refs;
+    const QLineEdit *line = editLine();
+    const bool formula = m_edit.active && m_loaded && line && line->text().startsWith(QLatin1Char('='));
+    if (formula) {
+        refs = crunch::findReferences(line->text());
+        const QVector<quint32> colors = crunch::referenceColors();
+        const auto &sheets = m_loaded->book->info().sheets;
+        for (size_t i = 0; i < refs.size(); ++i) {
+            const crunch::FormulaRef &r = refs[i];
+            int sheet = m_edit.sheet;
+            if (!r.sheet.isEmpty()) {
+                sheet = -1;
+                for (size_t s = 0; s < sheets.size(); ++s)
+                    if (sheets[s].name.compare(r.sheet, Qt::CaseInsensitive) == 0) sheet = int(s);
+            }
+            if (sheet != m_sheet) continue;
+            marks.push_back({grid::GridRange{qint64(r.row1), qint64(r.col1), qint64(r.row2), qint64(r.col2)}, QColor::fromRgba(colors[int(i % size_t(colors.size()))])});
+        }
+    }
+    m_view->setPointMarks(std::move(marks));
+    // the text in the same colors (formats of the line's input, which a line draws as it does the marks of a language's input)
+    const QVector<quint32> colors = crunch::referenceColors();
+    for (QLineEdit *l : {static_cast<QLineEdit *>(m_cellEditor), m_formulaBar}) {
+        if (l->text().isEmpty() && refs.empty()) continue;
+        if (m_coloring) continue;
+        QList<QInputMethodEvent::Attribute> attrs;
+        const int caret = l->cursorPosition();
+        if (formula && l->text() == line->text()) {
+            for (size_t i = 0; i < refs.size(); ++i) {
+                QTextCharFormat f;
+                f.setForeground(QColor::fromRgba(colors[int(i % size_t(colors.size()))]));
+                attrs.append(QInputMethodEvent::Attribute(QInputMethodEvent::TextFormat, refs[i].start - caret, refs[i].length, f));
+            }
+        }
+        if (attrs.isEmpty() && !m_coloredLines.contains(l)) continue;
+        m_coloring = true;
+        QInputMethodEvent ev(QString(), attrs);
+        QCoreApplication::sendEvent(l, &ev);
+        m_coloring = false;
+        if (attrs.isEmpty()) m_coloredLines.remove(l);
+        else m_coloredLines.insert(l);
+    }
+    updatePointStatus();
+}
+
+} // namespace jp

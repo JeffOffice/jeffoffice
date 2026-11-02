@@ -1,5 +1,5 @@
 # Wie Formeln angezeigt und berechnet werden
-<!-- keywords: Formel, Formeln, berechnen, Berechnung, neu berechnen, Neuberechnung, Funktion, Funktionen, Wert, Ergebnis, gespeichert, F9, Zirkelbezug, zirkulär, Formeln anzeigen, Bearbeitungsleiste, Fehler -->
+<!-- keywords: Formel, Formeln, berechnen, Berechnung, neu berechnen, Neuberechnung, Funktion, Funktionen, Wert, Ergebnis, gespeichert, F9, Zirkelbezug, zirkulär, Formeln anzeigen, Bearbeitungsleiste, Fehler, zeigen, Zellen zeigen, Zellbezug, Bezug, F4 -->
 
 Eine **Formel** ist eine Zelle, die ihren Wert aus anderen Zellen berechnet, zum Beispiel =SUMME(B3:B8). Die Zelle zeigt den Wert an, die **Bearbeitungsleiste** die Formel.
 
@@ -22,6 +22,18 @@ Um eine Formel zu ändern, wählen Sie ihre Zelle aus, drücken **F2**, bearbeit
 ## Formeln schreiben
 
 Geben Sie **=** und die ersten Buchstaben einer Funktion ein. Eine kurze Liste zeigt die Funktionen und [Namen](names) an, die so beginnen, jeweils mit einer kurzen Beschreibung. Drücken Sie die **Tabulatortaste**, um den markierten Eintrag zu übernehmen. Mit den Pfeiltasten **Nach-unten** und **Nach-oben** markieren Sie einen anderen Eintrag und übernehmen ihn dann mit der **Tabulatortaste** oder der **Eingabetaste**. Mit **Esc** schließen Sie die Liste. Sobald Sie sich innerhalb der Klammern einer Funktion befinden, werden ihre Argumente unter der Zelle angezeigt; das Argument, das Sie gerade eingeben, ist fett dargestellt. Die Liste und die Argumente sind dieselben, die auch **Funktion auswählen** anzeigt. Argumente werden durch Kommas getrennt oder durch Semikolons, wenn in Ihrer Sprache das Komma als Dezimaltrennzeichen dient.
+
+## Auf Zellen zeigen
+
+Statt die Adresse einer Zelle einzutippen, können Sie auf die Zelle zeigen. Setzen Sie beim Eingeben einer Formel den Cursor an eine Stelle, an der eine Zelle stehen darf (direkt nach **=**, nach einem Operator wie **+**, nach einer öffnenden Klammer oder nach einem Trennzeichen), und klicken Sie auf die Zelle. Ihre Adresse wird für Sie geschrieben. Ziehen Sie über mehrere Zellen, um einen Bereich wie B2:D5 zu schreiben. Klicken Sie erneut, bevor Sie etwas anderes eingeben, dann ersetzt die neue Zelle die soeben geschriebene. Halten Sie beim Klicken die **Strg**-Taste gedrückt, um nach einem Trennzeichen eine weitere Adresse hinzuzufügen. Ein Klick auf einen Spaltenbuchstaben schreibt eine ganze Spalte wie A:A, ein Klick auf eine Zeilennummer eine ganze Zeile wie 3:3; zieht man über mehrere Buchstaben oder Nummern, entsteht B:D oder 2:5.
+
+Auch die Pfeiltasten funktionieren. Drücken Sie eine Pfeiltaste, dann bewegt sich ein Zeiger von der Zelle weg, in die Sie gerade eingeben, und seine Adresse wird geschrieben. Mit weiteren Pfeiltasten gehen Sie weiter; mit gedrückter **Umschalttaste** ziehen Sie den Zeiger zu einem Bereich auf. Die Statusleiste zeigt **Zeigen**, solange die Pfeiltasten zeigen, **Eingeben**, solange Sie tippen, und **Bearbeiten**, solange die Pfeiltasten den Cursor im Text bewegen. Mit **F2** wechseln Sie zwischen Zeigen und Bearbeiten des Texts.
+
+Um auf eine Zelle in einem anderen Blatt zu zeigen, klicken Sie auf die Registerkarte dieses Blatts, während der Cursor an einer Stelle steht, an der eine Zelle stehen darf, und dann auf die Zelle. Der Name des Blatts wird mitgeschrieben, bei Bedarf in Anführungszeichen, wie in 'Mein Blatt'!B3. Mit der **Eingabetaste** kehren Sie zum Blatt zurück, auf dem Sie begonnen haben, und die Formel wird in ihre Zelle eingetragen. Mit **Esc** geben Sie alles auf, auch den Wechsel des Blatts.
+
+Drücken Sie **F4**, während der Cursor in oder direkt hinter einer Adresse steht, um Teile davon mit einem Dollarzeichen festzusetzen: A1 wird zu $A$1, dann zu A$1, dann zu $A1 und danach wieder zu A1.
+
+Jede Adresse in der Formel ist im Text farbig, und die Zellen, die sie nennt, sind auf dem Blatt in derselben Farbe umrandet, sodass Sie auf einen Blick sehen, was die Formel liest. Ein Klick nach einer vollständigen Adresse, etwa nach =A1, beendet die Eingabe und wählt die angeklickte Zelle aus, wie bei jedem anderen Text.
 
 ## Datentabellen
 
