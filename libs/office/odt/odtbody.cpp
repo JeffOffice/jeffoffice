@@ -600,6 +600,7 @@ QByteArray Reader::deletionXml(const Odf &o, const QString &id, ParaCtx *pc)
     if (runs.isEmpty()) return QByteArray();
     // (The text of a deleted run is w:delText.)
     runs.replace("<w:t ", "<w:delText ").replace("<w:t>", "<w:delText>").replace("</w:t>", "</w:delText>");
+    runs.replace("<w:instrText ", "<w:delInstrText ").replace("<w:instrText>", "<w:delInstrText>").replace("</w:instrText>", "</w:delInstrText>");
     QString date = it->date.left(19);
     if (!date.isEmpty()) date += QLatin1Char('Z');
     return "<w:del w:id=\"" + num(++m_revisionId) + "\" w:author=\"" + esc(it->author.isEmpty() ? QStringLiteral("Author") : it->author) + "\"" + (date.isEmpty() ? QByteArray() : " w:date=\"" + esc(date) + "\"") + ">" + runs + "</w:del>";

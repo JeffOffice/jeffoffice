@@ -1161,7 +1161,7 @@ private Q_SLOTS:
         const char kW[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
         PackageWriter w;
         w.addPart(QStringLiteral("/word/document.xml"),
-                  QByteArray("<w:document ") + kW + "><w:body><w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr><w:rPr><w:sz w:val=\"24\"/></w:rPr></w:pPr><w:r><w:t>no size here</w:t></w:r></w:p></w:body></w:document>",
+                  QByteArray("<w:document ") + kW + "><w:body><w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr><w:rPr><w:sz w:val=\"24\"/></w:rPr></w:pPr><w:r><w:rPr><w:sz w:val=\"24\"/></w:rPr><w:t>sized </w:t></w:r><w:hyperlink w:anchor=\"x\"><w:r><w:t>no size here</w:t></w:r></w:hyperlink></w:p></w:body></w:document>",
                   QStringLiteral("application/xml"));
         w.addPart(QStringLiteral("/word/numbering.xml"),
                   QByteArray("<w:numbering ") + kW + "><w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num></w:numbering>",
@@ -1177,6 +1177,24 @@ private Q_SLOTS:
             for (int k = c.firstChild(i); k >= 0; k = c.next(k))
                 if (c.localName(k) == "text-properties") QVERIFY(c.attrAny(k, "font-size").isEmpty());   // (the words have their style's size, not the mark's)
         }
+    }
+
+    void aFieldInDeletedTextStaysAField()
+    {
+        const char kW[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+        PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"),
+                  QByteArray("<w:document ") + kW + "><w:body><w:p><w:del w:id=\"1\" w:author=\"A\"><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:delInstrText> PAGE </w:delInstrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+                                                            "<w:r><w:delText>2</w:delText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:del><w:r><w:t>kept</w:t></w:r></w:p></w:body></w:document>",
+                  QStringLiteral("application/xml"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        QMap<QString, QByteArray> files;
+        const QByteArray odt = fromDocxPackage(w.finish());
+        QVERIFY(jp::readZip(odt, files));
+        const QString c = QString::fromUtf8(files.value(QStringLiteral("content.xml")));
+        QVERIFY2(c.contains(QLatin1String("<text:deletion>")) && c.contains(QRegularExpression(QStringLiteral("<text:deletion>.*<text:page-number[^>]*>2</text:page-number>.*</text:deletion>"))), qPrintable(c));
+        // And read again, the deleted field keeps its code (w:delInstrText).
+        QVERIFY(part(docxOf(odt), QStringLiteral("/word/document.xml")).contains(QLatin1String("<w:delInstrText")));
     }
 
     void anEmptyParagraphWithNoListInAListStyleIsNotNumbered()

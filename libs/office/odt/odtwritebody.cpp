@@ -317,10 +317,16 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
                 const int markRPr = t.child(pPr, "rPr");
                 const QString markSize = markRPr >= 0 && t.child(markRPr, "sz") >= 0 ? t.val(t.child(markRPr, "sz")) : QString();
                 bool same = !markSize.isEmpty();
-                for (int r = t.firstChild(p); r >= 0 && same; r = t.next(r)) {
-                    if (!t.is(r, "r") || t.child(r, "t") < 0) continue;
-                    const int rp = t.child(r, "rPr");
-                    same = rp >= 0 && t.child(rp, "sz") >= 0 && t.val(t.child(rp, "sz")) == markSize;
+                QVector<int> stack{p};
+                for (int guard = 0; !stack.isEmpty() && same && guard < 20000; ++guard) {
+                    const int r = stack.takeLast();
+                    if (t.is(r, "r") && t.child(r, "t") >= 0) {
+                        const int rp = t.child(r, "rPr");
+                        same = rp >= 0 && t.child(rp, "sz") >= 0 && t.val(t.child(rp, "sz")) == markSize;
+                        continue;
+                    }
+                    if (t.is(r, "pPr")) continue;
+                    for (int k = t.firstChild(r); k >= 0; k = t.next(k)) stack.push_back(k);
                 }
                 QByteArray kept;
                 if (same)
@@ -874,7 +880,7 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
     bool spanned = true;
     for (int c = t.firstChild(run); c >= 0; c = t.next(c)) {
         const QByteArray name = t.localName(c);
-        if (!pc->fields.isEmpty() && !pc->fields.last().result && name != "fldChar" && name != "instrText") continue;
+        if (!pc->fields.isEmpty() && !pc->fields.last().result && name != "fldChar" && name != "instrText" && name != "delInstrText") continue;
         if (name == "t" || name == "delText") emitText(pc, t.text(c), span);
         else if (name == "tab" || name == "ptab") {
             pc->xml += "<text:tab/>";
@@ -938,7 +944,7 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
                 fieldEnd(pc);
                 start = pc->xml.size();
             }
-        } else if (name == "instrText") {
+        } else if (name == "instrText" || name == "delInstrText") {
             if (!pc->fields.isEmpty()) pc->fields.last().instr += t.text(c);
         } else if (name == "footnoteReference" || name == "endnoteReference") {
             if (!pc->inNote) {
