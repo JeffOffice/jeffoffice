@@ -437,6 +437,40 @@ QByteArray viewKindFromChange(const QByteArray &head, int kind, int zoom, int no
     return head.left(at) + "<" + prefix + "sheetViews>" + tag + "</" + prefix + "sheetViews>" + head.mid(at);
 }
 
+// The head of a sheet without the selection a pivot table keeps in its view (`pivotSelection`): it points at lines and items of the table as it was, and the original program refuses a
+// sheet whose selection lies outside the table that is there now. (Only the view of the table is lost; the program makes it again.)
+QByteArray withoutPivotSelections(const QByteArray &head)
+{
+    QByteArray out = head;
+    for (;;) {
+        qsizetype at = -1;
+        Tag t;
+        qsizetype pos = 0;
+        while (xmlscan::nextTag(out, pos, &t)) {
+            pos = t.end;
+            if (!t.closing && t.local == "pivotSelection") {
+                at = t.start;
+                break;
+            }
+        }
+        if (at < 0) return out;
+        qsizetype end = t.end;
+        if (!t.selfClosing) {
+            int depth = 1;
+            Tag c;
+            qsizetype p = t.end;
+            while (depth > 0 && xmlscan::nextTag(out, p, &c)) {
+                p = c.end;
+                if (c.local != "pivotSelection") continue;
+                if (c.closing) --depth;
+                else if (!c.selfClosing) ++depth;
+                end = c.end;
+            }
+        }
+        out.remove(at, end - at);
+    }
+}
+
 // The head of a sheet with the panes of its first view made from `v` (frozen or not, and the cell the cursor is on): the view's `pane` and `selection` elements are put in place of the
 // file's (what else the view holds, such as the selection of a pivot table, stays as it is), and its `topLeftCell` is where the held part begins. A sheet with no view is given one.
 QByteArray paneFromChange(const QByteArray &head, const SheetView &v, const QByteArray &defaultPrefix)
@@ -1173,6 +1207,7 @@ private:
         if (m_tabSelected >= 0) before = tabSelectedFromChange(before, m_tabSelected != 0, m_prefix);
         if (m_viewKind >= 0) before = viewKindFromChange(before, m_viewKind, m_viewZoom, m_viewNormalZoom, m_prefix);
         if (m_pane) before = paneFromChange(before, *m_pane, m_prefix);
+        if (before.contains("pivotSelection")) before = withoutPivotSelections(before);
         if (m_format) before = formatFromChange(before, *m_format, m_prefix, m_formatOutline);
         if (m_columns) before = columnsFromRuns(before, *m_columns, m_prefix);
         if (m_page) before = patchFitToPageHead(before, *m_page);

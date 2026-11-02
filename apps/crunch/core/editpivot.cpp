@@ -234,8 +234,9 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
         if (!computePivot(*ch.now, *cache, &grid, &problem, options)) return tr("This pivot table can't be worked out: %1.").arg(problem);
         const int pages = int(ch.now->pageFields.size());
         if (pages > 0 && oldLoc.row1 < quint32(pages) + 1) return tr("There is no room above the pivot table for its filters. Move the table down first.");
-        // (a table with nothing in it claims no more than it had)
-        if (ch.now->rowFields.isEmpty() && ch.now->colFields.isEmpty() && ch.now->dataFields.isEmpty()) {
+        // (a table with nothing in it claims no more than it had, or its frame below)
+        const bool emptyTable = ch.now->rowFields.isEmpty() && ch.now->colFields.isEmpty() && ch.now->dataFields.isEmpty();
+        if (emptyTable) {
             const int rows = std::max(1, std::min<int>(grid.rows, int(oldLoc.row2 - oldLoc.row1 + 1))), cols = std::max(1, std::min<int>(grid.cols, int(oldLoc.col2 - oldLoc.col1 + 1)));
             grid.rows = rows;
             grid.cols = cols;
@@ -297,6 +298,20 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
         };
         if (!freeOfOthers(newLoc) || !freeOfOthers(newPage))
             return tr("The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.").arg(rangeName(newLoc));
+        // (the original program draws the table with nothing in it as its empty frame, 14 lines of 7 columns, when there is room for it)
+        if (emptyTable && ch.now->gridDropZones && (newLoc.row2 - newLoc.row1 + 1 != 14 || newLoc.col2 - newLoc.col1 + 1 != 7)) {
+            CellRange frame = newLoc;
+            frame.row2 = frame.row1 + 13;
+            frame.col2 = frame.col1 + 6;
+            if (frame.row2 < 1048576 && frame.col2 < 16384 && freeOfOthers(frame)) {
+                grid.rows = 14;
+                grid.cols = 7;
+                grid.cells.resize(98);
+                grid.cells.fill(PivotCell());
+                pivotApplyGrid(ch.now.get(), grid, oldLoc.row1, oldLoc.col1);
+                parseRangeRef(ch.now->ref, &newLoc);
+            }
+        }
         placed.push_back({ch.table, newLoc});
         if (qint64(newLoc.cellCount()) > kMaxCellsPerEdit * 40) return tr("The pivot table would be larger than JeffCrunch changes at once.");
 

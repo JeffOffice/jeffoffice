@@ -540,7 +540,7 @@ private Q_SLOTS:
         pane->checkField(0, false);
         finish(e);
         // (a table with no rows is two lines high, so the cursor on the old last line is outside it; the pane follows the cursor)
-        QCOMPARE(pivotShown(e, QStringLiteral("E3:F4")), QStringLiteral("Sum of Amount|\nTotal|49"));
+        QCOMPARE(pivotShown(e, QStringLiteral("E3:F4")), QStringLiteral("Sum of Amount|Total\nTotal|49"));
         e.select(QStringLiteral("F4"));
         QCOMPARE(pane->box(2)->count(), 0);
         pane->checkField(0, true);
@@ -612,6 +612,24 @@ private Q_SLOTS:
         QVERIFY2(readPivotTable(readParts(e.path).value(QStringLiteral("xl/pivotTables/pivotTable1.xml")), &compact, &why), qPrintable(why));
         QVERIFY(compact.fields[0].subtotalTop);
         Q_UNUSED(s)
+    }
+
+    // The selection a sheet's view keeps for a table points at the lines it had: after the table changes size it is dropped (the original program will not open a file that has it outside the table).
+    void theSelectionOfTheViewIsDroppedWhenTheTableChanges()
+    {
+        PivotBookOptions o;
+        o.tweak = [](Parts &p) {
+            p[kSheetPart].replace("<sheetData>", "<sheetViews><sheetView workbookViewId=\"0\"><pivotSelection pane=\"bottomRight\" axis=\"axisRow\" start=\"2\" max=\"3\" r:id=\"rIdPv1\"><pivotArea dataOnly=\"0\" outline=\"0\" fieldPosition=\"0\"/></pivotSelection></sheetView></sheetViews><sheetData>");
+        };
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(o)));
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.grand.off"))->trigger();
+        finish(e);
+        QVERIFY(saveNow(e));
+        const Parts after = readParts(e.path);
+        checkShapes(after);
+        QVERIFY(!after.value(kSheetPart).contains("pivotSelection"));
     }
 
     // ---- the review

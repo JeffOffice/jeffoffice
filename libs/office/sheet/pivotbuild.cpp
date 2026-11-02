@@ -147,15 +147,18 @@ bool buildPivotCache(const PivotSource &src, const PivotCache &prev, PivotCache 
         Distinct dist;
         QVector<qint32> temp;
         temp.reserve(int(nRows));
-        bool hasText = false;
+        bool hasText = false, longText = false;
         for (qint64 r = 0; r < nRows; ++r) {
             const PivotValue v = src.cell(src.row1 + 1 + quint32(r), src.col1 + quint32(f));
+            longText = longText || (v.kind == PivotValue::Text && v.text.size() > 255);
             hasText = hasText || v.kind == PivotValue::Text || v.kind == PivotValue::Bool || v.kind == PivotValue::Error;
             temp.append(dist.idOf(v));
         }
         distinctAll += dist.values.size();
         if (dist.values.size() > kPivotMaxItemsPerField || distinctAll > 12000000) return fail(QStringLiteral("the source has too many different values"));
-        pf.hasShared = (p >= 0 && src.axisFields.contains(p)) || hasText || (p >= 0 && prev.fields[p].hasShared);
+        // (a field keeps being shared or not as it was, as the original program keeps it; a new field of text is shared, unless a text is too long for a shared item (more than 255 characters))
+        const bool onAxis = p >= 0 && src.axisFields.contains(p);
+        pf.hasShared = onAxis || (!longText && (p >= 0 ? prev.fields[p].hasShared : hasText));
         // the order: the shared items of the previous cache that remain (in their order), then the others as they first appear
         QVector<qint32> order;
         order.reserve(dist.values.size());

@@ -402,6 +402,7 @@ bool readPivotTable(const QByteArray &xml, PivotTable *out, QString *why)
                 out->outline = flag(a.value(QLatin1String("outline")), false);
                 out->mergeItem = flag(a.value(QLatin1String("mergeItem")), false);
                 out->gridDropZones = flag(a.value(QLatin1String("gridDropZones")), false);
+                out->autoFormatId = a.value(QLatin1String("autoFormatId")).toInt();
             } else if (depth == 2) {
                 section = n.toString();
                 if (n == QLatin1String("location")) {

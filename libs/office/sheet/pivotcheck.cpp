@@ -38,6 +38,30 @@ bool boolAttr(const QDomElement &e, const char *name, bool def)
 
 } // namespace
 
+bool pivotCheckSelection(const QByteArray &selectionXml, const QByteArray &tableXml, QString *why)
+{
+    auto fail = [&](const QString &m) {
+        if (why) *why = m;
+        return false;
+    };
+    QDomDocument sdoc, tdoc;
+    if (!sdoc.setContent(selectionXml) || !tdoc.setContent(tableXml)) return fail(QStringLiteral("a selection or a table is not well formed"));
+    const QDomElement sel = sdoc.documentElement(), troot = tdoc.documentElement();
+    const QString axis = sel.attribute(QStringLiteral("axis"));
+    // (only the lines of the rows: files of the original program itself keep selections of columns that are not there)
+    const QString listName = axis == QLatin1String("axisRow") ? QStringLiteral("rowItems") : QString();
+    if (listName.isEmpty()) return true;
+    const QDomElement list = child(troot, listName.toLatin1().constData());
+    const int n = list.isNull() ? 0 : childCount(list);
+    for (const char *name : {"start", "max"}) {
+        if (!sel.hasAttribute(QLatin1String(name))) continue;
+        bool ok = false;
+        const int v = sel.attribute(QLatin1String(name)).toInt(&ok);
+        if (!ok || v < 0 || v > n) return fail(QStringLiteral("the selection of the view reaches line %1 (%2), and the table has %3 lines on that axis").arg(v).arg(QLatin1String(name)).arg(n));
+    }
+    return true;
+}
+
 bool pivotCheckShape(const QByteArray &tableXml, const QByteArray &defXml, const QByteArray &recordsXml, QString *why)
 {
     auto fail = [&](const QString &m) {
@@ -140,6 +164,7 @@ bool pivotCheckShape(const QByteArray &tableXml, const QByteArray &defXml, const
                         k.hasS = true;
                         // (two texts that differ only in case are one item to the original program)
                         const QString folded = e.attribute(QStringLiteral("v")).toCaseFolded();
+                        if (folded.size() > 255) return fail(QStringLiteral("field %1: a shared item of more than 255 characters").arg(name));
                         if (seenText.contains(folded)) return fail(QStringLiteral("field %1: two shared items that differ only in case").arg(name));
                         seenText.insert(folded);
                     } else if (t == QLatin1String("m")) {

@@ -133,6 +133,7 @@ struct PivotTable {
     bool compact = true, outline = false;
     bool mergeItem = false;
     bool gridDropZones = false;
+    int autoFormatId = 0;   // the format the table was drawn with; 4097 (none) draws the classic table without the line of captions over the columns
     QVector<PivotField> fields;
     QVector<int> rowFields, colFields;   // a field's place; -2 for the values
     QVector<PivotPageField> pageFields;
@@ -228,6 +229,9 @@ void pivotRemapDataFields(const PivotTable &old, PivotTable *now);
 // Checks that the parts of a pivot table, its cache, and the records are as the schema has them: the order of the elements, the counts, the places an index points to, the marks of the shared
 // items, and the dates. `records` may be empty. False, with the first thing wrong in `why`.
 bool pivotCheckShape(const QByteArray &table, const QByteArray &definition, const QByteArray &records, QString *why);
+// Checks the selection a sheet's view keeps for a pivot table (`selectionXml` is its `pivotSelection` element): the lines it reaches (`start`, `max`, `activeRow`, ...) must lie in the lines
+// the table has (its row items or column items, by the axis the selection names), as the original program refuses a file whose selection lies outside the table.
+bool pivotCheckSelection(const QByteArray &selectionXml, const QByteArray &table, QString *why);
 
 // A cache definition with its source (the sheet and the range) put in, and nothing else of it changed.
 QByteArray patchPivotCacheSource(const QByteArray &definition, const QString &sheet, const QString &ref);

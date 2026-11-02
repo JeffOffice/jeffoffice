@@ -4,6 +4,7 @@
 //                                         the result (ok, differs, or unsupported: and why), the cells compared, the cells that differ, and the first difference.
 //                                         -v also prints the first rows of both grids of a table that differs.
 
+#include <QRegularExpression>
 #include "calc/numfmt.h"
 #include "sheet/cellref.h"
 #include "sheet/pivot.h"
@@ -62,6 +63,9 @@ bool same(const PivotCell &a, const PivotCell &b)
     switch (a.kind) {
     case PivotCell::Empty: return true;
     case PivotCell::Number: {
+        // (JCRUNCH_PIVOT_STRICT: to the 15 digits the original program keeps, to see the last digits of the sums)
+        static const bool strict = qEnvironmentVariableIsSet("JCRUNCH_PIVOT_STRICT");
+        if (strict) return QString::number(a.number, 'g', 15).toDouble() == QString::number(b.number, 'g', 15).toDouble();
         const double m = std::max(std::abs(a.number), std::abs(b.number));
         return std::abs(a.number - b.number) <= 1e-9 * m || std::abs(a.number - b.number) <= 1e-12;
     }
@@ -253,6 +257,25 @@ int pivotShapeMain(const QStringList &args)
         QString problem;
         const bool ok = !def.isEmpty() && pivotCheckShape(pkg.part(part), pkg.part(def), rec.isEmpty() ? QByteArray() : pkg.part(rec), &problem);
         out << "pivot-shape\t" << args[0] << '\t' << part << '\t' << (ok ? QStringLiteral("ok") : (def.isEmpty() ? QStringLiteral("no cache") : problem)) << "\n";
+    }
+    // the selections the sheets' views keep for the tables
+    for (const QString &part : pkg.partNames()) {
+        if (!part.contains(QLatin1String("/worksheets/sheet")) || part.contains(QLatin1String("_rels")) || !part.endsWith(QLatin1String(".xml"))) continue;
+        const QByteArray xml = pkg.part(part);
+        if (!xml.contains("pivotSelection")) continue;
+        const QString text = QString::fromUtf8(xml);
+        static const QRegularExpression re(QStringLiteral("<pivotSelection\\b.*?</pivotSelection>|<pivotSelection\\b[^>]*/>"), QRegularExpression::DotMatchesEverythingOption);
+        static const QRegularExpression ridRe(QStringLiteral("\\br:id=\"([^\"]*)\""));
+        for (auto it = re.globalMatch(text); it.hasNext();) {
+            const QString sel = it.next().captured(0);
+            const QString rid = ridRe.match(sel.left(sel.indexOf(QLatin1Char('>')))).captured(1);
+            QString tablePart;
+            for (const Relationship &r : pkg.relationshipsOfType(part, QStringLiteral("/pivotTable")))
+                if (r.id == rid) tablePart = resolvePartName(part, r.target);
+            QString problem;
+            const bool ok = tablePart.isEmpty() || pivotCheckSelection(sel.toUtf8().replace(" r:id=", " rid="), pkg.part(tablePart), &problem);
+            out << "pivot-shape\t" << args[0] << '\t' << part << " (selection)\t" << (ok ? QStringLiteral("ok") : problem) << "\n";
+        }
     }
     return 0;
 }

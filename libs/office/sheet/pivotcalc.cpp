@@ -1,6 +1,8 @@
 #include "sheet/pivot.h"
 
 #include <algorithm>
+#include <map>
+#include <tuple>
 #include <cmath>
 #include <limits>
 #include <string>
@@ -279,7 +281,7 @@ bool buildAxis(Axis *ax, const AxisOptions &o, QString *why)
         const int dp = depthOf(cur);
         const int common = k == 0 ? 0 : lcp(ax->leaves[k - 1], cur);
         if (k > 0) {
-            if (prevDepth > 0 && o.blankRow[prevDepth - 1] && ax->fields[prevDepth - 1] != -2) blank(prevDepth - 1, k - 1);
+            if (prevDepth > 0 && prevDepth - 1 < lastReal && o.blankRow[prevDepth - 1] && ax->fields[prevDepth - 1] != -2) blank(prevDepth - 1, k - 1);
             closeGroups(prevDepth - 2, common, k);
         }
         for (int l = common; l <= dp - 2; ++l) {
@@ -309,7 +311,7 @@ bool buildAxis(Axis *ax, const AxisOptions &o, QString *why)
             return false;
         }
     }
-    if (prevDepth > 0 && o.blankRow[prevDepth - 1] && ax->fields[prevDepth - 1] != -2) blank(prevDepth - 1, n - 1);
+    if (prevDepth > 0 && prevDepth - 1 < lastReal && o.blankRow[prevDepth - 1] && ax->fields[prevDepth - 1] != -2) blank(prevDepth - 1, n - 1);
     closeGroups(prevDepth - 2, 0, n);
     grandLines();
     return true;
@@ -600,12 +602,37 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
 
     // the values
     std::vector<Acc> acc(size_t(nRI) * size_t(nCI));
-    if (D > 0)
+    if (D > 0) {
+        // each group of records (a line and a column, and a value) is added in the order of the records; a total is then the sum of those sums, group by group, as the original program has it
+        struct Leaf {
+            int row, col, value;
+            Acc acc;
+        };
+        std::map<std::tuple<int, int, int>, size_t> where;
+        std::vector<Leaf> leaves;
         for (const Entry &e : entries) {
             const PivotValue &val = c.fields[t.dataFields[e.value].fld].items[c.fields[t.dataFields[e.value].fld].records[e.record]];
-            for (int ri : rowAx.members[rowNew[e.row]])
-                for (int ci : colAx.members[colNew[e.col]]) acc[size_t(ri) * nCI + ci].add(val);
+            const auto key = std::make_tuple(rowNew[e.row], colNew[e.col], int(e.value));
+            const auto it = where.find(key);
+            size_t at;
+            if (it == where.end()) {
+                at = leaves.size();
+                where.emplace(key, at);
+                leaves.push_back({rowNew[e.row], colNew[e.col], int(e.value), Acc()});
+            } else {
+                at = it->second;
+            }
+            leaves[at].acc.add(val);
         }
+        std::sort(leaves.begin(), leaves.end(), [](const Leaf &a, const Leaf &b) { return std::tie(a.row, a.col, a.value) < std::tie(b.row, b.col, b.value); });
+        for (const Leaf &l : leaves)
+            for (int ri : rowAx.members[l.row])
+                for (int ci : colAx.members[l.col]) {
+                    Acc &a = acc[size_t(ri) * nCI + ci];
+                    if (a.n == 0 && a.error.isEmpty()) a = l.acc;
+                    else a.merge(l.acc);
+                }
+    }
 
     // the grid
     out->rowItems = rowAx.items;
@@ -619,7 +646,7 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
     const bool lone = nC == 0 && dataSlotRow < 0;   // no column field and one value
     const bool bare = lone && nR == 0;               // and no row field: the value's name, and one line "Total" with the value
     // (a table with the classic grid has the line of the value's name over the others in every form, the tabular one's own and the others' too)
-    const int captionRow = bare ? 1 : (tabular ? ((nC > 0 || lone) ? 1 : 0) : ((realC > 0 || (lone && t.gridDropZones)) ? 1 : 0));
+    const int captionRow = bare ? 1 : (t.autoFormatId == 4097 ? 0 :(tabular ? ((nC > 0 || lone) ? 1 : 0) : ((realC > 0 || ((lone || nC > 0) && t.gridDropZones)) ? 1 : 0)));
     const int itemRows = bare ? 0 : std::max(nC, 1);
     const int headerRows = captionRow + itemRows;
     const int lastItemsRow = headerRows - 1;
@@ -743,8 +770,10 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
     const bool oneValue = D == 1 && dataSlotRow < 0 && dataSlotCol < 0;
     if (captionRow > 0) {
         if (oneValue) set(0, 0, text(t.dataFields[0].name));
+        if (bare) set(0, labelCols, text(QStringLiteral("Total")));   // (with the line "Total" under it, which holds the value)
         if (compact) {
             if (realC > 0) set(0, labelCols, text(t.colHeaderCaption.isEmpty() ? QStringLiteral("Column Labels") : t.colHeaderCaption));
+            else if (nC > 0 && t.colFields[0] == -2) set(0, labelCols, text(t.dataCaption));   // (the values across, with nothing else: their caption)
         } else {
             for (int l = 0; l < nC; ++l) {
                 const int f = t.colFields[l];

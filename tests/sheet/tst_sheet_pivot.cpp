@@ -602,7 +602,7 @@ private Q_SLOTS:
         Worked w = work(xml.toUtf8());
         QVERIFY2(w.ok, qPrintable(w.why));
         QCOMPARE(w.grid.rows, 2);
-        QCOMPARE(rowText(w.grid, 0), (QStringList{QStringLiteral("Sum of Amount"), QString()}));
+        QCOMPARE(rowText(w.grid, 0), (QStringList{QStringLiteral("Sum of Amount"), QStringLiteral("Total")}));
         QCOMPARE(rowText(w.grid, 1), (QStringList{QStringLiteral("Total"), QStringLiteral("49")}));
         QCOMPARE(w.grid.firstDataRow, 1);
         // one row field in the compact form: the caption line only with the classic grid
@@ -642,6 +642,77 @@ private Q_SLOTS:
         d = def;
         d.replace("containsInteger=\"1\"", "containsInteger=\"1\" containsDate=\"1\"");
         QVERIFY(!pivotCheckShape(table, d, rec, &why));
+    }
+
+    // A total is the sum of the sums of its groups (each added in the order of the records), as the original program has it: 1e16 and 1 in one group, and -1e16 in the other.
+    void aTotalIsTheSumOfTheSumsOfItsGroups()
+    {
+        const QByteArray rec = "<pivotCacheRecords xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"3\">"
+                               "<r><x v=\"0\"/><x v=\"0\"/><n v=\"1e16\"/></r><r><x v=\"1\"/><x v=\"0\"/><n v=\"-1e16\"/></r><r><x v=\"0\"/><x v=\"0\"/><n v=\"1\"/></r></pivotCacheRecords>";
+        QByteArray def = cacheDefinition();
+        def.replace("recordCount=\"6\"", "recordCount=\"3\"");
+        const Worked w = work(tableDefinition(false), def, rec);
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(w.grid.at(2, 1).number, 1e16);   // East: 1e16 + 1 (the 1 is lost)
+        QCOMPARE(w.grid.at(3, 1).number, -1e16);
+        QCOMPARE(w.grid.at(4, 1).number, 0.0);    // a flat sum in the order of the records would be 1
+    }
+
+    // The classic table with the values across: the caption of the values over them in the compact form too; the format "none" has no line of captions; the last row field has no blank line after its items.
+    void theCaptionsOfTheValuesAcrossAndTheFormatNone()
+    {
+        // two values across, no column field, one row field: Region down the side
+        QString xml = QString::fromUtf8(tableDefinition(false));
+        xml.replace(QStringLiteral("<dataFields count=\"1\"><dataField name=\"Sum of Amount\" fld=\"2\" baseField=\"0\" baseItem=\"0\"/></dataFields>"),
+                    QStringLiteral("<dataFields count=\"2\"><dataField name=\"A\" fld=\"2\" baseField=\"0\" baseItem=\"0\"/><dataField name=\"B\" fld=\"2\" subtotal=\"max\" baseField=\"0\" baseItem=\"0\"/></dataFields>"));
+        xml.replace(QStringLiteral("<rowFields count=\"1\"><field x=\"0\"/></rowFields>"), QStringLiteral("<rowFields count=\"1\"><field x=\"0\"/></rowFields><colFields count=\"1\"><field x=\"-2\"/></colFields>"));
+        QString classic = xml;
+        classic.replace(QStringLiteral("compact=\"0\" outline=\"0\" showAll=\"0\""), QStringLiteral("showAll=\"0\""));
+        classic.replace(QStringLiteral("compact=\"0\" compactData=\"0\""), QStringLiteral("compactData=\"0\" gridDropZones=\"1\""));
+        Worked w = work(classic.toUtf8());
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(rowText(w.grid, 0), (QStringList{QString(), QStringLiteral("Values"), QString()}));
+        QCOMPARE(rowText(w.grid, 1), (QStringList{QStringLiteral("Row Labels"), QStringLiteral("A"), QStringLiteral("B")}));
+        QCOMPARE(w.grid.firstDataRow, 2);
+        // the format none: the one line of captions
+        QString none = xml;
+        none.replace(QStringLiteral("<pivotTableDefinition "), QStringLiteral("<pivotTableDefinition autoFormatId=\"4097\" gridDropZones=\"1\" "));
+        w = work(none.toUtf8());
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(rowText(w.grid, 0), (QStringList{QStringLiteral("Region"), QStringLiteral("A"), QStringLiteral("B")}));
+        QCOMPARE(w.grid.firstDataRow, 1);
+        QCOMPARE(w.grid.firstHeaderRow, 0);
+        // a blank line after each item, asked of the only row field: none
+        QString blank = xml;
+        blank.replace(QStringLiteral("<pivotField axis=\"axisRow\" "), QStringLiteral("<pivotField axis=\"axisRow\" insertBlankRow=\"1\" "));
+        w = work(blank.toUtf8());
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(rowText(w.grid, 3).value(0), QStringLiteral("West"));
+    }
+
+    // What the original program will not open: a text of more than 255 characters among the shared items; a selection of the view outside the lines of the table.
+    void aLongSharedItemAndAStaleSelectionAreRefused()
+    {
+        const Worked w = work(tableDefinition(true));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        PivotTable placed = w.table;
+        pivotApplyGrid(&placed, w.grid, 2, 4);
+        const QByteArray def = writePivotCacheDefinition(cacheDefinition(), w.cache, w.cache.recordCount, 45001.5, DateSystem::Date1900);
+        const QByteArray rec = writePivotCacheRecords(w.cache, DateSystem::Date1900);
+        const QByteArray table = writePivotTable(tableDefinition(true), placed, false);
+        QString why;
+        QByteArray d = def;
+        d.replace("<s v=\"West\"/>", "<s v=\"" + QByteArray(256, 'w') + "\"/>");
+        QVERIFY(!pivotCheckShape(table, d, rec, &why));
+        d = def;
+        d.replace("<s v=\"West\"/>", "<s v=\"" + QByteArray(255, 'w') + "\"/>");
+        QVERIFY2(pivotCheckShape(table, d, rec, &why), qPrintable(why));
+        const int lines = QString::fromUtf8(table).count(QStringLiteral("<i")) ;
+        Q_UNUSED(lines)
+        QVERIFY2(pivotCheckSelection("<pivotSelection axis=\"axisRow\" start=\"1\" max=\"3\"/>", table, &why), qPrintable(why));
+        QVERIFY(!pivotCheckSelection("<pivotSelection axis=\"axisRow\" start=\"1\" max=\"9\"/>", table, &why));
+        QVERIFY(!pivotCheckSelection("<pivotSelection axis=\"axisRow\" start=\"9\" max=\"9\"/>", table, &why));
+        QVERIFY(pivotCheckSelection("<pivotSelection axis=\"axisCol\" start=\"9\" max=\"99\"/>", table, &why));   // (columns: files of the original program have them outside)
     }
 
     // A day the calendar has no date for (day 60 of the 1900 system, a negative day) is a number item in the definition, in the records, and in the marks of the field.
