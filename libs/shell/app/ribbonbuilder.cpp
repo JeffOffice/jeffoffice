@@ -393,7 +393,8 @@ private:
             w = b;
         } else if (o.contains(QLatin1String("label"))) {
             allow(o, {"label"}, QStringLiteral("a label"));
-            return new QLabel(tr(str(o, "label")));   // plain text: no KeyTip
+            const QString text = str(o, "label");
+            return new QLabel(text.isEmpty() ? QString() : tr(text));   // plain text: no KeyTip (an empty one, a blank cell, is not looked up)
         } else {
             problem(QStringLiteral("a row item is icon, button, check, widget, dropdown or label"));
             return nullptr;

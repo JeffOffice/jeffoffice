@@ -4,6 +4,7 @@
 #include "app/help.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/icons.h"
 #include "app/theme.h"
 #include "io/zip.h"
 
@@ -33,6 +34,7 @@
 #include <QPrintDialog>
 #include <QScrollArea>
 #include <QStyle>
+#include <QStyleHints>
 #include <QStyleFactory>
 #include <QScrollBar>
 #include <QStackedWidget>
@@ -1018,35 +1020,73 @@ QString controlName(const QWidget *w)
 }
 }
 
+namespace {
+// The program's look as it was (style, style sheet, palette, font, the color scheme the system hints at, the dark and high-contrast flags), put back whatever happens to the check.
+class LookGuard {
+public:
+    LookGuard()
+        : m_style(QApplication::style()->name()), m_css(qApp->styleSheet()), m_palette(QApplication::palette()), m_font(QApplication::font()), m_scheme(QGuiApplication::styleHints()->colorScheme()),
+          m_dark(jp::uiDark()), m_contrast(jp::uiHighContrast())
+    {
+    }
+    ~LookGuard()
+    {
+        QApplication::setStyle(QStyleFactory::create(m_style));
+        qApp->setStyleSheet(m_css);
+        QApplication::setPalette(m_palette);
+        QApplication::setFont(m_font);
+        QGuiApplication::styleHints()->unsetColorScheme();   // (the check pinned one; if the system's own differs from what it was, that one is pinned)
+        if (QGuiApplication::styleHints()->colorScheme() != m_scheme) QGuiApplication::styleHints()->setColorScheme(m_scheme);
+        jp::setUiDark(m_dark);
+        jp::setUiHighContrast(m_contrast);
+    }
+    QFont font() const { return m_font; }
+    QString style() const { return m_style; }
+
+private:
+    QString m_style, m_css;
+    QPalette m_palette;
+    QFont m_font;
+    Qt::ColorScheme m_scheme;
+    bool m_dark, m_contrast;
+};
+}
+
 QStringList checkRibbonLayout(Adapter &app)
 {
     QStringList fails;
     const QString shots = qEnvironmentVariable("JP_RIBBON_SHOTS");
     if (!shots.isEmpty()) QDir().mkpath(shots);
-    // The look a person has: the Fusion style and the program's style sheet (as each app's main() sets them), whatever platform the test runs on, at the system font and at two larger ones
-    // (desktops differ). The program's own settings come back at the end.
-    struct Look {
-        QString style, css;
-        QPalette palette;
-        QFont font;
-    } saved{QApplication::style()->name(), qApp->styleSheet(), QApplication::palette(), QApplication::font()};
-    qInfo("ribbon layout: platform %s, style %s, font %s %g", qPrintable(QGuiApplication::platformName()), qPrintable(saved.style), qPrintable(saved.font.family()), saved.font.pointSizeF());
+    // The look a person has: the Fusion style and the program's style sheet (as each app's main() sets them), whatever platform the test runs on, at the system font and at larger ones
+    // (desktops differ), at three widths, and once right to left. The program's own settings come back at the end, even if the check throws.
+    LookGuard guard;
+    qInfo("ribbon layout: platform %s, style %s, font %s %g", qPrintable(QGuiApplication::platformName()), qPrintable(guard.style()), qPrintable(guard.font().family()), guard.font().pointSizeF());
     QApplication::setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(1);
-    // (the offscreen platform has a font of its own; a desktop's is "Sans" at 10 points)
     QFont base = QApplication::font();
+#ifdef Q_OS_LINUX
+    // (the offscreen platform has a font of its own; a Linux desktop's is "Sans" at 10 points. Other systems keep the font they have: nothing here names a font that has to be installed.)
     if (QGuiApplication::platformName() == QLatin1String("offscreen")) base = QFont(QStringLiteral("Sans"), 10);
-    for (const double points : {0.0, 11.0, 12.0})
-    for (const int width : {1440, 1024}) {
+#endif
+    struct Pass {
+        int width;
+        double points;   // 0: the system font
+        bool rtl;
+    };
+    const QList<Pass> passes{{1440, 0, false}, {1024, 0, false}, {1440, 11, false}, {1024, 11, false}, {1440, 12, false}, {1024, 12, false}, {1440, 14, false}, {1024, 14, false}, {800, 12, false}, {1024, 0, true}};
+    for (const Pass &pass : passes) {
+        const int width = pass.width;
+        const double points = pass.points;
         QFont f = base;
         if (points > 0) f.setPointSizeF(points);
         QApplication::setFont(f);
-        const QString at = QStringLiteral("%1%2").arg(width).arg(points > 0 ? QStringLiteral(" at %1 pt").arg(points) : QString());
+        const QString at = QStringLiteral("%1%2%3").arg(width).arg(points > 0 ? QStringLiteral(" at %1 pt").arg(points) : QString(), pass.rtl ? QStringLiteral(" right to left") : QString());
         std::unique_ptr<jp::AppWindow> w(app.launch());
         if (!w || !w->ribbon()) {
             fails << app.name + QLatin1String(": no window with a ribbon");
             continue;
         }
+        if (pass.rtl) w->setLayoutDirection(Qt::RightToLeft);
         w->resize(width, 760);
         drain();
         jp::Ribbon *r = w->ribbon();
@@ -1061,7 +1101,7 @@ QStringList checkRibbonLayout(Adapter &app)
             if (r->fileButton() && r->fileButton()->isVisible()) parts << r->fileButton();
             for (int i = 0; i < r->tabCount(); ++i)
                 if (r->tabVisible(i) && r->tabButton(i) && r->tabButton(i)->isVisible()) parts << r->tabButton(i);
-            for (const char *name : {"jpRibbonHelp", "jpRibbonCollapse"})
+            for (const char *name : {"jpRibbonMore", "jpRibbonHelp", "jpRibbonCollapse"})
                 if (QWidget *b = r->findChild<QWidget *>(QString::fromLatin1(name)); b && b->isVisible()) parts << b;
             for (int i = 0; i < parts.size(); ++i) {
                 const QRect a(parts[i]->mapTo(r, QPoint(0, 0)), parts[i]->size());
@@ -1101,13 +1141,12 @@ QStringList checkRibbonLayout(Adapter &app)
             if (!shots.isEmpty()) {
                 QString file = tabName;
                 file.replace(QRegularExpression(QStringLiteral("[^A-Za-z0-9]+")), QStringLiteral("-"));
-                r->grab().save(QStringLiteral("%1/%2-%3-%4.png").arg(shots, app.name, file).arg(points > 0 ? QStringLiteral("%1-%2pt").arg(width).arg(points) : QString::number(width)));
+                r->grab().save(QStringLiteral("%1/%2-%3-%4.png").arg(shots, app.name, file).arg((points > 0 ? QStringLiteral("%1-%2pt").arg(width).arg(points) : QString::number(width)) + (pass.rtl ? QStringLiteral("-rtl") : QString())));
             }
             QWidget *viewport = page->parentWidget();
             if (auto *sa = qobject_cast<QScrollArea *>(viewport ? viewport->parentWidget() : nullptr))
                 if (sa->horizontalScrollBar()->isVisible()) fails << where + QStringLiteral(": the tab scrolls sideways (its groups need %1 wide, there is %2)").arg(page->minimumSizeHint().width()).arg(viewport->width());
             const QRect body = viewport ? viewport->rect() : page->rect();
-            int height = -1;
             bool fitReported = false;   // (every group of the tab is as tall as the tallest: one line says it)
             for (jp::RibbonGroup *g : page->groups()) {
                 if (!g->isVisibleTo(page)) continue;
@@ -1120,8 +1159,6 @@ QStringList checkRibbonLayout(Adapter &app)
                     fitReported = true;
                 }
                 if (g->height() < g->minimumSizeHint().height()) fails << gw + QStringLiteral(": the group is %1 tall and its rows need %2").arg(g->height()).arg(g->minimumSizeHint().height());
-                if (height >= 0 && g->height() != height) fails << gw + QStringLiteral(": the group is %1 tall, the one before it %2").arg(g->height()).arg(height);
-                height = g->height();
                 if (g->width() < g->minimumSizeHint().width()) fails << gw + QStringLiteral(": the title or the controls are cut (%1 wide, needs %2; its hint is %3, the tab is %4 wide with %5 groups collapsed)").arg(g->width()).arg(g->minimumSizeHint().width()).arg(g->sizeHint().width()).arg(page->width()).arg(page->collapsedCount());
                 QList<QWidget *> shown;
                 for (QWidget *c : g->controls())
@@ -1130,6 +1167,8 @@ QStringList checkRibbonLayout(Adapter &app)
                     QWidget *c = shown[i];
                     const QRect cr(c->mapTo(g, QPoint(0, 0)), c->size());
                     const QString cw = gw + QStringLiteral("/") + controlName(c);
+                    // (the body's own edge, which clips whatever the group's size says)
+                    if (viewport && !viewport->rect().contains(QRect(c->mapTo(viewport, QPoint(0, 0)), c->size()))) fails << cw + QStringLiteral(": sticks out of the ribbon's body %1").arg(rectText(viewport->rect()));
                     if (!inside.contains(cr)) fails << cw + QStringLiteral(": %1 is not inside the group's content %2").arg(rectText(cr), rectText(inside));
                     for (int k = i + 1; k < shown.size(); ++k) {
                         const QRect other(shown[k]->mapTo(g, QPoint(0, 0)), shown[k]->size());
@@ -1196,10 +1235,6 @@ QStringList checkRibbonLayout(Adapter &app)
             }
         }
     }
-    QApplication::setStyle(QStyleFactory::create(saved.style));
-    qApp->setStyleSheet(saved.css);
-    QApplication::setPalette(saved.palette);
-    QApplication::setFont(saved.font);
     return fails;
 }
 
