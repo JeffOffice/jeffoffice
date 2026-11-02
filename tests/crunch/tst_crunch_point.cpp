@@ -470,6 +470,29 @@ private Q_SLOTS:
         QCOMPARE(w.undoStack()->index(), steps + 1);
     }
 
+    // The arrows step as the cell cursor does: over hidden rows and columns, and over a merged range in one step.
+    void arrowsSkipHiddenLinesAndStepOverMergedRanges()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\" hidden=\"1\"><c r=\"A2\"><v>2</v></c></row><row r=\"3\"><c r=\"A3\"><v>3</v></c></row>"),
+                                            QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"B3:C4\"/></mergeCells>"))})));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("A1"));
+        e.type(QStringLiteral("="));
+        e.key(Qt::Key_Down);
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=A3"));   // (A2 is in a hidden row)
+        e.key(Qt::Key_Escape);
+        e.select(QStringLiteral("E3"));
+        e.type(QStringLiteral("="));
+        e.key(Qt::Key_Left);
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=D3"));
+        e.key(Qt::Key_Left);
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=B3"));   // (the merged range B3:C4 is one step)
+        e.key(Qt::Key_Right);
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=D3"));
+        e.key(Qt::Key_Escape);
+    }
+
     void refittingKeepsTheFixedParts()
     {
         QCOMPARE(crunch::refitBody(QStringLiteral("$B$2:C3"), QStringLiteral("C3:D4")), QStringLiteral("$C$3:D4"));

@@ -258,6 +258,8 @@ public:
     // A mark's border dragged moves its block, and its corner square dragged stretches it: told with the mark's id and the block it comes to (`final` when the button is let go).
     void setPointAdjuster(std::function<void(int, const GridRange &, bool)> adjuster) { m_pointAdjuster = std::move(adjuster); }
     // The cell Ctrl and an arrow go to from a cell, as on the sheet (the walk is made whole at once).
+    // The cell an arrow goes to from a cell, as the cell cursor goes (over hidden rows and columns, a merged range in one step).
+    void stepFrom(qint64 row, qint64 col, int dRow, int dCol, qint64 *toRow, qint64 *toCol);
     void edgeFrom(qint64 row, qint64 col, int dRow, int dCol, qint64 *toRow, qint64 *toCol);
 
 Q_SIGNALS:

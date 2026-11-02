@@ -718,6 +718,14 @@ bool GridView::markGrab(const QPoint &lp, int *index, bool *corner) const
     return false;
 }
 
+void GridView::stepFrom(qint64 row, qint64 col, int dRow, int dCol, qint64 *toRow, qint64 *toCol)
+{
+    Navigator nav(&m_sheet.layout(), m_nav.get());
+    const Selection moved = nav.move(nav.click(row, col), dRow, dCol, false);
+    *toRow = moved.activeRow;
+    *toCol = moved.activeCol;
+}
+
 void GridView::edgeFrom(qint64 row, qint64 col, int dRow, int dCol, qint64 *toRow, qint64 *toCol)
 {
     Navigator nav(&m_sheet.layout(), m_nav.get());

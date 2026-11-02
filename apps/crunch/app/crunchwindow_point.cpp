@@ -123,13 +123,9 @@ bool CrunchWindow::pointKey(QLineEdit *line, QKeyEvent *key)
         anchorRow = headRow = std::max<qint64>(0, m_view->selection().activeRow);
         anchorCol = headCol = std::max<qint64>(0, m_view->selection().activeCol);
     }
-    const qint64 maxRow = qint64(jp::office::sheet::kMaxRows) - 1, maxCol = qint64(jp::office::sheet::kMaxColumns) - 1;
     const int dRow = k == Qt::Key_Down ? 1 : k == Qt::Key_Up ? -1 : 0, dCol = k == Qt::Key_Right ? 1 : k == Qt::Key_Left ? -1 : 0;
     if (toEdge) m_view->edgeFrom(headRow, headCol, dRow, dCol, &headRow, &headCol);
-    else {
-        headRow = std::clamp<qint64>(headRow + dRow, 0, maxRow);
-        headCol = std::clamp<qint64>(headCol + dCol, 0, maxCol);
-    }
+    else m_view->stepFrom(headRow, headCol, dRow, dCol, &headRow, &headCol);
     if (!shift) {
         anchorRow = headRow;
         anchorCol = headCol;
