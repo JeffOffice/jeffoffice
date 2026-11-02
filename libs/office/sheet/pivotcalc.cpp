@@ -67,8 +67,6 @@ struct Acc {
     double sum = 0, big = 0, mean = 0, m2 = 0, prod = 1;
     double mn = std::numeric_limits<double>::infinity(), mx = -std::numeric_limits<double>::infinity();
     QString error;
-    double shown = 0;      // the sum of a group by itself: its values added from the largest to the smallest, which is how the original program shows it
-    bool hasShown = false;
     void add(const PivotValue &v)
     {
         if (v.kind == PivotValue::Missing) return;
@@ -92,7 +90,6 @@ struct Acc {
     void merge(const Acc &o)
     {
         if (o.n == 0) return;
-        hasShown = false;
         if (error.isEmpty()) error = o.error;
         if (o.nn > 0) {
             const double delta = o.mean - mean;
@@ -130,10 +127,10 @@ PivotCell result(const Acc &a, Fn fn, int numFmtId)
         return c;
     }
     switch (fn) {
-    case Fn::Sum: number(a.hasShown ? a.shown : a.sum); break;
+    case Fn::Sum: number(a.sum); break;
     case Fn::Count: number(double(a.n)); break;
     case Fn::CountNums: number(double(a.nn)); break;
-    case Fn::Average: if (a.nn > 0) number((a.hasShown ? a.shown : a.sum) / double(a.nn)); else err("#DIV/0!"); break;
+    case Fn::Average: if (a.nn > 0) number(a.sum / double(a.nn)); else err("#DIV/0!"); break;
     case Fn::Max: number(a.nn > 0 ? a.mx : 0); break;
     case Fn::Min: number(a.nn > 0 ? a.mn : 0); break;
     case Fn::Product: number(a.nn > 0 ? a.prod : 0); break;
@@ -609,7 +606,6 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
         // each group of records (a line and a column, and a value) is added in the order of the records; a total is then the sum of those sums, group by group, as the original program has it
         struct Leaf {
             int row, col, value;
-            std::vector<double> numbers;
             Acc acc;
         };
         std::map<std::tuple<int, int, int>, size_t> where;
@@ -622,24 +618,11 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             if (it == where.end()) {
                 at = leaves.size();
                 where.emplace(key, at);
-                leaves.push_back({rowNew[e.row], colNew[e.col], int(e.value), {}, Acc()});
+                leaves.push_back({rowNew[e.row], colNew[e.col], int(e.value), Acc()});
             } else {
                 at = it->second;
             }
             leaves[at].acc.add(val);
-            if (val.isNumeric()) leaves[at].numbers.push_back(val.number);
-        }
-        for (Leaf &l : leaves) {
-            std::stable_sort(l.numbers.begin(), l.numbers.end(), [](double a, double b) { return std::fabs(a) > std::fabs(b); });
-            double sum = 0, big = 0;
-            for (double x : l.numbers) {
-                sum = addNumbers(sum, x, big);
-                big = std::max(big, std::max(std::fabs(x), std::fabs(sum)));
-            }
-            l.acc.shown = sum;
-            l.acc.hasShown = true;
-            l.numbers.clear();
-            l.numbers.shrink_to_fit();
         }
         std::sort(leaves.begin(), leaves.end(), [](const Leaf &a, const Leaf &b) { return std::tie(a.row, a.col, a.value) < std::tie(b.row, b.col, b.value); });
         for (const Leaf &l : leaves)
