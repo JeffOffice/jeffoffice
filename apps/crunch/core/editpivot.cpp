@@ -540,11 +540,24 @@ EditSession::Outcome EditSession::setPivot(int table, const PivotTable &changed,
         out.problem = why.isEmpty() ? tr("There is no PivotTable here.") : why;
         return out;
     }
+    PivotBook &pb = m_book->book->pivots();
     PivotChange ch;
     ch.table = table;
     ch.now = std::make_shared<PivotTable>(changed);
     pivotSyncRoles(ch.now.get());
+    pivotNormalizeLayout(ch.now.get());
     ch.structure = structureChanged;
+    // a field put on an axis or a page needs its items shared in the cache and listed in the table
+    const int ci = pb.table(table).cache;
+    const PivotCacheEntry &ce = pb.cache(ci);
+    auto cache = std::make_shared<PivotCache>(*ce.cache);
+    if (pivotPrepareFields(ch.now.get(), cache.get())) {
+        ch.cache = ci;
+        ch.cacheNow = cache;
+        ch.source = ce.source;
+        ch.sourceSheet = ce.sourceSheet;
+        ch.sourceName = ce.sourceName;
+    }
     return pivotStep({ch}, text);
 }
 

@@ -312,3 +312,102 @@ void pivotSyncRoles(PivotTable *t)
 }
 
 } // namespace jp::office::sheet
+
+namespace jp::office::sheet {
+
+void pivotNormalizeLayout(PivotTable *t)
+{
+    const int D = int(t->dataFields.size());
+    const bool inRows = t->rowFields.contains(-2), inCols = t->colFields.contains(-2);
+    if (inRows && inCols) {
+        t->colFields.removeAll(-2);
+    }
+    if (D <= 1) {
+        t->rowFields.removeAll(-2);
+        t->colFields.removeAll(-2);
+    } else if (!t->rowFields.contains(-2) && !t->colFields.contains(-2)) {
+        (t->dataOnRows ? t->rowFields : t->colFields).append(-2);
+    }
+    if (t->rowFields.contains(-2)) t->dataOnRows = true;
+    else if (t->colFields.contains(-2)) t->dataOnRows = false;
+}
+
+bool pivotFieldIsNumeric(const PivotCache &c, int f)
+{
+    if (f < 0 || f >= c.fields.size()) return false;
+    bool any = false;
+    for (const PivotValue &v : c.fields[f].items) {
+        if (v.kind == PivotValue::Missing) continue;
+        if (v.kind != PivotValue::Number) return false;
+        any = true;
+    }
+    return any;
+}
+
+bool pivotPrepareFields(PivotTable *t, PivotCache *c)
+{
+    bool changed = false;
+    auto prepare = [&](int f) {
+        if (f < 0 || f >= c->fields.size() || f >= t->fields.size()) return;
+        PivotCacheField &cf = c->fields[f];
+        if (!cf.hasShared) {
+            cf.hasShared = true;
+            cf.sharedCount = int(cf.items.size());
+            changed = true;
+        }
+        PivotField &pf = t->fields[f];
+        if (pf.hasItems) return;
+        QVector<qint32> order(cf.sharedCount);
+        for (qint32 i = 0; i < cf.sharedCount; ++i) order[i] = i;
+        std::stable_sort(order.begin(), order.end(), [&](qint32 a, qint32 b) { return pivotValueLess(cf.items[a], cf.items[b]); });
+        pf.items.clear();
+        for (qint32 x : order) {
+            PivotTableItem it;
+            it.x = x;
+            pf.items.append(it);
+        }
+        if (pf.defaultSubtotal) {
+            PivotTableItem total;
+            total.t = QStringLiteral("default");
+            pf.items.append(total);
+        }
+        pf.hasItems = true;
+    };
+    for (int f : t->rowFields) prepare(f);
+    for (int f : t->colFields) prepare(f);
+    for (const PivotPageField &p : t->pageFields) prepare(p.fld);
+    return changed;
+}
+
+QString pivotFunctionName(const QString &fn)
+{
+    if (fn == QLatin1String("sum")) return QStringLiteral("Sum");
+    if (fn == QLatin1String("count")) return QStringLiteral("Count");
+    if (fn == QLatin1String("countNums")) return QStringLiteral("Count Numbers");
+    if (fn == QLatin1String("average")) return QStringLiteral("Average");
+    if (fn == QLatin1String("max")) return QStringLiteral("Max");
+    if (fn == QLatin1String("min")) return QStringLiteral("Min");
+    if (fn == QLatin1String("product")) return QStringLiteral("Product");
+    if (fn == QLatin1String("stdDev")) return QStringLiteral("StdDev");
+    if (fn == QLatin1String("stdDevp")) return QStringLiteral("StdDevp");
+    if (fn == QLatin1String("var")) return QStringLiteral("Var");
+    if (fn == QLatin1String("varp")) return QStringLiteral("Varp");
+    return QStringLiteral("Sum");
+}
+
+QString pivotDataFieldName(const PivotTable &t, const PivotCache &c, int f, const QString &fn)
+{
+    const QString field = f >= 0 && f < t.fields.size() && !t.fields[f].name.isEmpty() ? t.fields[f].name : (f >= 0 && f < c.fields.size() ? c.fields[f].name : QString());
+    QString name = pivotFunctionName(fn) + QStringLiteral(" of ") + field;
+    auto taken = [&](const QString &n) {
+        for (int i = 0; i < c.fields.size(); ++i)
+            if (c.fields[i].name.compare(n, Qt::CaseInsensitive) == 0 || (i < t.fields.size() && t.fields[i].name.compare(n, Qt::CaseInsensitive) == 0)) return true;
+        for (const PivotDataField &d : t.dataFields)
+            if (d.name.compare(n, Qt::CaseInsensitive) == 0) return true;
+        return false;
+    };
+    while (taken(name)) name += QLatin1Char(' ');
+    return name;
+}
+
+} // namespace jp::office::sheet

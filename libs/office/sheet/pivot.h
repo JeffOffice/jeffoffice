@@ -180,6 +180,15 @@ bool buildPivotCache(const PivotSource &source, const PivotCache &previous, Pivo
 // Makes the table fit a cache that was read again: items that are gone are taken out, those new are added (at the end, or in order when the field is sorted),
 // fields that are new or gone are matched by name, and a filter on an item that is gone is All. The lines of the axes are made again by computePivot.
 void matchPivotItems(PivotTable *table, const PivotCache &previous, const PivotCache &fresh);
+// The layout rules a person's changes keep: the values (-2) are on an axis when there is more than one, once; and `dataOnRows` says which.
+void pivotNormalizeLayout(PivotTable *table);
+// Makes sure each field on an axis or a page has shared items in the cache and a list of items in the table (all the field's items, in order, and the subtotal line). True if the cache changed.
+bool pivotPrepareFields(PivotTable *table, PivotCache *cache);
+// Whether the field holds numbers only (blanks apart): a field that is checked in goes to the values if it does, else to the rows.
+bool pivotFieldIsNumeric(const PivotCache &cache, int field);
+// "Sum" for sum, "Count Numbers" for countNums, and so on; and the name a value gets, "Sum of Amount", made different from every field's and every value's name by spaces after it.
+QString pivotFunctionName(const QString &function);
+QString pivotDataFieldName(const PivotTable &table, const PivotCache &cache, int field, const QString &function);
 // Sets each field's axis and data marks from the lists of row, column, page, and value fields.
 void pivotSyncRoles(PivotTable *table);
 // Puts the text of a cell value in the order a sorted field has: numbers first (in number order), then text (without regard to case), then errors, then the blank.

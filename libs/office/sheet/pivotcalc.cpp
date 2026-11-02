@@ -784,7 +784,7 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
         if (p.item >= 0) out->pageLabels.append(itemLabel(QVector<int>{p.fld}, 0, p.item));
         else out->pageLabels.append(text(anyHidden ? QStringLiteral("(Multiple Items)") : QStringLiteral("(All)")));
     }
-    // a table with nothing in it: the empty area Excel keeps for it
+    // a table with nothing in it: the empty area the original program keeps for it
     if (t.rowFields.isEmpty() && t.colFields.isEmpty() && t.dataFields.isEmpty()) {
         out->rows = 18;
         out->cols = 3;

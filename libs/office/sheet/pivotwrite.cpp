@@ -249,6 +249,10 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool
     if (!doc.setContent(original)) return QByteArray();
     QDomElement root = doc.documentElement();
     setBool(root, QStringLiteral("dataOnRows"), t.dataOnRows, false);
+    setBool(root, QStringLiteral("compact"), t.compact, true);
+    setBool(root, QStringLiteral("outline"), t.outline, false);
+    if (root.hasAttribute(QStringLiteral("compactData")) || t.compact != true) setBool(root, QStringLiteral("compactData"), t.compact, true);
+    if (root.hasAttribute(QStringLiteral("outlineData")) || t.outline) setBool(root, QStringLiteral("outlineData"), t.outline && !t.compact, false);
     setBool(root, QStringLiteral("rowGrandTotals"), t.rowGrandTotals, true);
     setBool(root, QStringLiteral("colGrandTotals"), t.colGrandTotals, true);
     QDomElement loc = childNamed(root, QStringLiteral("location"));

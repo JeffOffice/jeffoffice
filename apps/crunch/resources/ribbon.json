@@ -303,6 +303,13 @@
             {"small": "outline.groupColumns", "keytip": "GC"},
             {"small": "outline.ungroupColumns", "keytip": "UC"}
           ]
+        },
+        {
+          "name": "Refresh",
+          "keytip": "ZR",
+          "items": [
+            {"large": "pivot.refreshAll", "keytip": "RF"}
+          ]
         }
       ]
     },
@@ -496,6 +503,46 @@
           "keytip": "ZL",
           "items": [
             {"large": {"id": "ribbon.tableLooks2", "text": "Table Looks", "icon": "table"}, "keytip": "TK", "menu": "@tableLooks"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "PivotTable",
+      "keytip": "JP",
+      "context": "PivotTable",
+      "color": "tableDesign",
+      "groups": [
+        {
+          "name": "Data",
+          "keytip": "ZD",
+          "items": [
+            {"large": "pivot.refresh", "keytip": "PF", "split": true, "menu": ["pivot.refresh", "pivot.refreshAll"]},
+            {"large": "pivot.changeSource", "keytip": "PD"}
+          ]
+        },
+        {
+          "name": "Actions",
+          "keytip": "ZA",
+          "items": [
+            {"large": {"id": "ribbon.pivotClear", "text": "Clear", "icon": "eraser"}, "keytip": "PC", "menu": ["pivot.clearAll", "pivot.clearFilters"]}
+          ]
+        },
+        {
+          "name": "Show",
+          "keytip": "ZS",
+          "items": [
+            {"large": "pivot.fieldList", "keytip": "PL"},
+            {"small": "pivot.valueSettings", "keytip": "PV"}
+          ]
+        },
+        {
+          "name": "Layout",
+          "keytip": "ZL",
+          "items": [
+            {"large": {"id": "ribbon.pivotSubtotals", "text": "Subtotals", "icon": "sigma"}, "keytip": "PS", "menu": ["pivot.sub.none", "pivot.sub.top", "pivot.sub.bottom"]},
+            {"large": {"id": "ribbon.pivotGrand", "text": "Grand Totals", "icon": "calculator"}, "keytip": "PG", "menu": ["pivot.grand.off", "pivot.grand.both", "pivot.grand.rows", "pivot.grand.cols"]},
+            {"large": {"id": "ribbon.pivotLayout", "text": "Report Layout", "icon": "layout-list"}, "keytip": "PR", "menu": ["pivot.layout.compact", "pivot.layout.outline", "pivot.layout.tabular"]}
           ]
         }
       ]
