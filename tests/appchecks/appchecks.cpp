@@ -22,6 +22,7 @@
 #include <QDialog>
 #include <QFileInfo>
 #include <QLabel>
+#include <QLayout>
 #include <QLineEdit>
 #include <QListView>
 #include <QListWidget>
@@ -29,6 +30,8 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QPrintDialog>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QStackedWidget>
 #include <QStandardPaths>
 #include <QStatusBar>
@@ -996,6 +999,103 @@ QStringList checkNeverRun(Adapter &app, QStringList *report)
     }
     for (auto it = app.neverRun.cbegin(); it != app.neverRun.cend(); ++it)
         if (app.ran.contains(it.key())) fails << app.name + QLatin1String(": ") + it.key() + QLatin1String(" is listed as never run, but it is: take it off the list");
+    return fails;
+}
+
+// ---- the ribbon's own layout
+namespace {
+QString rectText(const QRect &r) { return QStringLiteral("(%1,%2 %3x%4)").arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height()); }
+QString controlName(const QWidget *w)
+{
+    QString n = QString::fromLatin1(w->metaObject()->className());
+    if (const auto *b = qobject_cast<const QAbstractButton *>(w)) n += QStringLiteral(" \"%1\"").arg(b->text());
+    else if (const auto *l = qobject_cast<const QLabel *>(w)) n += QStringLiteral(" \"%1\"").arg(l->text());
+    else if (!w->objectName().isEmpty()) n += QStringLiteral(" %1").arg(w->objectName());
+    return n;
+}
+}
+
+QStringList checkRibbonLayout(Adapter &app)
+{
+    QStringList fails;
+    const QString shots = qEnvironmentVariable("JP_RIBBON_SHOTS");
+    if (!shots.isEmpty()) QDir().mkpath(shots);
+    for (const int width : {1440, 1024}) {
+        std::unique_ptr<jp::AppWindow> w(app.launch());
+        if (!w || !w->ribbon()) {
+            fails << app.name + QLatin1String(": no window with a ribbon");
+            continue;
+        }
+        w->resize(width, 760);
+        drain();
+        jp::Ribbon *r = w->ribbon();
+        // Every contextual tab shown (the layout is the same as when the document puts the window there).
+        QStringList contexts;
+        for (int i = 0; i < r->tabCount(); ++i)
+            if (!r->tabContextGroup(i).isEmpty() && !contexts.contains(r->tabContextGroup(i))) contexts << r->tabContextGroup(i);
+        for (const QString &c : contexts) r->setContextVisible(c, true);
+        QList<jp::RibbonTab *> pages;
+        for (int i = 0; i < r->tabCount(); ++i) pages << r->tabPage(i);
+        drain();
+        for (jp::RibbonTab *page : pages) {
+            r->showTab(page);
+            drain();
+            QString tabName;
+            for (int i = 0; i < r->tabCount(); ++i)
+                if (r->tabPage(i) == page) tabName = r->tabName(i);
+            const QString where = QStringLiteral("%1/%2 at %3").arg(app.name, tabName).arg(width);
+            if (!shots.isEmpty()) {
+                QString file = tabName;
+                file.replace(QRegularExpression(QStringLiteral("[^A-Za-z0-9]+")), QStringLiteral("-"));
+                r->grab().save(QStringLiteral("%1/%2-%3-%4.png").arg(shots, app.name, file).arg(width));
+            }
+            QWidget *viewport = page->parentWidget();
+            if (auto *sa = qobject_cast<QScrollArea *>(viewport ? viewport->parentWidget() : nullptr))
+                if (sa->horizontalScrollBar()->isVisible()) fails << where + QStringLiteral(": the tab scrolls sideways (its groups need %1 wide, there is %2)").arg(page->minimumSizeHint().width()).arg(viewport->width());
+            const QRect body = viewport ? viewport->rect() : page->rect();
+            int height = -1;
+            bool fitReported = false;   // (every group of the tab is as tall as the tallest: one line says it)
+            for (jp::RibbonGroup *g : page->groups()) {
+                if (!g->isVisibleTo(page)) continue;
+                const QString gw = where + QStringLiteral("/") + g->title();
+                const QRect box = QRect(QPoint(0, 0), g->size());
+                const QRect inside = box.marginsRemoved(g->layout()->contentsMargins());
+                const QRect gr = QRect(g->mapTo(page, QPoint(0, 0)), g->size());
+                if (!fitReported && (gr.bottom() > body.bottom() || gr.top() < 0)) {
+                    fails << gw + QStringLiteral(": the group %1 does not fit the ribbon's body %2").arg(rectText(gr), rectText(body));
+                    fitReported = true;
+                }
+                if (g->height() < g->minimumSizeHint().height()) fails << gw + QStringLiteral(": the group is %1 tall and its rows need %2").arg(g->height()).arg(g->minimumSizeHint().height());
+                if (height >= 0 && g->height() != height) fails << gw + QStringLiteral(": the group is %1 tall, the one before it %2").arg(g->height()).arg(height);
+                height = g->height();
+                if (g->width() < g->minimumSizeHint().width()) fails << gw + QStringLiteral(": the title or the controls are cut (%1 wide, needs %2; its hint is %3, the tab is %4 wide with %5 groups collapsed)").arg(g->width()).arg(g->minimumSizeHint().width()).arg(g->sizeHint().width()).arg(page->width()).arg(page->collapsedCount());
+                QList<QWidget *> shown;
+                for (QWidget *c : g->controls())
+                    if (c->isVisibleTo(g)) shown << c;
+                for (int i = 0; i < shown.size(); ++i) {
+                    QWidget *c = shown[i];
+                    const QRect cr(c->mapTo(g, QPoint(0, 0)), c->size());
+                    const QString cw = gw + QStringLiteral("/") + controlName(c);
+                    if (!inside.contains(cr)) fails << cw + QStringLiteral(": %1 is not inside the group's content %2").arg(rectText(cr), rectText(inside));
+                    for (int k = i + 1; k < shown.size(); ++k) {
+                        const QRect other(shown[k]->mapTo(g, QPoint(0, 0)), shown[k]->size());
+                        if (cr.intersects(other)) fails << cw + QStringLiteral(": %1 overlaps %2 %3").arg(rectText(cr), controlName(shown[k]), rectText(other));
+                    }
+                    // (a drop-down shows its current choice and may be narrower than its longest one)
+                    const bool text = qobject_cast<QAbstractButton *>(c) || qobject_cast<QLabel *>(c) || qobject_cast<QAbstractSpinBox *>(c);
+                    if (text && (c->sizeHint().width() > c->width() || c->fontMetrics().height() > c->height()))
+                        fails << cw + QStringLiteral(": its text is cut (it is %1 and wants %2 wide and %3 tall for a line)").arg(rectText(cr)).arg(c->sizeHint().width()).arg(c->fontMetrics().height());
+                }
+            }
+            for (int i = 0; i < page->groups().size(); ++i) {
+                QToolButton *b = page->collapsedButton(i);
+                if (!b || !b->isVisibleTo(page)) continue;
+                const QRect br(b->mapTo(page, QPoint(0, 0)), b->size());
+                if (!body.contains(br) || b->sizeHint().width() > b->width())
+                    fails << where + QStringLiteral("/") + page->groups()[i]->title() + QStringLiteral(" (collapsed): the button %1 is cut in the body %2").arg(rectText(br), rectText(body));
+            }
+        }
+    }
     return fails;
 }
 

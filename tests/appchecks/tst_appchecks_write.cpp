@@ -1226,6 +1226,14 @@ private Q_SLOTS:
         QVERIFY(write::PageView::pictureRectsComputedForTest() > before);
     }
 
+    // Every tab of the ribbon, at two window widths: nothing cut, overlapping, or sticking out of its group.
+    void ribbonLayout()
+    {
+        const QStringList fails = checkRibbonLayout(m_app);
+        qInfo("ribbon layout: %lld failures", qint64(fails.size()));
+        QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
+    }
+
     // ---- 3. every command
     // The commands of wave D: Create Style, Modify Style, Update Style, the Format Painter, Copy and Paste Format, Go To, and the Styles pane. Each is one step that undoes to the bytes before it,
     // and the style made saves and opens the same.

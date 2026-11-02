@@ -186,6 +186,12 @@ QStringList checkNeverRun(Adapter &app, QStringList *report);
 // lands in the document (or, for an app that needs a click first, does nothing: no command, dialog, or screen). Failures are returned as lines.
 QStringList checkTypingWithoutAClick(Adapter &app);
 
+// ---- the ribbon's own layout
+// Every tab of the window's ribbon (the contextual ones shown), at window widths 1440 and 1024: each group's controls lie inside its content, no two overlap, the rows fit the ribbon's
+// body, no text is cut, every title shows whole, and the groups of a tab are equally tall. Failures are returned as lines (app/tab/group/control with the rectangles). With the
+// environment variable JP_RIBBON_SHOTS naming a folder, a picture of every tab at both widths is saved there too.
+QStringList checkRibbonLayout(Adapter &app);
+
 // Shared by the first-five-minutes tests: a window that was closed, and whether it asked.
 struct CloseResult {
     bool closed = false;

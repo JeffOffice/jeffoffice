@@ -31,6 +31,8 @@ public:
     void beginColumn();
     QToolButton *addSmall(QAction *a, QMenu *menu = nullptr, bool split = false, bool iconOnly = false);
     void addRow(const QList<QWidget *> &widgets);   // a row of widgets in the current column
+    // A column of rows whose cells line up: the first row heads the columns, the first cell of each other row names it.
+    void addGrid(const QList<QList<QWidget *>> &rows);
     void addWidget(QWidget *w);                       // its own column
     void addSeparator();
     void setLauncher(const std::function<void()> &fn, const QString &tip = QString());
@@ -116,6 +118,7 @@ public:
     RibbonTab *tabAt(int i) const { return m_tabs.value(i).page; }
     QString tabName(int i) const { return m_tabs.value(i).name; }
     QString tabTitle(int i) const { return m_tabs.value(i).title; }
+    QString tabContextGroup(int i) const { return m_tabs.value(i).group; }   // empty for a tab that is always there
     QString tabKeytip(int i) const { return m_tabs.value(i).keytip; }
     bool tabVisible(int i) const { return m_tabs.value(i).visible; }
     RibbonTab *tabPage(int i) const { return m_tabs.value(i).page; }
@@ -166,7 +169,11 @@ private:
     bool m_minimized = false;
 };
 
+// The height of a small button and of every row of controls beside it: three rows fit the ribbon's body.
+constexpr int kSmallRowHeight = 22;
 QToolButton *ribbonButton(QAction *a, bool large, QWidget *parent);
+// A check box (the box alone) for a checkable command, for a ribbon grid.
+QToolButton *ribbonCheck(QAction *a, QWidget *parent);
 // Drawing shared by every large ribbon button (icon over a label wrapped to two lines).
 QSize largeRibbonButtonHint(const QToolButton *b);
 void paintLargeRibbonButton(QToolButton *b);

@@ -673,6 +673,14 @@ private Q_SLOTS:
         QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
     }
 
+    // Every tab of the ribbon, at two window widths: nothing cut, overlapping, or sticking out of its group.
+    void ribbonLayout()
+    {
+        const QStringList fails = checkRibbonLayout(m_app);
+        qInfo("ribbon layout: %lld failures", qint64(fails.size()));
+        QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
+    }
+
     // ---- 3. every command
     void everyCommandOnABlankDocument()
     {
