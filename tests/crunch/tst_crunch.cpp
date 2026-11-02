@@ -451,6 +451,36 @@ private Q_SLOTS:
         QVERIFY2(keys.contains(QKeySequence(QKeySequence::Open).toString(QKeySequence::NativeText)), qPrintable(keys.left(2000)));   // (Ctrl+O, or the Mac's own)
     }
 
+    // The names that belong to other companies' programs are not on screen or in Help in any language: a string of the program that has one (in tr(), translate(), or QT_TRANSLATE_NOOP) and a Help
+    // file that has one are found. (A name that comes from a user's file is not in a string of this kind.)
+    void trademarkedFeatureNamesAreNotOnScreenOrInHelp()
+    {
+        static const QRegularExpression names(QStringLiteral("\\b(PivotTables?|AutoSum|AutoFit|Format Painter|AutoRecover|Quick Access Toolbar|Quick Parts)\\b"));
+        QStringList problems;
+        for (QDirIterator it(QStringLiteral(":/help"), QDir::Files, QDirIterator::Subdirectories); it.hasNext();) {
+            const QString path = it.next();
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QString text = QString::fromUtf8(f.readAll());
+            if (const auto m = names.match(text); m.hasMatch()) problems << path + QStringLiteral(": ") + m.captured(1);
+        }
+        static const QRegularExpression onScreen(QStringLiteral("(tr|translate|QT_TRANSLATE_NOOP|QT_TR_NOOP)\\(.*\"[^\"]*\\b(PivotTables?|AutoSum|AutoFit|Format Painter|AutoRecover|Quick Access Toolbar|Quick Parts)\\b[^\"]*\""));
+        for (const char *dir : {"/apps", "/libs"})
+            for (QDirIterator it(QStringLiteral(JC_SOURCE_DIR) + QLatin1String(dir), {QStringLiteral("*.cpp"), QStringLiteral("*.h")}, QDir::Files, QDirIterator::Subdirectories); it.hasNext();) {
+                const QString path = it.next();
+                QFile f(path);
+                if (!f.open(QIODevice::ReadOnly)) continue;
+                int line = 0;
+                while (!f.atEnd()) {
+                    const QString text = QString::fromUtf8(f.readLine());
+                    ++line;
+                    if (text.contains(QLatin1String("PivotTable")) || text.contains(QLatin1String("Auto")) || text.contains(QLatin1String("Format Painter")) || text.contains(QLatin1String("Quick")))
+                        if (onScreen.match(text).hasMatch()) problems << path.mid(QStringLiteral(JC_SOURCE_DIR).size()) + QLatin1Char(':') + QString::number(line);
+                }
+            }
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QLatin1Char('\n'))));
+    }
+
     // Closing a window that is still reading a large workbook stops the read and does not wait for it; the program goes on.
     void closingWhileLoadingStopsTheRead()
     {
