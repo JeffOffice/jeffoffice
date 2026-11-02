@@ -3,6 +3,7 @@
 #include "app/pageview.h"
 
 #include "core/editops.h"
+#include "core/refops.h"
 #include "core/writeprops.h"
 
 #include <QApplication>
@@ -343,6 +344,16 @@ void PageView::mousePressEvent(QMouseEvent *e)
         return;
     }
     if (e->button() != Qt::LeftButton) return;
+    // Ctrl+click on a link inside the text (a reference or a table of contents line with its link, or a link to a bookmark) goes to what it names.
+    if ((e->modifiers() & Qt::ControlModifier) && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story()) {
+        const int target = linkTargetAt(*m_doc, at);
+        if (target >= 0) {
+            QTextCursor c(m_doc->story());
+            c.setPosition(target);
+            showCursor(c);
+            return;
+        }
+    }
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
     const bool again = now - m_lastClickTime < QApplication::doubleClickInterval() && (e->position().toPoint() - m_lastPos).manhattanLength() < 6;
     // (A double click event is the second press of a pair, whatever came before it.)

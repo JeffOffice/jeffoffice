@@ -279,6 +279,24 @@
               "keytip": "F"
             }
           ]
+        },
+        {
+          "name": "Links",
+          "keytip": "ZK",
+          "items": [
+            {
+              "large": "insert.bookmark",
+              "keytip": "BM"
+            },
+            {
+              "large": "refs.crossReference",
+              "keytip": "CR"
+            },
+            {
+              "large": "insert.field",
+              "keytip": "FD"
+            }
+          ]
         }
       ]
     },
@@ -420,6 +438,24 @@
       "keytip": "S",
       "groups": [
         {
+          "name": "Table of Contents",
+          "keytip": "ZC",
+          "items": [
+            {
+              "large": "refs.toc",
+              "keytip": "T"
+            },
+            {
+              "small": "refs.updateTable",
+              "keytip": "U"
+            },
+            {
+              "small": "refs.removeTable",
+              "keytip": "RT"
+            }
+          ]
+        },
+        {
           "name": "Footnotes",
           "keytip": "ZN",
           "items": [
@@ -430,6 +466,28 @@
             {
               "large": "refs.endnote",
               "keytip": "E"
+            },
+            {
+              "small": "refs.nextFootnote",
+              "keytip": "X"
+            },
+            {
+              "small": "refs.previousFootnote",
+              "keytip": "V"
+            }
+          ]
+        },
+        {
+          "name": "Captions and References",
+          "keytip": "ZR",
+          "items": [
+            {
+              "large": "refs.crossReference",
+              "keytip": "R"
+            },
+            {
+              "small": "fields.update",
+              "keytip": "UF"
             }
           ]
         }
