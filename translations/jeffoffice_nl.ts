@@ -1115,12 +1115,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Bezig met bewerken van %1</translation>
     </message>
     <message>
-        <location line="+1245"/>
-        <source>Format Painter</source>
-        <translation type="unfinished">Opmaak kopiëren/plakken</translation>
-    </message>
-    <message>
-        <location line="-790"/>
+        <location line="+455"/>
         <source>Create Text Box Link</source>
         <translation type="unfinished">Tekstvakkoppeling maken</translation>
     </message>
@@ -1246,7 +1241,12 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Tekst verplaatsen</translation>
     </message>
     <message>
-        <location line="+451"/>
+        <location line="+23"/>
+        <source>Copy Formatting</source>
+        <translation type="unfinished">Opmaak kopiëren</translation>
+    </message>
+    <message>
+        <location line="+428"/>
         <source>Insert Row</source>
         <translation type="unfinished">Rij invoegen</translation>
     </message>
@@ -3154,11 +3154,6 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location line="-38"/>
-        <source>Do Not Autofit</source>
-        <translation type="unfinished">Niet automatisch aanpassen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
         <source>Best Fit</source>
         <translation type="unfinished">Beste passing</translation>
     </message>
@@ -3171,6 +3166,11 @@ Artikel achterpagina	4</translation>
         <location line="+0"/>
         <source>Grow Text Box to Fit</source>
         <translation type="unfinished">Tekstvak aanpassen aan tekst</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Do Not Fit</source>
+        <translation type="unfinished">Niet passend maken</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -3189,12 +3189,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Verticale uitlijning:</translation>
     </message>
     <message>
-        <location line="-44"/>
-        <source>Text autofitting:</source>
-        <translation type="unfinished">Tekst automatisch aanpassen:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="-43"/>
         <location line="+44"/>
         <source>Left margin:</source>
         <translation type="unfinished">Linkermarge:</translation>
@@ -4270,12 +4265,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Altijd een reservekopie maken</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Save AutoRecover information every:</source>
-        <translation type="unfinished">AutoHerstel-gegevens opslaan elke:</translation>
-    </message>
-    <message>
-        <location line="-10"/>
+        <location line="-8"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
     </message>
@@ -4350,7 +4340,17 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">JeffPub toont de tekst in de nieuwe taal wanneer het programma de volgende keer wordt gestart.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+46"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-600"/>
+        <source>Text fitting:</source>
+        <translation type="unfinished">Tekst passend maken:</translation>
+    </message>
+    <message>
+        <location line="+591"/>
+        <source>Save automatic recovery information every:</source>
+        <translation type="unfinished">Gegevens voor automatisch herstel opslaan elke:</translation>
+    </message>
+    <message>
+        <location line="+55"/>
         <location line="+22"/>
         <source>Page Number</source>
         <translation type="unfinished">Paginanummer</translation>
@@ -5046,8 +5046,8 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location line="-587"/>
-        <source>AutoSum</source>
-        <translation type="unfinished">AutoSom</translation>
+        <source>Sum</source>
+        <translation type="unfinished">Som</translation>
     </message>
     <message>
         <location line="+180"/>
@@ -6857,8 +6857,8 @@ Of sla op in een map die niet beveiligd is.</translation>
     <name>Help</name>
     <message>
         <location filename="../libs/shell/app/help.cpp" line="+259"/>
-        <source>Quick Access Toolbar</source>
-        <translation type="unfinished">Werkbalk Snelle toegang</translation>
+        <source>Quick Toolbar</source>
+        <translation type="unfinished">Snelle werkbalk</translation>
     </message>
     <message>
         <location line="+36"/>
@@ -11389,8 +11389,8 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>AutoFit</source>
-        <translation type="unfinished">AutoAanpassen</translation>
+        <source>Fit</source>
+        <translation type="unfinished">Passend maken</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -17824,13 +17824,15 @@ Bron: %3</translation>
         <translation type="unfinished">Plakken</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+35"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+34"/>
+        <location line="+1"/>
+        <location line="+38"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+461"/>
         <source>Sum</source>
         <translation type="unfinished">Som</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-37"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-1"/>
         <source>Average</source>
         <translation type="unfinished">Gemiddelde</translation>
@@ -18048,12 +18050,6 @@ Bron: %3</translation>
         <translation type="unfinished">Wissen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-382"/>
-        <location line="+39"/>
-        <source>AutoSum</source>
-        <translation type="unfinished">AutoSom</translation>
-    </message>
-    <message>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-576"/>
         <location line="+282"/>
         <source>Bold</source>
@@ -18249,13 +18245,13 @@ Bron: %3</translation>
         <location line="+1"/>
         <location line="+588"/>
         <location line="+29"/>
-        <source>Format Painter</source>
-        <translation type="unfinished">Opmaak kopiëren/plakken</translation>
+        <source>Copy Formatting</source>
+        <translation type="unfinished">Opmaak kopiëren</translation>
     </message>
     <message>
         <location line="-616"/>
-        <source>Format Painter: copies the format of the selected cells to the cells you select next. Double-click to paint more than once.</source>
-        <translation type="unfinished">Opmaak kopiëren/plakken: kopieert de opmaak van de geselecteerde cellen naar de cellen die u daarna selecteert. Dubbelklik om de opmaak meerdere keren te plakken.</translation>
+        <source>Copy Formatting: copies the format of the selected cells to the cells you select next. Double-click to paint more than once.</source>
+        <translation type="unfinished">Opmaak kopiëren: kopieert de opmaak van de geselecteerde cellen naar de cellen die u hierna selecteert. Dubbelklik om de opmaak meerdere keren toe te passen.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19019,13 +19015,13 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>AutoFit Row Height</source>
-        <translation type="unfinished">Rijhoogte automatisch aanpassen</translation>
+        <source>Fit Row Height</source>
+        <translation type="unfinished">Rijhoogte aanpassen</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>AutoFit Column Width</source>
-        <translation type="unfinished">Kolombreedte automatisch aanpassen</translation>
+        <source>Fit Column Width</source>
+        <translation type="unfinished">Kolombreedte aanpassen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19199,7 +19195,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+239"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-104"/>
         <source>Columns</source>
         <translation type="unfinished">Kolommen</translation>
     </message>
@@ -22237,8 +22233,8 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-292"/>
-        <source>Format Painter</source>
-        <translation type="unfinished">Opmaak kopiëren/plakken</translation>
+        <source>Copy Formatting</source>
+        <translation type="unfinished">Opmaak kopiëren</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -26966,12 +26962,12 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Alle tekst 90° draaien</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Do not Autofit</source>
-        <translation type="unfinished">Niet automatisch aanpassen</translation>
+        <location line="+4"/>
+        <source>Fit</source>
+        <translation type="unfinished">Passend maken</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-3"/>
         <source>Shrink text on overflow</source>
         <translation type="unfinished">Tekst verkleinen bij overloop</translation>
     </message>
@@ -26979,6 +26975,11 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+0"/>
         <source>Resize shape to fit text</source>
         <translation type="unfinished">Vorm aanpassen aan tekst</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Do Not Fit</source>
+        <translation type="unfinished">Niet passend maken</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -26991,12 +26992,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Tekstrichting</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Autofit</source>
-        <translation type="unfinished">Automatisch aanpassen</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Left margin</source>
         <translation type="unfinished">Linkermarge</translation>
     </message>
@@ -28899,10 +28895,6 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     </message>
     <message>
         <location line="+1"/>
-        <source>Format Painter</source>
-        <translation type="unfinished">Opmaak kopiëren/plakken</translation>
-    </message>
-    <message>
         <location line="+8"/>
         <source>Copy Formatting</source>
         <translation type="unfinished">Opmaak kopiëren</translation>
@@ -30726,12 +30718,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Tekstvak aanpassen aan tekst</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Do Not Autofit</source>
-        <translation type="unfinished">Niet automatisch aanpassen</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <location line="+2"/>
         <source>Text Direction</source>
         <translation type="unfinished">Tekstrichting</translation>
@@ -31144,7 +31131,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Diagonaal omhoog</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-243"/>
+        <source>Do Not Fit</source>
+        <translation type="unfinished">Niet passend maken</translation>
+    </message>
+    <message>
+        <location line="+243"/>
         <source>No Division</source>
         <translation type="unfinished">Geen diagonaal</translation>
     </message>
@@ -35713,13 +35705,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+7"/>
-        <source>AutoFit Contents</source>
-        <translation type="unfinished">Inhoud automatisch aanpassen</translation>
+        <source>Fit to Contents</source>
+        <translation type="unfinished">Aanpassen aan inhoud</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>AutoFit Window</source>
-        <translation type="unfinished">Automatisch aanpassen aan venster</translation>
+        <source>Fit to Window</source>
+        <translation type="unfinished">Aanpassen aan venster</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -35908,8 +35900,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+6"/>
-        <source>AutoFit</source>
-        <translation type="unfinished">AutoAanpassen</translation>
+        <source>Fit</source>
+        <translation type="unfinished">Aanpassen</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -36669,13 +36661,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+8"/>
-        <source>Format Painter</source>
-        <translation type="unfinished">Opmaak kopiëren/plakken</translation>
+        <source>Copy Formatting</source>
+        <translation type="unfinished">Opmaak kopiëren</translation>
     </message>
     <message>
         <location line="+13"/>
-        <source>Format Painter: click to paint once, double-click to keep painting, and press Esc to stop.</source>
-        <translation type="unfinished">Opmaak kopiëren/plakken: klik om de opmaak één keer toe te passen, dubbelklik om de opmaak meerdere keren toe te passen en druk op Esc om te stoppen.</translation>
+        <source>Copy Formatting: click to paint once, double-click to keep painting, and press Esc to stop.</source>
+        <translation type="unfinished">Opmaak kopiëren: klik om de opmaak één keer toe te passen, dubbelklik om de opmaak meerdere keren toe te passen en druk op Esc om te stoppen.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36704,8 +36696,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+51"/>
-        <source>Format Painter: select the text to paint. Press Esc to stop.</source>
-        <translation type="unfinished">Opmaak kopiëren/plakken: selecteer de tekst waarop u de opmaak wilt toepassen. Druk op Esc om te stoppen.</translation>
+        <source>Copy Formatting: select the text to paint. Press Esc to stop.</source>
+        <translation type="unfinished">Opmaak kopiëren: selecteer de tekst waarop u de opmaak wilt toepassen. Druk op Esc om te stoppen.</translation>
     </message>
 </context>
 <context>

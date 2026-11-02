@@ -49,8 +49,8 @@
 "out": "4da2d3f8384500a7"
 },
 "crunch/format-cells": {
-"en": "a13e87d94d35c623",
-"out": "a6ca9ccd78498885"
+"en": "a047f6fd8e9ac8ce",
+"out": "f6592695f97b57df"
 },
 "crunch/formulas": {
 "en": "5a696c6175dff6c4",
@@ -81,8 +81,8 @@
 "out": "bbf7c889c519d689"
 },
 "crunch/number-formats": {
-"en": "9b003e93322b0cf2",
-"out": "0817e1504afbe952"
+"en": "096fba14cf180313",
+"out": "f103d85193df9492"
 },
 "crunch/open-save": {
 "en": "040eb33d7ed6770b",
@@ -213,8 +213,8 @@
 "out": "8f6fe21e70b57658"
 },
 "deck/tab-home": {
-"en": "26cb6fbbdaf98656",
-"out": "7f5c335001bc27c6"
+"en": "c8bf5e8ff4d08c43",
+"out": "90436a539a1c197d"
 },
 "deck/tab-insert": {
 "en": "4335d2f0b691b551",
@@ -241,8 +241,8 @@
 "out": "801bb5e27cac9d08"
 },
 "deck/text": {
-"en": "0f47e00c1d1064a5",
-"out": "5b248e7aae357674"
+"en": "95528ec37a649136",
+"out": "70603ff58f6dc94b"
 },
 "deck/transitions": {
 "en": "43d897e87e3c1f52",
@@ -269,8 +269,8 @@
 "out": "957a8777608567bc"
 },
 "formatting-text": {
-"en": "25c4667bfb12b3fa",
-"out": "b29a9c7ee1fddc68"
+"en": "eb74b4c8d895d07e",
+"out": "28a138c0180bddd5"
 },
 "graphics-manager": {
 "en": "12e520565b4c39d0",
@@ -377,8 +377,8 @@
 "out": "04bc30dfbe18c977"
 },
 "tab-home": {
-"en": "a13a2ff10141fbbf",
-"out": "ee398f442fb8ccbb"
+"en": "bf3a7c274432c1c9",
+"out": "93c3712460adf618"
 },
 "tab-insert": {
 "en": "a2968b7def1f8ae3",
@@ -461,8 +461,8 @@
 "out": "3fe58795c3fcee1d"
 },
 "write/format-painter": {
-"en": "de3fc05686110657",
-"out": "b6d8c9a98b048350"
+"en": "4259466a965e36bf",
+"out": "f5c9ae084667bc8e"
 },
 "write/go-to-and-move-text": {
 "en": "1ed74b8821b13775",
@@ -473,16 +473,16 @@
 "out": "9123066bce1375d8"
 },
 "write/index": {
-"en": "652901956efe46dd",
-"out": "6866007a3688501b"
+"en": "22fb820593e8d657",
+"out": "be40ab1bb90ce2fa"
 },
 "write/keyboard": {
 "en": "62882ed7b9faf46c",
 "out": "efd3b9d8192c4e74"
 },
 "write/open-save": {
-"en": "b3bba8581533a99d",
-"out": "5c3e35b319b9df20"
+"en": "a51935964525a185",
+"out": "d761ba38fa1b0489"
 },
 "write/page-setup": {
 "en": "8817347db534ce18",
@@ -509,8 +509,8 @@
 "out": "2f094c5d2af56884"
 },
 "write/styles": {
-"en": "95fd1751fa24e530",
-"out": "e11fc15ef7c98d60"
+"en": "eb9e72131cb7ddfc",
+"out": "9e8bf261c9fc08c9"
 },
 "write/tables": {
 "en": "7d56ef0c246c65f0",
@@ -573,6 +573,7 @@
 "018c1253567167e7": "86e2f0aba1a78d6b",
 "019bcd31798a626d": "145845feb29cdd06",
 "019e2143929db9de": "b75063b4370d3e18",
+"01a4e2807e6ed15b": "cad70780447509d6",
 "01b060d240cd8aa8": "e9a000a7e933464f",
 "01b4887aa856d46a": "dc6ddc4e6acccbb2",
 "01b69543aa0d8341": "8ee7a6e5cb673926",
@@ -1395,6 +1396,7 @@
 "1b0f05a77ac333cf": "5964253f9a58fe32",
 "1b2119a90aecb3fb": "e509bb65f7d1f856",
 "1b34898b9acfdb18": "fa48c2c0e004e722",
+"1b41e34381a56436": "8b0f4a9bfdd0037a",
 "1b56aa5de4f28684": "d2ca0fd015fa6669",
 "1b5847d41fd59528": "f74a00267a845421",
 "1b5a9b5d081e8135": "f9b68c263bbecc82",
@@ -2707,6 +2709,7 @@
 "47a3577a9d599d2b": "5b7dbb01956306c2",
 "47aa92f3b562ca2e": "ceac0b9012c24cc4",
 "47bd8e31e00cc5c0": "995da82f2a18469e",
+"47c35a54d87d6700": "baf8ca526d09d8ba",
 "47dbb1dc215ba126": "8e98f0410f8f06ee",
 "47e4ec92984f4246": "d610d48c74d9062d",
 "47ecbf84584f24a1": "f0990662404b76f6",
@@ -3009,6 +3012,7 @@
 "51200a5ade41dc71": "6c805802bf481d6b",
 "5132fdb11b921cf9": "5becabeff8354566",
 "513b6d8873712de7": "ead6338f7fbd7c38",
+"513c4113ac9b224d": "d7bd3b2b838f9dbb",
 "5141215dc827477b": "692cabba1e39de48",
 "5145f991d88411de": "c69c70712b1d25f3",
 "51602064fcc71be0": "519df70de2eb2da0",
@@ -3473,6 +3477,7 @@
 "60d4597266a6d36e": "1fe5cb764551100c",
 "60d723df3d78cf70": "54bdf9cda481df7f",
 "60d72717ace4585b": "af3550bc92265616",
+"60fbc3514912bfe8": "cf06b987dd0e3bf8",
 "6111ca0e403328aa": "42374e68c51982aa",
 "61132237dfd9c9cd": "ea5bfa4f68336537",
 "61241d432a917656": "ac211df0470a015a",
@@ -3836,6 +3841,7 @@
 "6cdec47776e341cf": "e23118b28dc9286f",
 "6ce76600759e4660": "7ea1c21696abfb0e",
 "6cec373038fff622": "0be2cce3ea543852",
+"6cf00ff411a3e3b0": "5d16a2be29383369",
 "6cfad9872923270f": "1d0779490d2d6329",
 "6d022d264cf8f026": "90cb36c2093db74a",
 "6d097a980cf82573": "87f7f8947d8024be",
@@ -4072,6 +4078,7 @@
 "746993ef9d6a4a89": "4c519a16c1d38192",
 "74743b34d897ba79": "18031d607e550154",
 "747bb9a63ad7c467": "9b3f70130d50f347",
+"747cf1c200cbc796": "055fc744267b9f70",
 "747f0b37738e757b": "1b73d5533b354f33",
 "74846bbc507984db": "daa86c139fc0cdb6",
 "74898c36c8d7bd9d": "f5db6a9df14f1e59",
@@ -4237,6 +4244,7 @@
 "7942e4083a3dc906": "7aa6693ea2e9001a",
 "7950beef3cd371e5": "ab63b1e22f326e8e",
 "7952fbed20df1258": "fe3d5bcb3094ad8a",
+"7955c85ae7a5124a": "cad70780447509d6",
 "79703c626647dc0f": "a4bef9fe012ff963",
 "7980e2f902f8e233": "517e649d190dae7c",
 "7981cb389b2d2116": "2611bb9582881ff0",
@@ -4613,6 +4621,7 @@
 "864bcb892345a490": "cd6a7625d1d2cad0",
 "864fc2a47672b99e": "eac26983b0587b10",
 "865908b627fdb8f6": "30a419fad592b8c5",
+"865b65dc6558659f": "e8b1d0c08aeaf562",
 "8664c2418808f00b": "242e8bc884ee08ab",
 "8675efa904896362": "ccdab2dfc2d42705",
 "8679ddfbbf0c72f5": "436cd1093c842288",
@@ -4729,6 +4738,7 @@
 "8a3b125dd6473620": "c4186cb96a6a3373",
 "8a4b30ef4f0855ad": "8805c85cad154801",
 "8a4ddff50af6a084": "d9e8173d368bed0b",
+"8a5d21593abbdf9a": "cf06b987dd0e3bf8",
 "8a5d5194edec98cc": "4b72d38e8fbd6c15",
 "8a604a0b7a3822e7": "b774985bc058241a",
 "8a64e47911120ee0": "fe0a689590e51a12",
@@ -4915,6 +4925,7 @@
 "906eb5543b7cd5aa": "f58880d977d08519",
 "9079a52769ddd325": "2c0098fbb78a81a3",
 "907cbbbfd8c13a6c": "d7483ed104109d99",
+"908033d2a91c88ff": "17c7bb71c43d6395",
 "90807cceb7248676": "b8a899a7ba3756bf",
 "90886be539a2e65e": "d27f86bb099740c6",
 "90951c4c017280d1": "db9e942f3e91738c",
@@ -5098,6 +5109,7 @@
 "972ac71e5d2b7ea2": "1f6e15668cf18293",
 "97353d09363c345b": "e8b569880276339a",
 "974357c8ff0cea2c": "4a75f2d4bd1033ce",
+"97514083cca74d06": "cad70780447509d6",
 "9768f66fd11821e1": "86d7700b29e87697",
 "976c227afbcfc1d0": "abd2521805119003",
 "977c1f73f85bff49": "a70c3d7a33a032ae",
@@ -5458,6 +5470,7 @@
 "a423e508f3da74fb": "7eeda783b11735c5",
 "a42ad779d16a004d": "4a525cecd69dc15a",
 "a435942c1e76299f": "1b932688841bcbf3",
+"a43de104a90b4c06": "efe99ad799ed350d",
 "a43f5a69f285e34a": "782b7b092e6390b5",
 "a447aab041b11ef2": "31c09c4e5997e8bf",
 "a45254c7729af9ce": "c920c5a0c4f8df6a",
@@ -6121,6 +6134,7 @@
 "b94ff71c23cce575": "65cc5bd4fb7b949b",
 "b957e30b9fbcec15": "d8d0e9702df367b6",
 "b95a573566279588": "c9ab86c33aca998f",
+"b95effd13cae056e": "cf06b987dd0e3bf8",
 "b96ac1f86d39127f": "b80d0637a3c38d86",
 "b96fea712d8b8f75": "f03878dee2d67a8f",
 "b970902c8858ae0e": "22457d95b2e1da33",
@@ -6598,6 +6612,7 @@
 "c83702c3d38a38df": "4b121322927e9807",
 "c83dccd7a2f5c33f": "29052225a8077f07",
 "c852aacadbd33d51": "c2cdf3d161fedeae",
+"c85a2d7c93137d5d": "cf06b987dd0e3bf8",
 "c85cb27bb49e1cc8": "c3e2531d286f9fc6",
 "c85e48865402d1c7": "e9fb96efb9b3f473",
 "c86dfff65a4d28dc": "717517cc6f5ff9cb",
@@ -6840,6 +6855,7 @@
 "d06efc3b2f5d82e0": "e19f1f43282c8097",
 "d06f6d8ebaf53a63": "1af4ffeb075d38ec",
 "d07ae5a6a9bccd87": "ad6e75ffd57e4c67",
+"d09d381c8d928217": "ca654d3f0d14193c",
 "d0a73051716497da": "0b7d57f6ba6d4218",
 "d0a7a08a558daa37": "52eee529c1455c3e",
 "d0a853044b780b66": "f259e51911b282e7",
@@ -6869,6 +6885,7 @@
 "d1d8b3e52da789c3": "7fadeab373e7d837",
 "d1eb0aaf5de305b2": "6b4b7928cff795ea",
 "d1ec3db6040ffed4": "ef2f3af72c832d50",
+"d1f742dc79ce8274": "5efcf3371066fef0",
 "d1fc005f6471e0ac": "5d7f764be75a08ea",
 "d2012eca52ca1b5f": "3551591f8953332f",
 "d20d6313820e9e7b": "fc129083e4d1a8a9",
@@ -7351,6 +7368,7 @@
 "e1116f4765f93cb4": "12a8a52af25a68cc",
 "e11998c6c089ef92": "10e5247195d0271c",
 "e11d3e5ca2489c92": "2fa0760182b0d7ad",
+"e1335bd656f08645": "d7bd3b2b838f9dbb",
 "e136c6c99e2113de": "029b0f77498d3403",
 "e13acb06c9105b62": "c4f9e9ea6a0d5411",
 "e13cdcff70256b0c": "6eea5c49789333cc",
@@ -7451,6 +7469,7 @@
 "e533d9db28f75d5f": "209d1583ca80bb0b",
 "e536d7c8dec05599": "1aa1a943d5be0f38",
 "e53891b5a570f660": "52fd59dbb5d21aff",
+"e53c5e0025404b04": "d7bd3b2b838f9dbb",
 "e54ad5e2340bb141": "b09a6ef799679425",
 "e54b7c6c956a95df": "3cd84d79f868a76d",
 "e54cb75d5e0ee1a6": "6df88bba6a9ea4fd",
@@ -7966,6 +7985,7 @@
 "f5fe1a5838793f26": "42cc8daba89c5943",
 "f6020c9e4ae18572": "67d70d2f1727ff0f",
 "f60bbed4725d8f3b": "08663324abccf555",
+"f60ce928f00d9d82": "ac582d379f9500b6",
 "f6140c23be31b22a": "8d7540597ae1ff24",
 "f61716cded9292a3": "e37c222557b3f46e",
 "f6278bcbfe3bb2de": "992cb785a87fcd7a",
@@ -8028,6 +8048,7 @@
 "f7e5d260fe793917": "a302b0761f200268",
 "f7e7da2ca8c75df3": "df8ef312b16ff8d0",
 "f7e95031e7d79834": "6938f7fa0b31ad36",
+"f7ed9138f34992cd": "f4a7157ddbabec16",
 "f7f957e43586b973": "ed1749436e02fa15",
 "f7fe7dc064579326": "5903184fd9c4e728",
 "f802a9d475a54d61": "14e492d33c326f1d",

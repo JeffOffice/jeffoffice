@@ -1115,12 +1115,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">%1 wird bearbeitet</translation>
     </message>
     <message>
-        <location line="+1245"/>
-        <source>Format Painter</source>
-        <translation type="unfinished">Format übertragen</translation>
-    </message>
-    <message>
-        <location line="-790"/>
+        <location line="+455"/>
         <source>Create Text Box Link</source>
         <translation type="unfinished">Textfeldverknüpfung erstellen</translation>
     </message>
@@ -1246,7 +1241,12 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Text verschieben</translation>
     </message>
     <message>
-        <location line="+451"/>
+        <location line="+23"/>
+        <source>Copy Formatting</source>
+        <translation type="unfinished">Formatierung kopieren</translation>
+    </message>
+    <message>
+        <location line="+428"/>
         <source>Insert Row</source>
         <translation type="unfinished">Zeile einfügen</translation>
     </message>
@@ -3154,11 +3154,6 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="-38"/>
-        <source>Do Not Autofit</source>
-        <translation type="unfinished">Nicht automatisch anpassen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
         <source>Best Fit</source>
         <translation type="unfinished">Optimale Anpassung</translation>
     </message>
@@ -3171,6 +3166,11 @@ Artikel auf der Rückseite	4</translation>
         <location line="+0"/>
         <source>Grow Text Box to Fit</source>
         <translation type="unfinished">Textfeld an Text anpassen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Do Not Fit</source>
+        <translation type="unfinished">Nicht anpassen</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -3189,12 +3189,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Vertikale Ausrichtung:</translation>
     </message>
     <message>
-        <location line="-44"/>
-        <source>Text autofitting:</source>
-        <translation type="unfinished">Automatische Textanpassung:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="-43"/>
         <location line="+44"/>
         <source>Left margin:</source>
         <translation type="unfinished">Linker Rand:</translation>
@@ -4270,12 +4265,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Immer Sicherungskopie erstellen</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Save AutoRecover information every:</source>
-        <translation type="unfinished">AutoWiederherstellen-Informationen speichern alle:</translation>
-    </message>
-    <message>
-        <location line="-10"/>
+        <location line="-8"/>
         <source>Save</source>
         <translation type="unfinished">Speichern</translation>
     </message>
@@ -4350,7 +4340,17 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">JeffPub zeigt seinen Text beim nächsten Start in der neuen Sprache an.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+46"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-600"/>
+        <source>Text fitting:</source>
+        <translation type="unfinished">Textanpassung:</translation>
+    </message>
+    <message>
+        <location line="+591"/>
+        <source>Save automatic recovery information every:</source>
+        <translation type="unfinished">Informationen zur automatischen Wiederherstellung speichern alle:</translation>
+    </message>
+    <message>
+        <location line="+55"/>
         <location line="+22"/>
         <source>Page Number</source>
         <translation type="unfinished">Seitenzahl</translation>
@@ -5046,8 +5046,8 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="-587"/>
-        <source>AutoSum</source>
-        <translation type="unfinished">AutoSumme</translation>
+        <source>Sum</source>
+        <translation type="unfinished">Summe</translation>
     </message>
     <message>
         <location line="+180"/>
@@ -6857,8 +6857,8 @@ Oder speichern Sie in einem Ordner, der nicht geschützt ist.</translation>
     <name>Help</name>
     <message>
         <location filename="../libs/shell/app/help.cpp" line="+259"/>
-        <source>Quick Access Toolbar</source>
-        <translation type="unfinished">Symbolleiste für den Schnellzugriff</translation>
+        <source>Quick Toolbar</source>
+        <translation type="unfinished">Schnellsymbolleiste</translation>
     </message>
     <message>
         <location line="+36"/>
@@ -11389,8 +11389,8 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>AutoFit</source>
-        <translation type="unfinished">AutoAnpassen</translation>
+        <source>Fit</source>
+        <translation type="unfinished">Anpassen</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -17824,13 +17824,15 @@ Quelle: %3</translation>
         <translation type="unfinished">Einfügen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+35"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+34"/>
+        <location line="+1"/>
+        <location line="+38"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+461"/>
         <source>Sum</source>
         <translation type="unfinished">Summe</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-37"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-1"/>
         <source>Average</source>
         <translation type="unfinished">Mittelwert</translation>
@@ -18048,12 +18050,6 @@ Quelle: %3</translation>
         <translation type="unfinished">Löschen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-382"/>
-        <location line="+39"/>
-        <source>AutoSum</source>
-        <translation type="unfinished">AutoSumme</translation>
-    </message>
-    <message>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-576"/>
         <location line="+282"/>
         <source>Bold</source>
@@ -18249,13 +18245,13 @@ Quelle: %3</translation>
         <location line="+1"/>
         <location line="+588"/>
         <location line="+29"/>
-        <source>Format Painter</source>
-        <translation type="unfinished">Format übertragen</translation>
+        <source>Copy Formatting</source>
+        <translation type="unfinished">Formatierung kopieren</translation>
     </message>
     <message>
         <location line="-616"/>
-        <source>Format Painter: copies the format of the selected cells to the cells you select next. Double-click to paint more than once.</source>
-        <translation type="unfinished">Format übertragen: Überträgt das Format der markierten Zellen auf die Zellen, die Sie als Nächstes markieren. Doppelklicken Sie, um das Format mehrmals zu übertragen.</translation>
+        <source>Copy Formatting: copies the format of the selected cells to the cells you select next. Double-click to paint more than once.</source>
+        <translation type="unfinished">Formatierung kopieren: Überträgt das Format der markierten Zellen auf die Zellen, die Sie als Nächstes markieren. Doppelklicken Sie, um die Formatierung mehrmals zu übertragen.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19019,13 +19015,13 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>AutoFit Row Height</source>
-        <translation type="unfinished">Zeilenhöhe automatisch anpassen</translation>
+        <source>Fit Row Height</source>
+        <translation type="unfinished">Zeilenhöhe anpassen</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>AutoFit Column Width</source>
-        <translation type="unfinished">Spaltenbreite automatisch anpassen</translation>
+        <source>Fit Column Width</source>
+        <translation type="unfinished">Spaltenbreite anpassen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19199,7 +19195,7 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+239"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-104"/>
         <source>Columns</source>
         <translation type="unfinished">Spalten</translation>
     </message>
@@ -22237,8 +22233,8 @@ Die Datei kann nicht gelesen werden.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-292"/>
-        <source>Format Painter</source>
-        <translation type="unfinished">Format übertragen</translation>
+        <source>Copy Formatting</source>
+        <translation type="unfinished">Formatierung kopieren</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -26966,12 +26962,12 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">Gesamten Text um 90° drehen</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Do not Autofit</source>
-        <translation type="unfinished">Nicht automatisch anpassen</translation>
+        <location line="+4"/>
+        <source>Fit</source>
+        <translation type="unfinished">Anpassen</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-3"/>
         <source>Shrink text on overflow</source>
         <translation type="unfinished">Text bei Überlauf verkleinern</translation>
     </message>
@@ -26979,6 +26975,11 @@ Die Datei kann nicht gelesen werden.</translation>
         <location line="+0"/>
         <source>Resize shape to fit text</source>
         <translation type="unfinished">Größe der Form dem Text anpassen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Do Not Fit</source>
+        <translation type="unfinished">Nicht anpassen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -26991,12 +26992,7 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">Textrichtung</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Autofit</source>
-        <translation type="unfinished">Automatisch anpassen</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Left margin</source>
         <translation type="unfinished">Linker Rand</translation>
     </message>
@@ -28899,10 +28895,6 @@ Sie bleiben erhalten, wenn Sie als JeffPub-Publikation (.jpub) speichern.</trans
     </message>
     <message>
         <location line="+1"/>
-        <source>Format Painter</source>
-        <translation type="unfinished">Format übertragen</translation>
-    </message>
-    <message>
         <location line="+8"/>
         <source>Copy Formatting</source>
         <translation type="unfinished">Formatierung kopieren</translation>
@@ -30726,12 +30718,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Textfeld an Text anpassen</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Do Not Autofit</source>
-        <translation type="unfinished">Nicht automatisch anpassen</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <location line="+2"/>
         <source>Text Direction</source>
         <translation type="unfinished">Textrichtung</translation>
@@ -31144,7 +31131,12 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Nach oben teilen</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-243"/>
+        <source>Do Not Fit</source>
+        <translation type="unfinished">Nicht anpassen</translation>
+    </message>
+    <message>
+        <location line="+243"/>
         <source>No Division</source>
         <translation type="unfinished">Keine Teilung</translation>
     </message>
@@ -35713,13 +35705,13 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+7"/>
-        <source>AutoFit Contents</source>
-        <translation type="unfinished">Inhalt automatisch anpassen</translation>
+        <source>Fit to Contents</source>
+        <translation type="unfinished">An Inhalt anpassen</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>AutoFit Window</source>
-        <translation type="unfinished">Fenster automatisch anpassen</translation>
+        <source>Fit to Window</source>
+        <translation type="unfinished">An Fenster anpassen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -35908,8 +35900,8 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+6"/>
-        <source>AutoFit</source>
-        <translation type="unfinished">AutoAnpassen</translation>
+        <source>Fit</source>
+        <translation type="unfinished">Anpassen</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -36669,13 +36661,13 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+8"/>
-        <source>Format Painter</source>
-        <translation type="unfinished">Format übertragen</translation>
+        <source>Copy Formatting</source>
+        <translation type="unfinished">Formatierung kopieren</translation>
     </message>
     <message>
         <location line="+13"/>
-        <source>Format Painter: click to paint once, double-click to keep painting, and press Esc to stop.</source>
-        <translation type="unfinished">Format übertragen: Klicken Sie, um einmal zu übertragen, doppelklicken Sie, um mehrfach zu übertragen, und drücken Sie Esc, um den Vorgang zu beenden.</translation>
+        <source>Copy Formatting: click to paint once, double-click to keep painting, and press Esc to stop.</source>
+        <translation type="unfinished">Formatierung kopieren: Klicken Sie, um die Formatierung einmal zu übertragen, doppelklicken Sie, um sie mehrmals zu übertragen, und drücken Sie Esc, um den Vorgang zu beenden.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36704,8 +36696,8 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+51"/>
-        <source>Format Painter: select the text to paint. Press Esc to stop.</source>
-        <translation type="unfinished">Format übertragen: Markieren Sie den Text, auf den das Format übertragen werden soll. Drücken Sie Esc, um den Vorgang zu beenden.</translation>
+        <source>Copy Formatting: select the text to paint. Press Esc to stop.</source>
+        <translation type="unfinished">Formatierung kopieren: Markieren Sie den Text, auf den die Formatierung übertragen werden soll. Drücken Sie Esc, um den Vorgang zu beenden.</translation>
     </message>
 </context>
 <context>
