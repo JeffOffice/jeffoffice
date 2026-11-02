@@ -75,6 +75,7 @@ class PageLayoutSource;
 }
 namespace office::sheet { struct PageSetup; }
 class FormulaHelper;
+class FunctionArgumentsDialog;
 class HelpView;
 class HelpWindow;
 class Ribbon;
@@ -173,6 +174,9 @@ public:
     bool insertFunction(const QString &name);
     // What Pick a Function asks (the function's name): a dialog unless this stands in for it (tests); false gives it up.
     void setFunctionAsker(const std::function<bool(QString *)> &asker) { m_functionAsker = asker; }
+    // The Function Arguments dialog that follows (or comes first, when the cursor is in a function's brackets): a stand-in for the person (tests) gets the dialog, fills it, and says whether OK was
+    // pressed. When Pick a Function is stood in for and this is not, the formula is only begun with the function (see insertFunction).
+    void setArgumentsAsker(const std::function<bool(FunctionArgumentsDialog *)> &asker) { m_argumentsAsker = asker; }
 
     // ---- the Formulas tab (crunchwindow_formulas.cpp, crunchwindow_names.cpp, crunchwindow_calc.cpp, crunchwindow_audit.cpp)
     // The help while a formula is typed (the list of functions and names that fit, and the arguments of the function being typed).
@@ -662,6 +666,9 @@ private:
     void createFunctionActions();
     void insertFunctionCommand();
     std::function<bool(QString *)> m_functionAsker;
+    std::function<bool(FunctionArgumentsDialog *)> m_argumentsAsker;
+    void functionArguments(const crunch::FunctionDoc &doc, const QStringList &arguments, int start, int end);
+    QString functionHelpTopic(const QString &name) const;
     // tables (crunchwindow_tables.cpp): how they are drawn, their header buttons, the commands that change them, and their ribbon tab
     void createTableActions();
     void tableRibbonParts(RibbonParts &parts);

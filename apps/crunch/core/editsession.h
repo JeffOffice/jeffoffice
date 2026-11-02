@@ -736,6 +736,16 @@ public:
     // What the name stands for as the person types it ("=Sheet1!$A$1"), and the value it has (a block of cells is "{…}"); empty for none.
     QString nameTextOf(int id) const;
     QString nameValueOf(int id) const;
+    // What a formula typed for the cell (sheet, row, col) comes to, worked out on the spot without writing it (the cells it reads keep the values they have; nothing is recalculated), shown as a
+    // person reads it: 12.5, "text", TRUE, {1,2,3;4,5,6}. `typed` has no "=" and is as the person types it. An error is `problem` in plain words; so is a formula that can't be read, and a
+    // formula that takes too much working out (`tooMuch`).
+    struct Preview {
+        bool ok = false;           // a value came out
+        bool error = false;        // the value is an error (`shown` is its name, `problem` says it in words)
+        bool tooMuch = false;
+        QString shown, problem;
+    };
+    Preview previewFormula(const QString &typed, int sheet, quint32 row, quint32 col) const;
     // Why a name can't be made or changed to this, in a sentence (empty when it can); `id` is the name being changed, -1 for a new one.
     QString nameProblem(const NameDraft &draft, int id) const;
     Outcome defineName(const NameDraft &draft, int *made = nullptr);

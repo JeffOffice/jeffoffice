@@ -1,11 +1,15 @@
 // Tests of Pick a Function (the list of functions against the engine's, the dialog, and what it puts in the formula), and of the message a rule of validation shows beside its cell.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "app/functionargumentsdialog.h"
+#include "app/theme.h"
 #include "app/insertfunctiondialog.h"
 #include "calc/functions.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
+#include "core/functioncall.h"
 #include "core/functioninfo.h"
+#include "grid/gridview.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
@@ -13,11 +17,14 @@
 
 #include <QAction>
 #include <QComboBox>
+#include <QDialogButtonBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
 #include <QSettings>
+#include <QSignalSpy>
+#include <QToolButton>
 #include "../localepin.h"
 
 #include <memory>
@@ -204,6 +211,362 @@ private Q_SLOTS:
             QVERIFY2(blank.w.act(QString::fromLatin1(id)), id);
             QVERIFY2(!blank.w.act(QString::fromLatin1(id))->isEnabled(), id);
         }
+    }
+
+    // ---- Function Arguments
+    void everyArgumentOfEveryFunctionHasAWordOfHelp()
+    {
+        int count = 0;
+        const crunch::FunctionDoc *docs = crunch::functionDocs(&count);
+        QStringList lacking;
+        for (int i = 0; i < count; ++i) {
+            const crunch::ArgumentPlan plan = crunch::argumentPlanOf(docs[i]);
+            QStringList names = plan.fixed + plan.repeating;
+            for (const QString &n : names)
+                if (crunch::argumentHelpOf(QString::fromLatin1(docs[i].name), n).isEmpty()) lacking << QString::fromLatin1(docs[i].name) + QLatin1Char(':') + n;
+        }
+        QVERIFY2(lacking.isEmpty(), qPrintable(lacking.join(QLatin1Char(' '))));
+        QVERIFY(crunch::argumentHelpOf(QStringLiteral("LARGE"), QStringLiteral("k")) != crunch::argumentHelpOf(QStringLiteral("PERCENTILE"), QStringLiteral("k")));
+        QCOMPARE(crunch::repeatedName(QStringLiteral("number1"), 2), QStringLiteral("number3"));
+        const crunch::ArgumentPlan sw = crunch::argumentPlanOf(*crunch::docOf(QStringLiteral("SWITCH")));
+        QCOMPARE(sw.fixed, QStringList{"expression"});
+        QCOMPARE(sw.repeating, (QStringList{"value1", "result1"}));
+    }
+
+    void theArgumentsOfAnExistingCallAreParsedAndTheCursorPicksTheInnermostFunction()
+    {
+        const QString f = QStringLiteral("=SUM(A1:A3,IF(B1>2,\"a,b\",{1,2;3,4}),(1+2)*3)+5");
+        auto at = [&](int cursor) { return crunch::functionCallAt(f, cursor, QLatin1Char(',')); };
+        crunch::FunctionCall outer = at(6);
+        QVERIFY(outer.found);
+        QCOMPARE(outer.name, QStringLiteral("SUM"));
+        QCOMPARE(outer.start, 1);
+        QCOMPARE(outer.arguments, (QStringList{"A1:A3", "IF(B1>2,\"a,b\",{1,2;3,4})", "(1+2)*3"}));
+        QCOMPARE(f.mid(outer.start, outer.end - outer.start), f.mid(1, f.size() - 3));
+        const crunch::FunctionCall inner = at(int(f.indexOf(QStringLiteral("B1"))));
+        QVERIFY(inner.found);
+        QCOMPARE(inner.name, QStringLiteral("IF"));
+        QCOMPARE(inner.arguments, (QStringList{"B1>2", "\"a,b\"", "{1,2;3,4}"}));
+        // a group's brackets are no function; the call around it is
+        QCOMPARE(at(int(f.indexOf(QStringLiteral("1+2")))).name, QStringLiteral("SUM"));
+        QVERIFY(!at(f.size() - 1).found);                                           // (in "+5", outside every call)
+        QVERIFY(!at(0).found);
+        // a call that is not closed yet, and one with no arguments
+        const crunch::FunctionCall open = crunch::functionCallAt(QStringLiteral("=ROUND(A1,"), 10, QLatin1Char(','));
+        QVERIFY(open.found && !open.closed);
+        QCOMPARE(open.arguments, (QStringList{"A1", ""}));
+        QVERIFY(crunch::functionCallAt(QStringLiteral("=PI()"), 4, QLatin1Char(',')).arguments.isEmpty());
+        // text that is no formula, an unknown function, and the semicolon of another locale
+        QVERIFY(!crunch::functionCallAt(QStringLiteral("SUM(1)"), 4, QLatin1Char(',')).found);
+        QVERIFY(!crunch::functionCallAt(QStringLiteral("=NOPE(1)"), 6, QLatin1Char(',')).found);
+        QCOMPARE(crunch::functionCallAt(QStringLiteral("=SUM(1,5;2)"), 6, QLatin1Char(';')).arguments, (QStringList{"1,5", "2"}));
+        QCOMPARE(crunch::callText(QStringLiteral("IF"), {"A1", "", "2", "", ""}, QLatin1Char(',')), QStringLiteral("IF(A1,,2)"));
+    }
+
+    void aGroupOfArgumentsGetsAnotherRowWhenTheLastOneIsFilled()
+    {
+        FunctionArgumentsDialog sum(nullptr, *crunch::docOf(QStringLiteral("SUM")), QStringList(), QLatin1Char(','));
+        QCOMPARE(sum.rowCount(), 2);
+        QCOMPARE(sum.argumentName(0), QStringLiteral("number1"));
+        QCOMPARE(sum.argumentName(1), QStringLiteral("number2"));
+        QVERIFY(!sum.isOptional(0));
+        QVERIFY(sum.isOptional(1));
+        sum.edit(0)->setText(QStringLiteral("A1"));
+        QCOMPARE(sum.rowCount(), 2);                                                // (the last one is still empty)
+        sum.edit(1)->setText(QStringLiteral("5"));
+        QCOMPARE(sum.rowCount(), 3);
+        QCOMPARE(sum.argumentName(2), QStringLiteral("number3"));
+        sum.edit(2)->setText(QStringLiteral("7"));
+        QCOMPARE(sum.rowCount(), 4);
+        QCOMPARE(sum.callText(), QStringLiteral("SUM(A1,5,7)"));
+        // a call that is being changed brings its arguments, and a spare row
+        FunctionArgumentsDialog three(nullptr, *crunch::docOf(QStringLiteral("SUM")), {"A1", "B1", "C1"}, QLatin1Char(','));
+        QCOMPARE(three.rowCount(), 4);
+        QCOMPARE(three.edit(2)->text(), QStringLiteral("C1"));
+        // a group of two (a value and its result) grows two rows at a time; the ones before it stay as they are
+        FunctionArgumentsDialog sw(nullptr, *crunch::docOf(QStringLiteral("SWITCH")), QStringList(), QLatin1Char(','));
+        QCOMPARE(sw.rowCount(), 5);                                                 // expression, value1, result1, value2, result2
+        QCOMPARE(sw.argumentName(4), QStringLiteral("result2"));
+        sw.edit(3)->setText(QStringLiteral("2"));
+        QCOMPARE(sw.rowCount(), 7);
+        // optional arguments are rows that can be left empty and are left off the call
+        FunctionArgumentsDialog vl(nullptr, *crunch::docOf(QStringLiteral("VLOOKUP")), QStringList(), QLatin1Char(','));
+        QCOMPARE(vl.rowCount(), 4);
+        QVERIFY(!vl.isOptional(2));
+        QVERIFY(vl.isOptional(3));
+        vl.edit(0)->setText(QStringLiteral("\"b\""));
+        vl.edit(1)->setText(QStringLiteral("A1:B3"));
+        vl.edit(2)->setText(QStringLiteral("2"));
+        QCOMPARE(vl.callText(), QStringLiteral("VLOOKUP(\"b\",A1:B3,2)"));
+        // the semicolon of a locale that writes a comma for the point
+        FunctionArgumentsDialog de(nullptr, *crunch::docOf(QStringLiteral("SUM")), {"A1", "1,5"}, QLatin1Char(';'));
+        QCOMPARE(de.callText(), QStringLiteral("SUM(A1;1,5)"));
+    }
+
+    void theResultAndTheValueOfEachArgumentAreWorkedOutAsTheyAreTyped()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=a", "B1=1", "A2=b", "B2=2", "A3=c", "B3=3", "D1=4", "E1=5", "F1=6"})));
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *session = w.session();
+        const QByteArray before = QByteArray::number(qlonglong(session->undoStack()->count()));
+        auto make = [&](const char *name, const QStringList &args = QStringList()) {
+            auto *d = new FunctionArgumentsDialog(nullptr, *crunch::docOf(QString::fromLatin1(name)), args, QLatin1Char(','));
+            d->setEvaluator([session](const QString &typed) { return session->previewFormula(typed, 0, 5, 5); });
+            return std::unique_ptr<FunctionArgumentsDialog>(d);
+        };
+        auto sum = make("SUM");
+        sum->edit(0)->setText(QStringLiteral("B1:B3"));
+        QVERIFY(sum->resultLabel()->text().contains(QStringLiteral("=")));          // (nothing is worked out until typing stops)
+        QVERIFY(sum->valueLabel(0)->text().isEmpty());
+        QTRY_COMPARE(sum->resultLabel()->text(), QStringLiteral("Formula result = 6"));   // (the timer does it)
+        QCOMPARE(sum->valueLabel(0)->text(), QStringLiteral("= {1;2;3}"));
+        sum->edit(1)->setText(QStringLiteral("D1:F1"));
+        sum->evaluateNow();
+        QCOMPARE(sum->valueLabel(1)->text(), QStringLiteral("= {4,5,6}"));
+        QCOMPARE(sum->resultLabel()->text(), QStringLiteral("Formula result = 21"));
+        auto vl = make("VLOOKUP", {"\"b\"", "A1:B3", "2", "FALSE"});
+        vl->evaluateNow();
+        QCOMPARE(vl->resultLabel()->text(), QStringLiteral("Formula result = 2"));
+        QCOMPARE(vl->valueLabel(0)->text(), QStringLiteral("= \"b\""));
+        QCOMPARE(vl->valueLabel(3)->text(), QStringLiteral("= FALSE"));
+        QVERIFY(vl->valueLabel(1)->text().startsWith(QStringLiteral("= {\"a\",1;\"b\",2;\"c\",3}")));
+        vl->edit(0)->setText(QStringLiteral("\"zz\""));
+        vl->evaluateNow();
+        QVERIFY2(vl->resultLabel()->text().contains(QStringLiteral("#N/A")), qPrintable(vl->resultLabel()->text()));
+        QVERIFY(vl->problemLabel()->text().contains(QStringLiteral("not found")));      // (the error in plain words)
+        auto iff = make("IF", {"B1>5", "\"big\"", "\"small\""});
+        iff->evaluateNow();
+        QCOMPARE(iff->resultLabel()->text(), QStringLiteral("Formula result = \"small\""));
+        QCOMPARE(iff->valueLabel(0)->text(), QStringLiteral("= FALSE"));
+        QVERIFY(iff->problemLabel()->text().isEmpty());
+        auto bad = make("SQRT", {"-1"});
+        bad->evaluateNow();
+        QVERIFY(bad->problemLabel()->text().contains(QStringLiteral("number")));
+        auto div = make("MOD", {"5", "0"});
+        div->evaluateNow();
+        QVERIFY(div->problemLabel()->text().contains(QStringLiteral("zero")));
+        // what is still needed is said, not an error
+        auto empty = make("VLOOKUP", {"\"b\""});
+        empty->evaluateNow();
+        QCOMPARE(empty->resultLabel()->text(), QStringLiteral("Formula result ="));
+        QVERIFY(empty->problemLabel()->text().contains(QStringLiteral("table_array")));
+        // nothing was written: no step on the undo stack, no cell changed, and the cell holds what it did
+        QCOMPARE(QByteArray::number(qlonglong(session->undoStack()->count())), before);
+        QCOMPARE(w.session()->editText(0, 5, 5), QString());
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:1"));
+    }
+
+    void aSumOverAWholeColumnIsBoundedAndTypingIsNotBlocked()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2"})));
+        crunch::EditSession *session = e.win.w.session();
+        const auto p = session->previewFormula(QStringLiteral("SUM(A:A)"), 0, 0, 3);
+        QVERIFY(p.ok);
+        QCOMPARE(p.shown, QStringLiteral("3"));
+        // a formula that does too much is said so
+        const auto big = session->previewFormula(QStringLiteral("SUM(A1:XFD1048576*A1:XFD1048576)"), 0, 0, 3);
+        QVERIFY(!big.ok || big.error);
+    }
+
+    void okPutsTheFormulaInTheCellAndCancelChangesNothing()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3"})));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("C1"));
+        w.setFunctionAsker([](QString *name) {
+            *name = QStringLiteral("SUM");
+            return true;
+        });
+        // given up in the Function Arguments dialog: nothing happens
+        w.setArgumentsAsker([](FunctionArgumentsDialog *d) {
+            d->edit(0)->setText(QStringLiteral("A1:A3"));
+            return false;
+        });
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QVERIFY(!w.isEditing());
+        QCOMPARE(w.session()->editText(0, 0, 2), QString());
+        // OK puts the formula in the cell
+        QString seen;
+        w.setArgumentsAsker([&seen](FunctionArgumentsDialog *d) {
+            seen = d->functionName() + QLatin1Char(':') + QString::number(d->rowCount());
+            d->edit(0)->setText(QStringLiteral("A1:A2"));
+            d->edit(1)->setText(QStringLiteral("10"));
+            return true;
+        });
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QCOMPARE(seen, QStringLiteral("SUM:2"));
+        QVERIFY(!w.isEditing());
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->editText(0, 0, 2), QStringLiteral("=SUM(A1:A2,10)"));
+        QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:13"));
+    }
+
+    void aFunctionPickedWhileAFormulaIsTypedGoesInAtTheCursorAndCancelPutsTheEntryBack()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=4"})));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("B1"));
+        e.type(QStringLiteral("=1+"));
+        w.setFunctionAsker([](QString *name) {
+            *name = QStringLiteral("SQRT");
+            return true;
+        });
+        w.setArgumentsAsker([](FunctionArgumentsDialog *) { return false; });
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QVERIFY(w.isEditing());
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=1+"));                    // (Cancel: as it was, with the cursor where it was)
+        QCOMPARE(w.cellEditor()->cursorPosition(), 3);
+        w.setArgumentsAsker([](FunctionArgumentsDialog *d) {
+            d->edit(0)->setText(QStringLiteral("A1"));
+            return true;
+        });
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=1+SQRT(A1)"));
+        QCOMPARE(w.formulaBar()->text(), QStringLiteral("=1+SQRT(A1)"));
+        QCOMPARE(w.cellEditor()->cursorPosition(), 11);
+        e.key(Qt::Key_Return);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:3"));
+        // text that is no formula takes no function
+        e.select(QStringLiteral("B2"));
+        e.type(QStringLiteral("hello"));
+        bool asked = false;
+        w.setArgumentsAsker([&asked](FunctionArgumentsDialog *) {
+            asked = true;
+            return true;
+        });
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QVERIFY(!asked);
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("hello"));
+        e.key(Qt::Key_Escape);
+    }
+
+    void withTheCursorInsideACallThatCallIsWhatTheDialogChanges()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3"})));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("C1"));
+        e.type(QStringLiteral("=SUM(A1,IF(A2>1,5,6),A3)"));
+        QVERIFY(w.isEditing());
+        QLineEdit *line = w.cellEditor();
+        line->setCursorPosition(int(line->text().indexOf(QStringLiteral("A2>1"))) + 2);   // (inside the IF)
+        QStringList seen;
+        w.setArgumentsAsker([&seen](FunctionArgumentsDialog *d) {
+            seen << d->functionName() << d->arguments();
+            d->edit(1)->setText(QStringLiteral("7"));
+            return true;
+        });
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QCOMPARE(seen, (QStringList{"IF", "A2>1", "5", "6"}));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=SUM(A1,IF(A2>1,7,6),A3)"));   // (the SUM around it and what follows are as they were)
+        QCOMPARE(w.formulaBar()->text(), QStringLiteral("=SUM(A1,IF(A2>1,7,6),A3)"));
+        QCOMPARE(w.cellEditor()->cursorPosition(), int(QStringLiteral("=SUM(A1,IF(A2>1,7,6)").size()));
+        // the cursor in the SUM but outside the IF changes the SUM
+        line->setCursorPosition(6);
+        seen.clear();
+        w.setArgumentsAsker([&seen](FunctionArgumentsDialog *d) {
+            seen << d->functionName();
+            d->edit(0)->setText(QStringLiteral("A2"));
+            return true;
+        });
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QCOMPARE(seen, QStringList{"SUM"});
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=SUM(A2,IF(A2>1,7,6),A3)"));
+        // Cancel leaves the entry exactly as it was
+        line->setCursorPosition(6);
+        w.setArgumentsAsker([](FunctionArgumentsDialog *d) {
+            d->edit(0)->setText(QStringLiteral("junk"));
+            return false;
+        });
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QVERIFY(w.isEditing());
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=SUM(A2,IF(A2>1,7,6),A3)"));
+        QCOMPARE(w.cellEditor()->cursorPosition(), 6);
+        e.key(Qt::Key_Return);
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->editText(0, 0, 2), QStringLiteral("=SUM(A2,IF(A2>1,7,6),A3)"));
+        QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:12"));
+    }
+
+    void cellsPointedAtOnTheSheetAreWrittenInTheBox()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3"})));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("C1"));
+        w.setFunctionAsker([](QString *name) {
+            *name = QStringLiteral("SUM");
+            return true;
+        });
+        w.setArgumentsAsker([&e](FunctionArgumentsDialog *d) {
+            d->show();
+            d->pickButton(0)->click();
+            if (!d->isPicking() || d->isVisible() || !d->stripEdit()) return false;      // (the dialog gives way to the strip)
+            e.view()->selectRange(0, 0, 2, 0);
+            if (d->edit(0)->text() != QStringLiteral("A1:A3") || d->stripEdit()->text() != QStringLiteral("A1:A3")) return false;
+            e.view()->selectCell(1, 0);
+            if (d->edit(0)->text() != QStringLiteral("A2")) return false;
+            d->endPicking();
+            return !d->isPicking() && d->isVisible();
+        });
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->editText(0, 0, 2), QStringLiteral("=SUM(A2)"));
+        QCOMPARE(e.selected(), QStringLiteral("C1"));                                   // (the cell the formula is of has the cursor again)
+    }
+
+    void theKeysWork()
+    {
+        FunctionArgumentsDialog d(nullptr, *crunch::docOf(QStringLiteral("VLOOKUP")), QStringList(), QLatin1Char(','));
+        d.show();
+        QVERIFY(QTest::qWaitForWindowActive(&d));
+        QVERIFY(d.edit(0)->hasFocus());
+        QTest::keyClick(d.edit(0), Qt::Key_Tab);
+        QTRY_VERIFY(d.edit(1)->hasFocus());
+        QVERIFY(d.argumentHelpLabel()->text().contains(QStringLiteral("table_array")));
+        QTest::keyClick(d.edit(1), Qt::Key_Tab);
+        QTest::keyClick(d.edit(2), Qt::Key_Tab);
+        QTRY_VERIFY(d.edit(3)->hasFocus());
+        QVERIFY(d.argumentHelpLabel()->text().contains(QStringLiteral("optional")));
+        // screen readers: every box has a name, and the buttons and result too
+        for (int i = 0; i < d.rowCount(); ++i) QVERIFY(!d.edit(i)->accessibleName().isEmpty());
+        QVERIFY(!d.resultLabel()->accessibleName().isEmpty());
+        QVERIFY(!d.pickButton(0)->accessibleName().isEmpty());
+        QTest::keyClick(d.edit(3), Qt::Key_Return);
+        QCOMPARE(d.result(), int(QDialog::Accepted));
+        FunctionArgumentsDialog c(nullptr, *crunch::docOf(QStringLiteral("SUM")), QStringList(), QLatin1Char(','));
+        c.show();
+        QVERIFY(QTest::qWaitForWindowActive(&c));
+        QTest::keyClick(c.edit(0), Qt::Key_Escape);
+        QCOMPARE(c.result(), int(QDialog::Rejected));
+    }
+
+    void theDialogIsDrawnInLightAndDark()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=a", "B1=1", "A2=b", "B2=2", "A3=c", "B3=3"})));
+        crunch::EditSession *session = e.win.w.session();
+        auto draw = [&](const QString &name, const QString &last) {
+            FunctionArgumentsDialog d(nullptr, *crunch::docOf(QStringLiteral("VLOOKUP")), {"\"b\"", "A1:B3", "2", last}, QLatin1Char(','));
+            d.setEvaluator([session](const QString &typed) { return session->previewFormula(typed, 0, 5, 5); });
+            d.setHelpTopic(QStringLiteral("function-arguments"));
+            d.show();
+            d.edit(2)->setFocus();
+            QVERIFY(!d.helpLink()->isHidden());
+            QVERIFY(!d.valueLabel(1)->text().isEmpty());
+            saveShot(&d, name);
+        };
+        draw(QStringLiteral("function-arguments-light"), QStringLiteral("FALSE"));
+        draw(QStringLiteral("function-arguments-light-error"), QStringLiteral("maybe"));
+        applyUiTheme(2);
+        draw(QStringLiteral("function-arguments-dark"), QStringLiteral("FALSE"));
+        draw(QStringLiteral("function-arguments-dark-error"), QStringLiteral("maybe"));
+        applyUiTheme(1);
     }
 
     // ---- the message of a rule
