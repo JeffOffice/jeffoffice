@@ -16,7 +16,7 @@ namespace jp::write {
 int nextFieldId()
 {
     static std::atomic<int> last{0};
-    return ++last;
+    return 1000000 + ++last;   // (above the numbers the story is filled with)
 }
 
 namespace {
@@ -247,6 +247,116 @@ StoryScan scanStory(QTextDocument *story, bool withBookmarks)
     }
     for (int i = 0; i < scan.fields.size(); ++i) scan.fields[i].name = nameOfCode(scan.instructionOf(i));
     return scan;
+}
+
+namespace {
+
+// What a mark of a field is, read from the atom: 1 a mark that begins a field (a begin mark, the open tag of a simple field, a field that is one character), -1 one that ends it, 0 neither.
+struct MarkKind {
+    int begins = 0;
+    bool group = false, locked = false, complexBegin = false;
+    QString code;   // the code of a field that is one tag or one character
+};
+
+MarkKind markKindOf(const QByteArray &bytes)
+{
+    MarkKind k;
+    if (!bytes.contains("fldChar") && !bytes.contains("fldSimple") && !bytes.contains("jwfield")) return k;
+    const Inline a = unpackAtom(bytes);
+    auto locked = [&](const QByteArray &raw) { return flagOf(raw.mid(std::max<qsizetype>(0, raw.indexOf("fld"))), "fldLock"); };
+    if (a.kind == Inline::RunAtom && a.tag == QLatin1String("fldChar")) {
+        if (a.key == QLatin1String("begin")) {
+            k.begins = 1;
+            k.complexBegin = true;
+            k.locked = locked(a.raw);
+        } else if (a.key == QLatin1String("end")) {
+            k.begins = -1;
+        }
+    } else if (a.kind == Inline::ParaAtom && a.tag == QLatin1String("fldSimple")) {
+        k.begins = a.role == Inline::Open ? 1 : a.role == Inline::Close ? -1 : 0;
+        k.locked = a.role == Inline::Open && locked(a.raw);
+        if (a.role == Inline::Open) k.code = attributeOf(a.raw, "instr");
+    } else if (a.kind == Inline::ParaAtom && a.tag == kFieldGroupTag) {
+        k.group = true;
+        k.begins = 1;
+        k.locked = locked(a.raw);
+        static const QRegularExpression instr(QStringLiteral("<w:instrText[^>]*>(.*?)</w:instrText>"), QRegularExpression::DotMatchesEverythingOption);
+        k.code = unescaped(instr.match(QString::fromUtf8(a.raw.left(20000))).captured(1));
+    }
+    return k;
+}
+
+constexpr int kMostParagraphsLookedBack = 3000;
+
+// The code of the field whose begin mark is at a position: the words of the instruction marks after it, up to the separator.
+QString codeAfter(QTextDocument *story, int beginPos)
+{
+    QString code;
+    int atoms = 0;
+    for (QTextBlock b = story->findBlock(beginPos); b.isValid() && atoms < 64; b = b.next())
+        for (auto it = b.begin(); !it.atEnd() && atoms < 64; ++it) {
+            const QTextFragment frag = it.fragment();
+            if (frag.position() <= beginPos) continue;
+            const QTextCharFormat cf = frag.charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
+            const QByteArray bytes = storedBytes(cf, prop::Atom);
+            ++atoms;
+            if (bytes.contains("instrText")) code += wordsOf(unpackAtom(bytes).raw);
+            else if (bytes.contains("fldChar") && unpackAtom(bytes).key == QLatin1String("separate")) return code;
+            else if (bytes.contains("fldChar") && code.size() > 0) return code;
+        }
+    return code;
+}
+
+} // namespace
+
+FieldsNear fieldsNearSelection(QTextDocument *story, const QTextCursor &c)
+{
+    FieldsNear out;
+    auto note = [&](const MarkKind &k, int beginPos) {
+        out.any = true;
+        (k.locked ? out.locked : out.unlocked) = true;
+        const QString code = (k.complexBegin ? codeAfter(story, beginPos) : k.code).trimmed();
+        if (code.startsWith(QLatin1String("TOC"), Qt::CaseInsensitive) && (code.size() == 3 || !code[3].isLetterOrNumber())) out.toc = true;
+    };
+    const int from = c.selectionStart(), to = c.selectionEnd();
+    // The marks that begin in the selection (and, for a caret, a field that is one character at its side).
+    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() <= to; b = b.next())
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment frag = it.fragment();
+            if (frag.position() + frag.length() < from || frag.position() > to) continue;
+            const QTextCharFormat cf = frag.charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
+            const MarkKind k = markKindOf(storedBytes(cf, prop::Atom));
+            if (k.begins > 0 && (k.group || frag.position() >= from)) note(k, frag.position());
+        }
+    if (out.any) return out;
+    // The field the start of the selection is in: backward from there, the marks that end a field and those that begin one cancel, the first begin that is left is it.
+    int depth = 0;
+    int looked = 0;
+    for (QTextBlock b = story->findBlock(from); b.isValid() && looked < kMostParagraphsLookedBack; b = b.previous(), ++looked) {
+        QVector<std::pair<int, MarkKind>> marks;
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment frag = it.fragment();
+            if (frag.position() >= from) break;
+            const QTextCharFormat cf = frag.charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
+            const MarkKind k = markKindOf(storedBytes(cf, prop::Atom));
+            if (k.begins != 0) marks.push_back({frag.position(), k});
+        }
+        for (int i = int(marks.size()) - 1; i >= 0; --i) {
+            const MarkKind &k = marks[i].second;
+            if (k.group) continue;
+            if (k.begins < 0) ++depth;
+            else if (depth == 0) {
+                note(k, marks[i].first);
+                return out;
+            } else {
+                --depth;
+            }
+        }
+    }
+    return out;
 }
 
 int fieldContaining(const StoryScan &scan, int position)

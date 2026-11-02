@@ -1172,6 +1172,49 @@ private Q_SLOTS:
         QCOMPARE(nextNoteReference(*doc, first + 1, false, false), -1);
         QCOMPARE(nextNoteReference(*doc, 0, true, true), -1);
     }
+    void theCommandsForFieldsAreDimmedWhereThereIsNoFieldToWorkOn()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.refreshNow();
+        auto enabled = [&](const char *id) { return w.act(QString::fromLatin1(id))->isEnabled(); };
+        for (const char *id : {"fields.update", "fields.unlink", "fields.lock", "fields.unlock", "fields.toggleCode", "fields.toggleAllCodes", "refs.updateTable", "refs.removeTable", "refs.nextFootnote", "refs.previousEndnote"}) QVERIFY2(!enabled(id), id);
+        QVERIFY(enabled("refs.toc"));
+        // A field at the caret: all but Unlock; a locked one: Unlock and not Lock.
+        QTextCursor c = w.view()->cursor();
+        QVERIFY(insertField(*w.document(), c, QStringLiteral("= 2 + 3")));
+        w.view()->setCursor(c);
+        w.refreshNow();
+        QVERIFY(enabled("fields.unlink") && enabled("fields.lock") && enabled("fields.toggleCode") && enabled("fields.toggleAllCodes"));
+        QVERIFY(!enabled("refs.removeTable"));   // (a field, but no table of contents)
+        QVERIFY(!enabled("fields.unlock"));
+        lockFields(*w.document(), c, true);
+        w.refreshNow();
+        QVERIFY(enabled("fields.unlock") && !enabled("fields.lock"));
+        // Away from it, in text of its own, only Alt+F9 stays on; with the field gone it goes too.
+        QTextCursor away = w.view()->cursor();
+        insertText(*w.document(), away, QStringLiteral(" plain words"));
+        w.view()->setCursor(away);
+        w.refreshNow();
+        QVERIFY(!enabled("fields.unlink"));
+        QVERIFY(!enabled("fields.lock"));
+        QVERIFY(!enabled("fields.unlock"));
+        QVERIFY(!enabled("fields.toggleCode"));
+        QVERIFY(enabled("fields.toggleAllCodes"));
+        w.act(QStringLiteral("fields.toggleAllCodes"))->trigger();
+        QTextCursor all(w.document()->story());
+        all.select(QTextCursor::Document);
+        w.view()->setCursor(all);
+        QCOMPARE(unlinkFields(*w.document(), all), 0);   // (a locked field is left)
+        lockFields(*w.document(), all, false);
+        QCOMPARE(unlinkFields(*w.document(), all), 1);
+        w.refreshNow();
+        w.act(QStringLiteral("fields.toggleAllCodes"))->trigger();
+        w.refreshNow();
+        QVERIFY(!enabled("fields.toggleAllCodes"));
+    }
+
     void theWindowHasTheFieldCommandsAndF9UpdatesTheSelection()
     {
         WriteWindow w;

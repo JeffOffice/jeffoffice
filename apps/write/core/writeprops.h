@@ -74,7 +74,7 @@ quint64 byteStoreGeneration();
 QByteArray packFormat(const QTextCharFormat &format);
 QTextCharFormat unpackFormat(const QByteArray &packed);
 
-// A number for a field of the text that no other has in this program (tp::FieldId): what Show Field Codes knows it by.
+// A number for a field made while the document is open (tp::FieldId), above those a file's fields are given when it is read: what Show Field Codes knows it by.
 int nextFieldId();
 
 // A piece kept as XML, with what the writer needs to keep it whole.

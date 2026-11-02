@@ -621,7 +621,22 @@ void WriteDoc::dropHeaderStyles(office::wml::Document *out) const
 void WriteDoc::watchHistory(QTextDocument *story)
 {
     connect(story, &QTextDocument::undoCommandAdded, this, [this, story] { stepAdded(story); });
-    connect(story, &QTextDocument::contentsChange, this, [this, story](int, int, int) { storyEdited(story); });
+    connect(story, &QTextDocument::contentsChange, this, [this, story](int position, int, int added) {
+        // (A field put in the text, by a command or a paste, is noticed where it goes in.)
+        if (story == this->story() && !m_mayHaveFields && added > 0 && added < 1000000) {
+            for (QTextBlock b = story->findBlock(position); b.isValid() && b.position() <= position + added && !m_mayHaveFields; b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it) {
+                    const QTextCharFormat cf = it.fragment().charFormat();
+                    if (!cf.hasProperty(prop::Atom)) continue;
+                    const QByteArray bytes = storedBytes(cf, prop::Atom);
+                    if (bytes.contains("fldChar") || bytes.contains("fldSimple") || bytes.contains("jwfield")) {
+                        m_mayHaveFields = true;
+                        break;
+                    }
+                }
+        }
+        storyEdited(story);
+    });
 }
 
 bool WriteDoc::partEdited(const HeaderPart &part) const

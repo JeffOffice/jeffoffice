@@ -1024,7 +1024,10 @@ int toggleFieldCodes(WriteDoc &doc, const QTextCursor &c, bool all)
                 break;
             }
     }
-    if (chosen.isEmpty()) return 0;
+    if (chosen.isEmpty()) {
+        if (all && top.isEmpty() && scan.fields.isEmpty()) doc.setMayHaveFields(false);   // (there is none after all: the commands for the codes are dimmed)
+        return 0;
+    }
     auto shownNow = [&](int index) { return doc.allFieldCodesShown() || doc.shownFieldCodes().contains(fieldNumberOf(story, scan.fields[index])); };
     QSet<int> ids = doc.shownFieldCodes();
     bool allNow = doc.allFieldCodesShown();

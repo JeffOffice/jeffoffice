@@ -330,6 +330,9 @@ public:
     bool allFieldCodesShown() const { return m_fieldCodesAll; }
     const QSet<int> &shownFieldCodes() const { return m_fieldCodeIds; }
     void setFieldCodes(bool all, const QSet<int> &ids);
+    // Whether the text has a field (known when the file is read and as fields are put in; a text whose last field was taken out may still say yes until the fields are looked for).
+    bool mayHaveFields() const { return m_mayHaveFields; }
+    void setMayHaveFields(bool yes) { m_mayHaveFields = yes; }
     void setRevisionView(int view);
 
     // ---- tables
@@ -758,6 +761,7 @@ private:
     int m_nextRevisionId = 0;   // 0: not looked for yet
     int m_revisionView = 0;
     bool m_fieldCodesAll = false;
+    bool m_mayHaveFields = false;
     QSet<int> m_fieldCodeIds;
     int m_fieldCodesCount = 0;
     int m_fieldCodeView = 0;

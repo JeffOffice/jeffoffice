@@ -737,6 +737,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
         }
     }
     int paragraphsMade = 0, endnoteNumber = m_endnoteStart - 1, blockNumber = -1;
+    int fieldsNumbered = 0;   // (the fields of the text are numbered in the order they come, so that the same file always fills the same story)
     const int mostParagraphs = append ? kMostEndnoteParagraphs : kMostHeaderParagraphs;
     int styleRefsMade = 0;   // (each field that shows a paragraph style's text has a number in its code: two next to one another in one format would be one fragment of the text)
     // The format the endnote references of each paragraph are numbered in: its section's own (w:endnotePr of the section), else the settings'. Found as sectionText is, from
@@ -1275,7 +1276,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 if (in.kind == Inline::RunAtom && in.tag == QLatin1String("fldChar")) {
                     if (in.key == QLatin1String("begin")) {
                         if (inside) af.setProperty(tp::FieldId, openFields.first().id);
-                        if (openFields.size() < kMostFieldNestingMarked) openFields.push_back({nextFieldId(), false, QString()});
+                        if (openFields.size() < kMostFieldNestingMarked) openFields.push_back({++fieldsNumbered, false, QString()});
                     } else if (in.key == QLatin1String("separate") && !openFields.isEmpty()) {
                         if (openFields.size() == 1 && !openFields.first().separated) {
                             openFields.first().separated = true;
@@ -1297,7 +1298,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                             af.setProperty(tp::FieldId, openFields.first().id);
                         }
                         const bool outermost = openFields.isEmpty();
-                        const int id = nextFieldId();
+                        const int id = ++fieldsNumbered;
                         if (openFields.size() < kMostFieldNestingMarked) openFields.push_back({id, true, QString()});
                         if (outermost) {
                             const QString code = QString(attributeOfTag(in.raw, QStringLiteral("instr"))).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'")).replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&amp;"), QLatin1String("&"));
@@ -1377,6 +1378,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
         }
     }
     if (!header && !append) m_endnoteSections = sectionNo + 1;
+    if (!header && !append) m_mayHaveFields = fieldsNumbered > 0;
 
     if (firstBlock) {
         // Nothing in the body: one empty paragraph in the default style.

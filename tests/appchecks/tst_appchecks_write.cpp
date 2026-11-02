@@ -15,6 +15,8 @@
 #include "core/pagesetup.h"
 #include "core/commentops.h"
 #include "core/editops.h"
+#include "core/fieldops.h"
+#include "core/tocops.h"
 #include "core/pictureops.h"
 #include "core/reviewops.h"
 #include "core/rulerops.h"
@@ -132,6 +134,7 @@ private Q_SLOTS:
                 s += zipDigest(w->document()->toDocx());
                 s += QLatin1Char('|') + w->document()->story()->toPlainText();
                 s += QLatin1Char('|') + QString::number(w->document()->canUndo()) + QString::number(w->document()->canRedo());
+                s += QStringLiteral("|codes%1,%2").arg(w->document()->allFieldCodesShown()).arg(w->document()->shownFieldCodes().size());   // (Show Field Codes changes what the window shows, not the document)
             }
             const QTextCursor c = w->view()->cursor();
             s += QStringLiteral("|%1,%2|%3|%4|%5|%6|%7|%8|%9").arg(c.position()).arg(c.anchor()).arg(w->view()->zoom()).arg(w->isModified()).arg(w->filePath()).arg(int(w->view()->zoomMode())).arg(w->view()->showMarks()).arg(w->view()->spellingEnabled()).arg(w->view()->pagesAcross());
@@ -278,6 +281,76 @@ private Q_SLOTS:
                  QTextCursor at(doc->story());
                  at.setPosition(1);
                  asWrite(w)->view()->setCursor(at);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("the caret in a field"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 QTextCursor c(asWrite(w)->document()->story());
+                 c.movePosition(QTextCursor::End);
+                 write::insertField(*asWrite(w)->document(), c, QStringLiteral("= 2 + 3"));
+                 asWrite(w)->view()->setCursor(c);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a footnote and an endnote, the caret before them"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor n(doc->story());
+                 n.setPosition(3);
+                 write::insertFootnote(*doc, n);
+                 asWrite(w)->view()->leaveNote();
+                 QTextCursor e(doc->story());
+                 e.setPosition(6);
+                 write::insertEndnote(*doc, e);
+                 asWrite(w)->view()->leaveNote();
+                 QTextCursor at(doc->story());
+                 at.setPosition(0);
+                 asWrite(w)->view()->setCursor(at);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a footnote and an endnote, the caret after them"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor n(doc->story());
+                 n.setPosition(3);
+                 write::insertFootnote(*doc, n);
+                 asWrite(w)->view()->leaveNote();
+                 QTextCursor e(doc->story());
+                 e.setPosition(6);
+                 write::insertEndnote(*doc, e);
+                 asWrite(w)->view()->leaveNote();
+                 QTextCursor at(doc->story());
+                 at.setPosition(doc->story()->characterCount() - 1);
+                 asWrite(w)->view()->setCursor(at);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("the caret in a table of contents"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 write::insertTableOfContents(*doc, c, write::TocOptions());
+                 asWrite(w)->view()->setCursor(c);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a field with a stale result"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.movePosition(QTextCursor::End);
+                 write::insertField(*doc, c, QStringLiteral("NUMWORDS"));
+                 QTextCursor start(doc->story());
+                 start.setPosition(0);
+                 write::insertText(*doc, start, QStringLiteral("a few more words "));
+                 asWrite(w)->view()->setCursor(c);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("the caret in a locked field"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 QTextCursor c(asWrite(w)->document()->story());
+                 c.movePosition(QTextCursor::End);
+                 write::insertField(*asWrite(w)->document(), c, QStringLiteral("= 2 + 3"));
+                 write::lockFields(*asWrite(w)->document(), c, true);
+                 asWrite(w)->view()->setCursor(c);
                  asWrite(w)->refreshNow();
              }, false},
             {QStringLiteral("the cursor in a table"), [](AppWindow *w, bool) { tableAtCursor(asWrite(w)); }, false},
