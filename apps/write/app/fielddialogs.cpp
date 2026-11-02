@@ -17,6 +17,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QListWidget>
 #include <QPushButton>
 #include <QRadioButton>
@@ -336,8 +337,10 @@ bool tableOfContentsDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     o.leader = leader->currentData().toString();
     o.hyperlinks = links->isChecked();
     QTextCursor c = view->cursor();
-    const bool ok = insertTableOfContents(*doc, c, o);
+    bool cut = false;
+    const bool ok = insertTableOfContents(*doc, c, o, &cut);
     if (ok) view->showCursor(c);
+    if (ok && cut) QMessageBox::information(parent, tr("Table of Contents"), tr("The document has more headings than a table of contents holds, so the table stops at the first 20,000."));
     return ok;
 }
 

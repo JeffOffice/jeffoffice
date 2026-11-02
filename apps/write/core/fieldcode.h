@@ -35,6 +35,8 @@ struct Code {
     bool has(QChar letter) const;
     QString argumentOf(QChar letter) const;   // the argument of the first such switch
     bool keepsFormat() const;                 // \* MERGEFORMAT or \* CHARFORMAT: the result takes the look of the result it replaces
+    bool mergesFormat() const;                // \* MERGEFORMAT: each place of the result keeps the look the old result had there
+    bool usesCodeFormat() const;              // \* CHARFORMAT: the whole result has the look of the first character of the code
 };
 
 // The code of an instruction (leading and trailing blanks do not matter). Never fails: what it cannot read is left out.
@@ -57,7 +59,10 @@ QString plainNumber(double value);
 // ---- formulas and conditions
 // The value of an expression of a formula field (= 2 + 3 * 4, SUM(1,2,3), (7 - 2) ^ 2, 50% ...). Names that are not functions are asked of `name` (a bookmark's number).
 // Nothing for text that is no formula, or one deeper or longer than the most.
-std::optional<double> evaluateFormula(const QString &expression, const std::function<std::optional<double>(const QString &)> &name = nullptr);
+// `budget`, if given, is the steps that all the formulas of a pass may take together: each step and each name asked takes from it, and a formula is left unworked when it is spent.
+std::optional<double> evaluateFormula(const QString &expression, const std::function<std::optional<double>(const QString &)> &name = nullptr, qint64 *budget = nullptr);
+// The steps all the formulas of a pass may take together.
+constexpr qint64 kMostFormulaSteps = 200000;
 
 // The pieces of the document a field's result may be made of. Each function says nothing (null) where the document cannot answer, and the field keeps its result.
 struct BookmarkInfo {
@@ -85,6 +90,8 @@ struct Env {
     int page = 0, pages = 0, sectionPages = 0, section = 0, position = 0;
     QString pageText;
     std::function<std::optional<BookmarkInfo>(const QString &)> bookmark;
+    std::function<void(const QString &name, BookmarkInfo *)> bookmarkPage;   // fills `page` and `pageIndex` of a bookmark's info (asked only when a page number is shown)
+    qint64 *formulaBudget = nullptr;                                         // the steps the formulas of the pass have left (see evaluateFormula)
     std::function<std::optional<QString>(const QString &name, const Code &code)> noteNumber;    // NOTEREF: the number of the note the bookmark holds the reference of
     std::function<std::optional<QString>(const QString &style, const Code &code)> styleRef;     // STYLEREF
     // The counters of SEQ fields, by name (upper case): the pass that walks the document keeps them and resets those that count by chapter.
@@ -100,7 +107,10 @@ std::optional<QString> compute(const Code &code, Env &env);
 bool dependsOnTheMachine(const QString &name);
 // The fields this engine works out.
 bool isKnown(const QString &name);
-// The errors a reference shows as the other program does.
+// Counted work, for tests: the steps the glob matcher of IF has taken since the count was reset.
+qint64 globStepsForTest();
+void resetGlobStepsForTest();
+// The text a reference shows when what it refers to is missing.
 QString referenceSourceNotFound();
 QString bookmarkNotDefined();
 

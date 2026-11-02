@@ -19,6 +19,7 @@
 #include "wml/wml.h"
 
 #include <QElapsedTimer>
+#include <QSet>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextBlock>
@@ -308,7 +309,9 @@ private Q_SLOTS:
         QCOMPARE(*compute(parseCode(QStringLiteral("PAGEREF \"Intro\"")), env), QStringLiteral("3"));
         QCOMPARE(*compute(parseCode(QStringLiteral("REF Missing \\h")), env), referenceSourceNotFound());
         QCOMPARE(*compute(parseCode(QStringLiteral("PAGEREF Missing")), env), referenceSourceNotFound());
-        QVERIFY(referenceSourceNotFound().startsWith(QLatin1String("Error!")));
+        QVERIFY(referenceSourceNotFound().startsWith(QLatin1String("Error:")));
+        QVERIFY(!referenceSourceNotFound().contains(QLatin1String("Reference source")));
+        QVERIFY(!bookmarkNotDefined().contains(QLatin1String("not defined")));
         // Without a way to look bookmarks up, the result is left as it is.
         Env bare;
         QVERIFY(!compute(parseCode(QStringLiteral("REF Intro")), bare).has_value());
@@ -430,16 +433,18 @@ private Q_SLOTS:
         QCOMPARE(out.count("w:fldCharType=\"end\""), 6);
         QVERIFY(out.contains("Introduction"));
         QVERIFY(!out.contains("Old text"));
-        // One Undo puts it all back.
+        // One Undo puts it all back, and it was the only step.
         QVERIFY(doc->undo());
         QCOMPARE(doc->story()->toPlainText(), before);
         QVERIFY(!doc->canUndo());
-        // A second update with nothing to change makes no step.
-        updateFields(*doc, o);
+        // Updating again makes the step again; updating once more, with nothing to change, makes none.
+        QCOMPARE(updateFields(*doc, o).changed, 5);
         QVERIFY(doc->canUndo());
-        updateFields(*doc, o);
-        const UpdateReport again = updateFields(*doc, o);
-        QCOMPARE(again.changed, 0);
+        const quint64 top = doc->lastStepSerial();
+        const QString after = doc->story()->toPlainText();
+        QCOMPARE(updateFields(*doc, o).changed, 0);
+        QCOMPARE(doc->lastStepSerial(), top);
+        QCOMPARE(doc->story()->toPlainText(), after);
     }
 
     void anUpdateIsNoTrackedChange()
@@ -492,31 +497,474 @@ private Q_SLOTS:
 
     void hostileFieldsAreBounded()
     {
+        // Fields nested far past the most.
         QByteArray deep;
         const int n = 300;
         for (int i = 0; i < n; ++i) deep += "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> IF </w:instrText></w:r>";
         for (int i = 0; i < n; ++i) deep += "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" + run("x") + "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
         auto doc = open(makeDocx(para(deep)));
         QVERIFY(doc);
-        QElapsedTimer t;
-        t.start();
+        const StoryScan deepScan = scanStory(doc->story());
+        QVERIFY(deepScan.truncated);
+        for (const FieldPlace &f : deepScan.fields) QVERIFY(f.depth < kMostFieldDepth);
         updateFields(*doc);
-        QVERIFY(t.elapsed() < 5000);
-        // A reference that holds itself.
-        const QByteArray cyc = para(bookmark(1, "Loop", run("a ") + field("REF Loop", "b")));
-        auto d2 = open(makeDocx(cyc));
+        // A reference that holds itself, and two that hold each other.
+        auto d2 = open(makeDocx(para(bookmark(1, "Loop", run("a ") + field("REF Loop", "b")))));
         QVERIFY(d2);
         updateFields(*d2);
         QVERIFY(lines(*d2)[0].size() < 100);
-        // Many sequence fields.
+        auto cycle = open(makeDocx(para(bookmark(1, "A", run("a") + field("REF B", "x"))) + para(bookmark(2, "B", run("b") + field("REF A", "y")))));
+        QVERIFY(cycle);
+        updateFields(*cycle);
+        updateFields(*cycle);
+        QVERIFY(lines(*cycle)[0].size() < 100 && lines(*cycle)[1].size() < 100);
+        // IF with a pattern of stars that a backtracking matcher takes forever over: the matcher's steps are counted, and are at most the product of the two lengths.
+        {
+            QByteArray pattern;
+            for (int i = 0; i < 800; ++i) pattern += "a*";
+            pattern += "b";
+            auto w = open(makeDocx(para(field("IF \"" + QByteArray(1500, 'a') + "\" = \"" + pattern + "\" \"yes\" \"no\"", "?"))));
+            QVERIFY(w);
+            fields::resetGlobStepsForTest();
+            updateFields(*w);
+            QCOMPARE(lines(*w)[0], QStringLiteral("no"));
+            QVERIFY(fields::globStepsForTest() > 0);
+            QVERIFY2(fields::globStepsForTest() < qint64(4096) * 4096 + 100, qPrintable(QString::number(fields::globStepsForTest())));
+            // (And a text past two thousand characters is compared as it is, not called different.)
+            auto ok = open(makeDocx(para(field("IF \"" + QByteArray(2500, 'a') + "\" = \"a*\" \"yes\" \"no\"", "?"))));
+            QVERIFY(ok);
+            updateFields(*ok);
+            QCOMPARE(lines(*ok)[0], QStringLiteral("yes"));
+        }
+        // Formulas that each name a bookmark thousands of times: the work of the whole pass is budgeted, so only some are worked out.
+        {
+            QByteArray terms = "X";
+            for (int i = 0; i < 1000; ++i) terms += "+X";
+            QByteArray many;
+            for (int i = 0; i < 300; ++i) many += para(field("= " + terms, "0"));
+            auto f = open(makeDocx(para(bookmark(1, "X", run("2"))) + many));
+            QVERIFY(f);
+            const UpdateReport r = updateFields(*f, UpdateOptions(), true);
+            QCOMPARE(r.found, 300);
+            QVERIFY2(r.changed > 0 && r.changed < 300 && r.kept > 0, qPrintable(QStringLiteral("%1 %2").arg(r.changed).arg(r.kept)));
+        }
+        // A hundred thousand sequence fields.
+        {
+            QByteArray many;
+            for (int i = 0; i < 100000; ++i) many += "<w:fldSimple w:instr=\" SEQ Z \"><w:r><w:t>0</w:t></w:r></w:fldSimple>";
+            auto big = open(makeDocx(para(many)));
+            QVERIFY(big);
+            const UpdateReport r = updateFields(*big, UpdateOptions(), false);
+            QVERIFY(r.found >= 99000 && r.found <= 100000);
+            QVERIFY(lines(*big)[0].endsWith(QString::number(r.found)));
+        }
+    }
+
+    void aPartialUpdateOfSequencesCountsTheEarlierOnes()
+    {
+        QByteArray body;
+        for (int i = 0; i < 4; ++i) body += para(run("Figure ") + field("SEQ Figure", "9"));
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const int third = doc->story()->findBlockByNumber(2).position();
+        QTextCursor c(doc->story());
+        c.setPosition(third + 9);
+        const StoryScan scan = scanStory(doc->story());
+        c.setPosition(scan.fields[2].begin + 1);
+        updateFieldsAt(*doc, c);
+        QCOMPARE(lines(*doc)[2], QStringLiteral("Figure 3"));
+        QCOMPARE(lines(*doc)[0], QStringLiteral("Figure 9"));
+        QCOMPARE(lines(*doc)[3], QStringLiteral("Figure 9"));
+    }
+
+    void aReferenceTakesTheResultsMadeInThePass()
+    {
+        const QByteArray body = para(bookmark(1, "Box", run("x") + field("QUOTE \"fresh\"", "stale"))) + para(field("REF Box", "?"));
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        updateFields(*doc);
+        QCOMPARE(lines(*doc)[1], QStringLiteral("xfresh"));
+        // A page number of a field that is one character in the bookmark is its result, not a lost mark.
+        auto d2 = open(makeDocx(para(bookmark(1, "Pg", run("p") + field("PAGE", "7"))) + para(field("REF Pg", "?"))));
+        QVERIFY(d2);
+        updateFields(*d2);
+        QCOMPARE(lines(*d2)[1], QStringLiteral("p1"));
+    }
+
+    void aTextOnlyUpdateLaysOutNoPagesAndCachesBookmarks()
+    {
+        QByteArray body = para(bookmark(1, "Intro", run("Introduction")));
+        for (int i = 0; i < 50; ++i) body += para(field("REF Intro", "?"));
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const qint64 before = doc->pager().pagesLaidOut();
+        const UpdateReport r = updateFields(*doc);
+        QCOMPARE(r.changed, 50);
+        QCOMPARE(doc->pager().pagesLaidOut(), before);   // (no page was asked for, so none was laid out)
+        auto pages = open(makeDocx(para(bookmark(1, "Intro", run("Introduction"))) + para(field("PAGEREF Intro", "9"))));
+        QVERIFY(pages);
+        QCOMPARE(updateFields(*pages).changed, 1);
+        QVERIFY(pages->pager().pagesLaidOut() > 0);
+    }
+
+    void stylereferencesAreFoundFromAnIndexNotAScanEach()
+    {
+        // The fields come before the only heading: each one, scanned for, would walk the whole text.
+        QByteArray body;
+        const int paragraphs = 1500;
+        for (int i = 0; i < paragraphs; ++i) body += para(run("t") + field("STYLEREF \"Heading 1\"", "?"));
+        body += para(run("The heading"), "<w:pStyle w:val=\"Heading1\"/>");
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        resetFieldWorkForTest();
+        const UpdateReport r = updateFields(*doc, UpdateOptions(), true);
+        QCOMPARE(r.found, paragraphs);
+        QVERIFY2(styleRefParagraphVisitsForTest() < 4 * paragraphs, qPrintable(QString::number(styleRefParagraphVisitsForTest())));
+        QCOMPARE(lines(*doc)[1], QStringLiteral("tThe heading"));
+    }
+
+    void resultsMadeAgainAreFoundByAnIntervalNotAWalk()
+    {
+        QByteArray body;
+        const int n = 1200;
+        for (int i = 0; i < n; ++i) body += para(field("QUOTE \"v" + QByteArray::number(i) + "\"", "old"));
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        resetFieldWorkForTest();
+        QCOMPARE(updateFields(*doc).changed, n);
+        QVERIFY2(resultOverlapChecksForTest() < 40 * n, qPrintable(QString::number(resultOverlapChecksForTest())));
+        QCOMPARE(lines(*doc)[n - 1], QStringLiteral("v1199"));
+    }
+
+    void targetsFindTheirOwnBookmarkThroughAnIndex()
+    {
+        QByteArray body;
+        const int n = 1500;
+        for (int i = 0; i < n; ++i) body += para(bookmark(i + 1, "_Ref" + QByteArray::number(100000000 + i), run("Head " + QByteArray::number(i))), "<w:pStyle w:val=\"Heading1\"/>");
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        resetCrossReferenceProbesForTest();
+        const QVector<RefTarget> t = crossReferenceTargets(*doc, RefKind::Heading);
+        QCOMPARE(t.size(), n);
+        QVERIFY(!t[10].newBookmark);
+        QVERIFY2(crossReferenceProbesForTest() < 20 * n, qPrintable(QString::number(crossReferenceProbesForTest())));
+    }
+
+    void aHugeTableOfContentsIsCutAndSaysSo()
+    {
+        QByteArray body = para(field("TOC \\o \"1-1\"", "old"));
+        for (int i = 0; i < kMostTocEntries + 50; ++i) body += para(run("H"), "<w:pStyle w:val=\"Heading1\"/>");
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        UpdateOptions o;
+        o.apply = false;
+        const UpdateReport r = updateFields(*doc, o, true);
+        QVERIFY(r.tocTruncated);
+        QCOMPARE(r.changes.value(0).after.count(QLatin1Char('\n')) + 1, kMostTocEntries);
+        auto small = open(makeDocx(para(field("TOC \\o \"1-1\"", "old")) + para(run("H"), "<w:pStyle w:val=\"Heading1\"/>")));
+        QVERIFY(small);
+        QVERIFY(!updateFields(*small, o).tocTruncated);
+    }
+
+    void aTableOfContentsWithoutBookmarksUpdatesTheFieldsBeforeItRight()
+    {
+        const QByteArray body = para(run("Alpha"), "<w:pStyle w:val=\"Heading1\"/>") + para(run("Date ") + field("DATE \\@ \"yyyy-MM-dd\"", "1999-01-01")) +
+                                para(field("TOC \\o \"1-1\" \\h", "old")) + para(run("Beta"), "<w:pStyle w:val=\"Heading1\"/>") + para(run("Gamma ") + field("QUOTE \"fresh\"", "stale"));
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        QTextCursor all(doc->story());
+        all.select(QTextCursor::Document);
+        UpdateOptions o;
+        o.from = all.selectionStart();
+        o.to = all.selectionEnd();
+        o.now = when(2026, 11, 2);
+        updateFields(*doc, o);
+        const QStringList l = lines(*doc);
+        QCOMPARE(l[0], QStringLiteral("Alpha"));
+        QCOMPARE(l[1], QStringLiteral("Date 2026-11-02"));
+        QVERIFY2(l.join('|').contains(QStringLiteral("Alpha\t1|Beta\t1")), qPrintable(l.join('|')));
+        QVERIFY(l.join('|').contains(QStringLiteral("Gamma fresh")));
+        const QByteArray out = documentXml(doc->toDocx());
+        QCOMPARE(out.count("<w:bookmarkStart"), 2);
+        QCOMPARE(out.count("<w:bookmarkEnd"), 2);
+        QCOMPARE(out.count("w:fldCharType=\"begin\""), out.count("w:fldCharType=\"end\""));
+        QCOMPARE(updateFields(*doc, o).changed, 0);
+    }
+
+    void fieldsInTrackedChangesAreHandledSensibly()
+    {
+        const char *rev = " w:id=\"7\" w:author=\"Ann\" w:date=\"2020-01-01T00:00:00Z\"";
+        // In a deletion: left as it is.
+        const QByteArray deleted = "<w:del" + QByteArray(rev) + "><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> QUOTE \"new\" </w:instrText></w:r>"
+                                   "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:delText>old</w:delText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:del>";
+        auto d1 = open(makeDocx(para(run("a ") + deleted)));
+        QVERIFY(d1);
+        const UpdateReport r1 = updateFields(*d1, UpdateOptions(), true);
+        QCOMPARE(r1.changed, 0);
+        const QByteArray out1 = documentXml(d1->toDocx());
+        QVERIFY2(out1.contains("<w:delText>old</w:delText>") || out1.contains("old</w:delText>"), out1.constData());
+        QVERIFY(!out1.contains("new</w:t>"));
+        // In an insertion: the new result is inserted by the same author.
+        const QByteArray inserted = "<w:ins" + QByteArray(rev) + "><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> QUOTE \"new\" </w:instrText></w:r>"
+                                    "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>old</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:ins>";
+        auto d2 = open(makeDocx(para(run("a ") + inserted)));
+        QVERIFY(d2);
+        QCOMPARE(updateFields(*d2).changed, 1);
+        const QByteArray out2 = documentXml(d2->toDocx());
+        const qsizetype from = out2.indexOf("<w:ins "), to = out2.indexOf("</w:ins>");
+        QVERIFY(from >= 0 && to > from);
+        const QByteArray inside = out2.mid(from, to - from);
+        QVERIFY2(inside.contains(">new<"), out2.constData());
+        QVERIFY(!inside.contains(">old<"));
+        QVERIFY(!out2.contains("<w:del "));
+        QVERIFY(!out2.contains("w:delText"));
+    }
+
+    void lockingWhatIsAlreadyLockedMakesNoStep()
+    {
+        auto doc = open(makeDocx(para(field("QUOTE \"x\"", "x", " w:fldLock=\"1\"")) + para(run("plain"))));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.select(QTextCursor::Document);
+        QCOMPARE(lockFields(*doc, c, true), 0);
+        QVERIFY(!doc->canUndo());
+        QCOMPARE(unlinkFields(*doc, QTextCursor(doc->story())), 0);
+        QVERIFY(!doc->canUndo());
+        QCOMPARE(lockFields(*doc, c, false), 1);
+        QVERIFY(doc->canUndo());
+    }
+
+    void pageNumbersAreRightAfterATableOfContentsPushesTheHeadingsDown()
+    {
+        QByteArray body = para(run("Start"));
+        for (int i = 0; i < 60; ++i) {
+            body += para(run("Chapter " + QByteArray::number(i)), "<w:pStyle w:val=\"Heading1\"/>");
+            for (int k = 0; k < 14; ++k) body += para(run("Some body text of the chapter, a line of it."));
+        }
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        TocOptions o;
+        o.levels = 1;
+        QVERIFY(insertTableOfContents(*doc, c, o));
+        // One more update changes nothing: the page numbers were right the first time (a table of sixty lines moved the headings by pages).
+        QCOMPARE(updateFields(*doc).changed, 0);
+        const QStringList l = lines(*doc);
+        QString lastEntry;
+        for (const QString &line : l)
+            if (line.startsWith(QLatin1String("Chapter 59\t"))) lastEntry = line;
+        QVERIFY(!lastEntry.isEmpty());
+        QVERIFY(lastEntry.section(QLatin1Char('\t'), 1).toInt() > 3);
+        // The whole of it was one step.
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->canUndo());
+        QVERIFY(!doc->story()->toPlainText().contains(QStringLiteral("Chapter 59\t")));
+        QVERIFY(!documentXml(doc->toDocx()).contains("TOC \\o"));
+    }
+
+    void aResultTakesTheLookTheSwitchesAsk()
+    {
+        auto bold = [](const QByteArray &t) { return "<w:r><w:rPr><w:b/></w:rPr><w:t xml:space=\"preserve\">" + t + "</w:t></w:r>"; };
+        auto build = [&](const QByteArray &switches, const QByteArray &codeRun) {
+            return "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r>" + codeRun + "<w:r><w:instrText xml:space=\"preserve\"> QUOTE \"xx YY zz\"" + switches +
+                   " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" + run("aa ") + bold("BB") + run(" cc") + "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        };
+        auto isBoldAt = [](WriteDoc &d, const QString &word) {
+            const int at = d.story()->toPlainText().indexOf(word);
+            QTextCursor c(d.story());
+            c.setPosition(at + 1);
+            return c.charFormat().font().bold();
+        };
+        // \* MERGEFORMAT: the look of each place of the old result stays at that place.
+        auto merge = open(makeDocx(para(build(" \\* MERGEFORMAT", QByteArray()))));
+        QVERIFY(merge);
+        updateFields(*merge);
+        QCOMPARE(lines(*merge)[0], QStringLiteral("xx YY zz"));
+        QVERIFY(isBoldAt(*merge, QStringLiteral("YY")));
+        QVERIFY(!isBoldAt(*merge, QStringLiteral("xx")));
+        QVERIFY(!isBoldAt(*merge, QStringLiteral("zz")));
+        // Neither: the look of the first of the old result.
+        auto plain = open(makeDocx(para(build(QByteArray(), QByteArray()))));
+        QVERIFY(plain);
+        updateFields(*plain);
+        QVERIFY(!isBoldAt(*plain, QStringLiteral("YY")));
+        QVERIFY(!isBoldAt(*plain, QStringLiteral("xx")));
+        // \* CHARFORMAT: the look of the first character of the code.
+        auto charformat = open(makeDocx(para("<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:rPr><w:b/></w:rPr><w:instrText xml:space=\"preserve\"> QUOTE \"xx YY zz\" \\* CHARFORMAT </w:instrText></w:r>"
+                                             "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" + run("aa BB cc") + "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>")));
+        QVERIFY(charformat);
+        updateFields(*charformat);
+        QVERIFY(isBoldAt(*charformat, QStringLiteral("xx")));
+        QVERIFY(isBoldAt(*charformat, QStringLiteral("zz")));
+        // A field that is one character takes the look of its result runs, not of its separator's.
+        office::wml::Inline group;
+        group.kind = office::wml::Inline::ParaAtom;
+        group.tag = office::wml::kFieldGroupTag;
+        group.raw = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> QUOTE \"new\" </w:instrText></w:r><w:r><w:rPr><w:i/></w:rPr><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+                    "<w:r><w:rPr><w:b/></w:rPr><w:t>old</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        group.display = QStringLiteral("old");
+        auto d = open(makeDocx(para(run("a"))));
+        QVERIFY(d);
+        QTextCursor c(d->story());
+        c.movePosition(QTextCursor::End);
+        QVERIFY(insertFieldAtom(*d, c, group));
+        QCOMPARE(updateFields(*d).changed, 1);
+        const QByteArray out = documentXml(d->toDocx());
+        const qsizetype at = out.indexOf(">new<");
+        QVERIFY2(at > 0, out.constData());
+        const QByteArray before = out.left(at);
+        QVERIFY(before.mid(before.lastIndexOf("<w:r>")).contains("<w:b/>"));
+        QVERIFY(!before.mid(before.lastIndexOf("<w:r>")).contains("<w:i/>"));
+    }
+
+    void aFieldWithFieldsInsideItIsKeptNotCountedChanged()
+    {
+        office::wml::Inline group;
+        group.kind = office::wml::Inline::ParaAtom;
+        group.tag = office::wml::kFieldGroupTag;
+        group.raw = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> IF </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r>"
+                    "<w:r><w:instrText xml:space=\"preserve\"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>"
+                    "<w:r><w:instrText xml:space=\"preserve\"> = 1 \"a\" \"b\" </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>q</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        group.display = QStringLiteral("q");
+        auto d = open(makeDocx(para(run("a"))));
+        QVERIFY(d);
+        QTextCursor c(d->story());
+        c.movePosition(QTextCursor::End);
+        QVERIFY(insertFieldAtom(*d, c, group));
+        const quint64 top = d->lastStepSerial();
+        const UpdateReport r = updateFields(*d, UpdateOptions(), true);
+        QCOMPARE(r.changed, 0);
+        QVERIFY(r.kept >= 1);
+        QCOMPARE(d->lastStepSerial(), top);
+    }
+
+    void aSimpleFieldsDirtyFlagIsClearedAndTheFlagCodeIsSafe()
+    {
+        const QByteArray simple = "<w:fldSimple w:instr=\" QUOTE &quot;new&quot; \" w:dirty=\"true\"><w:r><w:t>old</w:t></w:r></w:fldSimple>";
+        auto doc = open(makeDocx(para(simple)));
+        QVERIFY(doc);
+        QVERIFY(documentXml(doc->toDocx()).contains("w:dirty"));
+        updateFields(*doc);
+        const QByteArray out = documentXml(doc->toDocx());
+        QVERIFY2(!out.contains("w:dirty"), out.constData());
+        QVERIFY(out.contains(">new<"));
+        // A mark whose tag is cut off is not made worse by a lock.
+        office::wml::Inline group;
+        group.kind = office::wml::Inline::ParaAtom;
+        group.tag = office::wml::kFieldGroupTag;
+        group.raw = "<w:r><w:fldChar w:fldCharType=\"begin\"";
+        auto d = open(makeDocx(para(run("a"))));
+        QVERIFY(d);
+        QTextCursor c(d->story());
+        c.movePosition(QTextCursor::End);
+        QVERIFY(insertFieldAtom(*d, c, group));
+        QTextCursor all(d->story());
+        all.select(QTextCursor::Document);
+        lockFields(*d, all, true);
+        const QTextCharFormat cf = [&] { QTextCursor t(d->story()); t.setPosition(2); return t.charFormat(); }();
+        QCOMPARE(office::wml::Inline(unpackAtom(storedBytes(cf, prop::Atom))).raw, group.raw);
+    }
+
+    void aTableLimitedToAnUnclosedBookmarkRunsToTheEnd()
+    {
+        const QByteArray body = para(field("TOC \\o \"1-1\" \\b Part", "old")) + para(run("Before"), "<w:pStyle w:val=\"Heading1\"/>") +
+                                para("<w:bookmarkStart w:id=\"1\" w:name=\"Part\"/>" + run("Inside"), "<w:pStyle w:val=\"Heading1\"/>") + para(run("After"), "<w:pStyle w:val=\"Heading1\"/>");
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const UpdateReport r = updateFields(*doc, UpdateOptions(), true);
+        QCOMPARE(r.changed, 1);
+        QVERIFY2(r.changes[0].after.contains(QStringLiteral("Inside")) && r.changes[0].after.contains(QStringLiteral("After")) && !r.changes[0].after.contains(QStringLiteral("Before")), qPrintable(r.changes[0].after));
+    }
+
+    void aDocumentPropertyWeCannotWorkOutKeepsItsResult()
+    {
+        auto doc = open(makeDocx(para(field("DOCPROPERTY \"Number of Lines\"", "42")) + para(field("NUMWORDS", "0")) + para(run("one two three"))));
+        QVERIFY(doc);
+        const UpdateReport r = updateFields(*doc, UpdateOptions(), true);
+        QCOMPARE(lines(*doc)[0], QStringLiteral("42"));
+        QCOMPARE(r.changes.value(0).outcome, FieldChange::Kept);
+        QVERIFY(lines(*doc)[1].toInt() >= 3);
+    }
+
+    void newBookmarkIdsAreAboveEveryIdTheFileHas()
+    {
         QByteArray many;
-        for (int i = 0; i < 3000; ++i) many += field("SEQ Z", "0");
-        auto d3 = open(makeDocx(para(many)));
-        QVERIFY(d3);
-        t.restart();
-        updateFields(*d3);
-        QVERIFY(t.elapsed() < 10000);
-        QVERIFY(lines(*d3)[0].endsWith(QStringLiteral("3000")));
+        const int n = kMostBookmarks + 120;
+        for (int i = 1; i <= n; ++i) many += "<w:bookmarkStart w:id=\"" + QByteArray::number(i) + "\" w:name=\"b" + QByteArray::number(i) + "\"/><w:bookmarkEnd w:id=\"" + QByteArray::number(i) + "\"/>";
+        auto doc = open(makeDocx(para(many + run("text")) + para(run("Heading"), "<w:pStyle w:val=\"Heading1\"/>") + para(run("Refer: "))));
+        QVERIFY(doc);
+        QVERIFY(scanStory(doc->story()).truncated);
+        // (A bookmark the program makes itself, for a cross-reference, past the ones that are kept.)
+        const QVector<RefTarget> targets = crossReferenceTargets(*doc, RefKind::Heading);
+        QCOMPARE(targets.size(), 1);
+        QTextCursor c(doc->story());
+        c.movePosition(QTextCursor::End);
+        QString why;
+        QVERIFY2(insertCrossReference(*doc, c, targets[0], RefKind::Heading, RefWhat::Text, true, &why), qPrintable(why));
+        const QByteArray out = documentXml(doc->toDocx());
+        QSet<QByteArray> ids;
+        int starts = 0;
+        for (qsizetype at = out.indexOf("<w:bookmarkStart "); at >= 0; at = out.indexOf("<w:bookmarkStart ", at + 1)) {
+            const qsizetype i = out.indexOf("w:id=\"", at) + 6;
+            ids.insert(out.mid(i, out.indexOf('"', i) - i));
+            ++starts;
+        }
+        QCOMPARE(ids.size(), starts);
+        QVERIFY(starts > n);
+    }
+
+    void numberPicturesRoundDecimalValuesHalfAwayFromZero()
+    {
+        QCOMPARE(numberInPicture(1.005, QStringLiteral("0.00")), QStringLiteral("1.01"));
+        QCOMPARE(numberInPicture(2.675, QStringLiteral("0.00")), QStringLiteral("2.68"));
+        QCOMPARE(numberInPicture(-1.005, QStringLiteral("0.00")), QStringLiteral("-1.01"));
+        QCOMPARE(numberInPicture(0.125, QStringLiteral("0.0")), QStringLiteral("0.1"));
+        QCOMPARE(numberInPicture(0.135, QStringLiteral("0.0")), QStringLiteral("0.1"));
+        QCOMPARE(numberInPicture(0.15, QStringLiteral("0.0")), QStringLiteral("0.2"));
+        QCOMPARE(numberInPicture(999.995, QStringLiteral("0.00")), QStringLiteral("1000.00"));
+        QCOMPARE(plainNumber(1.0000005), QStringLiteral("1.000001"));
+    }
+
+    void fieldCodesCanBeShownAndHiddenWithoutChangingTheFile()
+    {
+        const QByteArray body = para(run("a ") + field("QUOTE \"fresh\"", "stale") + run(" b ") + field("QUOTE \"two\"", "old"));
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const QByteArray saved = documentXml(doc->toDocx());
+        auto shown = [&] {
+            QString t;
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it) {
+                    const QTextCharFormat cf = it.fragment().charFormat();
+                    if (cf.boolProperty(tp::HiddenText)) continue;
+                    const QString field = cf.stringProperty(tp::Field);
+                    if (cf.hasProperty(prop::Atom) && field.startsWith(QLatin1String("raw:"))) t += field.mid(4).repeated(it.fragment().length());
+                    else if (!cf.hasProperty(prop::Atom)) t += it.fragment().text();
+                }
+            return t;
+        };
+        QCOMPARE(shown(), QStringLiteral("a stale b old"));
+        // Shift+F9: the field at the caret.
+        const StoryScan scan = scanStory(doc->story());
+        QTextCursor c(doc->story());
+        c.setPosition(scan.fields[1].begin + 1);
+        QCOMPARE(toggleFieldCodes(*doc, c, false), 1);
+        QCOMPARE(shown(), QStringLiteral("a stale b { QUOTE \"two\" }"));
+        QCOMPARE(documentXml(doc->toDocx()), saved);
+        // Alt+F9: every field (the ones shown stay, the rest are shown).
+        QCOMPARE(toggleFieldCodes(*doc, c, true), 1);
+        QCOMPARE(shown(), QStringLiteral("a { QUOTE \"fresh\" } b { QUOTE \"two\" }"));
+        QCOMPARE(documentXml(doc->toDocx()), saved);
+        // Again: all are hidden.
+        QCOMPARE(toggleFieldCodes(*doc, c, true), 2);
+        QCOMPARE(shown(), QStringLiteral("a stale b old"));
+        QCOMPARE(documentXml(doc->toDocx()), saved);
+        // An update while the codes are shown still works, and the results come back right.
+        toggleFieldCodes(*doc, c, true);
+        updateFields(*doc);
+        toggleFieldCodes(*doc, c, true);
+        QCOMPARE(shown(), QStringLiteral("a fresh b two"));
     }
 
     void aTableOfContentsIsBuiltFromTheHeadings()
@@ -702,6 +1150,8 @@ private Q_SLOTS:
         QCOMPARE(key("fields.unlink"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F9).toString(QKeySequence::NativeText));
         QCOMPARE(key("fields.lock"), QKeySequence(Qt::CTRL | Qt::Key_F11).toString(QKeySequence::NativeText));
         QCOMPARE(key("fields.unlock"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F11).toString(QKeySequence::NativeText));
+        QCOMPARE(key("fields.toggleCode"), QKeySequence(Qt::SHIFT | Qt::Key_F9).toString(QKeySequence::NativeText));
+        QCOMPARE(key("fields.toggleAllCodes"), QKeySequence(Qt::ALT | Qt::Key_F9).toString(QKeySequence::NativeText));
         QCOMPARE(key("insert.bookmark"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F5).toString(QKeySequence::NativeText));
         for (const char *id : {"insert.field", "refs.crossReference", "refs.toc", "refs.updateTable", "refs.removeTable", "refs.nextFootnote", "refs.previousFootnote", "refs.nextEndnote", "refs.previousEndnote"})
             QVERIFY2(w.act(QString::fromLatin1(id)), id);

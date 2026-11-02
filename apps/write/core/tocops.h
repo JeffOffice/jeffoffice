@@ -25,7 +25,10 @@ using PageLookup = std::function<QString(int position)>;
 
 // The lines the table of contents with this code is made of, from the paragraphs of the story outside it (at most kMostTocEntries). `bookmarks` is the story's (the _Toc bookmarks the
 // headings already have are the entries' targets).
-QVector<TocLine> tocLines(WriteDoc &doc, const StoryScan &scan, int field, const fields::Code &code, const PageLookup &pageOf);
+// `truncated`, if given, says whether there were more lines than that.
+QVector<TocLine> tocLines(WriteDoc &doc, const StoryScan &scan, int field, const fields::Code &code, const PageLookup &pageOf, bool *truncated = nullptr);
+// Puts a hidden _Toc bookmark over the text of the paragraph that begins at each of these places (the last first, so the places stay), as part of the edit being made.
+void putTocBookmarks(QTextDocument *story, const StoryScan &scan, const QVector<int> &paragraphPositions);
 
 // The lines as text, one to a paragraph: the number, a tab, the text, a tab, and the page; for comparing with the result a table has (and for a field that is not rebuilt).
 QStringList tocLineTexts(const QVector<TocLine> &lines, const fields::Code &code);
@@ -46,7 +49,7 @@ struct TocOptions {
 // The code a table with these options has.
 QString tocCode(const TocOptions &options);
 // Puts a table of contents, built now, at the caret (in a paragraph of its own), as one step of the history. False where it can't be put (a header, a footer, or a note).
-bool insertTableOfContents(WriteDoc &doc, QTextCursor &c, const TocOptions &options);
+bool insertTableOfContents(WriteDoc &doc, QTextCursor &c, const TocOptions &options, bool *truncated = nullptr);
 // Takes the table the caret is in away (its lines, its marks, and the content control the gallery's tables have); false where the caret is in none.
 bool removeTableOfContents(WriteDoc &doc, const QTextCursor &c);
 // Updates the table the caret is in (or the tables a selection touches): the page numbers only, or the whole table. Returns how many tables there were.

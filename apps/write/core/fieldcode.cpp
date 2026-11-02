@@ -12,6 +12,7 @@ namespace jp::write::fields {
 namespace {
 
 constexpr qint64 kMostSequence = 2147483647;
+qint64 g_globSteps = 0;
 
 bool isSwitchToken(const QString &t) { return t.size() >= 2 && t[0] == QLatin1Char('\\'); }
 
@@ -150,6 +151,20 @@ QString Code::argumentOf(QChar letter) const
     return QString();
 }
 
+bool Code::mergesFormat() const
+{
+    for (const QString &g : general)
+        if (g.compare(QLatin1String("MERGEFORMAT"), Qt::CaseInsensitive) == 0) return true;
+    return false;
+}
+
+bool Code::usesCodeFormat() const
+{
+    for (const QString &g : general)
+        if (g.compare(QLatin1String("CHARFORMAT"), Qt::CaseInsensitive) == 0) return true;
+    return false;
+}
+
 bool Code::keepsFormat() const
 {
     for (const QString &g : general)
@@ -274,10 +289,33 @@ QString formatNumber(qint64 n, const QStringList &general)
     return formatText(out, general);
 }
 
+// A non-negative number as digits rounded to `places` decimals the way a person rounds the decimal value (half away from zero), not the binary one: 1.005 is 1.01 to two places.
+QString roundedDigits(double a, int places)
+{
+    QString text = QString::number(a, 'f', QLocale::FloatingPointShortest);
+    if (text.contains(QLatin1Char('e'))) return QString::number(a, 'f', places);
+    QString whole = text.section(QLatin1Char('.'), 0, 0), frac = text.section(QLatin1Char('.'), 1);
+    if (frac.size() > places) {
+        const bool up = frac[places] >= QLatin1Char('5');
+        frac.truncate(places);
+        if (up) {
+            QString digits = whole + frac;
+            int i = int(digits.size()) - 1;
+            while (i >= 0 && digits[i] == QLatin1Char('9')) digits[i--] = QLatin1Char('0');
+            if (i >= 0) digits[i] = QChar(digits[i].unicode() + 1);
+            else digits.prepend(QLatin1Char('1'));
+            whole = digits.left(digits.size() - frac.size());
+            frac = digits.right(frac.size());
+        }
+    }
+    while (frac.size() < places) frac += QLatin1Char('0');
+    return places > 0 ? whole + QLatin1Char('.') + frac : whole;
+}
+
 QString plainNumber(double value)
 {
     if (!std::isfinite(value)) return QString();
-    QString s = QString::number(value, 'f', 6);
+    QString s = (value < 0 ? QStringLiteral("-") : QString()) + roundedDigits(std::fabs(value), 6);
     if (s.contains(QLatin1Char('.'))) {
         while (s.endsWith(QLatin1Char('0'))) s.chop(1);
         if (s.endsWith(QLatin1Char('.'))) s.chop(1);
@@ -365,17 +403,9 @@ QString numberInPicture(double value, const QString &pictureIn)
         for (int i = point + 1; i < pieces.size(); ++i)
             if (pieces[i].kind == Piece::Zero || pieces[i].kind == Piece::Hash || pieces[i].kind == Piece::Drop) ++fraction;
     fraction = std::min(fraction, 15);
-    // The digits: rounded to the places of the fraction (half away from zero).
+    // The digits: rounded to the places of the fraction (half away from zero, on the decimal value).
     const double a = std::fabs(value);
-    QString digits = QString::number(a, 'f', fraction);
-    // (QString::number rounds half to even on the binary value; a value like 2.5 to 0 places is 3 here.)
-    {
-        const double scale = std::pow(10.0, fraction);
-        if (a < 1e15 && fraction >= 0) {
-            const double r = std::round(a * scale) / scale;
-            digits = QString::number(r, 'f', fraction);
-        }
-    }
+    const QString digits = roundedDigits(a, fraction);
     QString whole = digits.section(QLatin1Char('.'), 0, 0), frac = digits.section(QLatin1Char('.'), 1);
     if (a == 0 && value != 0) whole = QStringLiteral("0");
     const bool zeroResult = digits.toDouble() == 0;
@@ -574,7 +604,13 @@ struct Parser {
         }
         return false;
     }
-    bool tick() { return ++steps > 20000 ? (failed = true, false) : true; }
+    qint64 *budget = nullptr;
+    bool tick(qint64 cost = 1)
+    {
+        if (++steps > 20000) return failed = true, false;
+        if (budget && (*budget -= cost) < 0) return failed = true, false;
+        return true;
+    }
 
     double comparison()
     {
@@ -712,6 +748,7 @@ struct Parser {
             if (f == QLatin1String("TRUE")) return 1;
             if (f == QLatin1String("FALSE")) return 0;
             if (names && *names)
+                if (!tick(50)) return 0;   // (a name asked of the document costs more than a step)
                 if (const std::optional<double> v = (*names)(name)) return *v;
             failed = true;
             return 0;
@@ -780,12 +817,13 @@ struct Parser {
 
 } // namespace
 
-std::optional<double> evaluateFormula(const QString &expression, const std::function<std::optional<double>(const QString &)> &name)
+std::optional<double> evaluateFormula(const QString &expression, const std::function<std::optional<double>(const QString &)> &name, qint64 *budget)
 {
     if (expression.size() > kMostCodeChars) return std::nullopt;
     Parser p;
     p.text = expression;
     p.names = &name;
+    p.budget = budget;
     p.skip();
     if (p.at >= p.text.size()) return std::nullopt;
     const double v = p.expression();
@@ -835,12 +873,31 @@ bool numberOf(const QString &s, double *v)
     return ok;
 }
 
-bool wildcardMatch(const QString &pattern, const QString &text)
+// A pattern with * (any run) and ? (any one character), compared without regard to case, in time at most the product of the two lengths (the longest ones are cut at the most a code
+// can hold, the same for both).
+bool wildcardMatch(const QString &patternIn, const QString &textIn)
 {
-    QString re = QRegularExpression::escape(pattern);
-    re.replace(QStringLiteral("\\*"), QStringLiteral(".*")).replace(QStringLiteral("\\?"), QStringLiteral("."));
-    QRegularExpression rx(QLatin1Char('^') + re + QLatin1Char('$'), QRegularExpression::CaseInsensitiveOption | QRegularExpression::DotMatchesEverythingOption);
-    return text.size() < 2000 && rx.match(text).hasMatch();
+    const QString pattern = patternIn.left(kMostCodeChars), text = textIn.left(kMostCodeChars);
+    const qsizetype m = pattern.size(), n = text.size();
+    qsizetype p = 0, t = 0, star = -1, mark = 0;
+    while (t < n) {
+        ++g_globSteps;
+        if (p < m && pattern[p] == QLatin1Char('*')) {
+            while (p < m && pattern[p] == QLatin1Char('*')) ++p;   // (a run of stars is one)
+            star = p;
+            mark = t;
+        } else if (p < m && (pattern[p] == QLatin1Char('?') || pattern[p].toCaseFolded() == text[t].toCaseFolded())) {
+            ++p;
+            ++t;
+        } else if (star >= 0) {
+            p = star;
+            t = ++mark;
+        } else {
+            return false;
+        }
+    }
+    while (p < m && pattern[p] == QLatin1Char('*')) ++p;
+    return p == m;
 }
 
 std::optional<QString> propertyValue(const Properties &p, const QString &nameIn, const Code &code)
@@ -871,7 +928,7 @@ std::optional<QString> propertyValue(const Properties &p, const QString &nameIn,
     if (name == QLatin1String("number of words") || name == QLatin1String("words")) return count(p.words);
     if (name == QLatin1String("number of characters") || name == QLatin1String("characters")) return count(p.characters);
     if (name == QLatin1String("number of characters (with spaces)")) return count(p.charactersWithSpaces);
-    if (name == QLatin1String("number of lines") || name == QLatin1String("lines")) return count(p.lines);
+    if (name == QLatin1String("number of lines") || name == QLatin1String("lines")) return p.lines > 0 ? count(p.lines) : std::nullopt;   // (lines are a layout's count, which a field of the text does not work out: the result it has stays)
     if (name == QLatin1String("number of paragraphs") || name == QLatin1String("paragraphs")) return count(p.paragraphs);
     return std::nullopt;
 }
@@ -881,10 +938,11 @@ std::optional<QString> referenceText(const Code &code, Env &env)
     const QString name = code.arguments.value(0).trimmed();
     if (!env.bookmark) return std::nullopt;
     if (name.isEmpty()) return referenceSourceNotFound();
-    const std::optional<BookmarkInfo> b = env.bookmark(name);
+    std::optional<BookmarkInfo> b = env.bookmark(name);
     if (!b) return referenceSourceNotFound();
     if (code.name == QLatin1String("PAGEREF")) {
         if (code.has(QLatin1Char('p'))) return b->position < env.position ? QCoreApplication::translate("jp::write::Fields", "above") : QCoreApplication::translate("jp::write::Fields", "below");
+        if (b->page.isEmpty() && env.bookmarkPage) env.bookmarkPage(name, &*b);
         if (b->page.isEmpty()) return std::nullopt;
         bool ok = false;
         const int n = b->pageIndex > 0 ? b->pageIndex : b->page.toInt(&ok);
@@ -938,8 +996,11 @@ std::optional<QString> condition(const Code &code)
 
 } // namespace
 
-QString referenceSourceNotFound() { return errorText("Error! Reference source not found."); }
-QString bookmarkNotDefined() { return errorText("Error! Bookmark not defined."); }
+qint64 globStepsForTest() { return g_globSteps; }
+void resetGlobStepsForTest() { g_globSteps = 0; }
+
+QString referenceSourceNotFound() { return errorText("Error: the bookmark this refers to is missing."); }
+QString bookmarkNotDefined() { return errorText("Error: no bookmark by this name."); }
 
 bool dependsOnTheMachine(const QString &name)
 {
@@ -1015,7 +1076,7 @@ std::optional<QString> compute(const Code &code, Env &env)
     if (n == QLatin1String("QUOTE")) return formatText(code.arguments.join(QLatin1Char(' ')), code.general);
     if (n == QLatin1String("IF")) return condition(code);
     if (n == QLatin1String("=")) {
-        const std::optional<double> v = evaluateFormula(code.expression, env.number);
+        const std::optional<double> v = evaluateFormula(code.expression, env.number, env.formulaBudget);
         return v ? std::optional<QString>(showNumber(code, *v)) : std::nullopt;
     }
     return std::nullopt;

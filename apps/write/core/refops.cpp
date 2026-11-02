@@ -16,6 +16,12 @@ using namespace jp::office::wml;
 namespace jp::write {
 
 namespace {
+qint64 g_probes = 0;
+}
+qint64 crossReferenceProbesForTest() { return g_probes; }
+void resetCrossReferenceProbesForTest() { g_probes = 0; }
+
+namespace {
 
 QByteArray escaped(const QString &s) { return jp::office::wml::escapeXml(s, true); }
 
@@ -51,9 +57,7 @@ void putBookmarkAtom(QTextCursor &c, int position, const Inline &atom)
 // A new bookmark over [from, to) (positions before anything is put in), id made from the highest of the text.
 void putBookmark(QTextDocument *story, const StoryScan &scan, const QString &name, int from, int to)
 {
-    long id = 0;
-    for (const BookmarkSpan &s : scan.bookmarks) id = std::max(id, s.id.toLong());
-    ++id;
+    long id = scan.maxBookmarkId + 1;
     QTextCursor c(story);
     putBookmarkAtom(c, to, bookmarkAtom(false, id, name));
     putBookmarkAtom(c, from, bookmarkAtom(true, id, name));
@@ -207,10 +211,17 @@ QVector<RefTarget> crossReferenceTargets(WriteDoc &doc, RefKind kind, const QStr
     const StoryScan scan = scanStory(story);
     QVector<RefTarget> out;
     int serial = 0;
-    // The bookmark a paragraph's text already has (a hidden _Ref over all of it), if any.
+    // The bookmark a paragraph's text already has (a hidden _Ref over all of it, give or take the marks beside the text), if any: found by where it begins and ends.
+    QHash<quint64, QString> refBookmarks;
+    for (const BookmarkSpan &s : scan.bookmarks)
+        if (s.name.startsWith(QLatin1String("_Ref")) && s.start >= 0 && s.end >= 0) refBookmarks.insert(quint64(s.start) << 32 | quint32(s.end), s.name);
     auto existing = [&](int from, int to) -> QString {
-        for (const BookmarkSpan &s : scan.bookmarks)
-            if (s.name.startsWith(QLatin1String("_Ref")) && s.start >= 0 && s.start <= from + 1 && s.end >= to - 1 && s.end <= to + 1) return s.name;
+        for (int a = -1; a <= 1; ++a)
+            for (int b = -1; b <= 1; ++b) {
+                ++g_probes;
+                const auto found = refBookmarks.constFind(quint64(std::max(0, from + a)) << 32 | quint32(std::max(0, to + b)));
+                if (found != refBookmarks.constEnd()) return found.value();
+            }
         return QString();
     };
     auto add = [&](const QString &text, int position, int from, int to, const QString &number) {

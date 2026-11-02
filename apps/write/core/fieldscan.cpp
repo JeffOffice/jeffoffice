@@ -110,6 +110,7 @@ StoryScan scanStory(QTextDocument *story, bool withBookmarks)
                 const int at = frag.position() + k;
                 if (bookmark && atom.kind == Inline::ParaAtom && (atom.tag == QLatin1String("bookmarkStart") || atom.tag == QLatin1String("bookmarkEnd"))) {
                     const QString id = attributeOf(atom.raw, "id");
+                    scan.maxBookmarkId = std::max(scan.maxBookmarkId, id.toLong());
                     if (atom.tag == QLatin1String("bookmarkStart")) {
                         if (scan.bookmarks.size() >= kMostBookmarks) {
                             scan.truncated = true;

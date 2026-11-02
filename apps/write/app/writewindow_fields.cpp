@@ -11,6 +11,7 @@
 #include "core/tocops.h"
 
 #include <QAction>
+#include <QLocale>
 #include <QStatusBar>
 
 namespace jp {
@@ -41,7 +42,8 @@ void WriteWindow::updateFieldsNow()
         }
     }
     const write::UpdateReport r = write::updateFieldsAt(*m_doc, c);
-    if (r.found == 0) statusBar()->showMessage(tr("There is no field here to update. Select text, or press Ctrl+A first, to update every field in it."), 6000);
+    if (r.tocTruncated) statusBar()->showMessage(tr("The table of contents has more than %1 lines, so it stops there.").arg(QLocale().toString(write::kMostTocEntries)), 10000);
+    else if (r.found == 0) statusBar()->showMessage(tr("There is no field here to update. Select text, or press Ctrl+A first, to update every field in it."), 6000);
     else statusBar()->showMessage(tr("Fields updated: %1.").arg(r.changed), 5000);
 }
 
@@ -66,6 +68,14 @@ void WriteWindow::createFieldActions()
     });
     mk("fields.unlock", tr("Unlock Field"), "lock-open", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F11), [this, after] {
         if (m_doc && inText(m_view)) write::lockFields(*m_doc, m_view->cursor(), false);
+        after();
+    });
+    mk("fields.toggleCode", tr("Toggle Field Code"), "braces", QKeySequence(Qt::SHIFT | Qt::Key_F9), [this, after] {
+        if (m_doc && inText(m_view)) write::toggleFieldCodes(*m_doc, m_view->cursor(), false);
+        after();
+    });
+    mk("fields.toggleAllCodes", tr("Toggle All Field Codes"), "braces", QKeySequence(Qt::ALT | Qt::Key_F9), [this, after] {
+        if (m_doc && inText(m_view)) write::toggleFieldCodes(*m_doc, m_view->cursor(), true);
         after();
     });
     mk("insert.field", tr("Field…"), "braces", QKeySequence(), [this, after] {

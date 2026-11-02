@@ -129,8 +129,9 @@ bool omitsPage(const fields::Code &code, int level)
 
 } // namespace
 
-QVector<TocLine> tocLines(WriteDoc &doc, const StoryScan &scan, int field, const fields::Code &code, const PageLookup &pageOf)
+QVector<TocLine> tocLines(WriteDoc &doc, const StoryScan &scan, int field, const fields::Code &code, const PageLookup &pageOf, bool *truncated)
 {
+    if (truncated) *truncated = false;
     const FieldPlace &self = scan.fields[field];
     QTextDocument *story = doc.story();
     int lo = 1, hi = 9;
@@ -177,12 +178,12 @@ QVector<TocLine> tocLines(WriteDoc &doc, const StoryScan &scan, int field, const
         const auto found = scan.bookmarkByName.constFind(code.argumentOf(QLatin1Char('b')).trimmed().toLower());
         if (found != scan.bookmarkByName.constEnd()) {
             limitFrom = scan.bookmarks[found.value()].start;
-            limitTo = scan.bookmarks[found.value()].end;
+            if (scan.bookmarks[found.value()].end >= 0) limitTo = scan.bookmarks[found.value()].end;   // (a bookmark that was never closed runs to the end of the text)
         }
     }
     QVector<TocLine> out;
     int serial = 0;
-    for (QTextBlock b = story->begin(); b.isValid() && out.size() < kMostTocEntries; b = b.next()) {
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
         const QTextBlockFormat bf = b.blockFormat();
         if (bf.hasProperty(prop::EndnoteBlock) || bf.hasProperty(prop::RawBlock)) continue;
         if (b.position() < limitFrom || b.position() > limitTo) continue;
@@ -204,6 +205,10 @@ QVector<TocLine> tocLines(WriteDoc &doc, const StoryScan &scan, int field, const
         line.level = level;
         line.text = entryText(b, self.separate + 1, self.end);
         if (line.text.isEmpty()) continue;
+        if (out.size() >= kMostTocEntries) {
+            if (truncated) *truncated = true;
+            break;
+        }
         if (!captions) line.number = paragraphLabelOf(b);
         line.position = b.position();
         line.bookmark = tocBookmark.value(b.blockNumber());
@@ -228,11 +233,53 @@ QVector<TocLine> tocLines(WriteDoc &doc, const StoryScan &scan, int field, const
     return out;
 }
 
+void putTocBookmarks(QTextDocument *story, const StoryScan &scan, const QVector<int> &positionsIn)
+{
+    QVector<int> positions = positionsIn;
+    std::sort(positions.begin(), positions.end(), std::greater<int>());
+    positions.erase(std::unique(positions.begin(), positions.end()), positions.end());
+    // Names above those the text has; ids above every id of the file.
+    long id = scan.maxBookmarkId + long(positions.size());
+    int serial = 0;
+    QSet<QString> used;
+    QHash<int, QString> names;
+    for (int i = int(positions.size()) - 1; i >= 0; --i) {
+        QString name;
+        do name = QStringLiteral("_Toc%1").arg(100000001 + serial++);
+        while (scan.bookmarkByName.contains(name.toLower()) || used.contains(name));
+        used.insert(name);
+        names.insert(positions[i], name);
+    }
+    QTextCursor c(story);
+    for (int position : std::as_const(positions)) {
+        const QTextBlock b = story->findBlock(position);
+        if (!b.isValid()) continue;
+        Inline start, end;
+        start.kind = end.kind = Inline::ParaAtom;
+        start.tag = QStringLiteral("bookmarkStart");
+        end.tag = QStringLiteral("bookmarkEnd");
+        start.key = end.key = QString::number(id);
+        start.raw = "<w:bookmarkStart w:id=\"" + QByteArray::number(qlonglong(id)) + "\" w:name=\"" + escaped(names.value(position)) + "\"/>";
+        end.raw = "<w:bookmarkEnd w:id=\"" + QByteArray::number(qlonglong(id)) + "\"/>";
+        --id;
+        QTextCharFormat look = b.charFormat();
+        for (const int key : {int(prop::Atom), int(tp::Field)}) look.clearProperty(key);
+        // The paragraph's text, past a page break that begins it, to its end.
+        const QString plain = b.text();
+        int from = 0;
+        while (from < plain.size() - 1 && (plain[from] == QChar(0x000C) || plain[from] == QChar::ObjectReplacementCharacter)) ++from;
+        c.setPosition(b.position() + int(plain.size()));
+        putAtomAt(c, end, look);
+        c.setPosition(b.position() + from);
+        putAtomAt(c, start, look);
+    }
+}
+
 QStringList tocLineTexts(const QVector<TocLine> &lines, const fields::Code &code)
 {
     const QString separator = code.has(QLatin1Char('p')) ? code.argumentOf(QLatin1Char('p')) : QStringLiteral("\t");
     QStringList out;
-    if (lines.isEmpty()) return {QCoreApplication::translate("jp::write::Fields", "No table of contents entries found.")};
+    if (lines.isEmpty()) return {QCoreApplication::translate("jp::write::Fields", "No headings were found for this table of contents.")};
     for (const TocLine &l : lines) {
         QString t = l.number.isEmpty() ? l.text : l.number + QLatin1Char('\t') + l.text;
         if (!omitsPage(code, l.level) && !l.page.isEmpty()) t += separator + l.page;
@@ -245,38 +292,7 @@ bool rebuildToc(WriteDoc &doc, QTextDocument *story, const StoryScan &scan, int 
 {
     const FieldPlace &f = scan.fields[field];
     if (f.form != FieldPlace::Complex || f.separate < 0 || f.end <= f.separate) return false;
-    // The _Toc bookmarks the headings lack, put in first (from the last heading to the first): everything after one moves by what it adds.
-    long maxId = 0;
-    for (const BookmarkSpan &s : scan.bookmarks) maxId = std::max(maxId, s.id.toLong());
-    QVector<const TocLine *> bookmarked;
-    for (const TocLine &l : lines)
-        if (l.newBookmark) bookmarked.push_back(&l);
-    std::sort(bookmarked.begin(), bookmarked.end(), [](const TocLine *a, const TocLine *b) { return a->position > b->position; });
-    int shift = 0;
-    {
-        QTextCursor c(story);
-        long id = maxId + int(bookmarked.size());
-        for (const TocLine *l : std::as_const(bookmarked)) {
-            const QTextBlock b = story->findBlock(l->position);
-            if (!b.isValid()) continue;
-            const bool beforeTable = b.position() + b.length() <= f.begin;   // (asked before the marks go in: a block is a live handle)
-            Inline start, end;
-            start.kind = end.kind = Inline::ParaAtom;
-            start.tag = QStringLiteral("bookmarkStart");
-            end.tag = QStringLiteral("bookmarkEnd");
-            start.key = end.key = QString::number(id);
-            start.raw = "<w:bookmarkStart w:id=\"" + QByteArray::number(qlonglong(id)) + "\" w:name=\"" + escaped(l->bookmark) + "\"/>";
-            end.raw = "<w:bookmarkEnd w:id=\"" + QByteArray::number(qlonglong(id)) + "\"/>";
-            --id;
-            QTextCharFormat look = b.charFormat();
-            for (const int key : {int(prop::Atom), int(tp::Field)}) look.clearProperty(key);
-            c.setPosition(b.position() + b.length() - 1);
-            putAtomAt(c, end, look);
-            c.setPosition(b.position());
-            putAtomAt(c, start, look);
-            if (beforeTable) shift += 2;
-        }
-    }
+    const int shift = 0;   // (the headings' bookmarks are made before the pass that builds the table: see putTocBookmarks)
     const int s = f.separate + shift, e = f.end + shift;
     QTextBlock firstBlock = story->findBlock(s), lastBlock = story->findBlock(e);
     const bool sameBlock = firstBlock == lastBlock;
@@ -315,7 +331,7 @@ bool rebuildToc(WriteDoc &doc, QTextDocument *story, const StoryScan &scan, int 
         return style;
     };
     if (lines.isEmpty()) {
-        c.insertText(QCoreApplication::translate("jp::write::Fields", "No table of contents entries found."), look);
+        c.insertText(QCoreApplication::translate("jp::write::Fields", "No headings were found for this table of contents."), look);
         return true;
     }
     for (int i = 0; i < lines.size(); ++i) {
@@ -391,14 +407,13 @@ QString tocCode(const TocOptions &o)
     return code + QLatin1Char(' ');
 }
 
-bool insertTableOfContents(WriteDoc &doc, QTextCursor &c, const TocOptions &options)
+bool insertTableOfContents(WriteDoc &doc, QTextCursor &c, const TocOptions &options, bool *truncated)
 {
     QTextDocument *story = doc.story();
     if (c.document() != story || !intoBody(c)) return false;
     WriteDoc::StepGroup group(doc);
     EditScope scope(doc, story);
-    QTextCursor edit(story);
-    edit.beginEditBlock();
+    // (No edit block round it all: the pages must see the table's marks before its lines are made, and a block holds the news of the edits back. The group makes it one step.)
     QTextCursor at(story);
     at.setPosition(c.selectionEnd());
     const QTextBlock b = at.block();
@@ -418,8 +433,8 @@ bool insertTableOfContents(WriteDoc &doc, QTextCursor &c, const TocOptions &opti
     u.from = begin;
     u.to = begin + 3;
     u.tocLeader = options.leader;
-    updateFields(doc, u);
-    edit.endEditBlock();
+    const UpdateReport report = updateFields(doc, u, true);
+    if (truncated) *truncated = report.tocTruncated;
     c.setPosition(begin);
     return true;
 }

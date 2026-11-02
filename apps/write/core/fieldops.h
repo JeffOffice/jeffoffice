@@ -56,6 +56,7 @@ struct StoryScan {
     QHash<QString, int> bookmarkByName;       // (lower case) -> the first of the name
     QString plain;
     bool truncated = false;
+    long maxBookmarkId = 0;                   // the highest id of any bookmark mark in the story, those past the most that are kept too
     // The text of the result a field has, marks left out.
     QString resultOf(int field) const;
     // The code of a field with the nested fields' results (those in `override` in place of the ones the story has).
@@ -88,6 +89,7 @@ struct UpdateOptions {
 
 struct UpdateReport {
     int found = 0, changed = 0, unchanged = 0, kept = 0, locked = 0;
+    bool tocTruncated = false;                   // a table of contents had more lines than kMostTocEntries and was cut there
     QVector<FieldChange> changes;                // every field looked at, with what it was and would be (only when `keepChanges`)
 };
 
@@ -101,6 +103,15 @@ UpdateReport updateFieldsAt(WriteDoc &doc, const QTextCursor &c);
 int unlinkFields(WriteDoc &doc, const QTextCursor &c);
 // Locks (or unlocks) the fields the selection touches (Ctrl+F11, Ctrl+Shift+F11). Returns how many were changed.
 int lockFields(WriteDoc &doc, const QTextCursor &c, bool lock);
+// Shows the codes of the field at the caret (Shift+F9), or of every field (Alt+F9, with `all`), in braces in place of the results, or shows the results again. A view only: the file is
+// written as it was. Returns how many fields were changed.
+int toggleFieldCodes(WriteDoc &doc, const QTextCursor &c, bool all);
+
+// Counted work, for tests: the paragraphs looked at to find the paragraph of a style, and the checks of results made again, since the counts were reset.
+qint64 styleRefParagraphVisitsForTest();
+qint64 resultOverlapChecksForTest();
+void resetFieldWorkForTest();
+
 // The innermost field of the text that holds the position (the caret), -1 for none.
 int fieldContaining(const StoryScan &scan, int position);
 

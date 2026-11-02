@@ -49,6 +49,10 @@ QString crossReferenceCode(const RefTarget &target, RefKind kind, RefWhat what, 
 // Puts the reference at the caret, making the bookmark if the target has none, as one step. False, with the reason, where it can't be.
 bool insertCrossReference(WriteDoc &doc, QTextCursor &c, const RefTarget &target, RefKind kind, RefWhat what, bool hyperlink, QString *problem = nullptr);
 
+// Counted work, for tests: the bookmarks looked at to find a target's own bookmark, since the count was reset.
+qint64 crossReferenceProbesForTest();
+void resetCrossReferenceProbesForTest();
+
 // ---- following links
 // The place in the text that the link at a position goes to: a hyperlink to a bookmark, or a field with \h (REF, PAGEREF, NOTEREF) or a TOC entry. -1 where the position is in none.
 int linkTargetAt(WriteDoc &doc, int position);
