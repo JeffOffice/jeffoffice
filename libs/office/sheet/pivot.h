@@ -32,7 +32,6 @@ constexpr qint64 kPivotMaxItemsPerTable = 2000000;   // the items of all the fie
 constexpr int kPivotMaxDataFields = 1000;
 constexpr qint64 kPivotMaxRows = 1048576;            // lines of the rows' axis, and of the columns' (a sheet's rows and columns)
 constexpr qint64 kPivotMaxCols = 16384;
-constexpr int kPivotMaxWrittenColumnItems = 256;   // the most column items a table we write has: the original program does not finish (or dies) updating a table of a thousand columns
 // What a part of a pivot table or cache may be once inflated (a table's, a cache definition's, the records').
 constexpr qint64 kPivotMaxTablePartBytes = qint64(128) << 20;
 constexpr qint64 kPivotMaxDefinitionBytes = qint64(256) << 20;

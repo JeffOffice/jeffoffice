@@ -456,6 +456,7 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool
             x.setAttribute(QStringLiteral("fld"), QString::number(p.fld));
             if (p.item >= 0) x.setAttribute(QStringLiteral("item"), QString::number(p.item));
             else x.removeAttribute(QStringLiteral("item"));
+            if (!x.hasAttribute(QStringLiteral("hier")) && pageWas.contains(p.fld) && pageWas.value(p.fld).hasAttribute(QStringLiteral("hier"))) x.setAttribute(QStringLiteral("hier"), pageWas.value(p.fld).attribute(QStringLiteral("hier")));   // (the file's own mark of it, as the original program writes it back)
             if (!x.hasAttribute(QStringLiteral("hier"))) x.setAttribute(QStringLiteral("hier"), QStringLiteral("-1"));
             pf.appendChild(x);
         }
