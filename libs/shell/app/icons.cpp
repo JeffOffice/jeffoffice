@@ -92,6 +92,8 @@ QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QDateTimeEdit, Q
 QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover, QComboBox:hover { border-color: %3; }
 QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus { border: 1px solid %5; }
 QComboBox { padding-right: 22px; min-height: 20px; }
+/* the fields of a ribbon row are as tall as the row (22), whatever the padding and the font */
+QComboBox[ribbonRow="true"], QAbstractSpinBox[ribbonRow="true"], QLineEdit[ribbonRow="true"] { padding-top: 0px; padding-bottom: 0px; min-height: 18px; }
 QComboBox QLineEdit, QAbstractSpinBox QLineEdit { border: none; padding: 0; margin: 0; background: transparent; border-radius: 0; }
 QComboBox:editable { padding-left: 6px; padding-right: 0px; }
 QComboBox::drop-down { border: none; width: 22px; }

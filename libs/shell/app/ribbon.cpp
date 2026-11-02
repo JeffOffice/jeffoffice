@@ -21,6 +21,8 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScrollArea>
+#include <QStyleOptionToolButton>
+#include <QStylePainter>
 #include <QScrollBar>
 #include <QStackedWidget>
 #include <QStyleHints>
@@ -149,9 +151,52 @@ protected:
 };
 } // namespace
 
+namespace {
+// A small toggle (a switch with its words): icon and text start at the left, so a column of them reads straight and the buttons of the column can be one width.
+class SmallToggle : public QToolButton {
+public:
+    using QToolButton::QToolButton;
+
+protected:
+    void paintEvent(QPaintEvent *e) override
+    {
+        if (menu() || popupMode() != QToolButton::DelayedPopup || toolButtonStyle() != Qt::ToolButtonTextBesideIcon) {
+            QToolButton::paintEvent(e);
+            return;
+        }
+        QStyleOptionToolButton opt;
+        initStyleOption(&opt);
+        QStylePainter p(this);
+        QStyleOptionToolButton panel = opt;
+        panel.features &= ~QStyleOptionToolButton::HasMenu;
+        p.drawPrimitive(QStyle::PE_PanelButtonTool, panel);
+        const QRect r = opt.rect.adjusted(5, 0, -5, 0);
+        const QSize is = iconSize();
+        const QIcon::Mode mode = isEnabled() ? QIcon::Normal : QIcon::Disabled;
+        int x = r.left();
+        if (!icon().isNull()) {
+            icon().paint(&p, QRect(x, (height() - is.height()) / 2, is.width(), is.height()), Qt::AlignCenter, mode, isChecked() ? QIcon::On : QIcon::Off);
+            x += is.width() + 4;
+        }
+        p.setPen(palette().color(isEnabled() ? QPalette::Active : QPalette::Disabled, QPalette::ButtonText));
+        QString text = opt.text;
+        text.remove(QLatin1Char('&'));
+        p.drawText(QRect(x, 0, r.right() - x + 1, height()), Qt::AlignLeft | Qt::AlignVCenter, fontMetrics().elidedText(text, Qt::ElideRight, r.right() - x + 1));
+        if (hasFocus()) {
+            QStyleOptionFocusRect fo;
+            fo.initFrom(this);
+            fo.rect = rect().adjusted(1, 1, -1, -1);
+            p.drawPrimitive(QStyle::PE_FrameFocusRect, fo);
+        }
+    }
+};
+} // namespace
+
+bool isRibbonToggle(const QToolButton *b) { return dynamic_cast<const SmallToggle *>(b) != nullptr; }
+
 QToolButton *ribbonButton(QAction *a, bool large, QWidget *parent)
 {
-    auto *b = large ? new LargeButton(parent) : new QToolButton(parent);
+    auto *b = large ? new LargeButton(parent) : !large && a && a->isCheckable() ? new SmallToggle(parent) : new QToolButton(parent);
     if (large) b->setAttribute(Qt::WA_Hover);
     b->setDefaultAction(a);
     b->setAutoRaise(true);
@@ -258,6 +303,7 @@ void RibbonGroup::beginColumn()
     m_cols->addLayout(m_col);
     m_rows = 0;
     m_rowLabels.clear();
+    m_colToggles.clear();
 }
 
 QToolButton *RibbonGroup::addSmall(QAction *a, QMenu *menu, bool split, bool iconOnly)
@@ -271,6 +317,13 @@ QToolButton *RibbonGroup::addSmall(QAction *a, QMenu *menu, bool split, bool ico
     }
     m_col->insertWidget(m_col->count() - 1, b, 0, Qt::AlignLeft);
     ++m_rows;
+    // The toggles of a column are one width (the longest), so their highlights line up.
+    if (isRibbonToggle(b) && !menu && !iconOnly) {
+        m_colToggles << b;
+        int w = 0;
+        for (QToolButton *t : std::as_const(m_colToggles)) w = std::max(w, t->sizeHint().width());
+        for (QToolButton *t : std::as_const(m_colToggles)) t->setMinimumWidth(w);
+    }
     return b;
 }
 
@@ -282,6 +335,7 @@ void RibbonGroup::addRow(const QList<QWidget *> &widgets)
     row->setContentsMargins(0, 0, 0, 0);
     for (QWidget *w : widgets) {
         w->setParent(this);
+        w->setProperty("ribbonRow", true);   // (the style sheet takes the padding off its fields)
         w->setFixedHeight(kSmallRowHeight);   // a row is as tall as a small button, so three fit the body
         row->addWidget(w);
     }
@@ -310,6 +364,7 @@ void RibbonGroup::addGrid(const QList<QList<QWidget *>> &rows)
         for (int c = 0; c < rows[r].size(); ++c) {
             QWidget *w = rows[r][c];
             w->setParent(this);
+            w->setProperty("ribbonRow", true);
             w->setFixedHeight(kSmallRowHeight);
             // The first column names the rows, the first row the columns; check boxes and headings sit centered, fields fill their column.
             const bool field = qobject_cast<QComboBox *>(w) || qobject_cast<QAbstractSpinBox *>(w);
@@ -775,7 +830,7 @@ public:
             ++shown;
             text += fm.horizontalAdvance(t.title) + (t.group.isEmpty() ? 0 : 12) + 4;
         }
-        if (shown) pad = std::clamp((width() - 64 - x - text) / shown, 12, 26) ;
+        if (shown) pad = std::clamp((width() - 64 - x - text) / shown, 4, 26) ;
         for (HeaderButton *b : tabButtons) {
             const auto &t = m_r->m_tabs[b->tab()];
             b->setAccessibleDescription(t.group.isEmpty() ? QCoreApplication::translate("Ribbon", "Ribbon tab") : QCoreApplication::translate("Ribbon", "Ribbon tab, %1").arg(t.group));

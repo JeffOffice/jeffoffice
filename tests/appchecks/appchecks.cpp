@@ -4,6 +4,7 @@
 #include "app/help.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/theme.h"
 #include "io/zip.h"
 
 #include <QAbstractButton>
@@ -31,6 +32,8 @@
 #include <QMimeData>
 #include <QPrintDialog>
 #include <QScrollArea>
+#include <QStyle>
+#include <QStyleFactory>
 #include <QScrollBar>
 #include <QStackedWidget>
 #include <QStandardPaths>
@@ -1020,7 +1023,25 @@ QStringList checkRibbonLayout(Adapter &app)
     QStringList fails;
     const QString shots = qEnvironmentVariable("JP_RIBBON_SHOTS");
     if (!shots.isEmpty()) QDir().mkpath(shots);
+    // The look a person has: the Fusion style and the program's style sheet (as each app's main() sets them), whatever platform the test runs on, at the system font and at two larger ones
+    // (desktops differ). The program's own settings come back at the end.
+    struct Look {
+        QString style, css;
+        QPalette palette;
+        QFont font;
+    } saved{QApplication::style()->name(), qApp->styleSheet(), QApplication::palette(), QApplication::font()};
+    qInfo("ribbon layout: platform %s, style %s, font %s %g", qPrintable(QGuiApplication::platformName()), qPrintable(saved.style), qPrintable(saved.font.family()), saved.font.pointSizeF());
+    QApplication::setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
+    jp::applyUiTheme(1);
+    // (the offscreen platform has a font of its own; a desktop's is "Sans" at 10 points)
+    QFont base = QApplication::font();
+    if (QGuiApplication::platformName() == QLatin1String("offscreen")) base = QFont(QStringLiteral("Sans"), 10);
+    for (const double points : {0.0, 11.0, 12.0})
     for (const int width : {1440, 1024}) {
+        QFont f = base;
+        if (points > 0) f.setPointSizeF(points);
+        QApplication::setFont(f);
+        const QString at = QStringLiteral("%1%2").arg(width).arg(points > 0 ? QStringLiteral(" at %1 pt").arg(points) : QString());
         std::unique_ptr<jp::AppWindow> w(app.launch());
         if (!w || !w->ribbon()) {
             fails << app.name + QLatin1String(": no window with a ribbon");
@@ -1045,10 +1066,10 @@ QStringList checkRibbonLayout(Adapter &app)
             for (int i = 0; i < parts.size(); ++i) {
                 const QRect a(parts[i]->mapTo(r, QPoint(0, 0)), parts[i]->size());
                 const QString name = controlName(parts[i]);
-                if (a.right() > r->width()) fails << QStringLiteral("%1/%2 at %3: %4 %5 runs off the ribbon (%6 wide)").arg(app.name, what).arg(width).arg(name, rectText(a)).arg(r->width());
+                if (a.right() > r->width()) fails << QStringLiteral("%1/%2 at %3: %4 %5 runs off the ribbon (%6 wide)").arg(app.name, what).arg(at).arg(name, rectText(a)).arg(r->width());
                 for (int k = i + 1; k < parts.size(); ++k) {
                     const QRect b(parts[k]->mapTo(r, QPoint(0, 0)), parts[k]->size());
-                    if (a.intersects(b)) fails << QStringLiteral("%1/%2 at %3: %4 %5 overlaps %6 %7").arg(app.name, what).arg(width).arg(name, rectText(a), controlName(parts[k]), rectText(b));
+                    if (a.intersects(b)) fails << QStringLiteral("%1/%2 at %3: %4 %5 overlaps %6 %7").arg(app.name, what).arg(at).arg(name, rectText(a), controlName(parts[k]), rectText(b));
                 }
             }
         };
@@ -1068,11 +1089,11 @@ QStringList checkRibbonLayout(Adapter &app)
             QString tabName;
             for (int i = 0; i < r->tabCount(); ++i)
                 if (r->tabPage(i) == page) tabName = r->tabName(i);
-            const QString where = QStringLiteral("%1/%2 at %3").arg(app.name, tabName).arg(width);
+            const QString where = QStringLiteral("%1/%2 at %3").arg(app.name, tabName).arg(at);
             if (!shots.isEmpty()) {
                 QString file = tabName;
                 file.replace(QRegularExpression(QStringLiteral("[^A-Za-z0-9]+")), QStringLiteral("-"));
-                r->grab().save(QStringLiteral("%1/%2-%3-%4.png").arg(shots, app.name, file).arg(width));
+                r->grab().save(QStringLiteral("%1/%2-%3-%4.png").arg(shots, app.name, file).arg(points > 0 ? QStringLiteral("%1-%2pt").arg(width).arg(points) : QString::number(width)));
             }
             QWidget *viewport = page->parentWidget();
             if (auto *sa = qobject_cast<QScrollArea *>(viewport ? viewport->parentWidget() : nullptr))
@@ -1108,7 +1129,9 @@ QStringList checkRibbonLayout(Adapter &app)
                     }
                     // (a drop-down shows its current choice and may be narrower than its longest one)
                     const bool text = qobject_cast<QAbstractButton *>(c) || qobject_cast<QLabel *>(c) || qobject_cast<QAbstractSpinBox *>(c);
-                    if (text && (c->sizeHint().width() > c->width() || c->fontMetrics().height() > c->height()))
+                    // (a number box's hint is for the widest number its range allows, so only its height is held to the text)
+                    const bool numberBox = qobject_cast<QAbstractSpinBox *>(c);
+                    if (text && ((!numberBox && c->sizeHint().width() > c->width()) || c->fontMetrics().height() > c->height()))
                         fails << cw + QStringLiteral(": its text is cut (it is %1 and wants %2 wide and %3 tall for a line)").arg(rectText(cr)).arg(c->sizeHint().width()).arg(c->fontMetrics().height());
                 }
             }
@@ -1148,6 +1171,10 @@ QStringList checkRibbonLayout(Adapter &app)
             }
         }
     }
+    QApplication::setStyle(QStyleFactory::create(saved.style));
+    qApp->setStyleSheet(saved.css);
+    QApplication::setPalette(saved.palette);
+    QApplication::setFont(saved.font);
     return fails;
 }
 

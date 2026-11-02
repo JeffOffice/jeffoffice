@@ -55,6 +55,7 @@ private:
     QHBoxLayout *m_cols;
     QVBoxLayout *m_col = nullptr;
     int m_rows = 0;
+    QList<QToolButton *> m_colToggles;   // the small toggles of the current column
     QList<QLabel *> m_rowLabels;   // the labels that start the rows of the current column
     QString m_title;
     QToolButton *m_launcher = nullptr;
@@ -173,6 +174,7 @@ private:
 // The height of a small button and of every row of controls beside it: three rows fit the ribbon's body.
 constexpr int kSmallRowHeight = 22;
 QToolButton *ribbonButton(QAction *a, bool large, QWidget *parent);
+bool isRibbonToggle(const QToolButton *b);   // a small button for a checkable command
 // A check box (the box alone) for a checkable command, for a ribbon grid.
 QToolButton *ribbonCheck(QAction *a, QWidget *parent);
 // Drawing shared by every large ribbon button (icon over a label wrapped to two lines).
