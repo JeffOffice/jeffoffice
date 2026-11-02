@@ -151,6 +151,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     m_view->setClickGuard([this] { return commitEdit(CellEditor::Way::Stay); });
     m_view->setPointGuard([this](qint64 row, qint64 col) { return pointAtTableCell(row, col); });
     m_view->setPointer([this](const grid::GridView::PointSpan &span, bool first, Qt::KeyboardModifiers modifiers) { return pointAtCells(span, first, modifiers); });
+    m_view->setPointAdjuster([this](int id, const grid::GridRange &block, bool final) { adjustReference(id, block, final); });
     for (QLineEdit *line : {static_cast<QLineEdit *>(m_cellEditor), m_formulaBar}) {
         connect(line, &QLineEdit::cursorPositionChanged, this, [this] { updatePointViews(); });
         connect(line, &QLineEdit::textChanged, this, [this] { updatePointViews(); });

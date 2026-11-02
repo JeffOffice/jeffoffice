@@ -21,6 +21,7 @@
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
+#include <QGuiApplication>
 #include <QMenu>
 #include <QPainter>
 #include <QToolButton>
@@ -418,12 +419,13 @@ void CrunchWindow::tableDialog(int mode)
 bool CrunchWindow::pointAtTableCell(qint64 row, qint64 col)
 {
     if (!m_edit.active || !m_session || !m_loaded || row < 0 || col < 0) return false;
-    QLineEdit *line = m_formulaBar && m_formulaBar->hasFocus() ? static_cast<QLineEdit *>(m_formulaBar) : static_cast<QLineEdit *>(m_cellEditor);
+    QLineEdit *line = editLine();   // (the line the entry is in: the click has taken the focus to the grid)
     if (!line || !line->text().startsWith(QLatin1Char('='))) return false;
     const int index = m_session->tableAt(m_sheet, quint32(row), quint32(col));
     if (index < 0) return false;
+    const bool valid = pointValid(line);   // (a second click replaces the reference the first wrote)
     const crunch::FormulaSpot spot = crunch::spotAt(line->text(), line->cursorPosition(), crunch::argumentSeparator(m_session->locale()));
-    if (!spot.canPoint) return false;
+    if (!valid && !spot.canPoint) return false;
     const Table &t = m_session->workbook()->tables()[index];
     const int column = int(quint32(col) - t.col1);
     if (column < 0 || column >= t.columns.size()) return false;
@@ -437,8 +439,11 @@ bool CrunchWindow::pointAtTableCell(qint64 row, qint64 col)
     else if (t.totalsRows > 0 && quint32(row) == t.row2) text = jp::office::sheet::structuredSpecialRef(t.name, QStringLiteral("#Totals"), t.columns[column]);
     else if (sameSheet && formulaRow == quint32(row)) text = (inside ? QString() : t.name) + jp::office::sheet::structuredRowRef(t.name, t.columns[column], true);
     else text = (sameSheet ? QString() : jp::office::sheet::sheetNamePrefix(m_loaded->book->info().sheets[t.sheet].name)) + jp::office::sheet::cellName(quint32(row), quint32(col));
-    line->insert(text);
-    Q_EMIT line->textEdited(line->text());
+    const bool ctrl = QGuiApplication::keyboardModifiers() & Qt::ControlModifier;
+    writePoint(line, text, valid && !ctrl, valid && ctrl);
+    m_point.sheet = m_sheet;
+    m_point.anchorRow = m_point.headRow = row;
+    m_point.anchorCol = m_point.headCol = col;
     return true;
 }
 

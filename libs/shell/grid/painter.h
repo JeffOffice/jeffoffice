@@ -28,6 +28,7 @@ namespace jp::grid {
 struct PointMark {
     GridRange range;
     QColor color;
+    int id = -1;   // which reference of the formula it is
 };
 
 struct PaintOptions {

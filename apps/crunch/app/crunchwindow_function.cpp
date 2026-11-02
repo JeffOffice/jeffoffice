@@ -1,6 +1,7 @@
 // Pick a Function, and AutoSum's All Functions: the dialog picks a function, and the Function Arguments dialog then fills in its arguments with the result shown as they are typed; OK puts the call in
 // the cell being typed in (at the cursor) or in the cell with the cursor. With the cursor inside a function's brackets in a formula being typed (Shift+F3, or the fx button), that call is what is changed.
 #include "app/crunchwindow.h"
+#include "core/formularefs.h"
 
 #include "app/functionargumentsdialog.h"
 #include "app/help.h"
@@ -122,11 +123,12 @@ void CrunchWindow::functionArguments(const crunch::FunctionDoc &doc, const QStri
     connect(&dialog, &FunctionArgumentsDialog::pickingStarted, this, [this, &dialog, &pointing, sheet](int boxRow) {
         pointing = connect(m_view, &grid::GridView::selectionChanged, &dialog, [this, &dialog, boxRow, sheet] {
             if (!dialog.isPicking() || !m_loaded) return;
-            QString where = m_view->rangeName();
-            if (m_sheet >= 0 && m_sheet < int(m_loaded->book->info().sheets.size())) {
-                if (m_view->selection().isOneCell()) where = jp::office::sheet::cellName(quint32(m_view->selection().activeRow), quint32(m_view->selection().activeCol));
-                if (m_sheet != sheet) where = jp::office::sheet::sheetNamePrefix(m_loaded->book->info().sheets[size_t(m_sheet)].name) + where;
-            }
+            // (the same addresses as pointing writes: A:A for a whole column, 3:3 for a whole row)
+            const grid::Selection &sel = m_view->selection();
+            using Kind = crunch::FormulaRef::Kind;
+            const Kind kind = sel.whole == grid::Selection::Whole::Columns ? Kind::Columns : sel.whole == grid::Selection::Whole::Rows ? Kind::Rows : Kind::Range;
+            QString where = crunch::referenceText(kind, quint32(sel.range.row1), quint32(sel.range.col1), quint32(sel.range.row2), quint32(sel.range.col2));
+            if (m_sheet >= 0 && m_sheet < int(m_loaded->book->info().sheets.size()) && m_sheet != sheet) where = jp::office::sheet::sheetNamePrefix(m_loaded->book->info().sheets[size_t(m_sheet)].name) + where;
             dialog.setArgumentText(boxRow, where);
         });
     });

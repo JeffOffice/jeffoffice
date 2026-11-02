@@ -26,6 +26,9 @@ std::vector<FormulaRef> findReferences(const QString &text);
 // "B2:C3" or "$D:$D", with no sheet.
 QString nextFixedForm(const QString &body);
 
+// `newBody` (B2:D5, no $) written with the fixed parts of `oldBody` ($B$2:C3): each end keeps the dollar signs its place had (the second keeps the first's when the old had one end).
+QString refitBody(const QString &oldBody, const QString &newBody);
+
 // The text of a reference to cells (rows and columns from 0), with no "$": B3, B2:D5, A:A, B:D, 3:3, 2:5. A range of one cell is that cell.
 QString referenceText(FormulaRef::Kind kind, quint32 row1, quint32 col1, quint32 row2, quint32 col2);
 

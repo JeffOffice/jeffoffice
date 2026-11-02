@@ -3,6 +3,8 @@
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/sheettabs.h"
+#include "app/functionargumentsdialog.h"
+#include "app/insertfunctiondialog.h"
 #include "core/appinfo.h"
 #include "core/formularefs.h"
 #include "core/fonts.h"
@@ -43,6 +45,16 @@ void drag(EditWindow &e, const QPoint &from, const QPoint &to)
     QTest::mouseMove(vp, (from + to) / 2);
     QTest::mouseMove(vp, to);
     QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, to);
+}
+
+QByteArray mergedBook() { return buildXlsx({worksheet(QStringLiteral("<row r=\"2\"><c r=\"B2\"><v>1</v></c></row>"), QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"B2:C3\"/></mergeCells>"))}); }
+
+QByteArray salesBook()
+{
+    auto t = [](const QString &ref, const QString &v) { return QStringLiteral("<c r=\"%1\" t=\"inlineStr\"><is><t>%2</t></is></c>").arg(ref, v); };
+    auto n = [](const QString &ref, int v) { return QStringLiteral("<c r=\"%1\"><v>%2</v></c>").arg(ref).arg(v); };
+    return buildXlsx({worksheet(QStringLiteral("<row r=\"1\">") + t(QStringLiteral("A1"), QStringLiteral("Region")) + t(QStringLiteral("B1"), QStringLiteral("Q1")) + QStringLiteral("</row><row r=\"2\">") + t(QStringLiteral("A2"), QStringLiteral("East")) + n(QStringLiteral("B2"), 1)
+                                 + QStringLiteral("</row><row r=\"3\">") + t(QStringLiteral("A3"), QStringLiteral("West")) + n(QStringLiteral("B3"), 2) + QStringLiteral("</row><row r=\"4\">") + t(QStringLiteral("A4"), QStringLiteral("North")) + n(QStringLiteral("B4"), 3) + QStringLiteral("</row>"))});
 }
 
 QPoint columnHeader(EditWindow &e, const QString &ref)
@@ -357,6 +369,144 @@ private Q_SLOTS:
         click(e, QStringLiteral("D4"));
         QVERIFY(!w.isEditing());
         QCOMPARE(w.session()->editText(0, 2, 5), QStringLiteral("x"));
+    }
+
+
+    // A merged range is one cell to point at: a click anywhere in it writes the whole range.
+    void aMergedCellIsPointedAtAsItsWholeRange()
+    {
+        EditWindow e;
+        QVERIFY(e.open(mergedBook()));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("F1"));
+        e.type(QStringLiteral("=SUM("));
+        click(e, QStringLiteral("C3"));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=SUM(B2:C3"));
+        click(e, QStringLiteral("B2"));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=SUM(B2:C3"));
+        e.key(Qt::Key_Escape);
+    }
+
+    // Ctrl and an arrow jump to the edge of the data as they do on the sheet; with Shift they extend.
+    void ctrlArrowsJumpToTheEdgeOfTheData()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("A5"));
+        e.type(QStringLiteral("="));
+        e.key(Qt::Key_Up, Qt::ControlModifier);
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=A3"));
+        e.key(Qt::Key_Up, Qt::ControlModifier | Qt::ShiftModifier);
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=A1:A3"));
+        e.key(Qt::Key_Right, Qt::ControlModifier | Qt::ShiftModifier);
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=A1:C3"));   // (the walk starts at the moving corner, A1, and A3 stays the other corner)
+        e.key(Qt::Key_Escape);
+    }
+
+    // The cell editor or the formula bar, whichever the entry is in, takes a click on a table's cell; a second click replaces the reference it wrote.
+    void tableReferencesAreWrittenToTheRightLineAndReplaced()
+    {
+        EditWindow e;
+        QVERIFY(e.open(salesBook()));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.session()->makeTable(0, [] { jp::office::sheet::CellRange r; parseRangeRef(QStringLiteral("A1:B4"), &r); return r; }(), true, QString()).ok);
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("F3"));
+        e.type(QStringLiteral("="));
+        click(e, QStringLiteral("B3"));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=Table1[@Q1]"));
+        click(e, QStringLiteral("B1"));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=Table1[[#Headers],[Q1]]"));
+        click(e, QStringLiteral("D4"));   // (a cell that is in no table replaces it too)
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=D4"));
+        click(e, QStringLiteral("B3"));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=Table1[@Q1]"));
+        e.key(Qt::Key_Escape);
+        // an entry begun in the formula bar
+        e.select(QStringLiteral("F3"));
+        w.formulaBar()->setFocus();
+        QTest::keyClicks(w.formulaBar(), QStringLiteral("="));
+        QVERIFY(w.isEditing());
+        click(e, QStringLiteral("B3"));
+        QCOMPARE(w.formulaBar()->text(), QStringLiteral("=Table1[@Q1]"));
+        click(e, QStringLiteral("A4"));
+        QCOMPARE(w.formulaBar()->text(), QStringLiteral("=A4"));
+        QTest::keyClick(w.formulaBar(), Qt::Key_Escape);
+    }
+
+    // A highlight's border moves its reference and its corner square stretches it, the text following as the mouse moves; the dollar signs stay; the entry is one step of Undo.
+    void draggingAHighlightMovesAndResizesItsReference()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        const int steps = w.undoStack()->index();
+        e.select(QStringLiteral("F1"));
+        e.type(QStringLiteral("=SUM($B$2:C3)"));
+        QCOMPARE(int(e.view()->pointMarks().size()), 1);
+        QWidget *vp = e.view()->viewport();
+        const QRect b2 = e.view()->cellRect(1, 1);
+        // the left border of the block, dragged one column and one row on
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, QPoint(b2.left() + 1, b2.center().y()));
+        QTest::mouseMove(vp, QPoint(b2.left() + 1, b2.center().y()) + QPoint(b2.width(), b2.height()) / 2);
+        QTest::mouseMove(vp, QPoint(b2.left() + 1 + b2.width(), b2.center().y() + b2.height()));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=SUM($C$3:D4)"));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, QPoint(b2.left() + 1 + b2.width(), b2.center().y() + b2.height()));
+        QVERIFY(w.isEditing());
+        QVERIFY(w.cellEditor()->hasFocus());
+        QCOMPARE(e.selected(), QStringLiteral("F1"));
+        // the corner square stretched to E6
+        const QRect d4 = e.view()->cellRect(3, 3);
+        const QPoint corner = d4.bottomRight() - QPoint(1, 1);
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, corner);
+        const QPoint to = e.view()->cellRect(5, 4).center();
+        QTest::mouseMove(vp, to);
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, to);
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=SUM($C$3:E6)"));
+        QCOMPARE(w.formulaBar()->text(), QStringLiteral("=SUM($C$3:E6)"));
+        e.key(Qt::Key_Return);
+        QCOMPARE(w.session()->editText(0, 0, 5), QStringLiteral("=SUM($C$3:E6)"));
+        QCOMPARE(w.undoStack()->index(), steps + 1);
+    }
+
+    void refittingKeepsTheFixedParts()
+    {
+        QCOMPARE(crunch::refitBody(QStringLiteral("$B$2:C3"), QStringLiteral("C3:D4")), QStringLiteral("$C$3:D4"));
+        QCOMPARE(crunch::refitBody(QStringLiteral("B2"), QStringLiteral("B2:C3")), QStringLiteral("B2:C3"));
+        QCOMPARE(crunch::refitBody(QStringLiteral("A$1"), QStringLiteral("D5")), QStringLiteral("D$5"));
+    }
+
+    // The pick strip of the Function Arguments dialog writes a whole column or row as A:A or 3:3.
+    void theFunctionArgumentsStripWritesWholeColumnsAndRows()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("F1"));
+        w.setFunctionAsker([](QString *name) {
+            *name = QStringLiteral("SUM");
+            return true;
+        });
+        QStringList seen;
+        w.setArgumentsAsker([&](FunctionArgumentsDialog *d) {
+            d->show();
+            d->pickButton(0)->click();
+            e.view()->selectColumns(0, 0);
+            seen << d->edit(0)->text();
+            e.view()->selectColumns(1, 3);
+            seen << d->edit(0)->text();
+            e.view()->selectRows(2, 2);
+            seen << d->edit(0)->text();
+            e.view()->selectRows(1, 4);
+            seen << d->edit(0)->text();
+            e.view()->selectRange(1, 1, 3, 3);
+            seen << d->edit(0)->text();
+            d->endPicking();
+            return false;
+        });
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QCOMPARE(seen, QStringList({QStringLiteral("A:A"), QStringLiteral("B:D"), QStringLiteral("3:3"), QStringLiteral("2:5"), QStringLiteral("B2:D4")}));
     }
 
     // Each reference of the formula is outlined in a color of its own, and its text has the same color.

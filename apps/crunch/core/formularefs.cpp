@@ -135,6 +135,23 @@ QString nextFixedForm(const QString &body)
     return out.join(QLatin1Char(':'));
 }
 
+QString refitBody(const QString &oldBody, const QString &newBody)
+{
+    if (!oldBody.contains(QLatin1Char('$'))) return newBody;
+    static const QRegularExpression part(QStringLiteral("^(\\$?)([A-Za-z]*)(\\$?)([0-9]*)$"));
+    const QStringList olds = oldBody.split(QLatin1Char(':')), news = newBody.split(QLatin1Char(':'));
+    QStringList out;
+    for (int i = 0; i < news.size(); ++i) {
+        const QRegularExpressionMatch o = part.match(olds[std::min<int>(i, int(olds.size()) - 1)]), n = part.match(news[i]);
+        if (!o.hasMatch() || !n.hasMatch()) return newBody;
+        QString s;
+        if (!n.captured(2).isEmpty()) s += o.captured(1) + n.captured(2);
+        if (!n.captured(4).isEmpty()) s += o.captured(3) + n.captured(4);
+        out << s;
+    }
+    return out.join(QLatin1Char(':'));
+}
+
 QString referenceText(FormulaRef::Kind kind, quint32 row1, quint32 col1, quint32 row2, quint32 col2)
 {
     const quint32 r1 = std::min(row1, row2), r2 = std::max(row1, row2), c1 = std::min(col1, col2), c2 = std::max(col1, col2);

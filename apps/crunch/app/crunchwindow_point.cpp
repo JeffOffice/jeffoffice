@@ -102,7 +102,8 @@ bool CrunchWindow::pointKey(QLineEdit *line, QKeyEvent *key)
     }
     const int k = key->key();
     if (k != Qt::Key_Up && k != Qt::Key_Down && k != Qt::Key_Left && k != Qt::Key_Right) return false;
-    if (m_cellEditor->mode() != CellEditor::Mode::Typing || (key->modifiers() & ~(Qt::ShiftModifier | Qt::KeypadModifier))) return false;
+    if (m_cellEditor->mode() != CellEditor::Mode::Typing || (key->modifiers() & ~(Qt::ShiftModifier | Qt::ControlModifier | Qt::KeypadModifier))) return false;
+    const bool toEdge = key->modifiers() & Qt::ControlModifier;
     const bool valid = pointValid(line);
     if (!valid) {
         const crunch::FormulaSpot spot = crunch::spotAt(line->text(), line->cursorPosition(), separatorOf(m_session.get()));
@@ -123,8 +124,12 @@ bool CrunchWindow::pointKey(QLineEdit *line, QKeyEvent *key)
         anchorCol = headCol = std::max<qint64>(0, m_view->selection().activeCol);
     }
     const qint64 maxRow = qint64(jp::office::sheet::kMaxRows) - 1, maxCol = qint64(jp::office::sheet::kMaxColumns) - 1;
-    headRow = std::clamp<qint64>(headRow + (k == Qt::Key_Down ? 1 : k == Qt::Key_Up ? -1 : 0), 0, maxRow);
-    headCol = std::clamp<qint64>(headCol + (k == Qt::Key_Right ? 1 : k == Qt::Key_Left ? -1 : 0), 0, maxCol);
+    const int dRow = k == Qt::Key_Down ? 1 : k == Qt::Key_Up ? -1 : 0, dCol = k == Qt::Key_Right ? 1 : k == Qt::Key_Left ? -1 : 0;
+    if (toEdge) m_view->edgeFrom(headRow, headCol, dRow, dCol, &headRow, &headCol);
+    else {
+        headRow = std::clamp<qint64>(headRow + dRow, 0, maxRow);
+        headCol = std::clamp<qint64>(headCol + dCol, 0, maxCol);
+    }
     if (!shift) {
         anchorRow = headRow;
         anchorCol = headCol;
@@ -165,6 +170,33 @@ void CrunchWindow::cycleFixedParts(QLineEdit *line)
         m_point.caret = line->cursorPosition();
     }
     updatePointViews();
+}
+
+// A highlight's border or corner dragged: the reference it is of is written again for the block, with its sheet's name and its dollar signs as they were.
+void CrunchWindow::adjustReference(int id, const grid::GridRange &block, bool final)
+{
+    QLineEdit *line = editLine();
+    if (final) {
+        if (line) line->setFocus(Qt::OtherFocusReason);
+        return;
+    }
+    if (!m_edit.active || !line) return;
+    const auto refs = crunch::findReferences(line->text());
+    if (id < 0 || id >= int(refs.size())) return;
+    const crunch::FormulaRef &r = refs[size_t(id)];
+    using Kind = crunch::FormulaRef::Kind;
+    quint32 row1 = quint32(block.row1), col1 = quint32(block.col1), row2 = quint32(block.row2), col2 = quint32(block.col2);
+    if (r.kind == Kind::Columns) row1 = row2 = 0;   // (whole columns and rows move and stretch along their own side only)
+    if (r.kind == Kind::Rows) col1 = col2 = 0;
+    const QString body = line->text().mid(r.bodyStart, r.end() - r.bodyStart);
+    const QString text = crunch::refitBody(body, crunch::referenceText(r.kind == Kind::Cell ? Kind::Range : r.kind, row1, col1, row2, col2));
+    if (text == body) return;
+    const int caret = line->cursorPosition();
+    line->setSelection(r.bodyStart, int(body.size()));
+    line->insert(text);
+    line->setCursorPosition(std::max(0, caret + int(text.size() - body.size()) * (caret >= r.end() ? 1 : 0)));
+    m_point.active = false;
+    Q_EMIT line->textEdited(line->text());
 }
 
 bool CrunchWindow::keepEditOnSheetChange(int target) const
@@ -216,7 +248,7 @@ void CrunchWindow::updatePointViews()
                     if (sheets[s].name.compare(r.sheet, Qt::CaseInsensitive) == 0) sheet = int(s);
             }
             if (sheet != m_sheet) continue;
-            marks.push_back({grid::GridRange{qint64(r.row1), qint64(r.col1), qint64(r.row2), qint64(r.col2)}, QColor::fromRgba(colors[int(i % size_t(colors.size()))])});
+            marks.push_back({grid::GridRange{qint64(r.row1), qint64(r.col1), qint64(r.row2), qint64(r.col2)}, QColor::fromRgba(colors[int(i % size_t(colors.size()))]), int(i)});
         }
     }
     m_view->setPointMarks(std::move(marks));

@@ -686,6 +686,7 @@ private:
     // F4 changes which parts of the reference are fixed, another sheet can be pointed at, and the cells the formula names are outlined, each in the color it has in the text
     bool pointAtCells(const jp::grid::GridView::PointSpan &span, bool first, Qt::KeyboardModifiers modifiers);
     bool pointKey(QLineEdit *line, QKeyEvent *key);
+    void adjustReference(int id, const jp::grid::GridRange &block, bool final);
     QLineEdit *editLine() const;                               // the line the entry is being typed in (the cell's, or the formula bar)
     bool pointValid(const QLineEdit *line) const;              // the reference last written by pointing is still the last thing in the line
     void writePoint(QLineEdit *line, const QString &text, bool replace, bool append);
