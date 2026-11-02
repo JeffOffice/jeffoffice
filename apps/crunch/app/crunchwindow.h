@@ -34,6 +34,7 @@
 #include <QHash>
 #include <QKeySequence>
 #include <QPointer>
+#include <QSet>
 #include <QTimer>
 #include <atomic>
 #include <functional>
@@ -681,6 +682,34 @@ private:
     void insertTableCommand();
     void tableDialog(int mode);
     void addTableMenu(QMenu *menu);   // the table's commands in the cell menu, when the cursor is in a table
+    // pointing at cells while a formula is typed (crunchwindow_point.cpp): a click or a drag writes the cells' address (a header, whole rows or columns), the arrow keys move a pointer,
+    // F4 changes which parts of the reference are fixed, another sheet can be pointed at, and the cells the formula names are outlined, each in the color it has in the text
+    bool pointAtCells(const jp::grid::GridView::PointSpan &span, bool first, Qt::KeyboardModifiers modifiers);
+    bool pointKey(QLineEdit *line, QKeyEvent *key);
+    bool formulaTyped(const QLineEdit *line) const;
+    void schedulePointViews();
+    bool m_pointViewsPending = false;
+    QSet<QLineEdit *> m_composing;   // the lines that have a text being composed with an input method
+    void adjustReference(int id, const jp::grid::GridRange &block, bool final);
+    QLineEdit *editLine() const;                               // the line the entry is being typed in (the cell's, or the formula bar)
+    bool pointValid(const QLineEdit *line) const;              // the reference last written by pointing is still the last thing in the line
+    void writePoint(QLineEdit *line, const QString &text, bool replace, bool append);
+    void updatePointViews();                                   // the colors and outlines of the references, and the mode in the status bar
+    void updatePointStatus();
+    bool keepEditOnSheetChange(int target) const;              // a tab clicked while a reference can be written goes on pointing there
+    void returnToEditSheet();
+    void cycleFixedParts(QLineEdit *line);
+    struct PointState {
+        bool active = false;
+        int start = 0, length = 0, caret = 0;   // the reference written last, the text the line had then, and where its cursor was
+        QString text;
+        int sheet = 0;
+        qint64 anchorRow = 0, anchorCol = 0, headRow = 0, headCol = 0;   // the keyboard's pointer
+        QPointer<QLineEdit> line;               // the line the entry is in now
+        QPointer<QLineEdit> homeLine;           // and the one it was in on the formula's own sheet
+    } m_point;
+    bool m_coloring = false;
+    QSet<QLineEdit *> m_coloredLines;
     bool pointAtTableCell(qint64 row, qint64 col);   // a click on a cell of a table while a formula is typed writes a reference by the table's names
     jp::office::sheet::TableStyleBook m_tableStyleBook;
     bool m_tableStylesFor = false;
@@ -1000,6 +1029,7 @@ private:
         int sheet = 0;
         quint32 row = 0, col = 0;
         QString original;      // what the formula bar showed before (Esc puts it back)
+        jp::grid::GridView::ViewState view;   // where the sheet was scrolled, and the selection (Esc puts them back)
     } m_edit;
     bool m_syncingEditors = false, m_undoing = false, m_finishing = false;
     EnterMove m_enterMove = EnterMove::Down;

@@ -245,6 +245,24 @@ public:
     void setClickGuard(std::function<bool()> guard) { m_clickGuard = std::move(guard); }
     // Asked first of a click on a cell (its row and column): true when it was used for something else (a cell pointed at while a formula is typed), and the click then does nothing more.
     void setPointGuard(std::function<bool(qint64, qint64)> guard) { m_pointGuard = std::move(guard); }
+    // The cells a press, and a drag from it, point at while a formula is typed: a cell, a block, whole rows, or whole columns (a click on a header). Asked after the point guard; `first`
+    // is for the press. True on a press when the cells were used (the press then begins a drag that asks again as it moves, and the selection stays where it was).
+    struct PointSpan {
+        enum class Kind { Cells, Rows, Columns } kind = Kind::Cells;
+        GridRange range;
+    };
+    void setPointer(std::function<bool(const PointSpan &, bool first, Qt::KeyboardModifiers)> pointer) { m_pointer = std::move(pointer); }
+    // The blocks drawn with colored borders (the cells a formula being typed names).
+    void setPointMarks(std::vector<PointMark> marks);
+    const std::vector<PointMark> &pointMarks() const { return m_pointMarks; }
+    // A mark's border dragged moves its block, and its corner square dragged stretches it: told with the mark's id and the block it comes to (`final` when the button is let go).
+    void setPointAdjuster(std::function<void(int, const GridRange &, bool)> adjuster) { m_pointAdjuster = std::move(adjuster); }
+    // The cell Ctrl and an arrow go to from a cell, as on the sheet (the walk is made whole at once).
+    // The cell an arrow goes to from a cell, as the cell cursor goes (over hidden rows and columns, a merged range in one step).
+    // The block made larger until no merged range is half in it.
+    GridRange expandMerges(GridRange range) const;
+    void stepFrom(qint64 row, qint64 col, int dRow, int dCol, qint64 *toRow, qint64 *toCol);
+    void edgeFrom(qint64 row, qint64 col, int dRow, int dCol, qint64 *toRow, qint64 *toCol);
 
 Q_SIGNALS:
     void selectionChanged();
@@ -366,7 +384,17 @@ private:
     Selection m_selection;
     bool m_gridlines = true, m_headings = true;
     // the mouse
-    enum class Drag { None, Cells, Rows, Columns, Fill, Resize, BreakLine, BreakEdge } m_drag = Drag::None;
+    enum class Drag { None, Cells, Rows, Columns, Fill, Resize, BreakLine, BreakEdge, Point, MarkMove, MarkResize } m_drag = Drag::None;
+    PointSpan::Kind m_pointKind = PointSpan::Kind::Cells;
+    qint64 m_pointRow = 0, m_pointCol = 0;   // where a drag that points began
+    std::function<bool(const PointSpan &, bool, Qt::KeyboardModifiers)> m_pointer;
+    std::vector<PointMark> m_pointMarks;
+    std::function<void(int, const GridRange &, bool)> m_pointAdjuster;
+    int m_markId = -1;
+    GridRange m_pointLast;                   // the block the drag last reported (a move to the same cells reports nothing)
+    GridRange m_markFrom;                    // the block of the mark being dragged, as it was
+    GridRange markRect(const PointMark &mark, QRect *rect) const;
+    bool markGrab(const QPoint &lp, int *index, bool *corner) const;
     bool m_resizeColumn = false;
     qint64 m_resizeIndex = -1;
     int m_resizeFrom = 0, m_resizeEdge = 0, m_resizeSize0 = 0, m_resizeSize = 0;

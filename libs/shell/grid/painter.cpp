@@ -1046,6 +1046,22 @@ marked:
     }
     if (o.copyRange) paintDashedRange(p, which, area, *o.copyRange, o.accent, o.copyPhase, false);
     paintSelection(p, which, area, o);
+    if (o.pointMarks) {
+        // the cells a formula being typed names: a tint, and a border in the color the name has in the formula
+        for (const PointMark &mark : *o.pointMarks) {
+            const QRect rect = L.rangeRectIn(which, mark.range.row1, mark.range.col1, mark.range.row2, mark.range.col2);
+            if (rect.isEmpty() || !rect.intersects(area)) continue;
+            QColor tint = mark.color;
+            tint.setAlpha(28);
+            p->setClipRect(area);
+            p->fillRect(rect, tint);
+            p->fillRect(QRect(rect.left(), rect.top(), rect.width(), 2), mark.color);
+            p->fillRect(QRect(rect.left(), rect.bottom() - 1, rect.width(), 2), mark.color);
+            p->fillRect(QRect(rect.left(), rect.top(), 2, rect.height()), mark.color);
+            p->fillRect(QRect(rect.right() - 1, rect.top(), 2, rect.height()), mark.color);
+            p->fillRect(QRect(rect.right() - 3, rect.bottom() - 3, 6, 6), mark.color);   // (the corner a border is stretched by)
+        }
+    }
     if (o.fillPreview) paintDashedRange(p, which, area, *o.fillPreview, QColor(0x44, 0x44, 0x44), 0, false);
     p->setClipping(false);
 }

@@ -26,7 +26,8 @@ On a Mac, the **Command** key (⌘) does what **Ctrl** does in the tables below,
 | Keys | What they do |
 | --- | --- |
 | Any character | Start an entry in the active cell, in place of what it holds |
-| F2 | Edit what the active cell holds, in the cell |
+| F2 | Edit what the active cell holds, in the cell; while typing a formula, switch between pointing at cells and editing the text |
+| F4 | While typing a formula, fix parts of the address at the cursor with $ (A1, $A$1, A$1, $A1) |
 | Enter, Shift+Enter | Keep the entry, and move down or up |
 | Tab, Shift+Tab | Keep the entry, and move right or left |
 | Esc | Give the entry up |

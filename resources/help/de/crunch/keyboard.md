@@ -26,7 +26,8 @@ Auf einem Mac übernimmt die **Befehlstaste** (⌘) die Funktion der Taste **Str
 | Tasten | Funktion |
 | --- | --- |
 | Beliebiges Zeichen | Neue Eingabe in der aktiven Zelle beginnen und deren Inhalt ersetzen |
-| F2 | Inhalt der aktiven Zelle direkt in der Zelle bearbeiten |
+| F2 | Inhalt der aktiven Zelle direkt in der Zelle bearbeiten; beim Eingeben einer Formel zwischen Zeigen auf Zellen und Bearbeiten des Texts wechseln |
+| F4 | Beim Eingeben einer Formel Teile der Adresse am Cursor mit $ festsetzen (A1, $A$1, A$1, $A1) |
 | Eingabetaste, Umschalt+Eingabetaste | Eingabe übernehmen und nach unten oder oben bewegen |
 | Tab, Umschalt+Tab | Eingabe übernehmen und nach rechts oder links bewegen |
 | Esc | Eingabe verwerfen |

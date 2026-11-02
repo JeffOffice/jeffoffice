@@ -373,7 +373,8 @@ void CrunchWindow::setActiveSheet(int sheetIndex)
     if (!m_loaded || !m_loaded->book || sheetIndex == m_sheet || sheetIndex < 0 || sheetIndex >= m_loaded->book->info().sheets.size()) return;
     if (!m_haveCalc && sheetIndex != m_loaded->previewSheet) return;   // (the other sheets are not read yet)
     hideFillOptions();
-    if (!commitEdit()) {
+    const bool keepEdit = keepEditOnSheetChange(sheetIndex);
+    if (!keepEdit && !commitEdit()) {
         // (the entry could not be finished: the tab goes back to the sheet it is for)
         const int back = m_tabSheets.indexOf(m_sheet);
         if (back >= 0 && m_tabs->currentIndex() != back) {
@@ -393,6 +394,20 @@ void CrunchWindow::setActiveSheet(int sheetIndex)
     }
     showSheet(sheetIndex, false);
     refreshCheckMarks();
+    if (keepEdit && m_edit.active) {
+        // (the entry goes on: its cell's line is over its own sheet only, the formula bar is where it is typed while another sheet is shown)
+        if (m_sheet != m_edit.sheet) {
+            if (m_point.line == m_cellEditor) m_point.homeLine = m_cellEditor;
+            m_point.line = m_formulaBar;
+        } else if (m_point.homeLine) {
+            m_point.line = m_point.homeLine;
+            m_point.homeLine.clear();
+        }
+        placeEditor();
+        editLine()->setFocus(Qt::OtherFocusReason);
+        updatePointViews();
+        return;
+    }
     if (!m_calculating && !m_loading) setStatus(tr("Ready"));
 }
 

@@ -1,5 +1,5 @@
 # How formulas are shown and calculated
-<!-- keywords: formula, formulas, calculate, calculation, recalculate, function, functions, value, result, stored, F9, circular, show formulas, formula bar, error -->
+<!-- keywords: formula, formulas, calculate, calculation, recalculate, function, functions, value, result, stored, F9, circular, show formulas, formula bar, error, point, pointing, click a cell, reference, F4 -->
 
 A **formula** is a cell that works out its value from other cells, such as =SUM(B3:B8). The cell shows the value, and the **formula bar** shows the formula.
 
@@ -22,6 +22,20 @@ To change a formula, select its cell, press **F2**, edit it, and press **Enter**
 ## Writing a formula
 
 Type **=** and the first letters of a function, and a short list shows the functions and [names](names) that begin that way, with a sentence about each. Press **Tab** to take the one that is marked. Use the **Down** and **Up** arrows to mark another, and then **Tab** or **Enter**. **Esc** closes the list. Once you are inside the brackets of a function, its arguments show under the cell, with the one you are typing in bold. The list and the arguments are the same ones **Pick a Function** shows. Arguments are separated by commas, or by semicolons where your language writes a comma for the decimal mark.
+
+## Pointing at cells
+
+Instead of typing a cell's address, you can point at it. While you type a formula, put the cursor where a cell can go (right after **=**, an operator such as **+**, an opening bracket, or a comma) and click the cell. Its address is written for you. Drag over cells to write a block such as B2:D5. Click again before you type anything else, and the new cell replaces the one just written. Hold **Ctrl** and click to add another address after a comma. Click a column letter to write a whole column such as A:A, or a row number to write a whole row such as 3:3, and drag along the letters or numbers for B:D or 2:5.
+
+The arrow keys work too. Press an arrow and a pointer moves away from the cell you are typing in, and its address is written; press more arrows to move on, or hold **Shift** to stretch the pointer over a block. The status bar says **Point** while the arrow keys point, **Enter** while you type, and **Edit** while the arrow keys move the cursor in the text. Press **F2** to switch between pointing and editing the text.
+
+To point at a cell on another sheet, click that sheet's tab while the cursor is where a cell can go, and then click the cell. The sheet's name is written with it, in quotes when it needs them, as in 'My Sheet'!B3. **Enter** takes you back to the sheet you started on and puts the formula in its cell. **Esc** gives everything up, the change of sheet too.
+
+You can also drag the border of an outlined block on the sheet to move that address, or drag its corner square to stretch it; the formula changes as you drag.
+
+Press **F4** with the cursor in or just after an address to fix parts of it with a dollar sign: A1 becomes $A$1, then A$1, then $A1, and then A1 again.
+
+Each address in the formula is colored in the text, and the cells it names are outlined on the sheet in the same color, so you can see at a glance what the formula reads. A click after a whole address, such as =A1, ends the entry and selects the cell you clicked, as it does for any other text.
 
 ## Data tables
 
