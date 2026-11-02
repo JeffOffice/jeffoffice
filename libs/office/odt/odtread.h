@@ -185,6 +185,7 @@ private:
     QSet<QString> m_leftKeys;
 
     QHash<QString, QString> m_fonts;
+    QMap<QString, QPair<QString, QString>> m_fontKinds;   // font name -> its generic family and pitch, for the .docx font table
     QHash<QString, StyleDef> m_styleDefs;
     QHash<QString, Props> m_defaults;                 // by family
     QHash<QString, QString> m_idOfStyle;              // family\nname -> the style's id in the .docx

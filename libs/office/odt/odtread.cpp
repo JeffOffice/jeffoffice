@@ -131,6 +131,8 @@ void Reader::collectFonts(const Odf &o, int root)
             family.remove(QLatin1Char('"'));
             if (family.isEmpty()) family = o.at(c, "style:name");
             m_fonts.insert(o.at(c, "style:name"), family.trimmed());
+            const QString generic = o.at(c, "style:font-family-generic");
+            if (!generic.isEmpty() && !m_fontKinds.contains(family.trimmed())) m_fontKinds.insert(family.trimmed(), {generic, o.at(c, "style:font-pitch")});
         }
 }
 
@@ -727,6 +729,17 @@ bool Reader::read(const QByteArray &file, QString *error, QStringList *notes)
     if (!m_nums.isEmpty()) {
         m_out.addPart(QStringLiteral("/word/numbering.xml"), numberingXml(), wml + QStringLiteral("numbering+xml"));
         m_out.addRelationship(mainName, rel + QStringLiteral("numbering"), QStringLiteral("/word/numbering.xml"));
+    }
+    if (!m_fontKinds.isEmpty()) {
+        QByteArray f = QByteArray(kXmlHeader) + "<w:fonts " + docxNamespaces() + ">";
+        for (auto it = m_fontKinds.constBegin(); it != m_fontKinds.constEnd(); ++it) {
+            const QString g = it.value().first;
+            const char *fam = g == QLatin1String("roman") ? "roman" : g == QLatin1String("swiss") ? "swiss" : g == QLatin1String("modern") ? "modern" : g == QLatin1String("script") ? "script" : g == QLatin1String("decorative") ? "decorative" : "auto";
+            f += "<w:font w:name=\"" + esc(it.key()) + "\"><w:family w:val=\"" + fam + "\"/>" + (it.value().second == QLatin1String("fixed") ? "<w:pitch w:val=\"fixed\"/>" : it.value().second == QLatin1String("variable") ? "<w:pitch w:val=\"variable\"/>" : "") + "</w:font>";
+        }
+        f += "</w:fonts>";
+        m_out.addPart(QStringLiteral("/word/fontTable.xml"), f, wml + QStringLiteral("fontTable+xml"));
+        m_out.addRelationship(mainName, rel + QStringLiteral("fontTable"), QStringLiteral("/word/fontTable.xml"));
     }
     {
         QByteArray s = QByteArray(kXmlHeader) + "<w:settings " + docxNamespaces() + ">";

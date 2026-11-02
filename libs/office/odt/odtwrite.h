@@ -117,6 +117,7 @@ private:
     QString m_source;                                  // the part being read (its relationships find the pictures and links)
     QStringList *m_notes = nullptr;
     QSet<QString> m_leftKeys;
+    QHash<QString, QPair<QString, QString>> m_fontKinds;   // font name -> the family kind and pitch the .docx font table gives
     QHash<QString, DStyle> m_dstyles;                  // by id
     QStringList m_styleOrder;
     QString m_defaultParaStyle, m_defaultCharStyle;

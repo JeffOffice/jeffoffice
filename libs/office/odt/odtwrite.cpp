@@ -91,6 +91,15 @@ bool Writer::loadParts(QString *error)
         const auto rels = m_pkg.relationshipsOfType(m_main, QString::fromLatin1(type));
         return rels.isEmpty() ? QString() : rels.first().target;
     };
+    if (const QString s = related("/fontTable"); !s.isEmpty() && m_pkg.hasPart(s)) {
+        T ft;
+        if (ft.parse(m_pkg.part(s), nullptr))
+            for (int c = ft.firstChild(ft.root()); c >= 0; c = ft.next(c))
+                if (ft.is(c, "font")) {
+                    const int fam = ft.child(c, "family"), pit = ft.child(c, "pitch");
+                    m_fontKinds.insert(ft.attr(c, "name"), {fam >= 0 ? ft.val(fam) : QString(), pit >= 0 ? ft.val(pit) : QString()});
+                }
+    }
     if (const QString s = related("/styles"); !s.isEmpty()) m_styles = parse(s);
     if (const QString s = related("/numbering"); !s.isEmpty()) m_numbering = parse(s);
     if (const QString s = related("/settings"); !s.isEmpty()) m_settings = parse(s);
@@ -800,22 +809,19 @@ QByteArray Writer::settingsXml() const
                   {"ApplyTextAttrToEmptyLineAtEndOfParagraph", "boolean", "false"},
                   {"AutoFirstLineIndentDisregardLineSpace", "boolean", "true"},
                   {"BackgroundParaOverDrawings", "boolean", "true"},
-                  {"BeginLine", "string", "!%),.:;?]}¢°’”‰′″℃、。々〉》」』】〕゛゜ゝゞ・ヽヾ！％），．：；？］｝｡｣､･ﾞﾟ￠"},
                   {"CharacterCompressionType", "short", "0"},
                   {"ClipAsCharacterAnchoredWriterFlyFrames", "boolean", "false"},
                   {"ClippedPictures", "boolean", "true"},
                   {"CollapseEmptyCellPara", "boolean", "true"},
                   {"ConsiderTextWrapOnObjPos", "boolean", "true"},
                   {"ContinuousEndnotes", "boolean", "true"},
-                  {"Country", "string", "JP"},
                   {"DisableOffPagePositioning", "boolean", "true"},
                   {"DoNotBreakWrappedTables", "boolean", "true"},
-                  {"DoNotCaptureDrawObjsOnPage", "boolean", "false"},
+                  {"DoNotCaptureDrawObjsOnPage", "boolean", "true"},
                   {"DoNotJustifyLinesWithManualBreak", "boolean", "false"},
                   {"DoNotMirrorRtlDrawObjs", "boolean", "true"},
                   {"DoNotResetParaAttrsForNumFont", "boolean", "false"},
                   {"DropCapPunctuation", "boolean", "true"},
-                  {"EndLine", "string", "$([\{£¥‘“〈《「『【〔＄（［｛｢￡￥"},
                   {"FootnoteInColumnToPageEnd", "boolean", "true"},
                   {"FrameAutowidthWithMorePara", "boolean", "true"},
                   {"GutterAtTop", "boolean", "false"},
@@ -828,7 +834,6 @@ QByteArray Writer::settingsXml() const
                   {"InvertBorderSpacing", "boolean", "true"},
                   {"IsKernAsianPunctuation", "boolean", "false"},
                   {"JustifyLinesWithShrinking", "boolean", "false"},
-                  {"Language", "string", "ja"},
                   {"MathBaselineAlignment", "boolean", "true"},
                   {"MinRowHeightInclBorder", "boolean", "true"},
                   {"MsWordCompGridMetrics", "boolean", "true"},
@@ -869,10 +874,22 @@ QByteArray Writer::fontFacesXml() const
     QByteArray faces;
     for (auto it = m_fontFaces.constBegin(); it != m_fontFaces.constEnd(); ++it) {
         const QString n = it.key().toLower();
-        const char *generic = "";
-        if (n.contains(QLatin1String("courier")) || n.contains(QLatin1String("mono")) || n.contains(QLatin1String("consolas"))) generic = " style:font-family-generic=\"modern\" style:font-pitch=\"fixed\"";
-        else if (n.contains(QLatin1String("times")) || n.contains(QLatin1String("serif")) && !n.contains(QLatin1String("sans")) || n.contains(QLatin1String("georgia")) || n.contains(QLatin1String("cambria")) || n.contains(QLatin1String("garamond"))) generic = " style:font-family-generic=\"roman\" style:font-pitch=\"variable\"";
-        else generic = " style:font-family-generic=\"swiss\" style:font-pitch=\"variable\"";
+        QString kind = m_fontKinds.value(it.key()).first;
+        const QString pitchIn = m_fontKinds.value(it.key()).second;
+        if (kind.isEmpty() || kind == QLatin1String("auto")) {
+            // (A font the table says nothing of: by its name.)
+            static const char *const mono[] = {"courier", "mono", "consolas", "lucida console", "typewriter"};
+            static const char *const serif[] = {"times", "serif", "georgia", "cambria", "garamond", "palatino", "bookman", "century", "minion", "baskerville", "caslon", "didot", "book antiqua"};
+            kind = QStringLiteral("swiss");
+            for (const char *m : mono)
+                if (n.contains(QLatin1String(m))) kind = QStringLiteral("modern");
+            if (kind == QLatin1String("swiss") && !n.contains(QLatin1String("sans")))
+                for (const char *m : serif)
+                    if (n.contains(QLatin1String(m))) kind = QStringLiteral("roman");
+        }
+        const bool fixed = pitchIn == QLatin1String("fixed") || (pitchIn.isEmpty() && kind == QLatin1String("modern"));
+        static const QSet<QString> kinds = {QStringLiteral("roman"), QStringLiteral("swiss"), QStringLiteral("modern"), QStringLiteral("script"), QStringLiteral("decorative")};
+        const QByteArray generic = kinds.contains(kind) ? " style:font-family-generic=\"" + kind.toLatin1() + "\" style:font-pitch=\"" + (fixed ? "fixed" : "variable") + "\"" : QByteArray();
         faces += "<style:font-face style:name=\"" + esc(it.key()) + "\" svg:font-family=\"" + esc(it.key().contains(QLatin1Char(' ')) ? QStringLiteral("'") + it.key() + QStringLiteral("'") : it.key()) + "\"" + generic + "/>";
     }
     return faces;
