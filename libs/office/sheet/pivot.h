@@ -33,6 +33,7 @@ constexpr int kPivotMaxDataFields = 1000;
 constexpr int kPivotMaxLevels = 64;                    // the fields on one axis
 constexpr qint64 kPivotMaxLevelCells = 40000000;       // the leaves of an axis times its levels
 constexpr qint64 kPivotMaxFanOut = 60000000;           // each group of records is put in the lines it is a part of, on both axes: the most of those it is put in
+constexpr qint64 kPivotMaxCreateCells = 10000000;      // the cells of the data a pivot table is made of on the window's thread
 constexpr int kPivotMaxSubtotalKinds = 12;             // the functions a field has for its subtotal lines, one line of each
 constexpr qint64 kPivotMaxRows = 1048576;            // lines of the rows' axis, and of the columns' (a sheet's rows and columns)
 constexpr qint64 kPivotMaxCols = 16384;
@@ -48,6 +49,7 @@ void pivotSetPartLimitsForTest(qint64 table, qint64 definition, qint64 records);
 struct PivotValue {
     enum Kind : quint8 { Missing, Number, Text, Bool, Error, Date };
     Kind kind = Missing;
+    bool reading = false;        // (of a text asked for in GETPIVOTDATA only) it also reads as the number in `number`
     double number = 0;   // a number, a day count (Date), a bool (0 or 1)
     QString text;        // text, or the error as the file spells it
     bool isNumeric() const { return kind == Number || kind == Date; }
@@ -62,7 +64,7 @@ struct PivotCacheField {
     bool hasShared = false;      // the file lists shared items (`items` begins with them)
     QVector<qint32> records;     // for each record, the place of its value in `items`
     QString sharedAttrs;         // the attributes of <sharedItems> (kept for writing: containsBlank and the like are made again when written)
-    mutable qint8 numericKnown = -1;   // pivotFieldIsNumeric's answer, once it is worked out (-1: not yet; the items of a cache that is read are not changed after)
+    qint8 numericKnown = -1;   // whether the field holds numbers only, worked out when the cache is read or made (-1: not worked out: pivotFieldIsNumeric then reads the items, and keeps nothing)
 };
 
 struct PivotCache {
@@ -190,11 +192,26 @@ struct PivotOptions {
 bool computePivot(const PivotTable &table, const PivotCache &cache, PivotGrid *out, QString *why, const PivotOptions &options = PivotOptions());
 
 // ---- GETPIVOTDATA
-// The value a table shows for a data field (by its name, or the name of the field it adds up) at the lines the items name: the pairs are a field's name and one of its items, in any order. The fields
-// must be the first fields of an axis, in order (the values count as a field wherever they are): the line is then the group those items name, or the subtotal or the grand total when fewer are named.
-// False when no such value is shown. `*cell` is the grid's cell.
+// What GETPIVOTDATA needs of a table, made once for the table, its cache, and the cells they work out to (the lines of the axes with the places of their items, and the items by what they say), so that
+// each ask is a few lookups however many lines the table has. Not changed after it is made, so any thread may ask.
+class PivotLookup {
+public:
+    PivotLookup(std::shared_ptr<const PivotTable> table, std::shared_ptr<const PivotCache> cache, std::shared_ptr<const PivotGrid> grid);
+    ~PivotLookup();
+    // The value a table shows for a data field (by its name, or the name of the field it adds up) at the lines the items name: the pairs are a field's name and one of its items, in any order. The
+    // fields must be the first fields of an axis, in order (the values count as a field wherever they are): the line is then the group those items name, or the subtotal or the grand total when fewer
+    // are named. False when no such value is shown. A text may be given with `reading` set and the number it reads as in `number` (a date written as text); it then also names the item that number is.
+    bool find(const QString &dataField, const std::vector<std::pair<QString, PivotValue>> &items, PivotCell *cell) const;
+    // The other way: for the cell of the grid (counted from the table's first cell) that is a value, the name of its data field and the fields and items that name its lines, as GETPIVOTDATA takes
+    // them. False for any other cell.
+    bool arguments(int gridRow, int gridCol, QString *dataField, std::vector<std::pair<QString, PivotValue>> *items) const;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> d;
+};
+// The same without keeping the lookup (a table that is asked once).
 bool pivotGetData(const PivotTable &table, const PivotCache &cache, const PivotGrid &grid, const QString &dataField, const std::vector<std::pair<QString, PivotValue>> &items, PivotCell *cell);
-// The other way: for the cell of a grid (counted from the table's first cell) that is a value, the name of its data field and the fields and items that name its lines, as GETPIVOTDATA takes them. False for any other cell.
 bool pivotGetDataArguments(const PivotTable &table, const PivotCache &cache, const PivotGrid &grid, int gridRow, int gridCol, QString *dataField, std::vector<std::pair<QString, PivotValue>> *items);
 
 // ---- reading the list again from the sheet
@@ -220,6 +237,8 @@ bool pivotPrepareFields(PivotTable *table, PivotCache *cache);
 bool pivotNeedsSharedItems(const PivotTable &table, const PivotCache &cache);
 // Whether the field holds numbers only (blanks apart): a field that is checked in goes to the values if it does, else to the rows.
 bool pivotFieldIsNumeric(const PivotCache &cache, int field);
+// Works out and keeps the answer of pivotFieldIsNumeric for every field (done when a cache is read or made, on the thread that does it: the cache is read only after).
+void pivotKeepNumericFlags(PivotCache *cache);
 // "Sum" for sum, "Count Numbers" for countNums, and so on; and the name a value gets, "Sum of Amount", made different from every field's and every value's name by spaces after it.
 QString pivotFunctionName(const QString &function);
 QString pivotDataFieldName(const PivotTable &table, const PivotCache &cache, int field, const QString &function);

@@ -1060,19 +1060,42 @@ bool appendBefore(const QByteArray &xml, const char *container, const QByteArray
     return true;
 }
 
-// The workbook part with `pivotCache` elements added to its list of caches (made, in the place the format has it, if there is none).
+} // namespace
+
+// The workbook part with `pivotCache` elements added to its list of caches (made, in the place the format has it, if there is none). The elements are written with the prefix the list's own
+// element has, and the relationship attribute with the prefix the file binds to the relationships namespace (declared on the element when the file binds none).
 bool addPivotCaches(const QByteArray &xml, const std::vector<std::pair<int, QString>> &caches, QByteArray *out)
 {
-    QByteArray elements;
-    for (const auto &[id, rel] : caches) elements += "<pivotCache cacheId=\"" + QByteArray::number(id) + "\" r:id=\"" + rel.toUtf8() + "\"/>";
-    Tag list;
-    if (findStart(xml, "pivotCaches", &list) && !list.selfClosing) return appendBefore(xml, "pivotCaches", elements, out);
+    static const QByteArray relNs = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
     Tag root;
     if (!xmlscan::nextTag(xml, 0, &root) || root.closing) return false;
-    const QByteArray prefix(xmlscan::prefixOf(root.name));
-    QByteArray e = elements;
-    e.replace("<", "<" + prefix);
-    const QByteArray made = "<" + prefix + "pivotCaches>" + e + "</" + prefix + "pivotCaches>";
+    const QByteArray rootTag = xml.mid(root.start, root.end - root.start);
+    QByteArray relPrefix;   // the prefix bound to the relationships namespace on the root
+    {
+        static const QRegularExpression binding(QStringLiteral("xmlns:([A-Za-z_][A-Za-z0-9_.-]*)\\s*=\\s*[\"']([^\"']*)[\"']"));
+        for (auto m = binding.globalMatch(QString::fromUtf8(rootTag)); m.hasNext();) {
+            const auto one = m.next();
+            if (one.captured(2).toUtf8() == relNs) {
+                relPrefix = one.captured(1).toUtf8();
+                break;
+            }
+        }
+    }
+    const bool declare = relPrefix.isEmpty();
+    if (declare) relPrefix = "r";
+    Tag list;
+    const bool have = findStart(xml, "pivotCaches", &list) && !list.selfClosing;
+    const QByteArray prefix = have ? QByteArray(xmlscan::prefixOf(list.name)) : QByteArray(xmlscan::prefixOf(root.name));
+    QByteArray elements;
+    for (const auto &[id, rel] : caches)
+        elements += "<" + prefix + "pivotCache cacheId=\"" + QByteArray::number(id) + "\" " + relPrefix + ":id=\"" + rel.toUtf8() + "\"" + (declare ? " xmlns:r=\"" + relNs + "\"" : QByteArray()) + "/>";
+    if (have) {
+        Tag close;
+        if (!findEnd(xml, list, &close)) return false;
+        *out = xml.left(close.start) + elements + xml.mid(close.start);
+        return true;
+    }
+    const QByteArray made = "<" + prefix + "pivotCaches>" + elements + "</" + prefix + "pivotCaches>";
     // (before the first child that follows the list in the format: smartTagPr, smartTagTypes, webPublishing, fileRecoveryPr, webPublishObjects, extLst)
     static const char *const after[] = {"smartTagPr", "smartTagTypes", "webPublishing", "fileRecoveryPr", "webPublishObjects", "extLst"};
     Tag t;
@@ -1097,6 +1120,8 @@ bool addPivotCaches(const QByteArray &xml, const std::vector<std::pair<int, QStr
     }
     return false;
 }
+
+namespace {
 
 // Where a part's own relationships are kept: "/xl/worksheets/sheet2.xml" has "/xl/worksheets/_rels/sheet2.xml.rels".
 QString relationshipsPartOf(const QString &part)

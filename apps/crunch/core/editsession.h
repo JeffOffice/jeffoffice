@@ -949,6 +949,7 @@ private:
     CellChange clearedCell(int sheet, quint32 row, quint32 col);
     bool tableFree(int sheet, const jp::office::sheet::CellRange &range, int except, QString *why) const;
     bool cellsEmpty(int sheet, const jp::office::sheet::CellRange &range) const;
+    bool cellsHoldAnything(int sheet, quint32 row, quint32 col) const;
     jp::office::sheet::EntryOptions entryOptions(int sheet, bool textFormat) const;
     // The change typing `typed` into a cell makes (not a header cell's, not checked against the cell's rule): false, with the problem, if it can't be put in; `none` if it changes nothing.
     bool typedChange(int sheet, quint32 row, quint32 col, const QString &typed, CellChange *change, bool *none, Outcome *problem);

@@ -3,6 +3,7 @@
 #include "sheethelpers.h"
 
 #include "sheet/pivot.h"
+#include "sheet/xlsxsave.h"
 
 #include <QElapsedTimer>
 
@@ -807,6 +808,48 @@ private Q_SLOTS:
         for (int r = g.firstDataRow; r < g.rows; ++r) lines << rowText(g, r).join(QLatin1Char('|'));
         QCOMPARE(lines, (QStringList{QStringLiteral("x|p|m|1"), QStringLiteral("||n|2"), QStringLiteral("|p Total||3"), QStringLiteral("|q|m|4"), QStringLiteral("|q Total||4"), QStringLiteral("x Total|||7"),
                                      QStringLiteral("y|p|m|8"), QStringLiteral("|p Total||8"), QStringLiteral("y Total|||8"), QStringLiteral("Grand Total|||15")}));
+        // GETPIVOTDATA over the same table: a leaf, the subtotals of the two outer fields, and the grand total; items listed in another order than the cache has them; an item that is hidden
+        auto pair = [&](const char *field, const char *item) {
+            PivotValue v;
+            v.kind = PivotValue::Text;
+            v.text = QString::fromLatin1(item);
+            return std::make_pair(QString::fromLatin1(field), v);
+        };
+        auto lookupOf = [&](const PivotTable &table) {
+            auto grid = std::make_shared<PivotGrid>();
+            QString problem;
+            return computePivot(table, c, grid.get(), &problem) ? std::make_shared<PivotLookup>(std::make_shared<PivotTable>(table), std::make_shared<PivotCache>(c), grid) : std::shared_ptr<PivotLookup>();
+        };
+        PivotCell cell;
+        auto lookup = lookupOf(t);
+        QVERIFY(lookup);
+        QVERIFY(lookup->find(QStringLiteral("S"), {pair("A", "x"), pair("B", "p"), pair("C", "n")}, &cell));
+        QCOMPARE(cell.number, 2.0);
+        QVERIFY(lookup->find(QStringLiteral("S"), {pair("A", "x"), pair("B", "p")}, &cell));
+        QCOMPARE(cell.number, 3.0);
+        QVERIFY(lookup->find(QStringLiteral("S"), {pair("A", "x")}, &cell));
+        QCOMPARE(cell.number, 7.0);
+        QVERIFY(lookup->find(QStringLiteral("S"), {}, &cell));
+        QCOMPARE(cell.number, 15.0);
+        QVERIFY(!lookup->find(QStringLiteral("S"), {pair("A", "y"), pair("B", "q")}, &cell));   // (there is no such group)
+        QVERIFY(!lookup->find(QStringLiteral("S"), {pair("B", "p")}, &cell));                   // (B without A: not a group the rows give)
+        PivotTable reordered = t;
+        std::swap(reordered.fields[1].items[0], reordered.fields[1].items[1]);   // q before p
+        lookup = lookupOf(reordered);
+        QVERIFY(lookup);
+        QVERIFY(lookup->find(QStringLiteral("S"), {pair("A", "x"), pair("B", "p")}, &cell));
+        QCOMPARE(cell.number, 3.0);
+        QVERIFY(lookup->find(QStringLiteral("S"), {pair("A", "x"), pair("B", "q")}, &cell));
+        QCOMPARE(cell.number, 4.0);
+        PivotTable hidden = t;
+        hidden.fields[1].items[0].hidden = true;   // p
+        lookup = lookupOf(hidden);
+        QVERIFY(lookup);
+        QVERIFY(!lookup->find(QStringLiteral("S"), {pair("A", "x"), pair("B", "p")}, &cell));
+        QVERIFY(lookup->find(QStringLiteral("S"), {pair("A", "x"), pair("B", "q")}, &cell));
+        QCOMPARE(cell.number, 4.0);
+        QVERIFY(lookup->find(QStringLiteral("S"), {pair("A", "x")}, &cell));
+        QCOMPARE(cell.number, 4.0);   // (the total leaves out what is hidden)
     }
 
     // A value renamed and given another function in one step keeps the sort by it; a filter on a field with no list of items is kept when the data is read again.
@@ -880,6 +923,166 @@ private Q_SLOTS:
         QCOMPARE(items[0].second.text, QStringLiteral("West"));
         // a label is not a value
         QVERIFY(!pivotGetDataArguments(w.table, w.cache, w.grid, 0, 0, &data, &items));
+    }
+
+    // The list of pivot caches in a workbook that writes its elements with a prefix, and binds the relationships to another prefix: the new elements follow the file's own.
+    void newPivotCachesTakeTheFilesPrefixes()
+    {
+        const QByteArray main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main", rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+        QByteArray out;
+        // a list there already, with prefixes
+        const QByteArray prefixed = "<x:workbook xmlns:x=\"" + main + "\" xmlns:rel=\"" + rel + "\"><x:sheets/><x:calcPr/><x:pivotCaches><x:pivotCache cacheId=\"0\" rel:id=\"rId1\"/></x:pivotCaches></x:workbook>";
+        QVERIFY(addPivotCaches(prefixed, {{5, QStringLiteral("rIdNew")}}, &out));
+        QVERIFY2(out.contains("<x:pivotCache cacheId=\"5\" rel:id=\"rIdNew\"/></x:pivotCaches>"), out.constData());
+        // no list, the relationships bound to "r": made after the calculation settings, before what follows
+        const QByteArray plain = "<workbook xmlns=\"" + main + "\" xmlns:r=\"" + rel + "\"><sheets/><calcPr/><extLst/></workbook>";
+        QVERIFY(addPivotCaches(plain, {{2, QStringLiteral("rIdA")}, {3, QStringLiteral("rIdB")}}, &out));
+        QVERIFY2(out.contains("<calcPr/><pivotCaches><pivotCache cacheId=\"2\" r:id=\"rIdA\"/><pivotCache cacheId=\"3\" r:id=\"rIdB\"/></pivotCaches><extLst/>"), out.constData());
+        // no list, and the relationships bound to nothing: declared where they are used
+        const QByteArray unbound = "<workbook xmlns=\"" + main + "\"><sheets/><calcPr/></workbook>";
+        QVERIFY(addPivotCaches(unbound, {{1, QStringLiteral("rIdZ")}}, &out));
+        QVERIFY2(out.contains("<pivotCache cacheId=\"1\" r:id=\"rIdZ\" xmlns:r=\"" + rel + "\"/></pivotCaches></workbook>"), out.constData());
+        // and a prefix that is not "r", with no list
+        const QByteArray other = "<workbook xmlns=\"" + main + "\" xmlns:q=\"" + rel + "\"><sheets/><calcPr/></workbook>";
+        QVERIFY(addPivotCaches(other, {{1, QStringLiteral("rIdY")}}, &out));
+        QVERIFY2(out.contains("q:id=\"rIdY\""), out.constData());
+    }
+
+    // GETPIVOTDATA with items that are dates, numbers, accents, and text that reads as a number or a date; and the time many asks take on a table of ten thousand lines.
+    void itemsAreMatchedByWhatTheySay()
+    {
+        PivotCache c;
+        c.recordCount = 3;
+        auto field = [](const char *name, QVector<PivotValue> items, QVector<qint32> recs) {
+            PivotCacheField f;
+            f.name = QString::fromLatin1(name);
+            f.hasShared = true;
+            f.items = items;
+            f.sharedCount = int(items.size());
+            f.records = recs;
+            return f;
+        };
+        auto date = [](double d) {
+            PivotValue v;
+            v.kind = PivotValue::Date;
+            v.number = d;
+            return v;
+        };
+        auto number = [](double d) {
+            PivotValue v;
+            v.kind = PivotValue::Number;
+            v.number = d;
+            return v;
+        };
+        auto text = [](const QString &t) {
+            PivotValue v;
+            v.kind = PivotValue::Text;
+            v.text = t;
+            return v;
+        };
+        c.fields.append(field("Day", {date(36906), date(36907), date(36908)}, {0, 1, 2}));          // 2001-01-15, -16, -17
+        c.fields.append(field("Rate", {number(0.3), number(1.5), number(2)}, {0, 1, 2}));
+        c.fields.append(field("Name", {text(QStringLiteral("Zoë")), text(QStringLiteral("Zoe")), text(QStringLiteral("2001"))}, {0, 1, 2}));
+        PivotCacheField amount;
+        amount.name = QStringLiteral("Amount");
+        for (int i = 0; i < 3; ++i) {
+            amount.items.append(number(10 * (i + 1)));
+            amount.records.append(i);
+        }
+        c.fields.append(amount);
+        auto tableFor = [&](int rowField) {
+            QString fields;
+            for (int f = 0; f < 3; ++f)
+                fields += f == rowField ? QStringLiteral("<pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\"><items count=\"4\"><item x=\"2\"/><item x=\"0\"/><item x=\"1\"/><item t=\"default\"/></items></pivotField>")
+                                       : QStringLiteral("<pivotField/>");
+            const QByteArray xml = QStringLiteral("<pivotTableDefinition xmlns=\"%1\" name=\"t\" cacheId=\"1\" compact=\"0\"><location ref=\"A1:B2\" firstHeaderRow=\"1\" firstDataRow=\"1\" firstDataCol=\"1\"/>"
+                                                 "<pivotFields count=\"4\">%2<pivotField dataField=\"1\"/></pivotFields><rowFields count=\"1\"><field x=\"%3\"/></rowFields>"
+                                                 "<dataFields count=\"1\"><dataField name=\"S\" fld=\"3\"/></dataFields></pivotTableDefinition>").arg(QLatin1String(kNs), fields).arg(rowField).toUtf8();
+            auto t = std::make_shared<PivotTable>();
+            QString why;
+            if (!readPivotTable(xml, t.get(), &why)) return std::shared_ptr<PivotLookup>();
+            auto g = std::make_shared<PivotGrid>();
+            if (!computePivot(*t, c, g.get(), &why)) return std::shared_ptr<PivotLookup>();
+            return std::make_shared<PivotLookup>(t, std::make_shared<PivotCache>(c), g);
+        };
+        PivotCell cell;
+        // dates: the serial number, a date written as text (with the reading the engine gives it), and a text that is not that date
+        auto days = tableFor(0);
+        QVERIFY(days);
+        QVERIFY(days->find(QStringLiteral("S"), {{QStringLiteral("Day"), number(36907)}}, &cell));   // (the items are listed in another order than the cache has them: x = 2, 0, 1)
+        QCOMPARE(cell.number, 20.0);
+        PivotValue written = text(QStringLiteral("1/17/2001"));
+        written.reading = true;
+        written.number = 36908;
+        QVERIFY(days->find(QStringLiteral("S"), {{QStringLiteral("Day"), written}}, &cell));
+        QCOMPARE(cell.number, 30.0);
+        QVERIFY(!days->find(QStringLiteral("S"), {{QStringLiteral("Day"), text(QStringLiteral("1/17/2001"))}}, &cell));   // (no reading: it is only a text)
+        // numbers: the same to 15 digits is the same (0.1 + 0.2 is 0.3), and a text that reads as the number is that item
+        auto rates = tableFor(1);
+        QVERIFY(rates);
+        QVERIFY(rates->find(QStringLiteral("S"), {{QStringLiteral("Rate"), number(0.1 + 0.2)}}, &cell));
+        QCOMPARE(cell.number, 10.0);
+        PivotValue one = text(QStringLiteral("1.5"));
+        one.reading = true;
+        one.number = 1.5;
+        QVERIFY(rates->find(QStringLiteral("S"), {{QStringLiteral("Rate"), one}}, &cell));
+        QCOMPARE(cell.number, 20.0);
+        // texts: without regard to case, with regard to an accent; a number is the text of that number
+        auto names = tableFor(2);
+        QVERIFY(names);
+        QVERIFY(names->find(QStringLiteral("S"), {{QStringLiteral("Name"), text(QStringLiteral("ZOË"))}}, &cell));
+        QCOMPARE(cell.number, 10.0);
+        QVERIFY(names->find(QStringLiteral("S"), {{QStringLiteral("Name"), text(QStringLiteral("zoe"))}}, &cell));
+        QCOMPARE(cell.number, 20.0);
+        QVERIFY(names->find(QStringLiteral("S"), {{QStringLiteral("Name"), number(2001)}}, &cell));
+        QCOMPARE(cell.number, 30.0);
+    }
+
+    // Ten thousand asks over a table of ten thousand lines (the time is told, not held to a number: the check is that each ask is a few lookups, so the count of lines is not in it).
+    void manyAsksOverAnEnormousTableAreCheap()
+    {
+        const int n = 10000;
+        PivotCache c;
+        c.recordCount = n;
+        PivotCacheField id, amount;
+        id.name = QStringLiteral("Id");
+        id.hasShared = true;
+        amount.name = QStringLiteral("Amount");
+        for (int i = 0; i < n; ++i) {
+            PivotValue v;
+            v.kind = PivotValue::Text;
+            v.text = QStringLiteral("item %1").arg(i);
+            id.items.append(v);
+            id.records.append(i);
+            PivotValue a;
+            a.kind = PivotValue::Number;
+            a.number = i;
+            amount.items.append(a);
+            amount.records.append(i);
+        }
+        id.sharedCount = n;
+        c.fields = {id, amount};
+        const QByteArray xml = QStringLiteral("<pivotTableDefinition xmlns=\"%1\" name=\"t\" cacheId=\"1\" compact=\"0\"><location ref=\"A1:B2\" firstHeaderRow=\"1\" firstDataRow=\"1\" firstDataCol=\"1\"/>"
+                                             "<pivotFields count=\"2\"><pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\"/><pivotField dataField=\"1\"/></pivotFields><rowFields count=\"1\"><field x=\"0\"/></rowFields>"
+                                             "<dataFields count=\"1\"><dataField name=\"S\" fld=\"1\"/></dataFields></pivotTableDefinition>").arg(QLatin1String(kNs)).toUtf8();
+        auto t = std::make_shared<PivotTable>();
+        QString why;
+        QVERIFY2(readPivotTable(xml, t.get(), &why), qPrintable(why));
+        auto g = std::make_shared<PivotGrid>();
+        QVERIFY2(computePivot(*t, c, g.get(), &why), qPrintable(why));
+        QElapsedTimer timer;
+        timer.start();
+        PivotLookup lookup(t, std::make_shared<PivotCache>(c), g);
+        const qint64 made = timer.elapsed();
+        PivotCell cell;
+        for (int i = 0; i < n; ++i) {
+            PivotValue v;
+            v.kind = PivotValue::Text;
+            v.text = QStringLiteral("item %1").arg(n - 1 - i);
+            QVERIFY(lookup.find(QStringLiteral("S"), {{QStringLiteral("Id"), v}}, &cell));
+            QCOMPARE(cell.number, double(n - 1 - i));
+        }
+        qInfo("GETPIVOTDATA: lookup made in %lld ms, %d asks in %lld ms", made, n, timer.elapsed() - made);
     }
 
     // A day the calendar has no date for (day 60 of the 1900 system, a negative day) is a number item in the definition, in the records, and in the marks of the field.

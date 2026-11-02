@@ -156,7 +156,9 @@ void CrunchWindow::insertPivotCommand()
         }
     }
     int made = -1;
+    QGuiApplication::setOverrideCursor(Qt::WaitCursor);   // (the data is read on this thread: a big range takes a moment)
     const auto o = m_session->createPivot(source, sheet, row, col, &made);
+    QGuiApplication::restoreOverrideCursor();
     if (!o.ok) {
         notice(tr("Create Pivot Table"), o.problem);
         return;

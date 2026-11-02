@@ -194,6 +194,7 @@ bool buildPivotCache(const PivotSource &src, const PivotCache &prev, PivotCache 
         pf.records.resize(temp.size());
         for (qsizetype i = 0; i < temp.size(); ++i) pf.records[i] = newId[temp[i]];
     }
+    pivotKeepNumericFlags(out);
     return true;
 }
 
@@ -367,17 +368,21 @@ bool pivotFieldIsNumeric(const PivotCache &c, int f)
     if (f < 0 || f >= c.fields.size()) return false;
     const PivotCacheField &cf = c.fields[f];
     if (cf.numericKnown >= 0) return cf.numericKnown != 0;
-    bool any = false, numeric = true;
+    bool any = false;
     for (const PivotValue &v : cf.items) {
         if (v.kind == PivotValue::Missing) continue;
-        if (v.kind != PivotValue::Number) {
-            numeric = false;
-            break;
-        }
+        if (v.kind != PivotValue::Number) return false;
         any = true;
     }
-    cf.numericKnown = (numeric && any) ? 1 : 0;
-    return numeric && any;
+    return any;
+}
+
+void pivotKeepNumericFlags(PivotCache *c)
+{
+    for (int f = 0; f < c->fields.size(); ++f) {
+        c->fields[f].numericKnown = -1;
+        c->fields[f].numericKnown = pivotFieldIsNumeric(*c, f) ? 1 : 0;
+    }
 }
 
 bool pivotPrepareFields(PivotTable *t, PivotCache *c)
@@ -412,7 +417,8 @@ bool pivotPrepareFields(PivotTable *t, PivotCache *c)
             }
             cf.hasShared = true;
             cf.sharedCount = int(cf.items.size());
-            cf.numericKnown = -1;
+            cf.numericKnown = -1;   // (the items were merged: worked out again below, by the caller of this, which owns the cache)
+            cf.numericKnown = pivotFieldIsNumeric(*c, f) ? 1 : 0;
             changed = true;
         }
         PivotField &pf = t->fields[f];

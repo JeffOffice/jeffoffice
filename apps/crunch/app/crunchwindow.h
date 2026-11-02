@@ -232,7 +232,7 @@ public:
     void setPivotOptionsAsker(std::function<bool(bool *)> asker) { m_pivotOptionsAsker = std::move(asker); }   // test hook: whether a click writes GETPIVOTDATA
     void setPivotSourceAsker(std::function<bool(QString *)> asker) { m_pivotSourceAsker = std::move(asker); }
     void setValueFieldAsker(std::function<bool(QString *, QString *)> asker) { m_valueFieldAsker = std::move(asker); }
-    // The PivotTable Fields pane (null until the Field List was shown).
+    // The Pivot Table Fields pane (null until the Field List was shown).
     jp::PivotFieldsPane *pivotPane() const { return m_pivotPane; }
     int pivotAtCursor() const { return selectedPivot(); }
     void showFilterPopup(qint64 row, qint64 col);
@@ -690,10 +690,10 @@ private:
     std::function<bool(QString *, bool *)> m_tableMakeAsker;    // test hook: the table's cells' header choice
     std::function<bool(QString *)> m_tableNameAsker;
     std::function<bool(jp::office::sheet::CellRange *)> m_tableSizeAsker;
-    // pivot tables (crunchwindow_pivot.cpp): the PivotTable tab, the fields pane, and the commands that refresh and change a table
+    // pivot tables (crunchwindow_pivot.cpp): the Pivot Table tab, the fields pane, and the commands that refresh and change a table
     void createPivotActions();
     void pivotRibbonParts(RibbonParts &parts);
-    void updatePivotTab();                                     // the PivotTable tab shows for a cell in a pivot table; the fields pane shows that table
+    void updatePivotTab();                                     // the Pivot Table tab shows for a cell in a pivot table; the fields pane shows that table
     int selectedPivot() const;                                 // the pivot table the cursor is in, or -1
     void editPivot(const std::function<void(jp::office::sheet::PivotTable *)> &change, const QString &text, bool structureChanged);
     void showPivotFields(bool show);

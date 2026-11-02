@@ -2596,7 +2596,10 @@ int pivotCreate(const QString &in, const QString &outPath, const QString &varian
     if (source.isEmpty()) return say(false, QStringLiteral("no data of a pivot table's own to make one from"));
     int made = -1;
     crunch::EditSession::Outcome result;
-    if (variant != QLatin1String("control")) result = session->createPivot(source, -1, 0, 0, &made);   // (the control is the same workbook saved with no pivot table made)
+    QElapsedTimer making;
+    making.start();
+    if (variant != QLatin1String("control")) result = session->createPivot(source, -1, 0, 0, &made);
+    const qint64 madeMs = making.elapsed();   // (the control is the same workbook saved with no pivot table made)
     if (!result.ok) return say(false, result.problem);
     if (variant != QLatin1String("empty") && variant != QLatin1String("control")) {
         PivotTable table = *book.table(made).table;
@@ -2673,7 +2676,7 @@ int pivotCreate(const QString &in, const QString &outPath, const QString &varian
     waited.start();
     while (!saved && waited.elapsed() < 600000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
     if (!saved || !savedOk) return say(false, QStringLiteral("the save failed"));
-    return say(true, result.problem);
+    return say(true, QStringLiteral("the table was made in %1 ms").arg(madeMs) + (result.problem.isEmpty() ? QString() : QStringLiteral("; ") + result.problem));
 }
 
 int editMain(const QStringList &args)

@@ -17,6 +17,8 @@
 
 #include <QAction>
 #include <QDateTime>
+#include <QFile>
+#include <QFileInfo>
 #include <QElapsedTimer>
 #include <QListWidget>
 #include <QRegularExpression>
@@ -818,6 +820,25 @@ private Q_SLOTS:
         QCOMPARE(s->workbook()->info().sheets[made.sheet].name, QStringLiteral("Pivot Table 1"));
         QCOMPARE(int(s->workbook()->pivots().locationOf(1).row1), 2);
         QVERIFY(e.win.w.pivotPane());   // (the pane of fields is up)
+        // Undo takes the table away, and then the sheet
+        s->undoStack()->undo();
+        QCOMPARE(s->workbook()->pivots().tableCount(), 1);
+        s->undoStack()->undo();
+        QCOMPARE(int(s->workbook()->info().order.size()), 1);
+        // and Redo brings them back; saved then, the sheet of its own, the table, and its cache are in the file, and the file opens with both tables
+        s->undoStack()->redo();
+        s->undoStack()->redo();
+        QCOMPARE(s->workbook()->pivots().tableCount(), 2);
+        // saved: the sheet of its own, the table, and its cache are in the file, and the file opens with both tables
+        QVERIFY(saveNow(e));
+        const Parts after = readParts(e.path);
+        checkShapes(after);
+        checkPackage(after);
+        QFile saved(e.path);
+        QVERIFY(saved.open(QIODevice::ReadOnly));
+        EditWindow again;
+        QVERIFY(again.open(saved.readAll(), QStringLiteral("again.xlsx")));
+        QCOMPARE(again.win.w.session()->workbook()->pivots().tableCount(), 2);
     }
 
     // A click on a value of a pivot table while a formula is typed writes GETPIVOTDATA with the names of its lines; the option turns that off.
@@ -845,6 +866,150 @@ private Q_SLOTS:
         QVERIFY(!Settings::get().value(QStringLiteral("crunch/generateGetPivotData"), true).toBool());
         typeAndClick("=");   // (turned off: the click is a plain click, which puts nothing in the formula, as a click on any other cell)
         Settings::get().setValue(QStringLiteral("crunch/generateGetPivotData"), true);
+    }
+
+    // A GETPIVOTDATA typed before the table exists is worked out again when the table is made, and when the making is undone.
+    void getPivotDataFollowsATableThatComesAndGoes()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, 0, 11, QStringLiteral("=GETPIVOTDATA(\"Sum of Amount\",$J$10,\"Region\",\"East\")")).ok);   // L1
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("L1")), QStringLiteral("e:#REF!"));
+        QVERIFY(s->createPivot(QStringLiteral("Sheet1!A1:C7"), 0, 9, 9).ok);
+        PivotTable t = *s->workbook()->pivots().table(1).table;
+        t.rowFields = {0};
+        PivotDataField d;
+        d.fld = 2;
+        d.name = QStringLiteral("Sum of Amount");
+        t.dataFields.append(d);
+        QVERIFY(s->setPivot(1, t, true, QStringLiteral("Add Field to Pivot Table")).ok);
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("L1")), QStringLiteral("n:35"));
+        s->undoStack()->undo();   // (the layout)
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("L1")), QStringLiteral("e:#REF!"));
+        s->undoStack()->undo();   // (the table)
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("L1")), QStringLiteral("e:#REF!"));
+        s->undoStack()->redo();
+        s->undoStack()->redo();
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("L1")), QStringLiteral("n:35"));
+    }
+
+    // A refusal leaves nothing behind (no sheet of its own made first); the place may not be over the data; whole columns and rows are the cells they hold; a formula in the empty table's cells is no circle.
+    void aRefusedTableLeavesNoSheetAndTheDataIsNotCovered()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        const int sheets = s->workbook()->info().sheets.size();   // (a sheet that was made and taken away stays in the list, marked deleted: the list grows if a sheet was made)
+        QVERIFY(!s->createPivot(QStringLiteral("Sheet1!A1:C1"), -1, 0, 0).ok);
+        QVERIFY(!s->createPivot(QStringLiteral("Nowhere!A1:C7"), -1, 0, 0).ok);
+        QVERIFY(!s->createPivot(QStringLiteral("Sheet1!A1:C7"), 0, 0, 2).ok);   // over the data (C1:E18 meets A1:C7)
+        QCOMPARE(int(s->workbook()->info().sheets.size()), sheets);
+        QCOMPARE(s->undoStack()->count(), 0);
+        // whole columns, and whole rows
+        int made = -1;
+        QVERIFY(s->createPivot(QStringLiteral("A:C"), 0, 20, 0, &made).ok);
+        const PivotCacheEntry &one = s->workbook()->pivots().cache(s->workbook()->pivots().table(made).cache);
+        QCOMPARE(int(one.source.row1), 0);
+        QCOMPARE(int(one.source.row2), 6);   // as far as the sheet is used: row 7
+        QCOMPARE(int(one.source.col2), 2);
+        QVERIFY(s->createPivot(QStringLiteral("1:7"), 0, 20, 5, &made).ok);
+        QCOMPARE(int(s->workbook()->pivots().cache(s->workbook()->pivots().table(made).cache).source.row2), 6);
+        // a formula in the cells the empty table covers: #REF!, and no circle
+        QVERIFY(s->type(0, 22, 0, QStringLiteral("=GETPIVOTDATA(\"Sum of Amount\",$A$21)")).ok);
+        finish(e);
+        QCOMPARE(valueOf(e, QStringLiteral("A23")), QStringLiteral("e:#REF!"));
+        QCOMPARE(s->calculation()->circularCells(nullptr, 10), qint64(0));
+    }
+
+    // A table on a sheet that is deleted before the save is not written at all; a cache whose data sheet is deleted keeps naming it.
+    void aTableOnADeletedSheetIsNotWritten()
+    {
+        PivotBookOptions o;
+        o.otherSheet = true;   // (the data on sheet 1, the pivot table on sheet 2)
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(o)));
+        crunch::EditSession *s = e.win.w.session();
+        int made = -1;
+        QVERIFY(s->createPivot(QStringLiteral("Sheet1!A1:C7"), -1, 0, 0, &made).ok);   // on a sheet of its own (the third)
+        const int third = s->workbook()->pivots().table(made).sheet;
+        PivotTable t = *s->workbook()->pivots().table(made).table;
+        t.rowFields = {0};
+        PivotDataField d;
+        d.fld = 2;
+        d.name = QStringLiteral("Sum of Amount");
+        t.dataFields.append(d);
+        QVERIFY(s->setPivot(made, t, true, QStringLiteral("Add Field to Pivot Table")).ok);
+        // a second table on the same new sheet is not made here; this one is kept for the data-sheet case below
+        QVERIFY(s->deleteSheet(third).ok);
+        finish(e);
+        QVERIFY(saveNow(e));
+        Parts after = readParts(e.path);
+        checkPackage(after);
+        QVERIFY(!after.contains(QStringLiteral("xl/pivotTables/pivotTable2.xml")));
+        QVERIFY(!after.contains(QStringLiteral("xl/pivotCache/pivotCacheDefinition2.xml")));
+        QVERIFY(!QString::fromUtf8(after.value(QStringLiteral("[Content_Types].xml"))).contains(QLatin1String("pivotTable2.xml")));
+        QVERIFY(!QString::fromUtf8(after.value(QStringLiteral("xl/workbook.xml"))).contains(QLatin1String("<pivotCache cacheId=\"2\"")));
+        // the data sheet deleted after a table was made on a sheet that stays: the definition still names the sheet
+        EditWindow f;
+        QVERIFY(f.open(pivotWorkbook(o)));
+        crunch::EditSession *s2 = f.win.w.session();
+        QVERIFY(s2->createPivot(QStringLiteral("Sheet1!A1:C7"), 1, 9, 9, &made).ok);
+        QVERIFY(s2->deleteSheet(0).ok);
+        f.settle();
+        QVERIFY(saveNow(f));
+        after = readParts(f.path);
+        checkPackage(after);
+        QVERIFY2(QString::fromUtf8(after.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition2.xml"))).contains(QLatin1String("sheet=\"Sheet1\"")), "the definition names the sheet that is gone");
+    }
+
+    // A formula written for a locale with a semicolon between arguments; the dates and numbers of the items.
+    void theFormulaOfAClickIsWrittenInThePersonsLocale()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        QCOMPARE(s->pivotDataFormula(0, 4, 5, 0), QStringLiteral("=GETPIVOTDATA(\"Sum of Amount\",$E$3,\"Region\",\"East\",\"Month\",\"Jan\")"));
+        s->setLocale(QLocale(QLocale::German, QLocale::Germany));
+        QCOMPARE(s->pivotDataFormula(0, 4, 5, 0), QStringLiteral("=GETPIVOTDATA(\"Sum of Amount\";$E$3;\"Region\";\"East\";\"Month\";\"Jan\")"));
+        s->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+    }
+
+    // A created pivot table saved as an .xls copy keeps what it shows, as values.
+    void aCreatedPivotTableInAnXlsCopyKeepsItsValues()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        int made = -1;
+        QVERIFY(s->createPivot(QStringLiteral("Sheet1!A1:C7"), 0, 9, 9, &made).ok);
+        PivotTable t = *s->workbook()->pivots().table(made).table;
+        t.rowFields = {0};
+        PivotDataField d;
+        d.fld = 2;
+        d.name = QStringLiteral("Sum of Amount");
+        t.dataFields.append(d);
+        QVERIFY(s->setPivot(made, t, true, QStringLiteral("Add Field to Pivot Table")).ok);
+        finish(e);
+        e.win.w.setLossAsker([](const QString &, const QString &) { return CrunchWindow::LossAnswer::Continue; });
+        QSignalSpy copied(&e.win.w, &CrunchWindow::copyExported);
+        const QString target = QFileInfo(e.path).dir().filePath(QStringLiteral("copy.xls"));
+        QVERIFY(e.win.w.saveAs(target));
+        QVERIFY(copied.count() > 0 || copied.wait(30000));
+        QVERIFY(copied.first().at(1).toBool());
+        jp::office::sheet::Workbook book;
+        QString why;
+        QVERIFY2(book.openFile(target, &why), qPrintable(why));
+        jp::office::sheet::Sheet sheet;
+        book.readSheet(0, &sheet);
+        const Cell *grand = sheet.cells.find(12, 10);   // K13: the grand total
+        QVERIFY(grand);
+        QCOMPARE(grand->number, 49.0);
     }
 
     // ---- the review

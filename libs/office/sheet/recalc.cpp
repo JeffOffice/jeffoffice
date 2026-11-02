@@ -226,7 +226,13 @@ jp::calc::CellSource::PivotAnswer WorkbookSource::pivotData(int sheet, quint32 r
 {
     using jp::calc::Value;
     PivotBook::View view;
-    if (!m_book.pivots().viewAt(sheet, row, col, &view)) return PivotAnswer::NotFound;
+    if (!m_book.pivots().viewAt(sheet, row, col, &view)) {
+        // (no table there now: a table made there later changes the cells the formula names, and the formula is worked out again)
+        table->sheet1 = table->sheet2 = sheet;
+        table->row1 = table->row2 = row;
+        table->col1 = table->col2 = col;
+        return PivotAnswer::NotFound;
+    }
     // (the formula is worked out again when any cell of the table changes)
     table->sheet1 = table->sheet2 = sheet;
     table->row1 = view.where.row1;
@@ -247,11 +253,17 @@ jp::calc::CellSource::PivotAnswer WorkbookSource::pivotData(int sheet, quint32 r
         } else {
             v.kind = PivotValue::Text;
             v.text = item.text();
+            // (a date or a number written as text also names the item that number is)
+            double reading = 0;
+            if (jp::calc::textToNumber(v.text, m_book.info().dateSystem, &reading)) {
+                v.reading = true;
+                v.number = reading;
+            }
         }
         items.emplace_back(field, v);
     }
     PivotCell cell;
-    if (!pivotGetData(*view.table, *view.cache, *view.grid, request.dataField, items, &cell)) return PivotAnswer::NotFound;
+    if (!view.lookup->find(request.dataField, items, &cell)) return PivotAnswer::NotFound;
     switch (cell.kind) {
     case PivotCell::Number: *result = Value::number(cell.number); break;
     case PivotCell::Bool: *result = Value::boolean(cell.number != 0); break;

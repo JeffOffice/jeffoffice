@@ -1645,7 +1645,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
         // the tables made here: their parts, made by the thread that writes the file
         QStringList sheetNames;
         for (const jp::office::sheet::SheetEntry &se : book.info().sheets) sheetNames << (se.deleted ? QString() : se.name);
-        for (const jp::office::sheet::PivotBook::AddedParts &a : pb.addedParts()) {
+        for (const jp::office::sheet::PivotBook::AddedParts &a : pb.addedParts(sheetNames)) {
             SaveChanges::AddedPivot added;
             added.sheet = a.sheet;
             added.tablePart = a.tablePart;

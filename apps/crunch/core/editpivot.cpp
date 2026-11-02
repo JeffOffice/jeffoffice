@@ -2,6 +2,7 @@
 // clearing it. The cells of a table are plain cells of the sheet; a change works the table out again and puts the cells right, with the table's and the cache's new state, as one step of
 // Undo. What a change leaves alone is left alone: the cells that are the same are not touched, and a table nobody changed is saved as the file has it.
 #include "core/editsession.h"
+#include "sheet/entry.h"
 
 #include "calc/numfmt.h"
 #include "sheet/cellref.h"
@@ -170,6 +171,37 @@ bool EditSession::parsePivotSource(const QString &where, int defaultSheet, int *
         refPart = text.mid(bang + 1);
     }
     refPart.remove(QLatin1Char('$'));
+    // whole columns (A:F) or whole rows (1:50): the cells they hold, from the top (or the left), as far as the sheet is used
+    {
+        static const QRegularExpression wholeColumns(QStringLiteral("^([A-Za-z]{1,3}):([A-Za-z]{1,3})$")), wholeRows(QStringLiteral("^([0-9]{1,7}):([0-9]{1,7})$"));
+        quint32 usedRows = 0, usedCols = 0;
+        if (*sheet >= 0 && *sheet < m_book->calc->sheetCount()) m_book->calc->usedExtent(*sheet, &usedRows, &usedCols);
+        CellRange whole;
+        if (const auto m = wholeColumns.match(refPart); m.hasMatch() && parseRangeRef(m.captured(1) + QStringLiteral("1:") + m.captured(2) + QStringLiteral("1"), &whole)) {
+            if (usedRows == 0) {
+                *why = tr("There is nothing in those columns.");
+                return false;
+            }
+            whole.row1 = 0;
+            whole.row2 = usedRows - 1;
+            *range = whole;
+            return true;
+        }
+        if (const auto m = wholeRows.match(refPart); m.hasMatch() && parseRangeRef(QStringLiteral("A") + m.captured(1) + QLatin1Char(':') + QStringLiteral("A") + m.captured(2), &whole)) {
+            if (usedCols == 0) {
+                *why = tr("There is nothing in those rows.");
+                return false;
+            }
+            whole.col1 = 0;
+            whole.col2 = usedCols - 1;
+            *range = whole;
+            if (range->row1 == range->row2) {
+                *why = tr("The data needs a row of names and at least one row of data under it. Type more than one row, for example Sheet1!A1:D100.");
+                return false;
+            }
+            return true;
+        }
+    }
     if (parseRangeRef(refPart, range) && range->row1 == range->row2) {
         *why = tr("The data needs a row of names and at least one row of data under it. Type more than one row, for example Sheet1!A1:D100.");
         return false;
@@ -512,30 +544,22 @@ EditSession::Outcome EditSession::createPivot(const QString &source, int sheet, 
     if (srcSheet < 0 || srcSheet >= sheets.size() || sheets[srcSheet].deleted || sheets[srcSheet].kind != SheetKind::Worksheet) return refuse(tr("The data must be on a sheet of cells."));
     if (range.row2 <= range.row1) return refuse(tr("The data needs a row of names and at least one row of data under it."));
     if (range.col2 - range.col1 + 1 > quint32(kPivotMaxFields) || range.row2 - range.row1 > quint32(kPivotMaxRecords)) return refuse(tr("There is too much data for a pivot table."));
+    // (the cells are read on this thread, in about a second for each million: a bound keeps a mistake from holding the window for long)
+    if (qint64(range.row2 - range.row1) * qint64(range.col2 - range.col1 + 1) > kPivotMaxCreateCells) return refuse(tr("There is too much data to make a pivot table of in one step (more than %1 million cells). Use fewer rows or columns.").arg(kPivotMaxCreateCells / 1000000));
     PivotSource ps;
     fillPivotSource(&ps, srcSheet, range);
     auto cache = std::make_shared<PivotCache>();
     if (!buildPivotCache(ps, PivotCache(), cache.get(), &why)) return refuse(tr("The data can't be read: %1.").arg(why));
     cache->sourceType = QStringLiteral("worksheet");
-    // where it goes: its own sheet (made now), or the cell
+    // where it goes: a cell of a sheet (checked now), or a sheet of its own (made last: a refusal leaves no sheet behind)
     int target = sheet;
     if (target < 0) {
-        QString newName;
-        for (int n = 1;; ++n) {
-            newName = tr("Pivot Table %1").arg(n);
-            bool taken = false;
-            for (const SheetEntry &se : sheets)
-                if (!se.deleted && se.name.compare(newName, Qt::CaseInsensitive) == 0) taken = true;
-            if (!taken) break;
-        }
         row = 2;
         col = 0;
-        // (the sheet is made at the end; the checks of the place come first for a sheet that exists, and a new sheet is empty)
-        const Outcome inserted = insertSheet(int(sheets.size()), newName, &target);
-        if (!inserted.ok) return inserted;
-    } else {
-        if (target >= sheets.size() || sheets[target].deleted || sheets[target].kind != SheetKind::Worksheet) return refuse(tr("Pick a sheet of cells for the pivot table."));
-        if (!canEditSheet(target, &why) || !allows(target, Allow::Pivot, &why)) return refuse(why);
+    } else if (target >= sheets.size() || sheets[target].deleted || sheets[target].kind != SheetKind::Worksheet) {
+        return refuse(tr("Pick a sheet of cells for the pivot table."));
+    } else if (!canEditSheet(target, &why) || !allows(target, Allow::Pivot, &why)) {
+        return refuse(why);
     }
     // the cells the empty table covers (three columns of eighteen lines, as the original program makes it): free of other tables, of cells that hold anything, and of the data
     CellRange area;
@@ -545,20 +569,24 @@ EditSession::Outcome EditSession::createPivot(const QString &source, int sheet, 
     area.row2 = row + 17;
     area.col2 = col + 2;
     if (area.row2 >= 1048576 || area.col2 >= 16384) return refuse(tr("There is no room for a pivot table there."));
-    for (int t = 0; t < pb.tableCount(); ++t) {
-        if (pb.table(t).sheet != target) continue;
-        const CellRange other = pb.locationOf(t);
-        if (!other.valid || (other.row2 < area.row1 || other.row1 > area.row2 || other.col2 < area.col1 || other.col1 > area.col2)) continue;
-        return refuse(tr("There is a pivot table there already. Pick a cell that is clear of it."));
+    if (target >= 0) {
+        if (target == srcSheet && !(area.row2 < range.row1 || area.row1 > range.row2 || area.col2 < range.col1 || area.col1 > range.col2))
+            return refuse(tr("The pivot table would cover some of the data it is made from (%1). Pick a place that is clear of the data.").arg(rangeName(range)));
+        for (int t = 0; t < pb.tableCount(); ++t) {
+            if (pb.table(t).sheet != target) continue;
+            const CellRange other = pb.locationOf(t);
+            if (!other.valid || (other.row2 < area.row1 || other.row1 > area.row2 || other.col2 < area.col1 || other.col1 > area.col2)) continue;
+            return refuse(tr("There is a pivot table there already. Pick a cell that is clear of it."));
+        }
+        if (!cellsEmpty(target, area) || !tableFree(target, area, -1, &why)) return refuse(why.isEmpty() ? tr("There is something in the cells a pivot table would cover (%1). Pick a clear place.").arg(rangeName(area)) : why);
     }
-    if (!cellsEmpty(target, area) || !tableFree(target, area, -1, &why)) return refuse(why.isEmpty() ? tr("There is something in the cells a pivot table would cover (%1). Pick a clear place.").arg(rangeName(area)) : why);
     // a name no table of the workbook has
     QSet<QString> taken;
     for (int t = 0; t < pb.tableCount(); ++t)
         if (pb.table(t).table) taken.insert(pb.table(t).table->name.toLower());
     QString tableName;
     for (int n = 1;; ++n) {
-        tableName = QStringLiteral("PivotTable%1").arg(n);
+        tableName = tr("Pivot Table %1").arg(n);
         if (!taken.contains(tableName.toLower())) break;
     }
     // the table: made as the original program makes an empty one (in the compact form, the style it gives), and read back so that it is the model's
@@ -581,6 +609,19 @@ EditSession::Outcome EditSession::createPivot(const QString &source, int sheet, 
                                                   "r:id=\"rId1\" refreshedBy=\"JeffCrunch\" refreshedDate=\"0\" createdVersion=\"6\" refreshedVersion=\"6\" minRefreshableVersion=\"3\" recordCount=\"0\"><cacheSource type=\"worksheet\">"
                                                   "<worksheetSource ref=\"A1:A2\" sheet=\"Sheet1\"/></cacheSource><cacheFields count=\"0\"/></pivotCacheDefinition>")
                                       .arg(ns);
+    // nothing is refused after this: the sheet of its own is made, and the table put on it
+    if (target < 0) {
+        QString newName;
+        for (int n = 1;; ++n) {
+            newName = tr("Pivot Table %1").arg(n);
+            bool taken = false;
+            for (const SheetEntry &se : sheets)
+                if (!se.deleted && se.name.compare(newName, Qt::CaseInsensitive) == 0) taken = true;
+            if (!taken) break;
+        }
+        const Outcome inserted = insertSheet(int(sheets.size()), newName, &target);
+        if (!inserted.ok) return inserted;
+    }
     Step step;
     PivotEdit pe;
     pe.created = true;
@@ -624,7 +665,14 @@ QString EditSession::pivotDataFormula(int sheet, quint32 row, quint32 col, int f
         default: text += quoted(item.text); break;
         }
     }
-    return text + QLatin1Char(')');
+    // (as typed in the person's locale: a semicolon between the arguments and a comma in a number where it writes them so)
+    return formulaToLocale(text + QLatin1Char(')'), locale());
+}
+
+bool EditSession::cellsHoldAnything(int sheet, quint32 row, quint32 col) const
+{
+    const Cell *c = m_book->calc->sheet(sheet).cells.find(row, col);
+    return c && (c->hasFormula() || c->type != CellType::Empty);
 }
 
 void EditSession::applyPivotEdits(Step *step, bool forward, Workbook &book)
@@ -634,11 +682,19 @@ void EditSession::applyPivotEdits(Step *step, bool forward, Workbook &book)
     for (const PivotEdit &e : step->pivots) {
         if (e.created) {
             if (forward) {
-                if (e.newCache) pb.addCache(e.cacheAfter, e.sourceAfter, e.sheetAfter, e.nameAfter, e.cacheCreated);
+                if (e.newCache) pb.addCache(e.cacheAfter, e.sourceAfter, e.sheetAfter, e.nameAfter, e.cacheCreated, e.sheetAfter >= 0 && e.sheetAfter < book.info().sheets.size() ? book.info().sheets[e.sheetAfter].name : QString());
                 pb.addTable(e.sheet, e.tableAfter, e.cache, e.tableCreated);
             } else {
                 pb.removeLastTable();
                 if (e.newCache) pb.removeLastCache();
+            }
+            // (the cells the table covers read differently now: a GETPIVOTDATA that names them is worked out again, whether the table came or went)
+            CellRange at;
+            if (e.tableAfter && parseRangeRef(e.tableAfter->ref, &at) && m_book->calc && e.sheet >= 0 && e.sheet < m_book->calc->sheetCount()) {
+                Calculation::BulkEdit bulk(m_book->calc.get());
+                for (quint32 r = at.row1; r <= at.row2; ++r)
+                    for (quint32 c = at.col1; c <= at.col2; ++c)
+                        if (!cellsHoldAnything(e.sheet, r, c)) m_book->calc->setValue(e.sheet, r, c, Value(), Calculation::Marking::Now);
             }
             continue;
         }

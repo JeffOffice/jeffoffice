@@ -62,6 +62,7 @@ public:
         std::shared_ptr<const PivotTable> table;
         std::shared_ptr<const PivotCache> cache;
         std::shared_ptr<const PivotGrid> grid;
+        std::shared_ptr<const PivotLookup> lookup;   // for GETPIVOTDATA
         CellRange where;   // the table's cells
         int index = -1;
     };
@@ -95,7 +96,7 @@ public:
     std::map<QString, std::function<QByteArray()>> changedPartProducers(const QStringList &sheetNames) const;
     // ---- a table made by a person (Undo takes the last one away again, in the order they were made)
     // The cache for a new table, and the table; both in the book at the end. The parts they will be written as get names no part of the file has.
-    int addCache(std::shared_ptr<const PivotCache> cache, const CellRange &source, int sourceSheet, const QString &sourceName, const QByteArray &created);
+    int addCache(std::shared_ptr<const PivotCache> cache, const CellRange &source, int sourceSheet, const QString &sourceName, const QByteArray &created, const QString &sourceSheetName);
     int addTable(int sheet, std::shared_ptr<const PivotTable> table, int cache, const QByteArray &created);
     void removeLastTable();
     void removeLastCache();
@@ -105,7 +106,8 @@ public:
         QString tablePart, definitionPart, recordsPart;
         bool newCache = false;
     };
-    std::vector<AddedParts> addedParts() const;
+    // (`sheetNames`: the sheets' names now, empty for one that is deleted: a table on a deleted sheet is not written)
+    std::vector<AddedParts> addedParts(const QStringList &sheetNames) const;
     // The bytes of the parts of a new table and its cache, made when called (the table's takes the id the file's list of caches gives its cache).
     std::function<QByteArray(int cacheId)> tableProducer(int table) const;
     std::function<QByteArray()> definitionProducer(int cache, const QStringList &sheetNames) const;
@@ -125,6 +127,7 @@ private:
         std::shared_ptr<const PivotTable> table;
         std::shared_ptr<const PivotCache> cache;
         std::shared_ptr<const PivotGrid> grid;
+        std::shared_ptr<const PivotLookup> lookup;   // null: the table can't be worked out
     };
     mutable std::vector<GridMemo> m_grids;
 };

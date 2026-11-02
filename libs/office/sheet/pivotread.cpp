@@ -358,6 +358,7 @@ bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp:
     }
     if (rr.hasError()) return fail(QStringLiteral("the cache records are not well formed"));
     if (out->recordCount != count) out->recordCount = count;
+    pivotKeepNumericFlags(out);   // (here, on the thread that reads: after this the cache is only read)
     return true;
 }
 

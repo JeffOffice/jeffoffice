@@ -1,5 +1,5 @@
 #pragma once
-// The PivotTable Fields pane and the Value Field Settings dialog. The pane lists the fields of the data a table is made from, with a check for each, and shows where each checked field is: the
+// The Pivot Table Fields pane and the Value Field Settings dialog. The pane lists the fields of the data a table is made from, with a check for each, and shows where each checked field is: the
 // four boxes Filters, Columns, Rows, and Values. A field is checked in (a field of numbers goes to the values, any other to the rows), moved from a box to another, put in another place of its box,
 // or taken out; each is a request for the table the pane shows with that change made, which the window gives to the session as one step.
 

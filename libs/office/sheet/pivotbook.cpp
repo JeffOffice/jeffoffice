@@ -167,40 +167,61 @@ const PivotCacheEntry &PivotBook::cache(int i) const
 
 bool PivotBook::viewAt(int sheet, quint32 row, quint32 col, View *out) const
 {
-    std::lock_guard<std::recursive_mutex> lock(m_lock);
-    for (size_t i = 0; i < m_tables.size(); ++i) {
-        if (m_tables[i].sheet != sheet) continue;
-        loadTable(int(i));
-        const PivotTableEntry &e = m_tables[i];
-        if (!e.table || e.cache < 0) continue;
-        const CellRange where = locationOf(int(i));
-        if (!where.valid) continue;
-        // (the cells of the table, and the lines of its filters above them)
-        const quint32 pages = e.table->rowPageCount > 0 ? quint32(e.table->rowPageCount) + 1 : 0;
-        const quint32 top = where.row1 >= pages ? where.row1 - pages : 0;
-        if (row < top || row > where.row2 || col < where.col1 || col > where.col2) continue;
-        load(e.cache);
-        const PivotCacheEntry &c = m_caches[size_t(e.cache)];
-        if (!c.cache || !c.cache->unsupported.isEmpty()) continue;
-        std::shared_ptr<const PivotGrid> grid;
-        for (const GridMemo &m : m_grids)
-            if (m.table == e.table && m.cache == c.cache) grid = m.grid;
-        if (!grid) {
-            auto made = std::make_shared<PivotGrid>();
-            QString why;
-            if (!computePivot(*e.table, *c.cache, made.get(), &why)) continue;
-            grid = made;
-            if (m_grids.size() >= 8) m_grids.erase(m_grids.begin());
-            m_grids.push_back({e.table, c.cache, grid});
-        }
-        out->table = e.table;
-        out->cache = c.cache;
-        out->grid = grid;
+    std::shared_ptr<const PivotTable> table;
+    std::shared_ptr<const PivotCache> cache;
+    CellRange where;
+    int index = -1;
+    auto fill = [&](const GridMemo &m) {
+        if (!m.lookup) return false;
+        out->table = m.table;
+        out->cache = m.cache;
+        out->grid = m.grid;
+        out->lookup = m.lookup;
         out->where = where;
-        out->index = int(i);
+        out->index = index;
         return true;
+    };
+    {
+        std::lock_guard<std::recursive_mutex> lock(m_lock);
+        for (size_t i = 0; i < m_tables.size() && index < 0; ++i) {
+            if (m_tables[i].sheet != sheet) continue;
+            loadTable(int(i));
+            const PivotTableEntry &e = m_tables[i];
+            if (!e.table || e.cache < 0) continue;
+            const CellRange here = locationOf(int(i));
+            if (!here.valid) continue;
+            // (the cells of the table, and the lines of its filters above them)
+            const quint32 pages = e.table->rowPageCount > 0 ? quint32(e.table->rowPageCount) + 1 : 0;
+            const quint32 top = here.row1 >= pages ? here.row1 - pages : 0;
+            if (row < top || row > here.row2 || col < here.col1 || col > here.col2) continue;
+            load(e.cache);
+            const PivotCacheEntry &c = m_caches[size_t(e.cache)];
+            if (!c.cache || !c.cache->unsupported.isEmpty()) continue;
+            index = int(i);
+            where = here;
+            table = e.table;
+            cache = c.cache;
+        }
+        if (index < 0) return false;
+        for (const GridMemo &m : m_grids)
+            if (m.table == table && m.cache == cache) return fill(m);
     }
-    return false;
+    // (the table is worked out, and the lookup made, with no lock held: other asks of other tables are not kept waiting; a table asked twice at once is worked out twice, and the first kept)
+    GridMemo made;
+    made.table = table;
+    made.cache = cache;
+    auto grid = std::make_shared<PivotGrid>();
+    QString why;
+    if (computePivot(*table, *cache, grid.get(), &why)) {
+        made.grid = grid;
+        made.lookup = std::make_shared<PivotLookup>(table, cache, grid);
+    }
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    for (const GridMemo &m : m_grids)
+        if (m.table == table && m.cache == cache) return fill(m);
+    if (m_grids.size() >= 8) m_grids.erase(m_grids.begin());
+    m_grids.push_back(made);
+    return fill(made);
 }
 
 std::vector<int> PivotBook::tablesOn(int sheet) const
@@ -294,7 +315,7 @@ int greatestNumber(const Package *package, const QString &stem, const QStringLis
 
 } // namespace
 
-int PivotBook::addCache(std::shared_ptr<const PivotCache> cache, const CellRange &source, int sourceSheet, const QString &sourceName, const QByteArray &created)
+int PivotBook::addCache(std::shared_ptr<const PivotCache> cache, const CellRange &source, int sourceSheet, const QString &sourceName, const QByteArray &created, const QString &sourceSheetName)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
     PivotCacheEntry c;
@@ -311,6 +332,7 @@ int PivotBook::addCache(std::shared_ptr<const PivotCache> cache, const CellRange
     c.sourceName = sourceName;
     c.isNew = true;
     c.created = created;
+    c.fileSheetName = sourceSheetName;   // (what the definition names if the sheet is deleted before the save)
     m_caches.push_back(std::move(c));
     return int(m_caches.size()) - 1;
 }
@@ -345,7 +367,7 @@ void PivotBook::removeLastCache()
     if (!m_caches.empty()) m_caches.pop_back();
 }
 
-std::vector<PivotBook::AddedParts> PivotBook::addedParts() const
+std::vector<PivotBook::AddedParts> PivotBook::addedParts(const QStringList &sheetNames) const
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
     std::vector<AddedParts> out;
@@ -353,6 +375,7 @@ std::vector<PivotBook::AddedParts> PivotBook::addedParts() const
     for (size_t i = 0; i < m_tables.size(); ++i) {
         const PivotTableEntry &t = m_tables[i];
         if (!t.isNew || t.cache < 0) continue;
+        if (t.sheet < 0 || t.sheet >= sheetNames.size() || sheetNames[t.sheet].isEmpty()) continue;   // (on a sheet that was deleted: nothing of it is written)
         AddedParts a;
         a.table = int(i);
         a.cache = t.cache;
@@ -389,8 +412,9 @@ std::function<QByteArray()> PivotBook::definitionProducer(int cache, const QStri
     const QByteArray original = c.created;
     const std::shared_ptr<const PivotCache> now = c.cache;
     QString sheet, ref, name;
-    if (c.sourceSheet >= 0 && c.sourceSheet < sheetNames.size() && c.source.valid && c.sourceName.isEmpty()) {
-        sheet = sheetNames[c.sourceSheet];
+    if (c.sourceSheet >= 0 && c.source.valid && c.sourceName.isEmpty()) {
+        // (a source sheet that is deleted by the time of the save is still what the definition names, as the programs people know leave it: the table shows what it did, and can't be refreshed)
+        sheet = c.sourceSheet < sheetNames.size() && !sheetNames[c.sourceSheet].isEmpty() ? sheetNames[c.sourceSheet] : c.fileSheetName;
         ref = pivotRangeRef(c.source.row1, c.source.col1, c.source.row2, c.source.col2);
     } else {
         name = c.sourceName;
@@ -441,8 +465,8 @@ std::map<QString, std::function<QByteArray()>> PivotBook::changedPartProducers(c
             const QByteArray original = m_package->part(c.definitionPart);
             const std::shared_ptr<const PivotCache> cache = c.cache;
             QString sheet, ref, name;
-            if (c.sourceSheet >= 0 && c.sourceSheet < sheetNames.size() && c.source.valid) {
-                sheet = sheetNames[c.sourceSheet];
+            if (c.sourceSheet >= 0 && c.source.valid && c.sourceName.isEmpty()) {
+                sheet = c.sourceSheet < sheetNames.size() && !sheetNames[c.sourceSheet].isEmpty() ? sheetNames[c.sourceSheet] : c.fileSheetName;   // (a deleted sheet: the name the file had)
                 ref = pivotRangeRef(c.source.row1, c.source.col1, c.source.row2, c.source.col2);
             } else {
                 name = c.sourceName;

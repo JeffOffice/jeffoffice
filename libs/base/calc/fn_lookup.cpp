@@ -434,12 +434,16 @@ Value fnGetPivotData(Call &c)
     Value result;
     CellArea covered;
     covered.sheet1 = covered.sheet2 = -1;
+    // (a formula in the cells of the table it asks about is not made to depend on its own cell: it would be a circle; the table's own cells hold what the table shows, not formulas)
+    auto readsItself = [&] {
+        return covered.sheet1 == covered.sheet2 && covered.sheet1 == ctx.sheet && ctx.row >= covered.row1 && ctx.row <= covered.row2 && ctx.col >= covered.col1 && ctx.col <= covered.col2;
+    };
     switch (ctx.source->pivotData(where.sheet1, where.row1, where.col1, request, &result, &covered)) {
     case CellSource::PivotAnswer::Found:
-        if (covered.sheet1 >= 0) c.noteRead(covered);
+        if (covered.sheet1 >= 0 && !readsItself()) c.noteRead(covered);
         return result;
     case CellSource::PivotAnswer::NotFound:
-        if (covered.sheet1 >= 0) c.noteRead(covered);
+        if (covered.sheet1 >= 0 && !readsItself()) c.noteRead(covered);
         return c.error(ErrorKind::Ref);
     case CellSource::PivotAnswer::NotKnown:
         break;
