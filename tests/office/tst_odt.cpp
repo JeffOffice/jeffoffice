@@ -1133,7 +1133,7 @@ private Q_SLOTS:
         const char kW[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
         PackageWriter w;
         w.addPart(QStringLiteral("/word/document.xml"),
-                  QByteArray("<w:document ") + kW + "><w:body><w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr><w:rPr><w:b/><w:sz w:val=\"20\"/></w:rPr></w:pPr><w:r><w:t>plain words</w:t></w:r></w:p></w:body></w:document>",
+                  QByteArray("<w:document ") + kW + "><w:body><w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr><w:rPr><w:b/><w:sz w:val=\"20\"/></w:rPr></w:pPr><w:r><w:rPr><w:sz w:val=\"20\"/></w:rPr><w:t>plain words</w:t></w:r></w:p></w:body></w:document>",
                   QStringLiteral("application/xml"));
         w.addPart(QStringLiteral("/word/numbering.xml"),
                   QByteArray("<w:numbering ") + kW + "><w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num></w:numbering>",
@@ -1154,6 +1154,29 @@ private Q_SLOTS:
             }
         }
         QVERIFY(sized);   // (the label keeps the mark's size)
+    }
+
+    void aListMarkSizeIsNotTheSizeOfRunsThatSayNone()
+    {
+        const char kW[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+        PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"),
+                  QByteArray("<w:document ") + kW + "><w:body><w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr><w:rPr><w:sz w:val=\"24\"/></w:rPr></w:pPr><w:r><w:t>no size here</w:t></w:r></w:p></w:body></w:document>",
+                  QStringLiteral("application/xml"));
+        w.addPart(QStringLiteral("/word/numbering.xml"),
+                  QByteArray("<w:numbering ") + kW + "><w:abstractNum w:abstractNumId=\"0\"><w:lvl w:ilvl=\"0\"><w:numFmt w:val=\"decimal\"/><w:lvlText w:val=\"%1.\"/></w:lvl></w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num></w:numbering>",
+                  QStringLiteral("application/xml"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering"), QStringLiteral("/word/numbering.xml"));
+        QMap<QString, QByteArray> files;
+        QVERIFY(jp::readZip(fromDocxPackage(w.finish()), files));
+        wml::XmlTree c;
+        QVERIFY(c.parse(files.value(QStringLiteral("content.xml")), nullptr));
+        for (int i = findElement(c, "style"); i >= 0; i = findElement(c, "style", i)) {
+            if (c.attrAny(i, "family") != QLatin1String("paragraph")) continue;
+            for (int k = c.firstChild(i); k >= 0; k = c.next(k))
+                if (c.localName(k) == "text-properties") QVERIFY(c.attrAny(k, "font-size").isEmpty());   // (the words have their style's size, not the mark's)
+        }
     }
 
     void anEmptyParagraphWithNoListInAListStyleIsNotNumbered()

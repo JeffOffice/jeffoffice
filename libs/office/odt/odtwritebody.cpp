@@ -312,10 +312,20 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
         if ((!anyContent || inList) && pPr >= 0) {
             QByteArray mark = textAttrs(t, t.child(pPr, "rPr"));
             if (anyContent) {
-                // (A label takes the size of the paragraph's mark; the weight and color of the mark are not the text's.)
+                // A label takes the size of the paragraph's mark; the weight and color of the mark are not the text's, and neither is its size unless
+                // every run of the paragraph says that size itself (a run that says none has its style's, which the mark may not share).
+                const int markRPr = t.child(pPr, "rPr");
+                const QString markSize = markRPr >= 0 && t.child(markRPr, "sz") >= 0 ? t.val(t.child(markRPr, "sz")) : QString();
+                bool same = !markSize.isEmpty();
+                for (int r = t.firstChild(p); r >= 0 && same; r = t.next(r)) {
+                    if (!t.is(r, "r") || t.child(r, "t") < 0) continue;
+                    const int rp = t.child(r, "rPr");
+                    same = rp >= 0 && t.child(rp, "sz") >= 0 && t.val(t.child(rp, "sz")) == markSize;
+                }
                 QByteArray kept;
-                for (const QByteArray &a : mark.split(' '))
-                    if (a.startsWith("fo:font-size=") || a.startsWith("style:font-size-")) kept += " " + a;
+                if (same)
+                    for (const QByteArray &a : mark.split(' '))
+                        if (a.startsWith("fo:font-size=") || a.startsWith("style:font-size-")) kept += " " + a;
                 mark = kept;
             }
             if (!mark.isEmpty()) inner += "<style:text-properties" + mark + "/>";
