@@ -75,6 +75,7 @@ bool PageView::frameSpotAt(Rendered &r, int position, FrameSpot *spot)
 PageView::PageView(QWidget *parent) : QAbstractScrollArea(parent)
 {
     setObjectName(QStringLiteral("pageView"));
+    setProperty("jpOwnFocus", true);   // the text cursor shows the focus: no focus ring around the pages
     setFocusPolicy(Qt::StrongFocus);
     setAttribute(Qt::WA_InputMethodEnabled);
     viewport()->setCursor(Qt::IBeamCursor);

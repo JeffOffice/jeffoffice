@@ -24,6 +24,7 @@ constexpr int kMaxLaidOut = 50000;
 
 PageLayoutView::PageLayoutView(QWidget *parent) : QAbstractScrollArea(parent)
 {
+    setProperty("jpOwnFocus", true);   // the selection shows the focus: no focus ring around the pages
     setFocusPolicy(Qt::StrongFocus);
     viewport()->setMouseTracking(true);
     viewport()->setAttribute(Qt::WA_OpaquePaintEvent);

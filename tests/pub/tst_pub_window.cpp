@@ -1,4 +1,5 @@
 // JeffPub's tests of the window: ribbon, help, keyboard, accessibility, themes, and translations.
+#include "grid/gridview.h"
 #include "pubhelpers.h"
 #include "canvas/canvasaccessible.h"
 #include <QDoubleSpinBox>
@@ -1255,6 +1256,16 @@ private Q_SLOTS:
         QVERIFY(ring->geometry().contains(b[0][0]->geometry()));
         QTest::mouseClick(b[2][2], Qt::LeftButton);
         QVERIFY(!ring->isVisible());
+
+        // A document view (the sheet's grid, JeffWrite's pages) shows its own focus: no ring around it, even after a key.
+        auto *view = new jp::grid::GridView(&grid);
+        view->setGeometry(0, 0, 200, 100);
+        view->show();
+        view->setFocus(Qt::TabFocusReason);
+        QTest::keyClick(view, Qt::Key_Shift);
+        QCoreApplication::processEvents();
+        QVERIFY(!ring->isVisible());
+        QVERIFY(view->property("jpOwnFocus").toBool());
     }
 
     // The Styles gallery's samples are the text as it prints: in a dark
