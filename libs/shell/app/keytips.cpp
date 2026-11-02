@@ -177,12 +177,21 @@ void KeyTips::showTop()
     for (int t = 0; t < m_ribbon->tabCount(); ++t) {
         if (!m_ribbon->tabVisible(t)) continue;
         RibbonTab *page = m_ribbon->tabPage(t);
-        add(m_ribbon->tabKeytip(t), m_ribbon->tabButton(t), [this, page] {
+        auto open = [this, page] {
             if (m_ribbon->isMinimized()) m_ribbon->setMinimized(false);
             m_ribbon->showTab(page);
             showTab();
-        });
+        };
+        // A tab that went into the More menu has no button to show its letters on, but typing them opens it.
+        if (QWidget *b = m_ribbon->tabButton(t); b && b->isVisible()) add(m_ribbon->tabKeytip(t), b, open);
+        else if (!m_ribbon->tabKeytip(t).isEmpty()) m_tips << Tip{m_ribbon->tabKeytip(t), nullptr, open, nullptr};
     }
+    // The More button has letters of its own and opens its menu.
+    if (QWidget *more = m_ribbon->moreButton())
+        add(keytip(more), more, [this, more] {
+            hide();
+            if (auto *b = qobject_cast<QToolButton *>(more)) b->showMenu();
+        });
 }
 
 void KeyTips::showTab()

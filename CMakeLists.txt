@@ -520,6 +520,7 @@ endif()
 
 # The checks every app's window must pass, one program for each app (they share tests/appchecks/appchecks.h): the first five minutes of a person who
 # launches the app with no file, the standard commands of every app, and every command run once on a blank document and on one opened from a file.
+option(JO_XCB_RIBBON_CHECKS "Also run each app's ribbon layout check on a real X screen (needs DISPLAY)" OFF)
 function(jo_app_checks name core source)
   qt_add_executable(${name} tests/testrunner.cpp tests/appchecks/appchecks.cpp tests/appchecks/${source})
   target_link_libraries(${name} PRIVATE ${core} Qt6::Test)
@@ -528,6 +529,11 @@ function(jo_app_checks name core source)
   set_target_properties(${name} PROPERTIES WIN32_EXECUTABLE OFF)
   add_test(NAME ${name} COMMAND ${name})
   set_tests_properties(${name} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+  # The ribbon's layout again on a real X screen, as a person sees it (opt-in: -DJO_XCB_RIBBON_CHECKS=ON; with no DISPLAY the test is skipped, not failed).
+  if(JO_XCB_RIBBON_CHECKS AND UNIX AND NOT APPLE)
+    add_test(NAME ${name}_xcb COMMAND sh -c "[ -n \"$DISPLAY\" ] || exit 77; QT_QPA_PLATFORM=xcb exec $<TARGET_FILE:${name}> ribbonLayout")
+    set_tests_properties(${name}_xcb PROPERTIES SKIP_RETURN_CODE 77)
+  endif()
 endfunction()
 jo_app_checks(pubchecks jpcore tst_appchecks_pub.cpp)
 if(TARGET jdcore)

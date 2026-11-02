@@ -273,7 +273,7 @@ ColorButton::ColorButton(const QString &iconName, const QString &text, bool allo
     setAutoRaise(true);
     setFocusPolicy(Qt::TabFocus);   // the keyboard reaches it; a click leaves the focus in the text
     setIconSize(QSize(16, 16));
-    setFixedHeight(24);
+    setFixedHeight(std::max(24, fontMetrics().height() + 4));   // (taller for a larger font)
     auto *menu = new QMenu(this);
     setMenu(menu);
     connect(menu, &QMenu::aboutToShow, this, [this, menu] {
