@@ -245,6 +245,16 @@ public:
     void setClickGuard(std::function<bool()> guard) { m_clickGuard = std::move(guard); }
     // Asked first of a click on a cell (its row and column): true when it was used for something else (a cell pointed at while a formula is typed), and the click then does nothing more.
     void setPointGuard(std::function<bool(qint64, qint64)> guard) { m_pointGuard = std::move(guard); }
+    // The cells a press, and a drag from it, point at while a formula is typed: a cell, a block, whole rows, or whole columns (a click on a header). Asked after the point guard; `first`
+    // is for the press. True on a press when the cells were used (the press then begins a drag that asks again as it moves, and the selection stays where it was).
+    struct PointSpan {
+        enum class Kind { Cells, Rows, Columns } kind = Kind::Cells;
+        GridRange range;
+    };
+    void setPointer(std::function<bool(const PointSpan &, bool first, Qt::KeyboardModifiers)> pointer) { m_pointer = std::move(pointer); }
+    // The blocks drawn with colored borders (the cells a formula being typed names).
+    void setPointMarks(std::vector<PointMark> marks);
+    const std::vector<PointMark> &pointMarks() const { return m_pointMarks; }
 
 Q_SIGNALS:
     void selectionChanged();
@@ -366,7 +376,11 @@ private:
     Selection m_selection;
     bool m_gridlines = true, m_headings = true;
     // the mouse
-    enum class Drag { None, Cells, Rows, Columns, Fill, Resize, BreakLine, BreakEdge } m_drag = Drag::None;
+    enum class Drag { None, Cells, Rows, Columns, Fill, Resize, BreakLine, BreakEdge, Point } m_drag = Drag::None;
+    PointSpan::Kind m_pointKind = PointSpan::Kind::Cells;
+    qint64 m_pointRow = 0, m_pointCol = 0;   // where a drag that points began
+    std::function<bool(const PointSpan &, bool, Qt::KeyboardModifiers)> m_pointer;
+    std::vector<PointMark> m_pointMarks;
     bool m_resizeColumn = false;
     qint64 m_resizeIndex = -1;
     int m_resizeFrom = 0, m_resizeEdge = 0, m_resizeSize0 = 0, m_resizeSize = 0;

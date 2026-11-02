@@ -689,6 +689,13 @@ void GridView::stepJump()
     setSelectionInternal(nav.arrive(m_jumpFrom, row, col, m_jumpExtend));
 }
 
+void GridView::setPointMarks(std::vector<PointMark> marks)
+{
+    if (marks.size() == m_pointMarks.size() && std::equal(marks.begin(), marks.end(), m_pointMarks.begin(), [](const PointMark &a, const PointMark &b) { return a.range == b.range && a.color == b.color; })) return;
+    m_pointMarks = std::move(marks);
+    viewport()->update();
+}
+
 // ---- painting
 
 PaintOptions GridView::paintOptions() const
@@ -699,6 +706,7 @@ PaintOptions GridView::paintOptions() const
     o.selection = m_cellsEnabled ? &m_selection : nullptr;
     o.fillHandle = m_cellsEnabled;
     o.fillPreview = m_drag == Drag::Fill && !(m_fillExtent == m_fillSource) ? &m_fillExtent : nullptr;
+    o.pointMarks = m_pointMarks.empty() ? nullptr : &m_pointMarks;
     o.copyRange = hasCopyBorder() ? &m_copyBorder : nullptr;
     o.copyPhase = m_copyPhase;
     o.dropDown = dropDownRectInLayout();
@@ -1004,10 +1012,12 @@ void GridView::dragTo(const QPoint &pos)
     else if (pos.x() > inner.right()) scrollX = 1;
     if (pos.y() < inner.top()) scrollY = -1;
     else if (pos.y() > inner.bottom()) scrollY = 1;
-    if (m_drag != Drag::Rows) p.setX(std::max(inner.left(), std::min(pos.x(), inner.right())));
-    if (m_drag != Drag::Columns) p.setY(std::max(inner.top(), std::min(pos.y(), inner.bottom())));
-    if (scrollY && m_drag != Drag::Columns) scrollRows(scrollY);
-    if (scrollX && m_drag != Drag::Rows) scrollColumns(scrollX);
+    const bool byRows = m_drag == Drag::Rows || (m_drag == Drag::Point && m_pointKind == PointSpan::Kind::Rows);
+    const bool byColumns = m_drag == Drag::Columns || (m_drag == Drag::Point && m_pointKind == PointSpan::Kind::Columns);
+    if (!byRows) p.setX(std::max(inner.left(), std::min(pos.x(), inner.right())));
+    if (!byColumns) p.setY(std::max(inner.top(), std::min(pos.y(), inner.bottom())));
+    if (scrollY && !byColumns) scrollRows(scrollY);
+    if (scrollX && !byRows) scrollColumns(scrollX);
     const Hit h = L.hit(p);
     Navigator nav(&L, m_nav.get());
     if (m_drag == Drag::Fill && h.kind == Hit::Kind::Cell) {
@@ -1027,6 +1037,14 @@ void GridView::dragTo(const QPoint &pos)
             m_fillExtent = extent;
             viewport()->update();
         }
+    } else if (m_drag == Drag::Point) {
+        const bool here = m_pointKind == PointSpan::Kind::Cells ? h.kind == Hit::Kind::Cell : m_pointKind == PointSpan::Kind::Rows ? h.row >= 0 : h.col >= 0;
+        if (here && m_pointer) {
+            PointSpan span;
+            span.kind = m_pointKind;
+            span.range = GridRange{std::min(m_pointRow, h.row), std::min(m_pointCol, h.col), std::max(m_pointRow, h.row), std::max(m_pointCol, h.col)};
+            m_pointer(span, false, Qt::NoModifier);
+        }
     } else if (m_drag == Drag::Cells && h.kind == Hit::Kind::Cell) setSelectionInternal(nav.extendTo(m_selection, h.row, h.col), false);
     else if (m_drag == Drag::Rows && h.row >= 0) setSelectionInternal(nav.extendRows(m_selection, h.row), false);
     else if (m_drag == Drag::Columns && h.col >= 0) setSelectionInternal(nav.extendColumns(m_selection, h.col), false);
@@ -1042,6 +1060,26 @@ void GridView::mousePressEvent(QMouseEvent *e)
     if (e->button() == Qt::LeftButton && m_pointGuard && m_cellsEnabled && !m_breakView) {
         const Hit pointed = m_sheet.layout().hit(mirror(e->pos()));
         if (pointed.kind == Hit::Kind::Cell && m_pointGuard(pointed.row, pointed.col)) return;
+    }
+    if (e->button() == Qt::LeftButton && m_pointer && m_cellsEnabled && !m_breakView) {
+        const QPoint lp = mirror(e->pos());
+        bool column = false;
+        qint64 index = -1;
+        const Hit pointed = m_sheet.layout().hit(lp);
+        if (!borderAtInLayout(lp, &column, &index) && (pointed.kind == Hit::Kind::Cell || pointed.kind == Hit::Kind::RowHeader || pointed.kind == Hit::Kind::ColumnHeader)) {
+            PointSpan span;
+            span.kind = pointed.kind == Hit::Kind::Cell ? PointSpan::Kind::Cells : pointed.kind == Hit::Kind::RowHeader ? PointSpan::Kind::Rows : PointSpan::Kind::Columns;
+            const qint64 row = std::max<qint64>(0, pointed.row), col = std::max<qint64>(0, pointed.col);
+            span.range = GridRange{row, col, row, col};
+            if (m_pointer(span, true, e->modifiers())) {
+                m_drag = Drag::Point;
+                m_pointKind = span.kind;
+                m_pointRow = row;
+                m_pointCol = col;
+                m_lastMouse = lp;
+                return;
+            }
+        }
     }
     if (e->button() == Qt::LeftButton && m_clickGuard && !m_clickGuard()) return;
     setFocus(Qt::MouseFocusReason);
@@ -1190,6 +1228,11 @@ void GridView::mouseReleaseEvent(QMouseEvent *e)
         m_drag = Drag::None;
         viewport()->update();
         if (m_resizeSize != m_resizeSize0) Q_EMIT resizeRequested(m_resizeColumn, m_resizeIndex, m_resizeSize);
+        return;
+    }
+    if (m_drag == Drag::Point) {
+        m_drag = Drag::None;
+        m_autoScroll.stop();
         return;
     }
     const bool fill = m_drag == Drag::Fill;
