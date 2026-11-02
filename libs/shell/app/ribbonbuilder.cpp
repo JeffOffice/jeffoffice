@@ -322,6 +322,16 @@ private:
             for (const QJsonValue &v : o.value(QLatin1String("row")).toArray())
                 if (QWidget *w = rowItem(v.toObject())) widgets << w;
             g->addRow(widgets);
+        } else if (o.contains(QLatin1String("grid"))) {
+            allow(o, {"grid"}, QStringLiteral("a grid"));
+            QList<QList<QWidget *>> rows;
+            for (const QJsonValue &r : o.value(QLatin1String("grid")).toArray()) {
+                QList<QWidget *> cells;
+                for (const QJsonValue &v : r.toArray())
+                    if (QWidget *w = rowItem(v.toObject())) cells << w;
+                rows << cells;
+            }
+            g->addGrid(rows);
         } else if (o.contains(QLatin1String("widget"))) {
             allow(o, {"widget", "keytip"}, QStringLiteral("a widget"));
             if (QWidget *w = widget(str(o, "widget"))) {
@@ -335,7 +345,7 @@ private:
             allow(o, {"column"}, QStringLiteral("a column"));
             g->beginColumn();
         } else {
-            problem(QStringLiteral("an item is large, small, row, widget, separator or column"));
+            problem(QStringLiteral("an item is large, small, row, grid, widget, separator or column"));
         }
     }
 
@@ -356,6 +366,11 @@ private:
                 b->setPopupMode(split ? QToolButton::MenuButtonPopup : QToolButton::InstantPopup);
             }
             w = b;
+        } else if (o.contains(QLatin1String("check"))) {
+            allow(o, {"check", "keytip"}, QStringLiteral("a check box"));
+            QAction *a = command(o.value(QLatin1String("check")));
+            if (!a) return nullptr;
+            w = ribbonCheck(a, nullptr);
         } else if (o.contains(QLatin1String("widget"))) {
             allow(o, {"widget", "keytip"}, QStringLiteral("a row widget"));
             w = widget(str(o, "widget"));
@@ -380,7 +395,7 @@ private:
             allow(o, {"label"}, QStringLiteral("a label"));
             return new QLabel(tr(str(o, "label")));   // plain text: no KeyTip
         } else {
-            problem(QStringLiteral("a row item is icon, button, widget, dropdown or label"));
+            problem(QStringLiteral("a row item is icon, button, check, widget, dropdown or label"));
             return nullptr;
         }
         tagged(w, o);

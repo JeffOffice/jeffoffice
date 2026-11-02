@@ -55,6 +55,7 @@ private:
     QHBoxLayout *m_cols;
     QVBoxLayout *m_col = nullptr;
     int m_rows = 0;
+    QList<QLabel *> m_rowLabels;   // the labels that start the rows of the current column
     QString m_title;
     QToolButton *m_launcher = nullptr;
     QMetaObject::Connection m_launcherClicked;

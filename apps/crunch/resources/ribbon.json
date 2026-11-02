@@ -219,19 +219,22 @@
           "name": "Scale to Fit",
           "keytip": "ZH",
           "items": [
-            {"row": [{"label": "Width"}, {"widget": "fitWidth", "keytip": "W"}]},
-            {"row": [{"label": "Height"}, {"widget": "fitHeight", "keytip": "H"}]},
-            {"row": [{"label": "Scale"}, {"widget": "scalePercent", "keytip": "SC"}]}
+            {"grid": [
+              [{"label": "Width"}, {"widget": "fitWidth", "keytip": "W"}],
+              [{"label": "Height"}, {"widget": "fitHeight", "keytip": "H"}],
+              [{"label": "Scale"}, {"widget": "scalePercent", "keytip": "SC"}]
+            ]}
           ]
         },
         {
           "name": "Sheet Options",
           "keytip": "ZO",
           "items": [
-            {"small": "sheetopt.gridView", "keytip": "GV"},
-            {"small": "sheetopt.gridPrint", "keytip": "GP"},
-            {"small": "sheetopt.headView", "keytip": "HV"},
-            {"small": "sheetopt.headPrint", "keytip": "HP"}
+            {"grid": [
+              [{"label": ""}, {"label": "Gridlines"}, {"label": "Headings"}],
+              [{"label": "View"}, {"check": "sheetopt.gridView", "keytip": "GV"}, {"check": "sheetopt.headView", "keytip": "HV"}],
+              [{"label": "Print"}, {"check": "sheetopt.gridPrint", "keytip": "GP"}, {"check": "sheetopt.headPrint", "keytip": "HP"}]
+            ]}
           ]
         }
       ]

@@ -6,6 +6,9 @@
 #include "core/appinfo.h"
 
 #include <QAction>
+#include <QAbstractSpinBox>
+#include <QComboBox>
+#include <QGridLayout>
 #include <QGuiApplication>
 #include <QHash>
 #include <QHBoxLayout>
@@ -163,8 +166,58 @@ QToolButton *ribbonButton(QAction *a, bool large, QWidget *parent)
     } else {
         b->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
         b->setIconSize(QSize(16, 16));
-        b->setFixedHeight(24);
+        b->setFixedHeight(kSmallRowHeight);
     }
+    return b;
+}
+
+namespace {
+// A check box in a ribbon grid: the box alone (the heading above its column and the label at the left of its row name it), drawn as the other check boxes are.
+class CheckButton : public QToolButton {
+public:
+    using QToolButton::QToolButton;
+    QSize sizeHint() const override { return QSize(24, kSmallRowHeight); }
+    QSize minimumSizeHint() const override { return sizeHint(); }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing);
+        const QRectF box(width() / 2.0 - 7, height() / 2.0 - 7, 14, 14);
+        const bool on = isChecked(), hover = underMouse() && isEnabled();
+        const QColor accent = uiAccent();
+        QColor line = on || hover ? accent : lineColor();
+        if (!isEnabled()) line = lineColor();
+        p.setPen(QPen(line, 1));
+        p.setBrush(on ? (isEnabled() ? accent : lineColor()) : QBrush(ribbonBg()));
+        p.drawRoundedRect(box.adjusted(0.5, 0.5, -0.5, -0.5), 4, 4);
+        if (on) {
+            p.setPen(QPen(Qt::white, 1.6, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+            p.drawPolyline(QPolygonF({box.topLeft() + QPointF(3.5, 7.2), box.topLeft() + QPointF(6, 9.6), box.topLeft() + QPointF(10.5, 4.6)}));
+        }
+        if (hasFocus()) {
+            p.setBrush(Qt::NoBrush);
+            p.setPen(QPen(accent, 1.5));
+            p.drawRoundedRect(box.adjusted(-2.5, -2.5, 2.5, 2.5), 6, 6);
+        }
+    }
+    bool event(QEvent *e) override
+    {
+        if (e->type() == QEvent::HoverEnter || e->type() == QEvent::HoverLeave) update();
+        return QToolButton::event(e);
+    }
+};
+} // namespace
+
+QToolButton *ribbonCheck(QAction *a, QWidget *parent)
+{
+    auto *b = new CheckButton(parent);
+    b->setDefaultAction(a);
+    b->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    b->setAttribute(Qt::WA_Hover);
+    b->setFocusPolicy(Qt::TabFocus);
+    b->setFixedHeight(kSmallRowHeight);
     return b;
 }
 
@@ -204,6 +257,7 @@ void RibbonGroup::beginColumn()
     m_col->addStretch(1);
     m_cols->addLayout(m_col);
     m_rows = 0;
+    m_rowLabels.clear();
 }
 
 QToolButton *RibbonGroup::addSmall(QAction *a, QMenu *menu, bool split, bool iconOnly)
@@ -228,11 +282,44 @@ void RibbonGroup::addRow(const QList<QWidget *> &widgets)
     row->setContentsMargins(0, 0, 0, 0);
     for (QWidget *w : widgets) {
         w->setParent(this);
+        w->setFixedHeight(kSmallRowHeight);   // a row is as tall as a small button, so three fit the body
         row->addWidget(w);
     }
     row->addStretch(1);
     m_col->insertLayout(m_col->count() - 1, row);
     ++m_rows;
+    // The labels at the start of a column's rows are as wide as the longest, so the fields beside them line up.
+    if (auto *label = qobject_cast<QLabel *>(widgets.value(0))) {
+        m_rowLabels << label;
+        int w = 0;
+        for (QLabel *l : std::as_const(m_rowLabels)) w = std::max(w, l->sizeHint().width());
+        for (QLabel *l : std::as_const(m_rowLabels)) l->setMinimumWidth(w);
+    }
+}
+
+void RibbonGroup::addGrid(const QList<QList<QWidget *>> &rows)
+{
+    auto *col = new QVBoxLayout();
+    col->setSpacing(1);
+    col->setContentsMargins(0, 0, 0, 0);
+    auto *grid = new QGridLayout();
+    grid->setHorizontalSpacing(6);
+    grid->setVerticalSpacing(1);
+    grid->setContentsMargins(0, 0, 0, 0);
+    for (int r = 0; r < rows.size(); ++r)
+        for (int c = 0; c < rows[r].size(); ++c) {
+            QWidget *w = rows[r][c];
+            w->setParent(this);
+            w->setFixedHeight(kSmallRowHeight);
+            // The first column names the rows, the first row the columns; check boxes and headings sit centered, fields fill their column.
+            const bool field = qobject_cast<QComboBox *>(w) || qobject_cast<QAbstractSpinBox *>(w);
+            const Qt::Alignment al = c == 0 ? Qt::AlignLeft | Qt::AlignVCenter : field ? Qt::Alignment() : Qt::AlignCenter;
+            grid->addWidget(w, r, c, al);
+        }
+    col->addLayout(grid);
+    col->addStretch(1);
+    m_col = nullptr;
+    m_cols->addLayout(col);
 }
 
 void RibbonGroup::addWidget(QWidget *w)
@@ -391,7 +478,7 @@ void RibbonTab::relayout()
     if (m_inRelayout || m_groups.isEmpty()) return;
     m_inRelayout = true;
     const QMargins mg = m_layout->contentsMargins();
-    const int avail = width() - mg.left() - mg.right() - 4;
+    const int avail = width() - mg.left() - mg.right() - m_layout->spacing() * int(std::max<qsizetype>(0, m_groups.size() - 1));   // (the gaps between the groups too)
     QVector<int> full(m_groups.size()), small(m_groups.size());
     int total = 0;
     for (int i = 0; i < m_groups.size(); ++i) {
@@ -680,6 +767,15 @@ public:
         int x = qatWidth();
         m_file->setGeometry(x + 2, 19, fm.horizontalAdvance(m_file->text()) + 58, 26);
         x += 6 + m_file->width() + 4;
+        // With many tabs (the contextual ones too) the padding of each shrinks so the last never runs under Help and the chevron.
+        int pad = 26, shown = 0, text = 0;
+        for (HeaderButton *b : tabButtons) {
+            const auto &t = m_r->m_tabs[b->tab()];
+            if (!t.visible) continue;
+            ++shown;
+            text += fm.horizontalAdvance(t.title) + (t.group.isEmpty() ? 0 : 12) + 4;
+        }
+        if (shown) pad = std::clamp((width() - 64 - x - text) / shown, 12, 26) ;
         for (HeaderButton *b : tabButtons) {
             const auto &t = m_r->m_tabs[b->tab()];
             b->setAccessibleDescription(t.group.isEmpty() ? QCoreApplication::translate("Ribbon", "Ribbon tab") : QCoreApplication::translate("Ribbon", "Ribbon tab, %1").arg(t.group));
@@ -687,7 +783,7 @@ public:
             b->setWhatsThis(b->accessibleDescription());   // Windows' screen readers read this one
             b->setVisible(t.visible);
             if (!t.visible) continue;
-            const int w = fm.horizontalAdvance(t.title) + 26 + (t.group.isEmpty() ? 0 : 12);
+            const int w = fm.horizontalAdvance(t.title) + pad + (t.group.isEmpty() ? 0 : 12);
             b->setGeometry(x, 19, w, 26);
             x += w + 4;
             b->setText(t.title);

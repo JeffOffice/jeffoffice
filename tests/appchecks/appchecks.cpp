@@ -1033,6 +1033,31 @@ QStringList checkRibbonLayout(Adapter &app)
         QStringList contexts;
         for (int i = 0; i < r->tabCount(); ++i)
             if (!r->tabContextGroup(i).isEmpty() && !contexts.contains(r->tabContextGroup(i))) contexts << r->tabContextGroup(i);
+        // The top row (File, the tabs, Help, the collapse chevron) with no contextual tab shown and with each shown alone: nothing overlaps or runs off the window.
+        auto headerFails = [&](const QString &what) {
+            drain();
+            QList<QWidget *> parts;
+            if (r->fileButton() && r->fileButton()->isVisible()) parts << r->fileButton();
+            for (int i = 0; i < r->tabCount(); ++i)
+                if (r->tabVisible(i) && r->tabButton(i) && r->tabButton(i)->isVisible()) parts << r->tabButton(i);
+            for (const char *name : {"jpRibbonHelp", "jpRibbonCollapse"})
+                if (QWidget *b = r->findChild<QWidget *>(QString::fromLatin1(name)); b && b->isVisible()) parts << b;
+            for (int i = 0; i < parts.size(); ++i) {
+                const QRect a(parts[i]->mapTo(r, QPoint(0, 0)), parts[i]->size());
+                const QString name = controlName(parts[i]);
+                if (a.right() > r->width()) fails << QStringLiteral("%1/%2 at %3: %4 %5 runs off the ribbon (%6 wide)").arg(app.name, what).arg(width).arg(name, rectText(a)).arg(r->width());
+                for (int k = i + 1; k < parts.size(); ++k) {
+                    const QRect b(parts[k]->mapTo(r, QPoint(0, 0)), parts[k]->size());
+                    if (a.intersects(b)) fails << QStringLiteral("%1/%2 at %3: %4 %5 overlaps %6 %7").arg(app.name, what).arg(width).arg(name, rectText(a), controlName(parts[k]), rectText(b));
+                }
+            }
+        };
+        headerFails(QStringLiteral("top row"));
+        for (const QString &c : contexts) {
+            r->setContextVisible(c, true);
+            headerFails(QStringLiteral("top row with ") + c);
+            r->setContextVisible(c, false);
+        }
         for (const QString &c : contexts) r->setContextVisible(c, true);
         QList<jp::RibbonTab *> pages;
         for (int i = 0; i < r->tabCount(); ++i) pages << r->tabPage(i);
@@ -1086,6 +1111,33 @@ QStringList checkRibbonLayout(Adapter &app)
                     if (text && (c->sizeHint().width() > c->width() || c->fontMetrics().height() > c->height()))
                         fails << cw + QStringLiteral(": its text is cut (it is %1 and wants %2 wide and %3 tall for a line)").arg(rectText(cr)).arg(c->sizeHint().width()).arg(c->fontMetrics().height());
                 }
+            }
+            for (jp::RibbonGroup *g : page->groups()) {
+                if (!g->isVisibleTo(page)) continue;
+                // The fields beside the labels of one column start at the same place (a label and the box it names, row under row).
+                QHash<int, QList<QPair<QWidget *, int>>> fieldsByLabelColumn;
+                QList<QWidget *> shown;
+                for (QWidget *c : g->controls())
+                    if (c->isVisibleTo(g)) shown << c;
+                for (QWidget *l : shown) {
+                    if (!qobject_cast<QLabel *>(l)) continue;
+                    const QRect lr(l->mapTo(g, QPoint(0, 0)), l->size());
+                    QWidget *field = nullptr;
+                    int fieldLeft = 0;
+                    for (QWidget *f : shown) {
+                        if (f == l || qobject_cast<QLabel *>(f)) continue;
+                        const QRect fr(f->mapTo(g, QPoint(0, 0)), f->size());
+                        if (fr.left() >= lr.right() && fr.top() < lr.bottom() && fr.bottom() > lr.top() && (!field || fr.left() < fieldLeft)) {
+                            field = f;
+                            fieldLeft = fr.left();
+                        }
+                    }
+                    if (field) fieldsByLabelColumn[lr.left()].append({field, fieldLeft});
+                }
+                for (const auto &column : std::as_const(fieldsByLabelColumn))
+                    for (const auto &f : column)
+                        if (f.second != column.first().second)
+                            fails << where + QStringLiteral("/") + g->title() + QStringLiteral("/") + controlName(f.first) + QStringLiteral(": starts at x=%1, the field above it at x=%2 (the fields of a column line up)").arg(f.second).arg(column.first().second);
             }
             for (int i = 0; i < page->groups().size(); ++i) {
                 QToolButton *b = page->collapsedButton(i);
