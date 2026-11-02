@@ -1,7 +1,10 @@
 // Opens each file given (a .rtf, .docx, or .doc, found by its content) the way JeffWrite does, and prints its text, for the sweep over many files that checks
 // every one opens with no crash or hang and that an .rtf says what the file it was made from says. One file for each run: a crash or a hang is that run's.
 //   rtfsweep file            the text, on standard output; the reason on standard error and exit code 2 if it can't be opened
+//   rtfsweep --shot out.png [--page N] file   page N (1 by default) of the file in a window, as a picture; a message about what was left out is not shown
 //   rtfsweep --count file    "words paragraphs notes" instead of the text
+#include "app/pageview.h"
+#include "app/writewindow.h"
 #include "core/writedoc.h"
 #include "rtf/rtf.h"
 
@@ -9,6 +12,7 @@
 #include <QFile>
 #include <QRegularExpression>
 #include <QTextDocument>
+#include <QTimer>
 #include <cstdio>
 
 int main(int argc, char **argv)
@@ -20,7 +24,28 @@ int main(int argc, char **argv)
     const bool count = args.contains(QStringLiteral("--count"));
     QString path;
     for (int i = 1; i < args.size(); ++i)
-        if (!args[i].startsWith(QLatin1String("--"))) path = args[i];
+        if (!args[i].startsWith(QLatin1String("--")) && !(i > 0 && (args[i - 1] == QLatin1String("--shot") || args[i - 1] == QLatin1String("--page")))) path = args[i];
+    if (const int at = int(args.indexOf(QStringLiteral("--shot"))); at >= 0 && at + 1 < args.size()) {
+        const QString out = args[at + 1];
+        const int pageAt = int(args.indexOf(QStringLiteral("--page")));
+        const int page = pageAt >= 0 && pageAt + 1 < args.size() ? args[pageAt + 1].toInt() : 1;
+        jp::WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        if (!w.openFile(path)) return 2;
+        w.resize(900, 1150);
+        w.show();
+        QTimer::singleShot(300, &w, [&w, out, page] {
+            w.view()->paginateAll();
+            w.view()->setZoomMode(jp::write::PageView::ZoomMode::OnePage);
+            w.view()->goToPage(page - 1);
+            w.view()->setCaretWithoutFocus(true);
+            QTimer::singleShot(300, &w, [&w, out] {
+                w.grab().save(out);
+                QApplication::exit(0);
+            });
+        });
+        return app.exec();
+    }
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
         std::fprintf(stderr, "cannot read\n");

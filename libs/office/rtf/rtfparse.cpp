@@ -208,7 +208,7 @@ private:
         int filled = kUnset, fillColor = 0, line = kUnset, lineColor = 0, lineWidth = kUnset, inset[4] = {kUnset, kUnset, kUnset, kUnset}, behind = 0;
     } m_shape;
     ReadWork m_work;
-    bool m_shapeOpen = false;
+    bool m_shapeOpen = false, m_shapeHadText = false;
     int m_shapes = 0;
     QString m_spName;
     CellDef m_pendCell;
@@ -306,6 +306,8 @@ private:
     void finishNote(const State &g);
     void finishHeader(const State &g);
     void finishShapeText(const State &g);
+    QByteArray shapeAttributes(const char *type, double least, bool filled = true, bool strokedByDefault = false);
+    void finishShapeDrawing();
     void shapeWord(uint32_t h, int param);
     void finishPn(State &parent);
     QString addMedia(const QString &part, const QByteArray &bytes, const QString &ext);
@@ -974,7 +976,7 @@ void Reader::popGroup()
             break;
         case Dest::Pict: finishPict(g); break;
         case Dest::Header: finishHeader(g); break;
-        case Dest::Shape: m_shapeOpen = false; break;
+        case Dest::Shape: m_shapeOpen = false; if (!m_shapeHadText) finishShapeDrawing(); break;
         case Dest::SpName: m_spName = m_name.trimmed(); m_name.clear(); break;
         case Dest::SpValue: {
             const int v = m_name.trimmed().toInt();
@@ -1171,6 +1173,46 @@ void Reader::shapeWord(uint32_t h, int param)
     }
 }
 
+QByteArray Reader::shapeAttributes(const char *type, double least, bool filled, bool strokedByDefault)
+{
+    const ShapeScratch &s = m_shape;
+    auto pt = [](double v) { return QByteArray::number(v, 'f', 1); };
+    const double w = std::clamp((double(s.right) - s.left) / 20.0, least, 1584.0), h = std::clamp((double(s.bottom) - s.top) / 20.0, least, 1584.0);
+    const int hrel = s.posrelh != kUnset ? std::clamp(s.posrelh, 0, 2) : s.bx, vrel = s.posrelv != kUnset ? std::clamp(s.posrelv, 0, 2) : s.by;
+    const int id = ++m_drawingId;
+    QByteArray style = "position:absolute;margin-left:" + pt(std::clamp(double(s.left), -31680.0, 31680.0 * 4) / 20.0) + "pt;margin-top:" + pt(std::clamp(double(s.top), -31680.0, 31680.0 * 4) / 20.0) + "pt;width:" +
+                       pt(w) + "pt;height:" + pt(h) + "pt;z-index:" + num(s.behind ? -251658240 + 1024 * id : 251658240 + 1024 * id);
+    if (hrel != 2) style += QByteArray(";mso-position-horizontal-relative:") + (hrel == 0 ? "margin" : "page");
+    if (vrel != 2) style += QByteArray(";mso-position-vertical-relative:") + (vrel == 0 ? "margin" : "page");
+    auto rgb = [](int v) { return QByteArray("#") + QByteArray::number(((v & 0xFF) << 16) | (v & 0xFF00) | ((v >> 16) & 0xFF), 16).rightJustified(6, '0'); };
+    QByteArray attrs = QByteArray(" type=\"") + type + "\" id=\"_x0000_s" + num(id) + "\" style=\"" + style + "\"";
+    attrs += filled ? (s.filled == 1 ? " filled=\"t\" fillcolor=\"" + rgb(s.fillColor) + "\"" : QByteArray(" filled=\"f\"")) : QByteArray(" filled=\"f\"");
+    if (s.line == 1 || (s.line == kUnset && strokedByDefault)) attrs += " stroked=\"t\" strokecolor=\"" + rgb(s.lineColor) + "\" strokeweight=\"" + pt(s.lineWidth != kUnset ? std::clamp(s.lineWidth, 0, 3175000) / 12700.0 : 0.75) + "pt\"";
+    else attrs += " stroked=\"f\"";
+    return attrs;
+}
+
+// A shape with no text of its own that is a line, a rectangle, or an oval: it is drawn where the file puts it.
+void Reader::finishShapeDrawing()
+{
+    const ShapeScratch &s = m_shape;
+    if (m_stopped || m_shapes >= kMaxShapes || (s.type != 20 && s.type != 1 && s.type != 2 && s.type != 3)) return;
+    ++m_shapes;
+    auto pt = [](double v) { return QByteArray::number(v, 'f', 1); };
+    const QByteArray wrapNone = "<w10:wrap type=\"none\"/>";
+    QByteArray xml;
+    if (s.type == 20) {
+        const double w = std::clamp((double(s.right) - s.left) / 20.0, 0.0, 1584.0), h = std::clamp((double(s.bottom) - s.top) / 20.0, 0.0, 1584.0);
+        const QByteArray attrs = shapeAttributes("", 0.0, false, true);
+        xml = "<w:pict><v:line" + attrs.mid(attrs.indexOf(" id=")) + " from=\"0pt,0pt\" to=\"" + pt(w) + "pt," + pt(h) + "pt\">" + wrapNone + "</v:line></w:pict>";
+    } else {
+        const QByteArray attrs = shapeAttributes("", 1.0, true, true);
+        const char *tag = s.type == 3 ? "v:oval" : "v:rect";
+        xml = QByteArray("<w:pict><") + tag + attrs.mid(attrs.indexOf(" id=")) + ">" + wrapNone + "</" + tag + "></w:pict>";
+    }
+    addRaw(story(), xml, st().chr, false);
+}
+
 void Reader::finishShapeText(const State &g)
 {
     if (m_stories.empty()) return;
@@ -1179,18 +1221,8 @@ void Reader::finishShapeText(const State &g)
     if (m_stopped) return;
     const ShapeScratch &s = m_shape;
     auto pt = [](double v) { return QByteArray::number(v, 'f', 1); };
-    const double w = std::clamp((double(s.right) - s.left) / 20.0, 1.0, 1584.0), h = std::clamp((double(s.bottom) - s.top) / 20.0, 1.0, 1584.0);
-    const int hrel = s.posrelh != kUnset ? std::clamp(s.posrelh, 0, 2) : s.bx, vrel = s.posrelv != kUnset ? std::clamp(s.posrelv, 0, 2) : s.by;
-    const int id = ++m_drawingId;
-    QByteArray style = "position:absolute;margin-left:" + pt(std::clamp(double(s.left), -31680.0, 31680.0 * 4) / 20.0) + "pt;margin-top:" + pt(std::clamp(double(s.top), -31680.0, 31680.0 * 4) / 20.0) + "pt;width:" +
-                       pt(w) + "pt;height:" + pt(h) + "pt;z-index:" + num(s.behind ? -251658240 + 1024 * id : 251658240 + 1024 * id);
-    if (hrel != 2) style += QByteArray(";mso-position-horizontal-relative:") + (hrel == 0 ? "margin" : "page");
-    if (vrel != 2) style += QByteArray(";mso-position-vertical-relative:") + (vrel == 0 ? "margin" : "page");
-    auto rgb = [](int v) { return QByteArray("#") + QByteArray::number(((v & 0xFF) << 16) | (v & 0xFF00) | ((v >> 16) & 0xFF), 16).rightJustified(6, '0'); };
-    QByteArray attrs = " type=\"#_x0000_t202\" id=\"_x0000_s" + num(id) + "\" style=\"" + style + "\"";
-    attrs += s.filled == 1 ? " filled=\"t\" fillcolor=\"" + rgb(s.fillColor) + "\"" : QByteArray(" filled=\"f\"");
-    if (s.line == 1) attrs += " stroked=\"t\" strokecolor=\"" + rgb(s.lineColor) + "\" strokeweight=\"" + pt(s.lineWidth != kUnset ? std::clamp(s.lineWidth, 0, 3175000) / 12700.0 : 0.75) + "pt\"";
-    else attrs += " stroked=\"f\"";
+    const QByteArray attrs = shapeAttributes("#_x0000_t202", 1.0);
+    m_shapeHadText = true;
     QByteArray textbox = "<v:textbox";
     if (s.inset[0] != kUnset || s.inset[1] != kUnset || s.inset[2] != kUnset || s.inset[3] != kUnset) {
         auto in = [&](int v, double d) { return pt(v == kUnset ? d : std::clamp(v, 0, 3175000) / 12700.0); };
@@ -1426,7 +1458,7 @@ void Reader::destWord(State &g, uint32_t h, bool has, int param, bool *handled)
     case H("sp"): enter(Dest::ShapeProp); break;
     case H("sn"): enter(Dest::SpName); m_name.clear(); break;
     case H("sv"): enter(Dest::SpValue); m_name.clear(); break;
-    case H("shpinst"): enter(Dest::Shape); m_shape = ShapeScratch(); m_shapeOpen = true; break;
+    case H("shpinst"): enter(Dest::Shape); m_shape = ShapeScratch(); m_shapeOpen = true; m_shapeHadText = false; break;
     case H("shptxt"):
         if (m_shapeOpen && m_shapes < kMaxShapes && m_stories.size() < 3u && !m_stopped) {
             ++m_shapes;

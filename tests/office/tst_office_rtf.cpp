@@ -532,6 +532,23 @@ private Q_SLOTS:
         QVERIFY(!xml.contains("Fallback"));
     }
 
+    void aLineAndARectangleShapeAreDrawn()
+    {
+        const Document d = must(doc("\\pard a{\\shp{\\*\\shpinst\\shpleft-99\\shptop1084\\shpright9440\\shpbottom1084{\\sp{\\sn shapeType}{\\sv 20}}{\\sp{\\sn lineColor}{\\sv 8388608}}}}"
+                                    "{\\shp{\\*\\shpinst\\shpleft100\\shptop200\\shpright1100\\shpbottom700{\\sp{\\sn shapeType}{\\sv 1}}{\\sp{\\sn fFilled}{\\sv 1}}{\\sp{\\sn fillColor}{\\sv 255}}}}b\\par"));
+        QCOMPARE(bodyTexts(d).first(), QStringLiteral("ab"));
+        QByteArray xml;
+        for (const Inline &in : d.body.first().para.content)
+            if (in.kind == Inline::RunAtom) xml += in.raw;
+        QVERIFY2(xml.contains("<v:line"), xml.constData());
+        QVERIFY(xml.contains("strokecolor=\"#000080\""));   // (the file's color is blue, stored blue-green-red)
+        QVERIFY(xml.contains("pt,0.0pt\">"));   // (as wide as the file says, no taller than a line)
+        QVERIFY(xml.contains("width:476.9pt") || xml.contains("width:477.0pt"));
+        QVERIFY(xml.contains("margin-left:-5.0pt"));
+        QVERIFY(xml.contains("<v:rect"));
+        QVERIFY(xml.contains("fillcolor=\"#ff0000\""));
+    }
+
     void unknownDestinationsAreSkipped()
     {
         const Document d = must(doc("\\pard a{\\*\\unknowndest hidden text {nested} more}b{\\*\\generator Foo 1.0;}c{\\info{\\title T}{\\author A}}d{\\stylesheet{\\s9 x;}}e\\par"));
