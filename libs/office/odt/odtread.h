@@ -148,6 +148,9 @@ private:
     QByteArray anchorXml(const Odf &o, int frame, const QString &styleName, qint64 cx, qint64 cy, const QByteArray &graphic, int docPrId);
     QByteArray noteReference(const Odf &o, int note, ParaCtx *pc, const RunFmt &fmt);
     QByteArray commentXml(const Odf &o, int annotation, ParaCtx *pc);
+    void collectChanges(const Odf &o);
+    void closeInsertion(ParaCtx *pc);
+    QByteArray deletionXml(const Odf &o, const QString &id, ParaCtx *pc);
     QByteArray bodyBlocksXml(const QVector<Block> &blocks, bool lastMustBeParagraph) const;
     QByteArray blockXml(const Block &b) const;
     void startSection(const QString &master);
@@ -209,6 +212,14 @@ private:
     double m_pageTextWidth = 9360;
     QSet<QString> m_bookmarkOpen, m_bookmarkDone, m_annotationEnds;
     QHash<QString, int> m_commentOpen;
+    struct Change {
+        bool insertion = false, deletion = false;
+        QString author, date;
+        int node = -1;          // the changed region
+    };
+    QHash<QString, Change> m_changes;
+    QString m_openInsertion;                          // the id of an insertion that goes on past the end of a paragraph
+    int m_revisionId = 0;
     bool m_inNote = false, m_sectionsOn = false, m_sectionStarted = false;
     QByteArray m_body, m_finalSect;
     QStringList m_styleOrder;

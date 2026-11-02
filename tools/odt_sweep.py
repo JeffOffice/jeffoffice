@@ -27,6 +27,19 @@ def words(text):
     return collections.Counter(re.findall(r"\w+", "\n".join(l for l in text.split("\n") if not l.startswith("#note")).lower()))
 
 
+def run_stats(text):
+    """The characters' looks and the paragraphs' properties of a `runs` listing, as two multisets (characters of text only, never the text itself)."""
+    chars, paras = collections.Counter(), collections.Counter()
+    for line in text.split("\n"):
+        parts = line.split("\t")
+        if parts[0] == "P":
+            paras[tuple(parts[1:])] += 1
+        elif parts[0] == "R" and len(parts) >= 7:
+            n = len("".join(parts[6:]).replace(" ", ""))
+            chars[tuple(parts[1:6])] += n
+    return chars, paras
+
+
 def match(a, b):
     both = sum((a & b).values())
     size = max(sum(a.values()), sum(b.values()))
@@ -58,6 +71,13 @@ def one(name):
             out["reopen"] = c4
             if c4 == 0:
                 out["rtmatch"] = match(words(text), words(t4))
+                c5, r1, _ = run(["runs", os.path.join(odt_dir, name)])
+                c6, r2, _ = run(["runs", saved])
+                if c5 == 0 and c6 == 0:
+                    ch1, p1 = run_stats(r1)
+                    ch2, p2 = run_stats(r2)
+                    out["runs"] = match(ch1, ch2)
+                    out["paras"] = match(p1, p2)
     return out
 
 
@@ -86,3 +106,8 @@ if rt_dir:
             print("RTFAIL", r["name"], r["save"], r.get("reopen"), r["saveerr"].replace("\n", " ")[:120])
     for r in sorted(rt, key=lambda r: r["rtmatch"])[:10]:
         print("RTLOW %.3f" % r["rtmatch"], r["name"])
+    f = [r for r in rt if "runs" in r]
+    print("formatting runs kept: files", len(f), "characters' looks at>=99%", sum(1 for r in f if r["runs"] >= 0.99), "at>=95%", sum(1 for r in f if r["runs"] >= 0.95),
+          "paragraph properties at>=99%", sum(1 for r in f if r["paras"] >= 0.99), "at>=95%", sum(1 for r in f if r["paras"] >= 0.95))
+    for r in sorted(f, key=lambda r: r["runs"])[:8]:
+        print("RUNSLOW %.3f paras %.3f" % (r["runs"], r["paras"]), r["name"])

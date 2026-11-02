@@ -402,15 +402,32 @@ private Q_SLOTS:
         QVERIFY(wml::readDocx(docx, &doc));
     }
 
-    void trackedChangesKeepTheTextAsItStands()
+    void trackedChangesAreKept()
     {
         Made m;
-        m.body = "<text:tracked-changes><text:changed-region text:id=\"c1\"><text:deletion><office:change-info><dc:creator>A</dc:creator></office:change-info><text:p>gone text</text:p></text:deletion></text:changed-region>"
-                 "<text:changed-region text:id=\"c2\"><text:insertion><office:change-info><dc:creator>A</dc:creator></office:change-info></text:insertion></text:changed-region></text:tracked-changes>"
+        m.body = "<text:tracked-changes><text:changed-region text:id=\"c1\"><text:deletion><office:change-info><dc:creator>Ann</dc:creator><dc:date>2024-05-06T07:08:09</dc:date></office:change-info><text:p>gone text</text:p></text:deletion></text:changed-region>"
+                 "<text:changed-region text:id=\"c2\"><text:insertion><office:change-info><dc:creator>Bob</dc:creator></office:change-info></text:insertion></text:changed-region></text:tracked-changes>"
                  "<text:p>keep <text:change-start text:change-id=\"c2\"/>added<text:change-end text:change-id=\"c2\"/><text:change text:change-id=\"c1\"/> end</text:p>";
-        const QString d = document(m);
-        QVERIFY(d.contains(QLatin1String("added")));
-        QVERIFY(!d.contains(QLatin1String("gone text")));
+        const QByteArray docx = docxOf(m.build());
+        const QString d = part(docx, QStringLiteral("/word/document.xml"));
+        QVERIFY(d.contains(QLatin1String("<w:ins w:id=\"1\" w:author=\"Bob\">")));
+        QVERIFY(d.contains(QRegularExpression(QStringLiteral("<w:ins [^>]*><w:r><w:t xml:space=\"preserve\">added</w:t></w:r></w:ins>"))));
+        QVERIFY(d.contains(QLatin1String("<w:del w:id=\"2\" w:author=\"Ann\" w:date=\"2024-05-06T07:08:09Z\">")));
+        QVERIFY(d.contains(QLatin1String("<w:delText xml:space=\"preserve\">gone text</w:delText>")));
+        wml::Document doc;
+        QVERIFY(wml::readDocx(docx, &doc));
+        // Written back, they are tracked changes of the .odt again.
+        const QByteArray odt = fromDocxPackage(docx);
+        QMap<QString, QByteArray> files;
+        QVERIFY(jp::readZip(odt, files));
+        const QString c = QString::fromUtf8(files.value(QStringLiteral("content.xml")));
+        QVERIFY(c.contains(QLatin1String("<text:tracked-changes>")));
+        QVERIFY(c.contains(QLatin1String("<text:insertion>")));
+        QVERIFY(c.contains(QLatin1String("<text:deletion>")));
+        QVERIFY(c.contains(QLatin1String("gone text")));
+        QVERIFY(c.contains(QLatin1String("<text:change-start")));
+        QVERIFY(c.contains(QLatin1String("<text:change text:change-id")));
+        QVERIFY(wellFormed(files.value(QStringLiteral("content.xml"))));
     }
 
     void flatForm()

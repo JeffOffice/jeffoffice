@@ -1675,6 +1675,7 @@
     <file alias="de/write/headers-footers.md">help/de/write/headers-footers.md</file>
     <file alias="de/write/index.md">help/de/write/index.md</file>
     <file alias="de/write/keyboard.md">help/de/write/keyboard.md</file>
+    <file alias="de/write/open-odt.md">help/de/write/open-odt.md</file>
     <file alias="de/write/open-save.md">help/de/write/open-save.md</file>
     <file alias="de/write/page-setup.md">help/de/write/page-setup.md</file>
     <file alias="de/write/pictures.md">help/de/write/pictures.md</file>
@@ -1811,6 +1812,7 @@
     <file alias="en/write/headers-footers.md">help/en/write/headers-footers.md</file>
     <file alias="en/write/index.md">help/en/write/index.md</file>
     <file alias="en/write/keyboard.md">help/en/write/keyboard.md</file>
+    <file alias="en/write/open-odt.md">help/en/write/open-odt.md</file>
     <file alias="en/write/open-save.md">help/en/write/open-save.md</file>
     <file alias="en/write/page-setup.md">help/en/write/page-setup.md</file>
     <file alias="en/write/pictures.md">help/en/write/pictures.md</file>

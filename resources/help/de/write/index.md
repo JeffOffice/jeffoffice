@@ -7,6 +7,7 @@ Geben Sie oben in das Suchfeld etwas ein, um ein Thema oder einen auszuführende
 
 - [Willkommen bei JeffWrite](start)
 - [Öffnen, Speichern, Drucken und Exportieren](open-save)
+- [OpenDocument-Dateien öffnen und speichern](open-odt)
 - [Drucken](print)
 
 ## Text bearbeiten

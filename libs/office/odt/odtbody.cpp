@@ -46,6 +46,9 @@ struct Reader::ParaCtx {
     int depth = 0;
     bool inNote = false;
     QHash<QByteArray, QByteArray> rPrCache;
+    QString insId;               // an insertion that is open, and where its runs begin
+    qsizetype insAt = 0;
+    int linkDepth = 0, insLinkDepth = 0;
     // A field being made over several runs (the table of contents's entries): none here.
 };
 
@@ -396,7 +399,9 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
         const QString href = o.at(n, "xlink:href");
         const QByteArray saved = pc->runs;
         pc->runs.clear();
+        ++pc->linkDepth;
         inlineContent(o, n, pc, f, depth + 1);
+        --pc->linkDepth;
         const QByteArray inner = pc->runs;
         pc->runs = saved;
         if (href.isEmpty() || inner.isEmpty()) pc->runs += inner;
@@ -492,9 +497,24 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
     } else if (o.is(n, "text:ruby")) {
         const int base = o.child(n, "text:ruby-base");
         if (base >= 0) inlineContent(o, base, pc, fmt, depth + 1);
+    } else if (o.is(n, "text:change-start")) {
+        const auto it = m_changes.constFind(o.at(n, "text:change-id"));
+        if (it != m_changes.constEnd() && it->insertion && pc->insId.isEmpty()) {
+            pc->insId = o.at(n, "text:change-id");
+            pc->insAt = pc->runs.size();
+            pc->insLinkDepth = pc->linkDepth;
+        }
+    } else if (o.is(n, "text:change-end")) {
+        if (!pc->insId.isEmpty() && pc->insId == o.at(n, "text:change-id")) {
+            closeInsertion(pc);
+            m_openInsertion.clear();
+        }
+    } else if (o.is(n, "text:change")) {
+        const QByteArray d = deletionXml(o, o.at(n, "text:change-id"), pc);
+        pc->runs += d;
     } else if (o.is(n, "text:ruby-text") || o.is(n, "text:toc-mark") || o.is(n, "text:toc-mark-start") || o.is(n, "text:toc-mark-end") || o.is(n, "text:alphabetical-index-mark") ||
                o.is(n, "text:alphabetical-index-mark-start") || o.is(n, "text:alphabetical-index-mark-end") || o.is(n, "text:user-index-mark") || o.is(n, "text:bibliography-mark") ||
-               o.is(n, "text:change") || o.is(n, "text:change-start") || o.is(n, "text:change-end") || o.is(n, "text:hidden-paragraph") || o.is(n, "text:hidden-text") ||
+               o.is(n, "text:hidden-paragraph") || o.is(n, "text:hidden-text") ||
                o.is(n, "svg:title") || o.is(n, "svg:desc") || o.is(n, "office:event-listeners") || o.is(n, "text:script") || o.is(n, "text:sequence-decls")) {
         // (A mark with no text of its own, a change's point, or what a person did not ask to be shown.)
     } else if (o.is(n, "draw:g")) {
@@ -510,6 +530,70 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
     } else {
         // Anything else (a field with its text, a meta, a text input) holds text that is kept.
         inlineContent(o, n, pc, fmt, depth + 1);
+    }
+}
+
+void Reader::closeInsertion(ParaCtx *pc)
+{
+    if (pc->insId.isEmpty()) return;
+    const Change c = m_changes.value(pc->insId);
+    if (pc->linkDepth == pc->insLinkDepth && pc->insAt <= pc->runs.size() && pc->runs.size() > pc->insAt) {
+        QString date = c.date.left(19);
+        if (!date.isEmpty()) date += QLatin1Char('Z');
+        const QByteArray open = "<w:ins w:id=\"" + num(++m_revisionId) + "\" w:author=\"" + esc(c.author.isEmpty() ? QStringLiteral("Author") : c.author) + "\"" + (date.isEmpty() ? QByteArray() : " w:date=\"" + esc(date) + "\"") + ">";
+        pc->runs.insert(pc->insAt, open);
+        pc->runs += "</w:ins>";
+    }
+    pc->insId.clear();
+}
+
+QByteArray Reader::deletionXml(const Odf &o, const QString &id, ParaCtx *pc)
+{
+    const auto it = m_changes.constFind(id);
+    if (it == m_changes.constEnd() || !it->deletion || pc->depth > kMaxNesting) return QByteArray();
+    const wml::XmlTree &t = o.tree();
+    const int del = o.child(it->node, "text:deletion");
+    if (del < 0) return QByteArray();
+    QByteArray runs;
+    bool first = true;
+    for (int c = t.firstChild(del); c >= 0; c = t.next(c)) {
+        if (!o.is(c, "text:p") && !o.is(c, "text:h")) continue;
+        ParaCtx inner;
+        inner.depth = pc->depth + 1;
+        inner.inNote = true;   // (a note or comment in deleted text is not kept)
+        QString named, listStyle;
+        inner.base = ownProps(QStringLiteral("paragraph"), o.at(c, "text:style-name"), &named);
+        if (!first) inner.runs += "<w:r><w:br/></w:r>";
+        inlineContent(o, c, &inner, RunFmt(), 0);
+        runs += inner.runs;
+        first = false;
+    }
+    if (runs.isEmpty()) return QByteArray();
+    // (The text of a deleted run is w:delText.)
+    runs.replace("<w:t ", "<w:delText ").replace("<w:t>", "<w:delText>").replace("</w:t>", "</w:delText>");
+    QString date = it->date.left(19);
+    if (!date.isEmpty()) date += QLatin1Char('Z');
+    return "<w:del w:id=\"" + num(++m_revisionId) + "\" w:author=\"" + esc(it->author.isEmpty() ? QStringLiteral("Author") : it->author) + "\"" + (date.isEmpty() ? QByteArray() : " w:date=\"" + esc(date) + "\"") + ">" + runs + "</w:del>";
+}
+
+void Reader::collectChanges(const Odf &o)
+{
+    const wml::XmlTree &t = o.tree();
+    for (int i = 0; i < t.count(); ++i) {
+        if (!o.is(i, "text:changed-region")) continue;
+        Change c;
+        c.node = i;
+        for (int k = t.firstChild(i); k >= 0; k = t.next(k)) {
+            c.insertion = c.insertion || o.is(k, "text:insertion");
+            c.deletion = c.deletion || o.is(k, "text:deletion");
+            const int info = o.child(k, "office:change-info");
+            if (info >= 0) {
+                const int a = o.child(info, "dc:creator"), d = o.child(info, "dc:date");
+                if (a >= 0) c.author = t.text(a);
+                if (d >= 0) c.date = t.text(d);
+            }
+        }
+        if (m_changes.size() < kMaxMadeParts * 5) m_changes.insert(o.at(i, "text:id"), c);
     }
 }
 
@@ -792,6 +876,15 @@ void Reader::convertParagraph(const Odf &o, int n, QVector<Block> *out, int list
     QByteArray numPr;
     if (numbered && listLevel >= 0 && listNum > 0) numPr = "<w:numPr><w:ilvl w:val=\"" + num(std::min(listLevel, 8)) + "\"/><w:numId w:val=\"" + num(listNum) + "\"/></w:numPr>";
     else if (listLevel >= 0 && !numbered && listNum > 0) numPr = "<w:numPr><w:ilvl w:val=\"" + num(std::min(listLevel, 8)) + "\"/><w:numId w:val=\"0\"/></w:numPr>";
+    if (numPr.isEmpty() && heading && m_hasOutline && listFromStyle.isEmpty()) {
+        // A heading of an outline whose level is numbered is numbered.
+        const int lv = std::max(1, std::min(9, o.at(n, "text:outline-level").isEmpty() ? 1 : o.at(n, "text:outline-level").toInt()));
+        const StyleDef *d = named.isEmpty() ? nullptr : style(QStringLiteral("paragraph"), named);
+        if (m_outline.level[lv - 1].defined && !m_outline.level[lv - 1].numFmt.isEmpty() && !(d && !d->listStyle.isEmpty())) {
+            const int numId = numberOf(QStringLiteral("Outline"), false);
+            if (numId > 0) numPr = "<w:numPr><w:ilvl w:val=\"" + num(lv - 1) + "\"/><w:numId w:val=\"" + num(numId) + "\"/></w:numPr>";
+        }
+    }
     QByteArray ppr = pPrXml(pp, tabs, pStyle, numPr, outline, m_pendingPageBreak);
     m_pendingPageBreak = pp.value(QStringLiteral("para:fo:break-after")) == QLatin1String("page");
     const QByteArray markProps = rPrXml(pp, QString());
@@ -801,7 +894,18 @@ void Reader::convertParagraph(const Odf &o, int n, QVector<Block> *out, int list
     pc.depth = depth;
     pc.inNote = m_inNote;
     RunFmt fmt;
+    if (!m_openInsertion.isEmpty()) {
+        pc.insId = m_openInsertion;
+        pc.insAt = 0;
+        pc.insLinkDepth = 0;
+    }
     inlineContent(o, n, &pc, fmt, 0);
+    if (!pc.insId.isEmpty()) {
+        // An insertion that runs on past this paragraph.
+        const QString id = pc.insId;
+        closeInsertion(&pc);
+        m_openInsertion = id;
+    }
     Block b;
     b.para = true;
     b.pPr = ppr;

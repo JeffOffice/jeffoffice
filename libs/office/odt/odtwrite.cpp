@@ -786,15 +786,22 @@ QByteArray Writer::contentXml()
     for (auto it = m_fontFaces.constBegin(); it != m_fontFaces.constEnd(); ++it)
         faces += "<style:font-face style:name=\"" + esc(it.key()) + "\" svg:font-family=\"" + esc(it.key().contains(QLatin1Char(' ')) ? QStringLiteral("'") + it.key() + QStringLiteral("'") : it.key()) + "\"/>";
     QByteArray lists;
-    for (int numId : std::as_const(m_numsUsed)) lists += listStyleXml(numId);
+    {
+        // (In the order of the numbers: a file is the same bytes whatever the order of a hash.)
+        QList<int> ids = m_numsUsed.values();
+        std::sort(ids.begin(), ids.end());
+        for (int numId : std::as_const(ids)) lists += listStyleXml(numId);
+    }
     QByteArray decls;
     if (!m_sequences.isEmpty()) {
         decls = "<text:sequence-decls>";
-        for (const QString &s : std::as_const(m_sequences)) decls += "<text:sequence-decl text:display-outline-level=\"0\" text:name=\"" + esc(s) + "\"/>";
+        QStringList names = m_sequences.values();
+        names.sort();
+        for (const QString &s : std::as_const(names)) decls += "<text:sequence-decl text:display-outline-level=\"0\" text:name=\"" + esc(s) + "\"/>";
         decls += "</text:sequence-decls>";
     }
     return QByteArray(kXml) + "<office:document-content" + kOdfNamespaces + " office:version=\"1.2\"><office:scripts/><office:font-face-decls>" + faces + "</office:font-face-decls><office:automatic-styles>" +
-           m_content.xml + lists + "</office:automatic-styles><office:body><office:text>" + decls + m_bodyXml + "</office:text></office:body></office:document-content>";
+           m_content.xml + lists + "</office:automatic-styles><office:body><office:text>" + (m_changeRegions.isEmpty() ? QByteArray() : "<text:tracked-changes>" + m_changeRegions + "</text:tracked-changes>") + decls + m_bodyXml + "</office:text></office:body></office:document-content>";
 }
 
 bool Writer::run(const QByteArray &docx, QByteArray *out, QString *error, QStringList *notes)

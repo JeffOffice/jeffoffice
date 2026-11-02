@@ -110,15 +110,13 @@ void Writer::emitBlock(const T &t, int n, QByteArray *out, ListCtx *lc, int dept
         for (int c = t.firstChild(n); c >= 0; c = t.next(c)) emitBlock(t, c, out, lc, depth, body);
     } else if (t.is(n, "bookmarkStart")) {
         const QString name = t.attr(n, "name");
-        if (!name.isEmpty() && name != QLatin1String("_GoBack")) {
+        if (!name.isEmpty()) {
             m_bookmarkNames.insert(t.attr(n, "id").toInt(), name);
             m_pendingBookmarks += "<text:bookmark-start text:name=\"" + esc(name) + "\"/>";
         }
     } else if (t.is(n, "bookmarkEnd")) {
         const int id = t.attr(n, "id").toInt();
         if (m_bookmarkNames.contains(id)) m_pendingBookmarks += "<text:bookmark-end text:name=\"" + esc(m_bookmarkNames.value(id)) + "\"/>";
-    } else if (t.is(n, "del") || t.is(n, "moveFrom")) {
-        left(QCoreApplication::translate("odt", "tracked changes (saved as they stand now)"));
     }
 }
 
@@ -809,7 +807,7 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
     for (int c = t.firstChild(run); c >= 0; c = t.next(c)) {
         const QByteArray name = t.localName(c);
         if (!pc->fields.isEmpty() && !pc->fields.last().result && name != "fldChar" && name != "instrText") continue;
-        if (name == "t") emitText(pc, t.text(c), span);
+        if (name == "t" || name == "delText") emitText(pc, t.text(c), span);
         else if (name == "tab" || name == "ptab") {
             pc->xml += "<text:tab/>";
             pc->lastSpace = true;
@@ -1007,7 +1005,7 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
             }
         } else if (name == "bookmarkStart") {
             const QString bm = t.attr(c, "name");
-            if (!bm.isEmpty() && bm != QLatin1String("_GoBack")) {
+            if (!bm.isEmpty()) {
                 m_bookmarkNames.insert(t.attr(c, "id").toInt(), bm);
                 pc->xml += "<text:bookmark-start text:name=\"" + esc(bm) + "\"/>";
             }
@@ -1019,11 +1017,34 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
         } else if (name == "commentRangeEnd") {
             const int id = t.attr(c, "id").toInt();
             if (m_commentsStarted.contains(QString::number(id))) pc->xml += "<office:annotation-end office:name=\"cmt" + num(id) + "\"/>";
-        } else if (name == "ins" || name == "moveTo" || name == "smartTag" || name == "customXml" || name == "dir" || name == "bdo") emitInline(t, c, pc, depth + 1);
+        } else if ((name == "ins" || name == "moveTo") && m_sink == &m_content && m_changeCount < kMaxMadeParts) {
+            const QString id = QStringLiteral("ct%1").arg(++m_changeCount);
+            QString date = t.attr(c, "date");
+            if (date.endsWith(QLatin1Char('Z'))) date.chop(1);
+            m_changeRegions += "<text:changed-region text:id=\"" + id.toUtf8() + "\"><text:insertion><office:change-info><dc:creator>" + esc(t.attr(c, "author"), false) + "</dc:creator>" +
+                               (date.isEmpty() ? QByteArray() : "<dc:date>" + esc(date, false) + "</dc:date>") + "</office:change-info></text:insertion></text:changed-region>";
+            pc->xml += "<text:change-start text:change-id=\"" + id.toUtf8() + "\"/>";
+            emitInline(t, c, pc, depth + 1);
+            pc->xml += "<text:change-end text:change-id=\"" + id.toUtf8() + "\"/>";
+        } else if (name == "smartTag" || name == "customXml" || name == "dir" || name == "bdo" || name == "ins" || name == "moveTo") emitInline(t, c, pc, depth + 1);
         else if (name == "sdt") {
             const int content = t.child(c, "sdtContent");
             if (content >= 0) emitInline(t, content, pc, depth + 1);
-        } else if (name == "del" || name == "moveFrom") left(QCoreApplication::translate("odt", "tracked changes (saved as they stand now)"));
+        } else if ((name == "del" || name == "moveFrom") && m_sink == &m_content && m_changeCount < kMaxMadeParts) {
+            // The deleted text is kept with the change, and the change is marked where it was.
+            ParaCtx dpc;
+            dpc.depth = pc->depth;
+            dpc.inNote = true;
+            emitInline(t, c, &dpc, depth + 1);
+            if (!dpc.xml.isEmpty()) {
+                const QString id = QStringLiteral("ct%1").arg(++m_changeCount);
+                QString date = t.attr(c, "date");
+                if (date.endsWith(QLatin1Char('Z'))) date.chop(1);
+                m_changeRegions += "<text:changed-region text:id=\"" + id.toUtf8() + "\"><text:deletion><office:change-info><dc:creator>" + esc(t.attr(c, "author"), false) + "</dc:creator>" +
+                                   (date.isEmpty() ? QByteArray() : "<dc:date>" + esc(date, false) + "</dc:date>") + "</office:change-info><text:p text:style-name=\"Standard\">" + dpc.xml + "</text:p></text:deletion></text:changed-region>";
+                pc->xml += "<text:change text:change-id=\"" + id.toUtf8() + "\"/>";
+            }
+        } else if (name == "del" || name == "moveFrom") left(QCoreApplication::translate("odt", "tracked changes in headers and footers (saved as they stand now)"));
         else if (name == "sdtContent") emitInline(t, c, pc, depth + 1);
     }
 }

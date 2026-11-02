@@ -647,6 +647,7 @@ void Reader::convertBody(const Odf &o, int body)
     // The comments that have an end in the text.
     for (int i = 0; i < t.count(); ++i)
         if (o.is(i, "office:annotation-end")) m_annotationEnds.insert(o.at(i, "office:name"));
+    collectChanges(o);
     m_sect = SectionState();
     {
         const MasterPageDef *first = masterNamed(QStringLiteral("Standard"));
