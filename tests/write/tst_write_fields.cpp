@@ -15,6 +15,7 @@
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "office/package.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 #include "wml/wml.h"
 
@@ -932,63 +933,69 @@ private Q_SLOTS:
         QCOMPARE(plainNumber(1.0000005), QStringLiteral("1.000001"));
     }
 
-    void fieldCodesCanBeShownAndHiddenWithoutChangingTheFile()
+    void fieldCodesAreAViewNotAnEdit()
     {
         const QByteArray body = para(run("a ") + field("QUOTE \"fresh\"", "stale") + run(" b ") + field("QUOTE \"two\"", "old"));
         auto doc = open(makeDocx(body));
         QVERIFY(doc);
         const QByteArray saved = documentXml(doc->toDocx());
         auto shown = [&] {
-            QString t;
-            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
-                for (auto it = b.begin(); !it.atEnd(); ++it) {
-                    const QTextCharFormat cf = it.fragment().charFormat();
-                    if (cf.boolProperty(tp::HiddenText)) continue;
-                    const QString field = cf.stringProperty(tp::Field);
-                    if (cf.hasProperty(prop::Atom) && field.startsWith(QLatin1String("raw:"))) t += field.mid(4).repeated(it.fragment().length());
-                    else if (!cf.hasProperty(prop::Atom)) t += it.fragment().text();
-                }
-            return t;
+            FrameSpec fs;
+            fs.size = QSizeF(468, 600);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            StoryLayout layout;
+            layout.build(doc->story(), {fs}, doc->flow().env);
+            QStringList out;
+            for (const auto &l : layout.lineInfo(0)) out << QString(l.text).remove(QChar(0x2060)).trimmed();
+            return out.join(QLatin1Char('|'));
         };
         QCOMPARE(shown(), QStringLiteral("a stale b old"));
+        // An edit, and its Undo: the redo is there to be done.
+        QCOMPARE(updateFields(*doc).changed, 2);
+        QCOMPARE(shown(), QStringLiteral("a fresh b two"));
+        QVERIFY(doc->undo());
         QVERIFY(!doc->canUndo());
-        // Shift+F9: the field at the caret.
+        QVERIFY(doc->canRedo());
+        QVERIFY(!doc->isModified());
+        // Shift+F9: the field at the caret shows its code. Nothing of the history or the document is touched.
         const StoryScan scan = scanStory(doc->story());
         QTextCursor c(doc->story());
         c.setPosition(scan.fields[1].begin + 1);
         QCOMPARE(toggleFieldCodes(*doc, c, false), 1);
         QCOMPARE(shown(), QStringLiteral("a stale b { QUOTE \"two\" }"));
+        QVERIFY(!doc->canUndo());
+        QVERIFY(doc->canRedo());
+        QVERIFY(!doc->isModified());
         QCOMPARE(documentXml(doc->toDocx()), saved);
-        QVERIFY(!doc->canUndo());      // (a view is no step to undo)
-        QVERIFY(!doc->isModified());   // (and no change to the document)
-        // Alt+F9: every field (the ones shown stay, the rest are shown).
+        // The redo still works, and what it does is seen with the code still shown.
+        QVERIFY(doc->redo());
+        QCOMPARE(shown(), QStringLiteral("a fresh b { QUOTE \"two\" }"));
+        QVERIFY(doc->canUndo());
+        QVERIFY(!doc->canRedo());
+        // Alt+F9: every field (the one shown stays, the other is shown); again: all are hidden.
         QCOMPARE(toggleFieldCodes(*doc, c, true), 1);
         QCOMPARE(shown(), QStringLiteral("a { QUOTE \"fresh\" } b { QUOTE \"two\" }"));
-        QCOMPARE(documentXml(doc->toDocx()), saved);
-        // Again: all are hidden.
         QCOMPARE(toggleFieldCodes(*doc, c, true), 2);
+        QCOMPARE(shown(), QStringLiteral("a fresh b two"));
+        // One of all shown is hidden by itself.
+        toggleFieldCodes(*doc, c, true);
+        QCOMPARE(toggleFieldCodes(*doc, c, false), 1);
+        QCOMPARE(shown(), QStringLiteral("a { QUOTE \"fresh\" } b two"));
+        // The step the update made is still the only one, and undoing it brings the old results back under the codes.
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->canUndo());
+        QCOMPARE(shown(), QStringLiteral("a { QUOTE \"fresh\" } b old"));
+        toggleFieldCodes(*doc, c, true);
+        toggleFieldCodes(*doc, c, true);
         QCOMPARE(shown(), QStringLiteral("a stale b old"));
         QCOMPARE(documentXml(doc->toDocx()), saved);
-        // An update while the codes are shown still works, and the results come back right.
+        // A field made after the codes were shown, and one that is unlinked, are no part of the view.
+        QTextCursor all(doc->story());
+        all.select(QTextCursor::Document);
+        QCOMPARE(unlinkFields(*doc, all), 2);
         toggleFieldCodes(*doc, c, true);
-        updateFields(*doc);
-        toggleFieldCodes(*doc, c, true);
-        QCOMPARE(shown(), QStringLiteral("a fresh b two"));
-        // The update was the one step; a view after it is undone with it, and Undo stops at nothing else.
-        QVERIFY(doc->canUndo());
-        toggleFieldCodes(*doc, c, true);
-        QCOMPARE(shown(), QStringLiteral("a { QUOTE \"fresh\" } b { QUOTE \"two\" }"));
-        QVERIFY(doc->undo());
-        QVERIFY(!doc->canUndo());     // (what is left are views)
-        QVERIFY(doc->canRedo());
-        QVERIFY(doc->redo());         // (the update and the view after it come back together)
-        QVERIFY(doc->canUndo());
-        toggleFieldCodes(*doc, c, true);
-        QCOMPARE(shown(), QStringLiteral("a fresh b two"));
-        QVERIFY(doc->undo());
-        toggleFieldCodes(*doc, c, true);
-        QCOMPARE(shown(), QStringLiteral("a stale b old"));   // (the update is undone: the old results)
-        QCOMPARE(documentXml(doc->toDocx()), saved);   // (the update undone, the views no part of the file)
+        QCOMPARE(shown(), QStringLiteral("a stale b old"));
     }
 
     void aTableOfContentsIsBuiltFromTheHeadings()

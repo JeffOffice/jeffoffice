@@ -141,11 +141,27 @@ void WriteDoc::setRevisionView(int view)
 {
     if (view == m_revisionView) return;
     m_revisionView = view;
-    m_flow->env.revisionView = view;
-    story()->setProperty(tp::kRevisionViewProperty, view);
+    m_flow->env.revisionView = view | m_fieldCodeView;
+    story()->setProperty(tp::kRevisionViewProperty, view | m_fieldCodeView);
     if (m_pager) m_pager->invalidateFrom(0);
     Q_EMIT sectionsChanged();
     Q_EMIT reviewChanged();
+}
+
+void WriteDoc::setFieldCodes(bool all, const QSet<int> &ids)
+{
+    if (all == m_fieldCodesAll && ids == m_fieldCodeIds) return;
+    for (int id : std::as_const(m_fieldCodeIds)) tp::shownFieldCodeIds().remove(id);
+    m_fieldCodesAll = all;
+    m_fieldCodeIds = ids;
+    for (int id : std::as_const(m_fieldCodeIds)) tp::shownFieldCodeIds().insert(id);
+    // (The count in the high bits makes each change a different view, so what was laid out for the last is laid out again.)
+    m_fieldCodesCount = m_fieldCodesCount % 100000 + 1;
+    m_fieldCodeView = !all && ids.isEmpty() ? 0 : (all ? tp::kShowFieldCodes : 0) | (m_fieldCodesCount << tp::kFieldCodesCountShift);
+    m_flow->env.revisionView = m_revisionView | m_fieldCodeView;
+    story()->setProperty(tp::kRevisionViewProperty, m_revisionView | m_fieldCodeView);
+    if (m_pager) m_pager->invalidateFrom(0);
+    Q_EMIT sectionsChanged();
 }
 
 // Track Changes is a setting of the document: written when it differs from the file's.

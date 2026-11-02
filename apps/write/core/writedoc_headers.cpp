@@ -633,7 +633,7 @@ bool WriteDoc::partEdited(const HeaderPart &part) const
 void WriteDoc::stepAdded(QTextDocument *story)
 {
     const quint64 serial = m_nextSerial++;
-    m_undoLog.push_back(Step{story, serial, story->availableUndoSteps(), m_openGroup, m_viewDepth > 0});
+    m_undoLog.push_back(Step{story, serial, story->availableUndoSteps(), m_openGroup});
     // (The steps that can no longer be redone take what they held of the styles with them.)
     for (const Step &gone : std::as_const(m_redoLog)) m_styleSteps.remove(gone.serial);
     m_redoLog.clear();
@@ -715,9 +715,7 @@ QSet<quint64> WriteDoc::stepSerials() const
 QTextDocument *WriteDoc::undo(QTextCursor *cursor)
 {
     discardPendingHeaderFooter();   // (the empty one shown to be typed in is no step)
-    if (!canUndo()) return nullptr;
-    // (Changes of what is shown on top of the step go with it.)
-    while (!m_undoLog.isEmpty() && m_undoLog.last().view) undoOne(nullptr);
+    if (m_undoLog.isEmpty()) return nullptr;
     const quint64 group = m_undoLog.last().group;
     QTextDocument *where = undoOne(cursor);
     // (The steps that a group made, in several stories, are one: the rest of them go too.)
@@ -769,10 +767,6 @@ QTextDocument *WriteDoc::redo(QTextCursor *cursor)
     while (group != 0 && !m_redoLog.isEmpty() && m_redoLog.last().group == group) {
         const Step more = m_redoLog.takeLast();
         redoStep(more, nullptr);
-    }
-    while (!m_redoLog.isEmpty() && m_redoLog.last().view) {
-        const Step shown = m_redoLog.takeLast();
-        redoStep(shown, nullptr);
     }
     sealStories();
     checkModified();

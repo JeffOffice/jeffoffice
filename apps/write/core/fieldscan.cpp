@@ -7,10 +7,17 @@
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QXmlStreamReader>
+#include <atomic>
 
 using namespace jp::office::wml;
 
 namespace jp::write {
+
+int nextFieldId()
+{
+    static std::atomic<int> last{0};
+    return ++last;
+}
 
 namespace {
 

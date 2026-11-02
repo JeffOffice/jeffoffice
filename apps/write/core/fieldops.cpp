@@ -33,7 +33,6 @@ void resetFieldWorkForTest() { g_styleVisits = g_overlapChecks = g_computations 
 namespace {
 
 constexpr int kMostPasses = 3;                 // an update that changes the text is worked out again (the pages moved) this many times at most
-constexpr int kMostToggledChars = 200000;      // the characters whose look Show Field Codes changes in one command
 
 QByteArray escapedXml(const QString &text) { return jp::office::wml::escapeXml(text); }
 
@@ -80,7 +79,7 @@ QTextCharFormat plainOf(QTextCharFormat f)
     f.clearProperty(tp::Field);
     f.clearProperty(tp::LinkResult);
     f.clearProperty(tp::BlankFieldResult);
-    f.clearProperty(prop::FieldCodes);
+    f.clearProperty(tp::FieldCodeText);
     if (field.startsWith(QLatin1String("pageref:"))) f.setProperty(tp::Field, field);
     return withoutDeletion(f);
 }
@@ -779,18 +778,7 @@ PassResult updatePass(WriteDoc &doc, const UpdateOptions &options, bool keepChan
         QTextCharFormat first = old.isEmpty() ? sepLook : old.first();
         if (mode == LookMode::Code)
             if (const std::optional<QTextCharFormat> code = codeLook(story, f)) first = *code;
-        const bool codesShown = formatAt(story, f.begin).hasProperty(prop::FieldCodes);
-        auto looked = [&](QTextCharFormat cf) {
-            if (codesShown) {
-                // (The codes are shown: the new result stays out of sight, as the old one was.)
-                if (!cf.boolProperty(tp::HiddenText)) {
-                    cf.setProperty(tp::HiddenText, true);
-                    cf.setProperty(prop::TrackedDeleted, prop::HiddenByDeletion);
-                }
-                cf.setProperty(prop::FieldCodes, 1);
-            }
-            return cf;
-        };
+        auto looked = [](const QTextCharFormat &cf) { return cf; };
         QTextCursor c(story);
         c.setPosition(f.separate + 1);
         c.setPosition(f.end, QTextCursor::KeepAnchor);
@@ -905,6 +893,7 @@ int unlinkFields(WriteDoc &doc, const QTextCursor &c)
         const FieldPlace &f = scan.fields[index];
         if (f.form == FieldPlace::Group) {
             QTextCharFormat look = plainOf(formatAt(story, f.begin));
+            look.clearProperty(tp::FieldId);
             QTextCursor t(story);
             t.setPosition(f.begin);
             t.setPosition(f.begin + 1, QTextCursor::KeepAnchor);
@@ -912,6 +901,16 @@ int unlinkFields(WriteDoc &doc, const QTextCursor &c)
             if (!f.display.isEmpty()) t.insertText(f.display, look);
             ++done;
             continue;
+        }
+        // The result is text of the document now: it takes nothing of the field with it.
+        for (int p = f.separate + 1; p < f.end && p < f.separate + 200000; ++p) {
+            QTextCharFormat cf = formatAt(story, p);
+            if (!cf.hasProperty(tp::FieldId)) continue;
+            cf.clearProperty(tp::FieldId);
+            QTextCursor t(story);
+            t.setPosition(p);
+            t.setPosition(p + 1, QTextCursor::KeepAnchor);
+            t.setCharFormat(cf);
         }
         // The marks come out from the last to the first: the end, the separator and the code before it (every mark that belongs to the field itself, those of fields nested in the code
         // among them), the begin; the result stays.
@@ -998,26 +997,10 @@ bool insertField(WriteDoc &doc, QTextCursor &c, const QString &codeIn, const QSt
 
 namespace {
 
-// The code of a field as it is shown in braces.
-QString shownCode(const StoryScan &scan, int index)
+// The number a field of the text goes by for Show Field Codes (0: it has none, a field made before the codes could be shown).
+int fieldNumberOf(QTextDocument *story, const FieldPlace &f)
 {
-    return QStringLiteral("{ ") + scan.instructionOf(index).trimmed() + QStringLiteral(" }");
-}
-
-// Sets (or clears, with an empty `set`) what shows a field's code over the characters [from, to): each character gets `change`'s edit of its look.
-template <typename Change>
-void changeLooks(QTextDocument *story, int from, int to, const Change &change, int *budget)
-{
-    for (int p = from; p < to && *budget > 0; ++p, --*budget) {
-        QTextCharFormat cf = formatAt(story, p);
-        const QTextCharFormat before = cf;
-        change(&cf, p);
-        if (cf == before) continue;
-        QTextCursor c(story);
-        c.setPosition(p);
-        c.setPosition(p + 1, QTextCursor::KeepAnchor);
-        c.setCharFormat(cf);
-    }
+    return formatAt(story, f.form == FieldPlace::Complex ? f.separate : f.begin).intProperty(tp::FieldId);
 }
 
 } // namespace
@@ -1026,99 +1009,45 @@ int toggleFieldCodes(WriteDoc &doc, const QTextCursor &c, bool all)
 {
     QTextDocument *story = doc.story();
     const StoryScan scan = scanStory(story, false);
+    // The fields that have a number (the outermost ones: a field inside another is shown with it).
+    QVector<int> top;
+    for (int i = 0; i < scan.fields.size(); ++i)
+        if (scan.fields[i].parent < 0 && fieldNumberOf(story, scan.fields[i]) > 0) top << i;
     QVector<int> chosen;
     if (all) {
-        for (int i = 0; i < scan.fields.size(); ++i)
-            if (scan.fields[i].parent < 0) chosen << i;
+        chosen = top;
     } else {
         QTextCursor one = c;
-        chosen = fieldsTouched(scan, one, false);
-        if (chosen.size() > 1) chosen.resize(1);
+        for (int i : fieldsTouched(scan, one, false))
+            if (top.contains(i)) {
+                chosen << i;
+                break;
+            }
     }
     if (chosen.isEmpty()) return 0;
-    auto shownNow = [&](int i) { return formatAt(story, scan.fields[i].begin).hasProperty(prop::FieldCodes); };
-    bool allShown = true;
-    for (int i : std::as_const(chosen)) allShown = allShown && shownNow(i);
-    const bool show = !allShown;
-    QVector<int> todo;
-    for (int i : std::as_const(chosen))
-        if (shownNow(i) != show) todo << i;
-    if (todo.isEmpty()) return 0;
-    const bool wasModified = doc.isModified();
-    WriteDoc::ViewEdit view(doc);   // (what is shown is no step of the person's: Undo does not stop at it)
-    QTextCursor edit(story);
-    edit.beginEditBlock();
-    int budget = kMostToggledChars;
-    for (int index : std::as_const(todo)) {
-        const FieldPlace &f = scan.fields[index];
-        if (f.form == FieldPlace::Group) {
-            Inline atom = unpackAtom(storedBytes(formatAt(story, f.begin), prop::Atom));
-            changeLooks(story, f.begin, f.begin + 1, [&](QTextCharFormat *cf, int) {
-                if (show) {
-                    cf->setProperty(prop::FieldCodes, 1);
-                    cf->setProperty(tp::Field, QStringLiteral("raw:") + shownCode(scan, index));
-                } else {
-                    cf->clearProperty(prop::FieldCodes);
-                    cf->setProperty(tp::Field, atom.key.isEmpty() ? QStringLiteral("raw:") + atom.display : atom.key);
-                }
-            }, &budget);
-            continue;
+    auto shownNow = [&](int index) { return doc.allFieldCodesShown() || doc.shownFieldCodes().contains(fieldNumberOf(story, scan.fields[index])); };
+    QSet<int> ids = doc.shownFieldCodes();
+    bool allNow = doc.allFieldCodesShown();
+    int changed = 0;
+    if (all) {
+        bool everyShown = true;
+        for (int i : std::as_const(chosen)) everyShown = everyShown && shownNow(i);
+        for (int i : std::as_const(chosen)) changed += shownNow(i) == everyShown;
+        allNow = !everyShown;
+        ids.clear();
+    } else {
+        const int id = fieldNumberOf(story, scan.fields[chosen.first()]);
+        if (allNow) {
+            // (One of all that are shown: all the others stay shown, one by one.)
+            allNow = false;
+            for (int i : std::as_const(top)) ids.insert(fieldNumberOf(story, scan.fields[i]));
         }
-        // The marks show the code in braces, and the result is out of sight, while the codes are shown.
-        QString code = scan.instructionOf(index).trimmed();
-        bool firstPiece = true;
-        changeLooks(story, f.begin, f.end + 1, [&](QTextCharFormat *cf, int p) {
-            const bool isAtom = cf->hasProperty(prop::Atom);
-            if (!show) {
-                if (!cf->hasProperty(prop::FieldCodes)) return;
-                cf->clearProperty(prop::FieldCodes);
-                if (isAtom && (p == f.begin || p == f.end || p == f.separate || storedBytes(*cf, prop::Atom).contains("instrText") || storedBytes(*cf, prop::Atom).contains("fldSimple")))
-                    cf->setProperty(tp::Field, QStringLiteral("raw:"));
-                else {
-                    cf->clearProperty(tp::HiddenText);
-                    cf->clearProperty(prop::TrackedDeleted);
-                }
-                return;
-            }
-            if (f.form == FieldPlace::Simple) {
-                if (p == f.begin) {
-                    cf->setProperty(prop::FieldCodes, 1);
-                    cf->setProperty(tp::Field, QStringLiteral("raw:") + shownCode(scan, index));
-                } else if (p == f.end) {
-                    cf->setProperty(prop::FieldCodes, 1);
-                    cf->setProperty(tp::Field, QStringLiteral("raw:"));
-                } else if (!cf->boolProperty(tp::HiddenText)) {
-                    cf->setProperty(prop::FieldCodes, 1);
-                    cf->setProperty(tp::HiddenText, true);
-                    cf->setProperty(prop::TrackedDeleted, prop::HiddenByDeletion);
-                }
-                return;
-            }
-            if (p == f.begin) {
-                cf->setProperty(prop::FieldCodes, 1);
-                cf->setProperty(tp::Field, QStringLiteral("raw:{ "));
-            } else if (p == f.end) {
-                cf->setProperty(prop::FieldCodes, 1);
-                cf->setProperty(tp::Field, QStringLiteral("raw: }"));
-            } else if (p < f.separate && isAtom && storedBytes(*cf, prop::Atom).contains("instrText")) {
-                cf->setProperty(prop::FieldCodes, 1);
-                const QString piece = firstPiece ? code.left(code.size()) : QString();
-                // (The code is shown once, at its first piece; the others show nothing: nested fields in the code show as they are.)
-                cf->setProperty(tp::Field, QStringLiteral("raw:") + (firstPiece ? piece : QString()));
-                firstPiece = false;
-            } else if (p == f.separate) {
-                cf->setProperty(prop::FieldCodes, 1);
-                cf->setProperty(tp::Field, QStringLiteral("raw:"));
-            } else if (p > f.separate && !cf->boolProperty(tp::HiddenText)) {
-                cf->setProperty(prop::FieldCodes, 1);
-                cf->setProperty(tp::HiddenText, true);
-                cf->setProperty(prop::TrackedDeleted, prop::HiddenByDeletion);
-            }
-        }, &budget);
+        if (ids.contains(id)) ids.remove(id);
+        else ids.insert(id);
+        changed = 1;
     }
-    edit.endEditBlock();
-    if (!wasModified) doc.setModified(false);   // (a view of the codes is no change to the document)
-    return int(todo.size());
+    doc.setFieldCodes(allNow, ids);
+    return changed;
 }
 
 } // namespace jp::write

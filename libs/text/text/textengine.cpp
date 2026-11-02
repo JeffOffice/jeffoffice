@@ -3315,7 +3315,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 B->map << Seg{rel, int(text.size()), int(B->disp.size()), 0, true};
                 continue;
             }
-            const QString field = cf.stringProperty(tp::Field);
+            QString field = cf.stringProperty(tp::Field);
+            // The code of a field whose codes are shown stands in the mark's place, in braces.
+            if (env.wordLines && cf.hasProperty(tp::FieldCodeText) && tp::fieldCodesShown(cf, env.revisionView)) field = QStringLiteral("raw:") + cf.stringProperty(tp::FieldCodeText);
             // A word processor's page reference has its result's text as the text of the fragment, and shows the page the bookmark is on in its place, all of it as one: where the page is
             // not known the fragment shows its own text.
             if (env.wordLines && field.startsWith(QLatin1String("pageref:"))) {

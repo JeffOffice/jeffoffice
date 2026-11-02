@@ -27,7 +27,6 @@ enum : int {
     Raised,                                   // int: half-points raised
     TrackedDeleted,                           // int: the text (or mark) is what a tracked change deleted, hidden (tp::HiddenText) for the lines: HiddenAlready if its
                                               // format hid it before (the file's w:vanish or its style's, which the run says as it is), HiddenByDeletion if only deleting does
-    FieldCodes,                               // int: the character is part of a field whose code is shown (Show Field Codes): a mark that shows the code, or a result out of sight; not written
     // block formats
     RawBefore = QTextFormat::UserProperty + 430,   // QByteArray: body elements kept as XML that come before the paragraph (packBlocks)
     RawAfter,                                 // QByteArray: the same after it
@@ -74,6 +73,9 @@ quint64 byteStoreGeneration();
 // A character format as bytes, and back.
 QByteArray packFormat(const QTextCharFormat &format);
 QTextCharFormat unpackFormat(const QByteArray &packed);
+
+// A number for a field of the text that no other has in this program (tp::FieldId): what Show Field Codes knows it by.
+int nextFieldId();
 
 // A piece kept as XML, with what the writer needs to keep it whole.
 QByteArray packAtom(const office::wml::Inline &atom);

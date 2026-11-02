@@ -272,6 +272,7 @@ WriteDoc::WriteDoc() : m_id(++s_lastId), m_flow(std::make_unique<flow::FlowDocum
 
 WriteDoc::~WriteDoc()
 {
+    for (int id : std::as_const(m_fieldCodeIds)) tp::shownFieldCodeIds().remove(id);
     // (The paginator watches the story, which the flowing document owns: it goes first.)
     m_pager.reset();
     m_flow.reset();
