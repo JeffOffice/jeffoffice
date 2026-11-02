@@ -134,6 +134,7 @@ struct ParaProps {
     QString jc;                       // left, center, right, both, distribute... as written
     std::optional<int> outlineLvl;    // 0 to 8, 9 for body text
     QByteArray spacingAttrs, indAttrs;   // attributes of w:spacing and w:ind that aren't fields here, as written
+    QByteArray numExtra;              // the rest of numPr (a tracked numbering: w:ins, w:numberingChange), as written
     // The borders and shading the paragraph states, read from w:pBdr and w:shd (which are kept as written in `extra` too, and are what is written): a
     // side a style states and the paragraph doesn't is the style's.
     std::optional<ParaBorders> borders;

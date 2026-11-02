@@ -625,6 +625,7 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     if (!p.extra.isEmpty()) setStored(bf, prop::RawPPr, packRaw(p.extra));
     if (!p.spacingAttrs.isEmpty()) setStored(bf, prop::SpacingAttrs, p.spacingAttrs);
     if (!p.indAttrs.isEmpty()) setStored(bf, prop::IndAttrs, p.indAttrs);
+    if (!p.numExtra.isEmpty()) setStored(bf, prop::NumExtra, p.numExtra);
     return bf;
 }
 
@@ -696,6 +697,7 @@ ParaProps paraPropsOf(const QTextBlockFormat &f)
     if (f.hasProperty(prop::RawPPr)) p.extra = unpackRaw(storedBytes(f, prop::RawPPr));
     if (f.hasProperty(prop::SpacingAttrs)) p.spacingAttrs = storedBytes(f, prop::SpacingAttrs);
     if (f.hasProperty(prop::IndAttrs)) p.indAttrs = storedBytes(f, prop::IndAttrs);
+    if (f.hasProperty(prop::NumExtra)) p.numExtra = storedBytes(f, prop::NumExtra);
     return p;
 }
 

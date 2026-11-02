@@ -218,6 +218,7 @@ public:
                 for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
                     if (t.is(k, "ilvl")) p.ilvl = std::clamp(intOf(t, k).value_or(0), 0, 8);
                     else if (t.is(k, "numId")) p.numId = std::max(0, intOf(t, k).value_or(0));
+                    else p.numExtra += t.raw(k);
                 }
             } else if (name == "tabs") {
                 QVector<TabStop> tabs;

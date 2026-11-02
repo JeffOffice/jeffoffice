@@ -313,7 +313,7 @@ bool rebuildToc(WriteDoc &doc, QTextDocument *story, const StoryScan &scan, int 
     if (c.hasSelection()) c.removeSelectedText();
     c.setPosition(s + 1);
 
-    static const int kept[] = {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs),
+    static const int kept[] = {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::NumExtra), int(prop::OddTabs),
                                int(flow::fp::Cell), int(flow::fp::Frame), int(tp::OutOfLayout)};
     const bool hyperlinks = code.has(QLatin1Char('h'));
     const QString separator = code.has(QLatin1Char('p')) ? code.argumentOf(QLatin1Char('p')) : QStringLiteral("\t");

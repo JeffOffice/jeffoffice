@@ -202,7 +202,7 @@ RunProps runSaid(WriteDoc &doc, const QTextCursor &c, const QString &style)
 bool paragraphKeepsOwn(int key)
 {
     static const QSet<int> own = {int(QTextFormat::ObjectIndex), int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::RawBlock), int(prop::ParaAttrs),
-                                  int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData), int(flow::fp::Cell),
+                                  int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::NumExtra), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData), int(flow::fp::Cell),
                                   int(flow::fp::Frame), int(tp::OutOfLayout), int(flow::fp::AdvanceTop), int(tp::StyleName), int(prop::NumId), int(prop::NumLevel), int(tp::BulletChar),
                                   int(prop::NumDirect), int(prop::EndnoteBlock), int(prop::EndnoteNote), int(prop::EndnoteStyle), int(prop::StylesRev)};
     return own.contains(key);

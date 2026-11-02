@@ -838,6 +838,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
         resolved.extra = direct.extra;
         resolved.spacingAttrs = direct.spacingAttrs;
         resolved.indAttrs = direct.indAttrs;
+        resolved.numExtra = direct.numExtra;
         resolved.style = styleId;
         resolved.numId = numId;
         resolved.ilvl = level;
