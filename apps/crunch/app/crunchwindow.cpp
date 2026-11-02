@@ -203,6 +203,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 
 CrunchWindow::~CrunchWindow()
 {
+    forgetFilePassword();   // (the password the workbook is protected with is wiped with the window)
     delete m_filterPopup.data();   // (while the window is whole: its going stops the listing, which the window's own timer and run are for)
     stopPasswordJob();   // (a password being worked on is given up with the window)
     if (m_tabs) m_tabs->cancelRename();   // (a name being typed is given up with the window, not given to a window that is going)

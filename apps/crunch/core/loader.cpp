@@ -1,8 +1,11 @@
 #include "core/loader.h"
+#include "io/crypto.h"
 
 #include "office/package.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
+#include <QFile>
 #include <QElapsedTimer>
 #include <QFileInfo>
 #include <QMetaObject>
@@ -119,11 +122,11 @@ void WorkbookLoader::startThread(std::function<void()> work, const std::shared_p
     m_thread->start();
 }
 
-void WorkbookLoader::start(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv) { begin(path, csv, QByteArray()); }
+void WorkbookLoader::start(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QString &password) { begin(path, csv, QByteArray(), password); }
 
 void WorkbookLoader::startBlank() { begin(QString(), nullptr, blankWorkbookBytes()); }
 
-void WorkbookLoader::begin(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank)
+void WorkbookLoader::begin(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank, const QString &password)
 {
     cancel();
     m_state = std::make_shared<State>();
@@ -135,7 +138,9 @@ void WorkbookLoader::begin(const QString &path, const std::shared_ptr<const jp::
     const std::shared_ptr<LoadedBook> result = m_result;
     const std::shared_ptr<State> state = m_state;
     const QPointer<WorkbookLoader> self(this);
-    startThread([path, csv, blank, result, state, self] { run(path, csv, blank, result, state, self); }, state);
+    // (the worker holds the password for the read of the file and no longer)
+    const auto secret = std::make_shared<QString>(password);
+    startThread([path, csv, blank, secret, result, state, self] { run(path, csv, blank, secret, result, state, self); }, state);
 }
 
 bool WorkbookLoader::recalculate()
@@ -219,7 +224,18 @@ std::unique_ptr<WorkbookLoader::Hold> WorkbookLoader::hold()
     return std::unique_ptr<Hold>(new Hold(m_state, m_result->calc.get()));
 }
 
-bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank)
+// The SHA-256 of the file's bytes (empty if it can't be read).
+QByteArray fileDigest(const QString &path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) return QByteArray();
+    QCryptographicHash h(QCryptographicHash::Sha256);
+    if (!h.addData(&f)) return QByteArray();
+    return h.result();
+}
+
+bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank,
+                     const QString &password)
 {
     QElapsedTimer total;
     total.start();
@@ -229,14 +245,19 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     Limits limits;
     limits.cancelled = cancelled;
     limits.csv = csv;
+    limits.password = password;
     if (!blank.isEmpty()) {
         office::Package package;
         if (!package.readLazy(blank, why) || !book->open(package, why, limits)) return false;
     } else if (!book->openFile(path, why, limits)) {
+        out->passwordNeed = book->passwordNeed();
         return false;   // (any kind: the package of XML parts, the older binary form, or another format)
     }
     book->tables();   // (read now: the worker looks at the tables as it works formulas out, and the window changes them, neither of which may be the first to read them)
     out->book = book;
+    out->protectedFile = book->wasProtected();
+    out->defaultPasswordOnly = book->openedWithDefaultPassword();
+    out->diskDigest = book->fileDigest();   // (of the bytes the reader read, not of a second read of the file)
     out->notRead = book->skippedFeatures();
     const int shownSheet = firstSheetToShow(book->info());
     if (shownSheet < 0) {
@@ -491,7 +512,7 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
     calc->setCancel(nullptr);
 }
 
-void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self)
+void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank, const std::shared_ptr<QString> &password, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self)
 {
     // A signal goes to the window only if the read has not been stopped (and the loader is still there), and is sent from the window's own thread.
     auto send = [state, self](const std::function<void()> &fn) {
@@ -506,7 +527,9 @@ void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::of
         ~Done() { book->workerEnded = true; }
     } done{result};
     QString why;
-    if (!loadFirstScreen(path, result.get(), cancelled, &why, csv, blank)) {
+    const bool opened = loadFirstScreen(path, result.get(), cancelled, &why, csv, blank, *password);
+    jp::crypto::wipe(*password);
+    if (!opened) {
         send([self, why] { if (self) Q_EMIT self->finished(false, why); });
         return;
     }

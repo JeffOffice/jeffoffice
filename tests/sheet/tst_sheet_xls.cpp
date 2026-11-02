@@ -1281,10 +1281,11 @@ private Q_SLOTS:
         QString why;
         Workbook wb;
         Book locked;
-        locked.globals(rec(0x002F, W().u16(1).u16(1).u16(0x1234).u16(0x5678)));
+        locked.globals(rec(0x002F, W().u16(1).u16(1).u16(1).raw(QByteArray(48, 'x'))));   // (the 40-bit form, with a salt and a check that no password fits)
         locked.sheet(QStringLiteral("S"), number(0, 0, 1));
         QVERIFY(!openBook(locked, &wb, &why));
-        QVERIFY2(why.contains(QLatin1String("encrypted")), qPrintable(why));
+        QVERIFY2(why.contains(QLatin1String("needs a password")), qPrintable(why));
+        QCOMPARE(wb.passwordNeed(), PasswordNeed::Needed);
         QVERIFY(!wb.isBinary());
         // a bare stream that begins as the form before BIFF3 did
         const QByteArray old = rec(0x0009, W().u16(0x0200).u16(0x10)) + rec(0x0003, W().u16(0).u16(0).raw(QByteArray(3, '\0')).u16(1)) + rec(0x000A);

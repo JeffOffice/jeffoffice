@@ -3,7 +3,9 @@
 #include "app/crunchwindow.h"
 #include "app/functionargumentsdialog.h"
 
+#include "io/crypto.h"
 #include "sheet/csv.h"
+#include "sheet/sheetcrypt.h"
 
 #include "app/crunchfilescreen.h"
 #include "app/oldformat.h"
@@ -17,6 +19,7 @@
 #include <QApplication>
 #include <QAbstractButton>
 #include <QFileInfo>
+#include <QInputDialog>
 #include <QLabel>
 #include <QLocale>
 #include <QMessageBox>
@@ -46,6 +49,7 @@ void CrunchWindow::showBlank()
 // The window holds no workbook: the grid is empty and nothing of the one before is left.
 void CrunchWindow::dropWorkbook()
 {
+    forgetFilePassword();
     cancelPageBreaks();
     dropLayoutJob();
     m_loader.cancel();
@@ -145,6 +149,7 @@ bool CrunchWindow::openFile(const QString &path)
     m_values.clear();
     m_longestBatchMicros = m_batches = m_longestBatchItems = 0;
     m_loadProblem.clear();
+    // (a file that is protected with a password is refused by the read, which says so: the window asks for the password then, and reads again)
     m_loader.start(path, csv);
     setStatus(tr("Opening %1…").arg(name));
     updateTitle();
@@ -152,6 +157,41 @@ bool CrunchWindow::openFile(const QString &path)
     Settings::get().addRecentFile(path);
     telemetry::count(QStringLiteral("file.open.") + crunch::fileKind(path));
     return true;
+}
+
+bool CrunchWindow::askFilePasswordAgain(bool wrong)
+{
+    FilePasswordRequest req;
+    req.file = QFileInfo(m_path).fileName();
+    req.wrong = wrong;
+    if (m_anchorHooks.filePasswordAsker) {
+        if (!m_anchorHooks.filePasswordAsker(&req)) return false;
+    } else {
+        QInputDialog dialog(this);
+        dialog.setWindowTitle(tr("Password"));
+        dialog.setLabelText(wrong ? tr("The password is not correct.\n\nThis file is protected with a password. Password:") : tr("This file is protected with a password. Password:"));
+        dialog.setTextEchoMode(QLineEdit::Password);
+        dialog.setOkButtonText(tr("Open"));
+        dialog.setCancelButtonText(tr("Cancel"));
+        if (dialog.exec() != QDialog::Accepted) return false;
+        req.password = dialog.textValue();
+        dialog.setTextValue(QString());
+    }
+    jp::crypto::wipe(m_pendingPassword);
+    m_pendingPassword = req.password;
+    jp::crypto::wipe(req.password);
+    m_loading = true;
+    setStatus(tr("Checking the password…"));
+    m_loader.start(m_path, nullptr, m_pendingPassword);
+    return true;
+}
+
+void CrunchWindow::forgetFilePassword()
+{
+    jp::crypto::wipe(m_filePassword);
+    jp::crypto::wipe(m_pendingPassword);
+    m_fileProtected = m_diskProtected = m_protectionChanged = false;
+    m_diskDigest.clear();
 }
 
 void CrunchWindow::onFirstScreen()
@@ -185,7 +225,14 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     m_loading = false;
     cancelPageBreaks();
     dropLayoutJob();
+    bool quietly = false;
     if (!ok) {
+        // a file that needs a password: the person is asked (and asked again if it is not the one); one who cancels leaves nothing open and is told nothing
+        const auto result = m_loader.result();
+        if (result && result->passwordNeed != jp::office::sheet::PasswordNeed::None) {
+            if (askFilePasswordAgain(result->passwordNeed == jp::office::sheet::PasswordNeed::Wrong)) return;
+            quietly = true;
+        }
         const QString name = QFileInfo(m_path).fileName();
         dropWorkbook();
         // (a window made for the file goes; any other has a new workbook: no window is left that cannot be changed)
@@ -193,12 +240,19 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
         if (!goes) newBlank();
         else setStatus(tr("Ready"));
         updateTitle();
-        notice(tr("Open"), tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, message));
+        if (!quietly) notice(tr("Open"), tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, message));
         Q_EMIT loadFinished(false);
         if (goes) close();
         return;
     }
     m_loaded = m_loader.result();
+    // (a file that was protected is saved protected again, with the password that opened it, which is kept only while the workbook is open)
+    jp::crypto::wipe(m_filePassword);
+    m_fileProtected = m_diskProtected = m_loaded->protectedFile;
+    m_filePassword = m_fileProtected && !m_loaded->defaultPasswordOnly ? m_pendingPassword : QString();
+    m_diskDigest = m_loaded->diskDigest;
+    jp::crypto::wipe(m_pendingPassword);
+    m_protectionChanged = false;
     m_haveCalc = true;
     // (a workbook read from a file of another form: that file is the one never written, whatever the workbook is saved as)
     m_originalPath = m_loaded->book->isConverted() ? m_path : QString();
