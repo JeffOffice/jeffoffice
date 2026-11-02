@@ -10,6 +10,7 @@
 
 #include <QElapsedTimer>
 #include <QRegularExpression>
+#include <QXmlStreamReader>
 #include <QTest>
 
 using namespace jp::office;
@@ -71,10 +72,12 @@ QString document(const Made &m, QStringList *notes = nullptr)
     return part(docx, QStringLiteral("/word/document.xml"));
 }
 
+// Well formed as a strict parser reads it (a repeated attribute, which the light tree lets by, is refused: another program refuses the file).
 bool wellFormed(const QByteArray &xml)
 {
-    wml::XmlTree t;
-    return t.parse(xml, nullptr);
+    QXmlStreamReader r(xml);
+    while (!r.atEnd()) r.readNext();
+    return !r.hasError();
 }
 
 // The first element of the XML with this local name, found by walking the tree (-1 for none): for checks of what a value is, not how the file spells it.
@@ -1091,6 +1094,8 @@ private Q_SLOTS:
         // Back in an .odt: the frame has them again.
         QMap<QString, QByteArray> files;
         QVERIFY(jp::readZip(fromDocxPackage(docx), files));
+        QVERIFY(wellFormed(files.value(QStringLiteral("content.xml"))));
+        QVERIFY(wellFormed(files.value(QStringLiteral("styles.xml"))));
         wml::XmlTree c;
         QVERIFY(c.parse(files.value(QStringLiteral("content.xml")), nullptr));
         bool found = false;
