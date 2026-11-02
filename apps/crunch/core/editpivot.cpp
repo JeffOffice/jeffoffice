@@ -232,6 +232,9 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
         PivotGrid grid;
         QString problem;
         if (!computePivot(*ch.now, *cache, &grid, &problem, options)) return tr("This pivot table can't be worked out: %1.").arg(problem);
+        // (a table of more than 256 columns is not made: the original program does not finish updating one; a wider one that is there already is let be)
+        if (int(grid.colItems.size()) > kPivotMaxWrittenColumnItems && grid.cols > int(oldLoc.col2 - oldLoc.col1 + 1))
+            return tr("This pivot table would have %1 columns. Put a field with fewer items across, or on the rows.").arg(grid.cols);
         const int pages = int(ch.now->pageFields.size());
         if (pages > 0 && oldLoc.row1 < quint32(pages) + 1) return tr("There is no room above the pivot table for its filters. Move the table down first.");
         // (a table with nothing in it claims no more than it had, or its frame below)

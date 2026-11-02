@@ -303,6 +303,7 @@ bool pivotCheckShape(const QByteArray &tableXml, const QByteArray &defXml, const
     }
     for (int axis = 0; axis < 2; ++axis) {
         const QDomElement lines = child(troot, axis == 0 ? "rowItems" : "colItems");
+        if (axis == 1 && !lines.isNull() && childCount(lines) > kPivotMaxWrittenColumnItems) return fail(QStringLiteral("table: %1 column items (the original program can't update more than %2)").arg(childCount(lines)).arg(kPivotMaxWrittenColumnItems));
         const QVector<int> &fields = axis == 0 ? rowF : colF;
         for (QDomNode n = lines.firstChild(); !n.isNull(); n = n.nextSibling()) {
             if (!n.isElement()) continue;

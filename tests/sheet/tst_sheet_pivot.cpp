@@ -715,6 +715,38 @@ private Q_SLOTS:
         QVERIFY(pivotCheckSelection("<pivotSelection axis=\"axisCol\" start=\"9\" max=\"99\"/>", table, &why));   // (columns: files of the original program have them outside)
     }
 
+    // The sum of a group shown by itself is added from the largest value to the smallest (0.3 + 0.2 + 0.1 is 0.6, 0.1 + 0.2 + 0.3 is 0.6000000000000001), as the original program shows it.
+    void aGroupShowsItsValuesAddedFromTheLargest()
+    {
+        const QByteArray rec = "<pivotCacheRecords xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"4\">"
+                               "<r><x v=\"0\"/><x v=\"0\"/><n v=\"0.1\"/></r><r><x v=\"0\"/><x v=\"0\"/><n v=\"0.2\"/></r><r><x v=\"0\"/><x v=\"0\"/><n v=\"0.3\"/></r><r><x v=\"1\"/><x v=\"0\"/><n v=\"1\"/></r></pivotCacheRecords>";
+        QByteArray def = cacheDefinition();
+        def.replace("recordCount=\"6\"", "recordCount=\"4\"");
+        const Worked w = work(tableDefinition(false), def, rec);
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(w.grid.at(2, 1).number, 0.6);
+    }
+
+    // A table of more than 256 column items is not what the original program can update: the shape check refuses it.
+    void tooManyColumnItemsAreRefused()
+    {
+        const Worked w = work(tableDefinition(true));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        PivotTable placed = w.table;
+        pivotApplyGrid(&placed, w.grid, 2, 4);
+        const QByteArray def = writePivotCacheDefinition(cacheDefinition(), w.cache, w.cache.recordCount, 45001.5, DateSystem::Date1900);
+        const QByteArray rec = writePivotCacheRecords(w.cache, DateSystem::Date1900);
+        QByteArray table = writePivotTable(tableDefinition(true), placed, false);
+        QString why;
+        QVERIFY2(pivotCheckShape(table, def, rec, &why), qPrintable(why));
+        const qsizetype a = table.indexOf("<colItems"), b = table.indexOf("</colItems>");
+        QVERIFY(a > 0 && b > a);
+        QByteArray many = "<colItems count=\"300\">";
+        for (int i = 0; i < 300; ++i) many += "<i><x v=\"0\"/></i>";
+        table.replace(a, b - a, many);
+        QVERIFY(!pivotCheckShape(table, def, rec, &why));
+    }
+
     // A day the calendar has no date for (day 60 of the 1900 system, a negative day) is a number item in the definition, in the records, and in the marks of the field.
     void daysWithNoDateAreWrittenAsNumbers()
     {
