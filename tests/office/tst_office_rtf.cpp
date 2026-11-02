@@ -549,6 +549,16 @@ private Q_SLOTS:
         QVERIFY(xml.contains("fillcolor=\"#ff0000\""));
     }
 
+    void aTextBoxPlacedByAlignmentSaysSo()
+    {
+        const Document d = must(doc("\\pard x{\\shp{\\*\\shpinst\\shpleft4456\\shptop1\\shpright4725\\shpbottom328{\\sp{\\sn shapeType}{\\sv 202}}{\\sp{\\sn posh}{\\sv 2}}{\\sp{\\sn posv}{\\sv 3}}{\\shptxt\\pard n\\par}}}\\par"));
+        QByteArray xml;
+        for (const Inline &in : d.body.first().para.content)
+            if (in.kind == Inline::RunAtom) xml += in.raw;
+        QVERIFY2(xml.contains("mso-position-horizontal:center"), xml.constData());
+        QVERIFY(xml.contains("mso-position-vertical:bottom"));
+    }
+
     void unknownDestinationsAreSkipped()
     {
         const Document d = must(doc("\\pard a{\\*\\unknowndest hidden text {nested} more}b{\\*\\generator Foo 1.0;}c{\\info{\\title T}{\\author A}}d{\\stylesheet{\\s9 x;}}e\\par"));

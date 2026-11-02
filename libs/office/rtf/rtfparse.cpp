@@ -204,7 +204,7 @@ private:
     Picture m_pict;
     int m_pictStory = 0;
     struct ShapeScratch {
-        int type = 0, left = 0, top = 0, right = 0, bottom = 0, wrap = 2, bx = 2, by = 2, posrelh = kUnset, posrelv = kUnset, z = 0;
+        int posh = 0, posv = 0, type = 0, left = 0, top = 0, right = 0, bottom = 0, wrap = 2, bx = 2, by = 2, posrelh = kUnset, posrelv = kUnset, z = 0;
         int filled = kUnset, fillColor = 0, line = kUnset, lineColor = 0, lineWidth = kUnset, inset[4] = {kUnset, kUnset, kUnset, kUnset}, behind = 0;
     } m_shape;
     ReadWork m_work;
@@ -989,6 +989,8 @@ void Reader::popGroup()
             else if (n == QLatin1String("lineWidth")) m_shape.lineWidth = v;
             else if (n == QLatin1String("posrelh")) m_shape.posrelh = v;
             else if (n == QLatin1String("posrelv")) m_shape.posrelv = v;
+            else if (n == QLatin1String("posh")) m_shape.posh = v;
+            else if (n == QLatin1String("posv")) m_shape.posv = v;
             else if (n == QLatin1String("fBehindDocument")) m_shape.behind = v;
             else if (n == QLatin1String("dxTextLeft")) m_shape.inset[0] = v;
             else if (n == QLatin1String("dyTextTop")) m_shape.inset[1] = v;
@@ -1182,6 +1184,10 @@ QByteArray Reader::shapeAttributes(const char *type, double least, bool filled, 
     const int id = ++m_drawingId;
     QByteArray style = "position:absolute;margin-left:" + pt(std::clamp(double(s.left), -31680.0, 31680.0 * 4) / 20.0) + "pt;margin-top:" + pt(std::clamp(double(s.top), -31680.0, 31680.0 * 4) / 20.0) + "pt;width:" +
                        pt(w) + "pt;height:" + pt(h) + "pt;z-index:" + num(s.behind ? -251658240 + 1024 * id : 251658240 + 1024 * id);
+    // (Placed by an alignment, not by the offsets: left, center, right, inside, or outside.)
+    static const char *const kAligns[] = {nullptr, "left", "center", "right", "inside", "outside"};
+    if (s.posh >= 1 && s.posh <= 5) style += QByteArray(";mso-position-horizontal:") + (s.posh == 1 ? "left" : kAligns[s.posh]);
+    if (s.posv >= 1 && s.posv <= 5) style += QByteArray(";mso-position-vertical:") + (s.posv == 1 ? "top" : s.posv == 3 ? "bottom" : kAligns[s.posv]);
     if (hrel != 2) style += QByteArray(";mso-position-horizontal-relative:") + (hrel == 0 ? "margin" : "page");
     if (vrel != 2) style += QByteArray(";mso-position-vertical-relative:") + (vrel == 0 ? "margin" : "page");
     auto rgb = [](int v) { return QByteArray("#") + QByteArray::number(((v & 0xFF) << 16) | (v & 0xFF00) | ((v >> 16) & 0xFF), 16).rightJustified(6, '0'); };
