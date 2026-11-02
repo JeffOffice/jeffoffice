@@ -45,7 +45,7 @@ static QColor mutedText() { return uiHighContrast() ? QApplication::palette().co
 static QStringList largeLabelLines(const QToolButton *b)
 {
     QString t = b->text();
-    t.remove(QLatin1Char('&'));
+    t.replace(QStringLiteral("&&"), QStringLiteral("\x01")).remove(QLatin1Char('&')).replace(QLatin1Char('\x01'), QLatin1Char('&'));
     t.remove(QStringLiteral("...")).remove(QChar(0x2026));
     const QFontMetrics fm(b->font());
     if (fm.horizontalAdvance(t) <= 70) return {t};
@@ -65,6 +65,11 @@ static QStringList largeLabelLines(const QToolButton *b)
     return {atSpace ? t.left(best) : t.left(best + 1), t.mid(best + 1)};
 }
 
+// Icon, a label of up to two lines, and the margins: at least 64, more for a larger font.
+static int largeRibbonButtonHeight(const QFontMetrics &fm, int iconHeight) { return std::max(64, iconHeight + 7 + 2 * (fm.height() - 1)); }
+
+QStringList largeRibbonLabelLines(const QToolButton *b) { return largeLabelLines(b); }
+
 QSize largeRibbonButtonHint(const QToolButton *b)
 {
     const QFontMetrics fm(b->font());
@@ -77,7 +82,7 @@ QSize largeRibbonButtonHint(const QToolButton *b)
         w = std::max(w, fm.horizontalAdvance(lines[i]) + 14 + (menu && i == 1 ? 12 : 0));
     // As wide as the label's longer line, so no word is cut short: a single
     // long word ("Onlineafbeeldingen") can't move to another line.
-    return QSize(std::min(w, 200), 64);
+    return QSize(std::min(w, 200), largeRibbonButtonHeight(fm, b->iconSize().height()));
 }
 
 // Icon on top, label on up to two lines, a small chevron for menus, and soft
@@ -180,7 +185,7 @@ protected:
         }
         p.setPen(palette().color(isEnabled() ? QPalette::Active : QPalette::Disabled, QPalette::ButtonText));
         QString text = opt.text;
-        text.remove(QLatin1Char('&'));
+        text.replace(QStringLiteral("&&"), QStringLiteral("\x01")).remove(QLatin1Char('&')).replace(QLatin1Char('\x01'), QLatin1Char('&'));
         p.drawText(QRect(x, 0, r.right() - x + 1, height()), Qt::AlignLeft | Qt::AlignVCenter, fontMetrics().elidedText(text, Qt::ElideRight, r.right() - x + 1));
         if (hasFocus()) {
             QStyleOptionFocusRect fo;
@@ -327,6 +332,17 @@ QToolButton *RibbonGroup::addSmall(QAction *a, QMenu *menu, bool split, bool ico
     return b;
 }
 
+// A number box in a row is wide enough for the number it shows (and three digits more), at the font it is shown in.
+static void fitNumberBox(QWidget *w)
+{
+    auto *sb = qobject_cast<QAbstractSpinBox *>(w);
+    if (!sb) return;
+    const QFontMetrics fm(sb->font());
+    const int need = std::max(fm.horizontalAdvance(sb->text() + QStringLiteral("000")), fm.horizontalAdvance(QStringLiteral("0.000\""))) + 52;   // (52: the padding, the arrows, and the border)
+    if (sb->minimumWidth() < need) sb->setMinimumWidth(need);
+    if (sb->maximumWidth() < need) sb->setMaximumWidth(need);
+}
+
 void RibbonGroup::addRow(const QList<QWidget *> &widgets)
 {
     if (!m_col || m_rows >= 3) beginColumn();
@@ -336,6 +352,7 @@ void RibbonGroup::addRow(const QList<QWidget *> &widgets)
     for (QWidget *w : widgets) {
         w->setParent(this);
         w->setProperty("ribbonRow", true);   // (the style sheet takes the padding off its fields)
+        fitNumberBox(w);
         w->setFixedHeight(kSmallRowHeight);   // a row is as tall as a small button, so three fit the body
         row->addWidget(w);
     }
@@ -365,6 +382,7 @@ void RibbonGroup::addGrid(const QList<QList<QWidget *>> &rows)
             QWidget *w = rows[r][c];
             w->setParent(this);
             w->setProperty("ribbonRow", true);
+            fitNumberBox(w);
             w->setFixedHeight(kSmallRowHeight);
             // The first column names the rows, the first row the columns; check boxes and headings sit centered, fields fill their column.
             const bool field = qobject_cast<QComboBox *>(w) || qobject_cast<QAbstractSpinBox *>(w);
@@ -784,10 +802,20 @@ public:
         // plain: reviewed: the ribbon's own strings
         m_help->setWhatsThis(m_help->accessibleDescription());
         m_help->setToolTip(QCoreApplication::translate("Ribbon", "Help (F1)"));
+        m_more = new QToolButton(this);
+        m_more->setObjectName(QStringLiteral("jpRibbonMore"));
+        m_more->setAutoRaise(true);
+        m_more->setIcon(icon("chevron-down"));
+        m_more->setPopupMode(QToolButton::InstantPopup);
+        m_more->setMenu(new QMenu(m_more));
+        m_more->setToolTip(QCoreApplication::translate("Ribbon", "More tabs"));
+        m_more->setAccessibleName(QCoreApplication::translate("Ribbon", "More tabs"));
+        m_more->hide();
     }
     QVector<QToolButton *> qatButtons;
     QVector<HeaderButton *> tabButtons;
     HeaderButton *m_file, *m_collapse, *m_help;
+    QToolButton *m_more = nullptr;   // the tabs that don't fit the row
 
     int qatWidth() const
     {
@@ -822,29 +850,59 @@ public:
         int x = qatWidth();
         m_file->setGeometry(x + 2, 19, fm.horizontalAdvance(m_file->text()) + 58, 26);
         x += 6 + m_file->width() + 4;
-        // With many tabs (the contextual ones too) the padding of each shrinks so the last never runs under Help and the chevron.
-        int pad = 26, shown = 0, text = 0;
-        for (HeaderButton *b : tabButtons) {
-            const auto &t = m_r->m_tabs[b->tab()];
-            if (!t.visible) continue;
-            ++shown;
-            text += fm.horizontalAdvance(t.title) + (t.group.isEmpty() ? 0 : 12) + 4;
-        }
-        if (shown) pad = std::clamp((width() - 64 - x - text) / shown, 4, 26) ;
+        // The tabs sit in the room between File and Help. Each is its text with 26 of padding (not under 14, so the labels stay apart); when they still don't fit, the last ones go into
+        // a "more tabs" menu (the current tab always stays in the row).
+        QVector<HeaderButton *> shown;
+        int text = 0;
         for (HeaderButton *b : tabButtons) {
             const auto &t = m_r->m_tabs[b->tab()];
             b->setAccessibleDescription(t.group.isEmpty() ? QCoreApplication::translate("Ribbon", "Ribbon tab") : QCoreApplication::translate("Ribbon", "Ribbon tab, %1").arg(t.group));
             // plain: reviewed: the ribbon's own strings
             b->setWhatsThis(b->accessibleDescription());   // Windows' screen readers read this one
-            b->setVisible(t.visible);
-            if (!t.visible) continue;
-            const int w = fm.horizontalAdvance(t.title) + pad + (t.group.isEmpty() ? 0 : 12);
-            b->setGeometry(x, 19, w, 26);
-            x += w + 4;
             b->setText(t.title);
             b->setAccessibleName(t.title);
             b->setFocusPolicy(b->tab() == m_r->m_current ? Qt::TabFocus : Qt::NoFocus);
+            b->setVisible(false);
+            if (!t.visible) continue;
+            shown << b;
+            text += fm.horizontalAdvance(t.title) + (t.group.isEmpty() ? 0 : 12) + 4;
+        }
+        const int room = width() - 64 - x;
+        const int pad = shown.isEmpty() ? 26 : std::clamp((room - text) / int(shown.size()), 14, 26);
+        auto widthOf = [&](HeaderButton *b) { return fm.horizontalAdvance(m_r->m_tabs[b->tab()].title) + pad + (m_r->m_tabs[b->tab()].group.isEmpty() ? 0 : 12) + 4; };
+        int total = 0;
+        for (HeaderButton *b : shown) total += widthOf(b);
+        QVector<HeaderButton *> hidden;
+        if (total > room) {
+            const int moreW = 32;
+            HeaderButton *current = nullptr;
+            for (HeaderButton *b : shown)
+                if (b->tab() == m_r->m_current) current = b;
+            int used = current ? widthOf(current) : 0;
+            QVector<HeaderButton *> keep;
+            for (HeaderButton *b : shown) {
+                if (b == current) { keep << b; continue; }
+                if (used + widthOf(b) <= room - moreW) { keep << b; used += widthOf(b); }
+                else hidden << b;
+            }
+            shown = keep;
+        }
+        for (HeaderButton *b : shown) {
+            const int w = widthOf(b) - 4;
+            b->setGeometry(x, 19, w, 26);
+            b->setVisible(true);
             b->update();
+            x += w + 4;
+        }
+        m_more->setVisible(!hidden.isEmpty());
+        if (!hidden.isEmpty()) {
+            m_more->setGeometry(x, 19, 28, 26);
+            QMenu *menu = m_more->menu();
+            menu->clear();
+            for (HeaderButton *b : hidden) {
+                const int tab = b->tab();
+                menu->addAction(m_r->m_tabs[tab].title, m_r, [r = m_r, tab] { r->showTab(r->m_tabs[tab].page); });
+            }
         }
         m_collapse->setGeometry(width() - 30, 18, 28, 26);
         m_help->setGeometry(width() - 60, 18, 28, 26);
@@ -907,7 +965,8 @@ Ribbon::Ribbon(QWidget *parent) : QWidget(parent)
     v->setSpacing(0);
     m_header = new RibbonHeader(this);
     m_stack = new QStackedWidget(this);
-    m_stack->setFixedHeight(100);
+    // The body holds a group's title (19), its margin (4), the tab's (6), and the tallest large button: 100 for the usual font, more for a larger one.
+    m_stack->setFixedHeight(std::max(100, 29 + largeRibbonButtonHeight(QFontMetrics(QApplication::font()), 30)));
     v->addWidget(m_header);
     v->addWidget(m_stack);
     setAutoFillBackground(true);

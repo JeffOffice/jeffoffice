@@ -1066,6 +1066,14 @@ QStringList checkRibbonLayout(Adapter &app)
             for (int i = 0; i < parts.size(); ++i) {
                 const QRect a(parts[i]->mapTo(r, QPoint(0, 0)), parts[i]->size());
                 const QString name = controlName(parts[i]);
+                if (auto *tb = qobject_cast<QAbstractButton *>(parts[i]); tb && parts[i]->objectName() == QLatin1String("jpRibbonTab") && a.width() - tb->fontMetrics().horizontalAdvance(tb->text()) < 14)
+                    fails << QStringLiteral("%1/%2 at %3: the tab %4 %5 has less than 14 px around its text (the texts are then under 8 px apart)").arg(app.name, what).arg(at).arg(name, rectText(a));
+                // the tab labels of the row: no pill touches the next (8 px between the texts at least)
+                if (i + 1 < parts.size() && parts[i]->objectName() == QLatin1String("jpRibbonTab") && parts[i + 1]->objectName() == QLatin1String("jpRibbonTab")) {
+                    const QRect nb(parts[i + 1]->mapTo(r, QPoint(0, 0)), parts[i + 1]->size());
+                    const int gap = nb.left() - a.right() - 1;
+                    if (gap < 3) fails << QStringLiteral("%1/%2 at %3: the tabs %4 %5 and %6 %7 are only %8 apart").arg(app.name, what).arg(at).arg(name, rectText(a), controlName(parts[i + 1]), rectText(nb)).arg(gap);
+                }
                 if (a.right() > r->width()) fails << QStringLiteral("%1/%2 at %3: %4 %5 runs off the ribbon (%6 wide)").arg(app.name, what).arg(at).arg(name, rectText(a)).arg(r->width());
                 for (int k = i + 1; k < parts.size(); ++k) {
                     const QRect b(parts[k]->mapTo(r, QPoint(0, 0)), parts[k]->size());
@@ -1131,7 +1139,24 @@ QStringList checkRibbonLayout(Adapter &app)
                     const bool text = qobject_cast<QAbstractButton *>(c) || qobject_cast<QLabel *>(c) || qobject_cast<QAbstractSpinBox *>(c);
                     // (a number box's hint is for the widest number its range allows, so only its height is held to the text)
                     const bool numberBox = qobject_cast<QAbstractSpinBox *>(c);
-                    if (text && ((!numberBox && c->sizeHint().width() > c->width()) || c->fontMetrics().height() > c->height()))
+                    // (a large button holds an icon and up to two lines: its own hint says how much)
+                    const bool large = c->property("ribbonLarge").toBool();
+                    if (auto *sb = qobject_cast<QAbstractSpinBox *>(c))
+                        if (QLineEdit *le = sb->findChild<QLineEdit *>(); le && sb->fontMetrics().horizontalAdvance(le->text()) > le->width())
+                            fails << cw + QStringLiteral(": its number \"%1\" is cut (the text area is %2 wide and the number %3)").arg(le->text()).arg(le->width()).arg(sb->fontMetrics().horizontalAdvance(le->text()));
+                    if (large) {
+                        // the label's lines as they are drawn: each inside the button (the menu arrow beside the second), and the last above its bottom edge
+                        auto *lb = static_cast<QToolButton *>(c);
+                        const QStringList lines = jp::largeRibbonLabelLines(lb);
+                        const QFontMetrics fm(lb->font());
+                        const bool menu = lb->menu() || lb->popupMode() == QToolButton::InstantPopup;
+                        for (int li = 0; li < lines.size(); ++li)
+                            if (fm.horizontalAdvance(lines[li]) > lb->width() - 6 - (menu && li == 1 ? 12 : 0))
+                                fails << cw + QStringLiteral(": the line \"%1\" is wider than the button (%2)").arg(lines[li], rectText(cr));
+                        const int need = 1 + 4 + lb->iconSize().height() + 4 + int(lines.size() - 1) * (fm.height() - 1) + fm.height() - 3;
+                        if (need > lb->height() || lines.size() > 2) fails << cw + QStringLiteral(": its %1 lines need %2 tall and the button is %3").arg(lines.size()).arg(need).arg(lb->height());
+                    }
+                    if (large ? false : text && ((!numberBox && c->sizeHint().width() > c->width()) || c->fontMetrics().height() > c->height()))
                         fails << cw + QStringLiteral(": its text is cut (it is %1 and wants %2 wide and %3 tall for a line)").arg(rectText(cr)).arg(c->sizeHint().width()).arg(c->fontMetrics().height());
                 }
             }

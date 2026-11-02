@@ -179,6 +179,8 @@ bool isRibbonToggle(const QToolButton *b);   // a small button for a checkable c
 QToolButton *ribbonCheck(QAction *a, QWidget *parent);
 // Drawing shared by every large ribbon button (icon over a label wrapped to two lines).
 QSize largeRibbonButtonHint(const QToolButton *b);
+// The lines a large button's label is drawn on (one or two).
+QStringList largeRibbonLabelLines(const QToolButton *b);
 void paintLargeRibbonButton(QToolButton *b);
 
 } // namespace jp
