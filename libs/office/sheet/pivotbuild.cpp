@@ -155,7 +155,7 @@ bool buildPivotCache(const PivotSource &src, const PivotCache &prev, PivotCache 
         }
         distinctAll += dist.values.size();
         if (dist.values.size() > kPivotMaxItemsPerField || distinctAll > 12000000) return fail(QStringLiteral("the source has too many different values"));
-        pf.hasShared = src.axisFields.contains(f) || hasText || (p >= 0 && prev.fields[p].hasShared);
+        pf.hasShared = (p >= 0 && src.axisFields.contains(p)) || hasText || (p >= 0 && prev.fields[p].hasShared);
         // the order: the shared items of the previous cache that remain (in their order), then the others as they first appear
         QVector<qint32> order;
         order.reserve(dist.values.size());

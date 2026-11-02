@@ -775,6 +775,24 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             set(headerRows + ri, labelCols + ci, pc);
         }
     }
+    // the filters, over the table: a field's name and its item
+    for (const PivotPageField &p : t.pageFields) {
+        out->pageLabels.append(text(caption(p.fld)));
+        const PivotField &pf = t.fields[p.fld];
+        bool anyHidden = false;
+        for (const PivotTableItem &it : pf.items) anyHidden = anyHidden || (it.t.isEmpty() && it.hidden && !it.missing);
+        if (p.item >= 0) out->pageLabels.append(itemLabel(QVector<int>{p.fld}, 0, p.item));
+        else out->pageLabels.append(text(anyHidden ? QStringLiteral("(Multiple Items)") : QStringLiteral("(All)")));
+    }
+    // a table with nothing in it: the empty area Excel keeps for it
+    if (t.rowFields.isEmpty() && t.colFields.isEmpty() && t.dataFields.isEmpty()) {
+        out->rows = 18;
+        out->cols = 3;
+        out->cells.fill(PivotCell(), qsizetype(out->rows) * out->cols);
+        out->firstHeaderRow = out->firstDataRow = out->firstDataCol = 1;
+        out->rowItems.clear();
+        out->colItems.clear();
+    }
     return true;
 }
 

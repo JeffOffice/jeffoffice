@@ -261,10 +261,12 @@ private Q_SLOTS:
         QVERIFY2(w.ok, qPrintable(w.why));
         const QByteArray def = writePivotCacheDefinition(cacheDefinition(), w.cache, w.cache.recordCount, 45001.5, DateSystem::Date1900);
         const QByteArray rec = writePivotCacheRecords(w.cache, DateSystem::Date1900);
-        const QByteArray table = writePivotTable(tableDefinition(true), w.table, w.grid, QStringLiteral("E3:H8"), false);
+        PivotTable placed = w.table;
+        pivotApplyGrid(&placed, w.grid, 2, 4);
+        const QByteArray table = writePivotTable(tableDefinition(true), placed, false);
         QVERIFY(!def.isEmpty() && !rec.isEmpty() && !table.isEmpty());
         QVERIFY2(def.contains("refreshedDate=\"45001.5\"") && def.contains("recordCount=\"6\""), def.constData());
-        QVERIFY2(table.contains("E3:H8"), table.constData());
+        QVERIFY2(table.contains("E3:H7"), table.constData());
         const Worked again = work(table, def, rec);
         QVERIFY2(again.ok, qPrintable(again.why));
         QCOMPARE(again.grid.rows, w.grid.rows);

@@ -243,7 +243,7 @@ QByteArray writePivotCacheRecords(const PivotCache &cache, jp::calc::DateSystem 
     return out;
 }
 
-QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, const PivotGrid &grid, const QString &ref, bool structureChanged)
+QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool structureChanged)
 {
     QDomDocument doc;
     if (!doc.setContent(original)) return QByteArray();
@@ -256,10 +256,10 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, cons
         loc = doc.createElement(QStringLiteral("location"));
         root.insertBefore(loc, root.firstChild());
     }
-    loc.setAttribute(QStringLiteral("ref"), ref);
-    loc.setAttribute(QStringLiteral("firstHeaderRow"), QString::number(grid.firstHeaderRow));
-    loc.setAttribute(QStringLiteral("firstDataRow"), QString::number(grid.firstDataRow));
-    loc.setAttribute(QStringLiteral("firstDataCol"), QString::number(grid.firstDataCol));
+    loc.setAttribute(QStringLiteral("ref"), t.ref);
+    loc.setAttribute(QStringLiteral("firstHeaderRow"), QString::number(t.firstHeaderRow));
+    loc.setAttribute(QStringLiteral("firstDataRow"), QString::number(t.firstDataRow));
+    loc.setAttribute(QStringLiteral("firstDataCol"), QString::number(t.firstDataCol));
     if (t.rowPageCount > 0) loc.setAttribute(QStringLiteral("rowPageCount"), QString::number(t.rowPageCount));
     else loc.removeAttribute(QStringLiteral("rowPageCount"));
     if (t.colPageCount > 0) loc.setAttribute(QStringLiteral("colPageCount"), QString::number(t.colPageCount));
@@ -377,9 +377,9 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, cons
         anchor = e;
     };
     QDomElement rf = fieldList("rowFields", t.rowFields);
-    QDomElement ri = lines("rowItems", grid.rowItems);
+    QDomElement ri = lines("rowItems", t.rowItems);
     QDomElement cf = fieldList("colFields", t.colFields);
-    QDomElement ci = lines("colItems", grid.colItems);
+    QDomElement ci = lines("colItems", t.colItems);
     drop("pageFields");
     QDomElement pf;
     if (!t.pageFields.isEmpty()) {
@@ -426,6 +426,20 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, cons
         drop("colHierarchiesUsage");
     }
     return doc.toByteArray(-1);
+}
+
+} // namespace jp::office::sheet
+
+namespace jp::office::sheet {
+
+void pivotApplyGrid(PivotTable *t, const PivotGrid &grid, quint32 row, quint32 col)
+{
+    t->firstHeaderRow = grid.firstHeaderRow;
+    t->firstDataRow = grid.firstDataRow;
+    t->firstDataCol = grid.firstDataCol;
+    t->rowItems = grid.rowItems;
+    t->colItems = grid.colItems;
+    t->ref = pivotRangeRef(row, col, row + quint32(std::max(grid.rows, 1)) - 1, col + quint32(std::max(grid.cols, 1)) - 1);
 }
 
 } // namespace jp::office::sheet

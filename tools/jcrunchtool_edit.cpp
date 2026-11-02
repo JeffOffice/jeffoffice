@@ -2396,8 +2396,51 @@ int editRecalcCheck(const QString &path, int edits, quint32 seed)
     return mismatches == 0 ? 0 : 3;
 }
 
+// The time of a refresh of the first pivot table of a workbook, and of Undo and Redo of it (the window's thread): `edit-pivot-bench`.
+int pivotBench(const QString &path)
+{
+    CrunchWindow w;
+    w.setNotifier([](const QString &, const QString &) {});
+    w.resize(1280, 800);
+    w.show();
+    bool done = false;
+    QObject::connect(&w, &CrunchWindow::calculationFinished, &w, [&] { done = true; });
+    QElapsedTimer open;
+    open.start();
+    if (!w.openFile(path)) return 1;
+    while (!done && open.elapsed() < 600000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    if (!done) {
+        err() << "edit-pivot-bench: the workbook was not worked out in time\n";
+        return 1;
+    }
+    crunch::EditSession *session = w.session();
+    if (session->workbook()->pivots().tableCount() == 0) {
+        err() << "edit-pivot-bench: no pivot table\n";
+        return 1;
+    }
+    auto timed = [&](const char *what, const std::function<crunch::EditSession::Outcome()> &fn) {
+        QElapsedTimer t;
+        t.start();
+        const crunch::EditSession::Outcome o = fn();
+        session->finishFills();
+        out() << "pivot-bench\t" << what << '\t' << t.elapsed() << " ms\t" << (o.ok ? QStringLiteral("ok") : o.problem) << '\n';
+    };
+    timed("refresh", [&] { return session->refreshPivot(0); });
+    timed("refresh again (nothing changed)", [&] { return session->refreshPivot(0); });
+    timed("undo", [&] {
+        session->undoStack()->undo();
+        return crunch::EditSession::Outcome();
+    });
+    timed("redo", [&] {
+        session->undoStack()->redo();
+        return crunch::EditSession::Outcome();
+    });
+    return 0;
+}
+
 int editMain(const QStringList &args)
 {
+    if (args.size() == 2 && args[0] == QLatin1String("edit-pivot-bench")) return pivotBench(args[1]);
     if (!args.isEmpty() && args[0].startsWith(QLatin1String("model-"))) return ::jp::structmodel::command(args);
     if (args.size() >= 2 && args.size() <= 3 && args[0] == QLatin1String("edit-bench")) return editBench(args[1], args.value(2, QStringLiteral("200")).toInt(), 0, 0, 0);
     if (args.size() >= 3 && args.size() <= 5 && args[0] == QLatin1String("edit-fill-bench")) return fillBench(args[1], args[2], args.value(3, QStringLiteral("1000")).toInt(), args.value(4));

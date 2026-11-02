@@ -34,9 +34,10 @@ bool EditSession::continueSlicedPush(SlicedPush &push, qint64 budget)
     // the tables the step changes come first (the cells of a table that grows are put in a table that has grown)
     if (!push.tablesApplied) {
         push.tablesApplied = true;
-        if (!step.tables.empty()) {
+        if (!step.tables.empty() || !step.pivots.empty()) {
             Step first;
             first.tables = step.tables;
+            first.pivots = step.pivots;
             const bool ok = apply(&first, true);
             step.tables = std::move(first.tables);   // (what applying made of them, the names that were rewritten, is kept for undoing)
             if (!ok) return fail();

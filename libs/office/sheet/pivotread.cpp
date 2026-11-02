@@ -4,6 +4,7 @@
 #include <QXmlStreamReader>
 
 #include <cmath>
+#include <cstring>
 #include <unordered_map>
 
 namespace jp::office::sheet {
@@ -120,6 +121,96 @@ bool valueOf(const QXmlStreamReader &r, jp::calc::DateSystem dates, PivotValue *
 
 } // namespace
 
+// Records in the plain form every writer makes: <r><x v="3"/><n v="1.5"/><s v="text"/>...</r>. Anything else (a comment, an attribute besides v, a prefix, spaces inside a tag) is left to the
+// streaming reader: false then, with `out` as it was. A record read here is the same as one read there.
+static bool readRecordsFast(const QByteArray &data, jp::calc::DateSystem dates, std::vector<PivotIntern> &interns, qint64 &distinct, PivotCache *out, qint64 *count)
+{
+    const char *p = data.constData(), *end = p + data.size();
+    const int nf = int(out->fields.size());
+    const qsizetype rootAt = data.indexOf("<pivotCacheRecords");
+    if (rootAt < 0) return false;
+    const char *root = p + rootAt;
+    p = static_cast<const char *>(memchr(root, '>', size_t(end - root)));
+    if (!p || p[-1] == '/') return false;
+    ++p;
+    qint64 n = 0;
+    auto intern = [&](int field, const PivotValue &v) -> bool {
+        PivotCacheField &f = out->fields[field];
+        PivotIntern &in = interns[size_t(field)];
+        qint32 at = in.find(v);
+        if (at < 0) {
+            if (f.items.size() >= kPivotMaxItemsPerField || ++distinct > 12000000) return false;
+            at = qint32(f.items.size());
+            in.put(v, at);
+            f.items.append(v);
+        }
+        f.records.append(at);
+        return true;
+    };
+    for (;;) {
+        while (p < end && (*p == ' ' || *p == '\n' || *p == '\r' || *p == '\t')) ++p;
+        if (p >= end) return false;
+        if (end - p >= 20 && memcmp(p, "</pivotCacheRecords>", 20) == 0) break;
+        if (end - p < 3 || memcmp(p, "<r>", 3) != 0) return false;
+        p += 3;
+        if (++n > kPivotMaxRecords || n * nf > kPivotMaxRecordCells) return false;
+        for (int field = 0; field < nf; ++field) {
+            if (end - p < 5 || p[0] != '<') return false;
+            const char kind = p[1];
+            if (kind == 'm') {
+                if (end - p < 4 || memcmp(p, "<m/>", 4) != 0) return false;
+                p += 4;
+                PivotValue v;
+                if (!intern(field, v)) return false;
+                continue;
+            }
+            if (p[2] != ' ' || p[3] != 'v' || p[4] != '=' || p[5] != '"') return false;
+            const char *start = p + 6;
+            const char *q = static_cast<const char *>(memchr(start, '"', size_t(end - start)));
+            if (!q || end - q < 3 || q[1] != '/' || q[2] != '>') return false;
+            const QByteArrayView body(start, q - start);
+            p = q + 3;
+            if (kind == 'x') {
+                if (body.isEmpty() || body.size() > 9) return false;
+                qint32 at = 0;
+                for (char c : body) {
+                    if (c < '0' || c > '9') return false;
+                    at = at * 10 + (c - '0');
+                }
+                PivotCacheField &f = out->fields[field];
+                if (at >= f.sharedCount) return false;
+                f.records.append(at);
+                continue;
+            }
+            PivotValue v;
+            if (kind == 'n') {
+                bool ok = false;
+                const double d = QByteArray::fromRawData(start, int(body.size())).toDouble(&ok);
+                if (!ok || !std::isfinite(d)) return false;
+                v.kind = PivotValue::Number;
+                v.number = d;
+            } else if (kind == 's' || kind == 'e') {
+                if (body.contains('&') || body.contains('<')) return false;
+                v.kind = kind == 's' ? PivotValue::Text : PivotValue::Error;
+                v.text = QString::fromUtf8(body.data(), body.size());
+            } else if (kind == 'b') {
+                v.kind = PivotValue::Bool;
+                v.number = body == "1" || body == "true" ? 1 : 0;
+            } else if (kind == 'd') {
+                v.kind = PivotValue::Date;
+                if (!dateSerial(QString::fromLatin1(body.data(), body.size()), dates, &v.number)) return false;
+            } else {
+                return false;
+            }
+            if (!intern(field, v)) return false;
+        }
+        if (end - p < 4 || memcmp(p, "</r>", 4) != 0) return false;
+        p += 4;
+    }
+    *count = n;
+    return true;
+}
+
 bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp::calc::DateSystem dates, PivotCache *out, QString *why)
 {
     *out = PivotCache();
@@ -165,7 +256,7 @@ bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp:
                     out->unsupported = QStringLiteral("a calculated field");
             } else if (n == QLatin1String("sharedItems") && cur) {
                 inShared = true;
-                cur->hasShared = true;
+                cur->hasShared = r.attributes().hasAttribute(QLatin1String("count"));
                 QString attrs;
                 for (const auto &at : r.attributes()) attrs += at.name().toString() + QLatin1Char('=') + at.value().toString() + QLatin1Char(' ');
                 cur->sharedAttrs = attrs;
@@ -173,6 +264,7 @@ bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp:
                 PivotValue v;
                 if (!valueOf(r, dates, &v)) return fail(QStringLiteral("a shared item can't be read"));
                 if (cur->items.size() >= kPivotMaxItemsPerField || ++distinct > 12000000) return fail(QStringLiteral("too many items"));
+                cur->hasShared = true;
                 interns.back().put(v, qint32(cur->items.size()));
                 cur->items.append(v);
             } else if (n == QLatin1String("fieldGroup") && cur) {
@@ -195,6 +287,29 @@ bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp:
     if (records.isEmpty()) {
         if (out->recordCount > 0 || out->saveData) out->unsupported = out->unsupported.isEmpty() ? QStringLiteral("the records are not kept") : out->unsupported;
         return true;
+    }
+    {
+        // (the plain form first: the same values, read several times faster)
+        PivotCache scratch;
+        scratch.fields.resize(out->fields.size());
+        for (int f = 0; f < out->fields.size(); ++f) {
+            scratch.fields[f].items = out->fields[f].items;
+            scratch.fields[f].sharedCount = out->fields[f].sharedCount;
+        }
+        std::vector<PivotIntern> fastInterns;
+        for (int f = 0; f < out->fields.size(); ++f) {
+            fastInterns.emplace_back();
+            for (qint32 i = 0; i < out->fields[f].sharedCount; ++i) fastInterns.back().put(out->fields[f].items[i], i);
+        }
+        qint64 fastDistinct = distinct, fastCount = 0;
+        if (readRecordsFast(records, dates, fastInterns, fastDistinct, &scratch, &fastCount)) {
+            for (int f = 0; f < out->fields.size(); ++f) {
+                out->fields[f].items = std::move(scratch.fields[f].items);
+                out->fields[f].records = std::move(scratch.fields[f].records);
+            }
+            if (out->recordCount != fastCount) out->recordCount = fastCount;
+            return true;
+        }
     }
     QXmlStreamReader rr(records);
     int d = 0, field = 0;

@@ -689,10 +689,16 @@ bool EditSession::applyStructure(Step *step, bool forward)
         sc.record.edit = previous.edit;
         sc.record.sheet = previous.sheet;
         ok = calc->applyEdit(sc.edit, &sc.record);
-        if (ok) sc.tables = book.moveTables(sc.edit);
+        if (ok) {
+            sc.tables = book.moveTables(sc.edit);
+            sc.pivotSources = book.pivots().moveSources(sc.edit);
+        }
     } else {
         ok = calc->undoEdit(sc.record, &undone);
-        if (ok) book.putTablesBack(sc.tables);
+        if (ok) {
+            book.putTablesBack(sc.tables);
+            book.pivots().putSourcesBack(sc.pivotSources);
+        }
     }
     if (!ok) return false;
     if (!sc.tables.empty()) calc->tablesMovedByEdit();   // (the formulas that name a table whose ids changed read it where it is now)

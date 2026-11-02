@@ -172,7 +172,7 @@ struct PivotSource {
     PivotSourceCell cell;
     quint32 row1 = 0, col1 = 0, row2 = 0, col2 = 0;   // the range: its first row has the names of the fields
     QVector<int> numFmtIds;                            // the number format of each column's first cell of data (empty: those the cache had)
-    QSet<int> axisFields;                              // the fields (by place) a table has on an axis or a page: their items are shared
+    QSet<int> axisFields;                              // the fields (by their place in the cache being replaced) a table has on an axis or a page: their items are shared
 };
 // A new cache from the cells of a range. A field of the same name in `previous` keeps the order of its shared items that remain, new ones are put after them;
 // `remap` of the result says where each shared item of the previous cache went (-1: gone). False, with `why`, past a bound or for a source with no fields.
@@ -188,8 +188,10 @@ bool pivotValueLess(const PivotValue &a, const PivotValue &b);
 // ---- writing (a part is made from the one the file has: what the program doesn't model is kept)
 QByteArray writePivotCacheDefinition(const QByteArray &original, const PivotCache &cache, qint64 recordCount, double refreshedDate, jp::calc::DateSystem dates);
 QByteArray writePivotCacheRecords(const PivotCache &cache, jp::calc::DateSystem dates);
-// The table's definition with the location of the grid at `ref`; the original's other parts stay. `structureChanged` drops the formats that name the fields' items.
-QByteArray writePivotTable(const QByteArray &original, const PivotTable &table, const PivotGrid &grid, const QString &ref, bool structureChanged);
+// The table's definition with its location, fields, lines, and values as the table has them; the original's other parts stay. `structureChanged` drops the formats that name the fields' items.
+QByteArray writePivotTable(const QByteArray &original, const PivotTable &table, bool structureChanged);
+// Puts the lines and the place of the header of a worked-out grid in the table (what writePivotTable writes), and the grid's place at `row`, `col`.
+void pivotApplyGrid(PivotTable *table, const PivotGrid &grid, quint32 row, quint32 col);
 
 // "A1:C9" for the cells of a grid placed at a row and column.
 QString pivotRangeRef(quint32 row1, quint32 col1, quint32 row2, quint32 col2);

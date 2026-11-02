@@ -191,7 +191,9 @@ int pivotRefreshMain(const QStringList &args)
             if (ok) {
                 CellRange loc;
                 parseRangeRef(table.ref, &loc);
-                const QByteArray tableXml = writePivotTable(pkg.part(tablePart), refreshed, grid, pivotRangeRef(loc.row1, loc.col1, loc.row1 + quint32(grid.rows) - 1, loc.col1 + quint32(grid.cols) - 1), false);
+                PivotTable placed = refreshed;
+                pivotApplyGrid(&placed, grid, loc.row1, loc.col1);
+                const QByteArray tableXml = writePivotTable(pkg.part(tablePart), placed, false);
                 const QByteArray defXml = writePivotCacheDefinition(pkg.part(defPart), fresh, fresh.recordCount, 45000.5, book.info().dateSystem);
                 const QByteArray recXml = recPart.isEmpty() ? QByteArray() : writePivotCacheRecords(fresh, book.info().dateSystem);
                 PivotTable t2;

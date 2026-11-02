@@ -165,6 +165,7 @@ public:
         n += qint64(m_step.styles.size()) * qint64(sizeof(StyleCell));
         for (const TableRename &r : m_step.renames) n += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
         for (const TableEdit &e : m_step.tables) n += qint64(sizeof(e)) + tableBytes(e.before) + tableBytes(e.after);
+        for (const PivotEdit &e : m_step.pivots) n += qint64(sizeof(e)) + (e.cacheAfter && e.cacheAfter != e.cacheBefore ? pivotCacheBytes(*e.cacheAfter) : 0);
         for (const FillEdit &f : m_step.fills) n += qint64(sizeof(f)) + qint64(f.formula.size() + f.oldFormula.size()) * 2 + qint64(f.oldRuns.size()) * qint64(sizeof(std::pair<quint32, quint32>));
         for (const MergeEdit &m : m_step.merges) n += qint64(sizeof(m)) + qint64(m.before.size() + m.after.size()) * qint64(sizeof(jp::office::sheet::CellRange));
         for (const FilterEdit &f : m_step.filters) n += qint64(sizeof(f)) + filterBytes(f.before) + filterBytes(f.after);
@@ -924,6 +925,7 @@ bool EditSession::apply(Step *step, bool forward)
     if (m_holdHook) m_holdHook(calc, false);
     std::set<int> tableSheets;
     applyTableEdits(step, forward, calc, book, &tableSheets);
+    applyPivotEdits(step, forward, book);
     std::map<int, std::vector<ValueStore::Item>> cells;
     std::vector<ValueStore::Item> formulas;
     // the cells a formula was filled into (or taken out of, by Undo), one row at a time; the values of the formulas come from the worker
@@ -1082,7 +1084,7 @@ bool EditSession::apply(Step *step, bool forward)
     if (!step->tables.empty() && !step->sheets.empty()) calc->tablesChanged();   // (the tables of a sheet copied are looked up where the sheets are now)
     if (m_holdHook) m_holdHook(calc, true);
     // (a change of formats alone leaves nothing for the worker to work out)
-    bool valuesChanged = !step->renames.empty() || !step->tables.empty() || !step->fills.empty() || !step->names.empty() || !step->calcs.empty();
+    bool valuesChanged = !step->renames.empty() || !step->tables.empty() || !step->pivots.empty() || !step->fills.empty() || !step->names.empty() || !step->calcs.empty();
     for (const CellChange &ch : step->cells) valuesChanged = valuesChanged || !ch.styleOnly;
     for (const SheetEdit &e : step->sheets) valuesChanged = valuesChanged || e.kind == SheetEdit::Kind::Insert || e.kind == SheetEdit::Kind::Copy || e.kind == SheetEdit::Kind::Delete || e.kind == SheetEdit::Kind::Rename;
     if (valuesChanged) hold->changed();
@@ -1632,6 +1634,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         changes.sharedStringsBefore = book.sharedStringsInFile();
     }
     changes.replacedParts = book.changedTableParts();
+    for (auto &[part, bytes] : book.changedPivotParts()) changes.replacedParts[part] = std::move(bytes);
     for (const Workbook::TableAdd &a : book.addedTables()) changes.addedTables.push_back({a.sheet, a.part, a.xml});
     for (const Workbook::TableGone &g : book.removedTables()) changes.removedTables.push_back({g.sheet, g.part});
     changes.tableRewrites = m_tableRewrites;
