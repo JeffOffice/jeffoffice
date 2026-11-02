@@ -241,6 +241,23 @@ Style builtinStyle(const QString &id)
         return s;
     }
     if (id.startsWith(QLatin1String("Heading")) && id.size() == 8 && id[7] >= QLatin1Char('1') && id[7] <= QLatin1Char('9')) return heading(id[7].digitValue());
+    // The lines of a table of contents (toc 1 to toc 9, each set in a little more than the one before) and the heading above one.
+    if (id.startsWith(QLatin1String("TOC")) && id.size() == 4 && id[3] >= QLatin1Char('1') && id[3] <= QLatin1Char('9')) {
+        const int level = id[3].digitValue();
+        Style s = paragraphStyle(id, QStringLiteral("toc %1").arg(level), 39);
+        s.qFormat = false;
+        s.unhideWhenUsed = true;
+        s.pPr.after = 100;
+        if (level > 1) s.pPr.indLeft = 220 * (level - 1);
+        return s;
+    }
+    if (id == QLatin1String("TOCHeading")) {
+        Style s = paragraphStyle(id, QStringLiteral("TOC Heading"), 39);
+        s.basedOn = QStringLiteral("Heading1");
+        s.unhideWhenUsed = true;
+        s.pPr.outlineLvl = 9;
+        return s;
+    }
     if (id == QLatin1String("Title")) {
         Style s = paragraphStyle(id, QStringLiteral("Title"), 10);
         s.pPr.contextualSpacing = true;

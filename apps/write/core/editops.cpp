@@ -1742,11 +1742,28 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     c.endEditBlock();
 }
 
-void insertPageNumber(WriteDoc &doc, QTextCursor &c)
+bool insertFieldAtom(WriteDoc &doc, QTextCursor &c, const office::wml::Inline &field)
 {
     const NoteScopeGuard scopeGuard(doc, c);
-    if (!intoBody(c)) return;
-    if (isLocked(c.block()) && !c.hasSelection()) return;
+    if (!intoBody(c)) return false;
+    if (isLocked(c.block()) && !c.hasSelection()) return false;
+    std::optional<NumberGuard> numbers;
+    if (c.hasSelection()) numbers.emplace(doc, c.document());
+    QTextCursor edit = c;
+    edit.beginEditBlock();
+    if (edit.hasSelection()) removeSelection(doc, edit);
+    settleBesideDeletions(edit);
+    QTextCharFormat f = typingFormat(edit);
+    setStored(f, prop::Atom, packAtom(field));
+    f.setProperty(tp::Field, field.key.isEmpty() ? QStringLiteral("raw:") + field.display : field.key);
+    edit.insertText(QString(QChar::ObjectReplacementCharacter), f);
+    edit.endEditBlock();
+    c = edit;
+    return true;
+}
+
+void insertPageNumber(WriteDoc &doc, QTextCursor &c)
+{
     // The field as the file has it: its begin mark, code, separator, result (the number 1), and end mark. The look of its runs is the atom's.
     office::wml::Inline field;
     field.kind = office::wml::Inline::ParaAtom;
@@ -1756,18 +1773,7 @@ void insertPageNumber(WriteDoc &doc, QTextCursor &c)
                 "<w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
     field.key = liveFieldFor(QStringLiteral(" PAGE "));
     field.display = QStringLiteral("1");
-    std::optional<NumberGuard> numbers;
-    if (c.hasSelection()) numbers.emplace(doc, c.document());
-    QTextCursor edit = c;
-    edit.beginEditBlock();
-    if (edit.hasSelection()) removeSelection(doc, edit);
-    settleBesideDeletions(edit);
-    QTextCharFormat f = typingFormat(edit);
-    setStored(f, prop::Atom, packAtom(field));
-    f.setProperty(tp::Field, field.key);
-    edit.insertText(QString(QChar::ObjectReplacementCharacter), f);
-    edit.endEditBlock();
-    c = edit;
+    insertFieldAtom(doc, c, field);
 }
 
 bool insertDrawnAtom(WriteDoc &doc, QTextCursor &c, const office::wml::Inline &atom, QTextCharFormat *made)

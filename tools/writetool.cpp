@@ -7,6 +7,7 @@
 //   writetool review-text <file.docx> accept|reject|none         the text of the body (UTF-8, a paragraph ends in \r) after Accept All or Reject All of its tracked changes, or as it stands
 //   writetool review-save <file.docx> accept|reject <out.docx>   the document with all its changes accepted or rejected, saved
 //   writetool review-list <file.docx>                            the tracked changes: kind, author, date, and words
+//   writetool field-check <file.docx>                           every field of the text with the result it has and the one an update works out (a tab-separated line each: name, outcome, machine, before, after, code)
 //   writetool bench [paragraphs=26443] [options]                 a made-up long story: the time to its first page, to all of its pages, and to repaginate after a typed character,
 //                                                                against the targets (all of 26,443 paragraphs in 5 s, the first page in 0.3 s, a typed character in 50 ms); exits 1 if one is missed.
 //                                                                With JeffWrite built, it also times spelling as you type: a page's paragraphs, the same again, and after a typed character
@@ -20,6 +21,7 @@
 #include "render/renderer.h"
 #include "text/textprops.h"
 #ifdef JW_DOCX
+#include "core/fieldops.h"
 #include "core/reviewops.h"
 #include "core/spellcheck.h"
 #include "core/writedoc.h"
@@ -525,6 +527,26 @@ int main(int argc, char **argv)
 #endif
 #ifdef JW_DOCX
     if ((cmd == "review-text" || cmd == "review-save" || cmd == "review-list") && args.size() >= 3) return reviewCommand(args, out);
+    if (cmd == "field-check" && args.size() >= 3) {
+        QFile f(args[2]);
+        if (!f.open(QIODevice::ReadOnly)) { out << "cannot read: " << f.errorString() << "\n"; return 1; }
+        QString why;
+        QStringList notes;
+        std::unique_ptr<write::WriteDoc> d = write::WriteDoc::fromDocx(f.readAll(), &why, &notes);
+        if (!d) { out << "cannot open: " << why << "\n"; return 1; }
+        d->filePath = args[2];
+        write::UpdateOptions options;
+        options.apply = false;
+        QElapsedTimer timer;
+        timer.start();
+        const write::UpdateReport r = write::updateFields(*d, options, true);
+        auto flat = [](QString t) { return t.replace(QLatin1Char('\t'), QLatin1String("\\t")).replace(QLatin1Char('\n'), QLatin1String("\\n")).replace(QLatin1Char('\r'), QLatin1String("\\r")); };
+        static const char *const outcomes[] = {"same", "differs", "kept", "locked"};
+        for (const write::FieldChange &c : r.changes)
+            out << c.name << '\t' << outcomes[c.outcome] << '\t' << (write::fields::dependsOnTheMachine(c.name) ? "machine" : "doc") << '\t' << flat(c.before) << '\t' << flat(c.after) << '\t' << flat(c.instruction).left(120) << '\n';
+        out << "#fields\t" << r.found << "\t" << timer.elapsed() << " ms\n";
+        return 0;
+    }
     if (cmd == "docsave" && args.size() >= 4) {
         QFile f(args[2]);
         if (!f.open(QIODevice::ReadOnly)) { out << "cannot read: " << f.errorString() << "\n"; return 1; }
