@@ -30,7 +30,7 @@ uint32_t hashOf(const char *s, int n)
 const char kNamespaces[] =
     "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
     "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
-    "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+    "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\"";
 const char kXmlHeader[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n";
 const char kRel[] = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/";
 const char kWml[] = "application/vnd.openxmlformats-officedocument.wordprocessingml.";
@@ -44,7 +44,7 @@ const char *const kKnownWords[] = {
 
 enum class Dest {
     Normal, Skip, FontTbl, ColorTbl, StyleSheet, StyleDef, ListTable, ListDef, ListLevel, LevelText, ListOverrideTable, ListOverride, LfoLevel,
-    FldInst, Field, BkmkStart, BkmkEnd, Pict, Header, Footnote, NestProps, Pn, PnText, ShapeProp
+    FldInst, Field, BkmkStart, BkmkEnd, Pict, Header, Footnote, NestProps, Pn, PnText, ShapeProp, Shape, ShapeText, SpName, SpValue
 };
 
 // Which destinations the children of a group carry on (the rest start as plain text).
@@ -68,7 +68,7 @@ struct State {
     int bsel = -1, btarget = 0;
     int tabType = 0, tabLead = 0;
     int uc = 1;
-    bool shp = false;
+    bool shp = false, shapeText = false;
 };
 
 struct Picture {
@@ -146,6 +146,7 @@ public:
     Reader(const QByteArray &bytes, wml::ReadNotes *notes) : m_d(bytes.constData()), m_n(bytes.size()), m_notes(notes) {}
     QByteArray run(QString *error);
     qint64 outputBytes() const { return m_outputBytes; }
+    ReadWork work() const { return m_work; }
 
 private:
     // ---- input
@@ -202,6 +203,14 @@ private:
     int m_half = -1;
     Picture m_pict;
     int m_pictStory = 0;
+    struct ShapeScratch {
+        int type = 0, left = 0, top = 0, right = 0, bottom = 0, wrap = 2, bx = 2, by = 2, posrelh = kUnset, posrelv = kUnset, z = 0;
+        int filled = kUnset, fillColor = 0, line = kUnset, lineColor = 0, lineWidth = kUnset, inset[4] = {kUnset, kUnset, kUnset, kUnset}, behind = 0;
+    } m_shape;
+    ReadWork m_work;
+    bool m_shapeOpen = false;
+    int m_shapes = 0;
+    QString m_spName;
     CellDef m_pendCell;
     bool m_pendCellBlank = true;
     int m_pnStyleCounter = 0;
@@ -249,6 +258,7 @@ private:
     void addLevelRaw(quint32 v)
     {
         if (m_levelRaw.size() < 1000) m_levelRaw.append(v);
+        m_work.maxLevelRaw = std::max<int>(m_work.maxLevelRaw, m_levelRaw.size());
     }
 
     // ---- the loop and the tokens
@@ -295,6 +305,8 @@ private:
     void finishPict(const State &g);
     void finishNote(const State &g);
     void finishHeader(const State &g);
+    void finishShapeText(const State &g);
+    void shapeWord(uint32_t h, int param);
     void finishPn(State &parent);
     QString addMedia(const QString &part, const QByteArray &bytes, const QString &ext);
     QByteArray drawingXml(const Picture &p, const QString &rid);
@@ -364,7 +376,7 @@ void Reader::routeText(const QString &s)
         }
         addText(story(), s, g.chr);
         break;
-    case Dest::FontTbl: case Dest::StyleDef: case Dest::BkmkStart: case Dest::BkmkEnd: case Dest::PnText:
+    case Dest::FontTbl: case Dest::StyleDef: case Dest::BkmkStart: case Dest::BkmkEnd: case Dest::PnText: case Dest::SpName: case Dest::SpValue:
         if (m_name.size() < 1000) m_name += s;
         break;
     case Dest::FldInst:
@@ -856,6 +868,7 @@ void Reader::pushGroup()
     }
     State child = st();
     child.owns = false;
+    child.shapeText = false;
     if (child.dest == Dest::StyleSheet) {
         child.dest = Dest::StyleDef;
         child.owns = true;
@@ -882,6 +895,7 @@ void Reader::popGroup()
     }
     if (m_stack.size() <= 1) return;
     State g = m_stack.back();
+    if (g.shapeText) finishShapeText(g);
     if (g.owns) {
         switch (g.dest) {
         case Dest::FontTbl: if (m_fontPending) commitFont(); break;
@@ -910,6 +924,7 @@ void Reader::popGroup()
         case Dest::LfoLevel:
             m_lfo.present = m_lfo.present;
             if (m_overrides.size() < 9) m_overrides.append(m_lfo);
+            m_work.maxOverrides = std::max<int>(m_work.maxOverrides, m_overrides.size());
             m_lfo = ListLevel();
             break;
         case Dest::FldInst: {
@@ -959,6 +974,27 @@ void Reader::popGroup()
             break;
         case Dest::Pict: finishPict(g); break;
         case Dest::Header: finishHeader(g); break;
+        case Dest::Shape: m_shapeOpen = false; break;
+        case Dest::SpName: m_spName = m_name.trimmed(); m_name.clear(); break;
+        case Dest::SpValue: {
+            const int v = m_name.trimmed().toInt();
+            const QString &n = m_spName;
+            if (n == QLatin1String("shapeType")) m_shape.type = v;
+            else if (n == QLatin1String("fFilled")) m_shape.filled = v;
+            else if (n == QLatin1String("fillColor")) m_shape.fillColor = v;
+            else if (n == QLatin1String("fLine")) m_shape.line = v;
+            else if (n == QLatin1String("lineColor")) m_shape.lineColor = v;
+            else if (n == QLatin1String("lineWidth")) m_shape.lineWidth = v;
+            else if (n == QLatin1String("posrelh")) m_shape.posrelh = v;
+            else if (n == QLatin1String("posrelv")) m_shape.posrelv = v;
+            else if (n == QLatin1String("fBehindDocument")) m_shape.behind = v;
+            else if (n == QLatin1String("dxTextLeft")) m_shape.inset[0] = v;
+            else if (n == QLatin1String("dyTextTop")) m_shape.inset[1] = v;
+            else if (n == QLatin1String("dxTextRight")) m_shape.inset[2] = v;
+            else if (n == QLatin1String("dyTextBottom")) m_shape.inset[3] = v;
+            m_name.clear();
+            break;
+        }
         case Dest::Footnote: finishNote(g); break;
         default: break;
         }
@@ -1114,6 +1150,61 @@ void Reader::finishHeader(const State &g)
     m_secRef[s->slot] = pkg.addRelationship(QStringLiteral("/word/document.xml"), QString::fromLatin1(kRel) + (isHeader ? QStringLiteral("header") : QStringLiteral("footer")), s->part);
 }
 
+void Reader::shapeWord(uint32_t h, int param)
+{
+    ShapeScratch &s = m_shape;
+    switch (h) {
+    case H("shpleft"): s.left = param; break;
+    case H("shptop"): s.top = param; break;
+    case H("shpright"): s.right = param; break;
+    case H("shpbottom"): s.bottom = param; break;
+    case H("shpwr"): s.wrap = param; break;
+    case H("shpz"): s.z = param; break;
+    case H("shpfblwtxt"): s.behind = param; break;
+    case H("shpbxmargin"): s.bx = 0; break;
+    case H("shpbxpage"): s.bx = 1; break;
+    case H("shpbxcolumn"): s.bx = 2; break;
+    case H("shpbymargin"): s.by = 0; break;
+    case H("shpbypage"): s.by = 1; break;
+    case H("shpbypara"): s.by = 2; break;
+    default: break;
+    }
+}
+
+void Reader::finishShapeText(const State &g)
+{
+    if (m_stories.empty()) return;
+    const QByteArray body = finishStory(*m_stories.back(), g);
+    m_stories.pop_back();
+    if (m_stopped) return;
+    const ShapeScratch &s = m_shape;
+    auto pt = [](double v) { return QByteArray::number(v, 'f', 1); };
+    const double w = std::clamp((double(s.right) - s.left) / 20.0, 1.0, 1584.0), h = std::clamp((double(s.bottom) - s.top) / 20.0, 1.0, 1584.0);
+    const int hrel = s.posrelh != kUnset ? std::clamp(s.posrelh, 0, 2) : s.bx, vrel = s.posrelv != kUnset ? std::clamp(s.posrelv, 0, 2) : s.by;
+    const int id = ++m_drawingId;
+    QByteArray style = "position:absolute;margin-left:" + pt(std::clamp(double(s.left), -31680.0, 31680.0 * 4) / 20.0) + "pt;margin-top:" + pt(std::clamp(double(s.top), -31680.0, 31680.0 * 4) / 20.0) + "pt;width:" +
+                       pt(w) + "pt;height:" + pt(h) + "pt;z-index:" + num(s.behind ? -251658240 + 1024 * id : 251658240 + 1024 * id);
+    if (hrel != 2) style += QByteArray(";mso-position-horizontal-relative:") + (hrel == 0 ? "margin" : "page");
+    if (vrel != 2) style += QByteArray(";mso-position-vertical-relative:") + (vrel == 0 ? "margin" : "page");
+    auto rgb = [](int v) { return QByteArray("#") + QByteArray::number(((v & 0xFF) << 16) | (v & 0xFF00) | ((v >> 16) & 0xFF), 16).rightJustified(6, '0'); };
+    QByteArray attrs = " type=\"#_x0000_t202\" id=\"_x0000_s" + num(id) + "\" style=\"" + style + "\"";
+    attrs += s.filled == 1 ? " filled=\"t\" fillcolor=\"" + rgb(s.fillColor) + "\"" : QByteArray(" filled=\"f\"");
+    if (s.line == 1) attrs += " stroked=\"t\" strokecolor=\"" + rgb(s.lineColor) + "\" strokeweight=\"" + pt(s.lineWidth != kUnset ? std::clamp(s.lineWidth, 0, 3175000) / 12700.0 : 0.75) + "pt\"";
+    else attrs += " stroked=\"f\"";
+    QByteArray textbox = "<v:textbox";
+    if (s.inset[0] != kUnset || s.inset[1] != kUnset || s.inset[2] != kUnset || s.inset[3] != kUnset) {
+        auto in = [&](int v, double d) { return pt(v == kUnset ? d : std::clamp(v, 0, 3175000) / 12700.0); };
+        textbox += " inset=\"" + in(s.inset[0], 7.2) + "pt," + in(s.inset[1], 3.6) + "pt," + in(s.inset[2], 7.2) + "pt," + in(s.inset[3], 3.6) + "pt\"";
+    }
+    QByteArray wrap;
+    if (s.wrap == 1) wrap = "<w10:wrap type=\"topAndBottom\"/>";
+    else if (s.wrap == 4) wrap = "<w10:wrap type=\"tight\"/>";
+    else if (s.wrap == 5) wrap = "<w10:wrap type=\"through\"/>";
+    else if (s.wrap != 3) wrap = "<w10:wrap type=\"square\"/>";
+    const QByteArray xml = "<w:pict><v:shape" + attrs + ">" + textbox + "><w:txbxContent>" + body + "</w:txbxContent></v:textbox>" + wrap + "</v:shape></w:pict>";
+    addRaw(story(), xml, m_stack[m_stack.size() - 2].chr, false);
+}
+
 void Reader::finishNote(const State &g)
 {
     if (m_stories.empty()) return;
@@ -1220,10 +1311,15 @@ void Reader::finishPict(const State &g)
     const auto u32 = [&](int o) { return p.data.size() >= o + 4 ? quint32(uchar(p.data[o])) | (quint32(uchar(p.data[o + 1])) << 8) | (quint32(uchar(p.data[o + 2])) << 16) | (quint32(uchar(p.data[o + 3])) << 24) : 0u; };
     QString ext;
     const QByteArray &d = p.data;
-    if (p.format == 1 && d.startsWith("\x89PNG")) ext = QStringLiteral("png");
-    else if (p.format == 2 && d.startsWith("\xFF\xD8")) ext = QStringLiteral("jpeg");
-    else if (p.format == 3 && u32(0) == 1 && u32(40) == 0x464D4520u) ext = QStringLiteral("emf");
-    else if (p.format == 4 && (u32(0) == 0x9AC6CDD7u || ((u16(0) == 1 || u16(0) == 2) && u16(2) == 9))) ext = QStringLiteral("wmf");
+    // (What the bytes are decides, not the word before them: some programs write a JPEG after \pngblip.)
+    if (p.format != -1) {
+        if (d.startsWith("\x89PNG")) ext = QStringLiteral("png");
+        else if (d.startsWith("\xFF\xD8")) ext = QStringLiteral("jpeg");
+        else if (u32(0) == 1 && u32(40) == 0x464D4520u) ext = QStringLiteral("emf");
+        else if (u32(0) == 0x9AC6CDD7u || ((u16(0) == 1 || u16(0) == 2) && u16(2) == 9)) ext = QStringLiteral("wmf");
+    }
+    Picture shown = p;
+    shown.format = ext == QLatin1String("png") ? 1 : ext == QLatin1String("jpeg") ? 2 : 0;
     if (ext.isEmpty() || p.tooBig || m_pictures >= kMaxPictures || m_pictureBytes + d.size() > kMaxPictureTotal) {
         left(QStringLiteral("pictures"), QCoreApplication::translate("jp::office::rtf", "Some pictures could not be shown, and were left out."));
         return;
@@ -1232,7 +1328,7 @@ void Reader::finishPict(const State &g)
     m_pictureBytes += d.size();
     Story &s = story();
     const QString rid = addMedia(s.part, d, ext);
-    addRaw(s, drawingXml(p, rid), Chr(), false);
+    addRaw(s, drawingXml(shown, rid), Chr(), false);
     m_lastShppict = g.shp ? 1 : 0;
 }
 
@@ -1327,7 +1423,22 @@ void Reader::destWord(State &g, uint32_t h, bool has, int param, bool *handled)
         }
         break;
     case H("shppict"): g.shp = true; break;
-    case H("sp"): case H("sn"): case H("sv"): enter(Dest::ShapeProp); break;
+    case H("sp"): enter(Dest::ShapeProp); break;
+    case H("sn"): enter(Dest::SpName); m_name.clear(); break;
+    case H("sv"): enter(Dest::SpValue); m_name.clear(); break;
+    case H("shpinst"): enter(Dest::Shape); m_shape = ShapeScratch(); m_shapeOpen = true; break;
+    case H("shptxt"):
+        if (m_shapeOpen && m_shapes < kMaxShapes && m_stories.size() < 3u && !m_stopped) {
+            ++m_shapes;
+            g.shapeText = true;
+            g.owns = true;
+            auto ns = std::make_unique<Story>();
+            ns->part = story().part;
+            m_stories.push_back(std::move(ns));
+            g.chr = Chr();
+            g.par = Par();
+        }
+        break;
     case H("field"): {
         enter(Dest::Field);
         Story::FieldRec f;
@@ -1488,10 +1599,10 @@ void Reader::parWord(State &g, uint32_t h, bool has, int param, bool *handled)
         g.bsel = side;
         g.btarget = 0;
     };
-    auto setBorderStyle = [&](const char *name) {
+    auto setBorderStyle = [&](int style) {
         auto apply = [&](Border *b) {
             if (!b) return;
-            b->style = borderStyleOf(name);
+            b->style = style;
             if (b->width == 0) b->width = 15;
         };
         if (g.bsel == 9) {
@@ -1566,22 +1677,26 @@ void Reader::parWord(State &g, uint32_t h, bool has, int param, bool *handled)
     case H("brdrr"): border(3); break;
     case H("brdrbtw"): border(4); break;
     case H("box"): g.bsel = 9; g.btarget = 0; break;
-    case H("brdrs"): case H("brdrth"): case H("brdrdb"): case H("brdrdot"): case H("brdrdash"): case H("brdrdashsm"): case H("brdrwavy"): case H("brdrwavydb"):
-    case H("brdrtriple"): case H("brdrdashd"): case H("brdrdashdd"): case H("brdrinset"): case H("brdroutset"): case H("brdrhair"): case H("brdrnone"): case H("brdrnil"):
-    case H("brdrengrave"): case H("brdremboss"): case H("brdrthtnmg"): case H("brdrtnthmg"): case H("brdrdashdotstr"): case H("brdrframe"): {
-        static const struct { uint32_t h; const char *name; } names[] = {{H("brdrs"), "brdrs"}, {H("brdrth"), "brdrth"}, {H("brdrdb"), "brdrdb"}, {H("brdrdot"), "brdrdot"}, {H("brdrdash"), "brdrdash"},
-            {H("brdrdashsm"), "brdrdashsm"}, {H("brdrwavy"), "brdrwavy"}, {H("brdrwavydb"), "brdrwavydb"}, {H("brdrtriple"), "brdrtriple"}, {H("brdrdashd"), "brdrdashd"},
-            {H("brdrdashdd"), "brdrdashdd"}, {H("brdrinset"), "brdrinset"}, {H("brdroutset"), "brdroutset"}, {H("brdrhair"), "brdrhair"}, {H("brdrnone"), "brdrnone"}, {H("brdrnil"), "brdrnil"}};
-        const char *n = "brdrs";
-        for (const auto &e : names)
-            if (e.h == h) n = e.name;
-        setBorderStyle(n);
-        break;
-    }
     case H("brdrw"): eachBorder([&](Border &b) { b.width = std::clamp(param, 0, 255); }); break;
     case H("brdrcf"): eachBorder([&](Border &b) { b.color = param; }); break;
     case H("brsp"): eachBorder([&](Border &b) { b.space = std::clamp(param, 0, 620); }); break;
-    default: *handled = false; break;
+    default: {
+        // The kinds of line a border can be (an index of kBorderNames; those with two or three lines are double).
+        static const struct { uint32_t h; int style; } kinds[] = {
+            {H("brdrs"), 1}, {H("brdrhair"), 1}, {H("brdrsh"), 1}, {H("brdrth"), 2}, {H("brdrdb"), 3}, {H("brdrdot"), 4}, {H("brdrdash"), 5}, {H("brdrdashsm"), 5},
+            {H("brdrwavy"), 6}, {H("brdrwavydb"), 6}, {H("brdrtriple"), 7}, {H("brdrdashd"), 8}, {H("brdrdashdd"), 9}, {H("brdrinset"), 10}, {H("brdroutset"), 11},
+            {H("brdrnone"), 0}, {H("brdrnil"), 0}, {H("brdrthtnsg"), 3}, {H("brdrthtnmg"), 3}, {H("brdrthtnlg"), 3}, {H("brdrtnthsg"), 3}, {H("brdrtnthmg"), 3},
+            {H("brdrtnthlg"), 3}, {H("brdrthtnthsg"), 7}, {H("brdrthtnthmg"), 7}, {H("brdrthtnthlg"), 7}, {H("brdrengrave"), 10}, {H("brdremboss"), 11},
+            {H("brdrdashdotstr"), 5}, {H("brdrframe"), 1}};
+        *handled = false;
+        for (const auto &k : kinds)
+            if (k.h == h) {
+                setBorderStyle(k.style);
+                *handled = true;
+                break;
+            }
+        break;
+    }
     }
 }
 
@@ -1831,8 +1946,11 @@ void Reader::word(uint32_t h, const char *name, int len, bool has, int param)
         case H("pntxta"): g.dest = Dest::PnText; g.owns = true; m_pnAfter = true; m_name.clear(); return;
         default: return;
         }
-    case Dest::PnText: case Dest::ShapeProp:
+    case Dest::PnText: case Dest::ShapeProp: case Dest::SpName: case Dest::SpValue:
         destWord(g, h, has, param, &handled);
+        return;
+    case Dest::Shape:
+        shapeWord(h, param);
         return;
     default:
         break;
@@ -2086,6 +2204,9 @@ QByteArray Reader::run(QString *error)
 } // namespace
 
 thread_local qint64 g_lastOutputBytes = 0;
+thread_local ReadWork g_lastWork;
+
+ReadWork lastWorkForTest() { return g_lastWork; }
 
 qint64 lastOutputBytesForTest() { return g_lastOutputBytes; }
 
@@ -2120,6 +2241,7 @@ QByteArray toDocxPackage(const QByteArray &bytes, QString *error, wml::ReadNotes
     Reader r(bytes, notes);
     const QByteArray out = r.run(error);
     g_lastOutputBytes = r.outputBytes();
+    g_lastWork = r.work();
     return out;
 }
 

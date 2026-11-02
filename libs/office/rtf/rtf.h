@@ -32,6 +32,7 @@ constexpr int kMaxTableCellsAll = wml::kMaxTableCells;
 constexpr int kMaxNotes = wml::kMaxNotes;
 constexpr int kMaxHeaderStories = 12000;
 constexpr int kMaxBookmarks = 20000;
+constexpr int kMaxShapes = 5000;
 constexpr int kMaxFieldDepth = 20;
 constexpr int kMaxFieldInstructionChars = 4096;
 // Paragraphs of all the stories together (the .docx reader takes 500,000 in a body), and sections.
@@ -50,6 +51,12 @@ bool looksLikeRtf(const QByteArray &bytes);
 // The .docx package that the document comes to; empty, with the reason in `error`, if the file is not one this reads. `notes` gets one line for each kind of
 // thing left out.
 QByteArray toDocxPackage(const QByteArray &bytes, QString *error = nullptr, wml::ReadNotes *notes = nullptr);
+
+// For tests of cost: the most the last file read on this thread kept of what a file can make many of (override levels of a list instance, the text of a list level's characters).
+struct ReadWork {
+    int maxOverrides = 0, maxLevelRaw = 0;
+};
+ReadWork lastWorkForTest();
 
 // For tests of cost: the XML the last file read on this thread came to, counted against kMaxOutputBytes.
 qint64 lastOutputBytesForTest();

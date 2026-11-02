@@ -47,6 +47,7 @@
 #include "wml/wml.h"
 
 #include <QAccessible>
+#include <QTcpServer>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
@@ -1170,6 +1171,23 @@ private Q_SLOTS:
         for (QWidget *top : QApplication::topLevelWidgets())
             if (auto *ww = qobject_cast<WriteWindow *>(top); ww && ww != &w) extra << ww;
         for (WriteWindow *ww : extra) ww->close();
+    }
+
+    // A field's instruction is never run: opening a document with one that names an address on this machine reaches nothing, and no picture comes of it.
+    void aFieldThatNamesAPictureOrAnAddressIsNeverFollowed()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QTcpServer server;
+        QVERIFY(server.listen(QHostAddress::LocalHost));
+        const QByteArray url = "http://127.0.0.1:" + QByteArray::number(server.serverPort()) + "/x.png";
+        const QString path = writeFile(dir, QStringLiteral("fields.rtf"),
+                                       "{\\rtf1\\ansi\\pard {\\field{\\*\\fldinst INCLUDEPICTURE \"" + url + "\"}{\\fldrslt shown}} {\\field{\\*\\fldinst HYPERLINK \"" + url + "\"}{\\fldrslt link}}\\par}");
+        WriteWindow w;
+        QVERIFY(w.openFile(path));
+        QVERIFY(w.document()->pager().pageCount() >= 1);
+        QVERIFY(!server.waitForNewConnection(300));
+        QVERIFY(w.document()->story()->toPlainText().contains(QLatin1String("shown")));
     }
 
     void anRtfFileWithPartsTheLimitsCutSaysSoAndKeepsTheRest()

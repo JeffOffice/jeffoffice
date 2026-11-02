@@ -6,6 +6,7 @@
 #include "wml/wml.h"
 
 #include <QRandomGenerator>
+#include <QTcpServer>
 #include <QtTest>
 
 #include "../testrunner.h"
@@ -492,6 +493,45 @@ private Q_SLOTS:
         QCOMPARE(bodyTexts(f), QStringList{QStringLiteral("x")});
     }
 
+    void aPictureIsWhatItsBytesAreWhateverTheWordSays()
+    {
+        // LibreOffice writes a JPEG after \pngblip, and a PNG after \jpegblip.
+        const QByteArray jpeg = "ffd8ffe000104a46494600010100000100010000ffd9";
+        const Document d = must(doc("\\pard {\\pict\\pngblip\\picwgoal1440\\pichgoal1440 " + jpeg + "}{\\pict\\jpegblip\\picwgoal1440\\pichgoal1440 " + tinyPngHex() + "} x\\par"));
+        QStringList types;
+        for (const wml::KeptPart &p : d.parts)
+            if (p.name.startsWith(QLatin1String("/word/media/"))) types << p.contentType;
+        types.sort();
+        QCOMPARE(types, (QStringList{QStringLiteral("image/jpeg"), QStringLiteral("image/png")}));
+    }
+
+    void tableBordersOfEveryKindAreKept()
+    {
+        // The double-line kinds (thin-thick, thick-thin, with any gap) and the rest all give a border.
+        const Document d = must(doc("\\trowd\\clbrdrt\\brdrthtnlg\\brdrw15\\clbrdrl\\brdrtnthmg\\brdrw15\\clbrdrb\\brdrthtnthsg\\brdrw15\\clbrdrr\\brdrengrave\\brdrw15\\cellx3000\\pard\\intbl a\\cell\\row"));
+        bool all = false;
+        for (const Block &b : d.body)
+            if (b.table && b.table->kind == wml::TableMark::Cell) all = b.table->top.stated() && b.table->left.stated() && b.table->bottom.stated() && b.table->right.stated();
+        QVERIFY(all);
+    }
+
+    void aTextBoxIsPlacedWhereItIsNotInTheLine()
+    {
+        const Document d = must(doc("\\pard Line text {\\shp{\\*\\shpinst\\shpleft4320\\shptop200\\shpright5760\\shpbottom800\\shpbxmargin\\shpbypage\\shpwr3\\shpfblwtxt0"
+                                    "{\\sp{\\sn shapeType}{\\sv 202}}{\\sp{\\sn fFilled}{\\sv 0}}{\\sp{\\sn fLine}{\\sv 0}}{\\shptxt\\pard Boxed text\\par}}{\\shprslt\\pard Fallback\\par}} end\\par"));
+        QCOMPARE(bodyTexts(d).first(), QStringLiteral("Line text  end"));
+        QByteArray xml;
+        for (const Inline &in : d.body.first().para.content)
+            if (in.kind == Inline::RunAtom) xml += in.raw;
+        QVERIFY2(xml.contains("position:absolute"), xml.constData());
+        QVERIFY(xml.contains("margin-left:216.0pt"));
+        QVERIFY(xml.contains("margin-top:10.0pt"));
+        QVERIFY(xml.contains("width:72.0pt"));
+        QVERIFY(xml.contains("mso-position-vertical-relative:page"));
+        QVERIFY(xml.contains("Boxed text"));
+        QVERIFY(!xml.contains("Fallback"));
+    }
+
     void unknownDestinationsAreSkipped()
     {
         const Document d = must(doc("\\pard a{\\*\\unknowndest hidden text {nested} more}b{\\*\\generator Foo 1.0;}c{\\info{\\title T}{\\author A}}d{\\stylesheet{\\s9 x;}}e\\par"));
@@ -627,11 +667,14 @@ private Q_SLOTS:
         const QString numbering = QString::fromUtf8(pkg.part(QStringLiteral("/word/numbering.xml")));
         QCOMPARE(numbering.count(QLatin1String("<w:lvlOverride ")), 9);
         QVERIFY(numbering.size() < 20000);
+        // (What was kept while reading, not only what was written: the old reader held all 500 and 500,000.)
+        QVERIFY(rtf::lastWorkForTest().maxOverrides <= 9);
+        QVERIFY(rtf::lastWorkForTest().maxLevelRaw <= 1000);
     }
 
     void numbersTooBigForAnIntAreClamped()
     {
-        const Document d = must(doc("\\pard\\expnd2000000000 spread\\par\\pard {\\pict\\pngblip\\picwgoal2000000000\\pichgoal2000000000\\picscalex2000000000\\picscaley2000000000 " + tinyPngHex() + "}\\par"));
+        const Document d = must(doc("\\pard\\expnd500000000 spread\\par\\pard {\\pict\\pngblip\\picwgoal2000000\\pichgoal2000000\\picscalex2000\\picscaley2000 " + tinyPngHex() + "}\\par"));
         QCOMPARE(run(d, QStringLiteral("spread"))->props.spacing.value_or(0), 31680);
         bool found = false;
         for (const Block &b : d.body)
@@ -674,12 +717,19 @@ private Q_SLOTS:
         f.write(QByteArray::fromHex(tinyPngHex()));
         f.close();
         const QByteArray local = dir.filePath(QStringLiteral("local.png")).toUtf8();
-        const Document d = must(doc("\\pard{\\field{\\*\\fldinst INCLUDEPICTURE \"http://127.0.0.1:9/x.png\"}{\\fldrslt first}} "
+        // A server on this machine that any fetch would reach.
+        QTcpServer server;
+        QVERIFY(server.listen(QHostAddress::LocalHost));
+        const QByteArray url = "http://127.0.0.1:" + QByteArray::number(server.serverPort()) + "/x.png";
+        const Document d = must(doc("\\pard{\\field{\\*\\fldinst INCLUDEPICTURE \"" + url + "\"}{\\fldrslt first}} "
                                     "{\\field{\\*\\fldinst INCLUDEPICTURE \"" + local + "\"}{\\fldrslt second}} {\\field{\\*\\fldinst DDEAUTO cmd calc}{\\fldrslt third}}"
                                     "{\\field{\\*\\fldinst INCLUDETEXT \"" + local + "\"}{\\fldrslt fourth}}\\par"));
         // Only what the file's own result says is shown; nothing is fetched or read, and no picture or text comes from an instruction.
         QCOMPARE(bodyTexts(d).first(), QStringLiteral("first second thirdfourth"));
         for (const wml::KeptPart &p : d.parts) QVERIFY2(!p.name.startsWith(QLatin1String("/word/media/")), qPrintable(p.name));
+        // Nothing reached the server, however long it is given.
+        QVERIFY(!server.waitForNewConnection(300));
+        QVERIFY(!server.hasPendingConnections());
     }
 
     void aWordIsKnownByItsLettersNotOnlyItsHash()

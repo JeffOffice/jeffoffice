@@ -40,6 +40,7 @@ int main(int argc, char **argv)
         std::fprintf(stderr, "%s\n", qPrintable(error));
         return 2;
     }
+    for (const QString &n : notes) std::fprintf(stderr, "note: %s\n", qPrintable(n));
     const QString text = doc->story()->toPlainText();
     if (count) std::printf("%lld %d %d\n", qint64(text.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts).size()), int(doc->story()->blockCount()), int(notes.size()));
     else std::fwrite(text.toUtf8().constData(), 1, size_t(text.toUtf8().size()), stdout);
