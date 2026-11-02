@@ -4,8 +4,10 @@
 #include <QDomDocument>
 #include <QDomElement>
 #include <QRegularExpression>
+#include <QSet>
 
 #include <algorithm>
+#include <functional>
 #include <cmath>
 
 namespace jp::office::sheet {
@@ -121,15 +123,16 @@ void sharedAttributes(const PivotCacheField &f, jp::calc::DateSystem dates, QVec
             break;
         }
     }
-    const bool mixed = (text || bools || errors) && (number || date);
-    const bool semi = text || bools || errors || mixed;
-    if (!semi && !blank) attrs->append({QStringLiteral("containsSemiMixedTypes"), QStringLiteral("0")});
-    if (date && !nonDate && !text) attrs->append({QStringLiteral("containsNonDate"), QStringLiteral("0")});
+    // (the marks as the original program writes them: dates among numbers are "mixed" and have no containsNumber; a blank is not a date, so a field of dates and blanks is not "all dates")
+    const bool anyText = text || bools || errors;
+    const bool mixed = (anyText && (number || date)) || (date && number);
+    if (!anyText && !blank) attrs->append({QStringLiteral("containsSemiMixedTypes"), QStringLiteral("0")});
+    if (date && !number && !anyText && !blank) attrs->append({QStringLiteral("containsNonDate"), QStringLiteral("0")});
     if (date) attrs->append({QStringLiteral("containsDate"), QStringLiteral("1")});
-    if (!text && !bools && !errors) attrs->append({QStringLiteral("containsString"), QStringLiteral("0")});
+    if (!anyText) attrs->append({QStringLiteral("containsString"), QStringLiteral("0")});
     if (blank) attrs->append({QStringLiteral("containsBlank"), QStringLiteral("1")});
     if (mixed) attrs->append({QStringLiteral("containsMixedTypes"), QStringLiteral("1")});
-    if (number) {
+    if (number && !date) {
         attrs->append({QStringLiteral("containsNumber"), QStringLiteral("1")});
         if (integer) attrs->append({QStringLiteral("containsInteger"), QStringLiteral("1")});
         attrs->append({QStringLiteral("minValue"), num(lo)});
@@ -292,6 +295,7 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool
 
     // the fields
     QDomElement fields = childNamed(root, QStringLiteral("pivotFields"));
+    QSet<int> changedItems;   // the fields whose list of items is not the one the part had
     // each field's element is its own, found by the place it had in the part: its marks and children (a sort by a value, an extension) go with its column; a field made here has a plain one
     QVector<QDomElement> ordered;
     {
@@ -349,6 +353,19 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool
             else e.removeChild(scope);
         }
         QDomElement items = childNamed(e, QStringLiteral("items"));
+        auto itemsText = [](const QDomElement &list) {
+            QString out;
+            for (QDomNode n = list.firstChild(); !n.isNull(); n = n.nextSibling()) {
+                if (!n.isElement()) continue;
+                const QDomNamedNodeMap a = n.toElement().attributes();
+                QStringList parts;
+                for (int i = 0; i < a.size(); ++i) parts << a.item(i).toAttr().name() + QLatin1Char('=') + a.item(i).toAttr().value();
+                parts.sort();
+                out += parts.join(QLatin1Char(',')) + QLatin1Char(';');
+            }
+            return out;
+        };
+        const QString itemsWere = items.isNull() ? QString() : itemsText(items);
         if (!items.isNull()) e.removeChild(items);
         if (pf.hasItems && !pf.items.isEmpty()) {
             QDomElement made = doc.createElement(QStringLiteral("items"));
@@ -368,6 +385,9 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool
             }
             // (the items come first among the field's parts)
             e.insertBefore(made, e.firstChild());
+            if (itemsText(made) != itemsWere) changedItems.insert(fi);
+        } else if (!itemsWere.isEmpty()) {
+            changedItems.insert(fi);
         }
     }
     fields.setAttribute(QStringLiteral("count"), QString::number(t.fields.size()));
@@ -419,16 +439,24 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool
     QDomElement ri = lines("rowItems", t.rowItems);
     QDomElement cf = fieldList("colFields", t.colFields);
     QDomElement ci = lines("colItems", t.colItems);
+    // (a filter that was there keeps what the file said of it, the place of the item in the list apart)
+    QHash<int, QDomElement> pageWas;
+    {
+        const QDomElement list = childNamed(root, QStringLiteral("pageFields"));
+        for (QDomNode n = list.firstChild(); !n.isNull(); n = n.nextSibling())
+            if (n.isElement()) pageWas.insert(n.toElement().attribute(QStringLiteral("fld")).toInt(), n.toElement());
+    }
     drop("pageFields");
     QDomElement pf;
     if (!t.pageFields.isEmpty()) {
         pf = doc.createElement(QStringLiteral("pageFields"));
         pf.setAttribute(QStringLiteral("count"), QString::number(t.pageFields.size()));
         for (const PivotPageField &p : t.pageFields) {
-            QDomElement x = doc.createElement(QStringLiteral("pageField"));
+            QDomElement x = pageWas.contains(p.fld) && !structureChanged ? pageWas.value(p.fld).cloneNode(true).toElement() : doc.createElement(QStringLiteral("pageField"));
             x.setAttribute(QStringLiteral("fld"), QString::number(p.fld));
             if (p.item >= 0) x.setAttribute(QStringLiteral("item"), QString::number(p.item));
-            x.setAttribute(QStringLiteral("hier"), QStringLiteral("-1"));
+            else x.removeAttribute(QStringLiteral("item"));
+            if (!x.hasAttribute(QStringLiteral("hier"))) x.setAttribute(QStringLiteral("hier"), QStringLiteral("-1"));
             pf.appendChild(x);
         }
     }
@@ -455,6 +483,42 @@ QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool
     place(ci);
     place(pf);
     place(df);
+    // the formats, rules, and chart formats name items by their place in a field's list: those of a field whose list changed, or of a place that is not there, go
+    {
+        QVector<int> itemCount(t.fields.size(), 0);
+        for (int i = 0; i < t.fields.size(); ++i) {
+            int k = 0;
+            for (const PivotTableItem &it : t.fields[i].items) k += 1;
+            itemCount[i] = k;
+        }
+        std::function<bool(const QDomElement &)> broken = [&](const QDomElement &e) {
+            for (QDomNode n = e.firstChild(); !n.isNull(); n = n.nextSibling()) {
+                if (!n.isElement()) continue;
+                const QDomElement c = n.toElement();
+                if (c.tagName() == QLatin1String("reference")) {
+                    const qint64 f = c.attribute(QStringLiteral("field")).toLongLong();
+                    if (f == 4294967294LL) continue;
+                    if (f < 0 || f >= t.fields.size() || changedItems.contains(int(f))) return true;
+                    for (QDomNode x = c.firstChild(); !x.isNull(); x = x.nextSibling())
+                        if (x.isElement() && x.toElement().attribute(QStringLiteral("v")).toInt() >= std::max(itemCount[f], 1)) return true;
+                } else if (broken(c)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        for (const char *name : {"formats", "conditionalFormats", "chartFormats"}) {
+            QDomElement list = childNamed(root, QLatin1String(name));
+            if (list.isNull()) continue;
+            QList<QDomElement> gone;
+            for (QDomNode n = list.firstChild(); !n.isNull(); n = n.nextSibling())
+                if (n.isElement() && broken(n.toElement())) gone.append(n.toElement());
+            for (const QDomElement &e : gone) list.removeChild(e);
+            const int left = int(list.childNodes().size());
+            if (left == 0) root.removeChild(list);
+            else if (!gone.isEmpty()) list.setAttribute(QStringLiteral("count"), QString::number(left));
+        }
+    }
     if (structureChanged) {
         drop("formats");
         drop("conditionalFormats");

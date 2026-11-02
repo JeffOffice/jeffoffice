@@ -234,6 +234,29 @@ int pivotRefreshMain(const QStringList &args)
     return 0;
 }
 
+// `pivot-shape <file>`: every pivot table of the workbook with its cache and records, checked as the schema has them (pivotCheckShape): `pivot-shape`, the path, the table, and ok or what is wrong.
+int pivotShapeMain(const QStringList &args)
+{
+    if (args.size() != 1) return -1;
+    QTextStream out(stdout);
+    Package pkg;
+    QString why;
+    if (!pkg.readLazyFile(args[0], &why)) {
+        out << "pivot-shape\t" << args[0] << "\t\tnot opened: " << why << "\n";
+        return 1;
+    }
+    for (const QString &part : pkg.partNames()) {
+        if (!part.contains(QLatin1String("/pivotTables/pivotTable")) || part.contains(QLatin1String("_rels")) || !part.endsWith(QLatin1String(".xml"))) continue;
+        QString def, rec;
+        for (const Relationship &cr : pkg.relationshipsOfType(part, QStringLiteral("/pivotCacheDefinition"))) def = resolvePartName(part, cr.target);
+        for (const Relationship &cr : pkg.relationshipsOfType(def, QStringLiteral("/pivotCacheRecords"))) rec = resolvePartName(def, cr.target);
+        QString problem;
+        const bool ok = !def.isEmpty() && pivotCheckShape(pkg.part(part), pkg.part(def), rec.isEmpty() ? QByteArray() : pkg.part(rec), &problem);
+        out << "pivot-shape\t" << args[0] << '\t' << part << '\t' << (ok ? QStringLiteral("ok") : (def.isEmpty() ? QStringLiteral("no cache") : problem)) << "\n";
+    }
+    return 0;
+}
+
 int pivotCheckMain(const QStringList &args)
 {
     if (args.isEmpty() || args.size() > 2) return -1;

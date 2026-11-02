@@ -143,7 +143,7 @@ bool buildPivotCache(const PivotSource &src, const PivotCache &prev, PivotCache 
     for (int f = 0; f < nCols; ++f) {
         PivotCacheField &pf = out->fields[f];
         const int p = out->fromField[f];
-        pf.numFmtId = f < src.numFmtIds.size() ? src.numFmtIds[f] : (p >= 0 ? prev.fields[p].numFmtId : 0);
+        pf.numFmtId = p >= 0 ? prev.fields[p].numFmtId : (f < src.numFmtIds.size() ? src.numFmtIds[f] : 0);
         Distinct dist;
         QVector<qint32> temp;
         temp.reserve(int(nRows));
@@ -372,6 +372,29 @@ bool pivotPrepareFields(PivotTable *t, PivotCache *c)
         if (f < 0 || f >= c->fields.size() || f >= t->fields.size()) return;
         PivotCacheField &cf = c->fields[f];
         if (!cf.hasShared) {
+            // (a text that differs from another only in case is the same item to the original program: those are one item)
+            QHash<QString, qint32> first;
+            QVector<qint32> newId(cf.items.size());
+            QVector<PivotValue> items;
+            bool merged = false;
+            for (qint32 i = 0; i < cf.items.size(); ++i) {
+                if (cf.items[i].kind == PivotValue::Text) {
+                    const QString folded = cf.items[i].text.toCaseFolded();
+                    const auto it = first.constFind(folded);
+                    if (it != first.constEnd()) {
+                        newId[i] = it.value();
+                        merged = true;
+                        continue;
+                    }
+                    first.insert(folded, qint32(items.size()));
+                }
+                newId[i] = qint32(items.size());
+                items.append(cf.items[i]);
+            }
+            if (merged) {
+                cf.items = items;
+                for (qint32 &r : cf.records) r = newId[r];
+            }
             cf.hasShared = true;
             cf.sharedCount = int(cf.items.size());
             changed = true;

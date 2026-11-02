@@ -746,6 +746,7 @@ int tokenCheckMain(const QStringList &args);     // (jcrunchtool_tokens.cpp)
 int lineMapBenchMain(const QStringList &args);   // (jcrunchtool_linemap.cpp)
 int pivotCheckMain(const QStringList &args);     // (jcrunchtool_pivot.cpp)
 int pivotRefreshMain(const QStringList &args);   // (jcrunchtool_pivot.cpp)
+int pivotShapeMain(const QStringList &args);     // (jcrunchtool_pivot.cpp)
 int filterRoundtripMain(const QStringList &args);   // (jcrunchtool_filter.cpp)
 int sideRoundtripMain(const QStringList &args);   // (jcrunchtool_side.cpp)
 }
@@ -808,6 +809,10 @@ int main(int argc, char **argv)
     }
     if ((args.size() == 2 || args.size() == 3) && args[0] == QLatin1String("pivot-check")) {
         const int code = jp::crunchtool::pivotCheckMain(args.mid(1));
+        if (code >= 0) return code;
+    }
+    if (args.size() == 2 && args[0] == QLatin1String("pivot-shape")) {
+        const int code = jp::crunchtool::pivotShapeMain(args.mid(1));
         if (code >= 0) return code;
     }
     if (args.size() == 2 && args[0] == QLatin1String("pivot-refresh")) {

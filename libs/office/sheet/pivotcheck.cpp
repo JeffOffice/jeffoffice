@@ -6,6 +6,7 @@
 #include <QDomDocument>
 #include <QDomElement>
 #include <QRegularExpression>
+#include <QSet>
 #include <QXmlStreamReader>
 
 #include <cmath>
@@ -69,72 +70,97 @@ bool pivotCheckShape(const QByteArray &tableXml, const QByteArray &defXml, const
     if (nf < 1) return fail(QStringLiteral("cache definition: no fields"));
     if (cacheFields.hasAttribute(QStringLiteral("count")) && cacheFields.attribute(QStringLiteral("count")).toInt() != nf) return fail(QStringLiteral("cache definition: cacheFields count is not the number of fields"));
     static const QRegularExpression dateTime(QStringLiteral("^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(\\.\\d+)?$"));
+    struct Kinds {
+        bool hasN = false, hasS = false, hasM = false, hasD = false, hasB = false, hasE = false, integers = true;
+        double lo = 0, hi = 0;
+        QString dlo, dhi;
+        void number(double v)
+        {
+            if (!hasN) lo = hi = v;
+            lo = std::min(lo, v);
+            hi = std::max(hi, v);
+            if (v != std::floor(v)) integers = false;
+            hasN = true;
+        }
+        void date(const QString &v)
+        {
+            if (!hasD || v < dlo) dlo = v;
+            if (!hasD || v > dhi) dhi = v;
+            hasD = true;
+        }
+    };
+    // (the marks of a field as the original program writes them, and the range of its numbers and dates: what the items, or the values in the records, are)
+    auto agree = [&](const QDomElement &si, const Kinds &k, const QString &name) -> QString {
+        const bool text = k.hasS || k.hasB || k.hasE;
+        if (boolAttr(si, "containsNumber", false) != (k.hasN && !k.hasD)) return QStringLiteral("field %1: containsNumber does not agree with the items").arg(name);
+        if (boolAttr(si, "containsBlank", false) != k.hasM) return QStringLiteral("field %1: containsBlank does not agree with the items").arg(name);
+        if (boolAttr(si, "containsDate", false) != k.hasD) return QStringLiteral("field %1: containsDate does not agree with the items").arg(name);
+        if (boolAttr(si, "containsString", true) != text) return QStringLiteral("field %1: containsString does not agree with the items").arg(name);
+        if (boolAttr(si, "containsMixedTypes", false) != ((text && (k.hasN || k.hasD)) || (k.hasD && k.hasN))) return QStringLiteral("field %1: containsMixedTypes does not agree with the items").arg(name);
+        if (boolAttr(si, "containsSemiMixedTypes", true) != (text || k.hasM)) return QStringLiteral("field %1: containsSemiMixedTypes does not agree with the items").arg(name);
+        if (boolAttr(si, "containsNonDate", true) != !(k.hasD && !k.hasN && !text && !k.hasM)) return QStringLiteral("field %1: containsNonDate does not agree with the items").arg(name);
+        if (k.hasN && !k.hasD && boolAttr(si, "containsInteger", false) != k.integers) return QStringLiteral("field %1: containsInteger does not agree with the items").arg(name);
+        if (k.hasN && !k.hasD) {
+            if (!si.hasAttribute(QStringLiteral("minValue")) || !si.hasAttribute(QStringLiteral("maxValue"))) return QStringLiteral("field %1: numbers and no range of numbers").arg(name);
+            if (si.attribute(QStringLiteral("minValue")).toDouble() > k.lo + 1e-9 * std::max(1.0, std::abs(k.lo)) || si.attribute(QStringLiteral("maxValue")).toDouble() < k.hi - 1e-9 * std::max(1.0, std::abs(k.hi)))
+                return QStringLiteral("field %1: a number outside minValue and maxValue").arg(name);
+        }
+        if (k.hasD) {
+            if (!si.hasAttribute(QStringLiteral("minDate")) || !si.hasAttribute(QStringLiteral("maxDate"))) return QStringLiteral("field %1: dates and no range of dates").arg(name);
+            if (!k.hasN && (si.attribute(QStringLiteral("minDate")) > k.dlo || si.attribute(QStringLiteral("maxDate")) < k.dhi)) return QStringLiteral("field %1: a date outside minDate and maxDate").arg(name);
+        }
+        return QString();
+    };
+    QVector<QDomElement> marks(nf);
+    QVector<QString> names(nf);
+    QVector<Kinds> inlined(nf);
+    QVector<qint64> inlineCount(nf, 0);
     QVector<int> shared(nf, 0);
     int fi = 0;
     for (QDomNode n = cacheFields.firstChild(); !n.isNull(); n = n.nextSibling()) {
         if (!n.isElement()) continue;
         const QDomElement cf = n.toElement();
         const QString name = cf.attribute(QStringLiteral("name"));
+        names[fi] = name;
         const QDomElement si = child(cf, "sharedItems");
         if (!si.isNull()) {
             const int items = childCount(si);
             shared[fi] = items;
             if (si.hasAttribute(QStringLiteral("count")) && si.attribute(QStringLiteral("count")).toInt() != items) return fail(QStringLiteral("field %1: sharedItems count is not the number of items").arg(name));
             if (items > 0) {
-                bool hasN = false, hasS = false, hasM = false, hasD = false, hasB = false, hasE = false, integers = true;
-                double lo = 0, hi = 0;
-                QString dlo, dhi;
+                Kinds k;
+                QSet<QString> seenText;
                 for (QDomNode c = si.firstChild(); !c.isNull(); c = c.nextSibling()) {
                     if (!c.isElement()) continue;
                     const QDomElement e = c.toElement();
                     const QString t = e.tagName();
                     if (t == QLatin1String("n")) {
-                        const double v = e.attribute(QStringLiteral("v")).toDouble();
-                        if (!hasN) lo = hi = v;
-                        lo = std::min(lo, v);
-                        hi = std::max(hi, v);
-                        if (v != std::floor(v)) integers = false;
-                        hasN = true;
+                        k.number(e.attribute(QStringLiteral("v")).toDouble());
                     } else if (t == QLatin1String("s")) {
-                        hasS = true;
+                        k.hasS = true;
+                        // (two texts that differ only in case are one item to the original program)
+                        const QString folded = e.attribute(QStringLiteral("v")).toCaseFolded();
+                        if (seenText.contains(folded)) return fail(QStringLiteral("field %1: two shared items that differ only in case").arg(name));
+                        seenText.insert(folded);
                     } else if (t == QLatin1String("m")) {
-                        hasM = true;
+                        k.hasM = true;
                     } else if (t == QLatin1String("b")) {
-                        hasB = true;
+                        k.hasB = true;
                     } else if (t == QLatin1String("e")) {
-                        hasE = true;
+                        k.hasE = true;
                     } else if (t == QLatin1String("d")) {
                         const QString v = e.attribute(QStringLiteral("v"));
                         if (!dateTime.match(v).hasMatch()) return fail(QStringLiteral("field %1: a date that is not a date and time: %2").arg(name, v));
-                        if (!hasD || v < dlo) dlo = v;
-                        if (!hasD || v > dhi) dhi = v;
-                        hasD = true;
+                        k.date(v);
                     } else {
                         return fail(QStringLiteral("field %1: a shared item %2 that is not one").arg(name, t));
                     }
                 }
-                const bool text = hasS || hasB || hasE;
-                if (boolAttr(si, "containsNumber", false) != hasN) return fail(QStringLiteral("field %1: containsNumber does not agree with the items").arg(name));
-                if (boolAttr(si, "containsBlank", false) != hasM) return fail(QStringLiteral("field %1: containsBlank does not agree with the items").arg(name));
-                if (boolAttr(si, "containsDate", false) != hasD) return fail(QStringLiteral("field %1: containsDate does not agree with the items").arg(name));
-                if (boolAttr(si, "containsString", true) != text) return fail(QStringLiteral("field %1: containsString does not agree with the items").arg(name));
-                if (boolAttr(si, "containsMixedTypes", false) != (text && (hasN || hasD))) return fail(QStringLiteral("field %1: containsMixedTypes does not agree with the items").arg(name));
-                if (boolAttr(si, "containsSemiMixedTypes", true) != (text || hasM || (text && (hasN || hasD)))) return fail(QStringLiteral("field %1: containsSemiMixedTypes does not agree with the items").arg(name));
-                if (boolAttr(si, "containsNonDate", true) != !(hasD && !hasN && !text)) return fail(QStringLiteral("field %1: containsNonDate does not agree with the items").arg(name));
-                if (boolAttr(si, "containsInteger", false) != (hasN && integers)) return fail(QStringLiteral("field %1: containsInteger does not agree with the items").arg(name));
-                if (hasN) {
-                    if (std::abs(si.attribute(QStringLiteral("minValue")).toDouble() - lo) > 1e-9 * std::max(1.0, std::abs(lo)) || !si.hasAttribute(QStringLiteral("minValue"))) return fail(QStringLiteral("field %1: minValue is not the least number").arg(name));
-                    if (std::abs(si.attribute(QStringLiteral("maxValue")).toDouble() - hi) > 1e-9 * std::max(1.0, std::abs(hi)) || !si.hasAttribute(QStringLiteral("maxValue"))) return fail(QStringLiteral("field %1: maxValue is not the greatest number").arg(name));
-                } else if (si.hasAttribute(QStringLiteral("minValue")) || si.hasAttribute(QStringLiteral("maxValue"))) {
-                    return fail(QStringLiteral("field %1: a range of numbers and no number").arg(name));
-                }
-                if (hasD) {
-                    if (si.attribute(QStringLiteral("minDate")) != dlo || si.attribute(QStringLiteral("maxDate")) != dhi) return fail(QStringLiteral("field %1: minDate or maxDate is not the earliest or latest date").arg(name));
-                } else if (si.hasAttribute(QStringLiteral("minDate")) || si.hasAttribute(QStringLiteral("maxDate"))) {
-                    return fail(QStringLiteral("field %1: a range of dates and no date").arg(name));
-                }
+                const QString bad = agree(si, k, name);
+                if (!bad.isEmpty()) return fail(bad);
             }
         }
+        marks[fi] = si;
         ++fi;
     }
 
@@ -223,6 +249,33 @@ bool pivotCheckShape(const QByteArray &tableXml, const QByteArray &defXml, const
             if (p.hasAttribute(QStringLiteral("item")) && p.attribute(QStringLiteral("item")).toInt() >= itemCount[f]) return fail(QStringLiteral("table: a filter names an item that is not there"));
         }
     }
+    // the formats, rules, and chart formats name items by their place in a field's list: a place that is not there is a part the original program cannot open
+    for (const char *name : {"formats", "conditionalFormats", "chartFormats"}) {
+        const QDomElement list = child(troot, name);
+        if (list.isNull()) continue;
+        std::vector<QDomElement> pending{list};
+        while (!pending.empty()) {
+            const QDomElement e = pending.back();
+            pending.pop_back();
+            for (QDomNode n = e.firstChild(); !n.isNull(); n = n.nextSibling()) {
+                if (!n.isElement()) continue;
+                const QDomElement c = n.toElement();
+                if (c.tagName() == QLatin1String("reference")) {
+                    const qint64 f = c.attribute(QStringLiteral("field")).toLongLong();
+                    const int k = childCount(c);
+                    if (c.hasAttribute(QStringLiteral("count")) && c.attribute(QStringLiteral("count")).toInt() != k) return fail(QStringLiteral("table: the count of a reference is not the number of its items"));
+                    if (f != 4294967294LL) {
+                        if (f < 0 || f >= nf) return fail(QStringLiteral("table: a format names a field that is not there"));
+                        for (QDomNode x = c.firstChild(); !x.isNull(); x = x.nextSibling())
+                            if (x.isElement() && x.toElement().attribute(QStringLiteral("v")).toInt() >= std::max(itemCount[f], 1))
+                                return fail(QStringLiteral("table: a format names an item that is not there (field %1)").arg(f));
+                    }
+                } else {
+                    pending.push_back(c);
+                }
+            }
+        }
+    }
     for (int axis = 0; axis < 2; ++axis) {
         const QDomElement lines = child(troot, axis == 0 ? "rowItems" : "colItems");
         const QVector<int> &fields = axis == 0 ? rowF : colF;
@@ -263,6 +316,16 @@ bool pivotCheckShape(const QByteArray &tableXml, const QByteArray &defXml, const
                     if (r.name() == QLatin1String("x")) {
                         const int x = r.attributes().value(QLatin1String("v")).toInt();
                         if (x < 0 || x >= shared[field]) return fail(QStringLiteral("records: a record names a shared item that is not there"));
+                    } else {
+                        Kinds &k = inlined[field];
+                        ++inlineCount[field];
+                        const QStringView t = r.name();
+                        if (t == QLatin1String("n")) k.number(r.attributes().value(QLatin1String("v")).toDouble());
+                        else if (t == QLatin1String("s")) k.hasS = true;
+                        else if (t == QLatin1String("m")) k.hasM = true;
+                        else if (t == QLatin1String("b")) k.hasB = true;
+                        else if (t == QLatin1String("e")) k.hasE = true;
+                        else if (t == QLatin1String("d")) k.date(r.attributes().value(QLatin1String("v")).toString());
                     }
                     ++field;
                 }
@@ -272,6 +335,12 @@ bool pivotCheckShape(const QByteArray &tableXml, const QByteArray &defXml, const
             }
         }
         if (r.hasError()) return fail(QStringLiteral("records: not well formed"));
+        // a field with no shared items is what its records hold
+        for (int f = 0; f < nf; ++f)
+            if (shared[f] == 0 && inlineCount[f] > 0 && !marks[f].isNull()) {
+                const QString bad = agree(marks[f], inlined[f], names[f]);
+                if (!bad.isEmpty()) return fail(bad);
+            }
         if (declared >= 0 && declared != count) return fail(QStringLiteral("records: the count is not the number of records"));
         if (droot.hasAttribute(QStringLiteral("recordCount")) && droot.attribute(QStringLiteral("recordCount")).toLongLong() != count) return fail(QStringLiteral("cache definition: recordCount is not the number of records"));
     }
