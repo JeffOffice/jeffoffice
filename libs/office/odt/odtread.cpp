@@ -99,6 +99,8 @@ bool Reader::openParts(const QByteArray &file, QString *error)
         const QByteArray manifest = m_pkg.part(QStringLiteral("/META-INF/manifest.xml"));
         if (manifest.contains("encryption-data")) return fail(QCoreApplication::translate("odt", "This document is protected with a password. Open it in the program that made it and save a copy without the password."));
     }
+    for (const char *name : {"/content.xml", "/styles.xml", "/meta.xml"})
+        if (m_pkg.partSize(QString::fromLatin1(name)) > wml::kMaxTreeBytes) return fail(QCoreApplication::translate("odt", "A part of the file is too large to read."));
     m_contentXml = m_pkg.part(QStringLiteral("/content.xml"));
     if (!m_content.parse(m_contentXml, &why)) return fail(QCoreApplication::translate("odt", "content.xml can't be read: %1").arg(why));
     m_oc = std::make_unique<Odf>(m_content);
