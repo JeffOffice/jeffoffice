@@ -291,6 +291,13 @@ set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME sheettests COMMAND sheettests)
 set_tests_properties(sheettests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+# The tests of OpenDocument text (libs/office/odt): read into the parts of a .docx and written from them.
+qt_add_executable(odttests tests/office/tst_odt.cpp)
+target_link_libraries(odttests PRIVATE jo_office Qt6::Test)
+set_target_properties(odttests PROPERTIES WIN32_EXECUTABLE OFF)
+add_test(NAME odttests COMMAND odttests)
+set_tests_properties(odttests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
 # The tests of the word processing XML (libs/office/wml): the tree it is read into, and reading and writing a .docx.
 qt_add_executable(wmltests tests/office/tst_wml.cpp)
 target_link_libraries(wmltests PRIVATE jo_office Qt6::Test)

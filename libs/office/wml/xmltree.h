@@ -67,6 +67,20 @@ public:
 
     // The text of an element: its character data (entities decoded, CDATA included), the elements inside it flattened away.
     QString text(int n) const;
+    // The character data of `parent` that lies after its child `after` and before the next child (after = -1: before its first child), decoded as text() does: for mixed content,
+    // where the text between the elements matters.
+    QString textAfter(int parent, int after) const;
+    // The number this tree gave a namespace (by its URI), or -1 if no element or attribute of it was read.
+    int namespaceId(const QByteArray &uri) const;
+    // The URI of a namespace number (empty for none).
+    QByteArray namespaceUri(int id) const;
+    // Every attribute of an element, in order: its namespace number, its local name, and its value decoded.
+    struct AttributeView {
+        int ns = 0;
+        QByteArray local;
+        QString value;
+    };
+    QVector<AttributeView> attributes(int n) const;
 
     // The element as written, from its start tag to its end tag, made whole: a prefix that an element outside the root declared is
     // declared again on it, so the slice reads the same wherever it is put under the root's declarations.
@@ -102,6 +116,7 @@ private:
     };
 
     void clear();
+    QString textRange(quint32 begin, quint32 end) const;
     int intern(const QByteArray &name);
     int internUri(const QByteArray &uri);
     QString decode(quint32 begin, quint32 end) const;
