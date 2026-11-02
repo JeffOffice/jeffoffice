@@ -678,7 +678,9 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
     const bool lone = nC == 0 && dataSlotRow < 0;   // no column field and one value
     const bool bare = lone && nR == 0;               // and no row field: the value's name, and one line "Total" with the value
     // (a table with the classic grid has the line of the value's name over the others in every form, the tabular one's own and the others' too)
-    const int captionRow = bare ? 1 : (t.autoFormatId == 4097 ? 0 :(tabular ? ((nC > 0 || lone) ? 1 : 0) : ((realC > 0 || ((lone || nC > 0) && t.gridDropZones)) ? 1 : 0)));
+    const int captionRow = bare ? 1 : (t.autoFormatId == 4097 ? 0 :(tabular ? ((nC > 0 || (lone && t.gridDropZones)) ? 1 : 0) : ((realC > 0 || nC > 0 || (lone && t.gridDropZones)) ? 1 : 0)));
+    // (a table of the classic grid has the line of the value's name over the others in every form; a table made now, in the tabular form, with one value and no field across, has the names of its
+    // row fields and the value's name in one line; with the values across, or a field, in any form, there is a line over the header: the caption of the values, or of the column labels)
     const int itemRows = bare ? 0 : std::max(nC, 1);
     const int headerRows = captionRow + itemRows;
     const int lastItemsRow = headerRows - 1;
@@ -815,7 +817,7 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
     }
     if (!bare) rowLabels(lastItemsRow);
     if (nC == 0 && !bare) {
-        if (tabular || captionRow > 0 || !oneValue) set(lastItemsRow, labelCols, text(QStringLiteral("Total")));
+        if (captionRow > 0 || !oneValue || t.autoFormatId == 4097) set(lastItemsRow, labelCols, text(QStringLiteral("Total")));
         else set(lastItemsRow, labelCols, text(t.dataFields[0].name));
     }
     // the values

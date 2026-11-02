@@ -173,7 +173,10 @@ private Q_SLOTS:
         // two row fields: Region, then Month
         xml.replace(QStringLiteral("<rowFields count=\"1\"><field x=\"0\"/></rowFields>"), QStringLiteral("<rowFields count=\"2\"><field x=\"0\"/><field x=\"1\"/></rowFields>"));
         xml.replace(QStringLiteral("<pivotField compact=\"0\" outline=\"0\" showAll=\"0\"/><pivotField dataField"), QStringLiteral("<pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\" showAll=\"0\"><items count=\"3\"><item x=\"0\"/><item x=\"1\"/><item t=\"default\"/></items></pivotField><pivotField dataField"));
-        Worked w = work(xml.toUtf8());
+        // (the classic grid has the line of the value's name over the header in the tabular form; a table made now has one line)
+        QString classic = xml;
+        classic.replace(QStringLiteral("<pivotTableDefinition "), QStringLiteral("<pivotTableDefinition gridDropZones=\"1\" "));
+        Worked w = work(classic.toUtf8());
         QVERIFY2(w.ok, qPrintable(w.why));
         // tabular: the region on its first line, "East Total" after its months, "Grand Total" at the end
         QCOMPARE(rowText(w.grid, 0), (QStringList{QStringLiteral("Sum of Amount"), QString(), QString()}));
@@ -344,7 +347,7 @@ private Q_SLOTS:
         c.recordCount = n;
         QString items;
         for (int i = n - 1; i >= 0; --i) items += QStringLiteral("<item x=\"%1\"/>").arg(i);
-        const QByteArray xml = QStringLiteral("<pivotTableDefinition xmlns=\"%1\" name=\"t\" cacheId=\"1\" compact=\"0\"><location ref=\"A1:B2\" firstHeaderRow=\"1\" firstDataRow=\"1\" firstDataCol=\"1\"/>"
+        const QByteArray xml = QStringLiteral("<pivotTableDefinition xmlns=\"%1\" name=\"t\" cacheId=\"1\" compact=\"0\" gridDropZones=\"1\"><location ref=\"A1:B2\" firstHeaderRow=\"1\" firstDataRow=\"1\" firstDataCol=\"1\"/>"
                                              "<pivotFields count=\"2\"><pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\"><items count=\"%2\">%3<item t=\"default\"/></items></pivotField><pivotField dataField=\"1\"/></pivotFields>"
                                              "<rowFields count=\"1\"><field x=\"0\"/></rowFields><dataFields count=\"1\"><dataField name=\"S\" fld=\"1\"/></dataFields></pivotTableDefinition>")
                                  .arg(QLatin1String(kNs)).arg(n + 1).arg(items).toUtf8();
@@ -584,7 +587,7 @@ private Q_SLOTS:
         const QByteArray rec = "<pivotCacheRecords xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"6\">"
                                "<r><x v=\"0\"/><x v=\"0\"/><n v=\"0.1\"/></r><r><x v=\"0\"/><x v=\"0\"/><n v=\"0.2\"/></r><r><x v=\"0\"/><x v=\"1\"/><n v=\"-0.3\"/></r>"
                                "<r><x v=\"1\"/><x v=\"0\"/><n v=\"1e16\"/></r><r><x v=\"1\"/><x v=\"1\"/><n v=\"1\"/></r><r><x v=\"1\"/><x v=\"1\"/><n v=\"-1e16\"/></r></pivotCacheRecords>";
-        const Worked w = work(tableDefinition(false), cacheDefinition(), rec);
+        const Worked w = work(tableDefinition(false, QStringLiteral("gridDropZones=\"1\"")), cacheDefinition(), rec);
         QVERIFY2(w.ok, qPrintable(w.why));
         QCOMPARE(rowText(w.grid, 2), (QStringList{QStringLiteral("East"), QStringLiteral("0")}));   // 0.1 + 0.2 - 0.3
         QCOMPARE(w.grid.at(3, 1).number, (1e16 + 1.0) - 1e16);
@@ -649,7 +652,7 @@ private Q_SLOTS:
                                "<r><x v=\"0\"/><x v=\"0\"/><n v=\"1e16\"/></r><r><x v=\"1\"/><x v=\"0\"/><n v=\"-1e16\"/></r><r><x v=\"0\"/><x v=\"0\"/><n v=\"1\"/></r></pivotCacheRecords>";
         QByteArray def = cacheDefinition();
         def.replace("recordCount=\"6\"", "recordCount=\"3\"");
-        const Worked w = work(tableDefinition(false), def, rec);
+        const Worked w = work(tableDefinition(false, QStringLiteral("gridDropZones=\"1\"")), def, rec);
         QVERIFY2(w.ok, qPrintable(w.why));
         QCOMPARE(w.grid.at(2, 1).number, 1e16);   // East: 1e16 + 1 (the 1 is lost)
         QCOMPARE(w.grid.at(3, 1).number, -1e16);
@@ -668,6 +671,14 @@ private Q_SLOTS:
         classic.replace(QStringLiteral("compact=\"0\" outline=\"0\" showAll=\"0\""), QStringLiteral("showAll=\"0\""));
         classic.replace(QStringLiteral("compact=\"0\" compactData=\"0\""), QStringLiteral("compactData=\"0\" gridDropZones=\"1\""));
         Worked w = work(classic.toUtf8());
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(rowText(w.grid, 0), (QStringList{QString(), QStringLiteral("Values"), QString()}));
+        QCOMPARE(rowText(w.grid, 1), (QStringList{QStringLiteral("Row Labels"), QStringLiteral("A"), QStringLiteral("B")}));
+        QCOMPARE(w.grid.firstDataRow, 2);
+        // the same with no classic grid (a table made now): the compact form has the caption of the values over them as well
+        QString modern = classic;
+        modern.replace(QStringLiteral(" gridDropZones=\"1\""), QString());
+        w = work(modern.toUtf8());
         QVERIFY2(w.ok, qPrintable(w.why));
         QCOMPARE(rowText(w.grid, 0), (QStringList{QString(), QStringLiteral("Values"), QString()}));
         QCOMPARE(rowText(w.grid, 1), (QStringList{QStringLiteral("Row Labels"), QStringLiteral("A"), QStringLiteral("B")}));
@@ -804,6 +815,9 @@ private Q_SLOTS:
         QString why;
         QVERIFY2(readPivotTable(xml, &t, &why), qPrintable(why));
         QVERIFY2(computePivot(t, c, &g, &why), qPrintable(why));
+        // a table made now, in the tabular form, with one value and nothing across: one line of names, the value's name last (no line of captions, no \"Total\")
+        QCOMPARE(rowText(g, 0), (QStringList{QStringLiteral("A"), QStringLiteral("B"), QStringLiteral("C"), QStringLiteral("S")}));
+        QCOMPARE(g.firstDataRow, 1);
         QStringList lines;
         for (int r = g.firstDataRow; r < g.rows; ++r) lines << rowText(g, r).join(QLatin1Char('|'));
         QCOMPARE(lines, (QStringList{QStringLiteral("x|p|m|1"), QStringLiteral("||n|2"), QStringLiteral("|p Total||3"), QStringLiteral("|q|m|4"), QStringLiteral("|q Total||4"), QStringLiteral("x Total|||7"),
