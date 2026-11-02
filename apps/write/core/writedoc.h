@@ -273,13 +273,7 @@ public:
     // ---- one history
     // The steps of the text and of the headers and footers in the order they were made: an undo undoes the last, wherever it was, and a redo does it again. Returns the story the
     // step was in (null when there was none); the cursor, if given, is put where the step changed the story.
-    // (A step that only changed what is shown, such as the field codes, is not one the person can undo by itself: it is undone with the step before it.)
-    bool canUndo() const
-    {
-        for (int i = int(m_undoLog.size()) - 1; i >= 0; --i)
-            if (!m_undoLog[i].view) return true;
-        return false;
-    }
+    bool canUndo() const { return !m_undoLog.isEmpty(); }
     bool canRedo() const { return !m_redoLog.isEmpty(); }
     QTextDocument *undo(QTextCursor *cursor = nullptr);
     QTextDocument *redo(QTextCursor *cursor = nullptr);
@@ -314,18 +308,6 @@ public:
     private:
         WriteDoc &m_doc;
     };
-    // The edits made while one of these lives change only what is shown (Show Field Codes): they are steps that Undo does not stop at, undone with the step before them, and they do not
-    // make the document modified.
-    class ViewEdit {
-    public:
-        explicit ViewEdit(WriteDoc &doc) : m_doc(doc) { ++m_doc.m_viewDepth; }
-        ~ViewEdit() { --m_doc.m_viewDepth; }
-        ViewEdit(const ViewEdit &) = delete;
-        ViewEdit &operator=(const ViewEdit &) = delete;
-
-    private:
-        WriteDoc &m_doc;
-    };
     // The stories besides the text that hold tracked changes: the headers and footers and the footnotes (each made editable if it was not), in a fixed order. The endnotes' words are in the text.
     QVector<QTextDocument *> storiesWithChanges();
 
@@ -343,6 +325,14 @@ public:
     int nextRevisionId();
     // How tracked changes are shown (tp::kRevisionShowDeleted and the others): the text engine's view of them, kept in the layout environment and the story. Not saved.
     int revisionView() const { return m_revisionView; }
+    // Show Field Codes (Shift+F9, Alt+F9): a view of the text, kept in the layout's environment and not in the story, so it is no step of the history and no change to the document.
+    // `all` shows every field's codes; `ids` are the numbers (tp::FieldId) of single fields. Not saved.
+    bool allFieldCodesShown() const { return m_fieldCodesAll; }
+    const QSet<int> &shownFieldCodes() const { return m_fieldCodeIds; }
+    void setFieldCodes(bool all, const QSet<int> &ids);
+    // Whether the text has a field (known when the file is read and as fields are put in; a text whose last field was taken out may still say yes until the fields are looked for).
+    bool mayHaveFields() const { return m_mayHaveFields; }
+    void setMayHaveFields(bool yes) { m_mayHaveFields = yes; }
     void setRevisionView(int view);
 
     // ---- tables
@@ -689,11 +679,10 @@ private:
         quint64 serial = 0;
         int raw = 0;
         quint64 group = 0;   // the steps made while a StepGroup lived have the same: they are undone and done again together
-        bool view = false;   // made while a ViewEdit lived: a change of what is shown, which no Undo stops at
     };
     QVector<Step> m_undoLog, m_redoLog;
     quint64 m_openGroup = 0, m_nextGroup = 1;
-    int m_groupDepth = 0, m_viewDepth = 0;
+    int m_groupDepth = 0;
     QTextDocument *undoOne(QTextCursor *cursor);
     quint64 m_nextSerial = 1, m_cleanSerial = 0;
     bool m_forcedDirty = false;
@@ -771,6 +760,11 @@ private:
     QHash<QString, int> m_reviewerPlaces;   // (the place of each, to find one without looking through the list)
     int m_nextRevisionId = 0;   // 0: not looked for yet
     int m_revisionView = 0;
+    bool m_fieldCodesAll = false;
+    bool m_mayHaveFields = false;
+    QSet<int> m_fieldCodeIds;
+    int m_fieldCodesCount = 0;
+    int m_fieldCodeView = 0;
     void writeReviewSettings(office::wml::Document *out);
     void writeCommentParts(office::wml::Document *out);
     mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratch;

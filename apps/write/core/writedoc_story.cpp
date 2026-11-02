@@ -50,6 +50,8 @@ void WriteDoc::buildStory(const QVector<Block> &body)
 
 // The most fields that nest in one another that a header or footer shows live (deeper ones show what they last read).
 constexpr int kMostFieldNesting = 8;
+constexpr int kMostFieldNestingMarked = 32;   // the fields open at once whose runs are marked for Show Field Codes (what is deeper is left unmarked)
+
 // The most paragraphs of a header or footer that are read (the rest is left out).
 constexpr int kMostHeaderParagraphs = 400;
 // The most objects set at places that a file's pages have, and the most pictures (a file with more has the rest left out).
@@ -735,6 +737,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
         }
     }
     int paragraphsMade = 0, endnoteNumber = m_endnoteStart - 1, blockNumber = -1;
+    int fieldsNumbered = 0;   // (the fields of the text are numbered in the order they come, so that the same file always fills the same story)
     const int mostParagraphs = append ? kMostEndnoteParagraphs : kMostHeaderParagraphs;
     int styleRefsMade = 0;   // (each field that shows a paragraph style's text has a number in its code: two next to one another in one format would be one fragment of the text)
     // The format the endnote references of each paragraph are numbered in: its section's own (w:endnotePr of the section), else the settings'. Found as sectionText is, from
@@ -1212,6 +1215,16 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
         QVector<std::pair<int, int>> inChanges;   // (the tracked changes the content is inside, outermost first: their kinds, and who made them)
         int changeKind = 0, changeAuthor = 0;     // (and the one that marks it: a deletion over an insertion)
         bool changeInserted = false;              // (a deletion that is inside an insertion too)
+        // The fields open as the content goes by, for Show Field Codes: the runs of a field's result carry its number (the outermost field's, for everything inside it), and the mark that
+        // stands for its code carries the code, to be shown in its place.
+        struct OpenField {
+            int id;
+            bool separated;
+            QString code;
+        };
+        QVector<OpenField> openFields;
+        const bool markFields = !header && !append;
+        auto insideResult = [&] { return markFields && !openFields.isEmpty() && openFields.first().separated; };
         double advanceTop = -1;   // (a field that sets the text after it at a place from the page's top, ADVANCE with \\y: the paragraph is no higher than that)
         for (int inAt = 0; inAt < p.content.size(); ++inAt) {
             const Inline &in = p.content[inAt];
@@ -1234,6 +1247,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 if (const auto ref = refOf.constFind(inAt); ref != refOf.constEnd() && !deleted) {
                     QTextCharFormat shown = formatOf(styleId, in.props);
                     shown.setProperty(tp::Field, QStringLiteral("pageref:") + ref->section(QChar(0x1f), 0, 0));
+                    if (insideResult()) shown.setProperty(tp::FieldId, openFields.first().id);
                     c.insertText(ref->section(QChar(0x1f), 1), shown);
                     continue;
                 }
@@ -1245,6 +1259,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                         for (const RawChild &ch : in.props.extra)
                             if (ch.xml.startsWith("<w:rPrChange")) shown.setProperty(tp::RevisionFormat, true);
                     }
+                    if (insideResult()) shown.setProperty(tp::FieldId, openFields.first().id);
                     c.insertText(in.text, shown);
                 }
                 continue;
@@ -1256,6 +1271,48 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             QTextCharFormat af = formatOf(styleId, in.props);
             if (deleted) af = asDeleted(af);
             if (!header && !(in.kind == Inline::ParaAtom && revisionKindOf(in.tag) > 0)) af = inRevision(af, changeKind, changeAuthor, changeInserted);
+            if (markFields) {
+                const bool inside = insideResult();
+                if (in.kind == Inline::RunAtom && in.tag == QLatin1String("fldChar")) {
+                    if (in.key == QLatin1String("begin")) {
+                        if (inside) af.setProperty(tp::FieldId, openFields.first().id);
+                        if (openFields.size() < kMostFieldNestingMarked) openFields.push_back({++fieldsNumbered, false, QString()});
+                    } else if (in.key == QLatin1String("separate") && !openFields.isEmpty()) {
+                        if (openFields.size() == 1 && !openFields.first().separated) {
+                            openFields.first().separated = true;
+                            af.setProperty(tp::FieldId, openFields.first().id);
+                            af.setProperty(tp::FieldCodeText, QStringLiteral("{ ") + openFields.first().code.trimmed() + QStringLiteral(" }"));
+                        } else if (inside) {
+                            af.setProperty(tp::FieldId, openFields.first().id);
+                        }
+                    } else if (in.key == QLatin1String("end") && !openFields.isEmpty()) {
+                        if (inside && openFields.size() > 1) af.setProperty(tp::FieldId, openFields.first().id);
+                        openFields.removeLast();
+                    }
+                } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
+                    if (openFields.size() == 1 && !openFields.first().separated) openFields.first().code += textOfXml(in.raw);
+                    else if (inside) af.setProperty(tp::FieldId, openFields.first().id);
+                } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple")) {
+                    if (in.role == Inline::Open) {
+                        if (inside) {
+                            af.setProperty(tp::FieldId, openFields.first().id);
+                        }
+                        const bool outermost = openFields.isEmpty();
+                        const int id = ++fieldsNumbered;
+                        if (openFields.size() < kMostFieldNestingMarked) openFields.push_back({id, true, QString()});
+                        if (outermost) {
+                            const QString code = QString(attributeOfTag(in.raw, QStringLiteral("instr"))).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'")).replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&amp;"), QLatin1String("&"));
+                            af.setProperty(tp::FieldId, id);
+                            af.setProperty(tp::FieldCodeText, QStringLiteral("{ ") + code.trimmed() + QStringLiteral(" }"));
+                        }
+                    } else if (in.role == Inline::Close && !openFields.isEmpty()) {
+                        if (inside && openFields.size() > 1) af.setProperty(tp::FieldId, openFields.first().id);
+                        openFields.removeLast();
+                    }
+                } else if (inside) {
+                    af.setProperty(tp::FieldId, openFields.first().id);
+                }
+            }
             Inline packed = in;
             if (in.kind == Inline::ParaAtom && in.tag == kFieldGroupTag) packed.look = runPropsXml(runPropsWritten(af, styleId, layer));   // (what writing the story gives it, to tell it formatted)
             setStored(af, prop::Atom, packAtom(packed));
@@ -1321,6 +1378,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
         }
     }
     if (!header && !append) m_endnoteSections = sectionNo + 1;
+    if (!header && !append) m_mayHaveFields = fieldsNumbered > 0;
 
     if (firstBlock) {
         // Nothing in the body: one empty paragraph in the default style.

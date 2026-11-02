@@ -4,6 +4,8 @@
 #include <QColor>
 #include <QString>
 #include <QStringList>
+#include <QHash>
+#include <QSet>
 #include <QTextFormat>
 #include <QTextListFormat>
 
@@ -55,6 +57,8 @@ enum : int {
     DisplayFamily,                               // QString: layout only, the family a run is set in when it isn't the family the format says (a symbol's font): never written to a file (LayoutEnv::wordLines)
     RunBorder,                                   // QString: a border round the run, "style;eighths;space;RRGGBB" (style single, double, dashed...; space in points; color empty for automatic): drawn by LayoutEnv::wordLines text
     DisplayStyle,                                // QString: layout only, how a run is set when its format does not say: "i" italic, "b" bold, "ib" both (an equation's letters, a styled letter of the mathematical alphanumeric block shown as its letter): never written to a file (LayoutEnv::wordLines)
+    FieldId,                                     // int: layout only, the field (a number of this program's own) whose result or code a run belongs to; never written to a file (see kShowFieldCodes)
+    FieldCodeText,                               // QString: layout only, on the mark that stands for a field's code, the code in braces ("{ PAGE }"), shown in place of the result while the field's codes are shown
     BlankFieldResult,                            // bool: layout only, the run is the result of a field (a reference) that is nothing but blanks: it is shown, and takes no part in its line's height (LayoutEnv::wordLines)
 
     // block
@@ -126,9 +130,29 @@ inline QColor revisionColor(int author)
     static const char *const colors[] = {"#c0392b", "#1f6fb2", "#2e8b57", "#9b3fa0", "#b8860b", "#00838f", "#d35400", "#5d6d7e"};
     return QColor(QLatin1String(colors[(author < 0 ? 0 : author) % 8]));
 }
+// Show Field Codes: a view of the text, not a change to it. `view` has kShowFieldCodes for every field's codes, or the ids of single fields are in the set kept for the token in its high bits (shownFieldCodeSets()); the high bits of `view`
+// are a count that changes with each toggle, so that what was laid out for the old view is laid out again.
+constexpr int kShowFieldCodes = 8;
+constexpr int kFieldCodesCountShift = 8;
+// The fields whose codes a document shows singly, by the token in the high bits of the view that document lays out with: each document has a token of its own, so what one shows is no
+// other's.
+inline QHash<int, QSet<int>> &shownFieldCodeSets()
+{
+    static QHash<int, QSet<int>> sets;
+    return sets;
+}
+// Whether the field the run belongs to has its codes shown in this view.
+inline bool fieldCodesShown(const QTextFormat &f, int view)
+{
+    if (!(view & ~(kRevisionShowDeleted | kRevisionMark | kRevisionHideInserted))) return false;
+    const int id = f.intProperty(FieldId);
+    return id > 0 && ((view & kShowFieldCodes) || shownFieldCodeSets().value(view >> kFieldCodesCountShift).contains(id));
+}
 // Whether the run (or paragraph mark) the format is of is left out of the lines when changes are shown as `view` says.
 inline bool hiddenInView(const QTextFormat &f, int view)
 {
+    // (The result of a field whose code is shown, and what is in it, gives way to the code: the mark that stands for the code is not left out.)
+    if (view >> kFieldCodesCountShift && f.hasProperty(FieldId) && !f.hasProperty(FieldCodeText) && fieldCodesShown(f, view)) return true;
     const int kind = f.intProperty(Revision);
     if (f.boolProperty(HiddenText)) {
         if ((kind == 2 || kind == 3) && (view & kRevisionShowDeleted)) return (view & kRevisionHideInserted) && f.boolProperty(RevisionInserted);   // (text inserted and deleted was never there before)

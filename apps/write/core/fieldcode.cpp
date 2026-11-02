@@ -837,8 +837,6 @@ std::optional<double> evaluateFormula(const QString &expression, const std::func
 
 namespace {
 
-QString errorText(const char *text) { return QCoreApplication::translate("jp::write::Fields", text); }
-
 // A number as the field's switches show it: in the picture, in a number format, or as it is.
 QString showNumber(const Code &code, double value)
 {
@@ -1009,8 +1007,8 @@ std::optional<QString> condition(const Code &code)
 qint64 globStepsForTest() { return g_globSteps; }
 void resetGlobStepsForTest() { g_globSteps = 0; }
 
-QString referenceSourceNotFound() { return errorText("Error: the bookmark this refers to is missing."); }
-QString bookmarkNotDefined() { return errorText("Error: no bookmark by this name."); }
+QString referenceSourceNotFound() { return QCoreApplication::translate("jp::write::Fields", "Error: the bookmark this refers to is missing."); }
+QString bookmarkNotDefined() { return QCoreApplication::translate("jp::write::Fields", "Error: no bookmark by this name."); }
 
 bool dependsOnTheMachine(const QString &name)
 {

@@ -15,6 +15,7 @@
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "office/package.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 #include "wml/wml.h"
 
@@ -932,63 +933,103 @@ private Q_SLOTS:
         QCOMPARE(plainNumber(1.0000005), QStringLiteral("1.000001"));
     }
 
-    void fieldCodesCanBeShownAndHiddenWithoutChangingTheFile()
+    void fieldCodesAreAViewNotAnEdit()
     {
         const QByteArray body = para(run("a ") + field("QUOTE \"fresh\"", "stale") + run(" b ") + field("QUOTE \"two\"", "old"));
         auto doc = open(makeDocx(body));
         QVERIFY(doc);
         const QByteArray saved = documentXml(doc->toDocx());
         auto shown = [&] {
-            QString t;
-            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
-                for (auto it = b.begin(); !it.atEnd(); ++it) {
-                    const QTextCharFormat cf = it.fragment().charFormat();
-                    if (cf.boolProperty(tp::HiddenText)) continue;
-                    const QString field = cf.stringProperty(tp::Field);
-                    if (cf.hasProperty(prop::Atom) && field.startsWith(QLatin1String("raw:"))) t += field.mid(4).repeated(it.fragment().length());
-                    else if (!cf.hasProperty(prop::Atom)) t += it.fragment().text();
-                }
-            return t;
+            FrameSpec fs;
+            fs.size = QSizeF(468, 600);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            StoryLayout layout;
+            layout.build(doc->story(), {fs}, doc->flow().env);
+            QStringList out;
+            for (const auto &l : layout.lineInfo(0)) out << QString(l.text).remove(QChar(0x2060)).trimmed();
+            return out.join(QLatin1Char('|'));
         };
         QCOMPARE(shown(), QStringLiteral("a stale b old"));
+        // An edit, and its Undo: the redo is there to be done.
+        QCOMPARE(updateFields(*doc).changed, 2);
+        QCOMPARE(shown(), QStringLiteral("a fresh b two"));
+        QVERIFY(doc->undo());
         QVERIFY(!doc->canUndo());
-        // Shift+F9: the field at the caret.
+        QVERIFY(doc->canRedo());
+        QVERIFY(!doc->isModified());
+        // Shift+F9: the field at the caret shows its code. Nothing of the history or the document is touched.
         const StoryScan scan = scanStory(doc->story());
         QTextCursor c(doc->story());
         c.setPosition(scan.fields[1].begin + 1);
         QCOMPARE(toggleFieldCodes(*doc, c, false), 1);
         QCOMPARE(shown(), QStringLiteral("a stale b { QUOTE \"two\" }"));
+        QVERIFY(!doc->canUndo());
+        QVERIFY(doc->canRedo());
+        QVERIFY(!doc->isModified());
         QCOMPARE(documentXml(doc->toDocx()), saved);
-        QVERIFY(!doc->canUndo());      // (a view is no step to undo)
-        QVERIFY(!doc->isModified());   // (and no change to the document)
-        // Alt+F9: every field (the ones shown stay, the rest are shown).
+        // The redo still works, and what it does is seen with the code still shown.
+        QVERIFY(doc->redo());
+        QCOMPARE(shown(), QStringLiteral("a fresh b { QUOTE \"two\" }"));
+        QVERIFY(doc->canUndo());
+        QVERIFY(!doc->canRedo());
+        // Alt+F9: every field (the one shown stays, the other is shown); again: all are hidden.
         QCOMPARE(toggleFieldCodes(*doc, c, true), 1);
         QCOMPARE(shown(), QStringLiteral("a { QUOTE \"fresh\" } b { QUOTE \"two\" }"));
-        QCOMPARE(documentXml(doc->toDocx()), saved);
-        // Again: all are hidden.
         QCOMPARE(toggleFieldCodes(*doc, c, true), 2);
+        QCOMPARE(shown(), QStringLiteral("a fresh b two"));
+        // One of all shown is hidden by itself.
+        toggleFieldCodes(*doc, c, true);
+        QCOMPARE(toggleFieldCodes(*doc, c, false), 1);
+        QCOMPARE(shown(), QStringLiteral("a { QUOTE \"fresh\" } b two"));
+        // The step the update made is still the only one, and undoing it brings the old results back under the codes.
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->canUndo());
+        QCOMPARE(shown(), QStringLiteral("a { QUOTE \"fresh\" } b old"));
+        toggleFieldCodes(*doc, c, true);
+        toggleFieldCodes(*doc, c, true);
         QCOMPARE(shown(), QStringLiteral("a stale b old"));
         QCOMPARE(documentXml(doc->toDocx()), saved);
-        // An update while the codes are shown still works, and the results come back right.
+        // A field made after the codes were shown, and one that is unlinked, are no part of the view.
+        QTextCursor all(doc->story());
+        all.select(QTextCursor::Document);
+        QCOMPARE(unlinkFields(*doc, all), 2);
         toggleFieldCodes(*doc, c, true);
-        updateFields(*doc);
-        toggleFieldCodes(*doc, c, true);
-        QCOMPARE(shown(), QStringLiteral("a fresh b two"));
-        // The update was the one step; a view after it is undone with it, and Undo stops at nothing else.
-        QVERIFY(doc->canUndo());
-        toggleFieldCodes(*doc, c, true);
-        QCOMPARE(shown(), QStringLiteral("a { QUOTE \"fresh\" } b { QUOTE \"two\" }"));
-        QVERIFY(doc->undo());
-        QVERIFY(!doc->canUndo());     // (what is left are views)
-        QVERIFY(doc->canRedo());
-        QVERIFY(doc->redo());         // (the update and the view after it come back together)
-        QVERIFY(doc->canUndo());
-        toggleFieldCodes(*doc, c, true);
-        QCOMPARE(shown(), QStringLiteral("a fresh b two"));
-        QVERIFY(doc->undo());
-        toggleFieldCodes(*doc, c, true);
-        QCOMPARE(shown(), QStringLiteral("a stale b old"));   // (the update is undone: the old results)
-        QCOMPARE(documentXml(doc->toDocx()), saved);   // (the update undone, the views no part of the file)
+        QCOMPARE(shown(), QStringLiteral("a stale b old"));
+    }
+
+    void twoDocumentsShowTheCodesOfTheirOwnFields()
+    {
+        const QByteArray body = para(run("a ") + field("QUOTE \"one\"", "r1") + run(" b ") + field("QUOTE \"two\"", "r2"));
+        auto first = open(makeDocx(body));
+        auto second = open(makeDocx(body));
+        QVERIFY(first && second);
+        auto shown = [](WriteDoc &doc) {
+            FrameSpec fs;
+            fs.size = QSizeF(468, 600);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            StoryLayout layout;
+            layout.build(doc.story(), {fs}, doc.flow().env);
+            QStringList out;
+            for (const auto &l : layout.lineInfo(0)) out << QString(l.text).remove(QChar(0x2060)).trimmed();
+            return out.join(QLatin1Char('|'));
+        };
+        // (The same file read twice numbers its fields the same: the numbers are the same in both.)
+        const StoryScan a = scanStory(first->story()), b = scanStory(second->story());
+        QTextCursor onFirstField(first->story()), onSecondField(second->story());
+        onFirstField.setPosition(a.fields[0].begin + 1);
+        onSecondField.setPosition(b.fields[1].begin + 1);
+        QCOMPARE(toggleFieldCodes(*first, onFirstField, false), 1);
+        QCOMPARE(toggleFieldCodes(*second, onSecondField, false), 1);
+        QCOMPARE(shown(*first), QStringLiteral("a { QUOTE \"one\" } b r2"));
+        QCOMPARE(shown(*second), QStringLiteral("a r1 b { QUOTE \"two\" }"));
+        // One closing, or changing, leaves the other as it is.
+        QCOMPARE(toggleFieldCodes(*first, onFirstField, false), 1);
+        QCOMPARE(shown(*first), QStringLiteral("a r1 b r2"));
+        QCOMPARE(shown(*second), QStringLiteral("a r1 b { QUOTE \"two\" }"));
+        first.reset();
+        QCOMPARE(shown(*second), QStringLiteral("a r1 b { QUOTE \"two\" }"));
     }
 
     void aTableOfContentsIsBuiltFromTheHeadings()
@@ -1165,6 +1206,49 @@ private Q_SLOTS:
         QCOMPARE(nextNoteReference(*doc, first + 1, false, false), -1);
         QCOMPARE(nextNoteReference(*doc, 0, true, true), -1);
     }
+    void theCommandsForFieldsAreDimmedWhereThereIsNoFieldToWorkOn()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.refreshNow();
+        auto enabled = [&](const char *id) { return w.act(QString::fromLatin1(id))->isEnabled(); };
+        for (const char *id : {"fields.update", "fields.unlink", "fields.lock", "fields.unlock", "fields.toggleCode", "fields.toggleAllCodes", "refs.updateTable", "refs.removeTable", "refs.nextFootnote", "refs.previousEndnote"}) QVERIFY2(!enabled(id), id);
+        QVERIFY(enabled("refs.toc"));
+        // A field at the caret: all but Unlock; a locked one: Unlock and not Lock.
+        QTextCursor c = w.view()->cursor();
+        QVERIFY(insertField(*w.document(), c, QStringLiteral("= 2 + 3")));
+        w.view()->setCursor(c);
+        w.refreshNow();
+        QVERIFY(enabled("fields.unlink") && enabled("fields.lock") && enabled("fields.toggleCode") && enabled("fields.toggleAllCodes"));
+        QVERIFY(!enabled("refs.removeTable"));   // (a field, but no table of contents)
+        QVERIFY(!enabled("fields.unlock"));
+        lockFields(*w.document(), c, true);
+        w.refreshNow();
+        QVERIFY(enabled("fields.unlock") && !enabled("fields.lock"));
+        // Away from it, in text of its own, only Alt+F9 stays on; with the field gone it goes too.
+        QTextCursor away = w.view()->cursor();
+        insertText(*w.document(), away, QStringLiteral(" plain words"));
+        w.view()->setCursor(away);
+        w.refreshNow();
+        QVERIFY(!enabled("fields.unlink"));
+        QVERIFY(!enabled("fields.lock"));
+        QVERIFY(!enabled("fields.unlock"));
+        QVERIFY(!enabled("fields.toggleCode"));
+        QVERIFY(enabled("fields.toggleAllCodes"));
+        w.act(QStringLiteral("fields.toggleAllCodes"))->trigger();
+        QTextCursor all(w.document()->story());
+        all.select(QTextCursor::Document);
+        w.view()->setCursor(all);
+        QCOMPARE(unlinkFields(*w.document(), all), 0);   // (a locked field is left)
+        lockFields(*w.document(), all, false);
+        QCOMPARE(unlinkFields(*w.document(), all), 1);
+        w.refreshNow();
+        w.act(QStringLiteral("fields.toggleAllCodes"))->trigger();
+        w.refreshNow();
+        QVERIFY(!enabled("fields.toggleAllCodes"));
+    }
+
     void theWindowHasTheFieldCommandsAndF9UpdatesTheSelection()
     {
         WriteWindow w;

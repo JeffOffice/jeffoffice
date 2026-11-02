@@ -116,6 +116,14 @@ qint64 fieldComputationsForTest();
 QByteArray fieldFlagForTest(const QByteArray &raw, const char *name, bool on);
 void resetFieldWorkForTest();
 
+// What fields the selection (or the caret) touches, found without a pass over the whole text: those that begin in the selection, and the one the caret or the selection's start is in (looked
+// for backward, through at most a few thousand paragraphs). Which of the commands for fields have something to work on.
+struct FieldsNear {
+    bool any = false, locked = false, unlocked = false;
+    bool toc = false;   // one of them is a table of contents
+};
+FieldsNear fieldsNearSelection(QTextDocument *story, const QTextCursor &c);
+
 // The innermost field of the text that holds the position (the caret), -1 for none.
 int fieldContaining(const StoryScan &scan, int position);
 

@@ -1756,6 +1756,15 @@ bool insertFieldAtom(WriteDoc &doc, QTextCursor &c, const office::wml::Inline &f
     QTextCharFormat f = typingFormat(edit);
     setStored(f, prop::Atom, packAtom(field));
     f.setProperty(tp::Field, field.key.isEmpty() ? QStringLiteral("raw:") + field.display : field.key);
+    if (field.tag == office::wml::kFieldGroupTag) {
+        // (Show Field Codes shows the code of a field that is one character in its place.)
+        static const QRegularExpression instr(QStringLiteral("<w:instrText[^>]*>(.*?)</w:instrText>"), QRegularExpression::DotMatchesEverythingOption);
+        QString code;
+        for (auto m = instr.globalMatch(QString::fromUtf8(field.raw.left(20000))); m.hasNext();) code += m.next().captured(1);
+        code.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&amp;"), QLatin1String("&"));
+        f.setProperty(tp::FieldId, nextFieldId());
+        f.setProperty(tp::FieldCodeText, QStringLiteral("{ ") + code.trimmed() + QStringLiteral(" }"));
+    }
     edit.insertText(QString(QChar::ObjectReplacementCharacter), f);
     edit.endEditBlock();
     c = edit;

@@ -17,6 +17,8 @@
 #include "core/appinfo.h"
 #include "core/commentops.h"
 #include "core/editops.h"
+#include "core/fieldops.h"
+#include "core/refops.h"
 #include "core/tableops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
@@ -413,6 +415,7 @@ void WriteWindow::refreshUi()
             a->setEnabled(has);
     }
     if (!has) {
+        for (const char *id : {"refs.updateTable", "refs.removeTable", "refs.nextFootnote", "refs.previousFootnote", "refs.nextEndnote", "refs.previousEndnote", "fields.update", "fields.unlink", "fields.lock", "fields.unlock", "fields.toggleCode", "fields.toggleAllCodes"}) act(QString::fromLatin1(id))->setEnabled(false);
         refreshTableUi();
         refreshPictureUi();
         return;
@@ -494,6 +497,25 @@ void WriteWindow::refreshUi()
         // (A document with the most notes it holds: the commands are off, and the status bar says why.)
         const bool footnoteRoom = !noteAllowed || m_doc->roomForFootnote(), endnoteRoom = !noteAllowed || m_doc->roomForEndnote();
         const QString full = tr("This document has the most notes JeffWrite can hold (%1), so no more can be added.").arg(QLocale().toString(write::kMostNoteStories));
+        // (The commands for the fields have a field to work on: one the caret is in, or the selection takes in; Alt+F9, a field in the text.)
+        {
+            const bool inText = !editing && !m_view->inNote();
+            const write::FieldsNear near = inText ? write::fieldsNearSelection(m_doc->story(), c) : write::FieldsNear();
+            act("fields.unlink")->setEnabled(near.any);
+            act("fields.toggleCode")->setEnabled(near.any);
+            act("refs.updateTable")->setEnabled(near.toc);
+            act("refs.removeTable")->setEnabled(near.toc);
+            act("fields.lock")->setEnabled(near.unlocked);
+            act("fields.unlock")->setEnabled(near.locked);
+            act("fields.toggleAllCodes")->setEnabled(inText && m_doc->mayHaveFields());
+            act("fields.update")->setEnabled(inText && m_doc->mayHaveFields());
+            // (Next and Previous Footnote and Endnote have a note to go to in that direction.)
+            const int here = c.position();
+            act("refs.nextFootnote")->setEnabled(inText && write::nextNoteReference(*m_doc, here, true, false) >= 0);
+            act("refs.previousFootnote")->setEnabled(inText && write::nextNoteReference(*m_doc, here, false, false) >= 0);
+            act("refs.nextEndnote")->setEnabled(inText && write::nextNoteReference(*m_doc, here, true, true) >= 0);
+            act("refs.previousEndnote")->setEnabled(inText && write::nextNoteReference(*m_doc, here, false, true) >= 0);
+        }
         act("refs.footnote")->setEnabled(noteAllowed && footnoteRoom);
         act("refs.endnote")->setEnabled(noteAllowed && endnoteRoom);
         act("refs.footnote")->setStatusTip(jp::plainToolTip(footnoteRoom ? QString() : full));

@@ -3,6 +3,7 @@
 #include "app/writedialogs.h"
 
 #include "app/pageview.h"
+#include "app/plaintext.h"
 #include "core/editops.h"
 #include "core/fieldops.h"
 #include "core/refops.h"
@@ -28,8 +29,6 @@ namespace jp::write {
 
 namespace {
 
-QString tr(const char *text) { return QCoreApplication::translate("jp::write::FieldDialogs", text); }
-
 } // namespace
 
 bool bookmarkDialog(QWidget *parent, WriteDoc *doc, PageView *view)
@@ -37,20 +36,20 @@ bool bookmarkDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     if (!doc || !view) return false;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("bookmarkDialog"));
-    dlg.setWindowTitle(tr("Bookmark"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::FieldDialogs", "Bookmark"));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(new QLabel(tr("Bookmark name:"), &dlg));
+    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Bookmark name:"), &dlg));
     auto *name = new QLineEdit(&dlg);
     name->setObjectName(QStringLiteral("bookmarkName"));
     v->addWidget(name);
     auto *list = new QListWidget(&dlg);
     list->setObjectName(QStringLiteral("bookmarkList"));
-    list->setAccessibleName(tr("Bookmarks"));
+    list->setAccessibleName(QCoreApplication::translate("jp::write::FieldDialogs", "Bookmarks"));
     v->addWidget(list);
     auto *sortRow = new QHBoxLayout;
-    sortRow->addWidget(new QLabel(tr("Sort by:"), &dlg));
-    auto *byName = new QRadioButton(tr("Name"), &dlg);
-    auto *byPlace = new QRadioButton(tr("Location"), &dlg);
+    sortRow->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Sort by:"), &dlg));
+    auto *byName = new QRadioButton(QCoreApplication::translate("jp::write::FieldDialogs", "Name"), &dlg);
+    auto *byPlace = new QRadioButton(QCoreApplication::translate("jp::write::FieldDialogs", "Location"), &dlg);
     byName->setChecked(true);
     byName->setObjectName(QStringLiteral("bookmarkSortName"));
     byPlace->setObjectName(QStringLiteral("bookmarkSortLocation"));
@@ -58,7 +57,7 @@ bool bookmarkDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     sortRow->addWidget(byPlace);
     sortRow->addStretch();
     v->addLayout(sortRow);
-    auto *hidden = new QCheckBox(tr("Hidden bookmarks"), &dlg);
+    auto *hidden = new QCheckBox(QCoreApplication::translate("jp::write::FieldDialogs", "Hidden bookmarks"), &dlg);
     hidden->setObjectName(QStringLiteral("bookmarkHidden"));
     v->addWidget(hidden);
     auto *problem = new QLabel(&dlg);
@@ -66,9 +65,9 @@ bool bookmarkDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     problem->setStyleSheet(QStringLiteral("color: #b00020"));
     v->addWidget(problem);
     auto *buttons = new QDialogButtonBox(&dlg);
-    auto *add = buttons->addButton(tr("Add"), QDialogButtonBox::ActionRole);
-    auto *del = buttons->addButton(tr("Delete"), QDialogButtonBox::ActionRole);
-    auto *go = buttons->addButton(tr("Go To"), QDialogButtonBox::ActionRole);
+    auto *add = buttons->addButton(QCoreApplication::translate("jp::write::FieldDialogs", "Add"), QDialogButtonBox::ActionRole);
+    auto *del = buttons->addButton(QCoreApplication::translate("jp::write::FieldDialogs", "Delete"), QDialogButtonBox::ActionRole);
+    auto *go = buttons->addButton(QCoreApplication::translate("jp::write::FieldDialogs", "Go To"), QDialogButtonBox::ActionRole);
     buttons->addButton(QDialogButtonBox::Close);
     add->setObjectName(QStringLiteral("bookmarkAdd"));
     del->setObjectName(QStringLiteral("bookmarkDelete"));
@@ -100,13 +99,13 @@ bool bookmarkDialog(QWidget *parent, WriteDoc *doc, PageView *view)
             changed = true;
             fill();
         } else {
-            problem->setText(tr("There is no such bookmark."));
+            problem->setText(QCoreApplication::translate("jp::write::FieldDialogs", "There is no such bookmark."));
         }
     });
     auto goTo = [&] {
         const int at = bookmarkStart(*doc, name->text().trimmed());
         if (at < 0) {
-            problem->setText(tr("There is no such bookmark."));
+            problem->setText(QCoreApplication::translate("jp::write::FieldDialogs", "There is no such bookmark."));
             return;
         }
         QTextCursor c = view->cursor();
@@ -129,7 +128,7 @@ bool crossReferenceDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     if (!doc || !view) return false;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("crossReferenceDialog"));
-    dlg.setWindowTitle(tr("Cross-reference"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::FieldDialogs", "Cross-reference"));
     auto *v = new QVBoxLayout(&dlg);
     auto *form = new QFormLayout;
     auto *type = new QComboBox(&dlg);
@@ -139,32 +138,32 @@ bool crossReferenceDialog(QWidget *parent, WriteDoc *doc, PageView *view)
         RefKind kind;
         QString label;
     };
-    QVector<Type> types = {{tr("Heading"), RefKind::Heading, QString()}, {tr("Bookmark"), RefKind::Bookmark, QString()}, {tr("Footnote"), RefKind::Footnote, QString()},
-                           {tr("Endnote"), RefKind::Endnote, QString()}, {tr("Numbered item"), RefKind::NumberedItem, QString()}};
+    QVector<Type> types = {{QCoreApplication::translate("jp::write::FieldDialogs", "Heading"), RefKind::Heading, QString()}, {QCoreApplication::translate("jp::write::FieldDialogs", "Bookmark"), RefKind::Bookmark, QString()}, {QCoreApplication::translate("jp::write::FieldDialogs", "Footnote"), RefKind::Footnote, QString()},
+                           {QCoreApplication::translate("jp::write::FieldDialogs", "Endnote"), RefKind::Endnote, QString()}, {QCoreApplication::translate("jp::write::FieldDialogs", "Numbered item"), RefKind::NumberedItem, QString()}};
     QStringList labels = captionLabels(*doc);
     for (const char *l : {"Figure", "Table"})
         if (!labels.contains(QString::fromLatin1(l), Qt::CaseInsensitive)) labels << QString::fromLatin1(l);
     for (const QString &l : std::as_const(labels)) types.push_back({l, RefKind::Caption, l});
     for (const Type &t : std::as_const(types)) type->addItem(t.text);
-    form->addRow(tr("Reference type:"), type);
+    form->addRow(QCoreApplication::translate("jp::write::FieldDialogs", "Reference type:"), type);
     auto *what = new QComboBox(&dlg);
     what->setObjectName(QStringLiteral("refWhat"));
-    form->addRow(tr("Insert reference to:"), what);
+    form->addRow(QCoreApplication::translate("jp::write::FieldDialogs", "Insert reference to:"), what);
     v->addLayout(form);
-    auto *link = new QCheckBox(tr("Insert as hyperlink"), &dlg);
+    auto *link = new QCheckBox(QCoreApplication::translate("jp::write::FieldDialogs", "Insert as hyperlink"), &dlg);
     link->setObjectName(QStringLiteral("refHyperlink"));
     link->setChecked(true);
     v->addWidget(link);
-    v->addWidget(new QLabel(tr("For which item:"), &dlg));
+    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "For which item:"), &dlg));
     auto *items = new QListWidget(&dlg);
     items->setObjectName(QStringLiteral("refItems"));
-    items->setAccessibleName(tr("Items"));
+    items->setAccessibleName(QCoreApplication::translate("jp::write::FieldDialogs", "Items"));
     v->addWidget(items);
     auto *problem = new QLabel(&dlg);
     problem->setStyleSheet(QStringLiteral("color: #b00020"));
     v->addWidget(problem);
     auto *buttons = new QDialogButtonBox(&dlg);
-    auto *insert = buttons->addButton(tr("Insert"), QDialogButtonBox::ActionRole);
+    auto *insert = buttons->addButton(QCoreApplication::translate("jp::write::FieldDialogs", "Insert"), QDialogButtonBox::ActionRole);
     buttons->addButton(QDialogButtonBox::Close);
     v->addWidget(buttons);
     QVector<RefTarget> targets;
@@ -172,16 +171,16 @@ bool crossReferenceDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     auto currentType = [&]() -> const Type & { return types[std::clamp(type->currentIndex(), 0, int(types.size()) - 1)]; };
     auto whatList = [&]() -> QVector<std::pair<QString, RefWhat>> {
         switch (currentType().kind) {
-        case RefKind::Heading: return {{tr("Heading text"), RefWhat::Text}, {tr("Page number"), RefWhat::Page}, {tr("Heading number"), RefWhat::Number}, {tr("Heading number (no context)"), RefWhat::NumberNoContext},
-                                       {tr("Heading number (full context)"), RefWhat::NumberFullContext}, {tr("Above/below"), RefWhat::AboveBelow}};
-        case RefKind::Bookmark: return {{tr("Bookmark text"), RefWhat::Text}, {tr("Page number"), RefWhat::Page}, {tr("Paragraph number"), RefWhat::Number}, {tr("Paragraph number (no context)"), RefWhat::NumberNoContext},
-                                        {tr("Paragraph number (full context)"), RefWhat::NumberFullContext}, {tr("Above/below"), RefWhat::AboveBelow}};
+        case RefKind::Heading: return {{QCoreApplication::translate("jp::write::FieldDialogs", "Heading text"), RefWhat::Text}, {QCoreApplication::translate("jp::write::FieldDialogs", "Page number"), RefWhat::Page}, {QCoreApplication::translate("jp::write::FieldDialogs", "Heading number"), RefWhat::Number}, {QCoreApplication::translate("jp::write::FieldDialogs", "Heading number (no context)"), RefWhat::NumberNoContext},
+                                       {QCoreApplication::translate("jp::write::FieldDialogs", "Heading number (full context)"), RefWhat::NumberFullContext}, {QCoreApplication::translate("jp::write::FieldDialogs", "Above/below"), RefWhat::AboveBelow}};
+        case RefKind::Bookmark: return {{QCoreApplication::translate("jp::write::FieldDialogs", "Bookmark text"), RefWhat::Text}, {QCoreApplication::translate("jp::write::FieldDialogs", "Page number"), RefWhat::Page}, {QCoreApplication::translate("jp::write::FieldDialogs", "Paragraph number"), RefWhat::Number}, {QCoreApplication::translate("jp::write::FieldDialogs", "Paragraph number (no context)"), RefWhat::NumberNoContext},
+                                        {QCoreApplication::translate("jp::write::FieldDialogs", "Paragraph number (full context)"), RefWhat::NumberFullContext}, {QCoreApplication::translate("jp::write::FieldDialogs", "Above/below"), RefWhat::AboveBelow}};
         case RefKind::Footnote:
-        case RefKind::Endnote: return {{tr("Note number"), RefWhat::FootnoteNumber}, {tr("Page number"), RefWhat::Page}, {tr("Above/below"), RefWhat::AboveBelow}, {tr("Note number (formatted)"), RefWhat::FootnoteNumberFormatted}};
-        case RefKind::NumberedItem: return {{tr("Paragraph number"), RefWhat::Number}, {tr("Paragraph number (no context)"), RefWhat::NumberNoContext}, {tr("Paragraph number (full context)"), RefWhat::NumberFullContext},
-                                            {tr("Paragraph text"), RefWhat::Text}, {tr("Page number"), RefWhat::Page}, {tr("Above/below"), RefWhat::AboveBelow}};
-        case RefKind::Caption: return {{tr("Entire caption"), RefWhat::Text}, {tr("Only label and number"), RefWhat::LabelAndNumber}, {tr("Only caption text"), RefWhat::CaptionText}, {tr("Page number"), RefWhat::Page},
-                                       {tr("Above/below"), RefWhat::AboveBelow}};
+        case RefKind::Endnote: return {{QCoreApplication::translate("jp::write::FieldDialogs", "Note number"), RefWhat::FootnoteNumber}, {QCoreApplication::translate("jp::write::FieldDialogs", "Page number"), RefWhat::Page}, {QCoreApplication::translate("jp::write::FieldDialogs", "Above/below"), RefWhat::AboveBelow}, {QCoreApplication::translate("jp::write::FieldDialogs", "Note number (formatted)"), RefWhat::FootnoteNumberFormatted}};
+        case RefKind::NumberedItem: return {{QCoreApplication::translate("jp::write::FieldDialogs", "Paragraph number"), RefWhat::Number}, {QCoreApplication::translate("jp::write::FieldDialogs", "Paragraph number (no context)"), RefWhat::NumberNoContext}, {QCoreApplication::translate("jp::write::FieldDialogs", "Paragraph number (full context)"), RefWhat::NumberFullContext},
+                                            {QCoreApplication::translate("jp::write::FieldDialogs", "Paragraph text"), RefWhat::Text}, {QCoreApplication::translate("jp::write::FieldDialogs", "Page number"), RefWhat::Page}, {QCoreApplication::translate("jp::write::FieldDialogs", "Above/below"), RefWhat::AboveBelow}};
+        case RefKind::Caption: return {{QCoreApplication::translate("jp::write::FieldDialogs", "Entire caption"), RefWhat::Text}, {QCoreApplication::translate("jp::write::FieldDialogs", "Only label and number"), RefWhat::LabelAndNumber}, {QCoreApplication::translate("jp::write::FieldDialogs", "Only caption text"), RefWhat::CaptionText}, {QCoreApplication::translate("jp::write::FieldDialogs", "Page number"), RefWhat::Page},
+                                       {QCoreApplication::translate("jp::write::FieldDialogs", "Above/below"), RefWhat::AboveBelow}};
         }
         return {};
     };
@@ -197,7 +196,7 @@ bool crossReferenceDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     QObject::connect(insert, &QPushButton::clicked, &dlg, [&] {
         const int row = items->currentRow();
         if (row < 0 || row >= targets.size()) {
-            problem->setText(tr("Choose an item to refer to."));
+            problem->setText(QCoreApplication::translate("jp::write::FieldDialogs", "Choose an item to refer to."));
             return;
         }
         const auto list = whatList();
@@ -223,12 +222,12 @@ bool fieldDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     if (!doc || !view) return false;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("fieldDialog"));
-    dlg.setWindowTitle(tr("Field"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::FieldDialogs", "Field"));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(new QLabel(tr("Field names:"), &dlg));
+    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Field names:"), &dlg));
     auto *list = new QListWidget(&dlg);
     list->setObjectName(QStringLiteral("fieldNames"));
-    list->setAccessibleName(tr("Field names"));
+    list->setAccessibleName(QCoreApplication::translate("jp::write::FieldDialogs", "Field names"));
     struct Entry {
         QString name, code;
     };
@@ -258,7 +257,7 @@ bool fieldDialog(QWidget *parent, WriteDoc *doc, PageView *view)
                                     {QStringLiteral("Formula"), QStringLiteral("= 2 + 3")}};
     for (const Entry &e : entries) list->addItem(e.name);
     v->addWidget(list);
-    v->addWidget(new QLabel(tr("Field codes:"), &dlg));
+    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Field codes:"), &dlg));
     auto *code = new QLineEdit(&dlg);
     code->setObjectName(QStringLiteral("fieldCode"));
     v->addWidget(code);
@@ -274,7 +273,7 @@ bool fieldDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     QObject::connect(code, &QLineEdit::textChanged, &dlg, [&](const QString &t) {
         buttons->button(QDialogButtonBox::Ok)->setEnabled(!t.trimmed().isEmpty());
         const fields::Code parsed = fields::parseCode(t);
-        preview->setText(fields::isKnown(parsed.name) ? QString() : tr("This field is kept as it is and not worked out."));
+        preview->setText(fields::isKnown(parsed.name) ? QString() : QCoreApplication::translate("jp::write::FieldDialogs", "This field is kept as it is and not worked out."));
     });
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -291,15 +290,15 @@ bool tableOfContentsDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     if (!doc || !view) return false;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("tocDialog"));
-    dlg.setWindowTitle(tr("Table of Contents"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::FieldDialogs", "Table of Contents"));
     auto *v = new QVBoxLayout(&dlg);
-    auto *pages = new QCheckBox(tr("Show page numbers"), &dlg);
+    auto *pages = new QCheckBox(QCoreApplication::translate("jp::write::FieldDialogs", "Show page numbers"), &dlg);
     pages->setObjectName(QStringLiteral("tocPages"));
     pages->setChecked(true);
-    auto *right = new QCheckBox(tr("Right align page numbers"), &dlg);
+    auto *right = new QCheckBox(QCoreApplication::translate("jp::write::FieldDialogs", "Right align page numbers"), &dlg);
     right->setObjectName(QStringLiteral("tocRight"));
     right->setChecked(true);
-    auto *links = new QCheckBox(tr("Use hyperlinks"), &dlg);
+    auto *links = new QCheckBox(QCoreApplication::translate("jp::write::FieldDialogs", "Use hyperlinks"), &dlg);
     links->setObjectName(QStringLiteral("tocLinks"));
     links->setChecked(true);
     v->addWidget(pages);
@@ -308,7 +307,7 @@ bool tableOfContentsDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     auto *form = new QFormLayout;
     auto *leader = new QComboBox(&dlg);
     leader->setObjectName(QStringLiteral("tocLeader"));
-    leader->addItem(tr("(none)"), QStringLiteral("none"));
+    leader->addItem(QCoreApplication::translate("jp::write::FieldDialogs", "(none)"), QStringLiteral("none"));
     leader->addItem(QStringLiteral("......."), QStringLiteral("dot"));
     leader->addItem(QStringLiteral("-------"), QStringLiteral("hyphen"));
     leader->addItem(QStringLiteral("_______"), QStringLiteral("underscore"));
@@ -317,8 +316,8 @@ bool tableOfContentsDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     levels->setObjectName(QStringLiteral("tocLevels"));
     levels->setRange(1, 9);
     levels->setValue(3);
-    form->addRow(tr("Tab leader:"), leader);
-    form->addRow(tr("Show levels:"), levels);
+    form->addRow(QCoreApplication::translate("jp::write::FieldDialogs", "Tab leader:"), leader);
+    form->addRow(QCoreApplication::translate("jp::write::FieldDialogs", "Show levels:"), levels);
     v->addLayout(form);
     QObject::connect(pages, &QCheckBox::toggled, &dlg, [&](bool on) {
         right->setEnabled(on);
@@ -340,7 +339,7 @@ bool tableOfContentsDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     bool cut = false;
     const bool ok = insertTableOfContents(*doc, c, o, &cut);
     if (ok) view->showCursor(c);
-    if (ok && cut) QMessageBox::information(parent, tr("Table of Contents"), tr("The document has more headings than a table of contents holds, so the table stops at the first 20,000."));
+    if (ok && cut) jp::plainInformation(parent, QCoreApplication::translate("jp::write::FieldDialogs", "Table of Contents"), QCoreApplication::translate("jp::write::FieldDialogs", "The document has more headings than a table of contents holds, so the table stops at the first 20,000."));
     return ok;
 }
 
@@ -348,11 +347,11 @@ int updateTableDialog(QWidget *parent)
 {
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("updateTableDialog"));
-    dlg.setWindowTitle(tr("Update Table of Contents"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::FieldDialogs", "Update Table of Contents"));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(new QLabel(tr("What do you want to update?"), &dlg));
-    auto *only = new QRadioButton(tr("Update page numbers only"), &dlg);
-    auto *all = new QRadioButton(tr("Update entire table"), &dlg);
+    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "What do you want to update?"), &dlg));
+    auto *only = new QRadioButton(QCoreApplication::translate("jp::write::FieldDialogs", "Update page numbers only"), &dlg);
+    auto *all = new QRadioButton(QCoreApplication::translate("jp::write::FieldDialogs", "Update entire table"), &dlg);
     only->setObjectName(QStringLiteral("updatePagesOnly"));
     all->setObjectName(QStringLiteral("updateEntire"));
     only->setChecked(true);
