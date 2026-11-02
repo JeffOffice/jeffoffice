@@ -1,5 +1,6 @@
 // Tests of libs/office/odt: an OpenDocument text read into the parts of a .docx and a .docx written as an OpenDocument text. Every document is built here from a few lines of XML.
 
+#include "core/fonts.h"
 #include "io/zip.h"
 #include "io/zipindex.h"
 #include "odt/odt.h"
@@ -95,6 +96,19 @@ QString instructionsOf(const QString &documentXml)
     if (!t.parse(documentXml.toUtf8(), nullptr)) return all;
     for (int i = findElement(t, "instrText"); i >= 0; i = findElement(t, "instrText", i)) all += t.text(i) + QLatin1Char('\n');
     return all;
+}
+
+// A .docx made of this body (and, if given, more parts), written as an .odt: its content.xml, and what was not kept.
+QString odtContentOf(const QByteArray &bodyXml, QStringList *notes = nullptr, const QByteArray &extraNs = QByteArray())
+{
+    PackageWriter w;
+    w.addPart(QStringLiteral("/word/document.xml"),
+              QByteArray("<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"") + extraNs + "><w:body>" + bodyXml + "</w:body></w:document>",
+              QStringLiteral("application/xml"));
+    w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+    QMap<QString, QByteArray> files;
+    if (!jp::readZip(fromDocxPackage(w.finish(), nullptr, notes), files)) return QString();
+    return QString::fromUtf8(files.value(QStringLiteral("content.xml")));
 }
 
 } // namespace
@@ -1251,6 +1265,100 @@ private Q_SLOTS:
         QCOMPARE(c.count(QLatin1String(" after")), 1);
         QVERIFY(c.indexOf(QLatin1String("before")) < c.indexOf(QLatin1String("<text:page-number")));
         QVERIFY(c.indexOf(QLatin1String("<text:page-number")) < c.indexOf(QLatin1String(" after")));
+    }
+
+    void aCellInNestedContentControlsKeepsItsText()
+    {
+        const QString c = odtContentOf(
+            "<w:tbl><w:tblGrid><w:gridCol w:w=\"4000\"/><w:gridCol w:w=\"4000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>Note</w:t></w:r></w:p></w:tc></w:tr>"
+            "<w:sdt><w:sdtContent><w:sdt><w:sdtContent><w:tr><w:sdt><w:sdtContent><w:tc><w:p><w:r><w:t>Choose an item.</w:t></w:r></w:p></w:tc></w:sdtContent></w:sdt>"
+            "<w:tc><w:p><w:r><w:t>Here is just a sample</w:t></w:r></w:p></w:tc></w:tr></w:sdtContent></w:sdt></w:sdtContent></w:sdt></w:tbl>");
+        QVERIFY2(c.contains(QLatin1String("Choose an item.")), qPrintable(c));
+        QVERIFY2(c.contains(QLatin1String("Here is just a sample")), qPrintable(c));
+        QCOMPARE(c.count(QLatin1String("<table:table-row")), 2);
+    }
+
+    void aSymbolKeepsItsPictureOrItsFont()
+    {
+        // A known symbol font's character is written as the picture it stands for, not as the letter its code is.
+        const QChar box = jp::symbolPictureOf(QStringLiteral("Wingdings"), 0xF0FE);
+        QVERIFY(!box.isNull());
+        const QString c = odtContentOf("<w:p><w:r><w:sym w:font=\"Wingdings\" w:char=\"F0FE\"/></w:r></w:p>");
+        QVERIFY2(c.contains(box), qPrintable(c));
+        QVERIFY(!c.contains(QChar(0xFE)));
+        // Another font's character keeps its code and its font.
+        const QString d = odtContentOf("<w:p><w:r><w:sym w:font=\"Pictographic Sans\" w:char=\"F041\"/></w:r></w:p>");
+        QVERIFY2(d.contains(QChar(0xF041)), qPrintable(d));
+        QVERIFY2(d.contains(QLatin1String("Pictographic Sans")), qPrintable(d));
+    }
+
+    void trackedFormatAndParagraphChangesAreKept()
+    {
+        QStringList notes;
+        const QString c = odtContentOf(
+            "<w:p><w:pPr><w:rPr><w:ins w:id=\"1\" w:author=\"Ann\" w:date=\"2026-01-02T03:04:05Z\"/></w:rPr><w:pPrChange w:id=\"2\" w:author=\"Bob\" w:date=\"2026-01-02T03:04:05Z\"><w:pPr/></w:pPrChange></w:pPr>"
+            "<w:r><w:rPr><w:b/><w:rPrChange w:id=\"3\" w:author=\"Cy\" w:date=\"2026-01-02T03:04:05Z\"><w:rPr/></w:rPrChange></w:rPr><w:t>bold words</w:t></w:r></w:p>"
+            "<w:p><w:pPr><w:rPr><w:del w:id=\"4\" w:author=\"Dee\" w:date=\"2026-01-02T03:04:05Z\"/></w:rPr></w:pPr><w:r><w:t>second</w:t></w:r></w:p>"
+            "<w:p><w:r><w:t>third</w:t></w:r></w:p>",
+            &notes);
+        QCOMPARE(c.count(QLatin1String("<text:format-change>")), 2);
+        QCOMPARE(c.count(QLatin1String("<text:insertion>")), 1);
+        QCOMPARE(c.count(QLatin1String("<text:deletion>")), 1);
+        // Every change begins and ends once, and the ends come after the beginnings.
+        QStringList starts, ends;
+        static const QRegularExpression rs(QStringLiteral("<text:change-start text:change-id=\"(\\w+)\"/>")), re(QStringLiteral("<text:change-end text:change-id=\"(\\w+)\"/>"));
+        for (auto it = rs.globalMatch(c); it.hasNext();) starts << it.next().captured(1);
+        for (auto it = re.globalMatch(c); it.hasNext();) ends << it.next().captured(1);
+        QCOMPARE(starts.size(), 4);
+        starts.sort();
+        ends.sort();
+        QCOMPARE(starts, ends);
+        for (const QString &id : std::as_const(starts)) QVERIFY(c.indexOf(QStringLiteral("<text:change-start text:change-id=\"%1\"/>").arg(id)) < c.indexOf(QStringLiteral("<text:change-end text:change-id=\"%1\"/>").arg(id)));
+        QVERIFY2(c.contains(QLatin1String("Bob")) && c.contains(QLatin1String("Cy")) && c.contains(QLatin1String("Dee")), qPrintable(c));
+        // (Nothing that .odt can hold is said to be left out.)
+        QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char(';'))));
+    }
+
+    void aParagraphMarkChangeOnTheLastParagraphHasBothEnds()
+    {
+        const QString c = odtContentOf("<w:p><w:r><w:t>only</w:t></w:r></w:p><w:p><w:pPr><w:rPr><w:ins w:id=\"1\" w:author=\"Ann\"/></w:rPr></w:pPr><w:r><w:t>last</w:t></w:r></w:p>");
+        QCOMPARE(c.count(QLatin1String("<text:change-start")), 1);
+        QCOMPARE(c.count(QLatin1String("<text:change-end")), 1);
+    }
+
+    void changesToTablesAreSaidToBeLeftAsTheyStand()
+    {
+        QStringList notes;
+        odtContentOf("<w:tbl><w:tblPr><w:tblPrChange w:id=\"1\" w:author=\"A\"><w:tblPr/></w:tblPrChange></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>x</w:t></w:r></w:p></w:tc></w:tr></w:tbl>", &notes);
+        QVERIFY2(notes.join(QLatin1Char(';')).contains(QLatin1String("tracked changes to tables")), qPrintable(notes.join(QLatin1Char(';'))));
+    }
+
+    void formFieldsKeepTheirBookmarksAndTheirShownValue()
+    {
+        QStringList notes;
+        const QString box = QStringLiteral(
+            "<w:p><w:r><w:t>unchecked: </w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"Check1\"/><w:checkBox><w:default w:val=\"0\"/></w:checkBox></w:ffData></w:fldChar></w:r>"
+            "<w:bookmarkStart w:id=\"0\" w:name=\"Check1\"/><w:r><w:instrText> FORMCHECKBOX </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r><w:bookmarkEnd w:id=\"0\"/>"
+            "<w:r><w:t> checked: </w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"Check2\"/><w:checkBox><w:default w:val=\"1\"/></w:checkBox></w:ffData></w:fldChar></w:r>"
+            "<w:bookmarkStart w:id=\"1\" w:name=\"Check2\"/><w:r><w:instrText> FORMCHECKBOX </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r><w:bookmarkEnd w:id=\"1\"/>"
+            "<w:r><w:t> text: </w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"Text1\"/><w:textInput><w:default w:val=\"Your name\"/></w:textInput></w:ffData></w:fldChar></w:r>"
+            "<w:r><w:instrText> FORMTEXT </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>");
+        const QString c = odtContentOf(box.toUtf8(), &notes);
+        QCOMPARE(c.count(QLatin1String("<text:bookmark-start")), 2);
+        QCOMPARE(c.count(QLatin1String("<text:bookmark-end")), 2);
+        QVERIFY2(c.contains(QChar(0x2610)) && c.contains(QChar(0x2611)), qPrintable(c));
+        QVERIFY2(c.contains(QLatin1String("Your name")), qPrintable(c));
+        QVERIFY2(notes.join(QLatin1Char(';')).contains(QLatin1String("form fields")), qPrintable(notes.join(QLatin1Char(';'))));
+        // And it reads back with the same text.
+        QVERIFY(c.indexOf(QLatin1String("<text:bookmark-start")) < c.indexOf(QLatin1String("<text:bookmark-end")));
+    }
+
+    void aMergeFieldKeepsItsNameAndItsText()
+    {
+        const QString c = odtContentOf("<w:p><w:fldSimple w:instr=\" MERGEFIELD FirstName \\* MERGEFORMAT \"><w:r><w:t>&#171;FirstName&#187;</w:t></w:r></w:fldSimple>"
+                                       "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> MERGEFIELD \"Last Name\" </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>Smith</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>");
+        QVERIFY2(c.contains(QRegularExpression(QStringLiteral("<text:database-display[^>]*text:column-name=\"FirstName\"[^>]*>\u00ABFirstName\u00BB</text:database-display>"))), qPrintable(c));
+        QVERIFY2(c.contains(QRegularExpression(QStringLiteral("<text:database-display[^>]*text:column-name=\"Last Name\"[^>]*>Smith</text:database-display>"))), qPrintable(c));
     }
 };
 

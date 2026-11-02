@@ -9,6 +9,7 @@
 #include <QDateTime>
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QSet>
 #include <algorithm>
 #include <cmath>
 
@@ -951,9 +952,26 @@ bool Writer::run(const QByteArray &docx, QByteArray *out, QString *error, QStrin
     collectNumbering();
     if (m_settings) m_evenOdd = m_settings->child(m_settings->root(), "evenAndOddHeaders") >= 0;
     collectSections();
+    // Tracked changes that an .odt has no place for stay as they stand now.
+    {
+        static const QSet<QByteArray> unkept = {"tblPrChange", "tcPrChange", "trPrChange", "tblGridChange", "sectPrChange", "cellIns", "cellDel", "cellMerge", "tblPrExChange", "numberingChange"};
+        for (int i = 0; i < m_doc->count(); ++i) {
+            const QByteArray local = m_doc->localName(i);
+            if (local.size() > 6 && (local.endsWith("Change") || local.startsWith("cell")) && unkept.contains(local)) {
+                left(QCoreApplication::translate("odt", "tracked changes to tables, columns, and page setup (saved as they stand now)"));
+                break;
+            }
+        }
+    }
     // The body (which makes the automatic styles, the list styles used, and the master pages' headers).
     m_sectionIndex = 0;
     emitBlocks(*m_doc, m_doc->child(m_doc->root(), "body"), &m_bodyXml, 0, true);
+    if (!m_pendingBookmarks.isEmpty()) {
+        // (Marks that wait for a paragraph to come: the last one ends where the last paragraph does, so that no mark is left without its mate.)
+        const qsizetype at = std::max(m_bodyXml.lastIndexOf("</text:p>"), m_bodyXml.lastIndexOf("</text:h>"));
+        if (at >= 0) m_bodyXml.insert(at, m_pendingBookmarks);
+        m_pendingBookmarks.clear();
+    }
     if (m_inToc) {
         m_bodyXml += "</text:index-body></text:table-of-content>";
         m_inToc = false;

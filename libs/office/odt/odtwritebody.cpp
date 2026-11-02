@@ -2,6 +2,8 @@
 
 #include "odt/odtwrite.h"
 
+#include "core/fonts.h"
+
 #include <QCoreApplication>
 #include <QFileInfo>
 #include <QRegularExpression>
@@ -49,6 +51,40 @@ bool onValue(const wml::XmlTree &t, int n)
     return v.isEmpty() || v == QLatin1String("1") || v == QLatin1String("true") || v == QLatin1String("on");
 }
 
+// The bookmark marks in some paragraph content, in order.
+QByteArray bookmarkTagsOf(const QByteArray &xml)
+{
+    static const QRegularExpression re(QStringLiteral("<text:bookmark-(?:start|end) [^>]*/>"));
+    const QString s = QString::fromUtf8(xml);
+    QByteArray out;
+    for (auto it = re.globalMatch(s); it.hasNext();) out += it.next().captured(0).toUtf8();
+    return out;
+}
+
+// The form data of a field's first mark (w:ffData): which kind of control, and what it shows.
+void readFormData(const wml::XmlTree &t, int fldChar, int *form, bool *checked, QString *formText)
+{
+    const int ff = t.child(fldChar, "ffData");
+    if (ff < 0) return;
+    const int cb = t.child(ff, "checkBox"), ti = t.child(ff, "textInput"), dd = t.child(ff, "ddList");
+    if (cb >= 0) {
+        *form = 1;
+        const int on = t.child(cb, "checked"), def = t.child(cb, "default");
+        *checked = on >= 0 ? onValue(t, on) : def >= 0 && onValue(t, def);
+    } else if (ti >= 0) {
+        *form = 2;
+        const int def = t.child(ti, "default");
+        if (def >= 0) *formText = t.attr(def, "val");
+    } else if (dd >= 0) {
+        *form = 3;
+        const int result = t.child(dd, "result"), def = t.child(dd, "default");
+        const int pick = result >= 0 ? t.val(result).toInt() : def >= 0 ? t.val(def).toInt() : 0;
+        int index = 0;
+        for (int k = t.firstChild(dd); k >= 0; k = t.next(k))
+            if (t.is(k, "listEntry") && index++ == pick) *formText = t.attr(k, "val");
+    }
+}
+
 } // namespace
 
 struct Writer::ParaCtx {
@@ -63,8 +99,12 @@ struct Writer::ParaCtx {
         bool result = false;
         QByteArray savedXml;
         QString savedPlain;
+        int form = 0;               // a form field of the older kind: 1 check box, 2 text, 3 drop-down list
+        bool checked = false;
+        QString formText;           // what such a field shows when its result has nothing
     };
     QVector<Field> fields;
+    int skippedFields = 0;           // fields opened past the limit: their ends are not matched to any open field
     bool inNote = false;
     int depth = 0;
     int pendingSpaces = 0;
@@ -289,6 +329,29 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
         // (Closed lists and the table of contents are still as they were.)
         if (openedToc || m_inToc) {
         } else return;
+    }
+    // Tracked changes of the paragraph itself: a change of its format spans its content, and a paragraph mark that was inserted or deleted spans the end of it to the start of the next.
+    if (pPr >= 0 && !pc.fragments.isEmpty()) {
+        QByteArray opening, closing;
+        const int formatChange = t.child(pPr, "pPrChange");
+        if (formatChange >= 0) {
+            const QByteArray id = changeRegion(t, formatChange, "format-change");
+            if (!id.isEmpty()) {
+                opening = "<text:change-start text:change-id=\"" + id + "\"/>";
+                closing = "<text:change-end text:change-id=\"" + id + "\"/>";
+            }
+        }
+        const int markRPr = t.child(pPr, "rPr");
+        const int markIns = markRPr >= 0 ? t.child(markRPr, "ins") : -1, markDel = markRPr >= 0 ? t.child(markRPr, "del") : -1;
+        if (markIns >= 0 || markDel >= 0) {
+            const QByteArray id = changeRegion(t, markIns >= 0 ? markIns : markDel, markIns >= 0 ? "insertion" : "deletion", markIns < 0);
+            if (!id.isEmpty()) {
+                closing += "<text:change-start text:change-id=\"" + id + "\"/>";
+                m_pendingBookmarks += "<text:change-end text:change-id=\"" + id + "\"/>";
+            }
+        }
+        pc.fragments.first().first.prepend(opening);
+        pc.fragments.last().first.append(closing);
     }
     if (!inList) closeLists(lc);
     // The look of the paragraph mark of a paragraph with text (it makes the height of the last line), as the program that made the format keeps it.
@@ -584,6 +647,8 @@ QByteArray Writer::fieldXml(const QString &instrRaw, const QString &resultText, 
         m_sequences.insert(parts[1]);
         return "<text:sequence text:ref-name=\"ref" + esc(parts[1]) + num(++m_bookmarkSeq) + "\" text:name=\"" + esc(parts[1]) + "\" text:formula=\"ooow:" + esc(parts[1]) + "+1\" style:num-format=\"1\">" + text + "</text:sequence>";
     }
+    if (name == QLatin1String("MERGEFIELD") && parts.size() >= 2 && !parts[1].startsWith(QLatin1Char('\\')))
+        return "<text:database-display text:table-name=\"\" text:table-type=\"table\" text:column-name=\"" + esc(parts[1]) + "\">" + text + "</text:database-display>";
     if (name == QLatin1String("HYPERLINK")) {
         QString target;
         bool anchor = false;
@@ -608,11 +673,27 @@ QByteArray Writer::fieldXml(const QString &instrRaw, const QString &resultText, 
 void Writer::fieldEnd(ParaCtx *pc)
 {
     if (pc->fields.isEmpty()) return;
-    const ParaCtx::Field f = pc->fields.takeLast();
+    ParaCtx::Field f = pc->fields.takeLast();
+    if (f.form == 0) {
+        const QString code = f.instr.trimmed();
+        f.form = code.startsWith(QLatin1String("FORMCHECKBOX")) ? 1 : code.startsWith(QLatin1String("FORMTEXT")) ? 2 : code.startsWith(QLatin1String("FORMDROPDOWN")) ? 3 : 0;
+    }
     bool known = false;
-    const QByteArray made = f.result || f.instr.isEmpty() ? fieldXml(f.instr, pc->plain, pc->xml, pc, &known) : QByteArray();
+    QByteArray made;
+    QString shown = pc->plain;
+    if (f.form != 0) {
+        // A form field of the older kind: a check box is its sign, the others the text they show.
+        QString text = f.form == 1 ? QString(QChar(f.checked ? 0x2611 : 0x2610)) : pc->plain;
+        if (f.form != 1 && f.result && text.trimmed().replace(QChar(0xA0), QString()).isEmpty()) text = f.formText;
+        else if (f.form != 1 && !f.result) text = f.formText;
+        made = esc(xmlSafe(text), false);
+        shown = text;
+        left(QCoreApplication::translate("odt", "form fields (kept as the text they show)"));
+    } else if (f.result || f.instr.isEmpty()) made = fieldXml(f.instr, pc->plain, pc->xml, pc, &known);
+    // (A bookmark that begins or ends in the code of a field stays, so that its other end has a mate.)
+    if (!f.result) made += bookmarkTagsOf(pc->xml);
     pc->xml = f.savedXml + made;
-    pc->plain = f.savedPlain + pc->plain;
+    pc->plain = f.savedPlain + shown;
     pc->lastSpace = false;
 }
 
@@ -918,30 +999,48 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
         else if (name == "softHyphen") emitText(pc, QString(QChar(0x00AD)), span);
         else if (name == "sym") {
             bool ok = false;
-            uint ch = t.attr(c, "char").toUInt(&ok, 16);
-            if (ok && ch >= 0xF000 && ch <= 0xF0FF) ch -= 0xF000;
-            if (ok && ch > 0x1F && ch < 0xFFFE) emitText(pc, QString(QChar(ushort(ch))), span);
+            const uint ch = t.attr(c, "char").toUInt(&ok, 16);
+            const QString font = t.attr(c, "font");
+            const uint low = ch >= 0xF000 && ch <= 0xF0FF ? ch - 0xF000 : ch;
+            if (ok && low > 0x1F && ch < 0xFFFE) {
+                // A known symbol font's character is written as the picture it stands for; any other keeps its code and its font on a span of its own.
+                const QChar picture = font.isEmpty() ? QChar() : symbolPictureOf(font, ch);
+                if (!picture.isNull()) emitText(pc, QString(picture), span);
+                else if (font.isEmpty()) emitText(pc, QString(QChar(ushort(low))), span);
+                else {
+                    const qsizetype before = pc->xml.size();
+                    emitText(pc, QString(QChar(ushort(ch))), span);
+                    const QByteArray made = pc->xml.mid(before);
+                    pc->xml.truncate(before);
+                    const QString fs = m_sink->make("T", "text", "", "<style:text-properties style:font-name=\"" + esc(fontNameOf(font)) + "\"/>");
+                    pc->xml += "<text:span text:style-name=\"" + esc(fs) + "\">" + made + "</text:span>";
+                }
+            }
         } else if (name == "fldChar") {
             const QString type = t.attr(c, "fldCharType");
             if (type == QLatin1String("begin")) {
-                if (pc->fields.size() < 32) {
+                if (pc->fields.size() >= 32) ++pc->skippedFields;
+                else {
                     ParaCtx::Field f;
                     f.savedXml = pc->xml;
                     f.savedPlain = pc->plain;
+                    readFormData(t, c, &f.form, &f.checked, &f.formText);
                     pc->fields.push_back(f);
                     pc->xml.clear();
                     pc->plain.clear();
                     start = 0;
                 }
             } else if (type == QLatin1String("separate")) {
-                if (!pc->fields.isEmpty()) {
+                if (pc->skippedFields == 0 && !pc->fields.isEmpty()) {
                     pc->fields.last().result = true;
+                    pc->fields.last().savedXml += bookmarkTagsOf(pc->xml);
                     pc->xml.clear();
                     pc->plain.clear();
                     start = 0;
                 }
             } else if (type == QLatin1String("end")) {
-                fieldEnd(pc);
+                if (pc->skippedFields > 0) --pc->skippedFields;
+                else fieldEnd(pc);
                 start = pc->xml.size();
             }
         } else if (name == "instrText" || name == "delInstrText") {
@@ -1015,8 +1114,29 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
     // The span round the run's content.
     const QByteArray content = pc->xml.mid(start);
     pc->xml.truncate(start);
+    const int formatChange = rPr >= 0 && !content.isEmpty() ? t.child(rPr, "rPrChange") : -1;
+    const QByteArray changeId = formatChange >= 0 ? changeRegion(t, formatChange, "format-change") : QByteArray();
+    if (!changeId.isEmpty()) pc->xml += "<text:change-start text:change-id=\"" + changeId + "\"/>";
     if (spanned && !content.isEmpty()) emitSpan(pc, span, content);
     else pc->xml += content;
+    if (!changeId.isEmpty()) pc->xml += "<text:change-end text:change-id=\"" + changeId + "\"/>";
+}
+
+// A tracked change's place in the list of changes: its person and time, and the kind of change it is. The text:change-start and text:change-end that mark it are the caller's.
+QByteArray Writer::changeRegion(const T &t, int node, const char *kind, bool withParagraph)
+{
+    if (m_sink != &m_content || m_inNote || m_changeCount >= kMaxMadeParts) {
+        left(QCoreApplication::translate("odt", "tracked changes in headers, footers, and notes (saved as they stand now)"));
+        return QByteArray();
+    }
+    const QByteArray id = QByteArray("ct") + num(++m_changeCount);
+    QString date = t.attr(node, "date");
+    if (date.endsWith(QLatin1Char('Z'))) date.chop(1);
+    const QByteArray k = kind;
+    m_changeRegions += "<text:changed-region text:id=\"" + id + "\"><text:" + k + "><office:change-info><dc:creator>" + esc(t.attr(node, "author"), false) + "</dc:creator>" +
+                       (date.isEmpty() ? QByteArray() : "<dc:date>" + esc(date, false) + "</dc:date>") + "</office:change-info>" +
+                       (withParagraph ? QByteArray("<text:p text:style-name=\"Standard\"/>") : QByteArray()) + "</text:" + k + "></text:changed-region>";
+    return id;
 }
 
 void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
@@ -1059,7 +1179,7 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
             if (href.isEmpty() || inner.isEmpty()) pc->xml += inner;
             else pc->xml += "<text:a xlink:type=\"simple\" xlink:href=\"" + esc(href) + "\">" + inner + "</text:a>";
         } else if (name == "fldSimple") {
-            if (pc->fields.size() < 32) {
+            if (pc->fields.size() < 32) {   // (a simple field opens and closes here, so past the limit it is only its content)
                 ParaCtx::Field f;
                 f.instr = t.attr(c, "instr");
                 f.result = true;
@@ -1070,7 +1190,7 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
                 pc->plain.clear();
                 emitInline(t, c, pc, depth + 1);
                 fieldEnd(pc);
-            }
+            } else emitInline(t, c, pc, depth + 1);
         } else if (name == "bookmarkStart") {
             const QString bm = t.attr(c, "name");
             if (!bm.isEmpty()) {
@@ -1119,6 +1239,24 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
 
 // ---- tables
 
+namespace {
+
+// The rows of a table (or the cells of a row) in order, looking through content controls however deeply they nest.
+void collectSdtChildren(const wml::XmlTree &t, int parent, const char *local, QVector<int> *out, int level)
+{
+    if (level > 32) return;
+    for (int c = t.firstChild(parent); c >= 0; c = t.next(c)) {
+        if (t.is(c, local)) out->push_back(c);
+        else if (t.is(c, "sdt")) {
+            const int content = t.child(c, "sdtContent");
+            if (content >= 0) collectSdtChildren(t, content, local, out, level + 1);
+        } else if (t.is(c, "customXml") || t.is(c, "smartTag") || t.is(c, "ins") || t.is(c, "moveTo"))
+            collectSdtChildren(t, c, local, out, level + 1);
+    }
+}
+
+} // namespace
+
 void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool body)
 {
     if (depth >= kMaxNesting) {
@@ -1137,13 +1275,9 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
     };
     QVector<QVector<Cell>> rows;
     QVector<int> rowNodes;
-    for (int r = t.firstChild(tbl); r >= 0; r = t.next(r)) {
-        int row = r;
-        if (t.is(r, "sdt")) {
-            const int content = t.child(r, "sdtContent");
-            row = content >= 0 ? t.child(content, "tr") : -1;
-        }
-        if (row < 0 || !t.is(row, "tr")) continue;
+    QVector<int> rowList;
+    collectSdtChildren(t, tbl, "tr", &rowList, 0);
+    for (const int row : std::as_const(rowList)) {
         QVector<Cell> cells;
         int col = 0;
         const int trPr = t.child(row, "trPr");
@@ -1151,13 +1285,9 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
             const int gb = t.child(trPr, "gridBefore");
             if (gb >= 0) col = std::max(0, std::min(t.val(gb).toInt(), kMaxColumns));
         }
-        for (int c = t.firstChild(row); c >= 0; c = t.next(c)) {
-            int tc = c;
-            if (t.is(c, "sdt")) {
-                const int content = t.child(c, "sdtContent");
-                tc = content >= 0 ? t.child(content, "tc") : -1;
-            }
-            if (tc < 0 || !t.is(tc, "tc")) continue;
+        QVector<int> cellList;
+        collectSdtChildren(t, row, "tc", &cellList, 0);
+        for (const int tc : std::as_const(cellList)) {
             Cell cell;
             cell.node = tc;
             cell.col = col;

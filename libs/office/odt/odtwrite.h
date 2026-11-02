@@ -109,6 +109,7 @@ private:
     QByteArray settingsXml() const;
     QByteArray metaXml();
     void left(const QString &what);
+    QByteArray changeRegion(const T &t, int node, const char *kind, bool withParagraph = false);
 
     Package m_pkg;
     QString m_main;

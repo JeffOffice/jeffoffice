@@ -501,6 +501,7 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
     else if (o.is(n, "text:subject")) addField(pc, QStringLiteral("SUBJECT"), t.text(n), fmt);
     else if (o.is(n, "text:author-name") || o.is(n, "text:initial-creator")) addField(pc, QStringLiteral("AUTHOR"), t.text(n), fmt);
     else if (o.is(n, "text:file-name")) addField(pc, QStringLiteral("FILENAME"), t.text(n), fmt);
+    else if (o.is(n, "text:database-display") && !o.at(n, "text:column-name").isEmpty()) addField(pc, QStringLiteral("MERGEFIELD %1").arg(quoteFieldArgument(o.at(n, "text:column-name"))), t.text(n), fmt);
     else if (o.is(n, "text:bookmark-ref") || o.is(n, "text:reference-ref")) {
         const QString name = bookmarkNameOf(o.at(n, "text:ref-name"));
         const QString format = o.at(n, "text:reference-format");
