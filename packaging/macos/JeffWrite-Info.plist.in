@@ -68,6 +68,22 @@
         </dict>
         <dict>
             <key>CFBundleTypeName</key>
+            <string>OpenDocument Text (.odt)</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>org.oasis-open.opendocument.text</string>
+            </array>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>odt</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
             <string>Document (.doc)</string>
             <key>CFBundleTypeRole</key>
             <string>Viewer</string>

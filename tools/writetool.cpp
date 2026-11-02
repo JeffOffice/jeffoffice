@@ -3,6 +3,10 @@
 //   writetool pdf <file.txt|.docx> <out.pdf> [options]                 the pages as a PDF
 //   writetool info <file.txt> [options]                          the pages and where each starts
 //   writetool docpkg <file.doc> <out.docx>                       the package an old binary document is turned into (to look at what the reader made of it)
+//   writetool odtpkg <file.odt> <out.docx>                       the package an OpenDocument text is turned into (to look at what the reader made of it)
+//   writetool text <file>                                        the text of the document (any kind JeffWrite opens), a paragraph to a line, with the notes the reader made
+//   writetool runs <file>                                        the paragraphs' properties and the runs of text with their looks (a line each: P and the block's alignment, margins, and indent; R and the run's bold, italic, underline, size, color, and font, and its text)
+//   writetool odtsave <file> <out.odt>                           the document read and saved as an OpenDocument text
 //   writetool docsave <file.docx> <out.docx>                     the document read and saved again (to compare two saves)
 //   writetool review-text <file.docx> accept|reject|none         the text of the body (UTF-8, a paragraph ends in \r) after Accept All or Reject All of its tracked changes, or as it stands
 //   writetool review-save <file.docx> accept|reject <out.docx>   the document with all its changes accepted or rejected, saved
@@ -26,6 +30,7 @@
 #include "core/spellcheck.h"
 #include "core/writedoc.h"
 #include "doc/doc.h"
+#include "odt/odt.h"
 #include "text/dictionaries.h"
 #endif
 
@@ -526,6 +531,59 @@ int main(int argc, char **argv)
     }
 #endif
 #ifdef JW_DOCX
+    if (cmd == "odtpkg" && args.size() >= 4) {
+        QFile f(args[2]);
+        if (!f.open(QIODevice::ReadOnly)) { out << "cannot read: " << f.errorString() << "\n"; return 1; }
+        QString why;
+        QStringList notes;
+        const QByteArray zip = jp::office::odt::toDocxPackage(f.readAll(), &why, &notes);
+        for (const QString &n : notes) out << "note\t" << n << "\n";
+        QFile w(args[3]);
+        if (zip.isEmpty() || !w.open(QIODevice::WriteOnly) || w.write(zip) != zip.size()) { out << "cannot make the package: " << why << "\n"; return 1; }
+        out << "wrote\t" << zip.size() << " bytes\n";
+        return 0;
+    }
+    if (cmd == "runs" && args.size() >= 3) {
+        QFile f(args[2]);
+        if (!f.open(QIODevice::ReadOnly)) { out << "cannot read: " << f.errorString() << "\n"; return 1; }
+        QString why;
+        QStringList notes;
+        std::unique_ptr<write::WriteDoc> d = write::WriteDoc::fromFile(f.readAll(), &why, &notes);
+        if (!d) { out << "cannot open: " << why << "\n"; return 1; }
+        for (QTextBlock b = d->story()->begin(); b.isValid(); b = b.next()) {
+            const QTextBlockFormat bf = b.blockFormat();
+            out << "P\t" << int(bf.alignment()) << '\t' << qRound(bf.leftMargin()) << '\t' << qRound(bf.textIndent()) << '\t' << qRound(bf.topMargin()) << '\t' << qRound(bf.bottomMargin()) << '\n';
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment fr = it.fragment();
+                if (!fr.isValid()) continue;
+                const QTextCharFormat cf = fr.charFormat();
+                out << "R\t" << (cf.fontWeight() > 500 ? 1 : 0) << '\t' << (cf.fontItalic() ? 1 : 0) << '\t' << (cf.fontUnderline() ? 1 : 0) << '\t' << cf.fontPointSize() << '\t'
+                    << cf.foreground().color().name() << '\t' << cf.fontFamilies().toStringList().value(0) << '\t' << QString(fr.text()).replace(QLatin1Char('\n'), QLatin1String("\\n")) << '\n';
+            }
+        }
+        return 0;
+    }
+    if ((cmd == "text" || cmd == "odtsave") && args.size() >= 3) {
+        QFile f(args[2]);
+        if (!f.open(QIODevice::ReadOnly)) { out << "cannot read: " << f.errorString() << "\n"; return 1; }
+        QString why;
+        QStringList notes;
+        std::unique_ptr<write::WriteDoc> d = write::WriteDoc::fromFile(f.readAll(), &why, &notes);
+        if (!d) { out << "cannot open: " << why << "\n"; return 1; }
+        if (cmd == "text") {
+            for (const QString &n : notes) out << "#note\t" << n << "\n";
+            out << d->story()->toPlainText() << "\n";
+            return 0;
+        }
+        if (args.size() < 4) return 2;
+        QStringList saved;
+        const QByteArray odt = d->toOdt(&why, &saved);
+        for (const QString &n : saved) out << "note\t" << n << "\n";
+        QFile w(args[3]);
+        if (odt.isEmpty() || !w.open(QIODevice::WriteOnly) || w.write(odt) != odt.size()) { out << "cannot save: " << why << "\n"; return 1; }
+        out << "wrote\t" << odt.size() << " bytes\n";
+        return 0;
+    }
     if ((cmd == "review-text" || cmd == "review-save" || cmd == "review-list") && args.size() >= 3) return reviewCommand(args, out);
     if (cmd == "field-check" && args.size() >= 3) {
         QFile f(args[2]);
@@ -583,14 +641,15 @@ int main(int argc, char **argv)
     std::unique_ptr<write::WriteDoc> wdoc;
     const QString suffix = QFileInfo(args[2]).suffix().toLower();
     const bool old = suffix == QLatin1String("doc") || suffix == QLatin1String("dot");
-    if (old || suffix == QLatin1String("docx") || suffix == QLatin1String("docm") || suffix == QLatin1String("dotx") || suffix == QLatin1String("dotm")) {
+    const bool odf = suffix == QLatin1String("odt") || suffix == QLatin1String("fodt") || suffix == QLatin1String("ott");
+    if (old || odf || suffix == QLatin1String("docx") || suffix == QLatin1String("docm") || suffix == QLatin1String("dotx") || suffix == QLatin1String("dotm")) {
         QFile f(args[2]);
         if (!f.open(QIODevice::ReadOnly)) {
             out << "cannot read: " << f.errorString() << "\n";
             return 1;
         }
         QStringList notes;
-        wdoc = old ? write::WriteDoc::fromDoc(f.readAll(), &error, &notes) : write::WriteDoc::fromDocx(f.readAll(), &error, &notes);
+        wdoc = old ? write::WriteDoc::fromDoc(f.readAll(), &error, &notes) : odf ? write::WriteDoc::fromOdt(f.readAll(), &error, &notes) : write::WriteDoc::fromDocx(f.readAll(), &error, &notes);
         if (!wdoc) {
             out << "cannot read: " << error << "\n";
             return 1;

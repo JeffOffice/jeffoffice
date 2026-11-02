@@ -142,12 +142,16 @@ public:
     static std::unique_ptr<WriteDoc> fromDocx(const QByteArray &zip, QString *error = nullptr, QStringList *notes = nullptr);
     // A document from an old binary file (.doc, .dot); null, with the reason, if it can't be read. `notes` get what was left out.
     static std::unique_ptr<WriteDoc> fromDoc(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr);
+    // A document from an OpenDocument text (.odt, or the flat .fodt); null, with the reason, if it can't be read. `notes` get what was left out.
+    static std::unique_ptr<WriteDoc> fromOdt(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr);
     // A document from a Rich Text Format file (.rtf); null, with the reason, if it can't be read. `notes` get what was left out.
     static std::unique_ptr<WriteDoc> fromRtf(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr);
-    // A document from the bytes of a file of any kind: a Rich Text Format file (it begins "{\\rtf") and an old binary file (a compound file) are read as such, anything else as a .docx.
+    // A document from the bytes of a file of any kind: an OpenDocument text, a Rich Text Format file (it begins "{\\rtf"), and an old binary file (a compound file) are read as such, anything else as a .docx.
     static std::unique_ptr<WriteDoc> fromFile(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr);
     // The story written back into a package (empty, with the reason, if it can't be made). `template_` saves it as a template.
     QByteArray toDocx(QString *error = nullptr, bool template_ = false);
+    // The story written back as an OpenDocument text (empty, with the reason, if it can't be made). `notes` get what the format has no place for.
+    QByteArray toOdt(QString *error = nullptr, QStringList *notes = nullptr);
 
     flow::FlowDocument &flow() { return *m_flow; }
     QTextDocument *story() const { return m_flow->story(); }

@@ -458,10 +458,47 @@ QString XmlTree::decode(quint32 begin, quint32 end) const
 
 QString XmlTree::text(int n) const
 {
+    return textRange(m_nodes[n].innerBegin, m_nodes[n].innerEnd);
+}
+
+QString XmlTree::textAfter(int parent, int after) const
+{
+    const Node &p = m_nodes[parent];
+    const quint32 from = after < 0 ? p.innerBegin : m_nodes[after].end;
+    const int nxt = after < 0 ? p.first : m_nodes[after].next;
+    const quint32 to = nxt < 0 ? p.innerEnd : m_nodes[nxt].begin;
+    if (to <= from) return QString();
+    return textRange(from, to);
+}
+
+int XmlTree::namespaceId(const QByteArray &uri) const
+{
+    const auto it = m_uriIndex.constFind(uri);
+    return it == m_uriIndex.constEnd() ? -1 : it.value();
+}
+
+QByteArray XmlTree::namespaceUri(int id) const
+{
+    for (auto it = m_uriIndex.constBegin(); it != m_uriIndex.constEnd(); ++it)
+        if (it.value() == id) return it.key();
+    return QByteArray();
+}
+
+QVector<XmlTree::AttributeView> XmlTree::attributes(int n) const
+{
+    QVector<AttributeView> out;
     const Node &nd = m_nodes[n];
+    out.reserve(int(nd.attrCount));
+    for (quint32 k = 0; k < nd.attrCount; ++k) {
+        const Attr &a = m_attrs[nd.attrBegin + k];
+        out.push_back(AttributeView{a.ns, m_names[a.name], decode(a.begin, a.end)});
+    }
+    return out;
+}
+
+QString XmlTree::textRange(quint32 i, quint32 stop) const
+{
     const char *s = m_src.constData();
-    quint32 i = nd.innerBegin;
-    const quint32 stop = nd.innerEnd;
     if (i >= stop) return QString();
     if (!memchr(s + i, '<', stop - i)) return decode(i, stop);
     QString out;

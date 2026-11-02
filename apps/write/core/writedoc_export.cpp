@@ -2,6 +2,7 @@
 // the pieces kept as XML go back where they were.
 
 #include "core/writedoc.h"
+#include "odt/odt.h"
 
 #include "core/editops.h"
 #include "core/reviewops.h"
@@ -242,6 +243,13 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
                 break;
             }
     }
+}
+
+QByteArray WriteDoc::toOdt(QString *error, QStringList *notes)
+{
+    const QByteArray docx = toDocx(error);
+    if (docx.isEmpty()) return QByteArray();
+    return office::odt::fromDocxPackage(docx, error, notes);
 }
 
 QByteArray WriteDoc::toDocx(QString *error, bool template_)

@@ -1,5 +1,5 @@
 # Open, save, print, and export
-<!-- keywords: open, save, save as, docx, doc, dot, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats -->
+<!-- keywords: open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats -->
 
 Click **File** at the top left to see the File screen. It has pages for New, Open, Print, and Export, and commands for Save and Save As. Press **Esc** to go back to your document.
 
@@ -15,6 +15,7 @@ Press **Ctrl+O**, or click **File > Open**. Click **Browse** to pick a file. Jef
 - **.dotx** is a template. A template opens as a new document made from it, so the template stays as it is.
 - **.docm** and **.dotm** open too. JeffWrite does not keep their macros. It tells you so the first time you save such a document, and it saves a .docx file.
 - **.doc** and **.dot** are the older kinds of document and template. JeffWrite reads them, and it saves what you do with them as a new .docx file.
+- **.odt**, **.ott**, and **.fodt** are OpenDocument files. JeffWrite reads and saves them. See [Open and save OpenDocument files](open-odt).
 - **.rtf** is Rich Text Format. JeffWrite reads it, and it saves what you do with it as a new .docx file. See [Open RTF files](open-rtf).
 
 The **Open** page also lists the documents you opened or saved lately. Click one to open it. Right-click one to pin it to the top of the list, or take it off the list.

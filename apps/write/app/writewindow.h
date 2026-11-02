@@ -261,6 +261,7 @@ private:
     std::function<QString()> m_pictureChooser;
     std::function<void(const QString &, const QString &)> m_notifier;
     std::function<void(QPrinter &)> m_printerPreparer;
+    bool m_odtNoted = false;        // (the person was told what an .odt file can't hold)
     bool m_macrosNoted = false;     // (the person was told that the macros are not saved)
     QString m_protectedPath;        // the file a document that has had something left out (see WriteDoc::leftSomethingOut) was opened from: not written over
 };
