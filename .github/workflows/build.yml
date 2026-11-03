@@ -3,6 +3,11 @@ name: build
 on:
   push:
     branches: [main]
+    # The feature lists and the website's text from them change nothing that is built or tested.
+    paths-ignore:
+      - 'docs/features/**'
+      - 'tools/features/**'
+      - '.github/workflows/features.yml'
   pull_request:
   # By hand, to build and test a branch before it goes to main:
   # gh workflow run build.yml --ref <branch>
