@@ -275,6 +275,8 @@ public:
     // A copy of an endnote as a note of its own (what a pasted copy of a reference cites): its Id, 0 for none.
     int duplicateEndnote(int id);
     QTextCharFormat endnoteReferenceFormat(int id, const QString &paragraphStyle);
+    // A copy of a footnote as a new endnote (`toEndnote`), or of an endnote as a new footnote, with the note styles and the number mark of its new kind: its Id, 0 for none.
+    int convertedNote(int id, bool toEndnote);
     // (A test of the settling: whether the references followed as the story changed are the ones a new look through it finds.)
     bool endnoteSequenceMatchesStoryForTest();
     // After an edit of the text: if the notes that the text's references name are not the notes the pages set, the notes are set again (as part of the edit's own undo step), and the
@@ -337,6 +339,19 @@ public:
         bool operator==(const NoteSettings &o) const { return format == o.format && start == o.start && restart == o.restart && position == o.position; }
     };
     NoteSettings noteSettings(bool endnotes) const;
+    // The separators of the notes: "separator" (between the text and the notes), "continuationSeparator" (above a note that goes on from the page before), and "continuationNotice" (the words
+    // below a note that goes on to the next page). A separator is a line, text, nothing, or Kept: something the document has that the program does not edit (it is written as it was).
+    struct NoteSeparator {
+        enum Kind { Line, Text, None, Kept };
+        Kind kind = Line;
+        QString text;
+        bool operator==(const NoteSeparator &o) const { return kind == o.kind && text == o.text; }
+    };
+    // Whether the document has notes of the kind (a document without has no separators to set).
+    bool hasNotesOfKind(bool endnotes) const;
+    NoteSeparator noteSeparator(bool endnotes, const QString &type) const;
+    // Sets it, written with the file. The footnotes' pages show it at once; the endnotes' are made again when the document is read from what toDocx gives. False where it can't be set.
+    bool setNoteSeparator(bool endnotes, const QString &type, const NoteSeparator &separator);
     // Sets it, written with the file (a setting of the document, not a step of the history). The footnotes' numbers show it at once; the endnotes' marks and notes are made again
     // when the document is read again from what toDocx gives, which a caller that changed the endnotes' settings does.
     void setNoteSettings(bool endnotes, const NoteSettings &settings);
@@ -586,6 +601,10 @@ private:
     QVector<office::wml::Block> m_noteSeparator;                      // the paragraphs of the file's note separator (none: a line of the Normal style)
     QString m_endnotePart;                                            // the endnotes part's name
     QHash<QString, QVector<office::wml::Block>> m_endnoteBlocks;      // by Id
+    QVector<office::wml::Block> m_endnoteContinuation, m_endnoteNotice;   // the file's other separator notes of the endnotes part (not set by the pages: kept, and edited with the dialog)
+    QSet<QString> m_separatorsEdited;                                  // "f:separator", "e:continuationNotice"...: the separator notes the person changed
+    QVector<office::wml::Block> *separatorBlocks(bool endnotes, const QString &type) const;
+    void separatorsToWrite(bool endnotes, office::wml::NotesChange *change) const;
     QVector<office::wml::Block> m_endnoteSeparator;                   // the paragraphs of the file's separator for the endnotes
     struct EndnoteRef {
         QString id, mark;                                             // a note a reference of the text names, and the number the reference shows

@@ -785,4 +785,121 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
     return footChanged || endChanged;
 }
 
+bool convertNotesDialog(QWidget *parent, WriteDoc *doc, PageView *view)
+{
+    if (!doc || !view) return false;
+    // The note the caret is in, if it is in one: a footnote's story, or the words of an endnote.
+    int inFootnote = 0, inEndnote = 0;
+    if (view->cursor().document() != doc->story()) {
+        doc->footnoteIdOf(view->cursor().document(), &inFootnote);
+    } else {
+        doc->endnoteIdOf(view->cursor().block(), &inEndnote);
+    }
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("convertNotesDialog"));
+    dlg.setWindowTitle(tr("Convert Notes"));
+    auto *v = new QVBoxLayout(&dlg);
+    auto *toEnd = new QRadioButton(tr("Convert all footnotes to endnotes"), &dlg);
+    toEnd->setObjectName(QStringLiteral("convertToEndnotes"));
+    auto *toFoot = new QRadioButton(tr("Convert all endnotes to footnotes"), &dlg);
+    toFoot->setObjectName(QStringLiteral("convertToFootnotes"));
+    auto *swap = new QRadioButton(tr("Swap footnotes and endnotes"), &dlg);
+    swap->setObjectName(QStringLiteral("convertSwap"));
+    auto *one = new QRadioButton(inFootnote ? tr("Convert this footnote to an endnote") : (inEndnote ? tr("Convert this endnote to a footnote") : tr("Convert only the note the caret is in")), &dlg);
+    one->setObjectName(QStringLiteral("convertOne"));
+    one->setEnabled(inFootnote || inEndnote);
+    toEnd->setChecked(!one->isEnabled());
+    one->setChecked(one->isEnabled());
+    for (QRadioButton *r : {toEnd, toFoot, swap, one}) v->addWidget(r);
+    v->addWidget(okCancel(&dlg));
+    if (dlg.exec() != QDialog::Accepted) return false;
+    QTextCursor keep = view->cursor();
+    int done = 0;
+    if (one->isChecked()) done = inFootnote ? convertNotes(*doc, NoteConversion::FootnotesToEndnotes, inFootnote) : convertNotes(*doc, NoteConversion::EndnotesToFootnotes, 0, inEndnote);
+    else done = convertNotes(*doc, toEnd->isChecked() ? NoteConversion::FootnotesToEndnotes : (toFoot->isChecked() ? NoteConversion::EndnotesToFootnotes : NoteConversion::Swap));
+    if (done) {
+        // (The caret was in a note that is no more: it goes to the text's start.)
+        QTextCursor c(doc->story());
+        view->showCursor(keep.document() == doc->story() ? keep : c);
+    }
+    return done > 0;
+}
+
+bool noteSeparatorsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
+{
+    if (!doc) return false;
+    if (endnotesChanged) *endnotesChanged = false;
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("noteSeparatorsDialog"));
+    dlg.setWindowTitle(tr("Note Separators"));
+    auto *v = new QVBoxLayout(&dlg);
+    struct Row {
+        bool endnotes = false;
+        QString type;
+        QComboBox *kind = nullptr;
+        QLineEdit *text = nullptr;
+        WriteDoc::NoteSeparator was;
+    };
+    QVector<Row> rows;
+    bool any = false;
+    for (const bool endnotes : {false, true}) {
+        auto *group = new QGroupBox(endnotes ? tr("Endnotes") : tr("Footnotes"), &dlg);
+        group->setObjectName(endnotes ? QStringLiteral("endnoteSeparators") : QStringLiteral("footnoteSeparators"));
+        auto *form = new QFormLayout(group);
+        const bool has = doc->hasNotesOfKind(endnotes);
+        any = any || has;
+        group->setEnabled(has);
+        if (!has) form->addRow(new QLabel(endnotes ? tr("The document has no endnotes.") : tr("The document has no footnotes."), group));
+        const struct {
+            const char *type;
+            QString label;
+        } kinds[] = {{"separator", tr("Separator (between the text and the notes):")},
+                     {"continuationSeparator", tr("Continuation separator (above a note that goes on):")},
+                     {"continuationNotice", tr("Continuation notice (below a note that goes on):")}};
+        for (const auto &k : kinds) {
+            Row r;
+            r.endnotes = endnotes;
+            r.type = QLatin1String(k.type);
+            r.was = doc->noteSeparator(endnotes, r.type);
+            const QString name = QLatin1String(endnotes ? "end" : "foot") + r.type;
+            r.kind = new QComboBox(group);
+            r.kind->setObjectName(name + QStringLiteral("Kind"));
+            if (r.type != QLatin1String("continuationNotice")) r.kind->addItem(tr("Line"), int(WriteDoc::NoteSeparator::Line));
+            r.kind->addItem(tr("Text"), int(WriteDoc::NoteSeparator::Text));
+            r.kind->addItem(tr("Nothing"), int(WriteDoc::NoteSeparator::None));
+            if (r.was.kind == WriteDoc::NoteSeparator::Kept) r.kind->addItem(tr("As in the file"), int(WriteDoc::NoteSeparator::Kept));
+            r.kind->setCurrentIndex(std::max(0, r.kind->findData(int(r.was.kind))));
+            r.text = new QLineEdit(r.was.text, group);
+            r.text->setObjectName(name + QStringLiteral("Text"));
+            r.text->setEnabled(r.was.kind == WriteDoc::NoteSeparator::Text);
+            auto *line = new QHBoxLayout;
+            line->addWidget(r.kind);
+            line->addWidget(r.text, 1);
+            form->addRow(k.label, line);
+            QObject::connect(r.kind, &QComboBox::currentIndexChanged, r.text, [kind = r.kind, text = r.text] { text->setEnabled(kind->currentData().toInt() == int(WriteDoc::NoteSeparator::Text)); });
+            rows.push_back(r);
+        }
+        v->addWidget(group);
+    }
+    if (!any) {
+        QMessageBox::information(parent, tr("Note Separators"), tr("The document has no footnotes or endnotes yet."));
+        return false;
+    }
+    v->addWidget(okCancel(&dlg));
+    if (dlg.exec() != QDialog::Accepted) return false;
+    bool changed = false;
+    for (const Row &r : rows) {
+        if (!doc->hasNotesOfKind(r.endnotes)) continue;
+        WriteDoc::NoteSeparator now;
+        now.kind = WriteDoc::NoteSeparator::Kind(r.kind->currentData().toInt());
+        if (now.kind == WriteDoc::NoteSeparator::Text) now.text = r.text->text();
+        if (now == r.was || now.kind == WriteDoc::NoteSeparator::Kept) continue;
+        if (doc->setNoteSeparator(r.endnotes, r.type, now)) {
+            changed = true;
+            if (r.endnotes && endnotesChanged) *endnotesChanged = true;
+        }
+    }
+    return changed;
+}
+
 } // namespace jp::write

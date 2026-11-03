@@ -573,6 +573,7 @@ struct NotesChange {
     QHash<int, QVector<Block>> replaced;   // notes whose paragraphs are written from these blocks (the note's own tag, with its attributes, is kept)
     QSet<int> removed;                     // notes left out
     QVector<std::pair<int, QVector<Block>>> added;   // new notes, after the others, in this order
+    QHash<QString, QVector<Block>> separators;       // by type ("separator", "continuationSeparator", "continuationNotice"): the paragraphs the separator note is written with; one the part lacks is added, with an Id above the others
 };
 // The notes part with the changes made and every other child of it as it was written: a note that is not named is byte for byte what it was, and so are the separator and
 // continuation notes. With no `original`, a new part: the separator and the continuation separator, then the added notes.

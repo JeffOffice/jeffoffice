@@ -503,6 +503,14 @@
             {
               "small": "refs.notesOptions",
               "keytip": "O"
+            },
+            {
+              "small": "refs.convertNotes",
+              "keytip": "C"
+            },
+            {
+              "small": "refs.noteSeparators",
+              "keytip": "P"
             }
           ]
         },

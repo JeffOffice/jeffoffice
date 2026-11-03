@@ -1862,6 +1862,46 @@ bool insertEndnote(WriteDoc &doc, QTextCursor &c)
     return true;
 }
 
+int convertNotes(WriteDoc &doc, NoteConversion mode, int onlyFootnote, int onlyEndnote)
+{
+    struct Place {
+        int position = 0, id = 0;
+        bool endnote = false;
+    };
+    QVector<Place> places;
+    if (mode != NoteConversion::EndnotesToFootnotes)
+        for (const int id : doc.citedFootnotes()) {
+            if (onlyFootnote && id != onlyFootnote) continue;
+            for (const int at : doc.footnoteReferences(id)) places.push_back({at, id, false});
+        }
+    if (mode != NoteConversion::FootnotesToEndnotes)
+        for (const int id : doc.citedEndnotes()) {
+            if (onlyEndnote && id != onlyEndnote) continue;
+            for (const int at : doc.endnoteReferences(id)) places.push_back({at, id, true});
+        }
+    if (places.isEmpty()) return 0;
+    std::sort(places.begin(), places.end(), [](const Place &a, const Place &b) { return a.position < b.position; });   // (a reference is replaced by one character: the positions stay)
+    QTextDocument *story = doc.story();
+    int done = 0;
+    WriteDoc::StepGroup group(doc);
+    NumberGuard numbers(doc, story);
+    for (const Place &p : places) {
+        const int fresh = doc.convertedNote(p.id, !p.endnote);
+        if (!fresh) break;
+        const QTextBlock block = story->findBlock(p.position);
+        const QString style = block.blockFormat().stringProperty(tp::StyleName);
+        QTextCursor at(story);
+        at.setPosition(p.position);
+        at.beginEditBlock();
+        at.setPosition(p.position + 1, QTextCursor::KeepAnchor);
+        at.removeSelectedText();
+        at.insertText(QString(QChar::ObjectReplacementCharacter), p.endnote ? doc.footnoteReferenceFormat(fresh, style) : doc.endnoteReferenceFormat(fresh, style));
+        at.endEditBlock();
+        ++done;
+    }
+    return done;
+}
+
 void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment)
 {
     doc.forgetDrawingIds();   // (what is pasted may hold drawings with ids of their own)

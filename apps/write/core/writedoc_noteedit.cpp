@@ -416,6 +416,69 @@ int WriteDoc::duplicateFootnote(int id)
     return fresh;
 }
 
+int WriteDoc::convertedNote(int id, bool toEndnote)
+{
+    QVector<Block> blocks;
+    if (toEndnote) {
+        const QString key = QStringLiteral("fn%1").arg(id);
+        if (!m_noteBlocks.contains(key)) return 0;
+        if (QTextDocument *s = editableFootnote(id)) {
+            VectorSink sink(&blocks);
+            exportInto(sink, s);
+        } else {
+            blocks = m_noteBlocks.value(key);
+        }
+        reclaimDeadNotes(true, 0);
+        if (!roomForEndnote()) return 0;
+        activateEndnotes();
+    } else {
+        if (!m_endnoteBlocks.contains(QString::number(id))) return 0;
+        const QSet<int> one{id};
+        captureEndnotes(&one);   // (what was said in it so far)
+        blocks = m_endnoteBlocks.value(QString::number(id));
+        reclaimDeadNotes(false, 0);
+        if (!roomForFootnote()) return 0;
+        activateNotes();
+    }
+    const QString from = toEndnote ? QStringLiteral("Footnote") : QStringLiteral("Endnote"), to = toEndnote ? QStringLiteral("Endnote") : QStringLiteral("Footnote");
+    const qsizetype had = m_wml.styles.styles.size();
+    ensureStyle(to + QStringLiteral("Text"));
+    ensureStyle(to + QStringLiteral("Reference"));
+    for (qsizetype i = had; i < m_wml.styles.styles.size(); ++i) m_headerStyles.insert(m_wml.styles.styles[i].id);
+    for (Block &b : blocks) {
+        if (b.para.props.style == from + QStringLiteral("Text")) b.para.props.style = to + QStringLiteral("Text");
+        for (Inline &in : b.para.content) {
+            if (in.props.style == from + QStringLiteral("Reference")) in.props.style = to + QStringLiteral("Reference");
+            if (in.kind == Inline::RunAtom && in.tag == from.toLower() + QStringLiteral("Ref")) {
+                in.tag = to.toLower() + QStringLiteral("Ref");
+                in.raw = "<w:" + in.tag.toUtf8() + "/>";
+            }
+        }
+    }
+    if (toEndnote) {
+        const int fresh = nextEndnoteId();
+        m_endnoteBlocks.insert(QString::number(fresh), blocks);
+        m_createdEndnotes.insert(fresh);
+        m_endnoteIdFloor = fresh;
+        m_createdEndnoteStep[fresh] = 0;
+        m_noteStepPending.push_back({true, fresh});
+        return fresh;
+    }
+    const int fresh = nextFootnoteId();
+    const QString key = QStringLiteral("fn%1").arg(fresh);
+    m_noteBlocks.insert(key, blocks);
+    m_createdFootnotes.insert(fresh);
+    if (!noteStory(key)) {
+        m_noteBlocks.remove(key);
+        m_createdFootnotes.remove(fresh);
+        return 0;
+    }
+    m_footnoteIdFloor = fresh;
+    m_createdFootnoteStep[fresh] = 0;
+    m_noteStepPending.push_back({false, fresh});
+    return fresh;
+}
+
 QTextCharFormat WriteDoc::footnoteReferenceFormat(int id, const QString &paragraphStyle)
 {
     ensureStyle(QStringLiteral("FootnoteReference"));
@@ -1062,7 +1125,8 @@ void WriteDoc::writeNoteParts(office::wml::Document *out)
         }
         change.added.push_back({id, blocks});
     }
-    if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty()) return;
+    separatorsToWrite(false, &change);
+    if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty() && change.separators.isEmpty()) return;
     const QByteArray original = m_footnotesPartNew ? QByteArray() : partData(m_notePart);
     const QByteArray data = notesPartXml(original, false, change);
     if (data.isEmpty()) return;
@@ -1112,7 +1176,8 @@ void WriteDoc::writeEndnoteParts(office::wml::Document *out)
     std::sort(made.begin(), made.end());
     for (const int id : std::as_const(made))
         if (cited(id) && m_endnoteBlocks.contains(QString::number(id))) change.added.push_back({id, m_endnoteBlocks.value(QString::number(id))});
-    if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty()) return;
+    separatorsToWrite(true, &change);
+    if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty() && change.separators.isEmpty()) return;
     const QByteArray original = m_endnotesPartNew ? QByteArray() : partData(m_endnotePart);
     const QByteArray data = notesPartXml(original, true, change);
     if (data.isEmpty()) return;

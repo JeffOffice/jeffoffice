@@ -80,6 +80,91 @@ void WriteDoc::applyFootnoteSettings()
     }
 }
 
+QVector<Block> *WriteDoc::separatorBlocks(bool endnotes, const QString &type) const
+{
+    auto *self = const_cast<WriteDoc *>(this);
+    if (type == QLatin1String("separator")) return endnotes ? &self->m_endnoteSeparator : &self->m_noteSeparator;
+    if (type == QLatin1String("continuationSeparator")) return endnotes ? &self->m_endnoteContinuation : &self->m_noteContinuation;
+    if (type == QLatin1String("continuationNotice")) return endnotes ? &self->m_endnoteNotice : &self->m_noteNotice;
+    return nullptr;
+}
+
+bool WriteDoc::hasNotesOfKind(bool endnotes) const
+{
+    return endnotes ? (m_endnotesPart == NotesPart::Readable && !m_endnoteBlocks.isEmpty()) : (m_footnotesPart == NotesPart::Readable && !m_noteBlocks.isEmpty());
+}
+
+WriteDoc::NoteSeparator WriteDoc::noteSeparator(bool endnotes, const QString &type) const
+{
+    NoteSeparator out;
+    const QVector<Block> *blocks = separatorBlocks(endnotes, type);
+    if (!blocks) return out;
+    const bool notice = type == QLatin1String("continuationNotice");
+    if (blocks->isEmpty()) {
+        out.kind = notice ? NoteSeparator::None : NoteSeparator::Line;   // (none in the file: the pages draw the line)
+        return out;
+    }
+    if (blocks->size() != 1 || blocks->first().isRaw) {
+        out.kind = NoteSeparator::Kept;
+        return out;
+    }
+    QString text;
+    for (const Inline &in : blocks->first().para.content) {
+        if (in.kind == Inline::RunAtom && in.tag == type) {
+            out.kind = NoteSeparator::Line;
+            return out;
+        }
+        if (in.kind != Inline::Text) {
+            out.kind = NoteSeparator::Kept;
+            return out;
+        }
+        text += in.text;
+    }
+    out.kind = text.trimmed().isEmpty() ? NoteSeparator::None : NoteSeparator::Text;
+    if (out.kind == NoteSeparator::Text) out.text = text;
+    return out;
+}
+
+bool WriteDoc::setNoteSeparator(bool endnotes, const QString &type, const NoteSeparator &s)
+{
+    QVector<Block> *blocks = separatorBlocks(endnotes, type);
+    if (!blocks || !hasNotesOfKind(endnotes) || s.kind == NoteSeparator::Kept) return false;
+    if (noteSeparator(endnotes, type) == s) return true;
+    QVector<Block> made;
+    Block b;
+    if (s.kind == NoteSeparator::Line) {
+        if (type == QLatin1String("continuationNotice")) return false;
+        QVector<NotePart> fresh;
+        office::wml::readNotes(notesPartXml(QByteArray(), endnotes, NotesChange()), &fresh);
+        for (NotePart &n : fresh)
+            if (n.type == type) made = std::move(n.blocks);
+        if (made.isEmpty()) return false;
+    } else {
+        if (s.kind == NoteSeparator::Text && !s.text.trimmed().isEmpty()) {
+            Inline t;
+            t.text = s.text.simplified().left(500);
+            b.para.content.push_back(t);
+        }
+        made.push_back(b);
+    }
+    *blocks = made;
+    m_separatorsEdited.insert(QLatin1String(endnotes ? "e:" : "f:") + type);
+    if (!endnotes) {
+        m_noticeStory.reset();
+        m_continuationStory.reset();
+        measureNoteSeparator();
+        if (m_pager) m_pager->invalidate();
+    }
+    setModified(true);
+    return true;
+}
+
+void WriteDoc::separatorsToWrite(bool endnotes, NotesChange *change) const
+{
+    for (const char *type : {"separator", "continuationSeparator", "continuationNotice"})
+        if (m_separatorsEdited.contains(QLatin1String(endnotes ? "e:" : "f:") + QLatin1String(type))) change->separators.insert(QLatin1String(type), *separatorBlocks(endnotes, QLatin1String(type)));
+}
+
 void WriteDoc::writeNoteSettings(office::wml::Document *out)
 {
     for (int k = 0; k < 2; ++k) {

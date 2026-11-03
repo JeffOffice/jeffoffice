@@ -58,6 +58,17 @@ void WriteWindow::createRefsActions()
         }
         after();
     });
+    mk("refs.convertNotes", tr("Convert Notes…"), "arrow-left-right", QKeySequence(), [this, after] {
+        if (m_doc) write::convertNotesDialog(this, m_doc.get(), m_view);
+        after();
+    });
+    mk("refs.noteSeparators", tr("Note Separators…"), "separator-horizontal", QKeySequence(), [this, after] {
+        if (m_doc) {
+            bool endnotes = false;
+            if (write::noteSeparatorsDialog(this, m_doc.get(), &endnotes) && endnotes) reloadDocument();
+        }
+        after();
+    });
     // ---- table of contents
     auto gallery = [this, after](write::TocGallery kind) {
         if (m_doc && inText(m_view)) {

@@ -165,6 +165,9 @@ void WriteDoc::loadEndnotes()
 {
     m_endnoteBlocks.clear();
     m_endnoteSeparator.clear();
+    m_endnoteContinuation.clear();
+    m_endnoteNotice.clear();
+    m_separatorsEdited.clear();
     m_endnotePart.clear();
     m_endnoteCopyIds.clear();
     m_nextEndnoteSerial = 1;
@@ -200,6 +203,10 @@ void WriteDoc::loadEndnotes()
             }
         } else if (n.type == QLatin1String("separator")) {
             m_endnoteSeparator = std::move(n.blocks);
+        } else if (n.type == QLatin1String("continuationSeparator")) {
+            m_endnoteContinuation = std::move(n.blocks);
+        } else if (n.type == QLatin1String("continuationNotice")) {
+            m_endnoteNotice = std::move(n.blocks);
         }
     }
     if (m_endnoteSeparator.size() > kMostNoticeParagraphs) m_endnoteSeparator.resize(kMostNoticeParagraphs);

@@ -32,6 +32,7 @@
 #include <QDialog>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QSet>
 #include <QSpinBox>
 #include <QTimer>
@@ -124,6 +125,11 @@ QByteArray makeDocxNotes(const QByteArray &body, const QByteArray &footnotes, co
 QByteArray noteXml(const char *tag, int id, const QByteArray &text)
 {
     return QByteArray("<w:") + tag + " w:id=\"" + QByteArray::number(id) + "\"><w:p><w:r><w:" + tag + "Ref/></w:r><w:r><w:t xml:space=\"preserve\"> " + text + "</w:t></w:r></w:p></w:" + tag + ">";
+}
+QByteArray styledNote(const char *tag, int id, const QByteArray &text)
+{
+    const QByteArray style = QByteArray(tag) == "footnote" ? "FootnoteText" : "EndnoteText";
+    return QByteArray("<w:") + tag + " w:id=\"" + QByteArray::number(id) + "\"><w:p><w:pPr><w:pStyle w:val=\"" + style + "\"/></w:pPr><w:r><w:" + tag + "Ref/></w:r><w:r><w:t xml:space=\"preserve\"> " + text + "</w:t></w:r></w:p></w:" + tag + ">";
 }
 const char kSeparators[] = "<w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>";
 
@@ -758,6 +764,134 @@ private Q_SLOTS:
         auto sections = open(makeDocxNotes(two, QByteArray(), notes, "<w:endnotePr><w:numFmt w:val=\"decimal\"/><w:numRestart w:val=\"eachSect\"/></w:endnotePr>"));
         QVERIFY(sections);
         QCOMPARE(marks(*sections).mid(0, 2), (QStringList{QStringLiteral("1"), QStringLiteral("1")}));
+    }
+
+    // ---- converting notes
+    void footnotesConvertToEndnotesAndBackWithTheirWords()
+    {
+        const QByteArray body = para(run("Text") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>" + run(" more") + "<w:r><w:footnoteReference w:id=\"3\"/></w:r>");
+        const QByteArray notes = QByteArray(kSeparators) + styledNote("footnote", 2, "One") + styledNote("footnote", 3, "Two");
+        auto doc = open(makeDocxNotes(body, notes, QByteArray()));
+        QVERIFY(doc);
+        QCOMPARE(convertNotes(*doc, NoteConversion::FootnotesToEndnotes), 2);
+        QVERIFY(doc->citedFootnotes().isEmpty());
+        QCOMPARE(doc->citedEndnotes().size(), 2);
+        office::Package p;
+        QVERIFY(p.read(doc->toDocx()));
+        const QByteArray main = p.part(QStringLiteral("/word/document.xml")), ends = p.part(QStringLiteral("/word/endnotes.xml"));
+        QCOMPARE(main.count("<w:endnoteReference"), 2);
+        QVERIFY(!main.contains("footnoteReference"));
+        QVERIFY2(ends.indexOf("One") < ends.indexOf("Two") && ends.contains("One") && ends.contains("Two") && ends.contains("<w:endnoteRef/>") && ends.contains("EndnoteText"), ends.constData());
+        // It is one step of the history.
+        doc->undo();
+        QCOMPARE(doc->citedFootnotes().size(), 2);
+        QVERIFY(doc->citedEndnotes().isEmpty());
+        doc->redo();
+        QCOMPARE(doc->citedEndnotes().size(), 2);
+        // The file read again has them as endnotes, and back they go.
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(again->citedEndnotes().size(), 2);
+        QCOMPARE(convertNotes(*again, NoteConversion::EndnotesToFootnotes), 2);
+        QCOMPARE(again->citedFootnotes().size(), 2);
+        QVERIFY(p.read(again->toDocx()));
+        const QByteArray foot = p.part(QStringLiteral("/word/footnotes.xml"));
+        QVERIFY2(foot.contains("One") && foot.contains("Two") && foot.contains("<w:footnoteRef/>") && foot.contains("FootnoteText"), foot.constData());
+    }
+
+    void swapAndOneNoteConvert()
+    {
+        const QByteArray body = para(run("A") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>" + run(" B") + "<w:r><w:endnoteReference w:id=\"2\"/></w:r>");
+        const QByteArray notes = QByteArray(kSeparators) + noteXml("footnote", 2, "Foot");
+        const QByteArray ends = "<w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote>" + noteXml("endnote", 2, "End");
+        auto doc = open(makeDocxNotes(body, notes, ends));
+        QVERIFY(doc);
+        QCOMPARE(convertNotes(*doc, NoteConversion::Swap), 2);
+        office::Package p;
+        QVERIFY(p.read(doc->toDocx()));
+        const QByteArray f = p.part(QStringLiteral("/word/footnotes.xml")), e = p.part(QStringLiteral("/word/endnotes.xml"));
+        QVERIFY(f.contains("End") && !f.contains("Foot"));
+        QVERIFY(e.contains("Foot") && !e.contains(">End<") && !e.contains(" End"));
+        // Just one: the footnote that is asked for.
+        auto two = open(makeDocxNotes(para(run("A") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:footnoteReference w:id=\"3\"/></w:r>"),
+                                      QByteArray(kSeparators) + noteXml("footnote", 2, "One") + noteXml("footnote", 3, "Two"), QByteArray()));
+        QVERIFY(two);
+        QCOMPARE(convertNotes(*two, NoteConversion::FootnotesToEndnotes, 3), 1);
+        QCOMPARE(two->citedFootnotes().size(), 1);
+        QCOMPARE(two->citedEndnotes().size(), 1);
+    }
+
+    // ---- separators
+    void theNoteSeparatorsAreSetAndWrittenInTheirParts()
+    {
+        const QByteArray body = para(run("Text") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r>");
+        const QByteArray notes = QByteArray(kSeparators) + "<w:footnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>" + noteXml("footnote", 2, "One");
+        const QByteArray ends = "<w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote>" + noteXml("endnote", 2, "End");
+        auto doc = open(makeDocxNotes(body, notes, ends));
+        QVERIFY(doc);
+        QCOMPARE(doc->noteSeparator(false, QStringLiteral("separator")).kind, WriteDoc::NoteSeparator::Line);
+        QCOMPARE(doc->noteSeparator(false, QStringLiteral("continuationNotice")).kind, WriteDoc::NoteSeparator::None);
+        WriteDoc::NoteSeparator notice;
+        notice.kind = WriteDoc::NoteSeparator::Text;
+        notice.text = QStringLiteral("Continued on the next page");
+        QVERIFY(doc->setNoteSeparator(false, QStringLiteral("continuationNotice"), notice));
+        WriteDoc::NoteSeparator words;
+        words.kind = WriteDoc::NoteSeparator::Text;
+        words.text = QStringLiteral("* * *");
+        QVERIFY(doc->setNoteSeparator(false, QStringLiteral("continuationSeparator"), words));
+        QVERIFY(doc->setNoteSeparator(true, QStringLiteral("separator"), words));
+        QVERIFY(doc->isModified());
+        office::Package p;
+        QVERIFY(p.read(doc->toDocx()));
+        const QByteArray f = p.part(QStringLiteral("/word/footnotes.xml")), e = p.part(QStringLiteral("/word/endnotes.xml"));
+        QVERIFY2(f.contains("w:type=\"continuationNotice\"") && f.contains("Continued on the next page"), f.constData());
+        QVERIFY(f.contains("<w:separator/>"));   // (the separator, not changed, is as it was)
+        QVERIFY(f.contains("* * *") && !f.contains("<w:continuationSeparator/>"));
+        QVERIFY2(e.contains("* * *") && !e.contains("<w:separator/>"), e.constData());
+        QVERIFY(e.contains("<w:endnoteRef/>"));
+        // Read again, they are as set.
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(again->noteSeparator(false, QStringLiteral("continuationNotice")).text, notice.text);
+        QCOMPARE(again->noteSeparator(false, QStringLiteral("continuationSeparator")).kind, WriteDoc::NoteSeparator::Text);
+        QCOMPARE(again->noteSeparator(true, QStringLiteral("separator")).text, words.text);
+        // A notice that was in the file is replaced where it is, with its Id.
+        QVERIFY(again->setNoteSeparator(false, QStringLiteral("continuationNotice"), WriteDoc::NoteSeparator{WriteDoc::NoteSeparator::Text, QStringLiteral("More")}));
+        QVERIFY(p.read(again->toDocx()));
+        const QByteArray g = p.part(QStringLiteral("/word/footnotes.xml"));
+        QCOMPARE(g.count("continuationNotice"), 1);
+        QVERIFY(g.contains("More") && !g.contains("Continued on"));
+        // A document with no notes has no separators to set.
+        auto none = open(makeDocx(para(run("Text"))));
+        QVERIFY(none);
+        QVERIFY(!none->setNoteSeparator(false, QStringLiteral("continuationNotice"), notice));
+    }
+
+    void theSeparatorsDialogAndTheConvertDialogWork()
+    {
+        const QByteArray body = para(run("Text") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>");
+        const QByteArray notes = QByteArray(kSeparators) + styledNote("footnote", 2, "One");
+        WriteWindow w;
+        w.setDocument(open(makeDocxNotes(body, notes, QByteArray())), QString());
+        w.show();
+        onNextDialog(QStringLiteral("note-separators-dialog"), [](QDialog *d) {
+            auto *kind = d->findChild<QComboBox *>(QStringLiteral("footcontinuationNoticeKind"));
+            kind->setCurrentIndex(kind->findData(int(WriteDoc::NoteSeparator::Text)));
+            d->findChild<QLineEdit *>(QStringLiteral("footcontinuationNoticeText"))->setText(QStringLiteral("Continued"));
+            d->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+        });
+        bool endnotes = true;
+        QVERIFY(noteSeparatorsDialog(&w, w.document(), &endnotes));
+        QVERIFY(!endnotes);
+        QCOMPARE(w.document()->noteSeparator(false, QStringLiteral("continuationNotice")).text, QStringLiteral("Continued"));
+        onNextDialog(QStringLiteral("convert-notes-dialog"), [](QDialog *d) {
+            QVERIFY(!d->findChild<QRadioButton *>(QStringLiteral("convertOne"))->isEnabled());
+            d->findChild<QRadioButton *>(QStringLiteral("convertToEndnotes"))->setChecked(true);
+            d->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+        });
+        QVERIFY(convertNotesDialog(&w, w.document(), w.view()));
+        QCOMPARE(w.document()->citedEndnotes().size(), 1);
+        QVERIFY(w.document()->citedFootnotes().isEmpty());
     }
 
     // ---- the dialogs
