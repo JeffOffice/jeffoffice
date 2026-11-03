@@ -440,7 +440,9 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
         // (by hand: nothing is worked out but what was asked for; the window is told, once for each change, whether formulas wait)
         const bool paused = state->manual.load() && !asked;
         if (paused && !first && state->changes.load() == toldEpoch) continue;
-        if (!paused && !first && (state->stopCalc.load() || !calc->isDirty())) continue;
+        // (a change that left nothing dirty still gets a pass, an empty one, so that the window is told all of it is worked out; a pass that was under way when the change came told of an older one)
+        const bool unTold = !state->manual.load() && state->changes.load() != toldEpoch;
+        if (!paused && !first && (state->stopCalc.load() || (!calc->isDirty() && !unTold))) continue;
         first = false;
         result->calcIdle = false;
         bool stopped = false;
