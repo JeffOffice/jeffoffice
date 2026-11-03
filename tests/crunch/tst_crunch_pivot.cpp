@@ -798,6 +798,26 @@ private Q_SLOTS:
         QCOMPARE(s->workbook()->pivots().tableCount(), 2);
     }
 
+    // A change that leaves no formula to work out (a table made right after cells were typed) still ends with the calculation over, not waiting for the next edit.
+    void thePivotTableCommandEndsTheCalculation()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        e.win.w.setPivotCreateAsker([&](QString *source, bool *newSheet, QString *) {
+            *source = QStringLiteral("Sheet1!A1:C7");
+            *newSheet = true;
+            return true;
+        });
+        e.select(QStringLiteral("F1"));
+        e.enter(QStringLiteral("4"));
+        e.enter(QStringLiteral("5"));
+        e.enter(QStringLiteral("=F1+F2"));
+        e.select(QStringLiteral("A3"));
+        e.win.w.act(QStringLiteral("insert.pivot"))->trigger();
+        QCOMPARE(e.win.w.session()->workbook()->pivots().tableCount(), 2);
+        QTRY_VERIFY_WITH_TIMEOUT(!e.win.w.isCalculating(), 5000);
+    }
+
     // Insert > Pivot Table: asks for the data and the place, makes the table on a sheet of its own, and shows its fields.
     void thePivotTableCommandMakesATableOnANewSheet()
     {
