@@ -14,6 +14,6 @@ carry:
                     GCC Runtime Library Exception (the GCC runtime DLLs in
                     the Windows package; Windows only)
 
-PDFium's and FFmpeg's licenses are in the pdfium and ffmpeg folders next to
-this one (or in this folder's parent, depending on the package). Each font and
+PDFium's and FFmpeg's licenses are in folders named pdfium and ffmpeg in the
+same package (search the program's folder for them). Each font and
 dictionary folder carries its own license files.
