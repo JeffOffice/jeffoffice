@@ -58,6 +58,9 @@ public:
     // ("Publication1" unless the app says otherwise); kept across documents.
     void setNewDocumentName(const QString &name) { m_newName = name; }
     bool isModified() const { return !m_undo.isClean() || m_cropOpen; }
+    // A document opened read-only: no text is edited (the window disables the commands that change it, and the canvas refuses keys, text, and drops).
+    void setReadOnly(bool on) { m_readOnly = on; }
+    bool readOnly() const { return m_readOnly; }
     void markSaved() { m_undo.setClean(); }
     void markUnsaved() { m_undo.resetClean(); }   // a recovered copy: unsaved until saved
 
@@ -360,6 +363,7 @@ private:
     QStringList m_regroup;   // the objects of the group last ungrouped
     QString m_toolShape;
 
+    bool m_readOnly = false;
     int m_changeDepth = 0;
     QByteArray m_before;
     QStringList m_selBefore;

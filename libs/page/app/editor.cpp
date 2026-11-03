@@ -388,6 +388,7 @@ QTextDocument *Editor::editDoc() const { return m_doc->storyDoc(m_text.storyId);
 
 void Editor::beginTextEdit(const QString &itemId, int pos, int row, int col, int half)
 {
+    if (m_readOnly) return;
     Item *it = m_doc->item(itemId);
     if (!it) return;
     QString story;

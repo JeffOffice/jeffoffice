@@ -1652,6 +1652,13 @@ void Canvas::mousePressEvent(QMouseEvent *e)
         return;
     }
     if (e->button() != Qt::LeftButton) return;
+    // A document open for reading only: a click selects, and nothing starts a drag, a draw, or a text edit.
+    if (m_ed->readOnly()) {
+        const Hit h = hitTest(e->position());
+        if (h.kind == HitKind::Item) m_ed->select(h.id);
+        else m_ed->clearSelection();
+        return;
+    }
 
     // Multi-click detection for text.
     if (m_clickTimer.isValid() && m_clickTimer.elapsed() < QApplication::doubleClickInterval() &&
@@ -2968,6 +2975,10 @@ void Canvas::handleTextKey(QKeyEvent *e)
 
 void Canvas::keyPressEvent(QKeyEvent *e)
 {
+    if (m_ed->readOnly()) {
+        e->ignore();
+        return;
+    }
     if (m_ed->isEditingText()) {
         handleTextKey(e);
         return;
@@ -3058,6 +3069,7 @@ void Canvas::keyPressEvent(QKeyEvent *e)
 
 void Canvas::inputMethodEvent(QInputMethodEvent *e)
 {
+    if (m_ed->readOnly()) return;
     if (m_ed->isEditingText() && !e->commitString().isEmpty()) m_ed->insertText(e->commitString());
     e->accept();
 }
@@ -3143,6 +3155,10 @@ bool Canvas::viewportEvent(QEvent *e)
 
 void Canvas::dragEnterEvent(QDragEnterEvent *e)
 {
+    if (m_ed->readOnly()) {
+        e->ignore();
+        return;
+    }
     if (e->mimeData()->hasFormat(QString::fromLatin1(kExtraContentMime)) || e->mimeData()->hasUrls() || e->mimeData()->hasImage() || e->mimeData()->hasText())
         e->acceptProposedAction();
 }
@@ -3151,6 +3167,10 @@ void Canvas::dragMoveEvent(QDragMoveEvent *e) { e->acceptProposedAction(); }
 
 void Canvas::dropEvent(QDropEvent *e)
 {
+    if (m_ed->readOnly()) {
+        e->ignore();
+        return;
+    }
     const QPointF page = toPage(e->position());   // the drop came to the viewport
     if (e->mimeData()->hasFormat(QString::fromLatin1(kExtraContentMime))) {
         // Extra Content dropped on the page.
