@@ -44,6 +44,7 @@ struct Par {
     int keep = kUnset, keepn = kUnset, pagebb = kUnset, widow = kUnset, outline = kUnset, style = kUnset, ls = kUnset, ilvl = kUnset;
     int contextual = kUnset, rtl = kUnset, shd = kUnset, shdPct = kUnset, noHyph = kUnset;
     int itap = 0;                              // how deep in tables (0 none)
+    int prAuth = kUnset, prDate = kUnset, oldPar = kUnset;   // a change of the paragraph's format (\pprauth at \pprdate), and the properties it had (\oldpprops: an index of the reader's list)
     Border border[5];                          // top, left, bottom, right, between
     QVector<Tab> tabs;
 };

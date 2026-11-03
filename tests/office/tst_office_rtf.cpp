@@ -834,6 +834,14 @@ private Q_SLOTS:
         QVERIFY2(x.contains(QRegularExpression(QStringLiteral("<w:rPrChange [^>]*w:author=\"Ann\"[^>]*><w:rPr><w:i/>(<w:iCs/>)?</w:rPr></w:rPrChange>"))), qPrintable(x));
     }
 
+    void aChangeOfParagraphFormatKeepsTheFormatItHad()
+    {
+        Package pkg;
+        QVERIFY(pkg.read(rtf::toDocxPackage(doc("{\\*\\revtbl{Unknown;}{Ann;}}\\pard\\qc\\pprauth1\\pprdate0{\\*\\oldpprops\\pard\\qr} centered now\\par"))));
+        const QString x = QString::fromUtf8(pkg.part(QStringLiteral("/word/document.xml")));
+        QVERIFY2(x.contains(QRegularExpression(QStringLiteral("<w:jc w:val=\"center\"/>.*<w:pPrChange [^>]*w:author=\"Ann\"[^>]*><w:pPr><w:jc w:val=\"right\"/></w:pPr></w:pPrChange></w:pPr>"))), qPrintable(x));
+    }
+
     void utf8CodePageTextIsDecoded()
     {
         const QByteArray text = QByteArray("caf") + "\xC3" + "\xA9" + " \xE2" + "\x82" + "\xAC \xF0" + "\x9F" + "\x98" + "\x80 end";

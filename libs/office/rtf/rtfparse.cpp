@@ -44,7 +44,7 @@ const char *const kKnownWords[] = {
 
 enum class Dest {
     Normal, Skip, FontTbl, ColorTbl, StyleSheet, StyleDef, ListTable, ListDef, ListLevel, LevelText, ListOverrideTable, ListOverride, LfoLevel,
-    RevTbl, OldCprops, FldInst, Field, BkmkStart, BkmkEnd, Pict, Header, Footnote, NestProps, Pn, PnText, ShapeProp, Shape, ShapeText, SpName, SpValue
+    RevTbl, OldCprops, OldPprops, FldInst, Field, BkmkStart, BkmkEnd, Pict, Header, Footnote, NestProps, Pn, PnText, ShapeProp, Shape, ShapeText, SpName, SpValue
 };
 
 // Which destinations the children of a group carry on (the rest start as plain text).
@@ -53,7 +53,7 @@ bool inherits(Dest d)
     switch (d) {
     case Dest::Skip: case Dest::FontTbl: case Dest::ColorTbl: case Dest::FldInst: case Dest::BkmkStart: case Dest::BkmkEnd: case Dest::Pict: case Dest::ShapeProp:
     case Dest::LevelText: case Dest::ListTable: case Dest::ListDef: case Dest::ListLevel: case Dest::ListOverrideTable: case Dest::ListOverride: case Dest::LfoLevel:
-    case Dest::NestProps: case Dest::Pn: case Dest::StyleDef: case Dest::OldCprops: case Dest::RevTbl:
+    case Dest::NestProps: case Dest::Pn: case Dest::StyleDef: case Dest::OldCprops: case Dest::OldPprops: case Dest::RevTbl:
         return true;
     default:
         return false;
@@ -177,6 +177,7 @@ private:
     QHash<QString, QString> m_relOfMedia;
     QHash<QString, int> m_bookmarks;
     QStringList m_authors;                 // the authors of tracked changes, in the order the file lists them
+    QVector<Par> m_oldPars;                // the properties a paragraph had before a change of its format
     QVector<Chr> m_oldProps;               // the properties text had before a change of its format
     int m_revId = 0;
     QSet<QString> m_endedBookmarks;
@@ -285,6 +286,7 @@ private:
     QByteArray revisionAttributes(int author, int date);
     QByteArray revisionWrapped(const Chr &c, QByteArray run);
     QByteArray markRevisionXml(const Chr &c);
+    QByteArray paragraphChangeXml(const Par &p);
     void addText(Story &s, const QString &text, const Chr &c);
     void addRaw(Story &s, const QByteArray &inner, const Chr &c, bool withProperties = true);
     void addInline(Story &s, const QByteArray &xml);
@@ -576,6 +578,13 @@ QByteArray Reader::revisionWrapped(const Chr &c, QByteArray run)
     return run;
 }
 
+// A change of the paragraph's format, with the format it had (w:pPrChange: the last thing in the paragraph's properties).
+QByteArray Reader::paragraphChangeXml(const Par &p)
+{
+    if (p.prAuth == kUnset || p.oldPar == kUnset || p.oldPar >= m_oldPars.size()) return QByteArray();
+    return "<w:pPrChange" + revisionAttributes(p.prAuth, p.prDate) + "><w:pPr>" + paragraphPropertiesXml(m_oldPars[p.oldPar], t, styleIdOf(m_oldPars[p.oldPar].style), false) + "</w:pPr></w:pPrChange>";
+}
+
 // The paragraph mark's own mark of a tracked change, when the mark is inserted or deleted (the properties at \par say so).
 QByteArray Reader::markRevisionXml(const Chr &c)
 {
@@ -688,7 +697,7 @@ void Reader::endParagraph(const State &g, int level, bool force)
         left(QStringLiteral("paragraphs"), QCoreApplication::translate("jp::office::rtf", "The document has more paragraphs than the limit, so the rest of it was left out."));
         return;
     }
-    const QByteArray ppr = paragraphPropertiesXml(g.par, t, styleIdOf(g.par.style), false) + markRevisionXml(g.chr);
+    const QByteArray ppr = paragraphPropertiesXml(g.par, t, styleIdOf(g.par.style), false) + markRevisionXml(g.chr) + paragraphChangeXml(g.par);
     spend(ppr.size() + 16);
     if (level <= 0) {
         closeTables(s);
@@ -928,7 +937,8 @@ void Reader::sectionEnd(const State &g)
         return;
     }
     if (s.held.valid && !s.held.sect) {
-        s.held.ppr += sect;
+        if (const qsizetype at = s.held.ppr.indexOf("<w:pPrChange"); at >= 0) s.held.ppr.insert(at, sect);   // (the change of format is last)
+        else s.held.ppr += sect;
         s.held.sect = true;
     } else {
         flushHeld(s);
@@ -1078,6 +1088,12 @@ void Reader::popGroup()
             break;
         }
         case Dest::Footnote: finishNote(g); break;
+        case Dest::OldPprops:
+            if (m_stack.size() >= 2 && m_oldPars.size() < 100000) {
+                m_oldPars.append(g.par);
+                m_stack[m_stack.size() - 2].par.oldPar = int(m_oldPars.size()) - 1;
+            }
+            break;
         case Dest::OldCprops:
             if (m_stack.size() >= 2 && m_oldProps.size() < 100000) {
                 m_oldProps.append(g.chr);
@@ -1534,6 +1550,7 @@ void Reader::destWord(State &g, uint32_t h, bool has, int param, bool *handled)
     case H("stylesheet"): enter(Dest::StyleSheet); break;
     case H("revtbl"): enter(Dest::RevTbl); m_name.clear(); break;
     case H("oldcprops"): enter(Dest::OldCprops); g.chr = Chr(); break;
+    case H("oldpprops"): enter(Dest::OldPprops); g.par = Par(); break;
     case H("info"): case H("filetbl"): case H("listtext"): case H("pntext"): case H("pnseclvl"): case H("listname"): case H("upr"): case H("annotation"):
     case H("xe"): case H("tc"): case H("tcn"): case H("rxe"): case H("txe"): case H("pgdsctbl"): case H("template"): case H("fchars"): case H("lchars"): case H("mmath"):
     case H("shprslt"): case H("nonesttables"): case H("levelnumbers"): case H("background"): case H("stylerestrictions"): case H("themedata"): case H("falt"): case H("panose"):
@@ -1684,6 +1701,8 @@ void Reader::charWord(State &g, uint32_t h, bool has, int param, bool *handled)
     case H("revdttmdel"): if (has) c.delDate = param; break;
     case H("crauth"): if (has) c.crAuth = param; break;
     case H("crdate"): if (has) c.crDate = param; break;
+    case H("pprauth"): if (has) g.par.prAuth = param; break;
+    case H("pprdate"): if (has) g.par.prDate = param; break;
     case H("b"): c.bold = on; break;
     case H("i"): c.italic = on; break;
     case H("strike"): c.strike = on; break;
@@ -1974,7 +1993,7 @@ void Reader::word(uint32_t h, const char *name, int len, bool has, int param)
     if (m_star) {
         m_star = false;
         switch (h) {
-        case H("revtbl"): case H("oldcprops"): case H("fldinst"): case H("bkmkstart"): case H("bkmkend"): case H("listtable"): case H("listoverridetable"): case H("pn"): case H("nesttableprops"): case H("shpinst"):
+        case H("revtbl"): case H("oldcprops"): case H("oldpprops"): case H("fldinst"): case H("bkmkstart"): case H("bkmkend"): case H("listtable"): case H("listoverridetable"): case H("pn"): case H("nesttableprops"): case H("shpinst"):
         case H("shppict"): case H("cs"): case H("ts"): case H("pntxtb"): case H("pntxta"): case H("txbxcontent"): case H("footnote"):
             break;
         default:
