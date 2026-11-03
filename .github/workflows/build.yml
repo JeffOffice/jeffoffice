@@ -142,19 +142,20 @@ jobs:
           cmake --build build --parallel
           if command -v ccache >/dev/null 2>&1; then ccache --show-stats; fi
 
+      # Programs in the build folder find the GCC runtime through PATH, which can hold another GCC's copy first (the 20261004 runner image crashed in the
+      # first test). Both jobs use the compiler's own copy, beside the programs, as the packaged program does.
+      - name: GCC runtimes beside the programs (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          echo "GCC runtimes on PATH:"; which -a libstdc++-6.dll || true
+          cp "$(cygpath -u "$IQTA_TOOLS")/mingw1310_64/bin/"{libgcc_s_seh-1,libstdc++-6,libwinpthread-1}.dll build/
+
       - name: Test
         if: matrix.part == 'tests'
         timeout-minutes: 45
         shell: bash
         run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            # Programs in the build folder find the GCC runtime through PATH,
-            # which can hold another GCC's copy first (the 20261004 runner
-            # image crashed in the first test). Use the compiler's own copy,
-            # beside the programs, as the packaged program does.
-            echo "GCC runtimes on PATH:"; which -a libstdc++-6.dll || true
-            cp "$(cygpath -u "$IQTA_TOOLS")/mingw1310_64/bin/"{libgcc_s_seh-1,libstdc++-6,libwinpthread-1}.dll build/
-          fi
           # The programs run side by side, longest first, each with its own results file (Windows runners drop their console output)
           # (tools/ci_tests.sh): one after another they took 12 to 17 minutes.
           bash tools/ci_tests.sh flowtests crunchtests jdtests writetests writereviewtests sheettests jptests officetests wmltests
