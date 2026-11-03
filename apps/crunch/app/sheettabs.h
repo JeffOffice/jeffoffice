@@ -43,6 +43,7 @@ Q_SIGNALS:
 
 protected:
     void paintEvent(QPaintEvent *e) override;
+    void changeEvent(QEvent *e) override;
     QSize tabSizeHint(int index) const override;
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
@@ -53,6 +54,7 @@ protected:
     void tabInserted(int index) override;
 
 private:
+    void applyLook();
     QVector<QColor> m_stripes;
     QSet<int> m_selected;
     QPointer<QLineEdit> m_editor;

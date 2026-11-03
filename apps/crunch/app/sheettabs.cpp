@@ -1,5 +1,7 @@
 #include "app/sheettabs.h"
 
+#include "app/icons.h"
+
 #include <QContextMenuEvent>
 #include <QKeyEvent>
 #include <QLineEdit>
@@ -32,6 +34,13 @@ protected:
     }
 };
 
+// The color a fraction of the way from one to the other.
+QColor mix(const QColor &a, const QColor &b, double t)
+{
+    return QColor::fromRgbF(a.redF() + (b.redF() - a.redF()) * t, a.greenF() + (b.greenF() - a.greenF()) * t,
+                            a.blueF() + (b.blueF() - a.blueF()) * t);
+}
+
 } // namespace
 
 SheetTabBar::SheetTabBar(QWidget *parent) : QTabBar(parent)
@@ -44,6 +53,7 @@ SheetTabBar::SheetTabBar(QWidget *parent) : QTabBar(parent)
     setElideMode(Qt::ElideRight);
     setMovable(true);
     setAccessibleName(tr("Sheets"));
+    applyLook();
     // A tab the cursor goes to that is not among those picked is picked alone.
     connect(this, &QTabBar::currentChanged, this, [this](int index) {
         if (index >= 0 && !m_moving && !m_selected.contains(index)) selectOnly(index);
@@ -113,9 +123,37 @@ void SheetTabBar::tabRemoved(int index)
     m_selected = moved;
 }
 
+// Each tab is drawn apart from the strip, with soft lower corners: the others a shade off it, the current sheet's in
+// the grid's color, joined to it, with its name in bold over a line of the app's color (the name in that color too
+// on a light page).
+void SheetTabBar::applyLook()
+{
+    const QPalette pal = palette();
+    const QColor window = pal.color(QPalette::Window), text = pal.color(QPalette::WindowText);
+    const QColor line = mix(window, text, 0.4), other = mix(window, text, 0.07);
+    const QString sheet = QStringLiteral(
+        "QTabBar#sheetTabs::tab { background: %1; color: %2; border: 1px solid %3; border-top: none;"
+        " border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; margin-left: 2px; padding: 3px 14px 4px 14px; }"
+        "QTabBar#sheetTabs::tab:hover:!selected { background: %4; }"
+        "QTabBar#sheetTabs::tab:selected { background: %5; color: %6; font-weight: bold; border-bottom: 3px solid %7; padding-bottom: 2px; }")
+        .arg(other.name(), mix(text, window, 0.15).name(), line.name(), mix(window, text, 0.13).name(),
+             pal.color(QPalette::Base).name(), (uiDark() || uiHighContrast() ? pal.color(QPalette::Text) : uiAccent()).name(), uiAccent().name());
+    if (styleSheet() != sheet) setStyleSheet(sheet);
+}
+
+void SheetTabBar::changeEvent(QEvent *e)
+{
+    QTabBar::changeEvent(e);
+    if (e->type() == QEvent::PaletteChange) applyLook();
+}
+
 QSize SheetTabBar::tabSizeHint(int index) const
 {
     QSize s = QTabBar::tabSizeHint(index);
+    // room for the name in bold, so a tab keeps its width when it becomes the current one
+    QFont bold = font();
+    bold.setBold(true);
+    s.rwidth() += QFontMetrics(bold).horizontalAdvance(tabText(index)) - fontMetrics().horizontalAdvance(tabText(index));
     s.setHeight(std::max(s.height(), 24));
     s.setWidth(std::min(std::max(s.width(), 60), 220));
     return s;
