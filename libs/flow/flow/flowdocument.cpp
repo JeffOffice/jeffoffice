@@ -67,14 +67,20 @@ QRectF Section::content() const
 
 double Section::columnWidth() const
 {
-    const int n = columnCount();
-    return std::max(1.0, (content().width() - columnGap * (n - 1)) / n);
+    return columnRect(0).width();
 }
 
 QRectF Section::columnRect(int column) const
 {
     const QRectF all = content();
-    const double w = columnWidth();
+    const int n = columnCount();
+    column = std::clamp(column, 0, n - 1);
+    if (columnWidths.size() == n && n > 1) {
+        double left = all.left();
+        for (int i = 0; i < column; ++i) left += columnWidths[i] + (i < columnSpaces.size() ? columnSpaces[i] : columnGap);
+        return QRectF(left, all.top(), std::max(1.0, columnWidths[column]), all.height());
+    }
+    const double w = std::max(1.0, (all.width() - columnGap * (n - 1)) / n);
     return QRectF(all.left() + column * (w + columnGap), all.top(), w, all.height());
 }
 

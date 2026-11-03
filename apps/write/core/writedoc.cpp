@@ -184,6 +184,11 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
     s.margins = QMarginsF(std::max(0, p.left + p.gutter) / 20.0, std::abs(p.top) / 20.0, std::max(0, p.right) / 20.0, std::abs(p.bottom) / 20.0);
     s.columns = std::max(1, p.cols);
     s.columnGap = p.colSpace / 20.0;
+    if (!p.colEqual && s.columns > 1 && int(p.colDefs.size()) == s.columns)
+        for (const ColumnDef &c : p.colDefs) {
+            s.columnWidths << std::max(1, c.width) / 20.0;
+            s.columnSpaces << std::max(0, c.space) / 20.0;
+        }
     s.headerDistance = p.header / 20.0;
     s.footerDistance = p.footer / 20.0;
     s.differentFirstPage = p.titlePg;
@@ -229,7 +234,7 @@ void updateSectionProps(SectionProps *p, const flow::Section &s)
         p->bottom = int(std::lround(s.margins.bottom() * 20));
         p->hasPgMar = true;
     }
-    if (s.columns != was.columns || s.columnGap != was.columnGap) {
+    if (s.columns != was.columns || s.columnGap != was.columnGap || s.columnWidths != was.columnWidths) {
         p->cols = std::max(1, s.columns);
         p->colSpace = int(std::lround(s.columnGap * 20));
         p->colDefs.clear();

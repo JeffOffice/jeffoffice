@@ -16859,6 +16859,40 @@ private Q_SLOTS:
         QCOMPARE(int(group(QByteArray()).size()), 1);
     }
 
+    // Columns that the file gives widths for (w:equalWidth off) have them: each column is as wide as it says, at its place after the ones before and the space after them.
+    void columnsOfUnequalWidthsAreLaidOutAsTheFileSaysThem()
+    {
+        const QByteArray cols = "<w:cols w:num=\"2\" w:space=\"720\" w:equalWidth=\"0\"><w:col w:w=\"2400\" w:space=\"720\"/><w:col w:w=\"5520\"/></w:cols>";
+        const QByteArray last = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1800\" w:bottom=\"1440\" w:left=\"1800\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>" + cols + "</w:sectPr>";
+        const QByteArray text = wordsOf("Long", 60);
+        auto doc = open(makeDocxWithParts("<w:p><w:r><w:br w:type=\"column\"/><w:t>" + text + "</w:t></w:r></w:p>", last, {}));
+        QVERIFY(doc);
+        const flow::Section &sec = doc->flow().sections[0];
+        QCOMPARE(sec.columnRect(0).width(), 120.0);
+        QCOMPARE(sec.columnRect(1).left(), 90.0 + 120.0 + 36.0);
+        QCOMPARE(sec.columnRect(1).width(), 276.0);
+        const auto lines = doc->pager().lines(0);
+        double widest = 0;
+        for (const auto &ln : lines)
+            if (ln.frame == 1) widest = std::max(widest, ln.rect.width());
+        QVERIFY2(widest > 150 && widest <= 276.01, qPrintable(QString::number(widest)));
+    }
+
+    // A paragraph that an object the text goes round is set from stays in its column as the columns of a section above a continuous one are made even: the page is not cut before it.
+    void aWallsParagraphStaysInItsColumnWhenColumnsAreMadeEven()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:cols w:num=\"2\" w:space=\"720\"/></w:sectPr>";
+        const QByteArray logo = "<w:r><w:pict xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\">"
+                                "<v:rect style=\"position:absolute;margin-left:0;margin-top:0;width:85pt;height:58pt;mso-position-horizontal-relative:text;mso-position-vertical-relative:text\" fillcolor=\"red\">"
+                                "<w10:wrap type=\"topAndBottom\"/></v:rect></w:pict></w:r>";
+        const QByteArray body = "<w:p/><w:p/><w:p>" + logo + "</w:p><w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:cols w:num=\"2\" w:space=\"720\"/></w:sectPr></w:pPr></w:p>"
+                                "<w:p><w:r><w:t>Marker</w:t></w:r></w:p>";
+        auto doc = open(makeDocxWithParts(body, "<w:sectPr><w:type w:val=\"continuous\"/>" + sect.mid(10), {}));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() == 1);
+        QVERIFY2(doc->pager().lines(0).size() >= 5, qPrintable(QString::number(doc->pager().lines(0).size())));
+    }
+
     // ---- frames
 
     static QByteArray framedP(const QByteArray &text, const QByteArray &framePr)
