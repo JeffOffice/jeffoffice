@@ -839,6 +839,10 @@
             {
               "large": "table.properties",
               "keytip": "PR"
+            },
+            {
+              "small": "table.gridlines",
+              "keytip": "TG"
             }
           ]
         },
@@ -884,6 +888,10 @@
             {
               "large": "table.split",
               "keytip": "SC"
+            },
+            {
+              "large": "table.splitTable",
+              "keytip": "ST"
             }
           ]
         },
@@ -983,6 +991,28 @@
                   "keytip": "AC"
                 }
               ]
+            }
+          ]
+        },
+        {
+          "name": "Data",
+          "keytip": "ZD",
+          "items": [
+            {
+              "large": "table.sort",
+              "keytip": "SO"
+            },
+            {
+              "small": "table.repeatHeader",
+              "keytip": "RW"
+            },
+            {
+              "small": "table.convertToText",
+              "keytip": "CT"
+            },
+            {
+              "small": "table.formula",
+              "keytip": "FX"
             }
           ]
         }

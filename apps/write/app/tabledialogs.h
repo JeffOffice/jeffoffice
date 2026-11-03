@@ -20,4 +20,13 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
 // Borders and Shading: the lines (their style, width, and color, and which sides) and the fill of the cells selected, or of the whole table.
 bool bordersShadingDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
 
+// Convert Text to Table: how many columns, and what separates the cells. False when cancelled.
+bool convertTextToTableDialog(QWidget *parent, TextSeparator *separator, QChar *other, int *columns);
+// Convert Table to Text: what goes between the cells' words. False when cancelled.
+bool convertTableToTextDialog(QWidget *parent, TextSeparator *separator, QChar *other);
+// Sort: up to three keys (a column, text, number, or date, up or down) and whether the first row is a header. `columns` is how many columns the table has. False when cancelled.
+bool sortTableDialog(QWidget *parent, int columns, QVector<TableSortKey> *keys, bool *header);
+// Formula: the formula (as the field's code has it, after the equals sign) and how the number is shown (a number picture such as 0.00; empty for as it comes). False when cancelled.
+bool tableFormulaDialog(QWidget *parent, QString *formula, QString *picture);
+
 } // namespace jp::write

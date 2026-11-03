@@ -9,6 +9,7 @@
 #include "app/ribbonbuilder.h"
 #include "app/tabledialogs.h"
 #include "app/widgets.h"
+#include "core/fieldops.h"
 #include "core/tableops.h"
 #include "core/wordformat.h"
 #include "wml/wml.h"
@@ -191,6 +192,62 @@ void WriteWindow::createTableActions()
     }
     // (A new table has these three on; they are read from the table when a tab that shows them is in front.)
     for (const char *id : {"table.look.header", "table.look.firstColumn", "table.look.bandedRows"}) act(QString::fromLatin1(id))->setChecked(true);
+    // Convert, split, sort, header rows, formula, and gridlines.
+    mk("insert.convertTextToTable", tr("Convert Text to Table…"), "table", QKeySequence(), [this] {
+        if (!m_doc) return;
+        write::TextSeparator separator = write::TextSeparator::Tabs;
+        QChar other;
+        int columns = 1;
+        if (!write::convertTextToTableDialog(this, &separator, &other, &columns)) return;
+        tableCommand([=](write::WriteDoc &d, QTextCursor &c) {
+            if (!write::convertTextToTable(d, c, separator, other, columns) && d.tableNotice.isEmpty()) d.tableNotice = tr("Text that is in a table can't be made into a table.");
+        });
+    });
+    mk("table.convertToText", tr("Convert to Text…"), "file-text", QKeySequence(), [this] {
+        if (!m_doc) return;
+        write::TextSeparator separator = write::TextSeparator::Tabs;
+        QChar other;
+        if (!write::convertTableToTextDialog(this, &separator, &other)) return;
+        tableCommand([=](write::WriteDoc &d, QTextCursor &c) { write::convertTableToText(d, c, separator, other); });
+    });
+    cmd(QStringLiteral("table.splitTable"), tr("Split Table"), "square-split-horizontal", [](write::WriteDoc &d, QTextCursor &c) { write::splitTable(d, c); });
+    mk("table.sort", tr("Sort…"), "arrow-down-a-z", QKeySequence(), [this] {
+        if (!m_doc) return;
+        const write::CellPlace place = write::cellPlace(*m_doc, m_view->cursor());
+        if (!place.inTable) return;
+        QVector<write::TableSortKey> keys(1);
+        keys[0].column = place.column;
+        bool header = write::tablePropsAt(*m_doc, m_view->cursor()).look & 0x20;
+        if (!write::sortTableDialog(this, place.columns, &keys, &header)) return;
+        tableCommand([=](write::WriteDoc &d, QTextCursor &c) { write::sortTableRows(d, c, keys, header); });
+    });
+    mk("table.repeatHeader", tr("Repeat Header Rows"), "heading", QKeySequence(), [this] {
+        tableCommand([this](write::WriteDoc &d, QTextCursor &c) {
+            const write::TableProps was = write::tablePropsAt(d, c);
+            write::TableProps now = was;
+            now.header = act("table.repeatHeader")->isChecked();
+            write::setTableProps(d, c, was, now);
+        });
+    }, true);
+    mk("table.formula", tr("Formula…"), "sigma", QKeySequence(), [this] {
+        if (!m_doc) return;
+        QTextCursor &cur = m_view->cursor();
+        if (!write::cellPlace(*m_doc, cur).inTable) return;
+        const auto has = [&](const char *name) {
+            const auto values = write::tableCellValues(*m_doc, cur.position(), QString::fromLatin1(name));
+            return values && !values->isEmpty();
+        };
+        QString formula = has("ABOVE") || !has("LEFT") ? QStringLiteral("SUM(ABOVE)") : QStringLiteral("SUM(LEFT)"), picture;
+        if (!write::tableFormulaDialog(this, &formula, &picture)) return;
+        QString code = QStringLiteral("= ") + formula;
+        if (!picture.isEmpty()) code += QStringLiteral(" \\# \"") + picture + QLatin1Char('"');
+        m_doc->tableNotice.clear();
+        if (!write::insertField(*m_doc, cur, code)) return;
+        write::updateFieldsAt(*m_doc, cur);
+        m_view->refresh();
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("table.gridlines", tr("View Gridlines"), "grid-3x3", QKeySequence(), [this] { m_view->setShowGridlines(act("table.gridlines")->isChecked()); }, true);
     cmd(QStringLiteral("table.style.clear"), tr("Clear"), "eraser", [](write::WriteDoc &d, QTextCursor &c) { write::setTableStyle(d, c, QStringLiteral("TableNormal")); });
 }
 
@@ -206,6 +263,7 @@ void WriteWindow::tableRibbonParts(RibbonParts &parts)
         wa->setDefaultWidget(grid);
         m->addAction(wa);
         m->addAction(act("insert.table"));
+        m->addAction(act("insert.convertTextToTable"));
         connect(grid, &TableGrid::picked, this, [this, m](int rows, int cols) {
             m->close();
             write::NewTable table;
@@ -317,6 +375,8 @@ void WriteWindow::refreshTableUi()
     }
     const bool inBody = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
     act("insert.table")->setEnabled(inBody);
+    act("insert.convertTextToTable")->setEnabled(inBody && !in);
+    act("table.gridlines")->setEnabled(true);
     m_ribbon->setContextVisible(QStringLiteral("Table Tools"), in, false);
     if (!in) return;
     // The fields and options are read only while a tab that shows them is the one in front (the table is looked at from its start, which a long document makes dear).
@@ -331,6 +391,7 @@ void WriteWindow::refreshTableUi()
         m_tableFields[1]->setPoints(props.columnWidth);
     }
     m_updatingFields = false;
+    act("table.repeatHeader")->setChecked(props.header);
     act("table.look.header")->setChecked(props.look & 0x20);
     act("table.look.total")->setChecked(props.look & 0x40);
     act("table.look.firstColumn")->setChecked(props.look & 0x80);

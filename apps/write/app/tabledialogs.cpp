@@ -393,4 +393,179 @@ bool bordersShadingDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     return true;
 }
 
+namespace {
+
+// The choices of what separates cells in text, as radio buttons in a row; `paragraphs` leaves out (or puts in) the one that makes each paragraph a cell.
+struct SeparatorChoice {
+    QRadioButton *paragraphs, *tabs, *commas, *other;
+    QLineEdit *character;
+    TextSeparator value() const
+    {
+        return paragraphs->isChecked() ? TextSeparator::Paragraphs : commas->isChecked() ? TextSeparator::Commas : other->isChecked() ? TextSeparator::Other : TextSeparator::Tabs;
+    }
+};
+
+SeparatorChoice addSeparatorChoice(QDialog *dlg, QVBoxLayout *v, bool withParagraphs, TextSeparator start, QChar startOther)
+{
+    auto *box = new QGroupBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Separate text at")), dlg);
+    auto *h = new QHBoxLayout(box);
+    SeparatorChoice c;
+    c.paragraphs = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Paragraphs")), box);
+    c.tabs = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Tabs")), box);
+    c.commas = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Commas")), box);
+    c.other = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Other:")), box);
+    c.character = new QLineEdit(box);
+    c.paragraphs->setObjectName(QStringLiteral("paragraphs"));
+    c.tabs->setObjectName(QStringLiteral("tabs"));
+    c.commas->setObjectName(QStringLiteral("commas"));
+    c.other->setObjectName(QStringLiteral("other"));
+    c.character->setObjectName(QStringLiteral("character"));
+    c.character->setMaxLength(1);
+    c.character->setFixedWidth(40);
+    if (!startOther.isNull()) c.character->setText(QString(startOther));
+    h->addWidget(c.paragraphs);
+    h->addWidget(c.tabs);
+    h->addWidget(c.commas);
+    h->addWidget(c.other);
+    h->addWidget(c.character);
+    h->addStretch(1);
+    c.paragraphs->setVisible(withParagraphs);
+    (start == TextSeparator::Paragraphs && withParagraphs ? c.paragraphs : start == TextSeparator::Commas ? c.commas : start == TextSeparator::Other ? c.other : c.tabs)->setChecked(true);
+    c.character->setEnabled(c.other->isChecked());
+    QObject::connect(c.other, &QRadioButton::toggled, c.character, &QWidget::setEnabled);
+    v->addWidget(box);
+    return c;
+}
+
+} // namespace
+
+bool convertTextToTableDialog(QWidget *parent, TextSeparator *separator, QChar *other, int *columns)
+{
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("convertTextToTableDialog"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Convert Text to Table")));
+    auto *v = new QVBoxLayout(&dlg);
+    auto *form = new QFormLayout;
+    v->addLayout(form);
+    auto *c = new QSpinBox(&dlg);
+    c->setObjectName(QStringLiteral("columns"));
+    c->setRange(1, 63);
+    c->setValue(std::max(1, *columns));
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Number of columns:")), c);
+    const SeparatorChoice choice = addSeparatorChoice(&dlg, v, true, *separator, *other);
+    okCancel(&dlg, v);
+    if (dlg.exec() != QDialog::Accepted) return false;
+    *separator = choice.value();
+    *other = choice.character->text().isEmpty() ? QChar() : choice.character->text().at(0);
+    *columns = c->value();
+    return true;
+}
+
+bool convertTableToTextDialog(QWidget *parent, TextSeparator *separator, QChar *other)
+{
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("convertTableToTextDialog"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Convert Table to Text")));
+    auto *v = new QVBoxLayout(&dlg);
+    const SeparatorChoice choice = addSeparatorChoice(&dlg, v, true, *separator, *other);
+    choice.paragraphs->setText(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Paragraph marks")));
+    okCancel(&dlg, v);
+    if (dlg.exec() != QDialog::Accepted) return false;
+    *separator = choice.value();
+    *other = choice.character->text().isEmpty() ? QChar() : choice.character->text().at(0);
+    return true;
+}
+
+bool sortTableDialog(QWidget *parent, int columns, QVector<TableSortKey> *keys, bool *header)
+{
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("sortTableDialog"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Sort")));
+    auto *v = new QVBoxLayout(&dlg);
+    auto *grid = new QGridLayout;
+    v->addLayout(grid);
+    struct Row {
+        QComboBox *column, *kind;
+        QRadioButton *up, *down;
+    };
+    QVector<Row> rows;
+    const char *const names[] = {QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Sort by"), QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Then by"), QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Then by")};
+    for (int i = 0; i < 3; ++i) {
+        Row r;
+        r.column = new QComboBox(&dlg);
+        r.column->setObjectName(QStringLiteral("column%1").arg(i));
+        if (i > 0) r.column->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "(none)")), -1);
+        for (int c = 0; c < columns; ++c) r.column->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Column %1")).arg(c + 1), c);
+        r.kind = new QComboBox(&dlg);
+        r.kind->setObjectName(QStringLiteral("kind%1").arg(i));
+        r.kind->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Text")), int(TableSortKey::Kind::Text));
+        r.kind->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Number")), int(TableSortKey::Kind::Number));
+        r.kind->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Date")), int(TableSortKey::Kind::Date));
+        r.up = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Ascending")), &dlg);
+        r.down = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Descending")), &dlg);
+        r.up->setObjectName(QStringLiteral("up%1").arg(i));
+        r.down->setObjectName(QStringLiteral("down%1").arg(i));
+        r.up->setChecked(true);
+        if (i < keys->size()) {
+            r.column->setCurrentIndex(std::max(0, r.column->findData((*keys)[i].column)));
+            r.kind->setCurrentIndex(std::max(0, r.kind->findData(int((*keys)[i].kind))));
+            (*keys)[i].ascending ? r.up->setChecked(true) : r.down->setChecked(true);
+        }
+        auto *group = new QButtonGroup(&dlg);
+        group->addButton(r.up);
+        group->addButton(r.down);
+        grid->addWidget(new QLabel(tr(names[i]), &dlg), i, 0);
+        grid->addWidget(r.column, i, 1);
+        grid->addWidget(r.kind, i, 2);
+        grid->addWidget(r.up, i, 3);
+        grid->addWidget(r.down, i, 4);
+        rows << r;
+    }
+    auto *head = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "The first row is a header row (it stays where it is)")), &dlg);
+    head->setObjectName(QStringLiteral("header"));
+    head->setChecked(*header);
+    v->addWidget(head);
+    okCancel(&dlg, v);
+    if (dlg.exec() != QDialog::Accepted) return false;
+    keys->clear();
+    for (const Row &r : std::as_const(rows)) {
+        const int column = r.column->currentData().toInt();
+        if (column < 0) continue;
+        TableSortKey k;
+        k.column = column;
+        k.kind = TableSortKey::Kind(r.kind->currentData().toInt());
+        k.ascending = r.up->isChecked();
+        keys->push_back(k);
+    }
+    *header = head->isChecked();
+    return !keys->isEmpty();
+}
+
+bool tableFormulaDialog(QWidget *parent, QString *formula, QString *picture)
+{
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("tableFormulaDialog"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Formula")));
+    auto *v = new QVBoxLayout(&dlg);
+    auto *form = new QFormLayout;
+    v->addLayout(form);
+    auto *f = new QLineEdit(*formula, &dlg);
+    f->setObjectName(QStringLiteral("formula"));
+    auto *p = new QComboBox(&dlg);
+    p->setObjectName(QStringLiteral("picture"));
+    p->setEditable(true);
+    p->addItems({QString(), QStringLiteral("0"), QStringLiteral("0.00"), QStringLiteral("#,##0"), QStringLiteral("#,##0.00"), QStringLiteral("$#,##0.00"), QStringLiteral("0%"), QStringLiteral("0.00%")});
+    p->setCurrentText(*picture);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Formula:")), f);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Number format:")), p);
+    auto *hint = new QLabel(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Use cells as A1 (a column's letter and a row's number), A1:B3, or ABOVE, BELOW, LEFT, and RIGHT, in SUM, AVERAGE, COUNT, MIN, MAX, and the like.")), &dlg);
+    hint->setWordWrap(true);
+    v->addWidget(hint);
+    okCancel(&dlg, v);
+    if (dlg.exec() != QDialog::Accepted) return false;
+    *formula = f->text().trimmed();
+    *picture = p->currentText().trimmed();
+    return !formula->isEmpty();
+}
+
 } // namespace jp::write
