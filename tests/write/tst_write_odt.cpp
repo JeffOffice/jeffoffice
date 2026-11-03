@@ -9,6 +9,7 @@
 #include "core/editops.h"
 #include "core/fonts.h"
 #include "core/writedoc.h"
+#include "odt/odtread.h"
 #include "io/zip.h"
 #include "odt/odt.h"
 #include "office/package.h"
@@ -94,6 +95,19 @@ private Q_SLOTS:
         for (const char *w : {"A heading", "Plain bold words and more.", "first item", "second item", "cell a", "cell b", "Last paragraph."}) QVERIFY2(text.contains(QLatin1String(w)), w);
         QVERIFY(hasBold(*doc, QStringLiteral("bold words")));
         QVERIFY(!hasBold(*doc, QStringLiteral("Plain")));
+    }
+
+    // The markup of a paragraph's look is made once for each style, not for each paragraph: five thousand paragraphs of two styles make some looks, not thousands. (Counted.)
+    void theLooksOfParagraphsAreMadeOnceForEachStyle()
+    {
+        QByteArray body;
+        for (int i = 0; i < 5000; ++i) body += i % 2 ? "<text:p text:style-name=\"Standard\">Plain <text:span text:style-name=\"T1\">bold</text:span> words.</text:p>" : "<text:h text:style-name=\"Heading_20_1\" text:outline-level=\"1\">Heading</text:h>";
+        const qint64 before = jp::office::odt::Reader::looksMadeForTest();
+        QString err;
+        auto doc = WriteDoc::fromFile(makeOdt(body, kAuto), &err, nullptr);
+        QVERIFY2(doc, qPrintable(err));
+        const qint64 made = jp::office::odt::Reader::looksMadeForTest() - before;
+        QVERIFY2(made <= 40, qPrintable(QStringLiteral("%1 looks made for 5000 paragraphs").arg(made)));
     }
 
     void fileOpenFindsAnOdtByItsContent()

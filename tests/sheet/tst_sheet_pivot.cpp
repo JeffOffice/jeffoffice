@@ -3,6 +3,7 @@
 #include "sheethelpers.h"
 
 #include "sheet/pivot.h"
+#include "../timing.h"
 #include "sheet/xlsxsave.h"
 
 #include <QElapsedTimer>
@@ -892,6 +893,72 @@ private Q_SLOTS:
         now.dataFields[0].subtotal = QStringLiteral("average");
         pivotRemapDataFields(old, &now);
         QCOMPARE(now.fields[0].sortByData, 0);
+    }
+
+    // A pivot table part nested deeper than any table is is not given to the XML parser to be written back (which takes time that grows with the square of the depth): the write is refused at once.
+    void aPivotTablePartNestedThirtyThousandDeepIsNotParsedToBeWritten()
+    {
+        const Worked w = work(tableDefinition(true));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QByteArray deep = tableDefinition(true);
+        const qsizetype at = deep.lastIndexOf("</pivotTableDefinition>");
+        QVERIFY(at > 0);
+        deep.insert(at, "<extLst>" + QByteArray("<ext>").repeated(30000) + QByteArray("</ext>").repeated(30000) + "</extLst>");
+        QElapsedTimer timer;
+        timer.start();
+        const QByteArray written = writePivotTable(deep, w.table, false);
+        QVERIFY(written.isEmpty());
+        QVERIFY2(timer.elapsed() < 2000, qPrintable(QStringLiteral("%1 ms").arg(timer.elapsed())));
+    }
+
+    // GETPIVOTDATA over a table of sixty thousand lines finds each value by the place of its item, not by passing the items of the field: six thousand asks, each for an item near the end, take
+    // a moment. (A ceiling many times what they take alone.)
+    void aLookupOverATableOfSixtyThousandLinesDoesNotPassTheItemsForEachAsk()
+    {
+        const int n = 60000;
+        PivotCache c;
+        c.recordCount = n;
+        PivotCacheField key, amount;
+        key.name = QStringLiteral("K");
+        key.hasShared = true;
+        amount.name = QStringLiteral("N");
+        for (int i = 0; i < n; ++i) {
+            PivotValue t, v;
+            t.kind = PivotValue::Text;
+            t.text = QStringLiteral("i%1").arg(i);
+            key.items.append(t);
+            key.records.append(i);
+            v.kind = PivotValue::Number;
+            v.number = i % 7;
+            amount.items.append(v);
+            amount.records.append(i);
+        }
+        key.sharedCount = n;
+        c.fields.append(key);
+        c.fields.append(amount);
+        QString items;
+        for (int i = 0; i < n; ++i) items += QStringLiteral("<item x=\"%1\"/>").arg(i);
+        const QByteArray xml = QStringLiteral("<pivotTableDefinition xmlns=\"%1\" name=\"t\" cacheId=\"1\" compact=\"0\"><location ref=\"A1:B2\" firstHeaderRow=\"1\" firstDataRow=\"1\" firstDataCol=\"1\"/>"
+                                             "<pivotFields count=\"2\"><pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\"><items count=\"%2\">%3<item t=\"default\"/></items></pivotField><pivotField dataField=\"1\"/></pivotFields>"
+                                             "<rowFields count=\"1\"><field x=\"0\"/></rowFields><dataFields count=\"1\"><dataField name=\"S\" fld=\"1\"/></dataFields></pivotTableDefinition>").arg(QLatin1String(kNs)).arg(n + 1).arg(items).toUtf8();
+        PivotTable t;
+        QString why;
+        QVERIFY2(readPivotTable(xml, &t, &why), qPrintable(why));
+        auto grid = std::make_shared<PivotGrid>();
+        QVERIFY2(computePivot(t, c, grid.get(), &why), qPrintable(why));
+        PivotLookup lookup(std::make_shared<PivotTable>(t), std::make_shared<PivotCache>(c), grid);
+        bool all = true;
+        const qint64 best = bestNanoseconds([&] {
+            for (int k = 0; k < 6000; ++k) {
+                PivotValue v;
+                v.kind = PivotValue::Text;
+                v.text = QStringLiteral("i%1").arg(n - 1 - k);
+                PivotCell cell;
+                all = lookup.find(QStringLiteral("S"), {{QStringLiteral("K"), v}}, &cell) && cell.number == double((n - 1 - k) % 7) && all;
+            }
+        }, 3);
+        QVERIFY(all);
+        QVERIFY2(best < 400000000LL, qPrintable(QStringLiteral("%1 ms for 6000 lookups").arg(best / 1000000)));
     }
 
     // GETPIVOTDATA: a value of the table by its data field and the items of its lines; the totals when fewer fields are named; nothing for what the table does not show; and the arguments of a cell.

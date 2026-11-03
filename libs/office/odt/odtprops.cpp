@@ -4,9 +4,15 @@
 
 #include <QRegularExpression>
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 namespace jp::office::odt {
+
+namespace {
+std::atomic<qint64> g_looksMade{0};
+}
+qint64 Reader::looksMadeForTest() { return g_looksMade.load(); }
 
 namespace {
 
@@ -119,6 +125,7 @@ QByteArray Reader::bordersXml(const Props &p, const QString &kind, const char *t
 QByteArray Reader::rPrXml(const Props &p, const QString &rStyle, bool inStyle) const
 {
     Q_UNUSED(inStyle);
+    ++g_looksMade;
     auto g = [&](const char *k) { return p.value(QStringLiteral("text:") + QLatin1String(k)); };
     auto has = [&](const char *k) { return p.contains(QStringLiteral("text:") + QLatin1String(k)); };
     QByteArray x;
@@ -228,6 +235,7 @@ QByteArray Reader::rPrXml(const Props &p, const QString &rStyle, bool inStyle) c
 
 QByteArray Reader::pPrXml(const Props &p, const QByteArray &tabs, const QByteArray &pStyle, const QByteArray &numPr, int outline, bool pageBreakBefore) const
 {
+    ++g_looksMade;
     auto g = [&](const char *k) { return p.value(QStringLiteral("para:") + QLatin1String(k)); };
     auto has = [&](const char *k) { return p.contains(QStringLiteral("para:") + QLatin1String(k)); };
     auto side = [&](const char *name, const char *s) {

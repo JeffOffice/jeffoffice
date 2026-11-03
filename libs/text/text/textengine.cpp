@@ -291,6 +291,7 @@ std::atomic<qint64> g_longestJoinedParagraphs{0};
 std::atomic<qint64> g_hyphenationLetters{0};
 std::atomic<qint64> g_paragraphCharsRead{0};
 std::atomic<qint64> g_formatRangesMade{0};
+std::atomic<qint64> g_rangesScanned{0};   // (the format ranges the scans of lines read)
 std::atomic<qint64> g_unbreakableParagraphs{0}, g_defaultTabStopsListed{0}, g_defaultTabStopsMade{0}, g_runsPassed{0}, g_notesSetInType{0};
 inline void noteJoinedParagraphs(int n)
 {
@@ -1580,6 +1581,7 @@ qint64 StoryLayout::lineHeightsMeasuredForTest() { return g_lineHeightsMeasured.
 qint64 StoryLayout::longestJoinedStretchForTest() { return g_longestJoinedStretch.load(); }
 qint64 StoryLayout::paragraphCharsReadForTest() { return g_paragraphCharsRead.load(); }
 qint64 StoryLayout::formatRangesMadeForTest() { return g_formatRangesMade.load(); }
+qint64 StoryLayout::rangesScannedForTest() { return g_rangesScanned.load(); }
 qint64 StoryLayout::unbreakableParagraphsForTest() { return g_unbreakableParagraphs.load(); }
 qint64 StoryLayout::defaultTabStopsListedForTest() { return g_defaultTabStopsListed.load(); }
 qint64 StoryLayout::defaultTabStopsMadeForTest() { return g_defaultTabStopsMade.load(); }
@@ -2062,6 +2064,61 @@ static double wrapTextHeight(const QFont &f)
 }
 
 // Single spacing in document points: the largest run's line height on the line.
+// The format ranges of the paragraph being laid out, indexed for the scans each line makes of them: a paragraph of a hundred thousand runs has a hundred thousand ranges, and
+// a line reads only the few that reach it, not all of them. The ranges are in the order of their starts (checked once; if they are not, every scan reads all of them), and may
+// overlap: the longest end among those up to a range is kept, so that the first range a line can reach is found whatever the ranges before it are like.
+struct RangeIndex {
+    const QTextLayout::FormatRange *data = nullptr;
+    qsizetype n = 0;
+    bool sorted = false;
+    QVector<int> maxEnd;
+};
+static thread_local RangeIndex g_rangeIndex;
+
+struct RangeIndexScope {
+    RangeIndex before;
+    explicit RangeIndexScope(const QVector<QTextLayout::FormatRange> &ranges)
+        : before(std::move(g_rangeIndex))
+    {
+        RangeIndex ix;
+        ix.data = ranges.constData();
+        ix.n = ranges.size();
+        ix.sorted = true;
+        ix.maxEnd.reserve(ranges.size());
+        int top = std::numeric_limits<int>::min();
+        for (qsizetype i = 0; i < ranges.size(); ++i) {
+            if (i > 0 && ranges[i].start < ranges[i - 1].start) ix.sorted = false;
+            top = std::max(top, ranges[i].start + ranges[i].length);
+            ix.maxEnd.push_back(top);
+        }
+        g_rangeIndex = std::move(ix);
+    }
+    ~RangeIndexScope() { g_rangeIndex = std::move(before); }
+    RangeIndexScope(const RangeIndexScope &) = delete;
+    RangeIndexScope &operator=(const RangeIndexScope &) = delete;
+};
+
+struct RangeSpan {
+    const QTextLayout::FormatRange *first, *last;
+    const QTextLayout::FormatRange *begin() const { return first; }
+    const QTextLayout::FormatRange *end() const { return last; }
+};
+
+// The ranges that can reach the text from `from` for `len` characters: the whole list unless it is the indexed one.
+static RangeSpan rangesNear(const QVector<QTextLayout::FormatRange> &ranges, int from, int len)
+{
+    const RangeIndex &ix = g_rangeIndex;
+    if (!ix.sorted || ix.data != ranges.constData() || ix.n != ranges.size()) {
+        g_rangesScanned += ranges.size();
+        return {ranges.constData(), ranges.constData() + ranges.size()};
+    }
+    const qsizetype lo = std::upper_bound(ix.maxEnd.cbegin(), ix.maxEnd.cend(), from) - ix.maxEnd.cbegin();   // (the first whose end, or the end of one before it, is past `from`)
+    const qint64 stop = qint64(from) + len;
+    qsizetype hi = std::lower_bound(ranges.cbegin() + lo, ranges.cend(), stop, [](const QTextLayout::FormatRange &r, qint64 at) { return r.start < at; }) - ranges.cbegin();
+    g_rangesScanned += hi - lo;
+    return {ranges.constData() + lo, ranges.constData() + hi};
+}
+
 double singleSpacing(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback)
 {
     auto lineOf = [](const QFont &f, double size) {
@@ -2069,7 +2126,7 @@ double singleSpacing(const QVector<QTextLayout::FormatRange> &ranges, int from, 
         return size / fontPointFactor() * lineEmOf(f, fam);
     };
     double m = 0;
-    for (const auto &r : ranges)
+    for (const auto &r : rangesNear(ranges, from, len))
         if (r.start < from + len && r.start + r.length > from) {
             const QFont f = r.format.font();
             m = std::max(m, lineOf(f, r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF()));
@@ -2217,7 +2274,7 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
     int shown = from + len;   // (where the line's text ends, trailing spaces and tabs not counted)
     if (disp)
         while (shown > from && shown <= disp->size() && (disp->at(shown - 1) == QLatin1Char(' ') || disp->at(shown - 1) == QLatin1Char('\t'))) --shown;
-    for (const auto &r : ranges)
+    for (const auto &r : rangesNear(ranges, from, len))
         if (r.length > 0 && r.start < shown && r.start + r.length > from) {   // (a mark that shows nothing is no run)
             // A symbol of a symbol font that stands raised (a note's mark, as an older program wrote it) rises above the line's text as far as its own font's ascent
             // takes it: the raised mark is two thirds of the size, a third of it (a little less) above the baseline. (Of a font whose ascent is the text's, it rises
@@ -2261,7 +2318,7 @@ static WordLine wordLineOf(const QVector<QTextLayout::FormatRange> &ranges, int 
 double slideSingle(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, const QFont &fallback)
 {
     double m = 0;
-    for (const auto &r : ranges)
+    for (const auto &r : rangesNear(ranges, from, len))
         if (r.start < from + len && r.start + r.length > from)
             m = std::max(m, (r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : r.format.font().pointSizeF()) / fontPointFactor() * 1.2);
     if (m <= 0) m = fallback.pointSizeF() / fontPointFactor() * 1.2;
@@ -2274,7 +2331,7 @@ double slideSingle(const QVector<QTextLayout::FormatRange> &ranges, int from, in
 double knownDescent(const QVector<QTextLayout::FormatRange> &ranges, int from, int len, bool fullSize, bool single)
 {
     double d = 0;
-    for (const auto &r : ranges)
+    for (const auto &r : rangesNear(ranges, from, len))
         if (r.start < from + len && r.start + r.length > from) {
             const QFont f = r.format.font();
             const QString fam = requestedFamily(f);
@@ -2291,7 +2348,7 @@ double fontDescent(const QVector<QTextLayout::FormatRange> &ranges, int from, in
 {
     static QHash<QString, double> emCache;   // main thread only, like all layout
     double d = 0;
-    for (const auto &r : ranges)
+    for (const auto &r : rangesNear(ranges, from, len))
         if (r.start < from + len && r.start + r.length > from) {
             QFont f = r.format.font();
             const QString key = emKey(f);
@@ -2389,7 +2446,7 @@ double slideDescent(const QVector<QTextLayout::FormatRange> &ranges, int from, i
         return it->ascent > 0 ? size / fontPointFactor() * 1.2 * it->descent / (it->ascent + it->descent) : 0.0;
     };
     double d = 0;
-    for (const auto &r : ranges)
+    for (const auto &r : rangesNear(ranges, from, len))
         if (r.start < from + len && r.start + r.length > from) {
             const QFont f = r.format.font();
             d = std::max(d, descentOf(f, r.format.hasProperty(tp::LineSize) ? r.format.property(tp::LineSize).toDouble() : f.pointSizeF()));
@@ -3614,6 +3671,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->tl = std::make_unique<ParagraphLayout>(B->disp, fineFont(base));
         bool adjusted = false;
         ranges = applyLetterWidthsTo(ranges, B->disp, &adjusted, env.wordLines);
+        const RangeIndexScope rangeIndexScope(ranges);
         B->lettersAdjusted = adjusted;
         g_formatRangesMade += ranges.size();
         B->tl->setFormats(fineRanges(ranges));

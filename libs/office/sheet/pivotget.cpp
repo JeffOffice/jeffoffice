@@ -100,10 +100,29 @@ struct PivotLookup::Impl {
     std::vector<QHash<QString, int>> itemByKey;       // for a field on an axis or a page: item keys -> the item's place among the cache's
     int dRow = -1, dCol = -1;
 
+    // (For a field on an axis or a page, the places of its items are made once, when the lookup is: a lookup asks for an item of a table of a million lines at each call.)
+    std::vector<QVector<int>> posByShared, sharedByPos;
+    std::vector<bool> placesMade;
+    void makePlaces(int f)
+    {
+        const PivotField &pf = t->fields[f];
+        QVector<int> &pos = posByShared[size_t(f)];
+        QVector<int> &shared = sharedByPos[size_t(f)];
+        pos.fill(-2, c->fields[f].items.size());   // (-2: not an item of the field's list)
+        int p = 0;
+        for (const PivotTableItem &it : pf.items) {
+            if (!it.t.isEmpty()) continue;
+            if (it.x >= 0 && it.x < pos.size() && pos[it.x] == -2) pos[it.x] = it.hidden ? -1 : p;
+            shared.append(it.x);
+            ++p;
+        }
+        placesMade[size_t(f)] = true;
+    }
     int positionOf(int f, int shared) const
     {
         const PivotField &pf = t->fields[f];
         if (!pf.hasItems) return shared;
+        if (size_t(f) < placesMade.size() && placesMade[size_t(f)]) return shared >= 0 && shared < posByShared[size_t(f)].size() && posByShared[size_t(f)][shared] != -2 ? posByShared[size_t(f)][shared] : -1;
         int p = 0;
         for (const PivotTableItem &it : pf.items) {
             if (!it.t.isEmpty()) continue;
@@ -116,6 +135,7 @@ struct PivotLookup::Impl {
     {
         const PivotField &pf = t->fields[f];
         if (!pf.hasItems) return position;
+        if (size_t(f) < placesMade.size() && placesMade[size_t(f)]) return position >= 0 && position < sharedByPos[size_t(f)].size() ? sharedByPos[size_t(f)][position] : -1;
         int p = 0;
         for (const PivotTableItem &it : pf.items) {
             if (!it.t.isEmpty()) continue;
@@ -201,6 +221,11 @@ PivotLookup::PivotLookup(std::shared_ptr<const PivotTable> table, std::shared_pt
     for (int f : t.rowFields) if (f >= 0) used[f] = true;
     for (int f : t.colFields) if (f >= 0) used[f] = true;
     for (const PivotPageField &p : t.pageFields) if (p.fld >= 0 && p.fld < used.size()) used[p.fld] = true;
+    d->posByShared.assign(size_t(c.fields.size()), QVector<int>());
+    d->sharedByPos.assign(size_t(c.fields.size()), QVector<int>());
+    d->placesMade.assign(size_t(c.fields.size()), false);
+    for (int f = 0; f < c.fields.size(); ++f)
+        if (used[f] && t.fields[f].hasItems) d->makePlaces(f);
     for (int f = 0; f < c.fields.size(); ++f) {
         if (!used[f]) continue;
         QHash<QString, int> &map = d->itemByKey[size_t(f)];

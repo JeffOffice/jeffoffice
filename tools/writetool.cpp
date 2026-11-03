@@ -642,14 +642,15 @@ int main(int argc, char **argv)
     const QString suffix = QFileInfo(args[2]).suffix().toLower();
     const bool old = suffix == QLatin1String("doc") || suffix == QLatin1String("dot");
     const bool odf = suffix == QLatin1String("odt") || suffix == QLatin1String("fodt") || suffix == QLatin1String("ott");
-    if (old || odf || suffix == QLatin1String("docx") || suffix == QLatin1String("docm") || suffix == QLatin1String("dotx") || suffix == QLatin1String("dotm")) {
+    const bool rich = suffix == QLatin1String("rtf");
+    if (old || odf || rich || suffix == QLatin1String("docx") || suffix == QLatin1String("docm") || suffix == QLatin1String("dotx") || suffix == QLatin1String("dotm")) {
         QFile f(args[2]);
         if (!f.open(QIODevice::ReadOnly)) {
             out << "cannot read: " << f.errorString() << "\n";
             return 1;
         }
         QStringList notes;
-        wdoc = old ? write::WriteDoc::fromDoc(f.readAll(), &error, &notes) : odf ? write::WriteDoc::fromOdt(f.readAll(), &error, &notes) : write::WriteDoc::fromDocx(f.readAll(), &error, &notes);
+        wdoc = old ? write::WriteDoc::fromDoc(f.readAll(), &error, &notes) : rich ? write::WriteDoc::fromRtf(f.readAll(), &error, &notes) : odf ? write::WriteDoc::fromOdt(f.readAll(), &error, &notes) : write::WriteDoc::fromDocx(f.readAll(), &error, &notes);
         if (!wdoc) {
             out << "cannot read: " << error << "\n";
             return 1;
@@ -685,7 +686,10 @@ int main(int argc, char **argv)
     if (cmd == "render") {
         QDir dir(args[3]);
         if (!dir.mkpath(QStringLiteral("."))) { out << "cannot make " << args[3] << "\n"; return 1; }
+        // (WRITETOOL_MAX_PAGES=N draws the first N pages and the last 5: a sweep over hostile files then times the reading and the pagination of the whole, not the drawing of tens of thousands of pages)
+        const int drawFirst = qEnvironmentVariableIntValue("WRITETOOL_MAX_PAGES");
         for (int k = 0; k < pages; ++k) {
+            if (drawFirst > 0 && k >= drawFirst && k < pages - 5) continue;
             const QImage img = pageImage(pg, &cache, k, width, false, pages);
             if (img.isNull() || !img.save(dir.filePath(QStringLiteral("page-%1.png").arg(k + 1, 3, 10, QLatin1Char('0'))))) { out << "cannot save page " << k + 1 << "\n"; return 1; }
             cache.clear();   // (each page has stories of its own: what was laid out for one is not wanted for the next, and held, a file of hundreds of pages takes a gigabyte)

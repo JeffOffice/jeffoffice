@@ -167,7 +167,7 @@ QByteArray realistic()
     w.addRelationship(QStringLiteral("/xl/workbook.xml"), relBase + "calcChain", QStringLiteral("/xl/calcChain.xml"));
     w.addPart(QStringLiteral("/xl/theme/theme1.xml"), QByteArray("<a:theme xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/>"), QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
     w.addRelationship(QStringLiteral("/xl/workbook.xml"), relBase + "theme", QStringLiteral("/xl/theme/theme1.xml"));
-    w.addPart(QStringLiteral("/xl/vbaProject.bin"), QByteArray("VBA\x01\x02\x03 not really a project", 30), QStringLiteral("application/vnd.ms-office.vbaProject"));
+    w.addPart(QStringLiteral("/xl/vbaProject.bin"), QByteArray("VBA\x01\x02\x03 not really a project", 27), QStringLiteral("application/vnd.ms-office.vbaProject"));
     const QByteArray workbook = ("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<workbook xmlns=\"" + kMainNs + "\" xmlns:r=\"" + kRelNs + "\"><sheets><sheet name=\"One\" sheetId=\"1\" r:id=\""
                                  + id1 + "\"/><sheet name=\"Two\" sheetId=\"2\" r:id=\"" + id2 + "\"/></sheets><calcPr calcId=\"191029\"/></workbook>").toUtf8();
     w.addPart(QStringLiteral("/xl/workbook.xml"), workbook, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));

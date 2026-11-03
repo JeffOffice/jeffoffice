@@ -39,6 +39,7 @@
 #include "wml/xmltree.h"
 #include "render/renderer.h"
 #include "rtcheck.h"
+#include "../timing.h"
 #include "app/spelling.h"
 #include "text/dictionaries.h"
 #include "text/textengine.h"
@@ -9589,6 +9590,55 @@ private Q_SLOTS:
         for (int i = 0; i < pages; ++i) QVERIFY(doc->pager().materialize(i));
         const qint64 copied = doc->pager().charsCopiedForTest() - before, length = doc->story()->characterCount();
         QVERIFY2(copied <= 2 * length, qPrintable(QStringLiteral("%1 characters copied for the %2 pages of a story of %3").arg(copied).arg(pages).arg(length)));
+    }
+
+    // The copy of a page's text is made in one edit: a paragraph of thousands of runs of one character each, set small, is a page of thousands of pieces, and the copy of that page takes
+    // a moment, not the time of laying out the paragraph for every piece put in. (A ceiling many times what the page takes alone.)
+    void aPageOfThousandsOfRunsIsCopiedInOneEdit()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        QByteArray runs;
+        for (int i = 0; i < 6000; ++i) runs += QByteArray(i % 2 ? "<w:r><w:rPr><w:b/><w:sz w:val=\"16\"/></w:rPr><w:t>b</w:t></w:r>" : "<w:r><w:rPr><w:sz w:val=\"16\"/></w:rPr><w:t>a</w:t></w:r>");
+        auto doc = open(makeDocx("<w:p>" + runs + "</w:p>", kStyles, QByteArray(), sect));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 1);
+        const qint64 best = bestNanoseconds([&] { doc->pager().materialize(0); }, 3);
+        QVERIFY2(best < 600000000LL, qPrintable(QStringLiteral("%1 ms to copy one page of %2 runs").arg(best / 1000000).arg(6000)));
+    }
+
+    // A line reads the format ranges that reach it, not every range of its paragraph: a paragraph of thousands of runs of two looks, laid out, has the ranges the scans of its lines read
+    // counted at some tens of times the ranges there are, not at the ranges times the lines. (Counted.)
+    void theLinesOfAParagraphOfThousandsOfRunsReadOnlyTheirOwnRanges()
+    {
+        QByteArray runs;
+        for (int i = 0; i < 8000; ++i) runs += QByteArray(i % 2 ? "<w:r><w:rPr><w:b/></w:rPr><w:t>b </w:t></w:r>" : "<w:r><w:t>a </w:t></w:r>");
+        const qint64 before = jp::StoryLayout::rangesScannedForTest();
+        auto doc = open(makeDocx("<w:p>" + runs + "</w:p>", kStyles));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 2);
+        QVERIFY(doc->pager().materialize(0));
+        const qint64 scanned = jp::StoryLayout::rangesScannedForTest() - before;
+        QVERIFY2(scanned <= 8000 * 60, qPrintable(QStringLiteral("%1 ranges read for a paragraph of 8000").arg(scanned)));
+    }
+
+    // The copy of a page far down a paragraph of a hundred thousand runs does not pass the runs before the page, nor the runs of the paragraph for each line of the page: it takes a moment.
+    // (A ceiling many times what the page takes alone.)
+    void aPageFarDownAParagraphOfAHundredThousandRunsIsCopiedQuickly()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        QByteArray runs;
+        for (int i = 0; i < 100000; ++i) runs += QByteArray(i % 2 ? "<w:r><w:rPr><w:b/><w:sz w:val=\"16\"/></w:rPr><w:t>b</w:t></w:r>" : "<w:r><w:rPr><w:sz w:val=\"16\"/></w:rPr><w:t>a</w:t></w:r>");
+        auto doc = open(makeDocx("<w:p>" + runs + "</w:p>", kStyles, QByteArray(), sect));
+        QVERIFY(doc);
+        const int pages = doc->pager().pageCount();
+        QVERIFY2(pages >= 8, qPrintable(QString::number(pages)));
+        const qint64 best = bestNanoseconds([&] { doc->pager().materialize(pages - 2); }, 3);
+#if defined(__SANITIZE_ADDRESS__)
+        const qint64 ceiling = 30000000000LL;   // (a build that checks every access takes many times as long)
+#else
+        const qint64 ceiling = 1000000000LL;
+#endif
+        QVERIFY2(best < ceiling, qPrintable(QStringLiteral("%1 ms to copy page %2 of %3").arg(best / 1000000).arg(pages - 1).arg(pages)));
     }
 
     // A page break that ends the last line of a run of joined paragraphs, with no room on the page for the empty line after it, goes on at the paragraph after the run: nothing of the run

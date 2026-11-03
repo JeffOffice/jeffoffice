@@ -44,6 +44,7 @@ bool pivotCheckSelection(const QByteArray &selectionXml, const QByteArray &table
         if (why) *why = m;
         return false;
     };
+    if (pivotXmlDepth(selectionXml, kPivotMaxXmlDepth) > kPivotMaxXmlDepth || pivotXmlDepth(tableXml, kPivotMaxXmlDepth) > kPivotMaxXmlDepth) return fail(QStringLiteral("nested too deep"));
     QDomDocument sdoc, tdoc;
     if (!sdoc.setContent(selectionXml) || !tdoc.setContent(tableXml)) return fail(QStringLiteral("a selection or a table is not well formed"));
     const QDomElement sel = sdoc.documentElement(), troot = tdoc.documentElement();

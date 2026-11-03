@@ -338,7 +338,7 @@ private Q_SLOTS:
         QVERIFY(utf16.asked);
         QVERIFY(utf16.written.startsWith("\xFF\xFE"));
         // a UTF-16 file, big end first, not edited: the same answer gives its bytes, and another answer is written as asked
-        const QByteArray be("\xFE\xFF\0a\0,\0b\0\n\0001\0,\0" "2\0\n", 20);
+        const QByteArray be("\xFE\xFF\0a\0,\0b\0\n\0001\0,\0" "2\0\n", 18);   // (eighteen bytes: the literal holds no more)
         const Result bigEnd = run([](CsvSaveDialog *d) { d->findChild<QPushButton *>(QStringLiteral("csvSaveValues"))->click(); }, be);
         QVERIFY(bigEnd.asked);
         QCOMPARE(bigEnd.written, be);

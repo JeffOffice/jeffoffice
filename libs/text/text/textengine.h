@@ -416,6 +416,7 @@ public:
     // How many ranges of format (the pieces Qt shapes and looks a font up for, at each line) the paragraphs' layouts were given since the program began: a cost test, for runs that have
     // the format of the run before them, or show no letters, are no ranges of their own.
     static qint64 formatRangesMadeForTest();
+    static qint64 rangesScannedForTest();
     // How many paragraph layouts were set to break a line anywhere because the text they hold has no place to break one, and how many default stops were listed for Qt's tabs as left
     // stops (a left stop makes Qt read the rest of the paragraph for every tab that one answers: a word processor's default stops are listed as stops that do not), since the program
     // began: cost tests.

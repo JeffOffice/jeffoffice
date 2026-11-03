@@ -43,6 +43,7 @@ constexpr qint64 kPivotMaxTablePartBytes = qint64(32) << 20;
 constexpr qint64 kPivotMaxDefinitionBytes = qint64(64) << 20;
 constexpr qint64 kPivotMaxRecordsBytes = qint64(256) << 20;
 constexpr int kPivotMaxXmlDepth = 64;
+constexpr qint64 kPivotMaxDomElements = 1200000;   // the elements of a part that is made again through a document tree (about a kilobyte and a half each)
 // For the tests: other limits for the parts a pivot book takes in (0 for the usual ones).
 void pivotSetPartLimitsForTest(qint64 table, qint64 definition, qint64 records);
 
