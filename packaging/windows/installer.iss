@@ -77,6 +77,8 @@ VersionInfoCopyright=Copyright (c) 2026 JeffOffice LLC. Free software under the 
 PrivilegesRequired=lowest
 DefaultDirName={code:GetDefaultDir}
 DisableProgramGroupPage=yes
+; An earlier setup's folder is expected to exist (the NSIS setups made it), so Setup doesn't ask about it.
+DirExistsWarning=no
 DisableReadyPage=yes
 DisableWelcomePage=no
 ArchitecturesAllowed=x64compatible
