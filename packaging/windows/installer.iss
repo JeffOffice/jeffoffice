@@ -126,22 +126,22 @@ UninstalledAll=%1 was removed from this computer.
 Name: "pub"; Description: "JeffPub: publications"; Flags: fixed
 Name: "deck"; Description: "JeffDeck: presentations"
 #ifdef WITH_WRITE
-Name: "write"; Description: "JeffWrite: documents (beta)"; Flags: unchecked
+Name: "write"; Description: "JeffWrite: documents (beta)"
 #else
-Name: "write"; Description: "JeffWrite: documents (coming soon)"; Flags: unchecked
+Name: "write"; Description: "JeffWrite: documents (coming soon)"
 #endif
 #ifdef WITH_CRUNCH
-Name: "crunch"; Description: "JeffCrunch: spreadsheets (beta)"; Flags: unchecked
+Name: "crunch"; Description: "JeffCrunch: spreadsheets (beta)"
 #else
-Name: "crunch"; Description: "JeffCrunch: spreadsheets (coming soon)"; Flags: unchecked
+Name: "crunch"; Description: "JeffCrunch: spreadsheets (coming soon)"
 #endif
-Name: "mail"; Description: "JeffMail: email and calendar (coming soon)"; Flags: unchecked
-Name: "base"; Description: "JeffBase: databases (coming soon)"; Flags: unchecked
+Name: "mail"; Description: "JeffMail: email and calendar (coming soon)"
+Name: "base"; Description: "JeffBase: databases (coming soon)"
 
 [Tasks]
 Name: "desktopicon"; Description: "Add shortcuts to the apps to your desktop"; GroupDescription: "Shortcuts:"
 Name: "jpub"; Description: "Open .jpub files with JeffPub"; GroupDescription: "File types:"
-Name: "pubdefault"; Description: "Make JeffPub the default for .pub files (off keeps your current program)"; GroupDescription: "File types:"; Flags: unchecked
+Name: "pubdefault"; Description: "Make JeffPub the default for .pub files (off keeps your current program)"; GroupDescription: "File types:"
 Name: "stats"; Description: "Send anonymous usage statistics (never your files)"; GroupDescription: "Usage statistics:"
 
 [Dirs]
@@ -342,6 +342,8 @@ end;
 procedure InitializeWizard;
 begin
   PresetFolder := '';
+  // With no setup types, every component would start ticked: only JeffPub and JeffDeck do.
+  WizardSelectComponents('!write,!crunch,!mail,!base');
   PresetApps(WizardDirValue);
   PresetStats;
   // The description of the chosen app sits under the list.
