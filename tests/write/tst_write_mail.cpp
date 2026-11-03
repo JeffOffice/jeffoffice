@@ -91,8 +91,8 @@ MergeSource people()
         m.rows << row;
         m.include << true;
     };
-    add({"Dr.", "Ada", "Lovelace", "", "12 Analytical Way", "London", "", "N1 9GU", "United Kingdom"});
-    add({"", "Grace", "Hopper", "Navy", "1 Cobol Ct", "Arlington", "VA", "22201", "United States"});
+    add({"Dr.", "Mara", "Fenwick", "", "12 Harbor Way", "London", "", "N1 9GU", "United Kingdom"});
+    add({"", "Nora", "Pell", "Birchline", "1 Quarry Ct", "Arlington", "VA", "22201", "United States"});
     add({"", "", "", "", "", "", "", "", ""});
     return m;
 }
@@ -152,7 +152,7 @@ private Q_SLOTS:
     void aCsvListHasColumnsRowsAndQuotedCells()
     {
         QTemporaryDir dir;
-        const QString path = writeFile(dir, "list.csv", "First Name,Last Name,Notes\r\nAda,Lovelace,\"likes \"\"maths\"\", and poems\"\r\nGrace,Hopper\r\n");
+        const QString path = writeFile(dir, "list.csv", "First Name,Last Name,Notes\r\nAda,Fenwick,\"likes \"\"maths\"\", and poems\"\r\nGrace,Pell\r\n");
         MergeSource m;
         QString error;
         QVERIFY2(loadMergeSource(path, &m, &error), qPrintable(error));
@@ -186,7 +186,7 @@ private Q_SLOTS:
             "<style:style style:name=\"zip\" style:family=\"table-cell\" style:data-style-name=\"N5\"/></office:automatic-styles>"
             "<office:body><office:spreadsheet><table:table table:name=\"Sheet1\">"
             "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>Name</text:p></table:table-cell><table:table-cell office:value-type=\"string\"><text:p>ZIP Code</text:p></table:table-cell></table:table-row>"
-            "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>Ada</text:p></table:table-cell><table:table-cell table:style-name=\"zip\" office:value-type=\"float\" office:value=\"2134\"><text:p>02134</text:p></table:table-cell></table:table-row>"
+            "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>Mara</text:p></table:table-cell><table:table-cell table:style-name=\"zip\" office:value-type=\"float\" office:value=\"2134\"><text:p>02134</text:p></table:table-cell></table:table-row>"
             "</table:table></office:spreadsheet></office:body></office:document>";
         const QString path = writeFile(dir, "list.fods", fods);
         MergeSource m;
@@ -200,19 +200,19 @@ private Q_SLOTS:
     {
         const MergeSource m = people();
         const QHash<QString, QString> none;
-        QCOMPARE(mail::addressBlockText(m, 0, none, QString()), QStringLiteral("Dr. Ada Lovelace\u2028" "12 Analytical Way\u2028" "London N1 9GU\u2028" "United Kingdom"));
-        QCOMPARE(mail::addressBlockText(m, 1, none, QString()), QStringLiteral("Grace Hopper\u2028" "Navy\u2028" "1 Cobol Ct\u2028" "Arlington, VA 22201\u2028" "United States"));
+        QCOMPARE(mail::addressBlockText(m, 0, none, QString()), QStringLiteral("Dr. Mara Fenwick\u2028" "12 Harbor Way\u2028" "London N1 9GU\u2028" "United Kingdom"));
+        QCOMPARE(mail::addressBlockText(m, 1, none, QString()), QStringLiteral("Nora Pell\u2028" "Birchline\u2028" "1 Quarry Ct\u2028" "Arlington, VA 22201\u2028" "United States"));
         // A country that is the home one is not written.
-        QCOMPARE(mail::addressBlockText(m, 1, none, QString(), QStringLiteral("united states")), QStringLiteral("Grace Hopper\u2028" "Navy\u2028" "1 Cobol Ct\u2028" "Arlington, VA 22201"));
+        QCOMPARE(mail::addressBlockText(m, 1, none, QString(), QStringLiteral("united states")), QStringLiteral("Nora Pell\u2028" "Birchline\u2028" "1 Quarry Ct\u2028" "Arlington, VA 22201"));
         QCOMPARE(mail::addressBlockText(m, 2, none, QString()), QString());
         // Match Fields: a column the usual names don't find.
         MergeSource odd;
         odd.fields = {"Who", "Street"};
-        odd.rows << QStringList{"Ada Lovelace", "1 Way"};
+        odd.rows << QStringList{"Mara Fenwick", "1 Way"};
         odd.include << true;
         QHash<QString, QString> map;
         map.insert(QStringLiteral("First"), QStringLiteral("Who"));
-        QCOMPARE(mail::addressBlockText(odd, 0, map, QString()), QStringLiteral("Ada Lovelace\u2028" "1 Way"));
+        QCOMPARE(mail::addressBlockText(odd, 0, map, QString()), QStringLiteral("Mara Fenwick\u2028" "1 Way"));
     }
 
     void aGreetingLineFallsBackWhereTheRecordHasNoName()
@@ -220,9 +220,10 @@ private Q_SLOTS:
         const MergeSource m = people();
         const QHash<QString, QString> none;
         const QString fallback = QStringLiteral("Dear Sir or Madam,");
-        QCOMPARE(mail::greetingText(m, 0, none, QStringLiteral("Dear {Title} {Last},"), fallback), QStringLiteral("Dear Dr. Lovelace,"));
-        QCOMPARE(mail::greetingText(m, 1, none, QStringLiteral("Dear {Title} {Last},"), fallback), QStringLiteral("Dear Hopper,"));
-        QCOMPARE(mail::greetingText(m, 1, none, QStringLiteral("Hello {First}!"), fallback), QStringLiteral("Hello Grace!"));
+        QCOMPARE(mail::greetingText(m, 0, none, QStringLiteral("Dear {Title} {Last},"), fallback), QStringLiteral("Dear Dr. Fenwick,"));
+        QCOMPARE(mail::greetingText(m, 1, none, QStringLiteral("Dear {Title} {Last},"), fallback), QStringLiteral("Dear Nora Pell,"));   // (no title: the default format uses the first name)
+        QCOMPARE(mail::greetingText(m, 1, none, QStringLiteral("To {Title} {Last}:"), fallback), QStringLiteral("To Pell:"));   // (a format that was chosen is kept)
+        QCOMPARE(mail::greetingText(m, 1, none, QStringLiteral("Hello {First}!"), fallback), QStringLiteral("Hello Nora!"));
         QCOMPARE(mail::greetingText(m, 2, none, QStringLiteral("Dear {Title} {Last},"), fallback), fallback);
     }
 
@@ -233,8 +234,8 @@ private Q_SLOTS:
         const QVector<int> rows{0, 1, 2};
         mail::Evaluator ev(m, none, rows);
         auto answer = [&](const QString &code) { return ev.answer(fields::parseCode(code)).value_or(QStringLiteral("none")); };
-        QCOMPARE(answer(QStringLiteral("MERGEFIELD First_Name")), QStringLiteral("Ada"));
-        QCOMPARE(answer(QStringLiteral("MERGEFIELD \"First Name\" \\* Upper")), QStringLiteral("ADA"));
+        QCOMPARE(answer(QStringLiteral("MERGEFIELD First_Name")), QStringLiteral("Mara"));
+        QCOMPARE(answer(QStringLiteral("MERGEFIELD \"First Name\" \\* Upper")), QStringLiteral("MARA"));
         QCOMPARE(answer(QStringLiteral("MERGEFIELD Title \\b \"<\" \\f \"> \"")), QStringLiteral("<Dr.> "));
         QCOMPARE(answer(QStringLiteral("MERGEFIELD Nothing")), QString());
         ev.position = 2;
@@ -254,7 +255,7 @@ private Q_SLOTS:
         const QString before = textOf(*doc);
         auto merged = mail::mergeToDocument(*doc, m, {}, options, &error);
         QVERIFY2(merged, qPrintable(error));
-        QCOMPARE(textOf(*merged), QStringLiteral("Dear Ada,|Hello again|Dear ,|Hello again"));
+        QCOMPARE(textOf(*merged), QStringLiteral("Dear Mara,|Hello again|Dear ,|Hello again"));
         // Each record after the first begins a page; the original is as it was.
         int breaks = 0;
         for (QTextBlock b = merged->story()->begin(); b.isValid(); b = b.next()) breaks += (b.blockFormat().pageBreakPolicy() & QTextFormat::PageBreak_AlwaysBefore) != 0;
@@ -303,7 +304,7 @@ private Q_SLOTS:
         auto merged = mail::mergeToDocument(*doc, people(), {}, options, &error);
         QVERIFY2(merged, qPrintable(error));
         // (The third record has no last name: it is skipped.)
-        QCOMPARE(textOf(*merged), QStringLiteral("other Lovelace #1|Virginian Hopper #2"));
+        QCOMPARE(textOf(*merged), QStringLiteral("other Fenwick #1|Virginian Pell #2"));
     }
 
     void nextRecordTakesTheNextRecordIntoTheSameText()
@@ -314,7 +315,7 @@ private Q_SLOTS:
         mail::MergeOptions options;
         auto merged = mail::mergeToDocument(*doc, people(), {}, options);
         QVERIFY(merged);
-        QCOMPARE(textOf(*merged), QStringLiteral("Ada and Grace| and "));   // (the third record then stands alone, with no one after it)
+        QCOMPARE(textOf(*merged), QStringLiteral("Mara and Nora| and "));   // (the third record then stands alone, with no one after it)
     }
 
     void anAddressBlockFieldFromTheProgramMergesAndKeepsItsLineBreaks()
@@ -327,7 +328,7 @@ private Q_SLOTS:
         mail::MergeOptions options;
         auto merged = mail::mergeToDocument(*doc, people(), {}, options);
         QVERIFY(merged);
-        QVERIFY(textOf(*merged).startsWith(QStringLiteral("Dr. Ada Lovelace|12 Analytical Way|London N1 9GU|United Kingdom|Dear Dr. Lovelace,|Grace Hopper|Navy|")));
+        QVERIFY(textOf(*merged).startsWith(QStringLiteral("Dr. Mara Fenwick|12 Harbor Way|London N1 9GU|United Kingdom|Dear Dr. Fenwick,|Nora Pell|Birchline|")));
         QCOMPARE(merged->story()->blockCount(), 3 * 2 + 0);   // (the address and the greeting are a paragraph each: line breaks, not paragraphs, inside the address)
         auto again = open(merged->toDocx());
         QVERIFY(again);
@@ -449,23 +450,23 @@ private Q_SLOTS:
 
     void anEnvelopeAddedToADocumentIsItsFirstPageWithItsOwnSize()
     {
-        auto doc = open(makeDocx(para(run("Dear Grace,")) + para(run("Thank you."))));
+        auto doc = open(makeDocx(para(run("Dear Nora,")) + para(run("Thank you."))));
         QVERIFY(doc);
         QCOMPARE(doc->sectionCount(), 1);
-        auto env = mail::envelopeDocument(mail::envelopeSizes().first(), QStringLiteral("Ada"), mail::textRuns(QStringLiteral("Grace Hopper")));
+        auto env = mail::envelopeDocument(mail::envelopeSizes().first(), QStringLiteral("Mara"), mail::textRuns(QStringLiteral("Nora Pell")));
         QVERIFY(env);
         QVERIFY(mail::addAsFirstSection(*doc, *env));
         QCOMPARE(doc->sectionCount(), 2);
         QCOMPARE(doc->sectionProps(0).pageW, 13680);
         QCOMPARE(doc->sectionProps(0).orient, QStringLiteral("landscape"));
         QCOMPARE(doc->sectionProps(1).pageW, 12240);   // (the letter is as it was)
-        QVERIFY(textOf(*doc).contains(QStringLiteral("Grace Hopper")) && textOf(*doc).contains(QStringLiteral("Dear Grace,|Thank you.")));
-        QVERIFY(textOf(*doc).indexOf(QStringLiteral("Grace Hopper")) < textOf(*doc).indexOf(QStringLiteral("Dear Grace")));
+        QVERIFY(textOf(*doc).contains(QStringLiteral("Nora Pell")) && textOf(*doc).contains(QStringLiteral("Dear Nora,|Thank you.")));
+        QVERIFY(textOf(*doc).indexOf(QStringLiteral("Nora Pell")) < textOf(*doc).indexOf(QStringLiteral("Dear Nora")));
         QCOMPARE(doc->pager().pageCount(), 2);
         // One step takes it away.
         doc->undo();
         QCOMPARE(doc->sectionCount(), 1);
-        QCOMPARE(textOf(*doc), QStringLiteral("Dear Grace,|Thank you."));
+        QCOMPARE(textOf(*doc), QStringLiteral("Dear Nora,|Thank you."));
         // It saves and opens again.
         doc->redo();
         auto again = open(doc->toDocx());
@@ -478,12 +479,12 @@ private Q_SLOTS:
     {
         const QVector<mail::EnvelopeSize> sizes = mail::envelopeSizes();
         QVERIFY(sizes.size() >= 8);
-        auto doc = mail::envelopeDocument(sizes.first(), QStringLiteral("Ada\n1 Way"), mail::textRuns(QStringLiteral("Grace Hopper\n1 Cobol Ct")));
+        auto doc = mail::envelopeDocument(sizes.first(), QStringLiteral("Mara\n1 Way"), mail::textRuns(QStringLiteral("Nora Pell\n1 Quarry Ct")));
         QVERIFY(doc);
         const QByteArray xml = partOf(doc->toDocx(), QStringLiteral("/word/document.xml"));
         QVERIFY(xml.contains("w:w=\"13680\"") && xml.contains("w:h=\"5940\""));   // (9 1/2 by 4 1/8 inches)
         QVERIFY(xml.contains("w:orient=\"landscape\""));
-        QVERIFY(textOf(*doc).contains(QStringLiteral("Grace Hopper")) && textOf(*doc).contains(QStringLiteral("Ada")));
+        QVERIFY(textOf(*doc).contains(QStringLiteral("Nora Pell")) && textOf(*doc).contains(QStringLiteral("Mara")));
         QCOMPARE(doc->pager().pageCount(), 1);
         // For a merge its delivery address is an address block.
         auto template_ = mail::envelopeDocument(sizes.first(), QString(), mail::fieldRuns(mail::addressBlockCode(QString()), QStringLiteral("\u00ABAddress Block\u00BB")));
@@ -525,10 +526,10 @@ private Q_SLOTS:
         auto *pane = w.findChild<write::MailPreviewPane *>();
         QVERIFY(pane);
         QTRY_VERIFY(pane->shown());
-        QVERIFY(textOf(*pane->shown()).startsWith(QStringLiteral("Dear Ada")));
+        QVERIFY(textOf(*pane->shown()).startsWith(QStringLiteral("Dear Mara")));
         w.act(QStringLiteral("mail.next"))->trigger();
         QCOMPARE(pane->place(), 1);
-        QVERIFY(textOf(*pane->shown()).startsWith(QStringLiteral("Dear Grace")));
+        QVERIFY(textOf(*pane->shown()).startsWith(QStringLiteral("Dear Nora")));
         w.act(QStringLiteral("mail.last"))->trigger();
         QCOMPARE(pane->place(), 2);   // (all three records are included)
         w.act(QStringLiteral("mail.first"))->trigger();
@@ -600,14 +601,14 @@ private Q_SLOTS:
         w.show();
         write::WriteDoc *doc = w.document();
         QTextCursor c = w.view()->cursor();
-        insertText(*doc, c, QStringLiteral("Ace Hardware Supply, 12 Main Street\n"));
+        insertText(*doc, c, QStringLiteral("Birchline Supply, 12 Main Street\n"));
         QVERIFY(mail::insertRule(*doc, c, mail::addressBlockCode(QString()), QStringLiteral("\u00ABAddress Block\u00BB")));
         insertText(*doc, c, QStringLiteral("\n\n"));
         QVERIFY(mail::insertRule(*doc, c, mail::greetingCode(QString(), QString()), QStringLiteral("\u00ABGreeting Line\u00BB")));
         insertText(*doc, c, QStringLiteral("\n\nThank you for your order, "));
         QVERIFY(mail::insertRule(*doc, c, mail::mergeFieldCode(QStringLiteral("First Name")), QStringLiteral("\u00ABFirst Name\u00BB")));
         insertText(*doc, c, QStringLiteral(". It ships to "));
-        QVERIFY(mail::insertRule(*doc, c, QStringLiteral("IF \"{ MERGEFIELD State }\" = \"VA\" \"Virginia\" \"your state\""), QString()));
+        QVERIFY(mail::insertRule(*doc, c, QStringLiteral("IF \"{ MERGEFIELD State }\" = \"VA\" \"Virginia\" \"your state\""), QStringLiteral("\u00ABIf\u2026Then\u2026Else\u00BB")));
         insertText(*doc, c, QStringLiteral(" this week.\n"));
         w.view()->setCursor(c);
         mail::State &state = mail::stateOf(*doc);
@@ -628,7 +629,7 @@ private Q_SLOTS:
         QVERIFY(w.grab().save(dir + QStringLiteral("/mailings-preview.png")));
         }
         // The label sheet and the envelope, as documents.
-        auto labels = mail::labelDocument(mail::labelSheets().first(), [](int i) { return i % 7 == 0 ? mail::tightParagraph(mail::textRuns(QStringLiteral("Grace Hopper\n1 Cobol Ct\nArlington, VA 22201"))) : QByteArray(); });
+        auto labels = mail::labelDocument(mail::labelSheets().first(), [](int i) { return i % 7 == 0 ? mail::tightParagraph(mail::textRuns(QStringLiteral("Nora Pell\n1 Quarry Ct\nArlington, VA 22201"))) : QByteArray(); });
         QVERIFY(labels);
         WriteWindow lw;
         lw.setNotifier([](const QString &, const QString &) {});
@@ -638,7 +639,7 @@ private Q_SLOTS:
         lw.view()->setZoomMode(write::PageView::ZoomMode::OnePage);
         QTest::qWait(300);
         QVERIFY(lw.grab().save(dir + QStringLiteral("/labels.png")));
-        auto env = mail::envelopeDocument(mail::envelopeSizes().first(), QStringLiteral("Ada Lovelace\n12 Analytical Way\nLondon"), mail::textRuns(QStringLiteral("Grace Hopper\n1 Cobol Ct\nArlington, VA 22201")));
+        auto env = mail::envelopeDocument(mail::envelopeSizes().first(), QStringLiteral("Mara Fenwick\n12 Harbor Way\nLondon"), mail::textRuns(QStringLiteral("Nora Pell\n1 Quarry Ct\nArlington, VA 22201")));
         QVERIFY(env);
         WriteWindow ew;
         ew.setNotifier([](const QString &, const QString &) {});
@@ -670,12 +671,12 @@ private Q_SLOTS:
         QVERIFY2(said.last().contains(QStringLiteral("not next to it")), qPrintable(said.last()));
         QVERIFY(!mail::stateIfAny(*w.document())->loaded);
         // A file of the same name beside the document is.
-        writeFile(here, "people.csv", "First Name\r\nGrace\r\n");
+        writeFile(here, "people.csv", "First Name\r\nNora\r\n");
         w.act(QStringLiteral("mail.preview"))->trigger();
         auto *pane = w.findChild<write::MailPreviewPane *>();
         QVERIFY(pane);
         QTRY_VERIFY(pane->shown());
-        QVERIFY(textOf(*pane->shown()).startsWith(QStringLiteral("Grace")));
+        QVERIFY(textOf(*pane->shown()).startsWith(QStringLiteral("Nora")));
         QCOMPARE(mail::stateIfAny(*w.document())->sourcePath, far);   // (the link in the file is as it was)
     }
 
@@ -686,30 +687,30 @@ private Q_SLOTS:
         MergeSource m = people();
         m.include[1] = false;
         const QStringList texts = mail::mergeToTexts(*doc, m, {}, mail::MergeOptions());
-        QCOMPARE(texts, (QStringList{QStringLiteral("Dear Ada,\nBye"), QStringLiteral("Dear ,\nBye")}));
+        QCOMPARE(texts, (QStringList{QStringLiteral("Dear Mara,\nBye"), QStringLiteral("Dear ,\nBye")}));
     }
 
     void aMessageFileIsMadeForEachRecipientWhoHasAnAddress()
     {
         MergeSource m;
         m.fields = {"Name", "Email"};
-        m.rows = {{"Ada", "ada@example.com"}, {"Grace", ""}, {"Linus", "linus@example.org\r\nBcc: x@example.net"}, {"Edsger", "ed@example.net"}};
+        m.rows = {{"Mara", "mara@example.com"}, {"Nora", ""}, {"Tomas", "tomas@example.org\r\nBcc: x@example.net"}, {"Ivo", "ivo@example.net"}};
         m.include = QVector<bool>(4, true);
         QTemporaryDir dir;
-        const QStringList texts = {"Dear Ada,\nHello \u00E9", "Dear Grace", "Dear Linus", "Dear Edsger"};
+        const QStringList texts = {"Dear Mara,\nHello \u00E9", "Dear Nora", "Dear Tomas", "Dear Ivo"};
         QString error;
         const int written = mail::writeEmailFiles(texts, m, {0, 1, 2, 3}, QStringLiteral("Email"), QStringLiteral("Hi, \u00E9"), dir.filePath(QStringLiteral("out")), &error);
         QCOMPARE(written, 2);   // (no address, and an address with a line break that would add a header, make none)
         const QStringList files = QDir(dir.filePath(QStringLiteral("out"))).entryList(QDir::Files, QDir::Name);
         QCOMPARE(files.size(), 2);
-        QVERIFY(files[0].startsWith(QStringLiteral("00001-ada@example.com")) && files[0].endsWith(QStringLiteral(".eml")));
+        QVERIFY(files[0].startsWith(QStringLiteral("00001-mara@example.com")) && files[0].endsWith(QStringLiteral(".eml")));
         QFile f(dir.filePath(QStringLiteral("out/") + files[0]));
         QVERIFY(f.open(QIODevice::ReadOnly));
         const QByteArray eml = f.readAll();
-        QVERIFY(eml.startsWith("To: ada@example.com\r\n"));
+        QVERIFY(eml.startsWith("To: mara@example.com\r\n"));
         QVERIFY(eml.contains("Subject: =?UTF-8?B?" + QByteArray("Hi, \xC3\xA9").toBase64() + "?="));
         const QByteArray body = eml.mid(eml.indexOf("\r\n\r\n") + 4);
-        QCOMPARE(QByteArray::fromBase64(body), QByteArray("Dear Ada,\nHello \xC3\xA9"));
+        QCOMPARE(QByteArray::fromBase64(body), QByteArray("Dear Mara,\nHello \xC3\xA9"));
         QVERIFY(!eml.contains("Bcc"));
     }
 
@@ -785,6 +786,17 @@ private Q_SLOTS:
         mail::limitRecords(m);
         QCOMPARE(m.rows.size(), mail::kMostRecords);
         QCOMPARE(m.include.size(), mail::kMostRecords);
+    }
+
+    void aRuleInsertedWithNoResultShowsItsNameInTheEditor()
+    {
+        auto doc = WriteDoc::blank();
+        QTextCursor c(doc->story());
+        QVERIFY(mail::insertRule(*doc, c, QStringLiteral("IF \"{ MERGEFIELD State }\" = \"VA\" \"a\" \"b\""), QString()));
+        QVERIFY(mail::insertRule(*doc, c, QStringLiteral("NEXT"), QString()));
+        const QByteArray docx = doc->toDocx();
+        QVERIFY(documentHas(docx, "\xC2\xAB" "IF\xE2\x80\xA6\xC2\xBB"));
+        QVERIFY(documentHas(docx, "\xC2\xAB" "NEXT\xE2\x80\xA6\xC2\xBB"));
     }
 
     void aMessageIsAddressedToTheRecipientItWasMadeFrom()

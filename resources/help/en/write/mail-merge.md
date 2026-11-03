@@ -41,7 +41,7 @@ Click where the detail goes, then use **Mailings > Write & Insert Fields**:
 
 - **Insert Merge Field** lists the columns of your list. Pick one.
 - **Address Block** puts in a whole mailing address: the name, the company, the street, and the city. Pick the lines you want. A line that has nothing in it is left out. You can also name a country to leave out, such as your own. The **Preview** shows the first person's address.
-- **Greeting Line** puts in a line such as "Dear Dr. Lovelace,". You choose the words. If a person has no name, the greeting says something else, such as "Dear Sir or Madam,", which you can change.
+- **Greeting Line** puts in a line such as "Dear Dr. Fenwick,". You choose the words. The first choice, "Dear Dr. Fenwick,", uses the person's title. If a person has no title, it uses the first and last name instead, as in "Dear Nora Pell,". If a person has no name, the greeting says something else, such as "Dear Sir or Madam,", which you can change.
 - **Match Fields** tells the address block and the greeting line which column holds each part, when your column names are unusual.
 
 ## Rules

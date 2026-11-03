@@ -416,9 +416,12 @@ QStringList greetingFormats()
 
 QString greetingText(const MergeSource &data, int row, const QHash<QString, QString> &map, const QString &formatIn, const QString &fallback)
 {
-    const QString format = plainFormat(formatIn.isEmpty() ? greetingFormats().first() : formatIn);
-    bool any = false;
     auto value = [&](const QString &name) { return partValue(data, row, map, name); };
+    // (The default format, "Dear {Title} {Last},", reads badly with no title: it uses the first name too then.)
+    QString chosen = formatIn.isEmpty() ? greetingFormats().first() : formatIn;
+    if (chosen == greetingFormats().first() && value(QStringLiteral("Title")).isEmpty()) chosen = greetingFormats().value(1);
+    const QString format = plainFormat(chosen);
+    bool any = false;
     // (The name's parts the format asks for: the greeting is the fallback when the record has none of them.)
     bool asks = false;
     for (const QString &name : {QStringLiteral("Title"), QStringLiteral("First"), QStringLiteral("Last"), QStringLiteral("Suffix")}) asks = asks || format.contains(QLatin1Char('{') + name + QLatin1Char('}'));
@@ -478,8 +481,10 @@ QByteArray ruleRuns(const QString &code, const QString &result, int depth)
 
 } // namespace
 
-bool insertRule(WriteDoc &doc, QTextCursor &c, const QString &code, const QString &result)
+bool insertRule(WriteDoc &doc, QTextCursor &c, const QString &code, const QString &resultIn)
 {
+    // (A field with no result would show nothing in the editor: it shows its name in guillemets.)
+    const QString result = resultIn.isEmpty() ? QStringLiteral("\u00AB") + code.trimmed().section(QLatin1Char(' '), 0, 0) + QStringLiteral("\u2026\u00BB") : resultIn;
     if (!code.contains(QLatin1String("{ "))) return insertField(doc, c, code, result);
     office::wml::Inline field;
     field.kind = office::wml::Inline::ParaAtom;
