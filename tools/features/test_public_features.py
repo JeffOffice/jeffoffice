@@ -231,6 +231,13 @@ class Overrides(unittest.TestCase):
         self.assertEqual(r["en"], "Model English")
         self.assertEqual(r["soon"]["en"], "Only the soon text")
 
+    def test_override_on_a_todo_keeps_the_translations(self):
+        flat = {"id": 0, "works_drop": True, "en": "", "es": "Abre.", "fr": "Ouvre.", "soon_drop": False, "soon_en": "x", "soon_es": "y", "soon_fr": "z"}
+        r = pf.normalize(flat, "todo", {"works": "Opens.", "soon": "drop"})
+        self.assertFalse(r["drop"])
+        self.assertEqual((r["en"], r["es"], r["fr"]), ("Opens.", "Abre.", "Ouvre."))
+        self.assertEqual(pf.entry_problems(r), [])
+
     def test_the_shipped_overrides_load(self):
         for o in pf.load_overrides():
             self.assertTrue(o["app"] in pf.APPS and o["source_startswith"])

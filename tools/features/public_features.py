@@ -380,19 +380,19 @@ def estimate(todo):
 
 
 def normalize(r, kind, override=None):
-    """The model's flat result as stored: works text plus a "soon" text; a kind that has only one of them drops the other."""
+    """The model's flat result as stored: works text plus a "soon" text. A kind that has only one of them drops the other, and an
+    override's English replaces the model's (the model's Spanish and French of it are kept)."""
     works = {"drop": bool(r["works_drop"]) or kind == "todo", "en": r["en"].strip(), "es": r["es"].strip(), "fr": r["fr"].strip()}
     soon = {"drop": bool(r["soon_drop"]) or kind in ("feature", "heading"), "en": r["soon_en"].strip(), "es": r["soon_es"].strip(), "fr": r["soon_fr"].strip()}
-    for d in (works, soon):
-        if d["drop"]:
-            d.update(en="", es="", fr="")
     for name, d in (("works", works), ("soon", soon)):
         v = (override or {}).get(name)
         if v == "drop":
-            d.update(drop=True, en="", es="", fr="")
+            d["drop"] = True
         elif v:
             d["drop"] = False
-            d["en"] = v.strip()          # the English is the override's own words; the model only translated it
+            d["en"] = v.strip()
+        if d["drop"]:
+            d.update(en="", es="", fr="")
     works["soon"] = soon
     return works
 
