@@ -77,6 +77,8 @@ VersionInfoCopyright=Copyright (c) 2026 JeffOffice LLC. Free software under the 
 PrivilegesRequired=lowest
 DefaultDirName={code:GetDefaultDir}
 DisableProgramGroupPage=yes
+; An earlier setup's folder is expected to exist (the NSIS setups made it), so Setup doesn't ask about it.
+DirExistsWarning=no
 DisableReadyPage=yes
 DisableWelcomePage=no
 ArchitecturesAllowed=x64compatible
@@ -238,13 +240,6 @@ begin
   Result := '';
   if AppsRunning(WizardDirValue) then
     Result := '{#RunningList} is running.' + #13#10#13#10 + 'Save your work and close it, then click Next to try again.';
-end;
-
-// An update goes into the folder of the install it updates, as it does with Inno Setup's own updates; the NSIS setups'
-// folder exists, and Setup would ask about it, so the folder page is skipped when JeffPub is already there.
-function ShouldSkipPage(PageID: Integer): Boolean;
-begin
-  Result := (PageID = wpSelectDir) and FileExists(GetDefaultDir('') + '\JeffPub.exe');
 end;
 
 function WantDesktop(App: String): Boolean;
