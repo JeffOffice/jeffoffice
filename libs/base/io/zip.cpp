@@ -8,6 +8,7 @@
 
 #include <QtEndian>
 
+#include <algorithm>
 #include <cstring>
 
 namespace jp {
@@ -68,6 +69,99 @@ static QByteArray inflateRaw(const QByteArray &in, qsizetype expected, bool *ok)
     *ok = r == Z_STREAM_END && qsizetype(zs.total_out) == expected;
     inflateEnd(&zs);
     return out;
+}
+
+// Inflates raw deflate data as far as it goes: `consumed` is how many input bytes the stream took, `ended` whether it reached its end. What came out before a break is kept.
+static QByteArray inflateAsFarAsItGoes(const char *in, qsizetype available, qint64 limit, qsizetype *consumed, bool *ended, bool *overLimit)
+{
+    *consumed = 0;
+    *ended = false;
+    *overLimit = false;
+    QByteArray out;
+    z_stream zs{};
+    if (inflateInit2(&zs, -15) != Z_OK) return out;
+    zs.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(in));
+    zs.avail_in = uInt(std::min<qsizetype>(available, 0x7fffffff));
+    char buf[65536];
+    for (;;) {
+        zs.next_out = reinterpret_cast<Bytef *>(buf);
+        zs.avail_out = sizeof(buf);
+        const int r = ::inflate(&zs, Z_NO_FLUSH);
+        out.append(buf, qsizetype(sizeof(buf) - zs.avail_out));
+        if (out.size() > limit) {
+            *overLimit = true;
+            out.truncate(qsizetype(limit));
+            break;
+        }
+        if (r == Z_STREAM_END) {
+            *ended = true;
+            break;
+        }
+        if (r != Z_OK || (zs.avail_in == 0 && zs.avail_out != 0)) break;   // damaged, or the data ran out
+    }
+    *consumed = qsizetype(zs.total_in);
+    inflateEnd(&zs);
+    return out;
+}
+
+QVector<ZipScanEntry> scanZip(const QByteArray &zip, int maxEntries, qint64 maxEntryBytes, qint64 maxTotalBytes)
+{
+    QVector<ZipScanEntry> found;
+    qint64 total = 0;
+    const char sig[4] = {'P', 'K', 3, 4};
+    qsizetype at = 0;
+    while (found.size() < maxEntries && total < maxTotalBytes) {
+        at = zip.indexOf(QByteArrayView(sig, 4), at);
+        if (at < 0 || zip.size() - at < 30) break;
+        const uchar *h = reinterpret_cast<const uchar *>(zip.constData() + at);
+        const quint16 flags = qFromLittleEndian<quint16>(h + 6), method = qFromLittleEndian<quint16>(h + 8);
+        const quint32 crc = qFromLittleEndian<quint32>(h + 14), csize = qFromLittleEndian<quint32>(h + 18), usize = qFromLittleEndian<quint32>(h + 22);
+        const quint16 nameLen = qFromLittleEndian<quint16>(h + 26), extraLen = qFromLittleEndian<quint16>(h + 28);
+        const qsizetype dataAt = at + 30 + nameLen + extraLen;
+        if (nameLen == 0 || dataAt > zip.size()) {
+            at += 4;
+            continue;
+        }
+        ZipScanEntry e;
+        e.name = QString::fromUtf8(zip.constData() + at + 30, nameLen);
+        const bool sizesKnown = !(flags & 8) || csize != 0;   // (bit 3: the sizes follow the data, and the header has none)
+        const qsizetype room = zip.size() - dataAt;
+        qsizetype next = dataAt;
+        if (e.name.endsWith(QLatin1Char('/'))) {   // a folder
+            at = dataAt;
+            continue;
+        }
+        if (flags & 1) {
+            e.problem = QStringLiteral("encrypted");
+            next = sizesKnown && qsizetype(csize) <= room ? dataAt + qsizetype(csize) : dataAt;
+        } else if (method == 0) {
+            if (!sizesKnown) e.problem = QStringLiteral("stored with no size");
+            else {
+                const qsizetype n = std::min<qsizetype>(qsizetype(csize), room);
+                if (qint64(n) > maxEntryBytes) e.problem = QStringLiteral("too large");
+                else e.data = zip.mid(dataAt, n);
+                e.whole = e.problem.isEmpty() && n == qsizetype(csize) && (crc == 0 || !sizesKnown || jp::crc32(e.data) == crc);
+                if (e.problem.isEmpty() && !e.whole) e.problem = n < qsizetype(csize) ? QStringLiteral("cut short") : QStringLiteral("damaged");
+                next = dataAt + n;
+            }
+        } else if (method == 8) {
+            qsizetype consumed = 0;
+            bool ended = false, over = false;
+            const qsizetype span = sizesKnown ? std::min<qsizetype>(qsizetype(csize), room) : room;
+            e.data = inflateAsFarAsItGoes(zip.constData() + dataAt, span, std::min<qint64>(maxEntryBytes, maxTotalBytes - total), &consumed, &ended, &over);
+            e.whole = ended && (!sizesKnown || (qsizetype(usize) == e.data.size() && jp::crc32(e.data) == crc));
+            if (over) e.problem = QStringLiteral("too large");
+            else if (!e.whole) e.problem = ended ? QStringLiteral("damaged") : QStringLiteral("cut short");
+            next = dataAt + std::max<qsizetype>(consumed, 0);
+        } else {
+            e.problem = QStringLiteral("a kind of compression that isn't read");
+            next = sizesKnown && qsizetype(csize) <= room ? dataAt + qsizetype(csize) : dataAt;
+        }
+        total += e.data.size();
+        found << e;
+        at = std::max(next, at + 4);
+    }
+    return found;
 }
 
 void ZipWriter::add(const QString &name, const QByteArray &data, bool compress)

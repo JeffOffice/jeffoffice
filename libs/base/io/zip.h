@@ -43,6 +43,17 @@ bool readZip(const QByteArray &zip, QMap<QString, QByteArray> &out, QString *err
 // entry), without loading the rest; empty if it isn't there.
 QByteArray readZipEntry(const QString &path, const QString &name);
 
+// One entry found in a damaged ZIP by looking for the entries' own headers (the directory at the end of the file may be gone or wrong). `data` is what could be inflated: all of it
+// when `whole` (the entry ended where it should, with the size and CRC the header gives, if it gives them), else the start of the entry up to where it broke.
+struct ZipScanEntry {
+    QString name;
+    QByteArray data;
+    bool whole = false;
+    QString problem;   // when not whole: what was wrong ("cut short", "damaged", "stored with no size")
+};
+// Every entry that can be found, in the order the file has them. The work is bounded: at most `maxEntries` entries, `maxEntryBytes` inflated from any one, and `maxTotalBytes` from all.
+QVector<ZipScanEntry> scanZip(const QByteArray &zip, int maxEntries = 10000, qint64 maxEntryBytes = qint64(512) << 20, qint64 maxTotalBytes = qint64(2) << 30);
+
 quint32 crc32(const QByteArray &data);
 
 } // namespace jp
