@@ -11244,7 +11244,7 @@
   },
   "3ac38ce2da16e68e1f4a4d67d86ac53b1fbc858863faa64e7ad63606631ff60e": {
    "drop": false,
-   "en": "PivotChart tabs (while a pivot chart is selected)",
+   "en": "Pivot chart tabs (while a pivot chart is selected)",
    "es": "Pestañas de gráfico dinámico (con un gráfico dinámico seleccionado)",
    "fr": "Onglets de graphique croisé dynamique (graphique sélectionné)",
    "soon": {
@@ -13121,7 +13121,7 @@
    "fr": "",
    "soon": {
     "drop": false,
-    "en": "PivotChart: a chart that follows a pivot table, with field buttons and filters",
+    "en": "Pivot chart: a chart that follows a pivot table, with field buttons and filters",
     "es": "Gráfico dinámico: un gráfico que sigue una tabla dinámica, con botones de campo y filtros",
     "fr": "Graphique croisé dynamique : un graphique lié à un tableau croisé dynamique, avec boutons de champ et filtres"
    }
