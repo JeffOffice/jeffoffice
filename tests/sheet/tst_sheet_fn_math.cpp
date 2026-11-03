@@ -302,6 +302,28 @@ private Q_SLOTS:
         CHECK_EVALS(cases, sample(), Settings());
     }
 
+    // MOD is n - d * INT(n / d), as its definition says: the results carry that arithmetic's rounding, and the values below are the ones the original program stored for these arguments.
+    void modFollowsItsDefinitionToTheLastDigit()
+    {
+        const E cases[] = {
+            {"MOD(-123123.56,-9.9)=-7.1599999999889405", "b:1"},
+            {"MOD(1823.36,-233.554)=-45.072000000000116", "b:1"},
+            {"MOD(5,3.34)=1.6600000000000001", "b:1"},
+            {"MOD(6,0.367)=0.1280000000000001", "b:1"},
+            {"MOD(22.3463,9)=4.346299999999999", "b:1"},
+            {"MOD(8.6374,4.6677)=3.9696999999999996", "b:1"},
+            {"MOD(44,-89)", "n:-45"},                // the sign is the divisor's
+            {"MOD(-10,3)", "n:2"},
+            {"MOD(10,-3)", "n:-2"},
+            {"MOD(0,5)", "n:0"},
+            {"MOD(5,0)", "e:#DIV/0!"},
+            {"MOD(0,0)", "e:#DIV/0!"},
+            {"MOD(1E20,3)", "n:1"},                  // a ratio past the whole numbers a double holds is worked out exactly, as before
+            {"MOD(-1E20,3)", "n:2"},
+        };
+        CHECK_EVALS(cases, sample(), Settings());
+    }
+
     // A criterion that an empty cell meets ("", "=", "<>x") takes the cells beside the empty ones into a sum range too, though the empty ones are not stored.
     void criteriaThatEmptyCellsMeetTakeTheCellsBesideThem()
     {

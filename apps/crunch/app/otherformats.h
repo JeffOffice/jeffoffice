@@ -53,7 +53,7 @@ QString saveAsExplanation(const QString &fileName, const QString &kind, const QS
 QString csvExportNote(const QString &sheetName, QChar separator, bool partial = false);
 
 // What a workbook has that a .csv file cannot hold, in words for the person, for the sheet in view: the other sheets, the formulas (the file has their results), the pictures, charts, notes,
-// PivotTables, form controls, links to other workbooks, and macros that its parts show, and always the formats. `formulas` is how many formula cells the workbook has.
+// pivot tables, form controls, links to other workbooks, and macros that its parts show, and always the formats. `formulas` is how many formula cells the workbook has.
 QStringList leftOutOfCsv(const jp::office::sheet::Workbook &book, qint64 formulas);
 
 // The note of csvExportNote and, if `leftOut` is not empty, what this workbook has that the file will not.

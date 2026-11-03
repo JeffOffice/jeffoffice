@@ -7,6 +7,8 @@
 
 #include <algorithm>
 #include <cstring>
+#include <new>
+#include <vector>
 
 namespace jp::crypto {
 
@@ -404,6 +406,470 @@ bool equal(const QByteArray &a, const QByteArray &b)
     const qsizetype n = std::min(a.size(), b.size());
     for (qsizetype i = 0; i < n; ++i) diff |= unsigned(quint8(a[i]) ^ quint8(b[i]));
     return diff == 0;
+}
+
+namespace {
+
+// ---- GCM
+
+struct Ghash {
+    quint64 powH[128], powL[128];   // H times x to the power i, for each bit i of a block (the multiplication is a sum of these for the bits that are set)
+    void init(const quint8 *h)
+    {
+        quint64 vh = 0, vl = 0;
+        for (int i = 0; i < 8; ++i) {
+            vh = (vh << 8) | h[i];
+            vl = (vl << 8) | h[8 + i];
+        }
+        for (int i = 0; i < 128; ++i) {
+            powH[i] = vh;
+            powL[i] = vl;
+            const quint64 carry = 0 - (vl & 1);   // (all ones if the bit shifted out is set: the field's polynomial is then taken in)
+            vl = (vh << 63) | (vl >> 1);
+            vh = (vh >> 1) ^ (carry & 0xe100000000000000ULL);
+        }
+    }
+    // y = (y xor block) times H
+    void mul(quint8 *y, const quint8 *block) const
+    {
+        quint64 zh = 0, zl = 0;
+        for (int i = 0; i < 128; ++i) {
+            const quint64 mask = 0 - quint64(((y[i >> 3] ^ block[i >> 3]) >> (7 - (i & 7))) & 1);
+            zh ^= powH[i] & mask;
+            zl ^= powL[i] & mask;
+        }
+        for (int i = 0; i < 8; ++i) {
+            y[i] = quint8(zh >> (56 - 8 * i));
+            y[8 + i] = quint8(zl >> (56 - 8 * i));
+        }
+    }
+    // Hashes `data` (the last block padded with zeroes) into y.
+    void update(quint8 *y, const QByteArray &data) const
+    {
+        const quint8 *p = reinterpret_cast<const quint8 *>(data.constData());
+        qsizetype n = data.size();
+        for (; n >= 16; n -= 16, p += 16) mul(y, p);
+        if (n > 0) {
+            quint8 last[16] = {};
+            std::memcpy(last, p, size_t(n));
+            mul(y, last);
+        }
+    }
+    void lengths(quint8 *y, quint64 aBytes, quint64 cBytes) const
+    {
+        quint8 block[16];
+        for (int i = 0; i < 8; ++i) {
+            block[i] = quint8((aBytes * 8) >> (56 - 8 * i));
+            block[8 + i] = quint8((cBytes * 8) >> (56 - 8 * i));
+        }
+        mul(y, block);
+    }
+};
+
+// The counter blocks from `first` on (the last four bytes counting, modulo 2^32), enciphered, xored into data.
+void gcmCtr(const AesKey &k, const quint8 *first, const QByteArray &in, QByteArray *out)
+{
+    out->resize(in.size());
+    quint8 counter[16], stream[16];
+    std::memcpy(counter, first, 16);
+    for (qsizetype at = 0; at < in.size(); at += 16) {
+        k.encryptBlock(counter, stream);
+        const qsizetype n = std::min<qsizetype>(16, in.size() - at);
+        for (qsizetype i = 0; i < n; ++i) (*out)[at + i] = char(quint8(in[at + i]) ^ stream[i]);
+        for (int i = 15; i >= 12; --i)
+            if (++counter[i]) break;
+    }
+    secureZero(counter, sizeof counter);
+    secureZero(stream, sizeof stream);
+}
+
+// The tag (before the xor with the enciphered J0) and J0, from the key, iv, aad, and the enciphered data.
+bool gcmSetup(const QByteArray &key, const QByteArray &iv, AesKey *k, Ghash *g, quint8 *j0)
+{
+    if (iv.isEmpty() || !k->set(key)) return false;
+    quint8 zero[16] = {}, h[16];
+    k->encryptBlock(zero, h);
+    g->init(h);
+    secureZero(h, sizeof h);
+    if (iv.size() == 12) {
+        std::memcpy(j0, iv.constData(), 12);
+        j0[12] = j0[13] = j0[14] = 0;
+        j0[15] = 1;
+    } else {
+        quint8 y[16] = {};
+        g->update(y, iv);
+        g->lengths(y, 0, quint64(iv.size()));
+        std::memcpy(j0, y, 16);
+    }
+    return true;
+}
+
+QByteArray gcmTag(const AesKey &k, const Ghash &g, const quint8 *j0, const QByteArray &aad, const QByteArray &cipher)
+{
+    quint8 y[16] = {};
+    g.update(y, aad);
+    g.update(y, cipher);
+    g.lengths(y, quint64(aad.size()), quint64(cipher.size()));
+    quint8 mask[16];
+    k.encryptBlock(j0, mask);
+    QByteArray tag(16, Qt::Uninitialized);
+    for (int i = 0; i < 16; ++i) tag[i] = char(y[i] ^ mask[i]);
+    return tag;
+}
+
+void incCounter(quint8 *block)
+{
+    for (int i = 15; i >= 12; --i)
+        if (++block[i]) break;
+}
+
+// ---- BLAKE2b
+
+struct Blake2b {
+    quint64 h[8];
+    quint8 buf[128];
+    size_t fill = 0;
+    quint64 t = 0;
+    int outLen;
+
+    static quint64 rotr(quint64 x, int n) { return (x >> n) | (x << (64 - n)); }
+    static const quint64 *iv()
+    {
+        static const quint64 v[8] = {0x6a09e667f3bcc908ULL, 0xbb67ae8584caa73bULL, 0x3c6ef372fe94f82bULL, 0xa54ff53a5f1d36f1ULL, 0x510e527fade682d1ULL, 0x9b05688c2b3e6c1fULL, 0x1f83d9abfb41bd6bULL, 0x5be0cd19137e2179ULL};
+        return v;
+    }
+    Blake2b(int out, const QByteArray &key) : outLen(out)
+    {
+        std::memcpy(h, iv(), sizeof h);
+        h[0] ^= 0x01010000ULL ^ (quint64(key.size()) << 8) ^ quint64(out);
+        if (!key.isEmpty()) {
+            quint8 block[128] = {};
+            std::memcpy(block, key.constData(), size_t(key.size()));
+            update(block, 128);
+            secureZero(block, sizeof block);
+        }
+    }
+    void compress(const quint8 *block, bool last)
+    {
+        static const quint8 sigma[10][16] = {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, {14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3},
+                                             {11, 8, 12, 0, 5, 2, 15, 13, 10, 14, 3, 6, 7, 1, 9, 4}, {7, 9, 3, 1, 13, 12, 11, 14, 2, 6, 5, 10, 4, 0, 15, 8},
+                                             {9, 0, 5, 7, 2, 4, 10, 15, 14, 1, 11, 12, 6, 8, 3, 13}, {2, 12, 6, 10, 0, 11, 8, 3, 4, 13, 7, 5, 15, 14, 1, 9},
+                                             {12, 5, 1, 15, 14, 13, 4, 10, 0, 7, 6, 3, 9, 2, 8, 11}, {13, 11, 7, 14, 12, 1, 3, 9, 5, 0, 15, 4, 8, 6, 2, 10},
+                                             {6, 15, 14, 9, 11, 3, 0, 8, 12, 2, 13, 7, 1, 4, 10, 5}, {10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0}};
+        quint64 m[16], v[16];
+        for (int i = 0; i < 16; ++i) {
+            m[i] = 0;
+            for (int b = 7; b >= 0; --b) m[i] = (m[i] << 8) | block[8 * i + b];
+        }
+        for (int i = 0; i < 8; ++i) {
+            v[i] = h[i];
+            v[i + 8] = iv()[i];
+        }
+        v[12] ^= t;
+        if (last) v[14] = ~v[14];
+        auto g = [&](int a, int b, int c, int d, quint64 x, quint64 y) {
+            v[a] = v[a] + v[b] + x;
+            v[d] = rotr(v[d] ^ v[a], 32);
+            v[c] = v[c] + v[d];
+            v[b] = rotr(v[b] ^ v[c], 24);
+            v[a] = v[a] + v[b] + y;
+            v[d] = rotr(v[d] ^ v[a], 16);
+            v[c] = v[c] + v[d];
+            v[b] = rotr(v[b] ^ v[c], 63);
+        };
+        for (int r = 0; r < 12; ++r) {
+            const quint8 *s = sigma[r % 10];
+            g(0, 4, 8, 12, m[s[0]], m[s[1]]);
+            g(1, 5, 9, 13, m[s[2]], m[s[3]]);
+            g(2, 6, 10, 14, m[s[4]], m[s[5]]);
+            g(3, 7, 11, 15, m[s[6]], m[s[7]]);
+            g(0, 5, 10, 15, m[s[8]], m[s[9]]);
+            g(1, 6, 11, 12, m[s[10]], m[s[11]]);
+            g(2, 7, 8, 13, m[s[12]], m[s[13]]);
+            g(3, 4, 9, 14, m[s[14]], m[s[15]]);
+        }
+        for (int i = 0; i < 8; ++i) h[i] ^= v[i] ^ v[i + 8];
+    }
+    void update(const quint8 *p, size_t n)
+    {
+        while (n > 0) {
+            if (fill == 128) {   // (a full block is compressed only when more follows: the last one is flagged)
+                t += 128;
+                compress(buf, false);
+                fill = 0;
+            }
+            const size_t take = std::min(n, 128 - fill);
+            std::memcpy(buf + fill, p, take);
+            fill += take;
+            p += take;
+            n -= take;
+        }
+    }
+    void update(const QByteArray &d) { update(reinterpret_cast<const quint8 *>(d.constData()), size_t(d.size())); }
+    void update32(quint32 v)
+    {
+        const quint8 b[4] = {quint8(v), quint8(v >> 8), quint8(v >> 16), quint8(v >> 24)};
+        update(b, 4);
+    }
+    QByteArray finish()
+    {
+        t += fill;
+        std::memset(buf + fill, 0, 128 - fill);
+        compress(buf, true);
+        QByteArray out(outLen, Qt::Uninitialized);
+        for (int i = 0; i < outLen; ++i) out[i] = char(h[i / 8] >> (8 * (i % 8)));
+        secureZero(this, sizeof *this);
+        return out;
+    }
+};
+
+// ---- Argon2
+
+constexpr size_t kBlockWords = 128;   // (1,024 bytes)
+
+// H' of RFC 9106: a hash of any length from BLAKE2b.
+QByteArray argonLongHash(int outLen, const QByteArray &a)
+{
+    Blake2b first(outLen <= 64 ? outLen : 64, QByteArray());
+    first.update32(quint32(outLen));
+    first.update(a);
+    QByteArray v = first.finish();
+    if (outLen <= 64) return v;
+    QByteArray out = v.left(32);
+    int left = outLen - 32;
+    while (left > 64) {
+        Blake2b next(64, QByteArray());
+        next.update(v);
+        v = next.finish();
+        out += v.left(32);
+        left -= 32;
+    }
+    Blake2b lastOne(left, QByteArray());
+    lastOne.update(v);
+    out += lastOne.finish();
+    return out;
+}
+
+inline quint64 argonRotr(quint64 x, int n) { return (x >> n) | (x << (64 - n)); }
+inline quint64 fBlaMka(quint64 x, quint64 y) { return x + y + 2 * (x & 0xFFFFFFFFULL) * (y & 0xFFFFFFFFULL); }
+
+void argonRound(quint64 &a, quint64 &b, quint64 &c, quint64 &d)
+{
+    a = fBlaMka(a, b);
+    d = argonRotr(d ^ a, 32);
+    c = fBlaMka(c, d);
+    b = argonRotr(b ^ c, 24);
+    a = fBlaMka(a, b);
+    d = argonRotr(d ^ a, 16);
+    c = fBlaMka(c, d);
+    b = argonRotr(b ^ c, 63);
+}
+
+void argonPermute(quint64 *v0, quint64 *v1, quint64 *v2, quint64 *v3, quint64 *v4, quint64 *v5, quint64 *v6, quint64 *v7, quint64 *v8, quint64 *v9, quint64 *v10, quint64 *v11,
+                  quint64 *v12, quint64 *v13, quint64 *v14, quint64 *v15)
+{
+    argonRound(*v0, *v4, *v8, *v12);
+    argonRound(*v1, *v5, *v9, *v13);
+    argonRound(*v2, *v6, *v10, *v14);
+    argonRound(*v3, *v7, *v11, *v15);
+    argonRound(*v0, *v5, *v10, *v15);
+    argonRound(*v1, *v6, *v11, *v12);
+    argonRound(*v2, *v7, *v8, *v13);
+    argonRound(*v3, *v4, *v9, *v14);
+}
+
+// out = G(x, y), and with `xorInto` out = out xor G(x, y).
+void argonCompress(quint64 *out, const quint64 *x, const quint64 *y, bool xorInto)
+{
+    quint64 r[kBlockWords], z[kBlockWords];
+    for (size_t i = 0; i < kBlockWords; ++i) z[i] = r[i] = x[i] ^ y[i];
+    for (int i = 0; i < 8; ++i) {
+        quint64 *q = z + 16 * i;
+        argonPermute(q, q + 1, q + 2, q + 3, q + 4, q + 5, q + 6, q + 7, q + 8, q + 9, q + 10, q + 11, q + 12, q + 13, q + 14, q + 15);
+    }
+    for (int i = 0; i < 8; ++i)
+        argonPermute(z + 2 * i, z + 2 * i + 1, z + 2 * i + 16, z + 2 * i + 17, z + 2 * i + 32, z + 2 * i + 33, z + 2 * i + 48, z + 2 * i + 49, z + 2 * i + 64, z + 2 * i + 65, z + 2 * i + 80,
+                     z + 2 * i + 81, z + 2 * i + 96, z + 2 * i + 97, z + 2 * i + 112, z + 2 * i + 113);
+    for (size_t i = 0; i < kBlockWords; ++i) out[i] = (xorInto ? out[i] : 0) ^ z[i] ^ r[i];
+    secureZero(r, sizeof r);
+    secureZero(z, sizeof z);
+}
+
+inline void putLe32(QByteArray &a, quint32 v)
+{
+    for (int i = 0; i < 4; ++i) a.append(char(v >> (8 * i)));
+}
+
+} // namespace
+
+QByteArray aesGcmSeal(const QByteArray &key, const QByteArray &iv, const QByteArray &aad, const QByteArray &plain)
+{
+    AesKey k;
+    Ghash g;
+    quint8 j0[16];
+    if (!gcmSetup(key, iv, &k, &g, j0)) return QByteArray();
+    quint8 first[16];
+    std::memcpy(first, j0, 16);
+    incCounter(first);
+    QByteArray cipher;
+    gcmCtr(k, first, plain, &cipher);
+    const QByteArray tag = gcmTag(k, g, j0, aad, cipher);
+    secureZero(&k, sizeof k);
+    return cipher + tag;
+}
+
+QByteArray aesGcmOpen(const QByteArray &key, const QByteArray &iv, const QByteArray &aad, const QByteArray &sealed, bool *ok)
+{
+    if (ok) *ok = false;
+    AesKey k;
+    Ghash g;
+    quint8 j0[16];
+    if (sealed.size() < 16 || !gcmSetup(key, iv, &k, &g, j0)) return QByteArray();
+    const QByteArray cipher = sealed.left(sealed.size() - 16);
+    const QByteArray tag = gcmTag(k, g, j0, aad, cipher);
+    QByteArray plain;
+    const bool good = equal(tag, sealed.right(16));
+    if (good) {
+        quint8 first[16];
+        std::memcpy(first, j0, 16);
+        incCounter(first);
+        gcmCtr(k, first, cipher, &plain);
+    }
+    secureZero(&k, sizeof k);
+    if (ok) *ok = good;
+    return plain;
+}
+
+QByteArray blake2b(const QByteArray &data, int outLen, const QByteArray &key)
+{
+    if (outLen < 1 || outLen > 64 || key.size() > 64) return QByteArray();
+    Blake2b b(outLen, key);
+    b.update(data);
+    return b.finish();
+}
+
+QByteArray argon2id(const QByteArray &password, const QByteArray &salt, quint32 iterations, quint32 memoryKiB, quint32 lanes, int outLen, const QByteArray &secret, const QByteArray &ad,
+                    const std::function<bool()> &cancelled)
+{
+    if (iterations < 1 || lanes < 1 || lanes > 0xFFFFFF || memoryKiB < 8 * lanes || outLen < 4 || salt.size() < 8) return QByteArray();
+    const quint32 blocks = memoryKiB / (4 * lanes) * (4 * lanes);   // (the memory is made a whole number of segments)
+    const quint32 laneLen = blocks / lanes, segLen = laneLen / 4;
+    std::vector<quint64> mem;
+    try {
+        mem.assign(size_t(blocks) * kBlockWords, 0);
+    } catch (const std::bad_alloc &) {
+        return QByteArray();
+    }
+    Blake2b h0(64, QByteArray());
+    h0.update32(lanes);
+    h0.update32(quint32(outLen));
+    h0.update32(memoryKiB);
+    h0.update32(iterations);
+    h0.update32(0x13);
+    h0.update32(2);
+    h0.update32(quint32(password.size()));
+    h0.update(password);
+    h0.update32(quint32(salt.size()));
+    h0.update(salt);
+    h0.update32(quint32(secret.size()));
+    h0.update(secret);
+    h0.update32(quint32(ad.size()));
+    h0.update(ad);
+    QByteArray seed = h0.finish();
+    auto blockAt = [&](quint32 lane, quint32 col) { return mem.data() + (size_t(lane) * laneLen + col) * kBlockWords; };
+    auto load = [&](quint64 *to, const QByteArray &bytes) {
+        for (size_t i = 0; i < kBlockWords; ++i) {
+            quint64 w = 0;
+            for (int b = 7; b >= 0; --b) w = (w << 8) | quint8(bytes[int(8 * i) + b]);
+            to[i] = w;
+        }
+    };
+    for (quint32 l = 0; l < lanes; ++l)
+        for (quint32 col = 0; col < 2; ++col) {
+            QByteArray in = seed;
+            putLe32(in, col);
+            putLe32(in, l);
+            load(blockAt(l, col), argonLongHash(1024, in));
+        }
+    wipe(seed);
+    quint64 zero[kBlockWords] = {}, input[kBlockWords], addr[kBlockWords], tmp[kBlockWords];
+    for (quint32 pass = 0; pass < iterations; ++pass)
+        for (quint32 slice = 0; slice < 4; ++slice)
+            for (quint32 lane = 0; lane < lanes; ++lane) {
+                if (cancelled && cancelled()) {
+                    secureZero(mem.data(), mem.size() * sizeof(quint64));
+                    return QByteArray();
+                }
+                const bool independent = pass == 0 && slice < 2;
+                quint32 start = 0;
+                if (independent) {
+                    std::memset(input, 0, sizeof input);
+                    input[0] = pass;
+                    input[1] = lane;
+                    input[2] = slice;
+                    input[3] = blocks;
+                    input[4] = iterations;
+                    input[5] = 2;
+                }
+                auto nextAddresses = [&]() {
+                    ++input[6];
+                    argonCompress(tmp, zero, input, false);
+                    argonCompress(addr, zero, tmp, false);
+                };
+                if (pass == 0 && slice == 0) {
+                    start = 2;
+                    if (independent) nextAddresses();
+                }
+                for (quint32 i = start; i < segLen; ++i) {
+                    const quint32 col = slice * segLen + i;
+                    const quint32 prevCol = col == 0 ? laneLen - 1 : col - 1;
+                    const quint64 *prev = blockAt(lane, prevCol);
+                    quint64 rand;
+                    if (independent) {
+                        if (i % kBlockWords == 0) nextAddresses();
+                        rand = addr[i % kBlockWords];
+                    } else {
+                        rand = prev[0];
+                    }
+                    const quint64 j1 = rand & 0xFFFFFFFFULL;
+                    quint32 refLane = quint32((rand >> 32) % lanes);
+                    if (pass == 0 && slice == 0) refLane = lane;
+                    const bool same = refLane == lane;
+                    qint64 area;
+                    if (pass == 0) {
+                        if (slice == 0) area = qint64(i) - 1;
+                        else if (same) area = qint64(slice) * segLen + i - 1;
+                        else area = qint64(slice) * segLen + (i == 0 ? -1 : 0);
+                    } else {
+                        if (same) area = qint64(laneLen) - segLen + i - 1;
+                        else area = qint64(laneLen) - segLen + (i == 0 ? -1 : 0);
+                    }
+                    quint64 rel = (j1 * j1) >> 32;
+                    rel = quint64(area) - 1 - ((quint64(area) * rel) >> 32);
+                    quint64 startPos = 0;
+                    if (pass != 0) startPos = slice == 3 ? 0 : quint64(slice + 1) * segLen;
+                    const quint32 refCol = quint32((startPos + rel) % laneLen);
+                    argonCompress(blockAt(lane, col), prev, blockAt(refLane, refCol), pass != 0);
+                    if ((i & 0xFF) == 0xFF && cancelled && cancelled()) {
+                        secureZero(mem.data(), mem.size() * sizeof(quint64));
+                        return QByteArray();
+                    }
+                }
+            }
+    quint64 fin[kBlockWords];
+    std::memcpy(fin, blockAt(0, laneLen - 1), sizeof fin);
+    for (quint32 l = 1; l < lanes; ++l) {
+        const quint64 *b = blockAt(l, laneLen - 1);
+        for (size_t i = 0; i < kBlockWords; ++i) fin[i] ^= b[i];
+    }
+    QByteArray bytes(1024, Qt::Uninitialized);
+    for (size_t i = 0; i < kBlockWords; ++i)
+        for (int b = 0; b < 8; ++b) bytes[int(8 * i) + b] = char(fin[i] >> (8 * b));
+    const QByteArray tag = argonLongHash(outLen, bytes);
+    wipe(bytes);
+    secureZero(fin, sizeof fin);
+    secureZero(mem.data(), mem.size() * sizeof(quint64));
+    return tag;
 }
 
 QByteArray aesEcb(const QByteArray &key, const QByteArray &data, bool encrypt)

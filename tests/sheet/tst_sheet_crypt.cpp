@@ -6,6 +6,7 @@
 #include "io/cfb.h"
 #include "io/crypto.h"
 #include "office/officecrypt.h"
+#include "sheet/ods.h"
 #include "sheet/odscrypt.h"
 #include "sheet/sheetcrypt.h"
 #include "sheet/xlscrypt.h"
@@ -15,6 +16,8 @@
 #include <QElapsedTimer>
 #include <QFileInfo>
 #include <QPasswordDigestor>
+#include <QProcess>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 
 #include <random>
@@ -267,6 +270,39 @@ QByteArray protectOds(const QByteArray &plain, const OdsMake &make)
 
 int blowfishIv(const OdsMake &make) { return make.blowfish ? 8 : 16; }
 
+struct ArgonMake {
+    QString password = QStringLiteral("test");
+    quint32 iterations = 2, memory = 64, lanes = 2;
+    QByteArray salt = QByteArray(16, 's'), iv = QByteArray(12, 'v');
+    bool omitStartKey = false;
+};
+
+// The package of the newest files: the whole plain package deflated, enciphered with AES-GCM as the one part "encrypted-package", and a manifest that says how.
+QByteArray protectOdsArgon(const QByteArray &plain, const ArgonMake &make)
+{
+    const QByteArray start = QCryptographicHash::hash(make.password.toUtf8(), QCryptographicHash::Sha256);
+    const QByteArray key = crypto::argon2id(start, make.salt, make.iterations, make.memory, make.lanes, 32);
+    const QByteArray sealed = crypto::aesGcmSeal(key, make.iv, QByteArray(), deflate(plain));
+    jp::ZipWriter z;
+    z.add(QStringLiteral("mimetype"), "application/vnd.oasis.opendocument.spreadsheet", false);
+    z.add(QStringLiteral("encrypted-package"), make.iv + sealed, false);
+    const QString manifest =
+        QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\" manifest:version=\"1.4\" "
+                       "xmlns:loext=\"urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0\">\n <manifest:file-entry manifest:full-path=\"encrypted-package\" "
+                       "manifest:media-type=\"application/vnd.oasis.opendocument.spreadsheet\" manifest:size=\"%1\">\n  <manifest:encryption-data>\n"
+                       "   <manifest:algorithm manifest:algorithm-name=\"http://www.w3.org/2009/xmlenc11#aes256-gcm\" manifest:initialisation-vector=\"%2\"/>\n%3"
+                       "   <manifest:key-derivation manifest:key-derivation-name=\"urn:org:documentfoundation:names:experimental:office:manifest:argon2id\" loext:argon2-iterations=\"%4\" "
+                       "loext:argon2-memory=\"%5\" loext:argon2-lanes=\"%6\" manifest:salt=\"%7\" manifest:key-size=\"32\"/>\n  </manifest:encryption-data>\n </manifest:file-entry>\n</manifest:manifest>\n")
+            .arg(plain.size())
+            .arg(QString::fromLatin1(make.iv.toBase64()))
+            .arg(make.omitStartKey ? QString() : QStringLiteral("   <manifest:start-key-generation manifest:start-key-generation-name=\"http://www.w3.org/2001/04/xmlenc#sha256\" manifest:key-size=\"32\"/>\n"))
+            .arg(make.iterations).arg(make.memory).arg(make.lanes)
+            .arg(QString::fromLatin1(make.salt.toBase64()));
+    z.add(QStringLiteral("META-INF/manifest.xml"), manifest.toUtf8(), true);
+    return z.finish();
+}
+
+
 } // namespace
 
 class SheetCryptTests : public QObject {
@@ -336,6 +372,66 @@ private Q_SLOTS:
         QCOMPARE(crypto::blowfishCfb(key, iv, sealed, false), text);
         QVERIFY(crypto::blowfishCfb(QByteArray(3, 'k'), iv, text, true).isEmpty());
         QVERIFY(crypto::blowfishCfb(key, QByteArray(7, 'i'), text, true).isEmpty());
+    }
+
+    void aesGcmMatchesTheStandardsValues()
+    {
+        // the test cases of the Galois/counter mode's specification (1, 2, 4, 6, and 16): empty data, one block, a tag over extra data, a long iv, and a 256-bit key
+        const QByteArray zero16(16, 0), iv0(12, 0), none;
+        QCOMPARE(crypto::aesGcmSeal(zero16, iv0, none, none), hex("58e2fccefa7e3061367f1d57a4e7455a"));
+        QCOMPARE(crypto::aesGcmSeal(zero16, iv0, none, zero16), hex("0388dace60b6a392f328c2b971b2fe78ab6e47d42cec13bdf53a67b21257bddf"));
+        const QByteArray key = hex("feffe9928665731c6d6a8f9467308308"), iv = hex("cafebabefacedbaddecaf888"), aad = hex("feedfacedeadbeeffeedfacedeadbeefabaddad2");
+        const QByteArray text = hex("d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39");
+        const QByteArray sealed4 = hex("42831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e21d514b25466931c7d8f6a5aac84aa051ba30b396a0aac973d58e0915bc94fbc3221a5db94fae95ae7121a47");
+        QCOMPARE(crypto::aesGcmSeal(key, iv, aad, text), sealed4);
+        bool ok = false;
+        QCOMPARE(crypto::aesGcmOpen(key, iv, aad, sealed4, &ok), text);
+        QVERIFY(ok);
+        const QByteArray iv60 = hex("9313225df88406e555909c5aff5269aa6a7a9538534f7da1e4c303d2a318a728c3c0c95156809539fcf0e2429a6b525416aedbf5a0de6a57a637b39b534b0f8c3b8ca3ef2ba7d7c3f5a3f6e6ae0e3b7f6d"
+                                    ).left(60);
+        QCOMPARE(crypto::aesGcmSeal(key, iv60, aad, text),
+                 hex("8ce24998625615b603a033aca13fb894be9112a5c3a211a8ba262a3cca7e2ca701e4a9a4fba43c90ccdcb281d48c7c6fd62875d2aca417034c34aee5619cc5aefffe0bfa462af43c1699d050"));
+        const QByteArray key256 = hex("feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308");
+        QCOMPARE(crypto::aesGcmSeal(key256, iv, aad, text),
+                 hex("522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f66276fc6ece0f4e1768cddf8853bb2d551b"));
+        // a changed byte, a changed tag, other extra data, a short input, and a wrong key size are all refused
+        QByteArray bad = sealed4;
+        bad[5] = char(bad[5] ^ 1);
+        QVERIFY(crypto::aesGcmOpen(key, iv, aad, bad, &ok).isEmpty() && !ok);
+        bad = sealed4;
+        bad[bad.size() - 1] = char(bad[bad.size() - 1] ^ 0x80);
+        QVERIFY(crypto::aesGcmOpen(key, iv, aad, bad, &ok).isEmpty() && !ok);
+        QVERIFY(crypto::aesGcmOpen(key, iv, none, sealed4, &ok).isEmpty() && !ok);
+        QVERIFY(crypto::aesGcmOpen(key, iv, aad, sealed4.left(10), &ok).isEmpty() && !ok);
+        QVERIFY(crypto::aesGcmSeal(QByteArray(5, 'k'), iv, aad, text).isEmpty());
+        QVERIFY(crypto::aesGcmSeal(key, QByteArray(), aad, text).isEmpty());
+    }
+
+    void blake2bMatchesTheStandardsValues()
+    {
+        QCOMPARE(crypto::blake2b("abc"), hex("ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923"));
+        QCOMPARE(crypto::blake2b(QByteArray()), hex("786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce"));
+        QByteArray key(64, 0), long200(200, 0);
+        for (int i = 0; i < 64; ++i) key[i] = char(i);
+        for (int i = 0; i < 200; ++i) long200[i] = char(i);
+        QCOMPARE(crypto::blake2b("abc", 64, key), hex("06bbc3dedf13a31139498655251b7588ccd3bb5aaa071b2d44d8e0a04095579ed590fbfdcf941f4370ce5ce623624e7a76d33e7a8109dcda9b57d72f8f8efa51"));
+        QCOMPARE(crypto::blake2b(long200, 32), hex("63c3d97a9f8894d5e043a707b0fee7f7ec4c049a23bbf1079df20b4165f9e22d"));
+        QVERIFY(crypto::blake2b("abc", 0).isEmpty());
+        QVERIFY(crypto::blake2b("abc", 65).isEmpty());
+    }
+
+    void argon2idMatchesTheStandardsValue()
+    {
+        // RFC 9106, section 5.3: the test vector for Argon2id (3 passes, 32 KiB, 4 lanes, with a secret and extra data)
+        const QByteArray tag = crypto::argon2id(QByteArray(32, '\x01'), QByteArray(16, '\x02'), 3, 32, 4, 32, QByteArray(8, '\x03'), QByteArray(12, '\x04'));
+        QCOMPARE(tag, hex("0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659"));
+        // numbers that cannot be made, and a stop asked for, give nothing
+        QVERIFY(crypto::argon2id("p", QByteArray(16, 's'), 0, 64, 1, 32).isEmpty());
+        QVERIFY(crypto::argon2id("p", QByteArray(16, 's'), 1, 7, 1, 32).isEmpty());
+        QVERIFY(crypto::argon2id("p", QByteArray(16, 's'), 1, 64, 0, 32).isEmpty());
+        QVERIFY(crypto::argon2id("p", QByteArray(4, 's'), 1, 64, 1, 32).isEmpty());
+        QVERIFY(crypto::argon2id("p", QByteArray(16, 's'), 1, 64, 1, 32, QByteArray(), QByteArray(), [] { return true; }).isEmpty());
+        QCOMPARE(crypto::argon2id("p", QByteArray(16, 's'), 1, 64, 1, 100).size(), 100);   // (a tag longer than one hash)
     }
 
     void aSecretIsOverwrittenWhenWiped()
@@ -1094,6 +1190,180 @@ private Q_SLOTS:
         // (a part that does not hold what the checksum says is, to the reader, a password that is not the one: the message says "not correct", and a person can try again)
         const oc::CryptResult r = oc::sheet::decryptOds(z.finish(), QStringLiteral("test"), 1 << 30, false, &out);
         QVERIFY(r == oc::CryptResult::WrongPassword || r == oc::CryptResult::Damaged);
+    }
+    void anArgon2PackageOpensWithItsPasswordAndNoOther()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        for (const bool omitStart : {false, true}) {
+            ArgonMake make;
+            make.password = QStringLiteral("pässw€rd");
+            make.omitStartKey = omitStart;
+            const QByteArray file = protectOdsArgon(odsBook(42), make);
+            QVERIFY(jp::office::sheet::looksLikeOpenDocumentZip(file));
+            QVERIFY(oc::sheet::odsEncrypted(file));
+            Workbook wb;
+            QString why;
+            QVERIFY(!openBytes(file, QStringLiteral("a.ods"), &wb, &why));
+            QVERIFY2(why.contains(QLatin1String("needs a password")), qPrintable(why));
+            QCOMPARE(wb.passwordNeed(), PasswordNeed::Needed);
+            Limits wrong;
+            wrong.password = QStringLiteral("nope");
+            Workbook wb2;
+            QVERIFY(!openBytes(file, QStringLiteral("a.ods"), &wb2, &why, wrong));
+            QCOMPARE(wb2.passwordNeed(), PasswordNeed::Wrong);
+            QVERIFY2(why.contains(QLatin1String("not correct")), qPrintable(why));
+            Limits right;
+            right.password = make.password;
+            Workbook wb3;
+            QVERIFY2(openBytes(file, QStringLiteral("a.ods"), &wb3, &why, right), qPrintable(why));
+            Sheet s;
+            QVERIFY(wb3.readSheet(0, &s));
+            QCOMPARE(odstest::shown(wb3, s, QStringLiteral("A1")), QStringLiteral("n:42"));
+            // and from a file on disk, as a person opens it
+            QFile f(dir.filePath(QStringLiteral("a.ods")));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(file);
+            f.close();
+            Workbook wb4;
+            QVERIFY2(wb4.openFile(f.fileName(), &why, right), qPrintable(why));
+            QVERIFY(wb4.wasProtected());
+            QCOMPARE(needOf(f.fileName(), QString()), PasswordNeed::Needed);
+        }
+    }
+
+    void anArgon2PackageCannotAskForMoreThanTenTimesTheDefaults()
+    {
+        // (the defaults are 64 MiB, 3 passes, and 4 lanes; the manifests below ask for far more, and are refused before any key is made)
+        struct Ask {
+            const char *what;
+            quint32 iterations, memory, lanes;
+        };
+        for (const Ask &a : {Ask{"memory", 2, 4000000, 2}, Ask{"passes", 4000000, 64, 2}, Ask{"lanes", 2, 64000, 1000}, Ask{"all", 4000000, 4000000, 4000000}}) {
+            ArgonMake make;
+            make.iterations = 2;
+            make.memory = 64;
+            make.lanes = 2;
+            QByteArray file = protectOdsArgon(odsBook(), make);
+            QMap<QString, QByteArray> parts;
+            QVERIFY(jp::readZip(file, parts));
+            QByteArray manifest = parts.value(QStringLiteral("META-INF/manifest.xml"));
+            manifest.replace("argon2-iterations=\"2\"", "argon2-iterations=\"" + QByteArray::number(a.iterations) + "\"");
+            manifest.replace("argon2-memory=\"64\"", "argon2-memory=\"" + QByteArray::number(a.memory) + "\"");
+            manifest.replace("argon2-lanes=\"2\"", "argon2-lanes=\"" + QByteArray::number(a.lanes) + "\"");
+            jp::ZipWriter z;
+            z.add(QStringLiteral("mimetype"), parts.value(QStringLiteral("mimetype")), false);
+            z.add(QStringLiteral("encrypted-package"), parts.value(QStringLiteral("encrypted-package")), false);
+            z.add(QStringLiteral("META-INF/manifest.xml"), manifest, false);
+            const QByteArray bytes = z.finish();
+            QByteArray out;
+            QElapsedTimer t;
+            t.start();
+            QVERIFY2(oc::sheet::decryptOds(bytes, QStringLiteral("test"), 1 << 30, false, &out) == oc::CryptResult::TooCostly, a.what);
+            QVERIFY2(t.elapsed() < 2000, a.what);
+            Workbook wb;
+            QString why;
+            Limits limits;
+            limits.password = QStringLiteral("test");
+            QVERIFY(!openBytes(bytes, QStringLiteral("a.ods"), &wb, &why, limits));
+            QVERIFY2(why.contains(QLatin1String("more memory or time")), qPrintable(why));
+        }
+        // the largest each may be is accepted by the check (the key is not made here: a stop is asked for at once)
+        ArgonMake big;
+        big.iterations = 30;
+        big.memory = 655360;
+        big.lanes = 40;
+        const QByteArray bytes = [&] {
+            ArgonMake small;
+            QByteArray file = protectOdsArgon(odsBook(), small);
+            QMap<QString, QByteArray> parts;
+            jp::readZip(file, parts);
+            QByteArray manifest = parts.value(QStringLiteral("META-INF/manifest.xml"));
+            manifest.replace("argon2-iterations=\"2\"", "argon2-iterations=\"30\"").replace("argon2-memory=\"64\"", "argon2-memory=\"655360\"").replace("argon2-lanes=\"2\"", "argon2-lanes=\"40\"");
+            jp::ZipWriter z;
+            z.add(QStringLiteral("mimetype"), parts.value(QStringLiteral("mimetype")), false);
+            z.add(QStringLiteral("encrypted-package"), parts.value(QStringLiteral("encrypted-package")), false);
+            z.add(QStringLiteral("META-INF/manifest.xml"), manifest, false);
+            return z.finish();
+        }();
+        QByteArray out;
+        QCOMPARE(oc::sheet::decryptOds(bytes, QStringLiteral("test"), 1 << 30, false, &out, [] { return true; }), oc::CryptResult::Cancelled);
+    }
+
+    void aPackageOfTheNewestKindWithAChangedPartIsNotOpened()
+    {
+        const QByteArray file = protectOdsArgon(odsBook(), ArgonMake());
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(file, parts));
+        QByteArray sealed = parts.value(QStringLiteral("encrypted-package"));
+        sealed[20] = char(sealed[20] ^ 4);
+        jp::ZipWriter z;
+        z.add(QStringLiteral("mimetype"), parts.value(QStringLiteral("mimetype")), false);
+        z.add(QStringLiteral("encrypted-package"), sealed, false);
+        z.add(QStringLiteral("META-INF/manifest.xml"), parts.value(QStringLiteral("META-INF/manifest.xml")), false);
+        QByteArray out;
+        QCOMPARE(oc::sheet::decryptOds(z.finish(), QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::WrongPassword);
+        // a package larger than the reader is allowed is refused without a key
+        QCOMPARE(oc::sheet::decryptOds(file, QStringLiteral("test"), 10, false, &out), oc::CryptResult::TooLarge);
+    }
+
+    void aProtectedFileFromTheCurrentOriginalProgramOpens()
+    {
+        // (made at the test's run by whatever program is on this machine that can save a spreadsheet with a password: without one, or if it saves in an older way, the test skips)
+        const QString soffice = QStandardPaths::findExecutable(QStringLiteral("soffice")), python = QStandardPaths::findExecutable(QStringLiteral("python3"));
+        if (soffice.isEmpty() || python.isEmpty()) QSKIP("no program on this machine to save a protected spreadsheet");
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile script(dir.filePath(QStringLiteral("make.py")));
+        QVERIFY(script.open(QIODevice::WriteOnly));
+        script.write(
+            "import uno, sys, time, subprocess\n"
+            "from com.sun.star.beans import PropertyValue\n"
+            "def pv(n,v):\n p=PropertyValue(); p.Name=n; p.Value=v; return p\n"
+            "d0=sys.argv[1]\n"
+            "proc=subprocess.Popen(['soffice','--headless','--norestore','-env:UserInstallation=file://'+d0+'/profile','--accept=socket,host=localhost,port=2391;urp;'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n"
+            "ctx=None\n"
+            "for i in range(90):\n"
+            " try:\n"
+            "  local=uno.getComponentContext()\n"
+            "  res=local.ServiceManager.createInstanceWithContext('com.sun.star.bridge.UnoUrlResolver',local)\n"
+            "  ctx=res.resolve('uno:socket,host=localhost,port=2391;urp;StarOffice.ComponentContext'); break\n"
+            " except Exception: time.sleep(1)\n"
+            "desk=ctx.ServiceManager.createInstanceWithContext('com.sun.star.frame.Desktop',ctx)\n"
+            "d=desk.loadComponentFromURL('private:factory/scalc','_blank',0,(pv('Hidden',True),))\n"
+            "sh=d.Sheets.getByIndex(0)\n"
+            "sh.getCellByPosition(0,0).Value=42\n"
+            "sh.getCellByPosition(1,0).Formula='=A1*2'\n"
+            "d.storeToURL('file://'+d0+'/enc.ods',(pv('FilterName','calc8'),pv('Password','p\\u00e4ssw\\u20acrd'),pv('Overwrite',True)))\n"
+            "d.close(True)\n"
+            "try: desk.terminate()\n"
+            "except Exception: pass\n"
+            "proc.wait(timeout=30)\n");
+        script.close();
+        QProcess p;
+        p.start(python, {script.fileName(), dir.path()});
+        if (!p.waitForFinished(180000)) {
+            p.kill();
+            QSKIP("the other program did not save the file in time");
+        }
+        const QString path = dir.filePath(QStringLiteral("enc.ods"));
+        if (!QFileInfo::exists(path)) QSKIP("the other program could not be driven here");
+        Limits right;
+        right.password = QStringLiteral("pässw€rd");
+        Workbook wb;
+        QString why;
+        QVERIFY2(wb.openFile(path, &why, right), qPrintable(why));
+        QVERIFY(wb.wasProtected());
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QCOMPARE(show(s, wb.sharedStrings(), QStringLiteral("A1")), QStringLiteral("n:42"));
+        QCOMPARE(show(s, wb.sharedStrings(), QStringLiteral("B1")).left(4), QStringLiteral("n:84"));
+        Limits wrong;
+        wrong.password = QStringLiteral("not it");
+        Workbook wb2;
+        QVERIFY(!wb2.openFile(path, &why, wrong));
+        QCOMPARE(wb2.passwordNeed(), PasswordNeed::Wrong);
+        QCOMPARE(needOf(path, QString()), PasswordNeed::Needed);
     }
 };
 

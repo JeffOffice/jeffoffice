@@ -17,6 +17,7 @@ enum class CryptResult {
     Unsupported,   // a form of protection this program does not read (another cipher, or a key held by a certificate)
     Damaged,       // sizes that do not fit, a stream cut short, or an agile package whose check of changes fails
     TooLarge,      // more than the program reads
+    TooCostly,     // a key that asks for more memory or time than the program allows (a file made to tie up the reader)
     Cancelled,     // the caller's `cancelled` said stop while the key was being made
 };
 

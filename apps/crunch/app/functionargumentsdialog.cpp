@@ -141,21 +141,29 @@ FunctionArgumentsDialog::FunctionArgumentsDialog(QWidget *parent, const Function
     m_building = true;
     // the rows: the ones that are always there, then the group that repeats (the first of it, and one more to go on with)
     int next = 0;
+    int end = int(arguments.size());
+    QString defaultText;
     for (int i = 0; i < m_plan.fixed.size(); ++i) addRow(m_plan.fixed[i], m_plan.fixedOptional[i], -1, next < arguments.size() ? arguments[next++] : QString());
     if (!m_plan.repeating.isEmpty()) {
-        const int rest = int(arguments.size()) - next;
+        // (an odd argument at the end of a call of values and results is the default, which has a box of its own after the groups)
         const int g = int(m_plan.repeating.size());
+        if (!m_plan.trailing.isEmpty() && g > 0 && end - next >= g + 1 && (end - next) % g == 1) defaultText = arguments[--end];
+        const int rest = end - next;
         const int groups = std::max(2, (rest + g - 1) / g + 1);
         for (int k = 0; k < groups; ++k) {
             addGroup();
             for (int j = 0; j < g; ++j) {
                 Row &row = m_rows[m_rows.size() - size_t(g) + size_t(j)];
-                if (next < arguments.size()) row.edit->setText(arguments[next++]);
+                if (next < end) row.edit->setText(arguments[next++]);
             }
+        }
+        if (!m_plan.trailing.isEmpty()) {
+            addRow(m_plan.trailing, true, -1, defaultText);
+            m_hasTrailing = true;
         }
     }
     // (more arguments than the function takes: kept, so that nothing the person wrote is lost)
-    for (int extra = 1; next < arguments.size(); ++extra) addRow(tr("extra %1").arg(extra), true, -1, arguments[next++]);
+    for (int extra = 1; next < end; ++extra) addRow(tr("extra %1").arg(extra), true, -1, arguments[next++]);
     m_building = false;
     m_grid->setRowStretch(int(m_rows.size()), 1);
     if (!m_rows.empty()) {
@@ -192,8 +200,20 @@ void FunctionArgumentsDialog::setHelpTopic(const QString &topic)
 
 void FunctionArgumentsDialog::addGroup()
 {
+    // (the box after the groups is taken out and put back after the new group, so that it stays last)
+    QString trailingText;
+    if (m_hasTrailing) {
+        Row &t = m_rows.back();
+        trailingText = t.edit->text();
+        delete t.label;
+        delete t.edit;
+        delete t.pick;
+        delete t.value;
+        m_rows.pop_back();
+    }
     const int k = m_groups++;
     for (const QString &n : m_plan.repeating) addRow(repeatedName(n, k), k > 0, k, QString(), n);
+    if (m_hasTrailing) addRow(m_plan.trailing, true, -1, trailingText);
 }
 
 void FunctionArgumentsDialog::addRow(const QString &name, bool optional, int group, const QString &text, const QString &helpName)
@@ -260,6 +280,18 @@ QStringList FunctionArgumentsDialog::arguments() const
 {
     QStringList out;
     for (const Row &r : m_rows) out << r.edit->text().trimmed();
+    if (m_hasTrailing && !out.isEmpty()) {
+        // (the spare boxes of the last group are not arguments; the default goes after the last value and result that are filled in)
+        const QString trailing = out.takeLast();
+        const int g = int(m_plan.repeating.size());
+        auto blankGroup = [&] {
+            for (int j = 0; j < g; ++j)
+                if (!out[out.size() - g + j].isEmpty()) return false;
+            return true;
+        };
+        while (g > 0 && out.size() >= m_plan.fixed.size() + g && blankGroup()) out.erase(out.end() - g, out.end());
+        if (!trailing.isEmpty()) out << trailing;
+    }
     return out;
 }
 
@@ -269,10 +301,8 @@ void FunctionArgumentsDialog::setRawArguments(const QStringList &raw) { m_raw = 
 QString FunctionArgumentsDialog::callText() const
 {
     QStringList args;
-    for (size_t i = 0; i < m_rows.size(); ++i) {
-        const QString text = m_rows[i].edit->text().trimmed();
-        args << (int(i) < m_raw.size() && m_raw[int(i)].trimmed() == text ? m_raw[int(i)] : text);
-    }
+    const QStringList texts = arguments();
+    for (int i = 0; i < texts.size(); ++i) args << (i < m_raw.size() && m_raw[i].trimmed() == texts[i] ? m_raw[i] : texts[i]);
     return crunch::callText(m_callName, args, m_separator, m_keep);
 }
 

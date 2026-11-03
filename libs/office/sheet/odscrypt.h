@@ -19,6 +19,12 @@ bool odsEncrypted(const QByteArray &zip);
 // More than `maxBytes` of parts is TooLarge.
 CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 maxBytes, bool verifyOnly, QByteArray *plain, const std::function<bool()> &cancelled = nullptr);
 
+// The newest files stretch the key with Argon2id (memory in KiB, passes, and lanes) and use AES-256 in Galois/counter mode, the whole package being the one enciphered part. A file may ask
+// for at most ten times what the original program writes by default (64 MiB, 3 passes, 4 lanes); more is TooCostly.
+constexpr qint64 kMaxOdsArgonMemoryKiB = 655360;
+constexpr qint64 kMaxOdsArgonIterations = 30;
+constexpr qint64 kMaxOdsArgonLanes = 40;
+
 // The most rounds of key stretching that all the parts of a package may ask for together.
 constexpr qint64 kMaxOdsKeyRounds = 2000000;
 

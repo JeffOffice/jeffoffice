@@ -104,6 +104,7 @@ private:
     QString m_helpTopic;
     std::vector<Row> m_rows;
     int m_groups = 0;
+    bool m_hasTrailing = false;   // the last row is the box after the groups (SWITCH's default)
     QGridLayout *m_grid = nullptr;
     QScrollArea *m_scroll = nullptr;
     QLabel *m_summary = nullptr, *m_argumentHelp = nullptr, *m_result = nullptr, *m_problem = nullptr, *m_helpLink = nullptr;

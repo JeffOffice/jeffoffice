@@ -26,7 +26,7 @@ Diese Version von JeffCrunch ist eine **Preview**. Sie können sie schon für ec
 - Sie können eine Zellenformatvorlage nicht ändern und keine neue erstellen.
 - Eine neue Formel mit einer Funktion, die JeffCrunch noch nicht kennt, hat keinen Wert; eine Formel, die bereits in der Arbeitsmappe enthalten war, behält das in der Datei gespeicherte Ergebnis.
 - Makros bleiben erhalten und werden mitgespeichert, aber nie ausgeführt.
-- Eine Pivot-Tabelle wird angezeigt und beibehalten. Sie kann aktualisiert, mit anderen Daten verbunden und in ihren Feldern und ihrem Layout geändert werden; eine neue kann hier noch nicht erstellt werden.
+- Eine Pivot-Tabelle wird angezeigt und beibehalten. Sie kann neu erstellt, aktualisiert, mit anderen Daten verbunden und in ihren Feldern und ihrem Layout geändert werden.
 - Eine Arbeitsmappe, die aus einer .xls-, .ods- oder Textdatei geöffnet wurde, wird als neue .xlsx-Datei gespeichert. JeffCrunch kann noch keine .xls- oder .ods-Dateien speichern.
 
 ## Diese fünf Schritte zuerst

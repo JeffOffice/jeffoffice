@@ -1,4 +1,4 @@
-// Pick a Function, and AutoSum's All Functions: the dialog picks a function, and the Function Arguments dialog then fills in its arguments with the result shown as they are typed; OK puts the call in
+// Pick a Function, and the sum button's All Functions: the dialog picks a function, and the Function Arguments dialog then fills in its arguments with the result shown as they are typed; OK puts the call in
 // the cell being typed in (at the cursor) or in the cell with the cursor. With the cursor inside a function's brackets in a formula being typed (Shift+F3, or the fx button), that call is what is changed.
 #include "app/crunchwindow.h"
 #include "core/formularefs.h"
@@ -29,6 +29,39 @@ void CrunchWindow::insertFunctionCommand()
     if (!m_session || !m_loaded || m_argsDialog) return;
     const QChar separator = crunch::argumentSeparator(m_session->locale());
     QLineEdit *line = nullptr;
+    // With no entry going and a formula in the cell with the cursor, the formula is what the dialog is for: it is opened for editing with the cursor inside its first call (or at its end, when
+    // it has none), and what the dialog makes is put in the cell as OK is pressed; given up, the cell is as it was.
+    QString held;
+    bool fromCell = false;
+    if (!m_edit.active && !m_formulaBar->hasFocus()) {
+        const grid::Selection &sel = m_view->selection();
+        const QString text = m_session->editText(m_sheet, quint32(std::max<qint64>(0, sel.activeRow)), quint32(std::max<qint64>(0, sel.activeCol)));
+        if (text.startsWith(QLatin1Char('='))) {
+            beginEdit(text, CellEditor::Mode::Editing, false);
+            if (!m_edit.active) return;
+            held = text;
+            fromCell = true;
+            int at = int(text.size());
+            for (int p = 1; p <= text.size(); ++p)
+                if (crunch::functionCallAt(text, p, separator).found) {
+                    at = p;
+                    break;
+                }
+            m_cellEditor->setCursorPosition(at);
+            m_formulaBar->setCursorPosition(at);
+        }
+    }
+    struct Settle {
+        CrunchWindow *w;
+        const QString &held;
+        bool fromCell;
+        ~Settle()
+        {
+            if (!fromCell || !w->m_edit.active) return;
+            if (w->m_cellEditor->text() == held) w->cancelEdit();
+            else w->commitEdit(CellEditor::Way::Stay);
+        }
+    } settle{this, held, fromCell};
     if (m_edit.active) {
         line = m_formulaBar->hasFocus() ? m_formulaBar : m_cellEditor;
         const crunch::FunctionCall call = crunch::functionCallAt(line->text(), line->cursorPosition(), separator);

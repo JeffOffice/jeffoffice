@@ -29,11 +29,12 @@ QString signatureOf(const FunctionDoc &doc);
 // One sentence on what an argument is, by its name (a few by the function's too, as LARGE's k); empty for a name that is not known. A test checks that every argument of every function has one.
 QString argumentHelpOf(const QString &function, const QString &argument);
 // The arguments as rows to fill: the ones that always are there (`fixedOptional` says which may be left out), then the ones that repeat as a group (number1 gives number1, number2, ...; SWITCH's
-// value1 and result1 give value1, result1, value2, result2, ...).
+// value1 and result1 give value1, result1, value2, result2, ...; an odd argument at the end of SWITCH's is its default, not another value).
 struct ArgumentPlan {
     QStringList fixed;
     QList<bool> fixedOptional;
     QStringList repeating;
+    QString trailing;   // an argument that comes after the last repeat, as a box of its own (SWITCH's default); empty for most functions
 };
 ArgumentPlan argumentPlanOf(const FunctionDoc &doc);
 // The name of an argument of a group at its place (0 is the first, which has the name as it is: number1; 1 gives number2).

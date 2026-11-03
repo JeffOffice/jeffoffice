@@ -18,7 +18,7 @@ JeffCrunch schreibt das Kennwort nirgendwohin. Es hält es im Arbeitsspeicher, s
 
 - **.xlsx- und .xlsm-Arbeitsmappen**, die auf eine der beiden Arten geschützt sind, die das Originalprogramm seit 2007 verwendet: die neuere (der Schlüssel hat 128, 192 oder 256 Bit, und JeffCrunch prüft außerdem, dass niemand die Datei nach dem Schützen verändert hat) und die ältere (AES mit einem Schlüssel von 128, 192 oder 256 Bit).
 - **.xls-Arbeitsmappen**, die auf eine der drei Arten dieses Formats geschützt sind: die einfache Verschleierung der ältesten Dateien, die 40-Bit-Art und die stärkere Art, die den Schlüsseldienst des Computers verwendet.
-- **.ods-Tabellen** mit Kennwortschutz, sowohl die aktuelle Art (256 Bit) als auch die ältere Art, die frühere Versionen von LibreOffice und OpenOffice geschrieben haben.
+- **.ods-Tabellen** mit Kennwortschutz, auf allen drei Arten, auf die LibreOffice und OpenOffice sie geschrieben haben: die neueste (LibreOffice 25 und neuer sperren die ganze Datei mit einem 256-Bit-Schlüssel und machen den Schlüssel aus dem Kennwort mit einem Verfahren, das absichtlich langsam ist und viel Arbeitsspeicher braucht; das Öffnen einer solchen Datei dauert daher einen Moment länger), die 256-Bit-Art der Versionen davor und die älteste Art.
 
 Für ältere .xls-Dateien gelten Grenzen für das Kennwort selbst. Die einfache Verschleierung der ältesten Dateien verwendet nur die ersten 15 Zeichen eines Kennworts und kann nur Buchstaben, Ziffern und Zeichen des westlichen Zeichensatzes (Latin-1) enthalten: Ein Kennwort mit anderen Buchstaben (etwa griechischen oder chinesischen) wird dort nie als das richtige erkannt. Die 40-Bit-Art akzeptiert beliebige Buchstaben, aber nur die ersten 16 Zeichen. JeffCrunch schreibt keine .xls-Dateien mit Kennwort.
 
@@ -28,6 +28,7 @@ Manche Dateien sind mit einem Kennwort gesperrt, das jeder kennt, damit sie jede
 
 - **„Das Kennwort ist nicht richtig.“** Das eingegebene Kennwort ist nicht das, mit dem die Datei geschützt wurde. Versuchen Sie es noch einmal und achten Sie auf Groß- und Kleinschreibung und Leerzeichen; JeffCrunch kann ein vergessenes Kennwort nicht wiederherstellen.
 - **„Diese Datei ist auf eine Weise geschützt, die dieses Programm nicht öffnen kann.“** Die Datei ist durch etwas anderes als ein Kennwort gesperrt (zum Beispiel durch einen Schlüssel, der in einem Zertifikat liegt) oder in einer Form, die JeffCrunch nicht liest.
+- **„Der Kennwortschutz dieser Datei verlangt mehr Arbeitsspeicher oder Zeit, als dieses Programm zulässt; sie wird nicht geöffnet.“** Eine Datei von LibreOffice 25 oder neuer legt fest, wie viel Arbeitsspeicher und Zeit die Prüfung des Kennworts braucht. JeffCrunch akzeptiert bis zum Zehnfachen dessen, was LibreOffice selbst festlegt (640 MiB Arbeitsspeicher), damit eine Datei, die Ihren Computer lahmlegen soll, das nicht kann. Eine Datei, die LibreOffice selbst geschrieben hat, liegt weit darunter.
 - **„Die Datei ist beschädigt oder wurde nach dem Schützen verändert.“** Das Kennwort war richtig, aber der Inhalt der Datei entspricht nicht dem, was gesperrt wurde: Sie wurde abgeschnitten, beschädigt oder von einem anderen Programm verändert. Kopieren Sie sie erneut vom Original.
 
 ## Mit Kennwort speichern
