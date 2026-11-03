@@ -4,9 +4,9 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-only</project_license>
   <name>JeffCrunch</name>
-  <summary>Make and edit spreadsheets (preview)</summary>
+  <summary>Make and edit spreadsheets (beta)</summary>
   <description>
-    <p>JeffCrunch makes spreadsheets, and is still a preview. It has formulas, formatting, sorting and filtering, charts, and printing.</p>
+    <p>JeffCrunch makes spreadsheets, and is a beta. It has formulas, formatting, sorting and filtering, charts, and printing.</p>
     <p>It opens .xlsx, .xls, .ods, and .csv files and saves .xlsx.</p>
   </description>
   <launchable type="desktop-id">jeffcrunch.desktop</launchable>

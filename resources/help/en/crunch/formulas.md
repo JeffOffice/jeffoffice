@@ -11,6 +11,10 @@ When you open a workbook, the file holds the last value of every formula, so the
 
 JeffCrunch has more than 200 functions, and it is still growing. A formula that uses a function JeffCrunch doesn't have yet keeps the value the file stored for it. So does one that refers to another workbook. Cells that depend on those are worked out from the stored values.
 
+## MOD: the remainder
+
+**MOD(n, d)** gives what is left of **n** after the most whole copies of **d** are taken out: it is n - d * INT(n / d). Example: **=MOD(10, 3)** is 1, and **=MOD(-10, 3)** is 2, because INT(-10 / 3) is -4 and -10 - 3 * -4 is 2. The answer has the sign of **d**. If **d** is 0, the answer is #DIV/0!.
+
 ## Show the formulas
 
 Click **Show Formulas** on the **Formulas** tab, or press **Ctrl+`** (on a Mac, the Control key, not the Command key), to see the formula in each cell in place of its value. The columns that hold formulas are made wider, up to a limit, so that the formulas show whole; they go back to their widths when you turn it off, and the widths in your file are not changed.

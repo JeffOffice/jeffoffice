@@ -2569,9 +2569,9 @@ private Q_SLOTS:
         w.findChild<SpellPane *>()->findChild<QListWidget *>(QStringLiteral("spellSuggestions"))->setFocus();
         w.act("help.show")->trigger();
         QCOMPARE(w.helpView()->currentTopic(), QStringLiteral("spelling"));
-        // The start topic says what JeffWrite is and that it is a preview.
+        // The start topic says what JeffWrite is and that it is a beta.
         const jp::help::Topic start = jp::help::topic(QStringLiteral("start"));
-        QVERIFY(start.markdown.contains(QLatin1String("Preview")));
+        QVERIFY(start.markdown.contains(QLatin1String("beta")));
         QVERIFY(start.markdown.contains(QLatin1String("What works")) && start.markdown.contains(QLatin1String("What does not work yet")));
     }
 

@@ -1,5 +1,5 @@
 # Welcome to JeffWrite
-<!-- keywords: welcome, getting started, introduction, beginner, first steps, quick start, overview, what is JeffWrite, basics, preview, tutorial, new user, learn, what works, not yet, limits, word processor, document, letter, report, pages, ribbon, tabs, tables, headers, footers, footnotes, pictures, comments, tracked changes, fields, doc, docx -->
+<!-- keywords: welcome, getting started, introduction, beginner, first steps, quick start, overview, what is JeffWrite, basics, beta, tutorial, new user, learn, what works, not yet, limits, word processor, document, letter, report, pages, ribbon, tabs, tables, headers, footers, footnotes, pictures, comments, tracked changes, fields, doc, docx -->
 
 JeffWrite is a program for writing letters, reports, and other documents. It is free and open source. There is no fee, no subscription, and no account to set up. It is one of the JeffOffice apps, and it runs on Windows, macOS, and Linux.
 
@@ -29,16 +29,17 @@ The first page appears at once, even in a very long document. JeffWrite works ou
 The **ribbon** is the band of buttons across the top. Each tab holds groups of buttons.
 
 - **Home** has Clipboard (cut, copy, and paste), Font, Paragraph, Styles, and Editing, which is Find and Replace.
-- **Insert** has Table, Pictures, Page Break, Header, and Footer. A picture you click gets the **Picture Format** tab. While a header or footer is open for editing, the **Header & Footer** tab appears.
+- **Insert** has Table, Pictures, Page Break, Header, Footer, Bookmark, Cross-reference, and Field. A picture you click gets the **Picture Format** tab. While a header or footer is open for editing, the **Header & Footer** tab appears.
 - **Layout** has Margins, Orientation, Size, Columns, and Breaks (and the **Page Setup** window, from the corner of the group), and boxes for a paragraph's indents and spacing.
-- **Review** has Spelling & Grammar and Check Spelling as You Type.
+- **References** has the Table of Contents, footnotes and endnotes, cross-references, and Update Field.
+- **Review** has Spelling & Grammar, Check Spelling as You Type, comments, Track Changes, and Accept and Reject.
 - **View** has Print Layout, the **¶** button, the **Ruler**, and the zoom choices.
 
 Click **File** at the top left for New, Open, Save, Print, and Export.
 
-## JeffWrite is a Preview
+## JeffWrite is a beta
 
-This version of JeffWrite is a **Preview**. It is ready to try on real work, but it does not do everything yet. Keep a copy of any file that matters while you try it.
+This version of JeffWrite is a **beta**. It is ready for real work, but it does not do everything yet. About three of every four pages lay out within a small difference of the original program on documents JeffWrite was never tuned on, so a few lines or pages can still break in a different place. Keep a copy of any file that matters.
 
 **What works**
 

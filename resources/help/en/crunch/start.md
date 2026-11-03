@@ -1,20 +1,21 @@
 # Welcome to JeffCrunch
-<!-- keywords: welcome, getting started, introduction, beginner, first steps, quick start, overview, what is JeffCrunch, basics, preview, spreadsheet, workbook, sheet, cells, what works, not yet, limits -->
+<!-- keywords: welcome, getting started, introduction, beginner, first steps, quick start, overview, what is JeffCrunch, basics, beta, spreadsheet, workbook, sheet, cells, what works, not yet, limits -->
 
 JeffCrunch is a program for spreadsheets. It is free and open source. There is no fee, no subscription, and no account to set up. It is one of the JeffOffice apps, and it runs on Windows, macOS, and Linux.
 
 The file you work on is called a **workbook**. A workbook holds one or more **sheets**, and each sheet is a grid of **cells**. JeffCrunch saves workbooks as .xlsx files. It opens .xlsx and .xlsm workbooks made by other programs too, and older .xls files, OpenDocument spreadsheets, and text files of values. It keeps what it can't edit yet.
 
-## JeffCrunch is a Preview
+## JeffCrunch is a beta
 
-This version of JeffCrunch is a **Preview**. It is ready to try on real work, but it does not do everything yet. Keep a copy of any workbook that matters while you try it.
+This version of JeffCrunch is a **beta**. It is ready for real work, but it does not do everything yet. Keep a copy of any workbook that matters.
 
 **What works**
 
-- Opening workbooks: .xlsx and .xlsm, older .xls, OpenDocument spreadsheets (.ods and .fods), and text files of values (.csv, .tsv, and .txt). Saving .xlsx. See [Open and save workbooks](open-save).
-- Typing numbers, text, and formulas in cells, with undo and redo. Formulas are worked out as you type, with more than 200 functions. See [Type in cells](edit-cells) and [How formulas are shown and calculated](formulas).
+- Opening workbooks: .xlsx and .xlsm, older .xls, OpenDocument spreadsheets (.ods and .fods), and text files of values (.csv, .tsv, and .txt). Saving .xlsx, and copies as .xls or .ods. See [Open and save workbooks](open-save).
+- Opening workbooks protected with a password (.xlsx, .xls, and .ods), and protecting an .xlsx workbook with one. See [Open password-protected workbooks](open-password).
+- Typing numbers, text, and formulas in cells, with undo and redo. Formulas are worked out as you type, with more than 200 functions. You can click or arrow to cells while you type a formula, and the **Function Arguments** dialog fills in a function's arguments with a live result. See [Type in cells](edit-cells), [How formulas are shown and calculated](formulas), and [Enter a function with the Function Arguments dialog](function-arguments).
 - Formatting cells: fonts, colors, borders, number formats, cell styles, and merged cells. See [Format cells](format-cells).
-- Cutting, copying, and pasting, filling cells, adding them up, finding and replacing, sorting, filtering, and tables.
+- Cutting, copying, and pasting, filling cells, adding them up, finding and replacing, sorting, filtering, tables, and pivot tables. See [Pivot tables](pivot-tables).
 - Rows, columns, and sheets: inserting, deleting, sizing, hiding, and moving them.
 - Charts, pictures, and shapes, and notes and links.
 - Protecting a sheet or the workbook.
@@ -26,8 +27,10 @@ This version of JeffCrunch is a **Preview**. It is ready to try on real work, bu
 - You can't change what a cell style is, or make a new one.
 - A function JeffCrunch does not have yet leaves a new formula without a value; a formula that came with the workbook keeps the result the file stored.
 - Macros are kept and saved back, but never run.
-- A pivot table is shown and kept. A new one can be made, and any can be refreshed, be given other data, and be changed in its fields and layout (see [Pivot tables](pivot-tables)).
-- A workbook opened from .xls, .ods, or a text file is saved as a new .xlsx file. JeffCrunch does not save .xls or .ods files yet.
+- Pivot tables have a few limits, which [Pivot tables](pivot-tables) lists.
+- A workbook opened from .xls, .ods, or a text file is saved as a new .xlsx file, unless you choose an .xls or .ods copy. A copy can't hold everything, and JeffCrunch says what it will leave out before it saves.
+- A password can protect an .xlsx workbook, but not an .xls or .ods copy.
+- A data table (what-if table) can be worked out but not made.
 
 ## Do these five things first
 

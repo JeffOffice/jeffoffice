@@ -4,9 +4,9 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-only</project_license>
   <name>JeffWrite</name>
-  <summary>Write letters, reports, and other documents (preview)</summary>
+  <summary>Write letters, reports, and other documents (beta)</summary>
   <description>
-    <p>JeffWrite is a word processor, still a preview. It has tables, headers and footers, footnotes and endnotes, pictures, text boxes, spelling, printing, and PDF export.</p>
+    <p>JeffWrite is a word processor, now a beta. It has tables, headers and footers, footnotes and endnotes, pictures, text boxes, spelling, printing, and PDF export.</p>
     <p>It opens .docx and .doc documents and saves .docx.</p>
   </description>
   <launchable type="desktop-id">jeffwrite.desktop</launchable>

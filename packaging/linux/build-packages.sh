@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the Linux packages from a finished build: a .deb of the suite
-# (JeffPub, JeffDeck, and the previews that ship) and an AppImage of each app. They carry their own
+# (JeffPub, JeffDeck, and the betas that ship) and an AppImage of each app. They carry their own
 # copy of Qt, so they run on any recent Debian or Ubuntu whatever Qt version
 # the system has.
 #
@@ -145,9 +145,9 @@ Description: Free, open-source office suite
  JeffOffice is a free, open-source office suite. JeffPub lays out flyers,
  newsletters, brochures and cards, with templates, mail merge and PDF
  export, and opens .pub files. JeffDeck makes and shows presentations, and
- opens .pptx, .ppt and .odp files. JeffWrite (a preview) writes documents,
- and opens .docx and .doc files. JeffCrunch (a preview) makes spreadsheets,
- and opens .xlsx, .xls, .ods and .csv files.
+ opens .pptx, .ppt and .odp files. JeffWrite (a beta) writes documents,
+ and opens .docx, .doc, .rtf, and .odt files. JeffCrunch (a beta) makes
+ spreadsheets, and opens .xlsx, .xls, .ods, and .csv files.
 CONTROL
 dpkg-deb --build --root-owner-group "$deb" "$out/jeffoffice_${ver}_${arch}.deb"
 ls -la "$out"
