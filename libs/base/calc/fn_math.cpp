@@ -339,7 +339,11 @@ Value fnMod(Call &c)
     // (the definition: n - d * INT(n / d), which is what the original program's results carry the rounding of; a ratio past what a double holds in whole numbers has no fraction left to
     // take INT of, and is worked out exactly)
     const double q = n / d;
-    if (std::fabs(q) < 4503599627370496.0) return numberResult(n - d * std::floor(q));
+    if (std::fabs(q) < 4503599627370496.0) {
+        // (the product is rounded on its own before the subtraction: a compiler that fuses the two into one step, as some do for ARM, rounds once and the last digit differs)
+        volatile double product = d * std::floor(q);
+        return numberResult(n - product);
+    }
     double r = std::fmod(n, d);
     if (r != 0 && ((r < 0) != (d < 0))) r += d;
     return numberResult(r);
