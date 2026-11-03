@@ -21,6 +21,7 @@
 #include <QDockWidget>
 #include <QFile>
 #include <QRegularExpression>
+#include <QStatusBar>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -929,6 +930,54 @@ private Q_SLOTS:
         QCOMPARE(QString::fromUtf8(decoded), subject);   // (no character is cut in two)
     }
 
+    void aSavedMergeWhoseListIsOverTheCapsSaysSoWhenItIsRead()
+    {
+        QTemporaryDir here;
+        QByteArray csv = "A\n";
+        for (int i = 0; i < mail::kMostRecords + 5; ++i) csv += "x\n";
+        writeFile(here, "people.csv", csv);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        auto doc = open(makeDocx(para(field("MERGEFIELD A", "x"))));
+        QVERIFY(doc);
+        mail::State &state = mail::stateOf(*doc);
+        state.settings.type = mail::kindValue(mail::Kind::Letters);
+        state.sourcePath = QStringLiteral("people.csv");
+        w.setDocument(std::move(doc), here.filePath(QStringLiteral("letter.docx")));
+        w.show();
+        w.act(QStringLiteral("mail.preview"))->trigger();
+        QTRY_VERIFY(mail::stateIfAny(*w.document())->loaded);
+        QCOMPARE(mail::stateIfAny(*w.document())->data.rows.size(), mail::kMostRecords);
+        QVERIFY2(w.statusBar()->currentMessage().contains(QStringLiteral("too big")), qPrintable(w.statusBar()->currentMessage()));
+    }
+
+    void aSpreadsheetThatIsCutShortIsNotReadAsAShorterList()
+    {
+        QTemporaryDir dir;
+        const QByteArray whole = makeXlsx("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Name</t></is></c></row><row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>Ann</t></is></c></row>");
+        MergeSource ok;
+        QVERIFY(loadMergeSource(writeFile(dir, "whole.xlsx", whole), &ok, nullptr));
+        QCOMPARE(ok.rows.size(), 1);
+        // The file cut off part way (the end of a zip is its directory: what is left has none).
+        MergeSource cut;
+        QString error;
+        QVERIFY(!loadMergeSource(writeFile(dir, "cut.xlsx", whole.left(whole.size() / 2)), &cut, &error));
+        QVERIFY(!error.isEmpty());
+        // A sheet part that is not whole XML, in a package that is: an error, not a list of what was read.
+        office::PackageWriter w;
+        const QByteArray ns = "xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        w.addPart(QStringLiteral("/xl/workbook.xml"), "<?xml version=\"1.0\"?><workbook " + ns + "><sheets><sheet name=\"Sheet1\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
+        w.addRelationship(QStringLiteral("/"), kRel + QStringLiteral("officeDocument"), QStringLiteral("/xl/workbook.xml"));
+        w.addPart(QStringLiteral("/xl/worksheets/sheet1.xml"), "<?xml version=\"1.0\"?><worksheet " + ns + "><sheetData><row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Name</t></is></c></row><row r=\"2\"><c r=\"A2\" t=\"inl",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
+        w.addRelationship(QStringLiteral("/xl/workbook.xml"), kRel + QStringLiteral("worksheet"), QStringLiteral("/xl/worksheets/sheet1.xml"));
+        MergeSource half;
+        error.clear();
+        QVERIFY(!loadMergeSource(writeFile(dir, "half.xlsx", w.finish()), &half, &error));
+        QVERIFY(!error.isEmpty());
+    }
+
     void aMessageIsAddressedToTheRecipientItWasMadeFrom()
     {
         // The first record is skipped: the texts are Bo's and Cy's, and the files go to Bo and Cy.
@@ -1008,6 +1057,47 @@ private Q_SLOTS:
         };
         QVERIFY(!mail::mergeToDocument(*doc, threePeople(), {}, c, &error));
         QCOMPARE(asked, 1);
+    }
+
+    void highlightMergeFieldsShadesMergeFieldsAndNotOtherFields()
+    {
+        auto doc = open(makeDocx(para(run("Dear ") + field("MERGEFIELD First_Name", "\u00ABFirst_Name\u00BB") + run(" then ") + field("PAGE", "88888888") + run(" and ") +
+                                      field("IF \"a\" = \"a\" \"b\" \"c\"", "\u00ABIf\u00BB") + run(" and ") + field("REF nothing", "99999999"))));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.movePosition(QTextCursor::End);
+        c.insertBlock();
+        QVERIFY(mail::insertRule(*doc, c, QStringLiteral("NEXT"), QStringLiteral("\u00ABNext Record\u00BB")));   // (a field put in by the program: one character)
+        c.insertText(QStringLiteral("  "));
+        QVERIFY(insertField(*doc, c, QStringLiteral("PAGE"), QStringLiteral("77777777")));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(std::move(doc), QString());
+        w.act(QStringLiteral("mail.highlight"))->trigger();
+        // The shaded stretches of each line: the merge field and the rule of the first line, the rule of the second, and none for PAGE or REF.
+        auto stretches = [&](const QImage &image, int y) {
+            int n = 0, last = -100;
+            for (int x = 100; x < 700; ++x)   // (inside the page's text area)
+                if (isShade(image, x, y) && isShade(image, x + 5, y)) {
+                    if (x - last > 25) ++n;
+                    last = x;
+                }
+            return n;
+        };
+        QImage image;
+        QTRY_VERIFY((image = w.view()->viewport()->grab().toImage(), stretches(image, 130) > 0));
+        // (The shade of the two lines, a line's height apart, runs from the top of the first to the bottom of the second.)
+        int top = image.height(), bottom = 0;
+        for (int y = 0; y < image.height(); ++y)
+            if (stretches(image, y)) {
+                top = qMin(top, y);
+                bottom = qMax(bottom, y);
+            }
+        const int firstLine = stretches(image, top + 4), secondLine = stretches(image, bottom - 10);   // (in the middle of the line, clear of the letters' tails)
+        QCOMPARE(firstLine, 2);   // (the merge field and the IF rule, not PAGE or REF between and after them)
+        QCOMPARE(secondLine, 1);   // (the rule the program put in, not the page number after it)
     }
 
     void theMatchedFieldsAreKeptInTheDataSourcesFieldMap()

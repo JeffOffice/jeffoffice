@@ -259,6 +259,7 @@ State *stateIfAny(const WriteDoc &doc) { return doc.mailMerge.get(); }
 
 void limitRecords(MergeSource &m)
 {
+    if (m.rows.size() > kMostRecords) m.truncated = true;
     if (m.rows.size() > kMostRecords) m.rows.resize(kMostRecords);
     if (m.include.size() > kMostRecords) m.include.resize(kMostRecords);
 }

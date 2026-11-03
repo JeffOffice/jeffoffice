@@ -182,6 +182,7 @@ struct MailUi {
             const QString path = listFileFor(original);
             if (!path.isEmpty() && write::mail::loadSource(*s, path)) {
                 s->sourcePath = original;   // (the link in the file is as it was)
+                if (s->data.truncated) message(QCoreApplication::translate("jp::WriteMail", "The list was too big to read whole. %1 recipients are in it.").arg(s->data.rows.size()));
                 return true;
             }
             if (ask) {

@@ -130,6 +130,8 @@ int fieldContaining(const StoryScan &scan, int position);
 
 // A field, as one character, inserted at the caret (or in place of the selection): its code and the result the engine works out (the text given when it can't). Returns false where it
 // can't be put (a header, a note, a table of a kind the program does not edit). `code` is the field's instruction, without the blanks round it.
+// Whether a field code (its first word) is a mail merge field: MERGEFIELD, the address block and greeting line, and the rules.
+bool isMergeFieldCode(const QString &code);
 bool insertField(WriteDoc &doc, QTextCursor &c, const QString &code, const QString &fallbackResult = QString());
 
 } // namespace jp::write
