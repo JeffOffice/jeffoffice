@@ -9087,7 +9087,7 @@ private Q_SLOTS:
         QCOMPARE(shown(two, "<w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr>"), (QStringList{QStringLiteral("I"), QStringLiteral("2")}));
     }
 
-    // Reading the settings for the endnotes' numbering is once for the document, not for each story made (the notes' stories, the headers', and the footers' are made as pages
+    // Reading the settings for the notes' numbering is once for the document (the endnotes' and the footnotes', two reads), not for each story made (the notes' stories, the headers', and the footers' are made as pages
     // need them: 3,000 footnotes were 5 seconds of reading the same part again).
     void theEndnotesNumberingIsReadOnceForTheDocument()
     {
@@ -9102,7 +9102,7 @@ private Q_SLOTS:
         QVERIFY(doc);
         for (int k = 0; k < doc->pager().pageCount(); ++k) QVERIFY(doc->pager().materialize(k));   // (the notes' stories are made as the pages are)
         const qint64 reads = office::wml::noteNumberingReadsForTest() - before;
-        QVERIFY2(reads == 1, qPrintable(QStringLiteral("the settings were read %1 times").arg(reads)));
+        QVERIFY2(reads <= 2, qPrintable(QStringLiteral("the settings were read %1 times").arg(reads)));
     }
 
     // Words are hyphenated where the settings ask (w:autoHyphenation, by its value), for the zone they give (360 twentieths of a point where they give none); a paragraph that says

@@ -1,6 +1,9 @@
 // Tests of the References tab's work (apps/write/core/tocops.*, notesops, captionops, citeops, indexops): table entry fields, footnote and endnote numbering, captions and tables of
 // figures, sources and bibliographies, indexes, and tables of authorities. Each document is built here from a few lines of XML, and each feature is read back from the .docx it writes.
 
+#include "app/pageview.h"
+#include "app/writedialogs.h"
+#include "app/writewindow.h"
 #include "core/captionops.h"
 #include "core/citeops.h"
 #include "core/fieldcode.h"
@@ -22,7 +25,16 @@
 #include "text/textprops.h"
 #include "wml/wml.h"
 
+#include <QApplication>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QDialogButtonBox>
+#include <QDialog>
+#include <QLineEdit>
+#include <QPushButton>
 #include <QSet>
+#include <QSpinBox>
+#include <QTimer>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextBlock>
@@ -129,6 +141,25 @@ QStringList shownMarks(WriteDoc &doc, int page)
                         if (code.startsWith(QLatin1String("raw:")) && !code.mid(4).isEmpty()) out << code.mid(4);
                     }
     return out;
+}
+
+// Acts on the next modal dialog that opens (the test's side of a dialog whose exec() waits): `act` is given it, and closes it. With JW_SHOT_DIR set, a picture of it is saved first.
+void onNextDialog(const QString &name, const std::function<void(QDialog *)> &act)
+{
+    auto *timer = new QTimer;
+    timer->setInterval(20);
+    QObject::connect(timer, &QTimer::timeout, [timer, name, act] {
+        QWidget *modal = QApplication::activeModalWidget();
+        if (!modal) return;
+        timer->stop();
+        timer->deleteLater();
+        auto *dlg = qobject_cast<QDialog *>(modal);
+        if (!dlg) return;
+        const QByteArray dir = qgetenv("JW_SHOT_DIR");
+        if (!dir.isEmpty()) dlg->grab().save(QString::fromUtf8(dir) + QLatin1Char('/') + name + QStringLiteral(".png"));
+        act(dlg);
+    });
+    timer->start();
 }
 
 // What the paragraphs show, a line each: the text, and the result of a field that is one character (its text is not in the story's).
@@ -727,6 +758,105 @@ private Q_SLOTS:
         auto sections = open(makeDocxNotes(two, QByteArray(), notes, "<w:endnotePr><w:numFmt w:val=\"decimal\"/><w:numRestart w:val=\"eachSect\"/></w:endnotePr>"));
         QVERIFY(sections);
         QCOMPARE(marks(*sections).mid(0, 2), (QStringList{QStringLiteral("1"), QStringLiteral("1")}));
+    }
+
+    // ---- the dialogs
+    void theCaptionDialogPutsTheCaptionWhereTheCaretIs()
+    {
+        WriteWindow w;
+        w.setDocument(open(makeDocx(para(run("A picture")) + para(run("After")))), QString());
+        w.show();
+        QTextCursor c(w.document()->story());
+        c.setPosition(3);
+        w.view()->setCursor(c);
+        onNextDialog(QStringLiteral("caption-dialog"), [](QDialog *d) {
+            d->findChild<QLineEdit *>(QStringLiteral("captionText"))->setText(QStringLiteral(": Sunrise"));
+            d->findChild<QCheckBox *>(QStringLiteral("captionChapter"))->setChecked(false);
+            d->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+        });
+        QVERIFY(captionDialog(&w, w.document(), w.view()));
+        QCOMPARE(lines(*w.document())[1], QStringLiteral("Figure 1: Sunrise"));
+        // A label the box has not seen is the document's own from then on.
+        onNextDialog(QStringLiteral("caption-dialog-2"), [](QDialog *d) {
+            d->findChild<QComboBox *>(QStringLiteral("captionLabel"))->setCurrentText(QStringLiteral("Chart"));
+            d->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+        });
+        QVERIFY(captionDialog(&w, w.document(), w.view()));
+        QVERIFY(captionLabelChoices(*w.document()).contains(QStringLiteral("Chart")));
+    }
+
+    void theIndexDialogsMarkAndInsert()
+    {
+        WriteWindow w;
+        w.setDocument(open(makeDocx(para(run("Apples and apples")) + para(run("End")))), QString());
+        w.show();
+        QTextCursor c(w.document()->story());
+        c.setPosition(0);
+        c.setPosition(6, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        onNextDialog(QStringLiteral("mark-entry-dialog"), [](QDialog *d) {
+            QCOMPARE(d->findChild<QLineEdit *>(QStringLiteral("indexMain"))->text(), QStringLiteral("Apples"));
+            d->findChild<QCheckBox *>(QStringLiteral("indexBold"))->setChecked(true);
+            for (auto *b : d->findChildren<QPushButton *>())
+                if (b->text() == QLatin1String("Mark")) b->click();
+        });
+        QVERIFY(markIndexEntryDialog(&w, w.document(), w.view()));
+        QVERIFY(markedIndexEntries(*w.document()).contains(QStringLiteral("Apples")));
+        c = QTextCursor(w.document()->story());
+        c.setPosition(w.document()->story()->characterCount() - 1);
+        w.view()->setCursor(c);
+        onNextDialog(QStringLiteral("index-dialog"), [](QDialog *d) {
+            d->findChild<QSpinBox *>(QStringLiteral("indexColumns"))->setValue(1);
+            d->accept();
+        });
+        QVERIFY(indexDialog(&w, w.document(), w.view()));
+        QVERIFY2(lines(*w.document()).join('|').contains(QStringLiteral("Apples")), qPrintable(lines(*w.document()).join('|')));
+        QVERIFY(documentXml(w.document()->toDocx()).contains("INDEX \\h \"A\" \\e"));
+    }
+
+    void theNotesOptionsDialogSetsTheNumbering()
+    {
+        const QByteArray body = para(run("Text") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>");
+        const QByteArray notes = QByteArray(kSeparators) + noteXml("footnote", 2, "One");
+        WriteWindow w;
+        w.setDocument(open(makeDocxNotes(body, notes, QByteArray())), QString());
+        w.show();
+        onNextDialog(QStringLiteral("notes-options-dialog"), [](QDialog *d) {
+            auto *format = d->findChild<QComboBox *>(QStringLiteral("footnoteFormat"));
+            format->setCurrentIndex(format->findData(QStringLiteral("upperRoman")));
+            d->findChild<QSpinBox *>(QStringLiteral("footnoteStart"))->setValue(4);
+            auto *restart = d->findChild<QComboBox *>(QStringLiteral("endnoteRestart"));
+            restart->setCurrentIndex(restart->findData(QStringLiteral("eachSect")));
+            d->accept();
+        });
+        bool endnotes = false;
+        QVERIFY(notesOptionsDialog(&w, w.document(), &endnotes));
+        QVERIFY(endnotes);
+        QCOMPARE(w.document()->noteSettings(false).format, QStringLiteral("upperRoman"));
+        QCOMPARE(w.document()->noteSettings(false).start, 4);
+        QCOMPARE(w.document()->noteSettings(true).restart, QStringLiteral("eachSect"));
+        QVERIFY(shownMarks(*w.document(), 0).contains(QStringLiteral("IV")));
+    }
+
+    void theOtherReferenceDialogsOpenAndCancel()
+    {
+        WriteWindow w;
+        w.setDocument(open(makeDocx(para(run("Text")))), QString());
+        w.show();
+        const QList<std::pair<QString, std::function<bool()>>> dialogs = {
+            {QStringLiteral("toc-dialog"), [&] { return tableOfContentsDialog(&w, w.document(), w.view()); }},
+            {QStringLiteral("toc-entry-dialog"), [&] { return tocEntryDialog(&w, w.document(), w.view()); }},
+            {QStringLiteral("figures-dialog"), [&] { return tableOfFiguresDialog(&w, w.document(), w.view()); }},
+            {QStringLiteral("mark-citation-dialog"), [&] { return markCitationDialog(&w, w.document(), w.view()); }},
+            {QStringLiteral("authorities-dialog"), [&] { return tableOfAuthoritiesDialog(&w, w.document(), w.view()); }},
+            {QStringLiteral("insert-citation-dialog"), [&] { return insertCitationDialog(&w, w.document(), w.view()); }},
+            {QStringLiteral("sources-dialog"), [&] { return manageSourcesDialog(&w, w.document()); }},
+        };
+        for (const auto &d : dialogs) {
+            onNextDialog(d.first, [](QDialog *dlg) { dlg->reject(); });
+            QVERIFY2(!d.second(), qPrintable(d.first));
+        }
+        QVERIFY(!w.document()->canUndo());
     }
 };
 

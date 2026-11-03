@@ -800,6 +800,8 @@ private:
     void applyFootnoteSettings();
     NoteSettings m_noteEdit[2];
     bool m_noteEdited[2] = {false, false};
+    mutable NoteSettings m_noteRead[2];   // (what the settings part says, read once: the part does not change until the file is written)
+    mutable bool m_noteReadDone[2] = {false, false};
     bool m_endnoteRestartSections = false;   // the endnotes' numbers begin again with each section
     QByteArray m_sourcesXml;
     QString m_sourcesPartName;

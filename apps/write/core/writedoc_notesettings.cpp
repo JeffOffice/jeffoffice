@@ -28,6 +28,7 @@ NoteProperties propertiesOf(const WriteDoc::NoteSettings &s)
 WriteDoc::NoteSettings WriteDoc::noteSettings(bool endnotes) const
 {
     if (m_noteEdited[endnotes ? 1 : 0]) return m_noteEdit[endnotes ? 1 : 0];
+    if (m_noteReadDone[endnotes ? 1 : 0]) return m_noteRead[endnotes ? 1 : 0];
     NoteSettings out;
     const QByteArray settings = m_wml.settingsName.isEmpty() ? QByteArray() : partData(m_wml.settingsName);
     const char *group = endnotes ? "endnotePr" : "footnotePr";
@@ -38,6 +39,8 @@ WriteDoc::NoteSettings WriteDoc::noteSettings(bool endnotes) const
     out.position = n.position;
     const QString restart = noteNumberRestart(settings, group);
     if (!restart.isEmpty()) out.restart = restart;
+    m_noteRead[endnotes ? 1 : 0] = out;
+    m_noteReadDone[endnotes ? 1 : 0] = true;
     return out;
 }
 
