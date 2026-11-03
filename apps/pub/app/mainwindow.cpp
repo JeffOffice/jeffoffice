@@ -67,6 +67,7 @@
 #include <QPdfWriter>
 #include <QPrintDialog>
 #include "app/filedialogs.h"
+#include "app/filetasks.h"
 #include <QPrinter>
 #include <QSlider>
 #include <QSplitter>
@@ -459,14 +460,8 @@ bool MainWindow::saveTo(const QString &pathIn)
     QString err;
     const QImage thumb = pageThumbnail(0, 256);
     m_ed->endTextEdit();
-    // Options > Save > "Always create backup copy": the file as it was
-    // before this save is kept as "Backup of <name>".
-    if (Settings::get().value("save/backup", false).toBool() && QFile::exists(path)) {
-        const QFileInfo fi(path);
-        const QString backup = fi.absoluteDir().filePath(QStringLiteral("Backup of ") + fi.fileName());
-        QFile::remove(backup);
-        QFile::copy(path, backup);
-    }
+    // Options > "Always create backup copy": the file as it was before this save is kept as "Backup of <name>".
+    keepBackupBeforeSave(path);
     if (path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive)) {
         if (!exportPublisher(*m_ed->doc(), path, &err, pageThumbnail(0, 160))) {
             jp::plainWarning(this, tr("Save"), err);

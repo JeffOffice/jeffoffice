@@ -5,6 +5,7 @@
 
 #include "app/appwords.h"
 #include "app/editor.h"
+#include "app/filetasks.h"
 #include "app/i18n.h"
 #include "app/settings.h"
 #include "app/telemetry.h"
@@ -65,6 +66,12 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
     gf->addRow(QCoreApplication::translate("Dialogs", "User name:"), name);
     gf->addRow(QCoreApplication::translate("Dialogs", "Initials:"), initials);
     gf->addRow(QCoreApplication::translate("Dialogs", "Theme:"), theme);
+    // Every app keeps the file as it was before a save writes over it, when asked to.
+    auto *backup = new QCheckBox(QCoreApplication::translate("Dialogs", "Always create backup copy"), gen);
+    backup->setObjectName(QStringLiteral("backupCopy"));
+    backup->setToolTip(jp::plainToolTip(QCoreApplication::translate("Dialogs", "Before a save writes over a file, keeps the file as it was, as \"Backup of\" and its name, in the same folder.")));
+    backup->setChecked(backupOnSave());
+    gf->addRow(backup);
     // The language of JeffPub's own text; it takes effect at the next start.
     auto *uiLang = new QComboBox(gen);
     uiLang->addItem(QCoreApplication::translate("Dialogs", "Use system language"), QString());
@@ -135,6 +142,7 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
     if (!dlg.exec()) return false;
     st.setValue("user/name", name->text());
     st.setValue("user/initials", initials->text());
+    st.setValue("save/backup", backup->isChecked());
     st.setValue("ui/theme", theme->currentIndex());
     if (theme->currentIndex() != oldTheme) applyUiTheme(theme->currentIndex());   // the whole program changes now
     if (const QString lang = uiLang->currentData().toString(); lang != oldLang) {

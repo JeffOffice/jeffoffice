@@ -1335,7 +1335,6 @@ void optionsDialog(QWidget *p, Editor *ed)
     Settings &st = Settings::get();
     struct Fields {
         QSpinBox *recover = nullptr;
-        QCheckBox *backup = nullptr;
         QComboBox *units = nullptr;
         MeasureSpin *nudge = nullptr;
         QSpinBox *recent = nullptr;
@@ -1351,16 +1350,11 @@ void optionsDialog(QWidget *p, Editor *ed)
         recover->setRange(1, 120);
         recover->setValue(st.autoRecoverMinutes());
         recover->setSuffix(QCoreApplication::translate("Dialogs", " minutes"));
-        auto *backup = new QCheckBox(QCoreApplication::translate("Dialogs", "Always create backup copy"), save);
-        backup->setChecked(st.value("save/backup", false).toBool());
         sf->addRow(QCoreApplication::translate("Dialogs", "Save automatic recovery information every:"), recover);
-        sf->addRow(backup);
         f->recover = recover;
-        f->backup = backup;
         return save;
     }, [&st, f] {
         st.setValue("save/autoRecoverMinutes", f->recover->value());
-        st.setValue("save/backup", f->backup->isChecked());
     }};
     pages << OptionsPage{QCoreApplication::translate("Dialogs", "Advanced"), [&st, f] {
         auto *adv = new QWidget();
