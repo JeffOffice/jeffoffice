@@ -41,6 +41,7 @@ double Paginator::storyHeight(const QTextDocument *story, double width, int numb
     fs.insets = QMarginsF(0, 0, 0, 0);
     fs.columns = 1;
     fs.hyphenate = false;
+    fs.tabsRunOff = true;
     fs.rightRoom = rightRoom;
     fs.ctx.doc = m_doc->fields;
     fs.ctx.pageNumber = number;
@@ -192,6 +193,7 @@ std::shared_ptr<const Paginator::HeaderTables> Paginator::headerTablesOf(const Q
         fs.insets = QMarginsF(0, 0, 0, 0);
         fs.columns = 1;
         fs.hyphenate = false;
+        fs.tabsRunOff = true;
         fs.rightRoom = rightRoom;
         fs.ctx.doc = out->fields.get();
         fs.ctx.pageNumber = number;
@@ -575,6 +577,7 @@ void Paginator::addFurniture(Document *d, const Furniture &f, const Section &sec
             fs.insets = QMarginsF(0, 0, 0, 0);
             fs.columns = 1;
             fs.hyphenate = false;
+            fs.tabsRunOff = true;
             fs.rightRoom = sec.margins.right();
             fs.ctx.doc = m_doc->fields;
             fs.ctx.pageNumber = number;

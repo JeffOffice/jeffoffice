@@ -1256,7 +1256,8 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
             r.setProperty(kLetterWidths, f.stringProperty(tp::DisplayFamily) + QStringLiteral("|0|0"));
             r.setFontFamilies(fams + QStringList{f.stringProperty(tp::DisplayFamily)});
         } else if (!fams.isEmpty() && !substituteFor(fams.first()).isEmpty() && originalLetterWidths(fams.first(), bold, italic))
-            r.setProperty(kLetterWidths, fams.first() + (bold ? QStringLiteral("|1") : QStringLiteral("|0")) + (italic ? QStringLiteral("|1") : QStringLiteral("|0")));
+            r.setProperty(kLetterWidths, fams.first() + (bold ? QStringLiteral("|1") : QStringLiteral("|0")) + (italic ? QStringLiteral("|1") : QStringLiteral("|0")) +
+                                             (f.fontFamilies().toStringList().value(0).compare(QLatin1String("Courier New"), Qt::CaseInsensitive) == 0 ? QStringLiteral("|c") : QString()));   // (|c: the text asked for Courier New itself)
         else if (env.wordLines && !fams.isEmpty() && isSymbolFont(fams.first()) && !hasFamilyCached(fams.first()) && symbolFontLetterWidths(fams.first()))
             r.setProperty(kLetterWidths, fams.first() + QStringLiteral("|0|0"));   // (its characters are shown as their pictures, by the widths of the font's)
     }
@@ -2520,6 +2521,15 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
             // Letters alike: only the space, by word spacing.
             QTextLayout::FormatRange x = r;
             if (space != table->constEnd()) x.format.setFontWordSpacing(r.format.fontWordSpacing() + *space * em - adv(QLatin1Char(' ')));
+            // (A fixed-pitch face that is a hair narrower than the original's letters, 600 to the em where the original has 1,229 of 2,048: a line of 65 letters at 12 points is
+            // 468.08 points long in the original and does not fit its 468; the hair is added to each letter, as far as the layout's units go.)
+            if (k.value(3) == QLatin1String("c"))
+            if (const auto a = table->constFind(u'a'), m = table->constFind(u'm'); a != table->constEnd() && m != table->constEnd() && *a == *m && *a > 0.5) {
+                if (const double hair = *a * em - adv(QLatin1Char('a')); hair > 0 && hair < 0.01) {
+                    x.format.setFontLetterSpacingType(QFont::AbsoluteSpacing);
+                    x.format.setFontLetterSpacing(base + std::max(hair, 0.002));   // (the layout keeps spacing in sixty-fourths of a pixel of eighths of a point: less is none)
+                }
+            }
             if (kerns && !kerning) x.format.setFontKerning(false);
             out << x;
             continue;
@@ -4339,6 +4349,26 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                                 if (!markHangs) line.setLineWidth(room + fit);
                             } else if (al == Qt::AlignJustify) {
                                 line.setLineWidth(room + fit);   // (a justified line goes to the margin, not past it)
+                            }
+                        }
+                    }
+                    // A word processor's header or footer text after a tab whose stop is past the right edge stays on the line, off to the right (it does not wrap: the line goes on
+                    // to its next break): a footer with more tabs than its stops has.
+                    if (env.wordLines && wordTabs && gridTabs && al == Qt::AlignLeft && frames[f].tabsRunOff) {
+                        const int s0 = line.textStart(), e0 = s0 + line.textLength();
+                        if (e0 > s0 && e0 < B->disp.size() && B->disp[e0 - 1] != QChar::LineSeparator) {
+                            int k = e0 - 1;
+                            while (k > s0 && B->disp[k] == QLatin1Char(' ')) --k;
+                            if (B->disp[k] == QLatin1Char('\t')) {
+                                const double off = iv.x0 - col.left(), w = iv.x1 - iv.x0;
+                                const double pen = off + line.cursorToX(k) - line.cursorToX(s0);
+                                double stop = -1;
+                                for (const QTextOption::Tab &t : ownTabs) {
+                                    const double at = t.position * scale;
+                                    if (at > pen + 0.01 && (stop < 0 || at < stop)) stop = at;
+                                }
+                                if (stop < 0) stop = nextStop(pen, false);
+                                if (stop - off > w + 0.01) line.setLineWidth(1e6);
                             }
                         }
                     }
