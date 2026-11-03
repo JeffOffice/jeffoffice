@@ -615,10 +615,12 @@ void PageView::paintEvent(QPaintEvent *e)
         // The line where the border would be.
         const QRectF &pr = m_rects[m_columnDrag.page];
         const double x = pr.left() + m_columnDrag.nowX * s - sx, y0 = pr.top() + m_columnDrag.top * s - sy, y1 = pr.top() + m_columnDrag.bottom * s - sy;
+        const double y = pr.top() + m_columnDrag.nowY * s - sy;
         p.setRenderHint(QPainter::Antialiasing, false);
         QPen pen(QColor(0x2B, 0x57, 0xB5), 1, Qt::DashLine);
         p.setPen(pen);
-        p.drawLine(QPointF(x, y0), QPointF(x, y1));
+        if (m_columnDrag.row) p.drawLine(QPointF(pr.left() + m_columnDrag.left * s - sx, y), QPointF(pr.left() + m_columnDrag.right * s - sx, y));
+        else p.drawLine(QPointF(x, y0), QPointF(x, y1));
     }
     // The caret.
     if (m_caretOn && (hasFocus() || m_caretWithoutFocus) && !m_cursor.hasSelection()) {
@@ -854,16 +856,23 @@ bool PageView::columnBorderAt(const QPoint &vp, ColumnDrag *found)
         const QRectF rect = fragment->rect();
         if (hit.point.y() < rect.top() || hit.point.y() > rect.bottom()) continue;
         bool hitBorder = false;
-        fragment->forCellBoxes([&](const QRectF &box, int from, int span) {
-            if (hitBorder || span != 1 || std::abs(hit.point.x() - box.right()) > tolerance || hit.point.y() < box.top() || hit.point.y() > box.bottom()) return;
+        fragment->forCellBoxes([&](const QRectF &box, int from, int span, int rows) {
+            if (hitBorder) return;
+            const bool column = span == 1 && std::abs(hit.point.x() - box.right()) <= tolerance && hit.point.y() >= box.top() && hit.point.y() <= box.bottom();
+            const bool row = !column && rows == 1 && std::abs(hit.point.y() - box.bottom()) <= tolerance && hit.point.x() >= box.left() && hit.point.x() <= box.right();
+            if (!column && !row) return;
             hitBorder = true;
             ColumnDrag d;
             d.position = from;
             d.page = hit.page;
-            d.width = box.width();
+            d.row = row;
+            d.width = row ? box.height() : box.width();
             d.startX = d.nowX = hit.point.x();
+            d.startY = d.nowY = hit.point.y();
             d.top = rect.top();
             d.bottom = rect.bottom();
+            d.left = rect.left();
+            d.right = rect.right();
             *found = d;
         });
         if (hitBorder) return true;

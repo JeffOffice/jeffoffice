@@ -2722,7 +2722,7 @@ private Q_SLOTS:
         const auto page = doc->pager().materialize(0);
         QVERIFY(page && !page->tables.isEmpty());
         QRectF firstCell;
-        page->tables[0]->forCellBoxes([&](const QRectF &box, int, int) {
+        page->tables[0]->forCellBoxes([&](const QRectF &box, int, int, int) {
             if (!firstCell.isValid()) firstCell = box;
         });
         QVERIFY(firstCell.isValid());
@@ -2738,6 +2738,43 @@ private Q_SLOTS:
         QTest::mouseRelease(view.viewport(), Qt::LeftButton, Qt::NoModifier, border + QPoint(int(std::lround(30 * scale)), 0));
         const QString now = tablesSignature(*doc);
         QVERIFY2(now.contains(QStringLiteral("cols=150.0,120.0")), qPrintable(now));
+        checkTablesReopenTheSame(*doc);
+        doc->story()->undo();
+        QCOMPARE(tablesSignature(*doc), before);
+    }
+
+    // Pulling the border at the foot of a row makes the row at least that tall (one step that undoes).
+    void draggingARowBorderSetsTheRowsHeight()
+    {
+        auto doc = open(makeDocx(tableX(rowX(cellX(cellP("aa")) + cellX(cellP("bb"))) + rowX(cellX(cellP("cc")) + cellX(cellP("dd"))), 2) + cellP("after"), kStyles));
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        view.paginateAll();
+        view.grab();
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page && !page->tables.isEmpty());
+        QRectF firstCell;
+        page->tables[0]->forCellBoxes([&](const QRectF &box, int, int, int) {
+            if (!firstCell.isValid()) firstCell = box;
+        });
+        QVERIFY(firstCell.isValid());
+        const QRect pr = view.pageRect(0);
+        const double scale = pr.width() / 612.0;
+        const QPoint border(int(std::lround(pr.left() + firstCell.center().x() * scale)), int(std::lround(pr.top() + firstCell.bottom() * scale)));
+        const QString before = tablesSignature(*doc);
+        QVERIFY(before.contains(QStringLiteral("ROW height=0 exact=0")));
+        QTest::mouseMove(view.viewport(), border);
+        QTRY_COMPARE(view.viewport()->cursor().shape(), Qt::SplitVCursor);
+        const QPoint to = border + QPoint(0, int(std::lround(30 * scale)));
+        QTest::mousePress(view.viewport(), Qt::LeftButton, Qt::NoModifier, border);
+        QTest::mouseMove(view.viewport(), to);
+        QTest::mouseRelease(view.viewport(), Qt::LeftButton, Qt::NoModifier, to);
+        const QString now = tablesSignature(*doc);
+        const auto m = QRegularExpression(QStringLiteral("ROW height=([0-9.]+) exact=0")).match(now);
+        QVERIFY2(m.hasMatch(), qPrintable(now));
+        QVERIFY2(std::abs(m.captured(1).toDouble() - (firstCell.height() + 30)) < 2.0, qPrintable(m.captured(1)));
         checkTablesReopenTheSame(*doc);
         doc->story()->undo();
         QCOMPARE(tablesSignature(*doc), before);
