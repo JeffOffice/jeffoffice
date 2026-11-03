@@ -489,6 +489,25 @@ QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on);
 // Whether the settings turn Track Changes on (w:trackRevisions, not turned off by a value), and the settings with it on or off, in the place the schema gives it. An empty part gives a minimal one.
 bool settingsTrackRevisions(const QByteArray &settings);
 QByteArray settingsWithTrackRevisions(const QByteArray &settings, bool on);
+// The mail merge of the settings part (w:mailMerge): what the document is merged as, and where its data comes from. The data source is a relationship of the settings part (its Id is
+// kept in `dataSourceId`); `odso` and the rest the program does not change are kept as written. `type` is empty for a document with none.
+struct MailMergeSettings {
+    QString type;                  // w:mainDocumentType: formLetters, mailingLabels, envelopes, catalog, email, or fax
+    bool linkToQuery = false;
+    QString dataType;              // w:dataType: textFile, database, spreadsheet, query, odbc, or native
+    QString connectString, query;
+    QString dataSourceId, headerSourceId;
+    bool doNotSuppressBlankLines = false, viewMergedData = false, mailAsAttachment = false;
+    QString destination;           // newDocument, printer, email, or fax
+    QString addressFieldName, mailSubject;
+    int activeRecord = 0;          // from 1; 0 where the file says none
+    int checkErrors = -1;          // -1 where the file says none
+    QByteArray odso;               // the w:odso element as written (empty for none)
+};
+// The mail merge of the settings, false where there is none.
+bool readMailMerge(const QByteArray &settings, MailMergeSettings *out);
+// The settings with the mail merge replaced by `merge` (or put in the place the schema gives it; taken out where its type is empty).
+QByteArray settingsWithMailMerge(const QByteArray &settings, const MailMergeSettings &merge);
 
 // A drawn object of a run: a picture, a rule, a box, or a text box, read from the VML of a w:pict (or an object) or the DrawingML of a w:drawing. Sizes are
 // points. An object is `floating` where its style says it is set at a place (anchored to a paragraph, the margin, or the page), else it is in the line.

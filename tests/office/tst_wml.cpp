@@ -2333,6 +2333,48 @@ private Q_SLOTS:
         QCOMPARE(count(written, "<w:smartTag"), 100);
         QVERIFY(written.contains("deep"));
     }
+
+    void theMailMergeOfTheSettingsIsReadAndWrittenInTheSchemasPlace()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        const QByteArray file = "<?xml version=\"1.0\"?><w:settings " + ns + "><w:zoom w:percent=\"100\"/><w:mailMerge><w:mainDocumentType w:val=\"formLetters\"/><w:linkToQuery/>"
+                                "<w:dataType w:val=\"textFile\"/><w:connectString w:val=\"\"/><w:query w:val=\"SELECT * FROM C:\\a &amp; b.csv\"/><w:dataSource r:id=\"rId1\"/><w:viewMergedData/>"
+                                "<w:activeRecord w:val=\"3\"/><w:odso><w:fieldMapData><w:column w:val=\"0\"/></w:fieldMapData></w:odso></w:mailMerge><w:trackRevisions/><w:defaultTabStop w:val=\"720\"/></w:settings>";
+        MailMergeSettings m;
+        QVERIFY(readMailMerge(file, &m));
+        QCOMPARE(m.type, QStringLiteral("formLetters"));
+        QVERIFY(m.linkToQuery && m.viewMergedData);
+        QCOMPARE(m.dataType, QStringLiteral("textFile"));
+        QCOMPARE(m.query, QStringLiteral("SELECT * FROM C:\\a & b.csv"));
+        QCOMPARE(m.dataSourceId, QStringLiteral("rId1"));
+        QCOMPARE(m.activeRecord, 3);
+        QVERIFY(m.odso.startsWith("<w:odso>") && m.odso.endsWith("</w:odso>"));
+        // Changing one thing keeps the rest, in the same place.
+        m.activeRecord = 5;
+        m.mailSubject = "Hello <you>";
+        const QByteArray changed = settingsWithMailMerge(file, m);
+        MailMergeSettings back;
+        QVERIFY(readMailMerge(changed, &back));
+        QCOMPARE(back.activeRecord, 5);
+        QCOMPARE(back.mailSubject, QStringLiteral("Hello <you>"));
+        QCOMPARE(back.odso, m.odso);
+        QVERIFY(changed.indexOf("<w:mailMerge>") < changed.indexOf("<w:trackRevisions/>"));
+        QVERIFY(changed.indexOf("<w:zoom") < changed.indexOf("<w:mailMerge>"));
+        // Added to settings that have none: before the elements the schema puts after it.
+        const QByteArray plain = "<?xml version=\"1.0\"?><w:settings " + ns + "><w:zoom w:percent=\"100\"/><w:trackRevisions/><w:compat/></w:settings>";
+        MailMergeSettings fresh;
+        fresh.type = QStringLiteral("mailingLabels");
+        fresh.dataSourceId = QStringLiteral("rId9");
+        const QByteArray added = settingsWithMailMerge(plain, fresh);
+        QVERIFY(added.indexOf("<w:zoom") < added.indexOf("<w:mailMerge>") && added.indexOf("<w:mailMerge>") < added.indexOf("<w:trackRevisions/>"));
+        QVERIFY(readMailMerge(added, &back));
+        QCOMPARE(back.type, QStringLiteral("mailingLabels"));
+        // An empty part gets a whole one, and an empty type takes the element out.
+        QVERIFY(readMailMerge(settingsWithMailMerge(QByteArray(), fresh), &back));
+        MailMergeSettings none;
+        QVERIFY(!readMailMerge(settingsWithMailMerge(added, none), &back));
+        QVERIFY(settingsWithMailMerge(added, none).contains("<w:trackRevisions/>"));
+    }
 };
 
 QTEST_MAIN(WmlTests)
