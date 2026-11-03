@@ -1907,6 +1907,70 @@ void setTableLook(WriteDoc &doc, QTextCursor &c, int mask, bool on)
 
 // ---- a new table
 
+bool insertQuickTable(WriteDoc &doc, QTextCursor &c, QuickTable kind, const QDate &month)
+{
+    const auto word = [](const char *text) { return QCoreApplication::translate("jp::write::QuickTables", text); };
+    QVector<QStringList> rows;
+    NewTable table;
+    switch (kind) {
+    case QuickTable::Calendar: {
+        const QDate first(month.year(), month.month(), 1);
+        QStringList days;
+        for (int d = 0; d < 7; ++d) days << QLocale().dayName(d == 0 ? 7 : d, QLocale::ShortFormat);   // (Sunday first)
+        rows << days;
+        QStringList week;
+        for (int blank = 0; blank < first.dayOfWeek() % 7; ++blank) week << QString();
+        for (int day = 1; day <= first.daysInMonth(); ++day) {
+            week << QString::number(day);
+            if (week.size() == 7) {
+                rows << week;
+                week.clear();
+            }
+        }
+        if (!week.isEmpty()) {
+            while (week.size() < 7) week << QString();
+            rows << week;
+        }
+        table.style = QStringLiteral("TableGrid");
+        break;
+    }
+    case QuickTable::Matrix:
+        rows << QStringList{QString(), word("Column 1"), word("Column 2"), word("Column 3")};
+        for (int r = 1; r <= 3; ++r) rows << QStringList{word("Row %1").arg(r), QString(), QString(), QString()};
+        table.style = QStringLiteral("GridTable4-Accent1");
+        break;
+    case QuickTable::List:
+        rows << QStringList{word("Item"), word("Description"), word("Quantity"), word("Price")};
+        for (int r = 0; r < 4; ++r) rows << QStringList{QString(), QString(), QString(), QString()};
+        table.style = QStringLiteral("ListTable3-Accent1");
+        break;
+    case QuickTable::Schedule:
+        rows << QStringList{QString(), word("Monday"), word("Tuesday"), word("Wednesday"), word("Thursday"), word("Friday")};
+        for (const char *time : {"9:00", "10:00", "11:00", "1:00", "2:00"}) rows << QStringList{word(time), QString(), QString(), QString(), QString(), QString()};
+        table.style = QStringLiteral("GridTable4-Accent1");
+        break;
+    }
+    table.rows = int(rows.size());
+    table.columns = int(rows.first().size());
+    TableCommand command(doc);
+    c.beginEditBlock();
+    if (!insertTable(doc, c, table)) {
+        c.endEditBlock();
+        return false;
+    }
+    const int start = c.position();
+    bool firstCell = true;
+    for (const QStringList &row : std::as_const(rows))
+        for (const QString &text : row) {
+            if (!firstCell) tabThroughCells(doc, c, false);
+            firstCell = false;
+            if (!text.isEmpty()) c.insertText(text);
+        }
+    c.setPosition(start);
+    c.endEditBlock();
+    return true;
+}
+
 bool insertTable(WriteDoc &doc, QTextCursor &c, const NewTable &table)
 {
     TableCommand command(doc);

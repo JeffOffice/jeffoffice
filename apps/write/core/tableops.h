@@ -9,6 +9,7 @@
 #include "flow/tabledata.h"
 
 #include <QTextBlock>
+#include <QDate>
 #include <QSet>
 #include <QTextCursor>
 #include <QVector>
@@ -60,6 +61,10 @@ struct NewTable {
 // A table at the cursor: before the paragraph the cursor is in (the paragraph is cut in two when the cursor is inside its text), with the cursor in its first cell.
 // False (nothing done) in a table, or for a table of no rows or columns, or more than the file can hold.
 bool insertTable(WriteDoc &doc, QTextCursor &c, const NewTable &table);
+// Quick Tables: a table with its words in place, at the cursor as insertTable puts one (one step). A calendar has the month of `month` (its days under the days' names), a matrix a header row
+// and first column, a list a header row with four columns, and a schedule a time in the first column and a day over each of the others.
+enum class QuickTable { Calendar, Matrix, List, Schedule };
+bool insertQuickTable(WriteDoc &doc, QTextCursor &c, QuickTable kind, const QDate &month = QDate::currentDate());
 // The width in points of the text area the cursor's paragraph is set in.
 double textWidthAt(WriteDoc &doc, int position);
 

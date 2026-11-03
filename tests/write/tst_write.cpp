@@ -2884,6 +2884,39 @@ private Q_SLOTS:
         checkTablesReopenTheSame(*doc);
     }
 
+    // Quick Tables put a table with its words in at the cursor as one step.
+    void quickTablesPutATableWithItsWordsIn()
+    {
+        auto doc = open(makeDocx(cellP("before") + cellP("after"), kStyles));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("after"));
+        const QString before = storyText(*doc);
+        QVERIFY(insertQuickTable(*doc, c, QuickTable::List));
+        QString now = tablesSignature(*doc);
+        QVERIFY2(now.contains(QStringLiteral("cols=")), qPrintable(now));
+        QCOMPARE(now.count(QStringLiteral("ROW ")), 5);
+        QVERIFY2(storyText(*doc).contains(QStringLiteral("Item|Description|Quantity|Price")), qPrintable(storyText(*doc)));
+        QVERIFY(documentXml(doc->toDocx()).contains("ListTable3-Accent1"));
+        checkTablesReopenTheSame(*doc);
+        QVERIFY(doc->undo());
+        QCOMPARE(storyText(*doc), before);
+        QVERIFY(tablesSignature(*doc).count(QStringLiteral("ROW ")) == 0);
+        QVERIFY(doc->redo());
+        QCOMPARE(tablesSignature(*doc), now);
+        // A calendar has the days of its month under the days' names, 7 columns.
+        auto cal = open(makeDocx(cellP("after"), kStyles));
+        QTextCursor cc = cursorAt(*cal, QStringLiteral("after"));
+        QVERIFY(insertQuickTable(*cal, cc, QuickTable::Calendar, QDate(2026, 11, 15)));   // (November 2026 begins on a Sunday and has 30 days)
+        now = tablesSignature(*cal);
+        QCOMPARE(now.count(QStringLiteral("ROW ")), 6);
+        QVERIFY(storyText(*cal).contains(QStringLiteral("1|2|3|4|5|6|7|8")));
+        QVERIFY(storyText(*cal).contains(QStringLiteral("29|30")));
+        checkTablesReopenTheSame(*cal);
+        // In a table nothing is put in.
+        auto in = open(tableDocx(2, 2));
+        QTextCursor ic = cursorAt(*in, QStringLiteral("r0c0"));
+        QVERIFY(!insertQuickTable(*in, ic, QuickTable::Matrix));
+    }
+
     void theCaretIsDrawnOnThePageThatHoldsIt()
     {
         auto doc = open(makeDocx(paragraphs(120), kStyles));
