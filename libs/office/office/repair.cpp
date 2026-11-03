@@ -1,8 +1,12 @@
 #include "office/repair.h"
 
 #include "io/zip.h"
+#include "office/xml.h"
+#include "office/xmlstream.h"
 
+#include <QBuffer>
 #include <QCoreApplication>
+#include <QHash>
 #include <QMap>
 #include <QRegularExpression>
 #include <QSet>
@@ -10,6 +14,7 @@
 
 #include <algorithm>
 #include <array>
+#include <vector>
 
 namespace jp::office {
 
@@ -28,6 +33,22 @@ QString plainName(QString name)
     name.replace(QLatin1Char('\\'), QLatin1Char('/'));
     while (name.startsWith(QLatin1Char('/'))) name.remove(0, 1);
     return name;
+}
+
+// A name that stays inside the package: not empty, and no "." or ".." among its folders (a name from a stranger's file is never used to reach another place).
+bool usableName(const QString &name)
+{
+    if (name.isEmpty() || name.contains(QChar(0))) return false;
+    for (const QString &part : name.split(QLatin1Char('/')))
+        if (part == QLatin1String(".") || part == QLatin1String("..")) return false;
+    return true;
+}
+
+// Parts a program reads as a stream, so it opens them at any size a file can have (an XML part of another kind is held to kMaxXmlBytes, as an open holds it).
+bool readAsStream(const QString &name)
+{
+    const QString lower = name.toLower();
+    return lower.startsWith(QLatin1String("xl/worksheets/")) || lower == QLatin1String("xl/sharedstrings.xml");
 }
 
 const char kRelsNs[] = "http://schemas.openxmlformats.org/package/2006/relationships";
@@ -68,27 +89,33 @@ const KnownPart kKnown[] = {
 
 const KnownPart *knownPart(const QString &name)
 {
-    for (const KnownPart &k : kKnown)
-        if (QRegularExpression(QStringLiteral("^(%1)$").arg(QLatin1String(k.pattern)), QRegularExpression::CaseInsensitiveOption).match(name).hasMatch()) return &k;
+    // (each pattern is compiled once: a package has hundreds of parts, and each is looked up here)
+    static const std::vector<QRegularExpression> patterns = [] {
+        std::vector<QRegularExpression> all;
+        for (const KnownPart &k : kKnown) all.emplace_back(QStringLiteral("^(%1)$").arg(QLatin1String(k.pattern)), QRegularExpression::CaseInsensitiveOption);
+        return all;
+    }();
+    for (size_t i = 0; i < patterns.size(); ++i)
+        if (patterns[i].match(name).hasMatch()) return &kKnown[i];
     return nullptr;
 }
 
-QString mainPartOf(const QMap<QString, QByteArray> &parts)
+QString mainPartOf(const QSet<QString> &parts)
 {
     for (const char *name : {"word/document.xml", "xl/workbook.xml", "ppt/presentation.xml"})
         if (parts.contains(QLatin1String(name))) return QLatin1String(name);
     return QString();
 }
 
-QByteArray typesXml(const QMap<QString, QByteArray> &parts)
+QByteArray typesXml(const QStringList &parts)
 {
     QByteArray x = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
                    "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/>"
                    "<Default Extension=\"png\" ContentType=\"image/png\"/><Default Extension=\"jpeg\" ContentType=\"image/jpeg\"/><Default Extension=\"jpg\" ContentType=\"image/jpeg\"/>"
                    "<Default Extension=\"gif\" ContentType=\"image/gif\"/><Default Extension=\"bmp\" ContentType=\"image/bmp\"/><Default Extension=\"tiff\" ContentType=\"image/tiff\"/>"
                    "<Default Extension=\"emf\" ContentType=\"image/x-emf\"/><Default Extension=\"wmf\" ContentType=\"image/x-wmf\"/><Default Extension=\"svg\" ContentType=\"image/svg+xml\"/>";
-    for (auto it = parts.cbegin(); it != parts.cend(); ++it)
-        if (const KnownPart *k = knownPart(it.key())) x += "<Override PartName=\"/" + it.key().toUtf8() + "\" ContentType=\"" + k->type + "\"/>";
+    for (const QString &name : parts)
+        if (const KnownPart *k = knownPart(name)) x += "<Override PartName=\"/" + name.toUtf8() + "\" ContentType=\"" + k->type + "\"/>";
     return x + "</Types>";
 }
 
@@ -101,7 +128,7 @@ QByteArray relsXml(const QList<std::array<QString, 3>> &links)   // id, type suf
 }
 
 // The links a main part needs and a reader looks for, made from the parts beside it when its own list of links is gone.
-QByteArray mainRels(const QString &main, const QMap<QString, QByteArray> &parts)
+QByteArray mainRels(const QString &main, const QStringList &parts)
 {
     const QString folder = main.left(main.lastIndexOf(QLatin1Char('/')) + 1);
     QList<std::array<QString, 3>> links;
@@ -110,34 +137,83 @@ QByteArray mainRels(const QString &main, const QMap<QString, QByteArray> &parts)
     if (main == QLatin1String("xl/workbook.xml")) {
         // (the sheets are named in the workbook by the links' Ids: they are taken in the order the sheets' parts are numbered, which is how a program writes them)
         QStringList sheets;
-        for (auto it = parts.cbegin(); it != parts.cend(); ++it)
-            if (QRegularExpression(QStringLiteral("^xl/worksheets/sheet[0-9]+\\.xml$")).match(it.key()).hasMatch()) sheets << it.key();
+        static const QRegularExpression sheetName(QStringLiteral("^xl/worksheets/sheet[0-9]+\\.xml$"));
+        for (const QString &name : parts)
+            if (sheetName.match(name).hasMatch()) sheets << name;
         std::sort(sheets.begin(), sheets.end(), [](const QString &a, const QString &b) {
             static const QRegularExpression digits(QStringLiteral("[0-9]+"));
             return digits.match(a, 12).captured().toInt() < digits.match(b, 12).captured().toInt();
         });
         for (const QString &s : sheets) add(QStringLiteral("worksheet"), s.mid(folder.size()));
     }
-    for (auto it = parts.cbegin(); it != parts.cend(); ++it)
-        if (const KnownPart *k = knownPart(it.key()); k && k->relation && it.key().startsWith(folder) && it.key().indexOf(QLatin1Char('/'), folder.size()) < 0) add(QLatin1String(k->relation), it.key().mid(folder.size()));
+    for (const QString &name : parts)
+        if (const KnownPart *k = knownPart(name); k && k->relation && name.startsWith(folder) && name.indexOf(QLatin1Char('/'), folder.size()) < 0) add(QLatin1String(k->relation), name.mid(folder.size()));
     return relsXml(links);
 }
 
+// The byte of UTF-8 text that is `chars` UTF-16 units in (the unit a reader counts in), after a byte order mark if there is one. The text must be valid UTF-8.
+qsizetype byteOfChar(const QByteArray &x, qint64 chars)
+{
+    qsizetype i = x.startsWith("\xEF\xBB\xBF") ? 3 : 0;
+    qint64 n = 0;
+    while (i < x.size() && n < chars) {
+        const uchar c = uchar(x[i]);
+        const int length = c < 0x80 ? 1 : c >= 0xF0 ? 4 : c >= 0xE0 ? 3 : 2;
+        n += length == 4 ? 2 : 1;
+        i += length;
+    }
+    return std::min<qsizetype>(i, x.size());
+}
+
+// How many bytes at the end of `x` are the start of a letter that is not all there.
+int incompleteTail(const QByteArray &x)
+{
+    for (int back = 1; back <= 3 && back <= x.size(); ++back) {
+        const uchar c = uchar(x[x.size() - back]);
+        if ((c & 0xC0) == 0x80) continue;   // (a continuation byte: look further back for its start)
+        const int length = c < 0x80 ? 1 : c >= 0xF0 ? 4 : c >= 0xE0 ? 3 : c >= 0xC0 ? 2 : 1;
+        return length > back ? back : 0;
+    }
+    return 0;
+}
+
+// (a cut in the middle of a letter leaves the replacement character at the end: it goes)
+void chopReplacements(QByteArray &x)
+{
+    while (x.endsWith("\xEF\xBF\xBD")) x.chop(3);
+}
+
+constexpr qint64 kMaxXmlTokenBytes = qint64(64) << 20;   // one piece of XML (a text, a tag), as a sheet's is held: a real one is far smaller
+constexpr int kMaxXmlNameChars = 1024;                    // an element's name: real names are under 50 characters, and the names of the open elements are kept
+
 } // namespace
 
-QByteArray repairXml(const QByteArray &xml, bool *trimmed)
+QByteArray repairXml(const QByteArray &xml, bool *trimmed, QString *stoppedBecause)
 {
     if (trimmed) *trimmed = false;
+    if (stoppedBecause) stoppedBecause->clear();
     if (xml.contains("<!DOCTYPE") || xml.contains("<!ENTITY")) return QByteArray();
-    const QString text = QString::fromUtf8(xml);
-    QXmlStreamReader r(text);
+    // The text is read from its bytes (no copy of it as UTF-16), through the guard that bounds what a parser is given.
+    QBuffer buffer;
+    buffer.setData(xml);
+    buffer.open(QIODevice::ReadOnly);
+    XmlGuardDevice guard(&buffer, kMaxXmlTokenBytes);
+    QXmlStreamReader r(&guard);
     QStringList open;
     qint64 good = 0;
-    bool rootSeen = false;
+    bool rootSeen = false, tooDeep = false, tooLongName = false;
     while (!r.atEnd()) {
         const QXmlStreamReader::TokenType t = r.readNext();
         if (r.hasError()) break;
         if (t == QXmlStreamReader::StartElement) {
+            if (open.size() >= kMaxXmlDepth) {
+                tooDeep = true;
+                break;
+            }
+            if (r.qualifiedName().size() > kMaxXmlNameChars) {
+                tooLongName = true;
+                break;
+            }
             open << r.qualifiedName().toString();
             rootSeen = true;
             good = r.characterOffset();
@@ -150,106 +226,199 @@ QByteArray repairXml(const QByteArray &xml, bool *trimmed)
             return QByteArray();
         }
     }
-    if (!r.hasError()) return rootSeen ? xml : QByteArray();
+    const bool broken = r.hasError() || tooDeep || tooLongName || guard.refused();
+    if (!broken) return rootSeen ? xml : QByteArray();
     if (!rootSeen) return QByteArray();
-    QString kept = text.left(qsizetype(good));
-    // (a cut in the middle of a letter leaves the replacement character at the end: it goes)
-    while (kept.endsWith(QChar(0xFFFD))) kept.chop(1);
+    // What breaks is cut at the last whole piece. (The offsets are in characters; they are made bytes, which needs text that is UTF-8 all through: a part that is not is left out.)
+    const QByteArray whole = QByteArray::fromRawData(xml.constData(), xml.size() - incompleteTail(xml));
+    if (!QByteArrayView(whole).isValidUtf8()) return QByteArray();
+    const qsizetype at = byteOfChar(whole, good);
+    QByteArray kept = xml.left(at);
+    chopReplacements(kept);
     // (text the reader had not yet handed over when it ran out: kept up to the next tag, less an entity cut in two)
     if (!open.isEmpty()) {
-        QString tail = text.mid(qsizetype(good));
-        if (const qsizetype lt = tail.indexOf(QLatin1Char('<')); lt >= 0) tail.truncate(lt);
-        if (const qsizetype amp = tail.lastIndexOf(QLatin1Char('&')); amp >= 0 && tail.indexOf(QLatin1Char(';'), amp) < 0) tail.truncate(amp);
-        while (tail.endsWith(QChar(0xFFFD))) tail.chop(1);
+        QByteArray tail = xml.mid(at);
+        if (const qsizetype lt = tail.indexOf('<'); lt >= 0) tail.truncate(lt);
+        if (const qsizetype amp = tail.lastIndexOf('&'); amp >= 0 && tail.indexOf(';', amp) < 0) tail.truncate(amp);
+        tail.chop(incompleteTail(tail));
+        chopReplacements(tail);
         kept += tail;
     }
-    for (qsizetype i = open.size() - 1; i >= 0; --i) kept += QStringLiteral("</") + open[i] + QLatin1Char('>');
+    for (qsizetype i = open.size() - 1; i >= 0; --i) kept += "</" + open[i].toUtf8() + ">";
     if (trimmed) *trimmed = true;
-    return kept.toUtf8();
+    if (stoppedBecause && (tooDeep || tooLongName)) *stoppedBecause = tr("it has items inside items more deeply than any real file has");
+    return kept;
 }
 
-QByteArray repairPackage(const QByteArray &zip, QString *error, RepairReport *report)
+namespace {
+
+// One entry of a package made ready to be a part: its name, and its bytes made what a reader can open (XML cut at the break). `drop` says why it can't be a part.
+struct Prepared {
+    QString name;
+    QByteArray data;
+    bool whole = false;      // read whole, and (for XML) not cut
+    QString drop;            // empty when it is a part
+    QString stopped;         // when XML was cut for its nesting: why
+};
+
+Prepared prepare(const ZipScanEntry &e, const RepairLimits &limits)
+{
+    Prepared p;
+    p.name = plainName(e.name);
+    if (!usableName(p.name)) {
+        p.drop = tr("%1 (the name is not usable)").arg(e.name);
+        return p;
+    }
+    if (e.problem == QLatin1String("too large")) {
+        p.drop = tr("%1 (too large to repair)").arg(p.name);
+        return p;
+    }
+    if (isXmlName(p.name)) {
+        if (!readAsStream(p.name) && e.data.size() > limits.maxXmlPartBytes) {
+            p.drop = tr("%1 (larger than this program opens)").arg(p.name);
+            return p;
+        }
+        bool cut = false;
+        p.data = repairXml(e.data, &cut, &p.stopped);
+        if (p.data.isEmpty()) {
+            p.drop = tr("%1 (could not be read)").arg(p.name);
+            return p;
+        }
+        p.whole = e.whole && !cut;
+    } else if (e.whole) {
+        p.data = e.data;
+        p.whole = true;
+    } else {
+        p.drop = tr("%1 (%2)").arg(p.name, e.problem.isEmpty() ? tr("could not be read") : e.problem);
+    }
+    return p;
+}
+
+constexpr qsizetype kMaxTypesBytes = 16 << 20;   // the list of types, kept to put it first: a real one is a few thousand bytes
+
+void noteLimits(const ZipScanStats &stats, RepairReport &rep, const RepairLimits &limits)
+{
+    if (stats.entriesLeftOut) rep.notes << tr("The file has more than %1 entries. The ones after them were not looked at.").arg(limits.maxEntries);
+    if (stats.sizeLeftOut) rep.notes << tr("The file holds more than can be read at once. The entries after that point were not looked at.");
+}
+
+} // namespace
+
+QByteArray repairPackage(const QByteArray &zip, QString *error, RepairReport *report, const RepairLimits &limits)
 {
     RepairReport local;
     RepairReport &rep = report ? *report : local;
     rep = RepairReport();
-    QMap<QString, QByteArray> parts;
-    QMap<QString, bool> whole;
-    for (const ZipScanEntry &e : scanZip(zip)) {
+    // The first reading chooses: each entry is made ready, and the one that stands for each name is noted (by its place in the file), with its size; no part is kept, so what is held is one
+    // entry at a time. The second writes the package from the entries chosen.
+    struct Chosen {
+        qint64 ordinal = 0;
+        bool whole = false;
+        qint64 size = 0;
+        QByteArray types;   // the list of types only
+    };
+    QMap<QString, Chosen> chosen;
+    qint64 keptBytes = 0, ordinal = 0;
+    const QString typesName = QStringLiteral("[Content_Types].xml");
+    ZipScanStats stats;
+    scanZipEach(zip, [&](ZipScanEntry &e) {
+        const qint64 mine = ordinal++;
         const QString name = plainName(e.name);
-        if (name.isEmpty() || name.contains(QLatin1String("../")) || name.startsWith(QLatin1String("./"))) {
-            rep.dropped << tr("%1 (the name is not usable)").arg(e.name);
-            continue;
+        if (usableName(name) && chosen.contains(name) && chosen.value(name).whole) return;   // (the first whole entry of a name stands)
+        Prepared p = prepare(e, limits);
+        if (!p.drop.isEmpty()) {
+            rep.dropped << p.drop;
+            return;
         }
-        if (parts.contains(name) && whole.value(name)) continue;   // (the first whole entry of a name stands)
-        if (isXmlName(name)) {
-            bool cut = false;
-            const QByteArray fixed = repairXml(e.data, &cut);
-            if (fixed.isEmpty()) {
-                rep.dropped << tr("%1 (could not be read)").arg(name);
-                continue;
-            }
-            parts.insert(name, fixed);
-            whole.insert(name, e.whole && !cut);
-            if (e.whole && !cut) rep.kept << name;
-            else rep.trimmed << name;
-        } else if (e.whole) {
-            parts.insert(name, e.data);
-            whole.insert(name, true);
-            rep.kept << name;
-        } else {
-            rep.dropped << tr("%1 (%2)").arg(name, e.problem.isEmpty() ? tr("could not be read") : e.problem);
+        const qint64 replaced = chosen.contains(p.name) ? chosen.value(p.name).size : 0;
+        if (keptBytes - replaced + p.data.size() > limits.maxKeptBytes) {
+            rep.dropped << tr("%1 (more than can be repaired at once)").arg(p.name);
+            return;
         }
-    }
-    const QString main = mainPartOf(parts);
+        if (p.name == typesName && p.data.size() > kMaxTypesBytes) {
+            rep.dropped << tr("%1 (too large to repair)").arg(p.name);
+            return;
+        }
+        keptBytes += p.data.size() - replaced;
+        Chosen c{mine, p.whole, p.data.size(), p.name == typesName ? p.data : QByteArray()};
+        chosen.insert(p.name, c);
+        if (p.whole) rep.kept << p.name;
+        else rep.trimmed << p.name;
+        if (!p.stopped.isEmpty()) rep.notes << tr("%1 was cut short: %2.").arg(p.name, p.stopped);
+    }, limits.maxEntries, limits.maxPartBytes, limits.maxWorkBytes, &stats);
+    noteLimits(stats, rep, limits);
+    const QStringList names = chosen.keys();
+    const QString main = mainPartOf(QSet<QString>(names.cbegin(), names.cend()));
     if (main.isEmpty()) {
         if (error) *error = tr("No document could be found in this file: its main part is gone or can't be read.");
         return QByteArray();
     }
+    ZipWriter z;
     // The list of types and the links to the main part, made again when they are gone.
-    if (!parts.contains(QStringLiteral("[Content_Types].xml"))) {
-        parts.insert(QStringLiteral("[Content_Types].xml"), typesXml(parts));
+    if (chosen.contains(typesName)) {
+        z.add(typesName, chosen.value(typesName).types, true);
+    } else {
+        z.add(typesName, typesXml(names), true);
         rep.typesMade = true;
     }
-    if (!parts.contains(QStringLiteral("_rels/.rels"))) {
+    if (!chosen.contains(QStringLiteral("_rels/.rels"))) {
         QList<std::array<QString, 3>> root;
         root.append({QStringLiteral("rId1"), QStringLiteral("officeDocument"), main});
-        parts.insert(QStringLiteral("_rels/.rels"), relsXml(root));
+        z.add(QStringLiteral("_rels/.rels"), relsXml(root), true);
         rep.linksMade = true;
     }
     const QString relsName = main.left(main.lastIndexOf(QLatin1Char('/')) + 1) + QStringLiteral("_rels/") + main.mid(main.lastIndexOf(QLatin1Char('/')) + 1) + QStringLiteral(".rels");
-    if (!parts.contains(relsName)) {
+    if (!chosen.contains(relsName)) {
         // (a main part with nothing beside it to link to needs no list of links)
-        const QByteArray rels = mainRels(main, parts);
+        const QByteArray rels = mainRels(main, names);
         if (rels.contains("<Relationship ")) {
-            parts.insert(relsName, rels);
+            z.add(relsName, rels, true);
             rep.linksMade = true;
         }
     }
-    ZipWriter z;
-    z.add(QStringLiteral("[Content_Types].xml"), parts.take(QStringLiteral("[Content_Types].xml")), true);
-    for (auto it = parts.cbegin(); it != parts.cend(); ++it) z.add(it.key(), it.value(), true);
+    QHash<qint64, QString> wanted;
+    for (auto it = chosen.cbegin(); it != chosen.cend(); ++it)
+        if (it.key() != typesName) wanted.insert(it.value().ordinal, it.key());
+    qint64 at = 0;
+    scanZipEach(zip, [&](ZipScanEntry &e) {
+        const auto it = wanted.constFind(at++);
+        if (it == wanted.cend()) return;
+        const Prepared p = prepare(e, limits);
+        if (p.drop.isEmpty()) z.add(p.name, p.data, true);
+    }, limits.maxEntries, limits.maxPartBytes, limits.maxWorkBytes);
     return z.finish();
 }
 
-QByteArray repairZip(const QByteArray &zip, QString *error, RepairReport *report)
+QByteArray repairZip(const QByteArray &zip, QString *error, RepairReport *report, const RepairLimits &limits)
 {
     RepairReport local;
     RepairReport &rep = report ? *report : local;
     rep = RepairReport();
     ZipWriter z;
     QSet<QString> seen;
-    for (const ZipScanEntry &e : scanZip(zip)) {
+    qint64 keptBytes = 0;
+    ZipScanStats stats;
+    scanZipEach(zip, [&](ZipScanEntry &e) {
         const QString name = plainName(e.name);
-        if (name.isEmpty() || name.contains(QLatin1String("../")) || seen.contains(name)) continue;
+        if (!usableName(name)) {
+            rep.dropped << tr("%1 (the name is not usable)").arg(e.name);
+            return;
+        }
+        if (seen.contains(name)) return;
         if (!e.whole) {
             rep.dropped << tr("%1 (%2)").arg(name, e.problem.isEmpty() ? tr("could not be read") : e.problem);
-            continue;
+            return;
         }
+        if (keptBytes + e.data.size() > limits.maxKeptBytes) {
+            rep.dropped << tr("%1 (more than can be repaired at once)").arg(name);
+            return;
+        }
+        keptBytes += e.data.size();
         seen.insert(name);
         rep.kept << name;
         z.add(name, e.data, false);
-    }
+    }, limits.maxEntries, limits.maxPartBytes, limits.maxWorkBytes, &stats);
+    noteLimits(stats, rep, limits);
     if (rep.kept.isEmpty()) {
         if (error) *error = tr("Nothing in this file could be read.");
         return QByteArray();
@@ -262,6 +431,7 @@ QString repairSummary(const RepairReport &r)
     QStringList lines;
     if (!r.trimmed.isEmpty()) lines << tr("Cut short, kept as far as it could be read: %1").arg(r.trimmed.join(QStringLiteral(", ")));
     if (!r.dropped.isEmpty()) lines << tr("Left out, because it could not be read: %1").arg(r.dropped.join(QStringLiteral(", ")));
+    for (const QString &note : r.notes) lines << note;
     if (r.typesMade) lines << tr("The list of what each part is was gone, and was made again.");
     if (r.linksMade) lines << tr("The links between the parts were gone, and were made again, so what depends on them (such as pictures) may be missing.");
     if (lines.isEmpty()) lines << tr("Every part could be read. Nothing was left out.");

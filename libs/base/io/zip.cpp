@@ -72,12 +72,14 @@ static QByteArray inflateRaw(const QByteArray &in, qsizetype expected, bool *ok)
 }
 
 // Inflates raw deflate data as far as it goes: `consumed` is how many input bytes the stream took, `ended` whether it reached its end. What came out before a break is kept.
-static QByteArray inflateAsFarAsItGoes(const char *in, qsizetype available, qint64 limit, qsizetype *consumed, bool *ended, bool *overLimit)
+static QByteArray inflateAsFarAsItGoes(const char *in, qsizetype available, qint64 limit, qsizetype *consumed, bool *ended, bool *overLimit, qint64 expected = -1)
 {
     *consumed = 0;
     *ended = false;
     *overLimit = false;
     QByteArray out;
+    // (the size the header gives, when it is within the limit: one buffer of that size, not one that grows by doubling to up to twice what is needed)
+    if (expected > 0 && expected <= limit) out.reserve(qsizetype(expected) + 1);
     z_stream zs{};
     if (inflateInit2(&zs, -15) != Z_OK) return out;
     zs.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(in));
@@ -90,7 +92,8 @@ static QByteArray inflateAsFarAsItGoes(const char *in, qsizetype available, qint
         out.append(buf, qsizetype(sizeof(buf) - zs.avail_out));
         if (out.size() > limit) {
             *overLimit = true;
-            out.truncate(qsizetype(limit));
+            out.clear();   // (what is over the limit is not kept: not a part of it either)
+            out.squeeze();
             break;
         }
         if (r == Z_STREAM_END) {
@@ -104,13 +107,14 @@ static QByteArray inflateAsFarAsItGoes(const char *in, qsizetype available, qint
     return out;
 }
 
-QVector<ZipScanEntry> scanZip(const QByteArray &zip, int maxEntries, qint64 maxEntryBytes, qint64 maxTotalBytes)
+void scanZipEach(const QByteArray &zip, const std::function<void(ZipScanEntry &)> &each, int maxEntries, qint64 maxEntryBytes, qint64 maxTotalBytes, ZipScanStats *stats)
 {
-    QVector<ZipScanEntry> found;
+    if (stats) *stats = ZipScanStats();
     qint64 total = 0;
+    int taken = 0;
     const char sig[4] = {'P', 'K', 3, 4};
     qsizetype at = 0;
-    while (found.size() < maxEntries && total < maxTotalBytes) {
+    while (taken < maxEntries && total < maxTotalBytes) {
         at = zip.indexOf(QByteArrayView(sig, 4), at);
         if (at < 0 || zip.size() - at < 30) break;
         const uchar *h = reinterpret_cast<const uchar *>(zip.constData() + at);
@@ -131,14 +135,21 @@ QVector<ZipScanEntry> scanZip(const QByteArray &zip, int maxEntries, qint64 maxE
             at = dataAt;
             continue;
         }
+        const qint64 allowed = std::min<qint64>(maxEntryBytes, maxTotalBytes - total);
         if (flags & 1) {
             e.problem = QStringLiteral("encrypted");
             next = sizesKnown && qsizetype(csize) <= room ? dataAt + qsizetype(csize) : dataAt;
         } else if (method == 0) {
             if (!sizesKnown) e.problem = QStringLiteral("stored with no size");
             else {
-                const qsizetype n = std::min<qsizetype>(qsizetype(csize), room);
-                if (qint64(n) > maxEntryBytes) e.problem = QStringLiteral("too large");
+                // A size that is more than the file has left is a lie, or a cut: the entry is what is there up to the next entry's header (or the end of the file), and the scan goes on from
+                // there, so a stranger's size never swallows the entries after it.
+                qsizetype n = std::min<qsizetype>(qsizetype(csize), room);
+                if (qsizetype(csize) > room) {
+                    const qsizetype nextHeader = zip.indexOf(QByteArrayView(sig, 4), dataAt);
+                    if (nextHeader >= 0) n = nextHeader - dataAt;
+                }
+                if (qint64(n) > allowed) e.problem = QStringLiteral("too large");
                 else e.data = zip.mid(dataAt, n);
                 e.whole = e.problem.isEmpty() && n == qsizetype(csize) && (crc == 0 || !sizesKnown || jp::crc32(e.data) == crc);
                 if (e.problem.isEmpty() && !e.whole) e.problem = n < qsizetype(csize) ? QStringLiteral("cut short") : QStringLiteral("damaged");
@@ -148,7 +159,7 @@ QVector<ZipScanEntry> scanZip(const QByteArray &zip, int maxEntries, qint64 maxE
             qsizetype consumed = 0;
             bool ended = false, over = false;
             const qsizetype span = sizesKnown ? std::min<qsizetype>(qsizetype(csize), room) : room;
-            e.data = inflateAsFarAsItGoes(zip.constData() + dataAt, span, std::min<qint64>(maxEntryBytes, maxTotalBytes - total), &consumed, &ended, &over);
+            e.data = inflateAsFarAsItGoes(zip.constData() + dataAt, span, allowed, &consumed, &ended, &over, sizesKnown ? qint64(usize) : -1);
             e.whole = ended && (!sizesKnown || (qsizetype(usize) == e.data.size() && jp::crc32(e.data) == crc));
             if (over) e.problem = QStringLiteral("too large");
             else if (!e.whole) e.problem = ended ? QStringLiteral("damaged") : QStringLiteral("cut short");
@@ -158,9 +169,24 @@ QVector<ZipScanEntry> scanZip(const QByteArray &zip, int maxEntries, qint64 maxE
             next = sizesKnown && qsizetype(csize) <= room ? dataAt + qsizetype(csize) : dataAt;
         }
         total += e.data.size();
-        found << e;
+        ++taken;
         at = std::max(next, at + 4);
+        each(e);
     }
+    if (stats && at >= 0 && at + 30 <= zip.size()) {
+        // (is there more to find, beyond what the limits let through?)
+        const qsizetype more = zip.indexOf(QByteArrayView(sig, 4), at);
+        if (more >= 0 && zip.size() - more >= 30) {
+            if (taken >= maxEntries) stats->entriesLeftOut = true;
+            else if (total >= maxTotalBytes) stats->sizeLeftOut = true;
+        }
+    }
+}
+
+QVector<ZipScanEntry> scanZip(const QByteArray &zip, int maxEntries, qint64 maxEntryBytes, qint64 maxTotalBytes)
+{
+    QVector<ZipScanEntry> found;
+    scanZipEach(zip, [&](ZipScanEntry &e) { found << e; }, maxEntries, maxEntryBytes, maxTotalBytes);
     return found;
 }
 
