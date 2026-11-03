@@ -74,6 +74,10 @@ Click **Mailings > Finish & Merge**:
 
 The people you unchecked in the list are left out.
 
+A message file is made only for a person whose address is one email address. If an address holds two (with a comma or a semicolon between them), has a name with it, or has no domain, that person gets no message, and JeffWrite tells you how many. A long subject is saved in pieces that email programs put back together.
+
+A merge shows a progress window, and **Cancel** stops it. If a rule asks a question (Ask or Fill-in), you are asked each different question once, up to 20 of them. After that, the rest use their default answers. If you cancel a question, the whole merge stops. A merge stops, and says so, if it would make more than 10,000 pages, so a very long document with a very long list does not take hours. Merge a part of the list at a time instead.
+
 ## Envelopes
 
 Click **Mailings > Envelopes**. Type the delivery address and your return address, and pick the size of the envelope from the list. The sizes are listed by their width and height. Click **Add to Document** to put the envelope on its own page at the start of your document, or **Print** to print it. The page is as wide as the envelope's long side, which is how most printers take an envelope.
@@ -94,6 +98,8 @@ To make labels for a merge, click **Start Mail Merge > Labels**. The first label
 ## What the file holds
 
 The kind of merge, the name and place of the list, the subject, and the email column are saved in your .docx file. Which people you unchecked, and your Match Fields choices, are not saved. They are asked for again after you open the file. A list is read again from its file each time. If the file is not where it was, JeffWrite looks next to your document, and then asks you to choose it.
+
+A list can have up to 1,000 columns and 4,000,000 cells in all, and a merge uses the first 100,000 people. If a file has more, JeffWrite uses what fits and tells you. Rows that have nothing in them are left out of the list.
 
 ## Related
 
