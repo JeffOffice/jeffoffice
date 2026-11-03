@@ -434,7 +434,19 @@ public:
     {
         if (depth != 0) return;
         const QHash<QString, QString> st = styleOf(t.attr(group, "style"));
-        if (st.value(QStringLiteral("position")) == QLatin1String("absolute")) return;
+        if (st.value(QStringLiteral("position")) == QLatin1String("absolute")) {
+            // A group set at a place that the text goes round (its wrap is one of the group's own) is kept off by an empty object of the group's size, set where the group is.
+            const int before = int(out.size());
+            shape(group, QByteArray("rect"), 1, 1, 0, 0, depth);
+            if (out.size() > before) {
+                Shape &keep = out[before];
+                keep.kind = Shape::Rect;
+                keep.filled = keep.stroked = false;
+                keep.shadow = false;
+                if (keep.wrap == Shape::WrapNone || keep.width <= 0 || keep.height <= 0) out.removeAt(before);
+            }
+            return;
+        }
         Shape room;
         room.kind = Shape::Rect;
         room.room = true;

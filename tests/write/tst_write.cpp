@@ -16838,6 +16838,27 @@ private Q_SLOTS:
         QVERIFY(!placed[0].room);
     }
 
+    // A group set at a place whose own wrap keeps the text off it has an empty object of its size, set where it is and with that wrap; one with no wrap has none.
+    void aGroupSetAtAPlaceKeepsTheTextOffItsRoom()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
+                              "xmlns:w10=\"urn:schemas-microsoft-com:office:word\"";
+        using jp::office::wml::Shape;
+        auto group = [&](const QByteArray &wrap) {
+            return jp::office::wml::readShapes("<w:pict " + ns + "><v:group id='g' style='position:absolute;margin-left:2pt;margin-top:3pt;width:468pt;height:200pt;z-index:5' coordorigin='0,0' coordsize='9360,4000'>"
+                "<v:rect id='r' style='position:absolute;left:0;top:0;width:100;height:100' fillcolor='red'/>" + wrap + "</v:group></w:pict>");
+        };
+        QVector<Shape> shapes = group("<w10:wrap type='topAndBottom'/>");
+        QCOMPARE(int(shapes.size()), 2);
+        QVERIFY(shapes[0].floating && shapes[0].wrap == Shape::TopBottom && !shapes[0].filled && !shapes[0].stroked);
+        QCOMPARE(shapes[0].width, 468.0);
+        QCOMPARE(shapes[0].height, 200.0);
+        QCOMPARE(shapes[0].left, 2.0);
+        QCOMPARE(shapes[0].top, 3.0);
+        QVERIFY(shapes[1].wrap == Shape::WrapNone);
+        QCOMPARE(int(group(QByteArray()).size()), 1);
+    }
+
     // ---- frames
 
     static QByteArray framedP(const QByteArray &text, const QByteArray &framePr)
