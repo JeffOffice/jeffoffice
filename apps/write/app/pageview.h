@@ -339,6 +339,16 @@ private:
     TextDrag m_textDrag;
     bool m_textDragAllowed = true;
     PictureDrag m_pictureDrag;
+    // Dragging the border at the right of a table's column: the position of a cell of the column, its width when the drag began, and where the pointer began.
+    struct ColumnDrag {
+        bool active = false;
+        int position = 0, page = 0;
+        double width = 0, startX = 0, nowX = 0;   // (points on the page)
+        double top = 0, bottom = 0;               // the table's top and bottom on the page, for the line that shows where the border would go
+    };
+    ColumnDrag m_columnDrag;
+    // The border of a column of a table on the page under the pointer (within a few pixels of a cell's right edge, one column wide), or false.
+    bool columnBorderAt(const QPoint &viewportPos, ColumnDrag *found);
     int m_hoverCursorShape = -1;
     bool pictureRectUncached(int position, QRectF *rect);
     struct RectKey {

@@ -2709,6 +2709,40 @@ private Q_SLOTS:
         QTRY_COMPARE(grays(), without);
     }
 
+    // Pulling the border at the right of a column with the mouse sets that column's width (one step that undoes), and the pointer shows a split cursor over the border.
+    void draggingAColumnBorderSetsTheColumnsWidth()
+    {
+        auto doc = open(makeDocx(tableX(rowX(cellX(cellP("aa")) + cellX(cellP("bb"))) + rowX(cellX(cellP("cc")) + cellX(cellP("dd"))), 2) + cellP("after"), kStyles));
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        view.paginateAll();
+        view.grab();
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page && !page->tables.isEmpty());
+        QRectF firstCell;
+        page->tables[0]->forCellBoxes([&](const QRectF &box, int, int) {
+            if (!firstCell.isValid()) firstCell = box;
+        });
+        QVERIFY(firstCell.isValid());
+        const QRect pr = view.pageRect(0);
+        const double scale = pr.width() / 612.0;
+        const QPoint border(int(std::lround(pr.left() + firstCell.right() * scale)), int(std::lround(pr.top() + firstCell.center().y() * scale)));
+        const QString before = tablesSignature(*doc);
+        QVERIFY(before.contains(QStringLiteral("cols=120.0,120.0")));
+        QTest::mouseMove(view.viewport(), border);
+        QTRY_COMPARE(view.viewport()->cursor().shape(), Qt::SplitHCursor);
+        QTest::mousePress(view.viewport(), Qt::LeftButton, Qt::NoModifier, border);
+        QTest::mouseMove(view.viewport(), border + QPoint(int(std::lround(30 * scale)), 0));
+        QTest::mouseRelease(view.viewport(), Qt::LeftButton, Qt::NoModifier, border + QPoint(int(std::lround(30 * scale)), 0));
+        const QString now = tablesSignature(*doc);
+        QVERIFY2(now.contains(QStringLiteral("cols=150.0,120.0")), qPrintable(now));
+        checkTablesReopenTheSame(*doc);
+        doc->story()->undo();
+        QCOMPARE(tablesSignature(*doc), before);
+    }
+
     void theCaretIsDrawnOnThePageThatHoldsIt()
     {
         auto doc = open(makeDocx(paragraphs(120), kStyles));

@@ -611,6 +611,15 @@ void PageView::paintEvent(QPaintEvent *e)
         p.drawRect(dev.adjusted(0.5, 0.5, -0.5, -0.5));
     }
     paintPictureHandles(p);
+    if (m_columnDrag.active && m_columnDrag.page >= 0 && m_columnDrag.page < m_rects.size()) {
+        // The line where the border would be.
+        const QRectF &pr = m_rects[m_columnDrag.page];
+        const double x = pr.left() + m_columnDrag.nowX * s - sx, y0 = pr.top() + m_columnDrag.top * s - sy, y1 = pr.top() + m_columnDrag.bottom * s - sy;
+        p.setRenderHint(QPainter::Antialiasing, false);
+        QPen pen(QColor(0x2B, 0x57, 0xB5), 1, Qt::DashLine);
+        p.setPen(pen);
+        p.drawLine(QPointF(x, y0), QPointF(x, y1));
+    }
     // The caret.
     if (m_caretOn && (hasFocus() || m_caretWithoutFocus) && !m_cursor.hasSelection()) {
         QRect r;
@@ -830,6 +839,36 @@ bool PageView::caretRect(QRect *rect)
     const QRectF pr = m_rects[page].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
     *rect = QRectF(pr.left() + line.x1() * s, pr.top() + line.y1() * s, 1, (line.y2() - line.y1()) * s).toAlignedRect();
     return true;
+}
+
+bool PageView::columnBorderAt(const QPoint &vp, ColumnDrag *found)
+{
+    if (!m_doc || m_hf.active || m_note.active) return false;
+    const Hit hit = hitAt(vp);
+    if (hit.page < 0) return false;
+    const auto page = rendered(hit.page);
+    if (!page || !page->page) return false;
+    const double tolerance = 4.0 / std::max(0.1, scale());
+    for (const auto &fragment : page->page->tables) {
+        if (fragment->floating) continue;
+        const QRectF rect = fragment->rect();
+        if (hit.point.y() < rect.top() || hit.point.y() > rect.bottom()) continue;
+        bool hitBorder = false;
+        fragment->forCellBoxes([&](const QRectF &box, int from, int span) {
+            if (hitBorder || span != 1 || std::abs(hit.point.x() - box.right()) > tolerance || hit.point.y() < box.top() || hit.point.y() > box.bottom()) return;
+            hitBorder = true;
+            ColumnDrag d;
+            d.position = from;
+            d.page = hit.page;
+            d.width = box.width();
+            d.startX = d.nowX = hit.point.x();
+            d.top = rect.top();
+            d.bottom = rect.bottom();
+            *found = d;
+        });
+        if (hitBorder) return true;
+    }
+    return false;
 }
 
 PageView::Hit PageView::hitAt(const QPoint &vp)

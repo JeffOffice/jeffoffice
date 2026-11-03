@@ -4,6 +4,7 @@
 
 #include "core/editops.h"
 #include "core/refops.h"
+#include "core/tableops.h"
 #include "core/writeprops.h"
 
 #include <QApplication>
@@ -310,6 +311,12 @@ void PageView::mousePressEvent(QMouseEvent *e)
         e->accept();
         return;
     }
+    if (e->button() == Qt::LeftButton && e->type() != QEvent::MouseButtonDblClick && !m_hf.active && !m_note.active && columnBorderAt(e->position().toPoint(), &m_columnDrag)) {
+        m_columnDrag.active = true;
+        viewport()->update();
+        e->accept();
+        return;
+    }
     const Hit hit = hitAt(e->position().toPoint());
     if (m_hf.active) {
         // A click in the text does nothing while a header or footer is edited (a double click leaves); one in a header's or a footer's area goes to it.
@@ -386,6 +393,12 @@ void PageView::mousePressEvent(QMouseEvent *e)
 
 void PageView::mouseMoveEvent(QMouseEvent *e)
 {
+    if (m_columnDrag.active) {
+        const Hit hit = hitAt(e->position().toPoint());
+        m_columnDrag.nowX = hit.point.x();
+        viewport()->update();
+        return;
+    }
     if (m_pictureDrag.active) {
         updatePictureDrag(e->position().toPoint());
         return;
@@ -396,9 +409,11 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
         return;
     }
     if (m_doc && !m_dragging && !(e->buttons() & Qt::LeftButton)) {
-        // The pointer says what a press on the selected picture would do.
+        // The pointer says what a press on the selected picture would do, or that a press on a column's border would pull it.
         const PictureHandle h = pictureHandleAt(e->position().toPoint());
-        const int shape = h == PictureHandle::None ? int(Qt::IBeamCursor) : h == PictureHandle::Body ? int(Qt::SizeAllCursor)
+        ColumnDrag border;
+        const int shape = h == PictureHandle::None && columnBorderAt(e->position().toPoint(), &border) ? int(Qt::SplitHCursor)
+                          : h == PictureHandle::None ? int(Qt::IBeamCursor) : h == PictureHandle::Body ? int(Qt::SizeAllCursor)
                           : (h == PictureHandle::TopLeft || h == PictureHandle::BottomRight) ? int(Qt::SizeFDiagCursor)
                           : (h == PictureHandle::TopRight || h == PictureHandle::BottomLeft) ? int(Qt::SizeBDiagCursor)
                           : (h == PictureHandle::Top || h == PictureHandle::Bottom) ? int(Qt::SizeVerCursor) : int(Qt::SizeHorCursor);
@@ -427,6 +442,22 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
 
 void PageView::mouseReleaseEvent(QMouseEvent *e)
 {
+    if (m_columnDrag.active) {
+        const Hit hit = hitAt(e->position().toPoint());
+        const double width = std::max(6.0, m_columnDrag.width + (hit.point.x() - m_columnDrag.startX));
+        const int at = m_columnDrag.position;
+        m_columnDrag.active = false;
+        viewport()->update();
+        if (std::abs(width - m_columnDrag.width) >= 0.5 && at >= 0 && at < m_doc->story()->characterCount()) {
+            QTextCursor c(m_doc->story());
+            c.setPosition(at);
+            write::setColumnWidth(*m_doc, c, width);
+            m_cursor.setPosition(std::min(at, m_doc->story()->characterCount() - 1));
+            refresh();
+            caretMoved();
+        }
+        return;
+    }
     if (m_pictureDrag.active) {
         endPictureDrag(e->position().toPoint());
         return;

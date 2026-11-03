@@ -186,7 +186,7 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
         pen.setStyle(Qt::DotLine);
         p->setPen(pen);
         p->setBrush(Qt::NoBrush);
-        for (const auto &fragment : page.tables) fragment->forCellBoxes([&](const QRectF &box) { p->drawRect(box); });
+        for (const auto &fragment : page.tables) fragment->forCellBoxes([&](const QRectF &box, int, int) { p->drawRect(box); });
         p->restore();
     }
     if (d.spelling && !d.output) paintCellWaves(p, page, d);
