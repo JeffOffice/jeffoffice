@@ -16893,6 +16893,21 @@ private Q_SLOTS:
         QVERIFY2(doc->pager().lines(0).size() >= 5, qPrintable(QString::number(doc->pager().lines(0).size())));
     }
 
+    // Text in Courier New that exactly fills its line, 65 letters of 12 points in 468 points, does not fit it as the original's letters are a hair wider than their stand-in's: the
+    // last word goes on to the next line.
+    void aLineOfCourierNewThatExactlyFillsItsRoomBreaksBeforeItsLastWord()
+    {
+        const QByteArray run = "<w:r><w:rPr><w:rFonts w:ascii=\"Courier New\" w:hAnsi=\"Courier New\"/><w:sz w:val=\"24\"/></w:rPr><w:t>Instead of calling an electrician\xe2\x80\x99s mate to replace a blown fuses an MS3 does it</w:t></w:r>";
+        const QByteArray last = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts("<w:p>" + run + "</w:p>", last, {}));
+        QVERIFY(doc);
+        const auto lines = doc->pager().lines(0);
+        QVERIFY(lines.size() >= 2);
+        const QString text = doc->story()->toPlainText();
+        const int firstEnd = lines[0].end - lines[0].pos;
+        QVERIFY2(!text.left(lines[0].end).trimmed().endsWith(QLatin1String("fuses")), qPrintable(QString::number(firstEnd)));
+    }
+
     // ---- frames
 
     static QByteArray framedP(const QByteArray &text, const QByteArray &framePr)
