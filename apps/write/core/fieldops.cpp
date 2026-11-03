@@ -10,9 +10,11 @@
 #include "wml/xmltree.h"
 
 #include <QCoreApplication>
+#include <QLocale>
 #include <QMap>
 #include <QRegularExpression>
 #include <QTextBlock>
+#include <QTextCursor>
 #include <QTextDocument>
 #include <QTextList>
 #include <algorithm>
@@ -346,10 +348,21 @@ public:
         return m_headings;
     }
 
+    // The language of the names a date shows: the language of the text where the field begins, else the document's, else the program's.
+    QLocale localeAt(int position) const
+    {
+        QTextCursor c(story);
+        c.setPosition(std::clamp(position + 1, 0, std::max(0, story->characterCount() - 1)));
+        QString tag = c.charFormat().stringProperty(tp::Language);
+        if (tag.isEmpty()) tag = doc.proofingLanguage();
+        return tag.isEmpty() ? QLocale() : QLocale(tag);
+    }
+
     // Where the field is, for the engine.
     void place(const FieldPlace &f)
     {
         env.position = f.begin;
+        env.locale = localeAt(f.begin);
         env.page = env.pages = env.sectionPages = 0;
         env.pageText.clear();
         env.section = sections.of(f.begin) + 1;
@@ -457,10 +470,10 @@ public:
         bool number = false;
         const int level = style.toInt(&number);
         if (id.isEmpty() && number && level >= 1 && level <= 9) id = QStringLiteral("Heading%1").arg(level);
-        if (id.isEmpty()) return fields::referenceSourceNotFound();
+        if (id.isEmpty()) return fields::styleTextNotFound();
         indexStyles();
         const QVector<int> &where = m_styleBlocks.value(id);
-        if (where.isEmpty()) return fields::referenceSourceNotFound();
+        if (where.isEmpty()) return fields::styleTextNotFound();
         // The nearest paragraph of the style at or before the field, else the first after it.
         auto it = std::upper_bound(where.begin(), where.end(), env.position);
         const int position = it != where.begin() ? *(it - 1) : *it;

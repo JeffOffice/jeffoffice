@@ -1015,6 +1015,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 QVector<std::pair<QString, QTextCharFormat>> result;
             };
             QVector<Field> fields;
+            int tooDeep = 0;   // (the fields opened past the most kept: their ends close nothing that is open)
             auto put = [&](const QString &text, const QTextCharFormat &format) {
                 if (fields.isEmpty()) c.insertText(text, format);
                 else if (fields.last().inResult) fields.last().result.push_back({text, format});
@@ -1061,8 +1062,12 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                         fields.push_back(Field());
                         fields.last().begin = formatOf(styleId, in.props);
                         fields.last().beginRaw = in.raw;
-                    } else if (in.key == QLatin1String("separate") && !fields.isEmpty()) {
+                    } else if (in.key == QLatin1String("begin")) {
+                        ++tooDeep;   // (its end is no end of a field that is kept)
+                    } else if (in.key == QLatin1String("separate") && tooDeep == 0 && !fields.isEmpty()) {
                         fields.last().inResult = true;
+                    } else if (in.key == QLatin1String("end") && tooDeep > 0) {
+                        --tooDeep;
                     } else if (in.key == QLatin1String("end") && !fields.isEmpty()) {
                         finish();
                     }
@@ -1100,15 +1105,17 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                     tab.setProperty(tp::AlignTab, alignTabOf(in.raw));
                     put(QStringLiteral("\t"), tab);
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
-                    if (!fields.isEmpty() && !fields.last().inResult) fields.last().instruction += textOfXml(in.raw);
+                    if (tooDeep == 0 && !fields.isEmpty() && !fields.last().inResult) fields.last().instruction += textOfXml(in.raw);
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Open) {
-                    if (fields.size() < kMostFieldNesting) {
+                    if (fields.size() >= kMostFieldNesting) ++tooDeep;
+                    else {
                         fields.push_back(Field());
                         fields.last().instruction = QString(attributeOfTag(in.raw, QStringLiteral("instr"))).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'")).replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&amp;"), QLatin1String("&"));
                         fields.last().inResult = true;
                     }
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Close) {
-                    if (!fields.isEmpty()) finish();
+                    if (tooDeep > 0) --tooDeep;
+                    else if (!fields.isEmpty()) finish();
                 }
             }
             while (!fields.isEmpty()) finish();   // (a field the paragraph ended inside of shows what it read)
@@ -1170,6 +1177,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 int first = -1;
             };
             QVector<Open> open;
+            int tooDeep = 0;   // (the fields opened past the most kept: their ends close nothing that is open)
             int deleting = 0;
             auto nameOf = [](const QString &instruction) -> QString {
                 const QStringList words = instruction.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
@@ -1185,21 +1193,25 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 if (in.kind == Inline::ParaAtom && isDeletedRevision(in.tag)) deleting = std::max(0, deleting + (in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0));
                 if (in.kind == Inline::RunAtom && in.tag == QLatin1String("fldChar")) {
                     if (in.key == QLatin1String("begin") && open.size() < kMostFieldNesting) open.push_back(Open());
-                    else if (in.key == QLatin1String("separate") && !open.isEmpty()) {
+                    else if (in.key == QLatin1String("begin")) ++tooDeep;
+                    else if (in.key == QLatin1String("separate") && tooDeep == 0 && !open.isEmpty()) {
                         open.last().inResult = true;
                         open.last().name = nameOf(open.last().instruction);
-                    } else if (in.key == QLatin1String("end") && !open.isEmpty()) open.pop_back();
+                    } else if (in.key == QLatin1String("end") && tooDeep > 0) --tooDeep;
+                    else if (in.key == QLatin1String("end") && !open.isEmpty()) open.pop_back();
                 } else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("instrText")) {
-                    if (!open.isEmpty() && !open.last().inResult) open.last().instruction += textOfXml(in.raw);
+                    if (tooDeep == 0 && !open.isEmpty() && !open.last().inResult) open.last().instruction += textOfXml(in.raw);
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Open) {
-                    if (open.size() < kMostFieldNesting) {
+                    if (open.size() >= kMostFieldNesting) ++tooDeep;
+                    else {
                         Open field;
                         field.inResult = true;
                         field.name = nameOf(QString(attributeOfTag(in.raw, QStringLiteral("instr"))).replace(QLatin1String("&quot;"), QLatin1String("\"")));
                         open.push_back(field);
                     }
                 } else if (in.kind == Inline::ParaAtom && in.tag == QLatin1String("fldSimple") && in.role == Inline::Close) {
-                    if (!open.isEmpty()) open.pop_back();
+                    if (tooDeep > 0) --tooDeep;
+                    else if (!open.isEmpty()) open.pop_back();
                 } else if (in.kind == Inline::Text && !in.text.isEmpty() && deleting == 0 && !open.isEmpty() && open.last().inResult && !open.last().name.isEmpty()) {
                     Open &field = open.last();
                     if (field.first < 0) {
@@ -1224,6 +1236,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             QString code;
         };
         QVector<OpenField> openFields;
+        int fieldsTooDeep = 0;   // (the fields opened past the most that are marked: their ends close nothing that is open)
         const bool markFields = !header && !append;
         auto insideResult = [&] { return markFields && !openFields.isEmpty() && openFields.first().separated; };
         double advanceTop = -1;   // (a field that sets the text after it at a place from the page's top, ADVANCE with \\y: the paragraph is no higher than that)
@@ -1278,7 +1291,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                     if (in.key == QLatin1String("begin")) {
                         if (inside) af.setProperty(tp::FieldId, openFields.first().id);
                         if (openFields.size() < kMostFieldNestingMarked) openFields.push_back({++fieldsNumbered, false, QString()});
-                    } else if (in.key == QLatin1String("separate") && !openFields.isEmpty()) {
+                        else ++fieldsTooDeep;
+                    } else if (in.key == QLatin1String("separate") && fieldsTooDeep == 0 && !openFields.isEmpty()) {
                         if (openFields.size() == 1 && !openFields.first().separated) {
                             openFields.first().separated = true;
                             af.setProperty(tp::FieldId, openFields.first().id);
@@ -1286,6 +1300,9 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                         } else if (inside) {
                             af.setProperty(tp::FieldId, openFields.first().id);
                         }
+                    } else if (in.key == QLatin1String("end") && fieldsTooDeep > 0) {
+                        --fieldsTooDeep;
+                        if (inside) af.setProperty(tp::FieldId, openFields.first().id);
                     } else if (in.key == QLatin1String("end") && !openFields.isEmpty()) {
                         if (inside && openFields.size() > 1) af.setProperty(tp::FieldId, openFields.first().id);
                         openFields.removeLast();
@@ -1301,11 +1318,15 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                         const bool outermost = openFields.isEmpty();
                         const int id = ++fieldsNumbered;
                         if (openFields.size() < kMostFieldNestingMarked) openFields.push_back({id, true, QString()});
+                        else ++fieldsTooDeep;
                         if (outermost) {
                             const QString code = QString(attributeOfTag(in.raw, QStringLiteral("instr"))).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'")).replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&amp;"), QLatin1String("&"));
                             af.setProperty(tp::FieldId, id);
                             af.setProperty(tp::FieldCodeText, QStringLiteral("{ ") + code.trimmed() + QStringLiteral(" }"));
                         }
+                    } else if (in.role == Inline::Close && fieldsTooDeep > 0) {
+                        --fieldsTooDeep;
+                        if (inside) af.setProperty(tp::FieldId, openFields.first().id);
                     } else if (in.role == Inline::Close && !openFields.isEmpty()) {
                         if (inside && openFields.size() > 1) af.setProperty(tp::FieldId, openFields.first().id);
                         openFields.removeLast();

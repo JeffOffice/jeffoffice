@@ -14,6 +14,7 @@
 #include "core/fonts.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
+#include "../localepin.h"
 #include "office/package.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
@@ -612,6 +613,74 @@ private Q_SLOTS:
         QVERIFY(pages);
         QCOMPARE(updateFields(*pages).changed, 1);
         QVERIFY(pages->pager().pagesLaidOut() > 0);
+    }
+
+    void aStyleReferenceToNoTextSaysSo()
+    {
+        auto doc = open(makeDocx(para(field("STYLEREF \"Heading 1\"", "?")) + para(field("STYLEREF \"No Such Style\"", "?"))));
+        QVERIFY(doc);
+        QCOMPARE(updateFields(*doc, UpdateOptions(), true).changed, 2);
+        QCOMPARE(lines(*doc), (QStringList{QStringLiteral("Error! No text of specified style in document."), QStringLiteral("Error! No text of specified style in document.")}));
+    }
+
+    void compareWorksOutOneOrZero()
+    {
+        Env env;
+        auto result = [&](const char *code) { return compute(parseCode(QString::fromLatin1(code)), env); };
+        auto shown = [&](const char *code) { const auto v = result(code); return v ? *v : QStringLiteral("(none)"); };
+        QCOMPARE(shown("COMPARE 5 > 3"), QStringLiteral("1"));
+        QCOMPARE(shown("COMPARE 2 > 3"), QStringLiteral("0"));
+        QCOMPARE(shown("COMPARE 4 = 4"), QStringLiteral("1"));
+        QCOMPARE(shown("COMPARE 4 <> 4"), QStringLiteral("0"));
+        QCOMPARE(shown("COMPARE 2 <= 2"), QStringLiteral("1"));
+        QCOMPARE(shown("COMPARE \"abc\" = \"A*\""), QStringLiteral("1"));
+        QCOMPARE(shown("COMPARE \"abc\" < \"abd\""), QStringLiteral("1"));
+        QVERIFY(!result("COMPARE 1 2").has_value());
+        QVERIFY(isKnown(QStringLiteral("COMPARE")));
+        auto doc = open(makeDocx(para(field("COMPARE 7 >= 8", "x"))));
+        QVERIFY(doc);
+        QCOMPARE(updateFields(*doc, UpdateOptions(), true).changed, 1);
+        QCOMPARE(lines(*doc), QStringList{QStringLiteral("0")});
+    }
+
+    void dateNamesAreInTheLanguageOfTheField()
+    {
+        const QDateTime t = when(2026, 3, 7, 14, 5);
+        QCOMPARE(dateInPicture(t, QStringLiteral("dddd, MMMM d"), QLocale(QStringLiteral("de-DE"))), QStringLiteral("Samstag, März 7"));
+        QCOMPARE(dateInPicture(t, QStringLiteral("ddd MMM"), QLocale(QStringLiteral("fr-FR"))).left(3), QStringLiteral("sam"));
+        QCOMPARE(dateInPicture(t, QStringLiteral("dddd, MMMM d")), QStringLiteral("Saturday, March 7"));   // (English where no language is asked)
+        // A field in German text shows German names; one in text that says no language shows the program's.
+        const QByteArray german = "<w:r><w:rPr><w:lang w:val=\"de-DE\"/></w:rPr><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> DATE \\@ \"MMMM\" </w:instrText></w:r>"
+                                  "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:rPr><w:lang w:val=\"de-DE\"/></w:rPr><w:t>old</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        PinnedLocale pinned;   // (the program's language: American English)
+        auto doc = open(makeDocx(para(german) + para(field("DATE \\@ \"MMMM\"", "old"))));
+        QVERIFY(doc);
+        UpdateOptions o;
+        o.now = when(2026, 3, 7);
+        QCOMPARE(updateFields(*doc, o, true).changed, 2);
+        QCOMPARE(lines(*doc), (QStringList{QStringLiteral("März"), QStringLiteral("March")}));
+    }
+
+    void fieldsPastTheMostNestedOnesKeepTheOuterOnesOpen()
+    {
+        // 34 fields inside each other: the ends of the two that are deeper than the most that are marked close nothing that is open, so the text after the 34 ends is still in the outermost field.
+        QByteArray inner = run("deep");
+        for (int level = 0; level < 33; ++level)
+            inner = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> QUOTE \"x\" </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" + inner +
+                    "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        const QByteArray outer = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> QUOTE \"y\" </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>" + inner +
+                                 run("tail") + "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        auto doc = open(makeDocx(para(outer)));
+        QVERIFY(doc);
+        int deepId = -1, tailId = -1;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QTextCharFormat cf = it.fragment().charFormat();
+                if (it.fragment().text().contains(QLatin1String("deep"))) deepId = cf.hasProperty(tp::FieldId) ? cf.intProperty(tp::FieldId) : -2;
+                if (it.fragment().text().contains(QLatin1String("tail"))) tailId = cf.hasProperty(tp::FieldId) ? cf.intProperty(tp::FieldId) : -2;
+            }
+        QVERIFY(deepId > 0);
+        QCOMPARE(tailId, deepId);
     }
 
     void stylereferencesAreFoundFromAnIndexNotAScanEach()
