@@ -154,7 +154,6 @@ Name: "{app}"; Flags: uninsalwaysuninstall
 [Files]
 Source: "..\..\dist\JeffOffice\*"; DestDir: "{app}"; Excludes: "{#NotApps}"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "jeffoffice.ico"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\ADDITIONAL-TERMS.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\JeffOffice\JeffDeck.exe"; DestDir: "{app}"; Components: deck; Flags: ignoreversion
 #ifdef WITH_WRITE
 Source: "..\..\dist\JeffOffice\JeffWrite.exe"; DestDir: "{app}"; Components: write; Flags: ignoreversion

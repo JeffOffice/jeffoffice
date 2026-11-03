@@ -37,6 +37,11 @@ appdir() {
   install -Dm644 "$src/README.md" "$dir/usr/share/doc/jeffoffice/README.md"
   # PDFium's license texts and those of the libraries built into it.
   cp "$src/third_party/pdfium/licenses/"* "$dir/usr/share/doc/jeffoffice/pdfium/"
+  # Qt's LGPL and source offer, Lucide, and MPL texts (not the GCC runtime exception: no GCC runtime is bundled), the GPL, and the Additional Terms.
+  install -Dm644 "$src/LICENSE" "$dir/usr/share/doc/jeffoffice/LICENSE"
+  install -Dm644 "$src/ADDITIONAL-TERMS.md" "$dir/usr/share/doc/jeffoffice/ADDITIONAL-TERMS.md"
+  mkdir -p "$dir/usr/share/doc/jeffoffice/licenses"
+  for f in "$src/packaging/licenses/"*; do case $f in *GCC-RUNTIME*) ;; *) cp "$f" "$dir/usr/share/doc/jeffoffice/licenses/" ;; esac; done
   # FFmpeg's notice and license go with JeffDeck, the only app that carries FFmpeg.
   case " $* " in *" JeffDeck "*)
     mkdir -p "$dir/usr/share/doc/jeffoffice/ffmpeg"
