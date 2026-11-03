@@ -4,6 +4,7 @@
 #include "app/crunchwindow.h"
 #include "app/settings.h"
 #include "app/pivotpane.h"
+#include "app/ribbon.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
@@ -17,6 +18,7 @@
 
 #include <QAction>
 #include <QDateTime>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QElapsedTimer>
@@ -599,6 +601,332 @@ private Q_SLOTS:
         }
         QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
         QCOMPARE(valueOf(e, QStringLiteral("E1")), QStringLiteral("-"));
+    }
+
+    // Value Field Settings: a value shown as a share of the total, or against another item, with a number format of its own; the cells take the format, one step of Undo each, and the saved
+    // table has the choice and the format (a code that is new gets an id in the styles).
+    void aValueIsShownAsAShareWithItsOwnFormat()
+    {
+        EditWindow e;
+        PivotBookOptions o;
+        o.styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/>"));
+        QVERIFY(e.open(pivotWorkbook(o)));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.fieldList"))->trigger();
+        PivotFieldsPane *pane = e.win.w.pivotPane();
+        QVERIFY(pane);
+        const int steps = s->undoStack()->count();
+        ValueFieldSettings seen;
+        e.win.w.setValueSettingsAsker([&](ValueFieldSettings *v) {
+            seen = *v;
+            v->showAs = QStringLiteral("percentOfTotal");
+            v->numFmtCode = QStringLiteral("0.0%");
+            return true;
+        });
+        QVERIFY(pane->select(3, 0));
+        Q_EMIT pane->valueSettingsRequested(0);
+        finish(e);
+        QCOMPARE(seen.bases.size(), 2);   // Region and Month
+        QCOMPARE(seen.bases[1].items, (QStringList{QStringLiteral("Jan"), QStringLiteral("Feb")}));
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(pivotShown(e, QStringLiteral("E5:H5")), QStringLiteral("East|0.306122|0.408163|0.714286"));
+        QCOMPARE(s->formatCodeOf(0, rowOf(QStringLiteral("F5")), colOf(QStringLiteral("F5"))), QStringLiteral("0.0%"));
+        QCOMPARE(s->formatCodeOf(0, rowOf(QStringLiteral("H7")), colOf(QStringLiteral("H7"))), QStringLiteral("0.0%"));
+        // against Jan: the difference, with no format of its own the format stays
+        e.win.w.setValueSettingsAsker([&](ValueFieldSettings *v) {
+            v->showAs = QStringLiteral("difference");
+            v->baseField = 1;
+            v->baseItem = 0;
+            v->numFmtCode = QStringLiteral("0.00");
+            return true;
+        });
+        e.select(QStringLiteral("F5"));
+        Q_EMIT pane->valueSettingsRequested(0);
+        finish(e);
+        QCOMPARE(pivotShown(e, QStringLiteral("E5:H6")), QStringLiteral("East||5|\nWest||0|"));
+        QCOMPARE(s->formatCodeOf(0, rowOf(QStringLiteral("G5")), colOf(QStringLiteral("G5"))), QStringLiteral("0.00"));
+        // saved, the part says so
+        QVERIFY(saveNow(e));
+        const Parts saved = readParts(e.path);
+        const QByteArray table = saved.value(QStringLiteral("xl/pivotTables/pivotTable1.xml"));
+        QVERIFY2(table.contains("showDataAs=\"difference\""), table.constData());
+        QVERIFY(table.contains("baseField=\"1\""));
+        QVERIFY(table.contains("numFmtId=\""));
+        checkShapes(saved);
+        // undone, the numbers are back
+        while (s->undoStack()->count() > steps && s->undoStack()->canUndo()) {
+            s->undoStack()->undo();
+            finish(e);
+        }
+        QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+    }
+
+    // Field Settings: a custom name, a sort, a filter by a value (the items it leaves out are hidden), and the items that show; the options of the table; each one step of Undo.
+    void aFieldIsSortedFilteredAndNamedAndTheOptionsAreSet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.fieldList"))->trigger();
+        PivotFieldsPane *pane = e.win.w.pivotPane();
+        QVERIFY(pane);
+        const int steps = s->undoStack()->count();
+        // Region, Z to A, with a name of its own
+        e.win.w.setFieldSettingsAsker([](FieldSettings *f) {
+            f->name = QStringLiteral("Area");
+            f->sort = 2;
+            return true;
+        });
+        QVERIFY(pane->select(2, 0));
+        pane->fieldSettingsRequested(pane->selectedField());
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(pivotShown(e, QStringLiteral("E4:H7")), QStringLiteral("Area|Jan|Feb|Grand Total\nWest|7|7|14\nEast|15|20|35\nGrand Total|22|27|49"));
+        // by a value, then only the top item
+        e.win.w.setFieldSettingsAsker([](FieldSettings *f) {
+            f->sort = 0;
+            f->sortByData = 0;
+            f->sortByDescending = true;
+            f->filter.kind = jp::office::sheet::PivotFilter::TopItems;
+            f->filter.a = 1;
+            f->filter.dataField = 0;
+            return true;
+        });
+        e.select(QStringLiteral("F5"));
+        QVERIFY(pane->select(2, 0));
+        pane->fieldSettingsRequested(pane->selectedField());
+        finish(e);
+        QCOMPARE(pivotShown(e, QStringLiteral("E4:H6")), QStringLiteral("Area|Jan|Feb|Grand Total\nEast|15|20|35\nGrand Total|15|20|35"));
+        // the options: a name, and no grand totals for the columns (the row of totals at the bottom)
+        e.win.w.setPivotOptionsChoiceAsker([](PivotOptionsChoice *c) {
+            c->name = QStringLiteral("Sales");
+            c->rowGrandTotals = false;
+            return true;
+        });
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.options"))->trigger();
+        finish(e);
+        QCOMPARE(pivotShown(e, QStringLiteral("E4:H5")), QStringLiteral("Area|Jan|Feb|Grand Total\nEast|15|20|35"));
+        QCOMPARE(s->workbook()->pivots().table(0).table->name, QStringLiteral("Sales"));
+        QVERIFY(saveNow(e));
+        const Parts saved = readParts(e.path);
+        const QByteArray table = saved.value(QStringLiteral("xl/pivotTables/pivotTable1.xml"));
+        QVERIFY2(table.contains("name=\"Sales\""), table.constData());
+        QVERIFY(table.contains("rowGrandTotals=\"0\""));
+        QVERIFY(table.contains("<autoSortScope>"));
+        checkShapes(saved);
+        while (s->undoStack()->count() > steps && s->undoStack()->canUndo()) {
+            s->undoStack()->undo();
+            finish(e);
+        }
+        QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+    }
+
+    // Numbers are grouped in steps (the field is still added up by its own values), the group is saved and read again, and Ungroup gives the numbers back.
+    void numbersAreGroupedAndUngrouped()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        // Amount in the rows, and also added up
+        PivotTable t = *s->workbook()->pivots().table(0).table;
+        t.rowFields = {2};
+        t.colFields.clear();
+        QVERIFY2(s->setPivot(0, t, true, QStringLiteral("Move fields")).ok, "layout");
+        finish(e);
+        const int steps = s->undoStack()->count();
+        const auto o = s->groupPivotField(0, 2, QStringList(), 1, 20, 10, false, false);
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        const QString shown = pivotShown(e, QStringLiteral("E3:F7"));
+        QVERIFY2(shown.contains(QStringLiteral("1-10|29")), qPrintable(shown));
+        QVERIFY2(shown.contains(QStringLiteral("11-20|20")), qPrintable(shown));
+        QVERIFY2(shown.contains(QStringLiteral("Grand Total|49")), qPrintable(shown));
+        QVERIFY(saveNow(e));
+        const Parts saved = readParts(e.path);
+        const QByteArray definition = saved.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml"));
+        QVERIFY2(definition.contains("<fieldGroup base=\"2\">") && definition.contains("startNum=\"1\"") && definition.contains("endNum=\"20\"") && definition.contains("groupInterval=\"10\""), definition.constData());
+        QVERIFY(definition.contains("<s v=\"11-20\"/>"));
+        checkShapes(saved);
+        EditWindow again;
+        QVERIFY(again.open([&] { QFile f(e.path); f.open(QIODevice::ReadOnly); return f.readAll(); }(), QStringLiteral("again.xlsx")));
+        QVERIFY(again.win.w.session()->pivotUsable(0));
+        QVERIFY(again.win.w.session()->refreshPivot(0).ok);
+        finish(again);
+        QVERIFY2(pivotShown(again, QStringLiteral("E3:F7")).contains(QStringLiteral("1-10|29")), qPrintable(pivotShown(again, QStringLiteral("E3:F7"))));
+        // Ungroup
+        QVERIFY2(s->ungroupPivotField(0, 2).ok, "ungroup");
+        finish(e);
+        QVERIFY2(pivotShown(e, QStringLiteral("E3:F9")).contains(QStringLiteral("10|10")), qPrintable(pivotShown(e, QStringLiteral("E3:F9"))));
+        s->undoStack()->undo();
+        finish(e);
+        QVERIFY2(pivotShown(e, QStringLiteral("E3:F7")).contains(QStringLiteral("1-10|29")), "undone");
+    }
+
+    // A double click on a value shows the rows behind it on a new sheet; a label is edited as always.
+    void theRowsBehindAValueAreShownOnANewSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->isPivotValue(0, rowOf(QStringLiteral("F5")), colOf(QStringLiteral("F5"))));
+        QVERIFY(!s->isPivotValue(0, rowOf(QStringLiteral("E5")), colOf(QStringLiteral("E5"))));   // (a label)
+        const int sheets = int(s->workbook()->info().sheets.size());
+        int made = -1;
+        const auto o = s->showPivotDetail(0, rowOf(QStringLiteral("F5")), colOf(QStringLiteral("F5")), &made);   // East, Jan: two rows
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        finish(e);
+        QCOMPARE(int(s->workbook()->info().sheets.size()), sheets + 1);
+        QVERIFY(made > 0);
+        QCOMPARE(s->valueAt(made, 0, 0).debug(), QStringLiteral("s:Region"));
+        QCOMPARE(s->valueAt(made, 1, 0).debug(), QStringLiteral("s:East"));
+        QCOMPARE(s->valueAt(made, 1, 2).debug(), QStringLiteral("n:10"));
+        QCOMPARE(s->valueAt(made, 2, 2).debug(), QStringLiteral("n:5"));
+        QVERIFY(s->valueAt(made, 3, 0).isEmpty());
+        // the grand total shows all six rows
+        const auto all = s->showPivotDetail(0, rowOf(QStringLiteral("H7")), colOf(QStringLiteral("H7")));
+        QVERIFY2(all.ok, qPrintable(all.problem));
+        finish(e);
+        // a label has no rows
+        QVERIFY(!s->showPivotDetail(0, rowOf(QStringLiteral("E5")), colOf(QStringLiteral("E5"))).ok);
+    }
+
+    // The search box of the fields pane hides the fields that don't match; Defer Layout Update keeps changes in the boxes until Update, and then they are one step.
+    void theFieldsPaneSearchesAndDefersAnUpdate()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.fieldList"))->trigger();
+        PivotFieldsPane *pane = e.win.w.pivotPane();
+        QVERIFY(pane);
+        pane->search(QStringLiteral("mON"));
+        QVERIFY(pane->fieldList()->item(0)->isHidden());
+        QVERIFY(!pane->fieldList()->item(1)->isHidden());
+        pane->search(QString());
+        QVERIFY(!pane->fieldList()->item(0)->isHidden());
+        const int steps = s->undoStack()->count();
+        pane->setDeferred(true);
+        QVERIFY(pane->select(1, 0));
+        pane->moveSelected(0);   // Month to the filters
+        QVERIFY(pane->hasPending());
+        QCOMPARE(pane->box(0)->count(), 1);
+        QCOMPARE(pane->box(1)->count(), 0);
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps);
+        QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+        pane->applyDeferred();
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QVERIFY(!pane->hasPending());
+        QCOMPARE(pivotShown(e, QStringLiteral("E3:F7")), QStringLiteral("Sum of Amount|\nRegion|Total\nEast|35\nWest|14\nGrand Total|49"));
+    }
+
+    // Insert > Pivot Chart: a chart of the table's values without its grand totals, marked as the table's chart (the saved chart has the table's name); one step of Undo.
+    void aPivotChartIsMadeFromATable()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        const int steps = s->undoStack()->count();
+        e.win.w.act(QStringLiteral("insert.pivotChart"))->trigger();
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QVERIFY(saveNow(e));
+        const Parts saved = readParts(e.path);
+        QByteArray chart;
+        for (auto it = saved.cbegin(); it != saved.cend(); ++it)
+            if (it.key().startsWith(QLatin1String("xl/charts/chart")) && it.key().endsWith(QLatin1String(".xml"))) chart = it.value();
+        QVERIFY(!chart.isEmpty());
+        QVERIFY2(chart.contains("<c:pivotSource>") && chart.contains("Sheet1!PivotTable1"), chart.constData());
+        QCOMPARE(chart.count("<c:ser>"), 2);   // Jan and Feb: the grand total column is left out
+        QVERIFY(chart.contains("$F$4:$F$4") || chart.contains("$F$4"));
+        s->undoStack()->undo();
+        finish(e);
+        QVERIFY(saveNow(e));
+        bool any = false;
+        const Parts after = readParts(e.path);
+        for (auto it = after.cbegin(); it != after.cend(); ++it) any = any || it.key().startsWith(QLatin1String("xl/charts/chart"));
+        QVERIFY(!any);
+    }
+
+    // Pictures of the pivot table tab, the pane, and the dialogs, for a person to look at (only when JC_SHOT_DIR names a folder).
+    void picturesOfThePivotFeatures()
+    {
+        const QString dir = QString::fromLocal8Bit(qgetenv("JC_SHOT_DIR"));
+        if (dir.isEmpty()) QSKIP("set JC_SHOT_DIR to take the pictures");
+        QDir().mkpath(dir);
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        e.win.w.resize(1440, 900);
+        e.win.w.show();
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.fieldList"))->trigger();
+        e.win.w.act(QStringLiteral("pivot.style.PivotStyleMedium2"))->trigger();
+        finish(e);
+        e.win.w.act(QStringLiteral("pivot.style.rowStripes"))->setChecked(true);
+        e.win.w.act(QStringLiteral("pivot.style.rowStripes"))->trigger();
+        finish(e);
+        if (Ribbon *r = e.win.w.ribbon()) r->showTab(r->tab(QStringLiteral("Pivot Table")));
+        QCoreApplication::processEvents();
+        e.win.w.grab().save(dir + QStringLiteral("/pivot-tab-and-pane.png"));
+        // a value shown as a percent of the grand total, the rows sorted by value, and the second table's chart
+        e.win.w.setValueSettingsAsker([](ValueFieldSettings *v) {
+            v->showAs = QStringLiteral("percentOfTotal");
+            v->numFmtCode = QStringLiteral("0.0%");
+            return true;
+        });
+        e.select(QStringLiteral("F5"));
+        Q_EMIT e.win.w.pivotPane()->valueSettingsRequested(0);
+        finish(e);
+        e.win.w.act(QStringLiteral("insert.pivotChart"))->trigger();
+        finish(e);
+        QCoreApplication::processEvents();
+        e.win.w.grab().save(dir + QStringLiteral("/pivot-percent-and-chart.png"));
+        // the dialogs
+        ValueFieldSettings vs;
+        vs.name = QStringLiteral("Sum of Amount");
+        vs.sourceName = QStringLiteral("Amount");
+        vs.showAs = QStringLiteral("difference");
+        vs.baseField = 1;
+        vs.bases = {{0, QStringLiteral("Region"), {QStringLiteral("East"), QStringLiteral("West")}}, {1, QStringLiteral("Month"), {QStringLiteral("Jan"), QStringLiteral("Feb")}}};
+        vs.numFmtCode = QStringLiteral("0.00");
+        ValueFieldDialog vd(vs);
+        vd.show();
+        QCoreApplication::processEvents();
+        vd.grab().save(dir + QStringLiteral("/pivot-value-settings.png"));
+        FieldSettings fs;
+        fs.sourceName = fs.name = QStringLiteral("Region");
+        fs.dataNames = {QStringLiteral("Sum of Amount")};
+        fs.items = {{QStringLiteral("East"), 0, true}, {QStringLiteral("West"), 1, false}};
+        FieldSettingsDialog fd(fs);
+        fd.show();
+        QCoreApplication::processEvents();
+        fd.grab().save(dir + QStringLiteral("/pivot-field-settings.png"));
+        GroupChoice gc;
+        gc.isDate = true;
+        gc.levels = {QStringLiteral("months"), QStringLiteral("years")};
+        gc.startText = QStringLiteral("1/15/2020");
+        gc.endText = QStringLiteral("1/10/2021");
+        GroupDialog gd(gc);
+        gd.show();
+        QCoreApplication::processEvents();
+        gd.grab().save(dir + QStringLiteral("/pivot-group.png"));
+        PivotOptionsChoice oc;
+        oc.hasTable = true;
+        oc.name = QStringLiteral("PivotTable1");
+        PivotOptionsDialog od(oc);
+        od.show();
+        QCoreApplication::processEvents();
+        od.grab().save(dir + QStringLiteral("/pivot-options.png"));
+        Q_UNUSED(s);
     }
 
     // The Design choices: grand totals, subtotals, and the layout of the report; a field moved from the data to a place it was not (a number among the rows) is saved and read back.

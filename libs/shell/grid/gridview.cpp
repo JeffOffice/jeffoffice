@@ -1407,7 +1407,7 @@ void GridView::mouseDoubleClickEvent(QMouseEvent *e)
         return;
     }
     const Hit h = m_sheet.layout().hit(lp);
-    if (h.kind == Hit::Kind::Cell) Q_EMIT editRequested();
+    if (h.kind == Hit::Kind::Cell && !(m_doubleClickGuard && m_doubleClickGuard())) Q_EMIT editRequested();
 }
 
 QRect GridView::cellRect(qint64 row, qint64 col) const { return mirror(cellRectInLayout(row, col)); }

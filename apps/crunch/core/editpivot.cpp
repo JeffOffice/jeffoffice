@@ -24,7 +24,7 @@ using jp::calc::Value;
 qint64 pivotCacheBytes(const PivotCache &c)
 {
     qint64 n = 0;
-    for (const PivotCacheField &f : c.fields) n += qint64(f.records.size()) * 4 + qint64(f.items.size()) * qint64(sizeof(PivotValue) + 16);
+    for (const PivotCacheField &f : c.fields) n += qint64(f.records.size() + f.rawRecords.size()) * 4 + qint64(f.items.size() + f.rawItems.size()) * qint64(sizeof(PivotValue) + 16);
     return n;
 }
 
@@ -90,8 +90,10 @@ bool EditSession::pivotUsable(int table, QString *why) const
         return false;
     }
     for (const PivotDataField &d : e.table->dataFields)
-        if (d.showDataAs != QLatin1String("normal")) {
-            if (why) *why = tr("This pivot table shows a value as a percent, a difference, or a rank, which JeffCrunch doesn't work out yet. It stays as it is.");
+        if (d.showDataAs != QLatin1String("normal") && d.showDataAs != QLatin1String("difference") && d.showDataAs != QLatin1String("percent") && d.showDataAs != QLatin1String("percentDiff") &&
+            d.showDataAs != QLatin1String("runTotal") && d.showDataAs != QLatin1String("percentOfRow") && d.showDataAs != QLatin1String("percentOfCol") && d.showDataAs != QLatin1String("percentOfTotal") &&
+            d.showDataAs != QLatin1String("index")) {
+            if (why) *why = tr("This pivot table shows a value as a rank or as a percent of a parent, which JeffCrunch doesn't work out yet. It stays as it is.");
             return false;
         }
     return true;
@@ -410,6 +412,12 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
         if (qint64(newLoc.cellCount()) > kMaxCellsPerEdit * 40) return tr("The pivot table would be larger than JeffCrunch changes at once.");
 
         // the cells
+        bool formatChosen = false;
+        for (int i = 0; i < ch.now->dataFields.size(); ++i) {
+            const PivotDataField &nowField = ch.now->dataFields[i];
+            if (!nowField.numFmtCode.isEmpty()) formatChosen = true;
+            else if (i < old.dataFields.size() && old.dataFields[i].numFmtId != nowField.numFmtId) formatChosen = true;
+        }
         std::set<std::pair<quint32, quint32>> written;
         auto put = [&](quint32 row, quint32 col, const PivotCell &pc) {
             written.insert({row, col});
@@ -438,7 +446,21 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
             case PivotCell::Error: v = Value::error(jp::calc::errorKindFromText(pc.text)); break;
             default: v = Value::text(pc.text); break;
             }
-            if (!cc.before.isFormula && cc.before.exists && cc.before.value == v) return;
+            // (a value's number format that was just chosen is the cells' own, whatever they had)
+            QString forced;
+            if (pc.isValue && formatChosen) {
+                if (pc.numFmtId <= -2 && -2 - pc.numFmtId < ch.now->dataFields.size()) forced = ch.now->dataFields[-2 - pc.numFmtId].numFmtCode;
+                else if (pc.numFmtId > 0) forced = codeOfFormat(book.styles(), pc.numFmtId);
+            }
+            const bool sameValue = !cc.before.isFormula && cc.before.exists && cc.before.value == v;
+            if (sameValue && forced.isEmpty()) return;
+            if (sameValue) {
+                if (codeOfFormat(book.styles(), book.styles().numFmtId(cc.before.style)) == forced || (forced == QLatin1String("General") && book.styles().numFmtId(cc.before.style) == 0)) return;
+                cc.formatCode = forced;
+                cc.styleOnly = true;
+                step.cells.push_back(std::move(cc));
+                return;
+            }
             cc.after.exists = true;
             cc.after.isFormula = false;
             cc.after.formula.clear();
@@ -447,9 +469,13 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
             cc.after.hasStored = false;
             if (pc.kind == PivotCell::Text) cc.textToShare = !book.sharedStringsPart().isEmpty();
             // (a cell that has no format of its own gets the one the table gives the values: a person's own format is kept)
-            if (pc.numFmtId > 0 && (!cc.before.exists || cc.before.style == 0)) {
+            if (!forced.isEmpty()) {
+                cc.formatCode = forced;
+            } else if (pc.numFmtId > 0 && (!cc.before.exists || cc.before.style == 0)) {
                 const QString code = codeOfFormat(book.styles(), pc.numFmtId);
                 if (!code.isEmpty() && code != QLatin1String("General")) cc.formatCode = code;
+            } else if (pc.numFmtId <= -2 && -2 - pc.numFmtId < ch.now->dataFields.size() && (!cc.before.exists || cc.before.style == 0)) {
+                cc.formatCode = ch.now->dataFields[-2 - pc.numFmtId].numFmtCode;
             }
             step.cells.push_back(std::move(cc));
         };
@@ -472,6 +498,8 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
 
         PivotEdit pe;
         pe.table = ch.table;
+        for (const PivotDataField &df : ch.now->dataFields)
+            if (!df.numFmtCode.isEmpty()) pe.formatCodes = true;
         pe.tableBefore = entry.table;
         pe.structureBefore = entry.structureChanged;
         pe.tableAfter = ch.now;
@@ -679,7 +707,18 @@ void EditSession::applyPivotEdits(Step *step, bool forward, Workbook &book)
 {
     if (step->pivots.empty()) return;
     PivotBook &pb = book.pivots();
-    for (const PivotEdit &e : step->pivots) {
+    for (PivotEdit &e : step->pivots) {
+        if (forward && e.formatCodes && e.tableAfter) {
+            // (the formats the values were given by their codes get their ids now, with the styles held still)
+            auto resolved = std::make_shared<PivotTable>(*e.tableAfter);
+            for (PivotDataField &df : resolved->dataFields)
+                if (!df.numFmtCode.isEmpty()) {
+                    df.numFmtId = int(book.numberFormatId(df.numFmtCode));
+                    df.numFmtCode.clear();
+                }
+            e.tableAfter = resolved;
+            e.formatCodes = false;
+        }
         if (e.created) {
             if (forward) {
                 if (e.newCache) pb.addCache(e.cacheAfter, e.sourceAfter, e.sheetAfter, e.nameAfter, e.cacheCreated, e.sheetAfter >= 0 && e.sheetAfter < book.info().sheets.size() ? book.info().sheets[e.sheetAfter].name : QString());
@@ -713,6 +752,7 @@ void EditSession::fillPivotSource(PivotSource *ps, int sheet, const CellRange &r
     ps->col1 = range.col1;
     ps->row2 = range.row2;
     ps->col2 = range.col2;
+    ps->dates = book.info().dateSystem;
     auto dateStyle = std::make_shared<QHash<quint32, bool>>();
     const Sheet *src = &m_book->calc->sheet(sheet);
     ps->cell = [this, sheet, dateStyle, src](quint32 r, quint32 c) {
@@ -853,6 +893,222 @@ EditSession::Outcome EditSession::refreshAllPivots()
         return out;
     }
     return refreshPivotCaches(caches, tr("Refresh All"), nullptr, true);
+}
+
+bool EditSession::isPivotValue(int sheet, quint32 row, quint32 col) const
+{
+    if (!m_book || !m_book->book) return false;
+    PivotBook::View view;
+    if (!m_book->book->pivots().viewAt(sheet, row, col, &view) || !view.where.valid || row < view.where.row1 || col < view.where.col1 || !view.grid) return false;
+    const int r = int(row - view.where.row1), c = int(col - view.where.col1);
+    return r < view.grid->rows && c < view.grid->cols && view.grid->at(r, c).isValue && view.grid->at(r, c).kind != PivotCell::Empty;
+}
+
+EditSession::Outcome EditSession::showPivotDetail(int sheet, quint32 row, quint32 col, int *made)
+{
+    Outcome out;
+    QString why;
+    auto refuse = [&](const QString &m) {
+        out.ok = false;
+        out.problem = m;
+        return out;
+    };
+    if (!canEdit(&why)) return refuse(why);
+    PivotBook::View view;
+    if (!m_book->book->pivots().viewAt(sheet, row, col, &view) || !view.where.valid || !view.table || !view.cache || !view.grid) return refuse(tr("JeffCrunch can't read this pivot table."));
+    const int gr = int(row - view.where.row1), gc = int(col - view.where.col1);
+    QVector<qint64> records;
+    if (row < view.where.row1 || col < view.where.col1 || !pivotDetailRecords(*view.table, *view.cache, *view.grid, gr, gc, &records)) return refuse(tr("Click a value of the pivot table, not a label."));
+    const PivotCache &cache = *view.cache;
+    const int nf = int(cache.fields.size());
+    // (the fields that have values of their own: not the group of another field)
+    QVector<int> shown;
+    for (int f = 0; f < nf; ++f)
+        if (cache.fields[f].group.databaseField) shown.append(f);
+    if (qint64(records.size() + 1) * qint64(shown.size()) > kMaxCellsPerEdit * 40) return refuse(tr("There are too many rows behind this value to show at once."));
+    if (records.isEmpty()) return refuse(tr("There are no rows behind this value."));
+    const auto &sheets = m_book->book->info().sheets;
+    QString name;
+    for (int n = 1;; ++n) {
+        name = tr("Detail %1").arg(n);
+        bool taken = false;
+        for (const SheetEntry &se : sheets)
+            if (!se.deleted && se.name.compare(name, Qt::CaseInsensitive) == 0) taken = true;
+        if (!taken) break;
+    }
+    int target = -1;
+    const Outcome inserted = insertSheet(int(sheets.size()), name, &target);
+    if (!inserted.ok) return inserted;
+    Step step;
+    auto put = [&](quint32 r, quint32 c, const Value &v, bool text, const QString &format) {
+        CellChange cc;
+        cc.sheet = target;
+        cc.row = r;
+        cc.col = quint16(c);
+        cc.before = m_book->calc->content(target, r, c);
+        cc.after = cc.before;
+        cc.after.exists = true;
+        cc.after.isFormula = false;
+        cc.after.formula.clear();
+        cc.after.value = v;
+        cc.after.sharedString = -1;
+        cc.after.hasStored = false;
+        cc.textToShare = text && !m_book->book->sharedStringsPart().isEmpty();
+        cc.formatCode = format;
+        step.cells.push_back(std::move(cc));
+    };
+    for (int k = 0; k < shown.size(); ++k) put(0, quint32(k), Value::text(cache.fields[shown[k]].name), true, QString());
+    for (qsizetype i = 0; i < records.size(); ++i)
+        for (int k = 0; k < shown.size(); ++k) {
+            const PivotCacheField &f = cache.fields[shown[k]];
+            const PivotValue &v = f.storedItems()[f.storedRecords()[records[i]]];
+            const quint32 r = quint32(i) + 1, c = quint32(k);
+            switch (v.kind) {
+            case PivotValue::Missing: break;
+            case PivotValue::Number: put(r, c, Value::number(v.number), false, QString()); break;
+            case PivotValue::Date: put(r, c, Value::number(v.number), false, QStringLiteral("m/d/yyyy")); break;
+            case PivotValue::Bool: put(r, c, Value::boolean(v.number != 0), false, QString()); break;
+            case PivotValue::Error: put(r, c, Value::error(jp::calc::errorKindFromText(v.text)), false, QString()); break;
+            case PivotValue::Text: put(r, c, Value::text(v.text), true, QString()); break;
+            }
+        }
+    out = pushTableStep(std::move(step), tr("Show Details"));
+    if (out.ok && made) *made = target;
+    return out;
+}
+
+EditSession::Outcome EditSession::refreshPivotsOnOpen()
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !m_book || !m_book->book) return out;
+    PivotBook &pb = m_book->book->pivots();
+    std::vector<int> caches;
+    for (int t = 0; t < pb.tableCount() && int(caches.size()) < kMaxPivotTablesRefreshed; ++t) {
+        const int ci = pb.table(t).cache;
+        if (ci < 0 || !pb.cache(ci).cache || !pb.cache(ci).cache->refreshOnLoad || !pivotUsable(t)) continue;
+        if (std::find(caches.begin(), caches.end(), ci) == caches.end()) caches.push_back(ci);
+    }
+    if (caches.empty()) return out;
+    return refreshPivotCaches(caches, tr("Refresh"), nullptr, true);
+}
+
+EditSession::Outcome EditSession::groupPivotField(int table, int field, const QStringList &levels, double start, double end, double step, bool autoStart, bool autoEnd)
+{
+    Outcome out;
+    QString why;
+    auto refuse = [&](const QString &m) {
+        out.ok = false;
+        out.problem = m;
+        return out;
+    };
+    if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) return refuse(why.isEmpty() ? tr("There is no pivot table here.") : why);
+    PivotBook &pb = m_book->book->pivots();
+    const int ci = pb.table(table).cache;
+    const PivotCacheEntry &ce = pb.cache(ci);
+    if (pb.tablesOfCache(ci).size() > 1) return refuse(tr("Another pivot table is made from the same data. A group is a part of the data, so it can't be made while two tables share it."));
+    const PivotTable &old = *pb.table(table).table;
+    if (field < 0 || field >= old.fields.size() || field >= ce.cache->fields.size()) return refuse(tr("There is no such field."));
+    if (!old.rowFields.contains(field) && !old.colFields.contains(field)) return refuse(tr("Put the field in the rows or the columns first."));
+    auto cache = std::make_shared<PivotCache>(*ce.cache);
+    QVector<int> added;
+    if (!pivotGroupField(cache.get(), field, levels, start, end, step, autoStart, autoEnd, m_book->book->info().dateSystem, &added, &why))
+        return refuse(tr("These can't be grouped: %1.").arg(why));
+    PivotChange ch;
+    ch.table = table;
+    ch.now = std::make_shared<PivotTable>(old);
+    PivotTable &t = *ch.now;
+    // (the fields added to the cache are added to the table, off its axes; a field whose values are now groups lists its items again)
+    while (t.fields.size() < cache->fields.size()) t.fields.append(PivotField());
+    t.fields[field].items.clear();
+    t.fields[field].hasItems = false;
+    t.fields[field].sortByData = -1;
+    QVector<int> &axis = t.rowFields.contains(field) ? t.rowFields : t.colFields;
+    int at = int(axis.indexOf(field));
+    for (int k = 1; k < added.size(); ++k) {   // (the coarsest goes first)
+        axis.insert(at, added[k]);
+    }
+    for (int k = 1; k < added.size(); ++k) t.fields[added[k]].axis = QString();
+    pivotSyncRoles(&t);
+    pivotNormalizeLayout(&t);
+    pivotPrepareFields(&t, cache.get());
+    ch.structure = true;
+    ch.cache = ci;
+    ch.cacheNow = cache;
+    ch.source = ce.source;
+    ch.sourceSheet = ce.sourceSheet;
+    ch.sourceName = ce.sourceName;
+    return pivotStep({ch}, tr("Group Field"));
+}
+
+EditSession::Outcome EditSession::ungroupPivotField(int table, int field)
+{
+    Outcome out;
+    QString why;
+    auto refuse = [&](const QString &m) {
+        out.ok = false;
+        out.problem = m;
+        return out;
+    };
+    if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) return refuse(why.isEmpty() ? tr("There is no pivot table here.") : why);
+    PivotBook &pb = m_book->book->pivots();
+    const int ci = pb.table(table).cache;
+    const PivotCacheEntry &ce = pb.cache(ci);
+    if (pb.tablesOfCache(ci).size() > 1) return refuse(tr("Another pivot table is made from the same data, so the group can't be taken away from this one alone."));
+    if (field < 0 || field >= ce.cache->fields.size() || ce.cache->fields[field].group.kind == PivotFieldGroup::None) return refuse(tr("This field is not grouped."));
+    auto cache = std::make_shared<PivotCache>(*ce.cache);
+    const int base = cache->fields[field].group.base >= 0 ? cache->fields[field].group.base : field;
+    QVector<int> removed;
+    if (!pivotUngroupField(cache.get(), field, &removed)) return refuse(tr("This field is not grouped."));
+    PivotChange ch;
+    ch.table = table;
+    ch.now = std::make_shared<PivotTable>(*pb.table(table).table);
+    PivotTable &t = *ch.now;
+    pivotRemoveFields(&t, removed);
+    int placed = base;
+    for (int r : removed)
+        if (r < base) --placed;
+    if (placed >= 0 && placed < t.fields.size()) {
+        t.fields[placed].items.clear();
+        t.fields[placed].hasItems = false;
+        t.fields[placed].sortByData = -1;
+    }
+    pivotSyncRoles(&t);
+    pivotNormalizeLayout(&t);
+    pivotPrepareFields(&t, cache.get());
+    ch.structure = true;
+    ch.cache = ci;
+    ch.cacheNow = cache;
+    ch.source = ce.source;
+    ch.sourceSheet = ce.sourceSheet;
+    ch.sourceName = ce.sourceName;
+    return pivotStep({ch}, tr("Ungroup Field"));
+}
+
+EditSession::Outcome EditSession::setPivotRefreshOnOpen(int table, bool on)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) {
+        out.ok = false;
+        out.problem = why.isEmpty() ? tr("There is no pivot table here.") : why;
+        return out;
+    }
+    PivotBook &pb = m_book->book->pivots();
+    const int ci = pb.table(table).cache;
+    const PivotCacheEntry &ce = pb.cache(ci);
+    if (ce.cache->refreshOnLoad == on) return out;
+    PivotChange ch;
+    ch.table = table;
+    ch.now = std::make_shared<PivotTable>(*pb.table(table).table);
+    auto cache = std::make_shared<PivotCache>(*ce.cache);
+    cache->refreshOnLoad = on;
+    ch.cache = ci;
+    ch.cacheNow = cache;
+    ch.source = ce.source;
+    ch.sourceSheet = ce.sourceSheet;
+    ch.sourceName = ce.sourceName;
+    return pivotStep({ch}, tr("Pivot Table Options"));
 }
 
 EditSession::Outcome EditSession::changePivotSource(int table, const QString &where)

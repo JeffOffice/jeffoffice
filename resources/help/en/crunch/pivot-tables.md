@@ -1,5 +1,5 @@
 # Pivot tables
-<!-- keywords: pivot table, insert pivot table, create, make, getpivotdata, generate getpivotdata, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average -->
+<!-- keywords: pivot table, insert pivot table, create, make, getpivotdata, generate getpivotdata, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average, show values as, percent of total, difference, running total, number format, field settings, sort, filter, top, group, ungroup, dates, months, years, expand, collapse, options, style, banded rows, blank rows, repeat labels, refresh when the file opens, pivot chart, slicer, timeline, show details, drill down, rows behind a value -->
 
 A pivot table is a small report made from a long list. The list has one row for each sale, say; the report adds the sales up by region and month. You do not write any formulas. You say which columns of the list go down the side, which go across the top, and which one is added up, and the report fills itself in.
 
@@ -60,7 +60,7 @@ When you click a value of a pivot table while you type a formula, JeffCrunch wri
 
 A pivot table in a workbook is shown as it was saved. If you change nothing about it, the file is saved with the pivot table exactly as it was. When you refresh it or change it, JeffCrunch works the report out again, puts the new numbers in the cells, and writes the pivot table back so that the program that made it opens it without complaint.
 
-JeffCrunch works out pivot tables that add, count, average, and so on. A pivot table that groups dates or numbers, has a calculated field or item, shows values as a percent, a difference, or a rank, or uses a data model is shown and kept as saved, and the commands tell you they cannot change it.
+JeffCrunch works out pivot tables that add, count, average, and so on, that group dates and numbers, and that show values as a share, a difference, or a running total. A pivot table that has a calculated field or item, shows a value as a rank or as a share of a parent, has groups of items that someone made by hand, or uses a data model is shown and kept as saved, and the commands tell you they cannot change it.
 
 Click any cell of a pivot table. The **Pivot Table** tab appears.
 
@@ -88,9 +88,66 @@ If the report would grow over cells that have something in them, JeffCrunch does
 - Uncheck a field to take it out everywhere.
 - Click a field in one of the four places, and choose **Move To** to put it in another. The words **Move Up** and **Move Down** change its order in its place, and **Remove Field** takes it out.
 - With more than one value, a line named **Values** appears in **Columns**. Move it to **Rows** to put the values down the side.
-- **Value Field Settings** (a double click on a value, or the button) sets the name the report shows for the value and how it is totaled: **Sum**, **Count**, **Count Numbers**, **Average**, **Max**, **Min**, **Product**, **StdDev** and **StdDevp** (the standard deviation of a sample, or of all the values), and **Var** and **Varp** (the variance of the same).
+- **Value Field Settings** (a double click on a value, or the button) sets the name the report shows for the value and how it is totaled: **Sum**, **Count**, **Count Numbers**, **Average**, **Max**, **Min**, **Product**, **StdDev** and **StdDevp** (the standard deviation of a sample, or of all the values), and **Var** and **Varp** (the variance of the same). It also sets how the value is shown and its number format. See the next section.
+- **Field Settings** (a double click on a field in Filters, Columns, or Rows, or the button) sets one field. See "Field Settings".
 
 Every change is one step of **Undo**.
+
+## Show Values As, and the number format of a value
+
+In **Value Field Settings**, **Show values as** changes what a cell of the report shows.
+
+- **% of Grand Total**: the cell divided by the total of the whole report. In the example, East in January is 15 of 49, which is 30.6%.
+- **% of Column Total** and **% of Row Total**: the cell divided by the total of its column, or of its row.
+- **Index**: how the cell compares with what its row and column would give if the data were spread evenly. A number above 1 means more than the even share.
+- **Difference From**, **% Of**, and **% Difference From**: the cell compared with another item of a field. Pick the **Base field** (a field in Rows or Columns) and the **Base item** (one of its items, or the one before or after). For example, with Month as the base field and Jan as the base item, February shows how much more or less it is than January. The base item itself is left empty for a difference, and is 100% for **% Of**.
+- **Running Total In**: each cell adds the cells before it along the base field.
+
+**Number format** takes a format code, such as `0.00`, `#,##0`, or `0.0%`. Leave it empty to keep the format the cells have. A value shown as a share gets `0.00%` unless you pick a format. The cells of the report take the format at once. **Undo** takes it back with the numbers.
+
+## Field Settings
+
+Select a field in the **Filters**, **Columns**, or **Rows** box and choose **Field Settings** on the **Pivot Table** tab (or double click it).
+
+- **Custom name** changes the name the report shows for the field.
+- **Subtotals**: **Automatic** shows a total for each group of the field, **None** does not.
+- **Show item labels in**: compact, outline, or tabular form, as in Report Layout.
+- **Insert a blank line after each item** puts an empty line after each group.
+- **Repeat item labels** shows the name of an outer item on every line of its group (outline and tabular forms).
+- **Sort**: keep the order the items are in (manual), or sort A to Z or Z to A by the labels. **Smallest to largest by a value** and **Largest to smallest by a value** sort the items by the numbers in a value field. The report keeps the sort when the data changes.
+- **Filter** leaves items out by their labels (begins with, ends with, contains, equals) or by a value (greater than, less than, between, and so on), or keeps only the top or bottom few items by a value. The filter is worked out when you choose OK. It hides the items it leaves out; the check boxes below show which, and you can check an item to show it again.
+- **Show these items** is a list of the field's items with a check each. Clear a check to hide the item, and the totals leave it out.
+
+## Group dates and numbers
+
+Select a field of dates or of numbers in **Rows** or **Columns** and choose **Group Field** on the **Pivot Table** tab. Groups are made from the data, so the data must have only numbers or dates in that column, with no text and no empty cells.
+
+- **Dates**: check what to group by: **Seconds**, **Minutes**, **Hours**, **Days**, **Months**, **Quarters**, or **Years**. The finest part you check stays on the field. For each coarser part JeffCrunch adds a field, named for it (for example **Years**), and puts it before the date field in the same place. **Starting at** and **Ending at** are the first and last dates; leave them as they are to use the least and greatest dates in the data. Dates before the start or after the end go in two extra groups, which begin with `<` and `>`.
+- **Numbers**: **Starting at**, **Ending at**, and **By** make groups such as 1-10, 11-20, and so on.
+
+**Ungroup** takes the groups away and the fields that were added for them. Refresh makes the groups again from the new data. When two pivot tables are made from the same data, groups can't be made, because a group is a part of the data they share.
+
+## Show the rows behind a value
+
+Double click a value of a pivot table, or choose **Show Details** on the **Pivot Table** tab. JeffCrunch makes a new sheet, named Detail 1, 2, and so on, with the rows of the list that make up the number. The names of the fields are in the first row. F2 still edits the cell, if the cell can be edited. **Undo** takes the rows away, and another **Undo** takes the sheet away.
+
+## Expand and collapse
+
+A field whose items have others under them can show or hide the lines under its items. **Expand Entire Field** and **Collapse Entire Field** do it for every item of the field you select in the pane.
+
+## Pivot Table Options
+
+**Options** on the **Pivot Table** tab opens a box with the choices of the table.
+
+- **Name** is the name of the pivot table. No other pivot table of the workbook may have it.
+- **For error values show** and **For empty cells show** put a text of your own in those cells.
+- **Merge and center cells with labels**, **Fit column widths when the table is updated**, and **Keep the formatting of cells when the table is updated** are saved with the table.
+- **Show grand totals for rows** and **for columns** are the same as the Grand Totals choices.
+- **Refresh the data when the file is opened** reads the cells again each time the workbook is opened. It is one step of Undo, like any refresh.
+
+## Style: headers, bands, and the gallery
+
+The **Style Options** on the **Pivot Table** tab turn the header row, the first column (row headers), and the bands of rows and of columns on or off. **Styles** has a gallery of looks, and **Clear Style** takes the look away. These looks are drawn the same way as the looks of tables. **Blank Rows** and **Repeat Labels** set the blank line and the repeated labels for every field of the rows at once.
 
 ## Design: subtotals, grand totals, and layout
 
@@ -101,6 +158,14 @@ Every change is one step of **Undo**.
 ## The same list, a filter
 
 Move **Month** from **Columns** to **Filters**. The report loses its columns, and a line over it shows **Month** and **(All)**. The numbers are now each region's total over every month.
+
+## Pivot chart
+
+Click a cell in a pivot table and choose **Insert**, then **Pivot Chart**. JeffCrunch makes a column chart of the table's values. It leaves out the grand totals. The chart is marked as the pivot table's chart in the file. It reads the cells of the table, so its numbers change when you refresh the table or change the table's layout. If the table gets more rows or columns, make the chart again, because the chart keeps the cells it was made from. A pivot chart that comes from a file is shown as saved.
+
+## Slicers and timelines
+
+A slicer is a set of buttons that filters a pivot table, and a timeline is a slider that does the same for dates. JeffCrunch keeps both in the file as they were saved, but does not show or change them yet.
 
 ## Limits
 
