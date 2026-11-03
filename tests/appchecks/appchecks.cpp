@@ -908,7 +908,7 @@ QStringList runEveryAction(Adapter &app, bool fromFile, QStringList *report)
                     if (qEnvironmentVariableIsSet("JP_CHECKS_DEBUG")) std::fprintf(stderr, "key %s of %s in %s (was: %s): changed=%d how=%s dialogs=%s active=%p w=%p enabled=%d\n", qPrintable(pressed), qPrintable(id), usedContext >= 0 ? qPrintable(contexts[usedContext]->name) : "launch", qPrintable(ref.how), int(last.changed), qPrintable(last.how), qPrintable(last.dialogs.join('|')), static_cast<void *>(QApplication::activeWindow()), static_cast<void *>(w.get()), int(w->act(id)->isEnabled()));
                     if (!last.changed) fail(id, QStringLiteral("does nothing when its shortcut %1 is pressed").arg(pressed));
                     else if (last.how != ref.how || last.windows != ref.windows || kinds(last.dialogs) != kinds(ref.dialogs))
-                        fail(id, QStringLiteral("does something else when its shortcut %1 is pressed (%2, not %3)").arg(pressed, last.how, ref.how));
+                        fail(id, QStringLiteral("does something else when its shortcut %1 is pressed%6 (%2, not %3; key: %4; menu: %5)").arg(pressed, last.how, ref.how, last.detail.left(200), ref.detail.left(200), where));
                 }
                 last = ref;
             }
