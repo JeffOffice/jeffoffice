@@ -13,6 +13,8 @@
 #include <QJsonObject>
 #include <QString>
 
+class QCheckBox;
+class QLabel;
 class QWidget;
 
 namespace jp::telemetry {
@@ -20,6 +22,10 @@ namespace jp::telemetry {
 bool decided();                         // the person has chosen (or setup chose for them)
 bool enabled();
 void setEnabled(bool on);
+QString installNumber();                // the install id, or "" when statistics are off or none was made yet; never makes one
+QLabel *privacyLink(QWidget *parent);   // "Privacy notice", opens the notice on the website
+// The install number with a Copy button, and how to have the copy of the statistics deleted; with a box, it follows that box.
+QWidget *installNumberLine(QWidget *parent, QCheckBox *follow = nullptr);
 void count(const QString &feature);     // a command's id, e.g. "file.open.pub" or "file.save.pptx"; nothing when off
 QJsonObject payload();                  // what the next ping would send
 QJsonObject crashPayload(const QJsonObject &report);   // what sending a crash report sends; {} for none

@@ -86,6 +86,8 @@
 #include <QListWidget>
 #include <QDialogButtonBox>
 #include <QPlainTextEdit>
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QPushButton>
 #include <QComboBox>
 #include <QCheckBox>

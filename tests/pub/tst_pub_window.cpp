@@ -1,6 +1,7 @@
 // JeffPub's tests of the window: ribbon, help, keyboard, accessibility, themes, and translations.
 #include "grid/gridview.h"
 #include "pubhelpers.h"
+#include "app/optionsdialog.h"
 #include "canvas/canvasaccessible.h"
 #include <QDoubleSpinBox>
 #include <QStackedWidget>
@@ -1872,6 +1873,66 @@ private Q_SLOTS:
         QCOMPARE(w.autoRecoverInterval(), 3 * 60 * 1000);
         telemetry::setEnabled(wasOn);
         Settings::get().setValue(QStringLiteral("save/autoRecoverMinutes"), minutes);
+    }
+
+    // Options shows the install number with a Copy button ("none" and Copy off when
+    // statistics are off or no number was made), and opening it makes none.
+    void optionsShowTheInstallNumber()
+    {
+        jp::MainWindow w;
+        const bool wasOn = telemetry::enabled();
+        const QVariant oldId = Settings::get().value(QStringLiteral("telemetry/install"));
+        const QString id = QStringLiteral("0b6f3f0e-52c4-4c2c-9d7a-3a1f5c0e7a11");
+        auto look = [&w](QString &text, bool &copyOn, QString &copied) {
+            QTimer::singleShot(0, [&] {
+                auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!d) return;
+                if (auto *l = d->findChild<QLabel *>(QStringLiteral("installNumber"))) text = l->text();
+                if (auto *b = d->findChild<QPushButton *>(QStringLiteral("installCopy"))) {
+                    copyOn = b->isEnabled();
+                    QGuiApplication::clipboard()->clear();
+                    if (copyOn) b->click();
+                    copied = QGuiApplication::clipboard()->text();
+                }
+                d->reject();
+            });
+            jp::optionsDialog(&w, w.editor(), {});   // not the command, which counts its use and so makes the number when statistics are on
+        };
+        QString text, copied;
+        bool copyOn = true;
+        telemetry::setEnabled(false);
+        look(text, copyOn, copied);
+        QCOMPARE(text, QStringLiteral("Install number: none"));
+        QVERIFY(!copyOn);
+        telemetry::setEnabled(true);   // on, but no number made yet: opening Options must not make one
+        look(text, copyOn, copied);
+        QCOMPARE(text, QStringLiteral("Install number: none"));
+        QVERIFY(!copyOn);
+        QVERIFY(!Settings::get().value(QStringLiteral("telemetry/install")).isValid());
+        Settings::get().setValue(QStringLiteral("telemetry/install"), id);
+        text.clear();
+        copyOn = false;
+        look(text, copyOn, copied);
+        QCOMPARE(text, QStringLiteral("Install number: ") + id);
+        QVERIFY(copyOn);
+        QCOMPARE(copied, id);
+        QCOMPARE(Settings::get().value(QStringLiteral("telemetry/install")).toString(), id);
+        telemetry::setEnabled(wasOn);
+        Settings::get().setValue(QStringLiteral("telemetry/install"), oldId);
+    }
+
+    // About: the License and notices card links the additional terms, the privacy
+    // notice, and the trademark policy.
+    void aboutLinksTheLegalDocuments()
+    {
+        jp::MainWindow w;
+        w.show();
+        w.showBackstage(QStringLiteral("about"));
+        auto *l = w.findChild<QLabel *>(QStringLiteral("legalLinks"));
+        QVERIFY(l);
+        QVERIFY(l->text().contains(QLatin1String("jeffoffice/blob/main/ADDITIONAL-TERMS.md")));
+        QVERIFY(l->text().contains(QLatin1String("https://www.jeffoffice.com/privacy")));
+        QVERIFY(l->text().contains(QLatin1String("https://www.jeffoffice.com/trademarks")));
     }
 
     // About: the third-party table fits its card at a modest window size

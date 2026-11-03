@@ -1198,8 +1198,10 @@ QWidget *Backstage::buildAbout()
     sh->setSpacing(10);
     sh->addWidget(statsBox);
     sh->addWidget(statsLink);
+    sh->addWidget(telemetry::privacyLink(id));
     sh->addStretch(1);
     iv->addLayout(sh);
+    iv->addWidget(telemetry::installNumberLine(id, statsBox));
     ih->addLayout(iv, 1);
     v->addWidget(id);
 
@@ -1245,6 +1247,7 @@ QWidget *Backstage::buildAbout()
     lt->setTextFormat(Qt::RichText);
     lt->setOpenExternalLinks(true);
     lv->addWidget(lt);
+    lv->addWidget(legalLinks(legal));
     // Every bundled component, linked to its project and its license.
     struct Part { const char *name, *url; QString use; const char *license, *licenseUrl; };
     const Part parts[] = {

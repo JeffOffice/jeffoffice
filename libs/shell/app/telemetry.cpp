@@ -10,6 +10,10 @@
 #include <QDateTime>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QGuiApplication>
+#include <QClipboard>
+#include <QHBoxLayout>
+#include <QPushButton>
 #include <QFile>
 #include <QJsonDocument>
 #include <QLabel>
@@ -30,6 +34,7 @@ namespace {
 
 const char *kUrl = "https://telemetry-production-9964.up.railway.app/v1/ping";
 const char *kCrashUrl = "https://telemetry-production-9964.up.railway.app/v1/crash";
+const char *kPrivacy = "https://www.jeffoffice.com/privacy";
 const char *kAbout = "https://telemetry-production-9964.up.railway.app/";
 const QString kEnabled = QStringLiteral("telemetry/enabled");
 const QString kInstall = QStringLiteral("telemetry/install");
@@ -164,7 +169,11 @@ void ask(QWidget *window)
     QObject::connect(buttons, &QDialogButtonBox::accepted, &d, &QDialog::accept);
     v->addWidget(text);
     v->addSpacing(6);
-    v->addWidget(box);
+    auto *boxRow = new QHBoxLayout();
+    boxRow->addWidget(box);
+    boxRow->addWidget(privacyLink(&d));
+    boxRow->addStretch(1);
+    v->addLayout(boxRow);
     v->addWidget(buttons);
     d.exec();
     setEnabled(box->isChecked());
@@ -175,6 +184,57 @@ void ask(QWidget *window)
 bool decided() { return Settings::get().value(kEnabled).isValid(); }
 
 bool enabled() { return Settings::get().value(kEnabled, false).toBool(); }
+
+QString installNumber()
+{
+    if (!enabled()) return {};
+    const QString id = Settings::get().value(kInstall).toString();
+    return QUuid::fromString(id).isNull() ? QString() : id;
+}
+
+QLabel *privacyLink(QWidget *parent)
+{
+    auto *l = new QLabel(QStringLiteral("<a href=\"%1\">%2</a>").arg(QString::fromLatin1(kPrivacy), QCoreApplication::translate("Telemetry", "Privacy notice")), parent);
+    l->setObjectName(QStringLiteral("privacyLink"));
+    l->setOpenExternalLinks(true);
+    return l;
+}
+
+QWidget *installNumberLine(QWidget *parent, QCheckBox *follow)
+{
+    auto *w = new QWidget(parent);
+    w->setObjectName(QStringLiteral("installNumberLine"));
+    auto *v = new QVBoxLayout(w);
+    v->setContentsMargins(0, 0, 0, 0);
+    v->setSpacing(2);
+    auto *row = new QHBoxLayout();
+    row->setSpacing(8);
+    auto *label = new QLabel(w);
+    label->setObjectName(QStringLiteral("installNumber"));
+    label->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    auto *copy = new QPushButton(QCoreApplication::translate("Telemetry", "Copy"), w);
+    copy->setObjectName(QStringLiteral("installCopy"));
+    row->addWidget(label);
+    row->addWidget(copy);
+    row->addStretch(1);
+    v->addLayout(row);
+    auto *note = new QLabel(QCoreApplication::translate("Telemetry",
+        "To have our copy of your statistics deleted, send this number to info@jeffoffice.com before you turn statistics off."), w);
+    note->setObjectName(QStringLiteral("installNote"));
+    note->setWordWrap(true);
+    v->addWidget(note);
+    auto refresh = [label, copy] {
+        const QString id = installNumber();
+        label->setText(QCoreApplication::translate("Telemetry", "Install number: %1").arg(id.isEmpty() ? QCoreApplication::translate("Telemetry", "none") : id));
+        copy->setEnabled(!id.isEmpty());
+    };
+    refresh();
+    QObject::connect(copy, &QPushButton::clicked, w, [] {
+        if (const QString id = installNumber(); !id.isEmpty()) QGuiApplication::clipboard()->setText(id);
+    });
+    if (follow) QObject::connect(follow, &QCheckBox::toggled, w, refresh);
+    return w;
+}
 
 void setEnabled(bool on)
 {

@@ -72,6 +72,20 @@ QLabel *mutedLabel(const QString &t, QWidget *parent, double alpha)
     return l;
 }
 
+QLabel *legalLinks(QWidget *parent)
+{
+    auto *l = mutedLabel(QStringLiteral("<a href=\"https://github.com/JeffOffice/jeffoffice/blob/main/ADDITIONAL-TERMS.md\">%1</a> &nbsp;·&nbsp; "
+                                        "<a href=\"https://www.jeffoffice.com/privacy\">%2</a> &nbsp;·&nbsp; "
+                                        "<a href=\"https://www.jeffoffice.com/trademarks\">%3</a>")
+                             .arg(QCoreApplication::translate("FileScreen", "Additional terms"), QCoreApplication::translate("FileScreen", "Privacy notice"),
+                                  QCoreApplication::translate("FileScreen", "Trademark policy")),
+                         parent, 0.75);
+    l->setObjectName(QStringLiteral("legalLinks"));
+    l->setTextFormat(Qt::RichText);
+    l->setOpenExternalLinks(true);
+    return l;
+}
+
 QLabel *sectionLabel(const QString &t, QWidget *parent)
 {
     auto *l = new QLabel(t.toUpper(), parent);

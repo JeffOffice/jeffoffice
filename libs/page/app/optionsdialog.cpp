@@ -17,6 +17,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QHBoxLayout>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QTabWidget>
@@ -81,7 +82,17 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
     stats->setToolTip(jp::plainToolTip(forThisApp(QCoreApplication::translate("Dialogs", "Once a day, and the day it's updated: JeffPub's version, your operating system and language, and how often each command is used. "
                                                                        "Never your files, their names, or anything in them."))));
     stats->setChecked(telemetry::enabled());
-    gf->addRow(stats);
+    // The choice, the privacy notice, and the install number, in one row.
+    auto *statsRow = new QWidget(gen);
+    auto *statsCol = new QVBoxLayout(statsRow);
+    statsCol->setContentsMargins(0, 0, 0, 0);
+    auto *statsTop = new QHBoxLayout();
+    statsTop->addWidget(stats);
+    statsTop->addWidget(telemetry::privacyLink(statsRow));
+    statsTop->addStretch(1);
+    statsCol->addLayout(statsTop);
+    statsCol->addWidget(telemetry::installNumberLine(statsRow));
+    gf->addRow(statsRow);
     auto *updates = new QCheckBox(forThisApp(QCoreApplication::translate("Dialogs", "Check for updates when JeffPub starts")), gen);
     updates->setObjectName(QStringLiteral("updates"));
     updates->setChecked(st.value("updates/auto", true).toBool());
@@ -96,7 +107,7 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
     beta->setAccessibleDescription(betaAbout);
     beta->setChecked(Updater::betaChannel());
     gf->addRow(beta);
-    for (QWidget *box : {static_cast<QWidget *>(stats), static_cast<QWidget *>(updates), static_cast<QWidget *>(beta)}) gf->setRowVisible(box, online);
+    for (QWidget *box : {statsRow, static_cast<QWidget *>(updates), static_cast<QWidget *>(beta)}) gf->setRowVisible(box, online);
     tabs->addTab(gen, QCoreApplication::translate("Dialogs", "General"));
     auto *proof = new QWidget();
     auto *pf = new QFormLayout(proof);

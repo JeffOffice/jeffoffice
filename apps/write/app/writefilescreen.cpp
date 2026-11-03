@@ -526,6 +526,7 @@ QWidget *WriteFileScreen::buildAbout()
     lt->setTextFormat(Qt::RichText);
     lt->setOpenExternalLinks(true);
     lv->addWidget(lt);
+    lv->addWidget(legalLinks(legal));
     v->addWidget(legal);
     v->addStretch(1);
     return w;

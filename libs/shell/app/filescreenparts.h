@@ -25,6 +25,8 @@ QLabel *heading(const QString &t, QWidget *parent, double scale = 1.75);
 QPixmap paperPixmap(const QImage &page, const QSize &box, qreal dpr);
 QFrame *cardFrame(QWidget *parent);
 QLabel *mutedLabel(const QString &t, QWidget *parent, double alpha = 0.62);
+// Links to the additional license terms, the privacy notice, and the trademark policy, for the License and notices card.
+QLabel *legalLinks(QWidget *parent);
 QLabel *sectionLabel(const QString &t, QWidget *parent);
 void fitHeight(QLabel *l);
 
