@@ -16,7 +16,7 @@ Mark each place that cites the authority. The table lists the authority once, wi
 ## Insert the table
 
 1. Click where the table should go.
-2. Click **References > Insert Table of Authorities**.
+2. Click **References > Table of Authorities**.
 3. Pick a category, or **All** to list every category that has marks. Choose the tab leader, whether to use **passim**, and whether to put the category name above its citations.
 4. Click **OK**.
 
@@ -24,7 +24,7 @@ Mark each place that cites the authority. The table lists the authority once, wi
 
 ## Keep the table up to date
 
-Click in the table and click **References > Update Table of Authorities**, or press **F9**.
+Click in the table and click **References > Update List** (in the Table of Authorities group), or press **F9**.
 
 ## Related
 

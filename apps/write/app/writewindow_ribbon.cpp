@@ -92,6 +92,7 @@ void WriteWindow::buildRibbon()
     parts.launchers[QStringLiteral("paragraph")] = [this] { act("para.dialog")->trigger(); };
     parts.launchers[QStringLiteral("styles")] = [this] { act("style.pane")->trigger(); };
     parts.launchers[QStringLiteral("pageSetup")] = [this] { act("layout.pageSetup")->trigger(); };
+    parts.launchers[QStringLiteral("notes")] = [this] { act("refs.notesOptions")->trigger(); };
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
     // The Copy Formatting button is double-clicked to keep it on, and Esc in the text turns it off (see eventFilter).
     for (QToolButton *b : m_ribbon->findChildren<QToolButton *>())

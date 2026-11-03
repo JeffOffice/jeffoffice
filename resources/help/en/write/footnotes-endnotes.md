@@ -18,7 +18,7 @@ Click where the reference should go, then click **References > Insert Endnote**,
 
 ## Change how notes are numbered
 
-Click **References > Footnote and Endnote...** (the small button under the notes buttons). The box has one part for footnotes and one for endnotes:
+Click the small arrow in the corner of the **Footnotes** group on the **References** tab. The box has one part for footnotes and one for endnotes:
 
 - **Number format** is how the numbers look: 1, 2, 3; a, b, c; A, B, C; i, ii, iii; I, II, III; or the marks \*, †, ‡, §.
 - **Start at** is the number the first note has. If you pick 3 and the format i, ii, iii, the first note shows iii.
@@ -29,7 +29,7 @@ The footnotes change at once. For endnotes, JeffWrite reads the document again s
 
 ## Turn footnotes into endnotes, or endnotes into footnotes
 
-Click **References > Convert Notes...** (a small button beside the notes buttons). The box offers four choices:
+Click **References > Convert...** (a small button beside the notes buttons). The box offers four choices:
 
 - **Convert all footnotes to endnotes**
 - **Convert all endnotes to footnotes**
@@ -46,7 +46,7 @@ A note has three parts that are not text:
 - The **continuation separator** is the line above a note that carries on from the page before.
 - The **continuation notice** is the words below a note that carries on to the next page, such as "Continued on the next page."
 
-Click **References > Note Separators...**. For each part, choose **Line**, **Text** (and type the words), or **Nothing**. A part that holds something more than a line or a few words, such as a picture, shows **As in the file**, and JeffWrite keeps it as it is. The box needs at least one note of the kind. When you change an endnote's part, JeffWrite reads the document again, as it does for the numbering, and the **Undo** list starts over.
+Click **References > Separators...**. For each part, choose **Line**, **Text** (and type the words), or **Nothing**. Endnotes have only the separator, because they run on in the text and are not split at the foot of a page; the other two parts of an endnote that a file has are kept as they are. A part that holds something more than a line or a few words, such as a picture, shows **As in the file**, and JeffWrite keeps it as it is. The box needs at least one note of the kind. When you change an endnote's part, JeffWrite reads the document again, as it does for the numbering, and the **Undo** list starts over.
 
 ## Edit a note
 

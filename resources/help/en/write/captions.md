@@ -20,7 +20,7 @@ Turn on **Do not show the label** to show only the number. Turn on **Include the
 A **table of figures** lists your captions with their pages, like a table of contents.
 
 1. Click where the table should go.
-2. Click **References > Insert Table of Figures**.
+2. Click **References > Table of Figures**.
 3. Pick the caption label, the tab leader (the dots before the page numbers), and whether lines are links.
 4. Click **OK**.
 

@@ -16,9 +16,9 @@ For example, with levels set to 2, a document with the headings `Introduction` (
 
 Click the little arrow on **References > Table of Contents** to open the gallery:
 
-- **Automatic Table 1** has the title "Contents" above a table made from your headings.
-- **Automatic Table 2** has the title "Table of Contents" above a table made from your headings.
-- **Manual Table** has lines of sample text that you type over. It is not kept up to date.
+- **Contents** has the title "Contents" above a table made from your headings.
+- **Contents with Full Title** has the title "Table of Contents" above a table made from your headings.
+- **Contents to Fill In** has lines of sample text that you type over. It is not kept up to date.
 - **Table of Contents...** opens the box described above, for the choices you want to make yourself.
 - **Remove Table of Contents** takes the table away.
 

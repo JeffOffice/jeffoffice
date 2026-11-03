@@ -26,7 +26,7 @@ Use **Copy** to move a source from one list to the other, **New** to make a sour
 
 ## Choose a style
 
-Click **References > Citation Style** and pick **APA**, **MLA**, **Chicago**, **Harvard**, or **IEEE**. Every citation and bibliography in the document changes to that style. With IEEE, a citation is a number in brackets, such as [1], in the order the sources are first cited.
+Click **References > Citation Style** and pick **APA (6th edition)**, **MLA (7th edition)**, **Chicago (15th edition)**, **Harvard**, or **IEEE**. The editions are named because newer editions of those guides exist, and they are not built in. Every citation and bibliography in the document changes to that style. With IEEE, a citation is a number in brackets, such as [1], in the order the sources are first cited.
 
 ## Add the bibliography
 

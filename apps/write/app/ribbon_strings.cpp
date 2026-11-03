@@ -25,6 +25,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Editing"),
     QT_TRANSLATE_NOOP("Ribbon", "Fit"),
     QT_TRANSLATE_NOOP("Ribbon", "Font"),
+    QT_TRANSLATE_NOOP("Ribbon", "Footnote and Endnote"),
     QT_TRANSLATE_NOOP("Ribbon", "Footnotes"),
     QT_TRANSLATE_NOOP("Ribbon", "Header & Footer"),
     QT_TRANSLATE_NOOP("Ribbon", "Height:"),

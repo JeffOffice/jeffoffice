@@ -483,14 +483,17 @@
         {
           "name": "Footnotes",
           "keytip": "ZN",
+          "launcher": "notes",
+          "launcherTip": "Footnote and Endnote",
+          "launcherKeytip": "NO",
           "items": [
             {
               "large": "refs.footnote",
               "keytip": "F"
             },
             {
-              "large": "refs.endnote",
-              "keytip": "E"
+              "keytip": "E",
+              "small": "refs.endnote"
             },
             {
               "small": "refs.nextFootnote",
@@ -499,10 +502,6 @@
             {
               "small": "refs.previousFootnote",
               "keytip": "V"
-            },
-            {
-              "small": "refs.notesOptions",
-              "keytip": "O"
             },
             {
               "small": "refs.convertNotes",
@@ -531,7 +530,7 @@
               "keytip": "Y"
             },
             {
-              "large": {
+              "small": {
                 "id": "ribbon.bibliography",
                 "text": "Bibliography",
                 "icon": "book-open"

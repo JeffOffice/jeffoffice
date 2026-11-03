@@ -58,11 +58,11 @@ void WriteWindow::createRefsActions()
         }
         after();
     });
-    mk("refs.convertNotes", tr("Convert Notes…"), "arrow-left-right", QKeySequence(), [this, after] {
+    mk("refs.convertNotes", tr("Convert…"), "arrow-left-right", QKeySequence(), [this, after] {
         if (m_doc) write::convertNotesDialog(this, m_doc.get(), m_view);
         after();
     });
-    mk("refs.noteSeparators", tr("Note Separators…"), "separator-horizontal", QKeySequence(), [this, after] {
+    mk("refs.noteSeparators", tr("Separators…"), "separator-horizontal", QKeySequence(), [this, after] {
         if (m_doc) {
             bool endnotes = false;
             if (write::noteSeparatorsDialog(this, m_doc.get(), &endnotes) && endnotes) reloadDocument();
@@ -77,9 +77,9 @@ void WriteWindow::createRefsActions()
         }
         after();
     };
-    mk("refs.tocAutomatic1", tr("Automatic Table 1"), "table-of-contents", QKeySequence(), [gallery] { gallery(write::TocGallery::Automatic1); });
-    mk("refs.tocAutomatic2", tr("Automatic Table 2"), "table-of-contents", QKeySequence(), [gallery] { gallery(write::TocGallery::Automatic2); });
-    mk("refs.tocManual", tr("Manual Table"), "table-of-contents", QKeySequence(), [gallery] { gallery(write::TocGallery::Manual); });
+    mk("refs.tocAutomatic1", tr("Contents"), "table-of-contents", QKeySequence(), [gallery] { gallery(write::TocGallery::Automatic1); });
+    mk("refs.tocAutomatic2", tr("Contents with Full Title"), "table-of-contents", QKeySequence(), [gallery] { gallery(write::TocGallery::Automatic2); });
+    mk("refs.tocManual", tr("Contents to Fill In"), "table-of-contents", QKeySequence(), [gallery] { gallery(write::TocGallery::Manual); });
     auto addText = [this, after](int level) {
         if (m_doc && inText(m_view)) {
             QTextCursor c = m_view->cursor();
@@ -100,7 +100,7 @@ void WriteWindow::createRefsActions()
         if (m_doc && inText(m_view)) write::captionDialog(this, m_doc.get(), m_view);
         after();
     });
-    mk("refs.tableOfFigures", tr("Insert Table of Figures…"), "list-ordered", QKeySequence(), [this, after] {
+    mk("refs.tableOfFigures", tr("Table of Figures…"), "list-ordered", QKeySequence(), [this, after] {
         if (m_doc && inText(m_view)) write::tableOfFiguresDialog(this, m_doc.get(), m_view);
         after();
     });
@@ -145,11 +145,11 @@ void WriteWindow::createRefsActions()
         if (m_doc && inText(m_view)) write::markCitationDialog(this, m_doc.get(), m_view);
         after();
     });
-    mk("refs.insertAuthorities", tr("Insert Table of Authorities…"), "scale", QKeySequence(), [this, after] {
+    mk("refs.insertAuthorities", tr("Table of Authorities…"), "scale", QKeySequence(), [this, after] {
         if (m_doc && inText(m_view)) write::tableOfAuthoritiesDialog(this, m_doc.get(), m_view);
         after();
     });
-    mk("refs.updateAuthorities", tr("Update Table of Authorities"), "refresh-cw", QKeySequence(), [this, after] {
+    mk("refs.updateAuthorities", tr("Update Authorities"), "refresh-cw", QKeySequence(), [this, after] {
         if (m_doc && inText(m_view) && write::updateIndexOrAuthorities(*m_doc, m_view->cursor(), true) == 0) statusBar()->showMessage(tr("Put the caret in a table of authorities first."), 6000);
         after();
     });
