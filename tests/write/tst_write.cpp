@@ -20,6 +20,8 @@
 #include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "core/drawnitems.h"
+#include "core/fieldops.h"
+#include "core/commentops.h"
 #include "core/editops.h"
 #include "core/pagesetup.h"
 #include "core/pictureops.h"
@@ -14394,6 +14396,106 @@ private Q_SLOTS:
 
     // Convert Text to Table: each selected paragraph is a row cut at the separator, the table has as many columns as the longest row (the short rows get empty cells), the words stay
     // in order, one step undoes it, and the file opens the same; Table to Text puts the cells' words between the separator again.
+    // Text too big for a table is refused before any words are taken: one huge paragraph of commas, and a hundred thousand short paragraphs.
+    void convertTextToTableRefusesHostileTextBeforeBuildingAnything()
+    {
+        {
+            auto doc = open(makeDocx(cellP("x") + cellP(QString(3000000, QLatin1Char(',')).toUtf8()) + cellP("y"), kStyles));
+            QTextCursor c = cursorAt(*doc, QString(3000000, QLatin1Char(',')));
+            const QString was = plain(*doc);
+            const qint64 made = textToTableFragmentsMadeForTest();
+            QVERIFY(!convertTextToTable(*doc, c, TextSeparator::Commas, QChar(), 1));
+            QCOMPARE(textToTableFragmentsMadeForTest(), made);
+            QVERIFY2(doc->tableNotice.contains(QStringLiteral("500 rows and 63 columns")), qPrintable(doc->tableNotice));
+            QCOMPARE(plain(*doc), was);
+        }
+        {
+            QByteArray body;
+            for (int i = 0; i < 100000; ++i) body += "<w:p><w:r><w:t>p</w:t></w:r></w:p>";
+            auto doc = open(makeDocx(body, kStyles));
+            QTextCursor c(doc->story());
+            c.select(QTextCursor::Document);
+            const qint64 made = textToTableFragmentsMadeForTest();
+            QVERIFY(!convertTextToTable(*doc, c, TextSeparator::Paragraphs, QChar(), 1));
+            QCOMPARE(textToTableFragmentsMadeForTest(), made);
+            QVERIFY2(doc->tableNotice.contains(QStringLiteral("500 rows and 63 columns")), qPrintable(doc->tableNotice));
+            QTextCursor all(doc->story());
+            all.select(QTextCursor::Document);
+            QVERIFY(!convertTextToTable(*doc, all, TextSeparator::Paragraphs, QChar(), 64));   // (too many columns)
+            QCOMPARE(textToTableFragmentsMadeForTest(), made);
+        }
+    }
+
+    // The note, comment, and bookmark in text that becomes a table are the same ones in the cells (they are moved, not copied and taken out).
+    static QString rangeText(WriteDoc &doc, int from, int to)
+    {
+        QTextCursor r(doc.story());
+        r.setPosition(from);
+        r.setPosition(to, QTextCursor::KeepAnchor);
+        return r.selectedText().remove(QChar(0xFFFC));
+    }
+    void convertTextToTableKeepsNotesCommentsAndBookmarks()
+    {
+        auto doc = open(makeDocx(cellP("before") + "<w:p><w:r><w:t>aa</w:t></w:r><w:r><w:t xml:space=\"preserve\">\t</w:t></w:r><w:bookmarkStart w:id=\"7\" w:name=\"mark\"/><w:r><w:t>bb</w:t></w:r><w:bookmarkEnd w:id=\"7\"/>"
+                                                  "<w:r><w:t xml:space=\"preserve\">\t</w:t></w:r><w:r><w:t>cc</w:t></w:r></w:p>" + cellP("after"), kStyles));
+        QTextCursor n = cursorAt(*doc, QStringLiteral("aa\tbb\tcc"));
+        n.setPosition(n.block().position() + 2);
+        QTextDocument *note = insertFootnote(*doc, n);
+        QVERIFY(note);
+        n.insertText(QStringLiteral("note words"));
+        QTextCursor sel(doc->story());
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.text().startsWith(QStringLiteral("aa"))) sel.setPosition(b.position());
+        {
+            const QString text = sel.block().text();
+            const int cc = int(text.indexOf(QStringLiteral("cc")));
+            sel.setPosition(sel.block().position() + cc);
+            sel.setPosition(sel.block().position() + cc + 2, QTextCursor::KeepAnchor);
+            QVERIFY(addComment(*doc, sel, QStringLiteral("remark")) >= 0);
+        }
+        auto count = [](const QByteArray &x, const char *needle) { return int(x.count(needle)); };
+        const QByteArray before = documentXml(doc->toDocx());
+        QCOMPARE(count(before, "<w:footnoteReference"), 1);
+        QCOMPARE(count(before, "<w:commentRangeStart"), 1);
+        QCOMPARE(count(before, "w:name=\"mark\""), 1);
+        {
+            office::Package pkg;
+            pkg.read(doc->toDocx());
+            QVERIFY(pkg.part(QStringLiteral("/word/footnotes.xml")).contains("note words"));
+        }
+        {
+            const QVector<Comment> was = comments(*doc);
+            QCOMPARE(rangeText(*doc, was[0].from, was[0].to), QStringLiteral("cc"));
+        }
+        QTextCursor c(doc->story());
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.text().startsWith(QStringLiteral("aa"))) c.setPosition(b.position());
+        QVERIFY(convertTextToTable(*doc, c, TextSeparator::Tabs, QChar(), 1));
+        const QByteArray x = documentXml(doc->toDocx());
+        QCOMPARE(count(x, "<w:footnoteReference"), 1);
+        QCOMPARE(count(x, "<w:commentRangeStart"), 1);
+        QCOMPARE(count(x, "<w:commentRangeEnd"), 1);
+        QCOMPARE(count(x, "w:name=\"mark\""), 1);
+        QCOMPARE(count(x, "<w:bookmarkEnd"), 1);
+        {
+            office::Package pkg;
+            pkg.read(doc->toDocx());
+            QVERIFY(pkg.part(QStringLiteral("/word/footnotes.xml")).contains("note words"));
+            const StoryScan scan = scanStory(doc->story());
+            QCOMPARE(int(scan.bookmarks.size()), 1);
+            QCOMPARE(rangeText(*doc, scan.bookmarks[0].start, scan.bookmarks[0].end), QStringLiteral("bb"));
+        }
+        QCOMPARE(int(comments(*doc).size()), 1);
+        QCOMPARE(int(doc->footnoteReferences(1).size()), 1);
+        checkTablesReopenTheSame(*doc);
+        const QVector<Comment> all = comments(*doc);
+        QVERIFY(all[0].from >= 0 && all[0].to > all[0].from);
+        QCOMPARE(rangeText(*doc, all[0].from, all[0].to), QStringLiteral("cc"));
+        doc->story()->undo();
+        QCOMPARE(count(documentXml(doc->toDocx()), "<w:footnoteReference"), 1);
+        QCOMPARE(int(comments(*doc).size()), 1);
+    }
+
     void convertTextToTableAndBack()
     {
         auto doc = open(makeDocx(cellP("before") + cellP("a\tb\tc") + cellP("d\te") + cellP("after"), kStyles));

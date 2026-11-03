@@ -47,7 +47,7 @@ struct ViewCache {
     std::shared_ptr<void> last;     // the View made last, for the table it is of
 };
 
-qint64 g_viewsBuilt = 0, g_cellsScanned = 0, g_fontMeasures = 0;
+qint64 g_viewsBuilt = 0, g_cellsScanned = 0, g_fontMeasures = 0, g_fragmentsMade = 0;
 
 struct View {
     std::shared_ptr<flow::TableIndex> own;
@@ -2465,6 +2465,7 @@ bool splitCells(WriteDoc &doc, QTextCursor &c, int columns, int rows)
 
 
 qint64 tableViewsBuiltForTest() { return g_viewsBuilt; }
+qint64 textToTableFragmentsMadeForTest() { return g_fragmentsMade; }
 int tableRecordsReachableForTest(WriteDoc &doc) { return int(reachableKeys(doc).size()); }
 qint64 tableCellsScannedForTest() { return g_cellsScanned; }
 qint64 tableFontMeasuresMadeForTest() { return g_fontMeasures; }
@@ -2654,22 +2655,33 @@ bool convertTextToTable(WriteDoc &doc, QTextCursor &c, TextSeparator separator, 
     int a = c.selectionStart(), b = c.selectionEnd();
     if (b > a && d->findBlock(b).position() == b) --b;
     const QTextBlock firstBlock = d->findBlock(a);
+    // What the table would be is worked out before any words are taken: a table made from text has at most 500 rows and 63 columns (what a table made by the program holds).
+    const QString tooBig = tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A table made from text can have at most 500 rows and 63 columns."));
+    constexpr int kMostRows = 500, kMostColumns = 63;
+    if (columns > kMostColumns && separator == TextSeparator::Paragraphs) return refuse(doc, tooBig);
+    const QChar sep = separator == TextSeparator::Tabs ? QChar('\t') : separator == TextSeparator::Commas ? QChar(',') : other;
+    if (separator != TextSeparator::Paragraphs && sep.isNull()) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "Type the character that separates the cells.")));
+    int wide = std::max(1, columns);
     QVector<QTextBlock> blocks;
+    const int mostBlocks = separator == TextSeparator::Paragraphs ? kMostRows * wide : kMostRows;
     for (QTextBlock blk = firstBlock; blk.isValid() && blk.position() <= b; blk = blk.next()) {
         blocks.push_back(blk);
-        if (blocks.size() > 100000) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A table can have at most 50,000 cells.")));
+        if (blocks.size() > mostBlocks) return refuse(doc, tooBig);
+        if (separator != TextSeparator::Paragraphs) {
+            wide = std::max(wide, int(blk.text().count(sep)) + 1);
+            if (wide > kMostColumns) return refuse(doc, tooBig);
+        }
     }
-    const QChar sep = separator == TextSeparator::Tabs ? QChar('\t') : separator == TextSeparator::Commas ? QChar(',') : other;
     // The cells' words, as fragments that keep their formatting: a row for each paragraph, cut at the separator (or, for paragraphs, each paragraph a cell).
     QVector<QVector<QTextDocumentFragment>> rows;
     auto fragmentOf = [&](int from, int to) {
         if (to <= from) return QTextDocumentFragment();
+        ++g_fragmentsMade;
         QTextCursor t(d);
         t.setPosition(from);
         t.setPosition(to, QTextCursor::KeepAnchor);
         return t.selection();
     };
-    int wide = std::max(1, columns);
     if (separator == TextSeparator::Paragraphs) {
         QVector<QTextDocumentFragment> row;
         for (const QTextBlock &blk : std::as_const(blocks)) {
@@ -2684,7 +2696,6 @@ bool convertTextToTable(WriteDoc &doc, QTextCursor &c, TextSeparator separator, 
             rows.push_back(row);
         }
     } else {
-        if (sep.isNull()) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "Type the character that separates the cells.")));
         for (const QTextBlock &blk : std::as_const(blocks)) {
             QVector<QTextDocumentFragment> row;
             const QString text = blk.text();
@@ -2694,15 +2705,13 @@ bool convertTextToTable(WriteDoc &doc, QTextCursor &c, TextSeparator separator, 
                     row.push_back(fragmentOf(blk.position() + from, blk.position() + i));
                     from = i + 1;
                 }
-            wide = std::max(wide, int(row.size()));
             rows.push_back(row);
         }
     }
-    if (pastTheLimits(doc, int(rows.size()), wide, qint64(rows.size()) * wide)) return false;
     NewTable table;
     table.rows = int(rows.size());
     table.columns = wide;
-    if (table.rows < 1 || table.rows > 500 || table.columns > 63) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A table made from text can have at most 500 rows and 63 columns.")));
+    if (table.rows < 1) return false;
     const int firstPos = firstBlock.position();
     c.beginEditBlock();
     QTextCursor at(d);
