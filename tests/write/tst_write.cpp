@@ -9633,7 +9633,12 @@ private Q_SLOTS:
         const int pages = doc->pager().pageCount();
         QVERIFY2(pages >= 8, qPrintable(QString::number(pages)));
         const qint64 best = bestNanoseconds([&] { doc->pager().materialize(pages - 2); }, 3);
-        QVERIFY2(best < 1000000000LL, qPrintable(QStringLiteral("%1 ms to copy page %2 of %3").arg(best / 1000000).arg(pages - 1).arg(pages)));
+#if defined(__SANITIZE_ADDRESS__)
+        const qint64 ceiling = 30000000000LL;   // (a build that checks every access takes many times as long)
+#else
+        const qint64 ceiling = 1000000000LL;
+#endif
+        QVERIFY2(best < ceiling, qPrintable(QStringLiteral("%1 ms to copy page %2 of %3").arg(best / 1000000).arg(pages - 1).arg(pages)));
     }
 
     // A page break that ends the last line of a run of joined paragraphs, with no room on the page for the empty line after it, goes on at the paragraph after the run: nothing of the run
