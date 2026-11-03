@@ -12,6 +12,7 @@
 #include "app/icons.h"
 #include "app/pageview.h"
 #include "app/recovery.h"
+#include "app/ribbon.h"
 #include "app/settings.h"
 #include "app/telemetry.h"
 #include "app/theme.h"
@@ -126,6 +127,11 @@ int main(int argc, char **argv)
             w->view()->paginateAll();
             applyView();
             w->view()->setCaretWithoutFocus(true);
+            // (A hook for screenshots: the ribbon tab to show, by name, as the tab is named in ribbon.json.)
+            const QString tab = qEnvironmentVariable("JW_SCREENSHOT_TAB");
+            if (!tab.isEmpty())
+                for (int i = 0; i < w->ribbon()->tabCount(); ++i)
+                    if (w->ribbon()->tabName(i) == tab) w->ribbon()->showTab(w->ribbon()->tabPage(i));
             QTimer::singleShot(300, w, [w, out] {
                 w->grab().save(out);
                 QApplication::exit(0);

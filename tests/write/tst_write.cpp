@@ -2681,6 +2681,34 @@ private Q_SLOTS:
         QVERIFY(img.pixelColor(2, 300).lightness() < 240);   // (the ground is not white)
     }
 
+    // View Gridlines draws the edges of the cells of a table that has no lines, on the screen: the page has more gray pixels with it on, and none of them without.
+    void viewGridlinesDrawsTheEdgesOfCellsThatHaveNoLines()
+    {
+        auto doc = open(makeDocx(tableX(rowX(cellX(cellP("aa")) + cellX(cellP("bb"))) + rowX(cellX(cellP("cc")) + cellX(cellP("dd"))), 2), kStyles));
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        auto grays = [&] {
+            const QImage img = view.grab().toImage();
+            const QRect page = view.pageRect(0);
+            int n = 0;
+            for (int y = page.top(); y < std::min(page.bottom(), img.height()); ++y)
+                for (int x = page.left(); x < page.right(); ++x) {
+                    const QColor c = img.pixelColor(x, y);
+                    if (c.lightness() > 150 && c.lightness() < 235 && std::abs(c.red() - c.blue()) < 8) ++n;
+                }
+            return n;
+        };
+        const int without = grays();
+        QVERIFY(!view.showGridlines());
+        view.setShowGridlines(true);
+        QVERIFY(view.showGridlines());
+        QTRY_VERIFY2(grays() > without + 20, qPrintable(QString::number(without)));
+        view.setShowGridlines(false);
+        QTRY_COMPARE(grays(), without);
+    }
+
     void theCaretIsDrawnOnThePageThatHoldsIt()
     {
         auto doc = open(makeDocx(paragraphs(120), kStyles));

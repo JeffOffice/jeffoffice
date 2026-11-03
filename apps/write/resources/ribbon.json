@@ -874,6 +874,10 @@
             {
               "small": "table.insertRight",
               "keytip": "IR"
+            },
+            {
+              "small": "table.splitTable",
+              "keytip": "ST"
             }
           ]
         },
@@ -888,10 +892,6 @@
             {
               "large": "table.split",
               "keytip": "SC"
-            },
-            {
-              "large": "table.splitTable",
-              "keytip": "ST"
             }
           ]
         },
