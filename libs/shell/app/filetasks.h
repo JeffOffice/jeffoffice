@@ -20,12 +20,25 @@ enum class OpenHow {
     Repair,      // a damaged file: what can be read is kept, and what was dropped is said
 };
 
+// Whether two paths are one file (links followed; the capitals of a name count only where the system counts them; a hard link is the same file). Either may not be there yet.
+bool sameFile(const QString &a, const QString &b);
+
 // ---- Backup copy kept on every save (Options: "Always create backup copy"; the setting "save/backup", kept for each app)
 bool backupOnSave();
 // "Backup of <name>", beside the file.
 QString backupPathFor(const QString &path);
-// With the option on and the file there already: copies it to backupPathFor(path), before a save writes over it. True when a copy was made.
-bool keepBackupBeforeSave(const QString &path);
+enum class BackupResult {
+    NotNeeded,   // the option is off, or there is no file there to keep
+    Made,        // the file is copied to backupPathFor(path)
+    Failed,      // the copy could not be made (the backup that was there before is as it was)
+};
+// With the option on and the file there already: copies it to backupPathFor(path), before a save writes over it. The copy is written under a name of its own and put in place when it is whole,
+// so a copy that fails leaves the old backup as it was.
+BackupResult keepBackupBeforeSave(const QString &path);
+// What a save does before it writes over `path`: keeps the backup, and when that fails asks whether to save without one (the answer is No unless the person says Yes). True when the save may
+// go on. A test stands in for the question with a function that gives the answer (set to an empty function: asked as usual).
+bool backupBeforeSave(QWidget *parent, const QString &path);
+void setBackupFailureStandIn(const std::function<bool(const QString &path)> &standIn);
 
 // ---- My Templates: the files a person saved as templates, in the app's data folder
 QString myTemplatesFolder();

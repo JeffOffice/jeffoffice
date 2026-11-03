@@ -5,6 +5,12 @@
 #include "app/plaintext.h"
 #include "app/settings.h"
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#else
+#include <sys/stat.h>
+#endif
+
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
@@ -16,13 +22,26 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
+#include <QMessageBox>
+#include <QSaveFile>
 #include <QStandardPaths>
 #include <QStyleHints>
+#include <QLocale>
 #include <QVBoxLayout>
 
 namespace jp {
 
 namespace {
+
+// Where a path really is: the file as it is (links followed), or for a file that is not there yet, its folder as it is with the file's name.
+QString placeOf(const QString &path)
+{
+    const QFileInfo info(path);
+    const QString real = info.canonicalFilePath();
+    if (!real.isEmpty()) return real;
+    const QString folder = QFileInfo(info.absolutePath()).canonicalFilePath();
+    return (folder.isEmpty() ? QDir::cleanPath(info.absolutePath()) : folder) + QLatin1Char('/') + info.fileName();
+}
 
 std::function<QString(const QString &)> &nameStandIn()
 {
@@ -34,6 +53,40 @@ QString thumbnailPath(const QString &templatePath) { return QFileInfo(templatePa
 
 } // namespace
 
+// ---- The same file
+
+// Whether two names that both exist are one file on the disk (a hard link is a second name for the same file; the paths do not show it).
+static bool sameFileOnDisk(const QString &a, const QString &b)
+{
+#ifdef Q_OS_WIN
+    auto identity = [](const QString &path, BY_HANDLE_FILE_INFORMATION *info) {
+        const HANDLE h = CreateFileW(reinterpret_cast<LPCWSTR>(QDir::toNativeSeparators(path).utf16()), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
+                                     FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+        if (h == INVALID_HANDLE_VALUE) return false;
+        const bool ok = GetFileInformationByHandle(h, info) != 0;
+        CloseHandle(h);
+        return ok;
+    };
+    BY_HANDLE_FILE_INFORMATION x{}, y{};
+    return identity(a, &x) && identity(b, &y) && x.dwVolumeSerialNumber == y.dwVolumeSerialNumber && x.nFileIndexHigh == y.nFileIndexHigh && x.nFileIndexLow == y.nFileIndexLow;
+#else
+    struct stat x, y;
+    return ::stat(QFile::encodeName(a).constData(), &x) == 0 && ::stat(QFile::encodeName(b).constData(), &y) == 0 && x.st_dev == y.st_dev && x.st_ino == y.st_ino;
+#endif
+}
+
+bool sameFile(const QString &a, const QString &b)
+{
+    if (a.isEmpty() || b.isEmpty()) return false;
+    // (the names of files are the same in capitals and small letters on the systems whose files are)
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+    constexpr Qt::CaseSensitivity kCase = Qt::CaseInsensitive;
+#else
+    constexpr Qt::CaseSensitivity kCase = Qt::CaseSensitive;
+#endif
+    return QFileInfo(a) == QFileInfo(b) || placeOf(a).compare(placeOf(b), kCase) == 0 || sameFileOnDisk(a, b);
+}
+
 // ---- Backup copy
 
 bool backupOnSave() { return Settings::get().value(QStringLiteral("save/backup"), false).toBool(); }
@@ -44,12 +97,46 @@ QString backupPathFor(const QString &path)
     return fi.absoluteDir().filePath(QStringLiteral("Backup of ") + fi.fileName());
 }
 
-bool keepBackupBeforeSave(const QString &path)
+BackupResult keepBackupBeforeSave(const QString &path)
 {
-    if (!backupOnSave() || !QFileInfo(path).isFile()) return false;
-    const QString backup = backupPathFor(path);
-    QFile::remove(backup);
-    return QFile::copy(path, backup);
+    if (!backupOnSave() || !QFileInfo(path).isFile()) return BackupResult::NotNeeded;
+    // The copy goes to a file of its own that replaces the old backup only when it is written whole.
+    QFile in(path);
+    if (!in.open(QIODevice::ReadOnly)) return BackupResult::Failed;
+    QSaveFile out(backupPathFor(path));
+    if (!out.open(QIODevice::WriteOnly)) return BackupResult::Failed;
+    QByteArray chunk(1 << 20, Qt::Uninitialized);
+    for (;;) {
+        const qint64 n = in.read(chunk.data(), chunk.size());
+        if (n < 0) {
+            out.cancelWriting();
+            return BackupResult::Failed;
+        }
+        if (n == 0) break;
+        if (out.write(chunk.constData(), n) != n) {
+            out.cancelWriting();
+            return BackupResult::Failed;
+        }
+    }
+    return out.commit() ? BackupResult::Made : BackupResult::Failed;
+}
+
+namespace {
+std::function<bool(const QString &)> &backupStandIn()
+{
+    static std::function<bool(const QString &)> standIn;
+    return standIn;
+}
+} // namespace
+
+void setBackupFailureStandIn(const std::function<bool(const QString &)> &standIn) { backupStandIn() = standIn; }
+
+bool backupBeforeSave(QWidget *parent, const QString &path)
+{
+    if (keepBackupBeforeSave(path) != BackupResult::Failed) return true;
+    if (backupStandIn()) return backupStandIn()(path);
+    return plainQuestion(parent, QCoreApplication::translate("FileTasks", "Save"),
+                         QCoreApplication::translate("FileTasks", "A backup copy of \"%1\" couldn't be made, so the copy that is there is as it was.\n\nSave without a backup?").arg(QFileInfo(path).fileName()), QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
 }
 
 // ---- My Templates

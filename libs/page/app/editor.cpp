@@ -577,6 +577,13 @@ void Editor::finishChange(int page, const QStringList &selection)
         earlier.fromJson(QJsonDocument::fromJson(qUncompress(m_before)).object());
         if (masterEdited(*m_doc, earlier)) after = snapshot();
     }
+    if (after != m_before && m_readOnly) {
+        // A document open for reading only is not changed, whatever asked for the change: it is taken back, and no step is made.
+        restore(m_before, m_selBefore, m_pageBefore, m_masterBefore);
+        m_before.clear();
+        Q_EMIT changed();
+        return;
+    }
     if (after != m_before) {
         m_undo.push(new SnapshotCommand(this, m_label, m_before, after, m_selBefore, selection, m_pageBefore, page, m_masterBefore, m_master));
     }

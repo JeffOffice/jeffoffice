@@ -209,6 +209,7 @@ private:
         }
         QWidget *w = (*it)();
         if (!w) problem(QStringLiteral("widget \"%1\" was not created").arg(name));
+        else w->setProperty("ribbonWidget", name);   // (what a read-only document does with it is decided by the name)
         return w;
     }
 

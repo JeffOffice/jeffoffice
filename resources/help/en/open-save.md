@@ -9,7 +9,7 @@ Press Ctrl+S, click the **Save** button in the quick toolbar, or click **File > 
 
 A star (*) after the name in the title bar means you have changes you have not saved. Save often. If JeffPub stops by surprise, see [Get back unsaved work](recover).
 
-To keep the last saved copy of a file, turn on **Always create backup copy**. Each time you save, JeffPub first copies the old file to one called "Backup of" plus its name, in the same folder. You find this option in **File > Options**, on the **General** tab. Every JeffOffice app has it.
+To keep the last saved copy of a file, turn on **Always create backup copy**. Each time you save, JeffPub first copies the old file to one called "Backup of" plus its name, in the same folder. If the copy can't be made, the app asks whether to save without it. The answer is No unless you say Yes, and the file stays as it was. You find this option in **File > Options**, on the **General** tab. Every JeffOffice app has it.
 
 ## Save with a new name
 

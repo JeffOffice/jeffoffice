@@ -35,7 +35,7 @@ Click **File > Save a Copy** and choose a name. JeffDeck writes the presentation
 
 ## Keep a backup copy
 
-Click **File > Options**, and on the **General** tab turn on **Always create backup copy**. Each time you save, JeffDeck first copies the old file to one called "Backup of" plus its name, in the same folder.
+Click **File > Options**, and on the **General** tab turn on **Always create backup copy**. Each time you save, JeffDeck first copies the old file to one called "Backup of" plus its name, in the same folder. If the copy can't be made, the app asks whether to save without it. The answer is No unless you say Yes, and the file stays as it was.
 
 ## Save as a template
 

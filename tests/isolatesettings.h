@@ -9,6 +9,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QString>
 #include <QTemporaryDir>
 
@@ -67,5 +68,13 @@ inline bool settingsAreIsolated()
     const QString file = QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite")).fileName();
     return file.startsWith(QDir::tempPath() + QLatin1Char('/')) && !file.startsWith(realSettingsFolder() + QLatin1Char('/'));
 }
+
+// A test that saves to the program's own data folder (My Templates, the dictionary) puts it in Qt's test folder instead, and puts it back however the test ends.
+struct TestModeGuard {
+    TestModeGuard() { QStandardPaths::setTestModeEnabled(true); }
+    ~TestModeGuard() { QStandardPaths::setTestModeEnabled(false); }
+    TestModeGuard(const TestModeGuard &) = delete;
+    TestModeGuard &operator=(const TestModeGuard &) = delete;
+};
 
 } // namespace jptest

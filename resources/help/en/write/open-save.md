@@ -32,7 +32,7 @@ Click **File > Save a Copy**. Choose a name. JeffWrite writes the document to th
 
 ## Keep a backup copy
 
-Click **File > Options**, and on the **General** page turn on **Always create backup copy**. Each time you save, JeffWrite first copies the old file to one called "Backup of" plus its name, in the same folder. Then you can go back to the last saved version.
+Click **File > Options**, and on the **General** page turn on **Always create backup copy**. Each time you save, JeffWrite first copies the old file to one called "Backup of" plus its name, in the same folder. If the copy can't be made, JeffWrite asks whether to save without it. The answer is No unless you say Yes, and the file stays as it was. Then you can go back to the last saved version.
 
 ## Save as a template
 
