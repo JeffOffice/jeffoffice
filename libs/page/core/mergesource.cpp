@@ -63,13 +63,15 @@ QVector<QStringList> parseDelimited(const QString &text, QChar sep, bool *trunca
 }
 
 // A spreadsheet the workbook reader can't take (a package with no workbook part, say) is read for its first sheet's cells alone.
-static QVector<QStringList> readXlsx(const QByteArray &data)
+// A sheet part that is cut short or not well formed gives no rows, so a damaged file is never read as a shorter list.
+static QVector<QStringList> readXlsx(const QByteArray &data, bool *truncated)
 {
     QMap<QString, QByteArray> files;
     jp::readZip(data, files);
     QStringList shared;
     {
-        QXmlStreamReader r(files.value(QStringLiteral("xl/sharedStrings.xml")));
+        const QByteArray part = files.value(QStringLiteral("xl/sharedStrings.xml"));
+        QXmlStreamReader r(part);
         QString cur;
         bool inSi = false;
         while (!r.atEnd()) {
@@ -78,8 +80,10 @@ static QVector<QStringList> readXlsx(const QByteArray &data)
             else if (r.isStartElement() && r.name() == u"t" && inSi) cur += r.readElementText();
             else if (r.isEndElement() && r.name() == u"si") { shared << cur; inSi = false; }
         }
+        if (!part.isEmpty() && r.hasError()) return {};
     }
     QVector<QStringList> rows;
+    qint64 cells = 0;
     QXmlStreamReader r(files.value(QStringLiteral("xl/worksheets/sheet1.xml")));
     QStringList row;
     int rowIndex = -1;
@@ -107,8 +111,16 @@ static QVector<QStringList> readXlsx(const QByteArray &data)
             if (col >= kMostMergeColumns) continue;
             while (row.size() < col) row << QString();
             if (col >= 0 && col == row.size()) row << v; else if (col >= 0 && col < row.size()) row[col] = v;
-        } else if (r.isEndElement() && r.name() == u"row") rows << row;
+        } else if (r.isEndElement() && r.name() == u"row") {
+            cells += row.size();
+            if (cells > kMostMergeCells) {
+                if (truncated) *truncated = true;
+                return rows;
+            }
+            rows << row;
+        }
     }
+    if (r.hasError()) return {};
     return rows;
 }
 
@@ -120,7 +132,7 @@ bool readSpreadsheetRows(const QString &path, QVector<QStringList> *rows, QStrin
     if (!book.openFile(path, &why)) {
         if (path.endsWith(QLatin1String(".xlsx"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".xlsm"), Qt::CaseInsensitive)) {
             QFile f(path);
-            if (f.open(QIODevice::ReadOnly)) *rows = readXlsx(f.readAll());
+            if (f.open(QIODevice::ReadOnly)) *rows = readXlsx(f.readAll(), truncated);
             if (!rows->isEmpty()) return true;
         }
         if (error) *error = why;

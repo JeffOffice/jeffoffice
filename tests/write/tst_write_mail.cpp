@@ -976,6 +976,14 @@ private Q_SLOTS:
         error.clear();
         QVERIFY(!loadMergeSource(writeFile(dir, "half.xlsx", w.finish()), &half, &error));
         QVERIFY(!error.isEmpty());
+        // A package with no workbook part is read for its first sheet alone; a sheet cut short there is an error too.
+        office::PackageWriter bare;
+        bare.addPart(QStringLiteral("/xl/worksheets/sheet1.xml"), "<?xml version=\"1.0\"?><worksheet " + ns + "><sheetData><row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Name</t></is></c></row><row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>Ann</t></is></c></row><row r=\"3\"><c r=\"A3\" t=\"inl",
+                     QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
+        MergeSource bareHalf;
+        error.clear();
+        QVERIFY(!loadMergeSource(writeFile(dir, "barehalf.xlsx", bare.finish()), &bareHalf, &error));
+        QVERIFY(!error.isEmpty());
     }
 
     void aMessageIsAddressedToTheRecipientItWasMadeFrom()
