@@ -360,6 +360,53 @@ QByteArray settingsWithNoteSeparators(const QByteArray &settings, bool endnotes)
     return settings.left(at) + open + inside + close + settings.mid(at);
 }
 
+QByteArray settingsWithNoteProperties(const QByteArray &settings, bool endnotes, const NoteProperties &p)
+{
+    static const char kXml[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n";
+    const QByteArray group = endnotes ? "endnotePr" : "footnotePr", note = endnotes ? "endnote" : "footnote";
+    auto inner = [&](const QByteArray &prefix, const QByteArray &refs) {
+        QByteArray out;
+        if (!p.position.isEmpty()) out += "<" + prefix + "pos " + prefix + "val=\"" + escapeXml(p.position, true) + "\"/>";
+        if (!p.format.isEmpty()) out += "<" + prefix + "numFmt " + prefix + "val=\"" + escapeXml(p.format, true) + "\"/>";
+        if (p.start > 0) out += "<" + prefix + "numStart " + prefix + "val=\"" + QByteArray::number(std::min(p.start, 32767)) + "\"/>";
+        if (!p.restart.isEmpty()) out += "<" + prefix + "numRestart " + prefix + "val=\"" + escapeXml(p.restart, true) + "\"/>";
+        return out + refs;
+    };
+    if (settings.trimmed().isEmpty())
+        return QByteArray(kXml) + "<w:settings xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><w:" + group + ">" +
+               inner("w:", QByteArray()) + "</w:" + group + "></w:settings>";
+    QVector<SettingsChild> children;
+    qsizetype rootEnd = 0;
+    QByteArray prefix;
+    if (!settingsChildren(settings, &children, &rootEnd, &prefix)) return settings;
+    for (const SettingsChild &c : children) {
+        if (c.name != group) continue;
+        // (The notes the group names, the separators, stay as they are; what it says of the numbering is made again.)
+        const QByteArray whole = settings.mid(c.begin, c.end - c.begin);
+        QByteArray refs;
+        const QByteArray tag = "<" + prefix + note;
+        for (qsizetype at = whole.indexOf(tag); at >= 0; at = whole.indexOf(tag, at + 1)) {
+            const qsizetype close = whole.indexOf('>', at);
+            if (close < 0) break;
+            if (at + tag.size() < whole.size() && whole[at + tag.size()] != ' ' && whole[at + tag.size()] != '/' && whole[at + tag.size()] != '>') continue;
+            refs += whole.mid(at, close - at + 1);
+        }
+        return settings.left(c.begin) + "<" + prefix + group + ">" + inner(prefix, refs) + "</" + prefix + group + ">" + settings.mid(c.end);
+    }
+    static const char *const later[] = {"endnotePr", "compat", "docVars", "rsids", "mathPr", "attachedSchema", "themeFontLang", "clrSchemeMapping", "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures",
+                                        "forceUpgrade", "captions", "readModeInkLockDown", "smartTagType", "schemaLibrary", "shapeDefaults", "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
+    qsizetype at = rootEnd;
+    for (const SettingsChild &c : children) {
+        bool after = false;
+        for (const char *name : later) after = after || (c.name == name && !(endnotes && c.name == "endnotePr"));
+        if (after) {
+            at = c.begin;
+            break;
+        }
+    }
+    return settings.left(at) + "<" + prefix + group + ">" + inner(prefix, QByteArray()) + "</" + prefix + group + ">" + settings.mid(at);
+}
+
 // ---- Fonts
 
 bool Fonts::operator==(const Fonts &o) const

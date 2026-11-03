@@ -279,6 +279,7 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
     writeHeaderParts(&out);
     writeReviewSettings(&out);
     writeSourcesPart(&out);
+    writeNoteSettings(&out);
     writeCommentParts(&out);
     writeNoteParts(&out);
     writeEndnoteParts(&out);

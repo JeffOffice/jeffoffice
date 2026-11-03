@@ -263,8 +263,7 @@ void WriteDoc::activateNotes()
     }
     m_noteFields = std::make_unique<NoteFields>(this);
     m_flow->fields = m_noteFields.get();
-    const QByteArray settings = m_wml.settingsName.isEmpty() ? QByteArray() : partData(m_wml.settingsName);
-    m_flow->restartNotesInSections = office::wml::noteNumberRestart(settings, "footnotePr") == QLatin1String("eachSect");
+    applyFootnoteSettings();
     measureNoteSeparator();
     if (m_pager) m_pager->invalidate();
 }

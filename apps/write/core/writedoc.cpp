@@ -435,6 +435,7 @@ void WriteDoc::setUpEnvironment()
         if (!endnotes.format.isEmpty()) m_endnoteFormat = endnotes.format;
         if (endnotes.start > 0) m_endnoteStart = endnotes.start;
         m_endnotePosition = endnotes.position;
+        m_endnoteRestartSections = office::wml::noteNumberRestart(settingsBytes, "endnotePr") == QLatin1String("eachSect");
         f.env.wordNoHang = !compat.useFELayout || compat.doNotWrapTextWithPunct;
         f.env.wordSpaceSums = compat.doNotUseHTMLParagraphAutoSpacing;
         f.env.wordNoHangStop = compat.noTabHangInd;

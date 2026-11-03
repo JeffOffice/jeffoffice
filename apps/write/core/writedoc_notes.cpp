@@ -434,7 +434,10 @@ void WriteDoc::rebuildEndnoteTails()
                 m_endnoteRefs.push_back({atom.key, shown, section, atEnd.value(section)});
             }
         }
-        if (b.blockFormat().boolProperty(flow::fp::SectionBreakAfter)) ++section;
+        if (b.blockFormat().boolProperty(flow::fp::SectionBreakAfter)) {
+            ++section;
+            if (m_endnoteRestartSections) number = m_endnoteStart - 1;
+        }
     }
     for (const Renumber &r : std::as_const(renumber)) {
         QTextCursor t(d);
@@ -514,8 +517,7 @@ void WriteDoc::loadNotes()
     m_noteFields = std::make_unique<NoteFields>(this);
     m_flow->fields = m_noteFields.get();
     // The notes' numbers begin again in each section when the file's settings say so.
-    const QByteArray settings = m_wml.settingsName.isEmpty() ? QByteArray() : partData(m_wml.settingsName);
-    m_flow->restartNotesInSections = office::wml::noteNumberRestart(settings, "footnotePr") == QLatin1String("eachSect");
+    applyFootnoteSettings();
 }
 
 // The paragraph the pages set between their text and their notes (the file's own, holding the rule): its height as the file sets it, or, for a file

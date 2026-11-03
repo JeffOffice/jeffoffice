@@ -580,6 +580,15 @@ QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesCh
 // The settings with the Ids of the separator notes named (w:footnotePr, or w:endnotePr, with a w:footnote or w:endnote child for each of -1 and 0), put where the schema has the
 // group; one that names notes already is as it was. An empty part gives a minimal one.
 QByteArray settingsWithNoteSeparators(const QByteArray &settings, bool endnotes);
+// What a settings part says of how a kind of note is numbered and where it is set (its footnotePr or endnotePr group).
+struct NoteProperties {
+    QString position;   // pageBottom, beneathText, sectEnd, or docEnd (empty: not said)
+    QString format;     // numFmt (empty: not said)
+    int start = 0;      // numStart (0: not said)
+    QString restart;    // continuous, eachSect, or eachPage (empty: not said)
+};
+// The settings with that group made as these properties say (what was in it about the numbering is replaced; the notes it names for the separators stay); a part with none is made.
+QByteArray settingsWithNoteProperties(const QByteArray &settings, bool endnotes, const NoteProperties &properties);
 
 // A font of a font table: its name, the alternate it names (a family to set it in where it is missing), its kind (roman, swiss, modern, script,
 // decorative, or auto), its pitch (fixed, variable, or default), its PANOSE classification (ten two-digit numbers), and its character set (two hex digits,

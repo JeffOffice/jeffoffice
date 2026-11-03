@@ -22,6 +22,27 @@ bool inText(const write::PageView *view) { return view && !view->inHeaderFooter(
 
 } // namespace
 
+// Reads the document again from what it would save, as it is now: what the endnotes' settings changed is made again in the text. The history begins again, the caret stays where it was, and
+// the document is still changed.
+void WriteWindow::reloadDocument()
+{
+    if (!m_doc) return;
+    QString err;
+    QStringList notes;
+    const QByteArray bytes = m_doc->toDocx(&err);
+    std::unique_ptr<write::WriteDoc> fresh = bytes.isEmpty() ? nullptr : write::WriteDoc::fromDocx(bytes, &err, &notes);
+    if (!fresh) {
+        statusBar()->showMessage(tr("The change could not be made: %1").arg(err), 8000);
+        return;
+    }
+    const int caret = m_view->cursor().position();
+    setDocument(std::move(fresh), m_path);
+    m_doc->setModified(true);
+    QTextCursor c(m_doc->story());
+    c.setPosition(std::min(caret, m_doc->story()->characterCount() - 1));
+    m_view->showCursor(c);
+}
+
 void WriteWindow::createRefsActions()
 {
     auto after = [this] {
@@ -29,6 +50,14 @@ void WriteWindow::createRefsActions()
         m_view->viewport()->update();
         refreshUi();
     };
+    // ---- footnote and endnote options
+    mk("refs.notesOptions", tr("Footnote and Endnote…"), "settings-2", QKeySequence(), [this, after] {
+        if (m_doc) {
+            bool endnotes = false;
+            if (write::notesOptionsDialog(this, m_doc.get(), &endnotes) && endnotes) reloadDocument();
+        }
+        after();
+    });
     // ---- table of contents
     auto gallery = [this, after](write::TocGallery kind) {
         if (m_doc && inText(m_view)) {

@@ -1396,7 +1396,10 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             if (ends) last.setProperty(flow::fp::SectionBreakAfter, true);
             setStored(last, prop::SectionData, packSection(*direct.section));
             c.setBlockFormat(last);
-            if (ends) ++sectionNo;
+            if (ends) {
+                ++sectionNo;
+                if (m_endnoteRestartSections) endnoteNumber = m_endnoteStart - 1;
+            }
         }
     }
     if (!header && !append) m_endnoteSections = sectionNo + 1;

@@ -11,6 +11,8 @@
 #include "app/settings.h"
 #include "app/writeinfo.h"
 #include "core/appinfo.h"
+#include "core/document.h"
+#include "flow/paginator.h"
 #include "core/editops.h"
 #include "core/fonts.h"
 #include "core/writedoc.h"
@@ -79,6 +81,54 @@ QByteArray field(const QByteArray &code, const QByteArray &result, const QByteAr
 QByteArray bookmark(int id, const QByteArray &name, const QByteArray &inner)
 {
     return "<w:bookmarkStart w:id=\"" + QByteArray::number(id) + "\" w:name=\"" + name + "\"/>" + inner + "<w:bookmarkEnd w:id=\"" + QByteArray::number(id) + "\"/>";
+}
+
+// A document with footnotes and endnotes parts (and settings) beside the body.
+QByteArray makeDocxNotes(const QByteArray &body, const QByteArray &footnotes, const QByteArray &endnotes, const QByteArray &settings = QByteArray())
+{
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    const QString ct = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + body + sect + "</w:body></w:document>"), ct + QStringLiteral("document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addPart(QStringLiteral("/word/styles.xml"), xml(QByteArray("<w:styles ") + kNs + ">" + kStyles + "</w:styles>"), ct + QStringLiteral("styles+xml"));
+    w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+    if (!footnotes.isEmpty()) {
+        w.addPart(QStringLiteral("/word/footnotes.xml"), xml(QByteArray("<w:footnotes ") + kNs + ">" + footnotes + "</w:footnotes>"), ct + QStringLiteral("footnotes+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("footnotes"), QStringLiteral("/word/footnotes.xml"));
+    }
+    if (!endnotes.isEmpty()) {
+        w.addPart(QStringLiteral("/word/endnotes.xml"), xml(QByteArray("<w:endnotes ") + kNs + ">" + endnotes + "</w:endnotes>"), ct + QStringLiteral("endnotes+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("endnotes"), QStringLiteral("/word/endnotes.xml"));
+    }
+    if (!settings.isEmpty()) {
+        w.addPart(QStringLiteral("/word/settings.xml"), xml(QByteArray("<w:settings ") + kNs + ">" + settings + "</w:settings>"), ct + QStringLiteral("settings+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
+    }
+    return w.finish();
+}
+
+QByteArray noteXml(const char *tag, int id, const QByteArray &text)
+{
+    return QByteArray("<w:") + tag + " w:id=\"" + QByteArray::number(id) + "\"><w:p><w:r><w:" + tag + "Ref/></w:r><w:r><w:t xml:space=\"preserve\"> " + text + "</w:t></w:r></w:p></w:" + tag + ">";
+}
+const char kSeparators[] = "<w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>";
+
+// The numbers a page's text shows for its notes: the displayed text of the references (and note marks) in the body's box.
+QStringList shownMarks(WriteDoc &doc, int page)
+{
+    QStringList out;
+    const auto mat = doc.pager().materialize(page);
+    for (const auto &item : mat->doc->pages[0]->items)
+        if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+            if (const Story *s = mat->doc->story(t->storyId))
+                for (QTextBlock b = s->doc->begin(); b.isValid(); b = b.next())
+                    for (auto it = b.begin(); !it.atEnd(); ++it) {
+                        const QString code = it.fragment().charFormat().stringProperty(tp::Field);
+                        if (code.startsWith(QLatin1String("raw:")) && !code.mid(4).isEmpty()) out << code.mid(4);
+                    }
+    return out;
 }
 
 // What the paragraphs show, a line each: the text, and the result of a field that is one character (its text is not in the story's).
@@ -590,6 +640,93 @@ private Q_SLOTS:
         QVERIFY(p.read(doc->toDocx()));
         QCOMPARE(p.part(QStringLiteral("/customXml/item1.xml")), sources);   // (not touched: the sources were not changed)
         QVERIFY(!p.part(QStringLiteral("/customXml/item2.xml")).size());
+    }
+
+    // ---- footnote and endnote numbering
+    void footnoteNumbersShowTheFormatAndTheStartTheSettingsGive()
+    {
+        const QByteArray body = para(run("Text") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>" + run(" more") + "<w:r><w:footnoteReference w:id=\"3\"/></w:r>");
+        const QByteArray notes = QByteArray(kSeparators) + noteXml("footnote", 2, "One") + noteXml("footnote", 3, "Two");
+        auto doc = open(makeDocxNotes(body, notes, QByteArray()));
+        QVERIFY(doc);
+        QCOMPARE(shownMarks(*doc, 0).mid(0, 2), (QStringList{QStringLiteral("1"), QStringLiteral("2")}));
+        QCOMPARE(doc->noteSettings(false).format, QStringLiteral("decimal"));
+        WriteDoc::NoteSettings s;
+        s.format = QStringLiteral("lowerRoman");
+        s.start = 3;
+        doc->setNoteSettings(false, s);
+        QVERIFY(doc->isModified());
+        QCOMPARE(shownMarks(*doc, 0).mid(0, 2), (QStringList{QStringLiteral("iii"), QStringLiteral("iv")}));
+        s.format = QStringLiteral("upperLetter");
+        s.start = 1;
+        doc->setNoteSettings(false, s);
+        QCOMPARE(shownMarks(*doc, 0).mid(0, 2), (QStringList{QStringLiteral("A"), QStringLiteral("B")}));
+        // The file says it, and a file that says it is read so.
+        const QByteArray zip = doc->toDocx();
+        office::Package p;
+        QVERIFY(p.read(zip));
+        const QByteArray settings = p.part(QStringLiteral("/word/settings.xml"));
+        QVERIFY2(settings.contains("<w:footnotePr>") && settings.contains("<w:numFmt w:val=\"upperLetter\"/>") && settings.contains("<w:numStart w:val=\"1\"/>"), settings.constData());
+        auto again = open(zip);
+        QVERIFY(again);
+        QCOMPARE(again->noteSettings(false).format, QStringLiteral("upperLetter"));
+        QCOMPARE(shownMarks(*again, 0).mid(0, 2), (QStringList{QStringLiteral("A"), QStringLiteral("B")}));
+    }
+
+    void footnoteNumbersCanBeginAgainOnEachPage()
+    {
+        const QByteArray pageBreak = "<w:r><w:br w:type=\"page\"/></w:r>";
+        const QByteArray body = para(run("Page one") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>") + para(pageBreak + run("Page two") + "<w:r><w:footnoteReference w:id=\"3\"/></w:r>");
+        const QByteArray notes = QByteArray(kSeparators) + noteXml("footnote", 2, "One") + noteXml("footnote", 3, "Two");
+        auto doc = open(makeDocxNotes(body, notes, QByteArray()));
+        QVERIFY(doc);
+        QCOMPARE(shownMarks(*doc, 1).mid(0, 1), (QStringList{QStringLiteral("2")}));
+        WriteDoc::NoteSettings s;
+        s.restart = QStringLiteral("eachPage");
+        doc->setNoteSettings(false, s);
+        QCOMPARE(shownMarks(*doc, 1).mid(0, 1), (QStringList{QStringLiteral("1")}));
+        QVERIFY(documentXml(doc->toDocx()).size() > 0);
+        office::Package p;
+        QVERIFY(p.read(doc->toDocx()));
+        QVERIFY(p.part(QStringLiteral("/word/settings.xml")).contains("<w:numRestart w:val=\"eachPage\"/>"));
+    }
+
+    void endnoteSettingsAreWrittenAndMakeTheMarksAgainWhenTheFileIsRead()
+    {
+        const QByteArray body = para(run("Text") + "<w:r><w:endnoteReference w:id=\"2\"/></w:r>" + run(" more") + "<w:r><w:endnoteReference w:id=\"3\"/></w:r>");
+        const QByteArray notes = "<w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote>" + noteXml("endnote", 2, "One") + noteXml("endnote", 3, "Two");
+        auto doc = open(makeDocxNotes(body, QByteArray(), notes));
+        QVERIFY(doc);
+        auto marks = [](WriteDoc &d) {
+            QStringList out;
+            for (QTextBlock b = d.story()->begin(); b.isValid(); b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it) {
+                    const QString code = it.fragment().charFormat().stringProperty(tp::Field);
+                    if (code.startsWith(QLatin1String("raw:")) && !code.mid(4).isEmpty()) out << code.mid(4);
+                }
+            return out;
+        };
+        QVERIFY2(marks(*doc).contains(QStringLiteral("i")) && marks(*doc).contains(QStringLiteral("ii")), qPrintable(marks(*doc).join('|')));
+        WriteDoc::NoteSettings s = doc->noteSettings(true);
+        QCOMPARE(s.format, QStringLiteral("lowerRoman"));
+        s.format = QStringLiteral("upperLetter");
+        s.start = 2;
+        s.position = QStringLiteral("docEnd");
+        doc->setNoteSettings(true, s);
+        const QByteArray zip = doc->toDocx();
+        office::Package p;
+        QVERIFY(p.read(zip));
+        const QByteArray settings = p.part(QStringLiteral("/word/settings.xml"));
+        QVERIFY2(settings.contains("<w:endnotePr><w:pos w:val=\"docEnd\"/><w:numFmt w:val=\"upperLetter\"/><w:numStart w:val=\"2\"/>"), settings.constData());
+        auto again = open(zip);
+        QVERIFY(again);
+        QVERIFY2(marks(*again).contains(QStringLiteral("B")) && marks(*again).contains(QStringLiteral("C")), qPrintable(marks(*again).join('|')));
+        QCOMPARE(again->noteSettings(true).start, 2);
+        // Each section begins the numbers again, when the settings say so.
+        const QByteArray two = para(run("A") + "<w:r><w:endnoteReference w:id=\"2\"/></w:r>", "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>") + para(run("B") + "<w:r><w:endnoteReference w:id=\"3\"/></w:r>");
+        auto sections = open(makeDocxNotes(two, QByteArray(), notes, "<w:endnotePr><w:numFmt w:val=\"decimal\"/><w:numRestart w:val=\"eachSect\"/></w:endnotePr>"));
+        QVERIFY(sections);
+        QCOMPARE(marks(*sections).mid(0, 2), (QStringList{QStringLiteral("1"), QStringLiteral("1")}));
     }
 };
 

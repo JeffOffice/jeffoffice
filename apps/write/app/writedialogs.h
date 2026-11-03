@@ -60,6 +60,9 @@ bool manageSourcesDialog(QWidget *parent, WriteDoc *doc);
 bool insertCitationDialog(QWidget *parent, WriteDoc *doc, PageView *view);
 // The style citations and the bibliography are shown in. Returns whether it changed.
 bool citationStyleDialog(QWidget *parent, WriteDoc *doc);
+// Footnote and Endnote options: how each kind of note is numbered (format, start, and when the numbers begin again) and where the endnotes are set. What is chosen is set in the document
+// (WriteDoc::setNoteSettings); `endnotesChanged` says whether the endnotes' were, which the document has to be read again for. Returns false if canceled or nothing changed.
+bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged);
 // The alt text of a picture: a description for people who can't see it. Returns false if canceled; `alt` is what to keep.
 bool altTextDialog(QWidget *parent, QString *alt);
 // The zoom: a percent, the width of the page, the whole page, or several pages across.

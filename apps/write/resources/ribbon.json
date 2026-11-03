@@ -499,6 +499,10 @@
             {
               "small": "refs.previousFootnote",
               "keytip": "V"
+            },
+            {
+              "small": "refs.notesOptions",
+              "keytip": "O"
             }
           ]
         },

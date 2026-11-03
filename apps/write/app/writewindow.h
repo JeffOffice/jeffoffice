@@ -172,6 +172,7 @@ private:
     void createNoteActions();
     void createFieldActions();
     void createRefsActions();
+    void reloadDocument();
     void updateFieldsNow();
     void createTableActions();
     void createPictureActions();

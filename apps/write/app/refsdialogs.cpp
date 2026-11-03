@@ -10,6 +10,7 @@
 #include "core/indexops.h"
 #include "core/refops.h"
 #include "core/tocops.h"
+#include "core/writedoc.h"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -17,6 +18,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLabel>
@@ -707,6 +709,80 @@ bool citationStyleDialog(QWidget *parent, WriteDoc *doc)
     if (!ok || chosen == documentCitationStyle(*doc)) return false;
     setDocumentCitationStyle(*doc, chosen);
     return true;
+}
+
+bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
+{
+    if (!doc) return false;
+    if (endnotesChanged) *endnotesChanged = false;
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("notesOptionsDialog"));
+    dlg.setWindowTitle(tr("Footnote and Endnote"));
+    auto *v = new QVBoxLayout(&dlg);
+    struct Box {
+        QComboBox *position = nullptr, *format = nullptr, *restart = nullptr;
+        QSpinBox *start = nullptr;
+    };
+    auto formats = [&](QComboBox *c) {
+        c->addItem(tr("1, 2, 3, ..."), QStringLiteral("decimal"));
+        c->addItem(tr("a, b, c, ..."), QStringLiteral("lowerLetter"));
+        c->addItem(tr("A, B, C, ..."), QStringLiteral("upperLetter"));
+        c->addItem(tr("i, ii, iii, ..."), QStringLiteral("lowerRoman"));
+        c->addItem(tr("I, II, III, ..."), QStringLiteral("upperRoman"));
+        c->addItem(tr("*, \u2020, \u2021, \u00A7, ..."), QStringLiteral("chicago"));
+    };
+    auto makeBox = [&](const QString &title, bool endnotes) {
+        auto *group = new QGroupBox(title, &dlg);
+        group->setObjectName(endnotes ? QStringLiteral("endnoteOptions") : QStringLiteral("footnoteOptions"));
+        auto *form = new QFormLayout(group);
+        Box b;
+        if (endnotes) {
+            b.position = new QComboBox(group);
+            b.position->setObjectName(QStringLiteral("endnotePosition"));
+            b.position->addItem(tr("End of section"), QStringLiteral("sectEnd"));
+            b.position->addItem(tr("End of document"), QStringLiteral("docEnd"));
+            form->addRow(tr("Location:"), b.position);
+        }
+        b.format = new QComboBox(group);
+        b.format->setObjectName(endnotes ? QStringLiteral("endnoteFormat") : QStringLiteral("footnoteFormat"));
+        formats(b.format);
+        b.start = new QSpinBox(group);
+        b.start->setObjectName(endnotes ? QStringLiteral("endnoteStart") : QStringLiteral("footnoteStart"));
+        b.start->setRange(1, 32767);
+        b.restart = new QComboBox(group);
+        b.restart->setObjectName(endnotes ? QStringLiteral("endnoteRestart") : QStringLiteral("footnoteRestart"));
+        b.restart->addItem(tr("Continuous"), QStringLiteral("continuous"));
+        b.restart->addItem(tr("Restart each section"), QStringLiteral("eachSect"));
+        if (!endnotes) b.restart->addItem(tr("Restart each page"), QStringLiteral("eachPage"));
+        form->addRow(tr("Number format:"), b.format);
+        form->addRow(tr("Start at:"), b.start);
+        form->addRow(tr("Numbering:"), b.restart);
+        const WriteDoc::NoteSettings now = doc->noteSettings(endnotes);
+        b.format->setCurrentIndex(std::max(0, b.format->findData(now.format)));
+        b.start->setValue(now.start);
+        b.restart->setCurrentIndex(std::max(0, b.restart->findData(now.restart)));
+        if (b.position) b.position->setCurrentIndex(std::max(0, b.position->findData(now.position.isEmpty() ? QStringLiteral("docEnd") : now.position)));
+        v->addWidget(group);
+        return b;
+    };
+    const Box foot = makeBox(tr("Footnotes"), false), end = makeBox(tr("Endnotes"), true);
+    v->addWidget(okCancel(&dlg));
+    if (dlg.exec() != QDialog::Accepted) return false;
+    WriteDoc::NoteSettings f = doc->noteSettings(false), e = doc->noteSettings(true);
+    const WriteDoc::NoteSettings f0 = f, e0 = e;
+    f.format = foot.format->currentData().toString();
+    f.start = foot.start->value();
+    f.restart = foot.restart->currentData().toString();
+    e.format = end.format->currentData().toString();
+    e.start = end.start->value();
+    e.restart = end.restart->currentData().toString();
+    // (Where the endnotes are set is left as the file has it when the choice is the one that shows.)
+    if (!(e0.position.isEmpty() && end.position->currentData().toString() == QLatin1String("docEnd"))) e.position = end.position->currentData().toString();
+    const bool footChanged = !(f == f0), endChanged = !(e == e0);
+    if (footChanged) doc->setNoteSettings(false, f);
+    if (endChanged) doc->setNoteSettings(true, e);
+    if (endnotesChanged) *endnotesChanged = endChanged;
+    return footChanged || endChanged;
 }
 
 } // namespace jp::write

@@ -61,6 +61,11 @@ public:
     bool noteContinuationRuleFull() const override { return ruleFull; }
     QString styleRefText(const QString &style, const QString &switches, int from, int to) const override;
     int bookmarkPosition(const QString &name) const override;
+    QString noteMarkText(bool endnote, int number) const override;
+    bool restartNotesEachPage() const override { return eachPage; }
+    QString footnoteFormat;    // how the footnotes' numbers are shown (w:numFmt of the settings; empty: 1, 2, 3)
+    int footnoteStart = 1;     // the number the first footnote shows
+    bool eachPage = false;     // the numbers begin again on each page
     double separator = 0, notice = 0, continuation = 0;   // the heights of the file's separator and continuation notice (the pages cut them: FrameSpec::noteRoomLimit)
     double ruleAt = -1, ruleFrom = 0;                     // where the rule is in the separator for the part of a note that goes on
     bool ruleFull = true;                                 // (and whether it is as wide as the column)
@@ -321,6 +326,20 @@ public:
     // Whether edits are tracked as changes (Track Changes: the file's w:trackRevisions). A setting of the document that is written with it, not a step of the history.
     bool trackChanges() const { return m_trackChanges; }
     void setTrackChanges(bool on);
+    // How a kind of note is numbered and where it is set, as the settings say now: the format of its numbers (a w:numFmt value; "decimal" where the file says none), the number the first
+    // shows, whether the numbers begin again with each section or page (continuous, eachSect, eachPage), and where they are set (the footnotes' pageBottom or beneathText, the endnotes'
+    // sectEnd or docEnd; empty where the file says none).
+    struct NoteSettings {
+        QString format = QStringLiteral("decimal");
+        int start = 1;
+        QString restart = QStringLiteral("continuous");
+        QString position;
+        bool operator==(const NoteSettings &o) const { return format == o.format && start == o.start && restart == o.restart && position == o.position; }
+    };
+    NoteSettings noteSettings(bool endnotes) const;
+    // Sets it, written with the file (a setting of the document, not a step of the history). The footnotes' numbers show it at once; the endnotes' marks and notes are made again
+    // when the document is read again from what toDocx gives, which a caller that changed the endnotes' settings does.
+    void setNoteSettings(bool endnotes, const NoteSettings &settings);
     // The sources of the bibliography (core/citeops.h): the XML of the file's bibliography part (a custom XML part), as read or as last set; empty for none.
     QByteArray sourcesXml();
     // Sets it. A setting of the document, written with the file, not a step of the history.
@@ -777,6 +796,11 @@ private:
     int m_fieldCodeView = 0;
     void writeReviewSettings(office::wml::Document *out);
     void writeSourcesPart(office::wml::Document *out);
+    void writeNoteSettings(office::wml::Document *out);
+    void applyFootnoteSettings();
+    NoteSettings m_noteEdit[2];
+    bool m_noteEdited[2] = {false, false};
+    bool m_endnoteRestartSections = false;   // the endnotes' numbers begin again with each section
     QByteArray m_sourcesXml;
     QString m_sourcesPartName;
     bool m_sourcesRead = false, m_sourcesDirty = false;

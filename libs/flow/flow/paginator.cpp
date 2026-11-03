@@ -1511,7 +1511,10 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         countNotesBefore(from, &before, &endBefore);
         footnote += before;
         endnote += endBefore;
+        // (A word processor's option: the footnotes' numbers begin again at 1 on each page.)
+        if (m_doc->fields && m_doc->fields->restartNotesEachPage()) footnote = 1;
     }
+    auto footMark = [&](int n) { return m_doc->fields ? m_doc->fields->noteMarkText(false, n) : QString::number(n); };
     auto roman = [](int n) {
         static const std::pair<int, const char *> table[] = {{1000, "m"}, {900, "cm"}, {500, "d"}, {400, "cd"}, {100, "c"}, {90, "xc"}, {50, "l"}, {40, "xl"}, {10, "x"}, {9, "ix"}, {5, "v"}, {4, "iv"}, {1, "i"}};
         QString r;
@@ -1640,7 +1643,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
                 for (const QChar ch : text) {
                     QTextCharFormat cf = frag.charFormat();
                     const bool custom = foot && cf.boolProperty(tp::NoteMarkCustom);   // (shows nothing: its mark is the text after it)
-                    cf.setProperty(tp::Field, QLatin1String("raw:") + (custom ? QString() : foot ? QString::number(footnote++) : roman(endnote++)));
+                    cf.setProperty(tp::Field, QLatin1String("raw:") + (custom ? QString() : foot ? footMark(footnote++) : roman(endnote++)));
                     dst.insertText(QString(ch), cf);
                 }
                 continue;

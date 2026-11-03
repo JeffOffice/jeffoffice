@@ -1359,6 +1359,41 @@ private Q_SLOTS:
         QVERIFY(tree.parse(fresh));
     }
 
+    // The numbering of the notes is written in the group the schema has for it, in the order its elements have, with the separator notes kept, and read back.
+    void theSettingsSayHowTheNotesAreNumbered()
+    {
+        const QByteArray settings = xmlDoc(QByteArray("<w:settings ") + kW + "><w:zoom w:percent=\"100\"/><w:footnotePr><w:numFmt w:val=\"lowerRoman\"/><w:footnote w:id=\"-1\"/><w:footnote w:id=\"0\"/></w:footnotePr><w:compat/></w:settings>");
+        NoteProperties p;
+        p.format = QStringLiteral("upperLetter");
+        p.start = 3;
+        p.restart = QStringLiteral("eachSect");
+        p.position = QStringLiteral("beneathText");
+        const QByteArray out = settingsWithNoteProperties(settings, false, p);
+        QVERIFY2(out.contains("<w:footnotePr><w:pos w:val=\"beneathText\"/><w:numFmt w:val=\"upperLetter\"/><w:numStart w:val=\"3\"/><w:numRestart w:val=\"eachSect\"/><w:footnote w:id=\"-1\"/><w:footnote w:id=\"0\"/></w:footnotePr><w:compat/>"),
+                 out.constData());
+        const NoteNumbering read = readNoteNumbering(out, "footnotePr");
+        QCOMPARE(read.format, QStringLiteral("upperLetter"));
+        QCOMPARE(read.start, 3);
+        QCOMPARE(read.position, QStringLiteral("beneathText"));
+        QCOMPARE(noteNumberRestart(out, "footnotePr"), QStringLiteral("eachSect"));
+        QCOMPARE(settingsWithNoteProperties(out, false, p), out);
+        // A group that is not there is made before what the schema puts after it, the footnotes' before the endnotes'.
+        const QByteArray bare = xmlDoc(QByteArray("<w:settings ") + kW + "><w:zoom w:percent=\"100\"/><w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr><w:compat/></w:settings>");
+        const QByteArray made = settingsWithNoteProperties(bare, false, p);
+        QVERIFY(made.indexOf("<w:footnotePr>") > made.indexOf("<w:zoom") && made.indexOf("<w:footnotePr>") < made.indexOf("<w:endnotePr>"));
+        NoteProperties e;
+        e.format = QStringLiteral("lowerRoman");
+        e.position = QStringLiteral("docEnd");
+        const QByteArray ends = settingsWithNoteProperties(bare, true, e);
+        QVERIFY2(ends.contains("<w:endnotePr><w:pos w:val=\"docEnd\"/><w:numFmt w:val=\"lowerRoman\"/></w:endnotePr><w:compat/>"), ends.constData());
+        QCOMPARE(ends.count("<w:endnotePr>"), 1);
+        // No settings: a part that reads back.
+        const QByteArray fresh = settingsWithNoteProperties(QByteArray(), true, e);
+        XmlTree tree;
+        QVERIFY(tree.parse(fresh));
+        QCOMPARE(readNoteNumbering(fresh, "endnotePr").position, QStringLiteral("docEnd"));
+    }
+
     // The fonts of a font table come with their alternates and kinds; a part of thousands of fonts is read in step with its size, and one that is
     // not XML (unclosed elements) is refused.
     void readsTheFontsOfAFontTable()

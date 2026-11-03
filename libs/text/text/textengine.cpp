@@ -2987,7 +2987,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     static thread_local int noteDepth = 0;
     const bool withNotes = noteDepth == 0 && nF > 0;
     const FieldSource *notesDoc = nF > 0 ? frames.first().ctx.doc : nullptr;
-    int footCount = m_span.footnotesBefore + (notesDoc ? notesDoc->footnotesBefore() : 0), endCount = m_span.endnotesBefore + (notesDoc ? notesDoc->endnotesBefore() : 0);
+    int footCount = notesDoc && notesDoc->restartNotesEachPage() ? 0 : m_span.footnotesBefore + (notesDoc ? notesDoc->footnotesBefore() : 0), endCount = m_span.endnotesBefore + (notesDoc ? notesDoc->endnotesBefore() : 0);
     QHash<int, double> reserve;   // a column's room for footnotes, by frame * 64 + column
     QHash<int, double> lastTrail;   // the space after the last whole note of a column (a word processor's): it hangs below the column's foot where there is no room for it, by the same key
     auto rkey = [](int fi, int ci) { return fi * 64 + ci; };
@@ -3016,7 +3016,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         FrameSpec fs = frames.first();
         fs.size = QSizeF(width, height);
         fs.insets = QMarginsF(n.numberWidth, 0, 0, 0);
-        fs.ctx.noteMark = n.number > 0 ? QString::number(n.number) : QString();   // (a note of a custom mark has no number: the mark its text begins with shows nothing)
+        fs.ctx.noteMark = n.number > 0 ? (notesDoc ? notesDoc->noteMarkText(n.endnote, n.number) : QString::number(n.number)) : QString();   // (a note of a custom mark has no number: the mark its text begins with shows nothing)
         fs.columns = 1;
         fs.rightRoom = 0;   // (a note's box is no text area of a page: its text goes no farther than the box)
         fs.valign = VAlign::Top;
@@ -3409,7 +3409,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             const bool customMark = env.wordLines && cf.boolProperty(tp::NoteMarkCustom);
                             n.number = customMark ? 0 : n.endnote ? ++endCount : ++footCount;
                             n.refPos = head.position() + rel + i;
-                            if (!customMark) v = QString::number(n.number);
+                            if (!customMark) v = notesDoc ? notesDoc->noteMarkText(n.endnote, n.number) : QString::number(n.number);
                             B->noteRefs << qMakePair(int(B->disp.size()), int(m_notes.size()));
                             m_notes << n;
                         }
