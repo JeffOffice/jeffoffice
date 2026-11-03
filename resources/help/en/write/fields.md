@@ -39,6 +39,6 @@ Add switches to the code to change how a result looks:
 
 ## Fields JeffWrite works out
 
-PAGE, NUMPAGES, SECTIONPAGES, SECTION, PAGEREF, REF, NOTEREF, STYLEREF, SEQ, DATE, TIME, CREATEDATE, SAVEDATE, PRINTDATE, AUTHOR, TITLE, SUBJECT, FILENAME, FILESIZE, DOCPROPERTY, NUMWORDS, NUMCHARS, IF, QUOTE, a formula that begins with `=`, and TOC. A field of any other kind keeps the result it has, and is saved as it was.
+PAGE, NUMPAGES, SECTIONPAGES, SECTION, PAGEREF, REF, NOTEREF, STYLEREF, SEQ, DATE, TIME, CREATEDATE, SAVEDATE, PRINTDATE, AUTHOR, TITLE, SUBJECT, FILENAME, FILESIZE, DOCPROPERTY, NUMWORDS, NUMCHARS, IF, COMPARE, QUOTE, a formula that begins with `=`, and TOC. A field of any other kind keeps the result it has, and is saved as it was.
 
 DATE, TIME, FILENAME, and AUTHOR depend on the computer and the moment, so they can change every time you update.

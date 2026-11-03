@@ -1232,7 +1232,7 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
                                    (date.isEmpty() ? QByteArray() : "<dc:date>" + esc(date, false) + "</dc:date>") + "</office:change-info><text:p text:style-name=\"Standard\">" + dpc.xml + "</text:p></text:deletion></text:changed-region>";
                 pc->xml += "<text:change text:change-id=\"" + id.toUtf8() + "\"/>";
             }
-        } else if (name == "del" || name == "moveFrom") left(QCoreApplication::translate("odt", "tracked changes in headers and footers (saved as they stand now)"));
+        } else if (name == "del" || name == "moveFrom") left(QCoreApplication::translate("odt", "tracked changes in headers, footers, and notes (saved as they stand now)"));
         else if (name == "sdtContent") emitInline(t, c, pc, depth + 1);
     }
 }

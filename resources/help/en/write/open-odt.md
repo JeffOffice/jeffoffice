@@ -9,7 +9,7 @@ Press **Ctrl+O**, or click **File > Open**, and choose a file:
 
 - **.odt** is a document.
 - **.ott** is a template. It opens as a new document made from it, so the template stays as it is.
-- **.fodt** is the same kind of document kept in one plain XML file.
+- **.fodt** is the same kind of document kept in one plain XML file. JeffWrite does not write .fodt files: **Save** on one asks for a new name and saves it as an .odt file.
 
 JeffWrite finds out what a file is from what is inside it, not from its name, so a file with the wrong ending opens too. You can also give a file's name when you start JeffWrite, or drag it onto the program from your file manager, as you do with a .docx file.
 
@@ -21,7 +21,7 @@ Some things JeffWrite can't show yet: drawn shapes that hold no text, formulas, 
 
 Click **File > Save As**, and choose **OpenDocument Text (*.odt)** in the list of file types. After that, **Ctrl+S** saves in the same kind again.
 
-The file holds everything that is listed above. For a few things the format has no place, and JeffWrite says what they are, once, after the first save: they are saved as they stand now or left out. Text that has tracked changes in a header or footer is saved with the changes accepted.
+The file holds what is listed above, with its comments and its tracked changes: added and deleted text, changed looks, and paragraph breaks that were added or deleted. For a few things the format has no place, and JeffWrite says what they are after you save: they are saved as they stand now or left out. These are tracked changes to tables, columns, and page setup, and tracked changes in headers, footers, and notes (saved as they stand now); form fields (saved as the text they show); equations (saved as plain text); and drawings, shapes, charts, and embedded objects that can't be kept. If you save again after a change that leaves out something new, JeffWrite tells you about that too, and says nothing again about what it already told you.
 
 Other programs that read OpenDocument open the file without asking to repair it.
 

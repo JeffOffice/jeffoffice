@@ -56,7 +56,7 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 - Tables: **Insert > Table** makes one, and the **Table Design** and **Table Layout** tabs add and take away rows and columns, merge and split cells, put lines and shading on cells, pick a table style, set the size of rows and columns, and set where the words sit in a cell. In a table, **Tab** goes to the next cell, and **Tab** in the last cell adds a row. See [Make and change tables](tables).
 - Headers and footers: double-click in the top or bottom margin of a page, or use **Insert > Header** and **Insert > Footer**, then type, add a page number, and choose a different first page, different odd and even pages, or a link to the section before. See [Headers and footers](headers-footers).
 - Footnotes and endnotes: click in a note to edit it where it stands, and use **References > Insert Footnote** (Ctrl+Alt+F) and **Insert Endnote** (Ctrl+Alt+D) to add one. See [Footnotes and endnotes](footnotes-endnotes).
-- Opening .docx, .docm, .dotx, .dotm, .doc, and .dot files. Saving .docx and .dotx files.
+- Opening .docx, .docm, .dotx, .dotm, .doc, .dot, .rtf, .odt, .ott, and .fodt files. Saving .docx, .dotx, and .odt files. See [Open and save OpenDocument files](open-odt) and [Open RTF files](open-rtf).
 - Showing what a file has, where the file puts it: tables, headers and footers, footnotes and endnotes, pictures, shapes, and text boxes (with the text going around those that float), page borders and page color, line numbers, and sections that continue on the same page. A **header** is text at the top of every page, and a **footer** is text at the bottom. A **footnote** is a note at the foot of the page that cites it, and an **endnote** is one at the end.
 - Page numbers in headers and footers. They are worked out as the pages are laid out, and so is the number of pages. **Insert Page Number** is on the **Header & Footer** tab.
 - Zoom, and showing the paragraph marks (the **¶** button).
@@ -68,10 +68,10 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 - The pictures, shapes, and tables in a header, a footer, or a note are kept, but not edited yet.
 - Tables can't be drawn with a pen yet, turned into text, or given a formula, and a table can't be put in a cell of another table.
 - Shapes and text boxes can't be inserted or changed, and pictures can't be cropped or linked to their files. JeffWrite keeps them.
-- Only the page number field can be inserted, in a header or footer. A **field** is text that the file fills in, such as a date or a table of contents. Page numbers in headers and footers, and references to the page of a bookmark, are worked out. Other fields show the words the file had, and they do not update.
-- Comments and tracked changes are kept, but not shown. A **comment** is a note in the margin. A **tracked change** is an edit that a reviewer marked. Text that a tracked change added shows as plain text, and text it deleted stays hidden. You can't add, accept, or reject them.
+- A **field** is text that the file fills in, such as a date or a table of contents. **Insert > Field** puts one in, and **F9** works it out again. JeffWrite works out the kinds listed in [Fields](fields), such as page numbers, dates, references, and figure numbers. Any other kind shows the words the file had, and it does not update.
+- A **comment** is a note in the margin. A **tracked change** is an edit that a reviewer marked. JeffWrite shows both, and you can add, answer, accept, and reject them. See [Add and answer comments](comments) and [Track changes, and accept or reject them](track-changes). Edits to tables, numbering, sections, headers, footers, and notes are not tracked yet.
 - An equation shows as one line of text, in order, not laid out as it would print.
-- You can't open .rtf or .odt files yet. You can't save .doc, .rtf, or .odt files. A .doc file is saved as a new .docx file.
+- You can't save .doc or .rtf files. A .doc or .rtf file is saved as a new .docx file, and a .fodt file as a new .odt file.
 - The ruler is across the top only, and tab stops are set on it (there is no Tabs window yet).
 - A section break you insert starts a new page. The sections that continue on the same page, and those that start on an odd or an even page, are laid out when a file has them, but you can't insert them.
 - Paste keeps the look of the text you copied. There are no paste choices, and no Paste Special.
