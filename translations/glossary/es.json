@@ -1,6 +1,7 @@
 {
  "3-D rotation": "giro 3D",
  "Accessibility": "Accesibilidad",
+ "Actions": "Acciones",
  "address block": "bloque de direcciones",
  "Adjust": "Ajustar",
  "adjustment handle": "controlador de ajuste",
@@ -185,6 +186,7 @@
  "picture placeholder": "marcador de posición de imagen",
  "picture styles": "Estilos de imagen",
  "Pinned": "Anclado",
+ "Pivot Table": "Tabla dinámica",
  "placeholder": "marcador de posición",
  "Playback": "Reproducción",
  "presentation": "presentación",
@@ -206,6 +208,7 @@
  "redo": "Rehacer",
  "References": "Referencias",
  "reflection": "reflexión",
+ "Refresh": "Actualizar",
  "reply": "respuesta",
  "reset picture": "Restablecer imagen",
  "Reuse Slides": "Reutilizar diapositivas",

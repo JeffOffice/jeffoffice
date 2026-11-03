@@ -1,12 +1,13 @@
 # Ajuda do JeffCrunch
-<!-- keywords: conteúdo, ajuda, tópicos, início, começar, sumário, índice -->
+<!-- keywords: conteúdo, ajuda, tópicos, início, sumário, índice, começar -->
 
-Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a ser executado. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está ou a página da tela Arquivo em que você está.
+Digite na caixa de pesquisa acima para localizar um tópico ou um comando a ser executado. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está ou a página da tela Arquivo em que você está.
 
 ## Introdução
 
 - [Bem-vindo ao JeffCrunch](start)
 - [Abrir e salvar pastas de trabalho](open-save)
+- [Abrir pastas de trabalho protegidas por senha](open-password)
 - [Digitar em células](edit-cells)
 - [Regras para o que uma célula pode conter](rules)
 
@@ -16,7 +17,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a ser 
 - [Alterar o modo de exibição](view)
 - [Como as fórmulas são mostradas e calculadas](formulas)
 - [Nomes para células e valores](names)
-- [Formatações condicionais](conditional-formats)
+- [Formatação condicional](conditional-formats)
 
 ## Alterar uma pasta de trabalho
 
@@ -31,7 +32,9 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a ser 
 - [Localizar, substituir e ir para](find-replace)
 - [Classificar e filtrar](sort-filter)
 - [Tabelas](tables)
+- [Tabelas dinâmicas](pivot-tables)
 - [Inserir uma função](insert-function)
+- [Inserir uma função com a caixa de diálogo Argumentos da função](function-arguments)
 - [Gráficos, imagens e formas](charts)
 - [Anotações e links](notes-links)
 - [Proteger uma planilha ou a pasta de trabalho](protect)

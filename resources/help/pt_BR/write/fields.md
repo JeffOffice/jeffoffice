@@ -22,7 +22,7 @@ Um campo em um cabeçalho ou rodapé que mostra o número da página, a contagem
 
 ## Mostrar os códigos
 
-Pressione **Shift+F9** para mostrar, no lugar do resultado, o código do campo em que o cursor está, entre chaves, como `{ PAGE }`. Pressione **Alt+F9** para mostrar os códigos de todos os campos e pressione novamente para mostrar os resultados. Isso só altera o que você vê: o arquivo é salvo como estava, e o documento não é marcado como alterado.
+Pressione **Shift+F9** para mostrar o código do campo em que o cursor está, entre chaves, como `{ PAGE }`, no lugar do resultado. Pressione **Alt+F9** para mostrar os códigos de todos os campos e pressione novamente para mostrar os resultados. Isso altera apenas o que você vê: o arquivo é salvo como estava, e o documento não é marcado como alterado.
 
 ## Desvincular ou bloquear um campo
 
@@ -39,6 +39,6 @@ Adicione opções ao código para alterar a aparência de um resultado:
 
 ## Campos que o JeffWrite calcula
 
-PAGE, NUMPAGES, SECTIONPAGES, SECTION, PAGEREF, REF, NOTEREF, STYLEREF, SEQ, DATE, TIME, CREATEDATE, SAVEDATE, PRINTDATE, AUTHOR, TITLE, SUBJECT, FILENAME, FILESIZE, DOCPROPERTY, NUMWORDS, NUMCHARS, IF, QUOTE, uma fórmula que começa com `=` e TOC. Um campo de qualquer outro tipo mantém o resultado que tem e é salvo como estava.
+PAGE, NUMPAGES, SECTIONPAGES, SECTION, PAGEREF, REF, NOTEREF, STYLEREF, SEQ, DATE, TIME, CREATEDATE, SAVEDATE, PRINTDATE, AUTHOR, TITLE, SUBJECT, FILENAME, FILESIZE, DOCPROPERTY, NUMWORDS, NUMCHARS, IF, COMPARE, QUOTE, uma fórmula que começa com `=` e TOC. Um campo de qualquer outro tipo mantém o resultado que tem e é salvo como estava.
 
-DATE, TIME, FILENAME e AUTHOR dependem do computador e do momento, por isso podem mudar sempre que você atualiza.
+DATE, TIME, FILENAME e AUTHOR dependem do computador e do momento, por isso podem mudar sempre que você atualizar.

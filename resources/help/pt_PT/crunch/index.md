@@ -1,12 +1,13 @@
 # Ajuda do JeffCrunch
-<!-- keywords: conteúdo, ajuda, tópicos, início, índice, começar -->
+<!-- keywords: conteúdo, índice, ajuda, tópicos, início, começar, primeiros passos -->
 
-Escreva na caixa de pesquisa acima para localizar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do ecrã Ficheiro em que se encontra.
+Escreva na caixa de pesquisa acima para localizar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do ecrã Ficheiro em que está.
 
 ## Introdução
 
 - [Bem-vindo ao JeffCrunch](start)
 - [Abrir e guardar livros](open-save)
+- [Abrir livros protegidos por palavra-passe](open-password)
 - [Escrever em células](edit-cells)
 - [Regras para o que uma célula pode conter](rules)
 
@@ -21,7 +22,7 @@ Escreva na caixa de pesquisa acima para localizar um tópico ou um comando a exe
 ## Alterar um livro
 
 - [Formatar células](format-cells)
-- [Formatos numéricos e o seu idioma](number-formats)
+- [Formatos de número e o seu idioma](number-formats)
 - [Estilos de célula](cell-styles)
 - [Trabalhar com folhas](sheets)
 - [Inserir e eliminar linhas, colunas e células](insert-delete)
@@ -31,7 +32,9 @@ Escreva na caixa de pesquisa acima para localizar um tópico ou um comando a exe
 - [Localizar, substituir e ir para](find-replace)
 - [Ordenar e filtrar](sort-filter)
 - [Tabelas](tables)
+- [Tabelas dinâmicas](pivot-tables)
 - [Inserir uma função](insert-function)
+- [Introduzir uma função com a caixa de diálogo Argumentos de Função](function-arguments)
 - [Gráficos, imagens e formas](charts)
 - [Notas e ligações](notes-links)
 - [Proteger uma folha ou o livro](protect)

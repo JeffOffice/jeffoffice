@@ -1,6 +1,7 @@
 {
  "3-D rotation": "rotation 3D",
  "Accessibility": "Accessibilité",
+ "Actions": "Actions",
  "address block": "bloc d'adresse",
  "Adjust": "Ajuster",
  "adjustment handle": "poignée d'ajustement",
@@ -185,6 +186,7 @@
  "picture placeholder": "espace réservé pour l'image",
  "picture styles": "styles d'image",
  "Pinned": "Épinglé",
+ "Pivot Table": "Tableau croisé dynamique",
  "placeholder": "espace réservé",
  "Playback": "Lecture",
  "presentation": "présentation",
@@ -206,6 +208,7 @@
  "redo": "rétablir",
  "References": "Références",
  "reflection": "réflexion",
+ "Refresh": "Actualiser",
  "reply": "répondre",
  "reset picture": "rétablir l'image",
  "Reuse Slides": "Réutiliser les diapositives",

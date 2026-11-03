@@ -1,6 +1,7 @@
 {
  "3-D rotation": "3D-Drehung",
  "Accessibility": "Barrierefreiheit",
+ "Actions": "Aktionen",
  "address block": "Adressblock",
  "Adjust": "Anpassen",
  "adjustment handle": "Anpassungsziehpunkt",
@@ -185,6 +186,7 @@
  "picture placeholder": "Bildplatzhalter",
  "picture styles": "Bildformatvorlagen",
  "Pinned": "Angeheftet",
+ "Pivot Table": "PivotTable",
  "placeholder": "Platzhalter",
  "Playback": "Wiedergabe",
  "presentation": "Präsentation",
@@ -206,6 +208,7 @@
  "redo": "Wiederholen",
  "References": "Verweise",
  "reflection": "Spiegelung",
+ "Refresh": "Aktualisieren",
  "reply": "Antworten",
  "reset picture": "Bild zurücksetzen",
  "Reuse Slides": "Folien wiederverwenden",

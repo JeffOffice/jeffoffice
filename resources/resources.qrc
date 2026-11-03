@@ -1581,6 +1581,7 @@
     <file alias="de/crunch/open-save.md">help/de/crunch/open-save.md</file>
     <file alias="de/crunch/page-layout.md">help/de/crunch/page-layout.md</file>
     <file alias="de/crunch/page-setup.md">help/de/crunch/page-setup.md</file>
+    <file alias="de/crunch/pivot-tables.md">help/de/crunch/pivot-tables.md</file>
     <file alias="de/crunch/printing.md">help/de/crunch/printing.md</file>
     <file alias="de/crunch/protect.md">help/de/crunch/protect.md</file>
     <file alias="de/crunch/rules.md">help/de/crunch/rules.md</file>
@@ -1849,6 +1850,7 @@
     <file alias="es/crunch/find-replace.md">help/es/crunch/find-replace.md</file>
     <file alias="es/crunch/format-cells.md">help/es/crunch/format-cells.md</file>
     <file alias="es/crunch/formulas.md">help/es/crunch/formulas.md</file>
+    <file alias="es/crunch/function-arguments.md">help/es/crunch/function-arguments.md</file>
     <file alias="es/crunch/index.md">help/es/crunch/index.md</file>
     <file alias="es/crunch/insert-delete.md">help/es/crunch/insert-delete.md</file>
     <file alias="es/crunch/insert-function.md">help/es/crunch/insert-function.md</file>
@@ -1856,9 +1858,11 @@
     <file alias="es/crunch/names.md">help/es/crunch/names.md</file>
     <file alias="es/crunch/notes-links.md">help/es/crunch/notes-links.md</file>
     <file alias="es/crunch/number-formats.md">help/es/crunch/number-formats.md</file>
+    <file alias="es/crunch/open-password.md">help/es/crunch/open-password.md</file>
     <file alias="es/crunch/open-save.md">help/es/crunch/open-save.md</file>
     <file alias="es/crunch/page-layout.md">help/es/crunch/page-layout.md</file>
     <file alias="es/crunch/page-setup.md">help/es/crunch/page-setup.md</file>
+    <file alias="es/crunch/pivot-tables.md">help/es/crunch/pivot-tables.md</file>
     <file alias="es/crunch/printing.md">help/es/crunch/printing.md</file>
     <file alias="es/crunch/protect.md">help/es/crunch/protect.md</file>
     <file alias="es/crunch/rules.md">help/es/crunch/rules.md</file>
@@ -1958,6 +1962,8 @@
     <file alias="es/write/headers-footers.md">help/es/write/headers-footers.md</file>
     <file alias="es/write/index.md">help/es/write/index.md</file>
     <file alias="es/write/keyboard.md">help/es/write/keyboard.md</file>
+    <file alias="es/write/open-odt.md">help/es/write/open-odt.md</file>
+    <file alias="es/write/open-rtf.md">help/es/write/open-rtf.md</file>
     <file alias="es/write/open-save.md">help/es/write/open-save.md</file>
     <file alias="es/write/page-setup.md">help/es/write/page-setup.md</file>
     <file alias="es/write/pictures.md">help/es/write/pictures.md</file>
@@ -1983,6 +1989,7 @@
     <file alias="fr/crunch/find-replace.md">help/fr/crunch/find-replace.md</file>
     <file alias="fr/crunch/format-cells.md">help/fr/crunch/format-cells.md</file>
     <file alias="fr/crunch/formulas.md">help/fr/crunch/formulas.md</file>
+    <file alias="fr/crunch/function-arguments.md">help/fr/crunch/function-arguments.md</file>
     <file alias="fr/crunch/index.md">help/fr/crunch/index.md</file>
     <file alias="fr/crunch/insert-delete.md">help/fr/crunch/insert-delete.md</file>
     <file alias="fr/crunch/insert-function.md">help/fr/crunch/insert-function.md</file>
@@ -1990,9 +1997,11 @@
     <file alias="fr/crunch/names.md">help/fr/crunch/names.md</file>
     <file alias="fr/crunch/notes-links.md">help/fr/crunch/notes-links.md</file>
     <file alias="fr/crunch/number-formats.md">help/fr/crunch/number-formats.md</file>
+    <file alias="fr/crunch/open-password.md">help/fr/crunch/open-password.md</file>
     <file alias="fr/crunch/open-save.md">help/fr/crunch/open-save.md</file>
     <file alias="fr/crunch/page-layout.md">help/fr/crunch/page-layout.md</file>
     <file alias="fr/crunch/page-setup.md">help/fr/crunch/page-setup.md</file>
+    <file alias="fr/crunch/pivot-tables.md">help/fr/crunch/pivot-tables.md</file>
     <file alias="fr/crunch/printing.md">help/fr/crunch/printing.md</file>
     <file alias="fr/crunch/protect.md">help/fr/crunch/protect.md</file>
     <file alias="fr/crunch/rules.md">help/fr/crunch/rules.md</file>
@@ -2092,6 +2101,8 @@
     <file alias="fr/write/headers-footers.md">help/fr/write/headers-footers.md</file>
     <file alias="fr/write/index.md">help/fr/write/index.md</file>
     <file alias="fr/write/keyboard.md">help/fr/write/keyboard.md</file>
+    <file alias="fr/write/open-odt.md">help/fr/write/open-odt.md</file>
+    <file alias="fr/write/open-rtf.md">help/fr/write/open-rtf.md</file>
     <file alias="fr/write/open-save.md">help/fr/write/open-save.md</file>
     <file alias="fr/write/page-setup.md">help/fr/write/page-setup.md</file>
     <file alias="fr/write/pictures.md">help/fr/write/pictures.md</file>
@@ -2117,6 +2128,7 @@
     <file alias="it/crunch/find-replace.md">help/it/crunch/find-replace.md</file>
     <file alias="it/crunch/format-cells.md">help/it/crunch/format-cells.md</file>
     <file alias="it/crunch/formulas.md">help/it/crunch/formulas.md</file>
+    <file alias="it/crunch/function-arguments.md">help/it/crunch/function-arguments.md</file>
     <file alias="it/crunch/index.md">help/it/crunch/index.md</file>
     <file alias="it/crunch/insert-delete.md">help/it/crunch/insert-delete.md</file>
     <file alias="it/crunch/insert-function.md">help/it/crunch/insert-function.md</file>
@@ -2124,9 +2136,11 @@
     <file alias="it/crunch/names.md">help/it/crunch/names.md</file>
     <file alias="it/crunch/notes-links.md">help/it/crunch/notes-links.md</file>
     <file alias="it/crunch/number-formats.md">help/it/crunch/number-formats.md</file>
+    <file alias="it/crunch/open-password.md">help/it/crunch/open-password.md</file>
     <file alias="it/crunch/open-save.md">help/it/crunch/open-save.md</file>
     <file alias="it/crunch/page-layout.md">help/it/crunch/page-layout.md</file>
     <file alias="it/crunch/page-setup.md">help/it/crunch/page-setup.md</file>
+    <file alias="it/crunch/pivot-tables.md">help/it/crunch/pivot-tables.md</file>
     <file alias="it/crunch/printing.md">help/it/crunch/printing.md</file>
     <file alias="it/crunch/protect.md">help/it/crunch/protect.md</file>
     <file alias="it/crunch/rules.md">help/it/crunch/rules.md</file>
@@ -2226,6 +2240,8 @@
     <file alias="it/write/headers-footers.md">help/it/write/headers-footers.md</file>
     <file alias="it/write/index.md">help/it/write/index.md</file>
     <file alias="it/write/keyboard.md">help/it/write/keyboard.md</file>
+    <file alias="it/write/open-odt.md">help/it/write/open-odt.md</file>
+    <file alias="it/write/open-rtf.md">help/it/write/open-rtf.md</file>
     <file alias="it/write/open-save.md">help/it/write/open-save.md</file>
     <file alias="it/write/page-setup.md">help/it/write/page-setup.md</file>
     <file alias="it/write/pictures.md">help/it/write/pictures.md</file>
@@ -2251,6 +2267,7 @@
     <file alias="nl/crunch/find-replace.md">help/nl/crunch/find-replace.md</file>
     <file alias="nl/crunch/format-cells.md">help/nl/crunch/format-cells.md</file>
     <file alias="nl/crunch/formulas.md">help/nl/crunch/formulas.md</file>
+    <file alias="nl/crunch/function-arguments.md">help/nl/crunch/function-arguments.md</file>
     <file alias="nl/crunch/index.md">help/nl/crunch/index.md</file>
     <file alias="nl/crunch/insert-delete.md">help/nl/crunch/insert-delete.md</file>
     <file alias="nl/crunch/insert-function.md">help/nl/crunch/insert-function.md</file>
@@ -2258,9 +2275,11 @@
     <file alias="nl/crunch/names.md">help/nl/crunch/names.md</file>
     <file alias="nl/crunch/notes-links.md">help/nl/crunch/notes-links.md</file>
     <file alias="nl/crunch/number-formats.md">help/nl/crunch/number-formats.md</file>
+    <file alias="nl/crunch/open-password.md">help/nl/crunch/open-password.md</file>
     <file alias="nl/crunch/open-save.md">help/nl/crunch/open-save.md</file>
     <file alias="nl/crunch/page-layout.md">help/nl/crunch/page-layout.md</file>
     <file alias="nl/crunch/page-setup.md">help/nl/crunch/page-setup.md</file>
+    <file alias="nl/crunch/pivot-tables.md">help/nl/crunch/pivot-tables.md</file>
     <file alias="nl/crunch/printing.md">help/nl/crunch/printing.md</file>
     <file alias="nl/crunch/protect.md">help/nl/crunch/protect.md</file>
     <file alias="nl/crunch/rules.md">help/nl/crunch/rules.md</file>
@@ -2360,6 +2379,8 @@
     <file alias="nl/write/headers-footers.md">help/nl/write/headers-footers.md</file>
     <file alias="nl/write/index.md">help/nl/write/index.md</file>
     <file alias="nl/write/keyboard.md">help/nl/write/keyboard.md</file>
+    <file alias="nl/write/open-odt.md">help/nl/write/open-odt.md</file>
+    <file alias="nl/write/open-rtf.md">help/nl/write/open-rtf.md</file>
     <file alias="nl/write/open-save.md">help/nl/write/open-save.md</file>
     <file alias="nl/write/page-setup.md">help/nl/write/page-setup.md</file>
     <file alias="nl/write/pictures.md">help/nl/write/pictures.md</file>
@@ -2385,6 +2406,7 @@
     <file alias="pt_BR/crunch/find-replace.md">help/pt_BR/crunch/find-replace.md</file>
     <file alias="pt_BR/crunch/format-cells.md">help/pt_BR/crunch/format-cells.md</file>
     <file alias="pt_BR/crunch/formulas.md">help/pt_BR/crunch/formulas.md</file>
+    <file alias="pt_BR/crunch/function-arguments.md">help/pt_BR/crunch/function-arguments.md</file>
     <file alias="pt_BR/crunch/index.md">help/pt_BR/crunch/index.md</file>
     <file alias="pt_BR/crunch/insert-delete.md">help/pt_BR/crunch/insert-delete.md</file>
     <file alias="pt_BR/crunch/insert-function.md">help/pt_BR/crunch/insert-function.md</file>
@@ -2392,9 +2414,11 @@
     <file alias="pt_BR/crunch/names.md">help/pt_BR/crunch/names.md</file>
     <file alias="pt_BR/crunch/notes-links.md">help/pt_BR/crunch/notes-links.md</file>
     <file alias="pt_BR/crunch/number-formats.md">help/pt_BR/crunch/number-formats.md</file>
+    <file alias="pt_BR/crunch/open-password.md">help/pt_BR/crunch/open-password.md</file>
     <file alias="pt_BR/crunch/open-save.md">help/pt_BR/crunch/open-save.md</file>
     <file alias="pt_BR/crunch/page-layout.md">help/pt_BR/crunch/page-layout.md</file>
     <file alias="pt_BR/crunch/page-setup.md">help/pt_BR/crunch/page-setup.md</file>
+    <file alias="pt_BR/crunch/pivot-tables.md">help/pt_BR/crunch/pivot-tables.md</file>
     <file alias="pt_BR/crunch/printing.md">help/pt_BR/crunch/printing.md</file>
     <file alias="pt_BR/crunch/protect.md">help/pt_BR/crunch/protect.md</file>
     <file alias="pt_BR/crunch/rules.md">help/pt_BR/crunch/rules.md</file>
@@ -2494,6 +2518,8 @@
     <file alias="pt_BR/write/headers-footers.md">help/pt_BR/write/headers-footers.md</file>
     <file alias="pt_BR/write/index.md">help/pt_BR/write/index.md</file>
     <file alias="pt_BR/write/keyboard.md">help/pt_BR/write/keyboard.md</file>
+    <file alias="pt_BR/write/open-odt.md">help/pt_BR/write/open-odt.md</file>
+    <file alias="pt_BR/write/open-rtf.md">help/pt_BR/write/open-rtf.md</file>
     <file alias="pt_BR/write/open-save.md">help/pt_BR/write/open-save.md</file>
     <file alias="pt_BR/write/page-setup.md">help/pt_BR/write/page-setup.md</file>
     <file alias="pt_BR/write/pictures.md">help/pt_BR/write/pictures.md</file>
@@ -2519,6 +2545,7 @@
     <file alias="pt_PT/crunch/find-replace.md">help/pt_PT/crunch/find-replace.md</file>
     <file alias="pt_PT/crunch/format-cells.md">help/pt_PT/crunch/format-cells.md</file>
     <file alias="pt_PT/crunch/formulas.md">help/pt_PT/crunch/formulas.md</file>
+    <file alias="pt_PT/crunch/function-arguments.md">help/pt_PT/crunch/function-arguments.md</file>
     <file alias="pt_PT/crunch/index.md">help/pt_PT/crunch/index.md</file>
     <file alias="pt_PT/crunch/insert-delete.md">help/pt_PT/crunch/insert-delete.md</file>
     <file alias="pt_PT/crunch/insert-function.md">help/pt_PT/crunch/insert-function.md</file>
@@ -2526,9 +2553,11 @@
     <file alias="pt_PT/crunch/names.md">help/pt_PT/crunch/names.md</file>
     <file alias="pt_PT/crunch/notes-links.md">help/pt_PT/crunch/notes-links.md</file>
     <file alias="pt_PT/crunch/number-formats.md">help/pt_PT/crunch/number-formats.md</file>
+    <file alias="pt_PT/crunch/open-password.md">help/pt_PT/crunch/open-password.md</file>
     <file alias="pt_PT/crunch/open-save.md">help/pt_PT/crunch/open-save.md</file>
     <file alias="pt_PT/crunch/page-layout.md">help/pt_PT/crunch/page-layout.md</file>
     <file alias="pt_PT/crunch/page-setup.md">help/pt_PT/crunch/page-setup.md</file>
+    <file alias="pt_PT/crunch/pivot-tables.md">help/pt_PT/crunch/pivot-tables.md</file>
     <file alias="pt_PT/crunch/printing.md">help/pt_PT/crunch/printing.md</file>
     <file alias="pt_PT/crunch/protect.md">help/pt_PT/crunch/protect.md</file>
     <file alias="pt_PT/crunch/rules.md">help/pt_PT/crunch/rules.md</file>
@@ -2628,6 +2657,8 @@
     <file alias="pt_PT/write/headers-footers.md">help/pt_PT/write/headers-footers.md</file>
     <file alias="pt_PT/write/index.md">help/pt_PT/write/index.md</file>
     <file alias="pt_PT/write/keyboard.md">help/pt_PT/write/keyboard.md</file>
+    <file alias="pt_PT/write/open-odt.md">help/pt_PT/write/open-odt.md</file>
+    <file alias="pt_PT/write/open-rtf.md">help/pt_PT/write/open-rtf.md</file>
     <file alias="pt_PT/write/open-save.md">help/pt_PT/write/open-save.md</file>
     <file alias="pt_PT/write/page-setup.md">help/pt_PT/write/page-setup.md</file>
     <file alias="pt_PT/write/pictures.md">help/pt_PT/write/pictures.md</file>
