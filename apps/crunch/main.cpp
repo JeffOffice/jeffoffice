@@ -14,6 +14,7 @@
 #include "app/icons.h"
 #include "app/recovery.h"
 #include "app/settings.h"
+#include "app/splash.h"
 #include "app/telemetry.h"
 #include "app/theme.h"
 #include "app/updater.h"
@@ -89,6 +90,9 @@ int main(int argc, char **argv)
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Workbooks to open."), QStringLiteral("[files...]"));
     cli.process(app);
 
+    // The loading card, up before the slow part of the start (not for the jobs that make a file and quit).
+    jp::StartupSplash *splash = cli.isSet(shotOpt) ? nullptr : jp::showStartupSplash();
+    if (splash) splash->step(QCoreApplication::translate("Splash", "Loading fonts…"), 0.3);
     jp::initCore();
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
@@ -97,6 +101,7 @@ int main(int argc, char **argv)
     jp::installFocusRing(&app);
     app.installEventFilter(new FileOpener(&app));
 
+    if (splash) splash->step(QCoreApplication::translate("Splash", "Setting up the window…"), 0.6);
     auto *w = new jp::CrunchWindow();
     w->setAttribute(Qt::WA_DeleteOnClose);
     const QStringList files = cli.positionalArguments();
@@ -136,6 +141,7 @@ int main(int argc, char **argv)
     if (files.isEmpty()) {
         w->newBlank();
     } else {
+        if (splash) splash->step(jp::openingStatus(files.first()), 0.8);
         if (!w->openFile(files.first())) w->newBlank();
         for (int i = 1; i < files.size(); ++i) w->openFile(files[i]);   // (each in a window of its own)
     }
@@ -145,5 +151,6 @@ int main(int argc, char **argv)
     jp::setUpdater(up);
     up->checkOnStartup();
     jp::telemetry::start(w);
+    if (splash) splash->finish(w);   // (it goes when the window is drawn)
     return app.exec();
 }
