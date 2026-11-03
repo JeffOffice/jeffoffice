@@ -1,5 +1,5 @@
 # Pivot-Tabellen
-<!-- keywords: PivotTable, Pivot-Tabelle, PivotTable einfügen, erstellen, PIVOTDATENZUORDNEN, GETPIVOTDATA, PIVOTDATENZUORDNEN generieren, aktualisieren, alle aktualisieren, Datenquelle ändern, Feldliste, Felder, Zeilen, Spalten, Werte, Filter, Berichtsfilter, Gesamtergebnis, Teilergebnis, Layout, Kurzformat, Gliederungsformat, Tabellenformat, löschen, Wertfeldeinstellungen, Summe, Anzahl, Mittelwert, Kreuztabelle, Auswertung -->
+<!-- keywords: Pivot-Tabelle, Pivot-Tabelle einfügen, erstellen, PIVOTDATENZUORDNEN, GETPIVOTDATA, PIVOTDATENZUORDNEN generieren, aktualisieren, alle aktualisieren, Datenquelle ändern, Feldliste, Felder, Zeilen, Spalten, Werte, Filter, Berichtsfilter, Gesamtergebnis, Teilergebnis, Layout, Kurzformat, Gliederungsformat, Tabellenformat, löschen, Wertfeldeinstellungen, Summe, Anzahl, Mittelwert, Kreuztabelle, Auswertung -->
 
 Eine Pivot-Tabelle ist ein kleiner Bericht, der aus einer langen Liste erstellt wird. Die Liste enthält zum Beispiel eine Zeile für jeden Verkauf; der Bericht addiert die Verkäufe nach Region und Monat. Sie schreiben keine Formeln. Sie legen fest, welche Spalten der Liste an der Seite stehen, welche oben quer verlaufen und welche addiert wird, und der Bericht füllt sich von selbst aus.
 
