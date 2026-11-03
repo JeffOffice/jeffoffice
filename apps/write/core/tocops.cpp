@@ -560,6 +560,7 @@ QString tocCode(const TocOptions &o)
 {
     QString code = QStringLiteral(" TOC \\o \"1-%1\"").arg(std::clamp(o.levels, 1, 9));
     if (o.hyperlinks) code += QStringLiteral(" \\h");
+    if (o.entryFields) code += QStringLiteral(" \\f");
     code += QStringLiteral(" \\z \\u");
     if (!o.pageNumbers) code += QStringLiteral(" \\n");
     else if (!o.rightAlign) code += QStringLiteral(" \\p \" \"");
@@ -569,6 +570,44 @@ QString tocCode(const TocOptions &o)
 bool insertTableOfContents(WriteDoc &doc, QTextCursor &c, const TocOptions &options, bool *truncated)
 {
     return insertTableFromCode(doc, c, tocCode(options), options.leader, truncated);
+}
+
+bool insertTocGallery(WriteDoc &doc, QTextCursor &c, TocGallery kind)
+{
+    QTextDocument *story = doc.story();
+    if (c.document() != story || !intoBody(c)) return false;
+    WriteDoc::StepGroup group(doc);
+    EditScope scope(doc, story);
+    const quint64 sheet = doc.styleSheetRevision();
+    const QString headingStyle = QStringLiteral("TOCHeading");
+    if (doc.ensureStyle(headingStyle) && doc.styleSheetRevision() != sheet) doc.markStyleStep();
+    QTextCursor at(story);
+    at.setPosition(c.selectionEnd());
+    if (!at.block().text().isEmpty()) {
+        at.movePosition(QTextCursor::EndOfBlock);
+        at.insertBlock(doc.styleBlockFormat(doc.defaultParagraphStyle()), doc.styleCharFormat(doc.defaultParagraphStyle()));
+    }
+    at.setBlockFormat(doc.styleBlockFormat(headingStyle));
+    at.insertText(kind == TocGallery::Automatic1 ? QCoreApplication::translate("jp::write::Fields", "Contents") : QCoreApplication::translate("jp::write::Fields", "Table of Contents"), doc.styleCharFormat(headingStyle));
+    if (kind == TocGallery::Manual) {
+        const QString placeholder = QCoreApplication::translate("jp::write::Fields", "Type chapter title (level %1)");
+        const int levels[] = {1, 2, 3, 1};
+        for (int i = 0; i < 4; ++i) {
+            const QString style = styleForLevel(doc, levels[i]);
+            at.insertBlock(doc.styleBlockFormat(style), doc.styleCharFormat(style));
+            at.insertText(placeholder.arg(levels[i]) + QLatin1Char('\t') + QString::number(i + 1), doc.styleCharFormat(style));
+        }
+        at.insertBlock(doc.styleBlockFormat(doc.defaultParagraphStyle()), doc.styleCharFormat(doc.defaultParagraphStyle()));
+        c.setPosition(at.position());
+        return true;
+    }
+    at.insertBlock(doc.styleBlockFormat(doc.defaultParagraphStyle()), doc.styleCharFormat(doc.defaultParagraphStyle()));
+    QTextCursor put(story);
+    put.setPosition(at.position());
+    TocOptions options;
+    if (!insertTableOfContents(doc, put, options)) return false;
+    c = put;
+    return true;
 }
 
 bool insertTableFromCode(WriteDoc &doc, QTextCursor &c, const QString &code, const QString &leader, bool *truncated)

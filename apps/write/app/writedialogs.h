@@ -2,6 +2,7 @@
 // The dialog boxes that are JeffWrite's own: Font, Paragraph, and Zoom.
 
 #include <QString>
+#include <QVector>
 
 class QTextCursor;
 class QWidget;
@@ -10,6 +11,7 @@ namespace jp::write {
 
 class PageView;
 class WriteDoc;
+struct Source;
 
 // The font, style, size, color, underline (its style and color), and effects of the characters the cursor selects (of the text typed next, with none
 // selected). What the person changed is given to the characters as one step that undoes; what they left alone stays as it was in each of them.
@@ -36,6 +38,28 @@ bool fieldDialog(QWidget *parent, WriteDoc *doc, PageView *view);
 bool tableOfContentsDialog(QWidget *parent, WriteDoc *doc, PageView *view);
 // Update Table of Contents: page numbers only, or the entire table. Returns 0 for neither (canceled), 1 for page numbers only, and 2 for the entire table.
 int updateTableDialog(QWidget *parent);
+// Mark Table of Contents Entry: the entry's text, its level, and the table it is for; puts a table entry field at the caret.
+bool tocEntryDialog(QWidget *parent, WriteDoc *doc, PageView *view);
+// Insert Caption: the label, the text, above or below, with the chapter number or without the label; puts the caption next to the selection.
+bool captionDialog(QWidget *parent, WriteDoc *doc, PageView *view);
+// Table of Figures: the caption label and the form of the table; puts it at the caret.
+bool tableOfFiguresDialog(QWidget *parent, WriteDoc *doc, PageView *view);
+// Mark Index Entry: the main entry and subentry, the page (current, a range from a bookmark, or a cross-reference), and the look of the number; Mark or Mark All.
+bool markIndexEntryDialog(QWidget *parent, WriteDoc *doc, PageView *view);
+// Index: columns, tab leader, headings, and indented or run-in; puts an index at the caret.
+bool indexDialog(QWidget *parent, WriteDoc *doc, PageView *view);
+// Mark Citation (for a table of authorities): the long and the short citation and the category.
+bool markCitationDialog(QWidget *parent, WriteDoc *doc, PageView *view);
+// Table of Authorities: the category (or all), passim, headings, and the tab leader.
+bool tableOfAuthoritiesDialog(QWidget *parent, WriteDoc *doc, PageView *view);
+// One source (its type, authors, and the values its type asks for), made or changed in `source`; `others` are the tags that are taken. Returns false if canceled.
+bool sourceDialog(QWidget *parent, Source *source, const QVector<Source> &others);
+// The Source Manager: the master list the documents share beside this document's own list, with copy, delete, edit, and new. Returns whether the document's list changed.
+bool manageSourcesDialog(QWidget *parent, WriteDoc *doc);
+// Insert Citation: pick a source (or make one), the pages, and what to leave out; puts a citation at the caret.
+bool insertCitationDialog(QWidget *parent, WriteDoc *doc, PageView *view);
+// The style citations and the bibliography are shown in. Returns whether it changed.
+bool citationStyleDialog(QWidget *parent, WriteDoc *doc);
 // The alt text of a picture: a description for people who can't see it. Returns false if canceled; `alt` is what to keep.
 bool altTextDialog(QWidget *parent, QString *alt);
 // The zoom: a percent, the width of the page, the whole page, or several pages across.

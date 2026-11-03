@@ -318,6 +318,8 @@ FieldsNear fieldsNearSelection(QTextDocument *story, const QTextCursor &c)
         (k.locked ? out.locked : out.unlocked) = true;
         const QString code = (k.complexBegin ? codeAfter(story, beginPos) : k.code).trimmed();
         if (code.startsWith(QLatin1String("TOC"), Qt::CaseInsensitive) && (code.size() == 3 || !code[3].isLetterOrNumber())) out.toc = true;
+        if (code.startsWith(QLatin1String("INDEX"), Qt::CaseInsensitive) && (code.size() == 5 || !code[5].isLetterOrNumber())) out.index = true;
+        if (code.startsWith(QLatin1String("TOA"), Qt::CaseInsensitive) && (code.size() == 3 || !code[3].isLetterOrNumber())) out.authorities = true;
     };
     const int from = c.selectionStart(), to = c.selectionEnd();
     // The marks that begin in the selection (and, for a caret, a field that is one character at its side).

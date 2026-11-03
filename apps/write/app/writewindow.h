@@ -171,6 +171,7 @@ private:
     void createHeaderFooterActions();
     void createNoteActions();
     void createFieldActions();
+    void createRefsActions();
     void updateFieldsNow();
     void createTableActions();
     void createPictureActions();

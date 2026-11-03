@@ -121,6 +121,7 @@ void resetFieldWorkForTest();
 struct FieldsNear {
     bool any = false, locked = false, unlocked = false;
     bool toc = false;   // one of them is a table of contents
+    bool index = false, authorities = false;   // one of them is an index, or a table of authorities
 };
 FieldsNear fieldsNearSelection(QTextDocument *story, const QTextCursor &c);
 

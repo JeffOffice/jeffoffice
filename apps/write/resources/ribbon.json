@@ -442,16 +442,41 @@
           "keytip": "ZC",
           "items": [
             {
-              "large": "refs.toc",
-              "keytip": "T"
+              "large": {
+                "id": "ribbon.tocGallery",
+                "text": "Table of Contents",
+                "icon": "list-tree"
+              },
+              "keytip": "T",
+              "menu": [
+                "refs.tocAutomatic1",
+                "refs.tocAutomatic2",
+                "refs.tocManual",
+                "refs.toc",
+                "refs.removeTable"
+              ]
+            },
+            {
+              "small": {
+                "id": "ribbon.addText",
+                "text": "Add Text",
+                "icon": "list-plus"
+              },
+              "keytip": "A",
+              "menu": [
+                "refs.addText.none",
+                "refs.addText.1",
+                "refs.addText.2",
+                "refs.addText.3"
+              ]
             },
             {
               "small": "refs.updateTable",
               "keytip": "U"
             },
             {
-              "small": "refs.removeTable",
-              "keytip": "RT"
+              "small": "refs.markTocEntry",
+              "keytip": "M"
             }
           ]
         },
@@ -478,16 +503,91 @@
           ]
         },
         {
-          "name": "Captions and References",
+          "name": "Citations and Bibliography",
+          "keytip": "ZB",
+          "items": [
+            {
+              "large": "refs.insertCitation",
+              "keytip": "Z"
+            },
+            {
+              "small": "refs.manageSources",
+              "keytip": "S"
+            },
+            {
+              "small": "refs.citationStyle",
+              "keytip": "Y"
+            },
+            {
+              "large": {
+                "id": "ribbon.bibliography",
+                "text": "Bibliography",
+                "icon": "book-open"
+              },
+              "keytip": "B",
+              "menu": [
+                "refs.bibliography.bibliography",
+                "refs.bibliography.references",
+                "refs.bibliography.worksCited"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Captions",
           "keytip": "ZR",
           "items": [
             {
-              "large": "refs.crossReference",
-              "keytip": "R"
+              "large": "refs.insertCaption",
+              "keytip": "P"
+            },
+            {
+              "small": "refs.tableOfFigures",
+              "keytip": "G"
             },
             {
               "small": "fields.update",
               "keytip": "UF"
+            },
+            {
+              "small": "refs.crossReference",
+              "keytip": "R"
+            }
+          ]
+        },
+        {
+          "name": "Index",
+          "keytip": "ZX",
+          "items": [
+            {
+              "large": "refs.insertIndex",
+              "keytip": "I"
+            },
+            {
+              "small": "refs.markEntry",
+              "keytip": "K"
+            },
+            {
+              "small": "refs.updateIndex",
+              "keytip": "UI"
+            }
+          ]
+        },
+        {
+          "name": "Table of Authorities",
+          "keytip": "ZA",
+          "items": [
+            {
+              "large": "refs.insertAuthorities",
+              "keytip": "H"
+            },
+            {
+              "small": "refs.markCitation",
+              "keytip": "J"
+            },
+            {
+              "small": "refs.updateAuthorities",
+              "keytip": "UA"
             }
           ]
         }

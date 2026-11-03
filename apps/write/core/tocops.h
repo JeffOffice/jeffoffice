@@ -72,6 +72,7 @@ struct TocOptions {
     bool rightAlign = true;      // page numbers at the right margin (else after the entry)
     QString leader = QStringLiteral("dot");
     bool hyperlinks = true;
+    bool entryFields = false;    // lines also for the entries marked with table entry fields (TOC \f)
 };
 // The code a table with these options has.
 QString tocCode(const TocOptions &options);
@@ -83,6 +84,10 @@ bool markTocEntry(WriteDoc &doc, QTextCursor &c, const QString &text, int level,
 // Makes the paragraphs the selection touches headings of this level (the style "Heading 1" to "Heading 9"), so that a table built from headings has them; level 0 makes them body text
 // again (the document's default paragraph style). One step of the history.
 bool addTextToToc(WriteDoc &doc, QTextCursor &c, int level);
+// The gallery's tables: a heading (in the style "TOC Heading") and a table built now ("Automatic Table 1" is headed "Contents", "Automatic Table 2" "Table of Contents"), or "Manual Table", which
+// is typed text in the table's styles that a person writes over and that no field keeps. One step of the history. False where it can't be put.
+enum class TocGallery { Automatic1, Automatic2, Manual };
+bool insertTocGallery(WriteDoc &doc, QTextCursor &c, TocGallery kind);
 // The same for a table made by the code it is given (a table of figures: TOC \h \z \c "Figure"), at the caret, in a paragraph of its own.
 bool insertTableFromCode(WriteDoc &doc, QTextCursor &c, const QString &code, const QString &leader = QString(), bool *truncated = nullptr);
 // Takes the table the caret is in away (its lines, its marks, and the content control the gallery's tables have); false where the caret is in none.
