@@ -10,9 +10,14 @@
 #include "app/telemetry.h"
 #include "canvas/canvas.h"
 #include "core/appinfo.h"
+#include "io/pptximport.h"
 #include "io/presentationfile.h"
+#include "office/package.h"
+#include "office/repair.h"
 
 #include <QApplication>
+#include <QFileDialog>
+#include <QStandardPaths>
 #include <QFileInfo>
 #include <QMessageBox>
 #include "app/plaintext.h"
@@ -27,11 +32,42 @@ QString DeckWindow::fileKind(const QString &path)
     return kinds.contains(ending) ? ending : QStringLiteral("other");
 }
 
-bool DeckWindow::openFile(const QString &path)
+void DeckWindow::browseAndOpen(OpenHow how)
+{
+    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
+                                                   tr("Presentations (*.pptx *.potx *.ppsx *.ppt *.pps *.pot *.odp *.otp)") + QStringLiteral(";;") + tr("All Files (*)"));
+    if (p.isEmpty()) return;
+    Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
+    openFile(p, how);
+}
+
+void DeckWindow::setReadOnly(bool on)
+{
+    AppWindow::setReadOnly(on);
+    m_ed->setReadOnly(on);
+    // The commands that change the document are turned off (and refused if something still runs one).
+    for (const QString &id : actionIds())
+        if (QAction *a = act(id); a && !commandAllowedReadOnly(id)) a->setEnabled(!on);
+    updateTitle();
+}
+
+bool DeckWindow::openFile(const QString &path, OpenHow how)
 {
     QString notes;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    std::unique_ptr<Document> doc = deck::importAnyPresentationFile(path, &notes);
+    office::RepairReport repair;
+    const bool repairing = how == OpenHow::Repair;
+    std::unique_ptr<Document> doc;
+    if (repairing) {
+        // Open and Repair: what can be read of a damaged package is made into a package that opens, and what was left out is said.
+        QByteArray bytes;
+        if (office::readWholeFile(path, &bytes, &notes)) {
+            const QByteArray fixed = office::repairPackage(bytes, &notes, &repair);
+            if (!fixed.isEmpty()) doc = deck::importPresentation(fixed, &notes);
+        }
+    } else {
+        doc = deck::importAnyPresentationFile(path, &notes);
+    }
     QApplication::restoreOverrideCursor();
     const QString name = QFileInfo(path).fileName();
     if (!doc) {
@@ -42,18 +78,34 @@ bool DeckWindow::openFile(const QString &path)
     m_notes->commit();
     if (m_outline) m_outline->commit();
     DeckWindow *target = this;
-    if (m_ed->isModified() || !m_ed->filePath().isEmpty()) {
+    if (m_ed->isModified() || !m_ed->filePath().isEmpty() || how == OpenHow::NewWindow) {
         target = new DeckWindow();
         target->setAttribute(Qt::WA_DeleteOnClose);
         target->show();
     }
     target->m_ed->endTextEdit();
-    target->m_ed->setDocument(std::move(doc), path);
+    const bool copy = how == OpenHow::Copy || repairing;   // (a repaired presentation is not the file it was repaired from: Save asks for a name)
+    target->setReadOnly(false);
+    if (copy) {
+        // The file's contents as a new presentation that has no file yet (Save asks where); the file is never written.
+        target->m_ed->setDocument(std::move(doc));
+        target->m_ed->setUntitledName((repairing ? tr("Repaired %1") : tr("Copy of %1")).arg(QFileInfo(path).completeBaseName()));
+        target->m_ed->markUnsaved();
+        target->updateTitle();
+    } else {
+        target->m_ed->setDocument(std::move(doc), path);
+        if (how == OpenHow::ReadOnly) target->setReadOnly(true);
+    }
     // The panes follow the new presentation (documentReplaced); its slides may be another size.
     target->m_canvas->zoomToFit(Canvas::Fit::WholePage);
     Settings::get().addRecentFile(path);
     telemetry::count(QStringLiteral("file.open.") + fileKind(path));
     hideFileScreen();
+    if (repairing) {
+        const QString text = tr("\"%1\" was opened as a repaired copy. Save it under a name of its own.\n\n%2").arg(name, office::repairSummary(repair));
+        if (m_notifier) m_notifier(tr("Open and Repair"), text);
+        else jp::plainInformation(target, tr("Open and Repair"), text);
+    }
     if (!notes.isEmpty())
         jp::plainWarning(target, tr("Open"), tr("Some of \"%1\" couldn't be read and was left out.\n\n%2").arg(name, notes));
     return true;

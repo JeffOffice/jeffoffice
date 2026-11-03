@@ -6,6 +6,7 @@
 
 #include "app/editor.h"
 #include "app/filedialogs.h"
+#include "app/filetasks.h"
 #include "app/icons.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
@@ -14,6 +15,7 @@
 #include "app/telemetry.h"
 #include "canvas/canvas.h"
 #include "core/appinfo.h"
+#include "io/deckoutput.h"
 #include "io/pptxexport.h"
 #include "io/pptximport.h"
 #include "io/presentationfile.h"
@@ -69,6 +71,11 @@ void DeckWindow::createSaveActions()
 
 bool DeckWindow::save()
 {
+    // A presentation open for reading only is saved under a new name.
+    if (isReadOnly()) {
+        statusBar()->showMessage(tr("This presentation is open for reading only, so it is saved under a new name."), 6000);
+        return saveAs();
+    }
     const QString path = m_ed->filePath();
     // A presentation opened from a template is saved as a new presentation:
     // the template stays as it is, unless this window wrote it. So is one
@@ -107,6 +114,45 @@ bool DeckWindow::saveAs()
     return saveTo(path);
 }
 
+bool DeckWindow::saveCopy()
+{
+    const QString from = m_ed->filePath().isEmpty() ? m_recoveredFrom : m_ed->filePath();
+    const QString dir = from.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(from).absolutePath();
+    const QString name = tr("%1 copy").arg(from.isEmpty() ? m_ed->displayName() : QFileInfo(from).completeBaseName());
+    const QString pptxFilter = tr("Presentation (*.pptx)"), potxFilter = tr("Template (*.potx)"), ppsxFilter = tr("Show (*.ppsx)");
+    const QString odpFilter = tr("OpenDocument Presentation (*.odp)"), otpFilter = tr("OpenDocument Presentation Template (*.otp)");
+    const bool odf = deck::formatOfFileName(from) == deck::FileFormat::Odp;
+    QString selected = odf ? odpFilter : pptxFilter;
+    auto endingOf = [&](const QString &filter) {
+        return filter == ppsxFilter ? QStringLiteral(".ppsx") : filter == potxFilter ? QStringLiteral(".potx") : filter == odpFilter ? QStringLiteral(".odp") : filter == otpFilter ? QStringLiteral(".otp") : QStringLiteral(".pptx");
+    };
+    const QString suggested = dir + QLatin1Char('/') + name + endingOf(selected);
+    QString path = m_pathChooser ? m_pathChooser(suggested, selected)
+                                 : askSavePath(this, tr("Save a Copy"), suggested,
+                                               pptxFilter + QStringLiteral(";;") + potxFilter + QStringLiteral(";;") + ppsxFilter + QStringLiteral(";;") + odpFilter + QStringLiteral(";;") + otpFilter, &selected);
+    if (path.isEmpty()) return false;
+    if (!isKnownEnding(path)) path += endingOf(selected);
+    return saveTo(path, true);
+}
+
+bool DeckWindow::saveAsTemplate()
+{
+    const QString path = askMyTemplatePath(this, m_ed->displayName(), QStringLiteral(".potx"));
+    if (path.isEmpty()) return false;
+    m_notes->commit();
+    if (m_outline) m_outline->commit();
+    m_ed->endTextEdit();
+    QString err;
+    QStringList skipped;
+    if (!deck::saveAnyPresentationFile(*m_ed->doc(), path, &err, &skipped, Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool())) {
+        jp::plainWarning(this, tr("Save as Template"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
+        return false;
+    }
+    saveTemplateThumbnail(path, deck::slideImage(*m_ed->doc(), &m_ed->cache(), 0, 320));
+    statusBar()->showMessage(tr("Saved \"%1\" in My Templates.").arg(QFileInfo(path).completeBaseName()), 5000);
+    return true;
+}
+
 namespace {
 
 // Options > Save > "Embed fonts in the file": on unless it was turned off.
@@ -114,7 +160,7 @@ bool embedFontsOnSave() { return Settings::get().value(QStringLiteral("save/embe
 
 } // namespace
 
-bool DeckWindow::saveTo(const QString &path)
+bool DeckWindow::saveTo(const QString &path, bool asCopy)
 {
     // What was typed in the notes or a slide's text goes into the file.
     m_notes->commit();
@@ -126,12 +172,20 @@ bool DeckWindow::saveTo(const QString &path)
     if (doc->props.author.isEmpty()) doc->props.author = Settings::get().userName();
     QString err;
     QStringList skipped;
+    keepBackupBeforeSave(path);
     if (!deck::saveAnyPresentationFile(*doc, path, &err, &skipped, embedFontsOnSave())) {
         jp::plainWarning(this, tr("Save"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
+    if (asCopy) {
+        Settings::get().addRecentFile(path);
+        telemetry::count(QStringLiteral("file.save.") + fileKind(path));
+        statusBar()->showMessage(tr("Saved a copy as %1").arg(QFileInfo(path).fileName()), 4000);
+        return true;
+    }
     m_ed->setFilePath(path);
     m_ed->markSaved();
+    if (isReadOnly()) setReadOnly(false);
     m_recoveredFrom.clear();
     m_templatePath = deck::presentationKindOf(path) == deck::PresentationKind::Template ? path : QString();
     Settings::get().addRecentFile(path);

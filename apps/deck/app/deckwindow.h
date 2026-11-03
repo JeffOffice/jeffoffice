@@ -3,6 +3,7 @@
 // edited with its notes below, and the status bar.
 
 #include "app/appwindow.h"
+#include "app/filetasks.h"
 #include "app/formatpane.h"
 #include "app/slideshow.h"
 
@@ -254,16 +255,26 @@ public:
     // Opens a presentation file (.pptx, .potx, .ppsx, .ppt, .pps, .pot, .odp, .otp) in this window if it
     // holds a new presentation nobody has touched, else in a window of its
     // own. False, with the reason shown, if the file can't be read.
-    bool openFile(const QString &path);
+    // `how`: as it is (the default), read-only, as a copy (an unsaved presentation made from the file; the file is never written), or in a window of its own even if this one holds nothing.
+    bool openFile(const QString &path, OpenHow how = OpenHow::Normal);
+    // Shows the file dialog and opens what is chosen the way `how` says.
+    void browseAndOpen(OpenHow how = OpenHow::Normal);
+    void setReadOnly(bool on) override;
+    // What a sentence for the person (what Open and Repair left out) is shown with: a message box, unless this stands in for it (tests).
+    void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
     // Saves to the file the presentation came from, else asks where (Save As).
     // A presentation opened from a template always asks, so the template is
     // not written over. False if nothing was written.
     bool save();
     // Asks for a name and writes the presentation there (.pptx, .potx, or .ppsx).
     bool saveAs();
-    // Writes the file, and the presentation is saved and takes the file's name.
+    // Save a Copy: asks for a name as Save As does, writes the presentation there, and goes on with the original (its name and unsaved changes).
+    bool saveCopy();
+    // Save as Template: asks for a name and puts a template (.potx) made from the presentation in My Templates (File > New); the presentation is as it was.
+    bool saveAsTemplate();
+    // Writes the file, and the presentation is saved and takes the file's name (not for a copy, which is only written).
     // On failure, says why and leaves the presentation unsaved.
-    bool saveTo(const QString &path);
+    bool saveTo(const QString &path, bool asCopy = false);
     // What Save As asks for a name with: the file dialog, unless this stands
     // in for it (tests). Given the name to suggest and the filter to start on;
     // returns the path chosen, empty for none.
@@ -448,6 +459,7 @@ private:
     QPair<QString, int> m_fitWatch;   // the text box being edited, and its story's revision when that began
     QString m_recoveryCopy;      // this window's automatic recovery copy, if written
     QString m_recoveredFrom;     // a recovered presentation's original file, for Save As
+    std::function<void(const QString &, const QString &)> m_notifier;
     QString m_templatePath;      // a template this window wrote: saving again writes over it
     std::function<QString(const QString &, const QString &)> m_pathChooser;
     std::function<bool(const QString &)> m_showQuestion;
