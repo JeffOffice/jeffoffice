@@ -1613,7 +1613,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         sourceNumbers << b.blockNumber();
         const int skip = std::max(0, from - b.position());   // (a paragraph before the first line, of those joined, is left out of the copy)
         const int upto = std::max(0, to - b.position());   // (the copy's end, in every paragraph of a run that is one: a page's copy holds the page's text, not the whole of each)
-        for (auto it = b.begin(); !it.atEnd(); ++it) {
+        for (auto it = skip > 0 ? findRun(b, b.position() + skip).it : b.begin(); !it.atEnd(); ++it) {   // (the runs before the page's first character are not passed again for each page)
             const QTextFragment frag = it.fragment();
             const int rel = frag.position() - b.position();
             if (rel + frag.length() <= skip) continue;   // (before the page's first character: without copying its text, which a paragraph of thousands of pages has before each)
@@ -2125,9 +2125,12 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         for (int i = 0; i < run.kept; ++i) {
             const StoryLayout::LineBrief &ln = run.lines[i];
             for (QTextBlock b = m_doc->story()->findBlock(ln.pos); b.isValid() && b.position() < ln.end; b = b.next())
-                for (auto it = b.begin(); !it.atEnd(); ++it) {
+                // (From the run the line begins in, not from the paragraph's first: a paragraph of a hundred thousand runs has a hundred lines on a page, and each would pass them all.)
+                for (auto it = ln.pos > b.position() ? findRun(b, ln.pos).it : b.begin(); !it.atEnd(); ++it) {
                     const QTextFragment frag = it.fragment();
-                    if (frag.position() >= ln.end || frag.position() + frag.length() <= ln.pos) continue;
+                    if (frag.position() >= ln.end) break;
+                    if (frag.position() + frag.length() <= ln.pos) continue;
+                    ++m_noteFormatsRead;
                     const QString code = frag.charFormat().stringProperty(tp::Field);
                     if (!code.startsWith(QLatin1String("footnote:"))) continue;
                     const int lo = std::max(frag.position(), ln.pos), hi = std::min(frag.position() + frag.length(), ln.end);

@@ -9606,6 +9606,36 @@ private Q_SLOTS:
         QVERIFY2(best < 600000000LL, qPrintable(QStringLiteral("%1 ms to copy one page of %2 runs").arg(best / 1000000).arg(6000)));
     }
 
+    // A line reads the format ranges that reach it, not every range of its paragraph: a paragraph of thousands of runs of two looks, laid out, has the ranges the scans of its lines read
+    // counted at some tens of times the ranges there are, not at the ranges times the lines. (Counted.)
+    void theLinesOfAParagraphOfThousandsOfRunsReadOnlyTheirOwnRanges()
+    {
+        QByteArray runs;
+        for (int i = 0; i < 8000; ++i) runs += QByteArray(i % 2 ? "<w:r><w:rPr><w:b/></w:rPr><w:t>b </w:t></w:r>" : "<w:r><w:t>a </w:t></w:r>");
+        const qint64 before = jp::StoryLayout::rangesScannedForTest();
+        auto doc = open(makeDocx("<w:p>" + runs + "</w:p>", kStyles));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 2);
+        QVERIFY(doc->pager().materialize(0));
+        const qint64 scanned = jp::StoryLayout::rangesScannedForTest() - before;
+        QVERIFY2(scanned <= 8000 * 60, qPrintable(QStringLiteral("%1 ranges read for a paragraph of 8000").arg(scanned)));
+    }
+
+    // The copy of a page far down a paragraph of a hundred thousand runs does not pass the runs before the page, nor the runs of the paragraph for each line of the page: it takes a moment.
+    // (A ceiling many times what the page takes alone.)
+    void aPageFarDownAParagraphOfAHundredThousandRunsIsCopiedQuickly()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        QByteArray runs;
+        for (int i = 0; i < 100000; ++i) runs += QByteArray(i % 2 ? "<w:r><w:rPr><w:b/><w:sz w:val=\"16\"/></w:rPr><w:t>b</w:t></w:r>" : "<w:r><w:rPr><w:sz w:val=\"16\"/></w:rPr><w:t>a</w:t></w:r>");
+        auto doc = open(makeDocx("<w:p>" + runs + "</w:p>", kStyles, QByteArray(), sect));
+        QVERIFY(doc);
+        const int pages = doc->pager().pageCount();
+        QVERIFY2(pages >= 8, qPrintable(QString::number(pages)));
+        const qint64 best = bestNanoseconds([&] { doc->pager().materialize(pages - 2); }, 3);
+        QVERIFY2(best < 1000000000LL, qPrintable(QStringLiteral("%1 ms to copy page %2 of %3").arg(best / 1000000).arg(pages - 1).arg(pages)));
+    }
+
     // A page break that ends the last line of a run of joined paragraphs, with no room on the page for the empty line after it, goes on at the paragraph after the run: nothing of the run
     // (its empty last paragraph, here) is on the next page again.
     void aPageBreakEndingAJoinedRunGoesOnAfterTheRun()
