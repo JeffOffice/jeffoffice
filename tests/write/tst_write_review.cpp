@@ -239,6 +239,19 @@ private Q_SLOTS:
         QVERIFY2(QRegularExpression("<w:numPr><w:ins w:id=\"5\"[^>]*/></w:numPr>").match(QString::fromUtf8(x)).hasMatch(), x.constData());
     }
 
+    void anRtfsTrackedChangesAreTrackedChanges()
+    {
+        const QByteArray rtf = "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Arial;}}{\\*\\revtbl{Unknown;}{Ann;}}\\pard Keep {\\revised\\revauth1 added}{\\deleted\\revauthdel1 gone} end\\par}";
+        QString err;
+        auto doc = WriteDoc::fromFile(rtf, &err);
+        QVERIFY2(doc, qPrintable(err));
+        QCOMPARE(revisionCount(doc->story()), 2);
+        QCOMPARE(finalText(*doc), QStringLiteral("Keep added end"));
+        QCOMPARE(revisionAuthors(doc->story()), QStringList{QStringLiteral("Ann")});
+        QCOMPARE(acceptAll(*doc), 2);
+        QCOMPARE(textWithDeletions(*doc), QStringLiteral("Keep added end"));
+    }
+
     // ---------------------------------------------------------------- Accept and Reject
     void acceptAllKeepsInsertionsAndTakesDeletionsOut()
     {

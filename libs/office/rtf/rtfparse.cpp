@@ -44,7 +44,7 @@ const char *const kKnownWords[] = {
 
 enum class Dest {
     Normal, Skip, FontTbl, ColorTbl, StyleSheet, StyleDef, ListTable, ListDef, ListLevel, LevelText, ListOverrideTable, ListOverride, LfoLevel,
-    FldInst, Field, BkmkStart, BkmkEnd, Pict, Header, Footnote, NestProps, Pn, PnText, ShapeProp, Shape, ShapeText, SpName, SpValue
+    RevTbl, OldCprops, FldInst, Field, BkmkStart, BkmkEnd, Pict, Header, Footnote, NestProps, Pn, PnText, ShapeProp, Shape, ShapeText, SpName, SpValue
 };
 
 // Which destinations the children of a group carry on (the rest start as plain text).
@@ -53,7 +53,7 @@ bool inherits(Dest d)
     switch (d) {
     case Dest::Skip: case Dest::FontTbl: case Dest::ColorTbl: case Dest::FldInst: case Dest::BkmkStart: case Dest::BkmkEnd: case Dest::Pict: case Dest::ShapeProp:
     case Dest::LevelText: case Dest::ListTable: case Dest::ListDef: case Dest::ListLevel: case Dest::ListOverrideTable: case Dest::ListOverride: case Dest::LfoLevel:
-    case Dest::NestProps: case Dest::Pn: case Dest::StyleDef:
+    case Dest::NestProps: case Dest::Pn: case Dest::StyleDef: case Dest::OldCprops: case Dest::RevTbl:
         return true;
     default:
         return false;
@@ -176,8 +176,13 @@ private:
     QHash<QByteArray, QString> m_mediaOf;
     QHash<QString, QString> m_relOfMedia;
     QHash<QString, int> m_bookmarks;
+    QStringList m_authors;                 // the authors of tracked changes, in the order the file lists them
+    QVector<Chr> m_oldProps;               // the properties text had before a change of its format
+    int m_revId = 0;
     QSet<QString> m_endedBookmarks;
     QByteArray m_pendingLead;
+    QByteArray m_utf8;                     // the bytes so far of a character in UTF-8 (code page 65001), and how many more it needs
+    int m_utf8Need = 0;
     int m_ucSkip = 0;
     int m_lastShppict = 0;
     QHash<int, std::array<QChar, 128>> m_pageTables;
@@ -277,6 +282,9 @@ private:
 
     // ---- paragraphs, runs, tables
     void flushText(Story &s);
+    QByteArray revisionAttributes(int author, int date);
+    QByteArray revisionWrapped(const Chr &c, QByteArray run);
+    QByteArray markRevisionXml(const Chr &c);
     void addText(Story &s, const QString &text, const Chr &c);
     void addRaw(Story &s, const QByteArray &inner, const Chr &c, bool withProperties = true);
     void addInline(Story &s, const QByteArray &xml);
@@ -353,6 +361,11 @@ QChar Reader::decodeHigh(int cp, uchar b)
 
 void Reader::flushLead()
 {
+    if (m_utf8Need > 0) {
+        m_utf8.clear();
+        m_utf8Need = 0;
+        routeText(QString(QChar(0xFFFD)));
+    }
     if (m_pendingLead.isEmpty()) return;
     const uchar b = uchar(m_pendingLead[0]);
     m_pendingLead.clear();
@@ -378,7 +391,7 @@ void Reader::routeText(const QString &s)
         }
         addText(story(), s, g.chr);
         break;
-    case Dest::FontTbl: case Dest::StyleDef: case Dest::BkmkStart: case Dest::BkmkEnd: case Dest::PnText: case Dest::SpName: case Dest::SpValue:
+    case Dest::FontTbl: case Dest::StyleDef: case Dest::BkmkStart: case Dest::BkmkEnd: case Dest::PnText: case Dest::SpName: case Dest::SpValue: case Dest::RevTbl:
         if (m_name.size() < 1000) m_name += s;
         break;
     case Dest::FldInst:
@@ -408,6 +421,28 @@ void Reader::onByte(uchar b)
     }
     if (g.dest == Dest::LevelText && b >= 0x80) {
         addLevelRaw(0x80000000u | b);
+        return;
+    }
+    if (cp == 65001) {
+        // UTF-8: a character is a lead byte and the bytes that follow it.
+        if (b < 0x80) {
+            flushLead();
+            routeText(QString(QChar(b)));
+        } else if (b >= 0xC2 && b <= 0xF4) {
+            flushLead();
+            m_utf8 = QByteArray(1, char(b));
+            m_utf8Need = b >= 0xF0 ? 3 : b >= 0xE0 ? 2 : 1;
+        } else if (b < 0xC0 && m_utf8Need > 0) {
+            m_utf8 += char(b);
+            if (--m_utf8Need == 0) {
+                const QString s = QString::fromUtf8(m_utf8);
+                m_utf8.clear();
+                routeText(s);
+            }
+        } else {
+            flushLead();
+            routeText(QString(QChar(0xFFFD)));
+        }
         return;
     }
     if (!m_pendingLead.isEmpty()) {
@@ -458,7 +493,7 @@ void Reader::onTextChars(const char *p, int n)
                 continue;
             }
             int j = i;
-            while (j < n && uchar(p[j]) < 0x80 && m_pendingLead.isEmpty()) ++j;
+            while (j < n && uchar(p[j]) < 0x80 && m_pendingLead.isEmpty() && m_utf8Need == 0) ++j;
             if (j > i) {
                 routeText(QString::fromLatin1(p + i, j - i));
                 i = j;
@@ -471,6 +506,12 @@ void Reader::onTextChars(const char *p, int n)
     }
     for (int i = 0; i < n; ++i) {
         const uchar c = uchar(p[i]);
+        if (g.dest == Dest::RevTbl && c == ';') {
+            if (m_ucSkip > 0) { --m_ucSkip; continue; }
+            if (m_authors.size() < 1000) m_authors.append(m_name.trimmed().left(255));
+            m_name.clear();
+            continue;
+        }
         if (g.dest == Dest::FontTbl || g.dest == Dest::StyleDef || g.dest == Dest::ColorTbl) {
             if (c == ';') {
                 if (m_ucSkip > 0) { --m_ucSkip; continue; }
@@ -500,12 +541,49 @@ void Reader::onText(const QString &s)
 void Reader::flushText(Story &s)
 {
     if (s.text.isEmpty()) return;
-    const QByteArray rpr = runPropertiesXml(s.textChr, t);
+    QByteArray rpr = runPropertiesXml(s.textChr, t);
+    if (s.textChr.crAuth != kUnset && s.textChr.oldProps != kUnset && s.textChr.oldProps < m_oldProps.size())
+        rpr += "<w:rPrChange" + revisionAttributes(s.textChr.crAuth, s.textChr.crDate) + "><w:rPr>" + runPropertiesXml(m_oldProps[s.textChr.oldProps], t) + "</w:rPr></w:rPrChange>";
     QByteArray x = "<w:r>";
     if (!rpr.isEmpty()) x += "<w:rPr>" + rpr + "</w:rPr>";
     x += "<w:t xml:space=\"preserve\">" + xmlEscape(s.text) + "</w:t></w:r>";
+    x = revisionWrapped(s.textChr, x);
     s.text.clear();
     if (spend(x.size())) s.runs += x;
+}
+
+// The attributes of a tracked change: its number, its author (the file's table of them), and its time (the file's packed date: minutes in bits 0 to 5, hour 6 to 10, day 11 to 15, month 16 to 19, years since 1900 20 to 28).
+QByteArray Reader::revisionAttributes(int author, int date)
+{
+    const QString name = author != kUnset && author >= 0 && author < m_authors.size() && !m_authors[author].isEmpty() ? m_authors[author] : QStringLiteral("Unknown");
+    QByteArray x = " w:id=\"" + num(++m_revId) + "\" w:author=\"" + xmlEscape(name) + "\"";
+    if (date != kUnset && date > 0) {
+        const int minute = date & 0x3F, hour = (date >> 6) & 0x1F, day = (date >> 11) & 0x1F, month = (date >> 16) & 0xF, year = 1900 + ((date >> 20) & 0x1FF);
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && hour < 24 && minute < 60)
+            x += QString(" w:date=\"%1-%2-%3T%4:%5:00Z\"").arg(year, 4, 10, QLatin1Char('0')).arg(month, 2, 10, QLatin1Char('0')).arg(day, 2, 10, QLatin1Char('0')).arg(hour, 2, 10, QLatin1Char('0')).arg(minute, 2, 10, QLatin1Char('0')).toLatin1();
+    }
+    return x;
+}
+
+// A run in the tracked changes its properties say it is in: deleted text is deleted text (w:delText), inserted text is inside w:ins.
+QByteArray Reader::revisionWrapped(const Chr &c, QByteArray run)
+{
+    if (c.del == 1) {
+        run.replace("<w:t ", "<w:delText ").replace("</w:t>", "</w:delText>").replace("<w:instrText", "<w:delInstrText").replace("</w:instrText>", "</w:delInstrText>");
+        run = "<w:del" + revisionAttributes(c.delAuth, c.delDate) + ">" + run + "</w:del>";
+    }
+    if (c.ins == 1) run = "<w:ins" + revisionAttributes(c.insAuth, c.insDate) + ">" + run + "</w:ins>";
+    return run;
+}
+
+// The paragraph mark's own mark of a tracked change, when the mark is inserted or deleted (the properties at \par say so).
+QByteArray Reader::markRevisionXml(const Chr &c)
+{
+    if (c.ins != 1 && c.del != 1) return QByteArray();
+    QByteArray x = "<w:rPr>";
+    if (c.ins == 1) x += "<w:ins" + revisionAttributes(c.insAuth, c.insDate) + "/>";
+    if (c.del == 1) x += "<w:del" + revisionAttributes(c.delAuth, c.delDate) + "/>";
+    return x + "</w:rPr>";
 }
 
 void Reader::addText(Story &s, const QString &text, const Chr &c)
@@ -522,7 +600,7 @@ void Reader::addRaw(Story &s, const QByteArray &inner, const Chr &c, bool withPr
 {
     flushText(s);
     const QByteArray rpr = withProperties ? runPropertiesXml(c, t) : QByteArray();
-    const QByteArray x = "<w:r>" + (rpr.isEmpty() ? QByteArray() : "<w:rPr>" + rpr + "</w:rPr>") + inner + "</w:r>";
+    const QByteArray x = revisionWrapped(c, "<w:r>" + (rpr.isEmpty() ? QByteArray() : "<w:rPr>" + rpr + "</w:rPr>") + inner + "</w:r>");
     if (spend(x.size())) s.runs += x;
 }
 
@@ -610,7 +688,7 @@ void Reader::endParagraph(const State &g, int level, bool force)
         left(QStringLiteral("paragraphs"), QCoreApplication::translate("jp::office::rtf", "The document has more paragraphs than the limit, so the rest of it was left out."));
         return;
     }
-    const QByteArray ppr = paragraphPropertiesXml(g.par, t, styleIdOf(g.par.style), false);
+    const QByteArray ppr = paragraphPropertiesXml(g.par, t, styleIdOf(g.par.style), false) + markRevisionXml(g.chr);
     spend(ppr.size() + 16);
     if (level <= 0) {
         closeTables(s);
@@ -1000,6 +1078,12 @@ void Reader::popGroup()
             break;
         }
         case Dest::Footnote: finishNote(g); break;
+        case Dest::OldCprops:
+            if (m_stack.size() >= 2 && m_oldProps.size() < 100000) {
+                m_oldProps.append(g.chr);
+                m_stack[m_stack.size() - 2].chr.oldProps = int(m_oldProps.size()) - 1;
+            }
+            break;
         default: break;
         }
     }
@@ -1448,7 +1532,9 @@ void Reader::destWord(State &g, uint32_t h, bool has, int param, bool *handled)
     case H("fonttbl"): enter(Dest::FontTbl); m_name.clear(); m_font = Font(); m_fontPending = true; break;
     case H("colortbl"): enter(Dest::ColorTbl); m_colorPending = false; m_red = m_green = m_blue = 0; break;
     case H("stylesheet"): enter(Dest::StyleSheet); break;
-    case H("info"): case H("filetbl"): case H("revtbl"): case H("listtext"): case H("pntext"): case H("pnseclvl"): case H("listname"): case H("upr"): case H("annotation"):
+    case H("revtbl"): enter(Dest::RevTbl); m_name.clear(); break;
+    case H("oldcprops"): enter(Dest::OldCprops); g.chr = Chr(); break;
+    case H("info"): case H("filetbl"): case H("listtext"): case H("pntext"): case H("pnseclvl"): case H("listname"): case H("upr"): case H("annotation"):
     case H("xe"): case H("tc"): case H("tcn"): case H("rxe"): case H("txe"): case H("pgdsctbl"): case H("template"): case H("fchars"): case H("lchars"): case H("mmath"):
     case H("shprslt"): case H("nonesttables"): case H("levelnumbers"): case H("background"): case H("stylerestrictions"): case H("themedata"): case H("falt"): case H("panose"):
         g.dest = Dest::Skip;
@@ -1582,7 +1668,22 @@ void Reader::charWord(State &g, uint32_t h, bool has, int param, bool *handled)
     Chr &c = g.chr;
     const int on = (!has || param != 0) ? 1 : 0;
     switch (h) {
-    case H("plain"): c = Chr(); break;
+    case H("plain"): {
+        // (Plain text is plain in its look; the changes it is in go on.)
+        const Chr was = c;
+        c = Chr();
+        c.ins = was.ins; c.insAuth = was.insAuth; c.insDate = was.insDate;
+        c.del = was.del; c.delAuth = was.delAuth; c.delDate = was.delDate;
+        break;
+    }
+    case H("revised"): c.ins = on; break;
+    case H("revauth"): if (has) c.insAuth = param; break;
+    case H("revdttm"): if (has) c.insDate = param; break;
+    case H("deleted"): c.del = on; break;
+    case H("revauthdel"): if (has) c.delAuth = param; break;
+    case H("revdttmdel"): if (has) c.delDate = param; break;
+    case H("crauth"): if (has) c.crAuth = param; break;
+    case H("crdate"): if (has) c.crDate = param; break;
     case H("b"): c.bold = on; break;
     case H("i"): c.italic = on; break;
     case H("strike"): c.strike = on; break;
@@ -1873,7 +1974,7 @@ void Reader::word(uint32_t h, const char *name, int len, bool has, int param)
     if (m_star) {
         m_star = false;
         switch (h) {
-        case H("fldinst"): case H("bkmkstart"): case H("bkmkend"): case H("listtable"): case H("listoverridetable"): case H("pn"): case H("nesttableprops"): case H("shpinst"):
+        case H("revtbl"): case H("oldcprops"): case H("fldinst"): case H("bkmkstart"): case H("bkmkend"): case H("listtable"): case H("listoverridetable"): case H("pn"): case H("nesttableprops"): case H("shpinst"):
         case H("shppict"): case H("cs"): case H("ts"): case H("pntxtb"): case H("pntxta"): case H("txbxcontent"): case H("footnote"):
             break;
         default:

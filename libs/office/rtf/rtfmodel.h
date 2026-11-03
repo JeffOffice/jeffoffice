@@ -28,6 +28,9 @@ struct Chr {
     int color = kUnset, hl = kUnset, shd = kUnset;   // indexes of the color table
     int spacing = kUnset, scale = kUnset, pos = kUnset, lang = kUnset, style = kUnset;
     int outline = kUnset, shadow = kUnset, emboss = kUnset, imprint = kUnset;
+    // Tracked changes the text is in: inserted (\revised, by \revauth at \revdttm), deleted (\deleted, by \revauthdel at \revdttmdel), and a change of its format (\crauth at \crdate,
+    // with the properties it had in \oldcprops: an index of the reader's list of them). The authors are places in the file's table of them, the dates its packed time.
+    int ins = kUnset, insAuth = kUnset, insDate = kUnset, del = kUnset, delAuth = kUnset, delDate = kUnset, crAuth = kUnset, crDate = kUnset, oldProps = kUnset;
     bool operator==(const Chr &o) const { return std::memcmp(this, &o, sizeof(Chr)) == 0; }
     bool operator!=(const Chr &o) const { return !(*this == o); }
 };
