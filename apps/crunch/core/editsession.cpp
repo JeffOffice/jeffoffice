@@ -171,7 +171,11 @@ public:
         for (const FilterEdit &f : m_step.filters) n += qint64(sizeof(f)) + filterBytes(f.before) + filterBytes(f.after);
         for (const NameEdit &e : m_step.names) n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.before.name.size() + e.after.name.size() + e.textBefore.size() + e.textAfter.size() + e.taggedBefore.size() + e.taggedAfter.size()) * 2;
         n += qint64(m_step.calcs.size()) * qint64(sizeof(CalcEdit));
-        for (const SheetEdit &e : m_step.sheets) n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.orderBefore.size() + e.orderAfter.size()) * qint64(sizeof(int));
+        for (const SheetEdit &e : m_step.sheets) {
+            n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.orderBefore.size() + e.orderAfter.size()) * qint64(sizeof(int));
+            for (const auto *groups : {&e.sparksBefore, &e.sparksAfter})
+                for (const jp::office::sheet::SparklineGroup &g : *groups) n += qint64(sizeof(g)) + qint64(g.sparklines.size()) * 96;
+        }
         for (const SizeEdit &e : m_step.sizes)
             n += qint64(sizeof(e)) + qint64(e.columnsBefore.size() + e.columnsAfter.size()) * qint64(sizeof(jp::office::sheet::ColumnSpan)) + qint64(e.rowsBefore.size() + e.rowsAfter.size()) * qint64(sizeof(jp::office::sheet::RowSpec));
         if (m_step.structure) n += m_step.structure->bytes();
@@ -392,6 +396,7 @@ void EditSession::cleanChanged(bool clean)
     m_sheetsListed = false;
     m_statesChanged.clear();
     m_tabColorsChanged.clear();
+    m_sparklinesChanged.clear();
     m_sheetOps.clear();
     m_copies.clear();
 }
@@ -1115,6 +1120,8 @@ bool EditSession::apply(Step *step, bool forward)
     for (const FilterEdit &f : step->filters) Q_EMIT sizesChanged(f.sheet);
     for (const RowSpecsEdit &e : step->rowSpecs) Q_EMIT sizesChanged(e.sheet);
     for (const int s : tableSheets) Q_EMIT tablesChanged(s);
+    for (const SheetEdit &e : step->sheets)
+        if (e.kind == SheetEdit::Kind::Sparklines) Q_EMIT sparklinesChanged(e.sheet);
     if (!step->sheets.empty()) Q_EMIT sheetsChanged();
     if (!step->calcs.empty()) Q_EMIT calcSettingsChanged();
     return true;
@@ -1472,6 +1479,12 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
                 sc.rows.push_back(p);
             }
         }
+        for (const int sheet : m_sparklinesChanged) {
+            if (!written(sheet)) continue;
+            SheetChanges &sc = changes.sheets[sheet];
+            sc.replaceSparklines = true;
+            sc.sparklines = calc->sheet(sheet).sparklineGroups;
+        }
         for (const int sheet : m_tabColorsChanged) {
             if (!written(sheet)) continue;
             SheetChanges &sc = changes.sheets[sheet];
@@ -1766,6 +1779,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_sheetsListed = false;
     m_statesChanged.clear();
     m_tabColorsChanged.clear();
+    m_sparklinesChanged.clear();
     m_sheetOps.clear();
     m_copies.clear();
     m_engineAtStart.clear();

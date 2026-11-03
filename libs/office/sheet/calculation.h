@@ -560,6 +560,12 @@ public:
         if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].tabColor = color;
     }
 
+    // The sparklines of a sheet, put in (an edit of them, taken back, or done again).
+    void setSparklines(int sheet, const QVector<SparklineGroup> &groups)
+    {
+        if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].sparklineGroups = groups;
+    }
+
     // (applyEdit does a Move as well: the cells of a block put in another place, over what is there, and what refers to them follows; Undo gives back both places.)
 
     // Puts right, at once, what a stop of the recalculation left to be put right (an edit does this first; a caller that is about to read the formulas' state does too).

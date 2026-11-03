@@ -509,6 +509,44 @@ EditSession::Outcome EditSession::setTabColor(int sheet, const ColorSpec &color)
     return pushSheetEdit(e, tr("Tab Color"));
 }
 
+const QVector<jp::office::sheet::SparklineGroup> &EditSession::sparklinesOf(int sheet) const
+{
+    static const QVector<jp::office::sheet::SparklineGroup> none;
+    return m_book && m_book->calc && sheet >= 0 && sheet < m_book->calc->sheetCount() ? m_book->calc->sheet(sheet).sparklineGroups : none;
+}
+
+EditSession::Outcome EditSession::setSparklines(int sheet, QVector<jp::office::sheet::SparklineGroup> groups, const QString &text)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    int count = 0;
+    for (int i = groups.size() - 1; i >= 0; --i) {
+        if (groups[i].sparklines.isEmpty()) {
+            groups.removeAt(i);
+            continue;
+        }
+        count += int(groups[i].sparklines.size());
+    }
+    if (groups.size() > jp::office::sheet::kMaxSparklineGroups || count > jp::office::sheet::kMaxSparklines) {
+        out.ok = false;
+        out.problem = tr("A sheet can have up to %1 sparklines.").arg(jp::office::sheet::kMaxSparklines);
+        return out;
+    }
+    const QVector<jp::office::sheet::SparklineGroup> &now = m_book->calc->sheet(sheet).sparklineGroups;
+    if (now == groups) return out;   // (nothing to change)
+    SheetEdit e;
+    e.kind = SheetEdit::Kind::Sparklines;
+    e.sheet = sheet;
+    e.sparksBefore = now;
+    e.sparksAfter = groups;
+    return pushSheetEdit(e, text);
+}
+
 // A sheet that was added is taken away: the values, results, and marks kept by cell for it are let go of, so that a sheet added later at its place starts with none.
 void EditSession::forgetSheet(int sheet)
 {
@@ -625,6 +663,10 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
         case SheetEdit::Kind::TabColor:
             calc->setTabColor(e.sheet, forward ? e.colorAfter : e.colorBefore);
             m_tabColorsChanged.insert(e.sheet);
+            break;
+        case SheetEdit::Kind::Sparklines:
+            calc->setSparklines(e.sheet, forward ? e.sparksAfter : e.sparksBefore);
+            m_sparklinesChanged.insert(e.sheet);
             break;
         }
         m_sheetsListed = true;

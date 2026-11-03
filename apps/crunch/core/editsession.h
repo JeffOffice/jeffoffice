@@ -129,12 +129,13 @@ struct SizeEdit {
 // A sheet added, copied, renamed, deleted, moved, shown or hidden, or given a tab color by a step. The sheets are never renumbered (see Calculation::addSheet): `sheet` is the sheet's place for
 // good, and what a step changes of the order of the tabs is kept whole.
 struct SheetEdit {
-    enum class Kind : quint8 { Insert, Copy, Delete, Rename, Move, State, TabColor } kind = Kind::Insert;
+    enum class Kind : quint8 { Insert, Copy, Delete, Rename, Move, State, TabColor, Sparklines } kind = Kind::Insert;
     int sheet = 0;
     QString nameBefore, nameAfter;
     QVector<int> orderBefore, orderAfter;
     jp::office::sheet::SheetState stateBefore = jp::office::sheet::SheetState::Visible, stateAfter = jp::office::sheet::SheetState::Visible;
     jp::office::sheet::ColorSpec colorBefore, colorAfter;
+    QVector<jp::office::sheet::SparklineGroup> sparksBefore, sparksAfter;   // Sparklines: the sheet's groups as they were and are
     int copyOf = -1;                                       // Copy: the sheet it is a copy of
     std::vector<std::pair<QString, QString>> tableRenames;   // Copy: the tables that were copied, by the name they had and have (the copy's formulas name its own tables)
     jp::office::sheet::Calculation::SheetRewrite rewrite;  // Rename and Delete: what the formulas were (made when the step is done)
@@ -712,6 +713,9 @@ public:
     Outcome moveSheet(int sheet, int before);
     Outcome setSheetHidden(int sheet, bool hidden);
     Outcome setTabColor(int sheet, const jp::office::sheet::ColorSpec &color);
+    // The sparklines of a sheet made into these groups (one step of Undo, called `text`): a group with none left is dropped. Saved as the sheet's extension.
+    Outcome setSparklines(int sheet, QVector<jp::office::sheet::SparklineGroup> groups, const QString &text);
+    const QVector<jp::office::sheet::SparklineGroup> &sparklinesOf(int sheet) const;
     // Whether a sheet holds any cells (what a person is asked about before it is deleted).
     bool sheetHasCells(int sheet) const;
     // The most rows one resize changes.
@@ -857,6 +861,8 @@ public:
 Q_SIGNALS:
     // The sheets were changed (added, deleted, renamed, moved, shown, hidden, or given a color) by a step, Undo, or Redo: the window makes its tabs again.
     void sheetsChanged();
+    // The sparklines of a sheet were changed by a step, undone, or redone.
+    void sparklinesChanged(int sheet);
     // How the workbook calculates was changed (by a step, or by Undo of one).
     void calcSettingsChanged();
     // Cells were changed by an edit, Undo, or Redo (the window draws them again).
@@ -1000,6 +1006,7 @@ private:
     bool m_sheetsListed = false;                          // a step changed the list of sheets since the file was read or saved
     std::set<int> m_sheetsRestyled;                       // the sheets a step gave the format of very many cells (drawn again whole)
     std::set<int> m_statesChanged;                        // the sheets a step hid or showed
+    std::set<int> m_sparklinesChanged;                    // the sheets whose sparklines a step changed
     std::set<int> m_tabColorsChanged;                     // the sheets whose tab color a step changed
     std::vector<jp::office::sheet::SheetOp> m_sheetOps;   // renames and deletes of sheets since the file was read or saved that are done (not undone), for the file
     // The sheets copied since the file was read or saved that are done (not undone): the copy, the sheet it is a copy of, and how many edits to rows and columns (m_edits) there were then.
