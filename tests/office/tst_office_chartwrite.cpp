@@ -261,8 +261,12 @@ private Q_SLOTS:
         QCOMPARE(r.plots[1].series[0].trendlines.value(0).period, 3);
         QCOMPARE(writeChartPart(r), part);
         // it is drawn: the picture has the equation, the legend names the line, and without it there is neither
+        // (only for a program that asks: a deck draws a chart with trendlines as it always has)
+        const QByteArray notAsked = chartSvg(c, QSizeF(480, 288));
+        c.drawTrendlines = true;
         const QByteArray with = chartSvg(c, QSizeF(480, 288));
         Chart plain = comboChart();
+        QVERIFY(notAsked == chartSvg(plain, QSizeF(480, 288)));
         const QByteArray without = chartSvg(plain, QSizeF(480, 288));
         QVERIFY(with != without);
         QVERIFY(with.contains("Fit"));

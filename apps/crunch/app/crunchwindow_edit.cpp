@@ -30,6 +30,12 @@ void CrunchWindow::createEditing()
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, &CrunchWindow::onCellsChanged);
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, &CrunchWindow::onSizesChanged);
+    connect(m_session.get(), &crunch::EditSession::sparklinesChanged, this, [this](int sheet) {
+        if (sheet != m_sheet) return;
+        m_view->sheet().resetSparklines();
+        m_view->viewport()->update();
+        updateSparklineTab();
+    });
     connect(m_session.get(), &crunch::EditSession::sheetsChanged, this, &CrunchWindow::onSheetsChanged);
     connect(m_session.get(), &crunch::EditSession::tablesChanged, this, &CrunchWindow::onTablesChanged);
     connectObjects();

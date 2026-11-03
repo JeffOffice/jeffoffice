@@ -350,6 +350,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     // ---- the rules of validation
     adjustValidations(e, names, rec);
     adjustConditionalFormats(e, names, rec);
+    adjustSparklines(e, names, rec);
 
     // ---- the defined names (one held in ids is looked at by its places)
     bool namesChanged = false;
@@ -509,6 +510,8 @@ bool Calculation::undoMove(const EditRecord &rec, EditRecord *done)
         }
     for (const auto &entry : rec.conditionalFormats)
         if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].conditionalFormats = entry.second;
+    for (const auto &entry : rec.sparklines)
+        if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].sparklineGroups = entry.second;
     Sheet &S = m_sheets[size_t(e.sheet)];
     S.merges = rec.merges;
     S.mergeCount = rec.mergeCount;

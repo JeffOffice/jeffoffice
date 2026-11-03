@@ -1341,6 +1341,30 @@ bool Calculation::rewriteSheetReferences(const QString &oldName, const QString &
             record->conditionalFormats.push_back({si, s.conditionalFormats});
             s.conditionalFormats = rules;
         }
+        // the sparklines: what they read (one that reads a sheet that is deleted reads nothing, and goes)
+        if (!s.sparklineGroups.isEmpty()) {
+            QVector<SparklineGroup> groups = s.sparklineGroups;
+            bool sparkChanged = false;
+            for (SparklineGroup &g : groups) {
+                for (int i = g.sparklines.size() - 1; i >= 0; --i) {
+                    bool c = false;
+                    g.sparklines[i].source = rewrite(g.sparklines[i].source, false, &c);
+                    sparkChanged = sparkChanged || c;
+                    if (c && g.sparklines[i].source.contains(QLatin1String("#REF!"))) g.sparklines.removeAt(i);
+                }
+                if (!g.dateRange.isEmpty()) {
+                    bool c = false;
+                    g.dateRange = rewrite(g.dateRange, false, &c);
+                    sparkChanged = sparkChanged || c;
+                }
+            }
+            if (sparkChanged) {
+                for (int i = groups.size() - 1; i >= 0; --i)
+                    if (groups[i].sparklines.isEmpty()) groups.removeAt(i);
+                record->sparklines.push_back({si, s.sparklineGroups});
+                s.sparklineGroups = groups;
+            }
+        }
     }
     bool namesChanged = false;
     // (The sheet is already called by its new name: a text that still names it by the old one is read through this.)
@@ -1412,6 +1436,8 @@ void Calculation::undoSheetRewrite(const SheetRewrite &record)
         }
     for (const auto &entry : record.conditionalFormats)
         if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].conditionalFormats = entry.second;
+    for (const auto &entry : record.sparklines)
+        if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].sparklineGroups = entry.second;
     bool namesChanged = false;
     for (const auto &entry : record.names) {
         restoreTaggedName(entry.first, entry.second);

@@ -91,7 +91,9 @@ bool sameEdit(const StructEdit &a, const StructEdit &b)
 // A chart made into a picture: this runs on a worker, and touches nothing but what it is given.
 QImage drawChart(const Chart &chart, const QSizeF &points, const RenderRequest &q)
 {
-    const QByteArray svg = chartSvg(chart, points);
+    Chart shown = chart;
+    shown.drawTrendlines = true;
+    const QByteArray svg = chartSvg(shown, points);
     QSvgRenderer renderer(svg);
     if (!renderer.isValid()) return QImage();
     QImage img(q.pixels, QImage::Format_ARGB32_Premultiplied);

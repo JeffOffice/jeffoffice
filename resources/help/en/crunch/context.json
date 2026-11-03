@@ -11,6 +11,7 @@
   "file:export": "printing",
   "tab:Header and Footer": "page-layout",
   "tab:Chart": "charts",
+  "tab:Sparkline": "charts",
   "tab:Table": "tables",
   "tab:Pivot Table": "pivot-tables",
   "tab:Review": "notes-links",

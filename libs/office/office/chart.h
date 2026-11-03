@@ -222,6 +222,7 @@ struct Chart {
     ChartTitle title;
     ChartLegend legend;
     int style = 2;                  // c:style, 1 to 48
+    bool drawTrendlines = false;    // the series' trendlines are drawn (and named in the legend); a program that has not asked for them draws a chart as it always has
     // What it is set in and drawn on, from the theme and the color map.
     QVector<QColor> palette;        // the colors series (and slices) take when the file gives none, in order
     QString fontFamily;

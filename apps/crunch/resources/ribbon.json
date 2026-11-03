@@ -182,6 +182,15 @@
           ]
         },
         {
+          "name": "Sparklines",
+          "keytip": "ZJ",
+          "items": [
+            {"small": "spark.insert.line", "keytip": "JL"},
+            {"small": "spark.insert.column", "keytip": "JC"},
+            {"small": "spark.insert.winloss", "keytip": "JW"}
+          ]
+        },
+        {
           "name": "Links",
           "keytip": "ZK",
           "items": [
@@ -508,6 +517,62 @@
           "keytip": "ZL",
           "items": [
             {"large": {"id": "ribbon.tableLooks2", "text": "Table Looks", "icon": "table"}, "keytip": "TK", "menu": "@tableLooks"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sparkline",
+      "keytip": "JK",
+      "context": "Sparkline",
+      "color": "sparklineDesign",
+      "groups": [
+        {
+          "name": "Sparkline",
+          "keytip": "ZE",
+          "items": [
+            {"large": {"id": "ribbon.sparkEdit", "text": "Edit Data", "icon": "square-pen"}, "keytip": "ED", "menu": ["spark.editGroup", "spark.editOne", "-", "spark.empty.gaps", "spark.empty.zero", "spark.empty.span", "-", "spark.hidden"]}
+          ]
+        },
+        {
+          "name": "Type",
+          "keytip": "ZY",
+          "items": [
+            {"small": "spark.type.line", "keytip": "TL"},
+            {"small": "spark.type.column", "keytip": "TC"},
+            {"small": "spark.type.winloss", "keytip": "TW"}
+          ]
+        },
+        {
+          "name": "Show",
+          "keytip": "ZW",
+          "items": [
+            {"small": "spark.show.high", "keytip": "SH"},
+            {"small": "spark.show.low", "keytip": "SO"},
+            {"small": "spark.show.negative", "keytip": "SN"},
+            {"column": true},
+            {"small": "spark.show.first", "keytip": "SF"},
+            {"small": "spark.show.last", "keytip": "SA"},
+            {"small": "spark.show.markers", "keytip": "SM"}
+          ]
+        },
+        {
+          "name": "Style",
+          "keytip": "ZL",
+          "items": [
+            {"large": {"id": "ribbon.sparkLooks", "text": "Styles", "icon": "brush"}, "keytip": "ST", "menu": "@sparkLooks"},
+            {"large": {"id": "ribbon.sparkColor", "text": "Sparkline Color", "icon": "palette"}, "keytip": "SC", "menu": "@sparkColor"},
+            {"large": {"id": "ribbon.sparkMarkerColor", "text": "Marker Color", "icon": "circle-dot"}, "keytip": "MC", "menu": "@sparkMarkerColor"}
+          ]
+        },
+        {
+          "name": "Group",
+          "keytip": "ZG",
+          "items": [
+            {"large": {"id": "ribbon.sparkAxis", "text": "Axis", "icon": "ruler"}, "keytip": "AX", "menu": "@sparkAxis"},
+            {"small": "spark.group", "keytip": "GR"},
+            {"small": "spark.ungroup", "keytip": "UG"},
+            {"small": {"id": "ribbon.sparkClear", "text": "Clear", "icon": "eraser"}, "keytip": "CL", "menu": ["spark.clearSelected", "spark.clearGroups"]}
           ]
         }
       ]

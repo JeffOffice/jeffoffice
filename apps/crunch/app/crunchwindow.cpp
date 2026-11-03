@@ -496,6 +496,7 @@ void CrunchWindow::createActions()
     createOutlineActions();
     createChartActions();
     createTableActions();
+    createSparklineActions();
     createPivotActions();
     createNoteActions();
     createProtectActions();
@@ -545,6 +546,7 @@ void CrunchWindow::notice(const QString &title, const QString &text, bool warnin
 void CrunchWindow::updateBars()
 {
     updateTableTab();
+    updateSparklineTab();
     updatePivotTab();
     updateDropDown();
     showNameInBox();

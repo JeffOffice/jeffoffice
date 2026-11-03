@@ -566,7 +566,7 @@ QVector<Entry> ChartPainter::legendEntries() const
             }
             out << e;
             ++index;
-            if (plot.type != ChartType::Pie && plot.type != ChartType::Doughnut)
+            if (m_chart.drawTrendlines && plot.type != ChartType::Pie && plot.type != ChartType::Doughnut)
                 for (const ChartTrendline &t : s.trendlines) {
                     if (out.size() >= m_limits.legend) break;
                     Entry te;
@@ -896,7 +896,7 @@ void ChartPainter::drawBars(const View &v, const Scale &scale)
     {
         const bool stackedLike = plot.grouping == ChartGrouping::Stacked || plot.grouping == ChartGrouping::PercentStacked;
         for (const ChartSeries &s : plot.series) {
-            if (stackedLike || s.trendlines.isEmpty()) continue;
+            if (!m_chart.drawTrendlines || stackedLike || s.trendlines.isEmpty()) continue;
             drawTrendlines(s, categoryPlaces(s), [&](double x, double y) { return at(catUnit(0) + (x - 1), y, scale); });
         }
     }
@@ -1032,7 +1032,7 @@ void ChartPainter::drawLines(const View &v, const Scale &scale)
     {
         const bool stackedLike = plot.grouping == ChartGrouping::Stacked || plot.grouping == ChartGrouping::PercentStacked;
         for (const ChartSeries &s : plot.series) {
-            if (stackedLike || s.trendlines.isEmpty()) continue;
+            if (!m_chart.drawTrendlines || stackedLike || s.trendlines.isEmpty()) continue;
             drawTrendlines(s, categoryPlaces(s), [&](double x, double y) { return at(catUnit(0) + (x - 1), y, scale); });
         }
     }
@@ -1077,7 +1077,7 @@ void ChartPainter::drawAreas(const View &v, const Scale &scale)
     {
         const bool stackedLike = plot.grouping == ChartGrouping::Stacked || plot.grouping == ChartGrouping::PercentStacked;
         for (const ChartSeries &s : plot.series) {
-            if (stackedLike || s.trendlines.isEmpty()) continue;
+            if (!m_chart.drawTrendlines || stackedLike || s.trendlines.isEmpty()) continue;
             drawTrendlines(s, categoryPlaces(s), [&](double x, double y) { return at(catUnit(0) + (x - 1), y, scale); });
         }
     }
@@ -1143,7 +1143,7 @@ void ChartPainter::drawScatter(const View &v, const Scale &xs, const Scale &ys)
         }
     }
     for (const ChartSeries &s : plot.series) {
-        if (s.trendlines.isEmpty()) continue;
+        if (!m_chart.drawTrendlines || s.trendlines.isEmpty()) continue;
         drawTrendlines(s, s.xValues, [&](double x, double y) {
             const double fx = (x - xs.min) / (xs.max - xs.min), fy = (y - ys.min) / (ys.max - ys.min);
             return QPointF(m_inner.left() + (m_catReversed ? 1 - fx : fx) * m_inner.width(), m_inner.bottom() - (m_valReversed ? 1 - fy : fy) * m_inner.height());

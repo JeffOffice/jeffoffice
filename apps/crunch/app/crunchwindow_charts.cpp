@@ -74,7 +74,9 @@ const GroupAction kGroupActions[] = {
 QImage renderChart(const Chart &chart, const QSize &pixels)
 {
     if (pixels.isEmpty()) return QImage();
-    const QByteArray svg = chartSvg(chart, QSizeF(pixels.width() * 0.75, pixels.height() * 0.75));
+    Chart shown = chart;
+    shown.drawTrendlines = true;
+    const QByteArray svg = chartSvg(shown, QSizeF(pixels.width() * 0.75, pixels.height() * 0.75));
     QSvgRenderer renderer(svg);
     if (!renderer.isValid()) return QImage();
     QImage img(pixels, QImage::Format_ARGB32_Premultiplied);

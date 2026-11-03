@@ -282,6 +282,7 @@ ColumnsOf columnsOf(const Sheet &sheet, int mdw)
 
 bool GridSheet::followEdit(const jp::office::sheet::StructEdit &edit)
 {
+    resetSparklines();
     using Kind = jp::office::sheet::StructEdit::Kind;
     const bool rows = edit.changesRows(), cols = edit.changesColumns();
     if ((!rows && !cols) || !m_data.sheet || !m_data.styles || !m_geometry || edit.sheet != m_data.sheetIndex || edit.count == 0) return false;

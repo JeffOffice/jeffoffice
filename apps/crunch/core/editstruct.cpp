@@ -604,6 +604,10 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
             m_mergesChanged.insert(edit.toSheet);
         }
         m_edits.push_back(edit);
+        // (the sparklines follow the cells: the sheets that have them, or had them before the edit, are written again)
+        for (const auto &entry : sc->record.sparklines) m_sparklinesChanged.insert(entry.first);
+        for (int sheetAt = 0; sheetAt < calc.sheetCount(); ++sheetAt)
+            if (!calc.sheet(sheetAt).sparklineGroups.isEmpty()) m_sparklinesChanged.insert(sheetAt);
         forgetNotes();
     } else if (sc->savedGen != m_saveGen) {
         // The file was saved since the edit was done, so it has the edit: the edit that undoes it is made against the saved file (it goes in the list for the file), and the cells that come back, and
@@ -645,6 +649,10 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
             m_mergesChanged.insert(edit.sheet);
         }
         m_edits.push_back(back);
+        // (the sparklines follow the cells: the sheets that have them, or had them before the edit, are written again)
+        for (const auto &entry : sc->record.sparklines) m_sparklinesChanged.insert(entry.first);
+        for (int sheetAt = 0; sheetAt < calc.sheetCount(); ++sheetAt)
+            if (!calc.sheet(sheetAt).sparklineGroups.isEmpty()) m_sparklinesChanged.insert(sheetAt);
         forgetNotes();
     } else {
         // (the state before the undo is the one after the edit was done: nothing was done to the cells since)

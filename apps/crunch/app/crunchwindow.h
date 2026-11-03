@@ -230,6 +230,8 @@ public:
     QWidget *makeTableLooksPicker(QWidget *parent);
     void tableGalleryChosen(const QString &style);
     bool showTotalsMenu(qint64 row, qint64 col);
+    void setSparklineAsker(std::function<bool(QString *, QString *)> asker) { m_sparklineAsker = std::move(asker); }
+    void setAxisValueAsker(std::function<bool(bool, double *)> asker) { m_axisValueAsker = std::move(asker); }
     void setTableMakeAsker(std::function<bool(QString *, bool *)> asker) { m_tableMakeAsker = std::move(asker); }
     void setTableSizeAsker(std::function<bool(jp::office::sheet::CellRange *)> asker) { m_tableSizeAsker = std::move(asker); }
     // test hook: the cells or table the new pivot table is made from, whether it goes on a sheet of its own, and where on a sheet (a cell, with the sheet's name before it if it is another)
@@ -691,6 +693,19 @@ private:
     void insertTableCommand();
     void tableDialog(int mode);
     void addTableMenu(QMenu *menu);   // the table's commands in the cell menu, when the cursor is in a table
+    // sparklines (crunchwindow_sparklines.cpp): Insert > Sparklines, and the Sparkline tab that shows while the selection holds one
+    void createSparklineActions();
+    void sparklineRibbonParts(RibbonParts &parts);
+    void updateSparklineTab();
+    void insertSparklinesCommand(jp::office::sheet::SparklineGroup::Type type);
+    void editSparklineData(bool wholeGroup);
+    void groupSparklines(bool together);
+    void clearSparklines(bool wholeGroups);
+    QVector<int> selectedSparklineGroups() const;              // the groups of the sparklines in the selected cells
+    void changeSparklineGroups(const std::function<void(jp::office::sheet::SparklineGroup *)> &change, const QString &text);
+    bool makeSparklines(const QString &data, const QString &where, QVector<jp::office::sheet::Sparkline> *out, QString *why) const;
+    std::function<bool(QString *, QString *)> m_sparklineAsker;   // test hook: the data and the cells of sparklines being made or edited
+    std::function<bool(bool, double *)> m_axisValueAsker;          // test hook: the custom minimum (true) or maximum of a sparkline axis
     // pointing at cells while a formula is typed (crunchwindow_point.cpp): a click or a drag writes the cells' address (a header, whole rows or columns), the arrow keys move a pointer,
     // F4 changes which parts of the reference are fixed, another sheet can be pointed at, and the cells the formula names are outlined, each in the color it has in the text
     bool pointAtCells(const jp::grid::GridView::PointSpan &span, bool first, Qt::KeyboardModifiers modifiers);
