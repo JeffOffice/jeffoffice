@@ -158,13 +158,18 @@ struct MailUi {
     QString listFileFor(const QString &named) const
     {
         if (w->m_path.isEmpty() || named.isEmpty()) return QString();
-        const QString folder = QFileInfo(w->m_path).canonicalPath();
-        const QString own = QFileInfo(named).canonicalFilePath();
-        if (!own.isEmpty() && !folder.isEmpty() && own.startsWith(folder + QLatin1Char('/'))) return own;
+        const QString folder = QFileInfo(QFileInfo(w->m_path).absolutePath()).canonicalFilePath();   // (the file itself may not be on disk yet)
+        if (folder.isEmpty()) return QString();
+        // (Both are made canonical, links resolved, before they are held to the folder: a link in the folder to a file outside it is outside.)
+        auto inside = [&](const QString &candidate) {
+            const QString own = QFileInfo(candidate).canonicalFilePath();
+            return !own.isEmpty() && own.startsWith(folder + QLatin1Char('/')) && QFileInfo(own).isFile() ? own : QString();
+        };
         QString name = named;
         name.replace(QLatin1Char('\\'), QLatin1Char('/'));
-        const QString beside = QFileInfo(w->m_path).absolutePath() + QLatin1Char('/') + name.section(QLatin1Char('/'), -1);
-        return QFileInfo(beside).isFile() ? beside : QString();
+        const QString own = inside(QFileInfo(name).isAbsolute() ? name : folder + QLatin1Char('/') + name);
+        if (!own.isEmpty()) return own;
+        return inside(folder + QLatin1Char('/') + name.section(QLatin1Char('/'), -1));
     }
 
     // The list the document is merged with: read where it is not yet. With `ask`, says what is wrong where there is none.

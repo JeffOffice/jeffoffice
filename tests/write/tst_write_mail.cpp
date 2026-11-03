@@ -654,7 +654,7 @@ private Q_SLOTS:
     void aListANamedFileIsReadOnlyFromBesideTheDocument()
     {
         QTemporaryDir here, elsewhere;
-        const QString far = writeFile(elsewhere, "people.csv", "First Name\r\nAda\r\n");
+        const QString far = writeFile(elsewhere, "people.csv", "First Name\r\nMara\r\n");
         WriteWindow w;
         QStringList said;
         w.setNotifier([&](const QString &, const QString &text) { said << text; });
@@ -797,6 +797,44 @@ private Q_SLOTS:
         const QByteArray docx = doc->toDocx();
         QVERIFY(documentHas(docx, "\xC2\xAB" "IF\xE2\x80\xA6\xC2\xBB"));
         QVERIFY(documentHas(docx, "\xC2\xAB" "NEXT\xE2\x80\xA6\xC2\xBB"));
+    }
+
+    void aNamedListIsFoundFromTheDocumentsFolderAndNotThroughALinkOutOfIt()
+    {
+        QTemporaryDir here, elsewhere;
+        QDir(here.path()).mkpath(QStringLiteral("lists"));
+        writeFile(here, "lists/people.csv", "First Name\r\nNora\r\n");
+        const QString outside = writeFile(elsewhere, "secret.csv", "First Name\r\nPrivate\r\n");
+        auto make = [&](const QString &named, WriteWindow &w) {
+            auto doc = open(makeDocx(para(field("MERGEFIELD First_Name", "x"))));
+            mail::State &state = mail::stateOf(*doc);
+            state.settings.type = mail::kindValue(mail::Kind::Letters);
+            state.sourcePath = named;
+            w.setDocument(std::move(doc), here.filePath(QStringLiteral("letter.docx")));
+            w.show();
+        };
+        {
+            // A relative name is the document's folder's, not the working directory's.
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            make(QStringLiteral("lists/people.csv"), w);
+            w.act(QStringLiteral("mail.preview"))->trigger();
+            auto *pane = w.findChild<write::MailPreviewPane *>();
+            QVERIFY(pane);
+            QTRY_VERIFY(pane->shown());
+            QVERIFY(textOf(*pane->shown()).startsWith(QStringLiteral("Nora")));
+        }
+        // A link in the folder to a file outside it is not followed, by its own name or by the name beside the document.
+        if (!QFile::link(outside, here.filePath(QStringLiteral("people.csv")))) QSKIP("links are not made here");
+        for (const QString &named : {here.filePath(QStringLiteral("people.csv")), QStringLiteral("people.csv"), QStringLiteral("/nowhere/people.csv")}) {
+            WriteWindow w;
+            QStringList said;
+            w.setNotifier([&](const QString &, const QString &text) { said << text; });
+            make(named, w);
+            w.act(QStringLiteral("mail.preview"))->trigger();
+            QVERIFY(!w.findChild<write::MailPreviewPane *>());
+            QVERIFY2(!said.isEmpty() && said.last().contains(QStringLiteral("not next to it")), qPrintable(named));
+        }
     }
 
     void aMessageIsAddressedToTheRecipientItWasMadeFrom()
