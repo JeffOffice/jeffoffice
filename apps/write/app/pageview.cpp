@@ -913,7 +913,7 @@ bool PageView::columnBorderAt(const QPoint &vp, ColumnDrag *found)
     if (hit.page < 0) return false;
     const auto page = rendered(hit.page);
     if (!page || !page->page) return false;
-    const double tolerance = 4.0 / std::max(0.1, scale());
+    const double tolerance = 3.0 / std::max(0.1, scale());
     for (const auto &fragment : page->page->tables) {
         if (fragment->floating) continue;
         const QRectF rect = fragment->rect();
