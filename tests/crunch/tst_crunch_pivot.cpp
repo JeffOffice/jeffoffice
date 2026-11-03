@@ -941,6 +941,43 @@ private Q_SLOTS:
         QVERIFY(!any);
     }
 
+    // A pivot chart's name in the file is made again at each save from the table's name, the sheet's, and the file's: a rename of the table or the sheet, and a Save As, are followed.
+    void aPivotChartsNameFollowsRenamesAndSaveAs()
+    {
+        auto chartOf = [](const QString &path) {
+            const Parts saved = readParts(path);
+            QByteArray chart;
+            for (auto it = saved.cbegin(); it != saved.cend(); ++it)
+                if (it.key().startsWith(QLatin1String("xl/charts/chart")) && it.key().endsWith(QLatin1String(".xml"))) chart = it.value();
+            const int at = chart.indexOf("<c:pivotSource>");
+            return at < 0 ? QString() : QString::fromUtf8(chart.mid(at, chart.indexOf("</c:pivotSource>", at) - at));
+        };
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("insert.pivotChart"))->trigger();
+        finish(e);
+        QVERIFY(saveNow(e));
+        QVERIFY2(chartOf(e.path).contains(QStringLiteral("[book.xlsx]Sheet1!PivotTable1")), qPrintable(chartOf(e.path)));
+        // the table is renamed
+        jp::office::sheet::PivotTable renamed = *s->workbook()->pivots().table(0).table;
+        renamed.name = QStringLiteral("Sales");
+        QVERIFY(s->setPivot(0, renamed, false, QStringLiteral("Rename")).ok);
+        QVERIFY(saveNow(e));
+        QVERIFY2(chartOf(e.path).contains(QStringLiteral("[book.xlsx]Sheet1!Sales")), qPrintable(chartOf(e.path)));
+        // the sheet is renamed
+        QVERIFY(s->renameSheet(0, QStringLiteral("Data")).ok);
+        QVERIFY(saveNow(e));
+        QVERIFY2(chartOf(e.path).contains(QStringLiteral("[book.xlsx]Data!Sales")), qPrintable(chartOf(e.path)));
+        // the file is saved under another name
+        const QString other = QFileInfo(e.path).dir().filePath(QStringLiteral("other.xlsx"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.saveAs(other));
+        QVERIFY(savedOk(saved));
+        QVERIFY2(chartOf(other).contains(QStringLiteral("[other.xlsx]Data!Sales")), qPrintable(chartOf(other)));
+    }
+
     // Pictures of the pivot table tab, the pane, and the dialogs, for a person to look at (only when JC_SHOT_DIR names a folder).
     void picturesOfThePivotFeatures()
     {

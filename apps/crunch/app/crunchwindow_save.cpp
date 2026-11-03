@@ -134,6 +134,7 @@ bool CrunchWindow::fileChangedOnDisk() const
 bool CrunchWindow::startSave(const QString &path)
 {
     if (!m_session || m_saving) return false;
+    m_saveFileName = QFileInfo(path).fileName();
     if (crunch::isCsvName(path)) return exportCsv(path);
     if (crunch::isCopyName(path)) return exportCopy(path);
     if (!commitEdit()) return false;

@@ -1040,6 +1040,7 @@ private:
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
     QString m_path;
+    QString m_saveFileName;   // the file name of the save being made (a pivot chart's name in the file has it)
     QString m_untitled;       // the name of a workbook that has no file yet ("Book1")
     bool m_blank = false;     // the workbook is a new one (made by newBlank) that has not been saved
     bool m_closeIfOpenFails = false;   // the window was made only to hold one file: if the file can't be read, the window goes
