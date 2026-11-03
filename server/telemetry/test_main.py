@@ -77,6 +77,30 @@ class Collector(unittest.TestCase):
         with main.db() as con:
             return con.execute("SELECT * FROM " + table + " WHERE install = ? AND app = ?", (install, app)).fetchall()
 
+    def test_records_older_than_24_months_are_purged(self):
+        old, kept = str(uuid.uuid4()), str(uuid.uuid4())
+        today = dt.date(2028, 11, 3)
+        main.record(main.parse_ping(json.dumps(self.ping(install=old)).encode()), today=dt.date(2026, 11, 2))
+        main.record(main.parse_ping(json.dumps(self.ping(install=kept)).encode()), today=dt.date(2026, 11, 3))
+        main.purge(today)
+        self.assertEqual(self.app_rows("pings", old, "jeffpub"), [])
+        self.assertEqual(self.app_rows("counts", old, "jeffpub"), [])
+        self.assertEqual(len(self.app_rows("pings", kept, "jeffpub")), 1)
+
+    def test_the_cutoff_is_24_months_back(self):
+        self.assertEqual(main.cutoff(dt.date(2028, 11, 3)), dt.date(2026, 11, 3))
+        self.assertEqual(main.cutoff(dt.date(2028, 2, 29)), dt.date(2026, 2, 28))
+        self.assertEqual(main.cutoff(dt.date(2028, 3, 31)), dt.date(2026, 3, 31))
+
+    def test_forget_deletes_one_install(self):
+        gone, kept = str(uuid.uuid4()), str(uuid.uuid4())
+        for i in (gone, kept):
+            self.assertEqual(self.post(self.ping(install=i)), 204)
+        self.assertGreater(main.forget(gone), 0)
+        self.assertEqual(self.app_rows("pings", gone, "jeffpub"), [])
+        self.assertEqual(self.app_rows("counts", gone, "jeffpub"), [])
+        self.assertEqual(len(self.app_rows("pings", kept, "jeffpub")), 1)
+
     def test_a_ping_with_no_app_is_jeffpubs(self):
         # What JeffPub sent before JeffDeck did: no "app" in it.
         install = str(uuid.uuid4())

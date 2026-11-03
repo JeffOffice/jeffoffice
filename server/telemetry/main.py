@@ -38,6 +38,9 @@ means refused.
 Without ?app= the pages show JeffPub, as they did before there was another app. An
 app has to be named in APPS before the collector takes its pings.
 
+Everything is kept for 24 months (KEEP_MONTHS), then deleted: purge() runs at start and once a day.
+`python main.py --forget <install id>` deletes one install's pings, counts, and crash reports, for a
+person who asks (the privacy notice at https://www.jeffoffice.com/privacy says how).
 Settings come from the environment: PORT, DATA_DIR (where the SQLite file
 goes; a Railway volume), STATS_PASSWORD. Standard library only.
 """
@@ -49,7 +52,9 @@ import json
 import os
 import re
 import sqlite3
+import sys
 import threading
+import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -194,6 +199,47 @@ def parse_ping(body):
     return install, version, os_name, os_version, lang, launches, counts, app
 
 
+KEEP_MONTHS = 24
+
+
+def cutoff(today):
+    """The first day still kept: KEEP_MONTHS before today (Feb 29 falls back to Feb 28)."""
+    months = today.year * 12 + today.month - 1 - KEEP_MONTHS
+    year, month = divmod(months, 12)
+    month += 1
+    while True:
+        try:
+            return dt.date(year, month, today.day)
+        except ValueError:
+            today = today - dt.timedelta(days=1)
+
+
+def purge(today=None):
+    """Delete pings, counts, and crash reports older than KEEP_MONTHS; returns how many rows went."""
+    first = cutoff(today or utc_today()).isoformat()
+    with _lock, db() as con:
+        n = con.execute("DELETE FROM pings WHERE day < ?", (first,)).rowcount
+        n += con.execute("DELETE FROM counts WHERE day < ?", (first,)).rowcount
+        n += con.execute("DELETE FROM crashes WHERE received < ?", (first,)).rowcount
+    return n
+
+
+def forget(install):
+    """Delete everything kept for one install id; returns how many rows went."""
+    with _lock, db() as con:
+        return sum(con.execute(f"DELETE FROM {t} WHERE install = ?", (install,)).rowcount
+                   for t in ("pings", "counts", "crashes"))
+
+
+def purge_daily():
+    while True:
+        try:
+            print(f"purged {purge()} rows older than {KEEP_MONTHS} months", flush=True)
+        except Exception as e:   # a failed purge must not stop the collector; the next day tries again
+            print(f"purge failed: {e}", flush=True)
+        time.sleep(24 * 3600)
+
+
 def utc_today():
     return dt.datetime.now(dt.timezone.utc).date()
 
@@ -288,16 +334,17 @@ def record_crash(crash, today=None):
 ABOUT = """<!doctype html><meta charset="utf-8"><title>JeffOffice usage statistics</title>
 <style>body{font:16px/1.5 system-ui,sans-serif;max-width:40em;margin:2em auto;padding:0 1em}</style>
 <h1>JeffOffice usage statistics</h1>
-<p>The JeffOffice apps (JeffPub, JeffDeck, JeffWrite, and JeffCrunch) share one choice about this. Unless you turn it off (in setup, when
-one of them first starts, or under File &gt; Options in any of them), each of them sends the following once a day while it's in
+<p>The JeffOffice apps (JeffPub, JeffDeck, JeffWrite, and JeffCrunch) share one choice about this, asked in setup or when one of them first starts, and changed
+under File &gt; Options in any of them. When it's on, each of them sends the following once a day while it's in
 use, and once more the day it's updated:</p>
 <ul><li>a random number made up when JeffOffice was installed, which says nothing about you or your computer
 (every app sends the same number, so someone who uses several is one person here);</li>
 <li>which app it comes from, its version, your operating system and its version,
-and the language it's set to;</li>
+and your computer's language;</li>
 <li>how many times it was started, and how many times each of its commands was used
 (for example "opened a .pub file" in JeffPub, "opened a .pptx file" in JeffDeck, "saved a .xlsx file" in JeffCrunch, or "exported a PDF").</li></ul>
-<p>Never your files, their names, or anything in them. Your IP address isn't kept.
+<p>Never your files, their names, or anything in them. This program doesn't keep or log your IP address.
+Everything is deleted after 24 months.
 The numbers show how many people use each app and which parts matter most to them.</p>
 <h2>Crash reports</h2>
 <p>If usage statistics are on and one of the apps crashes, it sends a crash report the next time it starts.
@@ -306,6 +353,7 @@ a position in each), what kind of failure it was (a number), the day it happened
 version, your operating system, and the same random number as above. It never includes your documents, their
 names or contents, anything you typed, or anything that was in your computer's memory. If you turn
 usage statistics off, no crash reports are sent either.</p>
+<p>More, including how to have your records deleted: the <a href="https://www.jeffoffice.com/privacy">JeffOffice privacy notice</a>.</p>
 <p>The program that collects all of this is part of JeffOffice's source:
 <a href="https://github.com/JeffOffice/jeffoffice/tree/main/server/telemetry">server/telemetry</a>.</p>
 """
@@ -514,6 +562,10 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     init()
+    if len(sys.argv) == 3 and sys.argv[1] == "--forget":
+        print(f"deleted {forget(sys.argv[2])} rows", flush=True)
+        return
+    threading.Thread(target=purge_daily, daemon=True).start()
     port = int(os.environ.get("PORT", "8080"))
     server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     server.daemon_threads = True
