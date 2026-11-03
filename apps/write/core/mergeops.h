@@ -21,6 +21,13 @@ namespace jp::write::mail {
 
 // The most records one merge makes (a larger list is merged in its first records), and the most characters of a prompt or an answer.
 constexpr int kMostRecords = 100000;
+// The most pages one merge makes in all (a page of a record is counted from its text, at least one for each record), and the most different questions (ASK and FILLIN) it asks. Layout and memory grow with the
+// pages, and a list times a long letter would run for hours; past the questions' limit the answers are the defaults.
+constexpr int kMostPages = 10000;
+constexpr int kMostPrompts = 20;
+
+// A list longer than kMostRecords keeps its first records.
+void limitRecords(MergeSource &data);
 
 enum class Kind { None, Letters, Email, Envelopes, Labels, Directory };
 // The value of w:mainDocumentType for a kind ("formLetters", "email", "envelopes", "mailingLabels", "catalog"), and the kind a value says (None for one that is not known).
@@ -78,6 +85,8 @@ public:
     int position = 0;
     int sequence = 0;                 // MERGESEQ: how many records the merge has made, counting the one being made
     bool skipped = false;             // SKIPIF was true for the record
+    int mostPrompts = kMostPrompts;   // the questions asked at most; the rest are answered by their defaults
+    bool *cancelled = nullptr;        // the person cancelled: nothing more is asked
     // The answer to ASK and FILLIN (a prompt and a default): the person's, or the default where there is none.
     std::function<QString(const QString &prompt, const QString &defaultAnswer)> ask;
     QHash<QString, QString> variables;
@@ -100,13 +109,16 @@ struct MergeOptions {
     std::function<QString(const QString &prompt, const QString &defaultAnswer)> ask;
     std::function<bool(int done, int total)> progress;   // false stops the merge
     bool pageBreaks = true;           // each record begins a page (letters); not for a directory
+    int mostPages = kMostPages;       // the merge stops (with an error) where it would make more pages than this
+    bool *cancelled = nullptr;        // set by `ask` (or the progress) when the person cancels: the merge stops
 };
 
 // A new document with a copy of the text of `source` for each record: its fields are the answers, its page setup, styles, headers, and footers are the source's. Null, with the reason, where it
 // can't be made. The source is not changed.
 std::unique_ptr<WriteDoc> mergeToDocument(WriteDoc &source, const MergeSource &data, const QHash<QString, QString> &fieldMap, const MergeOptions &options, QString *error = nullptr);
-// The plain text of each merged record, for email messages (one string per record).
-QStringList mergeToTexts(WriteDoc &source, const MergeSource &data, const QHash<QString, QString> &fieldMap, const MergeOptions &options, QString *error = nullptr);
+// The plain text of each merged record, for email messages (one string per text). `sourceRows` gets, for each text, the row of the list its first record is (a skipped record has no text, and a rule may
+// take several records into one).
+QStringList mergeToTexts(WriteDoc &source, const MergeSource &data, const QHash<QString, QString> &fieldMap, const MergeOptions &options, QString *error = nullptr, QVector<int> *sourceRows = nullptr);
 // The text of `page` (an envelope, say) put first in `doc` as a section of its own, with the page setup of `page`, as one step of the history. False where it can't be done.
 bool addAsFirstSection(WriteDoc &doc, WriteDoc &page);
 // The records, in order, that fields show in an error-free merge: a record whose field names a column the list does not have is reported (the columns that are missing).

@@ -257,16 +257,19 @@ State &stateOf(WriteDoc &doc)
 
 State *stateIfAny(const WriteDoc &doc) { return doc.mailMerge.get(); }
 
+void limitRecords(MergeSource &m)
+{
+    if (m.rows.size() > kMostRecords) m.rows.resize(kMostRecords);
+    if (m.include.size() > kMostRecords) m.include.resize(kMostRecords);
+}
+
 bool loadSource(State &state, const QString &fromPath)
 {
     const QString path = fromPath.isEmpty() ? state.sourcePath : fromPath;
     if (path.isEmpty() || !QFile::exists(path)) return false;
     MergeSource m;
     if (!loadMergeSource(path, &m, nullptr)) return false;
-    if (m.rows.size() > kMostRecords) {
-        m.rows.resize(kMostRecords);
-        m.include.resize(kMostRecords);
-    }
+    limitRecords(m);
     state.data = m;
     state.sourcePath = path;
     state.loaded = true;
@@ -572,7 +575,10 @@ std::optional<QString> Evaluator::answer(const fields::Code &code)
         const QString prompt = (fillIn ? code.arguments.value(0) : code.arguments.value(1)).left(kMostPromptChars);
         const QString def = code.argumentOf(QLatin1Char('d')).left(kMostPromptChars);
         const QString key = n + QLatin1Char('|') + name + QLatin1Char('|') + prompt;
-        if (!m_answers.contains(key)) m_answers.insert(key, (ask ? ask(prompt, def) : def).left(kMostPromptChars));
+        if (!m_answers.contains(key)) {
+            const bool may = ask && m_answers.size() < mostPrompts && !(cancelled && *cancelled);
+            m_answers.insert(key, (may ? ask(prompt, def) : def).left(kMostPromptChars));
+        }
         if (fillIn) return m_answers.value(key);
         if (!name.isEmpty() && variables.size() < 1000) variables.insert(name, m_answers.value(key));
         return QString();
@@ -637,6 +643,29 @@ bool prepare(WriteDoc &source, Run *run, QString *error)
 }
 
 // The source's text for the records from `ev.position` on, merged; `ev.position` is left on the last record the text used. False where a rule skipped the record.
+bool stopped(const MergeOptions &o) { return o.cancelled && *o.cancelled; }
+
+// The pages the text of one record will make, as near as its size says (a page holds about 3,000 characters or 45 paragraphs), and at least one.
+int pagesOf(const QTextDocument *story) { return std::max({1, int((story->characterCount() + 2999) / 3000), (story->blockCount() + 44) / 45}); }
+
+std::unique_ptr<WriteDoc> stoppedMerge(QString *error)
+{
+    if (error) *error = QCoreApplication::translate("jp::write::Mail", "The merge was stopped.");
+    return nullptr;
+}
+
+QStringList stoppedTexts(QString *error)
+{
+    stoppedMerge(error);
+    return QStringList();
+}
+
+std::unique_ptr<WriteDoc> tooManyPages(const MergeOptions &o, QString *error)
+{
+    if (error) *error = QCoreApplication::translate("jp::write::Mail", "The merge would make more than %1 pages. Merge fewer recipients, or a shorter document.").arg(o.mostPages);
+    return nullptr;
+}
+
 bool mergeOne(Run &run, Evaluator &ev)
 {
     QTextDocument *story = run.scratch->story();
@@ -672,14 +701,18 @@ std::unique_ptr<WriteDoc> mergeToDocument(WriteDoc &source, const MergeSource &d
     }
     Evaluator ev(data, fieldMap, rows);
     ev.ask = options.ask;
+    ev.cancelled = options.cancelled;
     QTextCursor oc(target);
     bool first = true;
     int made = 0;
+    int pages = 0;
     for (ev.position = 0; ev.position < rows.size(); ++ev.position) {
         ++made;
         ev.sequence = made;
         const int begin = ev.position;
+        if (stopped(options)) return stoppedMerge(error);
         if (!mergeOne(run, ev)) continue;
+        if ((pages += pagesOf(run.scratch->story())) > options.mostPages) return tooManyPages(options, error);
         QTextDocumentFragment frag(run.scratch->story());
         oc.movePosition(QTextCursor::End);
         if (!first) oc.insertBlock();
@@ -696,31 +729,43 @@ std::unique_ptr<WriteDoc> mergeToDocument(WriteDoc &source, const MergeSource &d
             b.setBlockCharFormat(firstOfCopy.charFormat());
         }
         first = false;
-        if (options.progress && !options.progress(begin + 1, int(rows.size()))) break;
+        if (options.progress && !options.progress(begin + 1, int(rows.size()))) return stoppedMerge(error);
     }
+    if (stopped(options)) return stoppedMerge(error);
     target->setUndoRedoEnabled(true);
     out->syncSections();
     out->setModified(true);
     return out;
 }
 
-QStringList mergeToTexts(WriteDoc &source, const MergeSource &data, const QHash<QString, QString> &fieldMap, const MergeOptions &options, QString *error)
+QStringList mergeToTexts(WriteDoc &source, const MergeSource &data, const QHash<QString, QString> &fieldMap, const MergeOptions &options, QString *error, QVector<int> *sourceRows)
 {
     QStringList texts;
+    if (sourceRows) sourceRows->clear();
     Run run;
     if (!prepare(source, &run, error)) return texts;
     const QVector<int> rows = rowsOf(data, options);
     Evaluator ev(data, fieldMap, rows);
     ev.ask = options.ask;
+    ev.cancelled = options.cancelled;
     int made = 0;
+    int pages = 0;
     for (ev.position = 0; ev.position < rows.size(); ++ev.position) {
         ev.sequence = ++made;
+        const int first = ev.row();
+        if (stopped(options)) return stoppedTexts(error);
         if (!mergeOne(run, ev)) continue;
+        if ((pages += pagesOf(run.scratch->story())) > options.mostPages) {
+            tooManyPages(options, error);
+            return QStringList();
+        }
+        if (sourceRows) *sourceRows << first;
         QString t = run.scratch->story()->toPlainText();
         t.replace(QChar::LineSeparator, QLatin1Char('\n')).replace(QChar::ParagraphSeparator, QLatin1Char('\n')).remove(QChar::ObjectReplacementCharacter);
         texts << t;
-        if (options.progress && !options.progress(ev.position + 1, int(rows.size()))) break;
+        if (options.progress && !options.progress(ev.position + 1, int(rows.size()))) return stoppedTexts(error);
     }
+    if (stopped(options)) return stoppedTexts(error);
     return texts;
 }
 

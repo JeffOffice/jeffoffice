@@ -31,6 +31,7 @@
 #include <QLabel>
 #include <QMenu>
 #include <QPointer>
+#include <QProgressDialog>
 #include <QPdfWriter>
 #include <QPushButton>
 #include <QSaveFile>
@@ -214,12 +215,40 @@ struct MailUi {
     {
         write::mail::MergeOptions o;
         o.pageBreaks = pages;
+        o.cancelled = &m_cancelled;
         o.ask = [this](const QString &prompt, const QString &def) {
             bool ok = false;
             const QString a = QInputDialog::getText(w, QCoreApplication::translate("jp::WriteMail", "Mail Merge"), prompt, QLineEdit::Normal, def, &ok);
+            if (!ok) m_cancelled = true;
             return ok ? a : def;
         };
+        {
+            o.progress = [this](int done, int total) {
+                if (!m_progress) {
+                    m_progress = new QProgressDialog(QCoreApplication::translate("jp::WriteMail", "Merging…"), QCoreApplication::translate("jp::WriteMail", "Cancel"), 0, total, w);
+                    m_progress->setWindowModality(Qt::WindowModal);
+                    m_progress->setMinimumDuration(400);
+                    m_progress->setAutoClose(false);
+                    m_progress->setAutoReset(false);
+                }
+                m_progress->setMaximum(total);
+                m_progress->setValue(done);
+                QCoreApplication::processEvents();
+                if (m_progress->wasCanceled()) m_cancelled = true;
+                return !m_progress->wasCanceled();
+            };
+        }
         return o;
+    }
+
+    // A merge runs: the cancel the person made on a question or on the progress window, and the progress window.
+    bool m_cancelled = false;
+    QPointer<QProgressDialog> m_progress;
+    void beginMerge() { m_cancelled = false; }
+    void endMerge()
+    {
+        delete m_progress;
+        m_progress = nullptr;
     }
 
     // ---- start
@@ -315,6 +344,7 @@ struct MailUi {
         }
         write::mail::State &s = make();
         if (s.kind() == write::mail::Kind::None) s.settings.type = write::mail::kindValue(write::mail::Kind::Letters);
+        write::mail::limitRecords(m);
         s.data = m;
         s.sourcePath = QFileInfo(path).absoluteFilePath();
         s.loaded = true;
@@ -579,9 +609,10 @@ struct MailUi {
         }
         const write::mail::Kind kind = state()->kind();
         QString error;
-        QApplication::setOverrideCursor(Qt::WaitCursor);
+        beginMerge();
         auto out = write::mail::mergeToDocument(*doc(), state()->data, state()->fieldMap, options(kind != write::mail::Kind::Directory), &error);
-        QApplication::restoreOverrideCursor();
+        endMerge();
+        if (!out && m_cancelled) return nullptr;
         if (!out) w->notice(QCoreApplication::translate("jp::WriteMail", "Mail Merge"), QCoreApplication::translate("jp::WriteMail", "The merge can't be made.\n%1").arg(error), true);
         return out;
     }
@@ -635,11 +666,14 @@ struct MailUi {
         s.settings.mailSubject = subject;
         s.settings.addressFieldName = column;
         touch();
-        const QVector<int> rows = s.data.includedRows();
         QString error;
+        QVector<int> sourceRows;
+        beginMerge();
+        const QStringList texts = write::mail::mergeToTexts(*doc(), s.data, s.fieldMap, options(false), &error, &sourceRows);
+        endMerge();
+        if (m_cancelled) return;
         QApplication::setOverrideCursor(Qt::WaitCursor);
-        const QStringList texts = write::mail::mergeToTexts(*doc(), s.data, s.fieldMap, options(false), &error);
-        const int written = write::mail::writeEmailFiles(texts, s.data, rows, column, subject, folder, &error);
+        const int written = error.isEmpty() ? write::mail::writeEmailFiles(texts, s.data, sourceRows, column, subject, folder, &error) : 0;
         QApplication::restoreOverrideCursor();
         if (!error.isEmpty()) w->notice(QCoreApplication::translate("jp::WriteMail", "Mail Merge"), error, true);
         else message(QCoreApplication::translate("jp::WriteMail", "%1 message files are saved in %2.").arg(written).arg(folder));

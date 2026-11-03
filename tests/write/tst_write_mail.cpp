@@ -97,6 +97,24 @@ MergeSource people()
     return m;
 }
 
+// A field whose code holds a field: `before`, the inner field's code, `after` (as IF "{ MERGEFIELD State }" = "VA" is stored).
+QByteArray nestedField(const QByteArray &before, const QByteArray &innerCode, const QByteArray &after)
+{
+    return "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> " + before + "</w:instrText></w:r>" + field(innerCode, "x") + "<w:r><w:instrText xml:space=\"preserve\">" + after +
+           " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+}
+
+MergeSource threePeople()
+{
+    MergeSource m;
+    m.fields = {"Name", "Email"};
+    for (const QStringList &r : {QStringList{"Ann", "ann@example.com"}, QStringList{"Bo", "bo@example.com"}, QStringList{"Cy", "cy@example.com"}}) {
+        m.rows << r;
+        m.include << true;
+    }
+    return m;
+}
+
 QString textOf(WriteDoc &doc)
 {
     QString t = doc.story()->toPlainText();
@@ -702,6 +720,87 @@ private Q_SLOTS:
         QVERIFY(w.view()->viewport()->grab().toImage() != plain);
         a->trigger();
         QVERIFY(!w.view()->shadeFields());
+    }
+
+    void aMessageIsAddressedToTheRecipientItWasMadeFrom()
+    {
+        // The first record is skipped: the texts are Bo's and Cy's, and the files go to Bo and Cy.
+        auto doc = open(makeDocx(para(nestedField("SKIPIF \"", "MERGEFIELD Name", "\" = \"Ann\"") + run("Hi ") + field("MERGEFIELD Name", "x"))));
+        QVERIFY(doc);
+        const MergeSource m = threePeople();
+        QStringList texts;
+        QVector<int> rows;
+        {
+            QString error;
+            texts = mail::mergeToTexts(*doc, m, {}, mail::MergeOptions(), &error, &rows);
+        }
+        QCOMPARE(texts, (QStringList{QStringLiteral("Hi Bo"), QStringLiteral("Hi Cy")}));
+        QCOMPARE(rows, (QVector<int>{1, 2}));
+        QTemporaryDir dir;
+        QCOMPARE(mail::writeEmailFiles(texts, m, rows, QStringLiteral("Email"), QStringLiteral("s"), dir.path()), 2);
+        const QStringList files = QDir(dir.path()).entryList(QDir::Files, QDir::Name);
+        QCOMPARE(files.size(), 2);
+        QVERIFY(files[0].contains(QStringLiteral("bo@example.com")));
+        QFile f(dir.filePath(files[0]));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray eml = f.readAll();
+        QVERIFY(eml.startsWith("To: bo@example.com\r\n"));
+        QCOMPARE(QByteArray::fromBase64(eml.mid(eml.indexOf("\r\n\r\n") + 4)), QByteArray("Hi Bo"));
+    }
+
+    void aMessageThatTakesTheNextRecordIsAddressedToTheFirstOfThem()
+    {
+        auto doc = open(makeDocx(para(field("MERGEFIELD Name", "x") + run(" and ") + field("NEXT", "") + field("MERGEFIELD Name", "x"))));
+        QVERIFY(doc);
+        QVector<int> rows;
+        const QStringList texts = mail::mergeToTexts(*doc, threePeople(), {}, mail::MergeOptions(), nullptr, &rows);
+        QCOMPARE(texts, (QStringList{QStringLiteral("Ann and Bo"), QStringLiteral("Cy and ")}));
+        QCOMPARE(rows, (QVector<int>{0, 2}));
+    }
+
+    void aMergeStopsAtTheMostPagesItMakes()
+    {
+        auto doc = open(makeDocx(para(field("MERGEFIELD Name", "x"))));
+        QVERIFY(doc);
+        mail::MergeOptions o;
+        o.mostPages = 2;
+        QString error;
+        QVERIFY(!mail::mergeToDocument(*doc, threePeople(), {}, o, &error));
+        QVERIFY(!error.isEmpty());
+        QVERIFY(mail::mergeToDocument(*doc, threePeople(), {}, mail::MergeOptions(), &error));
+        QVERIFY(mail::mergeToTexts(*doc, threePeople(), {}, o, &error).isEmpty());
+        QVERIFY(!error.isEmpty());
+    }
+
+    void theQuestionsOfAMergeAreFewAndACancelStopsIt()
+    {
+        QByteArray body;
+        for (int i = 0; i < 30; ++i) body += para(field("FILLIN \"question " + QByteArray::number(i) + "\" \\d \"dflt\"", "x"));
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        int asked = 0;
+        mail::MergeOptions o;
+        o.ask = [&](const QString &, const QString &def) {
+            ++asked;
+            return def;
+        };
+        QString error;
+        auto merged = mail::mergeToDocument(*doc, threePeople(), {}, o, &error);
+        QVERIFY(merged);
+        QCOMPARE(asked, mail::kMostPrompts);
+        QVERIFY(textOf(*merged).contains(QStringLiteral("dflt")));   // (the ones past the limit use their defaults)
+        // A cancel on a prompt stops the merge.
+        asked = 0;
+        bool cancelled = false;
+        mail::MergeOptions c;
+        c.cancelled = &cancelled;
+        c.ask = [&](const QString &, const QString &def) {
+            ++asked;
+            cancelled = true;
+            return def;
+        };
+        QVERIFY(!mail::mergeToDocument(*doc, threePeople(), {}, c, &error));
+        QCOMPARE(asked, 1);
     }
 
     void theMatchedFieldsAreKeptInTheDataSourcesFieldMap()
