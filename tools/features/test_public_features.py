@@ -55,13 +55,13 @@ class Parse(unittest.TestCase):
 
     def test_statuses_and_dropped_items(self):
         beyond = self.tabs[0]["direct"]
-        self.assertEqual(beyond, [("done", "Free and open source"), ("next", "Online pictures")])
+        self.assertEqual(beyond, [("done", "Free and open source", "shared: libs/x"), ("partly", "Online pictures", "note (with parens) | second note")])
 
     def test_groups(self):
         home = self.tabs[1]
-        self.assertEqual(home["direct"], [("done", "Direct item")])
+        self.assertEqual(home["direct"], [("done", "Direct item", "")])
         self.assertEqual([g["h"] for g in home["groups"]], ["Clipboard", "Empty group"])
-        self.assertEqual(home["groups"][0]["items"][1], ("next", "Table text with bold inside"))
+        self.assertEqual(home["groups"][0]["items"][1], ("partly", "Table text with bold inside", ""))
 
     def test_unparsed_list_line_stops(self):
         open(self.path, "a", encoding="utf-8").write("\n## Tab\n- not a checkbox\n")
@@ -83,9 +83,12 @@ class Clean(unittest.TestCase):
     def test_star_in_code_survives(self):
         self.assertIn("`*`", pf.clean_item("**1.0** wildcards `*` and `?` *(note)*"))
 
+    def test_note_text(self):
+        self.assertEqual(pf.item_note("**1.0** A *(done: x (y))* and B *(missing z)* **(needed for the Preview)**"), "done: x (y) | missing z")
+        self.assertEqual(pf.item_note("**1.0** No note here"), "")
+
     def test_key_differs_for_headings(self):
-        self.assertNotEqual(pf.key_of("heading", "Home tab"), pf.key_of("item", "Home tab"))
-        self.assertEqual(pf.key_of("item", "x"), pf.sha("x"))
+        self.assertNotEqual(pf.key_of("jeffpub", "heading", "Home tab"), pf.key_of("jeffpub", "item", "Home tab"))
 
 
 class Banned(unittest.TestCase):
@@ -122,18 +125,59 @@ class Banned(unittest.TestCase):
         self.assertEqual(pf.entry_problems({"drop": True, "en": "", "es": "", "fr": ""}), [])
 
 
+class Keys(unittest.TestCase):
+    def test_same_line_in_two_apps_is_two_keys(self):
+        self.assertNotEqual(pf.key_of("jeffdeck", "item", "Installs without rights"), pf.key_of("jeffcrunch", "item", "Installs without rights"))
+
+    def test_note_changes_the_key(self):
+        self.assertNotEqual(pf.key_of("jeffpub", "item", "A", "works"), pf.key_of("jeffpub", "item", "A", "missing x"))
+
+    def test_collect_sends_app_and_note(self):
+        tabs = {"jeffdeck": [{"h": "H", "direct": [("partly", "Same", "n1")], "groups": []}],
+                "jeffcrunch": [{"h": "H", "direct": [("partly", "Same", "n1")], "groups": []}]}
+        w = pf.collect(tabs)
+        items = [v for v in w.values() if v["kind"] != "heading"]
+        self.assertEqual(sorted(v["app"] for v in items), ["jeffcrunch", "jeffdeck"])
+        self.assertEqual({v["note"] for v in items}, {"n1"})
+        self.assertEqual({v["kind"] for v in items}, {"partial"})
+
+
+class Scope(unittest.TestCase):
+    ENTRY = {"app": "jeffcrunch", "text": "Installs without administrator rights", "note": "", "kind": "feature"}
+
+    def ok(self, **kw):
+        return dict({"drop": False, "en": "Installs.", "es": "Se instala.", "fr": "S’installe."}, **kw)
+
+    def test_other_app_name(self):
+        self.assertTrue(pf.scope_problems(self.ok(en="Install JeffDeck without rights."), self.ENTRY))
+        self.assertFalse(pf.scope_problems(self.ok(en="Install JeffCrunch without rights."), self.ENTRY))
+
+    def test_other_app_allowed_when_source_names_it(self):
+        e = dict(self.ENTRY, text="Paste into JeffWrite")
+        self.assertFalse(pf.scope_problems(self.ok(en="Paste cells into JeffWrite."), e))
+
+    def test_promises(self):
+        for t in ["This is coming soon.", "Planned for later.", "It will be added", "Not yet available"]:
+            self.assertTrue(pf.scope_problems(self.ok(en=t), self.ENTRY), t)
+
+
 class Build(unittest.TestCase):
     def test_structure_and_stale_texts_dropped(self):
-        tabs = {"jeffpub": [{"h": "Home tab", "direct": [("done", "A")], "groups": [{"h": "G", "items": [("next", "B")]}]}]}
+        tabs = {"jeffpub": [{"h": "Home tab", "direct": [("done", "A", "")], "groups": [{"h": "G", "items": [("partly", "B", "n")]}]}]}
         k = pf.key_of
-        texts = {k("heading", "Home tab"): {"drop": False, "en": "h", "es": "h", "fr": "h"},
-                 k("item", "A"): {"drop": False, "en": "a", "es": "a", "fr": "a"},
-                 k("item", "gone"): {"drop": False, "en": "x", "es": "x", "fr": "x"}}
+        texts = {k("jeffpub", "heading", "Home tab"): {"drop": False, "en": "h", "es": "h", "fr": "h"},
+                 k("jeffpub", "item", "A"): {"drop": False, "en": "a", "es": "a", "fr": "a"},
+                 k("jeffpub", "item", "gone"): {"drop": False, "en": "x", "es": "x", "fr": "x"}}
         data = pf.build_public(tabs, {"jeffpub": ("beta", "0.20.0")}, {"jeffpub": ("November", "2", "2026")}, texts)
-        self.assertNotIn(k("item", "gone"), data["texts"])
+        self.assertNotIn(k("jeffpub", "item", "gone"), data["texts"])
         tab = data["apps"]["jeffpub"]["tabs"][0]
-        self.assertEqual(tab["groups"][0]["items"][0]["status"], "next")
+        self.assertEqual(tab["groups"][0]["items"][0]["status"], "partly")
+        self.assertEqual(tab["groups"][0]["items"][0]["text"], k("jeffpub", "item", "B", "n"))
         self.assertEqual(data["apps"]["jeffpub"]["version"], "0.20.0")
+
+    def test_no_coming_next_in_the_prompt(self):
+        self.assertNotIn("Coming next", pf.SYSTEM)
+        self.assertIn("describe only what works today", pf.SYSTEM)
 
 
 if __name__ == "__main__":

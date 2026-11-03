@@ -57,6 +57,12 @@ def sha(s):
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 
+def item_note(raw):
+    """The text of the line's *(...)* notes, joined, which says what is missing or how far a feature is."""
+    notes = [m.group(0).strip()[2:-2].strip() for m in NOTES.finditer(NEEDED.sub("", raw))]
+    return re.sub(r"\s+", " ", " | ".join(notes)).strip()
+
+
 def clean_item(raw):
     t = NEEDED.sub("", raw.strip())
     t = NOTES.sub("", t)                       # notes can sit anywhere in a line, not only at its end
@@ -72,7 +78,7 @@ def clean_item(raw):
 
 
 def parse_list(path):
-    """Returns tabs: [ {h: heading, direct: [(status, text)], groups: [ {h, items} ]} ]."""
+    """Returns tabs: [ {h: heading, direct: [(status, text, note)], groups: [ {h, items} ]} ]. Status is done ([x]) or partly ([~])."""
     tabs, tab, group = [], None, None
     for line in open(path, encoding="utf-8"):
         line = line.rstrip("\n")
@@ -98,7 +104,7 @@ def parse_list(path):
             continue
         if m:
             if m.group(1) in "x~":
-                entry = ("done" if m.group(1) == "x" else "next", clean_item(m.group(2)))
+                entry = ("done" if m.group(1) == "x" else "partly", clean_item(m.group(2)), item_note(m.group(2)))
                 (group["items"] if group else tab["direct"]).append(entry)
         elif line.startswith("- ") or line.startswith("  - "):
             sys.exit("unparsed list line in %s: %s" % (path, line[:120]))
@@ -176,13 +182,36 @@ def entry_problems(e):
     return out
 
 
+PROMISES = re.compile(r"\b(coming soon|coming next|is coming|are coming|planned|will be|not yet)\b", re.I)
+OTHER_APPS = ("JeffPub", "JeffDeck", "JeffWrite", "JeffCrunch", "JeffMail", "JeffBase")
+
+
+def scope_problems(e, wanted_entry):
+    """What a reworded text may not say about its own entry: another app's name (unless the source has it) or a promise."""
+    if e.get("drop"):
+        return []
+    own = APPS[wanted_entry["app"]]["name"]
+    source = wanted_entry["text"] + " " + wanted_entry.get("note", "")
+    out = []
+    for lang in LANGS:
+        t = e.get(lang) or ""
+        for name in OTHER_APPS:
+            if name != own and name in t and name not in source:
+                out.append("%s names %s in %s's text" % (lang, name, own))
+    if PROMISES.search(e.get("en") or ""):
+        out.append("en promises something (%s)" % PROMISES.search(e["en"]).group(0))
+    return out
+
+
 # ---------- the API ----------
 
 SYSTEM = """You write the public feature pages of JeffOffice, a free, open-source office suite for Windows, macOS, and Linux with four apps: JeffPub (desktop publishing), JeffDeck (presentations), JeffWrite (documents), and JeffCrunch (spreadsheets). JeffMail and JeffBase are planned.
 
-You receive entries from an internal checklist, as JSON: id, kind ("heading", "feature", or "next"), path (the app, tab, and group the entry sits in), and text. Return, for each entry, a public version in English, Spanish, and French.
+You receive entries from an internal checklist, as JSON: id, kind ("heading", "feature", or "partial"), app (the app the entry is about), path (the app, tab, and group the entry sits in), text, and for items a note. Return, for each entry, a public version in English, Spanish, and French.
 
-For a "feature" or "next" entry, write one or two plain sentences that say what the person can do, in factual words a visitor and a search engine can both use. A "next" entry is a feature that is only partly there; describe the capability in the same way (the page shows it under "Coming next", so do not add "coming" or promise dates). Rules:
+For a "feature" or "partial" entry, write one or two plain sentences that say what the person can do in that app today, in factual words a visitor and a search engine can both use. The note is internal: it says how far the feature is, what works, and what is missing. For a "feature" (done) entry, use the note only to avoid saying more than is true. For a "partial" entry, the feature mostly works today and lacks only the part the note names: describe only what works today, and leave out what the note says is missing (do not mention the missing part at all). If the note says nothing usable works yet, return drop. Rules:
+- The app is the one named in the entry's "app" field; whenever the sentence needs the app's name, use that name, and never another app's name. Do not mention other JeffOffice apps at all unless the source text itself does.
+- Never add a fact that is not in the source text or note. Never say anything is "coming", "coming soon", "planned", "in progress", or "will" happen; say only what works now.
 - American English, with the Oxford comma ("A, B, and C"). No marketing superlatives or hype: no "best", "powerful", "seamless", "ultimate", and the like. State facts.
 - Keep file extensions exactly (.pub, .docx, .xlsx, .pptx, .odt, .ods, .odp, .csv, and so on), each in backticks. Also put keyboard keys and function names in backticks.
 - Never name another company's product, program, font, or feature. Do not write Microsoft, Excel, Word (as a product), PowerPoint, Publisher, Office (except inside "JeffOffice"), Outlook, Access, Calibri, Cambria, Arial, Times New Roman, Courier New, Segoe, PivotTable, AutoSum, AutoFit, Format Painter, AutoRecover, Quick Access Toolbar, or Quick Parts, in any language. Say "the original program", "other office suites", or "other programs" where a product would be named; for fonts say "common fonts" or "stand-ins with the same letter widths"; for a product's own feature name use a plain description ("pivot table" is fine as a generic term). File formats are named by extension and, where useful, by plain description (for example "binary spreadsheet files from older programs").
@@ -261,30 +290,35 @@ def ask(entries, feedback=None):
     return json.loads("".join(b.text for b in r.content if b.type == "text"))["results"]
 
 
-def key_of(kind, text):
-    return sha(("heading\n" if kind == "heading" else "") + text)
+def key_of(app, kind, text, note=""):
+    """The key of a reworded text: per app (the same line in two lists is two texts), and per note (the note changes what is true)."""
+    return sha(app + "\n" + ("heading\n" if kind == "heading" else "") + text + (("\n" + note) if note else ""))
 
 
 def collect(apps_tabs):
-    """Every distinct thing to reword: {key: {kind, path, text}} in page order."""
+    """Every distinct thing to reword: {key: {app, kind, path, text, note}} in page order."""
     wanted = {}
+
+    def item(app, status, text, note, path):
+        wanted.setdefault(key_of(app, "item", text, note), {"app": app, "kind": "feature" if status == "done" else "partial", "path": path, "text": text, "note": note})
+
     for app, tabs in apps_tabs.items():
+        base = APPS[app]["name"]
         for tab in tabs:
-            base = APPS[app]["name"]
-            wanted.setdefault(key_of("heading", tab["h"]), {"kind": "heading", "path": base, "text": tab["h"]})
-            for status, text in tab["direct"]:
-                wanted.setdefault(key_of("item", text), {"kind": "feature" if status == "done" else "next", "path": base + " > " + tab["h"], "text": text})
+            wanted.setdefault(key_of(app, "heading", tab["h"]), {"app": app, "kind": "heading", "path": base, "text": tab["h"], "note": ""})
+            for status, text, note in tab["direct"]:
+                item(app, status, text, note, base + " > " + tab["h"])
             for g in tab["groups"]:
                 if not g["items"]:
                     continue
-                wanted.setdefault(key_of("heading", g["h"]), {"kind": "heading", "path": base + " > " + tab["h"], "text": g["h"]})
-                for status, text in g["items"]:
-                    wanted.setdefault(key_of("item", text), {"kind": "feature" if status == "done" else "next", "path": base + " > " + tab["h"] + " > " + g["h"], "text": text})
+                wanted.setdefault(key_of(app, "heading", g["h"]), {"app": app, "kind": "heading", "path": base + " > " + tab["h"], "text": g["h"], "note": ""})
+                for status, text, note in g["items"]:
+                    item(app, status, text, note, base + " > " + tab["h"] + " > " + g["h"])
     return wanted
 
 
 def estimate(todo):
-    chars = sum(len(v["text"]) + len(v["path"]) for v in todo.values())
+    chars = sum(len(v["text"]) + len(v["path"]) + len(v["note"]) for v in todo.values())
     batches = -(-len(todo) // BATCH)
     tokens_in = chars / 3.5 + 45 * len(todo) + batches * (len(SYSTEM) / 3.5 + 300)
     tokens_out = sum(max(len(v["text"]) * 0.75, 40) for v in todo.values()) * 3 / 3.2 + 30 * len(todo)
@@ -310,7 +344,8 @@ def reword(wanted, cache, dry_run, checkpoint):
     failed = {}
 
     def run(batch_keys):
-        entries = [{"id": i, "kind": todo[k]["kind"], "path": todo[k]["path"], "text": todo[k]["text"]} for i, k in enumerate(batch_keys)]
+        entries = [dict({"id": i, "kind": todo[k]["kind"], "app": APPS[todo[k]["app"]]["name"], "path": todo[k]["path"], "text": todo[k]["text"]},
+                        **({"note": todo[k]["note"]} if todo[k]["kind"] != "heading" else {})) for i, k in enumerate(batch_keys)]
         by_id = dict(enumerate(batch_keys))
         accepted, bad = {}, {}
         for attempt in (1, 2):
@@ -325,7 +360,7 @@ def reword(wanted, cache, dry_run, checkpoint):
                 if i not in by_id or i in seen or i in accepted:
                     continue
                 seen.add(i)
-                problems = entry_problems(r)
+                problems = entry_problems(r) + scope_problems(r, todo[by_id[i]])
                 if problems:
                     bad[i] = problems
                 else:
@@ -370,8 +405,8 @@ def build_public(apps_tabs, states, rev, texts):
     """The file's content: the structure of each list (keys into texts) and the texts still in use."""
     used = set()
 
-    def ref(kind, text):
-        k = key_of(kind, text)
+    def ref(app, kind, text, note=""):
+        k = key_of(app, kind, text, note)
         used.add(k)
         return k
 
@@ -380,9 +415,9 @@ def build_public(apps_tabs, states, rev, texts):
         out = []
         for tab in tabs:
             out.append({
-                "heading": ref("heading", tab["h"]),
-                "items": [{"status": s, "text": ref("item", x)} for s, x in tab["direct"]],
-                "groups": [{"heading": ref("heading", g["h"]), "items": [{"status": s, "text": ref("item", x)} for s, x in g["items"]]}
+                "heading": ref(app, "heading", tab["h"]),
+                "items": [{"status": s, "text": ref(app, "item", x, n)} for s, x, n in tab["direct"]],
+                "groups": [{"heading": ref(app, "heading", g["h"]), "items": [{"status": s, "text": ref(app, "item", x, n)} for s, x, n in g["items"]]}
                            for g in tab["groups"] if g["items"]],
             })
         r = rev.get(app)
@@ -421,7 +456,7 @@ def main():
     reword(wanted, texts, args.dry_run, lambda: write_public(build_public(*state, texts)))
     if args.dry_run:
         return
-    bad = [(k, entry_problems(texts[k])) for k in wanted if entry_problems(texts[k])]
+    bad = [(k, entry_problems(texts[k]) + scope_problems(texts[k], wanted[k])) for k in wanted if entry_problems(texts[k]) + scope_problems(texts[k], wanted[k])]
     if bad:
         for k, p in bad:
             print("  %s: %s" % (wanted[k]["text"][:120], "; ".join(p)), file=sys.stderr)
