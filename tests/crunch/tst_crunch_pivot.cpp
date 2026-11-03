@@ -864,7 +864,7 @@ private Q_SLOTS:
         });
         e.win.w.act(QStringLiteral("pivot.options"))->trigger();   // (turned off)
         QVERIFY(!Settings::get().value(QStringLiteral("crunch/generateGetPivotData"), true).toBool());
-        typeAndClick("=");   // (turned off: the click is a plain click, which puts nothing in the formula, as a click on any other cell)
+        typeAndClick("=F5");   // (turned off: the click is a plain click, which points at the cell, as a click on any other cell)
         Settings::get().setValue(QStringLiteral("crunch/generateGetPivotData"), true);
     }
 

@@ -233,6 +233,10 @@ struct ArgumentHelp {
 const ArgumentHelp kArgumentHelp[] = {
     {"CELL:reference", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The cell to tell about (the cell with the cursor if left out).")},
     {"FORECAST:x", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The x value to predict a y value for.")},
+    {"GETPIVOTDATA:data_field", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The name of the value to give, in quotes, as the pivot table shows it (\"Sum of Amount\").")},
+    {"GETPIVOTDATA:pivot_table", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Any cell of the pivot table.")},
+    {"GETPIVOTDATA:field1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The name of a field of the rows or of the columns, in quotes (can be left out with its item).")},
+    {"GETPIVOTDATA:item1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The item of that field to give the value for, in quotes.")},
     {"LARGE:k", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Which place to give, counting from the largest: 1 is the largest.")},
     {"LOG:base", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The base of the logarithm (10 if left out).")},
     {"PERCENTILE:k", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The share of the values, from 0 to 1, to give the value at.")},
@@ -441,9 +445,10 @@ ArgumentPlan argumentPlanOf(const FunctionDoc &doc)
     QStringList names = argumentsOf(doc);
     if (!names.isEmpty() && names.last() == QLatin1String("...")) {
         names.removeLast();
-        // the run of names that end in 1 at the end is what repeats (SWITCH: value1 and result1)
-        while (!names.isEmpty() && names.last().endsWith(QLatin1Char('1'))) plan.repeating.prepend(names.takeLast());
-        if (plan.repeating.isEmpty() && !names.isEmpty()) plan.repeating << names.takeLast();
+        // the run of names that end in 1 at the end is what repeats (SWITCH: value1 and result1; GETPIVOTDATA's [field1] and [item1], which may be left out)
+        auto bare = [](const QString &n) { return n.startsWith(QLatin1Char('[')) ? n.mid(1, n.size() - 2) : n; };
+        while (!names.isEmpty() && bare(names.last()).endsWith(QLatin1Char('1'))) plan.repeating.prepend(bare(names.takeLast()));
+        if (plan.repeating.isEmpty() && !names.isEmpty()) plan.repeating << bare(names.takeLast());
     }
     for (const QString &n : names) {
         const bool optional = n.startsWith(QLatin1Char('['));
