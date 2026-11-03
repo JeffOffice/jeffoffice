@@ -211,31 +211,6 @@ private Q_SLOTS:
                 w->act(QStringLiteral("insert.table"))->trigger();
                 waitFor([&] { return quiet(w); });
             }),
-            in(QStringLiteral("the cursor in a pivot table"), [](CrunchWindow *w) {
-                for (quint32 r = 0; r < 5; ++r) {
-                    enter(w, r, 0, r == 0 ? QStringLiteral("Region") : (r % 2 ? QStringLiteral("East") : QStringLiteral("West")));
-                    enter(w, r, 1, r == 0 ? QStringLiteral("Month") : (r < 3 ? QStringLiteral("Jan") : QStringLiteral("Feb")));
-                    enter(w, r, 2, r == 0 ? QStringLiteral("Amount") : QString::number(r * 10));
-                }
-                w->setPivotCreateAsker([](QString *source, bool *newSheet, QString *where) {
-                    *source = QStringLiteral("A1:C5");
-                    *newSheet = false;
-                    *where = QStringLiteral("E3");
-                    return true;
-                });
-                w->view()->selectCell(0, 0);
-                w->act(QStringLiteral("insert.pivot"))->trigger();
-                waitFor([&] { return quiet(w); });
-                jp::office::sheet::PivotTable table = *w->session()->workbook()->pivots().table(0).table;
-                table.rowFields = {0};
-                jp::office::sheet::PivotDataField d;
-                d.fld = 2;
-                d.name = QStringLiteral("Sum of Amount");
-                table.dataFields.append(d);
-                w->session()->setPivot(0, table, true, QStringLiteral("Add Field to Pivot Table"));
-                waitFor([&] { return quiet(w); });
-                w->view()->selectCell(3, 4);
-            }),
             in(QStringLiteral("a chart selected"), [](CrunchWindow *w) {
                 w->view()->selectRange(0, 0, 1, 1);
                 w->insertChart(jp::office::sheet::ChartKind::Column);
@@ -356,9 +331,36 @@ private Q_SLOTS:
                 w->view()->selectCell(5, 5);
                 QTest::keyClick(w->view(), Qt::Key_Equal);
             }),
+            // (last: it takes the longest to set up, and only the pivot table's own commands need it)
+            in(QStringLiteral("the cursor in a pivot table"), [](CrunchWindow *w) {
+                for (quint32 r = 0; r < 5; ++r) {
+                    enter(w, r, 0, r == 0 ? QStringLiteral("Region") : (r % 2 ? QStringLiteral("East") : QStringLiteral("West")));
+                    enter(w, r, 1, r == 0 ? QStringLiteral("Month") : (r < 3 ? QStringLiteral("Jan") : QStringLiteral("Feb")));
+                    enter(w, r, 2, r == 0 ? QStringLiteral("Amount") : QString::number(r * 10));
+                }
+                w->setPivotCreateAsker([](QString *source, bool *newSheet, QString *where) {
+                    *source = QStringLiteral("A1:C5");
+                    *newSheet = false;
+                    *where = QStringLiteral("E3");
+                    return true;
+                });
+                w->view()->selectCell(0, 0);
+                w->act(QStringLiteral("insert.pivot"))->trigger();
+                waitFor([&] { return quiet(w); });
+                jp::office::sheet::PivotTable table = *w->session()->workbook()->pivots().table(0).table;
+                table.rowFields = {0};
+                jp::office::sheet::PivotDataField d;
+                d.fld = 2;
+                d.name = QStringLiteral("Sum of Amount");
+                table.dataFields.append(d);
+                w->session()->setPivot(0, table, true, QStringLiteral("Add Field to Pivot Table"));
+                waitFor([&] { return quiet(w); });
+                w->view()->selectCell(3, 4);
+            }),
         };
         // (where a command is best tried first: the others come after, so the hints only make the run quicker)
         m_app.hints = {
+            {QStringLiteral("pivot."), {QStringLiteral("the cursor in a pivot table")}},
             {QStringLiteral("hf."), {QStringLiteral("the header of a page being typed in")}},
             {QStringLiteral("notes."), {QStringLiteral("a note in two cells, the later one selected"), QStringLiteral("a note in two cells, the earlier one selected"), QStringLiteral("a cell with a note")}},
             {QStringLiteral("object."), {QStringLiteral("two charts, the later one selected")}},
