@@ -173,6 +173,9 @@ void setBool(QDomElement &e, const QString &name, bool value, bool def)
 
 QByteArray writePivotCacheDefinition(const QByteArray &original, const PivotCache &cache, qint64 recordCount, double refreshedDate, jp::calc::DateSystem dates)
 {
+    // (A part nested deeper than a pivot table ever is, or of more elements than the document tree holds in a few gigabytes, is not parsed: the parser takes time that grows with the square of the depth,
+    // and the tree takes about a kilobyte and a half for each element. The part the file has is kept.)
+    if (pivotXmlDepth(original, kPivotMaxXmlDepth) > kPivotMaxXmlDepth || original.count('<') > kPivotMaxDomElements) return QByteArray();
     QDomDocument doc;
     if (!doc.setContent(original)) return QByteArray();
     QDomElement root = doc.documentElement();
@@ -282,6 +285,9 @@ QByteArray writePivotCacheRecords(const PivotCache &cache, jp::calc::DateSystem 
 
 QByteArray writePivotTable(const QByteArray &original, const PivotTable &t, bool structureChanged)
 {
+    // (A part nested deeper than a pivot table ever is, or of more elements than the document tree holds in a few gigabytes, is not parsed: the parser takes time that grows with the square of the depth,
+    // and the tree takes about a kilobyte and a half for each element. The part the file has is kept.)
+    if (pivotXmlDepth(original, kPivotMaxXmlDepth) > kPivotMaxXmlDepth || original.count('<') > kPivotMaxDomElements) return QByteArray();
     QDomDocument doc;
     if (!doc.setContent(original)) return QByteArray();
     QDomElement root = doc.documentElement();
