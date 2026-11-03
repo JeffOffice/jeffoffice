@@ -321,6 +321,10 @@ public:
     // Whether edits are tracked as changes (Track Changes: the file's w:trackRevisions). A setting of the document that is written with it, not a step of the history.
     bool trackChanges() const { return m_trackChanges; }
     void setTrackChanges(bool on);
+    // The sources of the bibliography (core/citeops.h): the XML of the file's bibliography part (a custom XML part), as read or as last set; empty for none.
+    QByteArray sourcesXml();
+    // Sets it. A setting of the document, written with the file, not a step of the history.
+    void setSourcesXml(const QByteArray &xml);
     // The person who makes the changes and comments, and their initials (the user name of the settings: the window gives them).
     QString reviewer() const { return m_reviewer; }
     QString reviewerInitials() const { return m_reviewerInitials; }
@@ -772,6 +776,10 @@ private:
     int m_fieldCodesCount = 0;
     int m_fieldCodeView = 0;
     void writeReviewSettings(office::wml::Document *out);
+    void writeSourcesPart(office::wml::Document *out);
+    QByteArray m_sourcesXml;
+    QString m_sourcesPartName;
+    bool m_sourcesRead = false, m_sourcesDirty = false;
     void writeCommentParts(office::wml::Document *out);
     mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratch;
     QVector<office::wml::Style> m_addedTableStyles;                    // built-in table styles that tables made have (see ensureTableStyle)

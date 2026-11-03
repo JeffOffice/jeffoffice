@@ -1,6 +1,8 @@
 #include "core/fieldops.h"
 
+#include "core/citeops.h"
 #include "core/editops.h"
+#include "core/indexops.h"
 #include "core/tocops.h"
 #include "core/writeprops.h"
 #include "flow/flowdocument.h"
@@ -300,7 +302,7 @@ namespace {
 bool pageDependent(const QString &name)
 {
     return name == QLatin1String("PAGE") || name == QLatin1String("NUMPAGES") || name == QLatin1String("SECTIONPAGES") || name == QLatin1String("PAGEREF") || name == QLatin1String("TOC") ||
-           name == QLatin1String("STYLEREF");
+           name == QLatin1String("STYLEREF") || name == QLatin1String("INDEX") || name == QLatin1String("TOA");
 }
 
 // Everything a pass of updating needs about the document, found when it is first asked and kept for the pass.
@@ -322,6 +324,7 @@ public:
         };
         env.noteNumber = [this](const QString &name, const fields::Code &) { return noteNumber(name); };
         env.styleRef = [this](const QString &style, const fields::Code &code) { return styleReference(style, code); };
+        env.citation = [this](const QString &tag, const fields::Code &code) { return citationFieldText(this->doc, this->scan, tag, code); };
         env.number = [this](const QString &name) -> std::optional<double> {
             const std::optional<fields::BookmarkInfo> b = bookmarkInfo(name);
             if (!b) return std::nullopt;
@@ -579,6 +582,9 @@ struct Planned {
     QVector<TocLine> toc;
     fields::Code code;
     bool isToc = false;
+    bool isGenerated = false;     // an index or a table of authorities (a bibliography): its result is `lines`
+    QVector<GenLine> lines;
+    QString empty;                // the one line shown where there are none
 };
 
 // What one pass found and did.
@@ -695,6 +701,47 @@ PassResult updatePass(WriteDoc &doc, const UpdateOptions &options, bool keepChan
             }
             continue;
         }
+        if (code.name == QLatin1String("INDEX") || code.name == QLatin1String("TOA") || code.name == QLatin1String("BIBLIOGRAPHY")) {
+            if (options.pageNumbersOnly) {
+                note(FieldChange::Kept, change.before);
+                continue;
+            }
+            const bool isIndex = code.name == QLatin1String("INDEX"), isBibliography = code.name == QLatin1String("BIBLIOGRAPHY");
+            PageRefLookup pageOf;
+            if (!isBibliography) {
+                ctx.pages.ensure();
+                pageOf = [&](int position) {
+                    const PageAt a = ctx.pages.at(position);
+                    return PageRef{a.text, a.index};
+                };
+            }
+            const QVector<GenLine> lines = isBibliography ? bibliographyLines(doc, scan, index, code) : isIndex ? indexLines(doc, scan, index, code, pageOf) : authoritiesLines(doc, scan, index, code, pageOf);
+            const QString empty = isBibliography ? noBibliography() : isIndex ? noIndexEntries() : noAuthorities();
+            QStringList texts;
+            for (const GenLine &l : lines) texts << l.text();
+            if (lines.isEmpty()) texts << empty;
+            const QString after = texts.join(QLatin1Char('\n'));
+            QString before = change.before;
+            before.replace(QChar::ParagraphSeparator, QLatin1Char('\n'));
+            QStringList stored = before.split(QLatin1Char('\n'));
+            stored.removeAll(QString());
+            change.before = stored.join(QLatin1Char('\n'));
+            if (change.before == after) {
+                note(FieldChange::Unchanged, after);
+            } else {
+                note(FieldChange::Changed, after);
+                Planned p;
+                p.field = index;
+                p.before = change.before;
+                p.after = after;
+                p.code = code;
+                p.isGenerated = true;
+                p.lines = lines;
+                p.empty = empty;
+                plans.push_back(p);
+            }
+            continue;
+        }
         if (!fields::isKnown(code.name)) {
             note(FieldChange::Kept, change.before);
             continue;
@@ -768,6 +815,11 @@ PassResult updatePass(WriteDoc &doc, const UpdateOptions &options, bool keepChan
         }
         if (inside) continue;
         const LookMode mode = p.code.mergesFormat() ? LookMode::Merge : p.code.usesCodeFormat() ? LookMode::Code : LookMode::First;
+        if (p.isGenerated) {
+            if (rebuildGenerated(doc, story, scan, p.field, p.lines, options.tocLeader, p.empty)) replaced.insert(f.separate, f.end);
+            out.changedText = true;
+            continue;
+        }
         if (p.isToc) {
             if (rebuildToc(doc, story, scan, p.field, p.code, p.toc, options.tocLeader)) replaced.insert(f.separate, f.end);
             out.changedText = true;

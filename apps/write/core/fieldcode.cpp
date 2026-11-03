@@ -24,6 +24,13 @@ bool takesArgument(const QString &name, QChar letter)
     if (name == QLatin1String("TOC")) return QStringLiteral("otbcdflspa").contains(l);
     if (name == QLatin1String("SEQ")) return l == QLatin1Char('r') || l == QLatin1Char('s');
     if (name == QLatin1String("REF")) return l == QLatin1Char('d');
+    if (name == QLatin1String("TC")) return l == QLatin1Char('f') || l == QLatin1Char('l');
+    if (name == QLatin1String("XE")) return QStringLiteral("frty").contains(l);
+    if (name == QLatin1String("INDEX")) return QStringLiteral("bcdefghklpsz").contains(l);
+    if (name == QLatin1String("TA")) return QStringLiteral("clrs").contains(l);
+    if (name == QLatin1String("TOA")) return QStringLiteral("bcdeglsz").contains(l);
+    if (name == QLatin1String("CITATION")) return QStringLiteral("lmps").contains(l);
+    if (name == QLatin1String("BIBLIOGRAPHY")) return QStringLiteral("flm").contains(l);
     if (name == QLatin1String("HYPERLINK")) return l == QLatin1Char('l') || l == QLatin1Char('o') || l == QLatin1Char('t');
     return false;
 }
@@ -1022,7 +1029,7 @@ bool isKnown(const QString &nameIn)
                                         QStringLiteral("STYLEREF"), QStringLiteral("SEQ"), QStringLiteral("DATE"), QStringLiteral("TIME"), QStringLiteral("CREATEDATE"), QStringLiteral("SAVEDATE"), QStringLiteral("PRINTDATE"),
                                         QStringLiteral("AUTHOR"), QStringLiteral("TITLE"), QStringLiteral("SUBJECT"), QStringLiteral("KEYWORDS"), QStringLiteral("COMMENTS"), QStringLiteral("LASTSAVEDBY"), QStringLiteral("TEMPLATE"),
                                         QStringLiteral("FILENAME"), QStringLiteral("FILESIZE"), QStringLiteral("DOCPROPERTY"), QStringLiteral("NUMWORDS"), QStringLiteral("NUMCHARS"), QStringLiteral("IF"), QStringLiteral("="),
-                                        QStringLiteral("QUOTE"), QStringLiteral("REVNUM"), QStringLiteral("EDITTIME"), QStringLiteral("COMPARE")};
+                                        QStringLiteral("QUOTE"), QStringLiteral("REVNUM"), QStringLiteral("EDITTIME"), QStringLiteral("COMPARE"), QStringLiteral("CITATION")};
     return names.contains(nameIn.toUpper());
 }
 
@@ -1051,6 +1058,10 @@ std::optional<QString> compute(const Code &code, Env &env)
         return v ? std::optional<QString>(formatText(*v, code.general)) : std::nullopt;
     }
     if (n == QLatin1String("SEQ")) return sequenceText(code, env);
+    if (n == QLatin1String("CITATION")) {
+        if (!env.citation) return std::nullopt;
+        return env.citation(code.arguments.value(0).trimmed(), code);
+    }
     if (n == QLatin1String("DATE") || n == QLatin1String("TIME")) {
         if (!env.now.isValid()) return std::nullopt;
         return showDate(code, env.now, n == QLatin1String("DATE") ? QStringLiteral("M/d/yyyy") : QStringLiteral("h:mm AM/PM"), env.locale);
