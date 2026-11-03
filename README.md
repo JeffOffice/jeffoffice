@@ -6,16 +6,16 @@ JeffOffice is a free, open-source office suite for **Windows, macOS, and Linux**
 
 - **JeffPub**, for desktop publishing: flyers, newsletters, brochures, business cards, certificates, and other print pieces. It opens and saves Microsoft Publisher files.
 - **JeffDeck**, for presentations: it makes slides, plays slide shows, and opens PowerPoint files (`.pptx` and the older `.ppt`) and OpenDocument presentations (`.odp`), and saves `.pptx` and `.odp`.
-- **JeffWrite** (a preview), for documents: it opens Word files (`.docx` and the older `.doc`) and saves `.docx`, with tables, headers and footers, footnotes and endnotes, pictures (insert, size, move, and wrap them) and text boxes, page setup, a ruler, styles (a Styles pane, and making and changing styles), Copy Formatting, Go To, drag-and-drop of text, spelling, printing, and PDF export.
-- **JeffCrunch** (a preview), for spreadsheets: it opens workbooks (`.xlsx` and `.xlsm`, the older `.xls`, OpenDocument `.ods`, and text files of values such as `.csv`) and saves `.xlsx` (and `.xls` and `.ods` copies), with formulas, formatting, sorting and filtering, charts, and printing.
+- **JeffWrite** (a beta), for documents: it opens `.docx`, the older `.doc`, `.rtf`, and `.odt` files and saves `.docx` and `.odt`, with tables (and editing them), headers and footers, footnotes and endnotes, fields and cross-references, tracked changes and comments, pictures (insert, size, move, and wrap them) and text boxes, page setup, a ruler, styles (a Styles pane, and making and changing styles), Copy Formatting, Go To, drag-and-drop of text, spelling, printing, and PDF export.
+- **JeffCrunch** (a beta), for spreadsheets: it opens workbooks (`.xlsx` and `.xlsm`, the older `.xls`, OpenDocument `.ods`, and text files of values such as `.csv`), including ones protected with a password, and saves `.xlsx` (and `.xls` and `.ods` copies), with formulas (you can click cells while you type one), formatting, sorting and filtering, pivot tables, charts, and printing.
 
 More apps are on the way: JeffMail for email and calendars, and JeffBase for databases. Each will come in an update once it's ready.
 
 JeffOffice is an independent project. Its goals are compatibility and interoperability, so that it works with Office files and the people who use them, and then to do more, and to do it better.
 
-> **Status:** beta (0.10). JeffPub's and JeffDeck's features are in place and are being polished; JeffWrite and JeffCrunch are previews, with the main features working and more still being built (see [JeffWrite](#jeffwrite) and [JeffCrunch](#jeffcrunch)). Downloads are on the [Releases page](https://github.com/JeffOffice/jeffoffice/releases):
+> **Status:** beta (0.10). JeffPub's and JeffDeck's features are in place and are being polished; JeffWrite and JeffCrunch are betas, with the main features working and more still being built (see [JeffWrite](#jeffwrite) and [JeffCrunch](#jeffcrunch)). Downloads are on the [Releases page](https://github.com/JeffOffice/jeffoffice/releases):
 >
-> - **Windows:** `JeffOffice-Setup.exe` installs JeffPub and JeffDeck (you can leave JeffDeck out), and JeffWrite and JeffCrunch if you tick them. No administrator rights are needed.
+> - **Windows:** `JeffOffice-Setup.exe` installs JeffPub and JeffDeck (you can leave JeffDeck out), and JeffWrite and JeffCrunch if you tick them. No administrator rights are needed. The last page of the installer says where to find the apps: in the Start menu.
 > - **Mac:** `JeffOffice-<version>.dmg` holds all four apps. It isn't signed yet, so macOS asks before opening each one the first time.
 > - **Linux:** `jeffoffice_<version>_amd64.deb` installs all four apps on Debian, Ubuntu, and their relatives (`sudo apt install ./jeffoffice_<version>_amd64.deb`; it replaces an earlier `jeffpub` package). To get updates with apt, add our repository once ([steps, minimum versions, and the signing key's fingerprint](docs/linux-install.md); Ubuntu 22.04+ or Debian 12+). For most other distributions there's an AppImage of each app (`JeffPub-<version>-x86_64.AppImage`, `JeffDeck-<version>-x86_64.AppImage`, `JeffWrite-<version>-x86_64.AppImage`, and `JeffCrunch-<version>-x86_64.AppImage`): make the file executable and run it.
 
@@ -63,39 +63,39 @@ Slides drawn a little differently from the presentation program's in places (mos
 
 ## JeffWrite
 
-JeffWrite writes and edits documents. It's a **preview**: it opens most documents the way they were laid out, and some features are still being built.
+JeffWrite writes and edits documents. It's a **beta**: about 3 of 4 pages lay out within a small difference of the original program on documents it was never tuned on, and some features are still being built.
 
 ### What it does
 
 - **Pages as they print**, in a continuous view with zoom, laid out as the document's own settings say: page size and margins, sections, columns, facing pages, page borders, and line numbers.
-- **Editing** with undo: typing, the clipboard, character and paragraph formatting (the Font dialog among it), bulleted and numbered lists, styles, page and section breaks, and page setup.
+- **Editing** with undo: typing, the clipboard, character and paragraph formatting (the Font dialog among it), bulleted and numbered lists, styles, tables, fields, tracked changes and comments, page and section breaks, and page setup.
 - **What a document holds:** tables, headers and footers with page numbers and other fields, footnotes and endnotes, pictures and text boxes that the text wraps around, frames, form fields and content controls, and equations (shown as a line of text).
 - **Find and Replace**, and **spelling** as you type, with suggestions and the Spelling pane (F7).
 - **Print and export** to paper or PDF, with copies, page ranges, and a preview.
-- **Document files.** Opens `.docx`, `.docm`, `.dotx`, and `.dotm`, and the older `.doc` and `.dot` files from Microsoft Word; saves `.docx`. What JeffWrite doesn't show or edit yet is kept and saved back as the file had it.
+- **Document files.** Opens `.docx`, `.docm`, `.dotx`, and `.dotm`, the older `.doc` and `.dot`, `.rtf`, and `.odt` (also `.fodt` and `.ott`); saves `.docx`, `.dotx`, and `.odt`. A `.doc`, `.rtf`, or `.fodt` file is saved as a new `.docx` or `.odt` file. What JeffWrite doesn't show or edit yet is kept and saved back as the file had it.
 
-### Not yet in the preview
+### Not yet in the beta
 
-Pages drawn a little differently from the word processor's in places (most often where a line or a page breaks); editing the text of headers, footers, and notes; equations laid out as they are printed (they're shown as a line and kept); `.rtf` and `.odt` files; and the vertical ruler. Help covers what JeffWrite does today, and [docs/jeffwrite.md](docs/jeffwrite.md) says where it stands.
+Pages drawn a little differently from the word processor's in places (most often where a line or a page breaks); editing the pictures, shapes, and tables inside headers, footers, and notes; equations laid out as they are printed (they're shown as a line and kept); saving `.rtf` files; a Draft view; and the vertical ruler. Help covers what JeffWrite does today, and [docs/jeffwrite.md](docs/jeffwrite.md) says where it stands.
 
 ## JeffCrunch
 
-JeffCrunch makes and edits spreadsheets. It's a **preview**: it opens most workbooks the way they were laid out and works their formulas out, and some features are still being built.
+JeffCrunch makes and edits spreadsheets. It's a **beta**: it opens most workbooks the way they were laid out and works their formulas out, and some features are still being built.
 
 ### What it does
 
 - **Sheets as they were saved**: column widths and row heights, fonts, colors, borders, merged cells, frozen panes, number formats that turn a stored number into a date, a percent, or a price, and conditional formats (color scales, data bars, and icons).
 - **Editing** with undo: typing numbers, text, and formulas, formatting cells and cell styles, cut, copy, and paste, filling cells, inserting and deleting rows, columns, and sheets, sizing, and finding and replacing.
 - **Formulas** worked out as you type, with more than 200 functions, names, and the other sheets of the workbook. A formula whose function isn't in JeffCrunch yet keeps the result the file stored.
-- **Sorting, filtering, and tables**, with a sort or filter kept in the file.
+- **Sorting, filtering, tables, and pivot tables** (made, laid out, refreshed, and read with GETPIVOTDATA), with a sort or filter kept in the file.
 - **Charts, pictures, and shapes**, made and changed in the sheet, and **notes and links**.
-- **Protection** of a sheet or the workbook, with or without a password.
+- **Protection** of a sheet or the workbook, with or without a password, and password-protected files (`.xlsx`, `.xls`, and `.ods`) opened; an `.xlsx` can be saved with a password.
 - **Print and export** to paper or PDF, with page setup, page breaks, headers and footers, and a preview.
 - **Workbook files.** Opens `.xlsx`, `.xlsm`, the older `.xls`, OpenDocument `.ods` and `.fods`, and text files of values (`.csv`, `.tsv`, and `.txt`, asking how their columns are read); saves `.xlsx`, and `.xls` and `.ods` copies (saying first what the file can't hold). A workbook opened from anything but `.xlsx` or `.xlsm` is saved as a new `.xlsx` file by default, and a workbook's macros are kept and never run. What JeffCrunch doesn't show or edit yet is kept and saved back as the file had it.
 
-### Not yet in the preview
+### Not yet in the beta
 
-Making and changing conditional format rules and data validation rules (the ones a workbook has are shown and kept); making pivot tables (they're shown and kept); making what-if data tables (the ones a workbook has are worked out); and a few functions that JeffCrunch does not have yet. Help covers what JeffCrunch does today, and [docs/jeffcrunch.md](docs/jeffcrunch.md) says where it stands.
+Making and changing conditional format rules and data validation rules (the ones a workbook has are shown and kept); making what-if data tables (the ones a workbook has are worked out); and a few functions that JeffCrunch does not have yet. Help covers what JeffCrunch does today, and [docs/jeffcrunch.md](docs/jeffcrunch.md) says where it stands.
 
 ## Privacy
 
