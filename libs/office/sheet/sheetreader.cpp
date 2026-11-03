@@ -1428,7 +1428,15 @@ bool SheetReader::read(QIODevice *in)
             } else if (inExtension && depth == 5 && isElement(r, "cfRule") && attribute(r, "type") != QLatin1String("dataBar")) {
                 if (!m_sheet.notKept.contains(QLatin1String("extendedRules"))) m_sheet.notKept.append(QLatin1String("extendedRules"));
             }
-            if (inExtension && depth == 3 && isElement(r, "sparklineGroups")) inSpark = true;
+            if (inExtension && depth == 3 && isElement(r, "sparklineGroups")) {
+                inSpark = true;
+                if (m_options.sparklineBudget) {
+                    qint64 chars = 0, count = 0;
+                    m_options.sparklineBudget->left(m_options.sparklineSheet, &chars, &count);
+                    spark.charsLeft = std::max<qint64>(0, chars - spark.charsUsed);
+                    spark.countLeft = std::max<qint64>(0, count - spark.count);
+                }
+            }
             if (inSpark) spark.start(r, depth - 3);
             if (++depth > kMaxXmlDepth) {
                 ok = fail(QCoreApplication::translate("Sheet", "The file has items inside items more deeply than any real file has."));
@@ -1707,9 +1715,13 @@ bool SheetReader::read(QIODevice *in)
                 spark.end(depth - 4);
                 if (depth == 4) {
                     inSpark = false;
-                    for (const SparklineGroup &g : std::as_const(spark.groups))
+                    for (const SparklineGroup &g : std::as_const(spark.groups)) {
                         if (m_sheet.sparklineGroups.size() < kMaxSparklineGroups) m_sheet.sparklineGroups.append(g);
+                        else spark.lossy = true;
+                    }
                     spark.groups.clear();
+                    if (spark.lossy) m_sheet.sparklinesLossy = true;
+                    if (m_options.sparklineBudget) m_options.sparklineBudget->set(m_options.sparklineSheet, spark.charsUsed, spark.count);
                 }
             }
             if (phonetic == depth) phonetic = 0;
@@ -3047,6 +3059,8 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
     ReadOptions options;
     options.limits = m_limits;
     options.dateSystem = m_info.dateSystem;
+    options.sparklineBudget = m_sparklineBudget;
+    options.sparklineSheet = index;
     options.progress = progress;
     options.stopAfterRow = stopAfterRow;
     options.screenRows = screenRows;

@@ -366,7 +366,7 @@ QByteArray newSheetSkeleton(const Sheet &sheet)
     o += conditionalFormatsXml(sheet.conditionalFormats, &extensions);
     o += validationsXml(sheet.validations);
     o += "<pageMargins left=\"0.7\" right=\"0.7\" top=\"0.75\" bottom=\"0.75\" header=\"0.3\" footer=\"0.3\"/>";
-    const QByteArray spark = sparklineExtensionXml(sheet.sparklineGroups);
+    const QByteArray spark = sheet.sparklinesLossy ? QByteArray() : sparklineExtensionXml(sheet.sparklineGroups);
     if (!spark.isEmpty()) {
         if (extensions.isEmpty()) extensions = "<extLst>" + spark + "</extLst>";
         else extensions.insert(extensions.lastIndexOf("</extLst>"), spark);

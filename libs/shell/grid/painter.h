@@ -11,6 +11,7 @@
 
 #include "grid/gridsheet.h"
 #include "grid/selection.h"
+#include "grid/sparklinepaint.h"
 
 #include <QBrush>
 #include <QColor>
@@ -20,6 +21,7 @@
 #include <QPainter>
 
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 namespace jp::grid {
@@ -76,6 +78,7 @@ struct PaintStats {
     qint64 condCells = 0;        // cells the rules of conditional formatting were asked about
     qint64 bars = 0, icons = 0;  // data bars and icons drawn
     qint64 sparklines = 0;       // sparklines drawn
+    qint64 sparklineColorSets = 0;   // groups of sparklines whose colors were made (once for a group in a paint)
     qint64 textsMade = 0;        // texts of cells made (not found in the cache) during the drawing
     qint64 looksMade = 0;
     bool truncated = false;      // a bound was reached: some cells in view were left out
@@ -113,6 +116,7 @@ private:
     };
     struct PaneWork;
 
+    std::unordered_map<int, SparklineColors> m_sparkColors;   // the colors of the groups of sparklines, by group, made in a paint
     void paintPane(QPainter *p, Pane which, const QRect &clip, const PaintOptions &o);
     void paintHeaders(QPainter *p, const QRect &clip, const PaintOptions &o);
     void paintSelection(QPainter *p, Pane which, const QRect &area, const PaintOptions &o);

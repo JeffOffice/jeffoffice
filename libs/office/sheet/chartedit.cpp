@@ -11,6 +11,8 @@ using jp::office::ChartAxis;
 using jp::office::ChartPlot;
 using jp::office::ChartSeries;
 using jp::office::ChartTrendline;
+using jp::office::kChartMaxTrendlines;
+using jp::office::kChartMaxTrendlinePoints;
 using jp::office::ChartType;
 
 namespace {
@@ -178,6 +180,9 @@ void setLegend(Chart *chart, const QString &position, bool overlay)
 
 void setTrendlines(Chart *chart, const QString &kind, int order, int period)
 {
+    qint64 total = 0;
+    for (const ChartPlot &p : chart->plots)
+        for (const ChartSeries &s : p.series) total += s.trendlines.size();
     for (ChartPlot &p : chart->plots) {
         if (p.type == ChartType::Pie || p.type == ChartType::Doughnut) continue;
         for (ChartSeries &s : p.series) {
@@ -185,8 +190,12 @@ void setTrendlines(Chart *chart, const QString &kind, int order, int period)
                 s.trendlines.clear();
                 continue;
             }
+            // the first trendline takes the kind; its order, period, name, reach, and look stay, and so do the others the series has
             ChartTrendline t;
-            if (!s.trendlines.isEmpty()) t = s.trendlines.first();
+            const bool had = !s.trendlines.isEmpty();
+            if (!had && (total >= kChartMaxTrendlines || s.values.size() > kChartMaxTrendlinePoints / 8)) continue;   // (a chart has only so many)
+            if (!had) ++total;
+            if (had) t = s.trendlines.first();
             else {
                 t.line.set = true;
                 t.line.color = s.color;
@@ -194,10 +203,10 @@ void setTrendlines(Chart *chart, const QString &kind, int order, int period)
                 t.line.dash = QStringLiteral("sysDot");
             }
             t.type = kind;
-            t.order = std::clamp(order, 2, 6);
-            t.period = std::clamp(period, 2, 255);
-            t.name.clear();
-            s.trendlines = {t};
+            if (order >= 0) t.order = std::clamp(order, 2, 6);
+            if (period >= 0) t.period = std::clamp(period, 2, 255);
+            if (had) s.trendlines[0] = t;
+            else s.trendlines = {t};
         }
     }
 }

@@ -6,8 +6,11 @@
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
 #include "grid/gridview.h"
+#include "io/zip.h"
 #include "app/ribbon.h"
 
+#include <QElapsedTimer>
+#include <QFile>
 #include <QSignalSpy>
 #include <QUndoStack>
 
@@ -46,6 +49,29 @@ bool sparklineTabShown(CrunchWindow &w)
     for (int i = 0; i < r->tabCount(); ++i)
         if (r->tabName(i) == QLatin1String("Sparkline")) return r->tabVisible(i);
     return false;
+}
+
+
+// Two sheets: the first has sparklines that read the second (and a third that reads itself), the second has the numbers.
+QByteArray twoSheets(const QString &secondName = QStringLiteral("Sheet2"))
+{
+    auto group = [](const QString &source, int row, const QString &attrs) {
+        return QStringLiteral("<x14:sparklineGroup ") + attrs + QStringLiteral("><x14:colorSeries rgb=\"FF376092\"/><x14:sparklines><x14:sparkline><xm:f>") + source.toHtmlEscaped()
+               + QStringLiteral("</xm:f><xm:sqref>E") + QString::number(row) + QStringLiteral("</xm:sqref></x14:sparkline></x14:sparklines></x14:sparklineGroup>");
+    };
+    const QString ext = QStringLiteral("<extLst><ext uri=\"{05C60535-1F16-4fd2-B633-F4F36F0B64E0}\" xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\">"
+                                       "<x14:sparklineGroups xmlns:xm=\"http://schemas.microsoft.com/office/excel/2006/main\">")
+                        + group(QStringLiteral("Sheet2!A1:C1"), 1, QString()) + group(QStringLiteral("Sheet1!A1:C1"), 2, QStringLiteral("type=\"column\"")) + QStringLiteral("</x14:sparklineGroups></ext></extLst>");
+    const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>3</v></c><c r=\"C1\"><v>2</v></c></row>");
+    return buildXlsx({worksheet(rows, ext), worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList{QStringLiteral("Sheet1"), secondName});
+}
+
+bool reread(const QString &path, Sheet *sheet, int index = 0)
+{
+    Package package;
+    Workbook book;
+    QString why;
+    return package.readLazyFile(path, &why) && book.open(package, &why) && book.readSheet(index, sheet);
 }
 
 } // namespace
@@ -246,6 +272,153 @@ private Q_SLOTS:
         QCOMPARE(int(sheet.sparklineGroups.size()), 2);
         QCOMPARE(sheet.sparklineGroups[0].sparklines[0].row, quint32(2));
         QCOMPARE(sheet.sparklineGroups[0].sparklines[0].source, QStringLiteral("Sheet1!$A$2:$A$4"));
+    }
+
+    // A sheet renamed has the sources that read it written as they now are (an emoji in its name too), and the file has them; Undo gives them back, and the file has those.
+    void aRenamedSheetsSourcesAreSavedAndReadAgain()
+    {
+        EditWindow e;
+        QVERIFY(e.open(twoSheets()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        const QString emoji = QString::fromUtf8("Data \xF0\x9F\x98\x80");
+        QVERIFY(s->renameSheet(1, emoji).ok);
+        QCOMPARE(s->sparklinesOf(0)[0].sparklines[0].source, QStringLiteral("'%1'!A1:C1").arg(emoji));
+        QVERIFY(saveNow(e));
+        Sheet sheet;
+        QVERIFY(reread(e.path, &sheet));
+        QCOMPARE(int(sheet.sparklineGroups.size()), 2);
+        QCOMPARE(sheet.sparklineGroups[0].sparklines[0].source, QStringLiteral("'%1'!A1:C1").arg(emoji));
+        QCOMPARE(sheet.sparklineGroups[1].sparklines[0].source, QStringLiteral("Sheet1!A1:C1"));
+    }
+
+    // The rename undone before a save is not in the file either.
+    void aRenameUndoneBeforeASaveLeavesTheOriginalSources()
+    {
+        EditWindow e;
+        QVERIFY(e.open(twoSheets()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->renameSheet(1, QStringLiteral("Other")).ok);
+        e.win.w.undoStack()->undo();
+        QCOMPARE(s->sparklinesOf(0)[0].sparklines[0].source, QStringLiteral("Sheet2!A1:C1"));
+        QVERIFY(saveNow(e));
+        Sheet sheet;
+        QVERIFY(reread(e.path, &sheet));
+        QCOMPARE(sheet.sparklineGroups[0].sparklines[0].source, QStringLiteral("Sheet2!A1:C1"));
+    }
+
+    // A sheet deleted takes the sparklines that read it, in the file too; Undo brings them back.
+    void aDeletedSheetTakesTheSparklinesThatReadItAndSavesSo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(twoSheets()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->deleteSheet(1).ok);
+        QCOMPARE(int(s->sparklinesOf(0).size()), 1);   // (the one that reads Sheet1 stays)
+        QVERIFY(saveNow(e));
+        Sheet sheet;
+        QVERIFY(reread(e.path, &sheet));
+        QCOMPARE(int(sheet.sparklineGroups.size()), 1);
+        QCOMPARE(sheet.sparklineGroups[0].sparklines[0].source, QStringLiteral("Sheet1!A1:C1"));
+    }
+
+    void aDeleteUndoneBeforeASaveLeavesTheSparklines()
+    {
+        EditWindow e;
+        QVERIFY(e.open(twoSheets()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->deleteSheet(1).ok);
+        e.win.w.undoStack()->undo();
+        QCOMPARE(int(s->sparklinesOf(0).size()), 2);
+        QVERIFY(saveNow(e));
+        Sheet sheet;
+        QVERIFY(reread(e.path, &sheet));
+        QCOMPARE(int(sheet.sparklineGroups.size()), 2);
+        QCOMPARE(sheet.sparklineGroups[0].sparklines[0].source, QStringLiteral("Sheet2!A1:C1"));
+    }
+
+    // A sheet whose sparklines an edit did not change is not written again for it: its part is as the file had it, to the byte.
+    void aSheetWhoseSparklinesDidNotChangeIsLeftAsItWas()
+    {
+        EditWindow e;
+        QVERIFY(e.open(twoSheets()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        auto part = [&](const QString &path) {
+            QMap<QString, QByteArray> parts;
+            QFile f(path);
+            f.open(QIODevice::ReadOnly);
+            jp::readZip(f.readAll(), parts);
+            return parts.value(QStringLiteral("xl/worksheets/sheet1.xml"));
+        };
+        const QByteArray before = part(e.path);
+        // rows inserted on the second sheet move no cell that the first sheet's sparklines read through (they read A1:C1, above the rows)
+        QVERIFY(s->insertRows(1, 5, 2).ok);
+        QVERIFY(saveNow(e));
+        QCOMPARE(part(e.path), before);
+    }
+
+    // Sparklines the model can't hold whole (a range of cells for one sparkline) are shown but not changed, and the file keeps them whole, moved with the rows.
+    void sparklinesTheModelCannotHoldAreLeftAlone()
+    {
+        const QString ext = QStringLiteral("<extLst><ext uri=\"{05C60535-1F16-4fd2-B633-F4F36F0B64E0}\" xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\">"
+                                           "<x14:sparklineGroups xmlns:xm=\"http://schemas.microsoft.com/office/excel/2006/main\"><x14:sparklineGroup><x14:sparklines>"
+                                           "<x14:sparkline><xm:f>Sheet1!A1:C1</xm:f><xm:sqref>E1:E3</xm:sqref></x14:sparkline><x14:sparkline><xm:f>Sheet1!A2:C2</xm:f><xm:sqref>F2</xm:sqref></x14:sparkline>"
+                                           "</x14:sparklines></x14:sparklineGroup></x14:sparklineGroups></ext></extLst>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), ext)})));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.win.w.calculation()->sheet(0).sparklinesLossy);
+        const auto o = s->setSparklines(0, {groupOf(SparklineGroup::Type::Line, 0, 5, QStringLiteral("Sheet1!A1:C1"))}, QStringLiteral("Create Sparklines"));
+        QVERIFY(!o.ok);
+        QVERIFY(!o.problem.isEmpty());
+        QVERIFY(s->insertRows(0, 0, 1).ok);
+        QVERIFY(saveNow(e));
+        Package package;
+        Workbook book;
+        QString why;
+        QVERIFY(package.readLazyFile(e.path, &why) && book.open(package, &why));
+        const QByteArray part = package.part(book.info().sheets[0].part);
+        QVERIFY2(part.contains("<xm:sqref>E2:E4</xm:sqref>") && part.contains("Sheet1!A3:C3"), part.constData());   // (kept whole, and moved with the row inserted)
+    }
+
+    // Making sparklines for many cells over many that are there is not slow (the cells are looked up in a set, not compared one by one).
+    void makingManySparklinesOverManyIsNotQuadratic()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = e.win.w.session();
+        // 60,000 sparklines are there, in H1:H60000
+        SparklineGroup g;
+        g.series = ColorSpec::fromRgb(0x376092);
+        for (quint32 r = 0; r < 60000; ++r) {
+            Sparkline sp;
+            sp.row = r;
+            sp.col = 7;
+            sp.source = QStringLiteral("Sheet1!$A$1:$C$1");
+            g.sparklines.append(sp);
+        }
+        QVERIFY(s->setSparklines(0, {g}, QStringLiteral("Test")).ok);
+        w.setSparklineAsker([&](QString *data, QString *where) {
+            *data = QStringLiteral("A1:C60000");
+            *where = QStringLiteral("H1:H60000");
+            return true;
+        });
+        QElapsedTimer timer;
+        timer.start();
+        e.view()->selectRange(0, 0, 0, 2);
+        w.act(QStringLiteral("spark.insert.line"))->trigger();
+        QVERIFY2(timer.elapsed() < 15000, "bounded time");
+        qint64 total = 0;
+        for (const SparklineGroup &x : s->sparklinesOf(0)) total += x.sparklines.size();
+        QCOMPARE(total, qint64(60000));
+        QCOMPARE(int(s->sparklinesOf(0).size()), 1);   // (the old group had nothing left and is gone)
     }
 };
 

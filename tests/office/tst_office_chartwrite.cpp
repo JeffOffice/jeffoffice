@@ -207,6 +207,33 @@ private Q_SLOTS:
     }
 
 
+    // A chart is read with only so many trendlines in all (a hostile file asks for one on every series, eight on each), and with the points they are fitted to counted.
+    void aChartIsReadWithABoundedNumberOfTrendlines()
+    {
+        Chart c = comboChart();
+        ChartSeries proto = c.plots[0].series[0];
+        c.plots[0].series.clear();
+        c.plots[1].series.clear();
+        for (int i = 0; i < 100; ++i) {
+            ChartSeries s = proto;
+            s.name = QStringLiteral("S%1").arg(i);
+            ChartTrendline t;
+            s.trendlines << t << t << t;
+            c.plots[0].series << s;
+        }
+        QByteArray part = writeChartPart(c);
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(part, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        qint64 lines = 0;
+        for (const ChartPlot &p : r.plots)
+            for (const ChartSeries &s : p.series) lines += s.trendlines.size();
+        QCOMPARE(lines, jp::office::kChartMaxTrendlines);
+        // the ones kept are the first in the order of the series
+        QCOMPARE(int(r.plots[0].series[0].trendlines.size()), 3);
+        QCOMPARE(int(r.plots[0].series.last().trendlines.size()), 0);
+    }
+
     // A trendline is read, written in the schema's order, and drawn: with its kind, how far it runs, its look, and the equation shown.
     void aTrendlineIsKeptAndDrawn()
     {

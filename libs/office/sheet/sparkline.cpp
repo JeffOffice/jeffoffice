@@ -4,6 +4,7 @@
 
 #include <QXmlStreamAttributes>
 
+#include <algorithm>
 #include <cmath>
 
 namespace jp::office::sheet {
@@ -22,7 +23,7 @@ double number(QStringView v, double fallback)
     return ok && std::isfinite(d) ? d : fallback;
 }
 
-ColorSpec colorFrom(const QXmlStreamReader &r)
+ColorSpec colorFrom(const QXmlStreamReader &r, bool *lossy)
 {
     ColorSpec c;
     double tint = 0;
@@ -55,21 +56,11 @@ ColorSpec colorFrom(const QXmlStreamReader &r)
         }
     }
     if (c.kind == ColorSpec::Kind::Theme) c.tint = tint;
+    else if (tint != 0) *lossy = true;   // (a tint is kept for a theme color only)
     return c;
 }
 
-QByteArray escaped(const QString &s)
-{
-    QByteArray out;
-    for (const QChar ch : s) {
-        if (ch == QLatin1Char('&')) out += "&amp;";
-        else if (ch == QLatin1Char('<')) out += "&lt;";
-        else if (ch == QLatin1Char('>')) out += "&gt;";
-        else if (ch == QLatin1Char('"')) out += "&quot;";
-        else out += QString(ch).toUtf8();
-    }
-    return out;
-}
+QByteArray escaped(const QString &s) { return s.toHtmlEscaped().toUtf8(); }
 
 QByteArray num(double v) { return QByteArray::number(v, 'g', 15); }
 
@@ -105,13 +96,22 @@ void SparklineParser::start(const QXmlStreamReader &r, int rel)
     if (rel == 1 && name == QLatin1String("sparklineGroup")) {
         m_inGroup = groups.size() < kMaxSparklineGroups;
         m_group = SparklineGroup();
-        if (!m_inGroup) return;
-        for (const QXmlStreamNamespaceDeclaration &d : r.namespaceDeclarations())
-            if (!d.prefix().isEmpty()) m_group.otherAttributes += " xmlns:" + d.prefix().toUtf8() + "=\"" + escaped(d.namespaceUri().toString()) + "\"";
+        m_declared.clear();
+        if (!m_inGroup) {
+            lossy = true;
+            return;
+        }
+        auto declare = [&](const QByteArray &prefix, const QString &uri) {
+            if (prefix.isEmpty() || m_declared.contains(prefix)) return;
+            m_declared.insert(prefix);
+            m_group.otherAttributes += " xmlns:" + prefix + "=\"" + escaped(uri) + "\"";
+        };
+        for (const QXmlStreamNamespaceDeclaration &d : r.namespaceDeclarations()) declare(d.prefix().toUtf8(), d.namespaceUri().toString());
         for (const QXmlStreamAttribute &a : r.attributes()) {
             const QStringView n = a.name(), v = a.value();
             if (!a.namespaceUri().isEmpty()) {
-                // an attribute of another namespace (a revision id) is kept as it is
+                // an attribute of another namespace (a revision id) is kept as it is, with the declaration of its prefix
+                declare(a.prefix().toUtf8(), a.namespaceUri().toString());
                 m_group.otherAttributes += " " + a.qualifiedName().toUtf8() + "=\"" + escaped(v.toString()) + "\"";
             } else if (n == QLatin1String("type")) {
                 m_group.type = v == QLatin1String("column") ? SparklineGroup::Type::Column : v == QLatin1String("stacked") ? SparklineGroup::Type::WinLoss : SparklineGroup::Type::Line;
@@ -147,58 +147,81 @@ void SparklineParser::start(const QXmlStreamReader &r, int rel)
                 m_group.manualMin = number(v, 0);
             } else if (n == QLatin1String("manualMax")) {
                 m_group.manualMax = number(v, 0);
+            } else {
+                m_group.otherAttributes += " " + a.qualifiedName().toUtf8() + "=\"" + escaped(v.toString()) + "\"";   // (one this does not know is kept as it is)
             }
         }
         return;
     }
     if (!m_inGroup) return;
     if (rel == 2) {
-        if (name == QLatin1String("colorSeries")) m_group.series = colorFrom(r);
-        else if (name == QLatin1String("colorNegative")) m_group.negativeColor = colorFrom(r);
-        else if (name == QLatin1String("colorAxis")) m_group.axisColor = colorFrom(r);
-        else if (name == QLatin1String("colorMarkers")) m_group.markerColor = colorFrom(r);
-        else if (name == QLatin1String("colorFirst")) m_group.firstColor = colorFrom(r);
-        else if (name == QLatin1String("colorLast")) m_group.lastColor = colorFrom(r);
-        else if (name == QLatin1String("colorHigh")) m_group.highColor = colorFrom(r);
-        else if (name == QLatin1String("colorLow")) m_group.lowColor = colorFrom(r);
+        if (name == QLatin1String("colorSeries")) m_group.series = colorFrom(r, &lossy);
+        else if (name == QLatin1String("colorNegative")) m_group.negativeColor = colorFrom(r, &lossy);
+        else if (name == QLatin1String("colorAxis")) m_group.axisColor = colorFrom(r, &lossy);
+        else if (name == QLatin1String("colorMarkers")) m_group.markerColor = colorFrom(r, &lossy);
+        else if (name == QLatin1String("colorFirst")) m_group.firstColor = colorFrom(r, &lossy);
+        else if (name == QLatin1String("colorLast")) m_group.lastColor = colorFrom(r, &lossy);
+        else if (name == QLatin1String("colorHigh")) m_group.highColor = colorFrom(r, &lossy);
+        else if (name == QLatin1String("colorLow")) m_group.lowColor = colorFrom(r, &lossy);
         else if (name == QLatin1String("f")) {
             into = Into::DateRange;
             m_text.clear();
+            m_over = false;
+        } else if (name != QLatin1String("sparklines")) {
+            lossy = true;   // (an element this does not know)
         }
     } else if (rel == 3 && name == QLatin1String("sparkline")) {
-        m_inOne = count < kMaxSparklines;
+        m_inOne = count < kMaxSparklines && countLeft > 0;
+        if (!m_inOne) lossy = true;
         m_one = Sparkline();
         m_text.clear();
+        m_over = false;
     } else if (rel == 4 && m_inOne) {
         if (name == QLatin1String("f")) {
             into = Into::Source;
             m_text.clear();
+            m_over = false;
         } else if (name == QLatin1String("sqref")) {
             into = Into::Cell;
             m_text.clear();
+            m_over = false;
+        } else {
+            lossy = true;
         }
     }
 }
 
 void SparklineParser::text(QStringView t)
 {
-    if (into != Into::None && m_text.size() < 4096) m_text += t;
+    if (into == Into::None) return;
+    if (m_text.size() + t.size() > kMaxSparklineTextChars || charsUsed + t.size() > charsLeft) {
+        m_over = true;
+        return;
+    }
+    m_text += t;
+    charsUsed += t.size();
 }
 
 void SparklineParser::end(int rel)
 {
     if (rel == 2 && into == Into::DateRange) {
-        m_group.dateRange = m_text.trimmed();
+        if (m_over) lossy = true;
+        else m_group.dateRange = m_text.trimmed();
         into = Into::None;
     } else if (rel == 4 && into != Into::None) {
-        if (into == Into::Source) m_one.source = m_text.trimmed();
-        else {
+        if (m_over) {
+            lossy = true;
+            m_inOne = false;
+        } else if (into == Into::Source) {
+            m_one.source = m_text.trimmed();
+        } else {
             CellRange range;
-            if (parseRangeRef(m_text.trimmed(), &range)) {
+            if (parseRangeRef(m_text.trimmed(), &range) && range.row1 == range.row2 && range.col1 == range.col2) {
                 m_one.row = range.row1;
                 m_one.col = range.col1;
             } else {
                 m_inOne = false;
+                lossy = true;   // (a sparkline is in one cell: a range of cells is not cut to its first)
             }
         }
         into = Into::None;
@@ -207,6 +230,9 @@ void SparklineParser::end(int rel)
         if (!m_one.source.isEmpty()) {
             m_group.sparklines.append(m_one);
             ++count;
+            --countLeft;
+        } else {
+            lossy = true;
         }
     } else if (rel == 1 && m_inGroup) {
         m_inGroup = false;

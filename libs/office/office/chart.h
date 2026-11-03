@@ -100,6 +100,9 @@ struct ChartDataLabels {
     bool shown() const { return value || category || series || percent; }
 };
 
+// The most trendlines a chart is read with, and the points they are fitted to in all (a line of a series counts the series' values).
+constexpr qint64 kChartMaxTrendlines = 64, kChartMaxTrendlinePoints = 400000;
+
 // A line fitted to a series' values (c:trendline): what kind of line, how far it runs past the data, and whether its equation and R-squared are written on the chart.
 struct ChartTrendline {
     QString type = QStringLiteral("linear");    // "linear", "exp", "log", "poly", "power", or "movingAvg"

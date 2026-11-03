@@ -89,13 +89,23 @@ public:
         int groupIndex = -1;
     };
     static constexpr int kMaxSparklinePoints = 1000;
+    static constexpr qint64 kMaxSparklineReadsPerPaint = 200000;   // cells read for sparklines in one paint; the rest are drawn from what was kept, or blank
     bool sparklineAt(quint32 row, quint32 col, SparklineHit *out) const;
-    // The numbers the sparkline reads, in order along its row or down its column; NaN for a cell with no number in it. At most kMaxSparklinePoints.
-    QVector<double> sparklineValues(const jp::office::sheet::Sparkline &s) const;
-    // The lowest and highest of the numbers every sparkline of the group reads; false when there are none.
+    // A paint begins: the cells it may read for sparklines are counted from here.
+    void beginSparklinePaint() const
+    {
+        m_sparkReadsLeft = kMaxSparklineReadsPerPaint;
+        ++m_sparkPaint;
+    }
+    // The numbers a source ("Sheet1!$A$1:$E$1") reads, in order along its row or down its column; NaN for a cell with no number in it. At most kMaxSparklinePoints. A source is parsed once, and what
+    // it reads is kept until a cell in the cells kept changes. Cells of hidden rows and columns of this sheet are left out unless `hidden`. Blank when the paint has read its share and none was kept.
+    QVector<double> sparklineValues(const QString &source, bool hidden) const;
+    // The lowest and highest of the numbers every sparkline of the group reads; false when there are none (or the paint had no room to read them all: the answer is then not kept).
     bool sparklineGroupRange(int groupIndex, double *lowest, double *highest) const;
     // The sheet's sparklines changed (or its values did): what was worked out of them is let go.
     void resetSparklines() const;
+    // The cells read for sparklines since the program began (counted, for tests of cost).
+    qint64 sparklineCellsRead() const { return m_sparkCellsRead; }
     // ---- table styles (sheet/tablestyle.h): the cells of a table are drawn as its style says, under what the cell formats itself (a fill, borders, a text color, or bold of the cell's own stay)
     struct TableSkin {
         jp::office::sheet::Table table;
@@ -134,7 +144,7 @@ public:
     {
         m_texts.erase((quint64(row) << 16) | col);
         m_cond.valueChanged(row, col);
-        if (!m_sparkRanges.empty()) m_sparkRanges.clear();
+        if (m_sparkBox && m_sparkBoxRange.contains(row, col)) ++m_sparkRev;
     }
     // Shows the formula of a cell that has one in place of its value ("=SUM(A1:A3)", as text).
     // The sheet reads right to left: column A is at the right, and what a cell's alignment says of the left and right is the screen's. (The `align` a cell shows is in the grid's own places,
@@ -212,7 +222,28 @@ private:
     std::vector<TableSkin> m_skins;
     mutable std::unordered_map<quint64, std::pair<int, int>> m_sparkIndex;   // by cell: the group and the place in it
     mutable bool m_sparkBuilt = false;
-    mutable std::unordered_map<int, std::pair<double, double>> m_sparkRanges;
+    struct SparkSource {
+        bool parsed = false, ok = false, cached = false;
+        int sheet = -1;
+        jp::office::sheet::CellRange range;
+        QVector<double> values;
+        quint64 rev = 0;
+    };
+    struct SparkRange {
+        quint64 rev = 0;
+        double lowest = 0, highest = 0;
+        bool any = false, complete = true;
+        quint64 paint = 0;
+    };
+    mutable std::unordered_map<QString, SparkSource> m_sparkSources;
+    mutable std::unordered_map<int, SparkRange> m_sparkRanges;
+    mutable quint64 m_sparkPaint = 1;
+    mutable quint64 m_sparkRev = 1;               // changes when a cell that a kept source reads (or any value) changes
+    mutable bool m_sparkBox = false;              // the cells that kept sources of this sheet read lie inside this block
+    mutable jp::office::sheet::CellRange m_sparkBoxRange;
+    mutable qint64 m_sparkCellsRead = 0;
+    mutable qint64 m_sparkReadsLeft = kMaxSparklineReadsPerPaint;
+    mutable bool m_sparkRefused = false;          // a read was refused for want of room since the group's range began
     jp::calc::Value valueOfCell(int sheetIndex, quint32 row, quint32 col, const Sheet &sheet, const Cell &cell) const;
     std::shared_ptr<const GridGeometry> m_geometry;   // what the sheet's file gave (the layout above begins as a copy of its layout, which shares its places and merges), and the cell formats of the rows and columns, held where they were made
 };

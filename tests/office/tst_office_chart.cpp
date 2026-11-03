@@ -3,6 +3,8 @@
 
 #include "core/fonts.h"
 #include "office/chart_trend.h"
+#include <algorithm>
+#include <cmath>
 
 class OfficeChartTests : public QObject {
     Q_OBJECT
@@ -38,7 +40,7 @@ private Q_SLOTS:
         t.hasIntercept = true;
         t.intercept = 0;
         f = fitTrend(t, x, QVector<double>{2, 4, 6, 8, 10});
-        QCOMPARE(f.equation, QStringLiteral("y = 2x + 0"));
+        QCOMPARE(f.equation, QStringLiteral("y = 2x"));   // (a zero constant is not written)
         // polynomial: y = x^2 + 1
         t = ChartTrendline();
         t.type = QStringLiteral("poly");
@@ -93,6 +95,55 @@ private Q_SLOTS:
         f = fitTrend(t, x, QVector<double>{3, std::nan(""), 7, 9, 11});
         QVERIFY(f.ok && f.equation == QStringLiteral("y = 2x + 1"));
         QCOMPARE(jp::office::trendlineName(ChartTrendline(), QStringLiteral("Sales")), QStringLiteral("Linear (Sales)"));
+    }
+
+    // An equation is written as a person writes it: rounded first, the sign chosen from what is left, no "1x", and no term that rounds to nothing.
+    void anEquationIsWrittenAsAPersonWritesIt()
+    {
+        QVector<double> x = {1, 2, 3, 4, 5};
+        ChartTrendline t;
+        auto eq = [&](const QVector<double> &y) { return fitTrend(t, x, y).equation; };
+        QCOMPARE(eq({3, 4, 5, 6, 7}), QStringLiteral("y = x + 2"));
+        QCOMPARE(eq({1, 0, -1, -2, -3}), QStringLiteral("y = -x + 2"));
+        QCOMPARE(eq({-1, -2, -3, -4, -5}), QStringLiteral("y = -x"));
+        QCOMPARE(eq({2, 4, 6, 8, 10}), QStringLiteral("y = 2x"));
+        QCOMPARE(eq({2, 4, 6, 8, 10.0000001}), QStringLiteral("y = 2x"));        // (rounds to a zero constant: no "- 0")
+        QCOMPARE(eq({-0.0000001 + 2, 4, 6, 8, 10}), QStringLiteral("y = 2x"));
+        QCOMPARE(eq({0, -1, -2, -3, -4}), QStringLiteral("y = -x + 1"));
+        QCOMPARE(eq({-1, 1, 3, 5, 7}), QStringLiteral("y = 2x - 3"));
+        QCOMPARE(eq({5, 5, 5, 5, 5}), QStringLiteral("y = 5"));
+        t.type = QStringLiteral("poly");
+        QCOMPARE(eq({2, 5, 10, 17, 26}), QStringLiteral("y = x\u00B2 + 1"));
+        t.type = QStringLiteral("log");
+        QCOMPARE(fitTrend(t, x, {1, 1 + std::log(2), 1 + std::log(3), 1 + std::log(4), 1 + std::log(5)}).equation, QStringLiteral("y = ln(x) + 1"));
+    }
+
+    // A moving average by a running sum is the mean of each window, whatever the order the points come in and however long the line.
+    void aMovingAverageIsTheMeanOfEachWindow()
+    {
+        ChartTrendline t;
+        t.type = QStringLiteral("movingAvg");
+        t.period = 4;
+        QVector<double> x, y;
+        for (int i = 0; i < 100000; ++i) {
+            x << (i * 7919) % 100003;   // (not in order)
+            y << (i % 13) * 1.5;
+        }
+        const TrendFit f = fitTrend(t, x, y);
+        QVERIFY(f.ok);
+        QCOMPARE(f.curve.size(), 100000 - 3);
+        // the window of the sorted points, by the plain sum
+        QVector<int> order(x.size());
+        for (int i = 0; i < order.size(); ++i) order[i] = i;
+        std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return x[a] < x[b]; });
+        for (const int at : {0, 1, 500, 99996}) {
+            double sum = 0;
+            for (int k = 0; k < 4; ++k) sum += y[order[at + 3 - k]];
+            QCOMPARE(f.curve[at].x(), x[order[at + 3]]);
+            QVERIFY(std::fabs(f.curve[at].y() - sum / 4) < 1e-9);
+        }
+        // the same line asked for again is the same
+        QVERIFY(fitTrend(t, x, y).curve == f.curve);
     }
 
     // ---- charts

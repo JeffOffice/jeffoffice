@@ -453,7 +453,10 @@ void GridSheet::resetSparklines() const
 {
     m_sparkIndex.clear();
     m_sparkBuilt = false;
+    m_sparkSources.clear();
     m_sparkRanges.clear();
+    m_sparkBox = false;
+    ++m_sparkRev;
 }
 
 bool GridSheet::sparklineAt(quint32 row, quint32 col, SparklineHit *out) const
@@ -477,58 +480,100 @@ bool GridSheet::sparklineAt(quint32 row, quint32 col, SparklineHit *out) const
     return true;
 }
 
-QVector<double> GridSheet::sparklineValues(const jp::office::sheet::Sparkline &s) const
+QVector<double> GridSheet::sparklineValues(const QString &source, bool hidden) const
 {
-    QVector<double> out;
-    // "Sheet1!$A$1:$E$1", "'My sheet'!A1:A9", or a range of this sheet
-    QString ref = s.source.trimmed(), name;
-    const qsizetype bang = ref.lastIndexOf(QLatin1Char('!'));
-    int sheet = m_data.sheetIndex;
-    if (bang >= 0) {
-        name = ref.left(bang);
-        ref = ref.mid(bang + 1);
-        if (name.startsWith(QLatin1Char('\'')) && name.endsWith(QLatin1Char('\'')) && name.size() >= 2) name = name.mid(1, name.size() - 2).replace(QLatin1String("''"), QLatin1String("'"));
-        sheet = -1;
-        for (int i = 0; i < m_data.sheetNames.size(); ++i)
-            if (m_data.sheetNames[i].compare(name, Qt::CaseInsensitive) == 0) {
-                sheet = i;
-                break;
-            }
-        if (sheet < 0) return out;
+    if (m_sparkSources.size() > 20000) m_sparkSources.clear();
+    SparkSource &e = m_sparkSources[hidden ? source + QChar(1) : source];
+    if (!e.parsed) {
+        e.parsed = true;
+        // "Sheet1!$A$1:$E$1", "'My sheet'!A1:A9", or a range of this sheet
+        QString ref = source.trimmed(), name;
+        const qsizetype bang = ref.lastIndexOf(QLatin1Char('!'));
+        e.sheet = m_data.sheetIndex;
+        if (bang >= 0) {
+            name = ref.left(bang);
+            ref = ref.mid(bang + 1);
+            if (name.size() >= 2 && name.startsWith(QLatin1Char('\'')) && name.endsWith(QLatin1Char('\''))) name = name.mid(1, name.size() - 2).replace(QLatin1String("''"), QLatin1String("'"));
+            e.sheet = -1;
+            for (int i = 0; i < m_data.sheetNames.size(); ++i)
+                if (m_data.sheetNames[i].compare(name, Qt::CaseInsensitive) == 0) {
+                    e.sheet = i;
+                    break;
+                }
+        }
+        ref.remove(QLatin1Char('$'));
+        e.ok = e.sheet >= 0 && jp::office::sheet::parseRangeRef(ref, &e.range);
     }
-    ref.remove(QLatin1Char('$'));
-    jp::office::sheet::CellRange range;
-    if (!jp::office::sheet::parseRangeRef(ref, &range)) return out;
+    if (!e.ok) return {};
+    const bool own = e.sheet == m_data.sheetIndex;
+    if (e.cached && own && e.rev == m_sparkRev) return e.values;
+    const qint64 cells = std::min<qint64>(e.range.cellCount(), kMaxSparklinePoints);
+    if (m_sparkReadsLeft < cells) {
+        m_sparkRefused = true;
+        return e.cached ? e.values : QVector<double>();   // (what was kept, or nothing: the paint has read its share)
+    }
+    m_sparkReadsLeft -= cells;
+    m_sparkCellsRead += cells;
+    QVector<double> out;
+    out.reserve(int(cells));
     // a row of cells, or a column of them; a block is read along its rows
-    for (quint32 r = range.row1; r <= range.row2 && out.size() < kMaxSparklinePoints; ++r)
-        for (quint32 c = range.col1; c <= range.col2 && out.size() < kMaxSparklinePoints; ++c) {
-            const jp::calc::Value v = valueIn(sheet, r, c);
+    for (quint32 r = e.range.row1; r <= e.range.row2 && out.size() < kMaxSparklinePoints; ++r) {
+        if (own && !hidden && m_layout.rows.isHidden(r)) continue;
+        for (quint32 c = e.range.col1; c <= e.range.col2 && out.size() < kMaxSparklinePoints; ++c) {
+            if (own && !hidden && m_layout.cols.isHidden(c)) continue;
+            const jp::calc::Value v = valueIn(e.sheet, r, c);
             out.append(v.isNumber() ? v.number() : std::numeric_limits<double>::quiet_NaN());
         }
+    }
+    e.values = out;
+    e.cached = true;
+    e.rev = m_sparkRev;
+    if (own) {
+        if (!m_sparkBox) {
+            m_sparkBoxRange = e.range;
+            m_sparkBox = true;
+        } else {
+            m_sparkBoxRange.row1 = std::min(m_sparkBoxRange.row1, e.range.row1);
+            m_sparkBoxRange.col1 = std::min(m_sparkBoxRange.col1, e.range.col1);
+            m_sparkBoxRange.row2 = std::max(m_sparkBoxRange.row2, e.range.row2);
+            m_sparkBoxRange.col2 = std::max(m_sparkBoxRange.col2, e.range.col2);
+        }
+    }
     return out;
 }
 
 bool GridSheet::sparklineGroupRange(int groupIndex, double *lowest, double *highest) const
 {
     const auto cached = m_sparkRanges.find(groupIndex);
-    if (cached != m_sparkRanges.end()) {
-        *lowest = cached->second.first;
-        *highest = cached->second.second;
-        return *lowest <= *highest;
+    if (cached != m_sparkRanges.end() && cached->second.rev == m_sparkRev && (cached->second.complete || cached->second.paint == m_sparkPaint)) {
+        *lowest = cached->second.lowest;
+        *highest = cached->second.highest;
+        return cached->second.any;
     }
     double lo = std::numeric_limits<double>::infinity(), hi = -lo;
+    bool complete = true;
     if (m_data.sheet && groupIndex >= 0 && groupIndex < m_data.sheet->sparklineGroups.size()) {
+        const jp::office::sheet::SparklineGroup &g = m_data.sheet->sparklineGroups[groupIndex];
+        m_sparkRefused = false;
         int read = 0;
-        for (const jp::office::sheet::Sparkline &s : m_data.sheet->sparklineGroups[groupIndex].sparklines) {
-            if (++read > 5000) break;
-            for (const double v : sparklineValues(s))
+        for (const jp::office::sheet::Sparkline &s : g.sparklines) {
+            if (++read > 5000) {
+                complete = false;
+                break;
+            }
+            for (const double v : sparklineValues(s.source, g.hidden))
                 if (std::isfinite(v)) {
                     lo = std::min(lo, v);
                     hi = std::max(hi, v);
                 }
+            if (m_sparkReadsLeft <= 0) {
+                complete = false;
+                break;
+            }
         }
+        if (m_sparkRefused) complete = false;
     }
-    m_sparkRanges[groupIndex] = {lo, hi};
+    m_sparkRanges[groupIndex] = {m_sparkRev, lo, hi, lo <= hi, complete, m_sparkPaint};
     *lowest = lo;
     *highest = hi;
     return lo <= hi;
@@ -744,12 +789,14 @@ QString GridSheet::storedTextOf(quint32 row, quint32 col, const Cell &cell) cons
 
 void GridSheet::invalidateLooks() const
 {
+    ++m_sparkRev;
     m_texts.clear();
     m_cond.resultsChanged();
 }
 
 void GridSheet::invalidateTexts() const
 {
+    ++m_sparkRev;
     m_texts.clear();
     m_cond.valuesChanged();
 }

@@ -222,6 +222,9 @@ struct ReadOptions {
     // parser (what a test compares the result with).
     bool skipRows = true;
     DateSystem dateSystem = DateSystem::Date1900;   // for the cells of type "d", written as dates
+    // The workbook's allowance for sparklines (all its sheets together), and which sheet this is.
+    std::shared_ptr<SparklineBudget> sparklineBudget;
+    int sparklineSheet = -1;
     // Called after every 4,096 cells, with how many have been read; false
     // stops the read (the sheet's error says it was stopped).
     std::function<bool(qint64 cells)> progress;
@@ -468,6 +471,7 @@ private:
     Styles m_styles;
     QString m_stylesError;
     Limits m_limits;
+    std::shared_ptr<SparklineBudget> m_sparklineBudget = std::make_shared<SparklineBudget>();
     PasswordNeed m_passwordNeed = PasswordNeed::None;
     bool m_protected = false;
     bool m_defaultPassword = false;

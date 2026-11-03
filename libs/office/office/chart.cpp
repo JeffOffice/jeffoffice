@@ -1123,6 +1123,19 @@ bool readChart(const QByteArray &chartPartXml, const Theme &theme, const ColorMa
     Chart chart;
     Reader reader(theme, colors, &chart);
     if (!reader.read(doc.documentElement(), error)) return false;
+    // trendlines are bounded in all: how many a chart has, and the points they are fitted to
+    qint64 lines = 0, points = 0;
+    for (ChartPlot &plot : chart.plots)
+        for (ChartSeries &series : plot.series) {
+            QVector<ChartTrendline> kept;
+            for (const ChartTrendline &t : std::as_const(series.trendlines)) {
+                if (lines >= kChartMaxTrendlines || points + series.values.size() > kChartMaxTrendlinePoints) break;
+                kept.append(t);
+                ++lines;
+                points += series.values.size();
+            }
+            series.trendlines = kept;
+        }
     *out = chart;
     return true;
 }

@@ -174,7 +174,10 @@ public:
         for (const SheetEdit &e : m_step.sheets) {
             n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.orderBefore.size() + e.orderAfter.size()) * qint64(sizeof(int));
             for (const auto *groups : {&e.sparksBefore, &e.sparksAfter})
-                for (const jp::office::sheet::SparklineGroup &g : *groups) n += qint64(sizeof(g)) + qint64(g.sparklines.size()) * 96;
+                for (const jp::office::sheet::SparklineGroup &g : *groups) {
+                    n += qint64(sizeof(g)) + qint64(g.dateRange.size()) * 2 + g.otherAttributes.size() + qint64(g.sparklines.size()) * qint64(sizeof(jp::office::sheet::Sparkline));
+                    for (const jp::office::sheet::Sparkline &sp : g.sparklines) n += qint64(sp.source.size()) * 2;
+                }
         }
         for (const SizeEdit &e : m_step.sizes)
             n += qint64(sizeof(e)) + qint64(e.columnsBefore.size() + e.columnsAfter.size()) * qint64(sizeof(jp::office::sheet::ColumnSpan)) + qint64(e.rowsBefore.size() + e.rowsAfter.size()) * qint64(sizeof(jp::office::sheet::RowSpec));

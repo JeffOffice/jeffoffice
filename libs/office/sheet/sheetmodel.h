@@ -1374,6 +1374,7 @@ struct Sheet {
     QVector<Validation> validations;  // the rules for what may be put in cells
     QVector<CondRule> conditionalFormats;   // the rules of conditional formatting, by priority
     QVector<SparklineGroup> sparklineGroups;   // the sparklines (see sheet/sparkline.h)
+    bool sparklinesLossy = false;     // the file has sparkline parts that the model does not hold whole: they are shown, and written back only as the file has them
     SheetFormat format;
     SheetView view;
     PageSetup page;                   // how it prints: the paper, margins, header and footer, breaks, and the print area and titles (see sheet/pagesetup.h)

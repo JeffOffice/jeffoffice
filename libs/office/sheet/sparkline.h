@@ -7,9 +7,14 @@
 #include "sheet/styles.h"
 
 #include <QByteArray>
+#include <QSet>
 #include <QString>
 #include <QVector>
 #include <QXmlStreamReader>
+
+#include <map>
+#include <memory>
+#include <mutex>
 
 namespace jp::office::sheet {
 
@@ -45,6 +50,36 @@ struct SparklineGroup {
 constexpr int kMaxSparklineGroups = 10000;
 constexpr int kMaxSparklines = 100000;
 
+// The most a workbook's sparklines hold in all its sheets: how many, and the characters of the texts of what they read. A sheet's part read again counts once.
+constexpr qint64 kMaxWorkbookSparklines = 200000;
+constexpr qint64 kMaxWorkbookSparklineChars = 8000000;
+constexpr int kMaxSparklineTextChars = 4096;   // one source, or a date range
+
+class SparklineBudget {
+public:
+    // What is left for `sheet` (the other sheets' use taken off the total).
+    void left(int sheet, qint64 *chars, qint64 *count) const
+    {
+        std::lock_guard<std::mutex> g(m_lock);
+        qint64 c = 0, n = 0;
+        for (const auto &e : m_used)
+            if (e.first != sheet) {
+                c += e.second.first;
+                n += e.second.second;
+            }
+        *chars = std::max<qint64>(0, kMaxWorkbookSparklineChars - c);
+        *count = std::max<qint64>(0, kMaxWorkbookSparklines - n);
+    }
+    void set(int sheet, qint64 chars, qint64 count)
+    {
+        std::lock_guard<std::mutex> g(m_lock);
+        m_used[sheet] = {chars, count};
+    }
+private:
+    mutable std::mutex m_lock;
+    std::map<int, std::pair<qint64, qint64>> m_used;
+};
+
 // The colors a group that gives none is drawn with.
 ColorSpec defaultSparklineColor(const char *which);   // "series", "negative", "axis", "markers", "first", "last", "high", "low"
 
@@ -57,12 +92,18 @@ public:
     void end(int rel);
     QVector<SparklineGroup> groups;
     int count = 0;                  // the sparklines read, in all groups
+    qint64 charsLeft = kMaxWorkbookSparklineChars, countLeft = kMaxWorkbookSparklines;   // what the workbook still allows (see SparklineBudget)
+    qint64 charsUsed = 0;
+    // The file holds something that reading and writing would lose (a cell range for a sparkline, an element or a color part this does not know, a sparkline past the limits): the sheet's
+    // sparklines are shown, but left as the file has them.
+    bool lossy = false;
 private:
     enum class Into : quint8 { None, DateRange, Source, Cell } into = Into::None;
     SparklineGroup m_group;
     Sparkline m_one;
     QString m_text;
-    bool m_inGroup = false, m_inOne = false;
+    bool m_inGroup = false, m_inOne = false, m_over = false;
+    QSet<QByteArray> m_declared;
 };
 
 // The extension element for the sheet's extension list that holds these groups (`<ext uri="...">`), empty for none.

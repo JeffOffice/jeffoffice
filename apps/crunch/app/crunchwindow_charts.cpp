@@ -577,7 +577,7 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
                                                                                   {"poly", QT_TR_NOOP("Polynomial")}, {"power", QT_TR_NOOP("Power")}, {"movingAvg", QT_TR_NOOP("Moving Average")}};
             for (const auto &k : kinds) {
                 const QString code = QString::fromLatin1(k.code);
-                choice(trend, trendGroup, QCoreApplication::translate("jp::CrunchWindow", k.name), e.trendline == code, [code](Chart *c) { setTrendlines(c, code, 2, 2); }, tr("Trendline"));
+                choice(trend, trendGroup, QCoreApplication::translate("jp::CrunchWindow", k.name), e.trendline == code, [code](Chart *c) { setTrendlines(c, code); }, tr("Trendline"));
             }
             if (!e.trendline.isEmpty()) {
                 trend->addSeparator();

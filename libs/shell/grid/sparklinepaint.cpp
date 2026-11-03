@@ -11,7 +11,7 @@ namespace jp::grid {
 
 using jp::office::sheet::SparklineGroup;
 
-void paintSparkline(QPainter *p, const QRect &cell, const SparklineGroup &g, const SparklineColors &c, const QVector<double> &in, double groupLow, double groupHigh, double scale)
+void paintSparkline(QPainter *p, const QRect &cell, const SparklineGroup &g, const SparklineColors &c, const QVector<double> &in, double groupLow, double groupHigh, const QVector<double> &dates)
 {
     const int n = int(in.size());
     if (n == 0 || cell.width() < 4 || cell.height() < 4) return;
@@ -49,11 +49,35 @@ void paintSparkline(QPainter *p, const QRect &cell, const SparklineGroup &g, con
         axisLow -= 1;
         axisHigh += 1;
     }
-    const double pad = std::max(2.0, 2.0 * scale);
-    const QRectF area = QRectF(cell).adjusted(pad, pad, -pad, -pad);
+    const double scale = std::max(0.5, cell.height() / 20.0);   // (a row of the usual height is 20 pixels)
+    const double padY = std::max(3.0, cell.height() * 0.12), padX = 3.0;
+    const QRectF area = QRectF(cell).adjusted(padX, padY, -padX, -padY);
     if (area.width() < 1 || area.height() < 1) return;
+    // where each point is across: even, or by its date
+    bool byDate = g.dateAxis && dates.size() == n;
+    double dateLow = std::numeric_limits<double>::infinity(), dateHigh = -dateLow, gap = std::numeric_limits<double>::infinity();
+    if (byDate) {
+        QVector<double> sorted;
+        for (const double d : dates)
+            if (std::isfinite(d)) {
+                dateLow = std::min(dateLow, d);
+                dateHigh = std::max(dateHigh, d);
+                sorted.append(d);
+            }
+        std::sort(sorted.begin(), sorted.end());
+        for (int i = 1; i < sorted.size(); ++i)
+            if (sorted[i] > sorted[i - 1]) gap = std::min(gap, sorted[i] - sorted[i - 1]);
+        if (!(dateHigh > dateLow) || !std::isfinite(gap) || sorted.size() < 2) byDate = false;
+    }
+    const double slot = byDate ? std::max(1.0, std::min(area.width() / n, gap / (dateHigh - dateLow) * area.width())) : area.width() / n;
     auto xAt = [&](int i) {
-        double f = bars ? (i + 0.5) / n : (n == 1 ? 0.5 : double(i) / (n - 1));
+        double f;
+        if (byDate && std::isfinite(dates[i])) {
+            f = (dates[i] - dateLow) / (dateHigh - dateLow);
+            if (bars) f = (slot / 2 + f * (area.width() - slot)) / area.width();
+        } else {
+            f = bars ? (i + 0.5) / n : (n == 1 ? 0.5 : double(i) / (n - 1));
+        }
         if (g.rightToLeft) f = 1 - f;
         return area.left() + f * area.width();
     };
@@ -65,7 +89,7 @@ void paintSparkline(QPainter *p, const QRect &cell, const SparklineGroup &g, con
     const double zeroY = winLoss ? area.center().y() : yAt(0);
 
     p->save();
-    p->setClipRect(cell);
+    p->setClipRect(cell, Qt::IntersectClip);
     p->setRenderHint(QPainter::Antialiasing, true);
     if (g.showAxis && (winLoss || (axisLow <= 0 && axisHigh >= 0))) {
         QPen axis(c.axis);
@@ -82,7 +106,6 @@ void paintSparkline(QPainter *p, const QRect &cell, const SparklineGroup &g, con
         return plain;
     };
     if (bars) {
-        const double slot = area.width() / n;
         const double width = std::max(1.0, slot * (n > 1 ? 0.8 : 0.5));
         p->setPen(Qt::NoPen);
         for (int i = 0; i < n; ++i) {

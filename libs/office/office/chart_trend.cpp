@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <deque>
 
 namespace jp::office {
 
@@ -25,8 +26,10 @@ QVector<double> polyFit(const QVector<double> &x, const QVector<double> &y, int 
     QVector<QVector<double>> a(m, QVector<double>(m + 1, 0));
     for (int i = 0; i < n; ++i) {
         const double xs = x[i] / scale, target = y[i] - (fixedFirst ? first : 0);
-        QVector<double> powers(2 * degree + 2, 1);
-        for (int k = 1; k < powers.size(); ++k) powers[k] = powers[k - 1] * xs;
+        double powers[16];   // (the degree is 6 at the most)
+        const int powerCount = 2 * degree + 2;
+        powers[0] = 1;
+        for (int k = 1; k < powerCount; ++k) powers[k] = powers[k - 1] * xs;
         for (int r = 0; r < m; ++r) {
             for (int c = 0; c < m; ++c) a[r][c] += powers[r + lo + c + lo];
             a[r][m] += powers[r + lo] * target;
@@ -63,10 +66,27 @@ QString num(double v)
     return QString::number(v, 'g', 5);
 }
 
-// "+ 3" or "- 3" after the first term of an equation
-QString signed_(double v, const QString &term)
+// An equation's terms written the way a person writes them: the numbers rounded first (a term that rounds to nothing is left out), the sign chosen from the rounded number, and a
+// coefficient of 1 not written ("x", "-x"). `part` is what follows the number ("x", "x²", "ln(x)", or nothing for a constant).
+struct Part {
+    double value;
+    QString text;
+};
+QString written(const QVector<Part> &parts)
 {
-    return QStringLiteral(" %1 %2%3").arg(v < 0 ? QStringLiteral("-") : QStringLiteral("+"), num(std::fabs(v)), term);
+    QString out;
+    double biggest = 0;
+    for (const Part &p : parts) biggest = std::max(biggest, std::fabs(p.value));
+    for (const Part &p : parts) {
+        // (what is a millionth of the biggest is the noise of the fit, not a term)
+        const QString mag = std::fabs(p.value) < biggest * 1e-6 ? QStringLiteral("0") : num(std::fabs(p.value));
+        if (mag == QLatin1String("0")) continue;
+        const bool negative = p.value < 0;
+        const QString body = p.text.isEmpty() ? mag : (mag == QLatin1String("1") ? p.text : mag + p.text);
+        if (out.isEmpty()) out = (negative ? QStringLiteral("-") : QString()) + body;
+        else out += (negative ? QStringLiteral(" - ") : QStringLiteral(" + ")) + body;
+    }
+    return QStringLiteral("y = ") + (out.isEmpty() ? QStringLiteral("0") : out);
 }
 
 QString superscript(int n)
@@ -88,7 +108,7 @@ QString trendlineName(const ChartTrendline &t, const QString &seriesName)
     return QCoreApplication::translate("Chart", "Linear (%1)").arg(seriesName);
 }
 
-TrendFit fitTrend(const ChartTrendline &t, const QVector<double> &xAll, const QVector<double> &yAll, int samples)
+static TrendFit fitTrendUncached(const ChartTrendline &t, const QVector<double> &xAll, const QVector<double> &yAll, int samples)
 {
     TrendFit fit;
     QVector<double> x, y;
@@ -105,14 +125,27 @@ TrendFit fitTrend(const ChartTrendline &t, const QVector<double> &xAll, const QV
     if (t.type == QLatin1String("movingAvg")) {
         const int period = std::clamp(t.period, 2, 255);
         if (x.size() <= period) return fit;
-        // the points in the order of x, each the mean of it and the period - 1 before it
-        QVector<int> order(x.size());
-        for (int i = 0; i < order.size(); ++i) order[i] = i;
-        std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return x[a] < x[b]; });
-        for (int i = period - 1; i < order.size(); ++i) {
-            double sum = 0;
-            for (int k = 0; k < period; ++k) sum += y[order[i - k]];
-            fit.curve.append(QPointF(x[order[i]], sum / period));
+        // the points in the order of x (the order they come in when it is already), each the mean of it and the period - 1 before it, by a running sum
+        QVector<double> xo, yo;
+        xo.reserve(x.size());
+        yo.reserve(y.size());
+        if (std::is_sorted(x.begin(), x.end())) {
+            xo = x;
+            yo = y;
+        } else {
+            QVector<int> order(x.size());
+            for (int i = 0; i < order.size(); ++i) order[i] = i;
+            std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return x[a] < x[b]; });
+            for (const int i : order) {
+                xo.append(x[i]);
+                yo.append(y[i]);
+            }
+        }
+        double sum = 0;
+        for (int i = 0; i < xo.size(); ++i) {
+            sum += yo[i];
+            if (i >= period) sum -= yo[i - period];
+            if (i >= period - 1) fit.curve.append(QPointF(xo[i], sum / period));
         }
         fit.ok = fit.curve.size() >= 1;
         return fit;
@@ -174,26 +207,45 @@ TrendFit fitTrend(const ChartTrendline &t, const QVector<double> &xAll, const QV
     }
     // the words
     if (poly) {
-        QString text = QStringLiteral("y = ");
-        for (int k = degree; k >= 0; --k) {
-            const double v = c[k];
-            const QString term = k == 0 ? QString() : k == 1 ? QStringLiteral("x") : QStringLiteral("x") + superscript(k);
-            if (k == degree) text += (v < 0 ? QStringLiteral("-") : QString()) + num(std::fabs(v)) + term;
-            else text += signed_(v, term);
-        }
-        fit.equation = text;
+        QVector<Part> parts;
+        for (int k = degree; k >= 0; --k) parts.append({c[k], k == 0 ? QString() : k == 1 ? QStringLiteral("x") : QStringLiteral("x") + superscript(k)});
+        fit.equation = written(parts);
     } else if (exp) {
-        fit.equation = QStringLiteral("y = %1e%2x").arg(num(std::exp(c[0])), num(c[1]));
+        const QString a = num(std::exp(c[0])), b = num(c[1]);
+        fit.equation = QStringLiteral("y = %1e^%2x").arg(a == QLatin1String("1") ? QString() : a, b);
     } else if (log) {
-        fit.equation = QStringLiteral("y = %1 ln(x)%2").arg(num(c[1]), signed_(c[0], QString()));
+        fit.equation = written({{c[1], QStringLiteral("ln(x)")}, {c[0], QString()}});
     } else if (power) {
-        fit.equation = QStringLiteral("y = %1x^%2").arg(num(std::exp(c[0])), num(c[1]));
+        const QString a = num(std::exp(c[0]));
+        fit.equation = QStringLiteral("y = %1x^%2").arg(a == QLatin1String("1") ? QString() : a, num(c[1]));
     } else {
-        fit.equation = QStringLiteral("y = %1x%2").arg(num(c[1]), signed_(c[0], QString()));
+        fit.equation = written({{c[1], QStringLiteral("x")}, {c[0], QString()}});
     }
     fit.coefficients = c;
     if (exp || power) fit.coefficients[0] = std::exp(c[0]);
     fit.ok = fit.curve.size() >= 2;
+    return fit;
+}
+
+// A chart is drawn again and again (each frame of a deck, each time a picture is made): the fits of the last few lines are kept, by what they were made from.
+TrendFit fitTrend(const ChartTrendline &t, const QVector<double> &x, const QVector<double> &y, int samples)
+{
+    struct Entry {
+        ChartTrendline t;
+        QVector<double> x, y;
+        int samples;
+        TrendFit fit;
+    };
+    thread_local std::deque<Entry> cache;
+    for (const Entry &e : cache)
+        if (e.samples == samples && e.t.type == t.type && e.t.order == t.order && e.t.period == t.period && e.t.forward == t.forward && e.t.backward == t.backward && e.t.hasIntercept == t.hasIntercept &&
+            e.t.intercept == t.intercept && e.x == x && e.y == y)
+            return e.fit;
+    TrendFit fit = fitTrendUncached(t, x, y, samples);
+    if (x.size() <= 20000) {
+        cache.push_back({t, x, y, samples, fit});
+        if (cache.size() > 16) cache.pop_front();
+    }
     return fit;
 }
 

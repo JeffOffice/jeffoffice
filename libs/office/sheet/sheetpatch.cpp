@@ -1025,8 +1025,9 @@ QByteArray tailWithSparklines(const QByteArray &after, const QVector<SparklineGr
         ext.replace("</ext>", "</" + prefix + "ext>");
     }
     Tag t;
-    qsizetype pos = 0, listStart = -1, listEnd = -1, listClose = -1, extStart = -1, extEnd = -1, worksheetClose = -1;
-    int depth = 0, extDepth = -1;
+    qsizetype pos = 0, listStart = -1, listEnd = -1, listClose = -1, worksheetClose = -1, openExt = -1;
+    std::vector<std::pair<qsizetype, qsizetype>> mine;   // the sparklines' extensions (a file may have more than one: the first takes the groups, the others go)
+    int depth = 0;
     bool listSelfClosing = false;
     while (xmlscan::nextTag(after, pos, &t)) {
         pos = t.end;
@@ -1039,7 +1040,10 @@ QByteArray tailWithSparklines(const QByteArray &after, const QVector<SparklineGr
                 listEnd = t.end;
                 listClose = t.start;
             }
-            if (depth == extDepth && t.local == "ext" && extStart >= 0 && extEnd < 0) extEnd = t.end;
+            if (depth == 1 && t.local == "ext" && openExt >= 0) {
+                mine.push_back({openExt, t.end});
+                openExt = -1;
+            }
             continue;
         }
         if (depth == 0 && t.local == "extLst" && listStart < 0) {
@@ -1048,34 +1052,40 @@ QByteArray tailWithSparklines(const QByteArray &after, const QVector<SparklineGr
                 listEnd = t.end;
                 listSelfClosing = true;
             }
-        } else if (depth == 1 && listStart >= 0 && listEnd < 0 && t.local == "ext" && extStart < 0) {
+        } else if (depth == 1 && listStart >= 0 && listEnd < 0 && t.local == "ext" && openExt < 0) {
             const QByteArray tag = after.mid(t.start, t.end - t.start);
             if (tag.contains(sparklineExtensionUri())) {
-                extStart = t.start;
-                extDepth = depth;
-                if (t.selfClosing) extEnd = t.end;
+                if (t.selfClosing) mine.push_back({t.start, t.end});
+                else openExt = t.start;
             }
         }
         if (!t.selfClosing) ++depth;
     }
-    if (extStart >= 0 && extEnd >= 0) {
-        QByteArray out = after.left(extStart) + ext + after.mid(extEnd);
+    if (!mine.empty()) {
+        QByteArray out = after;
+        for (int i = int(mine.size()) - 1; i >= 0; --i) out = out.left(mine[size_t(i)].first) + (i == 0 ? ext : QByteArray()) + out.mid(mine[size_t(i)].second);
         // (an extension list with nothing left in it is taken out)
-        if (ext.isEmpty() && listStart >= 0 && listEnd >= 0) {
-            const QByteArray list = out.mid(listStart, listEnd - (extEnd - extStart) - listStart);
+        if (ext.isEmpty() && listStart >= 0) {
             Tag in;
-            qsizetype p = 0;
+            qsizetype p = listStart;
             int children = 0, d = 0;
-            while (xmlscan::nextTag(list, p, &in)) {
+            bool started = false;
+            while (xmlscan::nextTag(out, p, &in)) {
                 p = in.end;
                 if (in.closing) {
-                    --d;
+                    if (--d <= 0) break;
                     continue;
                 }
-                if (d == 1) ++children;
+                if (started && d == 1) ++children;
+                started = true;
                 if (!in.selfClosing) ++d;
+                else if (d == 0) break;
             }
-            if (children == 0) return after.left(listStart) + after.mid(listEnd);
+            if (children == 0) {
+                const QByteArray closeTag = "</" + prefix + "extLst>";
+                const qsizetype closeAt = out.indexOf(closeTag, listStart);
+                if (closeAt >= 0) return out.left(listStart) + out.mid(closeAt + closeTag.size());
+            }
         }
         return out;
     }

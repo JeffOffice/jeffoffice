@@ -51,8 +51,8 @@ void setGridlines(Chart *chart, bool horizontal, bool minor, bool shown);
 // "" takes the legend away; else "r", "l", "t", or "b".
 void setLegend(Chart *chart, const QString &position, bool overlay = false);
 // A trendline of this kind on every series that can have one (none, with an empty `kind`); a series that has one of another kind is given this kind and keeps how far it runs and what it shows.
-// `order` is a polynomial's, `period` a moving average's.
-void setTrendlines(Chart *chart, const QString &kind, int order = 2, int period = 2);
+// `order` is a polynomial's, `period` a moving average's (below 0: the series' own stay, and a new trendline has 2).
+void setTrendlines(Chart *chart, const QString &kind, int order = -1, int period = -1);
 // The equation and R-squared of the series' trendlines shown or not.
 void setTrendlineDisplay(Chart *chart, bool equation, bool rSquared);
 // The positions data labels may be given for this chart (empty means the usual only).

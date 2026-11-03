@@ -9,6 +9,8 @@
 #include "sheethelpers.h"
 
 #include "grid/painter.h"
+#include "grid/sparklinepaint.h"
+#include <QElapsedTimer>
 
 #include <memory>
 
@@ -1090,6 +1092,8 @@ private Q_SLOTS:
 
     // A data bar is drawn inside the cell from the left, as long as its value is of the way from the lowest to the highest (between the shortest length and the longest), under the text,
     // and the text is left out when the rule says so.
+    // Sparklines: each in its cell, held off the cell's edges, its columns as tall as their numbers, a win or a loss up or down from the middle, a line from the first number to the last. The checks
+    // are of where there is ink and where there is none, with room for the edges of drawing that is not on whole pixels.
     void sparklinesAreDrawnInTheirCells()
     {
         using jp::office::sheet::Sparkline;
@@ -1109,42 +1113,241 @@ private Q_SLOTS:
             f->sheet.sparklineGroups = {g};
             return f;
         };
-        const QRect cell(4 * 64, 20, 63, 19);
-        // columns: each as tall as its number, the highest the last
+        auto near = [](QRgb a, QRgb b, int tolerance) {
+            return std::abs(qRed(a) - qRed(b)) <= tolerance && std::abs(qGreen(a) - qGreen(b)) <= tolerance && std::abs(qBlue(a) - qBlue(b)) <= tolerance;
+        };
+        auto anyNear = [&](const QImage &im, QRgb color, const QRect &r) {
+            for (int y = r.top(); y <= r.bottom(); ++y)
+                for (int x = r.left(); x <= r.right(); ++x)
+                    if (near(im.pixel(x, y), color, 12)) return true;
+            return false;
+        };
+        const QRect cell(4 * 64, 20, 64, 20);   // (its last row and column are the gridlines)
+        const QRgb blue = QRgb(0xFF376092), red = QRgb(0xFFD00000);
+        // columns: each as tall as its number, the highest the last; nothing touches the edges of the cell, and nothing is outside it
         auto f = make(SparklineGroup::Type::Column, {1, 2, 3});
         f->build();
         QImage img = f->render();
         QCOMPARE(f->painter->stats().sparklines, qint64(1));
-        const QRgb blue = QRgb(0xFF376092);
-        auto count = [&](const QImage &im, QRgb color, const QRect &r) {
-            int n = 0;
-            for (int y = r.top(); y <= r.bottom(); ++y)
-                for (int x = r.left(); x <= r.right(); ++x) n += im.pixel(x, y) == color;
-            return n;
-        };
-        QVERIFY(count(img, blue, cell) > 40);
-        QCOMPARE(count(img, blue, QRect(0, 0, 4 * 64, 400)), 0);                          // (nothing outside the cell)
-        QCOMPARE(img.pixel(cell.left() + 8, cell.top() + 4), kWhite);                       // the first column is short
-        QCOMPARE(img.pixel(cell.right() - 10, cell.top() + 4), blue);                       // the last reaches the top
-        // wins and losses: a loss hangs below the middle, in the color of negative points when they are shown
+        QVERIFY(anyNear(img, blue, cell));
+        QVERIFY(!anyNear(img, blue, QRect(0, 0, 4 * 64, 400)));
+        QVERIFY(!anyNear(img, blue, QRect(5 * 64, 0, 64, 400)));
+        QVERIFY(!anyNear(img, blue, QRect(cell.left(), cell.top(), 64, 3)));                  // (clear of the top)
+        QVERIFY(!anyNear(img, blue, QRect(cell.left(), cell.top() + 17, 64, 3)));             // (and of the bottom, whose last row is the gridline)
+        QVERIFY(!anyNear(img, blue, QRect(cell.left(), cell.top(), 3, 20)));                  // (and the sides)
+        QVERIFY(!anyNear(img, blue, QRect(cell.right() - 2, cell.top(), 3, 20)));
+        QVERIFY(!anyNear(img, blue, QRect(cell.left() + 4, cell.top(), 12, 9)));              // (the first column is short: nothing high up on the left)
+        QVERIFY(anyNear(img, blue, QRect(cell.right() - 16, cell.top() + 3, 10, 4)));         // (the last reaches the top)
+        // wins and losses: a loss hangs below the middle in the color of negative points when they are shown, a win stands above it
         auto w = make(SparklineGroup::Type::WinLoss, {1, -1, 1});
         w->sheet.sparklineGroups[0].negative = true;
         w->build();
         img = w->render();
-        const int middle = cell.center().x(), mid = cell.top() + 9;
-        QCOMPARE(img.pixel(middle, mid + 4), QRgb(0xFFD00000));
-        QCOMPARE(img.pixel(middle, mid - 4), kWhite);
-        QCOMPARE(img.pixel(cell.left() + 8, mid - 4), blue);
-        // a line is drawn from the points, its ends where the first and the last number are
+        const int middle = cell.center().x(), mid = cell.top() + 10;
+        QVERIFY(near(img.pixel(middle, mid + 4), red, 12));
+        QVERIFY(near(img.pixel(middle, mid - 4), kWhite, 12));
+        QVERIFY(near(img.pixel(cell.left() + 9, mid - 4), blue, 12));
+        QVERIFY(near(img.pixel(cell.left() + 9, mid + 4), kWhite, 12));
+        // a line: its left end is at the first number (the lowest, so low in the cell) and its right end at the last (the highest)
         auto l = make(SparklineGroup::Type::Line, {1, 2, 3});
         l->build();
         img = l->render();
-        QVERIFY(inkIn(img, cell) > 15);
-        // what reads no cells draws nothing, and a sheet with no sparklines draws no more than before
-        auto none = make(SparklineGroup::Type::Line, {});
+        const QRect inside(cell.left() + 1, cell.top() + 1, 61, 17);
+        int left = 1000, right = -1;
+        for (int y = inside.top(); y <= inside.bottom(); ++y)
+            for (int x = inside.left(); x <= inside.right(); ++x)
+                if (img.pixel(x, y) != kWhite) {
+                    left = std::min(left, x);
+                    right = std::max(right, x);
+                }
+        QVERIFY(right > left);
+        auto inkY = [&](int x) {
+            double sum = 0;
+            int n = 0;
+            for (int y = inside.top(); y <= inside.bottom(); ++y)
+                if (img.pixel(x, y) != kWhite) {
+                    sum += y;
+                    ++n;
+                }
+            return n ? sum / n : -1.0;
+        };
+        QVERIFY(left <= cell.left() + 6 && right >= cell.right() - 7);   // (from one side to the other, inside the cell's room)
+        QVERIFY(inkY(left + 1) > cell.top() + 12);                      // (low on the left)
+        QVERIFY(inkY(right - 1) < cell.top() + 7);                      // (high on the right)
+        // a sheet with no sparklines is as it was: nothing is drawn, and one that reads nothing draws nothing
+        auto none = std::make_unique<Fixture>();
+        none->number(0, 0, 1);
         none->build();
+        QCOMPARE(none->painter->stats().sparklines, qint64(0));
         img = none->render();
-        QCOMPARE(count(img, blue, QRect(0, 0, 640, 400)), 0);
+        QCOMPARE(none->painter->stats().sparklines, qint64(0));
+        QVERIFY(!anyNear(img, blue, QRect(0, 0, 640, 400)));
+        auto empty = make(SparklineGroup::Type::Line, {});
+        empty->build();
+        img = empty->render();
+        QVERIFY(!anyNear(img, blue, QRect(0, 0, 640, 400)));
+    }
+
+    // A paint that shows part of a cell (the strip a scroll leaves, a small clip) draws the part of the sparkline that is there: the same pixels as the whole paint has in it.
+    void aPartOfASparklineIsDrawnAsTheWholeHasIt()
+    {
+        using jp::office::sheet::Sparkline;
+        using jp::office::sheet::SparklineGroup;
+        Fixture f;
+        for (int i = 0; i < 6; ++i) f.number(0, quint32(i), (i * 5) % 7 - 2);
+        SparklineGroup g;
+        g.type = SparklineGroup::Type::Line;
+        g.markers = true;
+        g.series = ColorSpec::fromRgb(0x376092);
+        Sparkline sp;
+        sp.row = 1;
+        sp.col = 4;
+        sp.source = QStringLiteral("A1:F1");
+        g.sparklines.append(sp);
+        f.sheet.sparklineGroups = {g};
+        f.build();
+        const QImage whole = f.render();
+        for (const QRect &clip : {QRect(262, 22, 30, 12), QRect(280, 0, 20, 100), QRect(256, 25, 64, 6)}) {
+            const QImage part = f.render(clip);
+            for (int y = clip.top(); y <= clip.bottom(); ++y)
+                for (int x = clip.left(); x <= clip.right(); ++x) QVERIFY2(part.pixel(x, y) == whole.pixel(x, y), qPrintable(QStringLiteral("%1,%2").arg(x).arg(y)));
+        }
+    }
+
+    // Many tiny sparklines in view, each reading a thousand cells (a hostile sheet): a paint reads a bounded number of cells, whatever is asked, and the rest are drawn from what was kept or left blank.
+    void aPaintOfManySparklinesReadsABoundedNumberOfCells()
+    {
+        using jp::office::sheet::Sparkline;
+        using jp::office::sheet::SparklineGroup;
+        Fixture f;
+        f.number(0, 0, 1);
+        SparklineGroup g;
+        g.series = ColorSpec::fromRgb(0x376092);
+        g.minAxis = SparklineGroup::Axis::Group;
+        for (quint32 r = 0; r < 100; ++r)
+            for (quint32 c = 0; c < 10; ++c) {
+                Sparkline s;
+                s.row = r;
+                s.col = c;
+                s.source = QStringLiteral("A%1:ALL%1").arg(r * 10 + c + 1);   // (a thousand cells each, none the same)
+                g.sparklines.append(s);
+            }
+        // and thousands more out of view that a shared scale has to read
+        for (quint32 k = 0; k < 3000; ++k) {
+            Sparkline s;
+            s.row = 5000 + k;
+            s.col = 20;
+            s.source = QStringLiteral("A%1:ALL%1").arg(2000 + k);
+            g.sparklines.append(s);
+        }
+        f.sheet.sparklineGroups = {g};
+        f.build();
+        for (quint32 r = 0; r < 100; ++r) f.grid.layout().rows.setSize(r, 4);   // (a hundred rows in view)
+        QElapsedTimer timer;
+        timer.start();
+        f.render();
+        QVERIFY(f.painter->stats().sparklines >= 500);   // (they are in view)
+        QVERIFY(f.grid.sparklineCellsRead() <= GridSheet::kMaxSparklineReadsPerPaint);
+        const qint64 first = f.grid.sparklineCellsRead();
+        f.render();
+        QVERIFY(f.grid.sparklineCellsRead() <= first + GridSheet::kMaxSparklineReadsPerPaint);
+        QVERIFY2(timer.elapsed() < 20000, "bounded time");
+        // the colors of the group are made once in a paint, whatever the number of its sparklines in view
+        QCOMPARE(f.painter->stats().sparklineColorSets, qint64(1));
+    }
+
+    // What a sparkline reads is kept: a second paint reads nothing again, a cell changed outside what is kept makes none be read, and a cell changed inside it makes it be read.
+    void whatASparklineReadsIsKeptUntilItsCellsChange()
+    {
+        using jp::office::sheet::Sparkline;
+        using jp::office::sheet::SparklineGroup;
+        Fixture f;
+        for (quint32 c = 0; c < 6; ++c) f.number(0, c, double(c));
+        SparklineGroup g;
+        g.series = ColorSpec::fromRgb(0x376092);
+        for (quint32 r = 1; r < 4; ++r) {
+            Sparkline s;
+            s.row = r;
+            s.col = 7;
+            s.source = QStringLiteral("A1:F1");
+            g.sparklines.append(s);
+        }
+        f.sheet.sparklineGroups = {g};
+        f.build();
+        f.render();
+        const qint64 once = f.grid.sparklineCellsRead();
+        QCOMPARE(once, qint64(6));                 // (three sparklines read the same six cells: once)
+        f.render();
+        QCOMPARE(f.grid.sparklineCellsRead(), once);
+        f.grid.invalidateText(50, 50);             // (a cell that no sparkline reads)
+        f.render();
+        QCOMPARE(f.grid.sparklineCellsRead(), once);
+        f.grid.invalidateText(0, 3);               // (one that they do)
+        f.render();
+        QCOMPARE(f.grid.sparklineCellsRead(), once + 6);
+    }
+
+    // The hidden rows and columns of a sparkline's data are left out unless the group says to show them.
+    void sparklinesLeaveOutHiddenCellsUnlessTheyAreAsked()
+    {
+        using jp::office::sheet::Sparkline;
+        using jp::office::sheet::SparklineGroup;
+        Fixture f;
+        f.number(0, 0, 10);
+        f.number(1, 0, 20);
+        f.number(2, 0, 30);
+        f.number(0, 1, 1);
+        f.number(0, 2, 2);
+        f.number(0, 3, 3);
+        SparklineGroup g;
+        Sparkline s;
+        s.row = 0;
+        s.col = 9;
+        s.source = QStringLiteral("A1:A3");
+        g.sparklines.append(s);
+        f.sheet.sparklineGroups = {g};
+        f.build();
+        f.grid.layout().rows.setSize(1, 0);
+        f.grid.layout().cols.setSize(2, 0);
+        QCOMPARE(f.grid.sparklineValues(QStringLiteral("A1:A3"), false), (QVector<double>{10, 30}));
+        QCOMPARE(f.grid.sparklineValues(QStringLiteral("A1:A3"), true), (QVector<double>{10, 20, 30}));
+        QCOMPARE(f.grid.sparklineValues(QStringLiteral("B1:D1"), false), (QVector<double>{1, 3}));
+        QCOMPARE(f.grid.sparklineValues(QStringLiteral("B1:D1"), true), (QVector<double>{1, 2, 3}));
+        QCOMPARE(f.grid.sparklineValues(QStringLiteral("Nowhere!A1:A3"), false), QVector<double>());
+    }
+
+    // A group with a date axis spaces its points by their dates: three columns at 0, 1, and 10 have a long gap before the last, where an evenly spaced three would have one in the middle.
+    void aDateAxisSpacesThePointsByTheirDates()
+    {
+        using jp::office::sheet::SparklineGroup;
+        SparklineGroup g;
+        g.type = SparklineGroup::Type::Column;
+        g.dateAxis = true;
+        g.series = ColorSpec::fromRgb(0x376092);
+        jp::grid::SparklineColors colors;
+        colors.series = QColor(0x37, 0x60, 0x92);
+        colors.negative = colors.axis = colors.markers = colors.first = colors.last = colors.high = colors.low = QColor(Qt::red);
+        auto draw = [&](const QVector<double> &dates) {
+            QImage img(64, 20, QImage::Format_RGB32);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            paintSparkline(&p, QRect(0, 0, 64, 20), g, colors, {1, 1, 1}, 0, 0, dates);
+            return img;
+        };
+        auto inkIn = [](const QImage &im, int x0, int x1) {
+            int n = 0;
+            for (int y = 0; y < im.height(); ++y)
+                for (int x = x0; x <= x1; ++x) n += im.pixel(x, y) != kWhite;
+            return n;
+        };
+        const QImage dated = draw({0, 1, 10});
+        QVERIFY(inkIn(dated, 3, 14) > 10);        // (the first two are close together on the left)
+        QVERIFY(inkIn(dated, 22, 48) == 0);       // (and nothing is in the middle)
+        QVERIFY(inkIn(dated, 52, 60) > 10);       // (the last is at the right)
+        const QImage even = draw({});
+        QVERIFY(inkIn(even, 22, 42) > 10);        // (without dates the middle one is in the middle)
+        // dates that do not fit the numbers are not used
+        QCOMPARE(inkIn(draw({0, 1}), 22, 42) > 10, true);
     }
 
     void dataBarsAreDrawnInTheCell()

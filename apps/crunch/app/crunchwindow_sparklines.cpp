@@ -20,6 +20,7 @@
 #include <QMenu>
 #include <QPainter>
 #include <QPixmap>
+#include <QSet>
 #include <QWidgetAction>
 
 namespace jp {
@@ -70,6 +71,21 @@ const struct Look {
               {QT_TR_NOOP("Black"), 0x000000}, {QT_TR_NOOP("Red"), 0xC0392B}};
 
 } // namespace
+
+// The sparklines of the groups (but those of group `except`) that are drawn in the cells of `made` are taken out: a cell has one sparkline. One pass, by a set of the cells.
+static void dropAt(QVector<SparklineGroup> *groups, const QVector<Sparkline> &made, int except)
+{
+    QSet<quint64> cells;
+    cells.reserve(int(made.size()));
+    for (const Sparkline &m : made) cells.insert((quint64(m.row) << 20) | m.col);
+    for (int gi = 0; gi < groups->size(); ++gi) {
+        if (gi == except) continue;
+        QVector<Sparkline> keep;
+        for (const Sparkline &s : std::as_const((*groups)[gi].sparklines))
+            if (!cells.contains((quint64(s.row) << 20) | s.col)) keep.append(s);
+        (*groups)[gi].sparklines = keep;
+    }
+}
 
 // The sparklines the selection holds: those drawn in a selected cell.
 static QVector<Pick> picksIn(const QVector<SparklineGroup> &groups, const CellRange &sel)
@@ -194,13 +210,7 @@ void CrunchWindow::insertSparklinesCommand(jp::office::sheet::SparklineGroup::Ty
     }
     QVector<SparklineGroup> groups = m_session->sparklinesOf(m_sheet);
     // a cell has one sparkline: those in these cells are replaced
-    for (SparklineGroup &g : groups)
-        for (int i = g.sparklines.size() - 1; i >= 0; --i)
-            for (const Sparkline &m : made)
-                if (m.row == g.sparklines[i].row && m.col == g.sparklines[i].col) {
-                    g.sparklines.removeAt(i);
-                    break;
-                }
+    dropAt(&groups, made, -1);
     SparklineGroup g;
     g.type = type;
     g.empty = SparklineGroup::Empty::Gap;
@@ -310,14 +320,7 @@ void CrunchWindow::editSparklineData(bool wholeGroup)
     for (int i = 0; i < edited.sparklines.size(); ++i)
         if (!which.contains(i)) keep.append(edited.sparklines[i]);
     edited.sparklines = keep + made;
-    for (int gi = 0; gi < groups.size(); ++gi)
-        if (gi != first.group)
-            for (int i = groups[gi].sparklines.size() - 1; i >= 0; --i)
-                for (const Sparkline &m : made)
-                    if (m.row == groups[gi].sparklines[i].row && m.col == groups[gi].sparklines[i].col) {
-                        groups[gi].sparklines.removeAt(i);
-                        break;
-                    }
+    dropAt(&groups, made, first.group);
     const auto o = m_session->setSparklines(m_sheet, groups, wholeGroup ? tr("Edit Sparklines") : tr("Edit Sparkline Data"));
     if (!o.ok) notice(tr("Sparklines"), o.problem);
     updateSparklineTab();
