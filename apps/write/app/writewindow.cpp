@@ -229,6 +229,7 @@ void WriteWindow::createActions()
     createTableActions();
     createPictureActions();
     createStyleActions();
+    createMailActions();
 }
 
 namespace {

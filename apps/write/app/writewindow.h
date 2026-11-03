@@ -35,6 +35,7 @@ class SizeCombo;
 class StylesPane;
 class WriteFileScreen;
 class WriteFindPane;
+struct MailUi;
 class ReviewPane;
 namespace write {
 class PageView;
@@ -175,6 +176,11 @@ private:
     void createTableActions();
     void createPictureActions();
     void createStyleActions();
+    void createMailActions();
+    void mailRibbonParts(RibbonParts &parts);
+    friend struct MailUi;
+    std::shared_ptr<void> m_mailHolder;   // (the Mailings tab: app/writewindow_mail.cpp)
+    MailUi *m_mail = nullptr;
     void showStyleDialog(bool create);
     void pictureRibbonParts(RibbonParts &parts);
     void insertPictureFromFile();

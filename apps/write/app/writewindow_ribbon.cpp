@@ -103,6 +103,7 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
 {
     tableRibbonParts(parts);
     pictureRibbonParts(parts);
+    mailRibbonParts(parts);
     parts.widgets[QStringLiteral("fontCombo")] = [this]() -> QWidget * {
         auto *font = new FontCombo();
         connect(font, &FontCombo::familyChosen, this, [this](const QString &f) {

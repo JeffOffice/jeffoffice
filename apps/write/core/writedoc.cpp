@@ -425,6 +425,7 @@ void WriteDoc::setUpEnvironment()
         // (One reading of the part for all of them.)
         const QByteArray settingsBytes = partData(m_wml.settingsName);
         m_trackChanges = m_trackAtOpen = office::wml::settingsTrackRevisions(settingsBytes);
+        readMailSettings(settingsBytes);
         const office::wml::CompatOptions compat = office::wml::readCompatOptions(settingsBytes);
         // Words are hyphenated where the file asks (w:autoHyphenation), but for the zone that it sets.
         f.hyphenate = compat.autoHyphenation;

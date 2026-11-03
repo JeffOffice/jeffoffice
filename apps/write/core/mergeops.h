@@ -1,0 +1,117 @@
+#pragma once
+// Mail merge: what a document is merged as and where its list of recipients comes from (the mail merge of the settings part, kept with the document), the fields of a merge (MERGEFIELD,
+// ADDRESSBLOCK, GREETINGLINE, and the rules IF, SKIPIF, NEXT, NEXTIF, SET, ASK, FILLIN, MERGEREC, MERGESEQ), and the merge itself: one new document with a copy of the text for each recipient.
+// The list is read by the shared reader of libs/page/core/mergesource.h.
+
+#include "core/fieldcode.h"
+#include "core/mergesource.h"
+#include "core/writedoc.h"
+#include "wml/wml.h"
+
+#include <QHash>
+#include <QString>
+#include <QTextCursor>
+#include <QStringList>
+#include <QVector>
+#include <functional>
+#include <memory>
+#include <optional>
+
+namespace jp::write::mail {
+
+// The most records one merge makes (a larger list is merged in its first records), and the most characters of a prompt or an answer.
+constexpr int kMostRecords = 100000;
+
+enum class Kind { None, Letters, Email, Envelopes, Labels, Directory };
+// The value of w:mainDocumentType for a kind ("formLetters", "email", "envelopes", "mailingLabels", "catalog"), and the kind a value says (None for one that is not known).
+QString kindValue(Kind kind);
+Kind kindOfValue(const QString &value);
+
+// The merge of a document: the settings as the file had them (or as chosen), the list, and which column holds each field the address block and greeting line ask for.
+struct State {
+    office::wml::MailMergeSettings settings;
+    QString sourcePath;                  // the file the list is read from (empty: a typed list that is not saved yet)
+    MergeSource data;                    // the list, once it is read or made
+    bool loaded = false;                 // `data` is the list
+    bool changed = false;                // what the file has differs: it is written when the document is saved
+    QHash<QString, QString> fieldMap;    // a field of the address block (see logicalFields()) -> the column that holds it (as Match Fields set it)
+    QHash<QString, QString> fieldMapRead;   // what the file said of it (written again only where it differs)
+    Kind kind() const { return kindOfValue(settings.type); }
+};
+
+// The merge of a document, made if it has none.
+State &stateOf(WriteDoc &doc);
+// The merge of a document, null if it has none.
+State *stateIfAny(const WriteDoc &doc);
+
+// Reads the list the document's merge names, from the file; where it is not (it may be on another computer). Returns whether the list is read.
+bool loadSource(State &state, const QString &fromPath);
+
+// ---- the fields of the address block and greeting line
+// The parts of a name and an address the formats name: Title, First, Last, Suffix, Company, Street1, Street2, City, State, Postal, Country (and Name, the whole name where the list has it in one column).
+QStringList logicalFields();
+// The column of the list for a field of those (the one Match Fields chose, else the one with a usual name), empty for none.
+QString columnFor(const MergeSource &data, const QHash<QString, QString> &map, const QString &logical);
+// The formats of an address block the dialog offers, and the format a document's field has by default. A format is text with {Field} in it, and line breaks as \n.
+QStringList addressBlockFormats();
+// The address block of a record by a format: a line whose fields are all empty is left out, and so are the commas and spaces round them. `country`: where it is not empty, a record whose country is
+// this one has no country line (the address is in the country the letter is posted in).
+QString addressBlockText(const MergeSource &data, int row, const QHash<QString, QString> &map, const QString &format, const QString &homeCountry = QString());
+// The greeting line of a record by a format ("Dear {Title} {Last},"), or `fallback` ("Dear Sir or Madam,") where the record has none of the name's parts the format asks for.
+QString greetingText(const MergeSource &data, int row, const QHash<QString, QString> &map, const QString &format, const QString &fallback);
+QStringList greetingFormats();
+
+// ---- fields
+// The code of a field, as it is put in a document, and the result it shows before the merge.
+QString mergeFieldCode(const QString &column);
+// Puts a field at the caret whose code may hold fields: "{ code }" in `code` is a field of its own (as in IF { MERGEFIELD State } = "VA" "yes" "no"). `result` is what it shows until the merge.
+bool insertRule(WriteDoc &doc, QTextCursor &c, const QString &code, const QString &result = QString());
+QString addressBlockCode(const QString &format, const QString &homeCountry = QString());
+QString greetingCode(const QString &format, const QString &fallback);
+
+// Answers the fields of a merge, for one record at a time. The rules that move to another record (NEXT, NEXTIF) move `position`; SKIPIF marks the record skipped.
+class Evaluator {
+public:
+    Evaluator(const MergeSource &data, const QHash<QString, QString> &fieldMap, const QVector<int> &rows) : m_data(data), m_map(fieldMap), m_rows(rows) {}
+    std::optional<QString> answer(const fields::Code &code);
+    // Where in `rows` the record is that fields show (a rule moves it).
+    int position = 0;
+    int sequence = 0;                 // MERGESEQ: how many records the merge has made, counting the one being made
+    bool skipped = false;             // SKIPIF was true for the record
+    // The answer to ASK and FILLIN (a prompt and a default): the person's, or the default where there is none.
+    std::function<QString(const QString &prompt, const QString &defaultAnswer)> ask;
+    QHash<QString, QString> variables;
+    bool atEnd() const { return position >= m_rows.size(); }
+    int row() const { return position >= 0 && position < m_rows.size() ? m_rows[position] : -1; }
+    // Whether a field of this name is the merge's to work out (the merge freezes these).
+    bool isMergeField(const fields::Code &code) const;
+
+private:
+    QString value(const QString &column) const;
+    bool test(const fields::Code &code) const;
+    const MergeSource &m_data;
+    const QHash<QString, QString> &m_map;
+    const QVector<int> &m_rows;
+    QHash<QString, QString> m_answers;
+};
+
+struct MergeOptions {
+    QVector<int> rows;                // the records merged, as rows of the list (empty: those the list includes)
+    std::function<QString(const QString &prompt, const QString &defaultAnswer)> ask;
+    std::function<bool(int done, int total)> progress;   // false stops the merge
+    bool pageBreaks = true;           // each record begins a page (letters); not for a directory
+};
+
+// A new document with a copy of the text of `source` for each record: its fields are the answers, its page setup, styles, headers, and footers are the source's. Null, with the reason, where it
+// can't be made. The source is not changed.
+std::unique_ptr<WriteDoc> mergeToDocument(WriteDoc &source, const MergeSource &data, const QHash<QString, QString> &fieldMap, const MergeOptions &options, QString *error = nullptr);
+// The plain text of each merged record, for email messages (one string per record).
+QStringList mergeToTexts(WriteDoc &source, const MergeSource &data, const QHash<QString, QString> &fieldMap, const MergeOptions &options, QString *error = nullptr);
+// The records, in order, that fields show in an error-free merge: a record whose field names a column the list does not have is reported (the columns that are missing).
+QStringList missingColumns(WriteDoc &doc, const MergeSource &data);
+
+// An email message for each record as a .eml file in `folder` (named by the record's number and its address): the merged text as the message, `subject` as its subject, from the column `addressColumn`.
+// Returns how many were written; the reason in `error` if it stops.
+int writeEmailFiles(const QStringList &texts, const MergeSource &data, const QVector<int> &rows, const QString &addressColumn, const QString &subject, const QString &folder, QString *error = nullptr);
+
+} // namespace jp::write::mail

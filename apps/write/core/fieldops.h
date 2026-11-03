@@ -85,6 +85,7 @@ struct UpdateOptions {
     QString tocLeader;                           // the tab leader of a table's page numbers when it is made (dot, hyphen, underscore, none); empty: the one the table has, else dot
     QDateTime now;                               // the moment automatic dates show (invalid: now)
     std::function<bool(const QString &)> skip;   // fields whose name this says are left as they are
+    std::function<std::optional<QString>(const fields::Code &)> merge;   // a mail merge: it answers the fields the engine has no result for (see fields::Env::merge)
 };
 
 struct UpdateReport {
