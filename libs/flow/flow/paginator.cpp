@@ -1486,6 +1486,8 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
     sd->setDefaultTextOption(main->defaultTextOption());
     sd->setUndoRedoEnabled(false);
     QTextCursor dst(sd.get());
+    // (One edit for the whole copy: outside one, every piece put in finds where the cursor's line is, which lays the paragraph out again, and a page of thousands of pieces takes seconds.)
+    dst.beginEditBlock();
     QHash<QTextList *, QTextList *> lists;
     // The paragraph of the document that each paragraph of the copy is (a run of joined paragraphs is cut by the document's numbers: StoryLayout::joinsNext).
     QList<int> sourceNumbers;
@@ -1650,6 +1652,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
     }
     if (m_doc->env.wordLines) sd->setProperty(StoryLayout::kBlockNumbersProperty, QVariant::fromValue(sourceNumbers));
     if (m_doc->env.revisionView) sd->setProperty(tp::kRevisionViewProperty, m_doc->env.revisionView);
+    dst.endEditBlock();
     return sd;
 }
 

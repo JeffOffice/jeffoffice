@@ -39,6 +39,7 @@
 #include "wml/xmltree.h"
 #include "render/renderer.h"
 #include "rtcheck.h"
+#include "../timing.h"
 #include "app/spelling.h"
 #include "text/dictionaries.h"
 #include "text/textengine.h"
@@ -9589,6 +9590,20 @@ private Q_SLOTS:
         for (int i = 0; i < pages; ++i) QVERIFY(doc->pager().materialize(i));
         const qint64 copied = doc->pager().charsCopiedForTest() - before, length = doc->story()->characterCount();
         QVERIFY2(copied <= 2 * length, qPrintable(QStringLiteral("%1 characters copied for the %2 pages of a story of %3").arg(copied).arg(pages).arg(length)));
+    }
+
+    // The copy of a page's text is made in one edit: a paragraph of thousands of runs of one character each, set small, is a page of thousands of pieces, and the copy of that page takes
+    // a moment, not the time of laying out the paragraph for every piece put in. (A ceiling many times what the page takes alone.)
+    void aPageOfThousandsOfRunsIsCopiedInOneEdit()
+    {
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+        QByteArray runs;
+        for (int i = 0; i < 6000; ++i) runs += QByteArray(i % 2 ? "<w:r><w:rPr><w:b/><w:sz w:val=\"16\"/></w:rPr><w:t>b</w:t></w:r>" : "<w:r><w:rPr><w:sz w:val=\"16\"/></w:rPr><w:t>a</w:t></w:r>");
+        auto doc = open(makeDocx("<w:p>" + runs + "</w:p>", kStyles, QByteArray(), sect));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 1);
+        const qint64 best = bestNanoseconds([&] { doc->pager().materialize(0); }, 3);
+        QVERIFY2(best < 600000000LL, qPrintable(QStringLiteral("%1 ms to copy one page of %2 runs").arg(best / 1000000).arg(6000)));
     }
 
     // A page break that ends the last line of a run of joined paragraphs, with no room on the page for the empty line after it, goes on at the paragraph after the run: nothing of the run
