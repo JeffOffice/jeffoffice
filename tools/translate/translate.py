@@ -32,6 +32,7 @@ import argparse
 import concurrent.futures as cf
 import glob
 import hashlib
+import itertools
 import json
 import os
 import re
@@ -135,7 +136,8 @@ class Api:
         with self.client.beta.messages.stream(
             model=MODEL,
             max_tokens=max_tokens,
-            system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+            # (a system given in parts is cached part by part: a first part that several prompts share is written to the cache once for all of them)
+            system=[{"type": "text", "text": part, "cache_control": {"type": "ephemeral"}} for part in ([system] if isinstance(system, str) else system)],
             messages=[{"role": "user", "content": user}],
             output_config=output,
             betas=["server-side-fallback-2026-07-01"],
@@ -553,9 +555,20 @@ HELP_APPS = [
 ]
 
 
+def help_reference(lang, terms, table):
+    """The glossary and the program text, the same for every Help prompt of a language: it comes first, so that the prompts share it in the cache."""
+    name = LANGUAGES[lang]
+    return f"""Glossary (English = {name}):
+{glossary_text(lang, terms)}
+
+Program text (English = {name}):
+{table}
+"""
+
+
 def help_system(lang, terms, table, app="JeffPub", kind="a free desktop publishing program"):
     name = LANGUAGES[lang]
-    return f"""You translate the Help of {app}, {kind}, from American English into {name}. Each request is one Help topic, a Markdown file.
+    return [help_reference(lang, terms, table), f"""You translate the Help of {app}, {kind}, from American English into {name}. Each request is one Help topic, a Markdown file.
 
 How to translate:
 - Answer with the translated file only: nothing before or after it, and no code block around it.
@@ -564,18 +577,12 @@ How to translate:
 - "<!-- keywords: a, b, c -->": keep the markers, and translate the keywords into words a {name} user would search for (add common {name} synonyms if useful).
 - Keep "<!-- shortcuts -->" and every other <!-- --> comment exactly as it is.
 - Links: in [text](target), translate the text and never change the target (topic names such as linked-text-boxes, and web addresses).
-- When the text names a command, tab, group, button, box, or dialog, use exactly the {name} label the program shows, from "Program text" below (where it lists two, separated by |, pick the one that fits: the command or the noun); for one not listed, translate consistently with the glossary.
+- When the text names a command, tab, group, button, box, or dialog, use exactly the {name} label the program shows, from "Program text" above (where it lists two, separated by |, pick the one that fits: the command or the noun); for one not listed, translate consistently with the glossary.
 - Keyboard shortcuts: write key names as {name} keyboards print them (German, for example, writes Strg+C), keeping the + between keys.
 - Measurements: {name} readers measure in centimeters, and {app} shows them centimeters unless they choose otherwise. Give lengths, sizes, and distances in centimeters (millimeters for small ones), converting from inches (1 inch = 2.54 cm) and rounding as {name} documentation would (2 inches becomes 5 cm; a quarter inch, 0.6 cm). Where an example depends on US paper sizes (Letter, half-letter), use A4 and A5 instead when the example works the same way. Units that name a measure stay as they are: points, picas, ppi and dpi (pixels or dots per inch), and a point being 1/72 inch.
 - Keep file names, file extensions, code, and web addresses as they are. Product and format names stay as they are ({app}, PDF, EPUB, CMYK...). Never name Microsoft, Publisher, Office, Word, Excel, PowerPoint, or WordArt, and never use the trademarked feature names PivotTable, AutoSum, AutoFit, Format Painter, AutoRecover, Quick Access Toolbar, or Quick Parts (say pivot table, sum, fit, and so on).
 - Write plainly, as good {name} software documentation does, addressing the reader the way {name} software documentation usually does.
-
-Glossary (English = {name}):
-{glossary_text(lang, terms)}
-
-Program text (English = {name}):
-{table}
-"""
+"""]
 
 
 HELP_REVIEW_SCHEMA = strict({"ok": {"type": "boolean"}, "problems": {"type": "array", "items": strict(
@@ -584,16 +591,10 @@ HELP_REVIEW_SCHEMA = strict({"ok": {"type": "boolean"}, "problems": {"type": "ar
 
 def help_review_system(lang, terms, table, app="JeffPub", kind="a desktop publishing program"):
     name = LANGUAGES[lang]
-    return f"""You check a {name} translation of a Help topic of {app}, {kind}, against its American English original.
+    return [help_reference(lang, terms, table), f"""You check a {name} translation of a Help topic of {app}, {kind}, against its American English original.
 
-List each place where the translation's meaning drifted: something said differently, left out, or added; a command, tab, button, or dialog named differently from "Program text" below; a link target changed. For each, quote the English and the {name}, give "back" (the {name} translated literally back into English), and say what's wrong in one sentence. Do not list matters of style or word choice that are correct. "ok" is true when there is nothing to list.
-
-Glossary (English = {name}):
-{glossary_text(lang, terms)}
-
-Program text (English = {name}):
-{table}
-"""
+List each place where the translation's meaning drifted: something said differently, left out, or added; a command, tab, button, or dialog named differently from "Program text" above; a link target changed. For each, quote the English and the {name}, give "back" (the {name} translated literally back into English), and say what's wrong in one sentence. Do not list matters of style or word choice that are correct. "ok" is true when there is nothing to list.
+"""]
 
 
 def translate_topic(api, system, rsystem, tid, en, report):
@@ -667,8 +668,10 @@ def run_help(lang, api, dry, report):
             table = ui_table(lang)
         system, rsystem = help_system(lang, terms, table, app, kind), help_review_system(lang, terms, table, app, kind)
         os.makedirs(out_dir, exist_ok=True)
+        # (the first topic goes alone: its prompts are then in the cache when the others start, instead of each worker writing them again)
+        first = [translate_topic(api, system, rsystem, todo[0][0], todo[0][2], report)]
         with cf.ThreadPoolExecutor(WORKERS) as pool:
-            for (key, tid, en), out in zip(todo, pool.map(lambda t: translate_topic(api, system, rsystem, t[0], t[2], report), todo)):
+            for (key, tid, en), out in zip(todo, itertools.chain(first, pool.map(lambda t: translate_topic(api, system, rsystem, t[0], t[2], report), todo[1:]))):
                 if out is None:
                     continue
                 with open(os.path.join(out_dir, tid + ".md"), "w", encoding="utf-8") as f:
