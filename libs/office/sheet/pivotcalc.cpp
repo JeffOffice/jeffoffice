@@ -353,7 +353,9 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
     const int D = int(t.dataFields.size());
     for (const PivotDataField &d : t.dataFields) {
         if (d.fld < 0 || d.fld >= nf) return fail(QStringLiteral("a value field is not in the cache"));
-        if (d.showDataAs != QLatin1String("normal")) return fail(QStringLiteral("a value shown as a percent, difference, or rank"));
+        static const QSet<QString> kShown = {QStringLiteral("normal"), QStringLiteral("difference"), QStringLiteral("percent"), QStringLiteral("percentDiff"), QStringLiteral("runTotal"),
+                                             QStringLiteral("percentOfRow"), QStringLiteral("percentOfCol"), QStringLiteral("percentOfTotal"), QStringLiteral("index")};
+        if (!kShown.contains(d.showDataAs)) return fail(QStringLiteral("a value shown as a rank or a percent of a parent"));
         if (fnOf(d.subtotal) == Fn::None) return fail(QStringLiteral("a value function this does not work out"));
     }
     int dataSlotRow = -1, dataSlotCol = -1;
@@ -517,7 +519,8 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             if (qint64(rowTuples.size()) * (rt.size() + 1) > kPivotMaxLevelCells || qint64(colTuples.size()) * (ct.size() + 1) > kPivotMaxLevelCells) return fail(QStringLiteral("the table would have too many lines"));
             entries.push_back({ri.first->second, ci.first->second, qint32(r), qint32(d)});
             if (D > 0) {
-                const PivotValue &val = c.fields[t.dataFields[d].fld].items[c.fields[t.dataFields[d].fld].records[r]];
+                const PivotCacheField &dataField = c.fields[t.dataFields[d].fld];
+                const PivotValue &val = dataField.storedItems()[dataField.storedRecords()[r]];   // (a field that is grouped is added up by its own values)
                 for (int pass = 0; pass < 2; ++pass) {
                     SortSpec &sp = pass == 0 ? rowSort : colSort;
                     if (!sp.any) continue;
@@ -628,6 +631,15 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
 
     // the values
     std::vector<Acc> acc(size_t(nRI) * size_t(nCI));
+    bool anyShownAs = false;
+    for (const PivotDataField &d : t.dataFields) anyShownAs |= d.showDataAs != QLatin1String("normal");
+    // (for a value shown as a share of its line, its column, or the whole: those totals, which no line of the table need hold)
+    std::vector<Acc> rowTot, colTot, grandTot;
+    if (anyShownAs) {
+        rowTot.resize(size_t(nRI) * size_t(D));
+        colTot.resize(size_t(nCI) * size_t(D));
+        grandTot.resize(size_t(D));
+    }
     if (D > 0) {
         // each group of records (a line and a column, and a value) is added in the order of the records; a total is then the sum of those sums, group by group, as the original program has it
         struct Leaf {
@@ -637,7 +649,8 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
         std::map<std::tuple<int, int, int>, size_t> where;
         std::vector<Leaf> leaves;
         for (const Entry &e : entries) {
-            const PivotValue &val = c.fields[t.dataFields[e.value].fld].items[c.fields[t.dataFields[e.value].fld].records[e.record]];
+            const PivotCacheField &dataField = c.fields[t.dataFields[e.value].fld];
+            const PivotValue &val = dataField.storedItems()[dataField.storedRecords()[e.record]];
             const auto key = std::make_tuple(rowNew[e.row], colNew[e.col], int(e.value));
             const auto it = where.find(key);
             size_t at;
@@ -657,6 +670,16 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             fan += qint64(rowAx.members[l.row].size()) * qint64(colAx.members[l.col].size());
             if (fan > kPivotMaxFanOut) return fail(QStringLiteral("the table would take too much work to total"));
         }
+        if (anyShownAs)
+            for (const Leaf &l : leaves) {
+                auto into = [&](Acc &a) {
+                    if (a.n == 0 && a.error.isEmpty()) a = l.acc;
+                    else a.merge(l.acc);
+                };
+                for (int ri : rowAx.members[l.row]) into(rowTot[size_t(ri) * D + l.value]);
+                for (int ci : colAx.members[l.col]) into(colTot[size_t(ci) * D + l.value]);
+                into(grandTot[size_t(l.value)]);
+            }
         for (const Leaf &l : leaves)
             for (int ri : rowAx.members[l.row])
                 for (int ci : colAx.members[l.col]) {
@@ -745,9 +768,15 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
     auto fieldFmt = [&](const QVector<int> &fields, int level) { return fields[level] >= 0 ? t.fields[fields[level]].numFmtId : 0; };
 
     // the rows' labels
+    QVector<int> rowCur(nR, -1);   // (the place of the item at each level, as the lines go down: a field that repeats its labels shows it on every line)
     for (int ri = 0; ri < nRI; ++ri) {
         const PivotAxisItem &it = rowAx.items[ri];
         const int row = headerRows + ri;
+        if (!compact && nR > 0 && it.t != QLatin1String("grand") && it.t != QLatin1String("blank")) {
+            for (int k = 0; k < it.x.size() && it.r + k < nR; ++k) rowCur[it.r + k] = it.x[k];
+            for (int level = 0; level < it.r && level < nR && it.t.isEmpty(); ++level)
+                if (t.rowFields[level] >= 0 && t.fields[t.rowFields[level]].fillDownLabels && rowCur[level] >= 0) set(row, level, itemLabel(t.rowFields, level, rowCur[level]));
+        }
         if (it.t == QLatin1String("grand")) {
             QString s = t.grandTotalCaption;
             if (rowAx.dSlot >= 0 && D > 1) s = QStringLiteral("Total ") + dataName(it.i);
@@ -822,6 +851,9 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
         else set(lastItemsRow, labelCols, text(t.dataFields[0].name));
     }
     // the values
+    std::vector<PivotCell> shown(size_t(nRI) * size_t(nCI));
+    std::vector<int> dataOf(size_t(nRI) * size_t(nCI), -1);
+    std::vector<Fn> fnAt(size_t(nRI) * size_t(nCI), Fn::None);
     for (int ri = 0; ri < nRI; ++ri) {
         const PivotAxisItem &rit = rowAx.items[ri];
         if (rit.labelOnly) continue;
@@ -833,11 +865,204 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             Fn fn = fnOf(t.dataFields[di].subtotal);
             const QString &lt = !rit.t.isEmpty() && rit.t != QLatin1String("default") && rit.t != QLatin1String("grand") ? rit.t : cit.t;
             if (!lt.isEmpty() && lt != QLatin1String("default") && lt != QLatin1String("grand")) fn = fnOfLine(lt);
-            PivotCell pc = result(acc[size_t(ri) * nCI + ci], fn, t.dataFields[di].numFmtId);
+            PivotCell pc = result(acc[size_t(ri) * nCI + ci], fn, t.dataFields[di].numFmtCode.isEmpty() ? t.dataFields[di].numFmtId : -2 - di);
             if (pc.kind == PivotCell::Empty && !t.showMissing && (fn == Fn::Sum || fn == Fn::Count || fn == Fn::CountNums)) {
                 pc.kind = PivotCell::Number;
                 pc.number = 0;
             }
+            shown[size_t(ri) * nCI + ci] = pc;
+            dataOf[size_t(ri) * nCI + ci] = di;
+            fnAt[size_t(ri) * nCI + ci] = fn;
+        }
+    }
+    if (anyShownAs) {
+        // the path of each line: the place of its item at each level it reaches
+        auto pathsOf = [&](const Axis &ax, int nLevels) {
+            std::vector<Tuple> paths(ax.items.size());
+            Tuple cur(size_t(nLevels), -1);
+            for (size_t i = 0; i < ax.items.size(); ++i) {
+                const PivotAxisItem &it = ax.items[i];
+                if (it.t == QLatin1String("grand") || it.t == QLatin1String("blank")) continue;
+                int levels = 0;
+                for (int k = 0; k < it.x.size() && it.r + k < nLevels; ++k) {
+                    cur[size_t(it.r + k)] = it.x[k];
+                    levels = it.r + k + 1;
+                }
+                for (int l = levels; l < nLevels; ++l) cur[size_t(l)] = -1;
+                paths[i] = Tuple(cur.begin(), cur.begin() + levels);
+            }
+            return paths;
+        };
+        const std::vector<Tuple> rowPath = pathsOf(rowAx, nR), colPath = pathsOf(colAx, nC);
+        auto levelOf = [&](const QVector<int> &fields, int f) {
+            for (int l = 0; l < fields.size(); ++l)
+                if (fields[l] == f) return l;
+            return -1;
+        };
+        auto keyWith = [](const PivotAxisItem &it, const Tuple &path, int level, int place) {
+            Tuple k(path);
+            if (level < int(k.size())) k[size_t(level)] = place;
+            k.push_back(-7);
+            k.push_back(it.t.isEmpty() ? 0 : it.t.at(0).unicode());
+            return keyOf(k);
+        };
+        struct Side {
+            std::unordered_map<std::string, int> exact;                 // (the line's kind, its path) to the line
+            std::unordered_map<std::string, std::vector<int>> group;    // (the same with the base level left out) to the lines, in order
+            std::vector<const std::vector<int> *> sibsOf;               // for each line, the lines of its group (null for one with none)
+            std::vector<int> placeOf;                                   // for each line, its place among them
+        };
+        auto sideOf = [&](const Axis &ax, const std::vector<Tuple> &paths, int level) {
+            Side sd;
+            std::vector<std::string> groupKey(ax.items.size());
+            sd.placeOf.assign(ax.items.size(), -1);
+            for (size_t i = 0; i < ax.items.size(); ++i) {
+                const PivotAxisItem &it = ax.items[i];
+                if (it.t == QLatin1String("grand") || it.t == QLatin1String("blank") || it.labelOnly || int(paths[i].size()) <= level) continue;
+                sd.exact.emplace(keyWith(it, paths[i], level, paths[i][size_t(level)]), int(i));
+                groupKey[i] = keyWith(it, paths[i], level, -3);
+                std::vector<int> &g = sd.group[groupKey[i]];
+                sd.placeOf[i] = int(g.size());
+                g.push_back(int(i));
+            }
+            // (the lists are not moved once made: a pointer to each is kept with the line, for the cells to use)
+            sd.sibsOf.assign(ax.items.size(), nullptr);
+            for (size_t i = 0; i < ax.items.size(); ++i)
+                if (sd.placeOf[i] >= 0) sd.sibsOf[i] = &sd.group.find(groupKey[i])->second;
+            return sd;
+        };
+        std::vector<std::unique_ptr<Side>> rowSides(size_t(std::max(D, 1))), colSides(size_t(std::max(D, 1)));
+        std::vector<int> baseLevel(size_t(std::max(D, 1)), -1);
+        std::vector<char> baseOnRows(size_t(std::max(D, 1)), 1);
+        for (int d = 0; d < D; ++d) {
+            const PivotDataField &df = t.dataFields[d];
+            if (df.showDataAs != QLatin1String("difference") && df.showDataAs != QLatin1String("percent") && df.showDataAs != QLatin1String("percentDiff") && df.showDataAs != QLatin1String("runTotal")) continue;
+            int l = levelOf(t.rowFields, df.baseField);
+            if (l >= 0) {
+                rowSides[d].reset(new Side(sideOf(rowAx, rowPath, l)));
+            } else {
+                l = levelOf(t.colFields, df.baseField);
+                if (l >= 0) {
+                    colSides[d].reset(new Side(sideOf(colAx, colPath, l)));
+                    baseOnRows[d] = 0;
+                }
+            }
+            baseLevel[d] = l;
+        }
+        const std::vector<PivotCell> raw = shown;
+        std::vector<std::vector<double>> running(size_t(std::max(D, 1)));   // (for a running total: its sum at each cell, made when first wanted)
+        auto number = [&](const PivotCell &c, double *v) {
+            if (c.kind != PivotCell::Number) return false;
+            *v = c.number;
+            return true;
+        };
+        auto divide = [&](PivotCell *pc, double num, double den) {
+            if (den == 0) {
+                pc->kind = PivotCell::Error;
+                pc->text = QStringLiteral("#DIV/0!");
+            } else {
+                pc->kind = PivotCell::Number;
+                pc->number = num / den;
+            }
+        };
+        auto blankCell = [&](size_t at) {
+            PivotCell pc;
+            pc.isValue = true;
+            shown[at] = pc;
+        };
+        for (int ri = 0; ri < nRI; ++ri)
+            for (int ci = 0; ci < nCI; ++ci) {
+                const size_t at = size_t(ri) * nCI + ci;
+                const int d = dataOf[at];
+                if (d < 0 || raw[at].kind == PivotCell::Empty) continue;
+                const PivotDataField &df = t.dataFields[d];
+                if (df.showDataAs == QLatin1String("normal")) continue;
+                PivotCell pc = raw[at];
+                double v = 0;
+                if (!number(pc, &v)) continue;   // (an error stays the error)
+                const Fn fn = fnAt[at];
+                auto totalOf = [&](const Acc &a) {
+                    const PivotCell c = result(a, fn, 0);
+                    return c.kind == PivotCell::Number ? c.number : 0.0;
+                };
+                if (df.showDataAs == QLatin1String("percentOfTotal")) {
+                    divide(&pc, v, totalOf(grandTot[size_t(d)]));
+                } else if (df.showDataAs == QLatin1String("percentOfRow")) {
+                    divide(&pc, v, totalOf(rowTot[size_t(ri) * D + d]));
+                } else if (df.showDataAs == QLatin1String("percentOfCol")) {
+                    divide(&pc, v, totalOf(colTot[size_t(ci) * D + d]));
+                } else if (df.showDataAs == QLatin1String("index")) {
+                    const double rt = totalOf(rowTot[size_t(ri) * D + d]), ct = totalOf(colTot[size_t(ci) * D + d]);
+                    divide(&pc, v * totalOf(grandTot[size_t(d)]), rt * ct);
+                } else {
+                    // against another item of the base field: the same line of the other axis
+                    const bool onRows = baseOnRows[d] != 0;
+                    const int level = baseLevel[d];
+                    const Side *side = onRows ? rowSides[d].get() : colSides[d].get();
+                    const PivotAxisItem &own = onRows ? rowAx.items[ri] : colAx.items[ci];
+                    const Tuple &ownPath = onRows ? rowPath[size_t(ri)] : colPath[size_t(ci)];
+                    if (!side || level < 0 || int(ownPath.size()) <= level || own.t == QLatin1String("grand") || own.t == QLatin1String("blank")) {
+                        blankCell(at);
+                        continue;
+                    }
+                    const int ownLine = onRows ? ri : ci;
+                    if (ownLine >= int(side->placeOf.size()) || side->placeOf[size_t(ownLine)] < 0) {
+                        blankCell(at);
+                        continue;
+                    }
+                    const std::vector<int> &sibs = *side->sibsOf[size_t(ownLine)];
+                    const int me = side->placeOf[size_t(ownLine)];
+                    auto cellOf = [&](int line) -> const PivotCell & { return onRows ? raw[size_t(line) * nCI + ci] : raw[size_t(ri) * nCI + line]; };
+                    if (df.showDataAs == QLatin1String("runTotal")) {
+                        // (the sums are worked out once for the value, line by line along each group, and kept)
+                        std::vector<double> &run = running[size_t(d)];
+                        if (run.empty()) {
+                            run.assign(size_t(nRI) * nCI, 0);
+                            for (const auto &grp : side->group) {
+                                const int others = onRows ? nCI : nRI;
+                                for (int o = 0; o < others; ++o) {
+                                    double sum = 0;
+                                    for (int line : grp.second) {
+                                        const size_t cellAt = onRows ? size_t(line) * nCI + o : size_t(o) * nCI + line;
+                                        double x = 0;
+                                        if (number(raw[cellAt], &x)) sum += x;
+                                        run[cellAt] = sum;
+                                    }
+                                }
+                            }
+                        }
+                        pc.number = run[onRows ? size_t(ri) * nCI + ci : size_t(ri) * nCI + ci];
+                    } else {
+                        int baseLine = -1;
+                        if (df.baseItem == kPivotPreviousItem) baseLine = me > 0 ? sibs[size_t(me) - 1] : -1;
+                        else if (df.baseItem == kPivotNextItem) baseLine = me + 1 < int(sibs.size()) ? sibs[size_t(me) + 1] : -1;
+                        else {
+                            const auto e = side->exact.find(keyWith(own, ownPath, level, df.baseItem));
+                            if (e != side->exact.end()) baseLine = e->second;
+                        }
+                        double b = 0;
+                        if (baseLine < 0 || !number(cellOf(baseLine), &b)) {
+                            blankCell(at);
+                            continue;
+                        }
+                        if (df.showDataAs == QLatin1String("percent")) divide(&pc, v, b);
+                        else if (baseLine == (onRows ? ri : ci)) {
+                            blankCell(at);
+                            continue;
+                        } else if (df.showDataAs == QLatin1String("difference")) pc.number = v - b;
+                        else divide(&pc, v - b, b);
+                    }
+                }
+                pc.isValue = true;
+                pc.numFmtId = df.numFmtCode.isEmpty() ? df.numFmtId : -2 - d;
+                shown[at] = pc;
+            }
+    }
+    for (int ri = 0; ri < nRI; ++ri) {
+        for (int ci = 0; ci < nCI; ++ci) {
+            const size_t at = size_t(ri) * nCI + ci;
+            if (dataOf[at] < 0) continue;
+            PivotCell pc = shown[at];
             if (pc.kind == PivotCell::Empty && t.showMissing && !t.missingCaption.isEmpty()) {
                 pc.kind = PivotCell::Text;
                 pc.text = t.missingCaption;
@@ -867,6 +1092,137 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
         out->rowItems.clear();
         out->colItems.clear();
     }
+    return true;
+}
+
+} // namespace jp::office::sheet
+
+namespace jp::office::sheet {
+
+bool pivotFilterField(PivotTable *t, const PivotCache &c, int field, const PivotFilter &filter, QString *why)
+{
+    auto fail = [&](const QString &m) {
+        if (why) *why = m;
+        return false;
+    };
+    if (field < 0 || field >= t->fields.size() || field >= c.fields.size()) return fail(QStringLiteral("the field is not there"));
+    PivotField &pf = t->fields[field];
+    const PivotCacheField &cf = c.fields[field];
+    if (!pf.hasItems) {
+        pf.hasItems = true;
+        for (int i = 0; i < cf.items.size(); ++i) {
+            PivotTableItem it;
+            it.x = i;
+            pf.items.append(it);
+        }
+        PivotTableItem total;
+        total.t = QStringLiteral("default");
+        if (pf.defaultSubtotal) pf.items.append(total);
+    }
+    const bool byValue = filter.kind >= PivotFilter::ValueGreater;
+    // the total of the data field for each shared item, over the records the filters of the page let in
+    QVector<Acc> accs;
+    QVector<bool> present;
+    Fn fn = Fn::Sum;
+    if (byValue) {
+        if (filter.dataField < 0 || filter.dataField >= t->dataFields.size()) return fail(QStringLiteral("the value is not there"));
+        const PivotDataField &df = t->dataFields[filter.dataField];
+        if (df.fld < 0 || df.fld >= c.fields.size()) return fail(QStringLiteral("the value is not in the cache"));
+        fn = fnOf(df.subtotal);
+        accs.resize(cf.items.size());
+        present.fill(false, cf.items.size());
+        const PivotCacheField &vf = c.fields[df.fld];
+        const qint64 n = cf.records.size();
+        // the item each other filter of the page lets in, worked out once (a record is tested by one number each)
+        QVector<QPair<int, qint32>> pageWant;
+        for (const PivotPageField &p : t->pageFields) {
+            if (p.fld == field || p.fld < 0 || p.fld >= c.fields.size() || p.item < 0) continue;
+            const PivotField &ppf = t->fields[p.fld];
+            int want = p.item;
+            if (ppf.hasItems) {
+                int pos = 0;
+                want = -1;
+                for (const PivotTableItem &it : ppf.items) {
+                    if (!it.t.isEmpty()) continue;
+                    if (pos++ == p.item) want = it.x;
+                }
+            }
+            pageWant.append({p.fld, want});
+        }
+        for (qint64 r = 0; r < n && r < vf.records.size(); ++r) {
+            bool in = true;
+            for (const auto &pw : pageWant)
+                if (c.fields[pw.first].records[r] != pw.second) {
+                    in = false;
+                    break;
+                }
+            if (!in) continue;
+            const qint32 x = cf.records[r];
+            if (x < 0 || x >= accs.size()) continue;
+            accs[x].add(vf.storedItems()[vf.storedRecords()[r]]);
+            present[x] = true;
+        }
+    }
+    auto totalOf = [&](int x, double *v) {
+        if (x < 0 || x >= accs.size() || !present[x]) return false;
+        const PivotCell pc = result(accs[x], fn, 0);
+        if (pc.kind != PivotCell::Number) return false;
+        *v = pc.number;
+        return true;
+    };
+    auto labelOf = [&](int x) {
+        const PivotValue &v = cf.items[x];
+        if (v.kind == PivotValue::Missing) return QString();
+        return v.isNumeric() || v.kind == PivotValue::Bool ? QString::number(v.number, 'g', 15) : v.text;
+    };
+    // the items that stay
+    QSet<int> keep;
+    QVector<std::pair<double, int>> ranked;
+    for (const PivotTableItem &it : pf.items) {
+        if (!it.t.isEmpty()) continue;
+        if (it.x < 0 || it.x >= cf.items.size()) continue;
+        bool ok = true;
+        double v = 0;
+        const QString label = it.n.isEmpty() ? labelOf(it.x) : it.n;
+        switch (filter.kind) {
+        case PivotFilter::None: break;
+        case PivotFilter::LabelBeginsWith: ok = label.startsWith(filter.text, Qt::CaseInsensitive); break;
+        case PivotFilter::LabelEndsWith: ok = label.endsWith(filter.text, Qt::CaseInsensitive); break;
+        case PivotFilter::LabelContains: ok = label.contains(filter.text, Qt::CaseInsensitive); break;
+        case PivotFilter::LabelNotContains: ok = !label.contains(filter.text, Qt::CaseInsensitive); break;
+        case PivotFilter::LabelEquals: ok = label.compare(filter.text, Qt::CaseInsensitive) == 0; break;
+        case PivotFilter::LabelNotEquals: ok = label.compare(filter.text, Qt::CaseInsensitive) != 0; break;
+        case PivotFilter::TopItems:
+        case PivotFilter::BottomItems:
+            ok = false;
+            if (totalOf(it.x, &v)) ranked.append({v, it.x});
+            break;
+        default: {
+            const bool have = totalOf(it.x, &v);
+            const double lo = std::min(filter.a, filter.b), hi = std::max(filter.a, filter.b);
+            switch (filter.kind) {
+            case PivotFilter::ValueGreater: ok = have && v > filter.a; break;
+            case PivotFilter::ValueGreaterOrEqual: ok = have && v >= filter.a; break;
+            case PivotFilter::ValueLess: ok = have && v < filter.a; break;
+            case PivotFilter::ValueLessOrEqual: ok = have && v <= filter.a; break;
+            case PivotFilter::ValueEquals: ok = have && v == filter.a; break;
+            case PivotFilter::ValueNotEquals: ok = !have || v != filter.a; break;
+            case PivotFilter::ValueBetween: ok = have && v >= lo && v <= hi; break;
+            case PivotFilter::ValueNotBetween: ok = !have || v < lo || v > hi; break;
+            default: break;
+            }
+        }
+        }
+        if (ok) keep.insert(it.x);
+    }
+    if (filter.kind == PivotFilter::TopItems || filter.kind == PivotFilter::BottomItems) {
+        const bool top = filter.kind == PivotFilter::TopItems;
+        std::stable_sort(ranked.begin(), ranked.end(), [&](const auto &x, const auto &y) { return top ? x.first > y.first : x.first < y.first; });
+        const int n = filter.a >= 1 ? int(std::min(filter.a, double(ranked.size()))) : 0;   // (a number from a person or a file: kept in range before it is made an int)
+        for (int i = 0; i < n && i < ranked.size(); ++i) keep.insert(ranked[i].second);
+    }
+    for (PivotTableItem &it : pf.items)
+        if (it.t.isEmpty()) it.hidden = filter.kind != PivotFilter::None && !keep.contains(it.x);
     return true;
 }
 

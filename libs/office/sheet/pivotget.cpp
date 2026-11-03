@@ -342,3 +342,103 @@ bool pivotGetDataArguments(const PivotTable &t, const PivotCache &c, const Pivot
 }
 
 } // namespace jp::office::sheet
+
+namespace jp::office::sheet {
+
+bool pivotDetailRecords(const PivotTable &t, const PivotCache &c, const PivotGrid &grid, int gridRow, int gridCol, QVector<qint64> *records, qint64 limit, bool *tooMany)
+{
+    records->clear();
+    if (tooMany) *tooMany = false;
+    QString dataField;
+    std::vector<std::pair<QString, PivotValue>> items;
+    if (!pivotGetDataArguments(t, c, grid, gridRow, gridCol, &dataField, &items)) return false;
+    const int nf = int(c.fields.size());
+    const qint64 n = nf > 0 ? c.fields[0].records.size() : 0;
+    auto fieldOf = [&](const QString &name) {
+        for (int f = 0; f < nf && f < t.fields.size(); ++f)
+            if ((t.fields[f].name.isEmpty() ? c.fields[f].name : t.fields[f].name) == name) return f;
+        return -1;
+    };
+    // for each field a record is looked at by, one answer per item, worked out once (a record in a hidden item is not there)
+    std::vector<std::vector<char>> shownMemo(size_t(std::max(nf, 0)));
+    auto shownTable = [&](int f) -> const std::vector<char> & {
+        std::vector<char> &tab = shownMemo[size_t(f)];
+        if (!tab.empty() || c.fields[f].items.isEmpty()) return tab;
+        const PivotField &pf = t.fields[f];
+        tab.assign(size_t(c.fields[f].items.size()), pf.hasItems ? 0 : 1);
+        if (pf.hasItems)
+            for (const PivotTableItem &it : pf.items)
+                if (it.t.isEmpty() && it.x >= 0 && it.x < qint32(tab.size()) && !tab[size_t(it.x)]) tab[size_t(it.x)] = it.hidden ? 0 : 1;
+        return tab;
+    };
+    auto shownItem = [&](const std::vector<char> &tab, qint32 x) { return x >= 0 && x < qint32(tab.size()) && tab[size_t(x)]; };
+    QVector<QPair<int, PivotValue>> wanted;
+    for (const auto &[name, value] : items) {
+        const int f = fieldOf(name);
+        if (f < 0) return false;
+        wanted.append({f, value});
+    }
+    // the fields the records are tested by, each with its table of shown items
+    struct Test {
+        int field;
+        const std::vector<char> *shown;
+        qint32 pageItem;                 // (a filter's item; -2: none)
+        std::vector<char> matches;       // (a value the cell names: which items are it)
+        bool hasMatches = false;
+    };
+    std::vector<Test> tests;
+    for (int f : t.rowFields)
+        if (f >= 0) tests.push_back({f, &shownTable(f), -2, {}, false});
+    for (int f : t.colFields)
+        if (f >= 0) tests.push_back({f, &shownTable(f), -2, {}, false});
+    for (const PivotPageField &p : t.pageFields) {
+        const PivotField &pf = t.fields[p.fld];
+        qint32 want = -2;
+        if (p.item >= 0) {
+            want = p.item;
+            if (pf.hasItems) {
+                int pos = 0;
+                want = -1;
+                for (const PivotTableItem &it : pf.items) {
+                    if (!it.t.isEmpty()) continue;
+                    if (pos++ == p.item) want = it.x;
+                }
+            }
+        }
+        tests.push_back({p.fld, &shownTable(p.fld), want, {}, false});
+    }
+    for (const auto &w : wanted) {
+        Test tst{w.first, nullptr, -2, {}, true};
+        const PivotCacheField &cf = c.fields[w.first];
+        tst.matches.assign(size_t(cf.items.size()), 0);
+        const PivotValue &want = w.second;
+        for (qsizetype k = 0; k < cf.items.size(); ++k) {
+            const PivotValue &have = cf.items[k];
+            const bool same = have.isNumeric() && want.isNumeric() ? have.number == want.number
+                              : have.kind == want.kind && (have.kind == PivotValue::Missing || have.number == want.number) && (have.kind != PivotValue::Text || have.text.compare(want.text, Qt::CaseInsensitive) == 0);
+            tst.matches[size_t(k)] = same;
+        }
+        tests.push_back(std::move(tst));
+    }
+    for (qint64 r = 0; r < n; ++r) {
+        bool in = true;
+        for (const Test &tst : tests) {
+            const qint32 x = c.fields[tst.field].records[r];
+            if (tst.shown && !shownItem(*tst.shown, x)) in = false;
+            else if (tst.pageItem != -2 && x != tst.pageItem) in = false;
+            else if (tst.hasMatches && !(x >= 0 && x < qint32(tst.matches.size()) && tst.matches[size_t(x)])) in = false;
+            if (!in) break;
+        }
+        if (in) {
+            if (limit >= 0 && records->size() >= limit) {
+                if (tooMany) *tooMany = true;
+                records->clear();
+                return true;
+            }
+            records->append(r);
+        }
+    }
+    return true;
+}
+
+} // namespace jp::office::sheet

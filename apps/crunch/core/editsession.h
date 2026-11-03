@@ -94,6 +94,7 @@ struct PivotEdit {
     int table = -1;
     std::shared_ptr<const jp::office::sheet::PivotTable> tableBefore, tableAfter;
     bool structureBefore = false, structureAfter = false;
+    bool formatCodes = false;   // the table's values have number formats given by code: their ids are made when the step is first done
     int cache = -1;   // -1: the cache stays as it is
     std::shared_ptr<const jp::office::sheet::PivotCache> cacheBefore, cacheAfter;
     jp::office::sheet::CellRange sourceBefore, sourceAfter;
@@ -364,6 +365,21 @@ public:
     // when `sheet` is -1 (the sheet is made first: a step of Undo of its own). The cells the empty table covers must be empty. `*made` is the new table's place.
     Outcome createPivot(const QString &source, int sheet, quint32 row, quint32 col, int *made = nullptr);
     Outcome refreshAllPivots();
+    // The pivot tables whose cache says to refresh when the file opens are refreshed, as one step (nothing is done when there are none, or when the calculation has not finished).
+    Outcome refreshPivotsOnOpen();
+    // The most cells of source data that are read again when a file opens, all the tables together (0: the usual); for tests.
+    static void setRefreshOnOpenLimit(qint64 cells);
+    // Groups the dates (by the parts in `levels`: seconds, minutes, hours, days, months, quarters, years) or the numbers (no levels: from `start` to `end` in steps of `step`) of a field the table
+    // has on an axis; a field is added for each coarser part of a date. Ungroup takes the grouping of the field away, and the fields that were added for it.
+    Outcome groupPivotField(int table, int field, const QStringList &levels, double start, double end, double step, bool autoStart, bool autoEnd);
+    Outcome ungroupPivotField(int table, int field);
+    // The rows behind a value of a pivot table (the cell at `row`, `col` of `sheet`), put on a new sheet with the names of the fields above them: one step of Undo for the sheet, one for the rows.
+    // `made` is the sheet's place. A cell that is no value, or a table that can't be read, is refused.
+    Outcome showPivotDetail(int sheet, quint32 row, quint32 col, int *made = nullptr);
+    // Whether the cell is a value of a pivot table (a double click on it shows its rows instead of editing it).
+    bool isPivotValue(int sheet, quint32 row, quint32 col) const;
+    // Whether the table's data is read again when the file opens (the cache's mark).
+    Outcome setPivotRefreshOnOpen(int table, bool on);
     // Makes the table from other cells ("Sheet1!A1:D100", "A1:D100" on the same sheet as the source now is, a table's name, or a defined name), then reads them.
     Outcome changePivotSource(int table, const QString &where);
     // Puts the table's layout, fields, and options as `changed` has them (a copy of the table with its fields moved, its totals switched, a filter set): the cells are worked out again.
