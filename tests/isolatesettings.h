@@ -59,16 +59,16 @@ inline bool settingsStayInTheRunsFolder()
 {
     const QString key = QStringLiteral("jptest/probe-%1-%2").arg(QCoreApplication::applicationPid()).arg(QDateTime::currentMSecsSinceEpoch());
     {
-        QSettings app(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite"));
+        QSettings app(QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite"));   // (as the apps make theirs)
         app.setValue(key, 1);
         app.sync();
     }
-    const QString written = QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite")).fileName();
+    const QString written = QSettings(QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite")).fileName();
     const QByteArray name = key.mid(QStringLiteral("jptest/").size()).toUtf8();
     const bool kept = QFileInfo(written).absolutePath().startsWith(QDir::tempPath() + QLatin1Char('/')) && folderHolds(QFileInfo(written).absolutePath(), name);
     const bool leaked = folderHolds(realSettingsFolder(), name);
     {
-        QSettings app(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite"));
+        QSettings app(QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite"));   // (as the apps make theirs)
         app.remove(key);
     }
     return kept && !leaked;
