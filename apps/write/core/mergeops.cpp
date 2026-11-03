@@ -823,9 +823,36 @@ QStringList missingColumns(WriteDoc &doc, const MergeSource &data)
     return missing;
 }
 
-int writeEmailFiles(const QStringList &texts, const MergeSource &data, const QVector<int> &rows, const QString &addressColumn, const QString &subject, const QString &folder, QString *error)
+namespace {
+
+// A header's text as RFC 2047 encoded words of at most 75 characters each (45 bytes of text, whole characters; the first 36, for the room the header's name takes in a line of 76), one to a line,
+// the lines after the first folded with a space.
+QByteArray encodedWords(const QString &text)
+{
+    QList<QByteArray> words;
+    QByteArray chunk;
+    for (int i = 0; i < text.size();) {
+        const int length = text[i].isHighSurrogate() && i + 1 < text.size() ? 2 : 1;
+        const QByteArray bytes = text.mid(i, length).toUtf8();
+        if (chunk.size() + bytes.size() > (words.isEmpty() ? 36 : 45)) {
+            words << chunk;
+            chunk.clear();
+        }
+        chunk += bytes;
+        i += length;
+    }
+    if (!chunk.isEmpty() || words.isEmpty()) words << chunk;
+    QByteArray out;
+    for (int i = 0; i < words.size(); ++i) out += (i ? "\r\n " : "") + QByteArray("=?UTF-8?B?") + words[i].toBase64() + "?=";
+    return out;
+}
+
+} // namespace
+
+int writeEmailFiles(const QStringList &texts, const MergeSource &data, const QVector<int> &rows, const QString &addressColumn, const QString &subject, const QString &folder, QString *error, int *refused)
 {
     int written = 0;
+    if (refused) *refused = 0;
     QDir dir(folder);
     if (!dir.exists() && !QDir().mkpath(folder)) {
         if (error) *error = QCoreApplication::translate("jp::write::Mail", "The folder can't be made.");
@@ -834,7 +861,14 @@ int writeEmailFiles(const QStringList &texts, const MergeSource &data, const QVe
     for (int i = 0; i < texts.size(); ++i) {
         const int row = rows.value(i, -1);
         const QString to = row >= 0 ? data.value(row, addressColumn).trimmed() : QString();
-        if (to.isEmpty() || to.contains(QLatin1Char('\n')) || to.contains(QLatin1Char('\r'))) continue;   // (a record with no address has no message; a line break would add a header)
+        if (to.isEmpty()) continue;   // (a record with no address has no message)
+        // One person's address (letters, digits, and marks of any language), as RFC 5322 has it without a display name or comments: a comma, a semicolon, a line break, or a name in angle brackets would
+        // make the message go to others or add a header.
+        static const QRegularExpression one(QStringLiteral("^[^\\s@,;<>()\\[\\]\\\\\":]+@([\\p{L}\\p{N}\\p{M}-]+\\.)+[\\p{L}\\p{N}\\p{M}-]{2,}$"));
+        if (!one.match(to).hasMatch()) {
+            if (refused) ++*refused;
+            continue;
+        }
         QString name = to;
         name.replace(QRegularExpression(QStringLiteral("[^A-Za-z0-9@._-]")), QStringLiteral("_"));
         QString subj = subject;
@@ -842,7 +876,7 @@ int writeEmailFiles(const QStringList &texts, const MergeSource &data, const QVe
         QByteArray body = texts[i].toUtf8().toBase64(QByteArray::Base64Encoding);
         QByteArray wrapped;
         for (int k = 0; k < body.size(); k += 76) wrapped += body.mid(k, 76) + "\r\n";
-        QByteArray head = "To: " + to.toUtf8() + "\r\nSubject: =?UTF-8?B?" + subj.toUtf8().toBase64() + "?=\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n";
+        QByteArray head = "To: " + to.toUtf8() + "\r\nSubject: " + encodedWords(subj) + "\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n";
         QSaveFile f(dir.filePath(QStringLiteral("%1-%2.eml").arg(row + 1, 5, 10, QLatin1Char('0')).arg(name.left(80))));
         if (!f.open(QIODevice::WriteOnly)) {
             if (error) *error = f.errorString();

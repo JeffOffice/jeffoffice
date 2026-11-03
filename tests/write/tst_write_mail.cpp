@@ -837,6 +837,63 @@ private Q_SLOTS:
         }
     }
 
+    void anEmailAddressIsOnePersonsOrTheRecordIsLeftOut()
+    {
+        MergeSource m;
+        m.fields = {"Email"};
+        const QStringList addresses = {"a@example.com, b@example.com", "c@example.com;d@example.com", "Name <e@example.com>", "no-at-sign", "f@example.com", "g\u00E9@example.com", "h@exam ple.com", "@example.com", "i@example"};
+        for (const QString &a : addresses) m.rows << QStringList{a};
+        m.include = QVector<bool>(m.rows.size(), true);
+        QStringList texts;
+        QVector<int> rows;
+        for (int i = 0; i < m.rows.size(); ++i) {
+            texts << QStringLiteral("t");
+            rows << i;
+        }
+        QTemporaryDir dir;
+        int refused = 0;
+        QString error;
+        const int written = mail::writeEmailFiles(texts, m, rows, QStringLiteral("Email"), QStringLiteral("s"), dir.path(), &error, &refused);
+        QCOMPARE(written, 2);   // (f@example.com, and the one with a letter past ASCII, which is a valid address)
+        QCOMPARE(refused, 7);
+        const QStringList files = QDir(dir.path()).entryList(QDir::Files, QDir::Name);
+        QCOMPARE(files.size(), 2);
+        QVERIFY(files[0].startsWith(QStringLiteral("00005-f")));
+        QVERIFY(files[1].startsWith(QStringLiteral("00006-")));
+    }
+
+    void aLongSubjectIsSplitIntoEncodedWordsOfAtMost75Characters()
+    {
+        MergeSource m;
+        m.fields = {"Email"};
+        m.rows << QStringList{"a@example.com"};
+        m.include = {true};
+        QString subject;
+        for (int i = 0; i < 40; ++i) subject += QStringLiteral("Caf\u00E9 caf\u00E9 \u00FCber ");
+        QTemporaryDir dir;
+        QCOMPARE(mail::writeEmailFiles({QStringLiteral("t")}, m, {0}, QStringLiteral("Email"), subject, dir.path()), 1);
+        QFile f(dir.filePath(QDir(dir.path()).entryList(QDir::Files).first()));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray eml = f.readAll();
+        const QByteArray head = eml.left(eml.indexOf("\r\n\r\n"));
+        QByteArray decoded;
+        int words = 0;
+        for (const QByteArray &line : head.split('\n')) {
+            QByteArray l = line;
+            if (l.endsWith('\r')) l.chop(1);
+            QVERIFY2(l.size() <= 76, l.constData());
+            if (!l.startsWith("Subject:") && !l.startsWith(' ')) continue;
+            for (const QByteArray &word : l.mid(l.startsWith(' ') ? 1 : 9).split(' ')) {
+                if (word.isEmpty()) continue;
+                QVERIFY2(word.size() <= 75 && word.startsWith("=?UTF-8?B?") && word.endsWith("?="), word.constData());
+                decoded += QByteArray::fromBase64(word.mid(10, word.size() - 12));
+                ++words;
+            }
+        }
+        QVERIFY(words > 3);
+        QCOMPARE(QString::fromUtf8(decoded), subject);   // (no character is cut in two)
+    }
+
     void aMessageIsAddressedToTheRecipientItWasMadeFrom()
     {
         // The first record is skipped: the texts are Bo's and Cy's, and the files go to Bo and Cy.

@@ -681,9 +681,11 @@ struct MailUi {
         endMerge();
         if (m_cancelled) return;
         QApplication::setOverrideCursor(Qt::WaitCursor);
-        const int written = error.isEmpty() ? write::mail::writeEmailFiles(texts, s.data, sourceRows, column, subject, folder, &error) : 0;
+        int refused = 0;
+        const int written = error.isEmpty() ? write::mail::writeEmailFiles(texts, s.data, sourceRows, column, subject, folder, &error, &refused) : 0;
         QApplication::restoreOverrideCursor();
         if (!error.isEmpty()) w->notice(QCoreApplication::translate("jp::WriteMail", "Mail Merge"), error, true);
+        else if (refused > 0) w->notice(QCoreApplication::translate("jp::WriteMail", "Mail Merge"), QCoreApplication::translate("jp::WriteMail", "%1 message files are saved in %2.\n%3 recipients have no message, because their address is not the address of one person.").arg(written).arg(folder).arg(refused));
         else message(QCoreApplication::translate("jp::WriteMail", "%1 message files are saved in %2.").arg(written).arg(folder));
     }
 

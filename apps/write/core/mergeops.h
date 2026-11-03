@@ -127,7 +127,7 @@ bool addAsFirstSection(WriteDoc &doc, WriteDoc &page);
 QStringList missingColumns(WriteDoc &doc, const MergeSource &data);
 
 // An email message for each record as a .eml file in `folder` (named by the record's number and its address): the merged text as the message, `subject` as its subject, from the column `addressColumn`.
-// Returns how many were written; the reason in `error` if it stops.
-int writeEmailFiles(const QStringList &texts, const MergeSource &data, const QVector<int> &rows, const QString &addressColumn, const QString &subject, const QString &folder, QString *error = nullptr);
+// Returns how many were written; the reason in `error` if it stops. A record whose address is not one person's (several, a name with it, a line break, no domain) has no message, and is counted in `refused`.
+int writeEmailFiles(const QStringList &texts, const MergeSource &data, const QVector<int> &rows, const QString &addressColumn, const QString &subject, const QString &folder, QString *error = nullptr, int *refused = nullptr);
 
 } // namespace jp::write::mail
