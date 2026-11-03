@@ -13,6 +13,7 @@
 #include "io/zip.h"
 #include "office/package.h"
 #include "savedok.h"
+#include "sheet/oldsave.h"
 #include "sheet/pivot.h"
 #include "sheet/sheetreader.h"
 
@@ -22,8 +23,10 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QElapsedTimer>
+#include <QImage>
 #include <QListWidget>
 #include <QRegularExpression>
+#include <QSet>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -827,6 +830,88 @@ private Q_SLOTS:
         QCOMPARE(pivotShown(e, QStringLiteral("E3:F7")), QStringLiteral("Sum of Amount|\nRegion|Total\nEast|35\nWest|14\nGrand Total|49"));
     }
 
+    // Changes waiting for Update belong to the table they were made on: another table picked meanwhile is not written over, and the waiting changes are dropped.
+    void deferredChangesAreNotWrittenOverAnotherTable()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(true)));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.fieldList"))->trigger();
+        PivotFieldsPane *pane = e.win.w.pivotPane();
+        QVERIFY(pane);
+        pane->setDeferred(true);
+        QVERIFY(pane->select(1, 0));
+        pane->moveSelected(0);   // Month to the filters of the first table, waiting
+        QVERIFY(pane->hasPending());
+        const int steps = s->undoStack()->count();
+        e.select(QStringLiteral("L5"));   // the second table
+        finish(e);
+        QVERIFY(!pane->hasPending());
+        pane->applyDeferred();
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps);
+        QCOMPARE(pivotShown(e, QStringLiteral("K3:N7")), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+        QCOMPARE(pivotShown(e, QStringLiteral("E3:H7")), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+    }
+
+    // A table whose data says to be read again when the file opens is read again once, as one step, after the first screen; the tables of a file are held to a total of cells, and the rest
+    // wait for Refresh, with a note.
+    void tablesAreReadAgainOnOpenWithinABound()
+    {
+        PivotBookOptions o;
+        o.tweak = [](Parts &p) {
+            const QString def = QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml");
+            p[def].replace("<pivotCacheDefinition ", "<pivotCacheDefinition refreshOnLoad=\"1\" ");
+        };
+        {
+            EditWindow e;
+            QVERIFY(e.open(pivotWorkbook(o)));
+            QTRY_COMPARE(e.win.w.session()->undoStack()->count(), 1);
+        }
+        crunch::EditSession::setRefreshOnOpenLimit(1);
+        const struct Reset { ~Reset() { crunch::EditSession::setRefreshOnOpenLimit(0); } } reset;
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(o)));
+        QVERIFY(e.settle());
+        QTest::qWait(50);
+        QCOMPARE(e.win.w.session()->undoStack()->count(), 0);
+        QVERIFY2(e.win.w.statusText().contains(QStringLiteral("not read again")), qPrintable(e.win.w.statusText()));
+    }
+
+    // Value Field Settings in a workbook with no cell formats says that a number format can't be kept, instead of dropping it without a word.
+    void aNumberFormatThatCantBeKeptIsSaid()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        QStringList said;
+        e.win.w.setNotifier([&](const QString &, const QString &text) { said << text; });
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.fieldList"))->trigger();
+        e.win.w.setValueSettingsAsker([](ValueFieldSettings *v) {
+            v->numFmtCode = QStringLiteral("0.0%");
+            return true;
+        });
+        Q_EMIT e.win.w.pivotPane()->valueSettingsRequested(0);
+        finish(e);
+        QCOMPARE(said.size(), 1);
+        QVERIFY2(said[0].contains(QStringLiteral("no cell formats")), qPrintable(said[0]));
+    }
+
+    // A pivot table made in this session has no part in the file yet: a copy in the older form still says it can't hold it.
+    void aNewPivotTableIsListedAsNotInACopy()
+    {
+        const QString rows = row(1, text(QStringLiteral("A1"), QStringLiteral("Region")) + text(QStringLiteral("B1"), QStringLiteral("Amount")))
+                             + row(2, text(QStringLiteral("A2"), QStringLiteral("East")) + num(QStringLiteral("B2"), 10)) + row(3, text(QStringLiteral("A3"), QStringLiteral("West")) + num(QStringLiteral("B3"), 5));
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(!jp::office::sheet::featuresNotInCopy(*s->workbook(), jp::office::sheet::CopyKind::Ods).join(QLatin1Char('|')).contains(QStringLiteral("pivot tables")));
+        QVERIFY(s->createPivot(QStringLiteral("Sheet1!A1:B3"), 0, 0, 4).ok);
+        QVERIFY(jp::office::sheet::featuresNotInCopy(*s->workbook(), jp::office::sheet::CopyKind::Ods).join(QLatin1Char('|')).contains(QStringLiteral("pivot tables")));
+        QVERIFY(jp::office::sheet::featuresNotInCopy(*s->workbook(), jp::office::sheet::CopyKind::Xls).join(QLatin1Char('|')).contains(QStringLiteral("pivot tables")));
+    }
+
     // Insert > Pivot Chart: a chart of the table's values without its grand totals, marked as the table's chart (the saved chart has the table's name); one step of Undo.
     void aPivotChartIsMadeFromATable()
     {
@@ -890,7 +975,14 @@ private Q_SLOTS:
         finish(e);
         e.win.w.act(QStringLiteral("insert.pivotChart"))->trigger();
         finish(e);
-        QTest::qWait(400);   // (a picture only: the chart is drawn when the event loop gets to it)
+        // (the chart is drawn when the event loop gets to it: the picture waits until the chart's place on the sheet has more than the sheet's white and its lines)
+        QTRY_VERIFY([&] {
+            QSet<QRgb> colors;
+            const QImage shot = e.win.w.grab().toImage().copy(QRect(180, 380, 440, 250));
+            for (int y = 0; y < shot.height(); y += 3)
+                for (int x = 0; x < shot.width(); x += 3) colors.insert(shot.pixel(x, y));
+            return colors.size() > 8;
+        }());
         QCoreApplication::processEvents();
         e.win.w.grab().save(dir + QStringLiteral("/pivot-percent-and-chart.png"));
         // the dialogs

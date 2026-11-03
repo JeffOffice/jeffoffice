@@ -37,7 +37,7 @@ int leapDay(int month, int day)
 
 } // namespace
 
-bool pivotGroupItems(const QVector<PivotValue> &items, PivotFieldGroup *g, jp::calc::DateSystem dates, QVector<qint32> *map, QString *why)
+bool pivotGroupItems(const QVector<PivotValue> &items, PivotFieldGroup *g, jp::calc::DateSystem dates, QVector<qint32> *map, QString *why, qint64 budget)
 {
     auto fail = [&](const QString &m) {
         if (why) *why = m;
@@ -69,7 +69,7 @@ bool pivotGroupItems(const QVector<PivotValue> &items, PivotFieldGroup *g, jp::c
     if (!dateParts) {
         if (!(g->interval > 0)) return fail(QStringLiteral("the step must be more than zero"));
         const double bins = std::ceil((g->end - g->start) / g->interval - 1e-9);
-        if (bins > 100000) return fail(QStringLiteral("too many groups"));
+        if (bins > 100000 || qint64(bins) + 2 > budget) return fail(QStringLiteral("too many groups"));
         n = std::max(1, int(bins));
         const bool whole = g->start == std::floor(g->start) && g->interval == std::floor(g->interval);
         for (int k = 0; k < n; ++k) {
@@ -79,7 +79,7 @@ bool pivotGroupItems(const QVector<PivotValue> &items, PivotFieldGroup *g, jp::c
     } else if (g->groupBy == QLatin1String("years")) {
         int y0 = 0, y1 = 0, m = 0, d = 0;
         if (!jp::calc::serialToDate(std::floor(g->start), dates, &y0, &m, &d) || !jp::calc::serialToDate(std::floor(g->end), dates, &y1, &m, &d)) return fail(QStringLiteral("a value is not a date"));
-        if (y1 - y0 > 10000) return fail(QStringLiteral("too many groups"));
+        if (y1 - y0 > 10000 || y1 - y0 + 3 > budget) return fail(QStringLiteral("too many groups"));
         firstYear = y0;
         for (int y = y0; y <= y1; ++y) labels << QString::number(y);
         n = y1 - y0 + 1;
@@ -102,6 +102,7 @@ bool pivotGroupItems(const QVector<PivotValue> &items, PivotFieldGroup *g, jp::c
         n = 60;
     }
     labels << QLatin1Char('>') + (dateParts ? dateText(g->end, dates) : QString::number(g->end, 'g', 15));
+    if (labels.size() > budget) return fail(QStringLiteral("too many groups"));
     g->labels = labels;
     if (!map) return true;
     map->assign(items.size(), -1);
@@ -157,6 +158,16 @@ bool pivotApplyGroup(PivotCache *cache, int field, jp::calc::DateSystem dates, Q
     }
     const QVector<PivotValue> &rawItems = bf.hasRaw ? bf.rawItems : bf.items;
     const QVector<qint32> &rawRecords = bf.hasRaw ? bf.rawRecords : bf.records;
+    // the cache as a whole is held to the bounds of one that is read: the places of all its records, and all its items and group labels (a field's own are not counted against it)
+    qint64 usedItems = 0, usedRecords = 0;
+    for (int k = 0; k < cache->fields.size(); ++k) {
+        if (k == field) continue;
+        const PivotCacheField &o = cache->fields[k];
+        usedItems += o.items.size() + o.rawItems.size();
+        usedRecords += o.records.size() + o.rawRecords.size();
+    }
+    if (usedRecords + rawRecords.size() * (b == field ? 2 : 1) > kPivotMaxRecordCells) return fail(QStringLiteral("too many records"));
+    const qint64 itemBudget = kPivotMaxItemsPerTable - usedItems;
     QVector<qint32> map;
     if (f.group.kind == PivotFieldGroup::Discrete) {
         map = f.group.discrete;
@@ -168,13 +179,13 @@ bool pivotApplyGroup(PivotCache *cache, int field, jp::calc::DateSystem dates, Q
         const QStringList wasLabels = f.group.labels;
         const double fileStart = f.group.start, fileEnd = f.group.end;
         const bool autoStart = f.group.autoStart, autoEnd = f.group.autoEnd;
-        if (!pivotGroupItems(rawItems, &f.group, dates, &map, &problem)) return fail(problem);
+        if (!pivotGroupItems(rawItems, &f.group, dates, &map, &problem, itemBudget)) return fail(problem);
         if (!wasLabels.isEmpty() && wasLabels.size() != f.group.labels.size()) {
             // (the bounds the file gives, when the data's own do not make as many groups as it has)
             f.group.start = fileStart;
             f.group.end = fileEnd;
             f.group.autoStart = f.group.autoEnd = false;
-            if (!pivotGroupItems(rawItems, &f.group, dates, &map, &problem)) return fail(problem);
+            if (!pivotGroupItems(rawItems, &f.group, dates, &map, &problem, itemBudget)) return fail(problem);
             f.group.autoStart = autoStart;
             f.group.autoEnd = autoEnd;
         }
@@ -214,8 +225,8 @@ bool pivotGroupField(PivotCache *cache, int field, const QStringList &levels, do
     if (f.group.kind != PivotFieldGroup::None) return fail(QStringLiteral("the field is already grouped"));
     for (const PivotCacheField &o : cache->fields)
         if (o.group.kind != PivotFieldGroup::None && o.group.base == field) return fail(QStringLiteral("the field is already grouped"));
-    const PivotCache saved = *cache;
-    auto undo = [&] { *cache = saved; };
+    // (a failure leaves the cache part made: the caller works on a copy it can let go, so none is made here for it)
+    auto undo = [] {};
     bool dateKind = false;
     for (const PivotValue &v : f.items) dateKind = dateKind || v.kind == PivotValue::Date;
     if (levels.isEmpty()) {

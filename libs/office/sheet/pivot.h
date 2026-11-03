@@ -223,7 +223,8 @@ bool readPivotTableLocation(const QByteArray &xml, QString *ref);
 // ---- grouping
 // The group items (their labels) a grouping of a field's values makes, with the place of each of the field's items among them (`map`: -1 for a value that can't be grouped). Dates group by their
 // parts (`groupBy`), numbers in steps; `group.start` and `group.end` are worked out from the items when they are automatic. False, with `why`, for what can't be grouped (text, blanks, errors).
-bool pivotGroupItems(const QVector<PivotValue> &items, PivotFieldGroup *group, jp::calc::DateSystem dates, QVector<qint32> *map, QString *why);
+// `budget` is the most labels it may make (the cache's share: all the items of all its fields together are held to kPivotMaxItemsPerTable).
+bool pivotGroupItems(const QVector<PivotValue> &items, PivotFieldGroup *group, jp::calc::DateSystem dates, QVector<qint32> *map, QString *why, qint64 budget = kPivotMaxItemsPerTable);
 // Makes a cache field's items and records the groups it has (the field's own are kept in `raw...`): the cache as it is read has this done to it. False, with `why`, when a group can't be worked out.
 bool pivotApplyGroup(PivotCache *cache, int field, jp::calc::DateSystem dates, QString *why);
 // Groups a field of a cache as a person asks: dates by the parts in `levels` (the finest last, as the original program makes them: a field for each coarser level is added at the end of the cache),
@@ -270,7 +271,8 @@ bool pivotGetDataArguments(const PivotTable &table, const PivotCache &cache, con
 // ---- the rows behind a value
 // The records of the cache (their places) that make up the cell of the grid at (gridRow, gridCol) (counted from the table's first cell): those that are on the lines and columns the cell is
 // in, among the items the table shows (an item left out by a filter or hidden has no records here). False for a cell that is no value.
-bool pivotDetailRecords(const PivotTable &table, const PivotCache &cache, const PivotGrid &grid, int gridRow, int gridCol, QVector<qint64> *records);
+// `limit` (when it is not negative) is the most records wanted: past it the scan stops, `records` is empty, and `tooMany` is set.
+bool pivotDetailRecords(const PivotTable &table, const PivotCache &cache, const PivotGrid &grid, int gridRow, int gridCol, QVector<qint64> *records, qint64 limit = -1, bool *tooMany = nullptr);
 
 // ---- reading the list again from the sheet
 // What a cell of the source holds, by row and column.

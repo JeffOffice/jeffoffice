@@ -234,12 +234,12 @@ bool buildPivotCache(const PivotSource &src, const PivotCache &prev, PivotCache 
         for (int f = 0; f < out->fields.size(); ++f) {
             const int p = out->fromField[f];
             if (p < 0 || prev.fields[p].group.kind == PivotFieldGroup::None) continue;
-            for (int i = 0; i < prev.fields[p].items.size(); ++i)
-                for (int k = 0; k < out->fields[f].items.size(); ++k)
-                    if (out->fields[f].items[k].text == prev.fields[p].items[i].text) {
-                        out->remap[p][i] = k;
-                        break;
-                    }
+            QHash<QString, int> placeOf;   // (the first item of each label)
+            for (int k = int(out->fields[f].items.size()) - 1; k >= 0; --k) placeOf.insert(out->fields[f].items[k].text, k);
+            for (int i = 0; i < prev.fields[p].items.size(); ++i) {
+                const auto at = placeOf.constFind(prev.fields[p].items[i].text);
+                if (at != placeOf.constEnd()) out->remap[p][i] = at.value();
+            }
         }
     }
     pivotKeepNumericFlags(out);
@@ -312,6 +312,7 @@ void matchPivotItems(PivotTable *t, const PivotCache &prev, const PivotCache &fr
         if (of.sortType == QLatin1String("ascending") || of.sortType == QLatin1String("descending")) {
             const bool desc = of.sortType == QLatin1String("descending");
             std::stable_sort(items.begin(), items.end(), [&](const PivotTableItem &a, const PivotTableItem &b) {
+                if (cf.group.kind != PivotFieldGroup::None) return desc ? b.x < a.x : a.x < b.x;
                 const PivotValue &va = cf.items[a.x], &vb = cf.items[b.x];
                 return desc ? pivotValueLess(vb, va) : pivotValueLess(va, vb);
             });
@@ -566,6 +567,7 @@ void pivotSortField(PivotTable *t, const PivotCache &cache, int field, PivotSort
     const bool desc = how == PivotSort::Descending;
     std::stable_sort(data.begin(), data.end(), [&](const PivotTableItem &a, const PivotTableItem &b) {
         if (a.x < 0 || a.x >= cf.items.size() || b.x < 0 || b.x >= cf.items.size()) return a.x < b.x;
+        if (cf.group.kind != PivotFieldGroup::None) return desc ? b.x < a.x : a.x < b.x;   // (the groups of a field are in the order of the grouping: April is after March, 11-20 after 1-10)
         return desc ? pivotValueLess(cf.items[b.x], cf.items[a.x]) : pivotValueLess(cf.items[a.x], cf.items[b.x]);
     });
     pf.items = data + totals;

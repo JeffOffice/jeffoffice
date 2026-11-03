@@ -191,7 +191,7 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 ## Insert tab
 
 ### Tables
-- [~] **first release** pivot tables and PivotCharts in a workbook are shown as saved (the numbers in the cells, the field list, the filters) and kept whole, with the data behind them (the pivot cache), written back as they were *(pivot tables: ours 0%, public <1%, Enron 2% (250 workbooks), POI 2%, LibreOffice 19%)* *(the numbers show, and the table, its cache definition, and its records are written back to the byte (tested) when nothing about the table is changed; done November 2, 2026: the pivot table tab and a field list pane work on a table (see Pivot Table tab and Design tabs); a pivot chart, a slicer, a timeline, and a filter pane for the items of a field are shown and kept as saved)*
+- [~] **first release** pivot tables and pivot charts in a workbook are shown as saved (the numbers in the cells, the field list, the filters) and kept whole, with the data behind them (the pivot cache), written back as they were *(pivot tables: ours 0%, public <1%, Enron 2% (250 workbooks), POI 2%, LibreOffice 19%)* *(the numbers show, and the table, its cache definition, and its records are written back to the byte (tested) when nothing about the table is changed; done November 2, 2026: the pivot table tab and a field list pane work on a table (see Pivot Table tab and Design tabs); a pivot chart, a slicer, a timeline, and a filter pane for the items of a field are shown and kept as saved)*
 - [~] **1.0** pivot table: insert from a range, a table, or another workbook's range, onto a new sheet or an existing one, with the field list (see Pivot Table tab) *(done November 2, 2026: Insert > Pivot Table asks for the cells or the table the data is in and for a new sheet or a cell, makes the table with its cache as the original program does (empty layout, compact form), shows the Pivot Table Fields pane, and saves it as pivot parts of an .xlsx; one step of Undo for the table (a new sheet is a step of its own). Not done: the data of another workbook; a copy as .xls or .ods keeps what the table shows in the cells, not the table)*
 - [ ] **1.0** Recommended pivot tables: a few ready layouts picked from the data's shape (counts, sums by a text column, sums by a date column)
 - [x] **1.0** Table (Ctrl+T or Ctrl+L): turn a range into a table with a header row, a name, calculated columns that fill themselves, structured references in formulas (`Sales[Amount]`), a totals row, and automatic growth when you type below it *(tables: ours 1%, public 0%, POI 11%, LibreOffice 8%)* *(done October 25, 2026: Insert > Table (Ctrl+T, Ctrl+L), a name that is unique, calculated columns, structured references in formulas (typed, offered after "[", and written by a click on a cell while a formula is typed), a totals row with a function for each column, and growth by typing under or beside it; one step of Undo each, and saved as the table's part)*
@@ -213,7 +213,7 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 - [ ] **1.0** Recommended Charts: a few charts picked for the selected data
 - [ ] **later** The charts added in 2016, each kept as saved and drawn from stored values first: treemap, sunburst, histogram, box and whisker, waterfall, funnel, and Pareto *(charts of the newer parts: ours 0%, public 0%, POI 0%)*
 - [ ] **later** **(alt)** Map charts (filled maps by country, state, or postal code): not offered with Bing's maps; an open-map version comes later, and 3-D Maps (Power Map) is left out
-- [~] **1.0** PivotChart: a chart that follows a pivot table (see Pivot Table tab), with field buttons and filters *(done November 3, 2026: Insert > Pivot Chart makes a column chart of the table's values, without the grand totals, as one step of Undo; the chart reads the table's cells, so its numbers follow a refresh, and it is written with the table's name (the chart's `c:pivotSource`, which the chart model now reads and writes); not done: the chart keeping up with a table that gains or loses rows or columns, field buttons, filters on the chart, and the Analyze tab)*
+- [~] **1.0** Pivot chart: a chart that follows a pivot table (see Pivot Table tab), with field buttons and filters *(done November 3, 2026: Insert > Pivot Chart makes a column chart of the table's values, without the grand totals, as one step of Undo; the chart reads the table's cells, so its numbers follow a refresh, and it is written with the table's name (the chart's `c:pivotSource`, which the chart model now reads and writes); not done: the chart keeping up with a table that gains or loses rows or columns, field buttons, filters on the chart, and the Analyze tab)*
 
 ### Sparklines
 - [ ] **1.0** Sparklines (a tiny chart inside one cell): Line, Column, and Win/Loss, made from a row or column of values into one cell or a group of cells, shown as saved in first release *(sparklines: ours 0%, public 0%, POI <1%, LibreOffice <1%; a 2010 feature)*
@@ -426,10 +426,10 @@ A pivot table is a report that groups and totals a list for you: put a list of s
 - [ ] **1.0** Slicers and timelines connected to a pivot table; Filter Connections (see Slicer and Timeline)
 - [ ] **later** Pivot tables over the data model (several related tables), measures in DAX, named sets, and OLAP cubes: kept as saved, not built *(data model: ours 0%, public 0%)*
 
-### PivotChart tabs (while a pivot chart is selected)
+### Pivot chart tabs (while a pivot chart is selected)
 
-- [ ] **1.0** PivotChart Analyze: show or hide field buttons (axis, legend, report filter, value), expand and collapse buttons, and the field list, plus the pivot table's refresh, change source, and clear commands; the PivotChart changes with its pivot table, and its formatting stays after a refresh
-- [ ] **1.0** PivotChart tab and Format: the same as the Chart tab and Chart Format (below)
+- [ ] **1.0** Pivot chart Analyze: show or hide field buttons (axis, legend, report filter, value), expand and collapse buttons, and the field list, plus the pivot table's refresh, change source, and clear commands; the pivot chart changes with its pivot table, and its formatting stays after a refresh
+- [ ] **1.0** Pivot chart tab and Format: the same as the Chart tab and Chart Format (below)
 
 ### Chart and Chart Format tabs (while a chart is selected)
 

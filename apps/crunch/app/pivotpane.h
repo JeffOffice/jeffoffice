@@ -23,7 +23,7 @@ class PivotFieldsPane : public QWidget {
 public:
     explicit PivotFieldsPane(QWidget *parent = nullptr);
     // Shows a table: its name, the names of its fields (the cache's, or the table's own), whether each field holds numbers, and the table's layout.
-    void showTable(const QString &name, const jp::office::sheet::PivotTable &table, const QStringList &fieldNames, const QVector<bool> &numeric, const QVector<QString> &dataNames = QVector<QString>());
+    void showTable(const QString &name, const jp::office::sheet::PivotTable &table, const QStringList &fieldNames, const QVector<bool> &numeric, const void *identity = nullptr);   // (`identity`: what tells this version of the table from another)
     void showNothing();
     // What a click on the pane does, for the tests and for a keyboard: the same as the controls.
     void checkField(int field, bool on);
@@ -76,6 +76,8 @@ private:
     QToolButton *m_update = nullptr;
     bool m_pending = false;   // Defer Layout Update: changes are kept here until Update
     QString m_pendingText;
+    QString m_shownName, m_pendingName;   // the table shown, and the one the waiting changes were made on
+    quintptr m_shownStamp = 0, m_pendingStamp = 0;
 };
 
 // What Group Field asks: the parts of a date to group by (seconds, minutes, hours, days, months, quarters, years), or for numbers (no parts) where to start and end and the width of a group.

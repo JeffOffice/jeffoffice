@@ -367,6 +367,8 @@ public:
     Outcome refreshAllPivots();
     // The pivot tables whose cache says to refresh when the file opens are refreshed, as one step (nothing is done when there are none, or when the calculation has not finished).
     Outcome refreshPivotsOnOpen();
+    // The most cells of source data that are read again when a file opens, all the tables together (0: the usual); for tests.
+    static void setRefreshOnOpenLimit(qint64 cells);
     // Groups the dates (by the parts in `levels`: seconds, minutes, hours, days, months, quarters, years) or the numbers (no levels: from `start` to `end` in steps of `step`) of a field the table
     // has on an axis; a field is added for each coarser part of a date. Ungroup takes the grouping of the field away, and the fields that were added for it.
     Outcome groupPivotField(int table, int field, const QStringList &levels, double start, double end, double step, bool autoStart, bool autoEnd);

@@ -172,9 +172,17 @@ void PivotFieldsPane::showNothing()
     m_filling = false;
 }
 
-void PivotFieldsPane::showTable(const QString &name, const PivotTable &table, const QStringList &fieldNames, const QVector<bool> &numeric, const QVector<QString> &)
+void PivotFieldsPane::showTable(const QString &name, const PivotTable &table, const QStringList &fieldNames, const QVector<bool> &numeric, const void *identity)
 {
-    if (m_pending) return;   // (changes waiting for Update are not thrown away by the table being shown again)
+    // (changes waiting for Update are not thrown away by the same table being shown again; a different table, or the same one changed by something else, drops them)
+    const quintptr stamp = quintptr(identity);
+    if (m_pending) {
+        if (name == m_pendingName && stamp == m_pendingStamp) return;
+        m_pending = false;
+        if (m_update) m_update->setEnabled(false);
+    }
+    m_shownName = name;
+    m_shownStamp = stamp;
     m_table = table;
     m_names = fieldNames;
     m_numeric = numeric;
@@ -255,6 +263,8 @@ void PivotFieldsPane::changed(const PivotTable &table, const QString &text)
         // (Defer Layout Update: the change is kept, and shown in the boxes, until Update)
         m_table = table;
         m_pending = true;
+        m_pendingName = m_shownName;
+        m_pendingStamp = m_shownStamp;
         m_pendingText = text;
         m_update->setEnabled(true);
         fillBoxes();

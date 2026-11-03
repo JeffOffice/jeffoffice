@@ -16,6 +16,8 @@
 #include "core/appinfo.h"
 #include "core/threadtime.h"
 
+#include <QPointer>
+#include <QTimer>
 #include <QApplication>
 #include <QAbstractButton>
 #include <QFileInfo>
@@ -467,10 +469,14 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
             m_longestBatchMicros = std::max(m_longestBatchMicros, jp::threadCpuMicros() - cpu0);
             Q_EMIT calculationFinished();
             if (m_refreshOnOpenPending && m_session) {
-                // (a table whose data says to be read again when the file opens is: one step, which the person can undo)
+                // (a table whose data says to be read again when the file opens is: one step, which the person can undo; it waits for the first screen to be drawn)
                 m_refreshOnOpenPending = false;
-                const auto refreshed = m_session->refreshPivotsOnOpen();
-                if (!refreshed.ok && !refreshed.problem.isEmpty()) setStatus(refreshed.problem.section(QLatin1Char('\n'), 0, 0));
+                QPointer<CrunchWindow> self(this);
+                QTimer::singleShot(0, this, [self] {
+                    if (!self || !self->m_session) return;
+                    const auto refreshed = self->m_session->refreshPivotsOnOpen();
+                    if (!refreshed.problem.isEmpty()) self->setStatus(refreshed.problem.section(QLatin1Char('\n'), 0, 0));
+                });
             }
             if (!m_saveAfterCalculation.isNull()) {
                 const QString path = m_saveAfterCalculation;

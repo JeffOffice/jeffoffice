@@ -151,8 +151,9 @@ void sharedAttributes(const QVector<PivotValue> &items, bool hasShared, int shar
         attrs->append({QStringLiteral("maxValue"), num(hi)});
     }
     if (date) {
-        attrs->append({QStringLiteral("minDate"), isoDate(dlo, dates)});
-        attrs->append({QStringLiteral("maxDate"), isoDate(dhi, dates)});
+        // (a date the calendar has no day for would be written as text that is no date: it is left out)
+        if (!isoDate(dlo, dates).isEmpty()) attrs->append({QStringLiteral("minDate"), isoDate(dlo, dates)});
+        if (!isoDate(dhi, dates).isEmpty()) attrs->append({QStringLiteral("maxDate"), isoDate(dhi, dates)});
     }
 }
 
@@ -254,8 +255,9 @@ QByteArray writePivotCacheDefinition(const QByteArray &original, const PivotCach
                 QDomElement rp = doc.createElement(QStringLiteral("rangePr"));
                 if (g.kind == PivotFieldGroup::Dates) {
                     rp.setAttribute(QStringLiteral("groupBy"), g.groupBy);
-                    rp.setAttribute(QStringLiteral("startDate"), isoDate(g.start, dates));
-                    rp.setAttribute(QStringLiteral("endDate"), isoDate(g.end, dates));
+                    // (a bound the calendar has no day for is left out: the attribute is optional, and an empty one is no date)
+                    if (!isoDate(g.start, dates).isEmpty()) rp.setAttribute(QStringLiteral("startDate"), isoDate(g.start, dates));
+                    if (!isoDate(g.end, dates).isEmpty()) rp.setAttribute(QStringLiteral("endDate"), isoDate(g.end, dates));
                 } else {
                     rp.setAttribute(QStringLiteral("startNum"), num(g.start));
                     rp.setAttribute(QStringLiteral("endNum"), num(g.end));

@@ -909,15 +909,26 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
         struct Side {
             std::unordered_map<std::string, int> exact;                 // (the line's kind, its path) to the line
             std::unordered_map<std::string, std::vector<int>> group;    // (the same with the base level left out) to the lines, in order
+            std::vector<const std::vector<int> *> sibsOf;               // for each line, the lines of its group (null for one with none)
+            std::vector<int> placeOf;                                   // for each line, its place among them
         };
         auto sideOf = [&](const Axis &ax, const std::vector<Tuple> &paths, int level) {
             Side sd;
+            std::vector<std::string> groupKey(ax.items.size());
+            sd.placeOf.assign(ax.items.size(), -1);
             for (size_t i = 0; i < ax.items.size(); ++i) {
                 const PivotAxisItem &it = ax.items[i];
                 if (it.t == QLatin1String("grand") || it.t == QLatin1String("blank") || it.labelOnly || int(paths[i].size()) <= level) continue;
                 sd.exact.emplace(keyWith(it, paths[i], level, paths[i][size_t(level)]), int(i));
-                sd.group[keyWith(it, paths[i], level, -3)].push_back(int(i));
+                groupKey[i] = keyWith(it, paths[i], level, -3);
+                std::vector<int> &g = sd.group[groupKey[i]];
+                sd.placeOf[i] = int(g.size());
+                g.push_back(int(i));
             }
+            // (the lists are not moved once made: a pointer to each is kept with the line, for the cells to use)
+            sd.sibsOf.assign(ax.items.size(), nullptr);
+            for (size_t i = 0; i < ax.items.size(); ++i)
+                if (sd.placeOf[i] >= 0) sd.sibsOf[i] = &sd.group.find(groupKey[i])->second;
             return sd;
         };
         std::vector<std::unique_ptr<Side>> rowSides(size_t(std::max(D, 1))), colSides(size_t(std::max(D, 1)));
@@ -939,6 +950,7 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             baseLevel[d] = l;
         }
         const std::vector<PivotCell> raw = shown;
+        std::vector<std::vector<double>> running(size_t(std::max(D, 1)));   // (for a running total: its sum at each cell, made when first wanted)
         auto number = [&](const PivotCell &c, double *v) {
             if (c.kind != PivotCell::Number) return false;
             *v = c.number;
@@ -993,16 +1005,33 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
                         blankCell(at);
                         continue;
                     }
-                    const std::vector<int> &sibs = side->group.at(keyWith(own, ownPath, level, -3));
-                    const int me = int(std::find(sibs.begin(), sibs.end(), onRows ? ri : ci) - sibs.begin());
+                    const int ownLine = onRows ? ri : ci;
+                    if (ownLine >= int(side->placeOf.size()) || side->placeOf[size_t(ownLine)] < 0) {
+                        blankCell(at);
+                        continue;
+                    }
+                    const std::vector<int> &sibs = *side->sibsOf[size_t(ownLine)];
+                    const int me = side->placeOf[size_t(ownLine)];
                     auto cellOf = [&](int line) -> const PivotCell & { return onRows ? raw[size_t(line) * nCI + ci] : raw[size_t(ri) * nCI + line]; };
                     if (df.showDataAs == QLatin1String("runTotal")) {
-                        double sum = 0;
-                        for (int k = 0; k <= me; ++k) {
-                            double x = 0;
-                            if (number(cellOf(sibs[size_t(k)]), &x)) sum += x;
+                        // (the sums are worked out once for the value, line by line along each group, and kept)
+                        std::vector<double> &run = running[size_t(d)];
+                        if (run.empty()) {
+                            run.assign(size_t(nRI) * nCI, 0);
+                            for (const auto &grp : side->group) {
+                                const int others = onRows ? nCI : nRI;
+                                for (int o = 0; o < others; ++o) {
+                                    double sum = 0;
+                                    for (int line : grp.second) {
+                                        const size_t cellAt = onRows ? size_t(line) * nCI + o : size_t(o) * nCI + line;
+                                        double x = 0;
+                                        if (number(raw[cellAt], &x)) sum += x;
+                                        run[cellAt] = sum;
+                                    }
+                                }
+                            }
                         }
-                        pc.number = sum;
+                        pc.number = run[onRows ? size_t(ri) * nCI + ci : size_t(ri) * nCI + ci];
                     } else {
                         int baseLine = -1;
                         if (df.baseItem == kPivotPreviousItem) baseLine = me > 0 ? sibs[size_t(me) - 1] : -1;
@@ -1104,23 +1133,29 @@ bool pivotFilterField(PivotTable *t, const PivotCache &c, int field, const Pivot
         present.fill(false, cf.items.size());
         const PivotCacheField &vf = c.fields[df.fld];
         const qint64 n = cf.records.size();
-        QVector<QVector<qint32>> pageOk(t->pageFields.size());
+        // the item each other filter of the page lets in, worked out once (a record is tested by one number each)
+        QVector<QPair<int, qint32>> pageWant;
+        for (const PivotPageField &p : t->pageFields) {
+            if (p.fld == field || p.fld < 0 || p.fld >= c.fields.size() || p.item < 0) continue;
+            const PivotField &ppf = t->fields[p.fld];
+            int want = p.item;
+            if (ppf.hasItems) {
+                int pos = 0;
+                want = -1;
+                for (const PivotTableItem &it : ppf.items) {
+                    if (!it.t.isEmpty()) continue;
+                    if (pos++ == p.item) want = it.x;
+                }
+            }
+            pageWant.append({p.fld, want});
+        }
         for (qint64 r = 0; r < n && r < vf.records.size(); ++r) {
             bool in = true;
-            for (const PivotPageField &p : t->pageFields) {
-                if (p.fld == field || p.fld < 0 || p.fld >= c.fields.size() || p.item < 0) continue;
-                const PivotField &ppf = t->fields[p.fld];
-                int want = p.item;
-                if (ppf.hasItems) {
-                    int pos = 0;
-                    want = -1;
-                    for (const PivotTableItem &it : ppf.items) {
-                        if (!it.t.isEmpty()) continue;
-                        if (pos++ == p.item) want = it.x;
-                    }
+            for (const auto &pw : pageWant)
+                if (c.fields[pw.first].records[r] != pw.second) {
+                    in = false;
+                    break;
                 }
-                if (c.fields[p.fld].records[r] != want) in = false;
-            }
             if (!in) continue;
             const qint32 x = cf.records[r];
             if (x < 0 || x >= accs.size()) continue;
@@ -1183,7 +1218,7 @@ bool pivotFilterField(PivotTable *t, const PivotCache &c, int field, const Pivot
     if (filter.kind == PivotFilter::TopItems || filter.kind == PivotFilter::BottomItems) {
         const bool top = filter.kind == PivotFilter::TopItems;
         std::stable_sort(ranked.begin(), ranked.end(), [&](const auto &x, const auto &y) { return top ? x.first > y.first : x.first < y.first; });
-        const int n = std::max(0, int(filter.a));
+        const int n = filter.a >= 1 ? int(std::min(filter.a, double(ranked.size()))) : 0;   // (a number from a person or a file: kept in range before it is made an int)
         for (int i = 0; i < n && i < ranked.size(); ++i) keep.insert(ranked[i].second);
     }
     for (PivotTableItem &it : pf.items)

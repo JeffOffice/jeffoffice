@@ -266,7 +266,7 @@ bool readPivotCacheCore(const QByteArray &definition, const QByteArray &records,
     PivotCacheField *cur = nullptr, *dcur = nullptr;   // the field being read, or (for one with no records) its place among the others
     bool inShared = false, inGroupItems = false, inDiscrete = false;
     std::vector<PivotIntern> interns;
-    qint64 distinct = 0;
+    qint64 distinct = 0, groupEntries = 0;   // (the items a field's groups name, all the fields together)
     while (!r.atEnd()) {
         const auto tok = r.readNext();
         if (tok == QXmlStreamReader::StartElement) {
@@ -349,7 +349,7 @@ bool readPivotCacheCore(const QByteArray &definition, const QByteArray &records,
                 inDiscrete = true;
             } else if (n == QLatin1String("x") && inDiscrete && depth == 6 && (cur || dcur)) {
                 PivotFieldGroup &g = (cur ? cur : dcur)->group;
-                if (g.discrete.size() >= kPivotMaxItemsPerField) return fail(QStringLiteral("too many items"));
+                if (g.discrete.size() >= kPivotMaxItemsPerField || ++groupEntries > kPivotMaxItemsPerTable) return fail(QStringLiteral("too many items"));
                 g.discrete.append(toInt(r.attributes().value(QLatin1String("v")), -1));
             } else if (n == QLatin1String("groupItems") && depth == 5 && (cur || dcur)) {
                 inGroupItems = true;
@@ -357,7 +357,7 @@ bool readPivotCacheCore(const QByteArray &definition, const QByteArray &records,
                 PivotFieldGroup &g = (cur ? cur : dcur)->group;
                 PivotValue v;
                 if (!valueOf(r, dates, &v)) return fail(QStringLiteral("a group item can't be read"));
-                if (g.labels.size() >= kPivotMaxItemsPerField) return fail(QStringLiteral("too many items"));
+                if (g.labels.size() >= kPivotMaxItemsPerField || ++groupEntries > kPivotMaxItemsPerTable) return fail(QStringLiteral("too many items"));
                 g.labels.append(v.kind == PivotValue::Text || v.kind == PivotValue::Error ? v.text : v.kind == PivotValue::Missing ? QString() : QString::number(v.number, 'g', 15));
             }
         } else if (tok == QXmlStreamReader::EndElement) {

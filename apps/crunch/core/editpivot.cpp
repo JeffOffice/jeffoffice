@@ -31,6 +31,9 @@ qint64 pivotCacheBytes(const PivotCache &c)
 namespace {
 
 constexpr int kMaxPivotTablesRefreshed = 5000;
+// The cells of source data read again when a file opens, all the tables together (a table of 100,000 rows and 20 columns is 2 million; real files have a few tables): the rest wait for Refresh.
+constexpr qint64 kMaxPivotCellsRefreshedOnOpen = 20000000;
+qint64 gRefreshOnOpenLimit = 0;
 
 CellRange pageArea(const PivotTable &t, const CellRange &loc)
 {
@@ -918,14 +921,20 @@ EditSession::Outcome EditSession::showPivotDetail(int sheet, quint32 row, quint3
     if (!m_book->book->pivots().viewAt(sheet, row, col, &view) || !view.where.valid || !view.table || !view.cache || !view.grid) return refuse(tr("JeffCrunch can't read this pivot table."));
     const int gr = int(row - view.where.row1), gc = int(col - view.where.col1);
     QVector<qint64> records;
-    if (row < view.where.row1 || col < view.where.col1 || !pivotDetailRecords(*view.table, *view.cache, *view.grid, gr, gc, &records)) return refuse(tr("Click a value of the pivot table, not a label."));
+    // (the most rows one step shows, from the fields that have values of their own: the scan stops there)
+    qint64 shownFields = 0;
+    for (const PivotCacheField &cf : view.cache->fields)
+        if (cf.group.databaseField) ++shownFields;
+    const qint64 limit = shownFields > 0 ? kMaxCellsPerEdit * 40 / shownFields - 1 : 0;
+    bool tooMany = false;
+    if (row < view.where.row1 || col < view.where.col1 || !pivotDetailRecords(*view.table, *view.cache, *view.grid, gr, gc, &records, limit, &tooMany)) return refuse(tr("Click a value of the pivot table, not a label."));
+    if (tooMany) return refuse(tr("There are too many rows behind this value to show at once."));
     const PivotCache &cache = *view.cache;
     const int nf = int(cache.fields.size());
     // (the fields that have values of their own: not the group of another field)
     QVector<int> shown;
     for (int f = 0; f < nf; ++f)
         if (cache.fields[f].group.databaseField) shown.append(f);
-    if (qint64(records.size() + 1) * qint64(shown.size()) > kMaxCellsPerEdit * 40) return refuse(tr("There are too many rows behind this value to show at once."));
     if (records.isEmpty()) return refuse(tr("There are no rows behind this value."));
     const auto &sheets = m_book->book->info().sheets;
     QString name;
@@ -977,6 +986,11 @@ EditSession::Outcome EditSession::showPivotDetail(int sheet, quint32 row, quint3
     return out;
 }
 
+void EditSession::setRefreshOnOpenLimit(qint64 cells)
+{
+    gRefreshOnOpenLimit = cells;
+}
+
 EditSession::Outcome EditSession::refreshPivotsOnOpen()
 {
     Outcome out;
@@ -984,13 +998,28 @@ EditSession::Outcome EditSession::refreshPivotsOnOpen()
     if (!canEdit(&why) || !m_book || !m_book->book) return out;
     PivotBook &pb = m_book->book->pivots();
     std::vector<int> caches;
-    for (int t = 0; t < pb.tableCount() && int(caches.size()) < kMaxPivotTablesRefreshed; ++t) {
+    qint64 cells = 0;
+    int left = 0;
+    for (int t = 0; t < pb.tableCount(); ++t) {
         const int ci = pb.table(t).cache;
         if (ci < 0 || !pb.cache(ci).cache || !pb.cache(ci).cache->refreshOnLoad || !pivotUsable(t)) continue;
-        if (std::find(caches.begin(), caches.end(), ci) == caches.end()) caches.push_back(ci);
+        if (std::find(caches.begin(), caches.end(), ci) != caches.end()) continue;
+        const PivotCache &pc = *pb.cache(ci).cache;
+        const qint64 size = pc.fields.isEmpty() ? 0 : qint64(pc.fields[0].records.size()) * pc.fields.size();
+        if (int(caches.size()) >= kMaxPivotTablesRefreshed || cells + size > (gRefreshOnOpenLimit > 0 ? gRefreshOnOpenLimit : kMaxPivotCellsRefreshedOnOpen)) {
+            ++left;
+            continue;
+        }
+        cells += size;
+        caches.push_back(ci);
     }
-    if (caches.empty()) return out;
-    return refreshPivotCaches(caches, tr("Refresh"), nullptr, true);
+    if (caches.empty() && left == 0) return out;
+    if (!caches.empty()) out = refreshPivotCaches(caches, tr("Refresh"), nullptr, true);
+    if (left > 0) {
+        const QString note = tr("%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.", nullptr, left);
+        out.problem = out.problem.isEmpty() ? note : out.problem + QLatin1Char('\n') + note;
+    }
+    return out;
 }
 
 EditSession::Outcome EditSession::groupPivotField(int table, int field, const QStringList &levels, double start, double end, double step, bool autoStart, bool autoEnd)

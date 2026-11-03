@@ -559,6 +559,10 @@ void CrunchWindow::askValueField(int dataIndex)
         notice(tr("Value Field Settings"), tr("Put a field in the rows or the columns first. A value is shown against the items of a field."));
         return;
     }
+    // (a file with no cell formats of its own has nowhere to keep a number format: the person is told, and the values keep the format they have)
+    const bool canFormat = !m_session->workbook()->styles().formats.isEmpty();
+    if (!canFormat && (!settings.numFmtCode.isEmpty() || settings.showAs == QLatin1String("percentOfTotal") || settings.showAs == QLatin1String("percentOfRow") || settings.showAs == QLatin1String("percentOfCol")))
+        notice(tr("Value Field Settings"), tr("This workbook has no cell formats, so a number format can't be kept in it. The values keep the format they have."), false);
     editPivot([&](PivotTable *table) {
         PivotDataField &df = table->dataFields[dataIndex];
         df.name = name;
@@ -566,7 +570,8 @@ void CrunchWindow::askValueField(int dataIndex)
         df.showDataAs = settings.showAs;
         df.baseField = relative ? settings.baseField : 0;
         df.baseItem = relative && settings.showAs != QLatin1String("runTotal") ? settings.baseItem : 0;
-        if (!settings.numFmtCode.isEmpty()) {
+        if (!canFormat) {
+        } else if (!settings.numFmtCode.isEmpty()) {
             df.numFmtCode = settings.numFmtCode;
         } else if (settings.showAs != d.showDataAs && settings.showAs != QLatin1String("normal") && settings.showAs != QLatin1String("difference") && settings.showAs != QLatin1String("runTotal") && settings.showAs != QLatin1String("index")) {
             df.numFmtCode = QStringLiteral("0.00%");   // (a share shows as a percent unless a format is chosen)
@@ -874,7 +879,7 @@ void CrunchWindow::updatePivotTab()
         names << (i < entry.table->fields.size() && !entry.table->fields[i].name.isEmpty() ? entry.table->fields[i].name : cache->fields[i].name);
         numeric << pivotFieldIsNumeric(*cache, i);
     }
-    m_pivotPane->showTable(entry.table->name, *entry.table, names, numeric);
+    m_pivotPane->showTable(entry.table->name, *entry.table, names, numeric, entry.table.get());
 }
 
 } // namespace jp
