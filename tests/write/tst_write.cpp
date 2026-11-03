@@ -9102,7 +9102,7 @@ private Q_SLOTS:
         QVERIFY(doc);
         for (int k = 0; k < doc->pager().pageCount(); ++k) QVERIFY(doc->pager().materialize(k));   // (the notes' stories are made as the pages are)
         const qint64 reads = office::wml::noteNumberingReadsForTest() - before;
-        QVERIFY2(reads <= 2, qPrintable(QStringLiteral("the settings were read %1 times").arg(reads)));
+        QVERIFY2(reads == 2, qPrintable(QStringLiteral("the settings were read %1 times").arg(reads)));
     }
 
     // Words are hyphenated where the settings ask (w:autoHyphenation, by its value), for the zone they give (360 twentieths of a point where they give none); a paragraph that says

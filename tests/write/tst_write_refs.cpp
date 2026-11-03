@@ -2,6 +2,7 @@
 // figures, sources and bibliographies, indexes, and tables of authorities. Each document is built here from a few lines of XML, and each feature is read back from the .docx it writes.
 
 #include "app/pageview.h"
+#include "app/ribbon.h"
 #include "app/writedialogs.h"
 #include "app/writewindow.h"
 #include "core/captionops.h"
@@ -10,6 +11,7 @@
 #include "core/fieldops.h"
 #include "core/indexops.h"
 #include "core/refops.h"
+#include "core/styleops.h"
 #include "core/tocops.h"
 #include "app/settings.h"
 #include "app/writeinfo.h"
@@ -24,12 +26,15 @@
 #include "office/package.h"
 #include "text/textprops.h"
 #include "wml/wml.h"
+#include "wml/xmltree.h"
 
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
+#include <QRegularExpression>
 #include <QDialog>
+#include <QElapsedTimer>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QRadioButton>
@@ -149,21 +154,37 @@ QStringList shownMarks(WriteDoc &doc, int page)
     return out;
 }
 
-// Acts on the next modal dialog that opens (the test's side of a dialog whose exec() waits): `act` is given it, and closes it. With JW_SHOT_DIR set, a picture of it is saved first.
+// Acts on the next modal dialog that opens (the test's side of a dialog whose exec() waits): `act` is given it, and closes it. With JW_SHOT_DIR set, a picture of it is saved first. A dialog
+// that does not open within ten seconds fails the test; one that `act` leaves open (a QVERIFY in it returns before the dialog is closed) is rejected and fails the test, so that exec() returns.
 void onNextDialog(const QString &name, const std::function<void(QDialog *)> &act)
 {
     auto *timer = new QTimer;
+    auto *waited = new QElapsedTimer;
+    waited->start();
     timer->setInterval(20);
-    QObject::connect(timer, &QTimer::timeout, [timer, name, act] {
+    QObject::connect(timer, &QTimer::timeout, [timer, waited, name, act] {
         QWidget *modal = QApplication::activeModalWidget();
-        if (!modal) return;
+        if (!modal) {
+            if (waited->elapsed() > 10000) {
+                timer->stop();
+                timer->deleteLater();
+                delete waited;
+                QTest::qFail(qPrintable(QStringLiteral("the dialog %1 did not open").arg(name)), __FILE__, __LINE__);
+            }
+            return;
+        }
         timer->stop();
         timer->deleteLater();
+        delete waited;
         auto *dlg = qobject_cast<QDialog *>(modal);
         if (!dlg) return;
         const QByteArray dir = qgetenv("JW_SHOT_DIR");
         if (!dir.isEmpty()) dlg->grab().save(QString::fromUtf8(dir) + QLatin1Char('/') + name + QStringLiteral(".png"));
         act(dlg);
+        if (dlg->isVisible()) {
+            QTest::qFail(qPrintable(QStringLiteral("the dialog %1 was left open").arg(name)), __FILE__, __LINE__);
+            dlg->reject();
+        }
     });
     timer->start();
 }
@@ -799,6 +820,29 @@ private Q_SLOTS:
         QVERIFY2(foot.contains("One") && foot.contains("Two") && foot.contains("<w:footnoteRef/>") && foot.contains("FootnoteText"), foot.constData());
     }
 
+    void convertingManyNotesGrowsInStepWithTheirNumber()
+    {
+        auto timeFor = [&](int n) {
+            QByteArray body, notes = kSeparators;
+            for (int i = 0; i < n; ++i) {
+                body += para(run("Text " + QByteArray::number(i)) + "<w:r><w:footnoteReference w:id=\"" + QByteArray::number(i + 2) + "\"/></w:r>");
+                notes += noteXml("footnote", i + 2, "Note " + QByteArray::number(i));
+            }
+            auto doc = open(makeDocxNotes(body, notes, QByteArray()));
+            if (!doc) return -1.0;
+            QElapsedTimer t;
+            t.start();
+            const int done = convertNotes(*doc, NoteConversion::FootnotesToEndnotes);
+            const double ms = double(t.nsecsElapsed()) / 1e6;
+            return done == n ? ms : -1.0;
+        };
+        const double small = timeFor(250), middle = timeFor(500), big = timeFor(1000);
+        QVERIFY2(small > 0 && big > 0, "the notes did not all convert");
+        qInfo("convertNotes: 250 notes %.0f ms, 500 notes %.0f ms, 1000 notes %.0f ms", small, middle, big);
+        // Four times the notes may take about four times as long; quadratic work would take sixteen times as long.
+        QVERIFY2(big < 8 * std::max(small, 20.0), qPrintable(QStringLiteral("250 notes %1 ms, 1000 notes %2 ms").arg(small).arg(big)));
+    }
+
     void swapAndOneNoteConvert()
     {
         const QByteArray body = para(run("A") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>" + run(" B") + "<w:r><w:endnoteReference w:id=\"2\"/></w:r>");
@@ -970,6 +1014,353 @@ private Q_SLOTS:
         QCOMPARE(w.document()->noteSettings(false).start, 4);
         QCOMPARE(w.document()->noteSettings(true).restart, QStringLiteral("eachSect"));
         QVERIFY(shownMarks(*w.document(), 0).contains(QStringLiteral("IV")));
+    }
+
+    // ---- the work a pass does is bounded (a hostile file has thousands of marks and of tables)
+    void marksAreReadOncePerPassNotOncePerTable()
+    {
+        const int n = 400;
+        QByteArray body;
+        for (int i = 0; i < n; ++i) {
+            body += para(run("w") + field("XE \"Term" + QByteArray::number(i) + "\"", "") + field("TA \\l \"Case " + QByteArray::number(i) + "\" \\c 1", "") + field("TC \"Entry\" \\f \"t\"", "") +
+                         field("SEQ Figure \\* ARABIC", "1") + field("CITATION Smi20", ""));
+        }
+        // (Tables that find nothing of what they list: the cost left is reading what they look through.)
+        for (int i = 0; i < n; ++i)
+            body += para(field("INDEX \\f \"q\"", "x")) + para(field("TOA \\c 16", "x")) + para(field("TOC \\f \"q\"", "x")) + para(field("TOC \\c \"Nothing\"", "x")) + para(field("BIBLIOGRAPHY \\l 1033", "x"));
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        Source book;
+        book.tag = QStringLiteral("Smi20");
+        book.authors = {Person{QStringLiteral("Smith"), QStringLiteral("John"), QString()}};
+        book.fields = {{QStringLiteral("Title"), QStringLiteral("A Book")}, {QStringLiteral("Year"), QStringLiteral("2020")}};
+        setDocumentSources(*doc, {book});
+        resetParsedMarkCodesForTest();
+        resetSourcesParsesForTest();
+        QElapsedTimer timer;
+        timer.start();
+        updateFields(*doc);
+        // Each XE, TA, TC, SEQ, and CITATION (2,000 of them) is read once for each pass over the text (at most three), not once for each of the 2,000 tables.
+        QVERIFY2(parsedMarkCodesForTest() <= 3 * 5 * n, qPrintable(QStringLiteral("%1 marks read").arg(parsedMarkCodesForTest())));
+        QVERIFY2(sourcesParsesForTest() <= 2, qPrintable(QStringLiteral("the sources were read %1 times").arg(sourcesParsesForTest())));
+        QVERIFY2(timer.elapsed() < 60000, qPrintable(QStringLiteral("%1 ms").arg(timer.elapsed())));
+    }
+
+    void markAllMakesOneScanAndOneStep()
+    {
+        const int n = 600;
+        QByteArray text;
+        for (int i = 0; i < n; ++i) text += "word " + QByteArray::number(i) + " ";
+        auto doc = open(makeDocx(para(run(text))));
+        QVERIFY(doc);
+        IndexMark m;
+        m.main = QStringLiteral("word");
+        resetStoryScansForTest();
+        QCOMPARE(markAllIndexEntries(*doc, m), n);
+        QVERIFY2(storyScansForTest() <= 3, qPrintable(QStringLiteral("%1 scans").arg(storyScansForTest())));
+        QCOMPARE(markedIndexEntries(*doc), QStringList{QStringLiteral("word")});
+        QVERIFY(doc->undo());
+        QVERIFY(!documentXml(doc->toDocx()).contains("XE \"word\""));
+    }
+
+    void ieeeNumbersAreWorkedOutForEachTextAndNotKeptFromTheLastOne()
+    {
+        Source a, b;
+        a.tag = QStringLiteral("Aaa");
+        a.fields = {{QStringLiteral("Title"), QStringLiteral("One")}};
+        b.tag = QStringLiteral("Bbb");
+        b.fields = {{QStringLiteral("Title"), QStringLiteral("Two")}};
+        auto numbers = [&](const QByteArray &first, const QByteArray &second) {
+            auto doc = open(makeDocx(para(field("CITATION " + first, "") + field("CITATION " + second, ""))));
+            if (!doc) return QString();
+            setDocumentSources(*doc, {a, b});
+            setDocumentCitationStyle(*doc, QStringLiteral("IEEE"));
+            return lines(*doc).value(0);
+        };
+        QCOMPARE(numbers("Aaa", "Bbb"), QStringLiteral("[1][2]"));
+        QCOMPARE(numbers("Bbb", "Aaa"), QStringLiteral("[1][2]"));   // (the numbers go in the order of the first citations: a new text is not numbered as the last one was)
+        QCOMPARE(numbers("Bbb", "Bbb"), QStringLiteral("[1][1]"));
+    }
+
+    void aSourcesPartTooLargeIsIgnoredAndTheFirstSourceOfATagIsTheOne()
+    {
+        auto doc = open(makeDocx(para(run("Text"))));
+        QVERIFY(doc);
+        Source one, two;
+        one.tag = two.tag = QStringLiteral("Dup");
+        one.fields = {{QStringLiteral("Title"), QStringLiteral("First")}};
+        two.fields = {{QStringLiteral("Title"), QStringLiteral("Second")}};
+        setDocumentSources(*doc, {one, two});
+        QTextCursor c(doc->story());
+        c.setPosition(2);
+        QVERIFY(insertCitation(*doc, c, QStringLiteral("dup")));   // (a tag is found whatever its case)
+        QVERIFY2(lines(*doc)[0].contains(QStringLiteral("First")) || lines(*doc)[0].contains(QStringLiteral("Dup")), qPrintable(lines(*doc)[0]));
+        QVERIFY(!lines(*doc)[0].contains(QStringLiteral("Second")));
+        // A part past the most that is read is left out, with a warning.
+        office::PackageWriter w;
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + para(run("T")) + "</w:body></w:document>"),
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        QByteArray huge = "<b:Sources xmlns:b=\"http://schemas.openxmlformats.org/officeDocument/2006/bibliography\"><b:Source><b:Tag>Big</b:Tag><b:Title>" + QByteArray(17 * 1024 * 1024, 'x') + "</b:Title></b:Source></b:Sources>";
+        w.addPart(QStringLiteral("/customXml/item1.xml"), huge, QStringLiteral("application/xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("customXml"), QStringLiteral("/customXml/item1.xml"));
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("larger than 16 MB")));
+        auto big = open(w.finish());
+        QVERIFY(big);
+        QCOMPARE(documentSources(*big).size(), 0);
+    }
+
+    void clearingTheSourcesLeavesAnEmptyListNotAnEmptyFile()
+    {
+        auto doc = open(makeDocx(para(run("Text"))));
+        QVERIFY(doc);
+        Source one;
+        one.tag = QStringLiteral("One");
+        one.fields = {{QStringLiteral("Title"), QStringLiteral("Title")}};
+        setDocumentSources(*doc, {one});
+        auto reopened = open(doc->toDocx());
+        QVERIFY(reopened);
+        QCOMPARE(documentSources(*reopened).size(), 1);
+        reopened->setSourcesXml(QByteArray());
+        const QByteArray zip = reopened->toDocx();
+        office::Package p;
+        QVERIFY(p.read(zip));
+        const QByteArray item = p.part(QStringLiteral("/customXml/item1.xml"));
+        QVERIFY2(item.contains("Sources") && item.contains("officeDocument/2006/bibliography"), item.constData());
+        QVERIFY(office::wml::XmlTree().parse(item));
+        auto again = open(zip);
+        QVERIFY(again);
+        QCOMPARE(documentSources(*again).size(), 0);
+    }
+
+    // ---- built-in styles come only from our own commands
+    void aStyleNamedButNotDefinedStaysNormalUntilACommandAddsIt()
+    {
+        auto doc = open(makeDocx(para(run("Words"), "<w:pStyle w:val=\"Caption\"/>") + para(run("Index"), "<w:pStyle w:val=\"Index1\"/>")));
+        QVERIFY(doc);
+        QVERIFY(!doc->styleSheet().find(QStringLiteral("Caption")));
+        const QString normal = doc->defaultParagraphStyle();
+        for (const QString &id : {QStringLiteral("Caption"), QStringLiteral("Index1"), QStringLiteral("TableofFigures"), QStringLiteral("Bibliography"), QStringLiteral("TOAHeading")}) {
+            QCOMPARE(doc->styleCharFormat(id).fontItalic(), doc->styleCharFormat(normal).fontItalic());
+            QCOMPARE(doc->styleCharFormat(id).fontPointSize(), doc->styleCharFormat(normal).fontPointSize());
+            QCOMPARE(doc->styleBlockFormat(id).bottomMargin(), doc->styleBlockFormat(normal).bottomMargin());
+        }
+        // Saved, the file still does not define it.
+        office::Package p;
+        QVERIFY(p.read(doc->toDocx()));
+        QVERIFY(!p.part(QStringLiteral("/word/styles.xml")).contains("w:styleId=\"Caption\""));
+        // A caption our command makes brings the style, defined in the file.
+        QTextCursor c(doc->story());
+        c.setPosition(2);
+        QVERIFY(insertCaption(*doc, c, CaptionOptions()));
+        QVERIFY(doc->styleSheet().find(QStringLiteral("Caption")));
+        QVERIFY(p.read(doc->toDocx()));
+        const QByteArray styles = p.part(QStringLiteral("/word/styles.xml"));
+        QVERIFY2(styles.contains("w:styleId=\"Caption\"") && styles.contains("<w:name w:val=\"caption\"/>"), styles.constData());
+        QVERIFY(doc->styleCharFormat(QStringLiteral("Caption")).fontItalic());
+    }
+
+    void aStyleCreatedWithTheNameCaptionIsTheOneCaptionsUse()
+    {
+        auto doc = open(makeDocx(para(run("A picture"))));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        office::wml::Style def;
+        def.type = QStringLiteral("paragraph");
+        def.name = QStringLiteral("Caption");
+        def.basedOn = QStringLiteral("Normal");
+        def.rPr.bold = true;
+        QString problem;
+        const QString id = createStyle(*doc, c, def, &problem);
+        QVERIFY2(!id.isEmpty(), qPrintable(problem));
+        QCOMPARE(id, QStringLiteral("Caption"));
+        c.setPosition(3);
+        QVERIFY(insertCaption(*doc, c, CaptionOptions()));
+        QCOMPARE(doc->story()->findBlockByNumber(1).blockFormat().stringProperty(tp::StyleName), id);
+        QVERIFY(doc->styleCharFormat(id).fontWeight() >= QFont::Bold);
+    }
+
+    // ---- the separators the part lacked, named where the settings name them
+    void aSeparatorThePartLackedIsAddedWithTheIdTheSettingsNameItBy()
+    {
+        const QByteArray body = para(run("Text") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>");
+        const QByteArray notes = QByteArray(kSeparators) + noteXml("footnote", 2, "One");   // (no continuation separator)
+        auto doc = open(makeDocxNotes(body, notes, QByteArray()));
+        QVERIFY(doc);
+        WriteDoc::NoteSeparator words, notice;
+        words.kind = WriteDoc::NoteSeparator::Text;
+        words.text = QStringLiteral("* * *");
+        notice.kind = WriteDoc::NoteSeparator::Text;
+        notice.text = QStringLiteral("More");
+        QVERIFY(doc->setNoteSeparator(false, QStringLiteral("continuationSeparator"), words));
+        QVERIFY(doc->setNoteSeparator(false, QStringLiteral("continuationNotice"), notice));
+        const QByteArray zip = doc->toDocx();
+        office::Package p;
+        QVERIFY(p.read(zip));
+        const QByteArray f = p.part(QStringLiteral("/word/footnotes.xml")), settings = p.part(QStringLiteral("/word/settings.xml"));
+        QVERIFY2(f.contains("w:type=\"continuationSeparator\" w:id=\"0\""), f.constData());
+        QVERIFY2(settings.contains("<w:footnotePr>") && settings.contains("<w:footnote w:id=\"-1\"/>") && settings.contains("<w:footnote w:id=\"0\"/>"), settings.constData());
+        // The Ids are one to a note, and the ones the settings name are in the part.
+        QSet<QString> ids;
+        for (int at = f.indexOf("<w:footnote "); at >= 0; at = f.indexOf("<w:footnote ", at + 1)) {
+            const int idAt = f.indexOf("w:id=\"", at);
+            const QString id = QString::fromLatin1(f.mid(idAt + 6, f.indexOf('"', idAt + 6) - idAt - 6));
+            QVERIFY2(!ids.contains(id), qPrintable(id));
+            ids.insert(id);
+        }
+        QVERIFY2(ids.contains(QStringLiteral("-1")) && ids.contains(QStringLiteral("0")) && ids.contains(QStringLiteral("2")) && ids.size() == 4, qPrintable(QStringList(ids.values()).join(',')));
+        // Read and written again, nothing changes.
+        auto again = open(zip);
+        QVERIFY(again);
+        QCOMPARE(again->noteSeparator(false, QStringLiteral("continuationSeparator")).text, words.text);
+        QCOMPARE(again->noteSeparator(false, QStringLiteral("continuationNotice")).text, notice.text);
+        QVERIFY(p.read(again->toDocx()));
+        QCOMPARE(p.part(QStringLiteral("/word/footnotes.xml")), f);
+        QCOMPARE(p.part(QStringLiteral("/word/settings.xml")).count("<w:footnotePr>"), 1);
+    }
+
+    void aNotesSettingsPartTheNumberingCannotBePutInIsSaidSoAtTheEdit()
+    {
+        auto good = open(makeDocxNotes(para(run("T")), QByteArray(), QByteArray(), "<w:zoom w:percent=\"100\"/>"));
+        QVERIFY(good);
+        QVERIFY(good->noteSettingsCanBeSaved());
+        office::PackageWriter w;
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + para(run("T")) + "</w:body></w:document>"),
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addPart(QStringLiteral("/word/settings.xml"), QByteArray("<w:settings ") + kNs + "/>", QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
+        auto bad = open(w.finish());
+        QVERIFY(bad);
+        QVERIFY(!bad->noteSettingsCanBeSaved());
+    }
+
+    // ---- notes on the page
+    // The reference to a note in the text is raised (superscript) where it is laid out, for a note our command makes and for one a file has with the style it names.
+    void aNoteReferenceInTheTextIsRaised()
+    {
+        auto raisedMarks = [](WriteDoc &doc, int page) {
+            QList<bool> out;
+            const auto mat = doc.pager().materialize(page);
+            for (const auto &item : mat->doc->pages[0]->items)
+                if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                    if (const Story *s = mat->doc->story(t->storyId))
+                        for (QTextBlock b = s->doc->begin(); b.isValid(); b = b.next())
+                            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                                const QTextCharFormat cf = it.fragment().charFormat();
+                                if (cf.stringProperty(tp::Field).startsWith(QLatin1String("raw:")))
+                                    out << (cf.verticalAlignment() == QTextCharFormat::AlignSuperScript || cf.fontPointSize() < 8);
+                            }
+            return out;
+        };
+        // From a file: the run names the style, and the styles part defines it.
+        const QByteArray styles = QByteArray(kStyles) + "<w:style w:type=\"character\" w:styleId=\"FootnoteReference\"><w:name w:val=\"footnote reference\"/><w:rPr><w:vertAlign w:val=\"superscript\"/></w:rPr></w:style>";
+        office::PackageWriter w;
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QString ct = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+        const QByteArray body = para(run("Text") + "<w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteReference w:id=\"2\"/></w:r>");
+        w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>"), ct + QStringLiteral("document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addPart(QStringLiteral("/word/styles.xml"), xml(QByteArray("<w:styles ") + kNs + ">" + styles + "</w:styles>"), ct + QStringLiteral("styles+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+        w.addPart(QStringLiteral("/word/footnotes.xml"), xml(QByteArray("<w:footnotes ") + kNs + ">" + kSeparators + noteXml("footnote", 2, "One") + "</w:footnotes>"), ct + QStringLiteral("footnotes+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("footnotes"), QStringLiteral("/word/footnotes.xml"));
+        auto fromFile = open(w.finish());
+        QVERIFY(fromFile);
+        QCOMPARE(raisedMarks(*fromFile, 0).value(0), true);   // (the reference; the mark that begins the note has no style in this file)
+        // A run that names no style is raised too, and is saved as it was.
+        const QByteArray plainBody = para(run("Text") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>");
+        const QByteArray notes = QByteArray(kSeparators) + noteXml("footnote", 2, "One");
+        auto plain = open(makeDocxNotes(plainBody, notes, QByteArray()));
+        QVERIFY(plain);
+        QCOMPARE(raisedMarks(*plain, 0).value(0), true);
+        const QByteArray savedXml = documentXml(plain->toDocx());
+        QVERIFY2(savedXml.contains("<w:r><w:footnoteReference w:id=\"2\"/></w:r>"), savedXml.mid(savedXml.indexOf("<w:body>"), 500).constData());
+        // From our command, in a document whose file has no such style.
+        auto made = open(makeDocx(para(run("Text"))));
+        QVERIFY(made);
+        QTextCursor c(made->story());
+        c.setPosition(5);
+        QVERIFY(insertFootnote(*made, c));
+        QCOMPARE(raisedMarks(*made, 0), (QList<bool>{true, true}));
+        auto reopened = open(made->toDocx());
+        QVERIFY(reopened);
+        QCOMPARE(raisedMarks(*reopened, 0), (QList<bool>{true, true}));
+    }
+
+    // A footnote our command makes is set at the foot of the page its reference is on, under a rule, and is gone from the pages that do not cite it.
+    void aFootnoteMadeByTheCommandIsAtTheFootOfItsPage()
+    {
+        QByteArray text;
+        for (int i = 0; i < 700; ++i) text += "Line of the text number " + QByteArray::number(i) + " goes on. ";
+        auto doc = open(makeDocxNotes(para(run("First paragraph.")) + para(run(text)), QByteArray(), QByteArray()));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 2);
+        QTextCursor c(doc->story());
+        c.setPosition(6);
+        QTextDocument *note = insertFootnote(*doc, c);
+        QVERIFY(note);
+        QTextCursor in(note);
+        in.movePosition(QTextCursor::End);
+        in.insertText(QStringLiteral("MADE NOTE says something."));
+        const auto page = doc->pager().materialize(0);
+        const TextItem *box = nullptr;
+        for (const auto &item : page->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (const Story *s = page->doc->story(t->storyId))
+                    if (s->doc->toPlainText().contains(QLatin1String("MADE NOTE"))) box = t;
+        QVERIFY(box);
+        QVERIFY2(std::abs(box->rect.bottom() - (792 - 72)) < 0.1, qPrintable(QString::number(box->rect.bottom())));
+        bool rule = false;
+        for (const auto &item : page->doc->pages[0]->items) rule |= dynamic_cast<const LineItem *>(item.get()) != nullptr;
+        QVERIFY(rule);
+        const auto next = doc->pager().materialize(1);
+        for (const auto &item : next->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (const Story *s = next->doc->story(t->storyId)) QVERIFY(!s->doc->toPlainText().contains(QLatin1String("MADE NOTE")));
+    }
+
+    // An endnote's part of the separators dialog has the separator only: no page breaks an endnote.
+    void theSeparatorsDialogOffersAnEndnoteOnlyItsSeparator()
+    {
+        WriteWindow w;
+        w.setDocument(open(makeDocxNotes(para(run("Text") + "<w:r><w:endnoteReference w:id=\"2\"/></w:r>"), QByteArray(), noteXml("endnote", 2, "End"))), QString());
+        w.show();
+        bool seen = false;
+        onNextDialog(QStringLiteral("note-separators-endnotes"), [&](QDialog *d) {
+            seen = d->findChild<QComboBox *>(QStringLiteral("footcontinuationNoticeKind")) && d->findChild<QComboBox *>(QStringLiteral("endseparatorKind"));
+            QVERIFY(!d->findChild<QComboBox *>(QStringLiteral("endcontinuationNoticeKind")));
+            QVERIFY(!d->findChild<QComboBox *>(QStringLiteral("endcontinuationSeparatorKind")));
+            d->reject();
+        });
+        noteSeparatorsDialog(&w, w.document(), nullptr);
+        QVERIFY(seen);
+    }
+
+    // Each group of the References tab shows with its own heading: none is folded into one button (which has no heading above it) in a window wide enough for them, and at the usual
+    // 1440 where the system's font is the one this was measured with (labels are as wide as the platform's font makes them).
+    void everyGroupOfTheReferencesTabShowsItsHeading()
+    {
+        for (const int width : {2200, 1440}) {
+#ifndef Q_OS_LINUX
+            if (width < 2000) continue;
+#endif
+            WriteWindow w;
+            w.resize(width, 900);
+            w.show();
+            Ribbon *ribbon = w.ribbon();
+            RibbonTab *tab = ribbon->tab(QStringLiteral("References"));
+            QVERIFY(tab);
+            ribbon->showTab(tab);
+            QStringList titles;
+            for (RibbonGroup *g : tab->groups()) titles << g->title();
+            QCOMPARE(titles, (QStringList{QStringLiteral("Table of Contents"), QStringLiteral("Footnotes"), QStringLiteral("Citations and Bibliography"), QStringLiteral("Captions"),
+                                          QStringLiteral("Index"), QStringLiteral("Table of Authorities")}));
+            QTRY_COMPARE_WITH_TIMEOUT(tab->collapsedCount(), 0, 5000);
+            for (RibbonGroup *g : tab->groups()) QVERIFY2(g->isVisible(), qPrintable(g->title()));
+        }
     }
 
     void theOtherReferenceDialogsOpenAndCancel()

@@ -1359,6 +1359,61 @@ private Q_SLOTS:
         QVERIFY(tree.parse(fresh));
     }
 
+    // A separator the part lacked is added with the Id the settings name it by (-1 and 0), and the notice with the Id above the others; none is added where another note has the Id, and none past
+    // the highest Id there is.
+    void aSeparatorAPartLackedIsAddedWithTheIdTheSettingsNameItBy()
+    {
+        auto words = [](const char *text) {
+            QVector<Block> blocks;
+            readBlocks(QByteArray("<w:ftr ") + kW + "><w:p><w:r><w:t>" + text + "</w:t></w:r></w:p></w:ftr>", &blocks);
+            return blocks;
+        };
+        auto idsOf = [](const QByteArray &part) {
+            QVector<int> ids;
+            for (qsizetype at = part.indexOf("<w:footnote "); at >= 0; at = part.indexOf("<w:footnote ", at + 1)) {
+                const qsizetype idAt = part.indexOf("w:id=\"", at);
+                ids << part.mid(idAt + 6, part.indexOf('"', idAt + 6) - idAt - 6).toInt();
+            }
+            return ids;
+        };
+        const QByteArray sep = R"(<w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>)";
+        const QByteArray original = xmlDoc(QByteArray("<w:footnotes ") + kW + ">" + sep + R"(<w:footnote w:id="2"><w:p><w:r><w:t>two</w:t></w:r></w:p></w:footnote>)" + "</w:footnotes>");
+        NotesChange change;
+        change.separators.insert(QStringLiteral("continuationSeparator"), words("* * *"));
+        change.separators.insert(QStringLiteral("continuationNotice"), words("More"));
+        const QByteArray out = notesPartXml(original, false, change);
+        QCOMPARE(idsOf(out), (QVector<int>{-1, 2, 0, 3}));
+        QVERIFY(out.contains("w:type=\"continuationSeparator\" w:id=\"0\""));
+        // An Id of the separators taken by another note: no separator is made to share it.
+        const QByteArray taken = xmlDoc(QByteArray("<w:footnotes ") + kW + R"(><w:footnote w:id="0"><w:p><w:r><w:t>zero</w:t></w:r></w:p></w:footnote></w:footnotes>)");
+        NotesChange only;
+        only.separators.insert(QStringLiteral("continuationSeparator"), words("* * *"));
+        QCOMPARE(idsOf(notesPartXml(taken, false, only)), (QVector<int>{0}));
+        // The highest Id there can be: the notice is not given one past it.
+        const QByteArray top = xmlDoc(QByteArray("<w:footnotes ") + kW + R"(><w:footnote w:id="2147483647"><w:p><w:r><w:t>last</w:t></w:r></w:p></w:footnote></w:footnotes>)");
+        NotesChange notice;
+        notice.separators.insert(QStringLiteral("continuationNotice"), words("More"));
+        const QByteArray capped = notesPartXml(top, false, notice);
+        QVERIFY(!capped.isEmpty());
+        QVERIFY2(!capped.contains("-2147483648"), capped.constData());
+        const QVector<int> ids = idsOf(capped);
+        QCOMPARE(QSet<int>(ids.begin(), ids.end()).size(), int(ids.size()));
+    }
+
+    // What the commands that make captions, indexes, authorities, and bibliographies add is not a built-in style a document may name without defining; the settings that cannot take the
+    // numbering are known.
+    void theReferenceStylesAreNotBuiltIn()
+    {
+        for (const char *id : {"Caption", "TableofFigures", "TableofAuthorities", "Index1", "Index9", "IndexHeading", "TOAHeading", "Bibliography"}) {
+            QVERIFY2(builtinStyle(QString::fromLatin1(id)).id.isEmpty(), id);
+            QCOMPARE(referenceStyle(QString::fromLatin1(id)).id, QString::fromLatin1(id));
+        }
+        QVERIFY(referenceStyle(QStringLiteral("Normal")).id.isEmpty());
+        QVERIFY(settingsAcceptNoteProperties(QByteArray()));
+        QVERIFY(settingsAcceptNoteProperties(xmlDoc(QByteArray("<w:settings ") + kW + "><w:zoom w:percent=\"100\"/></w:settings>")));
+        QVERIFY(!settingsAcceptNoteProperties(xmlDoc(QByteArray("<w:settings ") + kW + "/>")));
+    }
+
     // The numbering of the notes is written in the group the schema has for it, in the order its elements have, with the separator notes kept, and read back.
     void theSettingsSayHowTheNotesAreNumbered()
     {
