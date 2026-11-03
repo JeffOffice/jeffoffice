@@ -72,7 +72,7 @@ void CrunchWindow::setLocale(const QLocale &locale)
 void CrunchWindow::updateEditActions()
 {
     QUndoStack *u = undoStack();
-    const bool open = m_session && !m_saving;
+    const bool open = m_session && !m_saving && !isReadOnly();
     act("edit.undo")->setEnabled(open && m_session->canUndo());
     act("edit.redo")->setEnabled(open && u->canRedo());
     act("edit.undo")->setToolTip(jp::plainToolTip(u && m_session->canUndo() ? tr("Undo %1 (%2)").arg(u->undoText(), QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)) : tr("Undo")));
@@ -82,9 +82,11 @@ void CrunchWindow::updateEditActions()
         if (QAction *a = act(id)) a->setEnabled(open && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown);
     for (const char *id : {"edit.copy", "edit.selectAll", "view.formulas", "view.gridlines", "view.headings", "view.freeze", "view.freezeRow", "view.freezeCol", "view.unfreeze"})
         if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(!m_chartSheetShown);
-    const bool canSave = open && m_loaded && m_loaded->problem.isEmpty();
+    const bool canSave = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty();
     act("file.save")->setEnabled(canSave);
     act("file.saveAs")->setEnabled(canSave);
+    act("file.saveCopy")->setEnabled(canSave);
+    act("file.saveTemplate")->setEnabled(canSave);
     updateFormatState(false);
 }
 
@@ -92,6 +94,10 @@ void CrunchWindow::updateEditActions()
 bool CrunchWindow::editingAllowed()
 {
     QString why;
+    if (isReadOnly()) {
+        setStatus(tr("This workbook is open for reading only. Use Save a Copy to make a copy you can change."));
+        return false;
+    }
     if (!m_session) {
         setStatus(m_blank ? tr("The new workbook is getting ready. It can be changed in a moment.") : tr("The workbook is still being opened. It can be changed when it is open."));
         return false;

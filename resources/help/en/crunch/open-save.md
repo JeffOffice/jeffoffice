@@ -1,5 +1,5 @@
 # Open and save workbooks
-<!-- keywords: copy, older format, opendocument, compatibility, new, blank, book1, untitled, open, save, save as, file, workbook, xlsx, xlsm, xls, ods, csv, tsv, text file, delimited, import, export, recent, pinned, drag, drop, loading, large, big, macros, unsaved, changes, close, copy, calculation chain, template, xltx, xltm, cannot open, damaged, encrypted, password -->
+<!-- keywords: copy, older format, opendocument, compatibility, new, blank, book1, untitled, open, save, save as, file, workbook, xlsx, xlsm, xls, ods, csv, tsv, text file, delimited, import, export, recent, pinned, drag, drop, loading, large, big, macros, unsaved, changes, close, copy, calculation chain, template, xltx, xltm, cannot open, damaged, encrypted, password, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ots, repair, open and repair -->
 
 When JeffCrunch starts with no file to open, the window holds a new, empty workbook with one sheet, named Book1. Each new workbook takes the next number (Book2, Book3, and so on), and a number is not used again after its window is closed. To start another one, press **{key:New}**, or click **File**, then **New**, and choose **Blank Workbook**; it opens in a window of its own. A new workbook that you have not changed gives way when you open a file in its window; one you have changed stays, and the file opens in another window. **Save** on a new workbook asks for a name, as **Save As** does, and saves it as a .xlsx file. Closing a new workbook you have not changed asks nothing.
 
@@ -42,6 +42,35 @@ To make a copy that older programs, or programs that read OpenDocument, can open
 An **.xls** file also holds data tables, and keeps the workbook's calculation settings. A copy cannot hold everything. Before JeffCrunch writes the file, it says what your workbook has that the file will not: charts, pictures and other drawings, notes, pivot tables, tables, conditional formats, data validation, filters, sheet protection, form controls, macros, and links to other workbooks (the formulas that use them keep the values they had). A formula that the older form cannot say (a function it does not have, or a cell past column IV or row 65,536) is written as the value it came to, and the message counts them. The older form also stops at 65,536 rows, 256 columns, 255 sheets, and 32,767 characters in a cell, and at about 4,000 cell formats and 56 colors: what does not fit is cut, and the message says how much. You can then choose to **Save Copy**, to **Save as .xlsx** and keep everything, or to **Cancel**.
 
 Your workbook is not changed by the copy, and it is not marked as saved. The file you opened is never written: give the copy another name. A copy of an **.xls** or **.ods** file that you opened can be saved as the other kind.
+
+## Save a copy
+
+Click **File > Save a Copy** and choose a name. JeffCrunch writes the workbook to that file, with the changes you have not saved, and you keep working in the workbook you had. Its name and its unsaved changes stay as they were. You can choose any kind of file that **Save As** offers. A copy is never written over the workbook's own file.
+
+## Keep a backup copy
+
+Click **File > Options**, and on the **General** page turn on **Always create backup copy**. Each time you save, JeffCrunch first copies the old file to one called "Backup of" plus its name, in the same folder.
+
+## Save as a template
+
+A template is a workbook you use as a starting point. It can hold formulas, styles, and sheets. Click **File > Save as Template** and type a name. The template (an **.xltx** file) goes in **My Templates**, and your workbook is not changed. In **Save As**, you can also choose **Templates (*.xltx)**, or **OpenDocument spreadsheet templates (*.ots)**, to save a template file where you like.
+
+To start a workbook from your template, click **File > New**. Your templates are listed under **My Templates**. Click one. A new workbook opens with the template's cells and sheets. It has no file of its own yet, so **Save** asks for a name, and the template is not changed. To remove a template from the list, right-click it and choose **Remove from My Templates**.
+
+## Other ways to open a file
+
+On the **Open** page, click **More Ways to Open**. You can also right-click a name in the Recent list.
+
+- **Open Read-Only** opens the workbook for reading only. You can look, scroll, search, and copy, but you can't change a cell. The title bar says "Read-Only". If you press **Save**, JeffCrunch asks for a new name, so the file you opened is not changed.
+- **Open as Copy** opens the workbook with no file of its own. **Save** asks where to put it. The file you opened is never changed.
+- **Open in New Window** opens the workbook in a window of its own, even when the window you are in is empty.
+- **Open and Repair** is for an .xlsx file that is damaged. See below.
+
+## Open and Repair
+
+Sometimes an .xlsx file is damaged. A download stopped halfway, or a disk made mistakes. An .xlsx file is a bundle of smaller parts, such as the sheets, the styles, and the shared text. **Open and Repair** reads every part that it can. A part that stopped in the middle is kept up to the place where it stopped, so you may get the first rows of a sheet. A part that can't be read is left out. If the list of parts or the links between them are gone, JeffCrunch makes them again.
+
+The repaired workbook opens with no file of its own, and a name like "Repaired budget". A message tells you what was kept up to a break and what was left out. The damaged file is not changed. Save the repaired workbook under a new name, and check the numbers before you trust it.
 
 ## Large workbooks
 

@@ -4,6 +4,7 @@
 // cell, in it with F2 or a double click, or in the formula bar), clears them with Delete, undoes and redoes, and saves the workbook as it was read with only what changed put in.
 
 #include "app/appwindow.h"
+#include "app/filetasks.h"
 
 #include <tuple>
 #include "app/anchordialogs.h"
@@ -109,7 +110,11 @@ public:
     bool hasWorkbook() const { return bool(m_loaded); }
     // Opens a workbook: in this window if it holds none, else in a window of its own. The reading goes on in the background (loadFinished says when it is over); false, with the
     // reason shown, if the file can't be read at all.
-    bool openFile(const QString &path);
+    // `how`: as it is (the default), read-only, as a copy (a workbook with no file of its own; the file is never written), or in a window of its own even if this one holds nothing.
+    bool openFile(const QString &path, OpenHow how = OpenHow::Normal);
+    // Shows the file dialog and opens what is chosen the way `how` says.
+    void browseAndOpen(OpenHow how = OpenHow::Normal);
+    void setReadOnly(bool on) override;
     bool isLoading() const { return m_loading; }
     // Makes the window hold a new, empty workbook (one sheet, "Sheet1", and a name like "Book1" until it is saved), read the way a file is: the calculation, the worker and the editing session
     // are the same. loadFinished says when it is ready. A window that is already showing a workbook is not changed (false).
@@ -255,7 +260,13 @@ public:
     // For tests and tools: the bytes a save would write now, made at once on this thread from the same snapshot a save takes. Nothing is written, and the session is not told it was saved (Undo
     // keeps all its steps), so it can be called after every edit; false, with the reason, when a save could not be made.
     bool snapshotBytesForTest(QByteArray *bytes, QString *why);
-    bool saveAs(const QString &path);
+    // `asCopy`: the workbook is written to the path (as a workbook, or the .csv, .xls, or .ods copy its ending says) and the window goes on with the original: its name and its unsaved
+    // changes stay (see crunchwindow_savecopy.cpp). `copyExported` says when it is over.
+    bool saveAs(const QString &path, bool asCopy = false);
+    // Save a Copy: asks for a name as Save As does, then writes the copy.
+    bool saveCopy();
+    // Save as Template: asks for a name and puts a template (.xltx) made from the workbook in My Templates (File > New); the workbook is as it was. `copyExported` says when it is over.
+    bool saveAsTemplate();
     // Writes the values of the sheet in view as a .csv file (see crunchwindow_csv.cpp); `csvExported` says when it is over. A path ending in .csv given to save() or saveAs() comes here.
     // `how` gives the choices (for tests and tools); without it they are those the ending of the name and the file the workbook came from say, and the person may change them in the question.
     bool exportCsv(const QString &path, const crunch::CsvWrite *how = nullptr);
@@ -581,6 +592,8 @@ private:
     bool editingAllowed();
     // saving
     bool startSave(const QString &path);
+    bool startCopy(const QString &path);
+    void onWorkbookCopyMade(bool ok, const QString &message, const QString &path);
     void onSaved(bool ok, const QString &message, const QString &path, const QByteArray &bytes, const std::shared_ptr<crunch::EditSession::Snapshot> &snapshot);
     bool askAboutChanges();
     QString saveKind() const;
@@ -1067,6 +1080,9 @@ private:
     bool m_saving = false, m_closeAfterSave = false, m_closing = false;
     QPointer<QThread> m_saveThread;
     QString m_saveAfterCalculation;
+    QString m_repairFile, m_repairName, m_repairNote;   // a file being opened with Open and Repair: the repaired package kept in a file for the reader, the original's name, and what was left out
+    bool m_openAsCopy = false;             // the file being read is opened as a copy: when it is read, the workbook has no file of its own
+    bool m_copyAfterCalculation = false;   // what waits for the calculation is a copy, not a save
     QPointer<QObject> m_csvRun;   // a .csv being written
     void onCopyMade(bool ok, const QString &message, const QString &path, const QByteArray &bytes, const QStringList &notKept, const QStringList &trimmed);
     std::function<Answer(const QString &, const QString &)> m_asker;

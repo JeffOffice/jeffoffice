@@ -4,6 +4,8 @@
 
 #include "app/crunchwindow.h"
 
+#include "app/filetasks.h"
+
 #include "io/crypto.h"
 #include "office/officecrypt.h"
 #include "app/plaintext.h"
@@ -46,6 +48,12 @@ QString CrunchWindow::saveKind() const
 bool CrunchWindow::save()
 {
     if (!m_session || !m_loaded) return false;
+    if (isReadOnly()) {
+        // (a workbook open for reading only is saved under a new name)
+        notice(tr("Save"), tr("This workbook is open for reading only, so it is saved under a new name."), false);
+        act("file.saveAs")->trigger();
+        return m_saving || !m_saveAfterCalculation.isNull();
+    }
     if (m_path.isEmpty()) {
         act("file.saveAs")->trigger();
         return m_saving || !m_saveAfterCalculation.isNull();   // (a new workbook has no file to save to: Save asks for one, as Save As does)
@@ -70,7 +78,7 @@ bool CrunchWindow::snapshotBytesForTest(QByteArray *bytes, QString *why)
     return office::sheet::saveXlsx(*m_loaded->book, snapshot.changes, bytes, why, &report);
 }
 
-bool CrunchWindow::saveAs(const QString &pathIn)
+bool CrunchWindow::saveAs(const QString &pathIn, bool asCopy)
 {
     if (!m_session || !m_loaded) return false;
     if (crunch::isCsvName(pathIn) || crunch::isCopyName(pathIn)) {
@@ -102,7 +110,7 @@ bool CrunchWindow::saveAs(const QString &pathIn)
             return false;
         }
     }
-    return startSave(path);
+    return asCopy ? startCopy(path) : startSave(path);
 }
 
 // Whether the file the workbook was read from (or last written to) is not as this program has it: its bytes are compared with the ones it holds (a file that is only touched, or
@@ -142,6 +150,10 @@ bool CrunchWindow::startSave(const QString &path)
     // save the window's file is the .xlsx, and the original is still not its own)
     if (isTheOriginal(path)) {
         notice(tr("Save"), crunch::originalNotWrittenNotice(QFileInfo(m_originalPath).fileName()));
+        return false;
+    }
+    if (isReadOnly() && crunch::sameFile(path, m_path)) {
+        notice(tr("Save"), tr("This workbook is open for reading only. Choose another name for it."));
         return false;
     }
     const bool samePath = crunch::sameFile(path, m_path);
@@ -198,6 +210,7 @@ bool CrunchWindow::startSave(const QString &path)
         if (ending != saveKind() && crunch::workbookKindsSavedAs(saveKind()).contains(ending)) snapshot->changes.targetKind = ending;
     }
     if (m_objects) m_objects->addToSave(&snapshot->changes);
+    keepBackupBeforeSave(path);
     m_saving = true;
     m_session->setBusy(true);
     updateEditActions();
@@ -259,6 +272,7 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
             m_blank = false;
             updateTitle();
         }
+        if (isReadOnly()) setReadOnly(false);
         // (what is on disk now is enciphered when the workbook is, and the change of password is saved)
         m_diskProtected = m_fileProtected;
         m_diskDigest = m_fileProtected && m_savedDigest ? *m_savedDigest : QByteArray();

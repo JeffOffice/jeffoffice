@@ -25,14 +25,15 @@ bool isCsvName(const QString &path)
 bool isCopyName(const QString &path)
 {
     const QString ending = QFileInfo(path).suffix();
-    return ending.compare(QLatin1String("xls"), Qt::CaseInsensitive) == 0 || ending.compare(QLatin1String("ods"), Qt::CaseInsensitive) == 0;
+    return ending.compare(QLatin1String("xls"), Qt::CaseInsensitive) == 0 || ending.compare(QLatin1String("ods"), Qt::CaseInsensitive) == 0 || ending.compare(QLatin1String("ots"), Qt::CaseInsensitive) == 0;
 }
 
 QString copyKindOf(const QString &path) { return QFileInfo(path).suffix().toLower(); }
 
 QString xlsFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Older workbooks (*.xls)"); }
 QString odsFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "OpenDocument spreadsheets (*.ods)"); }
-QString copyFilters() { return xlsFilter() + QStringLiteral(";;") + odsFilter(); }
+QString otsFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "OpenDocument spreadsheet templates (*.ots)"); }
+QString copyFilters() { return xlsFilter() + QStringLiteral(";;") + odsFilter() + QStringLiteral(";;") + otsFilter(); }
 
 QString copyWarning(const QString &ending, const QStringList &notKept, const QStringList &trimmed)
 {
@@ -44,7 +45,7 @@ QString copyWarning(const QString &ending, const QStringList &notKept, const QSt
     return text;
 }
 
-QString openFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx *.xlsm *.xltx *.xltm *.xlam *.xls *.ods *.fods *.csv *.tsv *.txt)"); }
+QString openFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx *.xlsm *.xltx *.xltm *.xlam *.xls *.ods *.ots *.fods *.csv *.tsv *.txt)"); }
 
 QString workbookKindOfType(const QString &mainContentType)
 {
@@ -66,7 +67,7 @@ QString workbookKindFilter(const QString &kind)
         return QCoreApplication::translate("jp::crunch::OtherFormats", "Templates (*.xltx)") + QStringLiteral(";;") + QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)");
     if (kind == QLatin1String("xlsm"))
         return QCoreApplication::translate("jp::crunch::OtherFormats", "Macro-enabled workbooks (*.xlsm)") + QStringLiteral(";;") + QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)");
-    return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)");
+    return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)") + QStringLiteral(";;") + QCoreApplication::translate("jp::crunch::OtherFormats", "Templates (*.xltx)");
 }
 
 QStringList workbookKindsSavedAs(const QString &kind)
@@ -75,7 +76,7 @@ QStringList workbookKindsSavedAs(const QString &kind)
     if (kind == QLatin1String("xltx")) return {QStringLiteral("xltx"), QStringLiteral("xlsx")};
     if (kind == QLatin1String("xltm")) return {QStringLiteral("xltm"), QStringLiteral("xlsm"), QStringLiteral("xlsx")};
     if (kind == QLatin1String("xlam")) return {QStringLiteral("xlam"), QStringLiteral("xlsm")};
-    return {QStringLiteral("xlsx")};
+    return {QStringLiteral("xlsx"), QStringLiteral("xltx")};
 }
 
 bool workbookKindHoldsMacros(const QString &kind) { return kind == QLatin1String("xlsm") || kind == QLatin1String("xltm") || kind == QLatin1String("xlam"); }
@@ -93,7 +94,7 @@ QString workbookKindNotice(const QString &kind, const QString &programName)
         return QCoreApplication::translate("jp::crunch::OtherFormats", "This workbook is a template with macros in it. It can be saved as %1. Give the file a name that ends in one of them.").arg(list);
     if (kind == QLatin1String("xlam"))
         return QCoreApplication::translate("jp::crunch::OtherFormats", "This workbook is an add-in with macros in it. It can be saved as %1. Give the file a name that ends in one of them.").arg(list);
-    return QCoreApplication::translate("jp::crunch::OtherFormats", "%1 saves workbooks as .xlsx files. Give the file a name that ends in .xlsx.").arg(programName);
+    return QCoreApplication::translate("jp::crunch::OtherFormats", "%1 saves workbooks as .xlsx files, or as .xltx templates. Give the file a name that ends in one of them.").arg(programName);
 }
 
 QString csvFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Text files of values (*.csv)"); }

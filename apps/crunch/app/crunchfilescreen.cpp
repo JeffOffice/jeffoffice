@@ -2,6 +2,7 @@
 
 #include "app/crunchwindow.h"
 #include "app/filescreenparts.h"
+#include "app/filetasks.h"
 #include "app/icons.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
@@ -34,6 +35,14 @@ CrunchFileScreen::CrunchFileScreen(CrunchWindow *win) : FileScreen(win), m_win(w
     addCommand(QStringLiteral("saveAs"), QStringLiteral("save"), tr("Save As"), [this] {
         Q_EMIT closeRequested();
         if (m_win->act("file.saveAs")->isEnabled()) m_win->act("file.saveAs")->trigger();
+    });
+    addCommand(QStringLiteral("saveCopy"), QStringLiteral("files"), tr("Save a Copy"), [this] {
+        Q_EMIT closeRequested();
+        if (m_win->act("file.saveCopy")->isEnabled()) m_win->act("file.saveCopy")->trigger();
+    });
+    addCommand(QStringLiteral("saveTemplate"), QStringLiteral("layout-template"), tr("Save as Template"), [this] {
+        Q_EMIT closeRequested();
+        if (m_win->act("file.saveTemplate")->isEnabled()) m_win->act("file.saveTemplate")->trigger();
     });
     addCommand(QStringLiteral("protectPassword"), QStringLiteral("key"), tr("Protect with Password"), [this] {
         Q_EMIT closeRequested();
@@ -79,6 +88,11 @@ QWidget *CrunchFileScreen::buildNew()
     cards->addWidget(blank, 1);
     cards->addStretch(1);
     v->addLayout(cards);
+    // The templates a person saved: a workbook made from one starts as the template is, with no file of its own.
+    v->addWidget(myTemplatesPanel(w, {QStringLiteral("*.xltx"), QStringLiteral("*.ots")}, QStringLiteral("file-spreadsheet"), [this](const QString &path) {
+        m_win->openFile(path, OpenHow::Copy);
+        Q_EMIT closeRequested();
+    }));
     v->addStretch(1);
     return w;
 }
@@ -99,6 +113,7 @@ QWidget *CrunchFileScreen::buildOpen()
     connect(text, &QAbstractButton::clicked, this, [this] { m_win->act("file.openText")->trigger(); });
     cards->addWidget(text, 1);
     v->addLayout(cards);
+    v->addWidget(moreWaysToOpenCard(w, [this](OpenHow how) { m_win->browseAndOpen(how); }));
     v->addSpacing(14);
     auto section = [&](const QString &t) {
         QLabel *l = sectionLabel(t, w);
@@ -151,6 +166,8 @@ QWidget *CrunchFileScreen::buildOpen()
                 Settings::get().removeRecentFile(f);
                 showPage(QStringLiteral("open"));
             });
+            m.addSeparator();
+            addOpenWays(&m, [this, f](OpenHow how) { m_win->openFile(f, how); });
             m.exec(list->viewport()->mapToGlobal(pos));
         });
         v->addWidget(list);
