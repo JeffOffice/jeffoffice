@@ -1,6 +1,7 @@
 // Tests of JeffWrite's fields (apps/write/core/fieldcode.*, fieldops.*): the code of a field read into its switches, the formats of a result, the formulas and conditions, the results
 // of the fields the program works out, and updating, unlinking, and locking the fields of a document. Each document is built here from a few lines of XML.
 
+#include "../isolatesettings.h"
 #include "core/fieldcode.h"
 #include "core/fieldops.h"
 #include "core/refops.h"
@@ -98,6 +99,9 @@ QStringList lines(const WriteDoc &doc)
 class FieldTests : public QObject {
     Q_OBJECT
 private Q_SLOTS:
+    // The run's settings are its own, and the person's are as they were (checked at the end).
+    void cleanupTestCase() { QVERIFY(jptest::settingsAreIsolated()); QVERIFY(jptest::realSettingsUnchanged()); }
+
     void initTestCase()
     {
         Q_INIT_RESOURCE(resources);

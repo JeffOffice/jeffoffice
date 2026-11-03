@@ -1,5 +1,6 @@
 // Tests of JeffWrite opening and saving OpenDocument text (.odt): the window's File > Open and Save As, and the document's reader and writer. Every file is built here from a few lines of XML.
 
+#include "../isolatesettings.h"
 #include "../stablesaves.h"
 #include "app/pageview.h"
 #include "app/settings.h"
@@ -76,6 +77,9 @@ QString writeFile(const QString &path, const QByteArray &bytes)
 class WriteOdtTests : public QObject {
     Q_OBJECT
 private Q_SLOTS:
+    // The run's settings are its own, and the person's are as they were (checked at the end).
+    void cleanupTestCase() { QVERIFY(jptest::settingsAreIsolated()); QVERIFY(jptest::realSettingsUnchanged()); }
+
     void initTestCase()
     {
         Q_INIT_RESOURCE(resources);

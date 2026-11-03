@@ -1,5 +1,6 @@
 // main() of every test program: see testrunner.h.
 #include "testrunner.h"
+#include "isolatesettings.h"
 
 #include <QFile>
 #include <QMetaMethod>
@@ -180,6 +181,11 @@ int main(int argc, char *argv[])
     for (size_t f = 0; f < functions.size(); ++f) {
         if (found[f]) continue;
         std::fprintf(stderr, "Unknown test function: '%s'\n", functions[f].c_str());
+        ++failures;
+    }
+    // (a test run never changes the person's real settings)
+    if (!jptest::realSettingsUnchanged() || !jptest::settingsAreIsolated()) {
+        std::fprintf(stderr, "FAIL: the run touched the person's real settings\n");
         ++failures;
     }
     if (!failed.empty()) {

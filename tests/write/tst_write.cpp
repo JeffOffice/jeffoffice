@@ -1,5 +1,6 @@
 // Tests of JeffWrite (apps/write): the document, editing it, the .docx it reads and writes, the page view, and the window.
 
+#include "../isolatesettings.h"
 #include "core/fonts.h"
 #include "../plainprobe.h"
 #include "../stablesaves.h"
@@ -808,6 +809,9 @@ public:
     }
 
 private Q_SLOTS:
+    // The run's settings are its own, and the person's are as they were (checked at the end).
+    void cleanupTestCase() { QVERIFY(jptest::settingsAreIsolated()); QVERIFY(jptest::realSettingsUnchanged()); }
+
     void initTestCase()
     {
         Q_INIT_RESOURCE(resources);
