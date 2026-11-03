@@ -448,14 +448,14 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                 Section mirroredPart;
                 const Section &partSection = sectionNumbered(splitSections[k], number, &mirroredPart);
                 for (int c = 0; c < partSection.columnCount(); ++c) {
-                    frames << frame(colW, colH);
-                    run.cols << QRectF(partSection.columnRect(c).left(), 0, colW, colH);
+                    frames << frame(partSection.columnRect(c).width(), colH);
+                    run.cols << QRectF(partSection.columnRect(c).left(), 0, partSection.columnRect(c).width(), colH);
                 }
             }
         } else {
             for (int c = 0; c < sec.columnCount(); ++c) {
-                frames << walled(frame(colW, colH), QRectF(sec.columnRect(c).left(), body.top(), colW, colH));
-                run.cols << QRectF(sec.columnRect(c).left(), 0, colW, colH);
+                frames << walled(frame(sec.columnRect(c).width(), colH), QRectF(sec.columnRect(c).left(), body.top(), sec.columnRect(c).width(), colH));
+                run.cols << QRectF(sec.columnRect(c).left(), 0, sec.columnRect(c).width(), colH);
             }
         }
         run.columns = int(run.cols.size());
@@ -549,7 +549,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                         auto framesFor = [&](double height) {
                             QVector<FrameSpec> f;
                             if (k == 0 && run.firstFrame > 0) f << frames[0];
-                            for (int c = 0; c < columns; ++c) f << walled(frame(here.columnWidth(), height), QRectF(here.columnRect(c).left(), body.top() + top, here.columnWidth(), height));
+                            for (int c = 0; c < columns; ++c) f << walled(frame(here.columnRect(c).width(), height), QRectF(here.columnRect(c).left(), body.top() + top, here.columnRect(c).width(), height));
                             f << frame(colW, kTall);
                             return f;
                         };
@@ -593,7 +593,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                             part.windowShort = p.windowShort;
                             part.pieces.insert(part.pieces.end(), p.pieces.begin(), p.pieces.end());
                             for (int c = 0; c < columns; ++c) {
-                                run.cols << QRectF(here.columnRect(c).left(), top, here.columnWidth(), room);
+                                run.cols << QRectF(here.columnRect(c).left(), top, here.columnRect(c).width(), room);
                                 run.partOfColumn << k;
                             }
                             break;
@@ -629,18 +629,30 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                         alone = true;
                         for (const auto &ln : p1.lines)
                             if (ln.frame >= own && ln.frame < own + columns && !joinedEndOf(m_doc->story()->findBlock(ln.block)).blockFormat().boolProperty(tp::OutOfFlow)) alone = false;
+                        // A paragraph that an object that the text goes round is set from stays in its column as the balancing makes the columns shorter: the object is in that column, and
+                        // where the paragraph goes it goes (and the page would not settle).
+                        QHash<int, int> wallColumn;
+                        for (const Wrapped &w : wrapped)
+                            if (w.paragraph >= 0)
+                                for (const auto &ln : p1.lines)
+                                    if (ln.block == w.paragraph && ln.line == 0 && ln.frame >= own && ln.frame < own + columns) wallColumn.insert(w.paragraph, ln.frame);
+                        auto movesAWall = [&](const Part &p) {
+                            for (const auto &ln : p.lines)
+                                if (ln.line == 0 && wallColumn.contains(ln.block) && wallColumn.value(ln.block) != ln.frame) return true;
+                            return false;
+                        };
                         if (columns > 1 && !overflows(p1)) {
                             double total = 0;
                             for (int c = 0; c < columns; ++c) total += bottomOf(p1, c);
                             double lo = std::min(room, std::max(1.0, total / columns)), hi = room;
                             Part q = layPartOf(lo);
-                            if (!overflows(q)) {
+                            if (!overflows(q) && !movesAWall(q)) {
                                 p1 = q;
                             } else {
                                 while (hi - lo > 3) {
                                     const double mid = (lo + hi) / 2;
                                     q = layPartOf(mid);
-                                    if (overflows(q)) {
+                                    if (overflows(q) || movesAWall(q)) {
                                         lo = mid;
                                     } else {
                                         hi = mid;
@@ -682,7 +694,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                         part.carried += p1.carried;
                         part.pieces.insert(part.pieces.end(), p1.pieces.begin(), p1.pieces.end());
                         for (int c = 0; c < columns; ++c) {
-                            run.cols << QRectF(here.columnRect(c).left(), top, here.columnWidth(), room);
+                            run.cols << QRectF(here.columnRect(c).left(), top, here.columnRect(c).width(), room);
                             run.partOfColumn << k;
                         }
                         // (The columns of the part are as tall as the room, as the boxes of the page layer are as its lines.)

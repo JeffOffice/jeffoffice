@@ -137,6 +137,8 @@ struct Section {
     QMarginsF margins{72, 72, 72, 72};
     int columns = 1;
     double columnGap = 36;                   // between columns
+    // Columns of unequal widths, when the file states them (one for each column, as many as `columns`, with the space after each: the last one's is not used); empty for equal columns.
+    QVector<double> columnWidths, columnSpaces;
     HeaderFooter header, footer;
     double headerDistance = 36, footerDistance = 36;   // from the page's edge
     bool differentFirstPage = false;         // the first page uses the header and footer's first slot
@@ -181,7 +183,7 @@ struct Section {
     int columnCount() const;                 // `columns`, from 1 to kMostColumns
     QSizeF pageSize() const;                 // as the paper is turned
     QRectF content() const;                  // the text area, in page coordinates
-    double columnWidth() const;
+    double columnWidth() const;              // the first column's
     QRectF columnRect(int column) const;     // a column of the text area, in page coordinates
 };
 
