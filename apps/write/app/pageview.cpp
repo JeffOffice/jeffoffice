@@ -5,6 +5,7 @@
 #include "core/commentops.h"
 #include "core/editops.h"
 #include "core/reviewops.h"
+#include "core/tableops.h"
 #include "core/writeprops.h"
 #include "core/spellcheck.h"
 #include "render/renderer.h"
@@ -619,8 +620,27 @@ void PageView::paintEvent(QPaintEvent *e)
         p.setRenderHint(QPainter::Antialiasing, false);
         QPen pen(QColor(0x2B, 0x57, 0xB5), 1, Qt::DashLine);
         p.setPen(pen);
-        if (m_columnDrag.row) p.drawLine(QPointF(pr.left() + m_columnDrag.left * s - sx, y), QPointF(pr.left() + m_columnDrag.right * s - sx, y));
+        if (m_columnDrag.whole) {
+            const double x2 = pr.left() + (m_columnDrag.right + m_columnDrag.nowX - m_columnDrag.startX) * s - sx;
+            p.drawLine(QPointF(x2, y0), QPointF(x2, y1));
+        } else if (m_columnDrag.row) p.drawLine(QPointF(pr.left() + m_columnDrag.left * s - sx, y), QPointF(pr.left() + m_columnDrag.right * s - sx, y));
         else p.drawLine(QPointF(x, y0), QPointF(x, y1));
+    }
+    {
+        // The table's resize handle.
+        QRectF box, table;
+        int page = 0, position = 0;
+        if (tableHandle(&box, &page, &position, &table) && page < m_rects.size()) {
+            const QRectF pr = m_rects[page].translated(-sx, -sy);
+            QRectF b(pr.left() + box.left() * s, pr.top() + box.top() * s, std::max(6.0, box.width() * s), std::max(6.0, box.height() * s));
+            if (m_columnDrag.active && m_columnDrag.whole) b.moveTo(pr.left() + (m_columnDrag.right + (m_columnDrag.nowX - m_columnDrag.startX)) * s, b.top());
+            p.save();
+            p.setRenderHint(QPainter::Antialiasing, false);
+            p.setBrush(Qt::white);
+            p.setPen(QPen(uiAccent(), 1));
+            p.drawRect(b);
+            p.restore();
+        }
     }
     // The caret.
     if (m_caretOn && (hasFocus() || m_caretWithoutFocus) && !m_cursor.hasSelection()) {
@@ -840,6 +860,49 @@ bool PageView::caretRect(QRect *rect)
     const double s = scale();
     const QRectF pr = m_rects[page].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
     *rect = QRectF(pr.left() + line.x1() * s, pr.top() + line.y1() * s, 1, (line.y2() - line.y1()) * s).toAlignedRect();
+    return true;
+}
+
+bool PageView::tableHandle(QRectF *box, int *page, int *cellPosition, QRectF *table)
+{
+    if (!m_doc || m_hf.active || m_note.active || !inTable(m_cursor.block())) return false;
+    QLineF line;
+    int at = 0;
+    if (!caretLine(m_cursor.position(), &at, &line)) return false;
+    const auto rendered_ = rendered(at);
+    if (!rendered_ || !rendered_->page) return false;
+    const double side = 8.0 / std::max(0.1, scale());
+    for (const auto &fragment : rendered_->page->tables) {
+        if (fragment->floating || fragment->cellRect(m_cursor.position()).isEmpty()) continue;
+        const QRectF rect = fragment->rect();
+        *box = QRectF(rect.right() + 1.0 / std::max(0.1, scale()), rect.bottom() + 1.0 / std::max(0.1, scale()), side, side);
+        *page = at;
+        *cellPosition = m_cursor.position();
+        *table = rect;
+        return true;
+    }
+    return false;
+}
+
+bool PageView::tableHandleAt(const QPoint &vp, ColumnDrag *found)
+{
+    QRectF box, table;
+    int page = 0, position = 0;
+    if (!tableHandle(&box, &page, &position, &table)) return false;
+    const Hit hit = hitAt(vp);
+    if (hit.page != page || !box.adjusted(-2, -2, 2, 2).contains(hit.point)) return false;
+    ColumnDrag d;
+    d.whole = true;
+    d.position = position;
+    d.page = page;
+    d.width = table.width();
+    d.startX = d.nowX = hit.point.x();
+    d.startY = d.nowY = hit.point.y();
+    d.top = table.top();
+    d.bottom = table.bottom();
+    d.left = table.left();
+    d.right = table.right();
+    *found = d;
     return true;
 }
 

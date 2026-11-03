@@ -94,6 +94,8 @@ void setCellAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment across, flow:
 // Size: the width of the selected columns, the height of the selected rows (0: as tall as the cells need), the columns or the rows made equal, and the fit.
 void setColumnWidth(WriteDoc &doc, QTextCursor &c, double points);
 void setRowHeight(WriteDoc &doc, QTextCursor &c, double points, bool exact);
+// The whole table made that wide (points), every column in the same proportion.
+void setTableWidth(WriteDoc &doc, QTextCursor &c, double points);
 void distributeColumns(WriteDoc &doc, QTextCursor &c);
 void distributeRows(WriteDoc &doc, QTextCursor &c);
 void fitTable(WriteDoc &doc, QTextCursor &c, TableFit fit);

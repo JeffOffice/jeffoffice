@@ -2780,6 +2780,51 @@ private Q_SLOTS:
         QCOMPARE(tablesSignature(*doc), before);
     }
 
+    // The handle at the table's lower right corner: pulling it sets the table's width, each column in the same proportion (one step that undoes).
+    void draggingTheTableHandleSetsTheTablesWidth()
+    {
+        auto doc = open(makeDocx(tableX(rowX(cellX(cellP("aa")) + cellX(cellP("bb"))) + rowX(cellX(cellP("cc")) + cellX(cellP("dd"))), 2) + cellP("after"), kStyles));
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        QTextCursor c = cursorAt(*doc, QStringLiteral("aa"));
+        view.cursor() = c;
+        view.paginateAll();
+        view.grab();
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page && !page->tables.isEmpty());
+        const QRectF table = page->tables[0]->rect();
+        const QRect pr = view.pageRect(0);
+        const double scale = pr.width() / 612.0;
+        const QPoint corner(int(std::lround(pr.left() + (table.right() + 4) * scale)), int(std::lround(pr.top() + (table.bottom() + 4) * scale)));
+        const QString before = tablesSignature(*doc);
+        QVERIFY(before.contains(QStringLiteral("cols=120.0,120.0")));
+        QTest::mouseMove(view.viewport(), corner);
+        QTRY_COMPARE(view.viewport()->cursor().shape(), Qt::SizeFDiagCursor);
+        const QPoint to = corner + QPoint(int(std::lround(60 * scale)), 0);
+        QTest::mousePress(view.viewport(), Qt::LeftButton, Qt::NoModifier, corner);
+        QTest::mouseMove(view.viewport(), to);
+        QTest::mouseRelease(view.viewport(), Qt::LeftButton, Qt::NoModifier, to);
+        QVERIFY2(tablesSignature(*doc).contains(QStringLiteral("cols=150.0,150.0")), qPrintable(tablesSignature(*doc)));
+        checkTablesReopenTheSame(*doc);
+        doc->story()->undo();
+        QCOMPARE(tablesSignature(*doc), before);
+    }
+
+    void setTableWidthKeepsTheColumnsProportions()
+    {
+        auto doc = open(tableDocx(2, 3));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r0c0"));
+        setColumnWidth(*doc, c, 200);
+        setTableWidth(*doc, c, 400);
+        const QString now = tablesSignature(*doc);
+        QVERIFY2(now.contains(QStringLiteral("cols=200.0,100.0,100.0")), qPrintable(now));
+        setTableWidth(*doc, c, 200);
+        QVERIFY2(tablesSignature(*doc).contains(QStringLiteral("cols=100.0,50.0,50.0")), qPrintable(tablesSignature(*doc)));
+        checkTablesReopenTheSame(*doc);
+    }
+
     void theCaretIsDrawnOnThePageThatHoldsIt()
     {
         auto doc = open(makeDocx(paragraphs(120), kStyles));

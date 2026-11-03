@@ -1628,6 +1628,21 @@ void setColumnWidth(WriteDoc &doc, QTextCursor &c, double points)
     });
 }
 
+void setTableWidth(WriteDoc &doc, QTextCursor &c, double points)
+{
+    TableCommand command(doc);
+    editTable(doc, c, [&](XTable &x, const View &v, const Area &) {
+        QVector<double> columns = x.columns;
+        double sum = 0;
+        for (double w : columns) sum += w;
+        if (sum <= 0 || columns.isEmpty()) return false;
+        const double factor = std::max(double(columns.size()) * 6.0, points) / sum;
+        for (double &w : columns) w *= factor;
+        setColumns(x, v, columns);
+        return true;
+    });
+}
+
 void setRowHeight(WriteDoc &doc, QTextCursor &c, double points, bool exact)
 {
     TableCommand command(doc);

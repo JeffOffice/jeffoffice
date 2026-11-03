@@ -343,6 +343,7 @@ private:
     struct ColumnDrag {
         bool active = false;
         int position = 0, page = 0;
+        bool whole = false;                       // the resize handle at the table's corner: the whole table's width
         bool row = false;                         // the bottom border of a row, not the right one of a column
         double width = 0, startX = 0, nowX = 0;   // (points on the page; for a row, the height and the pointer's y)
         double startY = 0, nowY = 0;
@@ -352,6 +353,9 @@ private:
     ColumnDrag m_columnDrag;
     // The border of a column or a row of a table on the page under the pointer (within a few pixels of a cell's right or bottom edge, one column or row wide), or false.
     bool columnBorderAt(const QPoint &viewportPos, ColumnDrag *found);
+    // The resize handle at the lower right corner of the table the caret is in: its box on the page and where the table is (or false). The handle is drawn there, and pulling it sets the table's width.
+    bool tableHandle(QRectF *box, int *page, int *cellPosition, QRectF *table);
+    bool tableHandleAt(const QPoint &viewportPos, ColumnDrag *found);
     int m_hoverCursorShape = -1;
     bool pictureRectUncached(int position, QRectF *rect);
     struct RectKey {

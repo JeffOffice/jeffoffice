@@ -311,7 +311,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
         e->accept();
         return;
     }
-    if (e->button() == Qt::LeftButton && e->type() != QEvent::MouseButtonDblClick && !m_hf.active && !m_note.active && columnBorderAt(e->position().toPoint(), &m_columnDrag)) {
+    if (e->button() == Qt::LeftButton && e->type() != QEvent::MouseButtonDblClick && !m_hf.active && !m_note.active && (tableHandleAt(e->position().toPoint(), &m_columnDrag) || columnBorderAt(e->position().toPoint(), &m_columnDrag))) {
         m_columnDrag.active = true;
         viewport()->update();
         e->accept();
@@ -413,7 +413,8 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
         // The pointer says what a press on the selected picture would do, or that a press on a column's border would pull it.
         const PictureHandle h = pictureHandleAt(e->position().toPoint());
         ColumnDrag border;
-        const int shape = h == PictureHandle::None && columnBorderAt(e->position().toPoint(), &border) ? int(border.row ? Qt::SplitVCursor : Qt::SplitHCursor)
+        const int shape = h == PictureHandle::None && tableHandleAt(e->position().toPoint(), &border) ? int(Qt::SizeFDiagCursor)
+                          : h == PictureHandle::None && columnBorderAt(e->position().toPoint(), &border) ? int(border.row ? Qt::SplitVCursor : Qt::SplitHCursor)
                           : h == PictureHandle::None ? int(Qt::IBeamCursor) : h == PictureHandle::Body ? int(Qt::SizeAllCursor)
                           : (h == PictureHandle::TopLeft || h == PictureHandle::BottomRight) ? int(Qt::SizeFDiagCursor)
                           : (h == PictureHandle::TopRight || h == PictureHandle::BottomLeft) ? int(Qt::SizeBDiagCursor)
@@ -447,12 +448,14 @@ void PageView::mouseReleaseEvent(QMouseEvent *e)
         const Hit hit = hitAt(e->position().toPoint());
         const double width = std::max(6.0, m_columnDrag.width + (m_columnDrag.row ? hit.point.y() - m_columnDrag.startY : hit.point.x() - m_columnDrag.startX));
         const int at = m_columnDrag.position;
+        const bool whole = m_columnDrag.whole;
         m_columnDrag.active = false;
         viewport()->update();
         if (std::abs(width - m_columnDrag.width) >= 0.5 && at >= 0 && at < m_doc->story()->characterCount()) {
             QTextCursor c(m_doc->story());
             c.setPosition(at);
-            if (m_columnDrag.row) write::setRowHeight(*m_doc, c, width, false);
+            if (whole) write::setTableWidth(*m_doc, c, width);
+            else if (m_columnDrag.row) write::setRowHeight(*m_doc, c, width, false);
             else write::setColumnWidth(*m_doc, c, width);
             m_cursor.setPosition(std::min(at, m_doc->story()->characterCount() - 1));
             refresh();
