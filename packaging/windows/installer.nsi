@@ -1,10 +1,10 @@
 ; JeffOffice Windows installer (NSIS). Built by CI from dist\JeffOffice.
 ; Installs the suite's apps that are ready (JeffPub and JeffDeck, and
-; JeffWrite and JeffCrunch as previews) into one folder, per user: no administrator rights needed. The
+; JeffWrite and JeffCrunch as betas) into one folder, per user: no administrator rights needed. The
 ; apps still being built are listed as coming soon and can't be chosen yet.
 ; JeffWrite and JeffCrunch were among those until the owner decided each ships: building with
 ; /DWITH_WRITE or /DWITH_CRUNCH (the workflow does, when its SHIP_WRITE or SHIP_CRUNCH is "true") makes
-; it a preview that is not ticked by default (it is ticked when it is already installed).
+; it a beta that is not ticked by default (it is ticked when it is already installed).
 Unicode true
 ManifestDPIAware true
 !include "MUI2.nsh"
@@ -85,13 +85,13 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
 !define WEL_END " If ${APP} is already installed, setup moves it into ${SUITE}, with your settings.$\r$\n$\r$\n${SUITE} is an independent open-source project.$\r$\n$\r$\nNo administrator rights are needed."
 !ifdef WITH_WRITE
 !ifdef WITH_CRUNCH
-!define MUI_WELCOMEPAGE_TEXT "${WEL_START}, and ${WRITE}, for documents, and ${CRUNCH}, for spreadsheets, come as previews. JeffMail and JeffBase are coming soon.${WEL_END}"
+!define MUI_WELCOMEPAGE_TEXT "${WEL_START}, and ${WRITE}, for documents, and ${CRUNCH}, for spreadsheets, come as betas. JeffMail and JeffBase are coming soon.${WEL_END}"
 !else
-!define MUI_WELCOMEPAGE_TEXT "${WEL_START}, and ${WRITE}, for documents, comes as a preview. JeffCrunch, JeffMail, and JeffBase are coming soon.${WEL_END}"
+!define MUI_WELCOMEPAGE_TEXT "${WEL_START}, and ${WRITE}, for documents, comes as a beta. JeffCrunch, JeffMail, and JeffBase are coming soon.${WEL_END}"
 !endif
 !else
 !ifdef WITH_CRUNCH
-!define MUI_WELCOMEPAGE_TEXT "${WEL_START}, and ${CRUNCH}, for spreadsheets, comes as a preview. JeffWrite, JeffMail, and JeffBase are coming soon.${WEL_END}"
+!define MUI_WELCOMEPAGE_TEXT "${WEL_START}, and ${CRUNCH}, for spreadsheets, comes as a beta. JeffWrite, JeffMail, and JeffBase are coming soon.${WEL_END}"
 !else
 !define MUI_WELCOMEPAGE_TEXT "${WEL_START}. JeffWrite, JeffCrunch, JeffMail, and JeffBase are coming soon.${WEL_END}"
 !endif
@@ -356,8 +356,8 @@ SectionEnd
 
 ; Coming soon: listed so people see what's ahead (ComingSoon makes them read-only).
 !ifdef WITH_WRITE
-; A preview, not ticked until the person ticks it.
-Section /o "${WRITE}: documents (preview)" SecWrite
+; A beta, not ticked until the person ticks it.
+Section /o "${WRITE}: documents (beta)" SecWrite
   SetOutPath "$INSTDIR"
   File "..\..\dist\JeffOffice\${WRITEEXE}"
   CreateShortcut "$SMPROGRAMS\${WRITE}.lnk" "$INSTDIR\${WRITEEXE}"
@@ -382,8 +382,8 @@ Section /o "JeffWrite: documents (coming soon)" SecWrite
 SectionEnd
 !endif
 !ifdef WITH_CRUNCH
-; A preview, not ticked until the person ticks it.
-Section /o "${CRUNCH}: spreadsheets (preview)" SecCrunch
+; A beta, not ticked until the person ticks it.
+Section /o "${CRUNCH}: spreadsheets (beta)" SecCrunch
   SetOutPath "$INSTDIR"
   File "..\..\dist\JeffOffice\${CRUNCHEXE}"
   CreateShortcut "$SMPROGRAMS\${CRUNCH}.lnk" "$INSTDIR\${CRUNCHEXE}"
@@ -669,13 +669,13 @@ FunctionEnd
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
 !ifdef WITH_WRITE
 !ifdef WITH_CRUNCH
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready. ${WRITE} and ${CRUNCH} are previews."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready. ${WRITE} and ${CRUNCH} are betas."
 !else
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready. ${WRITE} is a preview."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready. ${WRITE} is a beta."
 !endif
 !else
 !ifdef WITH_CRUNCH
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready. ${CRUNCH} is a preview."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready. ${CRUNCH} is a beta."
 !else
   !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready now."
 !endif
@@ -683,12 +683,12 @@ FunctionEnd
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} "Desktop publishing: flyers, newsletters, and cards. Opens .pub files."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDeck} "Presentations and slide shows. Opens and saves .pptx and .odp."
 !ifdef WITH_WRITE
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents and reports. A preview: opens and saves .docx files."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents and reports. A beta: opens .docx, .doc, .rtf, and .odt files, and saves .docx and .odt."
 !else
   !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents, letters, and reports. Coming soon: it can't be installed yet."
 !endif
 !ifdef WITH_CRUNCH
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecCrunch} "Spreadsheets and charts. A preview: opens and saves .xlsx files."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecCrunch} "Spreadsheets and charts. A beta: opens .xlsx, .xls, .ods, and .csv files, and saves them."
 !else
   !insertmacro MUI_DESCRIPTION_TEXT ${SecCrunch} "Spreadsheets and charts. Coming soon: it can't be installed yet."
 !endif

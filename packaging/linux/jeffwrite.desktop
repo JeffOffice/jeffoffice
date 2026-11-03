@@ -2,7 +2,7 @@
 Type=Application
 Name=JeffWrite
 GenericName=Word Processor
-Comment=Write letters, reports, and other documents (Preview)
+Comment=Write letters, reports, and other documents (Beta)
 Exec=jeffwrite %F
 Icon=jeffwrite
 Terminal=false
