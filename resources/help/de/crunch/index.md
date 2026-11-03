@@ -1,7 +1,7 @@
 # JeffCrunch-Hilfe
-<!-- keywords: Inhalt, Hilfe, Themen, Start, Übersicht, Inhaltsverzeichnis, Erste Schritte -->
+<!-- keywords: Inhalt, Inhaltsverzeichnis, Hilfe, Themen, Hilfethemen, Start, Übersicht -->
 
-Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur aktuellen Registerkarte des Menübands oder zur aktuellen Seite im Menü „Datei“.
+Geben Sie oben in das Suchfeld etwas ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur aktuellen Registerkarte des Menübands oder zur aktuellen Seite im Menü „Datei“.
 
 ## Erste Schritte
 
@@ -13,7 +13,7 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 
 ## Eine Arbeitsmappe ansehen
 
-- [Zellen auswählen und sich bewegen](select-and-move)
+- [Zellen markieren und navigieren](select-and-move)
 - [Die Ansicht ändern](view)
 - [Wie Formeln angezeigt und berechnet werden](formulas)
 - [Namen für Zellen und Werte](names)
@@ -27,13 +27,14 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 - [Mit Blättern arbeiten](sheets)
 - [Zeilen, Spalten und Zellen einfügen und löschen](insert-delete)
 - [Spaltenbreite und Zeilenhöhe ändern](sizes)
-- [Ausschneiden, Kopieren und Einfügen](clipboard)
+- [Ausschneiden, kopieren und einfügen](clipboard)
 - [Zellen ausfüllen und addieren](fill-sum)
-- [Suchen, Ersetzen und Gehe zu](find-replace)
-- [Sortieren und Filtern](sort-filter)
+- [Suchen, ersetzen und gehe zu](find-replace)
+- [Sortieren und filtern](sort-filter)
 - [Tabellen](tables)
+- [Pivot-Tabellen](pivot-tables)
 - [Eine Funktion einfügen](insert-function)
-- [Eine Funktion mit dem Dialog „Funktionsargumente“ eingeben](function-arguments)
+- [Eine Funktion mit dem Dialogfeld „Funktionsargumente“ eingeben](function-arguments)
 - [Diagramme, Bilder und Formen](charts)
 - [Notizen und Links](notes-links)
 - [Ein Blatt oder die Arbeitsmappe schützen](protect)

@@ -1,7 +1,7 @@
 # JeffWrite-Hilfe
-<!-- keywords: Inhalt, Hilfe, Themen, Hilfethemen, Start, Übersicht, Erste Schritte -->
+<!-- keywords: Inhalt, Hilfe, Themen, Hilfethemen, Start, Erste Schritte, Übersicht -->
 
-Geben Sie oben in das Suchfeld etwas ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur aktuellen Registerkarte des Menübands oder zur aktuellen Seite im Menü „Datei“.
+Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu Ihrer aktuellen Tätigkeit zu erhalten: zur geöffneten Registerkarte des Menübands oder zur geöffneten Seite im Menü „Datei“.
 
 ## Erste Schritte
 
@@ -11,7 +11,7 @@ Geben Sie oben in das Suchfeld etwas ein, um ein Thema oder einen auszuführende
 - [RTF-Dateien öffnen](open-rtf)
 - [Drucken](print)
 
-## Text bearbeiten
+## Text überarbeiten
 
 - [Rechtschreibung prüfen](spelling)
 - [Änderungen nachverfolgen, annehmen oder ablehnen](track-changes)
@@ -21,15 +21,19 @@ Geben Sie oben in das Suchfeld etwas ein, um ein Thema oder einen auszuführende
 
 - [Aussehen von Text ändern](font)
 - [Formatvorlagen verwenden](styles)
-- [Formatierung mit der Schaltfläche kopieren](format-painter)
+- [Formatierung mit „Formatierung kopieren“ übertragen](format-painter)
 - [Kopfzeilen, Fußzeilen und Seitenzahlen hinzufügen](headers-footers)
 - [Tabellen erstellen und ändern](tables)
 - [Fußnoten und Endnoten hinzufügen](footnotes-endnotes)
+- [Inhaltsverzeichnis erstellen](table-of-contents)
+- [Felder verwenden](fields)
+- [Mit Querverweisen auf eine andere Stelle verweisen](cross-references)
+- [Stellen mit Textmarken kennzeichnen](bookmarks)
 - [Bilder hinzufügen und ändern](pictures)
 - [Seite einrichten](page-setup)
 - [Lineal verwenden](ruler)
 - [Wörter suchen und ersetzen](find-replace)
-- [Zu einer Stelle springen und Text verschieben](go-to-and-move-text)
+- [Zu einer Stelle wechseln und Text verschieben](go-to-and-move-text)
 
 ## Schneller arbeiten
 

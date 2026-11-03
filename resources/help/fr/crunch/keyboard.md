@@ -1,5 +1,5 @@
 # Utiliser JeffCrunch avec le clavier
-<!-- keywords: clavier, raccourcis clavier, raccourcis, touches, touches de raccourci, flèches, ctrl, maj, début, fin, page précédente, page suivante, tabulation, entrée, sélectionner tout, copier, F9, F1, zoom, touches d'accès, info-touches -->
+<!-- keywords: clavier, raccourcis, raccourcis clavier, touches, touches de raccourci, flèche, ctrl, maj, origine, fin, page précédente, page suivante, tabulation, entrée, sélectionner tout, copier, F9, F1, zoom, touches d'accès, info-touches -->
 
 Sur un Mac, la touche **Commande** (⌘) remplace la touche **Ctrl** dans les tableaux ci-dessous, sauf indication contraire dans un tableau.
 
@@ -7,16 +7,16 @@ Sur un Mac, la touche **Commande** (⌘) remplace la touche **Ctrl** dans les ta
 
 | Touches | Action |
 | --- | --- |
-| Touches de direction | Déplacer la cellule active d'une cellule, en sautant les lignes et colonnes masquées |
-| Maj+flèche | Étendre la sélection d'une cellule |
-| Ctrl+flèche | Atteindre le bord des données (Échap interrompt une recherche longue) |
-| Ctrl+Maj+flèche | Étendre la sélection jusqu'au bord des données |
+| Touches de direction | Déplacer la cellule active d'une cellule, en ignorant les lignes et colonnes masquées |
+| Maj+touche de direction | Étendre la sélection d'une cellule |
+| Ctrl+touche de direction | Atteindre le bord des données (Échap interrompt une longue recherche) |
+| Ctrl+Maj+touche de direction | Étendre la sélection jusqu'au bord des données |
 | Origine | Atteindre la première colonne de la ligne |
 | Ctrl+Origine | Atteindre la première cellule (A1, ou la première cellule qui défile lorsque des lignes ou des colonnes sont figées) |
 | Ctrl+Fin | Atteindre la dernière cellule qui contient quelque chose ou possède une mise en forme |
-| Pg.Suiv, Pg.Préc | Descendre ou monter d'un écran |
-| Tab, Maj+Tab | Se déplacer vers la droite ou la gauche (à travers les cellules sélectionnées, s'il y en a plusieurs) |
-| Entrée, Maj+Entrée | Se déplacer vers le bas ou le haut (à travers les cellules sélectionnées, s'il y en a plusieurs) |
+| Pg. suiv, Pg. préc | Descendre ou monter d'un écran |
+| Tab, Maj+Tab | Se déplacer vers la droite ou la gauche (dans les cellules sélectionnées, s'il y en a plusieurs) |
+| Entrée, Maj+Entrée | Se déplacer vers le bas ou le haut (dans les cellules sélectionnées, s'il y en a plusieurs) |
 | Ctrl+Espace | Sélectionner la colonne entière |
 | Maj+Espace | Sélectionner la ligne entière |
 | {key:SelectAll} | Tout sélectionner |
@@ -26,7 +26,8 @@ Sur un Mac, la touche **Commande** (⌘) remplace la touche **Ctrl** dans les ta
 | Touches | Action |
 | --- | --- |
 | N'importe quel caractère | Commencer une saisie dans la cellule active, en remplaçant son contenu |
-| F2 | Modifier le contenu de la cellule active, dans la cellule |
+| F2 | Modifier le contenu de la cellule active, dans la cellule ; pendant la saisie d'une formule, basculer entre la sélection de cellules et la modification du texte |
+| F4 | Pendant la saisie d'une formule, figer des parties de l'adresse située au curseur avec $ (A1, $A$1, A$1, $A1) |
 | Entrée, Maj+Entrée | Valider la saisie et se déplacer vers le bas ou le haut |
 | Tab, Maj+Tab | Valider la saisie et se déplacer vers la droite ou la gauche |
 | Échap | Abandonner la saisie |
@@ -34,11 +35,11 @@ Sur un Mac, la touche **Commande** (⌘) remplace la touche **Ctrl** dans les ta
 | Suppr | Effacer les cellules sélectionnées |
 | {key:Undo}, {key:Redo} | Annuler, rétablir |
 | {key:Save} | Enregistrer |
-| {key:Cut}, {key:Copy}, {key:Paste} | Couper, copier, coller (Échap retire la bordure des cellules copiées) |
+| {key:Cut}, {key:Copy}, {key:Paste} | Couper, copier, coller (Échap supprime la bordure des cellules copiées) |
 | Ctrl+Alt+V | Collage spécial |
 | Ctrl et la touche plus, Ctrl et la touche moins | Insérer, supprimer (des lignes ou des colonnes si des lignes ou colonnes entières sont sélectionnées) |
 | Ctrl+D, Ctrl+R | Recopier vers le bas, recopier vers la droite |
-| Alt et le signe égal | Somme |
+| Alt et la touche égal | Somme |
 | Ctrl+0, Ctrl+9 | Masquer les colonnes, masquer les lignes |
 | Alt+Bas | Ouvrir la liste d'une cellule qui en possède une |
 | {key:Find} | Rechercher |
@@ -48,7 +49,7 @@ Sur un Mac, la touche **Commande** (⌘) remplace la touche **Ctrl** dans les ta
 | Maj+F3 | Choisir une fonction |
 | Ctrl+F3 | Liste des noms |
 | F9, Maj+F9 | Tout recalculer, recalculer cette feuille |
-| Tab, Entrée | Pendant la saisie d'une formule : reprendre la fonction ou le nom mis en évidence dans la liste |
+| Tab, Entrée | Pendant la saisie d'une formule : prendre la fonction ou le nom sélectionné dans la liste |
 | Échap | Interrompre une recherche, un tri ou un filtrage en cours |
 
 ## Commandes

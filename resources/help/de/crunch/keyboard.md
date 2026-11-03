@@ -1,22 +1,22 @@
-# JeffCrunch mit der Tastatur bedienen
-<!-- keywords: Tastatur, Tastenkombinationen, Tastenkürzel, Shortcuts, Tasten, Hotkeys, Pfeiltasten, Strg, Umschalt, Pos1, Ende, Bild auf, Bild ab, Tab, Eingabetaste, Alles markieren, Kopieren, F9, F1, Zoom, Zugriffstasten, Zugriffstasteninfos -->
+# JeffCrunch mit der Tastatur verwenden
+<!-- keywords: Tastatur, Tastenkombinationen, Tastenkürzel, Shortcuts, Tasten, Pfeiltasten, Strg, Umschalt, Pos1, Ende, Bild auf, Bild ab, Tab, Eingabetaste, Alles markieren, Kopieren, F9, F1, Zoom, Zugriffstasten, Zugriffstasteninfos -->
 
 Auf einem Mac übernimmt die **Befehlstaste** (⌘) die Funktion der Taste **Strg** in den folgenden Tabellen, sofern in einer Tabelle nichts anderes angegeben ist.
 
-## Bewegen und Markieren
+## Bewegen und markieren
 
 | Tasten | Funktion |
 | --- | --- |
-| Pfeiltasten | Aktive Zelle um eine Zelle verschieben, ausgeblendete Zeilen und Spalten werden übersprungen |
+| Pfeiltasten | Aktive Zelle um eine Zelle verschieben; ausgeblendete Zeilen und Spalten werden übersprungen |
 | Umschalt+Pfeiltaste | Markierung um eine Zelle erweitern |
-| Strg+Pfeiltaste | Zum Rand des Datenbereichs springen (Esc bricht eine lange Suche ab) |
-| Strg+Umschalt+Pfeiltaste | Markierung bis zum Rand des Datenbereichs erweitern |
+| Strg+Pfeiltaste | Zum Rand der Daten springen (Esc bricht eine lange Suche ab) |
+| Strg+Umschalt+Pfeiltaste | Markierung bis zum Rand der Daten erweitern |
 | Pos1 | Zur ersten Spalte der Zeile springen |
 | Strg+Pos1 | Zur ersten Zelle springen (A1 oder die erste Zelle, die mitscrollt, wenn Zeilen oder Spalten fixiert sind) |
-| Strg+Ende | Zur letzten Zelle springen, die Inhalt oder ein Format hat |
+| Strg+Ende | Zur letzten Zelle springen, die Inhalt oder eine Formatierung hat |
 | Bild ab, Bild auf | Um eine Bildschirmseite nach unten oder oben blättern |
-| Tab, Umschalt+Tab | Nach rechts oder links bewegen (innerhalb der markierten Zellen, falls mehrere markiert sind) |
-| Eingabetaste, Umschalt+Eingabetaste | Nach unten oder oben bewegen (innerhalb der markierten Zellen, falls mehrere markiert sind) |
+| Tab, Umschalt+Tab | Nach rechts oder links wechseln (innerhalb der markierten Zellen, wenn mehrere markiert sind) |
+| Eingabetaste, Umschalt+Eingabetaste | Nach unten oder oben wechseln (innerhalb der markierten Zellen, wenn mehrere markiert sind) |
 | Strg+Leertaste | Ganze Spalte markieren |
 | Umschalt+Leertaste | Ganze Zeile markieren |
 | {key:SelectAll} | Alles markieren |
@@ -25,11 +25,11 @@ Auf einem Mac übernimmt die **Befehlstaste** (⌘) die Funktion der Taste **Str
 
 | Tasten | Funktion |
 | --- | --- |
-| Beliebiges Zeichen | Neue Eingabe in der aktiven Zelle beginnen und deren Inhalt ersetzen |
-| F2 | Inhalt der aktiven Zelle direkt in der Zelle bearbeiten; beim Eingeben einer Formel zwischen Zeigen auf Zellen und Bearbeiten des Texts wechseln |
-| F4 | Beim Eingeben einer Formel Teile der Adresse am Cursor mit $ festsetzen (A1, $A$1, A$1, $A1) |
-| Eingabetaste, Umschalt+Eingabetaste | Eingabe übernehmen und nach unten oder oben bewegen |
-| Tab, Umschalt+Tab | Eingabe übernehmen und nach rechts oder links bewegen |
+| Beliebiges Zeichen | Eingabe in der aktiven Zelle beginnen und deren Inhalt ersetzen |
+| F2 | Inhalt der aktiven Zelle direkt in der Zelle bearbeiten; während der Eingabe einer Formel zwischen dem Zeigen auf Zellen und dem Bearbeiten des Textes wechseln |
+| F4 | Während der Eingabe einer Formel Teile des Bezugs an der Cursorposition mit $ fixieren (A1, $A$1, A$1, $A1) |
+| Eingabetaste, Umschalt+Eingabetaste | Eingabe übernehmen und nach unten oder oben wechseln |
+| Tab, Umschalt+Tab | Eingabe übernehmen und nach rechts oder links wechseln |
 | Esc | Eingabe verwerfen |
 | Alt+Eingabetaste | Neue Zeile in der Zelle beginnen |
 | Entf | Markierte Zellen leeren |
@@ -58,4 +58,4 @@ Auf einem Mac übernimmt die **Befehlstaste** (⌘) die Funktion der Taste **Str
 
 ## Zugriffstasten
 
-Drücken Sie **Alt**, um auf jeder Registerkarte des Menübands und bei jedem Befehl einen Buchstaben anzuzeigen, und drücken Sie dann die Buchstaben. Drücken Sie **Alt** und dann **D**, um das Menü **Datei** zu öffnen. Mit **Esc** gehen Sie wieder zurück.
+Drücken Sie **Alt**, um auf jeder Registerkarte des Menübands und bei jedem Befehl einen Buchstaben anzuzeigen, und drücken Sie dann die Buchstaben. Drücken Sie **Alt** und dann **F**, um das Menü **Datei** zu öffnen. Mit **Esc** gehen Sie wieder zurück.

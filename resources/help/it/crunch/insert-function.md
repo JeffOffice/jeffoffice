@@ -1,14 +1,14 @@
 # Scegliere una funzione
-<!-- keywords: funzione, scegli una funzione, inserisci funzione, fx, formula, argomento, categoria, cerca, tutte le funzioni, somma automatica, MAIUSC+F3 -->
+<!-- keywords: funzione, scegli una funzione, inserisci funzione, fx, formula, argomento, argomenti, categoria, cerca, tutte le funzioni, Somma, Maiusc+F3 -->
 
-Scegliere **Scegli una funzione** nella scheda Formule (**MAIUSC+F3**) oppure **Tutte le funzioni…** nel menu **Somma**.
+Scegliete **Scegli una funzione** nella scheda Formule (**Maiusc+F3**) oppure **Tutte le funzioni…** nel menu **Somma**.
 
-Digitare nella casella di ricerca un nome o ciò che si desidera fare ("arrotonda per difetto", "unisci testo"): l'elenco mostra le funzioni corrispondenti, con prima quelle il cui nome inizia con le parole digitate. **Tipo** limita l'elenco alle funzioni finanziarie, di data e ora, matematiche e trigonometriche, statistiche, di ricerca e riferimento, di testo, logiche, informative o di database.
+Digitate nella casella di ricerca un nome o ciò che volete fare ("arrotonda per difetto", "unisci testo"): l'elenco mostra le funzioni corrispondenti, con prima quelle il cui nome inizia con le parole digitate. **Tipo:** limita l'elenco alle funzioni finanziarie, di data e ora, matematiche e trigonometriche, statistiche, di ricerca e riferimento, di testo, logiche, informative o di database.
 
-Selezionare una funzione per vederne la sintassi, cosa fa e i relativi argomenti. Un argomento tra parentesi quadre è facoltativo e "altri dello stesso tipo" indica che è possibile specificarne quanti ne servono. Premere **OK** (oppure fare doppio clic sulla funzione).
+Selezionate una funzione per vedere come si scrive, che cosa fa e quali sono i suoi argomenti. Un argomento tra parentesi quadre è facoltativo, e "altri dello stesso tipo" significa che potete specificarne quanti ne servono. Premete **OK** (oppure fate doppio clic sulla funzione).
 
-Dopo **OK** si apre la finestra **Argomenti funzione**, dove si compilano gli argomenti e si vede il risultato mentre si digita. **OK** lì scrive la formula nella cella, per esempio **=SUM(A1:A3)**. Se si sta già digitando una formula, la funzione viene inserita nella posizione del cursore. Vengono elencate solo le funzioni che JeffCrunch è in grado di calcolare.
+Dopo **OK** si apre la finestra di dialogo **Argomenti funzione** relativa alla funzione, in cui inserire gli argomenti vedendo il risultato mentre digitate (vedere [Immettere una funzione con la finestra di dialogo Argomenti funzione](function-arguments)). Premendo **OK** in questa finestra la formula viene scritta nella cella, ad esempio **=SOMMA(A1:A3)**. Se state già digitando una formula, la funzione viene inserita nella posizione del cursore. Sono elencate solo le funzioni che JeffCrunch è in grado di calcolare.
 
 ## Messaggi sulle celle
 
-Una cella con una regola per i valori che è possibile immettere può avere anche un messaggio (un titolo e una frase), che viene visualizzato accanto alla cella quando questa è selezionata. Funzionano anche gli elenchi che leggono celle di un altro foglio.
+Una cella che ha una regola per i valori consentiti può avere anche un messaggio (un titolo e una frase), che viene visualizzato accanto alla cella quando questa è selezionata. Funzionano anche gli elenchi che leggono celle di un altro foglio.

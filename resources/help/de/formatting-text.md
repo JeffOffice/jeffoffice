@@ -1,42 +1,42 @@
 # Text formatieren
-<!-- keywords: Schriftart, Schrift, Schriftgrad, Schriftgröße, fett, kursiv, unterstrichen, Schriftfarbe, Textfarbe, Zeichenabstand, Unterschneidung, Text ausrichten, Zeilenabstand, Einzug, Initiale, Formatierung kopieren, Formatierung kopieren, Formatierung einfügen, Groß-/Kleinschreibung -->
+<!-- keywords: Schriftart, Schriftgrad, Schriftgröße, fett, kursiv, unterstrichen, Schriftfarbe, Textfarbe, Zeichenabstand, Unterschneidung, Text ausrichten, Zeilenabstand, Einzug, Initiale, Formatierung kopieren, Format übertragen, Formatierung einfügen, Groß-/Kleinschreibung -->
 
 Text formatieren Sie auf der Registerkarte **Start**. Die Gruppe **Schriftart** ändert Buchstaben. Die Gruppe **Absatz** ändert ganze Absätze.
 
 ## Auswählen, was geändert werden soll
 
 - **Buchstaben:** Markieren Sie zuerst den Text. Wenn Sie nur in ein Wort klicken, ändert JeffPub dieses Wort und den Text, den Sie als Nächstes eingeben.
-- **Absätze:** Klicken Sie in einen Absatz, oder markieren Sie mehrere. Ausrichtung, Abstände und Einzüge ändern sich für jeden Absatz, den Sie erfassen.
-- **Alles in einem Feld:** Wählen Sie das Feld aus, nicht den Text.
+- **Absätze:** Klicken Sie in einen Absatz, oder markieren Sie mehrere. Ausrichtung, Abstände und Einzüge ändern sich in jedem Absatz, den Sie erfassen.
+- **Alles in einem Feld:** Markieren Sie das Feld, nicht den Text.
 
-## Schriftarten, Größe und Schriftschnitt
+## Schriftart, Größe und Schriftschnitt
 
-1. Wählen Sie unter **Start > Schriftart** im Schriftartfeld eine Schriftart aus. Die **Schemaschriftarten** oben richten sich nach dem Schriftartenschema der Publikation. Siehe [Farb- und Schriftartenschemas](color-schemes).
-2. Geben Sie im Feld für den Schriftgrad eine Größe in Punkt ein, oder wählen Sie eine aus. Ein Punkt entspricht 1/72 Zoll.
+1. Wählen Sie unter **Start > Schriftart** eine Schriftart im Schriftartfeld aus. Die **Schemaschriftarten** oben richten sich nach dem Schriftartenschema der Publikation. Siehe [Farb- und Schriftartenschemas](color-schemes).
+2. Geben Sie im Größenfeld eine Größe in Punkt ein, oder wählen Sie eine aus. Ein Punkt ist 1/72 Zoll.
 3. Mit **Schriftgrad vergrößern** und **Schriftgrad verkleinern** ändern Sie die Größe schrittweise.
 
-**Fett**, **Kursiv**, **Unterstrichen**, **Durchgestrichen**, **Tiefgestellt** und **Hochgestellt** erfordern jeweils nur einen Klick. Der Pfeil neben **Unterstrichen** bietet gepunktete, gestrichelte und wellenförmige Linien. **Alle Formatierungen löschen** setzt den Text auf die Vorgaben seiner Formatvorlage zurück. **Groß-/Kleinschreibung** bietet: ersten Buchstaben im Satz großschreiben, kleinbuchstaben, GROSSBUCHSTABEN, ersten Buchstaben jedes Wortes großschreiben, Groß-/Kleinschreibung umkehren, **Kapitälchen** und **Großbuchstaben**.
+**Fett**, **Kursiv**, **Unterstrichen**, **Durchgestrichen**, **Tiefgestellt** und **Hochgestellt** erfordern jeweils nur einen Klick. Der Pfeil neben **Unterstrichen** bietet gepunktete, gestrichelte und wellenförmige Linien. **Alle Formatierungen löschen** setzt den Text auf die Vorgaben seiner Formatvorlage zurück. **Groß-/Kleinschreibung** bietet Satzanfang groß, kleinbuchstaben, GROSSBUCHSTABEN, Ersten Buchstaben Jedes Wortes Großschreiben, gROSS-/kLEINSCHREIBUNG uMKEHREN, **Kapitälchen** und **Großbuchstaben**.
 
 Um viele Einstellungen auf einmal vorzunehmen, klicken Sie auf die Schaltfläche in der Ecke der Gruppe **Schriftart** (oder drücken Sie Strg+Umschalt+F), um das Dialogfeld **Schriftart** zu öffnen.
 
 ## Farbe
 
-Klicken Sie auf **Schriftfarbe**, und wählen Sie eine Schemafarbe, eine Standardfarbe oder eine zuletzt verwendete Farbe aus. **Weitere Farben…** öffnet die vollständige Farbauswahl, mit **Pipette** nehmen Sie eine Farbe von der Seite auf, und **Farbtöne…** zeigt hellere und dunklere Varianten einer Schemafarbe an. **Automatisch** stellt die Farbe der Formatvorlage wieder her.
+Klicken Sie auf **Schriftfarbe**, und wählen Sie eine Schema-, Standard- oder zuletzt verwendete Farbe aus. **Weitere Farben…** öffnet die vollständige Farbauswahl, mit der **Pipette** nehmen Sie eine Farbe von der Seite auf, und **Farbtöne…** listet hellere und dunklere Varianten einer Schemafarbe auf. **Automatisch** stellt die Farbe der Formatvorlage wieder her.
 
 ## Zeichenabstand
 
-**Zeichenabstand** rückt Buchstaben enger zusammen oder weiter auseinander. Wählen Sie **Sehr eng**, **Eng**, **Normal**, **Locker** oder **Sehr weit**. **Weitere Abstände…** öffnet das Dialogfeld **Zeichenabstand**. Dort können Sie außerdem Buchstaben strecken, die Unterschneidung (den Abstand zwischen zwei Buchstaben) anpassen und den Wortabstand ändern.
+**Zeichenabstand** rückt Buchstaben enger zusammen oder weiter auseinander. Wählen Sie **Sehr eng**, **Eng**, **Normal**, **Weit** oder **Sehr weit**. **Weitere Abstände…** öffnet das Dialogfeld **Zeichenabstand**. Dort können Sie Buchstaben außerdem strecken, die Unterschneidung (den Abstand zwischen zwei Buchstaben) anpassen und den Wortabstand ändern.
 
 ## Ausrichtung, Abstände und Einzüge
 
-- **Linksbündig**, **Zentriert**, **Rechtsbündig**, **Blocksatz** und **Verteilen** legen fest, wie die Zeilen ausgerichtet werden. **Verteilen** entspricht **Blocksatz**, streckt aber auch die letzte Zeile.
-- **Zeilenabstand** legt den Abstand zwischen den Zeilen fest. **Absatzabstand** legt den Abstand vor oder nach einem Absatz fest.
+- **Linksbündig**, **Zentriert**, **Rechtsbündig**, **Blocksatz** und **Verteilt** legen fest, wie die Zeilen ausgerichtet werden. **Verteilt** entspricht **Blocksatz**, streckt aber auch die letzte Zeile.
+- **Zeilenabstand** legt den Abstand zwischen Zeilen fest. **Absatzabstand** legt den Abstand vor oder nach einem Absatz fest.
 - **Einzug vergrößern** und **Einzug verkleinern** verschieben einen Absatz um 0,6 cm.
 - Für genaue Werte wählen Sie in einem der beiden Abstandsmenüs **Absatz…**, oder klicken Sie auf die Schaltfläche in der Ecke der Gruppe **Absatz**.
 
 ## Effekte, Initialen und Typografie
 
-Auf der Registerkarte **Textfeld** fügt **Effekte** den Buchstaben Schatten, Kontur, Relief, Gravur, Leuchten und Farbverlaufsfüllungen hinzu. Eine Initiale ist ein großer Anfangsbuchstabe: Klicken Sie in den Absatz, und wählen Sie **Textfeld > Typografie > Initiale**. Wählen Sie 2 bis 5 Zeilen oder **Benutzerdefinierte Initiale…**. Die übrigen Optionen unter **Typografie**, etwa Ligaturen und stilistische Sätze, hängen davon ab, was die Schriftart bietet.
+Auf der Registerkarte **Textfeld** fügt **Effekte** Buchstaben Schatten, Kontur, Relief, Gravur, Leuchten und Farbverlaufsfüllungen hinzu. Eine Initiale ist ein großer Anfangsbuchstabe: Klicken Sie in den Absatz, und wählen Sie **Textfeld > Typografie > Initiale**. Wählen Sie 2 bis 5 Zeilen oder **Benutzerdefinierte Initiale…**. Die übrigen Optionen unter **Typografie**, etwa Ligaturen und stilistische Sätze, hängen davon ab, was die Schriftart bietet.
 
 ## Formatierung mit der Schaltfläche kopieren
 
@@ -44,9 +44,9 @@ Auf der Registerkarte **Textfeld** fügt **Effekte** den Buchstaben Schatten, Ko
 2. Klicken Sie auf **Start > Zwischenablage > Formatierung kopieren**.
 3. Klicken Sie auf das Textfeld, das Sie ändern möchten.
 
-Das gesamte Feld übernimmt das Aussehen des ersten Textes sowie dessen Füllung und Kontur. Halten Sie beim Klicken auf die Schaltfläche die Umschalttaste gedrückt, um das Format mehrmals zu übertragen. Drücken Sie Esc, um aufzuhören.
+Das gesamte Feld übernimmt das Aussehen des ersten Textes sowie dessen Füllung und Kontur. Halten Sie beim Klicken auf die Schaltfläche die Umschalttaste gedrückt, um die Formatierung mehrfach zu übertragen. Drücken Sie Esc, um aufzuhören.
 
-Mit der Tastatur: Markieren Sie den Text oder das Objekt mit dem gewünschten Aussehen, und drücken Sie **Strg+Umschalt+C**, um die Formatierung zu kopieren. Markieren Sie dann anderen Text oder andere Objekte, und drücken Sie **Strg+Umschalt+V**, um ihnen dieses Aussehen zu geben.
+Mit der Tastatur: Markieren Sie den Text oder das Objekt, dessen Aussehen Sie übernehmen möchten, und drücken Sie **Strg+Umschalt+C**, um die Formatierung zu kopieren. Markieren Sie dann anderen Text oder andere Objekte, und drücken Sie **Strg+Umschalt+V**, um ihnen dieses Aussehen zu geben.
 
 ## Tastenkombinationen
 

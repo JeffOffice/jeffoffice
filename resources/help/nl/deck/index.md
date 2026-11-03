@@ -1,7 +1,7 @@
 # Help bij JeffDeck
-<!-- keywords: inhoud, inhoudsopgave, help, hulp, onderwerpen, starten, beginnen -->
+<!-- keywords: inhoud, help, onderwerpen, starten, inhoudsopgave, beginnen -->
 
-Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te voeren. Druk op elk moment op **F1** voor hulp bij waar u mee bezig bent: het tabblad van het lint waarop u zich bevindt, het deelvenster waarin u werkt of het object dat u hebt geselecteerd.
+Typ in het zoekvak hierboven om een onderwerp te vinden of een opdracht uit te voeren. Druk op elk moment op **F1** voor hulp bij wat u aan het doen bent: het tabblad van het lint waarop u zich bevindt, het deelvenster waarin u werkt of het object dat u hebt geselecteerd.
 
 ## Aan de slag
 
@@ -14,14 +14,14 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te v
 
 - [Dia's toevoegen, wijzigen en verwijderen](slides)
 - [Dia's uit een andere presentatie opnieuw gebruiken](reuse)
-- [Overzichtsweergave en de Diasorteerder](views)
+- [Overzichtsweergave, de diasorteerder en de diamodelweergave](views)
 - [Diaformaat, achtergrond en voetteksten](design)
 
 ## Op een dia
 
 - [Tekst typen en opmaken](text)
-- [Vormen, afbeeldingen, tabellen en Tekstopmaak](objects)
-- [Het deelvenster Vorm opmaken](format-shape)
+- [Vormen, afbeeldingen, tabellen en tekstopmaak](objects)
+- [Het deelvenster Vorm opmaken en het tabblad Vormopmaak](format-shape)
 - [Sprekersnotities](notes)
 - [Opmerkingen](comments)
 
@@ -32,7 +32,7 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te v
 
 ## Presenteren
 
-- [De diavoorstelling afspelen en de Presentatorweergave gebruiken](show)
+- [De diavoorstelling afspelen en de presentatorweergave gebruiken](show)
 
 ## Afdrukken en delen
 
@@ -47,4 +47,4 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te v
 ## De tabbladen van het lint
 
 - [Start](tab-home), [Invoegen](tab-insert), [Ontwerp](tab-design), [Overgangen](tab-transitions), [Animaties](tab-animations), [Diavoorstelling](tab-slide-show), [Controleren](tab-review) en [Beeld](tab-view)
-- [Afspelen](tab-playback) verschijnt als een film of geluid is geselecteerd
+- [Afspelen](tab-playback) wordt weergegeven wanneer een video of geluid is geselecteerd

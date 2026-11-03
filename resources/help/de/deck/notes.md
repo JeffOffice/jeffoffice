@@ -1,19 +1,19 @@
 # Sprechernotizen
 <!-- keywords: Notizen, Sprechernotizen, Notizenbereich, Notizfeld, Referentennotizen, Notizenseite, Stichpunkte, Redenotizen, Notizen drucken, Notizen ausblenden, Notizen anzeigen -->
 
-**Sprechernotizen** sind die Worte, an die Sie sich während der Präsentation erinnern möchten. Das Publikum sieht sie nie. Jede Folie hat ihre eigenen.
+**Sprechernotizen** enthalten das, woran Sie sich während der Präsentation erinnern möchten. Das Publikum sieht sie nie. Jede Folie hat ihre eigenen Notizen.
 
 ## Notizen schreiben
 
-Das Notizfeld befindet sich unter der Folie. Klicken Sie hinein, und geben Sie den Text ein. Solange es leer ist, steht darin **Klicken, um Notizen hinzuzufügen**. Die Notizen sind reiner Text. Sie gehören zu der Folie, auf der Sie sich gerade befinden. Klicken Sie also auf eine andere Folie, um deren Notizen anzuzeigen oder zu schreiben.
+Das Notizfeld befindet sich unter der Folie. Klicken Sie hinein, und geben Sie den Text ein. Solange es leer ist, steht dort **Klicken, um Notizen hinzuzufügen**. Notizen sind reiner Text. Sie gehören zu der Folie, auf der Sie sich gerade befinden. Klicken Sie also auf eine andere Folie, um deren Notizen anzuzeigen oder zu schreiben.
 
 Was Sie eingeben, wird zu einem Schritt, den Sie mit Strg+Z rückgängig machen können, sobald Sie eine Pause einlegen oder an eine andere Stelle klicken.
 
 Um die Höhe des Felds zu ändern, ziehen Sie die Linie zwischen dem Feld und der Folie. Um das Feld auszublenden und mehr Platz für die Folie zu erhalten, klicken Sie auf **Ansicht > Anzeigen > Notizen** oder auf die Schaltfläche **Notizen** in der Statusleiste. Klicken Sie erneut, um es wieder einzublenden.
 
-## Notizen während der Präsentation verwenden
+## Notizen beim Präsentieren verwenden
 
-Die Referentenansicht zeigt die Notizen der Folie auf dem Bildschirm in einer Größe Ihrer Wahl an. Siehe [Bildschirmpräsentation vorführen und Referentenansicht verwenden](show).
+Die Referentenansicht zeigt die Notizen der aktuell gezeigten Folie in einer Größe Ihrer Wahl an. Siehe [Bildschirmpräsentation vorführen und Referentenansicht verwenden](show).
 
 ## Notizen drucken
 

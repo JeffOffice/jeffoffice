@@ -1,7 +1,7 @@
 # Usar o JeffCrunch com o teclado
 <!-- keywords: teclado, atalhos, atalhos de teclado, teclas, teclas de atalho, setas, teclas de direção, ctrl, shift, home, end, page up, page down, tab, enter, selecionar tudo, copiar, F9, F1, zoom, teclas de acesso, dicas de tecla -->
 
-No Mac, a tecla **Command** (⌘) faz o que a tecla **Ctrl** faz nas tabelas abaixo, exceto quando a tabela indicar outra coisa.
+No Mac, a tecla **Command** (⌘) faz o que a tecla **Ctrl** faz nas tabelas abaixo, exceto quando a tabela indica o contrário.
 
 ## Mover e selecionar
 
@@ -26,7 +26,8 @@ No Mac, a tecla **Command** (⌘) faz o que a tecla **Ctrl** faz nas tabelas aba
 | Teclas | O que fazem |
 | --- | --- |
 | Qualquer caractere | Inicia uma entrada na célula ativa, substituindo o conteúdo dela |
-| F2 | Edita o conteúdo da célula ativa, na própria célula |
+| F2 | Edita o conteúdo da célula ativa na própria célula; ao digitar uma fórmula, alterna entre apontar para células e editar o texto |
+| F4 | Ao digitar uma fórmula, fixa partes do endereço no cursor com $ (A1, $A$1, A$1, $A1) |
 | Enter, Shift+Enter | Confirma a entrada e move para baixo ou para cima |
 | Tab, Shift+Tab | Confirma a entrada e move para a direita ou para a esquerda |
 | Esc | Cancela a entrada |
@@ -36,7 +37,7 @@ No Mac, a tecla **Command** (⌘) faz o que a tecla **Ctrl** faz nas tabelas aba
 | {key:Save} | Salvar |
 | {key:Cut}, {key:Copy}, {key:Paste} | Recortar, copiar, colar (Esc remove a borda das células copiadas) |
 | Ctrl+Alt+V | Colar Especial |
-| Ctrl e a tecla de adição, Ctrl e a tecla de subtração | Inserir, excluir (linhas ou colunas, se houver linhas ou colunas inteiras selecionadas) |
+| Ctrl e a tecla de adição, Ctrl e a tecla de subtração | Inserir, excluir (linhas ou colunas, se estiverem selecionadas inteiras) |
 | Ctrl+D, Ctrl+R | Preencher para baixo, preencher para a direita |
 | Alt e o sinal de igual | Soma |
 | Ctrl+0, Ctrl+9 | Ocultar as colunas, ocultar as linhas |
@@ -48,7 +49,7 @@ No Mac, a tecla **Command** (⌘) faz o que a tecla **Ctrl** faz nas tabelas aba
 | Shift+F3 | Escolher uma função |
 | Ctrl+F3 | A lista de nomes |
 | F9, Shift+F9 | Recalcular tudo, recalcular esta planilha |
-| Tab, Enter | Ao digitar uma fórmula: aceita a função ou o nome marcado na lista |
+| Tab, Enter | Ao digitar uma fórmula: aceita a função ou o nome realçado na lista |
 | Esc | Interrompe uma pesquisa, uma classificação ou um filtro em andamento |
 
 ## Comandos

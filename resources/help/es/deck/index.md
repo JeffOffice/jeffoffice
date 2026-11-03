@@ -1,7 +1,7 @@
 # Ayuda de JeffDeck
-<!-- keywords: contenido, ayuda, temas, índice, inicio, empezar -->
+<!-- keywords: contenido, ayuda, temas, inicio, índice, empezar, comenzar -->
 
-Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que ejecutar. Presione **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el panel en el que está o el objeto que ha seleccionado.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Presione **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el panel en el que está o el objeto que ha seleccionado.
 
 ## Introducción
 
@@ -14,14 +14,14 @@ Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que
 
 - [Agregar, cambiar y eliminar diapositivas](slides)
 - [Reutilizar diapositivas de otra presentación](reuse)
-- [La Vista Esquema y el Clasificador de diapositivas](views)
+- [La Vista Esquema, el Clasificador de diapositivas y la vista Patrón de diapositivas](views)
 - [Tamaño de diapositiva, fondo y pies de página](design)
 
 ## En una diapositiva
 
 - [Escribir texto y darle formato](text)
-- [Formas, imágenes, tablas y Texto artístico](objects)
-- [El panel Formato de forma](format-shape)
+- [Formas, imágenes, tablas y texto artístico](objects)
+- [El panel Formato de forma y la pestaña Formato de forma](format-shape)
 - [Notas del orador](notes)
 - [Comentarios](comments)
 
@@ -30,7 +30,7 @@ Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que
 - [Transiciones entre diapositivas](transitions)
 - [Animaciones](animations)
 
-## Presentarla
+## Presentar
 
 - [Reproducir la presentación con diapositivas y usar la Vista Moderador](show)
 
@@ -47,4 +47,4 @@ Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que
 ## Las pestañas de la cinta de opciones
 
 - [Inicio](tab-home), [Insertar](tab-insert), [Diseño](tab-design), [Transiciones](tab-transitions), [Animaciones](tab-animations), [Presentación con diapositivas](tab-slide-show), [Revisar](tab-review) y [Vista](tab-view)
-- [Reproducción](tab-playback) aparece cuando hay una película o un sonido seleccionado
+- [Reproducción](tab-playback) aparece mientras hay un vídeo o un sonido seleccionado
