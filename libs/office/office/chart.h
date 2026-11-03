@@ -100,6 +100,20 @@ struct ChartDataLabels {
     bool shown() const { return value || category || series || percent; }
 };
 
+// A line fitted to a series' values (c:trendline): what kind of line, how far it runs past the data, and whether its equation and R-squared are written on the chart.
+struct ChartTrendline {
+    QString type = QStringLiteral("linear");    // "linear", "exp", "log", "poly", "power", or "movingAvg"
+    QString name;                   // its own name in the legend; empty: the usual ("Linear (Series1)")
+    int order = 2;                  // a polynomial's, 2 to 6
+    int period = 2;                 // a moving average's, 2 up
+    double forward = 0, backward = 0;   // how far past the last and before the first point it runs, in the units of the categories or of x
+    bool hasIntercept = false;      // the line is made to pass through (0, intercept)
+    double intercept = 0;
+    bool dispRSqr = false, dispEq = false;
+    ChartLine line;                 // how it looks (the series' color, dotted, when the file says nothing)
+    QByteArray label;               // the file's c:trendlineLbl, as it wrote it
+};
+
 struct ChartSeries {
     QString name;
     // What the file stores for each point; a point it stores none for is a
@@ -132,6 +146,7 @@ struct ChartSeries {
     bool smooth = false;
     ChartDataLabels labels;
     double explosion = 0;           // a pie's slice pulled out, percent of the radius
+    QVector<ChartTrendline> trendlines;
 };
 
 // A kind of drawing in the plot area (c:barChart, c:lineChart, ...); a chart

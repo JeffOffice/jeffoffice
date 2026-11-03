@@ -771,6 +771,26 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
     }
     *ownLabels = !cChild(ser, "dLbls").isNull();
     if (*ownLabels) s.labels = readLabels(cChild(ser, "dLbls"));
+    for (const QDomElement &t : cChildren(ser, "trendline")) {
+        if (s.trendlines.size() >= 8) break;
+        ChartTrendline line;
+        const QString type = valOf(cChild(t, "trendlineType"));
+        if (type == QLatin1String("exp") || type == QLatin1String("log") || type == QLatin1String("poly") || type == QLatin1String("power") || type == QLatin1String("movingAvg")) line.type = type;
+        line.name = cChild(t, "name").text().left(kChartMaxLabel);
+        line.order = int(std::clamp<qint64>(parseInt(valOf(cChild(t, "order")), 2), 2, 6));
+        line.period = int(std::clamp<qint64>(parseInt(valOf(cChild(t, "period")), 2), 2, 255));
+        line.forward = std::clamp(numberOf(cChild(t, "forward"), 0), 0.0, 1e9);
+        line.backward = std::clamp(numberOf(cChild(t, "backward"), 0), 0.0, 1e9);
+        if (const QDomElement i = cChild(t, "intercept"); !i.isNull()) {
+            line.hasIntercept = true;
+            line.intercept = numberOf(i, 0);
+        }
+        line.dispRSqr = flagOf(cChild(t, "dispRSqr"), false);
+        line.dispEq = flagOf(cChild(t, "dispEq"), false);
+        line.line = readLine(cChild(t, "spPr"));
+        line.label = fragment(cChild(t, "trendlineLbl"));
+        s.trendlines.append(line);
+    }
     // Its data.
     const bool scatter = plot.type == ChartType::Scatter;
     const Data values = readData(cChild(ser, scatter ? "yVal" : "val"));

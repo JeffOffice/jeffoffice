@@ -516,6 +516,14 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
             titles->setObjectName(QStringLiteral("axisTitlesMenu"));
             if (e.hasHorizontal) check(titles, tr("Horizontal"), e.axisTitleHorizontal, [on = !e.axisTitleHorizontal](Chart *c) { setAxisTitle(c, true, on); }, tr("Axis Titles"));
             if (e.hasVertical) check(titles, tr("Vertical"), e.axisTitleVertical, [on = !e.axisTitleVertical](Chart *c) { setAxisTitle(c, false, on); }, tr("Axis Titles"));
+            if (e.hasSecondaryHorizontal) {
+                check(axes, tr("Second Horizontal"), e.axisSecondaryHorizontal, [on = !e.axisSecondaryHorizontal](Chart *c) { setAxisShown(c, true, on, true); }, tr("Axes"));
+                check(titles, tr("Second Horizontal"), e.axisTitleSecondaryHorizontal, [on = !e.axisTitleSecondaryHorizontal](Chart *c) { setAxisTitle(c, true, on, true); }, tr("Axis Titles"));
+            }
+            if (e.hasSecondaryVertical) {
+                check(axes, tr("Second Vertical"), e.axisSecondaryVertical, [on = !e.axisSecondaryVertical](Chart *c) { setAxisShown(c, false, on, true); }, tr("Axes"));
+                check(titles, tr("Second Vertical"), e.axisTitleSecondaryVertical, [on = !e.axisTitleSecondaryVertical](Chart *c) { setAxisTitle(c, false, on, true); }, tr("Axis Titles"));
+            }
         }
         QMenu *title = menu->addMenu(tr("Chart Title"));
         title->setObjectName(QStringLiteral("chartTitleMenu"));
@@ -552,7 +560,28 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
         const struct { const char *code; const char *name; } sides[] = {{"r", QT_TR_NOOP("Right")}, {"t", QT_TR_NOOP("Top")}, {"l", QT_TR_NOOP("Left")}, {"b", QT_TR_NOOP("Bottom")}};
         for (const auto &s : sides) {
             const QString code = QString::fromLatin1(s.code);
-            choice(legend, legendGroup, QCoreApplication::translate("jp::CrunchWindow", s.name), e.legend && e.legendPosition == code, [code](Chart *c) { setLegend(c, code); }, tr("Legend"));
+            choice(legend, legendGroup, QCoreApplication::translate("jp::CrunchWindow", s.name), e.legend && e.legendPosition == code, [code, over = e.legendOverlay](Chart *c) { setLegend(c, code, over); }, tr("Legend"));
+        }
+        if (e.legend) {
+            legend->addSeparator();
+            check(legend, tr("Over the Chart"), e.legendOverlay, [code = e.legendPosition, on = !e.legendOverlay](Chart *c) { setLegend(c, code, on); }, tr("Legend"));
+        }
+        if (chart.type() != ChartType::Pie && chart.type() != ChartType::Doughnut) {
+            QMenu *trend = menu->addMenu(tr("Trendline"));
+            trend->setObjectName(QStringLiteral("trendlineMenu"));
+            auto *trendGroup = new QActionGroup(trend);
+            choice(trend, trendGroup, tr("None"), e.trendline.isEmpty(), [](Chart *c) { setTrendlines(c, QString()); }, tr("Trendline"));
+            static const struct { const char *code; const char *name; } kinds[] = {{"linear", QT_TR_NOOP("Linear")}, {"exp", QT_TR_NOOP("Exponential")}, {"log", QT_TR_NOOP("Logarithmic")},
+                                                                                  {"poly", QT_TR_NOOP("Polynomial")}, {"power", QT_TR_NOOP("Power")}, {"movingAvg", QT_TR_NOOP("Moving Average")}};
+            for (const auto &k : kinds) {
+                const QString code = QString::fromLatin1(k.code);
+                choice(trend, trendGroup, QCoreApplication::translate("jp::CrunchWindow", k.name), e.trendline == code, [code](Chart *c) { setTrendlines(c, code, 2, 2); }, tr("Trendline"));
+            }
+            if (!e.trendline.isEmpty()) {
+                trend->addSeparator();
+                check(trend, tr("Show Equation"), e.trendlineEquation, [on = !e.trendlineEquation, r = e.trendlineRSquared](Chart *c) { setTrendlineDisplay(c, on, r); }, tr("Trendline"));
+                check(trend, tr("Show R-squared"), e.trendlineRSquared, [on = !e.trendlineRSquared, q = e.trendlineEquation](Chart *c) { setTrendlineDisplay(c, q, on); }, tr("Trendline"));
+            }
         }
     });
     return menu;

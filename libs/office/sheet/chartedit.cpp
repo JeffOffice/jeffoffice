@@ -10,6 +10,7 @@ using jp::office::Chart;
 using jp::office::ChartAxis;
 using jp::office::ChartPlot;
 using jp::office::ChartSeries;
+using jp::office::ChartTrendline;
 using jp::office::ChartType;
 
 namespace {
@@ -39,6 +40,26 @@ const ChartAxis *primaryAxis(const Chart &chart, bool horizontal)
     return nullptr;
 }
 
+const ChartAxis *secondaryAxis(const Chart &chart, bool horizontal)
+{
+    if (chart.plots.size() < 2) return nullptr;
+    const ChartPlot &first = chart.plots.first();
+    for (int i = 1; i < chart.plots.size(); ++i) {
+        const ChartPlot &p = chart.plots[i];
+        if (p.axisIds[0] == first.axisIds[0] && p.axisIds[1] == first.axisIds[1]) continue;
+        for (const qint64 id : {p.axisIds[0], p.axisIds[1]}) {
+            if (id == first.axisIds[0] || id == first.axisIds[1]) continue;
+            const ChartAxis *a = chart.axis(id);
+            if (!a) continue;
+            const bool across = a->position == QLatin1String("b") || a->position == QLatin1String("t");
+            if (across == horizontal) return a;
+        }
+    }
+    return nullptr;
+}
+
+ChartAxis *secondaryAxis(Chart *chart, bool horizontal) { return const_cast<ChartAxis *>(secondaryAxis(*chart, horizontal)); }
+
 ChartAxis *primaryAxis(Chart *chart, bool horizontal) { return const_cast<ChartAxis *>(primaryAxis(*chart, horizontal)); }
 
 ChartElements elementsOf(const Chart &chart)
@@ -63,8 +84,34 @@ ChartElements elementsOf(const Chart &chart)
         e.gridVertical = h->majorGridlines;
         e.minorGridVertical = h->minorGridlines;
     }
+    for (const bool horizontal : {true, false}) {
+        const ChartAxis *a = secondaryAxis(chart, horizontal);
+        if (!a) continue;
+        (horizontal ? e.hasSecondaryHorizontal : e.hasSecondaryVertical) = true;
+        (horizontal ? e.axisSecondaryHorizontal : e.axisSecondaryVertical) = !a->deleted;
+        (horizontal ? e.axisTitleSecondaryHorizontal : e.axisTitleSecondaryVertical) = a->title.present;
+    }
     e.legend = chart.legend.shown;
+    e.legendOverlay = chart.legend.shown && chart.legend.overlay;
     e.legendPosition = chart.legend.shown ? chart.legend.position : QString();
+    {
+        bool first = true, same = true;
+        for (const ChartPlot &p : chart.plots)
+            for (const ChartSeries &s : p.series) {
+                const QString kind = s.trendlines.isEmpty() ? QString() : s.trendlines.first().type;
+                if (first) {
+                    e.trendline = kind;
+                    if (!s.trendlines.isEmpty()) {
+                        e.trendlineEquation = s.trendlines.first().dispEq;
+                        e.trendlineRSquared = s.trendlines.first().dispRSqr;
+                    }
+                    first = false;
+                } else if (kind != e.trendline) {
+                    same = false;
+                }
+            }
+        if (!same) e.trendline.clear();
+    }
     for (const ChartPlot &p : chart.plots)
         for (const ChartSeries &s : p.series)
             if (s.labels.shown()) {
@@ -90,14 +137,14 @@ void setChartTitle(Chart *chart, TitleMode mode)
     t.overlay = mode == TitleMode::Overlay;
 }
 
-void setAxisShown(Chart *chart, bool horizontal, bool shown)
+void setAxisShown(Chart *chart, bool horizontal, bool shown, bool secondary)
 {
-    if (ChartAxis *a = primaryAxis(chart, horizontal)) a->deleted = !shown;
+    if (ChartAxis *a = secondary ? secondaryAxis(chart, horizontal) : primaryAxis(chart, horizontal)) a->deleted = !shown;
 }
 
-void setAxisTitle(Chart *chart, bool horizontal, bool shown)
+void setAxisTitle(Chart *chart, bool horizontal, bool shown, bool secondary)
 {
-    ChartAxis *a = primaryAxis(chart, horizontal);
+    ChartAxis *a = secondary ? secondaryAxis(chart, horizontal) : primaryAxis(chart, horizontal);
     if (!a) return;
     if (!shown) {
         a->title = ChartTitle();
@@ -117,7 +164,7 @@ void setGridlines(Chart *chart, bool horizontal, bool minor, bool shown)
     (minor ? a->minorGridlines : a->majorGridlines) = shown;
 }
 
-void setLegend(Chart *chart, const QString &position)
+void setLegend(Chart *chart, const QString &position, bool overlay)
 {
     if (position.isEmpty()) {
         chart->legend.shown = false;
@@ -125,8 +172,44 @@ void setLegend(Chart *chart, const QString &position)
     }
     chart->legend.shown = true;
     chart->legend.position = position;
-    chart->legend.overlay = false;
+    chart->legend.overlay = overlay;
     chart->legend.manual = false;
+}
+
+void setTrendlines(Chart *chart, const QString &kind, int order, int period)
+{
+    for (ChartPlot &p : chart->plots) {
+        if (p.type == ChartType::Pie || p.type == ChartType::Doughnut) continue;
+        for (ChartSeries &s : p.series) {
+            if (kind.isEmpty()) {
+                s.trendlines.clear();
+                continue;
+            }
+            ChartTrendline t;
+            if (!s.trendlines.isEmpty()) t = s.trendlines.first();
+            else {
+                t.line.set = true;
+                t.line.color = s.color;
+                t.line.width = 2.25;
+                t.line.dash = QStringLiteral("sysDot");
+            }
+            t.type = kind;
+            t.order = std::clamp(order, 2, 6);
+            t.period = std::clamp(period, 2, 255);
+            t.name.clear();
+            s.trendlines = {t};
+        }
+    }
+}
+
+void setTrendlineDisplay(Chart *chart, bool equation, bool rSquared)
+{
+    for (ChartPlot &p : chart->plots)
+        for (ChartSeries &s : p.series)
+            for (ChartTrendline &t : s.trendlines) {
+                t.dispEq = equation;
+                t.dispRSqr = rSquared;
+            }
 }
 
 QStringList labelPositionsFor(const Chart &chart)

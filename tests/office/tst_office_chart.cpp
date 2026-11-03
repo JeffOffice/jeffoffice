@@ -2,6 +2,7 @@
 #include "officehelpers.h"
 
 #include "core/fonts.h"
+#include "office/chart_trend.h"
 
 class OfficeChartTests : public QObject {
     Q_OBJECT
@@ -11,6 +12,88 @@ private Q_SLOTS:
     // The program's own fonts and their stand-ins, as the apps load them at their start: the legend's size comes from its text, and a computer with
     // other fonts (or, under the offscreen platform on Windows, none) would put the legend somewhere else.
     void initTestCase() { jp::initCore(); }
+
+    // ---- trendlines
+
+    void trendlinesFitTheirKinds()
+    {
+        using jp::office::ChartTrendline;
+        using jp::office::fitTrend;
+        const QVector<double> x = {1, 2, 3, 4, 5};
+        ChartTrendline t;
+        // linear: y = 2x + 1, exactly, and R-squared 1
+        QVector<double> y = {3, 5, 7, 9, 11};
+        jp::office::TrendFit f = fitTrend(t, x, y);
+        QVERIFY(f.ok);
+        QCOMPARE(f.equation, QStringLiteral("y = 2x + 1"));
+        QVERIFY(std::fabs(f.rSquared - 1) < 1e-9);
+        QCOMPARE(f.curve.size(), 2);
+        QVERIFY(std::fabs(f.curve.first().x() - 1) < 1e-12 && std::fabs(f.curve.last().y() - 11) < 1e-9);
+        // forward and backward run it past the data; an intercept makes it pass through that point on the vertical axis
+        t.forward = 2;
+        t.backward = 1;
+        f = fitTrend(t, x, y);
+        QVERIFY(std::fabs(f.curve.first().x() - 0) < 1e-12 && std::fabs(f.curve.last().x() - 7) < 1e-12);
+        t = ChartTrendline();
+        t.hasIntercept = true;
+        t.intercept = 0;
+        f = fitTrend(t, x, QVector<double>{2, 4, 6, 8, 10});
+        QCOMPARE(f.equation, QStringLiteral("y = 2x + 0"));
+        // polynomial: y = x^2 + 1
+        t = ChartTrendline();
+        t.type = QStringLiteral("poly");
+        f = fitTrend(t, x, QVector<double>{2, 5, 10, 17, 26});
+        QVERIFY(f.ok);
+        QVERIFY(std::fabs(f.coefficients[2] - 1) < 1e-6 && std::fabs(f.coefficients[1]) < 1e-6 && std::fabs(f.coefficients[0] - 1) < 1e-6);
+        QVERIFY(f.curve.size() > 10);
+        // a cubic through a chosen point on the vertical axis, and as many points as it has terms
+        t.order = 3;
+        t.hasIntercept = true;
+        t.intercept = 2;
+        f = fitTrend(t, x, QVector<double>{3, 10, 29, 66, 127});   // x^3 + 2
+        QVERIFY(f.ok);
+        QVERIFY(std::fabs(f.coefficients[3] - 1) < 1e-6 && std::fabs(f.coefficients[0] - 2) < 1e-9);
+        f = fitTrend(t, QVector<double>{1, 2, 3}, QVector<double>{3, 10, 29});
+        QVERIFY(f.ok);
+        t.hasIntercept = false;
+        t.order = 2;
+        // exponential: y = 2 e^(0.5 x); power: y = 3 x^2; logarithmic: y = 4 ln x + 1
+        QVector<double> e, pw, lg;
+        for (double v : x) {
+            e << 2 * std::exp(0.5 * v);
+            pw << 3 * v * v;
+            lg << 4 * std::log(v) + 1;
+        }
+        t.type = QStringLiteral("exp");
+        f = fitTrend(t, x, e);
+        QVERIFY(f.ok && std::fabs(f.coefficients[0] - 2) < 1e-6 && std::fabs(f.coefficients[1] - 0.5) < 1e-6);
+        t.type = QStringLiteral("power");
+        f = fitTrend(t, x, pw);
+        QVERIFY(f.ok && std::fabs(f.coefficients[0] - 3) < 1e-6 && std::fabs(f.coefficients[1] - 2) < 1e-6);
+        t.type = QStringLiteral("log");
+        f = fitTrend(t, x, lg);
+        QVERIFY(f.ok && std::fabs(f.coefficients[0] - 1) < 1e-6 && std::fabs(f.coefficients[1] - 4) < 1e-6);
+        // what cannot be fitted is not: a logarithm of x at 0 or below, an exponential through a value at 0 or below, one point
+        t.type = QStringLiteral("log");
+        QVERIFY(!fitTrend(t, QVector<double>{0, 1, 2}, QVector<double>{1, 2, 3}).ok);
+        t.type = QStringLiteral("exp");
+        QVERIFY(!fitTrend(t, x, QVector<double>{1, 2, -3, 4, 5}).ok);
+        QVERIFY(!fitTrend(ChartTrendline(), QVector<double>{1}, QVector<double>{1}).ok);
+        // a moving average of 2: the mean of each value and the one before it
+        t = ChartTrendline();
+        t.type = QStringLiteral("movingAvg");
+        t.period = 2;
+        f = fitTrend(t, x, QVector<double>{2, 4, 6, 8, 10});
+        QCOMPARE(f.curve.size(), 4);
+        QCOMPARE(f.curve[0], QPointF(2, 3));
+        QCOMPARE(f.curve[3], QPointF(5, 9));
+        QVERIFY(f.equation.isEmpty() && !f.hasRSquared);
+        // blanks are left out
+        t = ChartTrendline();
+        f = fitTrend(t, x, QVector<double>{3, std::nan(""), 7, 9, 11});
+        QVERIFY(f.ok && f.equation == QStringLiteral("y = 2x + 1"));
+        QCOMPARE(jp::office::trendlineName(ChartTrendline(), QStringLiteral("Sales")), QStringLiteral("Linear (Sales)"));
+    }
 
     // ---- charts
 

@@ -1,4 +1,5 @@
 #include "office/chart.h"
+#include "office/chart_trend.h"
 
 #include <QBuffer>
 #include <QCoreApplication>
@@ -10,6 +11,7 @@
 #include <QSvgGenerator>
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <limits>
 
 namespace jp::office {
@@ -254,6 +256,9 @@ private:
     void drawLines(const View &v, const Scale &scale);
     void drawAreas(const View &v, const Scale &scale);
     void drawScatter(const View &v, const Scale &xs, const Scale &ys);
+    // The trendlines of a series, over the plot: `xs` are the x of each of its values (a scatter's, else the places 1, 2, 3...), and `map` takes an x and a y to the page.
+    void drawTrendlines(const ChartSeries &s, const QVector<double> &xs, const std::function<QPointF(double, double)> &map);
+    QVector<double> categoryPlaces(const ChartSeries &s) const;
     QStringList categoryLabels() const;
     QString valueText(double v, const ChartAxis &axis, const ChartSeries *first, bool percent) const;
     struct LabelFit {
@@ -561,6 +566,16 @@ QVector<Entry> ChartPainter::legendEntries() const
             }
             out << e;
             ++index;
+            if (plot.type != ChartType::Pie && plot.type != ChartType::Doughnut)
+                for (const ChartTrendline &t : s.trendlines) {
+                    if (out.size() >= m_limits.legend) break;
+                    Entry te;
+                    te.name = writable(trendlineName(t, s.name), kChartMaxLabel);
+                    te.color = t.line.color.isValid() ? t.line.color : s.color;
+                    te.line = true;
+                    te.width = t.line.width > 0 ? t.line.width : 2.25;
+                    out << te;
+                }
         }
     }
     return out;
@@ -878,6 +893,13 @@ void ChartPainter::drawBars(const View &v, const Scale &scale)
             }
         }
     }
+    {
+        const bool stackedLike = plot.grouping == ChartGrouping::Stacked || plot.grouping == ChartGrouping::PercentStacked;
+        for (const ChartSeries &s : plot.series) {
+            if (stackedLike || s.trendlines.isEmpty()) continue;
+            drawTrendlines(s, categoryPlaces(s), [&](double x, double y) { return at(catUnit(0) + (x - 1), y, scale); });
+        }
+    }
     m_p->restore();
 }
 
@@ -1007,6 +1029,13 @@ void ChartPainter::drawLines(const View &v, const Scale &scale)
             }
         }
     }
+    {
+        const bool stackedLike = plot.grouping == ChartGrouping::Stacked || plot.grouping == ChartGrouping::PercentStacked;
+        for (const ChartSeries &s : plot.series) {
+            if (stackedLike || s.trendlines.isEmpty()) continue;
+            drawTrendlines(s, categoryPlaces(s), [&](double x, double y) { return at(catUnit(0) + (x - 1), y, scale); });
+        }
+    }
     m_p->restore();
 }
 
@@ -1043,6 +1072,13 @@ void ChartPainter::drawAreas(const View &v, const Scale &scale)
                 shape << at(catUnit(i), stacked ? v.segs[k][i].from : base, scale);
             }
             m_p->drawPolygon(shape);
+        }
+    }
+    {
+        const bool stackedLike = plot.grouping == ChartGrouping::Stacked || plot.grouping == ChartGrouping::PercentStacked;
+        for (const ChartSeries &s : plot.series) {
+            if (stackedLike || s.trendlines.isEmpty()) continue;
+            drawTrendlines(s, categoryPlaces(s), [&](double x, double y) { return at(catUnit(0) + (x - 1), y, scale); });
         }
     }
     m_p->restore();
@@ -1106,7 +1142,57 @@ void ChartPainter::drawScatter(const View &v, const Scale &xs, const Scale &ys)
             }
         }
     }
+    for (const ChartSeries &s : plot.series) {
+        if (s.trendlines.isEmpty()) continue;
+        drawTrendlines(s, s.xValues, [&](double x, double y) {
+            const double fx = (x - xs.min) / (xs.max - xs.min), fy = (y - ys.min) / (ys.max - ys.min);
+            return QPointF(m_inner.left() + (m_catReversed ? 1 - fx : fx) * m_inner.width(), m_inner.bottom() - (m_valReversed ? 1 - fy : fy) * m_inner.height());
+        });
+    }
     m_p->restore();
+}
+
+void ChartPainter::drawTrendlines(const ChartSeries &s, const QVector<double> &xs, const std::function<QPointF(double, double)> &map)
+{
+    for (const ChartTrendline &t : s.trendlines) {
+        const TrendFit fit = fitTrend(t, xs, s.values);
+        if (!fit.ok) continue;
+        QPolygonF line;
+        for (const QPointF &p : fit.curve) {
+            const QPointF at = map(p.x(), p.y());
+            if (std::isfinite(at.x()) && std::isfinite(at.y()) && std::fabs(at.x()) < 1e6 && std::fabs(at.y()) < 1e6) line << at;
+        }
+        if (line.size() < 2) continue;
+        ChartLine look = t.line;
+        if (!look.set) {
+            look.set = true;
+            look.dash = QStringLiteral("sysDot");
+            look.width = 2.25;
+        }
+        m_p->save();
+        m_p->setClipRect(m_inner);
+        QPen pen = penFor(look, s.color, 2.25);
+        pen.setCapStyle(Qt::FlatCap);
+        m_p->setPen(pen);
+        m_p->setBrush(Qt::NoBrush);
+        m_p->drawPolyline(line);
+        m_p->restore();
+        QStringList words;
+        if (t.dispEq && !fit.equation.isEmpty()) words << fit.equation;
+        if (t.dispRSqr && fit.hasRSquared) words << QString::fromUtf8("R\u00B2 = %1").arg(QString::number(fit.rSquared, 'f', 4));
+        if (!words.isEmpty()) {
+            const QFont font = fontOf(ChartFont(), 9, false);
+            const QPointF end = line.last();
+            drawText(words.join(QLatin1Char('\n')), font, colorOf(ChartFont()), QPointF(std::min(end.x(), m_inner.right() - 2), std::clamp(end.y() - 4, m_inner.top() + 2, m_inner.bottom() - 2)), 1, 1);
+        }
+    }
+}
+
+QVector<double> ChartPainter::categoryPlaces(const ChartSeries &s) const
+{
+    QVector<double> x(s.values.size());
+    for (int i = 0; i < x.size(); ++i) x[i] = i + 1;
+    return x;
 }
 
 // ---- axes

@@ -23,6 +23,14 @@ struct ChartElements {
     QString legendPosition;                                     // "r", "l", "t", "b", or empty
     bool labels = false;
     QString labelPosition;                                      // as the labels say it ("outEnd"), empty for the usual
+    bool legendOverlay = false;                                 // the legend lays over the plot
+    // The axes of the plots drawn against a second pair (a series on the second axes): the chart has them, they are shown, and have titles.
+    bool hasSecondaryHorizontal = false, hasSecondaryVertical = false;
+    bool axisSecondaryHorizontal = false, axisSecondaryVertical = false;
+    bool axisTitleSecondaryHorizontal = false, axisTitleSecondaryVertical = false;
+    // The trendline the series have ("linear", "exp", "log", "poly", "power", "movingAvg"), empty for none or for series that differ, and whether the first one shows its equation and R-squared.
+    QString trendline;
+    bool trendlineEquation = false, trendlineRSquared = false;
 };
 ChartElements elementsOf(const Chart &chart);
 
@@ -30,14 +38,23 @@ ChartElements elementsOf(const Chart &chart);
 ChartAxis *primaryAxis(Chart *chart, bool horizontal);
 const ChartAxis *primaryAxis(const Chart &chart, bool horizontal);
 
+// The axis of the plots drawn against the second pair of axes that runs across the chart (`horizontal`) or up it, or null.
+ChartAxis *secondaryAxis(Chart *chart, bool horizontal);
+const ChartAxis *secondaryAxis(const Chart &chart, bool horizontal);
+
 enum class TitleMode : quint8 { None, Above, Overlay };
 void setChartTitle(Chart *chart, TitleMode mode);
-void setAxisShown(Chart *chart, bool horizontal, bool shown);
-void setAxisTitle(Chart *chart, bool horizontal, bool shown);
+void setAxisShown(Chart *chart, bool horizontal, bool shown, bool secondary = false);
+void setAxisTitle(Chart *chart, bool horizontal, bool shown, bool secondary = false);
 // Gridlines across the chart (`horizontal`) or up and down it, major or minor.
 void setGridlines(Chart *chart, bool horizontal, bool minor, bool shown);
 // "" takes the legend away; else "r", "l", "t", or "b".
-void setLegend(Chart *chart, const QString &position);
+void setLegend(Chart *chart, const QString &position, bool overlay = false);
+// A trendline of this kind on every series that can have one (none, with an empty `kind`); a series that has one of another kind is given this kind and keeps how far it runs and what it shows.
+// `order` is a polynomial's, `period` a moving average's.
+void setTrendlines(Chart *chart, const QString &kind, int order = 2, int period = 2);
+// The equation and R-squared of the series' trendlines shown or not.
+void setTrendlineDisplay(Chart *chart, bool equation, bool rSquared);
 // The positions data labels may be given for this chart (empty means the usual only).
 QStringList labelPositionsFor(const Chart &chart);
 // Labels of the values on every series (`position` empty: the usual), or none.
