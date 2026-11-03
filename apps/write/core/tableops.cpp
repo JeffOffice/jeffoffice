@@ -47,7 +47,7 @@ struct ViewCache {
     std::shared_ptr<void> last;     // the View made last, for the table it is of
 };
 
-qint64 g_viewsBuilt = 0, g_cellsScanned = 0, g_fontMeasures = 0, g_fragmentsMade = 0;
+qint64 g_viewsBuilt = 0, g_cellsScanned = 0, g_fontMeasures = 0, g_fragmentsMade = 0, g_rangeCellsScanned = 0;
 
 struct View {
     std::shared_ptr<flow::TableIndex> own;
@@ -2466,6 +2466,7 @@ bool splitCells(WriteDoc &doc, QTextCursor &c, int columns, int rows)
 
 qint64 tableViewsBuiltForTest() { return g_viewsBuilt; }
 qint64 textToTableFragmentsMadeForTest() { return g_fragmentsMade; }
+qint64 formulaRangeCellsScannedForTest() { return g_rangeCellsScanned; }
 int tableRecordsReachableForTest(WriteDoc &doc) { return int(reachableKeys(doc).size()); }
 qint64 tableCellsScannedForTest() { return g_cellsScanned; }
 qint64 tableFontMeasuresMadeForTest() { return g_fontMeasures; }
@@ -2559,7 +2560,7 @@ std::optional<QDate> dateOfText(const QString &text)
 
 } // namespace
 
-std::optional<QVector<double>> tableCellValues(WriteDoc &doc, int position, const QString &name)
+std::optional<QVector<double>> tableCellValues(WriteDoc &doc, int position, const QString &name, qint64 *scanned)
 {
     const auto v = viewAt(doc, position);
     if (!v) return std::nullopt;
@@ -2614,9 +2615,16 @@ std::optional<QVector<double>> tableCellValues(WriteDoc &doc, int position, cons
         const int c0 = column(m.captured(1)), r0 = m.captured(2).toInt() - 1;
         const bool range = !m.captured(3).isEmpty();
         const int c1 = range ? column(m.captured(3)) : c0, r1 = range ? m.captured(4).toInt() - 1 : r0;
-        if (r0 < 0 || r1 < 0 || std::abs(r1 - r0) > 1000 || std::abs(c1 - c0) > 1000) return std::nullopt;
-        for (int r = std::min(r0, r1); r <= std::max(r0, r1); ++r)
-            for (int c = std::min(c0, c1); c <= std::max(c0, c1); ++c) {
+        if (r0 < 0 || r1 < 0) return std::nullopt;
+        // (a range is cut to the cells the table has, so a range of a million cells costs what the table holds)
+        const int rowsHeld = t.rowCount(), columnsHeld = columnCountOf(t);
+        const int rFrom = std::min(r0, r1), rTo = std::min(std::max(r0, r1), rowsHeld - 1);
+        const int cFrom = std::min(c0, c1), cTo = std::min(std::max(c0, c1), columnsHeld - 1);
+        if (!range && (rFrom > rTo || cFrom > cTo)) return std::nullopt;
+        for (int r = rFrom; r <= rTo; ++r)
+            for (int c = cFrom; c <= cTo; ++c) {
+                ++g_rangeCellsScanned;
+                if (scanned) ++*scanned;
                 const int i = indexIn(r, c);
                 if (i < 0 || i == li) {
                     if (!range) return std::nullopt;

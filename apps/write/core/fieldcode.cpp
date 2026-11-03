@@ -712,6 +712,13 @@ struct Parser {
                     skip();
                     if (at < text.size() && (text[at] == QLatin1Char(',') || text[at] == QLatin1Char(';') || text[at] == QLatin1Char(')'))) {
                         if (!tick(50)) return out;
+                        // (a bookmark with a number in it that is named like a cell is the bookmark: the document's own names come first)
+                        if (const std::optional<double> mark = bookmarkNumber(m.captured(0))) {
+                            out.push_back(*mark);
+                            if (take(QLatin1Char(',')) || take(QLatin1Char(';'))) continue;
+                            if (!take(QLatin1Char(')'))) failed = true;
+                            break;
+                        }
                         const std::optional<QVector<double>> v = (*cells)(m.captured(0));
                         if (!v) return failed = true, out;
                         out += *v;
@@ -730,6 +737,14 @@ struct Parser {
             break;
         }
         return out;
+    }
+    // The number in the bookmark of that name, if there is one (and it is only a cell's name that is asked, so a name that is no bookmark costs a lookup, not a failure).
+    std::optional<double> bookmarkNumber(const QString &name)
+    {
+        if (!names || !*names || !*names) return std::nullopt;
+        if (!tick(50)) return std::nullopt;
+        if (const std::optional<double> v = (*names)(name)) return v;
+        return std::nullopt;
     }
     double primary()
     {
@@ -773,6 +788,7 @@ struct Parser {
                 static const QRegularExpression oneCell(QStringLiteral("^[A-Za-z]{1,3}[0-9]{1,5}$"));
                 if (oneCell.match(name).hasMatch()) {
                     if (!tick(50)) return 0;
+                    if (const std::optional<double> mark = bookmarkNumber(name)) return *mark;   // (a bookmark named like a cell is the bookmark)
                     const std::optional<QVector<double>> v = (*cells)(name);
                     if (v && v->size() == 1) return v->first();
                 }

@@ -321,7 +321,14 @@ public:
             info->page = p.text;
             info->pageIndex = p.index;
         };
-        env.cells = [this](const QString &name) { return tableCellValues(this->doc, env.position, name); };
+        env.cells = [this](const QString &name) -> std::optional<QVector<double>> {
+            // (a range costs a step for each cell it looks at, as well as the step of asking)
+            qint64 scanned = 0;
+            auto values = tableCellValues(this->doc, env.position, name, &scanned);
+            m_formulaBudget -= scanned;
+            if (m_formulaBudget < 0) return std::nullopt;
+            return values;
+        };
         env.noteNumber = [this](const QString &name, const fields::Code &) { return noteNumber(name); };
         env.styleRef = [this](const QString &style, const fields::Code &code) { return styleReference(style, code); };
         env.number = [this](const QString &name) -> std::optional<double> {

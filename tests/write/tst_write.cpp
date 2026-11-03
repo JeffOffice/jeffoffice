@@ -14625,6 +14625,35 @@ private Q_SLOTS:
     }
 
     // What a formula's cell names stand for: A1 and A1:B2 by a column's letters and a row's number, and the cells with numbers above, below, left, and right up to an empty cell.
+    // A bookmark named like a cell is the bookmark in a formula (the document's own names come first), alone and in a function.
+    void aBookmarkNamedLikeACellWinsInAFormula()
+    {
+        const QByteArray mark = "<w:p><w:bookmarkStart w:id=\"9\" w:name=\"A1\"/><w:r><w:t>100</w:t></w:r><w:bookmarkEnd w:id=\"9\"/></w:p>";
+        auto field = [](const char *code) { return QByteArray("<w:p><w:fldSimple w:instr=\" ") + code + " \"><w:r><w:t>0</w:t></w:r></w:fldSimple></w:p>"; };
+        auto doc = open(makeDocx(mark + tableX(rowX(cellX(cellP("1")) + cellX(field("=A1*2")) + cellX(field("=SUM(A1)")) + cellX(field("=B2*2"))), 4) + cellP("after"), kStyles));
+        updateFields(*doc);
+        const QString text = doc->story()->toPlainText();
+        QVERIFY2(text.contains(QStringLiteral("200")) && text.contains(QStringLiteral("100")), qPrintable(text));
+        QVERIFY2(!text.contains(QStringLiteral("\n2\n")), qPrintable(text));
+    }
+
+    // Many formulas over a huge range look at no more cells than the pass has steps for.
+    void manyFormulasOverAHugeRangeFinishInBoundedTime()
+    {
+        QByteArray rows;
+        for (int r = 0; r < 200; ++r) {
+            QByteArray cells = cellX(QByteArray("<w:p><w:fldSimple w:instr=\" =SUM(A1:ZZ99999) \"><w:r><w:t>0</w:t></w:r></w:fldSimple></w:p>"));
+            for (int c = 1; c < 10; ++c) cells += cellX(cellP("1"));
+            rows += rowX(cells);
+        }
+        auto doc = open(makeDocx(tableX(rows, 10) + cellP("after"), kStyles));
+        const qint64 before = formulaRangeCellsScannedForTest();
+        updateFields(*doc);
+        const qint64 scanned = formulaRangeCellsScannedForTest() - before;
+        QVERIFY2(scanned <= 200000 + 2000, qPrintable(QString::number(scanned)));
+        QVERIFY(scanned > 0);
+    }
+
     void tableCellValuesAreFoundByNameAndDirection()
     {
         auto row = [&](const char *a, const char *b) { return rowX(cellX(cellP(a)) + cellX(cellP(b))); };

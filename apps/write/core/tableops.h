@@ -72,6 +72,7 @@ double textWidthAt(WriteDoc &doc, int position);
 // began (cost tests: a caret that moves about a table looks once, and a join looks at the cells near it).
 qint64 tableViewsBuiltForTest();
 qint64 textToTableFragmentsMadeForTest();
+qint64 formulaRangeCellsScannedForTest();
 // How many cell records the story and the history of the document can reach (the records held beyond them are let go by the next table command).
 int tableRecordsReachableForTest(WriteDoc &doc);
 qint64 tableCellsScannedForTest();
@@ -163,6 +164,6 @@ struct TableSortKey {
 bool sortTableRows(WriteDoc &doc, QTextCursor &c, const QVector<TableSortKey> &keys, bool header);
 // The numbers in the cells a name of a formula stands for in the table that the position is in: "A1" (column letters, row number), "A1:B3", or ABOVE, BELOW, LEFT, RIGHT (the
 // cells that have numbers, up to the first empty one). None when the position is not in a table or the name is not one.
-std::optional<QVector<double>> tableCellValues(WriteDoc &doc, int position, const QString &name);
+std::optional<QVector<double>> tableCellValues(WriteDoc &doc, int position, const QString &name, qint64 *scanned = nullptr);
 
 } // namespace jp::write
