@@ -3647,6 +3647,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             B->runBorders << Block::RunBorder{fr.start, fr.length, side, ascent, descent};
                         }
                     }
+                // (A word processor's field shows its result in its own runs: shaded as the fields of a publication are, where the shading is on.)
+                if (env.wordLines && cf.hasProperty(tp::FieldId) && !cf.hasProperty(tp::FieldCodeText) && !shown.isEmpty()) B->fieldRanges << qMakePair(int(B->disp.size()), int(shown.size()));
                 B->disp += shown;
             }
         }
