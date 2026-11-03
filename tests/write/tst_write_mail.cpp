@@ -17,6 +17,7 @@
 #include "office/package.h"
 #include "wml/wml.h"
 
+#include <QDir>
 #include <QDockWidget>
 #include <QFile>
 #include <QRegularExpression>
@@ -299,6 +300,8 @@ private Q_SLOTS:
         auto again = open(merged->toDocx());
         QVERIFY(again);
         QCOMPARE(textOf(*again), textOf(*merged));
+        QCOMPARE(again->story()->blockCount(), merged->story()->blockCount());   // (the lines of an address are breaks inside a paragraph, in the file too)
+        QVERIFY(documentHas(merged->toDocx(), "<w:br/>"));
         // Nothing of the merge is left in it.
         QVERIFY(!merged->toDocx().isEmpty());
         QVERIFY(!documentHas(merged->toDocx(), "ADDRESSBLOCK"));
@@ -642,6 +645,40 @@ private Q_SLOTS:
         QTRY_VERIFY(pane->shown());
         QVERIFY(textOf(*pane->shown()).startsWith(QStringLiteral("Grace")));
         QCOMPARE(mail::stateIfAny(*w.document())->sourcePath, far);   // (the link in the file is as it was)
+    }
+
+    void theTextOfEachMessageIsTheMergedText()
+    {
+        auto doc = open(makeDocx(para(run("Dear ") + field("MERGEFIELD First_Name", "x") + run(",")) + para(run("Bye"))));
+        QVERIFY(doc);
+        MergeSource m = people();
+        m.include[1] = false;
+        const QStringList texts = mail::mergeToTexts(*doc, m, {}, mail::MergeOptions());
+        QCOMPARE(texts, (QStringList{QStringLiteral("Dear Ada,\nBye"), QStringLiteral("Dear ,\nBye")}));
+    }
+
+    void aMessageFileIsMadeForEachRecipientWhoHasAnAddress()
+    {
+        MergeSource m;
+        m.fields = {"Name", "Email"};
+        m.rows = {{"Ada", "ada@example.com"}, {"Grace", ""}, {"Linus", "linus@example.org\r\nBcc: x@example.net"}, {"Edsger", "ed@example.net"}};
+        m.include = QVector<bool>(4, true);
+        QTemporaryDir dir;
+        const QStringList texts = {"Dear Ada,\nHello \u00E9", "Dear Grace", "Dear Linus", "Dear Edsger"};
+        QString error;
+        const int written = mail::writeEmailFiles(texts, m, {0, 1, 2, 3}, QStringLiteral("Email"), QStringLiteral("Hi, \u00E9"), dir.filePath(QStringLiteral("out")), &error);
+        QCOMPARE(written, 2);   // (no address, and an address with a line break that would add a header, make none)
+        const QStringList files = QDir(dir.filePath(QStringLiteral("out"))).entryList(QDir::Files, QDir::Name);
+        QCOMPARE(files.size(), 2);
+        QVERIFY(files[0].startsWith(QStringLiteral("00001-ada@example.com")) && files[0].endsWith(QStringLiteral(".eml")));
+        QFile f(dir.filePath(QStringLiteral("out/") + files[0]));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray eml = f.readAll();
+        QVERIFY(eml.startsWith("To: ada@example.com\r\n"));
+        QVERIFY(eml.contains("Subject: =?UTF-8?B?" + QByteArray("Hi, \xC3\xA9").toBase64() + "?="));
+        const QByteArray body = eml.mid(eml.indexOf("\r\n\r\n") + 4);
+        QCOMPARE(QByteArray::fromBase64(body), QByteArray("Dear Ada,\nHello \xC3\xA9"));
+        QVERIFY(!eml.contains("Bcc"));
     }
 
     void theMatchedFieldsAreKeptInTheDataSourcesFieldMap()
