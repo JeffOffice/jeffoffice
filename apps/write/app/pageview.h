@@ -88,6 +88,9 @@ public:
     // ---- showing
     void setShowMarks(bool on);
     bool showMarks() const { return m_marks; }
+    // The faint edges of the cells of tables that have no lines (View Gridlines).
+    void setShowGridlines(bool on);
+    bool showGridlines() const { return m_gridlines; }
     // Spelling as you type: misspelled words get a red wave on the screen. The checking is the document's own, found a paragraph at a time for the pages in view.
     // (The check of what is being edited: the header's or footer's while one is, else the text's.)
     SpellCheck *editedSpelling() const { return (m_hf.active || m_note.active) && m_hfSpell ? m_hfSpell.get() : m_spell.get(); }
@@ -377,6 +380,7 @@ private:
     ZoomMode m_mode = ZoomMode::Percent;
     int m_across = 1, m_down = 1;
     bool m_marks = false;
+    bool m_gridlines = false;
     bool m_caretWithoutFocus = false;
 
     // Where each page is, in the content (pixels at the zoom), and how big the content is.

@@ -465,6 +465,12 @@ void PageView::setShowMarks(bool on)
     viewport()->update();
 }
 
+void PageView::setShowGridlines(bool on)
+{
+    m_gridlines = on;
+    viewport()->update();
+}
+
 void PageView::setSpellingEnabled(bool on)
 {
     m_spellOn = on;
@@ -566,6 +572,7 @@ void PageView::paintEvent(QPaintEvent *e)
             p.scale(s, s);
             PageDrawing d;
             d.marks = m_marks;
+            d.gridlines = m_gridlines;
             d.pageCount = std::max(1, m_knownPages);
             if (m_hf.active) {
                 d.editedStory = m_hf.story;

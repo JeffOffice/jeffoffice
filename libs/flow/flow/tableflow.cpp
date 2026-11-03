@@ -1367,6 +1367,12 @@ QRectF TableFragment::cellRect(int pos) const
     return QRectF();
 }
 
+void TableFragment::forCellBoxes(const std::function<void(const QRectF &box)> &visit) const
+{
+    for (const Placed &pl : place())
+        if (!layout->cell(items[size_t(pl.item)].cell).covered) visit(pl.clip);
+}
+
 bool TableFragment::caretLine(int pos, QLineF *line) const
 {
     for (const Placed &pl : place()) {

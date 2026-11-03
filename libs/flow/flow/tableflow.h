@@ -331,6 +331,8 @@ struct TableFragment {
     void forTexts(const std::function<void(const StoryLayout &text)> &visit) const;
     // The page rectangle of the cell that has the position (empty for none).
     QRectF cellRect(int pos) const;
+    // The page rectangle of each cell the fragment shows (those that continue a cell above are not among them), for drawing the cells' edges where they have no line.
+    void forCellBoxes(const std::function<void(const QRectF &box)> &visit) const;
 
 private:
     struct Placed {
