@@ -73,3 +73,7 @@ Testing/
 *.user
 compile_commands.json
 __pycache__/
+
+# The Windows installer build
+packaging/windows/license.rtf
+packaging/windows/JeffOffice-Setup.exe

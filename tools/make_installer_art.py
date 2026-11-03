@@ -3,11 +3,13 @@
 
     tools/make_installer_art.py
 
-Writes packaging/windows/welcome.bmp (the side panel of the Welcome and
-Finish pages) and packaging/windows/header.bmp (the banner on the other
-pages), both at twice NSIS's size so they stay sharp on high-DPI screens,
-and resources/brand/jeffoffice-icon.png (512 px, the suite's own icon: the
-snap's in the Snap Store).
+Writes packaging/windows/art/welcome-WxH.png (the side panel of the Welcome and
+Finish pages) and art/small-N.png (the mark in the corner of the other pages),
+at exactly the pixel sizes Inno Setup 6.6 and later asks for at each display
+scale from 100% to 250%, so Windows never resizes them (the sizes are in the
+Inno Setup help, under WizardImageFile and WizardSmallImageFile; they assume
+the default wizard size). Also writes resources/brand/jeffoffice-icon.png
+(512 px, the suite's own icon: the snap's in the Snap Store).
 The mark is the one in resources/brand: a pinwheel of the six apps' colors on
 a white tile. Needs Python 3 with Pillow.
 """
@@ -17,23 +19,26 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONTS = os.path.join(ROOT, "resources", "fonts")
-OUT = os.path.join(ROOT, "packaging", "windows")
+OUT = os.path.join(ROOT, "packaging", "windows", "art")
+# Display scale -> side panel (w, h) and corner image size, from the Inno Setup help.
+WELCOME = {100: (202, 386), 125: (269, 515), 150: (336, 643), 175: (403, 772), 200: (430, 824), 225: (498, 953), 250: (534, 1022)}
+SMALL = {100: 58, 125: 77, 150: 97, 175: 116, 200: 124, 225: 143, 250: 159}
 # The apps in suite order, with their colors and letters.
 APPS = [("JP", (0x9E, 0x1F, 0x63)), ("JD", (0xB6, 0x42, 0x0F)), ("JW", (0x1D, 0x55, 0xC4)),
         ("JC", (0x13, 0x77, 0x3A)), ("JM", (0x0A, 0x6C, 0x8C)), ("JB", (0x5E, 0x2C, 0xA5))]
 INK = (0x1F, 0x29, 0x37)
 DEEP = (0x11, 0x18, 0x27)
 EDGE = (0xD1, 0xD5, 0xDB)
-SCALE = 4  # draw large, then shrink for smooth edges
+SS = 4  # draw this many times larger, then shrink once for smooth edges
 
 
 def font(name, size):
-    return ImageFont.truetype(os.path.join(FONTS, name), size * SCALE)
+    return ImageFont.truetype(os.path.join(FONTS, name), max(1, round(size * SS)))
 
 
 def mark(size):
     """The JeffOffice mark: six blades on a white rounded tile."""
-    s = size * SCALE
+    s = round(size * SS)
     im = Image.new("RGBA", (s, s), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
     d.rounded_rectangle((s * 0.01, s * 0.01, s * 0.99, s * 0.99), radius=s * 0.235, fill=(255, 255, 255),
@@ -58,11 +63,11 @@ def mark(size):
 
 def tile(size, letters, color, alpha=255):
     """An app's tile, as on File > About."""
-    s = size * SCALE
+    s = round(size * SS)
     im = Image.new("RGBA", (s, s), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
     d.rounded_rectangle((0, 0, s - 1, s - 1), radius=int(s * 0.24), fill=color + (alpha,))
-    f = font("Jost-Medium.ttf", int(size * 0.42))
+    f = font("Jost-Medium.ttf", size * 0.42)
     box = d.textbbox((0, 0), letters, font=f)
     d.text(((s - (box[2] - box[0])) / 2 - box[0], (s - (box[3] - box[1])) / 2 - box[1]), letters, font=f,
            fill=(255, 255, 255, alpha))
@@ -79,9 +84,11 @@ def shadowed(im, layer, x, y, blur, offset, alpha):
     return im
 
 
-def welcome():
-    w, h = 328, 628
-    W, H = w * SCALE, h * SCALE
+def welcome(w, h, name):
+    """The side panel at w x h pixels. The layout is the original 328 x 628 one, scaled by k."""
+    k = min(w / 328, h / 628)
+    top = (h - 628 * k) / 2
+    W, H = w * SS, h * SS
     im = Image.new("RGB", (W, H))
     px = im.load()
     for y in range(H):
@@ -90,39 +97,37 @@ def welcome():
         for x in range(W):
             px[x, y] = c
     im = im.convert("RGBA")
-    m = mark(112)
-    im = shadowed(im, m, (W - m.width) // 2, 92 * SCALE, 12 * SCALE, 8 * SCALE, 90)
+
+    def Y(v):
+        return round((top + v * k) * SS)
+
+    m = mark(112 * k)
+    im = shadowed(im, m, (W - m.width) // 2, Y(92), 12 * k * SS, 8 * k * SS, 90)
     d = ImageDraw.Draw(im)
 
     def centered(text, f, y, fill):
         box = d.textbbox((0, 0), text, font=f)
-        d.text(((W - (box[2] - box[0])) / 2 - box[0], y * SCALE), text, font=f, fill=fill)
+        d.text(((W - (box[2] - box[0])) / 2 - box[0], Y(y)), text, font=f, fill=fill)
 
-    # The panel is shown at half this size on a normal screen, so the type is
-    # large and bold, in pure white, to stay readable after the shrink.
-    centered("JeffOffice", font("Jost-Medium.ttf", 44), 226, (255, 255, 255))
-    centered("An office suite,", font("Lato-Bold.ttf", 25), 292, (255, 255, 255))
-    centered("free and open.", font("Lato-Bold.ttf", 25), 326, (255, 255, 255))
+    centered("JeffOffice", font("Jost-Medium.ttf", 44 * k), 226, (255, 255, 255))
+    centered("An office suite,", font("Lato-Bold.ttf", 25 * k), 292, (255, 255, 255))
+    centered("free and open.", font("Lato-Bold.ttf", 25 * k), 326, (255, 255, 255))
     # The apps: JeffPub and JeffDeck are ready, JeffWrite and JeffCrunch are
     # betas (a little dimmer), JeffMail and JeffBase are coming.
-    size, gap = 34, 9
-    x0 = (w - (len(APPS) * size + (len(APPS) - 1) * gap)) // 2
+    size, gap = 34 * k, 9 * k
+    x0 = (w - (len(APPS) * size + (len(APPS) - 1) * gap)) / 2
     for i, (letters, color) in enumerate(APPS):
         alpha = 255 if i < 2 else 190 if i < 4 else 110
-        im.alpha_composite(tile(size, letters, color, alpha), ((x0 + i * (size + gap)) * SCALE, 462 * SCALE))
+        im.alpha_composite(tile(size, letters, color, alpha), (round((x0 + i * (size + gap)) * SS), Y(462)))
     d = ImageDraw.Draw(im)
-    centered("2 ready, 2 betas,", font("Lato-Bold.ttf", 18), 515, (255, 255, 255))
-    centered("2 coming soon.", font("Lato-Bold.ttf", 18), 541, (255, 255, 255))
-    im.convert("RGB").resize((w, h), Image.LANCZOS).save(os.path.join(OUT, "welcome.bmp"))
+    centered("2 ready, 2 betas,", font("Lato-Bold.ttf", 18 * k), 515, (255, 255, 255))
+    centered("2 coming soon.", font("Lato-Bold.ttf", 18 * k), 541, (255, 255, 255))
+    im.convert("RGB").resize((w, h), Image.LANCZOS).save(os.path.join(OUT, name), optimize=True)
 
 
-def header():
-    w, h = 300, 114
-    W, H = w * SCALE, h * SCALE
-    im = Image.new("RGBA", (W, H), (255, 255, 255, 255))
-    m = mark(66)
-    im.alpha_composite(m, (W - m.width - 24 * SCALE, (H - m.height) // 2))
-    im.convert("RGB").resize((w, h), Image.LANCZOS).save(os.path.join(OUT, "header.bmp"))
+def small(n, name):
+    """The mark on a transparent square, so it sits on a light or a dark page."""
+    mark(n).resize((n, n), Image.LANCZOS).save(os.path.join(OUT, name), optimize=True)
 
 
 def suite_icon():
@@ -130,6 +135,8 @@ def suite_icon():
 
 
 if __name__ == "__main__":
-    welcome()
-    header()
+    os.makedirs(OUT, exist_ok=True)
+    for pct, (w, h) in WELCOME.items():
+        welcome(w, h, "welcome-%dx%d.png" % (w, h))
+        small(SMALL[pct], "small-%d.png" % SMALL[pct])
     suite_icon()

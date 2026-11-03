@@ -278,10 +278,11 @@ jobs:
         shell: pwsh
         run: |
           $ver = (Select-String -Path CMakeLists.txt -Pattern 'project\(JeffPub VERSION ([0-9.]+)').Matches[0].Groups[1].Value
-          $defs = @("/DVERSION=$ver")
-          if ($env:SHIP_WRITE -eq 'true') { $defs += '/DWITH_WRITE' }
-          if ($env:SHIP_CRUNCH -eq 'true') { $defs += '/DWITH_CRUNCH' }
-          makensis @defs packaging/windows/installer.nsi
+          $opts = @{ Version = $ver }
+          if ($env:SHIP_WRITE -eq 'true') { $opts.Write = $true }
+          if ($env:SHIP_CRUNCH -eq 'true') { $opts.Crunch = $true }
+          # Inno Setup 6 is on the runner image; the script prints its version and makes the license page's text.
+          ./packaging/windows/build-installer.ps1 @opts
           New-Item -ItemType Directory -Force installer | Out-Null
           Move-Item packaging/windows/JeffOffice-Setup.exe installer/
 
@@ -425,6 +426,38 @@ jobs:
         with:
           name: JeffOffice-${{ matrix.name }}
           path: dist/JeffOffice
+
+  # A quick check of the Windows installer's script (a minute, not an hour): it is built here from stand-in files, by
+  # hand-started runs only. The real installer is made by the Windows "checks" job above, from the real programs.
+  installer-smoke:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      SHIP_WRITE: 'true'
+      SHIP_CRUNCH: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stand-in files
+        shell: pwsh
+        run: |
+          $d = 'dist/JeffOffice'
+          New-Item -ItemType Directory -Force $d | Out-Null
+          foreach ($n in 'JeffPub', 'JeffDeck', 'JeffWrite', 'JeffCrunch') { Copy-Item "$env:windir/System32/notepad.exe" "$d/$n.exe" }
+          foreach ($n in 'Qt6Core.dll', 'Qt6Gui.dll', 'pdfium.dll', 'libgcc_s_seh-1.dll') { Set-Content "$d/$n" "stand-in $n" }
+          foreach ($n in 'platforms', 'styles', 'fonts', 'dict', 'licenses') { New-Item -ItemType Directory -Force "$d/$n" | Out-Null; Set-Content "$d/$n/x.txt" "stand-in $n" }
+          Copy-Item LICENSE, README.md $d
+      - name: Installer
+        shell: pwsh
+        run: |
+          $ver = (Select-String -Path CMakeLists.txt -Pattern 'project\(JeffPub VERSION ([0-9.]+)').Matches[0].Groups[1].Value
+          ./packaging/windows/build-installer.ps1 -Version $ver -Write -Crunch
+          New-Item -ItemType Directory -Force installer | Out-Null
+          Move-Item packaging/windows/JeffOffice-Setup.exe installer/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JeffOffice-Setup-stand-in
+          path: installer
 
   # After a push to main, replaces the project wiki's pages with Help's (the
   # ones the Linux build above exported); nothing is committed when they are

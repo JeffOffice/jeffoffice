@@ -1,0 +1,110 @@
+// Code that both Setup and the uninstaller run. Inno Setup gives the uninstaller only functions named with the
+// prefix "Un", so installer.iss includes this file twice: once with Pfx empty, once with Pfx "Un".
+function {#Pfx}OpenMutexW(Access: DWORD; Inherit: BOOL; Name: String): THandle; external 'OpenMutexW@kernel32.dll stdcall';
+function {#Pfx}CloseHandle(H: THandle): BOOL; external 'CloseHandle@kernel32.dll stdcall';
+
+function {#Pfx}MutexHeld(const Name: String): Boolean;
+var
+  H: THandle;
+begin
+  H := {#Pfx}OpenMutexW($00100000, False, Name);
+  Result := H <> 0;
+  if Result then
+    {#Pfx}CloseHandle(H);
+end;
+
+function {#Pfx}FileLocked(const Path: String): Boolean;
+var
+  S: TFileStream;
+begin
+  Result := False;
+  if FileExists(Path) then
+  begin
+    try
+      S := TFileStream.Create(Path, fmOpenReadWrite or fmShareExclusive);
+      S.Free;
+    except
+      Result := True;
+    end;
+  end;
+end;
+
+{ A program that is running holds a named mutex (any version keeps its .exe locked, which catches older ones too).
+  A virus scanner can hold a program for a moment after it closes, so a locked file is checked again for up to
+  5 seconds. }
+function {#Pfx}AppsRunning(const Dir: String): Boolean;
+var
+  I: Integer;
+begin
+  Result := {#Pfx}MutexHeld('JeffPubRunning') or {#Pfx}MutexHeld('JeffPub79Running') or {#Pfx}MutexHeld('JeffDeckRunning')
+    or {#Pfx}MutexHeld('JeffWriteRunning') or {#Pfx}MutexHeld('JeffCrunchRunning');
+  if not Result then
+  begin
+    for I := 1 to 10 do
+    begin
+      if not ({#Pfx}FileLocked(Dir + '\JeffPub.exe') or {#Pfx}FileLocked(Dir + '\JeffDeck.exe')
+        or {#Pfx}FileLocked(Dir + '\JeffWrite.exe') or {#Pfx}FileLocked(Dir + '\JeffCrunch.exe')) then
+        Break;
+      if I = 10 then
+        Result := True
+      else
+        Sleep(500);
+    end;
+  end;
+end;
+
+{ True to go on. Asks until the apps are closed or the person cancels; a silent run just stops. }
+function {#Pfx}ClosedFirst(const Dir: String; Silent: Boolean): Boolean;
+begin
+  Result := True;
+  while {#Pfx}AppsRunning(Dir) do
+  begin
+    if Silent then
+    begin
+      Result := False;
+      Break;
+    end;
+    if MsgBox('{#RunningList} is running.' + #13#10#13#10 + 'Save your work and close it, then click OK to continue. Click Cancel to stop.',
+      mbError, MB_OKCANCEL) <> IDOK then
+    begin
+      Result := False;
+      Break;
+    end;
+  end;
+end;
+
+{ The files a program folder holds that the installer (any version) put there. With All, the apps and their
+  extras go too and the folder is removed if that leaves it empty. Without Force, nothing is touched unless the
+  folder holds JeffPub, so a folder that merely has the same names in it is left alone. }
+procedure {#Pfx}CleanProgramFolder(const Dir: String; All, Force: Boolean);
+var
+  Dirs: String;
+  P: Integer;
+  N: String;
+begin
+  if (Dir = '') or not (Force or FileExists(Dir + '\JeffPub.exe')) then
+    Exit;
+  DelTree(Dir + '\*.dll', False, True, False);
+  DeleteFile(Dir + '\Uninstall.exe');
+  Dirs := 'dict,fonts,generic,iconengines,imageformats,licenses,multimedia,networkinformation,platforminputcontexts,platforms,'
+    + 'printsupport,styles,tls,translations,bearer,tools,';
+  while Dirs <> '' do
+  begin
+    P := Pos(',', Dirs);
+    N := Copy(Dirs, 1, P - 1);
+    Delete(Dirs, 1, P);
+    DelTree(Dir + '\' + N, True, True, True);
+  end;
+  if All then
+  begin
+    DeleteFile(Dir + '\JeffPub.exe');
+    DeleteFile(Dir + '\JeffDeck.exe');
+    DeleteFile(Dir + '\JeffWrite.exe');
+    DeleteFile(Dir + '\JeffCrunch.exe');
+    DeleteFile(Dir + '\jeffoffice.ico');
+    DeleteFile(Dir + '\LICENSE');
+    DeleteFile(Dir + '\README.md');
+    DeleteFile(Dir + '\ADDITIONAL-TERMS.md');
+    RemoveDir(Dir);
+  end;
+end;
