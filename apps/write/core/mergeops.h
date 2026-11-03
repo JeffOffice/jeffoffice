@@ -28,6 +28,8 @@ constexpr int kMostPrompts = 20;
 
 // A list longer than kMostRecords keeps its first records.
 void limitRecords(MergeSource &data);
+// A record whose every column is empty is not a recipient (JeffPub keeps them, as a list of its own makes them; the letters and labels here do not).
+void dropBlankRecords(MergeSource &data);
 
 enum class Kind { None, Letters, Email, Envelopes, Labels, Directory };
 // The value of w:mainDocumentType for a kind ("formLetters", "email", "envelopes", "mailingLabels", "catalog"), and the kind a value says (None for one that is not known).

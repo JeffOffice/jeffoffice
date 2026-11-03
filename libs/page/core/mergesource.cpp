@@ -1,7 +1,7 @@
 #include "core/mergesource.h"
 
 #include "calc/numfmt.h"
-#include "office/package.h"
+#include "io/zip.h"
 #include "sheet/recalc.h"
 #include "sheet/sheetreader.h"
 
@@ -13,12 +13,28 @@
 
 namespace jp {
 
-QVector<QStringList> parseDelimited(const QString &text, QChar sep)
+QVector<QStringList> parseDelimited(const QString &text, QChar sep, bool *truncated)
 {
     QVector<QStringList> rows;
     QStringList row;
     QString cell;
     bool quoted = false;
+    qint64 cells = 0;
+    bool cut = false;
+    auto put = [&](QString &&c) {
+        if (row.size() < kMostMergeColumns) row << c;
+        else cut = true;
+    };
+    auto endRow = [&] {
+        cells += row.size();
+        rows << row;
+        row.clear();
+        if (cells > kMostMergeCells) {
+            cut = true;
+            return false;
+        }
+        return true;
+    };
     for (int i = 0; i < text.size(); ++i) {
         const QChar ch = text[i];
         if (quoted) {
@@ -29,31 +45,31 @@ QVector<QStringList> parseDelimited(const QString &text, QChar sep)
             continue;
         }
         if (ch == '"') quoted = true;
-        else if (ch == sep) { row << cell; cell.clear(); }
+        else if (ch == sep) { put(std::move(cell)); cell.clear(); }
         else if (ch == '\n' || ch == '\r') {
             if (ch == '\r' && i + 1 < text.size() && text[i + 1] == '\n') ++i;
-            row << cell;
+            put(std::move(cell));
             cell.clear();
-            if (!(row.size() == 1 && row[0].isEmpty())) rows << row;
-            row.clear();
+            if (!(row.size() == 1 && row[0].isEmpty())) { if (!endRow()) break; }
+            else row.clear();
         } else cell += ch;
     }
-    if (!cell.isEmpty() || !row.isEmpty()) { row << cell; rows << row; }
+    if (!cut && (!cell.isEmpty() || !row.isEmpty())) {
+        put(std::move(cell));
+        endRow();
+    }
+    if (truncated) *truncated = cut;
     return rows;
 }
 
 // A spreadsheet the workbook reader can't take (a package with no workbook part, say) is read for its first sheet's cells alone.
 static QVector<QStringList> readXlsx(const QByteArray &data)
 {
-    office::Package package;
-    package.read(data);
-    struct {
-        QByteArray value(const char *name) const { return package->part(QStringLiteral("/") + QLatin1String(name)); }
-        const office::Package *package;
-    } files{&package};
+    QMap<QString, QByteArray> files;
+    jp::readZip(data, files);
     QStringList shared;
     {
-        QXmlStreamReader r(files.value("xl/sharedStrings.xml"));
+        QXmlStreamReader r(files.value(QStringLiteral("xl/sharedStrings.xml")));
         QString cur;
         bool inSi = false;
         while (!r.atEnd()) {
@@ -64,7 +80,7 @@ static QVector<QStringList> readXlsx(const QByteArray &data)
         }
     }
     QVector<QStringList> rows;
-    QXmlStreamReader r(files.value("xl/worksheets/sheet1.xml"));
+    QXmlStreamReader r(files.value(QStringLiteral("xl/worksheets/sheet1.xml")));
     QStringList row;
     int rowIndex = -1;
     QString cellRef, cellType;
@@ -88,6 +104,7 @@ static QVector<QStringList> readXlsx(const QByteArray &data)
             QString v = r.readElementText();
             if (cellType == "s") v = shared.value(v.toInt());
             const int col = colOf(cellRef);
+            if (col >= kMostMergeColumns) continue;
             while (row.size() < col) row << QString();
             if (col >= 0 && col == row.size()) row << v; else if (col >= 0 && col < row.size()) row[col] = v;
         } else if (r.isEndElement() && r.name() == u"row") rows << row;
@@ -95,13 +112,13 @@ static QVector<QStringList> readXlsx(const QByteArray &data)
     return rows;
 }
 
-bool readSpreadsheetRows(const QString &path, QVector<QStringList> *rows, QString *error)
+bool readSpreadsheetRows(const QString &path, QVector<QStringList> *rows, QString *error, bool *truncated)
 {
     namespace sh = jp::office::sheet;
     sh::Workbook book;
     QString why;
     if (!book.openFile(path, &why)) {
-        if (path.endsWith(QLatin1String(".xlsx"), Qt::CaseInsensitive)) {
+        if (path.endsWith(QLatin1String(".xlsx"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".xlsm"), Qt::CaseInsensitive)) {
             QFile f(path);
             if (f.open(QIODevice::ReadOnly)) *rows = readXlsx(f.readAll());
             if (!rows->isEmpty()) return true;
@@ -110,42 +127,55 @@ bool readSpreadsheetRows(const QString &path, QVector<QStringList> *rows, QStrin
         return false;
     }
     sh::WorkbookSource src(book);
-    src.loadAll();
+    if (!src.loadAll() || !src.notWhole().isEmpty()) {
+        if (error) *error = QCoreApplication::translate("Import", "The spreadsheet is too big to read whole, or is damaged.");
+        return false;
+    }
     if (src.sheetCount() < 1) {
         if (error) *error = QCoreApplication::translate("Import", "The file has no sheets.");
         return false;
     }
     quint32 nrows = 0, ncols = 0;
     src.usedExtent(0, &nrows, &ncols);
-    // (A list is a few thousand rows of a few dozen columns; a sheet with more is read to these bounds.)
-    nrows = std::min<quint32>(nrows, 1000000);
-    ncols = std::min<quint32>(ncols, 1000);
+    ncols = std::min<quint32>(ncols, kMostMergeColumns);
+    if (nrows == 0 || ncols == 0) return true;
     const jp::calc::NumberSymbols symbols = jp::calc::NumberSymbols::of(QLocale());
     QHash<quint32, jp::calc::NumberFormat> formats;
-    for (quint32 r = 0; r < nrows; ++r) {
-        QStringList row;
-        for (quint32 c = 0; c < ncols; ++c) {
-            const jp::calc::Value v = src.cell(0, r, c);
-            QString text;
-            switch (v.kind()) {
-            case jp::calc::Value::Kind::Text: text = v.text(); break;
-            case jp::calc::Value::Kind::Bool: text = v.boolean() ? QStringLiteral("TRUE") : QStringLiteral("FALSE"); break;
-            case jp::calc::Value::Kind::Error: text = jp::calc::errorKindText(v.errorKind()); break;
-            case jp::calc::Value::Kind::Number: {
-                const sh::Cell *cell = src.sheet(0).cells.find(r, c);
-                const quint32 style = cell ? cell->style : 0;
-                auto it = formats.find(style);
-                if (it == formats.end()) it = formats.insert(style, jp::calc::NumberFormat(book.styles().formatCode(style, QLocale())));
-                const jp::calc::Formatted f = it->format(v.number(), book.info().dateSystem, 0, &symbols);
-                text = f.failed ? jp::calc::numberToText(v.number()) : f.text;
-                break;
-            }
-            default: break;
-            }
-            row << text;
+    // Only the cells the sheet holds are walked (a sheet with one cell far away has one), by rows; a row with no cell is not a row of the list.
+    QMap<quint32, QMap<quint32, QString>> held;
+    qint64 cells = 0;
+    src.visit(0, 0, 0, nrows - 1, ncols - 1, [&](quint32 r, quint32 c, const jp::calc::Value &v) {
+        if (++cells > kMostMergeCells) {
+            if (truncated) *truncated = true;
+            return false;
         }
-        while (!row.isEmpty() && row.last().isEmpty()) row.removeLast();
-        rows->push_back(row);
+        QString text;
+        switch (v.kind()) {
+        case jp::calc::Value::Kind::Text: text = v.text(); break;
+        case jp::calc::Value::Kind::Bool: text = v.boolean() ? QStringLiteral("TRUE") : QStringLiteral("FALSE"); break;
+        case jp::calc::Value::Kind::Error: text = jp::calc::errorKindText(v.errorKind()); break;
+        case jp::calc::Value::Kind::Number: {
+            const sh::Cell *cell = src.sheet(0).cells.find(r, c);
+            const quint32 style = cell ? cell->style : 0;
+            auto it = formats.find(style);
+            if (it == formats.end()) it = formats.insert(style, jp::calc::NumberFormat(book.styles().formatCode(style, QLocale())));
+            const jp::calc::Formatted f = it->format(v.number(), book.info().dateSystem, 0, &symbols);
+            text = f.failed ? jp::calc::numberToText(v.number()) : f.text;
+            break;
+        }
+        default: break;
+        }
+        held[r].insert(c, text);
+        return true;
+    });
+    for (auto row = held.constBegin(); row != held.constEnd(); ++row) {
+        QStringList out;
+        for (auto cell = row.value().constBegin(); cell != row.value().constEnd(); ++cell) {
+            while (quint32(out.size()) < cell.key()) out << QString();
+            out << cell.value();
+        }
+        while (!out.isEmpty() && out.last().isEmpty()) out.removeLast();
+        rows->push_back(out);
     }
     return true;
 }
@@ -186,7 +216,7 @@ bool loadMergeSource(const QString &path, MergeSource *out, QString *error)
     MergeSource m;
     m.path = path;
     if (suffix == "xlsx" || suffix == "xlsm" || suffix == "xls" || suffix == "ods" || suffix == "fods") {
-        if (!readSpreadsheetRows(path, &rows, error)) return false;
+        if (!readSpreadsheetRows(path, &rows, error, &m.truncated)) return false;
     }
     else if (suffix == "vcf" || suffix == "vcard") rows = readVcf(QString::fromUtf8(data), &m.fields);
     else {
@@ -194,7 +224,9 @@ bool loadMergeSource(const QString &path, MergeSource *out, QString *error)
         if (text.startsWith(QChar(0xFEFF))) text.remove(0, 1);
         const QString first = text.section('\n', 0, 0);
         const QChar sep = suffix == "tsv" || first.count('\t') > first.count(',') ? QChar('\t') : first.count(';') > first.count(',') ? QChar(';') : QChar(',');
-        rows = parseDelimited(text, sep);
+        bool cut = false;
+        rows = parseDelimited(text, sep, &cut);
+        m.truncated = cut;
     }
     if (m.fields.isEmpty()) {
         if (rows.isEmpty()) {
@@ -204,8 +236,19 @@ bool loadMergeSource(const QString &path, MergeSource *out, QString *error)
         m.fields = rows.takeFirst();
         for (QString &fl : m.fields) fl = fl.trimmed();
     }
+    if (m.fields.size() > kMostMergeColumns) {
+        m.fields = m.fields.mid(0, kMostMergeColumns);
+        m.truncated = true;
+    }
     for (QStringList &r : rows) {
-        if (r.join(QString()).isEmpty()) continue;   // (a blank line of a sheet)
+        if (r.size() > kMostMergeColumns) {
+            r = r.mid(0, kMostMergeColumns);
+            m.truncated = true;
+        }
+        if (qint64(m.rows.size() + 1) * std::max<qint64>(1, m.fields.size()) > kMostMergeCells) {
+            m.truncated = true;
+            break;
+        }
         while (r.size() < m.fields.size()) r << QString();
         m.rows << r;
         m.include << true;

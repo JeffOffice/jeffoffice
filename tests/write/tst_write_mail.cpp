@@ -104,6 +104,20 @@ QByteArray nestedField(const QByteArray &before, const QByteArray &innerCode, co
            " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
 }
 
+// A spreadsheet file with this sheet XML (the rows of the sheet's sheetData) and nothing else.
+QByteArray makeXlsx(const QByteArray &rows)
+{
+    const QByteArray ns = "xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+    office::PackageWriter w;
+    w.addPart(QStringLiteral("/xl/workbook.xml"), "<?xml version=\"1.0\"?><workbook " + ns + "><sheets><sheet name=\"Sheet1\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
+    w.addRelationship(QStringLiteral("/"), kRel + QStringLiteral("officeDocument"), QStringLiteral("/xl/workbook.xml"));
+    w.addPart(QStringLiteral("/xl/worksheets/sheet1.xml"), "<?xml version=\"1.0\"?><worksheet " + ns + "><sheetData>" + rows + "</sheetData></worksheet>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
+    w.addRelationship(QStringLiteral("/xl/workbook.xml"), kRel + QStringLiteral("worksheet"), QStringLiteral("/xl/worksheets/sheet1.xml"));
+    return w.finish();
+}
+
 MergeSource threePeople()
 {
     MergeSource m;
@@ -720,6 +734,57 @@ private Q_SLOTS:
         QVERIFY(w.view()->viewport()->grab().toImage() != plain);
         a->trigger();
         QVERIFY(!w.view()->shadeFields());
+    }
+
+    void aWideHeaderDoesNotMultiplyTheCellsOfTheRows()
+    {
+        QTemporaryDir dir;
+        QByteArray csv;
+        for (int i = 0; i < 5000; ++i) csv += "c" + QByteArray::number(i) + ",";
+        csv += "last\n";
+        for (int i = 0; i < 2000; ++i) csv += "x\n";
+        MergeSource m;
+        QVERIFY(loadMergeSource(writeFile(dir, "wide.csv", csv), &m, nullptr));
+        QVERIFY(m.fields.size() <= mostMergeColumns());
+        QVERIFY(qint64(m.rows.size()) * qMax<qint64>(1, m.fields.size()) <= mostMergeCells());
+        QVERIFY(m.truncated);
+        QCOMPARE(m.include.size(), m.rows.size());
+    }
+
+    void aSheetWithOneCellFarAwayIsReadFromItsCellsAlone()
+    {
+        QTemporaryDir dir;
+        const QString path = writeFile(dir, "sparse.xlsx",
+            makeXlsx("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Name</t></is></c></row><row r=\"200000\"><c r=\"F200000\" t=\"inlineStr\"><is><t>far</t></is></c></row>"));
+        MergeSource m;
+        QString error;
+        QVERIFY2(loadMergeSource(path, &m, &error), qPrintable(error));
+        QCOMPARE(m.rows.size(), 1);   // (the rows with no cell are not recipients)
+        QCOMPARE(m.rows[0].value(5), QStringLiteral("far"));
+        QVERIFY(m.fields.size() <= mostMergeColumns());
+    }
+
+    void aBlankRowOfAListIsARecipientUntilTheWriterDropsIt()
+    {
+        QTemporaryDir dir;
+        MergeSource m;
+        QVERIFY(loadMergeSource(writeFile(dir, "blank.csv", "Name,City,Zip\n,,\nAnn,Oslo,\n,,\n"), &m, nullptr));
+        QCOMPARE(m.rows.size(), 3);   // (as JeffPub has always read it)
+        mail::dropBlankRecords(m);
+        QCOMPARE(m.rows.size(), 1);
+        QCOMPARE(m.include.size(), 1);
+        QCOMPARE(m.value(0, "Name"), QStringLiteral("Ann"));
+    }
+
+    void aListLongerThanTheMostRecordsKeepsItsFirstOnes()
+    {
+        MergeSource m;
+        m.fields = {"A"};
+        for (int i = 0; i < mail::kMostRecords + 5; ++i) m.rows << QStringList{QString::number(i)};
+        m.include = QVector<bool>(m.rows.size(), true);
+        mail::limitRecords(m);
+        QCOMPARE(m.rows.size(), mail::kMostRecords);
+        QCOMPARE(m.include.size(), mail::kMostRecords);
     }
 
     void aMessageIsAddressedToTheRecipientItWasMadeFrom()

@@ -344,13 +344,16 @@ struct MailUi {
         }
         write::mail::State &s = make();
         if (s.kind() == write::mail::Kind::None) s.settings.type = write::mail::kindValue(write::mail::Kind::Letters);
+        write::mail::dropBlankRecords(m);
+        const bool cut = m.truncated || m.rows.size() > write::mail::kMostRecords;
         write::mail::limitRecords(m);
         s.data = m;
         s.sourcePath = QFileInfo(path).absoluteFilePath();
         s.loaded = true;
         touch();
         refreshPreview();
-        message(QCoreApplication::translate("jp::WriteMail", "%1 recipients are in the list.").arg(m.rows.size()));
+        message(cut ? QCoreApplication::translate("jp::WriteMail", "The list was too big to read whole. %1 recipients are in it.").arg(s.data.rows.size())
+                                                         : QCoreApplication::translate("jp::WriteMail", "%1 recipients are in the list.").arg(m.rows.size()));
         return true;
     }
 

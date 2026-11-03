@@ -746,17 +746,6 @@ private Q_SLOTS:
         QCOMPARE(m.rows[0].value(1), QStringLiteral("Doe"));
 
         jp::ZipWriter z;
-        z.add(QStringLiteral("[Content_Types].xml"),
-              "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>"
-              "<Default Extension=\"xml\" ContentType=\"application/xml\"/>"
-              "<Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/>"
-              "<Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/></Types>");
-        z.add(QStringLiteral("_rels/.rels"),
-              "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/></Relationships>");
-        z.add(QStringLiteral("xl/workbook.xml"),
-              "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets><sheet name=\"Sheet1\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>");
-        z.add(QStringLiteral("xl/_rels/workbook.xml.rels"),
-              "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/></Relationships>");
         z.add(QStringLiteral("xl/worksheets/sheet1.xml"),
               "<worksheet><sheetData><row><c r=\"A1\" t=\"inlineStr\"><is><t>Name</t></is></c></row>"
               "<row><c r=\"ZZZZZZZZZZ2\" t=\"inlineStr\"><is><t>far</t></is></c><c r=\"A2\" t=\"inlineStr\"><is><t>Jane</t></is></c></row></sheetData></worksheet>");
@@ -768,6 +757,14 @@ private Q_SLOTS:
         jp::MergeSource x;
         QVERIFY2(jp::loadMergeSource(dir.filePath(QStringLiteral("list.xlsx")), &x, &err), qPrintable(err));
         for (const QStringList &r : x.rows) QVERIFY(r.size() <= 16384);
+        QCOMPARE(x.fields, (QStringList{"Name"}));
+        QCOMPARE(x.rows.size(), 1);
+        QCOMPARE(x.rows[0].value(0), QStringLiteral("Jane"));
+        // (the same bare package under the macro-enabled name)
+        QVERIFY(QFile::copy(dir.filePath(QStringLiteral("list.xlsx")), dir.filePath(QStringLiteral("list.xlsm"))));
+        jp::MergeSource y;
+        QVERIFY2(jp::loadMergeSource(dir.filePath(QStringLiteral("list.xlsm")), &y, &err), qPrintable(err));
+        QCOMPARE(y.rows.size(), 1);
     }
 
     // Online Pictures tells a library which program asks, as Wikimedia asks programs to: the running app's name and version, and

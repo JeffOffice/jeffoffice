@@ -263,12 +263,26 @@ void limitRecords(MergeSource &m)
     if (m.include.size() > kMostRecords) m.include.resize(kMostRecords);
 }
 
+void dropBlankRecords(MergeSource &m)
+{
+    QVector<QStringList> rows;
+    QVector<bool> include;
+    for (int i = 0; i < m.rows.size(); ++i) {
+        if (m.rows[i].join(QString()).isEmpty()) continue;
+        rows << m.rows[i];
+        include << m.include.value(i, true);
+    }
+    m.rows = rows;
+    m.include = include;
+}
+
 bool loadSource(State &state, const QString &fromPath)
 {
     const QString path = fromPath.isEmpty() ? state.sourcePath : fromPath;
     if (path.isEmpty() || !QFile::exists(path)) return false;
     MergeSource m;
     if (!loadMergeSource(path, &m, nullptr)) return false;
+    dropBlankRecords(m);
     limitRecords(m);
     state.data = m;
     state.sourcePath = path;
