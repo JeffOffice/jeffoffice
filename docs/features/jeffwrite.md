@@ -78,7 +78,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [x] **first release** Blank document, using the defaults of the Normal template
 - [ ] **first release** Template gallery with live previews and categories, starting with a few built-in templates (letter, report, brief, manuscript, newsletter) written by JeffOffice and open-licensed *(shared: JeffPub's New page)*
 - [ ] **1.0** More built-in templates: resumes, cover letters, invoices, flyers, brochures, meeting notes, legal pleadings, and book interiors
-- [ ] **1.0** Save as a template (`.dotx`, `.ott`) and reuse your own under My Templates
+- [x] **1.0** Save as a template (`.dotx`, `.ott`) and reuse your own under My Templates *(File > Save as Template puts a `.dotx` in My Templates, with a picture of its first page, and the New page lists them; Save As also writes `.dotx` and `.ott`; shared: libs/shell filetasks)*
 - [ ] **1.0** The Normal template: the default styles, margins, and page size that every new blank document starts from, changed with Set as Default in the Font, Paragraph, and Page Setup dialogs
 - [ ] **1.0** Attach a different template to a document (Developer tab > Document Template) and copy styles and building blocks between a document and its template with the Organizer *(ours 2% attached a template, public 0%; POI 3%)*
 - [ ] **later** Customize a template's color scheme and font scheme before creating the document from it *(shared: the idea in JeffPub's template page)*
@@ -87,11 +87,11 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [~] **first release** Open `.docx`, `.doc`, `.rtf`, and `.odt` (and `.dotx`, `.dot`, `.ott` templates), from the Recent list with pinning, from Browse, by drag-and-drop, and from the command line *(shared: the recent list and file pages in libs/shell; `.doc` and `.dot` open since `libs/office/doc` reads the binary file into the model the `.docx` reader makes, text and styles and lists and sections and headers and notes and fields and tables and pictures and drawings; comments, form-field state, and macros are left out and the person is told, and Save asks for a `.docx` name)* *(beta: also opens `.rtf`, `.odt`, `.fodt`, and `.ott` (a template opens as a new document), found out by content, and takes a file dropped on the window; the Open box has a filter for each kind; pinned files on the Open page)*
 - [~] **first release** Save as `.docx` by default; Save As lists every format JeffWrite writes; Ctrl+S, Ctrl+Shift+S, and Close with a prompt to save *(0.9.0: Save As offers `.docx` and `.dotx`; Ctrl+S, Ctrl+Shift+S, and a prompt to save on Close; a file is saved beside the old one and replaces it only when whole)*
 - [x] **first release** automatic recovery (unsaved work offered again after a crash, cleaned up once saved) *(shared: libs/shell recovery)*
-- [ ] **1.0** Backup copy kept on every save *(shared: JeffPub's option)*
-- [ ] **1.0** Save a Copy (keeps working in the original) and Save as Template
+- [x] **1.0** Backup copy kept on every save *(shared: JeffPub's option, now in libs/shell and the shared Options, General page)*
+- [x] **1.0** Save a Copy (keeps working in the original) and Save as Template
 - [ ] **1.0** A warning before saving to a format that can't hold something in the document, naming what would change, with the choice to save a `.docx` as well
-- [ ] **1.0** Open and Repair: recover what text and pictures can be read from a damaged `.docx` or `.doc`
-- [ ] **1.0** Open read-only, open as a copy, and open in a new window
+- [~] **1.0** Open and Repair: recover what text and pictures can be read from a damaged `.docx` or `.doc` *(done for `.docx`: Open > More Ways to Open > Open and Repair finds the parts by their own headers, keeps a part that broke part way as far as it goes, leaves out what can't be read, makes the list of types and the links again, opens the result as a copy, and says what was cut or left out; not done for `.doc`; shared: libs/office repair)*
+- [x] **1.0** Open read-only, open as a copy, and open in a new window *(More Ways to Open on the Open page, and the right-click menu of the Recent list; a read-only document takes no typing, dropping, or dragging, refuses the commands that change it, and Save asks for a new name)*
 - [ ] **1.0** Open an encrypted document by asking for its password
 - [ ] **1.0** Return to where you stopped editing when a document is reopened (Shift+F5 jumps among the last three editing places)
 - [ ] **later** Protected View: files from the Internet open for reading only until you choose to edit them

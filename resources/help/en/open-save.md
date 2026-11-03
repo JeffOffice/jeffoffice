@@ -1,5 +1,5 @@
 # Open and save publications
-<!-- keywords: open, save, save as, save a copy, close, recent files, pinned, file types, jpub, rename, backup, properties, new name, copy, Ctrl+S -->
+<!-- keywords: open, save, save as, save a copy, close, recent files, pinned, file types, jpub, rename, backup, properties, new name, copy, Ctrl+S, read-only, read only, open as copy, new window, my templates, save as template, repair, open and repair, damaged -->
 
 JeffPub saves your work in .jpub files. It also opens and saves .pub files. See [Work with .pub files](pub-files).
 
@@ -9,7 +9,7 @@ Press Ctrl+S, click the **Save** button in the quick toolbar, or click **File > 
 
 A star (*) after the name in the title bar means you have changes you have not saved. Save often. If JeffPub stops by surprise, see [Get back unsaved work](recover).
 
-To keep the last saved copy of a file, turn on **Always create backup copy**. Each time you save, JeffPub first copies the old file to one called "Backup of" plus its name, in the same folder. You find this option in **File > Options**, on the **Save** tab.
+To keep the last saved copy of a file, turn on **Always create backup copy**. Each time you save, JeffPub first copies the old file to one called "Backup of" plus its name, in the same folder. You find this option in **File > Options**, on the **General** tab. Every JeffOffice app has it.
 
 ## Save with a new name
 
@@ -22,6 +22,10 @@ Click **File > Save As**, or press F12. Type a name, pick **Save as type**, and 
 
 After a .jpub or .pub save, the title bar shows the new name, and you keep working in the new file.
 
+## Save a copy
+
+Click **File > Save a Copy** and choose a name. JeffPub writes the publication to that file, and you keep working in the one you had. Its name and its unsaved changes stay as they were.
+
 ## Open
 
 1. Press Ctrl+O, or click **File > Open**.
@@ -30,6 +34,15 @@ After a .jpub or .pub save, the title bar shows the new name, and you keep worki
 You can also drag a .jpub or .pub file onto the page. If your current publication has unsaved changes, JeffPub asks about them first.
 
 Right-click a name in the list to **Pin to list** (it stays at the top) or **Remove from list**. A name in gray means JeffPub can't find that file now. To change how many recent names show, see [Change JeffPub's settings](options).
+
+## Other ways to open a file
+
+On the **Open** page, click **More Ways to Open**. You can also right-click a name in the Recent list.
+
+- **Open Read-Only** opens the publication for reading only. You can look and scroll, but you can't change anything. The title bar says "Read-Only". If you press **Save**, JeffPub asks for a new name, so the file you opened is not changed.
+- **Open as Copy** opens the publication with no file of its own. **Save** asks where to put it.
+- **Open in New Window** opens the file in a window of its own.
+- **Open and Repair** is for a .jpub file that is damaged, for example one that was cut short when it was copied. JeffPub reads every part of the file that it can, and leaves out a part it can't read. The publication opens as a copy called "Repaired" plus the name, and a message tells you what was left out. The damaged file is not changed.
 
 ## Close
 

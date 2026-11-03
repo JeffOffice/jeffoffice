@@ -68,6 +68,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Anonymous usage statistics, with a choice in Windows setup and when JeffPub first starts, and a switch in File > Options: once a day (and on the day of an update), the version, operating system, language, and how often each command is used; never files or their contents; if JeffPub closes unexpectedly, a crash report is sent the next time it starts, under the same choice, and says where in the program it stopped, never what was in the publication (see README, Privacy)
 - [x] **1.0** Save, Save As, AutoRecover (copies of unsaved work offered again after a crash, and cleaned up once saved), and backup on save
 - [x] **1.0** Close and prompt to save changes
+- [x] **1.0** Save a Copy (keeps working in the original), and the other ways to open: read-only, as a copy, in a new window, and Open and Repair for a damaged `.jpub` *(from More Ways to Open on the Open page and the Recent list; the backup copy option is shared by every app and is in Options > General)*
 
 ### Print
 - [x] **1.0** Print with printer selection, copies, page ranges (all, current, custom), and printer properties
