@@ -178,7 +178,7 @@ public:
     // history, and the text is selected where it went. Null where nothing is selected or the selection is in a header, footer, or note. The caller owns what it returns. (A press inside
     // the selection and a pull makes such a drag; test code drops what this returns.)
     QMimeData *prepareTextDrag();
-    // Whether a press inside the selection begins a drag of it (the Format Painter turns it off: a press there is the start of a new selection).
+    // Whether a press inside the selection begins a drag of it (Copy Formatting turns it off: a press there is the start of a new selection).
     void setTextDragAllowed(bool allowed) { m_textDragAllowed = allowed; }
 
     // Lays out every page now (for the count).

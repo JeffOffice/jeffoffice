@@ -800,6 +800,58 @@ private Q_SLOTS:
         QVERIFY(QString::fromUtf8(pkg.part(QStringLiteral("/word/fontTable.xml"))).contains(QString::fromUtf8("ＭＳ 明朝")));
     }
 
+    void trackedInsertionsAndDeletionsAreReadAsChanges()
+    {
+        const int when = (126 << 20) | (3 << 16) | (4 << 11) | (5 << 6) | 6;   // 2026-03-04 05:06
+        const QByteArray body = "{\\*\\revtbl{Unknown;}{Ann Author;}{Bo & Co;}}\\pard Keep {\\revised\\revauth1\\revdttm" + QByteArray::number(when) + " added}{\\deleted\\revauthdel2\\revdttmdel" +
+                                QByteArray::number(when) + " gone} end\\par";
+        QByteArray zip = rtf::toDocxPackage(doc(body));
+        Package pkg;
+        QVERIFY(pkg.read(zip));
+        const QString x = QString::fromUtf8(pkg.part(QStringLiteral("/word/document.xml")));
+        QVERIFY2(x.contains(QRegularExpression(QStringLiteral("<w:ins [^>]*w:author=\"Ann Author\" w:date=\"2026-03-04T05:06:00Z\"><w:r>.*added.*</w:ins>"))), qPrintable(x));
+        QVERIFY2(x.contains(QRegularExpression(QStringLiteral("<w:del [^>]*w:author=\"Bo &amp; Co\"[^>]*><w:r>.*<w:delText[^>]*>gone</w:delText>.*</w:del>"))), qPrintable(x));
+        QVERIFY(!x.contains(QLatin1String("<w:t xml:space=\"preserve\">gone")));
+    }
+
+    void anInsertedOrDeletedParagraphMarkIsMarked()
+    {
+        Package pkg;
+        {
+            pkg.read(rtf::toDocxPackage(doc("{\\*\\revtbl{Unknown;}{Ann;}}\\pard first\\par{\\pard\\revised\\revauth1 second\\par}{\\pard\\deleted\\revauthdel1 third\\par}\\pard fourth\\par")));
+        }
+        const QString x = QString::fromUtf8(pkg.part(QStringLiteral("/word/document.xml")));
+        QCOMPARE(x.count(QLatin1String("<w:rPr><w:ins ")), 1);
+        QVERIFY2(x.contains(QRegularExpression(QStringLiteral("<w:pPr><w:rPr><w:ins [^>]*/></w:rPr></w:pPr>"))), qPrintable(x));
+        QVERIFY2(x.contains(QRegularExpression(QStringLiteral("<w:pPr><w:rPr><w:del [^>]*/></w:rPr></w:pPr>"))), qPrintable(x));
+    }
+
+    void aChangeOfFormatKeepsTheFormatItHad()
+    {
+        Package pkg;
+        QVERIFY(pkg.read(rtf::toDocxPackage(doc("{\\*\\revtbl{Unknown;}{Ann;}}\\pard {\\b\\crauth1\\crdate0{\\*\\oldcprops\\i} was italic}\\par"))));
+        const QString x = QString::fromUtf8(pkg.part(QStringLiteral("/word/document.xml")));
+        QVERIFY2(x.contains(QRegularExpression(QStringLiteral("<w:rPrChange [^>]*w:author=\"Ann\"[^>]*><w:rPr><w:i/>(<w:iCs/>)?</w:rPr></w:rPrChange>"))), qPrintable(x));
+    }
+
+    void aChangeOfParagraphFormatKeepsTheFormatItHad()
+    {
+        Package pkg;
+        QVERIFY(pkg.read(rtf::toDocxPackage(doc("{\\*\\revtbl{Unknown;}{Ann;}}\\pard\\qc\\pprauth1\\pprdate0{\\*\\oldpprops\\pard\\qr} centered now\\par"))));
+        const QString x = QString::fromUtf8(pkg.part(QStringLiteral("/word/document.xml")));
+        QVERIFY2(x.contains(QRegularExpression(QStringLiteral("<w:jc w:val=\"center\"/>.*<w:pPrChange [^>]*w:author=\"Ann\"[^>]*><w:pPr><w:jc w:val=\"right\"/></w:pPr></w:pPrChange></w:pPr>"))), qPrintable(x));
+    }
+
+    void utf8CodePageTextIsDecoded()
+    {
+        const QByteArray text = QByteArray("caf") + "\xC3" + "\xA9" + " \xE2" + "\x82" + "\xAC \xF0" + "\x9F" + "\x98" + "\x80 end";
+        const Document d = must(QByteArray("{\\rtf1\\ansi\\ansicpg65001\\deff0{\\fonttbl{\\f0\\fswiss Arial;}}\\pard ") + text + "\\par}");
+        QCOMPARE(bodyTexts(d).first(), QString::fromUtf8("caf\xC3\xA9 \xE2\x82\xAC \xF0\x9F\x98\x80 end"));
+        // The same through hexadecimal escapes, and a broken sequence is one replacement character.
+        const Document e = must(QByteArray("{\\rtf1\\ansi\\ansicpg65001\\deff0{\\fonttbl{\\f0\\fswiss Arial;}}\\pard \\'c3\\'a9 x\\'e2\\'82 y\\par}"));
+        QCOMPARE(bodyTexts(e).first(), QString::fromUtf8("\xC3\xA9 x\xEF\xBF\xBD y"));
+    }
+
     void aCellJoinedIntoAnotherKeepsItsText()
     {
         const Document d = must(doc("\\trowd\\clmgf\\cellx2000\\clmrg\\cellx4000\\cellx6000\\pard\\intbl first\\cell second\\cell third\\cell\\row"));

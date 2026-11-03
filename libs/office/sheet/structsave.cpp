@@ -1309,7 +1309,7 @@ bool moveChartPart(const QByteArray &xml, const MoveContext &ctx, QByteArray *ou
 
 bool movePivotCachePart(const QByteArray &xml, const MoveContext &ctx, QByteArray *out, bool *changed)
 {
-    // <worksheetSource ref="A1:D100" sheet="Data"/> names the cells a PivotTable is made from
+    // <worksheetSource ref="A1:D100" sheet="Data"/> names the cells a pivot table is made from
     QByteArray result;
     qsizetype copied = 0, pos = 0;
     Tag t;
@@ -1331,7 +1331,7 @@ bool movePivotCachePart(const QByteArray &xml, const MoveContext &ctx, QByteArra
         const QString was = ref;
         if (!adjustRangeAll(ctx, sheet, &ref, false)) ref = was;
         // (a sheet renamed: the cache names it as it is called now. A sheet deleted: the cache keeps its records and the name of the sheet it was made from, as the programs people know leave
-        // it, so that a PivotTable still shows what it did and can't be refreshed until the data is put back; a name given later to another sheet is not the source's)
+        // it, so that a pivot table still shows what it did and can't be refreshed until the data is put back; a name given later to another sheet is not the source's)
         QString nowSheet = sheetName;
         for (const SheetOp &op : ctx.sheetOps) {
             if (op.name.compare(nowSheet, Qt::CaseInsensitive) != 0) continue;

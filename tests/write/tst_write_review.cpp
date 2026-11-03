@@ -227,6 +227,31 @@ private Q_SLOTS:
         QCOMPARE(finalText(*doc), QStringLiteral("one two four"));
     }
 
+    void aTrackedNumberingMarkIsWrittenBack()
+    {
+        // The mark of a numbering that was added while changes were tracked (w:ins in w:numPr) is part of the paragraph's numbering, and stays with it.
+        const QByteArray mark = "<w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/><w:ins" + rev(5) + "/></w:numPr>";
+        auto doc = open(makeDocx(para(run("item"), mark) + para(run("bare"), "<w:numPr><w:ins" + rev(6) + "/></w:numPr>") + para(run("plain"))));
+        QVERIFY(doc);
+        const QByteArray x = documentXml(doc->toDocx());
+        QCOMPARE(x.count("<w:numPr>"), 2);
+        QVERIFY2(x.contains("<w:ins w:id=\"5\"") && x.contains("<w:ins w:id=\"6\""), x.constData());
+        QVERIFY2(QRegularExpression("<w:numPr><w:ins w:id=\"5\"[^>]*/></w:numPr>").match(QString::fromUtf8(x)).hasMatch(), x.constData());
+    }
+
+    void anRtfsTrackedChangesAreTrackedChanges()
+    {
+        const QByteArray rtf = "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Arial;}}{\\*\\revtbl{Unknown;}{Ann;}}\\pard Keep {\\revised\\revauth1 added}{\\deleted\\revauthdel1 gone} end\\par}";
+        QString err;
+        auto doc = WriteDoc::fromFile(rtf, &err);
+        QVERIFY2(doc, qPrintable(err));
+        QCOMPARE(revisionCount(doc->story()), 2);
+        QCOMPARE(finalText(*doc), QStringLiteral("Keep added end"));
+        QCOMPARE(revisionAuthors(doc->story()), QStringList{QStringLiteral("Ann")});
+        QCOMPARE(acceptAll(*doc), 2);
+        QCOMPARE(textWithDeletions(*doc), QStringLiteral("Keep added end"));
+    }
+
     // ---------------------------------------------------------------- Accept and Reject
     void acceptAllKeepsInsertionsAndTakesDeletionsOut()
     {

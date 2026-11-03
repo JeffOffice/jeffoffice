@@ -268,7 +268,7 @@ public:
     // in for it (tests). Given the name to suggest and the filter to start on;
     // returns the path chosen, empty for none.
     void setSavePathChooser(const std::function<QString(const QString &suggested, const QString &filter)> &chooser) { m_pathChooser = chooser; }
-    // AutoRecover: writes a .pptx copy of unsaved work (the timer does, at the
+    // Automatic recovery: writes a .pptx copy of unsaved work (the timer does, at the
     // interval Options sets), and offers the copies a run that crashed left.
     void autoRecover();
     int autoRecoverInterval() const { return m_recoverTimer.interval(); }   // ms
@@ -446,7 +446,7 @@ private:
     QString m_ribbonErrors;
     QTimer m_refreshTimer, m_recoverTimer;
     QPair<QString, int> m_fitWatch;   // the text box being edited, and its story's revision when that began
-    QString m_recoveryCopy;      // this window's AutoRecover copy, if written
+    QString m_recoveryCopy;      // this window's automatic recovery copy, if written
     QString m_recoveredFrom;     // a recovered presentation's original file, for Save As
     QString m_templatePath;      // a template this window wrote: saving again writes over it
     std::function<QString(const QString &, const QString &)> m_pathChooser;

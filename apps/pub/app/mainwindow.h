@@ -70,12 +70,12 @@ public:
     // Opens one recovered copy, in this window while it holds nothing, else
     // in a new one, which is returned (null if the copy can't be read).
     MainWindow *openRecovered(const recovery::Recovered &r, QString *error = nullptr);
-    // The AutoRecover copy this window keeps of its document, if any.
+    // The automatic recovery copy this window keeps of its document, if any.
     QString recoveryCopy() const { return m_recoveryCopy; }
     KeyTips *keyTips() const { return m_keyTips; }
     void autoRecover();
     // After File > Options: settings this window keeps its own copy of (the
-    // AutoRecover interval).
+    // automatic recovery interval).
     void settingsChanged();
     int autoRecoverInterval() const { return m_recoverTimer.interval(); }   // ms
     bool save();
@@ -186,7 +186,7 @@ private:
     QSlider *m_zoomSlider;
     QTimer m_refreshTimer, m_recoverTimer;
     quint64 m_serial;               // this window, among this run's (names an unsaved document's copy)
-    QString m_recoveryCopy;         // this window's AutoRecover copy, if written
+    QString m_recoveryCopy;         // this window's automatic recovery copy, if written
     QString m_recoveredFrom;        // a recovered document's original file, for Save As
     bool m_recovered = false;       // the document is recovered work, not yet saved
     QPointer<QWidget> m_measurement;

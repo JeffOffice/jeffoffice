@@ -44,6 +44,7 @@ enum : int {
                                               // block's character format) can't be undone for the first block; readers take it from here (markFormat in editops.h)
     SpacingAttrs,                             // QByteArray: attributes of w:spacing that have no field, as written
     IndAttrs,                                 // QByteArray: the same for w:ind
+    NumExtra,                                 // QByteArray: the rest of w:numPr (a tracked numbering), as written
     FontsOther,                               // QString: the fonts of the scripts the engine has none for, as a run says them (packOtherFonts)
     NumDirect,                                // bool: the paragraph says it is numbered as its style says (and so the list's indents are over the style's)
     JcRaw,                                    // QString: the alignment as the file wrote it, when it is a kind of justified ("distribute")

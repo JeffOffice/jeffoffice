@@ -1,5 +1,5 @@
 #pragma once
-// The ribbon: Quick Access Toolbar, File button, tabs (including colored
+// The ribbon: quick toolbar, File button, tabs (including colored
 // contextual tabs), and groups of large/small buttons with dialog launchers.
 
 #include <QFontMetrics>

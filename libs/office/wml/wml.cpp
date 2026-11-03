@@ -557,6 +557,7 @@ ParaProps ParaProps::differences(const ParaProps &base) const
     d.extra = extra;
     d.spacingAttrs = spacingAttrs;
     d.indAttrs = indAttrs;
+    d.numExtra = numExtra;
     d.markRun = markRun;
     d.section = section;
     auto flag = [&](std::optional<bool> ParaProps::*f) {
@@ -671,6 +672,7 @@ ParaProps StyleSheet::paragraph(const QString &id, const TableLayer *table) cons
     p.extra.clear();
     p.spacingAttrs.clear();
     p.indAttrs.clear();
+    p.numExtra.clear();
     p.markRun.reset();
     p.section.reset();
     m_paragraph.insert(cacheKey, p);
@@ -705,6 +707,7 @@ ParaProps StyleSheet::paragraphWithNumbering(const QString &id, const ParaProps 
     p.extra.clear();
     p.spacingAttrs.clear();
     p.indAttrs.clear();
+    p.numExtra.clear();
     p.markRun.reset();
     p.section.reset();
     return p;
@@ -985,11 +988,11 @@ QByteArray paraPropsXml(const ParaProps &p)
     flag("keepLines", p.keepLines);
     flag("pageBreakBefore", p.pageBreakBefore);
     flag("widowControl", p.widowControl);
-    if (p.numId || p.ilvl) {
+    if (p.numId || p.ilvl || !p.numExtra.isEmpty()) {
         QByteArray e = "<w:numPr>";
         if (p.ilvl) e += intEl("ilvl", *p.ilvl);
         if (p.numId) e += intEl("numId", *p.numId);
-        parts.add(paraChildRank("numPr"), e + "</w:numPr>");
+        parts.add(paraChildRank("numPr"), e + p.numExtra + "</w:numPr>");
     }
     if (p.tabs && !p.tabs->isEmpty()) {
         QByteArray e = "<w:tabs>";

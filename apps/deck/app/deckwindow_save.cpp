@@ -1,5 +1,5 @@
 // Saving presentations in JeffDeck's window: File > Save and Save As, and
-// AutoRecover copies of work that isn't saved yet.
+// Automatic recovery copies of work that isn't saved yet.
 
 #include "app/deckcanvas.h"
 #include "app/deckwindow.h"

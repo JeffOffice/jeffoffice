@@ -19,6 +19,7 @@ JeffWrite reads these parts of an RTF file:
 - Tables, including tables inside tables, borders, shading, column widths, and cells that are joined.
 - Page size, margins, columns, page orientation, sections, headers, and footers.
 - Footnotes, endnotes, page-number fields, other fields, and bookmarks.
+- Tracked changes: added text, deleted text, paragraph breaks that were added or deleted, and changed looks. A **tracked change** is an edit that a reviewer marked. See [Track changes, and accept or reject them](track-changes).
 - Pictures in PNG, JPEG, EMF, and WMF form, and page breaks and column breaks.
 
 If part of the file can't be read, JeffWrite tells you what it left out. Some RTF files hold things that a document in JeffWrite can't hold yet, such as drawings or equations. They are left out, and the text around them is kept.

@@ -69,7 +69,7 @@ int main(int argc, char **argv)
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
     jp::crash::install(jp::crash::reportPath());   // sent with the statistics on the next start, if they're on
-    jp::recovery::setCopySuffix(QStringLiteral(".docx"));   // AutoRecover keeps documents
+    jp::recovery::setCopySuffix(QStringLiteral(".docx"));   // automatic recovery keeps documents
     jp::installTranslations();   // before the command line and any window build their text
 
     QCommandLineParser cli;
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
     w->show();
     applyView();
     if (cli.isSet(stageOpt)) w->showFileScreen(cli.value(stageOpt));
-    // A normal exit takes this run's AutoRecover copies with it; copies a crashed run left are offered once the window is up.
+    // A normal exit takes this run's automatic recovery copies with it; copies a crashed run left are offered once the window is up.
     QObject::connect(&app, &QCoreApplication::aboutToQuit, [] { jp::recovery::endSession(); });
     QTimer::singleShot(0, w, [w] { w->offerRecovery(); });
     auto *up = new jp::Updater(w);

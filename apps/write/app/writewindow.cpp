@@ -608,7 +608,7 @@ void WriteWindow::resizeEvent(QResizeEvent *e)
 
 bool WriteWindow::eventFilter(QObject *o, QEvent *e)
 {
-    // A double click on the Format Painter's button keeps it on; Esc turns it off.
+    // A double click on the Copy Formatting button keeps it on; Esc turns it off.
     if (e->type() == QEvent::MouseButtonDblClick) {
         auto *button = qobject_cast<QToolButton *>(o);
         if (button && button->defaultAction() && button->defaultAction() == act(QStringLiteral("edit.formatPainter")) && button->window() == this) {

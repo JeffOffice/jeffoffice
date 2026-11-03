@@ -1852,9 +1852,9 @@ private Q_SLOTS:
     void theWelcomeTopicSaysWhatThisVersionDoesAndDoesNotDo()
     {
         const QString start = jp::help::topic(QStringLiteral("start")).markdown;
-        for (const char *stale : {"Tables are not shown", "Pictures, shapes, and text boxes are not shown", "show their numbers, but not their text", "open or save .doc", "start a new page instead", "**[picture]**"})
+        for (const char *stale : {"Tables are not shown", "Pictures, shapes, and text boxes are not shown", "show their numbers, but not their text", "open or save .doc", "start a new page instead", "**[picture]**", "You can't open .rtf or .odt files yet", "Only the page number field can be inserted", "are kept, but not shown", "can't save .doc, .rtf, or .odt"})
             QVERIFY2(!start.contains(QLatin1String(stale)), stale);
-        for (const char *now : {".doc, and .dot", "tables, headers and footers, footnotes and endnotes, pictures", "continue on the same page", "Tab", "The ruler is across the top only"})
+        for (const char *now : {".dot, .rtf, .odt, .ott, and .fodt", "Saving .docx, .dotx, and .odt files", "tables, headers and footers, footnotes and endnotes, pictures", "continue on the same page", "Tab", "The ruler is across the top only"})
             QVERIFY2(start.contains(QLatin1String(now)), now);
         QVERIFY(jp::help::topic(QStringLiteral("open-save")).markdown.contains(QLatin1String("**.doc**")));
         const QString spelling = jp::help::topic(QStringLiteral("spelling")).markdown;
@@ -5788,8 +5788,8 @@ private Q_SLOTS:
         QCOMPARE(redNow(), 0);
     }
 
-    // AutoRecover writes the headers and footers with the rest: a copy of work that is not saved has the edited header.
-    void anEditedHeaderIsInTheAutoRecoverCopy()
+    // Automatic recovery writes the headers and footers with the rest: a copy of work that is not saved has the edited header.
+    void anEditedHeaderIsInTheRecoveryCopy()
     {
         QTemporaryDir dir;
         recovery::setRoot(dir.path());
@@ -14165,7 +14165,7 @@ private Q_SLOTS:
     }
 
     // Column width, row height, equal columns and rows, and the fit of the table: the grid and the cells' widths are written together.
-    void cellSizeAndAutoFitAreWrittenWithTheGrid()
+    void cellSizeAndFitAreWrittenWithTheGrid()
     {
         auto doc = open(tableDocx(2, 3));
         QTextCursor c = cursorAt(*doc, QStringLiteral("r0c0"));
@@ -22332,7 +22332,7 @@ private Q_SLOTS:
         }
     }
 
-    // ---- wave D: styles, Format Painter, Go To, and dragging text (core/styleops.h, core/gotoops.h, moveSelectedText)
+    // ---- wave D: styles, Copy Formatting, Go To, and dragging text (core/styleops.h, core/gotoops.h, moveSelectedText)
 
     static QTextCharFormat styCharAt(WriteDoc &doc, int position)
     {
@@ -23372,7 +23372,7 @@ private Q_SLOTS:
         for (int i = 0; i < items.size(); ++i) QCOMPARE(goToPosition(*doc, GoToKind::Section, QString::number(i + 1), 0), items[i].position);
     }
 
-    // ---- wave D in the window: the Styles pane, the style dialogs, the Format Painter, Go To, and dragging text
+    // ---- wave D in the window: the Styles pane, the style dialogs, Copy Formatting, Go To, and dragging text
 
     static std::unique_ptr<WriteWindow> styWindow(const QByteArray &body, const QByteArray &styles = kStyles)
     {
@@ -23727,7 +23727,7 @@ private Q_SLOTS:
         QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, inside);
         QVERIFY(!view->cursor().hasSelection());
         QCOMPARE(view->cursor().position(), expected);
-        // The press that begins a drag of the text is held until the pointer moves; with the drag off (as the Format Painter has it) the press begins a new selection.
+        // The press that begins a drag of the text is held until the pointer moves; with the drag off (as the Copy Formatting has it) the press begins a new selection.
         view->setTextDragAllowed(false);
         selectRange(*w, 0, 13);
         QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, from);

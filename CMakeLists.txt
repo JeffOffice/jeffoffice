@@ -18,7 +18,7 @@ include(cmake/pdfium.cmake)
 #   jo_text   the text engine
 #   jo_office the file packages (OPC), themes, and DrawingML colors of the
 #             presentation, word processor, and spreadsheet formats
-#   jo_shell  the window: ribbon, KeyTips, themes, Help, updater, AutoRecover
+#   jo_shell  the window: ribbon, KeyTips, themes, Help, updater, automatic recovery
 #   jo_page   pages of placed objects: the document, its drawing, the editor
 #             and the canvas (JeffPub's publications, JeffDeck's slides)
 #   jo_flow   a document that flows through pages made as the text fills

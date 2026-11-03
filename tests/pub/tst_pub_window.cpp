@@ -51,7 +51,7 @@ private Q_SLOTS:
     }
 
     // Every KeyTip on the ribbon is one or two of A-Z and 0-9; the keys that
-    // can be typed first (File, Quick Access, the tabs) are unique, and in each
+    // can be typed first (File, quick toolbar, the tabs) are unique, and in each
     // tab no KeyTip is another's beginning, so typing one never leaves doubt.
     void ribbonKeytips()
     {
@@ -79,7 +79,7 @@ private Q_SLOTS:
             if (contextual.contains(r->tabName(i))) QVERIFY2(r->tabKeytip(i).size() == 2 && r->tabKeytip(i)[0] == QLatin1Char('J'), qPrintable(r->tabName(i)));
             else QVERIFY2(r->tabKeytip(i).size() == 1, qPrintable(r->tabName(i)));
         }
-        check(top, QStringLiteral("File, Quick Access and tabs"));
+        check(top, QStringLiteral("File, quick toolbar and tabs"));
         QCOMPARE(r->tabCount(), 7 + contextual.size());   // Home, Insert, Page Design, Mailings, Review, View, Help
         QCOMPARE(r->tabKeytip(0), QStringLiteral("H"));
         QCOMPARE(r->tabKeytip(1), QStringLiteral("N"));
@@ -854,7 +854,7 @@ private Q_SLOTS:
         QCOMPARE(kt->level(), jp::KeyTips::Top);
         // The other program's letters (its 2021 version): File F, Home H,
         // Insert N, Page Design P, Mailings M, Review R, View W, Help Y,
-        // and the Quick Access Toolbar's buttons numbered.
+        // and the quick toolbar's buttons numbered.
         QStringList top = keys();
         top.sort();
         QCOMPARE(top.join(QLatin1Char(' ')), QStringLiteral("1 2 3 4 F H M N P R W Y"));
@@ -1659,7 +1659,7 @@ private Q_SLOTS:
         QVERIFY2(missing.isEmpty(), qPrintable(QStringLiteral("not in ribbon_strings.cpp (run tools/ribbon_strings.py): ") + missing.join(QStringLiteral(", "))));
     }
 
-    // AutoRecover keeps one copy per document and run: two "Cover.pub"
+    // Automatic recovery keeps one copy per document and run: two "Cover.pub"
     // files in different folders overwrote each other's copy, copies were
     // never offered after a crash, and never removed.
     // A page fitted to the window at the size where a scroll bar is just
@@ -1702,10 +1702,32 @@ private Q_SLOTS:
         }
     }
 
+    void copiesInTheFolderOfOlderVersionsAreFoundAndMoved()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::recovery::setRoot(dir.filePath(QStringLiteral("Recovery")));
+        jp::recovery::setLegacyRoot(dir.filePath(QStringLiteral("AutoRecover")));
+        QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("AutoRecover/crashed"))));
+        for (const QString &name : {QStringLiteral("AutoRecover/crashed/Report 1234abcd.jpub"), QStringLiteral("AutoRecover/Loose.autorecover.jpub")}) {
+            QFile f(dir.filePath(name));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("copy");
+        }
+        const QVector<jp::recovery::Recovered> found = jp::recovery::orphans();
+        QCOMPARE(found.size(), 2);
+        // They are in the new folder now, and the old one is gone.
+        for (const jp::recovery::Recovered &r : found) QVERIFY2(r.file.startsWith(dir.filePath(QStringLiteral("Recovery/"))), qPrintable(r.file));
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("Recovery/crashed/Report 1234abcd.jpub"))));
+        QVERIFY(!QDir(dir.filePath(QStringLiteral("AutoRecover"))).exists());
+        for (const jp::recovery::Recovered &r : found) jp::recovery::discard(r);
+        jp::recovery::setRoot(QString());
+    }
+
     void autoRecoverCopies()
     {
         QTemporaryDir dir;
-        jp::recovery::setRoot(dir.filePath(QStringLiteral("AutoRecover")));
+        jp::recovery::setRoot(dir.filePath(QStringLiteral("Recovery")));
         // Named for the document and its full path.
         const QString a = jp::recovery::copyPath(QStringLiteral("/one/Cover.pub"), QStringLiteral("Cover"), 1);
         const QString b = jp::recovery::copyPath(QStringLiteral("/two/Cover.pub"), QStringLiteral("Cover"), 2);
@@ -1719,15 +1741,15 @@ private Q_SLOTS:
         // loose in the folder. This run's own copies aren't offered.
         const auto doc = jp::Document::blank(QSizeF(612, 792));
         QVERIFY(jp::saveRecoveryCopy(*doc, a, QStringLiteral("/one/Cover.pub"), QStringLiteral("Cover")));
-        const QString crashed = dir.filePath(QStringLiteral("AutoRecover/crashed"));
+        const QString crashed = dir.filePath(QStringLiteral("Recovery/crashed"));
         QDir().mkpath(crashed);
         QVERIFY(jp::saveRecoveryCopy(*doc, crashed + QStringLiteral("/Flyer 0123abcd.jpub"), QStringLiteral("/docs/Flyer.jpub"), QStringLiteral("Flyer")));
-        const QString live = dir.filePath(QStringLiteral("AutoRecover/live"));
+        const QString live = dir.filePath(QStringLiteral("Recovery/live"));
         QDir().mkpath(live);
         QLockFile liveLock(live + QStringLiteral("/session.lock"));
         QVERIFY(liveLock.tryLock(0));
         QVERIFY(jp::saveRecoveryCopy(*doc, live + QStringLiteral("/Card 0123abcd.jpub"), QString(), QStringLiteral("Card")));
-        QVERIFY(QFile::copy(a, dir.filePath(QStringLiteral("AutoRecover/Publication1.autorecover.jpub"))));
+        QVERIFY(QFile::copy(a, dir.filePath(QStringLiteral("Recovery/Publication1.autorecover.jpub"))));
         const QVector<jp::recovery::Recovered> found = jp::recovery::orphans();
         QStringList titles;
         for (const auto &r : found) titles << r.title;
@@ -1774,7 +1796,7 @@ private Q_SLOTS:
         {
             auto titled = jp::Document::blank(QSizeF(612, 792));
             titled->props.title = QStringLiteral("Spring Newsletter");
-            const QString lost = dir.filePath(QStringLiteral("AutoRecover/lost"));
+            const QString lost = dir.filePath(QStringLiteral("Recovery/lost"));
             QDir().mkpath(lost);
             QVERIFY(jp::saveRecoveryCopy(*titled, lost + QStringLiteral("/Cover 0123abcd.jpub"), QStringLiteral("/docs/Cover.jpub"), QStringLiteral("Cover")));
             const QVector<jp::recovery::Recovered> left = jp::recovery::orphans();
@@ -1824,7 +1846,7 @@ private Q_SLOTS:
     }
 
     // File > Options holds the statistics choice the first start points to,
-    // and a new AutoRecover interval reaches windows already open.
+    // and a new automatic recovery interval reaches windows already open.
     void optionsApplyToOpenWindows()
     {
         jp::MainWindow w;

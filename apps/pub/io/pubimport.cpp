@@ -407,7 +407,7 @@ public:
         if (p["jp:no-hyphenation"] && p["jp:no-hyphenation"]->getInt()) t->hyphenate = false;
         if (p["jp:hyphenation-zone"]) t->hyphenZone = std::clamp(toPt(p["jp:hyphenation-zone"]), 0.0, 720.0);   // the writer's limit too
         if (p["jp:shape-seq"]) m_seqItems[p["jp:shape-seq"]->getInt()] = t->id;
-        // AutoFit Text: 1 best fit, 2 shrink on overflow, 3 grow the box.
+        // text fit: 1 best fit, 2 shrink on overflow, 3 grow the box.
         if (p["jp:autofit"]) {
             const int fit = p["jp:autofit"]->getInt();
             if (fit >= TextItem::BestFit && fit <= TextItem::GrowBox) t->autofit = TextItem::Autofit(fit);

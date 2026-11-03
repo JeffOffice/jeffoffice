@@ -503,10 +503,8 @@ QString numberInPicture(double value, const QString &pictureIn)
     return out.left(2 * kMostPictureChars + 400);
 }
 
-QString dateInPicture(const QDateTime &when, const QString &pictureIn)
+QString dateInPicture(const QDateTime &when, const QString &pictureIn, const QLocale &locale)
 {
-    static const char *const months[] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
-    static const char *const days[] = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
     const QString picture = pictureIn.left(kMostPictureChars);
     const QDate date = when.date();
     const QTime time = when.time();
@@ -530,12 +528,12 @@ QString dateInPicture(const QDateTime &when, const QString &pictureIn)
         } else if (c == QLatin1Char('M')) {
             const int k = run(c);
             const int m = date.month();
-            out += k == 1 ? QString::number(m) : k == 2 ? QStringLiteral("%1").arg(m, 2, 10, QLatin1Char('0')) : k == 3 ? QLatin1String(months[m - 1]).left(3) : QLatin1String(months[m - 1]);
+            out += k == 1 ? QString::number(m) : k == 2 ? QStringLiteral("%1").arg(m, 2, 10, QLatin1Char('0')) : locale.monthName(m, k == 3 ? QLocale::ShortFormat : QLocale::LongFormat);
             i += k;
         } else if (c == QLatin1Char('d')) {
             const int k = run(c);
             const int d = date.day(), w = date.dayOfWeek();
-            out += k == 1 ? QString::number(d) : k == 2 ? QStringLiteral("%1").arg(d, 2, 10, QLatin1Char('0')) : k == 3 ? QLatin1String(days[w - 1]).left(3) : QLatin1String(days[w - 1]);
+            out += k == 1 ? QString::number(d) : k == 2 ? QStringLiteral("%1").arg(d, 2, 10, QLatin1Char('0')) : locale.dayName(w, k == 3 ? QLocale::ShortFormat : QLocale::LongFormat);
             i += k;
         } else if (c == QLatin1Char('y')) {
             const int k = run(c);
@@ -859,9 +857,9 @@ QString showText(const Code &code, const QString &text)
     return formatText(text, code.general);
 }
 
-QString showDate(const Code &code, const QDateTime &moment, const QString &fallback)
+QString showDate(const Code &code, const QDateTime &moment, const QString &fallback, const QLocale &locale)
 {
-    return formatText(dateInPicture(moment, code.hasDatePicture ? code.datePicture : fallback), code.general);
+    return formatText(dateInPicture(moment, code.hasDatePicture ? code.datePicture : fallback, locale), code.general);
 }
 
 // The numbers a condition compares: text that reads as a number, else text.
@@ -908,13 +906,13 @@ bool matches(const QString &pattern, const QString &text)
     return wildcardMatch(pattern, text);
 }
 
-std::optional<QString> propertyValue(const Properties &p, const QString &nameIn, const Code &code)
+std::optional<QString> propertyValue(const Properties &p, const QString &nameIn, const Code &code, const QLocale &locale)
 {
     const QString name = nameIn.toLower().simplified();
     auto text = [&](const QString &v) { return std::optional<QString>(showText(code, v)); };
     auto date = [&](const QDateTime &d) -> std::optional<QString> {
         if (!d.isValid()) return std::nullopt;
-        return showDate(code, d, QStringLiteral("M/d/yyyy h:mm:ss AM/PM"));
+        return showDate(code, d, QStringLiteral("M/d/yyyy h:mm:ss AM/PM"), locale);
     };
     auto count = [&](int v) -> std::optional<QString> { return p.statistics ? std::optional<QString>(showNumber(code, v)) : std::nullopt; };
     if (name == QLatin1String("author")) return text(p.author);
@@ -1009,6 +1007,7 @@ void resetGlobStepsForTest() { g_globSteps = 0; }
 
 QString referenceSourceNotFound() { return QCoreApplication::translate("jp::write::Fields", "Error: the bookmark this refers to is missing."); }
 QString bookmarkNotDefined() { return QCoreApplication::translate("jp::write::Fields", "Error: no bookmark by this name."); }
+QString styleTextNotFound() { return QCoreApplication::translate("jp::write::Fields", "Error! No text of specified style in document."); }
 
 bool dependsOnTheMachine(const QString &name)
 {
@@ -1023,7 +1022,7 @@ bool isKnown(const QString &nameIn)
                                         QStringLiteral("STYLEREF"), QStringLiteral("SEQ"), QStringLiteral("DATE"), QStringLiteral("TIME"), QStringLiteral("CREATEDATE"), QStringLiteral("SAVEDATE"), QStringLiteral("PRINTDATE"),
                                         QStringLiteral("AUTHOR"), QStringLiteral("TITLE"), QStringLiteral("SUBJECT"), QStringLiteral("KEYWORDS"), QStringLiteral("COMMENTS"), QStringLiteral("LASTSAVEDBY"), QStringLiteral("TEMPLATE"),
                                         QStringLiteral("FILENAME"), QStringLiteral("FILESIZE"), QStringLiteral("DOCPROPERTY"), QStringLiteral("NUMWORDS"), QStringLiteral("NUMCHARS"), QStringLiteral("IF"), QStringLiteral("="),
-                                        QStringLiteral("QUOTE"), QStringLiteral("REVNUM"), QStringLiteral("EDITTIME")};
+                                        QStringLiteral("QUOTE"), QStringLiteral("REVNUM"), QStringLiteral("EDITTIME"), QStringLiteral("COMPARE")};
     return names.contains(nameIn.toUpper());
 }
 
@@ -1054,20 +1053,20 @@ std::optional<QString> compute(const Code &code, Env &env)
     if (n == QLatin1String("SEQ")) return sequenceText(code, env);
     if (n == QLatin1String("DATE") || n == QLatin1String("TIME")) {
         if (!env.now.isValid()) return std::nullopt;
-        return showDate(code, env.now, n == QLatin1String("DATE") ? QStringLiteral("M/d/yyyy") : QStringLiteral("h:mm AM/PM"));
+        return showDate(code, env.now, n == QLatin1String("DATE") ? QStringLiteral("M/d/yyyy") : QStringLiteral("h:mm AM/PM"), env.locale);
     }
     if (n == QLatin1String("CREATEDATE") || n == QLatin1String("SAVEDATE") || n == QLatin1String("PRINTDATE")) {
         const QDateTime d = n == QLatin1String("CREATEDATE") ? env.properties.created : n == QLatin1String("SAVEDATE") ? env.properties.saved : env.properties.printed;
         if (!d.isValid()) return std::nullopt;
-        return showDate(code, d, QStringLiteral("M/d/yyyy h:mm:ss AM/PM"));
+        return showDate(code, d, QStringLiteral("M/d/yyyy h:mm:ss AM/PM"), env.locale);
     }
     if (n == QLatin1String("AUTHOR") || n == QLatin1String("TITLE") || n == QLatin1String("SUBJECT") || n == QLatin1String("KEYWORDS") || n == QLatin1String("COMMENTS") || n == QLatin1String("LASTSAVEDBY") ||
         n == QLatin1String("TEMPLATE") || n == QLatin1String("REVNUM")) {
         if (!code.arguments.isEmpty()) return formatText(code.arguments.join(QLatin1Char(' ')), code.general);   // (a new value, shown)
-        return propertyValue(env.properties, n == QLatin1String("REVNUM") ? QStringLiteral("revnum") : n, code);
+        return propertyValue(env.properties, n == QLatin1String("REVNUM") ? QStringLiteral("revnum") : n, code, env.locale);
     }
     if (n == QLatin1String("EDITTIME")) return showNumber(code, double(env.properties.totalMinutes));
-    if (n == QLatin1String("DOCPROPERTY")) return propertyValue(env.properties, code.arguments.value(0), code);
+    if (n == QLatin1String("DOCPROPERTY")) return propertyValue(env.properties, code.arguments.value(0), code, env.locale);
     if (n == QLatin1String("NUMWORDS")) return env.properties.statistics ? std::optional<QString>(showNumber(code, env.properties.words)) : std::nullopt;
     if (n == QLatin1String("NUMCHARS")) return env.properties.statistics ? std::optional<QString>(showNumber(code, env.properties.characters)) : std::nullopt;
     if (n == QLatin1String("FILENAME")) {
@@ -1083,6 +1082,13 @@ std::optional<QString> compute(const Code &code, Env &env)
     }
     if (n == QLatin1String("QUOTE")) return formatText(code.arguments.join(QLatin1Char(' ')), code.general);
     if (n == QLatin1String("IF")) return condition(code);
+    if (n == QLatin1String("COMPARE")) {
+        // (The same comparison as IF makes, shown as 1 for true and 0 for false.)
+        if (code.arguments.size() != 3) return std::nullopt;
+        Code asIf = code;
+        asIf.arguments << QStringLiteral("1") << QStringLiteral("0");
+        return condition(asIf);
+    }
     if (n == QLatin1String("=")) {
         const std::optional<double> v = evaluateFormula(code.expression, env.number, env.formulaBudget);
         return v ? std::optional<QString>(showNumber(code, *v)) : std::nullopt;

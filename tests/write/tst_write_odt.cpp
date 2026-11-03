@@ -6,6 +6,7 @@
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
 #include "core/appinfo.h"
+#include "core/editops.h"
 #include "core/fonts.h"
 #include "core/writedoc.h"
 #include "io/zip.h"
@@ -17,6 +18,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextBlock>
+#include <QTextCursor>
 #include <QTextDocument>
 
 using namespace jp;
@@ -192,6 +194,64 @@ private Q_SLOTS:
         QVERIFY(win.saveTo(dir.filePath(QStringLiteral("plain.odt"))));
         QVERIFY(!said.isEmpty());
         QVERIFY2(said[0].contains(QLatin1String("macros")) && said[0].contains(QLatin1String(".odt")) && !said[0].contains(QLatin1String(".docx")), qPrintable(said[0]));
+    }
+
+    void saveOnAFlatOdtExplainsAndOffersAnOdt()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        // (The file is read by its content; its name says it is a flat one.)
+        const QString path = writeFile(dir.filePath(QStringLiteral("letter.fodt")), makeOdt(kBody, kAuto));
+        WriteWindow w;
+        QStringList said;
+        w.setNotifier([&](const QString &, const QString &text) { said << text; });
+        QVERIFY(w.openFile(path));
+        QString suggested, filter;
+        w.setSavePathChooser([&](const QString &s, const QString &f) {
+            suggested = s;
+            filter = f;
+            return dir.filePath(QStringLiteral("copy.odt"));
+        });
+        QVERIFY(w.save());
+        QVERIFY2(!said.isEmpty() && said[0].contains(QLatin1String(".fodt")) && said[0].contains(QLatin1String(".odt file")), qPrintable(said.join(QLatin1Char('|'))));
+        QVERIFY2(suggested.endsWith(QLatin1String("letter.odt")), qPrintable(suggested));
+        QVERIFY2(filter.contains(QLatin1String("*.odt")), qPrintable(filter));
+        QVERIFY(w.filePath().endsWith(QLatin1String("copy.odt")));
+    }
+
+    void theNotKeptNoteComesAgainForWhatIsNew()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        office::PackageWriter p;
+        p.addPart(QStringLiteral("/word/document.xml"),
+                  "<?xml version=\"1.0\"?><w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><w:body>"
+                  "<w:p><w:r><w:t>first</w:t></w:r><w:r><w:object/></w:r></w:p><w:p><w:r><w:t>second</w:t></w:r><m:oMath><m:r><m:t>x</m:t></m:r></m:oMath></w:p></w:body></w:document>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        p.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = writeFile(dir.filePath(QStringLiteral("two.docx")), p.finish());
+        WriteWindow w;
+        QStringList said;
+        w.setNotifier([&](const QString &, const QString &text) { said << text; });
+        QVERIFY(w.openFile(path));
+        // The equation goes first (so the first save has only the object to say), and comes back.
+        QTextCursor c(w.document()->story());
+        c.setPosition(w.document()->story()->findBlockByNumber(1).position() + 6);
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        QVERIFY(c.hasSelection());
+        removeSelection(*w.document(), c);
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("one.odt"))));
+        QCOMPARE(said.size(), 1);
+        QVERIFY2(said[0].contains(QLatin1String("embedded objects")) && !said[0].contains(QLatin1String("equations")), qPrintable(said[0]));
+        QVERIFY(w.document()->undo());
+        said.clear();
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("two.odt"))));
+        QCOMPARE(said.size(), 1);
+        QVERIFY2(said[0].contains(QLatin1String("equations")) && !said[0].contains(QLatin1String("embedded objects")), qPrintable(said[0]));
+        said.clear();
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("three.odt"))));
+        QVERIFY(said.isEmpty());
     }
 
     // Not a test of its own: the work of a process that the next function starts.

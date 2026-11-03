@@ -1051,7 +1051,7 @@ private Q_SLOTS:
         }
     }
 
-    // AutoFit Text in .pub lives in the story's record: 05 = 1 for best fit,
+    // text fit in .pub lives in the story's record: 05 = 1 for best fit,
     // 3 for shrink text on overflow, and a 0c flag for grow the box, as
     // Publisher writes them when each setting is chosen. A box without one
     // keeps its overflowing text hidden, as Publisher shows it.

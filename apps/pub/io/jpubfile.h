@@ -12,9 +12,9 @@ namespace jp {
 // `embedLinks`: pictures linked to their files are stored whole, for a
 // publication that goes to another computer.
 // `folder`, when given, is where the publication will be read from, if that is not
-// where `path` is (AutoRecover's copy is read as if it were in the original's folder).
+// where `path` is (the automatic recovery copy is read as if it were in the original's folder).
 bool savePublication(const Document &doc, const QString &path, const QImage &thumbnail, QString *error, bool embedLinks = false, const QString &folder = QString());
-// An AutoRecover copy of a publication (recovery::write), its pictures' links
+// An automatic recovery copy of a publication (recovery::write), its pictures' links
 // kept relative to the original's folder, where the copy is read as being
 // when it is recovered.
 bool saveRecoveryCopy(const Document &doc, const QString &copy, const QString &docPath, const QString &title, QString *error = nullptr);

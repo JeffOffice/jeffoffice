@@ -54,7 +54,7 @@ bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const office:
 // Update <style> to Match Selection: the style the cursor's paragraph has says what the selection says besides it.
 bool updateStyleToSelection(WriteDoc &doc, QTextCursor &c, QString *problem = nullptr);
 
-// ---- Format Painter
+// ---- Copy Formatting
 // The look of what is selected (or, with nothing selected, of the paragraph and the character at the caret): the characters' look, and the paragraph's when it is a paragraph that is
 // copied (the selection takes in a paragraph mark, or there is no selection).
 struct FormatBrush {

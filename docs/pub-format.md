@@ -147,7 +147,7 @@ file name.
 Chunk 0x65 lists the stories: each record has `01` = the text id, `02` =
 the number of boxes in a linked chain, `03` = 0 for a table, `04` (a flag
 of type 0x00) when the story isn't hyphenated automatically, `05` (u16,
-type 0x10) for AutoFit Text, `07` = its entry in the frame layout section
+type 0x10) for text fit, `07` = its entry in the frame layout section
 (MCLD), `08`/`09` (floats, -9999996 when unset), a `0c` flag (type 0x08)
 for Grow Text Box to Fit, and `0a` (u32), the hyphenation zone in EMU, left
 out at its default of 228600 (0.25 inch). A text box's zone is the same
@@ -161,7 +161,7 @@ higher bits too (0x103, 0x203, 0x3003), so only the low two bits count.
 With Shrink, Publisher also records the font size before shrinking in
 `08`, and in both cases it writes the fitted size into the text's runs.
 Do Not Autofit leaves `05` and `0c` out. Found by choosing each setting
-through Publisher's AutoFit Text menu and saving. JeffPub writes `05` (or
+through Publisher's Text Fit menu and saving. JeffPub writes `05` (or
 `0c`) and its unfitted sizes: Publisher fits the text again when it opens
 the file (10-point text in a box set to shrink opened at 5.3 points, and a
 box set to grow opened 204 points tall instead of 60).

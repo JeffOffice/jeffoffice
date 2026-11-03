@@ -9,6 +9,7 @@
 
 #include <QHash>
 #include <QKeySequence>
+#include <QSet>
 #include <QTimer>
 #include <functional>
 #include <memory>
@@ -97,7 +98,7 @@ public:
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
     // What a printer is made ready with after the window has set it up (tests: a printer that writes to a file stands in for a real one).
     void setPrinterPreparer(const std::function<void(QPrinter &)> &preparer) { m_printerPreparer = preparer; }
-    // AutoRecover: a copy of unsaved work (the timer writes it at the interval Options sets), and the copies a run that crashed left.
+    // Automatic recovery: a copy of unsaved work (the timer writes it at the interval Options sets), and the copies a run that crashed left.
     void autoRecover();
     QString recoveryCopy() const { return m_recoveryCopy; }
     void offerRecovery(bool askIfNone = false);
@@ -128,7 +129,7 @@ public:
     ReviewView reviewView() const { return m_reviewView; }
     void setReviewView(ReviewView view);
 
-    // The Format Painter: picked up (Once, or Locked by a double click on its button) it holds the look of the selection, and paints it on each selection made with the mouse until it
+    // Copy Formatting: picked up (Once, or Locked by a double click on its button) it holds the look of the selection, and paints it on each selection made with the mouse until it
     // paints once, or until Esc. Turning it on copies the look of the selection as it is then.
     enum class PainterMode { Off, Once, Locked };
     PainterMode painterMode() const { return m_painter; }
@@ -261,7 +262,7 @@ private:
     std::function<QString()> m_pictureChooser;
     std::function<void(const QString &, const QString &)> m_notifier;
     std::function<void(QPrinter &)> m_printerPreparer;
-    bool m_odtNoted = false;        // (the person was told what an .odt file can't hold)
+    QSet<QString> m_odtNoted;       // (what the person was told an .odt file can't hold: told again only of what is new)
     bool m_macrosNoted = false;     // (the person was told that the macros are not saved)
     QString m_protectedPath;        // the file a document that has had something left out (see WriteDoc::leftSomethingOut) was opened from: not written over
 };

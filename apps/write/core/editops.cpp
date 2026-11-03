@@ -2672,7 +2672,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
     const QString was = has.isEmpty() ? doc.defaultParagraphStyle() : has;
     QTextBlockFormat nf = doc.styleBlockFormat(styleId);
     // What belongs to the paragraph in the file, not to its style.
-    for (int key : {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData), int(flow::fp::Cell), int(flow::fp::Frame), int(tp::OutOfLayout), int(flow::fp::AdvanceTop)})
+    for (int key : {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::RawAfter), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::NumExtra), int(prop::OddTabs), int(flow::fp::SectionBreakAfter), int(prop::SectionData), int(flow::fp::Cell), int(flow::fp::Frame), int(tp::OutOfLayout), int(flow::fp::AdvanceTop)})
         if (bf.hasProperty(key)) nf.setProperty(key, bf.property(key));
     if (ofNote) {
         // A paragraph of a note stays one, whatever style it is given: it is the same copy of the same note, and its style is the one it was given (the pages' copy has no style name of its own).

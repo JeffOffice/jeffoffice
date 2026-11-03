@@ -4,6 +4,7 @@
 // A field this engine does not know, or one it cannot answer (a bookmark it has not been told of), has no result here, and the field keeps the result it has.
 
 #include <QDateTime>
+#include <QLocale>
 #include <QHash>
 #include <QString>
 #include <QStringList>
@@ -51,8 +52,8 @@ QString formatText(const QString &text, const QStringList &general);
 // A number in a picture: 0 and # for digits, x to drop digits, . and , for the point and the groups, ; between the pictures for positive, negative, and zero, 'text' and other
 // characters as they are, - and + for the sign.
 QString numberInPicture(double value, const QString &picture);
-// A date and time in a picture: M, d, y, h, H, m, s, am/pm, 'text', \ before a character.
-QString dateInPicture(const QDateTime &when, const QString &picture);
+// A date and time in a picture: M, d, y, h, H, m, s, am/pm, 'text', \ before a character. The names of months and days are in the locale's language (English by default).
+QString dateInPicture(const QDateTime &when, const QString &picture, const QLocale &locale = QLocale::c());
 // A number as a formula without a picture shows it (up to six places, no trailing zeros).
 QString plainNumber(double value);
 
@@ -89,6 +90,7 @@ struct Env {
     // Where the field is: its page (from 1) as a number and as the page number shows it, the pages in all and in its section, its section's number, and the place it stands at.
     int page = 0, pages = 0, sectionPages = 0, section = 0, position = 0;
     QString pageText;
+    QLocale locale;   // the language of the names of months and days a date shows: the field's own where the document says it, else the program's
     std::function<std::optional<BookmarkInfo>(const QString &)> bookmark;
     std::function<void(const QString &name, BookmarkInfo *)> bookmarkPage;   // fills `page` and `pageIndex` of a bookmark's info (asked only when a page number is shown)
     qint64 *formulaBudget = nullptr;                                         // the steps the formulas of the pass have left (see evaluateFormula)
@@ -113,5 +115,7 @@ void resetGlobStepsForTest();
 // The text a reference shows when what it refers to is missing.
 QString referenceSourceNotFound();
 QString bookmarkNotDefined();
+// The text a style reference shows when no paragraph has the style.
+QString styleTextNotFound();
 
 } // namespace jp::write::fields

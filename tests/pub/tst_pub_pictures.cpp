@@ -1932,7 +1932,7 @@ private Q_SLOTS:
         QVERIFY(dir.isValid());
         QDir root(dir.path());
         QVERIFY(root.mkpath(QStringLiteral("pub/sub")) && root.mkpath(QStringLiteral("outside")));
-        jp::recovery::setRoot(root.filePath(QStringLiteral("AutoRecover")));
+        jp::recovery::setRoot(root.filePath(QStringLiteral("Recovery")));
         const QSize size(900, 700);
         const QString inside = linkPicture(root.filePath(QStringLiteral("pub/sub/in.png")), size, QColor(200, 30, 30));
         const QString outside = linkPicture(root.filePath(QStringLiteral("outside/out.png")), size, QColor(30, 30, 200));
@@ -1947,8 +1947,8 @@ private Q_SLOTS:
             doc->pages[0]->items.push_back(item);
         }
         const QString original = root.filePath(QStringLiteral("pub/book.jpub"));
-        const QString lost = root.filePath(QStringLiteral("AutoRecover/lost"));
-        QVERIFY(root.mkpath(QStringLiteral("AutoRecover/lost")));
+        const QString lost = root.filePath(QStringLiteral("Recovery/lost"));
+        QVERIFY(root.mkpath(QStringLiteral("Recovery/lost")));
         const QString copy = lost + QStringLiteral("/Book 0123abcd.jpub");
         QVERIFY(jp::saveRecoveryCopy(*doc, copy, original, QStringLiteral("Book")));
         for (const QString &f : {inside, outside}) linkPicture(f, size, QColor(250, 250, 10));   // changed since: what is read shows
@@ -1980,8 +1980,8 @@ private Q_SLOTS:
         item->imgRect = QRectF(0, 0, 160, 120);
         item->imageId = fresh->addLinkedImage(linkFileBytes(inside), QStringLiteral("png"), inside, false);
         fresh->pages[0]->items.push_back(item);
-        QVERIFY(root.mkpath(QStringLiteral("AutoRecover/lost2")));
-        const QString copy2 = root.filePath(QStringLiteral("AutoRecover/lost2/Publication2 4567abcd.jpub"));
+        QVERIFY(root.mkpath(QStringLiteral("Recovery/lost2")));
+        const QString copy2 = root.filePath(QStringLiteral("Recovery/lost2/Publication2 4567abcd.jpub"));
         QVERIFY(jp::saveRecoveryCopy(*fresh, copy2, QString(), QStringLiteral("Publication2")));
         jp::MainWindow v;
         QCOMPARE(v.openRecovered(jp::recovery::Recovered{copy2, QString(), QStringLiteral("Publication2"), QDateTime::currentDateTime()}), &v);
