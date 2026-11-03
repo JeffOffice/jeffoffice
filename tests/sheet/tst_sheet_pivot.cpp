@@ -3,6 +3,7 @@
 #include "sheethelpers.h"
 
 #include "sheet/pivot.h"
+#include "sheet/slicer.h"
 #include "../timing.h"
 #include "sheet/xlsxsave.h"
 
@@ -428,6 +429,71 @@ private Q_SLOTS:
             held(cache, &records, &items);
             QVERIFY2(items <= kPivotMaxItemsPerTable, qPrintable(QString::number(items)));
         }
+    }
+
+    // A slicer cache says which field of which tables it filters and which items are chosen; the slicer part says how it looks; the choice hides the items it leaves out of a table.
+    void aSlicerIsReadAndFiltersATable()
+    {
+        const QByteArray cacheXml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<slicerCacheDefinition xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\" name=\"Slicer_Region\" sourceName=\"Region\">"
+                                    "<pivotTables><pivotTable tabId=\"1\" name=\"PivotTable1\"/><pivotTable tabId=\"2\" name=\"PivotTable2\"/></pivotTables>"
+                                    "<data><tabular pivotCacheId=\"7\" sortOrder=\"descending\" showMissing=\"0\"><items count=\"2\"><i x=\"0\" s=\"1\"/><i x=\"1\" nd=\"1\"/></items></tabular></data></slicerCacheDefinition>";
+        SlicerCache sc;
+        QVERIFY(readSlicerCache(cacheXml, &sc));
+        QVERIFY(!sc.timeline);
+        QCOMPARE(sc.name, QStringLiteral("Slicer_Region"));
+        QCOMPARE(sc.sourceName, QStringLiteral("Region"));
+        QCOMPARE(sc.tables.size(), 2);
+        QCOMPARE(sc.tables[1].name, QStringLiteral("PivotTable2"));
+        QCOMPARE(sc.tables[1].tabId, 2);
+        QCOMPARE(sc.pivotCacheId, 7);
+        QCOMPARE(sc.sortOrder, QStringLiteral("descending"));
+        QVERIFY(sc.hideNoData);
+        QCOMPARE(sc.items.size(), 2);
+        QVERIFY(sc.items[0].selected);
+        QVERIFY(!sc.items[1].selected);
+        QVERIFY(sc.items[1].noData);
+        QVector<SlicerView> views;
+        QVERIFY(readSlicerViews("<slicers xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><slicer name=\"Region 1\" cache=\"Slicer_Region\" caption=\"Region\" columnCount=\"2\" style=\"SlicerStyleLight1\" rowHeight=\"241300\"/></slicers>", &views));
+        QCOMPARE(views.size(), 1);
+        QCOMPARE(views[0].cache, QStringLiteral("Slicer_Region"));
+        QCOMPARE(views[0].columns, 2);
+        QCOMPARE(views[0].rowHeight, 241300);
+        SlicerCache notOne;
+        QVERIFY(!readSlicerCache("<pivotCacheDefinition/>", &notOne));
+        QVERIFY(!readSlicerViews("<slicer", &views));
+        // the choice on the table: only West shows when only West is chosen, everything when nothing is
+        Worked w = work(tableDefinition(false));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QVERIFY(pivotApplySlicer(&w.table, w.cache, 0, sc));
+        int shown = 0;
+        for (const PivotTableItem &it : w.table.fields[0].items)
+            if (it.t.isEmpty() && !it.hidden) ++shown;
+        QCOMPARE(shown, 1);
+        for (SlicerItem &it : sc.items) it.selected = false;
+        QVERIFY(pivotApplySlicer(&w.table, w.cache, 0, sc));
+        for (const PivotTableItem &it : w.table.fields[0].items)
+            if (it.t.isEmpty()) QVERIFY(!it.hidden);
+        QVERIFY(!pivotApplySlicer(&w.table, w.cache, 99, sc));
+    }
+
+    // A timeline cache has the span it chooses and its level; a part with too many slicers is read as far as the limit.
+    void aTimelineIsRead()
+    {
+        SlicerCache tc;
+        QVERIFY(readSlicerCache("<timelineCacheDefinition xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2010/11/main\" name=\"NativeTimeline_Date\" sourceName=\"Date\">"
+                                "<pivotTables><pivotTable tabId=\"0\" name=\"PivotTable1\"/></pivotTables><state name=\"Timeline1\" pivotCacheId=\"3\" filterType=\"dateBetween\" level=\"2\">"
+                                "<selection startDate=\"2020-02-01T00:00:00\" endDate=\"2020-04-30T00:00:00\"/><bounds startDate=\"2020-01-01T00:00:00\" endDate=\"2021-12-31T00:00:00\"/></state></timelineCacheDefinition>", &tc));
+        QVERIFY(tc.timeline);
+        QCOMPARE(tc.sourceName, QStringLiteral("Date"));
+        QCOMPARE(tc.startDate, QStringLiteral("2020-02-01T00:00:00"));
+        QCOMPARE(tc.endDate, QStringLiteral("2020-04-30T00:00:00"));
+        QCOMPARE(tc.tables.size(), 1);
+        QByteArray many = "<slicers>";
+        for (int i = 0; i < kMaxSlicersPerPart + 50; ++i) many += "<slicer name=\"s\" cache=\"c\"/>";
+        many += "</slicers>";
+        QVector<SlicerView> views;
+        QVERIFY(readSlicerViews(many, &views));
+        QCOMPARE(views.size(), kMaxSlicersPerPart);
     }
 
     // Dates are grouped by years and months (a field added for the coarser part), numbers in steps; the groups are written, read back, and read again from new data; a field of text can't be grouped.
