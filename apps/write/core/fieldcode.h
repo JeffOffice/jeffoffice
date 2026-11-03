@@ -61,7 +61,8 @@ QString plainNumber(double value);
 // The value of an expression of a formula field (= 2 + 3 * 4, SUM(1,2,3), (7 - 2) ^ 2, 50% ...). Names that are not functions are asked of `name` (a bookmark's number).
 // Nothing for text that is no formula, or one deeper or longer than the most.
 // `budget`, if given, is the steps that all the formulas of a pass may take together: each step and each name asked takes from it, and a formula is left unworked when it is spent.
-std::optional<double> evaluateFormula(const QString &expression, const std::function<std::optional<double>(const QString &)> &name = nullptr, qint64 *budget = nullptr);
+std::optional<double> evaluateFormula(const QString &expression, const std::function<std::optional<double>(const QString &)> &name = nullptr, qint64 *budget = nullptr,
+                                      const std::function<std::optional<QVector<double>>(const QString &)> &cells = nullptr);
 // The steps all the formulas of a pass may take together.
 constexpr qint64 kMostFormulaSteps = 200000;
 
@@ -100,6 +101,8 @@ struct Env {
     QHash<QString, qint64> *sequences = nullptr;
     // Used with a bookmark name read by a formula, and by a condition of IF.
     std::function<std::optional<double>(const QString &)> number;
+    // The numbers in the cells of the table the field is in that a cell name or a direction (A1, A1:B3, ABOVE, LEFT, ...) stands for; none when the field is not in a table.
+    std::function<std::optional<QVector<double>>(const QString &)> cells;
 };
 
 // The result of a field with this code, or null where the engine leaves it as it is (a field it does not know, a document that cannot say). TOC is built by the caller.

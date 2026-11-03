@@ -213,6 +213,22 @@ private Q_SLOTS:
     }
 
     // ---- formulas
+    // A formula in a table's cell works on the cells round it: SUM(ABOVE), AVERAGE(ABOVE), a cell's name (B2), and a range (A1:A2); it is a field of the cell that Update Field works out.
+    void formulasInTableCellsUseTheCellsAroundThem()
+    {
+        auto cell = [](const QByteArray &content) { return "<w:tc><w:tcPr><w:tcW w:w=\"2400\" w:type=\"dxa\"/></w:tcPr>" + para(content) + "</w:tc>"; };
+        auto row = [&](const QByteArray &a, const QByteArray &b) { return "<w:tr>" + cell(a) + cell(b) + "</w:tr>"; };
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2400\"/><w:gridCol w:w=\"2400\"/></w:tblGrid>" +
+                                 row(run("10"), run("2")) + row(run("20.5"), run("4")) + row(field("=SUM(ABOVE)", "0"), field("=AVERAGE(ABOVE)", "0")) +
+                                 row(field("=A1+B2*2", "0"), field("=SUM(A1:A2)", "0")) + "</w:tbl>" + para(run("end"));
+        auto doc = open(makeDocx(table));
+        QVERIFY(doc);
+        QCOMPARE(updateFields(*doc).changed, 4);
+        QString text = doc->story()->toPlainText();
+        text.remove(QChar(0xFFFC));   // (the marks of a field)
+        QVERIFY2(text.contains(QStringLiteral("10\n2\n20.5\n4\n30.5\n3\n18\n30.5\nend")), qPrintable(text));
+    }
+
     void formulasAreWorkedOut()
     {
         auto value = [](const char *text) { return evaluateFormula(QString::fromLatin1(text)); };

@@ -14156,6 +14156,155 @@ private Q_SLOTS:
         QVERIFY(!splitCells(*rows, in, 1, 1));
     }
 
+    // Convert Text to Table: each selected paragraph is a row cut at the separator, the table has as many columns as the longest row (the short rows get empty cells), the words stay
+    // in order, one step undoes it, and the file opens the same; Table to Text puts the cells' words between the separator again.
+    void convertTextToTableAndBack()
+    {
+        auto doc = open(makeDocx(cellP("before") + cellP("a\tb\tc") + cellP("d\te") + cellP("after"), kStyles));
+        QTextCursor c(doc->story());
+        selectCells(*doc, c, QStringLiteral("a\tb\tc"), QStringLiteral("d\te"));
+        const QString was = plain(*doc);
+        QVERIFY(canConvertTextToTable(*doc, c));
+        QVERIFY(convertTextToTable(*doc, c, TextSeparator::Tabs, QChar(), 1));
+        QCOMPARE(plain(*doc), QStringLiteral("before\na\nb\nc\nd\ne\n\nafter"));
+        const QByteArray x = documentXml(doc->toDocx());
+        QCOMPARE(int(x.count("<w:tr>")), 2);
+        QCOMPARE(int(x.count("<w:tc>")), 6);
+        checkTablesReopenTheSame(*doc);
+        QVERIFY(!canConvertTextToTable(*doc, c));
+        // And back, with commas.
+        QTextCursor in = cursorAt(*doc, QStringLiteral("b"));
+        QVERIFY(convertTableToText(*doc, in, TextSeparator::Commas, QChar()));
+        QCOMPARE(plain(*doc), QStringLiteral("before\na,b,c\nd,e,\nafter"));
+        QVERIFY(!documentXml(doc->toDocx()).contains("<w:tbl>"));
+        checkTablesReopenTheSame(*doc);
+        doc->story()->undo();
+        QCOMPARE(plain(*doc), QStringLiteral("before\na\nb\nc\nd\ne\n\nafter"));
+        doc->story()->undo();
+        QCOMPARE(plain(*doc), was);
+        QVERIFY(!documentXml(doc->toDocx()).contains("<w:tbl>"));
+    }
+
+    // Paragraphs as cells make rows of as many cells as asked; another character cuts the text too; a table made of the story's last paragraphs leaves a paragraph after it; words
+    // keep their bold.
+    void convertTextToTableByParagraphsOtherCharacterAndAtTheEnd()
+    {
+        auto doc = open(makeDocx(cellP("x") + cellP("y") + "<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>z;w</w:t></w:r></w:p>", kStyles));
+        QTextCursor c(doc->story());
+        c.select(QTextCursor::Document);
+        QVERIFY(convertTextToTable(*doc, c, TextSeparator::Paragraphs, QChar(), 2));
+        QCOMPARE(plain(*doc), QStringLiteral("x\ny\nz;w\n\n"));
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:tr>")), 2);
+        checkTablesReopenTheSame(*doc);
+        QVERIFY(!cellKeyOf(doc->story()->lastBlock()));
+        QTextCursor in = cursorAt(*doc, QStringLiteral("z;w"));
+        QVERIFY(convertTableToText(*doc, in, TextSeparator::Paragraphs, QChar()));
+        QCOMPARE(plain(*doc), QStringLiteral("x\ny\nz;w\n\n"));
+        QVERIFY(!documentXml(doc->toDocx()).contains("<w:tbl>"));
+        auto semi = open(makeDocx(cellP("p;q") + "<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>r;s</w:t></w:r></w:p>" + cellP("end"), kStyles));
+        QTextCursor s(semi->story());
+        selectCells(*semi, s, QStringLiteral("p;q"), QStringLiteral("r;s"));
+        QVERIFY(convertTextToTable(*semi, s, TextSeparator::Other, QChar(';'), 1));
+        QCOMPARE(plain(*semi), QStringLiteral("p\nq\nr\ns\nend"));
+        QTextCursor bold = cursorAt(*semi, QStringLiteral("s"));
+        bold.setPosition(bold.position() + 1);
+        QVERIFY(bold.charFormat().fontWeight() > QFont::Normal);
+        checkTablesReopenTheSame(*semi);
+        QTextCursor none = cursorAt(*semi, QStringLiteral("end"));
+        QVERIFY(!convertTextToTable(*semi, s, TextSeparator::Other, QChar(), 1));   // (in a table now)
+        Q_UNUSED(none);
+    }
+
+    // Split Table cuts a table above the row the cursor is in into two with an empty paragraph between (two tables in the file), one step undoes it; the first row and a cut through a
+    // cell that is joined down are refused.
+    void splitTableCutsAboveTheCursorsRow()
+    {
+        auto doc = open(tableDocx(3, 2));
+        const QString before = tablesSignature(*doc);
+        QTextCursor in = cursorAt(*doc, QStringLiteral("r1c1"));
+        QVERIFY(splitTable(*doc, in));
+        QCOMPARE(plain(*doc), QStringLiteral("before\nr0c0\nr0c1\n\nr1c0\nr1c1\nr2c0\nr2c1\nafter"));
+        const QByteArray x = documentXml(doc->toDocx());
+        QCOMPARE(int(x.count("<w:tbl>")), 2);
+        QCOMPARE(int(x.count("<w:tr>")), 3);
+        checkTablesReopenTheSame(*doc);
+        QTextCursor top = cursorAt(*doc, QStringLiteral("r0c0"));
+        QVERIFY(!splitTable(*doc, top));
+        doc->story()->undo();
+        QCOMPARE(tablesSignature(*doc), before);
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:tbl>")), 1);
+        // A cell joined down.
+        auto joined = open(tableDocx(3, 2));
+        QTextCursor c(joined->story());
+        selectCells(*joined, c, QStringLiteral("r0c0"), QStringLiteral("r1c0"));
+        QVERIFY(mergeCells(*joined, c));
+        QTextCursor low = cursorAt(*joined, QStringLiteral("r1c1"));
+        QVERIFY(!splitTable(*joined, low));
+        QVERIFY(!joined->tableNotice.isEmpty());
+    }
+
+    // Sort puts the rows in order of a column (text, numbers, or dates, either way, up to three keys), keeping the header row where it is; the words of a row move together, one step
+    // undoes it, and the file opens the same.
+    void sortTableRowsByTextNumbersAndDates()
+    {
+        auto row = [&](const char *a, const char *b, const char *d) { return rowX(cellX(cellP(a)) + cellX(cellP(b)) + cellX(cellP(d))); };
+        const QByteArray body = cellP("top") + tableX(row("Name", "Qty", "Day") + row("pear", "10", "3/5/2026") + row("Apple", "9", "1/20/2026") + row("fig", "$1,200", "12/1/2025") + row("apple", "9", "2/2/2026"), 3) + cellP("tail");
+        auto doc = open(makeDocx(body, kStyles));
+        QTextCursor in = cursorAt(*doc, QStringLiteral("pear"));
+        const QString before = tablesSignature(*doc);
+        TableSortKey text;
+        QVERIFY(sortTableRows(*doc, in, {text}, true));
+        QCOMPARE(plain(*doc), QStringLiteral("top\nName\nQty\nDay\nApple\n9\n1/20/2026\napple\n9\n2/2/2026\nfig\n$1,200\n12/1/2025\npear\n10\n3/5/2026\ntail"));
+        checkTablesReopenTheSame(*doc);
+        TableSortKey number;
+        number.kind = TableSortKey::Kind::Number;
+        number.column = 1;
+        number.ascending = false;
+        TableSortKey byDay;
+        byDay.kind = TableSortKey::Kind::Date;
+        byDay.column = 2;
+        byDay.ascending = false;
+        QVERIFY(sortTableRows(*doc, in, {number, byDay}, true));
+        QCOMPARE(plain(*doc), QStringLiteral("top\nName\nQty\nDay\nfig\n$1,200\n12/1/2025\npear\n10\n3/5/2026\napple\n9\n2/2/2026\nApple\n9\n1/20/2026\ntail"));
+        checkTablesReopenTheSame(*doc);
+        TableSortKey dates;
+        dates.kind = TableSortKey::Kind::Date;
+        dates.column = 2;
+        QVERIFY(sortTableRows(*doc, in, {dates}, true));
+        QVERIFY(plain(*doc).contains(QStringLiteral("fig\n$1,200\n12/1/2025\nApple")));
+        doc->story()->undo();
+        doc->story()->undo();
+        doc->story()->undo();
+        QCOMPARE(tablesSignature(*doc), before);
+        // Rows that cells are joined down in can't be sorted.
+        auto joined = open(tableDocx(3, 2));
+        QTextCursor c(joined->story());
+        selectCells(*joined, c, QStringLiteral("r0c0"), QStringLiteral("r1c0"));
+        QVERIFY(mergeCells(*joined, c));
+        QTextCursor whole = cursorAt(*joined, QStringLiteral("r2c1"));
+        QVERIFY(!sortTableRows(*joined, whole, {text}, false));
+        QVERIFY(!joined->tableNotice.isEmpty());
+    }
+
+    // What a formula's cell names stand for: A1 and A1:B2 by a column's letters and a row's number, and the cells with numbers above, below, left, and right up to an empty cell.
+    void tableCellValuesAreFoundByNameAndDirection()
+    {
+        auto row = [&](const char *a, const char *b) { return rowX(cellX(cellP(a)) + cellX(cellP(b))); };
+        auto doc = open(makeDocx(tableX(row("Item", "Cost") + row("a", "$1,200.50") + row("b", "(3)") + row("c", "20%") + row("", "") + row("d", "99") + row("Total", "x"), 2), kStyles));
+        const int total = cursorAt(*doc, QStringLiteral("x")).position();
+        QCOMPARE(*tableCellValues(*doc, total, QStringLiteral("ABOVE")), (QVector<double>{99}));   // (stops at the empty cell)
+        const int third = cursorAt(*doc, QStringLiteral("20%")).position();
+        QCOMPARE(*tableCellValues(*doc, third, QStringLiteral("ABOVE")), (QVector<double>{-3, 1200.5}));
+        QCOMPARE(*tableCellValues(*doc, third, QStringLiteral("LEFT")), QVector<double>());   // ("c" is not a number)
+        QCOMPARE(*tableCellValues(*doc, third, QStringLiteral("b2")), (QVector<double>{1200.5}));
+        QCOMPARE(*tableCellValues(*doc, third, QStringLiteral("B2:B4")), (QVector<double>{1200.5, -3}));   // (its own cell is left out)
+        QVERIFY(!tableCellValues(*doc, third, QStringLiteral("A2")).has_value());   // (words)
+        QVERIFY(!tableCellValues(*doc, third, QStringLiteral("C1")).has_value());   // (no such cell)
+        QCOMPARE(*tableCellValues(*doc, cursorAt(*doc, QStringLiteral("a")).position(), QStringLiteral("RIGHT")), (QVector<double>{1200.5}));
+        QCOMPARE(*tableCellValues(*doc, cursorAt(*doc, QStringLiteral("Item")).position(), QStringLiteral("BELOW")), QVector<double>());   // ("a" is words, then the next is a cell of the first column: words again)
+    }
+
+
     // Shading and borders are set on the cells selected (and the lines also on the sides of the cells beside them that touch), written to the file, and undone as one step.
     void shadingAndBordersOfTheSelectedCellsAreWrittenAndUndone()
     {

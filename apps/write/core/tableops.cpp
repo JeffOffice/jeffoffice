@@ -8,11 +8,15 @@
 #include "wml/xmltree.h"
 
 #include <QCoreApplication>
+#include <QDate>
 #include <QHash>
+#include <QLocale>
+#include <QRegularExpression>
 #include <QSet>
 #include <QTextDocument>
 #include <QTextDocumentFragment>
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <functional>
 
@@ -2389,6 +2393,453 @@ void selectInTable(WriteDoc &doc, QTextCursor &c, TableUnit unit)
     }
     c.setPosition(t.cell(first).from);
     c.setPosition(std::max(t.cell(last).from, t.cell(last).to - 1), QTextCursor::KeepAnchor);
+}
+
+// ---- converting text and tables, splitting, sorting, and the cells of formulas
+
+namespace {
+
+// What a cell says in words: its paragraphs (the ones of the cell itself, not of a table in it) with a new line between.
+QString textOfCell(const QTextDocument *d, const flow::TableLayout::Cell &cell)
+{
+    QString out;
+    bool first = true;
+    for (QTextBlock b = d->findBlock(cell.from); b.isValid() && b.position() < cell.to; b = b.next()) {
+        if (cellKeyOf(b) != cell.rec->key) continue;
+        if (!first) out += QLatin1Char('\n');
+        first = false;
+        out += b.text();
+    }
+    return out;
+}
+
+// A number as people write it in a cell: with a currency sign, thousands commas, a percent sign, or in parentheses when it is below zero.
+std::optional<double> numberOfText(QString s)
+{
+    s = s.trimmed();
+    if (s.isEmpty()) return std::nullopt;
+    bool negative = false;
+    if (s.startsWith(QLatin1Char('(')) && s.endsWith(QLatin1Char(')'))) {
+        negative = true;
+        s = s.mid(1, s.size() - 2).trimmed();
+    }
+    bool percent = false;
+    if (s.endsWith(QLatin1Char('%'))) {
+        percent = true;
+        s.chop(1);
+    }
+    QString digits;
+    for (QChar ch : std::as_const(s)) {
+        if (ch == QLatin1Char(',') || ch.isSpace() || ch == QLatin1Char('$') || ch == QChar(0x20AC) || ch == QChar(0x00A3) || ch == QChar(0x00A5)) continue;
+        digits += ch;
+    }
+    bool ok = false;
+    double v = digits.toDouble(&ok);
+    if (!ok || !std::isfinite(v)) return std::nullopt;
+    if (negative) v = -v;
+    return percent ? v / 100.0 : v;
+}
+
+std::optional<QDate> dateOfText(const QString &text)
+{
+    const QString s = text.trimmed();
+    if (s.isEmpty()) return std::nullopt;
+    static const char *const formats[] = {"yyyy-MM-dd", "M/d/yyyy", "M/d/yy", "MMM d, yyyy", "MMMM d, yyyy", "d MMM yyyy", "d MMMM yyyy", "MMM d yyyy", "MMMM d yyyy"};
+    const QLocale english(QLocale::English);
+    for (const char *f : formats) {
+        QDate d = english.toDate(s, QString::fromLatin1(f));
+        if (d.isValid()) return d;
+    }
+    const QDate d = QLocale().toDate(s, QLocale::ShortFormat);
+    return d.isValid() ? std::optional<QDate>(d) : std::nullopt;
+}
+
+} // namespace
+
+std::optional<QVector<double>> tableCellValues(WriteDoc &doc, int position, const QString &name)
+{
+    const auto v = viewAt(doc, position);
+    if (!v) return std::nullopt;
+    const flow::TableLayout &t = *v->layout;
+    const int li = t.cellOfPosition(position);
+    if (li < 0) return std::nullopt;
+    const flow::TableLayout::Cell here = t.cell(li);
+    const QTextDocument *d = doc.story();
+    auto indexIn = [&](int r, int i) -> int {
+        if (r < 0 || r >= t.rowCount() || i < 0) return -1;
+        const flow::TableLayout::Row &row = t.row(r);
+        return i < row.cells ? row.cell0 + i : -1;
+    };
+    auto atColumn = [&](int r, int col) -> int {
+        if (r < 0 || r >= t.rowCount()) return -1;
+        const flow::TableLayout::Row &row = t.row(r);
+        for (int i = row.cell0; i < row.cell0 + row.cells; ++i)
+            if (t.cell(i).col <= col && col < t.cell(i).col + t.cell(i).span) return i;
+        return -1;
+    };
+    QVector<double> out;
+    // The numbers of a run of cells going one way, up to the first empty one (a cell with words that are not a number is passed over).
+    auto walk = [&](const QVector<int> &cells) {
+        for (int i : cells) {
+            if (i == li) continue;
+            const QString text = t.cell(i).covered ? QString() : textOfCell(d, t.cell(i)).trimmed();
+            if (text.isEmpty()) break;
+            if (const std::optional<double> n = numberOfText(text)) out.push_back(*n);
+        }
+    };
+    const QString n = name.trimmed().toUpper();
+    const int rowOfHere = here.row, indexOfHere = li - t.row(here.row).cell0;
+    QVector<int> run;
+    if (n == QLatin1String("ABOVE")) {
+        for (int r = rowOfHere - 1; r >= 0; --r) run.push_back(atColumn(r, here.col));
+    } else if (n == QLatin1String("BELOW")) {
+        for (int r = rowOfHere + here.rows; r < t.rowCount(); ++r) run.push_back(atColumn(r, here.col));
+    } else if (n == QLatin1String("LEFT")) {
+        for (int i = indexOfHere - 1; i >= 0; --i) run.push_back(indexIn(rowOfHere, i));
+    } else if (n == QLatin1String("RIGHT")) {
+        for (int i = indexOfHere + 1; i < t.row(rowOfHere).cells; ++i) run.push_back(indexIn(rowOfHere, i));
+    } else {
+        // A1, or A1:B3: a column's letters and a row's number.
+        static const QRegularExpression ref(QStringLiteral("^([A-Z]{1,3})([0-9]{1,5})(?::([A-Z]{1,3})([0-9]{1,5}))?$"));
+        const QRegularExpressionMatch m = ref.match(n);
+        if (!m.hasMatch()) return std::nullopt;
+        auto column = [](const QString &letters) {
+            int c = 0;
+            for (QChar ch : letters) c = c * 26 + (ch.unicode() - 'A' + 1);
+            return c - 1;
+        };
+        const int c0 = column(m.captured(1)), r0 = m.captured(2).toInt() - 1;
+        const bool range = !m.captured(3).isEmpty();
+        const int c1 = range ? column(m.captured(3)) : c0, r1 = range ? m.captured(4).toInt() - 1 : r0;
+        if (r0 < 0 || r1 < 0 || std::abs(r1 - r0) > 1000 || std::abs(c1 - c0) > 1000) return std::nullopt;
+        for (int r = std::min(r0, r1); r <= std::max(r0, r1); ++r)
+            for (int c = std::min(c0, c1); c <= std::max(c0, c1); ++c) {
+                const int i = indexIn(r, c);
+                if (i < 0 || i == li) {
+                    if (!range) return std::nullopt;
+                    continue;
+                }
+                const QString text = t.cell(i).covered ? QString() : textOfCell(d, t.cell(i)).trimmed();
+                if (const std::optional<double> num = numberOfText(text)) out.push_back(*num);
+                else if (!range) {
+                    if (!text.isEmpty()) return std::nullopt;
+                    out.push_back(0);
+                }
+            }
+        return out;
+    }
+    run.removeAll(-1);
+    walk(run);
+    return out;
+}
+
+bool canConvertTextToTable(WriteDoc &doc, const QTextCursor &c)
+{
+    const QTextDocument *d = doc.story();
+    if (c.document() != d) return false;
+    int a = c.selectionStart(), b = c.selectionEnd();
+    if (b > a && d->findBlock(b).position() == b) --b;
+    for (QTextBlock blk = d->findBlock(a); blk.isValid() && blk.position() <= b; blk = blk.next())
+        if (cellKeyOf(blk)) return false;
+    return true;
+}
+
+bool convertTextToTable(WriteDoc &doc, QTextCursor &c, TextSeparator separator, QChar other, int columns)
+{
+    TableCommand command(doc);
+    QTextDocument *d = doc.story();
+    if (!canConvertTextToTable(doc, c)) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "Text that is in a table can't be made into a table.")));
+    int a = c.selectionStart(), b = c.selectionEnd();
+    if (b > a && d->findBlock(b).position() == b) --b;
+    const QTextBlock firstBlock = d->findBlock(a);
+    QVector<QTextBlock> blocks;
+    for (QTextBlock blk = firstBlock; blk.isValid() && blk.position() <= b; blk = blk.next()) {
+        blocks.push_back(blk);
+        if (blocks.size() > 100000) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A table can have at most 50,000 cells.")));
+    }
+    const QChar sep = separator == TextSeparator::Tabs ? QChar('\t') : separator == TextSeparator::Commas ? QChar(',') : other;
+    // The cells' words, as fragments that keep their formatting: a row for each paragraph, cut at the separator (or, for paragraphs, each paragraph a cell).
+    QVector<QVector<QTextDocumentFragment>> rows;
+    auto fragmentOf = [&](int from, int to) {
+        if (to <= from) return QTextDocumentFragment();
+        QTextCursor t(d);
+        t.setPosition(from);
+        t.setPosition(to, QTextCursor::KeepAnchor);
+        return t.selection();
+    };
+    int wide = std::max(1, columns);
+    if (separator == TextSeparator::Paragraphs) {
+        QVector<QTextDocumentFragment> row;
+        for (const QTextBlock &blk : std::as_const(blocks)) {
+            row.push_back(fragmentOf(blk.position(), blk.position() + blk.length() - 1));
+            if (row.size() == wide) {
+                rows.push_back(row);
+                row.clear();
+            }
+        }
+        if (!row.isEmpty()) {
+            while (row.size() < wide) row.push_back(QTextDocumentFragment());
+            rows.push_back(row);
+        }
+    } else {
+        if (sep.isNull()) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "Type the character that separates the cells.")));
+        for (const QTextBlock &blk : std::as_const(blocks)) {
+            QVector<QTextDocumentFragment> row;
+            const QString text = blk.text();
+            int from = 0;
+            for (int i = 0; i <= text.size(); ++i)
+                if (i == text.size() || text[i] == sep) {
+                    row.push_back(fragmentOf(blk.position() + from, blk.position() + i));
+                    from = i + 1;
+                }
+            wide = std::max(wide, int(row.size()));
+            rows.push_back(row);
+        }
+    }
+    if (pastTheLimits(doc, int(rows.size()), wide, qint64(rows.size()) * wide)) return false;
+    NewTable table;
+    table.rows = int(rows.size());
+    table.columns = wide;
+    if (table.rows < 1 || table.rows > 500 || table.columns > 63) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A table made from text can have at most 500 rows and 63 columns.")));
+    const int firstPos = firstBlock.position();
+    c.beginEditBlock();
+    QTextCursor at(d);
+    at.setPosition(firstPos);
+    if (!insertTable(doc, at, table)) {
+        c.endEditBlock();
+        return false;
+    }
+    QVector<int> places;
+    for (QTextBlock blk = d->findBlock(firstPos); blk.isValid() && places.size() < table.rows * table.columns; blk = blk.next()) places.push_back(blk.position());
+    // The words go in from the last cell to the first (the places before are not moved by it); a cell keeps its key whatever the words' paragraph said.
+    for (int i = int(places.size()) - 1; i >= 0; --i) {
+        const int r = i / wide, col = i % wide;
+        const int key = cellKeyOf(d->findBlock(places[i]));
+        if (col < rows[r].size() && !rows[r][col].isEmpty()) {
+            QTextCursor fill(d);
+            fill.setPosition(places[i]);
+            fill.insertFragment(rows[r][col]);
+        }
+        const QTextBlock cell = d->findBlock(places[i]);
+        if (cellKeyOf(cell) != key) {
+            QTextBlockFormat bf = cell.blockFormat();
+            bf.setProperty(flow::fp::Cell, key);
+            QTextCursor(cell).setBlockFormat(bf);
+        }
+    }
+    // The paragraphs that were the text are taken out.
+    QTextBlock last = d->findBlock(firstPos);
+    for (int i = 1; i < places.size(); ++i) last = last.next();   // (each cell is one paragraph; the places in `places` have moved with the words put in)
+    QTextBlock old = last.next();
+    QTextBlock oldLast = old;
+    for (int i = 1; i < blocks.size() && oldLast.isValid(); ++i) oldLast = oldLast.next();
+    if (old.isValid() && oldLast.isValid()) removeParagraphs(d, old, oldLast);
+    keepAParagraphAfter(doc);
+    c.setPosition(firstPos);
+    c.endEditBlock();
+    return true;
+}
+
+bool convertTableToText(WriteDoc &doc, QTextCursor &c, TextSeparator separator, QChar other)
+{
+    TableCommand command(doc);
+    const auto v = viewAt(doc, c.selectionStart());
+    if (!v) return false;
+    QTextDocument *d = doc.story();
+    const flow::TableLayout &t = *v->layout;
+    for (int i = 0; i < t.cellCount(); ++i)
+        for (QTextBlock b = d->findBlock(t.cell(i).from); b.isValid() && b.position() < t.cell(i).to; b = b.next())
+            if (cellKeyOf(b) != t.cell(i).rec->key) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A table that has a table in a cell has to be made into text from the inside out.")));
+    const QChar sep = separator == TextSeparator::Tabs ? QChar('\t') : separator == TextSeparator::Commas ? QChar(',') : other;
+    if (separator != TextSeparator::Paragraphs && sep.isNull()) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "Type the character that separates the cells.")));
+    const int at = v->index.refs()[size_t(v->first)].pos, end = v->index.refs()[size_t(v->last - 1)].end;
+    const int newKey = parentOf(*v);
+    QVector<int> joints;    // where a cell's last paragraph ends and the next cell's begins, in the same row
+    if (separator != TextSeparator::Paragraphs)
+        for (int i = 0; i + 1 < t.cellCount(); ++i)
+            if (t.cell(i).row == t.cell(i + 1).row) joints.push_back(t.cell(i).to - 1);
+    retireRange(doc, at, end);
+    c.beginEditBlock();
+    giveCellKey(d->findBlock(at), d->findBlock(end - 1), newKey);
+    for (int i = int(joints.size()) - 1; i >= 0; --i) {
+        QTextCursor j(d);
+        j.setPosition(joints[i]);
+        j.insertText(QString(sep));
+        j.deleteChar();
+    }
+    c.setPosition(std::clamp(at, 0, std::max(0, d->characterCount() - 1)));
+    c.endEditBlock();
+    return true;
+}
+
+bool splitTable(WriteDoc &doc, QTextCursor &c)
+{
+    TableCommand command(doc);
+    const auto v = viewAt(doc, c.selectionStart());
+    if (!v) return false;
+    const flow::TableLayout &t = *v->layout;
+    const int li = t.cellOfPosition(c.selectionStart());
+    if (li < 0) return false;
+    const int r = t.cell(li).row;
+    if (r <= 0) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A table can't be split above its first row.")));
+    for (int i = 0; i < t.cellCount(); ++i)
+        if (t.cell(i).row < r && t.cell(i).row + t.cell(i).rows > r) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A cell that is joined down goes across that row, so the table can't be split there.")));
+    QTextDocument *d = doc.story();
+    XTable x = modelOf(*v);
+    XTable up = x, down = x;
+    up.rows = x.rows.mid(0, r);
+    down.rows = x.rows.mid(r);
+    if (x.part) {
+        auto top = std::make_shared<TablePart>(*x.part);
+        top->after.clear();
+        up.part = top;
+        auto bottom = std::make_shared<TablePart>(*x.part);
+        bottom->before.clear();
+        down.part = bottom;
+    }
+    const int cut = t.row(r).from;
+    const int parent = parentOf(*v);
+    const int from = v->index.refs()[size_t(v->first)].pos, to = v->index.refs()[size_t(v->last - 1)].end;
+    c.beginEditBlock();
+    const QVector<QVector<int>> upKeys = remake(doc, up), downKeys = remake(doc, down);
+    QHash<int, int> map;
+    for (int ri = 0; ri < up.rows.size(); ++ri)
+        for (int i = 0; i < up.rows[ri].cells.size(); ++i)
+            if (up.rows[ri].cells[i].key) map.insert(up.rows[ri].cells[i].key, upKeys[ri][i]);
+    for (int ri = 0; ri < down.rows.size(); ++ri)
+        for (int i = 0; i < down.rows[ri].cells.size(); ++i)
+            if (down.rows[ri].cells[i].key) map.insert(down.rows[ri].cells[i].key, downKeys[ri][i]);
+    giveKeys(doc, from, to, map);
+    // The paragraph between the two tables, in the cell the table is in when it is in one.
+    const QString style = doc.defaultParagraphStyle();
+    QTextBlockFormat bf = doc.styleBlockFormat(style);
+    if (parent) bf.setProperty(flow::fp::Cell, parent);
+    insertBefore(d, d->findBlock(cut), bf, doc.styleCharFormat(style));
+    c.setPosition(cut + 1);
+    c.endEditBlock();
+    return true;
+}
+
+bool sortTableRows(WriteDoc &doc, QTextCursor &c, const QVector<TableSortKey> &keys, bool header)
+{
+    TableCommand command(doc);
+    if (keys.isEmpty()) return false;
+    const auto v = viewAt(doc, c.selectionStart());
+    if (!v) return false;
+    const flow::TableLayout &t = *v->layout;
+    QTextDocument *d = doc.story();
+    const Area area = areaOf(*v, c);
+    int r0 = 0, r1 = t.rowCount() - 1;
+    if (area.r1 > area.r0) {
+        r0 = area.r0;
+        r1 = area.r1;
+    }
+    if (header && r0 == 0) r0 = 1;
+    if (r1 - r0 < 1) return false;
+    // Rows that are alike (the same cells in the same columns) swap their words; a cell that is joined down, or a table in a cell, is in the way.
+    QVector<std::pair<int, int>> shape;
+    for (int r = r0; r <= r1; ++r) {
+        const flow::TableLayout::Row &row = t.row(r);
+        QVector<std::pair<int, int>> mine;
+        for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+            const flow::TableLayout::Cell &cell = t.cell(i);
+            if (cell.covered || cell.rows > 1) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "Rows that have cells joined down can't be sorted.")));
+            mine.push_back({cell.col, cell.span});
+            for (QTextBlock b = d->findBlock(cell.from); b.isValid() && b.position() < cell.to; b = b.next())
+                if (cellKeyOf(b) != cell.rec->key) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "Rows that have a table in a cell can't be sorted.")));
+        }
+        if (r == r0) shape = mine;
+        else if (mine != shape) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "Rows whose cells are not in the same columns can't be sorted.")));
+    }
+    const int rows = r1 - r0 + 1, per = int(shape.size());
+    struct Content {
+        QTextDocumentFragment words;
+        QVector<QTextBlockFormat> formats;
+        QString text;
+    };
+    QVector<QVector<Content>> was(rows);
+    for (int r = 0; r < rows; ++r) {
+        const flow::TableLayout::Row &row = t.row(r0 + r);
+        for (int i = 0; i < row.cells; ++i) {
+            const flow::TableLayout::Cell &cell = t.cell(row.cell0 + i);
+            Content content;
+            QTextCursor all(d);
+            all.setPosition(cell.from);
+            all.setPosition(std::max(cell.from, cell.to - 1), QTextCursor::KeepAnchor);
+            content.words = all.selection();
+            for (QTextBlock b = d->findBlock(cell.from); b.isValid() && b.position() < cell.to; b = b.next()) content.formats.push_back(b.blockFormat());
+            content.text = textOfCell(d, cell);
+            was[r].push_back(content);
+        }
+    }
+    auto columnIndex = [&](int column) {
+        for (int i = 0; i < per; ++i)
+            if (shape[i].first <= column && column < shape[i].first + shape[i].second) return i;
+        return -1;
+    };
+    // (the value of each key of each row, worked out once)
+    struct Value {
+        double number = 0;
+        qint64 day = 0;
+        bool has = false;
+        QString text;
+    };
+    QVector<QVector<Value>> values(rows);
+    for (int r = 0; r < rows; ++r)
+        for (const TableSortKey &k : keys) {
+            Value val;
+            const int i = columnIndex(k.column);
+            if (i >= 0) {
+                val.text = was[r][i].text;
+                if (k.kind == TableSortKey::Kind::Number) {
+                    if (const std::optional<double> n = numberOfText(val.text)) val.number = *n, val.has = true;
+                } else if (k.kind == TableSortKey::Kind::Date) {
+                    if (const std::optional<QDate> day = dateOfText(val.text)) val.day = day->toJulianDay(), val.has = true;
+                }
+            }
+            values[r].push_back(val);
+        }
+    QVector<int> order(rows);
+    for (int i = 0; i < rows; ++i) order[i] = i;
+    std::stable_sort(order.begin(), order.end(), [&](int x, int y) {
+        for (int k = 0; k < keys.size(); ++k) {
+            const Value &a = values[x][k], &b = values[y][k];
+            int cmp = 0;
+            if (keys[k].kind == TableSortKey::Kind::Text) cmp = QString::compare(a.text, b.text, Qt::CaseInsensitive);
+            else if (a.has != b.has) cmp = a.has ? 1 : -1;
+            else if (keys[k].kind == TableSortKey::Kind::Number) cmp = a.number < b.number ? -1 : a.number > b.number ? 1 : 0;
+            else cmp = a.day < b.day ? -1 : a.day > b.day ? 1 : 0;
+            if (cmp != 0) return keys[k].ascending ? cmp < 0 : cmp > 0;
+        }
+        return false;
+    });
+    bool changes = false;
+    for (int i = 0; i < rows; ++i) changes = changes || order[i] != i;
+    if (!changes) return true;
+    // The words of each cell are put in the cell of the row they now belong to, from the last cell to the first.
+    c.beginEditBlock();
+    for (int r = rows - 1; r >= 0; --r) {
+        const flow::TableLayout::Row &row = t.row(r0 + r);
+        for (int i = row.cells - 1; i >= 0; --i) {
+            const flow::TableLayout::Cell &cell = t.cell(row.cell0 + i);
+            const Content &src = was[order[r]][i];
+            QTextCursor fill(d);
+            fill.setPosition(cell.from);
+            fill.setPosition(std::max(cell.from, cell.to - 1), QTextCursor::KeepAnchor);
+            if (src.words.isEmpty()) fill.removeSelectedText();
+            else fill.insertFragment(src.words);
+            const int stop = fill.position();
+            int k = 0;
+            for (QTextBlock b = d->findBlock(cell.from); b.isValid() && b.position() <= stop && k < src.formats.size(); b = b.next(), ++k) {
+                QTextBlockFormat bf = src.formats[k];
+                bf.setProperty(flow::fp::Cell, cell.rec->key);
+                QTextCursor(b).setBlockFormat(bf);
+            }
+        }
+    }
+    c.setPosition(t.cell(t.row(r0).cell0).from);
+    c.endEditBlock();
+    return true;
 }
 
 } // namespace jp::write

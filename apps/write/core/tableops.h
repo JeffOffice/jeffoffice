@@ -10,6 +10,8 @@
 
 #include <QTextBlock>
 #include <QTextCursor>
+#include <QVector>
+#include <optional>
 
 namespace jp::write {
 
@@ -124,5 +126,31 @@ void setTableProps(WriteDoc &doc, QTextCursor &c, const TableProps &was, const T
 // The table's style (a built-in one is added to the document when it lacks it), and the options: which of the look's bits are set.
 void setTableStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
 void setTableLook(WriteDoc &doc, QTextCursor &c, int mask, bool on);
+
+// ---- Convert, split, sort, and formulas
+
+// How the text that becomes a table is cut into cells, and how a table's cells are told apart in the text it becomes.
+enum class TextSeparator { Paragraphs, Tabs, Commas, Other };
+// The paragraphs the selection touches (the cursor's paragraph, with no selection) become the rows of a table: each is cut into cells at the separator (`other` is the character for
+// Other); with Paragraphs each paragraph is a cell and `columns` of them make a row. The table has as many columns as the most cells of a row (at least `columns`). The words keep their
+// formatting. False (nothing done) for text that is in a table, or that has too many cells.
+bool canConvertTextToTable(WriteDoc &doc, const QTextCursor &c);
+bool convertTextToTable(WriteDoc &doc, QTextCursor &c, TextSeparator separator, QChar other, int columns);
+// The table the cursor is in (not one that has a table in a cell) becomes paragraphs: each row is one paragraph with its cells' words between the separator (Paragraphs: each
+// paragraph of the cells stays one).
+bool convertTableToText(WriteDoc &doc, QTextCursor &c, TextSeparator separator, QChar other);
+// The table is cut in two above the row the cursor is in, with an empty paragraph between them. False for the first row, and where a cell that is joined down goes across the cut.
+bool splitTable(WriteDoc &doc, QTextCursor &c);
+// Sort the rows by up to three columns. The selected rows are sorted when the selection takes more than one row, else the whole table (but the first row, with `header`). The
+// text of the cells moves; what belongs to a cell (its shading and borders) stays where it is.
+struct TableSortKey {
+    enum class Kind { Text, Number, Date } kind = Kind::Text;
+    int column = 0;                     // from 0
+    bool ascending = true;
+};
+bool sortTableRows(WriteDoc &doc, QTextCursor &c, const QVector<TableSortKey> &keys, bool header);
+// The numbers in the cells a name of a formula stands for in the table that the position is in: "A1" (column letters, row number), "A1:B3", or ABOVE, BELOW, LEFT, RIGHT (the
+// cells that have numbers, up to the first empty one). None when the position is not in a table or the name is not one.
+std::optional<QVector<double>> tableCellValues(WriteDoc &doc, int position, const QString &name);
 
 } // namespace jp::write

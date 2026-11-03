@@ -580,6 +580,8 @@ struct Parser {
     int steps = 0;
     bool failed = false;
     const std::function<std::optional<double>(const QString &)> *names = nullptr;
+    // The numbers of the cells a table's cell-name (A1, A1:B3, or ABOVE, BELOW, LEFT, RIGHT) stands for: asked for a name that is a whole argument of a function.
+    const std::function<std::optional<QVector<double>>(const QString &)> *cells = nullptr;
 
     void skip()
     {
@@ -700,6 +702,27 @@ struct Parser {
         skip();
         if (take(QLatin1Char(')'))) return out;
         while (!failed) {
+            if (cells && *cells) {
+                skip();
+                static const QRegularExpression cellName(QStringLiteral("^(?:ABOVE|BELOW|LEFT|RIGHT|[A-Za-z]{1,3}[0-9]{1,5}(?::[A-Za-z]{1,3}[0-9]{1,5})?)"), QRegularExpression::CaseInsensitiveOption);
+                const QRegularExpressionMatch m = cellName.match(QStringView(text).mid(at));
+                if (m.hasMatch()) {
+                    const int save = at;
+                    at += int(m.capturedLength());
+                    skip();
+                    if (at < text.size() && (text[at] == QLatin1Char(',') || text[at] == QLatin1Char(';') || text[at] == QLatin1Char(')'))) {
+                        if (!tick(50)) return out;
+                        const std::optional<QVector<double>> v = (*cells)(m.captured(0));
+                        if (!v) return failed = true, out;
+                        out += *v;
+                        if (out.size() > 1000) failed = true;
+                        if (take(QLatin1Char(',')) || take(QLatin1Char(';'))) continue;
+                        if (!take(QLatin1Char(')'))) failed = true;
+                        break;
+                    }
+                    at = save;
+                }
+            }
             out.push_back(expression());
             if (out.size() > 1000) failed = true;
             if (take(QLatin1Char(',')) || take(QLatin1Char(';'))) continue;
@@ -746,9 +769,18 @@ struct Parser {
             }
             if (f == QLatin1String("TRUE")) return 1;
             if (f == QLatin1String("FALSE")) return 0;
-            if (names && *names)
+            if (cells && *cells) {
+                static const QRegularExpression oneCell(QStringLiteral("^[A-Za-z]{1,3}[0-9]{1,5}$"));
+                if (oneCell.match(name).hasMatch()) {
+                    if (!tick(50)) return 0;
+                    const std::optional<QVector<double>> v = (*cells)(name);
+                    if (v && v->size() == 1) return v->first();
+                }
+            }
+            if (names && *names) {
                 if (!tick(50)) return 0;   // (a name asked of the document costs more than a step)
                 if (const std::optional<double> v = (*names)(name)) return *v;
+            }
             failed = true;
             return 0;
         }
@@ -816,12 +848,14 @@ struct Parser {
 
 } // namespace
 
-std::optional<double> evaluateFormula(const QString &expression, const std::function<std::optional<double>(const QString &)> &name, qint64 *budget)
+std::optional<double> evaluateFormula(const QString &expression, const std::function<std::optional<double>(const QString &)> &name, qint64 *budget,
+                                      const std::function<std::optional<QVector<double>>(const QString &)> &cells)
 {
     if (expression.size() > kMostCodeChars) return std::nullopt;
     Parser p;
     p.text = expression;
     p.names = &name;
+    p.cells = &cells;
     p.budget = budget;
     p.skip();
     if (p.at >= p.text.size()) return std::nullopt;
@@ -1090,7 +1124,7 @@ std::optional<QString> compute(const Code &code, Env &env)
         return condition(asIf);
     }
     if (n == QLatin1String("=")) {
-        const std::optional<double> v = evaluateFormula(code.expression, env.number, env.formulaBudget);
+        const std::optional<double> v = evaluateFormula(code.expression, env.number, env.formulaBudget, env.cells);
         return v ? std::optional<QString>(showNumber(code, *v)) : std::nullopt;
     }
     return std::nullopt;

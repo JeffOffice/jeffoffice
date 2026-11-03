@@ -1,6 +1,7 @@
 #include "core/fieldops.h"
 
 #include "core/editops.h"
+#include "core/tableops.h"
 #include "core/tocops.h"
 #include "core/writeprops.h"
 #include "flow/flowdocument.h"
@@ -320,6 +321,7 @@ public:
             info->page = p.text;
             info->pageIndex = p.index;
         };
+        env.cells = [this](const QString &name) { return tableCellValues(this->doc, env.position, name); };
         env.noteNumber = [this](const QString &name, const fields::Code &) { return noteNumber(name); };
         env.styleRef = [this](const QString &style, const fields::Code &code) { return styleReference(style, code); };
         env.number = [this](const QString &name) -> std::optional<double> {
