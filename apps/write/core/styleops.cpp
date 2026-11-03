@@ -440,7 +440,7 @@ bool updateStyleToSelection(WriteDoc &doc, QTextCursor &c, QString *problem)
     return modifyStyle(doc, c, id, s, problem);
 }
 
-// ---- Format Painter
+// ---- Copy Formatting
 
 namespace {
 

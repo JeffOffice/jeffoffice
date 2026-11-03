@@ -56,7 +56,7 @@ int main(int argc, char **argv)
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/app.png")));
     jp::moveFromJeffPub79();   // settings and files kept under the old name
     jp::crash::install(jp::crash::reportPath());   // sent with the statistics on the next start, if they're on
-    jp::recovery::setCopySuffix(QStringLiteral(".jpub"));   // AutoRecover keeps publications
+    jp::recovery::setCopySuffix(QStringLiteral(".jpub"));   // automatic recovery keeps publications
     // Before the command line and any window build their text. Not for the
     // wiki: its pages are Help in English, whatever the system's language.
     const QStringList args = QCoreApplication::arguments();
@@ -145,7 +145,7 @@ int main(int argc, char **argv)
     CreateMutexW(nullptr, FALSE, L"JeffPubRunning");
 #endif
     w->show();
-    // A normal exit takes this run's AutoRecover copies with it; copies a
+    // A normal exit takes this run's automatic recovery copies with it; copies a
     // crashed run left are offered once the window is up.
     QObject::connect(&app, &QCoreApplication::aboutToQuit, [] { jp::recovery::endSession(); });
     QTimer::singleShot(0, w, [w] { w->offerRecovery(); });

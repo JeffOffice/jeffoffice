@@ -163,14 +163,14 @@ public:
     QString cropItem;                  // picture in crop mode
     QString pointsItem;                // shape whose points are being edited
     QString wrapItem;                  // object whose wrap points are being edited
-    QJsonObject painterItem;           // Format Painter: copied object formatting
-    QTextCharFormat painterText;       // Format Painter: copied text formatting
+    QJsonObject painterItem;           // Copy Formatting: copied object formatting
+    QTextCharFormat painterText;       // Copy Formatting: copied text formatting
     bool painterHasText = false;
     bool painterLocked = false;
     // Copy Formatting (Ctrl+Shift+C): the selected object's fill, outline and
     // effects, and the formatting of the text at the cursor or in the object.
     // Paste Formatting (Ctrl+Shift+V) gives them to the selected text, or to
-    // the selected objects and all their text. The Format Painter uses both.
+    // the selected objects and all their text. Copy Formatting uses both.
     void copyFormatting();
     bool hasCopiedFormatting() const { return !painterItem.isEmpty() || painterHasText; }
     void pasteFormatting();

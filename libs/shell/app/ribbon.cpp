@@ -823,7 +823,7 @@ private:
     int m_tab;
 };
 
-// The top row: the Quick Access Toolbar, the File button, the tabs and the
+// The top row: the quick toolbar, the File button, the tabs and the
 // collapse chevron as controls, with the brand mark drawn behind them.
 class RibbonHeader : public QWidget {
 public:

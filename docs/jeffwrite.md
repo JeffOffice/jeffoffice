@@ -221,7 +221,7 @@ drag is one change on release: the indents are changed by the amount dragged in 
 (`core/rulerops.cpp`: at most 64 for a paragraph, at most 22 inches in, each with its leader) through the paragraph's format. Not yet: the vertical ruler, the column of the caret in a section of
 several columns (the ruler shows the whole text area), mirrored pages, the default tab stops, and a double click on the ruler for the Tabs dialog.
 
-## Styles, Format Painter, Go To, and dragging text (beta wave D, November 1, 2026)
+## Styles, Copy Formatting, Go To, and dragging text (beta wave D, November 1, 2026)
 
 A change to the styles is a change to the style sheet and to the text that has the styles, and is one step of the one history. `core/styleops.cpp` makes the change inside one edit block of the
 story: `WriteDoc::putStyle` puts the style in the sheet and keeps what it was and is (`StyleChange`) for the step the edit becomes (`stepAdded` takes it, by the step's serial, into
@@ -237,7 +237,7 @@ refused (a loop a file has is followed no further than the resolvers' 32 steps, 
 (`w:autoRedefine`) takes what a paragraph of it was given by hand (`changeBlockFormat`, and `changeCharFormat` on a selection) as part of that command's step (`followAutoRedefine`). Not yet:
 linked, table, and list styles, the paragraphs of headers, footers, and notes follow a changed style only when they are made again, and a style whose numbering changed leaves the lists as they are.
 
-The Format Painter (`copyFormat`, `pasteFormat`) holds the look of the first character of the selection and, when the selection takes in a paragraph mark or is a caret, the paragraph's format; the
+The Copy Formatting (`copyFormat`, `pasteFormat`) holds the look of the first character of the selection and, when the selection takes in a paragraph mark or is a caret, the paragraph's format; the
 window (`WriteWindow::setPainterMode`) paints it when the view says a selection was made with the mouse (`PageView::selectionMade`), once or until Esc. What belongs to a paragraph in the file
 (`paragraphKeepsOwn`: its list, section, frame, and the XML kept beside it) is never painted. Go To (`core/gotoops.cpp`) finds a place and changes nothing: a page is the paginator's page (laid out as far
 as it), a line is counted from the top of the document, and the lists it offers are held to 5,000. Dragging text (`moveSelectedText`, and `PageView::prepareTextDrag` and `dropText`) copies the

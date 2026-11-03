@@ -58,7 +58,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [ ] **1.0** Inspect Document: find and remove comments, tracked changes, personal information, hidden text, custom XML, and headers and footers before sharing
 - [ ] **1.0** Check Compatibility: lists what an older format (`.doc`, `.rtf`, `.odt`) can't hold before saving to it
 - [ ] **1.0** **(alt)** Version history without a cloud service: named local copies of a document, compared and restored from Info
-- [x] **1.0** Recover unsaved documents *(shared: AutoRecover in libs/shell)* *(0.9.0: Open > Recover Unsaved Work offers the copies that AutoRecover kept)*
+- [x] **1.0** Recover unsaved documents *(shared: automatic recovery in libs/shell)* *(0.9.0: Open > Recover Unsaved Work offers the copies that automatic recovery kept)*
 - [ ] **1.0** Show a document's folder and copy its path
 - [ ] **later** Add a digital signature (an invisible one, and the signature line from Insert) with a certificate on your computer
 - [ ] **later** Links to Files: update or break links to other files (LINK and INCLUDETEXT fields)
@@ -75,7 +75,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 ### Open, Save, Save As, and Close
 - [~] **first release** Open `.docx`, `.doc`, `.rtf`, and `.odt` (and `.dotx`, `.dot`, `.ott` templates), from the Recent list with pinning, from Browse, by drag-and-drop, and from the command line *(shared: the recent list and file pages in libs/shell; `.doc` and `.dot` open since `libs/office/doc` reads the binary file into the model the `.docx` reader makes, text and styles and lists and sections and headers and notes and fields and tables and pictures and drawings; comments, form-field state, and macros are left out and the person is told, and Save asks for a `.docx` name)* *(0.9.0: opens `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, and `.dot`, from the Recent list, from Browse, and from the command line; pinned files on the Open page; not `.rtf`, `.odt`, `.ott`, or drag-and-drop)*
 - [~] **first release** Save as `.docx` by default; Save As lists every format JeffWrite writes; Ctrl+S, Ctrl+Shift+S, and Close with a prompt to save *(0.9.0: Save As offers `.docx` and `.dotx`; Ctrl+S, Ctrl+Shift+S, and a prompt to save on Close; a file is saved beside the old one and replaces it only when whole)*
-- [x] **first release** AutoRecover (unsaved work offered again after a crash, cleaned up once saved) *(shared: libs/shell recovery)*
+- [x] **first release** automatic recovery (unsaved work offered again after a crash, cleaned up once saved) *(shared: libs/shell recovery)*
 - [ ] **1.0** Backup copy kept on every save *(shared: JeffPub's option)*
 - [ ] **1.0** Save a Copy (keeps working in the original) and Save as Template
 - [ ] **1.0** A warning before saving to a format that can't hold something in the document, naming what would change, with the choice to save a `.docx` as well
@@ -109,13 +109,13 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [ ] **first release** Display: show white space between pages, formatting marks, hidden text, object anchors, optional hyphens, and gridlines; print options *(shared: JeffPub's display options)*
 - [~] **first release** Proofing: AutoCorrect (replacement list, capitalization rules, smart quotes), AutoFormat as you type, spelling as you type, ignoring words in capitals or with numbers, and custom dictionaries *(in JeffWrite the choices for spelling as you type and for skipping capitals and numbers work; those for AutoCorrect and AutoFormat do nothing yet)* *(shared: JeffPub's Proofing options)*
 - [ ] **1.0** Proofing exceptions (words AutoCorrect must leave alone), grammar settings, and the main dictionary for each language
-- [ ] **first release** Save: default format, AutoRecover interval, default folder, and Embed fonts in the file *(shared: JeffPub's Save options)*
+- [ ] **first release** Save: default format, automatic recovery interval, default folder, and Embed fonts in the file *(shared: JeffPub's Save options)*
 - [ ] **1.0** Language: editing languages and the display language, with the default language for new text
 - [ ] **1.0** Advanced editing: typing replaces the selection, drag-and-drop text, Ctrl+click to follow a link, smart paragraph selection, select the whole word, overtype mode, and smart cut and paste
 - [ ] **1.0** Advanced cut, copy, and paste: the default for each way of pasting (within and between documents, from other programs, and from lists and tables)
 - [ ] **1.0** Advanced display and layout compatibility options: measurement units, show pixels for HTML features, and a per-document list of layout quirks kept for old files (see Compatibility)
 - [ ] **1.0** Font substitution: which font replaces a missing one, and a note when a document needs one
-- [ ] **1.0** Customize the Ribbon: show, hide, rename, and reorder tabs and groups, and add your own, plus the Quick Access Toolbar
+- [ ] **1.0** Customize the Ribbon: show, hide, rename, and reorder tabs and groups, and add your own, plus the quick toolbar
 - [ ] **1.0** Customize the keyboard: assign keys to commands, styles, symbols, and building blocks, and reset them
 - [ ] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports) *(shared: libs/shell telemetry)*
 
@@ -123,7 +123,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 
 ### Clipboard
 - [~] **first release** Cut, Copy, and Paste with the paste choices: keep source formatting, merge formatting, keep text only, and picture; Paste Special for formatted text (RTF and HTML), unformatted text, and pictures *(shared: JeffPub's clipboard)* *(0.9.0: Cut, Copy, Paste, and Select All, which keep the formats of the text; no paste choices, Paste Special, or pictures)*
-- [x] **first release** Format Painter: one use, or locked with a double-click; copies the paragraph's formatting when its mark is selected *(shared: JeffPub's Format Painter)* *(beta wave D: Home > Clipboard; a click paints once, a double click stays on until Esc, the look of the characters (and, when a paragraph mark is selected or nothing is, the paragraph's alignment, indents, spacing, and style) goes to each selection made with the mouse (a click paints the word), each paint is one step; Ctrl+Shift+C and Ctrl+Shift+V copy and paste a look by key)*
+- [x] **first release** Copy Formatting: one use, or locked with a double-click; copies the paragraph's formatting when its mark is selected *(shared: JeffPub's Copy Formatting)* *(beta wave D: Home > Clipboard; a click paints once, a double click stays on until Esc, the look of the characters (and, when a paragraph mark is selected or nothing is, the paragraph's alignment, indents, spacing, and style) goes to each selection made with the mouse (a click paints the word), each paint is one step; Ctrl+Shift+C and Ctrl+Shift+V copy and paste a look by key)*
 - [ ] **1.0** Paste choices for lists and tables: continue, restart, or merge a list; paste spreadsheet cells as a table in the destination's style, in the source's, as a nested table, as new rows, or as a picture; Set Default Paste
 - [ ] **1.0** Smart cut and paste (spaces and punctuation fixed around moved words) and the Paste Options button that appears after pasting
 - [ ] **later** Clipboard task pane holding the last 24 items
@@ -215,7 +215,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 ### Text
 - [~] **first release** Text Box: draw one, in a horizontal or vertical direction, with fill, outline, insets, wrap, and linking boxes so text continues from one to the next *(text boxes: ours 12%, public 44%)* *(shared: JeffPub's text boxes and linked frames)* *(0.9.0: a file's text boxes are drawn and kept, with their text and tables; none can be drawn)*
 - [ ] **1.0** Text box gallery of built-in designs (simple, sidebars, pull quotes) and saving your own
-- [ ] **1.0** Quick Parts and building blocks: AutoText, Document Property, Field, the Building Blocks Organizer, and saving a selection to a gallery, as the galleries for cover pages, headers, footers, equations, tables, and watermarks use *(glossary parts: ours <1%, public 0%; POI 9%)*
+- [ ] **1.0** Building blocks: AutoText, Document Property, Field, the Building Blocks Organizer, and saving a selection to a gallery, as the galleries for cover pages, headers, footers, equations, tables, and watermarks use *(glossary parts: ours <1%, public 0%; POI 9%)*
 - [~] **1.0** WordArt: styles, fill, outline, and effects, and text shapes (warps) *(shared: libs/draw text art)*
 - [ ] **1.0** Drop Cap: dropped or in the margin, lines high, distance from text, and font
 - [~] **1.0** Date & Time: formats and languages, updated automatically or fixed *(DATE field: ours 1%, public 2%)* *(beta wave F: Insert > Field puts a DATE or TIME field with a date picture, worked out and updated with F9; not a Date and Time dialog or languages)*
@@ -392,7 +392,7 @@ The tabs that appear only while something is selected or being edited: a table, 
 - [~] **first release** Select a cell, row, column, or table; insert rows above or below and columns left or right; delete cells, rows, columns, or the table; the Tab key at the last cell adds a row *(beta wave B: the Table Layout tab and the right-click menu select the cell, row, column, or table, insert, and delete rows, columns, and the table, all one step to undo; deleting a single cell and shifting the cells is not there yet)*
 - [~] **first release** Merge Cells and Split Cells (across and down), and Split Table *(merged across: ours 4%, public 20%; merged down: ours 1%, public 8%; shared: JeffPub's merged cells)* *(beta wave B: Merge Cells over a block of cells, with the words of each kept, and Split Cells into columns and rows, both written so that the file opens the same; Split Table is not there yet)*
 - [~] **first release** Nested tables, a table inside a cell *(nested: ours 2%, public 2%)* *(0.9.0: nested tables are laid out down to a limit, and past it the text of the tables stays as plain paragraphs)*
-- [~] **first release** Cell size: row height (at least or exactly), column width (points or percent), AutoFit to contents, to the window, or fixed, and Distribute Rows and Columns *(shared: JeffPub)* *(beta wave B: row height at least or exactly, column width in points, AutoFit to contents, to the window, or fixed, and Distribute Rows and Columns; a column's width in percent is not there yet, only the table's)*
+- [~] **first release** Cell size: row height (at least or exactly), column width (points or percent), Fit to Contents, to the window, or fixed, and Distribute Rows and Columns *(shared: JeffPub)* *(beta wave B: row height at least or exactly, column width in points, Fit to Contents, to the window, or fixed, and Distribute Rows and Columns; a column's width in percent is not there yet, only the table's)*
 - [~] **first release** Table Properties: alignment, indent, text wrapping around the table, preferred width, default cell margins, space between cells, "allow row to break across pages," **Repeat as header row at the top of each page**, vertical alignment, no wrap, fit text, and alt text *(repeating header rows: ours 1%, public 7%)* *(beta wave B: the Table Properties dialog has all of them but text wrapping around the table and fit text)*
 - [~] **first release** Cell alignment in nine positions, and text direction in a cell *(beta wave B: the nine positions are there; text direction is not)*
 - [ ] **1.0** Draw Table and Eraser, with the pen style, weight, and color
@@ -423,7 +423,7 @@ The tabs that appear only while something is selected or being edited: a table, 
 - [~] **first release** Format Page Numbers: 1 2 3, a b c, A B C, i ii iii, I II III, dashed, with the chapter number (heading style and separator), continue from the previous section, or start at *(page number formats: 38% of our `.docx`, the only trustworthy count; PAGE field: ours 38% (.docx 64%, .doc and .rtf 11%), public 54%; NUMPAGES: ours 5%, public 8%)* *(0.9.0: a section's number format, chapter number, and start are read, kept, and used; none can be set)*
 - [~] **first release** Different First Page and Different Odd & Even Pages *(first page: ours 6%, public 30%; odd and even headers: ours 20% (.docx 38%, .doc and .rtf <1%), public 5%)* *(0.9.0: a file's first-page, odd, and even headers and footers are used; none can be set)* *(after 0.9.1: both can be set on the Header & Footer tab, and each kind has its own header and footer, blank when made)*
 - [~] **first release** Link to Previous for each header and footer of each section; Previous and Next section; Go to Header and Go to Footer; and the kinds of header and footer (first, odd, and even) for every section *(headers: ours 35%, public 46%; footers: ours 35%, public 58%)* *(0.9.0: a section without a header or footer of its own takes the one before it, as the file says; no commands)* *(after 0.9.1: Link to Previous for each kind of each section; not Previous and Next section, Go to Header, or Go to Footer)*
-- [~] **first release** Insert in a header or footer: Date and Time, Document Info (author, file name, path, title), Quick Parts and fields, **STYLEREF so a running head shows the current chapter or heading**, and pictures *(STYLEREF: ours 15% (.docx 29%, .doc and .rtf <1%), public <1%)* *(0.9.0: STYLEREF shows the page's paragraph of the style (the first, the last with \l, or the nearest before it), and pictures and fields a file has are shown; nothing can be inserted)*
+- [~] **first release** Insert in a header or footer: Date and Time, Document Info (author, file name, path, title), building blocks and fields, **STYLEREF so a running head shows the current chapter or heading**, and pictures *(STYLEREF: ours 15% (.docx 29%, .doc and .rtf <1%), public <1%)* *(0.9.0: STYLEREF shows the page's paragraph of the style (the first, the last with \l, or the nearest before it), and pictures and fields a file has are shown; nothing can be inserted)*
 - [~] **first release** Header from top and Footer from bottom distances, Insert Alignment Tab (left, center, right, relative to the margin or the indents, with a leader), and Show Document Text *(0.9.0: a file's distances and absolute position tabs are used; none can be set)*
 
 ### Equation tab
@@ -447,7 +447,7 @@ What a right-click offers depends on what is under the pointer. The commands are
 
 - [~] **first release** On text: Cut, Copy, and Paste Options (keep the source formatting, merge formatting, or keep text only), Font, Paragraph, Bullets and Numbering, Hyperlink, and New Comment *(Cut, Copy, Paste, Font, Paragraph, Select All, and New Comment (beta wave E); the paste choices, lists, and link are not there yet)*
 - [~] **first release** On a word the spelling check flags: suggestions, Ignore All, Add to Dictionary, and the AutoCorrect options *(done: suggestions, Ignore All, and Add to Dictionary; missing: the AutoCorrect options)* **(needed for the Preview)**
-- [x] **first release** In a table: Insert and Delete for rows, columns, and the table, Select, Merge Cells, Split Cells, Borders and Shading, AutoFit, Distribute, Cell Alignment, and Table Properties *(beta wave B: the right-click menu in a cell)*
+- [x] **first release** In a table: Insert and Delete for rows, columns, and the table, Select, Merge Cells, Split Cells, Borders and Shading, Fit, Distribute, Cell Alignment, and Table Properties *(beta wave B: the right-click menu in a cell)*
 - [~] **1.0** On a picture, shape, or text box: Cut, Copy, Paste, Wrap Text, Bring to Front and Send to Back, Group, Edit Alt Text, Size and Position, and Format *(beta wave C: for a picture, Wrap Text and Alt Text on the right-click menu)*
 - [ ] **1.0** On a field, a link, a footnote, or a tracked change: Update Field, Edit Field, and Toggle Field Codes; Open, Edit, and Remove Hyperlink; Go to a note; and Accept or Reject a change
 - [x] **1.0** On a comment: Reply, Resolve, and Delete *(beta wave E: the right-click menu on commented words)*
@@ -596,7 +596,7 @@ What JeffWrite builds on, and the pieces it should build so that JeffCrunch, Jef
 - [x] **first release** libs/page, the document of placed objects, with its editor, canvas, Find and Replace, proofing dialogs, options, and online pictures; JeffWrite's flowing document, libs/flow, sits beside it
 - [x] **first release** libs/office: Open XML packages, themes, DrawingML shapes, text, and tables (read and written), charts, the Escher drawing reader for `.doc`, and the embedded-font readers
 - [x] **first release** libs/draw and libs/base: shapes, fills, effects, text art, SVG, picture effects, colors, fonts, barcodes, zip and compound files, EMF and WMF, PDF, and the dictionaries
-- [x] **first release** libs/shell: the window, ribbon, KeyTips, file pages, Help, translations, AutoRecover, settings, spelling, updates, and statistics
+- [x] **first release** libs/shell: the window, ribbon, KeyTips, file pages, Help, translations, automatic recovery, settings, spelling, updates, and statistics
 
 ### To build once, for several apps
 - [~] **first release** A flow-document model and its page layout (sections, pages growing from paragraphs and tables, floating objects, notes, and headers and footers), which JeffMail's composer and JeffBase's reports can use *(needed by: JeffWrite, JeffMail, JeffBase)* *(0.9.0: built in libs/flow and used by JeffWrite; JeffMail's composer and JeffBase's reports do not use it yet)*
@@ -607,7 +607,7 @@ What JeffWrite builds on, and the pieces it should build so that JeffCrunch, Jef
 - [~] **1.0** A table engine with merged cells, styles, nested tables, and formulas that run on a calculation engine shared with JeffCrunch *(needed by: JeffWrite, JeffMail, JeffCrunch)* *(0.9.0: tables with merged cells, nested tables, and rows that split across pages are laid out and edited in JeffWrite; table styles, formulas, and the shared calculation engine are not)*
 - [ ] **1.0** A review model for tracked changes, comments with replies, and comparison, so JeffDeck's comments and JeffCrunch's notes can follow it *(needed by: JeffWrite, JeffDeck, JeffCrunch)*
 - [ ] **first release** A grammar and style check behind the spelling service: Harper, linked as a native library *(needed by: JeffWrite, JeffMail)*
-- [ ] **1.0** Building blocks and templates in one format and gallery (Quick Parts, page parts, slide layouts) *(needed by: all)*
+- [ ] **1.0** Building blocks and templates in one format and gallery (building blocks, page parts, slide layouts) *(needed by: all)*
 - [ ] **later** An ink layer (pens, highlighter, eraser, ink to shape) built on the slide show's pen *(needed by: JeffWrite, JeffDeck)*
 
 ## Left out on purpose

@@ -831,7 +831,7 @@ private:
     QVector<int> m_tableTextIds;
     QSet<int> m_notHyphenated;   // stories without automatic hyphenation
     QHash<int, quint32> m_hyphenZone;   // story -> hyphenation zone (EMU) when not the default 0.25 in
-    QHash<int, int> m_autofit;    // story -> AutoFit Text (TextItem::Autofit) of a lone box
+    QHash<int, int> m_autofit;    // story -> text fit (TextItem::Autofit) of a lone box
     QVector<QByteArray> m_cellFormats;
 
     // Pictures: one drawing-store entry per image (numbered from 1), its
@@ -2483,7 +2483,7 @@ QByteArray PubWriter::write(QStringList *skipped)
             if (m_chainLength.value(id, 1) > 1) f << u16(0x02, quint32(m_chainLength.value(id)));   // boxes in the chain
             if (m_tableTextIds.contains(id)) f << u16(0x03, 0, 0x10);
             if (m_notHyphenated.contains(id)) f << flag(0x04, 0x00);   // not hyphenated automatically
-            // AutoFit Text: 05 = 1 for best fit, 3 for shrink on overflow.
+            // text fit: 05 = 1 for best fit, 3 for shrink on overflow.
             const int fit = m_autofit.value(id, TextItem::NoAutofit);
             if (fit == TextItem::BestFit) f << u16(0x05, 1, 0x10);
             else if (fit == TextItem::ShrinkOnOverflow) f << u16(0x05, 3, 0x10);

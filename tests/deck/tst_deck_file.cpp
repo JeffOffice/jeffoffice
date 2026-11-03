@@ -907,9 +907,9 @@ private Q_SLOTS:
         QVERIFY(u.close());
     }
 
-    // AutoRecover: a changed presentation keeps a .pptx copy at the interval Options sets,
+    // Automatic recovery: a changed presentation keeps a .pptx copy at the interval Options sets,
     // the copy goes when the work is saved, and a copy a crash left opens as unsaved work.
-    void windowKeepsAutoRecoverCopies()
+    void windowKeepsRecoveryCopies()
     {
         QTemporaryDir root, dir;
         QVERIFY(root.isValid() && dir.isValid());

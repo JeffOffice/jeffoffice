@@ -18,6 +18,7 @@ namespace jp::recovery {
 namespace {
 // Main thread only, like the windows that keep copies.
 QString g_root;
+QString g_legacy;      // the folder older versions kept their copies in (read once more, and emptied into the root)
 QString g_session;
 std::unique_ptr<QLockFile> g_lock;
 
@@ -72,7 +73,11 @@ QString copySuffix() { return s_suffix; }
 
 QString root()
 {
-    if (g_root.isEmpty()) g_root = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/AutoRecover");
+    if (g_root.isEmpty()) {
+        const QString base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        g_root = base + QStringLiteral("/Recovery");
+        g_legacy = base + QStringLiteral("/AutoRecover");   // (the name older versions gave the folder: kept so that their copies are found)
+    }
     return g_root;
 }
 
@@ -80,7 +85,10 @@ void setRoot(const QString &dir)
 {
     endSession();
     g_root = dir;
+    g_legacy.clear();
 }
+
+void setLegacyRoot(const QString &dir) { g_legacy = dir; }
 
 QString sessionDir()
 {
@@ -125,13 +133,37 @@ void remove(const QString &copy)
     QFile::remove(sidecar(copy));
 }
 
-QVector<Recovered> orphans()
+namespace {
+
+// Moves what an older version kept in its folder into the root: loose copies, and the folders of runs that have ended (a run still going keeps its own). What cannot be moved stays,
+// and is still read where it is.
+void adoptLegacy()
 {
-    QVector<Recovered> out;
-    const QDir top(root());
-    if (!top.exists()) return out;
+    const QString legacy = g_legacy;
+    if (legacy.isEmpty() || QDir::cleanPath(legacy) == QDir::cleanPath(root()) || !QDir(legacy).exists()) return;
+    QDir().mkpath(root());
+    const QDir from(legacy), to(root());
+    for (const QFileInfo &f : from.entryInfoList(QDir::Files)) {
+        if (!f.fileName().endsWith(s_suffix) && !f.fileName().endsWith(QLatin1String(".json"))) continue;
+        if (!to.exists(f.fileName())) QFile::rename(f.absoluteFilePath(), to.filePath(f.fileName()));
+    }
+    for (const QFileInfo &d : from.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+        QLockFile probe(d.absoluteFilePath() + QLatin1Char('/') + QLatin1String(kLockName));
+        probe.setStaleLockTime(0);
+        if (!probe.tryLock(0)) continue;
+        probe.unlock();
+        if (!to.exists(d.fileName())) QDir().rename(d.absoluteFilePath(), to.filePath(d.fileName()));
+    }
+    QDir().rmdir(legacy);   // (only if it is empty now)
+}
+
+// The copies in one folder of runs: loose ones, and those of runs that ended without removing their folder.
+void scanRoot(const QString &rootDir, QVector<Recovered> *out)
+{
+    const QDir top(rootDir);
+    if (!top.exists()) return;
     // Copies older versions kept loose in the folder.
-    for (const QFileInfo &f : top.entryInfoList({QLatin1Char('*') + s_suffix}, QDir::Files)) out << describe(f.absoluteFilePath());
+    for (const QFileInfo &f : top.entryInfoList({QLatin1Char('*') + s_suffix}, QDir::Files)) *out << describe(f.absoluteFilePath());
     for (const QFileInfo &d : top.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {
         const QString dir = d.absoluteFilePath();
         if (dir == g_session) continue;
@@ -143,8 +175,19 @@ QVector<Recovered> orphans()
         probe.unlock();
         const QFileInfoList copies = QDir(dir).entryInfoList({QLatin1Char('*') + s_suffix}, QDir::Files);
         if (copies.isEmpty()) QDir(dir).removeRecursively();   // nothing left to offer
-        for (const QFileInfo &f : copies) out << describe(f.absoluteFilePath());
+        for (const QFileInfo &f : copies) *out << describe(f.absoluteFilePath());
     }
+}
+
+} // namespace
+
+QVector<Recovered> orphans()
+{
+    QVector<Recovered> out;
+    root();
+    adoptLegacy();
+    scanRoot(root(), &out);
+    if (!g_legacy.isEmpty() && QDir::cleanPath(g_legacy) != QDir::cleanPath(root())) scanRoot(g_legacy, &out);   // (what could not be moved)
     std::sort(out.begin(), out.end(), [](const Recovered &a, const Recovered &b) { return a.saved > b.saved; });
     return out;
 }
@@ -155,6 +198,7 @@ void discard(const Recovered &r)
     const QFileInfo fi(r.file);
     QDir dir = fi.absoluteDir();
     if (QDir::cleanPath(dir.absolutePath()) == QDir::cleanPath(root())) return;
+    if (!g_legacy.isEmpty() && QDir::cleanPath(dir.absolutePath()) == QDir::cleanPath(g_legacy)) return;
     if (dir.entryInfoList({QLatin1Char('*') + s_suffix}, QDir::Files).isEmpty()) dir.removeRecursively();
 }
 

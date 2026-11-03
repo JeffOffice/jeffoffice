@@ -233,7 +233,7 @@ bool WriteWindow::saveTo(const QString &path)
     return true;
 }
 
-// ---- AutoRecover
+// ---- Automatic recovery
 
 void WriteWindow::autoRecover()
 {

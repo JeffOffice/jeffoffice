@@ -1308,7 +1308,7 @@ private Q_SLOTS:
     }
 
     // ---- 3. every command
-    // The commands of wave D: Create Style, Modify Style, Update Style, the Format Painter, Copy and Paste Format, Go To, and the Styles pane. Each is one step that undoes to the bytes before it,
+    // The commands of wave D: Create Style, Modify Style, Update Style, Copy Formatting, Copy and Paste Format, Go To, and the Styles pane. Each is one step that undoes to the bytes before it,
     // and the style made saves and opens the same.
     void theStyleCommandsFormatPainterAndGoToOfTheWindowChangeTheDocumentUndoAndSaveAndOpenTheSame()
     {

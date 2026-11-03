@@ -295,7 +295,7 @@ private Q_SLOTS:
         QCOMPARE(b.view->rangeName(), QStringLiteral("A1:A5"));
     }
 
-    // The selection is settled where the person leaves it: at the click, at the end of a drag (not while the drag goes on), and at a key that moves it. (The Format Painter acts on it.)
+    // The selection is settled where the person leaves it: at the click, at the end of a drag (not while the drag goes on), and at a key that moves it. (The Copy Formatting acts on it.)
     void theSelectionIsSettledWhenThePersonLeavesIt()
     {
         Book b;

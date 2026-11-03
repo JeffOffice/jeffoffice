@@ -29,7 +29,7 @@ public:
     // The letters shown now, and the control each belongs to (tests).
     QVector<QPair<QString, QWidget *>> shown() const;
 
-    void showTop();   // the Quick Access Toolbar, File and the tabs
+    void showTop();   // the quick toolbar, File and the tabs
     void hide();
 
 private:

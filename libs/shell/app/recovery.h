@@ -1,6 +1,6 @@
 #pragma once
-// AutoRecover: copies of unsaved work, kept per run of JeffPub in
-// AutoRecover/<session>/ under the app's data folder, with a lock file held
+// Automatic recovery: copies of unsaved work, kept per run of JeffPub in
+// Recovery/<session>/ under the app's data folder, with a lock file held
 // while that run lives. A run that ends normally removes its folder; one
 // that crashes leaves it, and the next run offers its copies back.
 
@@ -20,6 +20,9 @@ QString copySuffix();
 // Where every run keeps its folder (tests point it elsewhere).
 QString root();
 void setRoot(const QString &dir);
+// The folder older versions kept their copies in, by default "AutoRecover" beside the root (none after setRoot): orphans() moves what is there into the root, and still reads what it
+// could not move.
+void setLegacyRoot(const QString &dir);
 
 // This run's folder, created and locked on first use.
 QString sessionDir();

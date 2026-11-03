@@ -1,7 +1,7 @@
 #pragma once
 // The parts of a file as rows, columns, and cells are inserted and deleted in the workbook: the sheet's cells are renumbered (those deleted are left out, shared formulas are written out so that
 // no cell loses its formula), and everything in the file that refers to cells follows them: merged ranges, conditional formats, validations, hyperlinks, page breaks, filters, the names of the
-// workbook (print areas and titles among them), charts, the anchors of drawings, notes, and the sources of PivotTables. The edits are a list, in the order they were made, applied to
+// workbook (print areas and titles among them), charts, the anchors of drawings, notes, and the sources of pivot tables. The edits are a list, in the order they were made, applied to
 // each part in turn. The cells that the workbook changed (and the formulas whose text changed because of an edit) are not here: they are put in whole afterwards (see xlsxsave.h).
 
 #include "sheet/linereplay.h"
