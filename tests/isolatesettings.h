@@ -1,10 +1,12 @@
 #pragma once
 // A test program never touches the person's real settings (the Recent list, the options): from the moment the program starts, the settings go to a folder of its own that is taken away
-// again when it ends. Including this header is enough (the test programs that have a main() of their own include it; testrunner.cpp does too). `realSettingsUnchanged()` says whether what
-// is in the person's real settings folder is what it was when the program started, for a test to check.
+// again when it ends. Including this header is enough (the test programs that have a main() of their own include it; testrunner.cpp does too). `settingsStayInTheRunsFolder()` proves it at the
+// end of a run: a setting with a name no other program has is written the way the apps write theirs, and is found in the run's own folder and not in the person's. (A checksum of the
+// person's files would also change when another program, the person's own JeffWrite open beside the tests among them, saved its settings meanwhile.)
 
 #include <QByteArray>
-#include <QCryptographicHash>
+#include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -22,32 +24,12 @@ inline QString realSettingsFolder()
     return folder;
 }
 
-// A checksum of every settings file there (never shown).
-inline QByteArray realSettingsChecksum()
-{
-    QCryptographicHash hash(QCryptographicHash::Sha256);
-    for (const QFileInfo &fi : QDir(realSettingsFolder()).entryInfoList({QStringLiteral("*.conf")}, QDir::Files, QDir::Name)) {
-        hash.addData(fi.fileName().toUtf8());
-        QFile f(fi.absoluteFilePath());
-        if (f.open(QIODevice::ReadOnly)) hash.addData(f.readAll());
-    }
-    return hash.result();
-}
-
-inline const QByteArray &realSettingsChecksumAtStart()
-{
-    static const QByteArray before = realSettingsChecksum();   // (first called, before the redirect, as the program starts)
-    return before;
-}
-
-inline bool realSettingsUnchanged() { return realSettingsChecksum() == realSettingsChecksumAtStart(); }
-
 // Where this run's settings are.
 inline const QString &isolatedSettingsFolder()
 {
     static QTemporaryDir dir;
     static const bool redirected = [] {
-        realSettingsChecksumAtStart();
+        realSettingsFolder();   // (found before the settings are moved: after, it would be the run's own)
         QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, dir.path());
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, dir.path());
         return true;
@@ -62,11 +44,34 @@ struct IsolateSettings {
 };
 inline const IsolateSettings isolateSettingsOnStart;
 
-// True when the settings an app reads and writes are in a temporary folder (this run's own, or one a test class made for itself), not the person's.
-inline bool settingsAreIsolated()
+// Whether a file of the folder holds the text.
+inline bool folderHolds(const QString &folder, const QByteArray &text)
 {
-    const QString file = QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite")).fileName();
-    return file.startsWith(QDir::tempPath() + QLatin1Char('/')) && !file.startsWith(realSettingsFolder() + QLatin1Char('/'));
+    for (const QFileInfo &fi : QDir(folder).entryInfoList({QStringLiteral("*.conf")}, QDir::Files)) {
+        QFile f(fi.absoluteFilePath());
+        if (f.open(QIODevice::ReadOnly) && f.readAll().contains(text)) return true;
+    }
+    return false;
+}
+
+// Writes a setting under a name of this run's own, through the store the apps use, and says it was kept in the settings folder the run made and nowhere in the person's.
+inline bool settingsStayInTheRunsFolder()
+{
+    const QString key = QStringLiteral("jptest/probe-%1-%2").arg(QCoreApplication::applicationPid()).arg(QDateTime::currentMSecsSinceEpoch());
+    {
+        QSettings app(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite"));
+        app.setValue(key, 1);
+        app.sync();
+    }
+    const QString written = QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite")).fileName();
+    const QByteArray name = key.mid(QStringLiteral("jptest/").size()).toUtf8();
+    const bool kept = QFileInfo(written).absolutePath().startsWith(QDir::tempPath() + QLatin1Char('/')) && folderHolds(QFileInfo(written).absolutePath(), name);
+    const bool leaked = folderHolds(realSettingsFolder(), name);
+    {
+        QSettings app(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite"));
+        app.remove(key);
+    }
+    return kept && !leaked;
 }
 
 // A test that saves to the program's own data folder (My Templates, the dictionary) puts it in Qt's test folder instead, and puts it back however the test ends.

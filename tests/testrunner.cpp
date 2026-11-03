@@ -184,7 +184,7 @@ int main(int argc, char *argv[])
         ++failures;
     }
     // (a test run never changes the person's real settings)
-    if (!jptest::realSettingsUnchanged() || !jptest::settingsAreIsolated()) {
+    if (!jptest::settingsStayInTheRunsFolder()) {
         std::fprintf(stderr, "FAIL: the run touched the person's real settings\n");
         ++failures;
     }

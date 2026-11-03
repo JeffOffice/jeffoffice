@@ -809,8 +809,8 @@ public:
     }
 
 private Q_SLOTS:
-    // The run's settings are its own, and the person's are as they were (checked at the end).
-    void cleanupTestCase() { QVERIFY(jptest::settingsAreIsolated()); QVERIFY(jptest::realSettingsUnchanged()); }
+    // The run's settings are its own, and none reached the person's (checked at the end).
+    void cleanupTestCase() { QVERIFY(jptest::settingsStayInTheRunsFolder()); }
 
     void initTestCase()
     {
