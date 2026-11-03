@@ -7,6 +7,9 @@
 ; /DWITH_CRUNCH (the workflow does, when its SHIP_WRITE or SHIP_CRUNCH is "true") makes it a beta that is not ticked
 ; by default (it is ticked when it is already installed).
 ; Setups through 0.20.0 were made with NSIS; this one takes over from them (see RemoveNsisInstall).
+#if Ver < EncodeVer(6, 6, 0)
+  #error Inno Setup 6.6.0 or later is needed: the artwork is drawn for its image sizes.
+#endif
 #ifndef VERSION
   #define VERSION "0.1.0"
 #endif
