@@ -1,5 +1,8 @@
 // JeffPub's tests of SVG, ebook, and other output, barcodes, and metafiles.
 #include "pubhelpers.h"
+#include "app/filedialogs.h"
+#include "app/optionsdialog.h"
+#include <QCheckBox>
 
 class PubExportTests : public QObject {
     Q_OBJECT
@@ -303,6 +306,142 @@ private Q_SLOTS:
         QFile b(dir.filePath(QStringLiteral("Backup of letter.jpub")));
         QVERIFY(b.open(QIODevice::ReadOnly));
         QCOMPARE(b.readAll(), first);
+    }
+
+    // Save a Copy writes the publication to another file and goes on with the original: the window keeps its name and its unsaved changes.
+    void saveACopyKeepsWorkingInTheOriginal()
+    {
+        jp::MainWindow w;
+        w.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        QTemporaryDir dir;
+        const QString original = dir.filePath(QStringLiteral("letter.jpub")), copy = dir.filePath(QStringLiteral("letter copy.jpub"));
+        QVERIFY(w.saveTo(original));
+        QVERIFY(!w.editor()->isModified());
+        w.editor()->doc()->props.title = QStringLiteral("changed");
+        w.editor()->markUnsaved();
+        QVERIFY(w.saveCopy(copy));
+        QVERIFY(w.editor()->isModified());
+        QCOMPARE(w.editor()->filePath(), original);
+        QVERIFY(QFileInfo(copy).size() > 0);
+        QVERIFY(jp::loadPublication(copy, nullptr));
+    }
+
+    // "Always create backup copy" is one of the Options every app has, in the General page.
+    void theBackupOptionIsInTheSharedOptions()
+    {
+        jp::Settings::get().setValue("save/backup", false);
+        jp::MainWindow w;
+        QTimer::singleShot(0, [] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            auto *box = d->findChild<QCheckBox *>(QStringLiteral("backupCopy"));
+            if (box) box->setChecked(true);
+            d->accept();
+        });
+        jp::optionsDialog(&w, w.editor());
+        const bool on = jp::Settings::get().value("save/backup", false).toBool();
+        jp::Settings::get().setValue("save/backup", false);
+        QVERIFY(on);
+    }
+
+    // The ways to open: read-only (nothing changes, Save asks for a new name), as a copy (no file of its own), and in a new window.
+    void aPublicationOpensReadOnlyAsACopyAndInANewWindow()
+    {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("letter.jpub"));
+        {
+            jp::MainWindow a;
+            a.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+            a.editor()->doc()->props.title = QStringLiteral("original");
+            QVERIFY(a.saveTo(path));
+        }
+        {
+            jp::MainWindow w;
+            QVERIFY(w.openFile(path, jp::OpenHow::ReadOnly));
+            QVERIFY(w.isReadOnly());
+            QVERIFY(w.windowTitle().contains(QLatin1String("Read-Only")));
+            // The commands that change the publication are off before anything is done (nothing is undone afterward).
+            QVERIFY(!w.act(QStringLiteral("edit.paste"))->isEnabled());
+            QVERIFY(!w.act(QStringLiteral("edit.pasteText"))->isEnabled());
+            QVERIFY(w.editor()->readOnly());
+            QCOMPARE(w.editor()->doc()->props.title, QStringLiteral("original"));
+            QVERIFY(!w.editor()->isModified());
+            // Save asks for a name (here the dialog stands in): the new file is an ordinary publication.
+            const QString other = dir.filePath(QStringLiteral("other.jpub"));
+            jp::setSavePathStandIn([&](const QString &, const QString &, const QString &, QString *) { return other; });
+            const bool saved = w.save();
+            jp::setSavePathStandIn({});
+            QVERIFY(saved);
+            QCOMPARE(w.editor()->filePath(), other);
+            QVERIFY(!w.isReadOnly());
+        }
+        {
+            jp::MainWindow w;
+            QVERIFY(w.openFile(path, jp::OpenHow::Copy));
+            QVERIFY(w.editor()->filePath().isEmpty());
+            QVERIFY(w.editor()->isModified());
+            QVERIFY(w.editor()->displayName().contains(QLatin1String("letter")));
+            QCOMPARE(w.editor()->doc()->props.title, QStringLiteral("original"));
+            w.editor()->markSaved();
+        }
+        {
+            jp::MainWindow w;
+            const int before = jp::AppWindow::windows().size();
+            QVERIFY(w.openFile(path, jp::OpenHow::NewWindow));
+            QVERIFY(w.editor()->filePath().isEmpty());
+            QCOMPARE(jp::AppWindow::windows().size(), before + 1);
+            for (jp::AppWindow *other : jp::AppWindow::windows())
+                if (auto *m = qobject_cast<jp::MainWindow *>(other); m && m != &w && m->editor()->filePath() == path) {
+                    m->setAttribute(Qt::WA_DeleteOnClose, false);
+                    delete m;
+                }
+        }
+    }
+
+    // Open and Repair: a publication whose end (the directory of its entries) was lost does not open as it is, and opens as a repaired copy with every entry that was whole.
+    void aDamagedPublicationOpensRepaired()
+    {
+        QTemporaryDir dir;
+        const QString good = dir.filePath(QStringLiteral("letter.jpub")), damaged = dir.filePath(QStringLiteral("damaged.jpub"));
+        {
+            jp::MainWindow a;
+            a.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+            a.editor()->doc()->props.title = QStringLiteral("original");
+            QVERIFY(a.saveTo(good));
+        }
+        QFile in(good);
+        QVERIFY(in.open(QIODevice::ReadOnly));
+        const QByteArray bytes = in.readAll();
+        in.close();
+        QFile out(damaged);
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write(bytes.left(bytes.size() - 20));
+        out.close();
+        QString why;
+        QVERIFY(!jp::loadPublication(damaged, &why));
+        jp::MainWindow w;
+        QStringList told;
+        w.setNotifier([&](const QString &title, const QString &text) { told << title + QStringLiteral(": ") + text; });
+        QVERIFY(w.openFile(damaged, jp::OpenHow::Repair));
+        QVERIFY(w.editor()->filePath().isEmpty());
+        QVERIFY(w.editor()->isModified());
+        QCOMPARE(w.editor()->doc()->props.title, QStringLiteral("original"));
+        QVERIFY2(!told.isEmpty() && told.first().contains(QLatin1String("Open and Repair")), qPrintable(told.join(QLatin1Char('|'))));
+        w.editor()->markSaved();
+    }
+
+    // Save a Copy and Save as Template are commands in the File screen's sidebar, as in the other apps.
+    void theFileScreenSidebarHasSaveACopyAndSaveAsTemplate()
+    {
+        jp::MainWindow w;
+        w.resize(1200, 800);
+        w.show();
+        w.showBackstage(QStringLiteral("open"));
+        QStringList names;
+        for (QAbstractButton *b : w.findChildren<QAbstractButton *>())
+            if (b->isVisibleTo(&w)) names << b->text();
+        QVERIFY(names.contains(QStringLiteral("Save a Copy")));
+        QVERIFY(names.contains(QStringLiteral("Save as Template")));
     }
 
     // The SVG reader: path data (implicit lines, relative moves, reflected

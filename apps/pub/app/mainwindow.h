@@ -5,6 +5,7 @@
 // controls it names in mainwindow_ribbon.cpp.
 
 #include "app/appwindow.h"
+#include "app/filetasks.h"
 #include "app/editor.h"
 
 #include <QHash>
@@ -62,7 +63,13 @@ public:
     // step, or, with `toNewWindow`, in a new publication in a window of its
     // own while this one stays as it is. Returns the window with the result.
     MainWindow *changeTemplate(std::unique_ptr<Document> design, bool toNewWindow);
-    bool openFile(const QString &path);
+    // `how`: as it is (the default), read-only, as a copy (an unsaved publication made from the file; the file is never written), or in a window of its own.
+    bool openFile(const QString &path, OpenHow how = OpenHow::Normal);
+    // Shows the file dialog and opens what is chosen the way `how` says (asking about unsaved changes first, unless it opens in a window of its own).
+    void browseAndOpen(OpenHow how = OpenHow::Normal);
+    void setReadOnly(bool on) override;
+    // What a sentence for the person (what Open and Repair left out) is shown with: a message box, unless this stands in for it (tests).
+    void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
     // Copies of unsaved work left by a run of JeffPub that didn't close
     // normally: offered for opening or deleting (askIfNone: say so when
     // there are none, from File > Open).
@@ -80,7 +87,10 @@ public:
     int autoRecoverInterval() const { return m_recoverTimer.interval(); }   // ms
     bool save();
     bool saveAs(const QString &format = QString());
-    bool saveTo(const QString &path);
+    // Save a Copy: asks for a name (or takes `path`), writes the publication there, and goes on with the original (its name and unsaved changes).
+    bool saveCopy(const QString &path = QString());
+    // `asCopy`: only writes the file; the publication keeps its name and stays as saved or unsaved as it was.
+    bool saveTo(const QString &path, bool asCopy = false);
     bool maybeSave();
     // archival: PDF/A-1b (ISO 19005-1) for long-term storage.
     void exportPdf(const QString &path = QString(), bool merged = false, bool archival = false);
@@ -188,6 +198,7 @@ private:
     quint64 m_serial;               // this window, among this run's (names an unsaved document's copy)
     QString m_recoveryCopy;         // this window's automatic recovery copy, if written
     QString m_recoveredFrom;        // a recovered document's original file, for Save As
+    std::function<void(const QString &, const QString &)> m_notifier;
     bool m_recovered = false;       // the document is recovered work, not yet saved
     QPointer<QWidget> m_measurement;
 };

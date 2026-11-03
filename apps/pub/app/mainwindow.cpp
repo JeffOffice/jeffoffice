@@ -68,6 +68,7 @@
 #include <QPrintDialog>
 #include "app/filedialogs.h"
 #include "app/filetasks.h"
+#include "office/repair.h"
 #include <QPrinter>
 #include <QSlider>
 #include <QSplitter>
@@ -250,7 +251,11 @@ QAction *MainWindow::mk(const QString &id, const QString &text, const QString &i
     }
     a->setCheckable(checkable);
     // Each command counts by its id for the usage statistics (when they're on).
-    connect(a, &QAction::triggered, this, [fn, id] {
+    connect(a, &QAction::triggered, this, [this, fn, id] {
+        if (isReadOnly() && !commandAllowedReadOnly(id)) {
+            refuseReadOnlyChange();
+            return;
+        }
         telemetry::count(id);
         fn();
     });
@@ -264,7 +269,7 @@ void MainWindow::updateTitle()
     // Recovered work says so until it's saved; the publication's own title
     // (saved in it, and in its PDFs) stays as its author set it.
     const QString name = m_recovered && m_ed->filePath().isEmpty() ? tr("%1 (Recovered)").arg(m_ed->displayName()) : m_ed->displayName();
-    setWindowTitle(tr("%1%2 - JeffPub").arg(name, m_ed->isModified() ? QStringLiteral("*") : QString()));
+    setWindowTitle(tr("%1%2 - JeffPub").arg(name, m_ed->isModified() ? QStringLiteral("*") : QString()) + (isReadOnly() ? tr(" (Read-Only)") : QString()));
 }
 
 void MainWindow::resizeEvent(QResizeEvent *e)
@@ -413,17 +418,58 @@ MainWindow *MainWindow::changeTemplate(std::unique_ptr<Document> design, bool to
     return target;
 }
 
-bool MainWindow::openFile(const QString &path)
+void MainWindow::browseAndOpen(OpenHow how)
 {
+    if (how != OpenHow::NewWindow && !maybeSave()) return;
+    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
+                                                   tr("Publications (*.jpub *.pub)") + QStringLiteral(";;") + tr("JeffPub Publications (*.jpub)") + QStringLiteral(";;") + tr(".pub Publication Files (*.pub)") + QStringLiteral(";;") + tr("All Files (*)"));
+    if (p.isEmpty()) return;
+    Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
+    openFile(p, how);
+}
+
+void MainWindow::setReadOnly(bool on)
+{
+    AppWindow::setReadOnly(on);
+    m_ed->setReadOnly(on);
+    // The commands that change the document are turned off (and refused if something still runs one).
+    for (const QString &id : actionIds())
+        if (QAction *a = act(id); a && !commandAllowedReadOnly(id)) a->setEnabled(!on);
+    updateTitle();
+}
+
+bool MainWindow::openFile(const QString &path, OpenHow how)
+{
+    if (how == OpenHow::NewWindow) {
+        auto *w = new MainWindow();
+        w->setAttribute(Qt::WA_DeleteOnClose);
+        if (!w->openFile(path)) {
+            delete w;
+            return false;
+        }
+        w->show();
+        hideBackstage();
+        return true;
+    }
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
         jp::plainWarning(this, tr("Open"), tr("JeffPub can't open \"%1\".\n%2").arg(QFileInfo(path).fileName(), f.errorString()));
         return false;
     }
-    const QByteArray bytes = f.readAll();
+    QByteArray bytes = f.readAll();
     QString err;
     std::unique_ptr<Document> doc;
     bool fromPub = false;
+    // Open and Repair: what can be read of a damaged .jpub (its entries that are whole) is made into a file that opens, and what was left out is said.
+    office::RepairReport repair;
+    const bool repairing = how == OpenHow::Repair;
+    if (repairing) {
+        bytes = office::repairZip(bytes, &err, &repair);
+        if (bytes.isEmpty()) {
+            jp::plainWarning(this, tr("Open and Repair"), tr("JeffPub can't repair \"%1\".\n%2").arg(QFileInfo(path).fileName(), err));
+            return false;
+        }
+    }
     QApplication::setOverrideCursor(Qt::WaitCursor);
     PubImportReport rep;
     if (isPublisherFile(bytes)) {
@@ -438,10 +484,25 @@ bool MainWindow::openFile(const QString &path)
         return false;
     }
     if (doc->props.title.isEmpty()) doc->props.title = QFileInfo(path).completeBaseName();
-    m_ed->setDocument(std::move(doc), path);
+    setReadOnly(false);
+    if (how == OpenHow::Copy || repairing) {
+        // The file's contents as a new publication that has no file yet (Save asks where); the file is never written.
+        m_ed->setDocument(std::move(doc));
+        m_ed->setUntitledName((repairing ? tr("Repaired %1") : tr("Copy of %1")).arg(QFileInfo(path).completeBaseName()));
+        m_ed->markUnsaved();
+        updateTitle();
+    } else {
+        m_ed->setDocument(std::move(doc), path);
+        if (how == OpenHow::ReadOnly) setReadOnly(true);
+    }
     Settings::get().addRecentFile(path);
     telemetry::count(fromPub ? QStringLiteral("file.open.pub") : QStringLiteral("file.open.jpub"));
     hideBackstage();
+    if (repairing) {
+        const QString text = tr("\"%1\" was opened as a repaired copy. Save it under a name of its own.\n\n%2").arg(QFileInfo(path).fileName(), office::repairSummary(repair));
+        if (m_notifier) m_notifier(tr("Open and Repair"), text);
+        else jp::plainInformation(this, tr("Open and Repair"), text);
+    }
     if (fromPub && !rep.warnings.isEmpty())
         statusBar()->showMessage(tr("Opened .pub file. %1").arg(rep.warnings.first()), 8000);
     return true;
@@ -449,12 +510,17 @@ bool MainWindow::openFile(const QString &path)
 
 bool MainWindow::save()
 {
+    // A publication open for reading only is saved under a new name.
+    if (isReadOnly()) {
+        statusBar()->showMessage(tr("This publication is open for reading only, so it is saved under a new name."), 6000);
+        return saveAs();
+    }
     const QString p = m_ed->filePath();
     if (p.isEmpty()) return saveAs();
     return saveTo(p);
 }
 
-bool MainWindow::saveTo(const QString &pathIn)
+bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
 {
     QString path = pathIn;
     QString err;
@@ -481,13 +547,36 @@ bool MainWindow::saveTo(const QString &pathIn)
             return false;
         }
     }
-    m_ed->setFilePath(path);
-    m_ed->markSaved();
+    if (!asCopy) {
+        m_ed->setFilePath(path);
+        m_ed->markSaved();
+        if (isReadOnly()) setReadOnly(false);
+    }
     Settings::get().addRecentFile(path);
     telemetry::count(path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive) ? QStringLiteral("file.save.pub") : QStringLiteral("file.save.jpub"));
     updateTitle();
+    if (asCopy) {
+        statusBar()->showMessage(tr("Saved a copy as %1").arg(QFileInfo(path).fileName()), 4000);
+        return true;
+    }
     statusBar()->showMessage(tr("Saved %1").arg(QFileInfo(path).fileName()), 4000);
     return true;
+}
+
+bool MainWindow::saveCopy(const QString &pathIn)
+{
+    QString path = pathIn;
+    if (path.isEmpty()) {
+        const QString from = m_ed->filePath().isEmpty() ? m_recoveredFrom : m_ed->filePath();
+        const QString dir = from.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(from).absolutePath();
+        const QString name = tr("%1 copy").arg(from.isEmpty() ? m_ed->displayName() : QFileInfo(from).completeBaseName());
+        const QString jpubFilter = tr("JeffPub Publication (*.jpub)"), pubFilter = tr(".pub Publication Files (*.pub)");
+        QString selected = QFileInfo(from).suffix().compare(QLatin1String("pub"), Qt::CaseInsensitive) == 0 ? pubFilter : jpubFilter;
+        path = askSavePath(this, tr("Save a Copy"), dir + QLatin1Char('/') + name, jpubFilter + QStringLiteral(";;") + pubFilter, &selected);
+        if (path.isEmpty()) return false;
+        if (selected == pubFilter && !path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive)) path += QStringLiteral(".pub");
+    }
+    return saveTo(path, true);
 }
 
 bool MainWindow::saveAs(const QString &format)

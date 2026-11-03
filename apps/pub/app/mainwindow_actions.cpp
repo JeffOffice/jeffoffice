@@ -61,14 +61,7 @@ void MainWindow::createActions()
     mk("file.blank", tr("New Blank Publication"), "file", QKeySequence(), [this] {
         if (maybeSave()) newPublication(Document::blank(QSizeF(612, 792)));
     });
-    mk("file.open", tr("Open"), "folder-open", QKeySequence::Open, [this] {
-        if (!maybeSave()) return;
-        const QString p = QFileDialog::getOpenFileName(this, tr("Open Publication"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
-                                                       tr("Publications (*.jpub *.pub)") + QStringLiteral(";;") + tr("JeffPub Publications (*.jpub)") + QStringLiteral(";;") + tr(".pub Publication Files (*.pub)") + QStringLiteral(";;") + tr("All Files (*)"));
-        if (p.isEmpty()) return;
-        Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
-        openFile(p);
-    });
+    mk("file.open", tr("Open"), "folder-open", QKeySequence::Open, [this] { browseAndOpen(); });
     mk("file.save", tr("Save"), "save", QKeySequence::Save, [this] { save(); });
     mk("file.saveAs", tr("Save As"), "save-all", QKeySequence(Qt::Key_F12), [this] { saveAs(); });
     mk("file.saveAsPub", tr("Save as .pub File"), "file-output", QKeySequence(), [this] { saveAs("pub"); });
