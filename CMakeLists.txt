@@ -283,6 +283,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_xlsformula.cpp
   tests/sheet/tst_sheet_xlshostile.cpp
   tests/sheet/tst_sheet_notes.cpp
+  tests/sheet/tst_sheet_sparkline.cpp
   tests/sheet/tst_sheet_ods.cpp
   tests/sheet/tst_sheet_odsformula.cpp
   tests/sheet/tst_sheet_odshostile.cpp

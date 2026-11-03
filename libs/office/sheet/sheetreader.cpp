@@ -18,6 +18,7 @@
 #include "sheet/sheetcrypt.h"
 #include "sheet/xlsxbase.h"
 #include "sheet/pagesetup.h"
+#include "sheet/sparkline.h"
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -1396,6 +1397,9 @@ bool SheetReader::read(QIODevice *in)
     QString sortState;
     // the rules of validation in the extension list (x14): the rule, and where the text of its formula or ranges goes
     bool inX14Rules = false, inX14Rule = false;
+    // the sparklines in the extension list (x14): read by their own parser, given each element from the group list down
+    SparklineParser spark;
+    bool inSpark = false;
     Validation x14Rule;
     QString x14Ranges;
     QString *x14Text = nullptr;
@@ -1424,6 +1428,8 @@ bool SheetReader::read(QIODevice *in)
             } else if (inExtension && depth == 5 && isElement(r, "cfRule") && attribute(r, "type") != QLatin1String("dataBar")) {
                 if (!m_sheet.notKept.contains(QLatin1String("extendedRules"))) m_sheet.notKept.append(QLatin1String("extendedRules"));
             }
+            if (inExtension && depth == 3 && isElement(r, "sparklineGroups")) inSpark = true;
+            if (inSpark) spark.start(r, depth - 3);
             if (++depth > kMaxXmlDepth) {
                 ok = fail(QCoreApplication::translate("Sheet", "The file has items inside items more deeply than any real file has."));
             } else if (depth == 1) {
@@ -1697,6 +1703,15 @@ bool SheetReader::read(QIODevice *in)
             }
             break;
         case QXmlStreamReader::EndElement:
+            if (inSpark) {
+                spark.end(depth - 4);
+                if (depth == 4) {
+                    inSpark = false;
+                    for (const SparklineGroup &g : std::as_const(spark.groups))
+                        if (m_sheet.sparklineGroups.size() < kMaxSparklineGroups) m_sheet.sparklineGroups.append(g);
+                    spark.groups.clear();
+                }
+            }
             if (phonetic == depth) phonetic = 0;
             if (x14Text && ((depth == 7 && isElement(r, "f")) || (depth == 6 && isElement(r, "sqref")))) {
                 if (depth == 6) {
@@ -1767,6 +1782,7 @@ bool SheetReader::read(QIODevice *in)
             --depth;
             break;
         case QXmlStreamReader::Characters:
+            if (inSpark) spark.text(r.text());
             if (x14Text) {
                 if (x14Text->size() < m_limits.formulaChars) *x14Text += r.text();
             } else if (hfText) {
