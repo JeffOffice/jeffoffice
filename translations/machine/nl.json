@@ -38,11 +38,11 @@
 },
 "crunch/edit-cells": {
 "en": "886ec51768ab62f9",
-"out": "c7818d37e1a494f8"
+"out": "336c6f1eaf2a95b4"
 },
 "crunch/fill-sum": {
 "en": "198f887390dc86f9",
-"out": "c708f6c10a9e1920"
+"out": "09f21081e189d53f"
 },
 "crunch/find-replace": {
 "en": "1ceeab9efe3777c4",
@@ -50,7 +50,7 @@
 },
 "crunch/format-cells": {
 "en": "a13e87d94d35c623",
-"out": "3629e9c2bce38ae4"
+"out": "dbf706389e5686d4"
 },
 "crunch/formulas": {
 "en": "d1f816300638a785",
@@ -70,11 +70,11 @@
 },
 "crunch/insert-function": {
 "en": "db9c835cde35ef2f",
-"out": "67ffaaab9e80bdb5"
+"out": "4387265d4c7f7965"
 },
 "crunch/keyboard": {
 "en": "245feb57b79f61ae",
-"out": "10fe590eab4b526a"
+"out": "1aa84930751b921e"
 },
 "crunch/names": {
 "en": "9d0219932422d9e6",
@@ -130,7 +130,7 @@
 },
 "crunch/sizes": {
 "en": "f761bcf7a597da3f",
-"out": "3a3886030bc4254a"
+"out": "266bc90d917a8739"
 },
 "crunch/sort-filter": {
 "en": "e2b45ecc294e83dc",
@@ -162,23 +162,23 @@
 },
 "deck/file-screen": {
 "en": "73aa18ca7df1c3e6",
-"out": "914c349da9af1653"
+"out": "a3cc79554a4c6b09"
 },
 "deck/format-shape": {
 "en": "298cc0d5a9670cbe",
-"out": "d9b709d0d98ccb56"
+"out": "10e7359484575b8c"
 },
 "deck/index": {
 "en": "2c4e8115f69d6564",
-"out": "629571d789e5cd69"
+"out": "64a8d9a85f4ae984"
 },
 "deck/keyboard": {
 "en": "a61c13fe5dc72911",
-"out": "46f8f26a37a68c9d"
+"out": "802a7902ac410fb5"
 },
 "deck/notes": {
 "en": "66a05dc2206ed237",
-"out": "060e2330730d1917"
+"out": "65040ed08c7cdb70"
 },
 "deck/objects": {
 "en": "6f5ff042f71c59b3",
@@ -197,7 +197,7 @@
 "out": "543af376b00eb14c"
 },
 "deck/recover": {
-"en": "e7b208482d87d7c4",
+"en": "4fbff2a452961ab4",
 "out": "6fe451796f3e7c8b"
 },
 "deck/reuse": {
@@ -206,7 +206,7 @@
 },
 "deck/show": {
 "en": "7960453323c10930",
-"out": "7957a0165b47aaa3"
+"out": "25be15296e202498"
 },
 "deck/slides": {
 "en": "5bca48008cff90ef",
@@ -214,7 +214,7 @@
 },
 "deck/start": {
 "en": "41b1770adb88ab46",
-"out": "32d4fdfd927d7308"
+"out": "4628a15b9f6392b8"
 },
 "deck/tab-animations": {
 "en": "e617f2afbf372c4a",
@@ -226,7 +226,7 @@
 },
 "deck/tab-home": {
 "en": "26cb6fbbdaf98656",
-"out": "e327b035a0a93a91"
+"out": "4101955adc9d28a9"
 },
 "deck/tab-insert": {
 "en": "4335d2f0b691b551",
@@ -250,11 +250,11 @@
 },
 "deck/tab-view": {
 "en": "d7510f7c66c67700",
-"out": "9906c0cd22030425"
+"out": "8744475dc56a5739"
 },
 "deck/text": {
 "en": "0f47e00c1d1064a5",
-"out": "d46183eff7558e50"
+"out": "29d501d65dd2537d"
 },
 "deck/transitions": {
 "en": "43d897e87e3c1f52",
@@ -266,11 +266,11 @@
 },
 "deck/window": {
 "en": "f13481cfaf2c356c",
-"out": "06c01ab94205ae5f"
+"out": "77413cbffbe2c109"
 },
 "design-checker": {
 "en": "a6f2fb1b11fb22a7",
-"out": "166af1c3937705ed"
+"out": "be91eccf94710c36"
 },
 "export": {
 "en": "1e5d8f64a99fc7a0",
@@ -282,7 +282,7 @@
 },
 "formatting-text": {
 "en": "25c4667bfb12b3fa",
-"out": "690eb57e14ec7a74"
+"out": "078995cb2a59b733"
 },
 "graphics-manager": {
 "en": "12e520565b4c39d0",
@@ -302,7 +302,7 @@
 },
 "keyboard": {
 "en": "f0d5b70118cb7663",
-"out": "711f0b84e1576352"
+"out": "550cfa2cad100b33"
 },
 "linked-text": {
 "en": "9467e29d9533a19a",
@@ -322,11 +322,11 @@
 },
 "open-save": {
 "en": "fe98ce3bdb97b69a",
-"out": "9d4d055ee0fc53ca"
+"out": "22b400c98b28e429"
 },
 "options": {
 "en": "d64947d12157967e",
-"out": "42b18221bd63cb97"
+"out": "a885edbf93028e60"
 },
 "page-setup": {
 "en": "36844cbc55d08973",
@@ -357,7 +357,7 @@
 "out": "3f047d047d5ad7b8"
 },
 "recover": {
-"en": "bdbe6f84e4524752",
+"en": "189344b127fbab8c",
 "out": "45cbe6336ea73ec3"
 },
 "references": {
@@ -390,7 +390,7 @@
 },
 "tab-home": {
 "en": "a13a2ff10141fbbf",
-"out": "57407c8cbe65db7d"
+"out": "ee7893e23d7abf8f"
 },
 "tab-insert": {
 "en": "a2968b7def1f8ae3",
@@ -446,11 +446,11 @@
 },
 "text-boxes": {
 "en": "86a86d9bbfdf3b9e",
-"out": "98cec6455165f9b9"
+"out": "b2f970f4c4c31c3a"
 },
 "window": {
 "en": "15e5a1d4fdce9627",
-"out": "7d731482078ffa7f"
+"out": "15f313440b3c3e58"
 },
 "wrap": {
 "en": "e2260ea2c023d763",
@@ -486,7 +486,7 @@
 },
 "write/format-painter": {
 "en": "de3fc05686110657",
-"out": "4578ed943b93599b"
+"out": "ea65d3d9b272f3e0"
 },
 "write/go-to-and-move-text": {
 "en": "1ed74b8821b13775",
@@ -498,7 +498,7 @@
 },
 "write/index": {
 "en": "652901956efe46dd",
-"out": "c2c9f589772fa826"
+"out": "36517a0a0f09cbb2"
 },
 "write/keyboard": {
 "en": "62882ed7b9faf46c",
@@ -514,7 +514,7 @@
 },
 "write/open-save": {
 "en": "b3bba8581533a99d",
-"out": "bd12edf907049f6f"
+"out": "bbc6747a07968cf0"
 },
 "write/page-setup": {
 "en": "8817347db534ce18",
@@ -538,11 +538,11 @@
 },
 "write/start": {
 "en": "459da4ea2aebfa57",
-"out": "f497a20a52910113"
+"out": "b74996da1dce360e"
 },
 "write/styles": {
 "en": "95fd1751fa24e530",
-"out": "35e1697f857eb9d3"
+"out": "31f1623a4474474b"
 },
 "write/table-of-contents": {
 "en": "1ce2b411a8635b08",
@@ -550,7 +550,7 @@
 },
 "write/tables": {
 "en": "7d56ef0c246c65f0",
-"out": "f2fc71ca1ef41c17"
+"out": "a922a4d5ade0ea22"
 },
 "write/track-changes": {
 "en": "43d9a8b6dabed21b",

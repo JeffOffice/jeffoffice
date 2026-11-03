@@ -50,7 +50,7 @@
 },
 "crunch/format-cells": {
 "en": "a13e87d94d35c623",
-"out": "69b4277f93d2dfcf"
+"out": "dab5a024790c7836"
 },
 "crunch/formulas": {
 "en": "d1f816300638a785",
@@ -70,7 +70,7 @@
 },
 "crunch/insert-function": {
 "en": "decd6ad6e45eac53",
-"out": "bf3f285e2475fd58"
+"out": "9bde21524bcd1ddc"
 },
 "crunch/keyboard": {
 "en": "128c70a59fb75c15",
@@ -86,7 +86,7 @@
 },
 "crunch/number-formats": {
 "en": "9b003e93322b0cf2",
-"out": "7cda447fa605179b"
+"out": "6f2dd2d3ee6407c8"
 },
 "crunch/open-password": {
 "en": "81083333bfabfa31",
@@ -130,7 +130,7 @@
 },
 "crunch/sizes": {
 "en": "f761bcf7a597da3f",
-"out": "8c55f0242b52100b"
+"out": "0e1a7dd90132a5e5"
 },
 "crunch/sort-filter": {
 "en": "e2b45ecc294e83dc",
@@ -166,19 +166,19 @@
 },
 "deck/format-shape": {
 "en": "298cc0d5a9670cbe",
-"out": "656f40f663c8aaf5"
+"out": "77bdf59962f10bbd"
 },
 "deck/index": {
 "en": "2c4e8115f69d6564",
-"out": "8785a07bde4a38b3"
+"out": "b051b1fb8b865d63"
 },
 "deck/keyboard": {
 "en": "a61c13fe5dc72911",
-"out": "341c3e989e4c7d0c"
+"out": "bf521ad4f5d3f90f"
 },
 "deck/notes": {
 "en": "66a05dc2206ed237",
-"out": "13c42d1b0d483ed9"
+"out": "75cc02795d6e9f7e"
 },
 "deck/objects": {
 "en": "6f5ff042f71c59b3",
@@ -197,7 +197,7 @@
 "out": "32ad598b246df69d"
 },
 "deck/recover": {
-"en": "e7b208482d87d7c4",
+"en": "4fbff2a452961ab4",
 "out": "10511abd59aa8665"
 },
 "deck/reuse": {
@@ -206,7 +206,7 @@
 },
 "deck/show": {
 "en": "7960453323c10930",
-"out": "326120803ddebbba"
+"out": "229af53f83363d12"
 },
 "deck/slides": {
 "en": "5bca48008cff90ef",
@@ -214,7 +214,7 @@
 },
 "deck/start": {
 "en": "41b1770adb88ab46",
-"out": "6df818266a02fae7"
+"out": "4398404ab4fc618d"
 },
 "deck/tab-animations": {
 "en": "e617f2afbf372c4a",
@@ -226,7 +226,7 @@
 },
 "deck/tab-home": {
 "en": "26cb6fbbdaf98656",
-"out": "57e137301c2b9135"
+"out": "4bedb0ce6d986d0c"
 },
 "deck/tab-insert": {
 "en": "4335d2f0b691b551",
@@ -250,11 +250,11 @@
 },
 "deck/tab-view": {
 "en": "d7510f7c66c67700",
-"out": "53dd81478ce09e4e"
+"out": "865e0a6916bbda34"
 },
 "deck/text": {
 "en": "0f47e00c1d1064a5",
-"out": "d403039bb4476d10"
+"out": "8fbe2013a996a681"
 },
 "deck/transitions": {
 "en": "43d897e87e3c1f52",
@@ -266,11 +266,11 @@
 },
 "deck/window": {
 "en": "f13481cfaf2c356c",
-"out": "c8cf6f8e256e17b8"
+"out": "5c98b0755e028fa6"
 },
 "design-checker": {
 "en": "a6f2fb1b11fb22a7",
-"out": "fbe16488f6b5abbf"
+"out": "6d8cc056ee2f16ef"
 },
 "export": {
 "en": "1e5d8f64a99fc7a0",
@@ -282,7 +282,7 @@
 },
 "formatting-text": {
 "en": "25c4667bfb12b3fa",
-"out": "4ed32dbb2d635067"
+"out": "b0b226540ac2eb6d"
 },
 "graphics-manager": {
 "en": "12e520565b4c39d0",
@@ -302,7 +302,7 @@
 },
 "keyboard": {
 "en": "f0d5b70118cb7663",
-"out": "0e68c8d639876e40"
+"out": "31de73bca2a88d84"
 },
 "linked-text": {
 "en": "9467e29d9533a19a",
@@ -322,7 +322,7 @@
 },
 "open-save": {
 "en": "fe98ce3bdb97b69a",
-"out": "fa65c893feedef91"
+"out": "cc1710c521b981a5"
 },
 "options": {
 "en": "867ec52252be4e5a",
@@ -346,7 +346,7 @@
 },
 "printing": {
 "en": "4d528756a470feef",
-"out": "889654673579a066"
+"out": "2b37affe7fe785cc"
 },
 "proofing": {
 "en": "a510fbe7c53b5f1e",
@@ -390,7 +390,7 @@
 },
 "tab-home": {
 "en": "a13a2ff10141fbbf",
-"out": "12e7328e7de701d2"
+"out": "f3b79fff80b36417"
 },
 "tab-insert": {
 "en": "a2968b7def1f8ae3",
@@ -446,11 +446,11 @@
 },
 "text-boxes": {
 "en": "86a86d9bbfdf3b9e",
-"out": "23b91e4a730cb0fb"
+"out": "38ff3010129370e9"
 },
 "window": {
 "en": "15e5a1d4fdce9627",
-"out": "5556d5977407e0c1"
+"out": "c975a6b6225db203"
 },
 "wrap": {
 "en": "e2260ea2c023d763",
@@ -486,7 +486,7 @@
 },
 "write/format-painter": {
 "en": "de3fc05686110657",
-"out": "6d9c7825adfe215f"
+"out": "befe633aa7e1304e"
 },
 "write/go-to-and-move-text": {
 "en": "1ed74b8821b13775",
@@ -498,7 +498,7 @@
 },
 "write/index": {
 "en": "652901956efe46dd",
-"out": "af0e921c64be94d9"
+"out": "46c3cbfc19e13019"
 },
 "write/keyboard": {
 "en": "62882ed7b9faf46c",
@@ -538,11 +538,11 @@
 },
 "write/start": {
 "en": "459da4ea2aebfa57",
-"out": "fe8b0057c12f9c8e"
+"out": "623ccf7d39508fee"
 },
 "write/styles": {
 "en": "95fd1751fa24e530",
-"out": "508067724840e808"
+"out": "1ddd0f15b3d990a6"
 },
 "write/table-of-contents": {
 "en": "1ce2b411a8635b08",
@@ -550,7 +550,7 @@
 },
 "write/tables": {
 "en": "7d56ef0c246c65f0",
-"out": "424a9d9887f3e4bb"
+"out": "ff65dccdaae6d76b"
 },
 "write/track-changes": {
 "en": "43d9a8b6dabed21b",

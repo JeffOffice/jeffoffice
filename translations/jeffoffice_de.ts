@@ -5463,7 +5463,7 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+0"/>
         <source>pivot tables</source>
-        <translation type="unfinished">PivotTables</translation>
+        <translation type="unfinished">Pivot-Tabellen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -5618,7 +5618,7 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location filename="../apps/crunch/core/editstruct.cpp" line="-35"/>
         <source>That would move or change a pivot table, which JeffCrunch can&apos;t do yet. Change cells that are not part of it.</source>
-        <translation type="unfinished">Dadurch würde eine PivotTable verschoben oder geändert, was JeffCrunch noch nicht kann. Ändern Sie Zellen, die nicht dazu gehören.</translation>
+        <translation type="unfinished">Dadurch würde eine Pivot-Tabelle verschoben oder geändert, was JeffCrunch noch nicht kann. Ändern Sie Zellen, die nicht dazu gehören.</translation>
     </message>
     <message>
         <location line="+44"/>
@@ -5893,7 +5893,7 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+1"/>
         <source>using pivot tables</source>
-        <translation type="unfinished">PivotTables verwenden</translation>
+        <translation type="unfinished">Pivot-Tabellen verwenden</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6045,7 +6045,7 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+5"/>
         <source>Those cells are in a pivot table, so they can&apos;t be a table.</source>
-        <translation type="unfinished">Diese Zellen befinden sich in einer PivotTable und können daher keine Tabelle werden.</translation>
+        <translation type="unfinished">Diese Zellen befinden sich in einer Pivot-Tabelle und können daher keine Tabelle werden.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -6259,28 +6259,28 @@ Artikel auf der Rückseite	4</translation>
         <location filename="../apps/crunch/core/editpivot.cpp" line="+72"/>
         <location line="+220"/>
         <source>JeffCrunch can&apos;t read this pivot table.</source>
-        <translation type="unfinished">JeffCrunch kann diese PivotTable nicht lesen.</translation>
+        <translation type="unfinished">JeffCrunch kann diese Pivot-Tabelle nicht lesen.</translation>
     </message>
     <message>
         <location line="-216"/>
         <source>This pivot table has lost the data it is made from.</source>
-        <translation type="unfinished">Die Daten, auf denen diese PivotTable beruht, sind nicht mehr vorhanden.</translation>
+        <translation type="unfinished">Die Daten, auf denen diese Pivot-Tabelle beruht, sind nicht mehr vorhanden.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>JeffCrunch can&apos;t read the data this pivot table is made from (%1).</source>
-        <translation type="unfinished">JeffCrunch kann die Daten, auf denen diese PivotTable beruht, nicht lesen (%1).</translation>
+        <translation type="unfinished">JeffCrunch kann die Daten, auf denen diese Pivot-Tabelle beruht, nicht lesen (%1).</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+4"/>
         <source>This pivot table uses %1, which JeffCrunch doesn&apos;t work out yet. It stays as it is.</source>
-        <translation type="unfinished">Diese PivotTable verwendet %1, was JeffCrunch noch nicht berechnen kann. Sie bleibt unverändert.</translation>
+        <translation type="unfinished">Diese Pivot-Tabelle verwendet %1, was JeffCrunch noch nicht berechnen kann. Sie bleibt unverändert.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This pivot table shows a value as a percent, a difference, or a rank, which JeffCrunch doesn&apos;t work out yet. It stays as it is.</source>
-        <translation type="unfinished">Diese PivotTable zeigt einen Wert als Prozentsatz, Differenz oder Rang an, was JeffCrunch noch nicht berechnen kann. Sie bleibt unverändert.</translation>
+        <translation type="unfinished">Diese Pivot-Tabelle zeigt einen Wert als Prozentsatz, Differenz oder Rang an, was JeffCrunch noch nicht berechnen kann. Sie bleibt unverändert.</translation>
     </message>
     <message>
         <location line="+59"/>
@@ -6316,55 +6316,55 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+19"/>
         <source>The data of this pivot table is in another workbook, which JeffCrunch does not open, so it can&apos;t be read again here. The table keeps the values the file has. To read it from this workbook, use Change Data Source.</source>
-        <translation type="unfinished">Die Daten dieser PivotTable befinden sich in einer anderen Arbeitsmappe, die JeffCrunch nicht öffnet. Sie können daher hier nicht erneut gelesen werden. Die Tabelle behält die in der Datei gespeicherten Werte. Um die Daten aus dieser Arbeitsmappe zu lesen, verwenden Sie „Datenquelle ändern“.</translation>
+        <translation type="unfinished">Die Daten dieser Pivot-Tabelle befinden sich in einer anderen Arbeitsmappe, die JeffCrunch nicht öffnet. Sie können daher hier nicht erneut gelesen werden. Die Tabelle behält die in der Datei gespeicherten Werte. Um die Daten aus dieser Arbeitsmappe zu lesen, verwenden Sie „Datenquelle ändern“.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>The sheet this pivot table is made from is not in the workbook any more.</source>
-        <translation type="unfinished">Das Blatt, auf dem diese PivotTable beruht, ist nicht mehr in der Arbeitsmappe vorhanden.</translation>
+        <translation type="unfinished">Das Blatt, auf dem diese Pivot-Tabelle beruht, ist nicht mehr in der Arbeitsmappe vorhanden.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>JeffCrunch can&apos;t find the data this pivot table is made from.</source>
-        <translation type="unfinished">JeffCrunch kann die Daten, auf denen diese PivotTable beruht, nicht finden.</translation>
+        <translation type="unfinished">JeffCrunch kann die Daten, auf denen diese Pivot-Tabelle beruht, nicht finden.</translation>
     </message>
     <message>
         <location line="+36"/>
         <location line="+478"/>
         <source>JeffCrunch can&apos;t read the data this pivot table is made from.</source>
-        <translation type="unfinished">JeffCrunch kann die Daten, auf denen diese PivotTable beruht, nicht lesen.</translation>
+        <translation type="unfinished">JeffCrunch kann die Daten, auf denen diese Pivot-Tabelle beruht, nicht lesen.</translation>
     </message>
     <message>
         <location line="-440"/>
         <source>This pivot table can&apos;t be worked out: %1.</source>
-        <translation type="unfinished">Diese PivotTable kann nicht berechnet werden: %1.</translation>
+        <translation type="unfinished">Diese Pivot-Tabelle kann nicht berechnet werden: %1.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>There is no room above the pivot table for its filters. Move the table down first.</source>
-        <translation type="unfinished">Über der PivotTable ist kein Platz für ihre Filter. Verschieben Sie die Tabelle zuerst nach unten.</translation>
+        <translation type="unfinished">Über der Pivot-Tabelle ist kein Platz für ihre Filter. Verschieben Sie die Tabelle zuerst nach unten.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>The pivot table would go past the edge of the sheet.</source>
-        <translation type="unfinished">Die PivotTable würde über den Rand des Blatts hinausreichen.</translation>
+        <translation type="unfinished">Die Pivot-Tabelle würde über den Rand des Blatts hinausreichen.</translation>
     </message>
     <message>
         <location line="+49"/>
         <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
-        <translation type="unfinished">Die PivotTable würde Zellen mit Inhalt überdecken (%1). Leeren Sie diese Zellen oder verschieben Sie die PivotTable, und versuchen Sie es erneut.</translation>
+        <translation type="unfinished">Die Pivot-Tabelle würde Zellen mit Inhalt überdecken (%1). Leeren Sie diese Zellen oder verschieben Sie die Pivot-Tabelle, und versuchen Sie es erneut.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The pivot table would be larger than JeffCrunch changes at once.</source>
-        <translation type="unfinished">Die PivotTable wäre größer, als JeffCrunch auf einmal ändern kann.</translation>
+        <translation type="unfinished">Die Pivot-Tabelle wäre größer, als JeffCrunch auf einmal ändern kann.</translation>
     </message>
     <message>
         <location line="+111"/>
         <location line="+297"/>
         <source>These pivot tables were not refreshed:
 %1</source>
-        <translation type="unfinished">Diese PivotTables wurden nicht aktualisiert:
+        <translation type="unfinished">Diese Pivot-Tabellen wurden nicht aktualisiert:
 %1</translation>
     </message>
     <message>
@@ -6385,12 +6385,12 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+1"/>
         <source>There is too much data for a pivot table.</source>
-        <translation type="unfinished">Für eine PivotTable sind zu viele Daten vorhanden.</translation>
+        <translation type="unfinished">Für eine Pivot-Tabelle sind zu viele Daten vorhanden.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>There is too much data to make a pivot table of in one step (more than %1 million cells). Use fewer rows or columns.</source>
-        <translation type="unfinished">Es sind zu viele Daten vorhanden, um in einem Schritt eine PivotTable zu erstellen (mehr als %1 Millionen Zellen). Verwenden Sie weniger Zeilen oder Spalten.</translation>
+        <translation type="unfinished">Es sind zu viele Daten vorhanden, um in einem Schritt eine Pivot-Tabelle zu erstellen (mehr als %1 Millionen Zellen). Verwenden Sie weniger Zeilen oder Spalten.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -6400,53 +6400,53 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+8"/>
         <source>Pick a sheet of cells for the pivot table.</source>
-        <translation type="unfinished">Wählen Sie ein Tabellenblatt für die PivotTable aus.</translation>
+        <translation type="unfinished">Wählen Sie ein Tabellenblatt für die Pivot-Tabelle aus.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>There is no room for a pivot table there.</source>
-        <translation type="unfinished">Dort ist kein Platz für eine PivotTable.</translation>
+        <translation type="unfinished">Dort ist kein Platz für eine Pivot-Tabelle.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The pivot table would cover some of the data it is made from (%1). Pick a place that is clear of the data.</source>
-        <translation type="unfinished">Die PivotTable würde einen Teil der Daten überdecken, auf denen sie beruht (%1). Wählen Sie eine Stelle außerhalb der Daten.</translation>
+        <translation type="unfinished">Die Pivot-Tabelle würde einen Teil der Daten überdecken, auf denen sie beruht (%1). Wählen Sie eine Stelle außerhalb der Daten.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>There is a pivot table there already. Pick a cell that is clear of it.</source>
-        <translation type="unfinished">Dort befindet sich bereits eine PivotTable. Wählen Sie eine Zelle außerhalb davon.</translation>
+        <translation type="unfinished">Dort befindet sich bereits eine Pivot-Tabelle. Wählen Sie eine Zelle außerhalb davon.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>There is something in the cells a pivot table would cover (%1). Pick a clear place.</source>
-        <translation type="unfinished">Die Zellen, die eine PivotTable überdecken würde, enthalten bereits Inhalt (%1). Wählen Sie eine leere Stelle.</translation>
+        <translation type="unfinished">Die Zellen, die eine Pivot-Tabelle überdecken würde, enthalten bereits Inhalt (%1). Wählen Sie eine leere Stelle.</translation>
     </message>
     <message>
         <location line="+8"/>
         <location line="+27"/>
         <source>Pivot Table %1</source>
-        <translation type="unfinished">PivotTable %1</translation>
+        <translation type="unfinished">Pivot-Tabelle %1</translation>
     </message>
     <message>
         <location line="-10"/>
         <source>The pivot table could not be made: %1.</source>
-        <translation type="unfinished">Die PivotTable konnte nicht erstellt werden: %1.</translation>
+        <translation type="unfinished">Die Pivot-Tabelle konnte nicht erstellt werden: %1.</translation>
     </message>
     <message>
         <location line="+35"/>
         <source>Create Pivot Table</source>
-        <translation type="unfinished">PivotTable erstellen</translation>
+        <translation type="unfinished">Pivot-Tabelle erstellen</translation>
     </message>
     <message>
         <location line="+128"/>
         <source>This pivot table uses %1, which JeffCrunch can&apos;t read again yet.</source>
-        <translation type="unfinished">Diese PivotTable verwendet %1, was JeffCrunch noch nicht erneut lesen kann.</translation>
+        <translation type="unfinished">Diese Pivot-Tabelle verwendet %1, was JeffCrunch noch nicht erneut lesen kann.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>JeffCrunch can&apos;t read a pivot table made from this data.</source>
-        <translation type="unfinished">JeffCrunch kann keine PivotTable lesen, die auf diesen Daten beruht.</translation>
+        <translation type="unfinished">JeffCrunch kann keine Pivot-Tabelle lesen, die auf diesen Daten beruht.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -6459,17 +6459,17 @@ Artikel auf der Rückseite	4</translation>
         <location line="+23"/>
         <location line="+38"/>
         <source>There is no pivot table here.</source>
-        <translation type="unfinished">Hier ist keine PivotTable vorhanden.</translation>
+        <translation type="unfinished">Hier ist keine Pivot-Tabelle vorhanden.</translation>
     </message>
     <message>
         <location line="-98"/>
         <source>Refresh Pivot Table</source>
-        <translation type="unfinished">PivotTable aktualisieren</translation>
+        <translation type="unfinished">Pivot-Tabelle aktualisieren</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>There are no pivot tables in this workbook that JeffCrunch can read again.</source>
-        <translation type="unfinished">Diese Arbeitsmappe enthält keine PivotTables, die JeffCrunch erneut lesen kann.</translation>
+        <translation type="unfinished">Diese Arbeitsmappe enthält keine Pivot-Tabellen, die JeffCrunch erneut lesen kann.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6479,7 +6479,7 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+27"/>
         <source>Change Pivot Table Data Source</source>
-        <translation type="unfinished">PivotTable-Datenquelle ändern</translation>
+        <translation type="unfinished">Pivot-Tabellen-Datenquelle ändern</translation>
     </message>
     <message>
         <location line="+70"/>
@@ -6489,7 +6489,7 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location line="+0"/>
         <source>Clear Pivot Table</source>
-        <translation type="unfinished">PivotTable löschen</translation>
+        <translation type="unfinished">Pivot-Tabelle löschen</translation>
     </message>
 </context>
 <context>
@@ -11866,7 +11866,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
     <message>
         <location line="+3"/>
         <source>Pivot Table</source>
-        <translation type="unfinished">PivotTable</translation>
+        <translation type="unfinished">Pivot-Tabelle</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12579,7 +12579,7 @@ Open it in your email program, add recipients and send.</source>
         <location line="+1"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+1"/>
         <source>pivot tables</source>
-        <translation type="unfinished">PivotTables</translation>
+        <translation type="unfinished">Pivot-Tabellen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -21491,7 +21491,7 @@ Die Datei kann nicht gelesen werden.</translation>
         <location line="+7"/>
         <location line="+139"/>
         <source>Pivot Table</source>
-        <translation type="unfinished">PivotTable</translation>
+        <translation type="unfinished">Pivot-Tabelle</translation>
     </message>
     <message>
         <location line="-146"/>
@@ -21499,33 +21499,33 @@ Die Datei kann nicht gelesen werden.</translation>
         <location line="+15"/>
         <location line="+98"/>
         <source>Click a cell in a pivot table first.</source>
-        <translation type="unfinished">Klicken Sie zuerst auf eine Zelle in einer PivotTable.</translation>
+        <translation type="unfinished">Klicken Sie zuerst auf eine Zelle in einer Pivot-Tabelle.</translation>
     </message>
     <message>
         <location line="-181"/>
         <location line="+9"/>
         <source>Create Pivot Table</source>
-        <translation type="unfinished">PivotTable erstellen</translation>
+        <translation type="unfinished">Pivot-Tabelle erstellen</translation>
     </message>
     <message>
         <location line="-9"/>
         <source>Type a cell for the pivot table, for example J10 or Sheet2!A3.</source>
-        <translation type="unfinished">Geben Sie eine Zelle für die PivotTable ein, zum Beispiel J10 oder Tabelle2!A3.</translation>
+        <translation type="unfinished">Geben Sie eine Zelle für die Pivot-Tabelle ein, zum Beispiel J10 oder Tabelle2!A3.</translation>
     </message>
     <message>
         <location line="+42"/>
         <source>Pivot Table Options…</source>
-        <translation type="unfinished">PivotTable-Optionen…</translation>
+        <translation type="unfinished">Pivot-Tabellen-Optionen…</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Pivot Table Options</source>
-        <translation type="unfinished">PivotTable-Optionen</translation>
+        <translation type="unfinished">Pivot-Tabellen-Optionen</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Write GETPIVOTDATA when I click a value of a pivot table while typing a formula</source>
-        <translation type="unfinished">PIVOTDATENZUORDNEN schreiben, wenn ich beim Eingeben einer Formel auf einen Wert einer PivotTable klicke</translation>
+        <translation type="unfinished">PIVOTDATENZUORDNEN schreiben, wenn ich beim Eingeben einer Formel auf einen Wert einer Pivot-Tabelle klicke</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -21554,7 +21554,7 @@ Die Datei kann nicht gelesen werden.</translation>
     <message>
         <location line="-3"/>
         <source>Change Pivot Table Data Source</source>
-        <translation type="unfinished">PivotTable-Datenquelle ändern</translation>
+        <translation type="unfinished">Pivot-Tabellen-Datenquelle ändern</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -21653,7 +21653,7 @@ Die Datei kann nicht gelesen werden.</translation>
     <message>
         <location line="-32"/>
         <source>This pivot table has no values to set.</source>
-        <translation type="unfinished">Diese PivotTable hat keine Werte zum Festlegen.</translation>
+        <translation type="unfinished">Diese Pivot-Tabelle hat keine Werte zum Festlegen.</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -21668,7 +21668,7 @@ Die Datei kann nicht gelesen werden.</translation>
     <message>
         <location line="+12"/>
         <source>Pivot Table Fields</source>
-        <translation type="unfinished">PivotTable-Felder</translation>
+        <translation type="unfinished">Pivot-Tabellen-Felder</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_point.cpp" line="-2"/>
@@ -33581,7 +33581,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-307"/>
         <source>Create Pivot Table</source>
-        <translation type="unfinished">PivotTable erstellen</translation>
+        <translation type="unfinished">Pivot-Tabelle erstellen</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -33601,7 +33601,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+6"/>
         <source>Where the pivot table goes:</source>
-        <translation type="unfinished">Position der PivotTable:</translation>
+        <translation type="unfinished">Position der Pivot-Tabelle:</translation>
     </message>
 </context>
 <context>
@@ -33669,7 +33669,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+6"/>
         <source>Pivot table fields</source>
-        <translation type="unfinished">PivotTable-Felder</translation>
+        <translation type="unfinished">Pivot-Tabellen-Felder</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -33741,7 +33741,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+46"/>
         <source>Click a pivot table to see its fields.</source>
-        <translation type="unfinished">Klicken Sie auf eine PivotTable, um ihre Felder anzuzeigen.</translation>
+        <translation type="unfinished">Klicken Sie auf eine Pivot-Tabelle, um ihre Felder anzuzeigen.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -33756,20 +33756,20 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+22"/>
         <source>Add Field to Pivot Table</source>
-        <translation type="unfinished">Feld zur PivotTable hinzufügen</translation>
+        <translation type="unfinished">Feld zur Pivot-Tabelle hinzufügen</translation>
     </message>
     <message>
         <location line="+8"/>
         <location line="+15"/>
         <source>Remove Field from Pivot Table</source>
-        <translation type="unfinished">Feld aus PivotTable entfernen</translation>
+        <translation type="unfinished">Feld aus Pivot-Tabelle entfernen</translation>
     </message>
     <message>
         <location line="+17"/>
         <location line="+20"/>
         <location line="+20"/>
         <source>Move Field in Pivot Table</source>
-        <translation type="unfinished">Feld in PivotTable verschieben</translation>
+        <translation type="unfinished">Feld in Pivot-Tabelle verschieben</translation>
     </message>
 </context>
 <context>
@@ -33963,7 +33963,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+1"/>
         <source>Work with pivot tables</source>
-        <translation type="unfinished">PivotTables verwenden</translation>
+        <translation type="unfinished">Pivot-Tabellen verwenden</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -38605,7 +38605,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+1"/>
         <source>Gives the value a pivot table shows for a value and the items of its rows and columns. A cell of the table is the second argument; the fields named must be the first ones of the rows or of the columns.</source>
-        <translation type="unfinished">Gibt den Wert zurück, den eine PivotTable für einen Wert und die Elemente ihrer Zeilen und Spalten anzeigt. Das zweite Argument ist eine Zelle der Tabelle; die angegebenen Felder müssen die ersten Felder der Zeilen oder der Spalten sein.</translation>
+        <translation type="unfinished">Gibt den Wert zurück, den eine Pivot-Tabelle für einen Wert und die Elemente ihrer Zeilen und Spalten anzeigt. Das zweite Argument ist eine Zelle der Tabelle; die angegebenen Felder müssen die ersten Felder der Zeilen oder der Spalten sein.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -39435,12 +39435,12 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+1"/>
         <source>The name of the value to give, in quotes, as the pivot table shows it (&quot;Sum of Amount&quot;).</source>
-        <translation type="unfinished">Der Name des zurückzugebenden Werts in Anführungszeichen, wie ihn die PivotTable anzeigt (&quot;Summe von Betrag&quot;).</translation>
+        <translation type="unfinished">Der Name des zurückzugebenden Werts in Anführungszeichen, wie ihn die Pivot-Tabelle anzeigt (&quot;Summe von Betrag&quot;).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Any cell of the pivot table.</source>
-        <translation type="unfinished">Eine beliebige Zelle der PivotTable.</translation>
+        <translation type="unfinished">Eine beliebige Zelle der Pivot-Tabelle.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -40452,7 +40452,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+1"/>
         <source>pivot tables</source>
-        <translation type="unfinished">PivotTables</translation>
+        <translation type="unfinished">Pivot-Tabellen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -41366,7 +41366,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+1"/>
         <source>pivot tables</source>
-        <translation type="unfinished">PivotTables</translation>
+        <translation type="unfinished">Pivot-Tabellen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -41657,7 +41657,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="+53"/>
         <source>A pivot table could not be put in the file&apos;s list of parts.</source>
-        <translation type="unfinished">Eine PivotTable konnte nicht in die Teileliste der Datei aufgenommen werden.</translation>
+        <translation type="unfinished">Eine Pivot-Tabelle konnte nicht in die Teileliste der Datei aufgenommen werden.</translation>
     </message>
     <message>
         <location line="+100"/>

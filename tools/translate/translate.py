@@ -69,7 +69,7 @@ PRICES = {
     "claude-opus-4-8": (5.0, 25.0, 0.50, 6.25),
 }
 
-BANNED = re.compile(r"\b(Microsoft|Publisher|Office|Word|Excel|PowerPoint|WordArt)\b")
+BANNED = re.compile(r"\b(Microsoft|Publisher|Office|Word|Excel|PowerPoint|WordArt|PivotTables?|AutoSum|AutoFit|Format Painter|AutoRecover|Quick Access Toolbar|Quick Parts)\b")
 
 
 def sha(text):
@@ -325,7 +325,8 @@ def glossary(lang, api, dry):
                   f"office and desktop publishing software. For each English term, give the term a {LANGUAGES[lang]} "
                   "user sees in such programs, as it would appear in a menu or on a ribbon tab (keep its capitalization "
                   "style for that language). Product names stay as they are; never use the name Microsoft, Publisher, "
-                  "Office, or WordArt. Text Art is this program's styled-text feature: translate it as a descriptive "
+                  "Office, or WordArt, nor the trademarked names PivotTable, AutoSum, AutoFit, Format Painter, AutoRecover, "
+                  "Quick Access Toolbar, or Quick Parts. Text Art is this program's styled-text feature: translate it as a descriptive "
                   "name, not a trademark.")
         schema = strict({"terms": {"type": "array", "items": strict({"en": STR, "tr": STR})}})
         got = api.ask(system, "Terms:\n" + "\n".join(missing), schema)
@@ -355,7 +356,7 @@ How to translate:
 - Keep each string's role. A command or button label stays short, in the grammatical form {name} software uses for such labels. A sentence stays a sentence; a title stays a title. Capitalize as {name} interfaces do (English Title Case does not carry over).
 - Keep every placeholder exactly as written (%1, %2, %L1, %n); you may move them. Keep HTML tags and entities, line breaks (\\n), and leading and trailing spaces. Keep a trailing colon or ellipsis.
 - An "&" right before a letter ("&Open") marks a keyboard shortcut: keep the same number of them, each before a letter of the translated word. An "&" with spaces around it ("Header & Footer") is just the word "and": write it as {name} interfaces do, and never turn it into a shortcut marker.
-- Product and format names stay as they are: JeffPub, JeffOffice, PDF, PDF/A, PDF/X, EPUB, SVG, PNG, JPEG, ISBN, EAN, UPC, CMYK, RGB, HSL, PANTONE, OpenType, Unicode, Markdown. Never name Microsoft, Publisher, Office, Word, Excel, PowerPoint, or WordArt.
+- Product and format names stay as they are: JeffPub, JeffOffice, PDF, PDF/A, PDF/X, EPUB, SVG, PNG, JPEG, ISBN, EAN, UPC, CMYK, RGB, HSL, PANTONE, OpenType, Unicode, Markdown. Never name Microsoft, Publisher, Office, Word, Excel, PowerPoint, or WordArt, and never use the trademarked feature names PivotTable, AutoSum, AutoFit, Format Painter, AutoRecover, Quick Access Toolbar, or Quick Parts (say pivot table, sum, fit, and so on).
 - Key names: as printed on {name} keyboards and written in {name} documentation (German, for example, writes Strg for Ctrl and Umschalt for Shift).
 - An item with "plural": true contains %n. Put its forms in "forms": first the singular, then the plural; leave "text" empty. For every other item, put the translation in "text" and leave "forms" empty.
 - Each item says where it appears ("context" is the part of the program, "file" its source file) and may carry a developer's "note". Use them to pick the right meaning. Strings from "Templates" are sample text in built-in designs (business names, slogans, placeholder text): translate them naturally for {name} readers.
@@ -566,7 +567,7 @@ How to translate:
 - When the text names a command, tab, group, button, box, or dialog, use exactly the {name} label the program shows, from "Program text" below (where it lists two, separated by |, pick the one that fits: the command or the noun); for one not listed, translate consistently with the glossary.
 - Keyboard shortcuts: write key names as {name} keyboards print them (German, for example, writes Strg+C), keeping the + between keys.
 - Measurements: {name} readers measure in centimeters, and {app} shows them centimeters unless they choose otherwise. Give lengths, sizes, and distances in centimeters (millimeters for small ones), converting from inches (1 inch = 2.54 cm) and rounding as {name} documentation would (2 inches becomes 5 cm; a quarter inch, 0.6 cm). Where an example depends on US paper sizes (Letter, half-letter), use A4 and A5 instead when the example works the same way. Units that name a measure stay as they are: points, picas, ppi and dpi (pixels or dots per inch), and a point being 1/72 inch.
-- Keep file names, file extensions, code, and web addresses as they are. Product and format names stay as they are ({app}, PDF, EPUB, CMYK...). Never name Microsoft, Publisher, Office, Word, Excel, PowerPoint, or WordArt.
+- Keep file names, file extensions, code, and web addresses as they are. Product and format names stay as they are ({app}, PDF, EPUB, CMYK...). Never name Microsoft, Publisher, Office, Word, Excel, PowerPoint, or WordArt, and never use the trademarked feature names PivotTable, AutoSum, AutoFit, Format Painter, AutoRecover, Quick Access Toolbar, or Quick Parts (say pivot table, sum, fit, and so on).
 - Write plainly, as good {name} software documentation does, addressing the reader the way {name} software documentation usually does.
 
 Glossary (English = {name}):
