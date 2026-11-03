@@ -863,7 +863,9 @@ private Q_SLOTS:
         if (dir.isEmpty()) QSKIP("set JC_SHOT_DIR to take the pictures");
         QDir().mkpath(dir);
         EditWindow e;
-        QVERIFY(e.open(pivotWorkbook()));
+        PivotBookOptions shotOptions;
+        shotOptions.styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/>"));
+        QVERIFY(e.open(pivotWorkbook(shotOptions)));
         e.win.w.resize(1440, 900);
         e.win.w.show();
         crunch::EditSession *s = e.win.w.session();
@@ -888,6 +890,7 @@ private Q_SLOTS:
         finish(e);
         e.win.w.act(QStringLiteral("insert.pivotChart"))->trigger();
         finish(e);
+        QTest::qWait(400);   // (a picture only: the chart is drawn when the event loop gets to it)
         QCoreApplication::processEvents();
         e.win.w.grab().save(dir + QStringLiteral("/pivot-percent-and-chart.png"));
         // the dialogs
