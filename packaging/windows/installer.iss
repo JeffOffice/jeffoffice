@@ -199,6 +199,7 @@ var
   PresetFolder: String;
   DescLabel: TNewStaticText;
   ListFixed: Boolean;
+  StatsPreset: Boolean;
 
 #define Pfx ""
 #include "shared.isi"
@@ -376,7 +377,6 @@ begin
   if I >= 0 then
     WizardForm.TasksList.Checked[I] := False;
   PresetApps(WizardDirValue);
-  PresetStats;
   // The description of the chosen app sits under the list.
   DescLabel := TNewStaticText.Create(WizardForm);
   DescLabel.Parent := WizardForm.SelectComponentsPage;
@@ -445,6 +445,15 @@ begin
       DescLabel.SetBounds(L.Left, L.Top + L.Height + ScaleY(8), L.Width, ScaleY(38));
     end;
     DescLabel.Caption := Described(L.ItemIndex);
+  end
+  else if CurPageID = wpSelectTasks then
+  begin
+    // Setup builds the tasks list again after the components page, so the statistics preset is made when it is shown.
+    if not StatsPreset then
+    begin
+      StatsPreset := True;
+      PresetStats;
+    end;
   end
   else if CurPageID = wpFinished then
     WizardForm.FinishedLabel.Caption := FinishText;
