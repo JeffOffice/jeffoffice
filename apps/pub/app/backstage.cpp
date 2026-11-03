@@ -1300,7 +1300,7 @@ QWidget *Backstage::buildAbout()
 #ifdef Q_OS_WIN
         {"MinGW-w64 runtime", "https://www.mingw-w64.org/", tr("C++ runtime"), "GPL-3.0 with GCC Runtime Library Exception; MIT",
          "https://www.gnu.org/licenses/gcc-exception-3.1.html"},
-        {"NSIS", "https://nsis.sourceforge.io/", tr("Installer"), "zlib/libpng license", "https://nsis.sourceforge.io/License"},
+        {"Inno Setup", "https://jrsoftware.org/isinfo.php", tr("Installer"), "Inno Setup License", "https://jrsoftware.org/files/is/license.txt"},
 #endif
         {"LibreTranslate", "https://libretranslate.com/", tr("Translate (opens in your browser)"), "AGPL-3.0", "https://www.gnu.org/licenses/agpl-3.0.html"},
         {"PSO Coated v3 color profile", "https://www.eci.org/", tr("PDF/X-4 (downloaded from the European Color Initiative)"), "ECI's terms", "https://www.eci.org/"},
