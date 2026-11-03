@@ -236,7 +236,7 @@ def find_override(overrides, app, text):
 
 SYSTEM = """You write the public feature pages of JeffOffice, a free, open-source office suite for Windows, macOS, and Linux with four apps: JeffPub (desktop publishing), JeffDeck (presentations), JeffWrite (documents), and JeffCrunch (spreadsheets). JeffMail and JeffBase are planned.
 
-You receive entries from an internal checklist, as JSON: id, kind ("heading", "feature", "partial", or "todo"), app (the app the entry is about), path (the app, tab, and group the entry sits in), text, and for items a note. For each entry return two public texts, each in English, Spanish, and French: "works" (what the app does today) and "soon" (what is not there yet).
+You receive entries from an internal checklist, as JSON: id, kind ("heading", "feature", "partial", "todo", or "translate"), app (the app the entry is about), path (the app, tab, and group the entry sits in), text, and for items a note. For each entry return two public texts, each in English, Spanish, and French: "works" (what the app does today) and "soon" (what is not there yet).
 
 The note is internal: it says how far the feature is, what works, and what is missing. Per kind:
 - "feature" (done): works = one or two plain sentences saying what the person can do in that app, in factual words a visitor and a search engine can both use; use the note only to avoid saying more than is true. soon = dropped.
@@ -246,6 +246,7 @@ The note is internal: it says how far the feature is, what works, and what is mi
 To drop a text, set its drop flag (works_drop or soon_drop) true and its three strings empty. Rules:
 - Wording of "soon" lines: plain present-tense names of the capability, no dates, no "will", no "coming soon", "planned", or "in progress" (the page's heading says it).
 - A note that says "shared: <another app>'s X" means X is built in that other app and is NOT in this app, unless the note itself says this app has it. Do not claim X for this app; for a "partial" or "todo" entry it belongs to "soon".
+- kind "translate": the entry has "fixed" English text for "works" and/or "soon" (the value "drop" means that part is dropped) and "was_kind", the kind it would otherwise have. For each part in "fixed": return the English unchanged and its Spanish and French translations (a dropped part: its drop flag true and empty strings). For a part not in "fixed", write it by the rules of "was_kind".
 - An entry may carry "fixed": English text for "works" and/or "soon" that is already correct and final. Return it unchanged in the English field (works: en; soon: soon_en), with its drop flag false (or true when the fixed value is "drop"), and translate it into Spanish and French, always, whatever the entry's kind says (a "todo" entry with a fixed "works" text still gets that text translated into es and fr; a "feature" entry with a fixed "soon" text likewise). For a part that is not in "fixed", follow the rules as usual.
 - Never write "the original", "the original program", or "original" to mean another product. Do not write SmartArt (say "diagrams"), WordArt or Text Art (say "text styles"), Tell Me (say "command search"), AutoFilter (say "filter"), or Flash Fill. Never mention command-line or developer tools (names ending in "tool"), fuzzing, "repair message", test collections, or counts of files tested; drop those entries.
 - The app is the one named in the entry's "app" field; whenever the sentence needs the app's name, use that name, and never another app's name. Do not mention other JeffOffice apps at all unless the source text itself does.
@@ -415,9 +416,9 @@ def reword(wanted, cache, dry_run, checkpoint):
     failed = {}
 
     def run(batch_keys):
-        entries = [dict({"id": i, "kind": todo[k]["kind"], "app": APPS[todo[k]["app"]]["name"], "path": todo[k]["path"], "text": todo[k]["text"]},
+        entries = [dict({"id": i, "kind": "translate" if todo[k].get("override") else todo[k]["kind"], "app": APPS[todo[k]["app"]]["name"], "path": todo[k]["path"], "text": todo[k]["text"]},
                         **({"note": todo[k]["note"]} if todo[k]["kind"] != "heading" else {}),
-                        **({"fixed": todo[k]["override"]} if todo[k].get("override") else {})) for i, k in enumerate(batch_keys)]
+                        **({"fixed": todo[k]["override"], "was_kind": todo[k]["kind"]} if todo[k].get("override") else {})) for i, k in enumerate(batch_keys)]
         by_id = dict(enumerate(batch_keys))
         accepted, bad = {}, {}
         for attempt in (1, 2):
