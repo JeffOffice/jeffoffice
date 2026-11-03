@@ -18,15 +18,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        name: [linux, windows, macos]
+        # Each system builds twice, side by side (the compiler cache makes the second build a few minutes): one job runs the tests, the other the app
+        # checks, the other checks, and the packaging. One after another they took 18 minutes.
+        part: [tests, checks]
         include:
-          - os: ubuntu-24.04
-            name: linux
-          - os: windows-2022
-            name: windows
+          - name: linux
+            os: ubuntu-24.04
+          - name: windows
+            os: windows-2022
           # One app for Apple silicon and Intel Macs (Qt's macOS build is
           # universal), unsigned for now.
-          - os: macos-15
-            name: macos
+          - name: macos
+            os: macos-15
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     steps:
@@ -101,17 +105,17 @@ jobs:
       # Each shared library uses only the ones below it (libs/base < draw <
       # text < office < shell < page < flow < apps), and no app reaches into another.
       - name: Layer check
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.part == 'checks'
         run: python3 tools/check_layers.py
 
       # Every text marked for translation is in a form lupdate sees, and none can stall it (the nightly translate.yml runs it over the whole tree).
       - name: Translation call check
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.part == 'checks'
         run: python3 tools/check_translate_calls.py
 
       # No text from a file, the clipboard, or the network is handed to a label, tip, or message box that may take it for markup (and read a picture it names).
       - name: Plain text check
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.part == 'checks'
         run: python3 tools/check_plain_text.py
 
       - name: Configure
@@ -139,6 +143,7 @@ jobs:
           if command -v ccache >/dev/null 2>&1; then ccache --show-stats; fi
 
       - name: Test
+        if: matrix.part == 'tests'
         timeout-minutes: 45
         shell: bash
         run: |
@@ -161,6 +166,7 @@ jobs:
       # once on a blank document and once on one opened from a file. The four programs run side by side (they wait on conditions, not on time, so a busy machine only makes them
       # slower), each with its own results file. A hang fails in minutes, not hours.
       - name: App checks
+        if: matrix.part == 'checks'
         timeout-minutes: 25
         shell: bash
         run: |
@@ -195,6 +201,7 @@ jobs:
           JP_TEST_TRACE: '1'
 
       - name: Export check PDFs
+        if: matrix.part == 'checks'
         shell: bash
         run: |
           # PDFs exported by this platform's build, to compare against Linux.
@@ -211,6 +218,7 @@ jobs:
           QT_QPA_PLATFORM: offscreen
 
       - uses: actions/upload-artifact@v4
+        if: matrix.part == 'checks'
         with:
           name: pdf-check-${{ matrix.name }}
           path: pdf-check
@@ -219,19 +227,19 @@ jobs:
       # itself so they match what Help shows. Every build makes them (a bad
       # link fails here, before a merge); the wiki job below publishes them.
       - name: Export Help for the wiki
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.part == 'checks'
         run: build/JeffPub --export-help-wiki help-wiki
         env:
           QT_QPA_PLATFORM: offscreen
 
       - uses: actions/upload-artifact@v4
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.part == 'checks'
         with:
           name: help-wiki
           path: help-wiki
 
       - name: Package (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.part == 'checks'
         shell: pwsh
         run: |
           # The suite's folder: both apps beside the Qt they share.
@@ -265,7 +273,7 @@ jobs:
           Copy-Item -Recurse third_party/ffmpeg/licenses dist/JeffOffice/licenses/ffmpeg
 
       - name: Installer (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.part == 'checks'
         shell: pwsh
         run: |
           $ver = (Select-String -Path CMakeLists.txt -Pattern 'project\(JeffPub VERSION ([0-9.]+)').Matches[0].Groups[1].Value
@@ -277,7 +285,7 @@ jobs:
           Move-Item packaging/windows/JeffOffice-Setup.exe installer/
 
       - uses: actions/upload-artifact@v4
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.part == 'checks'
         with:
           name: JeffOffice-Setup
           path: installer
@@ -285,7 +293,7 @@ jobs:
       # The command-line tool, for testing on Windows: it runs from the
       # program's folder (same DLLs). Not part of the release.
       - name: Developer tools (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.part == 'checks'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dev-tools | Out-Null
@@ -293,13 +301,13 @@ jobs:
           Copy-Item build/pdfium.dll dev-tools/
 
       - uses: actions/upload-artifact@v4
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.part == 'checks'
         with:
           name: JeffOffice-windows-tools
           path: dev-tools
 
       - name: Package (Linux)
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.part == 'checks'
         run: |
           mkdir -p dist/JeffOffice
           cp build/JeffPub build/JeffDeck LICENSE README.md dist/JeffOffice/
@@ -308,7 +316,7 @@ jobs:
           cp -r resources/fonts resources/dict dist/JeffOffice/
 
       - name: Linux packages (.deb and AppImage)
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.part == 'checks'
         run: |
           mkdir -p tools-bin
           curl -sSLo tools-bin/linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
@@ -343,13 +351,13 @@ jobs:
           ls -la linux-packages
 
       - uses: actions/upload-artifact@v4
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.part == 'checks'
         with:
           name: JeffOffice-linux-packages
           path: linux-packages
 
       - name: Package (macOS)
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && matrix.part == 'checks'
         run: |
           ver=$(sed -n 's/^project(JeffPub VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           mkdir -p dist macos-dmg
@@ -406,12 +414,13 @@ jobs:
           ls -la macos-dmg
 
       - uses: actions/upload-artifact@v4
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && matrix.part == 'checks'
         with:
           name: JeffOffice-macos-dmg
           path: macos-dmg
 
       - uses: actions/upload-artifact@v4
+        if: matrix.part == 'checks'
         with:
           name: JeffOffice-${{ matrix.name }}
           path: dist/JeffOffice
