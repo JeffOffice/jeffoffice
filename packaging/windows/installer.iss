@@ -19,6 +19,7 @@
 #define DeckSetKey "Software\JeffOffice\JeffDeck"
 #define WriteSetKey "Software\JeffOffice\JeffWrite"
 #define CrunchSetKey "Software\JeffOffice\JeffCrunch"
+#define TaskStats "Send anonymous usage statistics (never your files)"
 #define PubExts ".pub,.jpub"
 #define DeckExts ".pptx,.potx,.ppsx,.ppt,.pot,.pps,.odp,.otp"
 #define WriteExts ".docx,.docm,.dotx,.dotm,.doc,.dot,.odt,.ott,.rtf"
@@ -144,7 +145,7 @@ Name: "base"; Description: "JeffBase: databases (coming soon)"
 Name: "desktopicon"; Description: "Add shortcuts to the apps to your desktop"; GroupDescription: "Shortcuts:"
 Name: "jpub"; Description: "Open .jpub files with JeffPub"; GroupDescription: "File types:"
 Name: "pubdefault"; Description: "Make JeffPub the default for .pub files (off keeps your current program)"; GroupDescription: "File types:"
-Name: "stats"; Description: "Send anonymous usage statistics (never your files)"; GroupDescription: "Usage statistics:"
+Name: "stats"; Description: "{#TaskStats}"; GroupDescription: "Usage statistics:"
 
 [Dirs]
 ; The folder is removed with the program even when an earlier setup made it (NSIS, through 0.20.0).
@@ -295,9 +296,9 @@ var
 begin
   Old := GetDefaultDir('');
   if FileExists(Dir + '\JeffWrite.exe') or FileExists(Old + '\JeffWrite.exe') then
-    WizardSelectComponents('write');
+    WizardForm.ComponentsList.Checked[2] := True;
   if FileExists(Dir + '\JeffCrunch.exe') or FileExists(Old + '\JeffCrunch.exe') then
-    WizardSelectComponents('crunch');
+    WizardForm.ComponentsList.Checked[3] := True;
 end;
 
 // An update shows the choice already made: turned off in an app (or in JeffPub before it kept the choice for the
@@ -306,6 +307,7 @@ procedure PresetStats;
 var
   V: String;
   Found: Boolean;
+  I: Integer;
 begin
   V := '';
   Found := RegQueryStringValue(HKCU, '{#SuiteKey}\telemetry', 'enabled', V) and (V <> '');
@@ -320,7 +322,11 @@ begin
     Found := RegQueryStringValue(HKCU, 'Software\JeffPub79\JeffPub79\telemetry', 'enabled', V) and (V <> '');
   end;
   if Found and (V = 'false') then
-    WizardSelectTasks('!stats');
+  begin
+    I := WizardForm.TasksList.Items.IndexOf('{#TaskStats}');
+    if I >= 0 then
+      WizardForm.TasksList.Checked[I] := False;
+  end;
 end;
 
 // The apps not ready yet are listed, unticked, and can't be ticked.
@@ -342,10 +348,17 @@ begin
 end;
 
 procedure InitializeWizard;
+var
+  I: Integer;
 begin
   PresetFolder := '';
-  // With no setup types, every component would start ticked: only JeffPub and JeffDeck do.
-  WizardSelectComponents('!write,!crunch,!mail,!base');
+  // With no setup types every component starts ticked: only JeffPub and JeffDeck do. The same goes for the file type
+  // that makes JeffPub the default for .pub files: it starts unticked.
+  for I := 2 to 5 do
+    WizardForm.ComponentsList.Checked[I] := False;
+  I := WizardForm.TasksList.Items.IndexOf('Make JeffPub the default for .pub files (off keeps your current program)');
+  if I >= 0 then
+    WizardForm.TasksList.Checked[I] := False;
   PresetApps(WizardDirValue);
   PresetStats;
   // The description of the chosen app sits under the list.
@@ -394,6 +407,7 @@ end;
 procedure CurPageChanged(CurPageID: Integer);
 var
   L: TNewCheckListBox;
+  I: Integer;
 begin
   if CurPageID = wpSelectComponents then
   begin
@@ -407,7 +421,11 @@ begin
     if not ListFixed then
     begin
       ListFixed := True;
-      L.Height := L.Height - ScaleY(46);
+      // The list of setup types has nothing to choose: its room goes to the list.
+      WizardForm.TypesCombo.Visible := False;
+      I := L.Top - WizardForm.TypesCombo.Top;
+      L.Top := WizardForm.TypesCombo.Top;
+      L.Height := L.Height + I - ScaleY(46);
       DescLabel.SetBounds(L.Left, L.Top + L.Height + ScaleY(8), L.Width, ScaleY(38));
     end;
     DescLabel.Caption := Described(L.ItemIndex);
