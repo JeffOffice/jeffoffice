@@ -681,6 +681,29 @@ private Q_SLOTS:
         QVERIFY(!eml.contains("Bcc"));
     }
 
+    void highlightMergeFieldsShadesTheFieldsOnTheScreenOnly()
+    {
+        auto doc = open(makeDocx(para(run("Dear ") + field("MERGEFIELD First_Name", "\u00ABFirst_Name\u00BB") + run(","))));
+        QVERIFY(doc);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(std::move(doc), QString());
+        QAction *a = w.act(QStringLiteral("mail.highlight"));
+        QVERIFY(a);
+        QVERIFY(a->isCheckable());
+        QVERIFY(!a->isChecked());
+        QVERIFY(!w.view()->shadeFields());
+        const QImage plain = w.view()->viewport()->grab().toImage();
+        a->trigger();
+        QVERIFY(w.view()->shadeFields());
+        QTest::qWait(100);
+        QVERIFY(w.view()->viewport()->grab().toImage() != plain);
+        a->trigger();
+        QVERIFY(!w.view()->shadeFields());
+    }
+
     void theMatchedFieldsAreKeptInTheDataSourcesFieldMap()
     {
         const QByteArray ns = kNs;

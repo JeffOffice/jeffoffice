@@ -16,6 +16,7 @@ class SpellCheck;
 
 struct PageDrawing {
     int selectionFrom = -1, selectionTo = -1;   // the selected text, as positions in the document
+    bool shadeFields = false;                    // fields shaded (screen only)
     bool marks = false;                          // paragraph marks, tabs, and spaces drawn
     bool output = false;                         // a printer or a PDF: no screen-only marks
     TextOutput textOutput = TextOutput::Picture;

@@ -59,6 +59,8 @@ A **rule** makes a copy different for some people. Click **Rules** and pick one:
 
 Click **Mailings > Preview Results**. A pane opens that shows the page for one person. Use **First Record**, **Previous Record**, **Next Record**, and **Last Record** to go through the people, or type a number. **Find Recipient** jumps to the next person who has your words in a detail.
 
+**Highlight Merge Fields** shades the fields in your page gray so you can see where they are. It shades every field, not only merge fields. The shading shows on the screen and never prints.
+
 Your own document is not changed. **Check for Errors** tells you when the list has no column for a field, or when no one is included.
 
 ## Finish the merge

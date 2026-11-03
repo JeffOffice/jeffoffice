@@ -737,6 +737,7 @@ void WriteWindow::createMailActions()
     mk("mail.editList", tr("Edit Recipient List"), "user-pen", QKeySequence(), [m] { m->editList(); });
     mk("mail.addressBlock", tr("Address Block…"), "mail-open", QKeySequence(), [m] { m->addressBlock(); });
     mk("mail.greeting", tr("Greeting Line…"), "hand", QKeySequence(), [m] { m->greeting(); });
+    mk("mail.highlight", tr("Highlight Merge Fields"), "highlighter", QKeySequence(), [this] { m_view->setShadeFields(act("mail.highlight")->isChecked()); }, true);
     mk("mail.matchFields", tr("Match Fields…"), "arrow-left-right", QKeySequence(), [m] { m->matchFields(); });
     mk("mail.updateLabels", tr("Update Labels"), "refresh-cw", QKeySequence(), [m] { m->updateLabels(); });
     mk("mail.rule.if", tr("If…Then…Else…"), "", QKeySequence(), [m] { m->rule(QStringLiteral("IF")); });
