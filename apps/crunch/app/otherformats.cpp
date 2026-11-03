@@ -1,5 +1,6 @@
 #include "app/otherformats.h"
 
+#include "app/filetasks.h"
 #include "app/oldformat.h"
 #include "sheet/sheetreader.h"
 
@@ -7,12 +8,6 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-
-#ifdef Q_OS_WIN
-#include <windows.h>
-#else
-#include <sys/stat.h>
-#endif
 
 namespace jp::crunch {
 
@@ -218,51 +213,7 @@ QString csvExportWarning(const QString &sheetName, QChar separator, bool partial
     return text;
 }
 
-namespace {
-
-// Where a path really is: the file as it is (links followed), or for a file that is not there yet, its folder as it is with the file's name.
-QString placeOf(const QString &path)
-{
-    const QFileInfo info(path);
-    const QString real = info.canonicalFilePath();
-    if (!real.isEmpty()) return real;
-    const QString folder = QFileInfo(info.absolutePath()).canonicalFilePath();
-    return (folder.isEmpty() ? QDir::cleanPath(info.absolutePath()) : folder) + QLatin1Char('/') + info.fileName();
-}
-
-// Whether two names that both exist are one file on the disk (a hard link is a second name for the same file; the paths do not show it).
-bool sameFileOnDisk(const QString &a, const QString &b)
-{
-#ifdef Q_OS_WIN
-    auto identity = [](const QString &path, BY_HANDLE_FILE_INFORMATION *info) {
-        const HANDLE h = CreateFileW(reinterpret_cast<LPCWSTR>(QDir::toNativeSeparators(path).utf16()), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
-                                     FILE_FLAG_BACKUP_SEMANTICS, nullptr);
-        if (h == INVALID_HANDLE_VALUE) return false;
-        const bool ok = GetFileInformationByHandle(h, info) != 0;
-        CloseHandle(h);
-        return ok;
-    };
-    BY_HANDLE_FILE_INFORMATION x{}, y{};
-    return identity(a, &x) && identity(b, &y) && x.dwVolumeSerialNumber == y.dwVolumeSerialNumber && x.nFileIndexHigh == y.nFileIndexHigh && x.nFileIndexLow == y.nFileIndexLow;
-#else
-    struct stat x, y;
-    return ::stat(QFile::encodeName(a).constData(), &x) == 0 && ::stat(QFile::encodeName(b).constData(), &y) == 0 && x.st_dev == y.st_dev && x.st_ino == y.st_ino;
-#endif
-}
-
-} // namespace
-
-bool sameFile(const QString &a, const QString &b)
-{
-    if (a.isEmpty() || b.isEmpty()) return false;
-    // (the names of files are the same in capitals and small letters on the systems whose files are)
-#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
-    constexpr Qt::CaseSensitivity kCase = Qt::CaseInsensitive;
-#else
-    constexpr Qt::CaseSensitivity kCase = Qt::CaseSensitive;
-#endif
-    return QFileInfo(a) == QFileInfo(b) || placeOf(a).compare(placeOf(b), kCase) == 0 || sameFileOnDisk(a, b);
-}
+bool sameFile(const QString &a, const QString &b) { return jp::sameFile(a, b); }
 
 QString withPickedEnding(const QString &chosen, const QString &pickedFilter)
 {

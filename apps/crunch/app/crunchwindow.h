@@ -40,6 +40,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <QTemporaryFile>
 #include <memory>
 #include <set>
 #include <unordered_map>
@@ -115,6 +116,7 @@ public:
     // Shows the file dialog and opens what is chosen the way `how` says.
     void browseAndOpen(OpenHow how = OpenHow::Normal);
     void setReadOnly(bool on) override;
+    QString lastRepairFileForTest() const { return m_lastRepairFile; }
     bool isLoading() const { return m_loading; }
     // Makes the window hold a new, empty workbook (one sheet, "Sheet1", and a name like "Book1" until it is saved), read the way a file is: the calculation, the worker and the editing session
     // are the same. loadFinished says when it is ready. A window that is already showing a workbook is not changed (false).
@@ -593,6 +595,7 @@ private:
     // saving
     bool startSave(const QString &path);
     bool startCopy(const QString &path);
+    QString m_copyAsKind;   // the kind a copy being made is saved as, when it is not the kind of the ending alone (a template made from a workbook with macros)
     void onWorkbookCopyMade(bool ok, const QString &message, const QString &path);
     void onSaved(bool ok, const QString &message, const QString &path, const QByteArray &bytes, const std::shared_ptr<crunch::EditSession::Snapshot> &snapshot);
     bool askAboutChanges();
@@ -1080,6 +1083,9 @@ private:
     bool m_saving = false, m_closeAfterSave = false, m_closing = false;
     QPointer<QThread> m_saveThread;
     QString m_saveAfterCalculation;
+    // (the repaired package is kept in a file that goes with this object, whatever ends the open: the read, a failed read, another open, or the window)
+    std::unique_ptr<QTemporaryFile> m_repairTemp;
+    QString m_lastRepairFile;   // the name of the last one, for a test
     QString m_repairFile, m_repairName, m_repairNote;   // a file being opened with Open and Repair: the repaired package kept in a file for the reader, the original's name, and what was left out
     bool m_openAsCopy = false;             // the file being read is opened as a copy: when it is read, the workbook has no file of its own
     bool m_copyAfterCalculation = false;   // what waits for the calculation is a copy, not a save

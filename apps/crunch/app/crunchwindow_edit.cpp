@@ -79,7 +79,7 @@ void CrunchWindow::updateEditActions()
     act("edit.redo")->setToolTip(jp::plainToolTip(u && u->canRedo() ? tr("Redo %1 (%2)").arg(u->redoText(), QKeySequence(QKeySequence::Redo).toString(QKeySequence::NativeText)) : tr("Redo")));
     // (a chart sheet has no cells to work on: none of the commands that do is on while one is in view, and they are back on a sheet of cells)
     for (const QString &id : m_opsActions)
-        if (QAction *a = act(id)) a->setEnabled(open && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown);
+        if (QAction *a = act(id)) a->setEnabled((open || (m_session && !m_saving && isReadOnly() && commandAllowedReadOnly(id))) && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown);   // (Find and Go To work in a workbook open for reading only; Replace and the rest do not)
     for (const char *id : {"edit.copy", "edit.selectAll", "view.formulas", "view.gridlines", "view.headings", "view.freeze", "view.freezeRow", "view.freezeCol", "view.unfreeze"})
         if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(!m_chartSheetShown);
     const bool canSave = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty();

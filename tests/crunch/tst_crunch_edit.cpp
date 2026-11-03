@@ -1,6 +1,7 @@
 // Tests of editing in JeffCrunch's window: typing over a cell, in it (F2, a double click), and in the formula bar; the keys that finish or give up an entry; what typed numbers,
 // percents, money, dates, and times are given as values and formats; a formula that is not one; Delete; what depends on a cell worked out again by the worker; Undo and Redo; and saving
 // (Save, Save As, a save that fails, the question when a window with changes is closed). Every workbook is built here, in a temporary folder.
+#include "../isolatesettings.h"
 #include "app/crunchinfo.h"
 #include "app/crunchfilescreen.h"
 #include "app/crunchwindow.h"
@@ -9,6 +10,9 @@
 #include "app/help.h"
 #include "app/settings.h"
 #include "app/filetasks.h"
+#include "app/finddialog.h"
+#include <QLineEdit>
+#include <QPushButton>
 #include "app/otherformats.h"
 #include "io/zip.h"
 #include <QStandardPaths>
@@ -607,6 +611,175 @@ private Q_SLOTS:
         QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:1"));
     }
 
+    // In a workbook open for reading only, Replace and Replace All (the dialog is there for Find) change nothing, and the commands that change the workbook are refused.
+    void aReadOnlyWorkbookIsNotChangedByReplace()
+    {
+        EditWindow e;
+        e.path = e.folder.write(QStringLiteral("book.xlsx"), editBook());
+        QVERIFY(e.win.open(e.path, OpenHow::ReadOnly));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(!w.act(QStringLiteral("find.replace"))->isEnabled());
+        QVERIFY(!CrunchWindow::commandAllowedReadOnly(QStringLiteral("find.replace")));
+        const QString before = w.session()->editText(0, 0, 2);
+        QCOMPARE(before, QStringLiteral("hello"));
+        const int steps = w.undoStack()->count();
+        w.act(QStringLiteral("find.replace"))->trigger();
+        w.act(QStringLiteral("edit.find"))->trigger();   // (Find is allowed: its dialog has the Change buttons)
+        FindDialog *d = w.findDialog();
+        QVERIFY(d);
+        d->setTab(FindDialog::Tab::Replace);
+        d->findChild<QLineEdit *>(QStringLiteral("findText"))->setText(QStringLiteral("hello"));
+        d->findChild<QLineEdit *>(QStringLiteral("replaceText"))->setText(QStringLiteral("bye"));
+        e.select(QStringLiteral("C1"));
+        d->findChild<QPushButton *>(QStringLiteral("replaceOne"))->click();
+        d->findChild<QPushButton *>(QStringLiteral("replaceAll"))->click();
+        QTest::qWait(300);
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->editText(0, 0, 2), before);
+        QCOMPARE(w.undoStack()->count(), steps);
+        QVERIFY(!w.isModified());
+        // The commands that change it are off, or refused, one by one.
+        for (const QString &id : w.actionIds())
+            if (!CrunchWindow::commandAllowedReadOnly(id)) w.act(id)->trigger();
+        QCOMPARE(w.undoStack()->count(), steps);
+        QVERIFY(!w.isModified());
+        QCOMPARE(w.session()->editText(0, 0, 2), before);
+    }
+
+    // The package kept for the reader of an Open and Repair is removed when the read is over, when the window goes before then, and when the repair's own load fails: tied to an object, not to one path.
+    void theRepairFileGoesWithTheWindowOnEveryPath()
+    {
+        EditWindow e;
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(editBook(), parts));
+        const QString sheet = QStringLiteral("xl/worksheets/sheet1.xml");
+        parts[sheet].truncate(parts[sheet].indexOf("<row r=\"3\"") + 20);
+        jp::ZipWriter z;
+        z.add(QStringLiteral("[Content_Types].xml"), parts.take(QStringLiteral("[Content_Types].xml")), true);
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it) z.add(it.key(), it.value(), true);
+        const QString path = e.folder.write(QStringLiteral("cut.xlsx"), z.finish());
+        // (1) read to the end: the file is gone
+        QVERIFY(e.win.open(path, OpenHow::Repair));
+        const QString made = e.win.w.lastRepairFileForTest();
+        QVERIFY(!made.isEmpty());
+        QVERIFY(!QFileInfo::exists(made));
+        // (2) the window closes while the file is being read: the file goes with it
+        QString second;
+        {
+            CrunchWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            QVERIFY(w.openFile(path, OpenHow::Repair));
+            second = w.lastRepairFileForTest();
+            QVERIFY(!second.isEmpty() && second != made);
+            QVERIFY(QFileInfo::exists(second) || !w.isLoading());   // (the read may be over already on a fast machine)
+        }
+        QVERIFY(!QFileInfo::exists(second));
+        // (3) the read fails: no file is left
+        QString third;
+        {
+            CrunchWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            QSignalSpy loaded(&w, &CrunchWindow::loadFinished);
+            QMap<QString, QByteArray> bad;
+            bad.insert(QStringLiteral("xl/workbook.xml"), "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheets><sheet name=\"A\" sheetId=\"1\" r:id=\"rId9\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"/></sheets></workbook>");
+            jp::ZipWriter bz;
+            for (auto it = bad.cbegin(); it != bad.cend(); ++it) bz.add(it.key(), it.value(), true);
+            const QString badPath = e.folder.write(QStringLiteral("bad.xlsx"), bz.finish());
+            if (w.openFile(badPath, OpenHow::Repair)) {
+                third = w.lastRepairFileForTest();
+                QVERIFY(loaded.count() > 0 || loaded.wait(20000));
+            }
+        }
+        if (!third.isEmpty()) QVERIFY(!QFileInfo::exists(third));
+    }
+
+    // A template made from a workbook with macros is a plain template: no macro project, the plain template type, and the person is told first, as Save As tells.
+    void aTemplateMadeFromAMacroWorkbookHasNoMacros()
+    {
+        QByteArray macroBook;
+        {
+            QMap<QString, QByteArray> parts;
+            QVERIFY(readZip(editBook(), parts));
+            ZipWriter z;
+            for (auto it = parts.begin(); it != parts.end(); ++it) {
+                QByteArray data = it.value();
+                if (it.key() == QLatin1String("[Content_Types].xml"))
+                    data.replace("spreadsheetml.sheet.main+xml", "ms-excel.sheet.macroEnabled.main+xml").replace("</Types>", "<Override PartName=\"/xl/vbaProject.bin\" ContentType=\"application/vnd.ms-office.vbaProject\"/></Types>");
+                if (it.key() == QLatin1String("xl/_rels/workbook.xml.rels"))
+                    data.replace("</Relationships>", "<Relationship Id=\"rIdVba\" Type=\"http://schemas.microsoft.com/office/2006/relationships/vbaProject\" Target=\"vbaProject.bin\"/></Relationships>");
+                z.add(it.key(), data, true);
+            }
+            z.add(QStringLiteral("xl/vbaProject.bin"), QByteArray("VBA project bytes \x01\x02\x03", 20), true);
+            macroBook = z.finish();
+        }
+        jptest::TestModeGuard testMode;
+        QDir(myTemplatesFolder()).removeRecursively();
+        EditWindow e;
+        QVERIFY(e.open(macroBook, QStringLiteral("macros.xlsm")));
+        setTemplateNameStandIn([](const QString &) { return QStringLiteral("Macros"); });
+        QSignalSpy made(&e.win.w, &CrunchWindow::copyExported);
+        const bool started = e.win.w.saveAsTemplate();
+        setTemplateNameStandIn({});
+        QVERIFY(started);
+        QTRY_COMPARE_WITH_TIMEOUT(made.count(), 1, 20000);
+        QVERIFY(made.first().at(1).toBool());
+        QVERIFY(e.win.told.last().contains(QLatin1String("macros")));
+        const QStringList found = myTemplateFiles({QStringLiteral("*.xltx")});
+        QCOMPARE(found.size(), 1);
+        QFile f(found.first());
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        f.close();
+        QVERIFY(!rawParts(bytes).contains(QStringLiteral("xl/vbaProject.bin")));
+        const QByteArray types = entriesOf(bytes).value(QStringLiteral("[Content_Types].xml"));
+        QVERIFY(!types.contains("macroEnabled"));
+        QVERIFY(types.contains("spreadsheetml.template.main+xml"));
+        QVERIFY(!entriesOf(bytes).value(QStringLiteral("xl/_rels/workbook.xml.rels")).contains("vbaProject"));
+        QVERIFY(removeMyTemplate(found.first()));
+    }
+
+    // A backup that can't be made asks before the save goes on (not saving is the default): the workbook's file is as it was when the answer is no.
+    void aBackupThatFailsAsksBeforeTheWorkbookIsSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QFile before(e.path);
+        QVERIFY(before.open(QIODevice::ReadOnly));
+        const QByteArray original = before.readAll();
+        before.close();
+        Settings::get().setValue(QStringLiteral("save/backup"), true);
+        struct Reset {
+            ~Reset()
+            {
+                Settings::get().setValue(QStringLiteral("save/backup"), false);
+                setBackupFailureStandIn({});
+            }
+        } reset;
+        QVERIFY(QDir().mkpath(backupPathFor(e.path)));   // (a folder where the backup would go)
+        QStringList asked;
+        setBackupFailureStandIn([&](const QString &p) {
+            asked << p;
+            return false;
+        });
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        QVERIFY(!e.win.w.save());
+        QCOMPARE(asked.size(), 1);
+        QVERIFY(!e.win.w.isSaving());
+        QFile after(e.path);
+        QVERIFY(after.open(QIODevice::ReadOnly));
+        QCOMPARE(after.readAll(), original);
+        QVERIFY(e.win.w.isModified());
+        after.close();
+        // Saying yes saves.
+        setBackupFailureStandIn([&](const QString &) { return true; });
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:5"));
+    }
+
     // Open as Copy: the workbook has no file of its own, so Save asks where, and the file it was read from is never written.
     void aWorkbookOpenedAsACopyHasNoFile()
     {
@@ -652,7 +825,7 @@ private Q_SLOTS:
     // Save as Template puts an .xltx in My Templates (with a picture) and leaves the workbook as it was; a workbook made from it has its cells and no file.
     void saveAsTemplatePutsAWorkbookInMyTemplates()
     {
-        QStandardPaths::setTestModeEnabled(true);
+        jptest::TestModeGuard testMode;
         QDir(myTemplatesFolder()).removeRecursively();
         EditWindow e;
         QVERIFY(e.open(editBook()));
@@ -692,7 +865,6 @@ private Q_SLOTS:
         second.win.w.act(QStringLiteral("file.saveAs"))->trigger();
         QVERIFY2(offered.endsWith(QLatin1String(".xlsx")), qPrintable(offered));
         QVERIFY(removeMyTemplate(found.first()));
-        QStandardPaths::setTestModeEnabled(false);
     }
 
     // A workbook can be saved as an .xltx template, and as an .ots copy (an OpenDocument template).
@@ -749,8 +921,9 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("A2")), QStringLiteral("n:10"));
         QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("-"));   // (empty: the row that was cut is left out)
         QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QLatin1String("Open and Repair")), qPrintable(e.win.told.join(QLatin1Char('|'))));
-        // The package kept for the reader is not left behind.
-        QVERIFY(QDir(QDir::temp()).entryList({QStringLiteral("jeffcrunch-repair-*")}).isEmpty());
+        // The package kept for the reader is not left behind (the one this load made: other programs' are not this test's to count).
+        QVERIFY(!e.win.w.lastRepairFileForTest().isEmpty());
+        QVERIFY(!QFileInfo::exists(e.win.w.lastRepairFileForTest()));
         // Save asks where; the damaged file is as it was.
         const QString other = e.folder.dir.filePath(QStringLiteral("repaired.xlsx"));
         e.win.w.setSavePicker([&](const QString &, const QString &) { return other; });

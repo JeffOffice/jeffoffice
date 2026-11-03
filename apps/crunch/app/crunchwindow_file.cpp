@@ -174,16 +174,17 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         office::RepairReport report;
         QByteArray fixed;
         if (office::readWholeFile(path, &bytes, &why)) fixed = office::repairPackage(bytes, &why, &report);
-        QTemporaryFile temp(QDir::temp().filePath(QStringLiteral("jeffcrunch-repair-XXXXXX.xlsx")));
-        temp.setAutoRemove(false);
-        if (fixed.isEmpty() || !temp.open() || temp.write(fixed) != fixed.size()) {
-            if (!fixed.isEmpty()) why = temp.errorString();
-            temp.remove();
+        // (the file is removed when this object goes, on every path)
+        auto temp = std::make_unique<QTemporaryFile>(QDir::temp().filePath(QStringLiteral("jeffcrunch-repair-XXXXXX.xlsx")));
+        if (fixed.isEmpty() || !temp->open() || temp->write(fixed) != fixed.size()) {
+            if (!fixed.isEmpty()) why = temp->errorString();
             notice(tr("Open and Repair"), tr("%1 can't repair \"%2\".\n%3").arg(appInfo().name, name, why));
             return false;
         }
-        temp.close();
-        loadPath = temp.fileName();
+        temp->close();
+        loadPath = temp->fileName();
+        m_repairTemp = std::move(temp);
+        m_lastRepairFile = loadPath;
         m_repairFile = loadPath;
         m_repairName = name;
         m_repairNote = office::repairSummary(report);
@@ -284,7 +285,8 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
         }
         const QString name = m_repairName.isEmpty() ? QFileInfo(m_path).fileName() : m_repairName;
         m_openAsCopy = false;
-        if (!m_repairFile.isEmpty()) QFile::remove(std::exchange(m_repairFile, QString()));
+        m_repairTemp.reset();
+        m_repairFile.clear();
         m_repairName.clear();
         m_repairNote.clear();
         dropWorkbook();
@@ -318,7 +320,8 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     // (a repaired workbook is not the file it was repaired from, and its package was only kept for the reader: Save asks for a name)
     QString repairNote, repairedName;
     if (!m_repairFile.isEmpty()) {
-        QFile::remove(std::exchange(m_repairFile, QString()));
+        m_repairTemp.reset();
+        m_repairFile.clear();
         repairedName = std::exchange(m_repairName, QString());
         repairNote = std::exchange(m_repairNote, QString());
         m_untitled = tr("Repaired %1").arg(QFileInfo(repairedName).completeBaseName());

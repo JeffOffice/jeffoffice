@@ -210,7 +210,10 @@ bool CrunchWindow::startSave(const QString &path)
         if (ending != saveKind() && crunch::workbookKindsSavedAs(saveKind()).contains(ending)) snapshot->changes.targetKind = ending;
     }
     if (m_objects) m_objects->addToSave(&snapshot->changes);
-    keepBackupBeforeSave(path);
+    if (!backupBeforeSave(this, path)) {
+        m_closeAfterSave = false;
+        return false;
+    }
     m_saving = true;
     m_session->setBusy(true);
     updateEditActions();

@@ -20,6 +20,7 @@
 #include <QFileInfo>
 #include <QPointer>
 #include <QStandardPaths>
+#include <utility>
 #include <QThread>
 
 namespace jp {
@@ -41,6 +42,12 @@ bool CrunchWindow::saveAsTemplate()
     if (!m_loaded || !m_session || m_saving || !commitEdit()) return false;
     const QString path = askMyTemplatePath(this, displayName(), QStringLiteral(".xltx"));
     if (path.isEmpty()) return false;
+    // A template is a plain one (.xltx): a workbook with macros in it is made one without them, and the person is told first, as Save As tells.
+    if (crunch::workbookKindHoldsMacros(saveKind()) && !m_loaded->book->package().relationshipsOfType(m_loaded->book->mainPart(), QStringLiteral("/vbaProject")).isEmpty()) {
+        const LossAnswer answer = askBeforeLosing(tr("Save"), tr("A .xltx file can't hold macros. The macros of this workbook will not be in the copy you are saving. The workbook open here keeps them."),
+                                                  tr("Save Without Macros"), QString());
+        if (answer != LossAnswer::Continue) return false;
+    }
     // (the picture of the sheet in view is kept beside the template, once the template is written)
     const QImage picture = m_view->grab().toImage().scaledToWidth(240, Qt::SmoothTransformation);
     auto *once = new QObject(this);
@@ -51,7 +58,9 @@ bool CrunchWindow::saveAsTemplate()
         saveTemplateThumbnail(path, picture);
         setStatus(tr("Saved \"%1\" in My Templates.").arg(QFileInfo(path).completeBaseName()));
     });
+    m_copyAsKind = QStringLiteral("xltx");
     if (startCopy(path)) return true;
+    m_copyAsKind.clear();
     delete once;
     return false;
 }
@@ -85,10 +94,12 @@ bool CrunchWindow::startCopy(const QString &path)
     }
     {
         const QString ending = QFileInfo(path).suffix().toLower();
-        if (ending != saveKind() && crunch::workbookKindsSavedAs(saveKind()).contains(ending)) snapshot->changes.targetKind = ending;
+        const QString forced = std::exchange(m_copyAsKind, QString());
+        if (!forced.isEmpty() && forced != saveKind()) snapshot->changes.targetKind = forced;
+        else if (ending != saveKind() && crunch::workbookKindsSavedAs(saveKind()).contains(ending)) snapshot->changes.targetKind = ending;
     }
     if (m_objects) m_objects->addToSave(&snapshot->changes);
-    keepBackupBeforeSave(path);
+    if (!backupBeforeSave(this, path)) return false;
     m_saving = true;
     m_session->setBusy(true);
     updateEditActions();
