@@ -9,6 +9,7 @@
 #include "calc/dates.h"
 #include "sheet/csvimport.h"
 #include "sheet/pivotbook.h"
+#include "sheet/slicer.h"
 #include "sheet/protection.h"
 #include "sheet/sheetmodel.h"
 #include "sheet/tables.h"
@@ -379,6 +380,9 @@ public:
     QVector<CellRange> pivotTablesOn(int sheet) const;
     // The pivot tables and caches, as the file has them and as a person has changed them (made when first asked for).
     PivotBook &pivots() const;
+    // The slicers' and timelines' caches the workbook names (as the file has them), and the slicers or timelines a sheet has (by the sheet's relationships), each part read once.
+    QVector<SlicerCache> slicerCaches() const;
+    QVector<SlicerView> slicerViews(int sheet) const;
     // The parts of the pivot tables and caches that are not as the file has them, as they would be written, by the part's name.
     std::map<QString, QByteArray> changedPivotParts() const;
     std::map<QString, std::function<QByteArray()>> changedPivotPartProducers() const;

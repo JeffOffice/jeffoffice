@@ -912,6 +912,92 @@ private Q_SLOTS:
         QVERIFY(jp::office::sheet::featuresNotInCopy(*s->workbook(), jp::office::sheet::CopyKind::Xls).join(QLatin1Char('|')).contains(QStringLiteral("pivot tables")));
     }
 
+    // Changes waiting for Update are dropped too when the SAME table is changed under them (an Undo, say): Update then writes nothing.
+    void deferredChangesAreDroppedWhenTheSameTableChangesByUndo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.fieldList"))->trigger();
+        PivotFieldsPane *pane = e.win.w.pivotPane();
+        QVERIFY(pane);
+        jp::office::sheet::PivotTable renamed = *s->workbook()->pivots().table(0).table;
+        renamed.name = QStringLiteral("Sales");
+        QVERIFY(s->setPivot(0, renamed, false, QStringLiteral("Rename")).ok);
+        finish(e);
+        pane->setDeferred(true);
+        QVERIFY(pane->select(1, 0));
+        pane->moveSelected(0);
+        QVERIFY(pane->hasPending());
+        s->undoStack()->undo();   // the table is the one it was before the rename
+        finish(e);
+        QVERIFY(!pane->hasPending());
+        const int steps = s->undoStack()->count();
+        pane->applyDeferred();
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps);
+        QCOMPARE(s->workbook()->pivots().table(0).table->name, QStringLiteral("PivotTable1"));
+        QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+    }
+
+    // The cells read again when a file opens are counted over all its tables: the first fits and is read, the second does not and waits, with a note.
+    void theReadingOnOpenIsBoundedOverSeveralTables()
+    {
+        PivotBookOptions o;
+        o.second = true;
+        o.tweak = [](Parts &p) {
+            for (int n = 1; n <= 2; ++n)
+                p[QStringLiteral("xl/pivotCache/pivotCacheDefinition%1.xml").arg(n)].replace("<pivotCacheDefinition ", "<pivotCacheDefinition refreshOnLoad=\"1\" ");
+        };
+        crunch::EditSession::setRefreshOnOpenLimit(20);   // (a cache of the book is 6 records of 3 fields: 18 cells)
+        const struct Reset { ~Reset() { crunch::EditSession::setRefreshOnOpenLimit(0); } } reset;
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(o)));
+        QTRY_COMPARE(e.win.w.session()->undoStack()->count(), 1);
+        QTRY_VERIFY2(e.win.w.statusText().contains(QStringLiteral("1 pivot table")), qPrintable(e.win.w.statusText()));
+    }
+
+    // The workbook names its slicer and timeline caches and the sheet its slicers: they are found from the relationships, read once, and the file keeps them as it had them when saved untouched.
+    void slicersAndTimelinesAreFoundFromTheWorkbook()
+    {
+        PivotBookOptions o;
+        o.tweak = [](Parts &p) {
+            addType(p, QStringLiteral("xl/slicerCaches/slicerCache1.xml"), QStringLiteral("application/vnd.ms-excel.slicerCache+xml"));
+            addType(p, QStringLiteral("xl/timelineCaches/timelineCache1.xml"), QStringLiteral("application/vnd.ms-excel.timelineCache+xml"));
+            addType(p, QStringLiteral("xl/slicers/slicer1.xml"), QStringLiteral("application/vnd.ms-excel.slicer+xml"));
+            p[QStringLiteral("xl/slicerCaches/slicerCache1.xml")] =
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<slicerCacheDefinition xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\" name=\"Slicer_Region\" sourceName=\"Region\">"
+                "<pivotTables><pivotTable tabId=\"1\" name=\"PivotTable1\"/></pivotTables><data><tabular pivotCacheId=\"1\"><items count=\"2\"><i x=\"0\" s=\"1\"/><i x=\"1\"/></items></tabular></data></slicerCacheDefinition>";
+            p[QStringLiteral("xl/timelineCaches/timelineCache1.xml")] =
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<timelineCacheDefinition xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2010/11/main\" name=\"NativeTimeline_Month\" sourceName=\"Month\">"
+                "<pivotTables><pivotTable tabId=\"1\" name=\"PivotTable1\"/></pivotTables><state name=\"Timeline1\"><selection startDate=\"2020-01-01T00:00:00\" endDate=\"2020-02-29T00:00:00\"/></state></timelineCacheDefinition>";
+            p[QStringLiteral("xl/slicers/slicer1.xml")] =
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<slicers xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><slicer name=\"Region\" cache=\"Slicer_Region\" caption=\"Region\" rowHeight=\"241300\"/></slicers>";
+            relate(p, QStringLiteral("xl/_rels/workbook.xml.rels"), QStringLiteral("rIdSc1"), QStringLiteral("slicerCache"), QStringLiteral("slicerCaches/slicerCache1.xml"));
+            relate(p, QStringLiteral("xl/_rels/workbook.xml.rels"), QStringLiteral("rIdTc1"), QStringLiteral("timelineCache"), QStringLiteral("timelineCaches/timelineCache1.xml"));
+            relate(p, QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels"), QStringLiteral("rIdSl1"), QStringLiteral("slicer"), QStringLiteral("../slicers/slicer1.xml"));
+        };
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(o)));
+        crunch::EditSession *s = e.win.w.session();
+        const auto caches = s->workbook()->slicerCaches();
+        QCOMPARE(caches.size(), 2);
+        QCOMPARE(caches[0].sourceName, QStringLiteral("Region"));
+        QVERIFY(caches[1].timeline);
+        const auto views = s->workbook()->slicerViews(0);
+        QCOMPARE(views.size(), 1);
+        QCOMPARE(views[0].caption, QStringLiteral("Region"));
+        // an edit elsewhere keeps the three parts as they were
+        const Parts before = readParts(e.path);
+        e.select(QStringLiteral("D1"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(saveNow(e));
+        const Parts after = readParts(e.path);
+        for (const QString &name : {QStringLiteral("xl/slicerCaches/slicerCache1.xml"), QStringLiteral("xl/timelineCaches/timelineCache1.xml"), QStringLiteral("xl/slicers/slicer1.xml")})
+            QVERIFY2(after.value(name) == before.value(name) && !before.value(name).isEmpty(), qPrintable(name));
+    }
+
     // Insert > Pivot Chart: a chart of the table's values without its grand totals, marked as the table's chart (the saved chart has the table's name); one step of Undo.
     void aPivotChartIsMadeFromATable()
     {
