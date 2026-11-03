@@ -53,6 +53,9 @@ bool isOldBinary(const QString &path)
 
 bool isRichText(const QString &path) { return QFileInfo(path).suffix().compare(QLatin1String("rtf"), Qt::CaseInsensitive) == 0; }
 
+// A flat OpenDocument text (one XML file), which is read and never written over: it is saved as a packed .odt.
+bool isFlatOdt(const QString &path) { return QFileInfo(path).suffix().compare(QLatin1String("fodt"), Qt::CaseInsensitive) == 0; }
+
 QString fileKind(const QString &path)
 {
     static const QStringList kinds = {QStringLiteral("docx"), QStringLiteral("dotx"), QStringLiteral("docm"), QStringLiteral("dotm"), QStringLiteral("doc"), QStringLiteral("dot"), QStringLiteral("rtf"), QStringLiteral("odt"), QStringLiteral("fodt"), QStringLiteral("ott")};
@@ -129,7 +132,7 @@ bool WriteWindow::openFile(const QString &path)
     const bool leftOut = doc->leftSomethingOut();
     target->setDocument(std::move(doc), tmpl ? QString() : path);
     target->m_macrosNoted = false;
-    target->m_odtNoted = false;
+    target->m_odtNoted.clear();
     target->m_protectedPath = leftOut && !tmpl && !isOldBinary(path) ? path : QString();
     if (tmpl) target->m_doc->setModified(true);
     Settings::get().addRecentFile(path);
@@ -148,6 +151,7 @@ bool WriteWindow::save()
     }
     if (isRichText(m_path)) notice(tr("Save"), tr("This document came from an .rtf file, which %1 doesn't write, so it is saved as a new .docx file.").arg(appInfo().name));
     else if (isOldBinary(m_path)) notice(tr("Save"), tr("This document came from an older .doc file, which %1 doesn't write, so it is saved as a new .docx file.").arg(appInfo().name));
+    else if (isFlatOdt(m_path)) notice(tr("Save"), tr("This document came from a flat .fodt file, which %1 doesn't write, so it is saved as a new .odt file.").arg(appInfo().name));
     if (m_path.isEmpty() || !isWrittenEnding(m_path)) return saveAs();
     return saveTo(m_path);
 }
@@ -167,7 +171,7 @@ bool WriteWindow::saveAs()
     // The dialog hands back the filter text it showed, so the choice is recognized by comparing with these same (translated) texts.
     const QString docxFilter = tr("Document (*.docx)"), dotxFilter = tr("Template (*.dotx)"), odtFilter = tr("OpenDocument Text (*.odt)");
     const QString fromEnding = QFileInfo(from).suffix().toLower();
-    QString selected = fromEnding == QLatin1String("dotx") || fromEnding == QLatin1String("dot") ? dotxFilter : fromEnding == QLatin1String("odt") ? odtFilter : docxFilter;
+    QString selected = fromEnding == QLatin1String("dotx") || fromEnding == QLatin1String("dot") ? dotxFilter : fromEnding == QLatin1String("odt") || fromEnding == QLatin1String("fodt") ? odtFilter : docxFilter;
     auto endingOf = [&](const QString &filter) { return filter == dotxFilter ? QStringLiteral(".dotx") : filter == odtFilter ? QStringLiteral(".odt") : QStringLiteral(".docx"); };
     const QString suggested = dir + QLatin1Char('/') + name + endingOf(selected);
     QString path = m_pathChooser ? m_pathChooser(suggested, selected)
@@ -207,9 +211,15 @@ bool WriteWindow::saveTo(const QString &path)
         jp::plainWarning(this, tr("Save"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
-    if (odt && !notKept.isEmpty() && !m_odtNoted) {
-        m_odtNoted = true;
-        notice(tr("Save"), tr("An OpenDocument text file can't hold some of what this document has, so those parts were saved as they stand now or left out:\n\n%1").arg(notKept.join(QLatin1Char('\n'))));
+    if (odt) {
+        // (Told once of each thing, not once of the first: a later save that leaves out something new says so.)
+        QStringList fresh;
+        for (const QString &what : std::as_const(notKept))
+            if (!m_odtNoted.contains(what)) {
+                m_odtNoted.insert(what);
+                fresh << what;
+            }
+        if (!fresh.isEmpty()) notice(tr("Save"), tr("An OpenDocument text file can't hold some of what this document has, so those parts were saved as they stand now or left out:\n\n%1").arg(fresh.join(QLatin1Char('\n'))));
     }
     m_doc->setModified(false);
     m_path = path;
