@@ -1732,6 +1732,7 @@
     <file alias="en/crunch/start.md">help/en/crunch/start.md</file>
     <file alias="en/crunch/tables.md">help/en/crunch/tables.md</file>
     <file alias="en/crunch/view.md">help/en/crunch/view.md</file>
+    <file alias="en/crunch/options.md">help/en/crunch/options.md</file>
     <file alias="en/deck/animations.md">help/en/deck/animations.md</file>
     <file alias="en/deck/comments.md">help/en/deck/comments.md</file>
     <file alias="en/deck/context.json">help/en/deck/context.json</file>
@@ -1836,6 +1837,7 @@
     <file alias="en/write/table-of-contents.md">help/en/write/table-of-contents.md</file>
     <file alias="en/write/tables.md">help/en/write/tables.md</file>
     <file alias="en/write/track-changes.md">help/en/write/track-changes.md</file>
+    <file alias="en/write/options.md">help/en/write/options.md</file>
     <file alias="es/accessibility.md">help/es/accessibility.md</file>
     <file alias="es/arrange.md">help/es/arrange.md</file>
     <file alias="es/change-template.md">help/es/change-template.md</file>

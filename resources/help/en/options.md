@@ -45,6 +45,10 @@ Click **File > About** to find these. The two check boxes are also on the **Gene
 - **Get beta versions (early builds for testing)** makes JeffPub also offer beta versions, which come out before the regular ones and may have rough edges.
 - **Check for updates automatically** makes JeffPub look each time it starts.
 - **Send anonymous usage statistics** is your choice about sharing facts about how JeffPub is used. When it is on, JeffPub sends these once a day, and on the day you update: its version, your operating system and language, and how often each command is used. If JeffPub ever closes unexpectedly, it also sends a crash report the next time it starts. The report says where in the program it stopped, so the problem can be found and fixed. It never sends your files, their names, or anything in them, and nothing you typed. Click **What's sent** to read more. JeffPub asks about this the first time it starts, in a window called **Help improve JeffPub**. On Windows, setup may ask first. The choice is for all the JeffOffice apps: JeffDeck sends the same kind of facts about itself, only if you chose to share.
+- **Privacy notice** next to that check box opens our privacy notice at jeffoffice.com/privacy. It says what is sent, where it goes, and how long we keep it. We keep statistics for 24 months.
+- **Install number** is shown under the check box. It is a random number made up for your copy of JeffOffice, the same in every JeffOffice app. It says nothing about you. Click **Copy** to copy it. If statistics are off, or no number has been made yet, it says **none**.
+- To have the statistics we already hold deleted, send your install number to info@jeffoffice.com **before** you turn statistics off. Turning them off erases the number from your computer, and without it we cannot tell which records are yours.
+- To turn statistics off for good without opening JeffPub, set the environment variable `JP_NO_TELEMETRY` to any value before you start it. Nothing is then counted or sent, and JeffPub does not ask the first-run question.
 - **Your name** is the same name as **User name** above.
 
 ## Related
