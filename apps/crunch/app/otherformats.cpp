@@ -182,7 +182,7 @@ QStringList leftOutOfCsv(const jp::office::sheet::Workbook &book, qint64 formula
     };
     const Kind kinds[] = {{"/drawing", QCoreApplication::translate("jp::crunch::OtherFormats", "pictures and charts")}, {"/image", QCoreApplication::translate("jp::crunch::OtherFormats", "pictures and charts")},
                           {"/comments", QCoreApplication::translate("jp::crunch::OtherFormats", "notes")}, {"/threadedComment", QCoreApplication::translate("jp::crunch::OtherFormats", "notes")},
-                          {"/pivotTable", QCoreApplication::translate("jp::crunch::OtherFormats", "PivotTables")},
+                          {"/pivotTable", QCoreApplication::translate("jp::crunch::OtherFormats", "pivot tables")},
                           {"/queryTable", QCoreApplication::translate("jp::crunch::OtherFormats", "connections to outside data")},
                           {"/ctrlProp", QCoreApplication::translate("jp::crunch::OtherFormats", "form controls")}, {"/control", QCoreApplication::translate("jp::crunch::OtherFormats", "form controls")},
                           {"/oleObject", QCoreApplication::translate("jp::crunch::OtherFormats", "embedded objects")}, {"/package", QCoreApplication::translate("jp::crunch::OtherFormats", "embedded objects")},

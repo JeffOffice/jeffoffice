@@ -1,6 +1,7 @@
 #include "app/crunchwindow.h"
 #include <QInputMethodEvent>
 #include "app/functionargumentsdialog.h"
+#include "app/pivotpane.h"
 #include "app/plaintext.h"
 
 #include "core/printjob.h"
@@ -27,6 +28,7 @@
 #include <QFormLayout>
 #include <QPointer>
 #include <QAction>
+#include <QDockWidget>
 #include <QApplication>
 #include <QClipboard>
 #include <QCloseEvent>
@@ -154,7 +156,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
         const bool away = m_edit.active && m_sheet != m_edit.sheet;
         return commitEdit(CellEditor::Way::Stay) && !away;
     });
-    m_view->setPointGuard([this](qint64 row, qint64 col) { return pointAtTableCell(row, col); });
+    m_view->setPointGuard([this](qint64 row, qint64 col) { return pointAtPivotCell(row, col) || pointAtTableCell(row, col); });
     m_view->setPointer([this](const grid::GridView::PointSpan &span, bool first, Qt::KeyboardModifiers modifiers) { return pointAtCells(span, first, modifiers); });
     m_view->setPointAdjuster([this](int id, const grid::GridRange &block, bool final) { adjustReference(id, block, final); });
     for (QLineEdit *line : {static_cast<QLineEdit *>(m_cellEditor), m_formulaBar}) {
@@ -221,6 +223,8 @@ CrunchWindow::~CrunchWindow()
     if (m_view) m_view->setOverlay(nullptr);   // (the objects over the cells go before the grid does)
     if (m_pageView) m_pageView->setSource(nullptr);
     openWindows().removeAll(this);
+    if (m_pivotDock) m_pivotDock->disconnect(this);   // (the pane going is not told to a window that is going)
+    if (m_pivotPane) m_pivotPane->disconnect(this);
     // (the session's undo stack tells the window as its steps go: it is let go of first, and the window is not told)
     if (m_session) {
         m_session->undoStack()->disconnect(this);
@@ -492,6 +496,7 @@ void CrunchWindow::createActions()
     createOutlineActions();
     createChartActions();
     createTableActions();
+    createPivotActions();
     createNoteActions();
     createProtectActions();
 }
@@ -540,6 +545,7 @@ void CrunchWindow::notice(const QString &title, const QString &text, bool warnin
 void CrunchWindow::updateBars()
 {
     updateTableTab();
+    updatePivotTab();
     updateDropDown();
     showNameInBox();
     if (m_edit.active) return;   // (the formula bar holds what is being typed)

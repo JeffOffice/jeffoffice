@@ -1317,6 +1317,9 @@ bool movePivotCachePart(const QByteArray &xml, const MoveContext &ctx, QByteArra
         pos = t.end;
         if (t.closing || t.local != "worksheetSource") continue;
         QByteArray tag = xml.mid(t.start, t.end - t.start);
+        // (a source with a relationship id is in another workbook, whose cells these edits do not move)
+        static const QRegularExpression linked(QStringLiteral("\\s[A-Za-z0-9_.-]+:id\\s*="));
+        if (QString::fromLatin1(tag).contains(linked)) continue;
         bool hasRef = false, hasSheet = false;
         QString ref = attributeText(tag, "ref", &hasRef);
         const QString sheetName = attributeText(tag, "sheet", &hasSheet);

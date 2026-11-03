@@ -54,6 +54,8 @@
 #include "io/zip.h"
 #include "io/zipindex.h"
 #include "office/package.h"
+#include "sheet/pivot.h"
+#include "sheet/pivotbook.h"
 #include "sheet/xlsxsave.h"
 
 #include "app/crunchwindow.h"
@@ -2396,8 +2398,292 @@ int editRecalcCheck(const QString &path, int edits, quint32 seed)
     return mismatches == 0 ? 0 : 3;
 }
 
+// The time of a refresh of the first pivot table of a workbook, and of Undo and Redo of it (the window's thread): `edit-pivot-bench`.
+int pivotBench(const QString &path)
+{
+    CrunchWindow w;
+    w.setNotifier([](const QString &, const QString &) {});
+    w.resize(1280, 800);
+    w.show();
+    bool done = false;
+    QObject::connect(&w, &CrunchWindow::calculationFinished, &w, [&] { done = true; });
+    QElapsedTimer open;
+    open.start();
+    if (!w.openFile(path)) return 1;
+    while (!done && open.elapsed() < 600000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    if (!done) {
+        err() << "edit-pivot-bench: the workbook was not worked out in time\n";
+        return 1;
+    }
+    crunch::EditSession *session = w.session();
+    if (session->workbook()->pivots().tableCount() == 0) {
+        err() << "edit-pivot-bench: no pivot table\n";
+        return 1;
+    }
+    auto timed = [&](const char *what, const std::function<crunch::EditSession::Outcome()> &fn) {
+        QElapsedTimer t;
+        t.start();
+        const crunch::EditSession::Outcome o = fn();
+        session->finishFills();
+        out() << "pivot-bench\t" << what << '\t' << t.elapsed() << " ms\t" << (o.ok ? QStringLiteral("ok") : o.problem) << '\n';
+    };
+    timed("refresh", [&] { return session->refreshPivot(0); });
+    timed("refresh again (nothing changed)", [&] { return session->refreshPivot(0); });
+    timed("undo", [&] {
+        session->undoStack()->undo();
+        return crunch::EditSession::Outcome();
+    });
+    timed("redo", [&] {
+        session->undoStack()->redo();
+        return crunch::EditSession::Outcome();
+    });
+    return 0;
+}
+
+// `edit-pivot-edit <in.xlsx> <out.xlsx> <op>` (also pivot-edit): opens the workbook in the session the window has, makes one change to the first pivot table that can be changed (to every one, for
+// refresh-all), saves it by the window's own save, and says what happened on one line: `pivot-edit`, the files, the op, ok or refused, and why.
+int pivotEdit(const QString &in, const QString &outPath, const QString &op)
+{
+    auto say = [&](bool ok, const QString &why) {
+        out() << "pivot-edit\t" << in << '\t' << outPath << '\t' << op << '\t' << (ok ? "ok" : "refused") << '\t' << why.simplified() << '\n';
+        return ok ? 0 : 2;
+    };
+    static const QStringList ops = {QStringLiteral("refresh-all"), QStringLiteral("layout-compact"), QStringLiteral("layout-outline"), QStringLiteral("layout-tabular"), QStringLiteral("grandtotals-off"),
+                                    QStringLiteral("subtotals-off"), QStringLiteral("remove-row-field"), QStringLiteral("add-col-field"), QStringLiteral("value-average"), QStringLiteral("clear")};
+    if (!ops.contains(op)) return say(false, QStringLiteral("unknown op; the ops are ") + ops.join(QLatin1Char(' ')));
+    CrunchWindow w;
+    QString told;
+    w.setNotifier([&](const QString &, const QString &text) { told = text; });
+    w.resize(1280, 800);
+    w.show();
+    bool done = false;
+    QObject::connect(&w, &CrunchWindow::calculationFinished, &w, [&] { done = true; });
+    QElapsedTimer open;
+    open.start();
+    if (!w.openFile(in)) return say(false, told.isEmpty() ? QStringLiteral("the workbook was not opened") : told);
+    while (!done && open.elapsed() < 600000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    if (!done) return say(false, QStringLiteral("the workbook was not worked out in time"));
+    crunch::EditSession *session = w.session();
+    if (!session) return say(false, QStringLiteral("no session"));
+    jp::office::sheet::PivotBook &book = session->workbook()->pivots();
+    crunch::EditSession::Outcome result;
+    if (op == QLatin1String("refresh-all")) {
+        result = session->refreshAllPivots();
+    } else {
+        int t = -1;
+        QString whyNot;
+        for (int i = 0; i < book.tableCount() && t < 0; ++i) {
+            QString why;
+            if (session->pivotUsable(i, &why)) t = i;
+            else if (whyNot.isEmpty()) whyNot = why;
+        }
+        if (t < 0) return say(false, whyNot.isEmpty() ? QStringLiteral("no pivot table in the workbook") : whyNot);
+        if (op == QLatin1String("clear")) {
+            result = session->clearPivot(t, false);
+        } else {
+            jp::office::sheet::PivotTable table = *book.table(t).table;
+            const jp::office::sheet::PivotCache *cache = book.cache(book.table(t).cache).cache.get();
+            QString problem;
+            bool structure = false;
+            if (op.startsWith(QLatin1String("layout-"))) {
+                const int form = op == QLatin1String("layout-compact") ? 2 : op == QLatin1String("layout-outline") ? 1 : 0;
+                table.compact = form == 2;
+                table.outline = form == 1;
+                for (jp::office::sheet::PivotField &pf : table.fields) {
+                    pf.compact = form == 2;
+                    pf.outline = form != 0;
+                    pf.subtotalTop = form != 0;
+                }
+                structure = true;
+            } else if (op == QLatin1String("grandtotals-off")) {
+                table.rowGrandTotals = table.colGrandTotals = false;
+            } else if (op == QLatin1String("subtotals-off")) {
+                for (int f : table.rowFields) {
+                    if (f < 0 || f >= table.fields.size()) continue;
+                    jp::office::sheet::PivotField &pf = table.fields[f];
+                    pf.defaultSubtotal = false;
+                    pf.subtotals.clear();
+                    QVector<jp::office::sheet::PivotTableItem> kept;
+                    for (const auto &it : pf.items)
+                        if (it.t.isEmpty()) kept.append(it);
+                    if (pf.hasItems) pf.items = kept;
+                }
+                structure = true;
+            } else if (op == QLatin1String("remove-row-field")) {
+                int at = -1;
+                for (int i = 0; i < table.rowFields.size(); ++i)
+                    if (table.rowFields[i] >= 0) at = i;
+                if (at < 0) problem = QStringLiteral("the table has no field in its rows");
+                else table.rowFields.remove(at);
+                structure = true;
+            } else if (op == QLatin1String("add-col-field")) {
+                int field = -1;
+                if (!table.pageFields.isEmpty()) {
+                    field = table.pageFields.first().fld;
+                    table.pageFields.remove(0);
+                } else {
+                    QSet<int> used;
+                    for (int f : table.rowFields) used.insert(f);
+                    for (int f : table.colFields) used.insert(f);
+                    for (const auto &d : table.dataFields) used.insert(d.fld);
+                    for (int f = 0; f < table.fields.size() && field < 0; ++f)
+                        if (!used.contains(f)) field = f;
+                }
+                if (field < 0) problem = QStringLiteral("the table has no field to move to the columns");
+                else table.colFields.append(field);
+                structure = true;
+            } else if (op == QLatin1String("value-average")) {
+                if (table.dataFields.isEmpty() || !cache) {
+                    problem = QStringLiteral("the table has no value");
+                } else {
+                    table.dataFields[0].subtotal = QStringLiteral("average");
+                    table.dataFields[0].name = jp::office::sheet::pivotDataFieldName(table, *cache, table.dataFields[0].fld, QStringLiteral("average"));
+                }
+            }
+            if (!problem.isEmpty()) return say(false, problem);
+            result = session->setPivot(t, table, structure, QStringLiteral("Pivot edit"));
+        }
+    }
+    session->finishFills();
+    if (!result.ok) return say(false, result.problem);
+    bool saved = false, savedOk = false;
+    QObject::connect(&w, &CrunchWindow::saved, &w, [&](const QString &, bool ok) {
+        saved = true;
+        savedOk = ok;
+    });
+    if (!w.saveAs(outPath)) return say(false, told.isEmpty() ? QStringLiteral("the save did not start") : told);
+    QElapsedTimer waited;
+    waited.start();
+    while (!saved && waited.elapsed() < 600000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    if (!saved || !savedOk) return say(false, QStringLiteral("the save failed"));
+    return say(true, result.problem);
+}
+
+// `pivot-create <in.xlsx> <out.xlsx> <variant>`: makes a pivot table from the data of the first pivot table the workbook has from a range of its own (its fields are chosen by what they hold: texts with a
+// few different entries for the rows and columns, numbers for the values), on a sheet of its own, in the form the variant says, and saves it by the window's own save. Variants: empty, rows, rows-cols,
+// two-rows, tabular, outline, count, average, filter, two-values, no-grand.
+int pivotCreate(const QString &in, const QString &outPath, const QString &variant)
+{
+    auto say = [&](bool ok, const QString &why) {
+        out() << "pivot-create\t" << in << '\t' << outPath << '\t' << variant << '\t' << (ok ? "ok" : "refused") << '\t' << why.simplified() << '\n';
+        return ok ? 0 : 2;
+    };
+    static const QStringList variants = {QStringLiteral("empty"), QStringLiteral("rows"), QStringLiteral("rows-cols"), QStringLiteral("two-rows"), QStringLiteral("tabular"), QStringLiteral("outline"),
+                                         QStringLiteral("count"), QStringLiteral("average"), QStringLiteral("filter"), QStringLiteral("two-values"), QStringLiteral("no-grand"), QStringLiteral("control")};
+    if (!variants.contains(variant)) return say(false, QStringLiteral("unknown variant; the variants are ") + variants.join(QLatin1Char(' ')));
+    CrunchWindow w;
+    QString told;
+    w.setNotifier([&](const QString &, const QString &text) { told = text; });
+    w.resize(1280, 800);
+    w.show();
+    bool done = false;
+    QObject::connect(&w, &CrunchWindow::calculationFinished, &w, [&] { done = true; });
+    QElapsedTimer open;
+    open.start();
+    if (!w.openFile(in)) return say(false, told.isEmpty() ? QStringLiteral("the workbook was not opened") : told);
+    while (!done && open.elapsed() < 600000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    if (!done) return say(false, QStringLiteral("the workbook was not worked out in time"));
+    crunch::EditSession *session = w.session();
+    if (!session) return say(false, QStringLiteral("no session"));
+    using namespace jp::office::sheet;
+    PivotBook &book = session->workbook()->pivots();
+    QString source;
+    for (int c = 0; c < book.cacheCount() && source.isEmpty(); ++c) {
+        const PivotCacheEntry &ce = book.cache(c);
+        if (!ce.external && ce.source.valid && ce.sourceSheet >= 0 && ce.sourceSheet < session->workbook()->info().sheets.size())
+            source = sheetNamePrefix(session->workbook()->info().sheets[ce.sourceSheet].name) + rangeName(ce.source);
+    }
+    if (source.isEmpty()) return say(false, QStringLiteral("no data of a pivot table's own to make one from"));
+    int made = -1;
+    crunch::EditSession::Outcome result;
+    QElapsedTimer making;
+    making.start();
+    if (variant != QLatin1String("control")) result = session->createPivot(source, -1, 0, 0, &made);
+    const qint64 madeMs = making.elapsed();   // (the control is the same workbook saved with no pivot table made)
+    if (!result.ok) return say(false, result.problem);
+    if (variant != QLatin1String("empty") && variant != QLatin1String("control")) {
+        PivotTable table = *book.table(made).table;
+        const PivotCache *cache = book.cache(book.table(made).cache).cache.get();
+        QVector<int> texts, numbers;
+        for (int f = 0; f < cache->fields.size(); ++f) {
+            const PivotCacheField &cf = cache->fields[f];
+            bool anyText = false, anyDate = false;
+            for (const PivotValue &v : cf.items) {
+                anyText = anyText || v.kind == PivotValue::Text;
+                anyDate = anyDate || v.kind == PivotValue::Date;
+            }
+            if (pivotFieldIsNumeric(*cache, f) && !anyDate) numbers.append(f);
+            else if (anyText && cf.items.size() >= 2 && cf.items.size() <= 40) texts.append(f);
+        }
+        auto value = [&](int f, const QString &fn) {
+            PivotDataField d;
+            d.fld = f;
+            d.subtotal = fn;
+            d.name = pivotDataFieldName(table, *cache, f, fn);
+            table.dataFields.append(d);
+        };
+        if (texts.isEmpty()) return say(false, QStringLiteral("the data has no field of texts to put on the rows"));
+        const int row1 = texts[0], row2 = texts.size() > 1 ? texts[1] : -1;
+        const int number = numbers.isEmpty() ? texts[0] : numbers[0];
+        table.rowFields = {row1};
+        if (variant == QLatin1String("rows-cols")) {
+            if (row2 >= 0) table.colFields = {row2};
+            value(number, numbers.isEmpty() ? QStringLiteral("count") : QStringLiteral("sum"));
+        } else if (variant == QLatin1String("two-rows") || variant == QLatin1String("tabular") || variant == QLatin1String("outline")) {
+            if (row2 >= 0) table.rowFields = {row1, row2};
+            value(number, numbers.isEmpty() ? QStringLiteral("count") : QStringLiteral("sum"));
+            if (variant != QLatin1String("two-rows")) {
+                const int form = variant == QLatin1String("outline") ? 1 : 0;
+                table.compact = false;
+                table.outline = form == 1;
+                for (PivotField &pf : table.fields) {
+                    pf.compact = false;
+                    pf.outline = form == 1;
+                    pf.subtotalTop = form == 1;
+                }
+            }
+        } else if (variant == QLatin1String("count")) {
+            value(number, QStringLiteral("count"));
+        } else if (variant == QLatin1String("average")) {
+            value(number, numbers.isEmpty() ? QStringLiteral("count") : QStringLiteral("average"));
+        } else if (variant == QLatin1String("filter")) {
+            if (row2 >= 0) {
+                PivotPageField p;
+                p.fld = row2;
+                table.pageFields.append(p);
+            }
+            value(number, numbers.isEmpty() ? QStringLiteral("count") : QStringLiteral("sum"));
+        } else if (variant == QLatin1String("two-values")) {
+            value(number, QStringLiteral("sum"));
+            value(numbers.size() > 1 ? numbers[1] : number, QStringLiteral("max"));
+        } else if (variant == QLatin1String("no-grand")) {
+            table.rowGrandTotals = table.colGrandTotals = false;
+            value(number, numbers.isEmpty() ? QStringLiteral("count") : QStringLiteral("sum"));
+        } else {
+            value(number, numbers.isEmpty() ? QStringLiteral("count") : QStringLiteral("sum"));
+        }
+        result = session->setPivot(made, table, true, QStringLiteral("Add Field to Pivot Table"));
+        if (!result.ok) return say(false, result.problem);
+    }
+    session->finishFills();
+    bool saved = false, savedOk = false;
+    QObject::connect(&w, &CrunchWindow::saved, &w, [&](const QString &, bool ok) {
+        saved = true;
+        savedOk = ok;
+    });
+    if (!w.saveAs(outPath)) return say(false, told.isEmpty() ? QStringLiteral("the save did not start") : told);
+    QElapsedTimer waited;
+    waited.start();
+    while (!saved && waited.elapsed() < 600000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    if (!saved || !savedOk) return say(false, QStringLiteral("the save failed"));
+    return say(true, QStringLiteral("the table was made in %1 ms").arg(madeMs) + (result.problem.isEmpty() ? QString() : QStringLiteral("; ") + result.problem));
+}
+
 int editMain(const QStringList &args)
 {
+    if (args.size() == 4 && args[0] == QLatin1String("pivot-create")) return pivotCreate(args[1], args[2], args[3]);
+    if (args.size() == 4 && args[0] == QLatin1String("pivot-edit")) return pivotEdit(args[1], args[2], args[3]);
+    if (args.size() == 2 && args[0] == QLatin1String("edit-pivot-bench")) return pivotBench(args[1]);
     if (!args.isEmpty() && args[0].startsWith(QLatin1String("model-"))) return ::jp::structmodel::command(args);
     if (args.size() >= 2 && args.size() <= 3 && args[0] == QLatin1String("edit-bench")) return editBench(args[1], args.value(2, QStringLiteral("200")).toInt(), 0, 0, 0);
     if (args.size() >= 3 && args.size() <= 5 && args[0] == QLatin1String("edit-fill-bench")) return fillBench(args[1], args[2], args.value(3, QStringLiteral("1000")).toInt(), args.value(4));

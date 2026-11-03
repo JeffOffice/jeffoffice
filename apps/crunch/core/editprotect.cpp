@@ -49,7 +49,7 @@ bool EditSession::allows(int sheet, Allow what, QString *why) const
     case Allow::DeleteRows: ok = p.allowDeleteRows; what_ = tr("deleting rows"); break;
     case Allow::Sort: ok = p.allowSort; what_ = tr("sorting"); break;
     case Allow::Filter: ok = p.allowFilter; what_ = tr("using filters"); break;
-    case Allow::Pivot: ok = p.allowPivot; what_ = tr("using PivotTables"); break;
+    case Allow::Pivot: ok = p.allowPivot; what_ = tr("using pivot tables"); break;
     case Allow::Objects: ok = !p.objects; what_ = tr("changing drawing objects and notes"); break;
     }
     if (!ok && why) *why = tr("This sheet is protected, and its protection doesn't allow %1. Take the protection off first (Review, Unprotect Sheet).").arg(what_);

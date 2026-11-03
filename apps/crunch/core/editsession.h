@@ -88,6 +88,23 @@ struct TableEdit {
     std::vector<std::pair<QString, QString>> names;   // the defined names that named the table, as they were (made when the step is first done)
 };
 
+// A pivot table, and the cache it is made from, changed by a step: the table (and the cache, when the step reads it again or changes its source) as it was and as it is. They are shared, not
+// copied: the records of a cache are not held twice.
+struct PivotEdit {
+    int table = -1;
+    std::shared_ptr<const jp::office::sheet::PivotTable> tableBefore, tableAfter;
+    bool structureBefore = false, structureAfter = false;
+    int cache = -1;   // -1: the cache stays as it is
+    std::shared_ptr<const jp::office::sheet::PivotCache> cacheBefore, cacheAfter;
+    jp::office::sheet::CellRange sourceBefore, sourceAfter;
+    int sheetBefore = -1, sheetAfter = -1;
+    QString nameBefore, nameAfter;
+    // A table that this step makes (done: it is in the book, with its cache when `newCache`; undone: it is gone again): its sheet and the definitions its parts are made from.
+    bool created = false, newCache = false;
+    int sheet = -1;
+    QByteArray tableCreated, cacheCreated;
+};
+
 // A formula put in the cells of a column of a sheet by a step, rows `row1` to `row2`, each as it reads in its own row (the text is written for the row `base`): what a calculated column fills. The cells
 // were empty, but those in `oldRuns` (runs of rows, from first to last), which held `oldFormula` (written for `oldBase`): it is the small description of very many cells, put in a slice at a time.
 struct FillEdit {
@@ -187,6 +204,7 @@ struct StructChange {
     jp::office::sheet::StructEdit edit;
     jp::office::sheet::Calculation::EditRecord record;
     std::vector<jp::office::sheet::TablePlace> tables;                   // the tables it moved, where they were
+    std::vector<jp::office::sheet::PivotBook::SourcePlace> pivotSources;   // the pivot caches whose source it moved, where each was
     std::vector<quint64> touchedGone, touchedAdded;                     // cells marked as changed that it deleted (cells shifted one by one: whole rows and columns are marked by ids, which they do not change), and those it marked
     std::vector<std::pair<quint64, jp::calc::Value>> resultsGone, engineGone, fileGone;   // the results kept by cell that it deleted (the same)
     qint64 bytes() const;
@@ -223,6 +241,7 @@ struct Step {
     std::vector<StyleCell> styles;
     std::vector<TableRename> renames;
     std::vector<TableEdit> tables;
+    std::vector<PivotEdit> pivots;
     std::vector<FillEdit> fills;
     std::vector<SizeEdit> sizes;
     std::vector<MergeEdit> merges;
@@ -238,13 +257,15 @@ struct Step {
     std::vector<ProtectEdit> protections;      // or the protection of a sheet or the workbook
     std::vector<NameEdit> names;               // or defined names made, changed, or taken away
     std::vector<CalcEdit> calcs;               // or how the workbook calculates
-    bool empty() const { return protections.empty() && sides.empty() && cells.empty() && styles.empty() && renames.empty() && tables.empty() && fills.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty() && names.empty() && calcs.empty(); }
+    bool empty() const { return pivots.empty() && protections.empty() && sides.empty() && cells.empty() && styles.empty() && renames.empty() && tables.empty() && fills.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty() && names.empty() && calcs.empty(); }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
 qint64 contentBytes(const jp::office::sheet::Calculation::CellContent &c);
 // And of a table (its names, columns, and filter).
 qint64 tableBytes(const jp::office::sheet::Table &t);
+// And of the records of a pivot cache.
+qint64 pivotCacheBytes(const jp::office::sheet::PivotCache &c);
 
 class EditSession : public QObject {
     Q_OBJECT
@@ -327,6 +348,30 @@ public:
     // Clears the contents of the cells in the range (their formats stay): one step. Not ok, and nothing changed, if a cell in it is part of an array, or there are more cells than
     // kMaxCellsPerEdit.
     Outcome clear(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2);
+
+    // ---- pivot tables (editpivot.cpp). A table is named by its place among the workbook's pivot tables (Workbook::pivots()); every change is one step of Undo that puts the cells right and the
+    // table's parts as they are to be saved. A table nobody changed is saved as the file has it, to the byte.
+    // The table whose cells (or filters above it) include the cell, or -1.
+    int pivotAt(int sheet, quint32 row, quint32 col) const;
+    // The GETPIVOTDATA formula (with its "=") that reads the value of a pivot table's cell, for a formula on `formulaSheet` (the table's sheet is named when it is another); empty for a cell that
+    // is not a value of a table (a label, a filter, a cell outside).
+    QString pivotDataFormula(int sheet, quint32 row, quint32 col, int formulaSheet) const;
+    // Whether a table can be worked out and changed here; if not, why (the file has a part this does not read, or the data behind it is not kept).
+    bool pivotUsable(int table, QString *why = nullptr) const;
+    // Reads the data again from the source (the cells of a sheet, a table, or a name) and works out every table made from it. Keeps each table's layout and the widths of columns.
+    Outcome refreshPivot(int table);
+    // Makes a pivot table from the cells or the table `source` names (as Change Data Source takes them), with an empty layout, at the cell (row, col) of the sheet `sheet`, or on a sheet of its own at A3
+    // when `sheet` is -1 (the sheet is made first: a step of Undo of its own). The cells the empty table covers must be empty. `*made` is the new table's place.
+    Outcome createPivot(const QString &source, int sheet, quint32 row, quint32 col, int *made = nullptr);
+    Outcome refreshAllPivots();
+    // Makes the table from other cells ("Sheet1!A1:D100", "A1:D100" on the same sheet as the source now is, a table's name, or a defined name), then reads them.
+    Outcome changePivotSource(int table, const QString &where);
+    // Puts the table's layout, fields, and options as `changed` has them (a copy of the table with its fields moved, its totals switched, a filter set): the cells are worked out again.
+    Outcome setPivot(int table, const jp::office::sheet::PivotTable &changed, bool structureChanged, const QString &text);
+    // Clear: every field out of the table (all), or the filters and hidden items only.
+    Outcome clearPivot(int table, bool filtersOnly);
+    // Where the data of a table's cache is, as the cache says it ("Data!A1:D100", or the name), for the dialog that changes it.
+    QString pivotSourceText(int table) const;
 
     // AutoSum and the functions of its menu (`function` is SUM, AVERAGE, COUNT, MAX, or MIN) for what is selected. With one cell: the numbers above it, or if there are none left of it,
     // are the range, and the formula is to be edited in the cell (`text`, with the cursor `cursorBack` characters before its end: inside the brackets of one with no range). With a
@@ -773,7 +818,8 @@ public:
         std::map<quint64, jp::calc::Value> touchedResults;
         std::map<int, QString> headerDrawings;                 // set by the save: the drawing of header and footer pictures each sheet names now (see SaveReport)
     };
-    bool takeSnapshot(Snapshot *out, QString *why);
+    // `pivotParts` false: the pivot tables' changed parts are not made (a copy as .xls or .ods does not keep the tables, only what they show in the cells)
+    bool takeSnapshot(Snapshot *out, QString *why, bool pivotParts = true);
     // The file was written from this snapshot: it is the base now. `package` is the new file's.
     void saved(const Snapshot &snapshot, const jp::office::Package &package);
 
@@ -882,13 +928,41 @@ private:
     void fillTableAfterInsert(int sheet, bool rows, quint32 first, quint32 count);
     void calculatedColumnAfterEntry(int sheet, quint32 row, quint32 col, const CellChange &entry);
     void applyTableEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book, std::set<int> *sheets);
+    void applyPivotEdits(Step *step, bool forward, jp::office::sheet::Workbook &book);
     Outcome pushTableStep(Step step, const QString &text);
+    // The work a change of pivot tables is: the tables as they are to be, and the cache when it is read again.
+    struct PivotChange {
+        int table = -1;
+        std::shared_ptr<jp::office::sheet::PivotTable> now;
+        bool structure = false;
+        int cache = -1;
+        std::shared_ptr<jp::office::sheet::PivotCache> cacheNow;
+        jp::office::sheet::CellRange source;
+        int sourceSheet = -1;
+        QString sourceName;
+    };
+    Outcome pivotStep(std::vector<PivotChange> changes, const QString &text, QStringList *skipped = nullptr);
+    // Where a cache's data is now: the sheet and the cells (a table or a name resolved). `over`, if given, is where the person has just said it is.
+    struct SourceOver {
+        int cache = -1;
+        int sheet = -1;
+        jp::office::sheet::CellRange range;
+        QString name;
+    };
+    bool pivotSourceRange(int cache, int *sheet, jp::office::sheet::CellRange *range, QString *why, const SourceOver *over = nullptr) const;
+    // A pivot source's cells and their number formats, read from the sheet as the calculation has them.
+    // What the text of a source says: a range (of the sheet named, else `defaultSheet`), or the name of a table or defined name (given in `*name`, with its cells in `*sheet` and `*range`). False, with `why`.
+    bool parsePivotSource(const QString &text, int defaultSheet, int *sheet, jp::office::sheet::CellRange *range, QString *name, QString *why) const;
+    bool pivotNameRange(const QString &name, int *sheet, jp::office::sheet::CellRange *range) const;
+    void fillPivotSource(jp::office::sheet::PivotSource *source, int sheet, const jp::office::sheet::CellRange &range);
+    Outcome refreshPivotCaches(const std::vector<int> &caches, const QString &text, const SourceOver *over = nullptr, bool partial = false);
     // A change that puts text (never read as anything else) or a formula (as the file writes it) in a cell, or clears it.
     CellChange textCell(int sheet, quint32 row, quint32 col, const QString &text);
     CellChange formulaCell(int sheet, quint32 row, quint32 col, const QString &formula);
     CellChange clearedCell(int sheet, quint32 row, quint32 col);
     bool tableFree(int sheet, const jp::office::sheet::CellRange &range, int except, QString *why) const;
     bool cellsEmpty(int sheet, const jp::office::sheet::CellRange &range) const;
+    bool cellsHoldAnything(int sheet, quint32 row, quint32 col) const;
     jp::office::sheet::EntryOptions entryOptions(int sheet, bool textFormat) const;
     // The change typing `typed` into a cell makes (not a header cell's, not checked against the cell's rule): false, with the problem, if it can't be put in; `none` if it changes nothing.
     bool typedChange(int sheet, quint32 row, quint32 col, const QString &typed, CellChange *change, bool *none, Outcome *problem);

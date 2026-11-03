@@ -55,6 +55,7 @@ const FunctionDoc kDocs[] = {
     {"COLUMNS", Cat::LookupReference, "array", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Counts the columns in a block of cells.")},
     {"ADDRESS", Cat::LookupReference, "row_num, column_num, [abs_num], [a1], [sheet_text]", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Writes the address of a cell as text, from its row and column numbers.")},
     {"TRANSPOSE", Cat::LookupReference, "array", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Turns rows into columns and columns into rows.")},
+    {"GETPIVOTDATA", Cat::LookupReference, "data_field, pivot_table, [field1], [item1], ...", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Gives the value a pivot table shows for a value and the items of its rows and columns. A cell of the table is the second argument; the fields named must be the first ones of the rows or of the columns.")},
     {"HYPERLINK", Cat::LookupReference, "link_location, [friendly_name]", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Makes a cell that opens a link when it is clicked.")},
     {"SUM", Cat::MathTrig, "number1, ...", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Adds numbers and the numbers in blocks of cells.")},
     {"PRODUCT", Cat::MathTrig, "number1, ...", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Multiplies numbers together.")},
