@@ -1814,7 +1814,9 @@
     <file alias="en/window.md">help/en/window.md</file>
     <file alias="en/wrap.md">help/en/wrap.md</file>
     <file alias="en/write/bookmarks.md">help/en/write/bookmarks.md</file>
+    <file alias="en/write/captions.md">help/en/write/captions.md</file>
     <file alias="en/write/comments.md">help/en/write/comments.md</file>
+    <file alias="en/write/citations.md">help/en/write/citations.md</file>
     <file alias="en/write/context.json">help/en/write/context.json</file>
     <file alias="en/write/cross-references.md">help/en/write/cross-references.md</file>
     <file alias="en/write/fields.md">help/en/write/fields.md</file>
@@ -1826,6 +1828,7 @@
     <file alias="en/write/headers-footers.md">help/en/write/headers-footers.md</file>
     <file alias="en/write/index.md">help/en/write/index.md</file>
     <file alias="en/write/keyboard.md">help/en/write/keyboard.md</file>
+    <file alias="en/write/making-an-index.md">help/en/write/making-an-index.md</file>
     <file alias="en/write/open-odt.md">help/en/write/open-odt.md</file>
     <file alias="en/write/open-rtf.md">help/en/write/open-rtf.md</file>
     <file alias="en/write/open-save.md">help/en/write/open-save.md</file>
@@ -1837,6 +1840,7 @@
     <file alias="en/write/spelling.md">help/en/write/spelling.md</file>
     <file alias="en/write/start.md">help/en/write/start.md</file>
     <file alias="en/write/styles.md">help/en/write/styles.md</file>
+    <file alias="en/write/table-of-authorities.md">help/en/write/table-of-authorities.md</file>
     <file alias="en/write/table-of-contents.md">help/en/write/table-of-contents.md</file>
     <file alias="en/write/tables.md">help/en/write/tables.md</file>
     <file alias="en/write/track-changes.md">help/en/write/track-changes.md</file>

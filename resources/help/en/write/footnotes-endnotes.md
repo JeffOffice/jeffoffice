@@ -1,5 +1,5 @@
 # Footnotes and endnotes
-<!-- keywords: footnote, endnote, note, notes, reference, citation, source, insert footnote, insert endnote, References tab, number, foot of the page, end of the document, caption, Ctrl+Alt+F, Ctrl+Alt+D -->
+<!-- keywords: footnote, endnote, note, notes, reference, citation, source, insert footnote, insert endnote, References tab, number, foot of the page, end of the document, caption, Ctrl+Alt+F, Ctrl+Alt+D, number format, start at, restart, numbering, location, roman numerals, letters, symbols, footnote and endnote options -->
 
 A **note** tells the reader more about some words without breaking up the sentence. A small raised number in the text, called the **reference**, points to the note that goes with it. A **footnote** is set at the bottom of the page that has its reference. An **endnote** is set after the last text of the document, or at the end of a section when the file asks for that.
 
@@ -15,6 +15,17 @@ Notes are numbered in the order of their references in the text. If you add a fo
 ## Add an endnote
 
 Click where the reference should go, then click **References > Insert Endnote**, or press **Ctrl+Alt+D**. JeffWrite puts the reference in the text and a new endnote after the last text, with its number, and the caret moves into it. Endnotes have their own numbers, in the style the file asks for.
+
+## Change how notes are numbered
+
+Click **References > Footnote and Endnote...** (the small button under the notes buttons). The box has one part for footnotes and one for endnotes:
+
+- **Number format** is how the numbers look: 1, 2, 3; a, b, c; A, B, C; i, ii, iii; I, II, III; or the marks \*, †, ‡, §.
+- **Start at** is the number the first note has. If you pick 3 and the format i, ii, iii, the first note shows iii.
+- **Numbering** says when the numbers begin again: never (**Continuous**), at each new section, or, for footnotes, at the top of each page.
+- **Location** (endnotes only) puts the endnotes at the end of each section or at the end of the document.
+
+The footnotes change at once. For endnotes, JeffWrite reads the document again so that every mark and note takes the new look, and the **Undo** list starts over. The change is saved with the file, so other programs show the same numbers.
 
 ## Edit a note
 

@@ -1,5 +1,5 @@
 # Fields
-<!-- keywords: field, fields, update field, F9, unlink, lock, field codes, page number, date, NUMPAGES, SEQ, REF, PAGEREF, formula, Insert Field -->
+<!-- keywords: field, fields, INDEX, TOA, CITATION, BIBLIOGRAPHY, XE, TA, TC, update field, F9, unlink, lock, field codes, page number, date, NUMPAGES, SEQ, REF, PAGEREF, formula, Insert Field -->
 
 A **field** is a piece of text that the program works out for you, such as a page number, today's date, or the number of a figure. It has two parts: a **code**, which says what to work out, and a **result**, which is the text you see. The code for a page number is `PAGE`, and its result on the third page is `3`.
 
@@ -39,6 +39,6 @@ Add switches to the code to change how a result looks:
 
 ## Fields JeffWrite works out
 
-PAGE, NUMPAGES, SECTIONPAGES, SECTION, PAGEREF, REF, NOTEREF, STYLEREF, SEQ, DATE, TIME, CREATEDATE, SAVEDATE, PRINTDATE, AUTHOR, TITLE, SUBJECT, FILENAME, FILESIZE, DOCPROPERTY, NUMWORDS, NUMCHARS, IF, COMPARE, QUOTE, a formula that begins with `=`, and TOC. A field of any other kind keeps the result it has, and is saved as it was.
+PAGE, NUMPAGES, SECTIONPAGES, SECTION, PAGEREF, REF, NOTEREF, STYLEREF, SEQ, DATE, TIME, CREATEDATE, SAVEDATE, PRINTDATE, AUTHOR, TITLE, SUBJECT, FILENAME, FILESIZE, DOCPROPERTY, NUMWORDS, NUMCHARS, IF, COMPARE, QUOTE, a formula that begins with `=`, TOC (also a table of figures), INDEX, TOA, CITATION, and BIBLIOGRAPHY. The hidden marks TC, XE, and TA have no result to work out: they tell a table, an index, or a table of authorities what to list. A field of any other kind keeps the result it has, and is saved as it was.
 
 DATE, TIME, FILENAME, and AUTHOR depend on the computer and the moment, so they can change every time you update.

@@ -64,6 +64,12 @@ which JeffPub's and JeffDeck's drawing depend on. Instead:
   of the page that holds the reference (libs/text already reserves and carries them within a frame).
 - **Fields**: page-dependent fields (PAGE, NUMPAGES, SECTIONPAGES, STYLEREF, PAGEREF, TOC) are
   evaluated after pagination, repeating until page breaks stop moving (bounded).
+- **References**: the fields that make paragraphs (TOC and its table of figures, INDEX, TOA, BIBLIOGRAPHY) are
+  worked out in one pass (`apps/write/core/fieldops.cpp`) from the marks the text holds (headings, TC, SEQ, XE, TA, CITATION)
+  and rebuilt as the paragraphs between the field's separator and its end (`tocops.cpp`, `indexops.cpp`, `citeops.cpp`). Sources
+  are the file's bibliography part (a custom XML part, `writedoc_sources.cpp`), kept as read until they are changed. How notes are
+  numbered is the settings part's `footnotePr` and `endnotePr` (`writedoc_notesettings.cpp`); footnote marks take their format from
+  `FieldSource::noteMarkText`, and the endnotes are made again when the document is read from what it would save.
 - **Undo** records commands (what changed in which block), not whole-document snapshots.
 
 ## Waves
