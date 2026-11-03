@@ -922,19 +922,37 @@ void Reader::convertParagraph(const Odf &o, int n, QVector<Block> *out, int list
             if (numId > 0) numPr = "<w:numPr><w:ilvl w:val=\"" + num(lv - 1) + "\"/><w:numId w:val=\"" + num(numId) + "\"/></w:numPr>";
         }
     }
-    QByteArray ppr = pPrXml(pp, tabs, pStyle, numPr, outline, m_pendingPageBreak);
+    // (Made once for each style and each set of the other things it is made from, as a run's look is: three million paragraphs of a few styles are not worked out one by one.)
+    QByteArray ppr;
+    {
+        constexpr int kMostParagraphLooks = 50000;
+        const QByteArray key = QByteArray::number(quintptr(&pp)) + '|' + tabs + '|' + pStyle + '|' + numPr + '|' + QByteArray::number(outline) + (m_pendingPageBreak ? "|b" : "|n");
+        const auto cached = m_pPrCache.constFind(key);
+        if (cached != m_pPrCache.constEnd()) ppr = cached.value();
+        else {
+            ppr = pPrXml(pp, tabs, pStyle, numPr, outline, m_pendingPageBreak);
+            if (m_pPrCache.size() < kMostParagraphLooks) m_pPrCache.insert(key, ppr);
+        }
+    }
     m_pendingPageBreak = pp.value(QStringLiteral("para:fo:break-after")) == QLatin1String("page");
-    Props markBase = pp;
+    QByteArray markProps;
     {
         // The look of the paragraph mark, when the file keeps it (loext:marker-style-name).
         const QString marker = o.at(n, "loext:marker-style-name");
-        if (!marker.isEmpty()) {
+        if (marker.isEmpty()) {
+            // (Made once for each paragraph style, as a run's look is: a copy of the style's properties and the markup made from them for each of three million paragraphs takes most of the time of reading them.)
+            const QByteArray key = "mark#" + QByteArray::number(quintptr(&pp));
+            auto cached = m_rPrCache.constFind(key);
+            if (cached == m_rPrCache.constEnd()) cached = m_rPrCache.insert(key, rPrXml(pp, QString()));
+            markProps = cached.value();
+        } else {
+            Props markBase = pp;
             QString markNamed;
             const Props &own = ownProps(QStringLiteral("text"), marker, &markNamed);
             for (auto it = own.constBegin(); it != own.constEnd(); ++it) markBase.insert(it.key(), it.value());
+            markProps = rPrXml(markBase, QString());
         }
     }
-    const QByteArray markProps = rPrXml(markBase, QString());
     if (!markProps.isEmpty()) ppr += "<w:rPr>" + markProps + "</w:rPr>";
     ParaCtx pc;
     pc.base = &pp;

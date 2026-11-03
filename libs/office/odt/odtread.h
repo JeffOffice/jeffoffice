@@ -83,6 +83,8 @@ public:
     // The package parts; false, with a message, when the file isn't a text document that can be read.
     bool read(const QByteArray &file, QString *error, QStringList *notes);
     QByteArray docx() const { return m_docx; }
+    // The paragraph and run looks worked out from their properties so far in this process (to test that a look is made once for each style, not for each paragraph).
+    static qint64 looksMadeForTest();
 
 private:
     // ---- the parts and what the styles say
@@ -111,6 +113,7 @@ private:
     mutable QHash<QString, std::shared_ptr<Own>> m_ownCache;         // (styles are all read before the body: nothing here is ever out of date)
     mutable QHash<QString, std::shared_ptr<Props>> m_resolvedCache;
     QHash<QByteArray, QByteArray> m_rPrCache;
+    QHash<QByteArray, QByteArray> m_pPrCache;   // the markup of a paragraph's properties, for each style and each of the other things it is made from (at most kMostParagraphLooks)
     // ---- the parts of the package that are made
     QString styleId(const QString &family, const QString &name);
     QString displayOf(const QString &family, const QString &name) const;
