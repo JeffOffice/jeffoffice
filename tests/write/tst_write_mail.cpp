@@ -772,6 +772,244 @@ private Q_SLOTS:
         QTRY_COMPARE(shaded(w.view()->viewport()->grab().toImage(), &box), 0);
     }
 
+    void aWideHeaderDoesNotMultiplyTheCellsOfTheRows()
+    {
+        QTemporaryDir dir;
+        QByteArray csv;
+        for (int i = 0; i < 5000; ++i) csv += "c" + QByteArray::number(i) + ",";
+        csv += "last\n";
+        for (int i = 0; i < 2000; ++i) csv += "x\n";
+        MergeSource m;
+        QVERIFY(loadMergeSource(writeFile(dir, "wide.csv", csv), &m, nullptr));
+        QVERIFY(m.fields.size() <= mostMergeColumns());
+        QVERIFY(qint64(m.rows.size()) * qMax<qint64>(1, m.fields.size()) <= mostMergeCells());
+        QVERIFY(m.truncated);
+        QCOMPARE(m.include.size(), m.rows.size());
+    }
+
+    void aSheetWithOneCellFarAwayIsReadFromItsCellsAlone()
+    {
+        QTemporaryDir dir;
+        const QString path = writeFile(dir, "sparse.xlsx",
+            makeXlsx("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Name</t></is></c></row><row r=\"200000\"><c r=\"F200000\" t=\"inlineStr\"><is><t>far</t></is></c></row>"));
+        MergeSource m;
+        QString error;
+        QVERIFY2(loadMergeSource(path, &m, &error), qPrintable(error));
+        QCOMPARE(m.rows.size(), 1);   // (the rows with no cell are not recipients)
+        QCOMPARE(m.rows[0].value(5), QStringLiteral("far"));
+        QVERIFY(m.fields.size() <= mostMergeColumns());
+    }
+
+    void aBlankRowOfAListIsARecipientUntilTheWriterDropsIt()
+    {
+        QTemporaryDir dir;
+        MergeSource m;
+        QVERIFY(loadMergeSource(writeFile(dir, "blank.csv", "Name,City,Zip\n,,\nAnn,Oslo,\n,,\n"), &m, nullptr));
+        QCOMPARE(m.rows.size(), 3);   // (as JeffPub has always read it)
+        mail::dropBlankRecords(m);
+        QCOMPARE(m.rows.size(), 1);
+        QCOMPARE(m.include.size(), 1);
+        QCOMPARE(m.value(0, "Name"), QStringLiteral("Ann"));
+    }
+
+    void aListLongerThanTheMostRecordsKeepsItsFirstOnes()
+    {
+        MergeSource m;
+        m.fields = {"A"};
+        for (int i = 0; i < mail::kMostRecords + 5; ++i) m.rows << QStringList{QString::number(i)};
+        m.include = QVector<bool>(m.rows.size(), true);
+        mail::limitRecords(m);
+        QCOMPARE(m.rows.size(), mail::kMostRecords);
+        QCOMPARE(m.include.size(), mail::kMostRecords);
+    }
+
+    void aRuleInsertedWithNoResultShowsItsNameInTheEditor()
+    {
+        auto doc = WriteDoc::blank();
+        QTextCursor c(doc->story());
+        QVERIFY(mail::insertRule(*doc, c, QStringLiteral("IF \"{ MERGEFIELD State }\" = \"VA\" \"a\" \"b\""), QString()));
+        QVERIFY(mail::insertRule(*doc, c, QStringLiteral("NEXT"), QString()));
+        const QByteArray docx = doc->toDocx();
+        QVERIFY(documentHas(docx, "\xC2\xAB" "IF\xE2\x80\xA6\xC2\xBB"));
+        QVERIFY(documentHas(docx, "\xC2\xAB" "NEXT\xE2\x80\xA6\xC2\xBB"));
+    }
+
+    void aNamedListIsFoundFromTheDocumentsFolderAndNotThroughALinkOutOfIt()
+    {
+        QTemporaryDir here, elsewhere;
+        QDir(here.path()).mkpath(QStringLiteral("lists"));
+        writeFile(here, "lists/people.csv", "First Name\r\nNora\r\n");
+        const QString outside = writeFile(elsewhere, "secret.csv", "First Name\r\nPrivate\r\n");
+        auto make = [&](const QString &named, WriteWindow &w) {
+            auto doc = open(makeDocx(para(field("MERGEFIELD First_Name", "x"))));
+            mail::State &state = mail::stateOf(*doc);
+            state.settings.type = mail::kindValue(mail::Kind::Letters);
+            state.sourcePath = named;
+            w.setDocument(std::move(doc), here.filePath(QStringLiteral("letter.docx")));
+            w.show();
+        };
+        {
+            // A relative name is the document's folder's, not the working directory's.
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            make(QStringLiteral("lists/people.csv"), w);
+            w.act(QStringLiteral("mail.preview"))->trigger();
+            auto *pane = w.findChild<write::MailPreviewPane *>();
+            QVERIFY(pane);
+            QTRY_VERIFY(pane->shown());
+            QVERIFY(textOf(*pane->shown()).startsWith(QStringLiteral("Nora")));
+        }
+        // A link in the folder to a file outside it is not followed, by its own name or by the name beside the document.
+        if (!QFile::link(outside, here.filePath(QStringLiteral("people.csv")))) QSKIP("links are not made here");
+        for (const QString &named : {here.filePath(QStringLiteral("people.csv")), QStringLiteral("people.csv"), QStringLiteral("/nowhere/people.csv")}) {
+            WriteWindow w;
+            QStringList said;
+            w.setNotifier([&](const QString &, const QString &text) { said << text; });
+            make(named, w);
+            w.act(QStringLiteral("mail.preview"))->trigger();
+            QVERIFY(!w.findChild<write::MailPreviewPane *>());
+            QVERIFY2(!said.isEmpty() && said.last().contains(QStringLiteral("not next to it")), qPrintable(named));
+        }
+    }
+
+    void anEmailAddressIsOnePersonsOrTheRecordIsLeftOut()
+    {
+        MergeSource m;
+        m.fields = {"Email"};
+        const QStringList addresses = {"a@example.com, b@example.com", "c@example.com;d@example.com", "Name <e@example.com>", "no-at-sign", "f@example.com", "g\u00E9@example.com", "h@exam ple.com", "@example.com", "i@example"};
+        for (const QString &a : addresses) m.rows << QStringList{a};
+        m.include = QVector<bool>(m.rows.size(), true);
+        QStringList texts;
+        QVector<int> rows;
+        for (int i = 0; i < m.rows.size(); ++i) {
+            texts << QStringLiteral("t");
+            rows << i;
+        }
+        QTemporaryDir dir;
+        int refused = 0;
+        QString error;
+        const int written = mail::writeEmailFiles(texts, m, rows, QStringLiteral("Email"), QStringLiteral("s"), dir.path(), &error, &refused);
+        QCOMPARE(written, 2);   // (f@example.com, and the one with a letter past ASCII, which is a valid address)
+        QCOMPARE(refused, 7);
+        const QStringList files = QDir(dir.path()).entryList(QDir::Files, QDir::Name);
+        QCOMPARE(files.size(), 2);
+        QVERIFY(files[0].startsWith(QStringLiteral("00005-f")));
+        QVERIFY(files[1].startsWith(QStringLiteral("00006-")));
+    }
+
+    void aLongSubjectIsSplitIntoEncodedWordsOfAtMost75Characters()
+    {
+        MergeSource m;
+        m.fields = {"Email"};
+        m.rows << QStringList{"a@example.com"};
+        m.include = {true};
+        QString subject;
+        for (int i = 0; i < 40; ++i) subject += QStringLiteral("Caf\u00E9 caf\u00E9 \u00FCber ");
+        QTemporaryDir dir;
+        QCOMPARE(mail::writeEmailFiles({QStringLiteral("t")}, m, {0}, QStringLiteral("Email"), subject, dir.path()), 1);
+        QFile f(dir.filePath(QDir(dir.path()).entryList(QDir::Files).first()));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray eml = f.readAll();
+        const QByteArray head = eml.left(eml.indexOf("\r\n\r\n"));
+        QByteArray decoded;
+        int words = 0;
+        for (const QByteArray &line : head.split('\n')) {
+            QByteArray l = line;
+            if (l.endsWith('\r')) l.chop(1);
+            QVERIFY2(l.size() <= 76, l.constData());
+            if (!l.startsWith("Subject:") && !l.startsWith(' ')) continue;
+            for (const QByteArray &word : l.mid(l.startsWith(' ') ? 1 : 9).split(' ')) {
+                if (word.isEmpty()) continue;
+                QVERIFY2(word.size() <= 75 && word.startsWith("=?UTF-8?B?") && word.endsWith("?="), word.constData());
+                decoded += QByteArray::fromBase64(word.mid(10, word.size() - 12));
+                ++words;
+            }
+        }
+        QVERIFY(words > 3);
+        QCOMPARE(QString::fromUtf8(decoded), subject);   // (no character is cut in two)
+    }
+
+    void aMessageIsAddressedToTheRecipientItWasMadeFrom()
+    {
+        // The first record is skipped: the texts are Bo's and Cy's, and the files go to Bo and Cy.
+        auto doc = open(makeDocx(para(nestedField("SKIPIF \"", "MERGEFIELD Name", "\" = \"Ann\"") + run("Hi ") + field("MERGEFIELD Name", "x"))));
+        QVERIFY(doc);
+        const MergeSource m = threePeople();
+        QStringList texts;
+        QVector<int> rows;
+        {
+            QString error;
+            texts = mail::mergeToTexts(*doc, m, {}, mail::MergeOptions(), &error, &rows);
+        }
+        QCOMPARE(texts, (QStringList{QStringLiteral("Hi Bo"), QStringLiteral("Hi Cy")}));
+        QCOMPARE(rows, (QVector<int>{1, 2}));
+        QTemporaryDir dir;
+        QCOMPARE(mail::writeEmailFiles(texts, m, rows, QStringLiteral("Email"), QStringLiteral("s"), dir.path()), 2);
+        const QStringList files = QDir(dir.path()).entryList(QDir::Files, QDir::Name);
+        QCOMPARE(files.size(), 2);
+        QVERIFY(files[0].contains(QStringLiteral("bo@example.com")));
+        QFile f(dir.filePath(files[0]));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray eml = f.readAll();
+        QVERIFY(eml.startsWith("To: bo@example.com\r\n"));
+        QCOMPARE(QByteArray::fromBase64(eml.mid(eml.indexOf("\r\n\r\n") + 4)), QByteArray("Hi Bo"));
+    }
+
+    void aMessageThatTakesTheNextRecordIsAddressedToTheFirstOfThem()
+    {
+        auto doc = open(makeDocx(para(field("MERGEFIELD Name", "x") + run(" and ") + field("NEXT", "") + field("MERGEFIELD Name", "x"))));
+        QVERIFY(doc);
+        QVector<int> rows;
+        const QStringList texts = mail::mergeToTexts(*doc, threePeople(), {}, mail::MergeOptions(), nullptr, &rows);
+        QCOMPARE(texts, (QStringList{QStringLiteral("Ann and Bo"), QStringLiteral("Cy and ")}));
+        QCOMPARE(rows, (QVector<int>{0, 2}));
+    }
+
+    void aMergeStopsAtTheMostPagesItMakes()
+    {
+        auto doc = open(makeDocx(para(field("MERGEFIELD Name", "x"))));
+        QVERIFY(doc);
+        mail::MergeOptions o;
+        o.mostPages = 2;
+        QString error;
+        QVERIFY(!mail::mergeToDocument(*doc, threePeople(), {}, o, &error));
+        QVERIFY(!error.isEmpty());
+        QVERIFY(mail::mergeToDocument(*doc, threePeople(), {}, mail::MergeOptions(), &error));
+        QVERIFY(mail::mergeToTexts(*doc, threePeople(), {}, o, &error).isEmpty());
+        QVERIFY(!error.isEmpty());
+    }
+
+    void theQuestionsOfAMergeAreFewAndACancelStopsIt()
+    {
+        QByteArray body;
+        for (int i = 0; i < 30; ++i) body += para(field("FILLIN \"question " + QByteArray::number(i) + "\" \\d \"dflt\"", "x"));
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        int asked = 0;
+        mail::MergeOptions o;
+        o.ask = [&](const QString &, const QString &def) {
+            ++asked;
+            return def;
+        };
+        QString error;
+        auto merged = mail::mergeToDocument(*doc, threePeople(), {}, o, &error);
+        QVERIFY(merged);
+        QCOMPARE(asked, mail::kMostPrompts);
+        QVERIFY(textOf(*merged).contains(QStringLiteral("dflt")));   // (the ones past the limit use their defaults)
+        // A cancel on a prompt stops the merge.
+        asked = 0;
+        bool cancelled = false;
+        mail::MergeOptions c;
+        c.cancelled = &cancelled;
+        c.ask = [&](const QString &, const QString &def) {
+            ++asked;
+            cancelled = true;
+            return def;
+        };
+        QVERIFY(!mail::mergeToDocument(*doc, threePeople(), {}, c, &error));
+        QCOMPARE(asked, 1);
+    }
+
     void theMatchedFieldsAreKeptInTheDataSourcesFieldMap()
     {
         const QByteArray ns = kNs;
