@@ -1,6 +1,7 @@
 // JeffPub's tests of SVG, ebook, and other output, barcodes, and metafiles.
 #include "pubhelpers.h"
 #include "app/filedialogs.h"
+#include "app/filetasks.h"
 #include "app/optionsdialog.h"
 #include <QCheckBox>
 
@@ -342,6 +343,112 @@ private Q_SLOTS:
         const bool on = jp::Settings::get().value("save/backup", false).toBool();
         jp::Settings::get().setValue("save/backup", false);
         QVERIFY(on);
+    }
+
+    // In a publication open for reading only, nothing changes it: not a change the editor is asked for (by a pane, a box, or a drag), and not the file's properties; Save As refuses the
+    // file's own name, and Save a Copy never writes over the file this window has open; a copy leaves the open publication's properties as they were.
+    void aReadOnlyPublicationIsChangedByNothingAndNeverWrittenOverItself()
+    {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("letter.jpub"));
+        {
+            jp::MainWindow a;
+            a.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+            a.editor()->doc()->props.title = QStringLiteral("original");
+            QVERIFY(a.saveTo(path));
+        }
+        auto bytesOf = [](const QString &p) {
+            QFile f(p);
+            return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray("(none)");
+        };
+        const QByteArray original = bytesOf(path);
+        QStringList told;
+        {
+            jp::MainWindow w;
+            w.setNotifier([&](const QString &, const QString &text) { told << text; });
+            QVERIFY(w.openFile(path, jp::OpenHow::ReadOnly));
+            auto snapshot = [&] { return QJsonDocument(w.editor()->doc()->toJson()).toJson(QJsonDocument::Compact); };
+            const QByteArray before = snapshot();
+            w.editor()->beginChange(QStringLiteral("Probe"));
+            w.editor()->doc()->props.title = QStringLiteral("changed");
+            w.editor()->endChange();
+            QCOMPARE(w.editor()->doc()->props.title, QStringLiteral("original"));
+            QCOMPARE(snapshot(), before);
+            QVERIFY(!w.editor()->isModified());
+            // The file's properties and every other changing command are off or refused.
+            QVERIFY(!jp::AppWindow::commandAllowedReadOnly(QStringLiteral("file.properties")));
+            QVERIFY(!w.act(QStringLiteral("file.properties"))->isEnabled());
+            for (const QString &id : w.actionIds())
+                if (!jp::AppWindow::commandAllowedReadOnly(id)) w.act(id)->trigger();
+            QCOMPARE(snapshot(), before);
+            // Save As: the file's own name is refused.
+            QString suggested;
+            jp::setSavePathStandIn([&](const QString &, const QString &s, const QString &, QString *) {
+                suggested = s;
+                return path;
+            });
+            const bool saved = w.saveAs();
+            jp::setSavePathStandIn({});
+            QVERIFY(!saved);
+            QVERIFY(QFileInfo(suggested).completeBaseName() != QFileInfo(path).completeBaseName());
+            QCOMPARE(told.size(), 1);
+            QCOMPARE(bytesOf(path), original);
+            QVERIFY(w.isReadOnly());
+            QVERIFY(!w.saveTo(path));
+            QCOMPARE(bytesOf(path), original);
+        }
+        // An ordinary window: Save a Copy over its own file is refused, and a copy elsewhere leaves the properties as they were.
+        told.clear();
+        jp::MainWindow o;
+        o.setNotifier([&](const QString &, const QString &text) { told << text; });
+        QVERIFY(o.openFile(path));
+        o.editor()->doc()->props.title = QStringLiteral("edited");
+        QVERIFY(!o.saveCopy(path));
+        QCOMPARE(told.size(), 1);
+        QCOMPARE(bytesOf(path), original);
+        const QDateTime modified = o.editor()->doc()->props.modified;
+        const QString author = o.editor()->doc()->props.author;
+        QTest::qWait(1100);
+        QVERIFY(o.saveCopy(dir.filePath(QStringLiteral("copy.jpub"))));
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("copy.jpub"))));
+        QCOMPARE(o.editor()->doc()->props.modified, modified);
+        QCOMPARE(o.editor()->doc()->props.author, author);
+    }
+
+    // A backup that can't be made asks before the save goes on, and not saving is the default: the file is as it was.
+    void aBackupThatFailsAsksBeforeThePublicationIsSaved()
+    {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("letter.jpub"));
+        jp::MainWindow w;
+        w.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        QVERIFY(w.saveTo(path));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray original = f.readAll();
+        f.close();
+        jp::Settings::get().setValue(QStringLiteral("save/backup"), true);
+        struct Reset {
+            ~Reset()
+            {
+                jp::Settings::get().setValue(QStringLiteral("save/backup"), false);
+                jp::setBackupFailureStandIn({});
+            }
+        } reset;
+        QVERIFY(QDir().mkpath(jp::backupPathFor(path)));
+        QStringList asked;
+        jp::setBackupFailureStandIn([&](const QString &p) {
+            asked << p;
+            return false;
+        });
+        w.editor()->doc()->props.title = QStringLiteral("second");
+        QVERIFY(!w.saveTo(path));
+        QCOMPARE(asked.size(), 1);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(f.readAll(), original);
+        f.close();
+        jp::setBackupFailureStandIn([&](const QString &) { return true; });
+        QVERIFY(w.saveTo(path));
     }
 
     // The ways to open: read-only (nothing changes, Save asks for a new name), as a copy (no file of its own), and in a new window.

@@ -1,3 +1,4 @@
+#include <QScopeGuard>
 #include "app/mainwindow.h"
 #include "templates/changetemplate.h"
 #include "app/help.h"
@@ -523,11 +524,20 @@ bool MainWindow::save()
 bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
 {
     QString path = pathIn;
+    // (the file's name is as it will be written: an ending is added to one that has none)
+    if (!path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive) && !path.endsWith(QLatin1String(".jpub"), Qt::CaseInsensitive)) path += QStringLiteral(".jpub");
+    // A publication open for reading only is never written over its own file, and a copy is never saved over the file this window has open (it would be the same as saving).
+    if (asCopy ? sameFile(path, m_ed->filePath()) : isReadOnly() && sameFile(path, m_ed->filePath())) {
+        const QString text = asCopy ? tr("A copy can't be saved over \"%1\". Choose another name.").arg(QFileInfo(path).fileName()) : tr("This publication is open for reading only. Choose another name for it.");
+        if (m_notifier) m_notifier(tr("Save"), text);
+        else jp::plainWarning(this, tr("Save"), text);
+        return false;
+    }
     QString err;
     const QImage thumb = pageThumbnail(0, 256);
     m_ed->endTextEdit();
     // Options > "Always create backup copy": the file as it was before this save is kept as "Backup of <name>".
-    keepBackupBeforeSave(path);
+    if (!backupBeforeSave(this, path)) return false;
     if (path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive)) {
         if (!exportPublisher(*m_ed->doc(), path, &err, pageThumbnail(0, 160))) {
             jp::plainWarning(this, tr("Save"), err);
@@ -540,6 +550,15 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
                                          .arg(QFileInfo(path).fileName(), err));
     } else {
         if (!path.endsWith(QLatin1String(".jpub"), Qt::CaseInsensitive)) path += QStringLiteral(".jpub");
+        // (a copy has the time and the author a save gives, and the publication open here keeps its own)
+        const QDateTime modifiedBefore = m_ed->doc()->props.modified;
+        const QString authorBefore = m_ed->doc()->props.author;
+        const auto restoreProperties = qScopeGuard([&] {
+            if (asCopy) {
+                m_ed->doc()->props.modified = modifiedBefore;
+                m_ed->doc()->props.author = authorBefore;
+            }
+        });
         m_ed->doc()->props.modified = QDateTime::currentDateTime();
         if (m_ed->doc()->props.author.isEmpty()) m_ed->doc()->props.author = Settings::get().userName();
         if (!savePublication(*m_ed->doc(), path, thumb, &err)) {
@@ -582,8 +601,10 @@ bool MainWindow::saveCopy(const QString &pathIn)
 bool MainWindow::saveAs(const QString &format)
 {
     const QString from = m_ed->filePath().isEmpty() ? m_recoveredFrom : m_ed->filePath();
-    QString dir = from.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/" + m_ed->displayName()
-                                 : QFileInfo(from).absolutePath() + "/" + QFileInfo(from).completeBaseName();
+    // (a publication open for reading only is offered a name of its own, not the file's)
+    const QString copyOf = isReadOnly() ? tr("%1 copy") : QStringLiteral("%1");
+    QString dir = from.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/" + copyOf.arg(m_ed->displayName())
+                                 : QFileInfo(from).absolutePath() + "/" + copyOf.arg(QFileInfo(from).completeBaseName());
     // The dialog hands back the filter text it showed, so the choice is
     // recognized by comparing with these same (translated) texts.
     const QString jpubFilter = tr("JeffPub Publication (*.jpub)"), pubFilter = tr(".pub Publication Files (*.pub)");
