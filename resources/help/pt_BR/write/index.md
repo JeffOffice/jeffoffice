@@ -1,23 +1,23 @@
 # Ajuda do JeffWrite
-<!-- keywords: conteúdo, sumário, ajuda, tópicos, início, começar, índice -->
+<!-- keywords: conteúdo, ajuda, tópicos, início, sumário, começar, índice -->
 
-Digite na caixa de pesquisa acima para localizar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está ou a página da tela Arquivo em que você está.
+Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está ou a página da tela Arquivo em que você está.
 
 ## Introdução
 
-- [Boas-vindas ao JeffWrite](start)
+- [Bem-vindo ao JeffWrite](start)
 - [Abrir, salvar, imprimir e exportar](open-save)
 - [Abrir e salvar arquivos OpenDocument](open-odt)
 - [Abrir arquivos RTF](open-rtf)
 - [Imprimir](print)
 
-## Revisar o texto
+## Trabalhar no texto
 
 - [Verificar a ortografia](spelling)
 - [Controlar alterações e aceitá-las ou rejeitá-las](track-changes)
 - [Adicionar e responder comentários](comments)
 
-## Escrever e alterar o texto
+## Escrever e alterar texto
 
 - [Alterar a aparência do texto](font)
 - [Usar estilos](styles)
@@ -27,7 +27,7 @@ Digite na caixa de pesquisa acima para localizar um tópico ou um comando a exec
 - [Adicionar notas de rodapé e notas de fim](footnotes-endnotes)
 - [Criar um sumário](table-of-contents)
 - [Usar campos](fields)
-- [Indicar outro local com referências cruzadas](cross-references)
+- [Apontar para outro local com referências cruzadas](cross-references)
 - [Marcar locais com indicadores](bookmarks)
 - [Adicionar e alterar imagens](pictures)
 - [Configurar a página](page-setup)
@@ -38,3 +38,4 @@ Digite na caixa de pesquisa acima para localizar um tópico ou um comando a exec
 ## Trabalhar mais rápido
 
 - [Usar o JeffWrite com o teclado](keyboard)
+- [Alterar as configurações do JeffWrite](options)

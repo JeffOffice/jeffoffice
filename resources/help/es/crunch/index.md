@@ -8,7 +8,7 @@ Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que
 - [Bienvenido a JeffCrunch](start)
 - [Abrir y guardar libros](open-save)
 - [Abrir libros protegidos con contraseña](open-password)
-- [Escribir en las celdas](edit-cells)
+- [Escribir en celdas](edit-cells)
 - [Reglas sobre lo que puede contener una celda](rules)
 
 ## Examinar un libro
@@ -48,3 +48,4 @@ Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que
 ## Trabajar más rápido
 
 - [Usar JeffCrunch con el teclado](keyboard)
+- [Cambiar la configuración de JeffCrunch](options)

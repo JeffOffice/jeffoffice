@@ -1,5 +1,5 @@
 # Modifier les paramètres de JeffPub
-<!-- keywords: options, paramètres, préférences, réglages, thème, mode sombre, unités, pouces, centimètres, récupération automatique, sauvegarde, copie de sauvegarde, langue, nom d'utilisateur, déplacer légèrement, mises à jour, bêta, statistiques d'utilisation, à propos -->
+<!-- keywords: options, paramètres, préférences, réglages, thème, mode sombre, unités, pouces, centimètres, récupération automatique, sauvegarde, copie de sauvegarde, langue, nom d'utilisateur, déplacer légèrement, mises à jour, bêta, statistiques d'utilisation, télémétrie, à propos -->
 
 Vos paramètres se trouvent dans la fenêtre **Options de JeffPub**. Cliquez sur **Fichier > Options** pour l'ouvrir. Elle comporte quatre onglets. Cliquez sur **OK** pour conserver vos modifications, ou sur **Annuler** pour les abandonner.
 
@@ -26,26 +26,30 @@ Ces cases à cocher contrôlent l'aide à l'orthographe et à la frappe. Voir [V
 ## Enregistrement
 
 - **Enregistrer les informations de récupération automatique toutes les** définit la fréquence à laquelle JeffPub crée des copies de secours du travail non enregistré, de 1 à 120 minutes. Voir [Récupérer le travail non enregistré](recover).
-- **Toujours créer une copie de sauvegarde** conserve l'ancien fichier sous le nom « Sauvegarde de » suivi de son nom, à chaque enregistrement.
+- **Toujours créer une copie de sauvegarde** conserve l'ancien fichier sous le nom « Sauvegarde de » suivi de son nom à chaque enregistrement.
 
 ## Options avancées
 
-- **Unités de mesure** peut être **Pouces**, **Centimètres**, **Millimètres**, **Points** ou **Picas**. Ce choix s'applique aux règles et à toutes les zones de mesure. Tant que vous n'avez rien choisi, JeffPub utilise les pouces si la région de votre ordinateur utilise les pouces, comme aux États-Unis, et les centimètres partout ailleurs. Un point vaut 1/72 de pouce et un pica vaut 12 points.
+- **Unités de mesure** peut être **Pouces**, **Centimètres**, **Millimètres**, **Points** ou **Picas**. Elles s'appliquent aux règles et à toutes les zones de mesure. Tant que vous n'avez pas fait de choix, JeffPub utilise les pouces si la région de votre ordinateur mesure en pouces, comme aux États-Unis, et les centimètres partout ailleurs. Un point vaut 1/72 de pouce et un pica vaut 12 points.
 - **Les touches de direction déplacent légèrement les objets de** définit la distance dont une touche de direction déplace l'objet sélectionné.
 - **Afficher ce nombre de compositions récentes** indique combien de noms la page **Ouvrir** affiche, de 0 à 50.
 - **Lors d'une sélection, sélectionner automatiquement le mot entier** sélectionne des mots entiers lorsque vous faites glisser la souris sur le texte.
-- **Autoriser le glisser-déplacer du texte** permet de déplacer le texte sélectionné en le faisant glisser.
+- **Autoriser le glisser-déplacer du texte** vous permet de déplacer le texte sélectionné en le faisant glisser.
 - **Coupure de mots automatique dans les nouvelles zones de texte** active la coupure de mots, qui coupe les mots longs en fin de ligne, dans les zones de texte que vous ajoutez.
 
 ## Mises à jour, statistiques et votre nom
 
-Cliquez sur **Fichier > À propos** pour accéder à ces options. Les deux cases à cocher figurent aussi dans l'onglet **Général** de **Fichier > Options**, avec une troisième, **Obtenir les versions bêta**.
+Cliquez sur **Fichier > À propos** pour accéder à ces options. Les deux cases à cocher se trouvent aussi dans l'onglet **Général** de **Fichier > Options**, avec une troisième, **Obtenir les versions bêta**.
 
-- **Rechercher les mises à jour** recherche immédiatement une version plus récente. S'il en existe une, une fenêtre **Mise à jour disponible** présente les nouveautés. Choisissez **Mettre à jour maintenant**, **Plus tard** ou **Ignorer cette version**.
+- **Rechercher les mises à jour** recherche immédiatement une version plus récente. Si une version est disponible, une fenêtre **Mise à jour disponible** présente les nouveautés. Choisissez **Mettre à jour maintenant**, **Plus tard** ou **Ignorer cette version**.
 - **Obtenir les versions bêta (préversions destinées aux tests)** permet à JeffPub de proposer aussi les versions bêta, qui sortent avant les versions normales et peuvent comporter des imperfections.
-- **Rechercher automatiquement des mises à jour** fait rechercher les mises à jour par JeffPub à chaque démarrage.
-- **Envoyer des statistiques d'utilisation anonymes** vous permet de choisir de partager des informations sur l'utilisation de JeffPub. Lorsque cette option est activée, JeffPub les envoie une fois par jour, ainsi que le jour d'une mise à jour : sa version, votre système d'exploitation et votre langue, et la fréquence d'utilisation de chaque commande. Si JeffPub se ferme de façon inattendue, il envoie également un rapport d'incident au démarrage suivant. Ce rapport indique à quel endroit du programme l'arrêt s'est produit, afin que le problème puisse être identifié et corrigé. JeffPub n'envoie jamais vos fichiers, leurs noms ni leur contenu, ni rien de ce que vous avez tapé. Cliquez sur **Données envoyées** pour en savoir plus. JeffPub vous pose la question lors de son premier démarrage, dans une fenêtre intitulée **Aidez à améliorer JeffPub**. Sous Windows, le programme d'installation peut la poser avant. Ce choix s'applique à toutes les applications JeffOffice : JeffDeck envoie le même type d'informations le concernant, uniquement si vous avez choisi de les partager.
-- **Votre nom** est le même que le **Nom d'utilisateur** ci-dessus.
+- **Rechercher automatiquement des mises à jour** fait effectuer la recherche par JeffPub à chaque démarrage.
+- **Envoyer des statistiques d'utilisation anonymes** vous permet de choisir de partager des informations sur l'utilisation de JeffPub. Lorsque cette option est activée, JeffPub envoie ces informations une fois par jour, ainsi que le jour d'une mise à jour : sa version, votre système d'exploitation et votre langue, et la fréquence d'utilisation de chaque commande. Si JeffPub se ferme de manière inattendue, il envoie aussi un rapport de plantage au démarrage suivant. Ce rapport indique à quel endroit du programme l'arrêt s'est produit, afin que le problème puisse être identifié et corrigé. JeffPub n'envoie jamais vos fichiers, leurs noms ni leur contenu, ni rien de ce que vous avez tapé. Cliquez sur **Données envoyées** pour en savoir plus. JeffPub vous pose la question lors de son premier démarrage, dans une fenêtre intitulée **Aidez à améliorer JeffPub**. Sous Windows, le programme d'installation peut la poser avant. Ce choix vaut pour toutes les applications JeffOffice : JeffDeck envoie le même type d'informations le concernant, uniquement si vous avez choisi de les partager.
+- **Déclaration de confidentialité**, à côté de cette case à cocher, ouvre notre déclaration de confidentialité à l'adresse jeffoffice.com/privacy. Elle indique ce qui est envoyé, à qui ces données sont transmises et pendant combien de temps nous les conservons. Nous conservons les statistiques pendant 24 mois.
+- **Numéro d'installation** s'affiche sous la case à cocher. Il s'agit d'un numéro aléatoire créé pour votre copie de JeffOffice, identique dans toutes les applications JeffOffice. Il ne dit rien sur vous. Cliquez sur **Copier** pour le copier. Si les statistiques sont désactivées ou si aucun numéro n'a encore été créé, la mention **aucun** s'affiche.
+- Pour faire supprimer les statistiques que nous détenons déjà, envoyez votre numéro d'installation à info@jeffoffice.com **avant** de désactiver les statistiques. Leur désactivation efface ce numéro de votre ordinateur, et sans lui nous ne pouvons pas savoir quels enregistrements vous concernent.
+- Pour désactiver définitivement les statistiques sans ouvrir JeffPub, attribuez une valeur quelconque à la variable d'environnement `JP_NO_TELEMETRY` avant de le démarrer. Rien n'est alors comptabilisé ni envoyé, et JeffPub ne pose pas la question du premier démarrage.
+- **Votre nom** est le même nom que **Nom d'utilisateur** ci-dessus.
 
 ## Voir aussi
 

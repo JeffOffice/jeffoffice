@@ -1,36 +1,36 @@
 # Alterar as configurações do JeffPub
-<!-- keywords: opções, configurações, preferências, tema, modo escuro, tema escuro, unidades, unidades de medida, centímetros, polegadas, recuperação automática, backup, cópia de segurança, idioma, nome de usuário, deslocar, atualizações, beta, estatísticas de uso, sobre -->
+<!-- keywords: opções, configurações, preferências, tema, modo escuro, unidades, polegadas, recuperação automática, backup, idioma, nome de usuário, deslocar, atualizações, beta, estatísticas de uso, sobre -->
 
 Suas configurações ficam na janela **Opções do JeffPub**. Clique em **Arquivo > Opções** para abri-la. Ela tem quatro guias. Clique em **OK** para manter as alterações ou em **Cancelar** para descartá-las.
 
 ## Geral
 
-- **Nome de usuário** e **Iniciais** são salvos como autor de novas publicações e mostrados nos comentários.
+- **Nome de usuário** e **Iniciais** são salvos como autor das novas publicações e mostrados nos comentários.
 - **Tema** pode ser **Usar configuração do sistema**, **Claro** ou **Escuro**. A alteração aparece na hora.
-- **Idioma de exibição** é o idioma dos textos do próprio JeffPub. **Usar idioma do sistema** segue o idioma do seu computador. Outros idiomas aparecem nesta lista quando há traduções disponíveis. Um novo idioma passa a valer na próxima vez que você abrir o JeffPub.
-- **Enviar estatísticas de uso anônimas** e **Verificar se há atualizações ao iniciar o JeffPub** são as mesmas opções da página **Sobre** (abaixo).
+- **Idioma de exibição** é o idioma dos textos do próprio JeffPub. **Usar idioma do sistema** segue o idioma do computador. Outros idiomas aparecem nesta lista quando há traduções disponíveis. Um novo idioma passa a valer na próxima vez que você abrir o JeffPub.
+- **Enviar estatísticas de uso anônimas** e **Verificar se há atualizações ao iniciar o JeffPub** são as mesmas opções da página **Sobre** (veja abaixo).
 
-**Nome de usuário**, **Iniciais**, **Tema** e **Idioma de exibição**, além das opções de atualização e de estatísticas, valem para todos os aplicativos do JeffOffice: ao alterar uma delas aqui, ela muda em todos eles.
+**Nome de usuário**, **Iniciais**, **Tema** e **Idioma de exibição**, além das opções de atualização e de estatísticas, valem para todos os aplicativos do JeffOffice: altere uma delas aqui e ela muda em todos eles.
 
 ## Revisão de Texto
 
-Estas caixas de seleção controlam a ajuda com ortografia e digitação. Consulte [Verificar a ortografia e a hifenização](proofing).
+Estas caixas de seleção controlam a ajuda com ortografia e digitação. Consulte [Verificar ortografia e hifenização](proofing).
 
 - **Verificar ortografia ao digitar**
 - **Ignorar palavras em MAIÚSCULAS**
 - **Ignorar palavras que contêm números**
 - **Substituir texto ao digitar (AutoCorreção)** corrige erros comuns de digitação.
 - **Substituir aspas retas por aspas inglesas** transforma " e ' em aspas curvas.
-- **Formatar automaticamente ao digitar (travessões, frações, ordinais, listas automáticas)**
+- **AutoFormatação ao digitar (traços, frações, ordinais, listas automáticas)**
 
 ## Salvar
 
-- **Salvar informações de recuperação automática a cada** define com que frequência o JeffPub cria cópias de reserva do trabalho não salvo, de 1 a 120 minutos. Consulte [Recuperar trabalho não salvo](recover).
-- **Sempre criar cópia de backup** mantém o arquivo anterior como "Backup de" mais o nome dele sempre que você salva.
+- **Salvar informações de recuperação automática a cada** define com que frequência o JeffPub faz cópias de reserva do trabalho não salvo, de 1 a 120 minutos. Consulte [Recuperar trabalho não salvo](recover).
+- **Sempre criar cópia de backup** mantém o arquivo anterior como "Backup de" seguido do nome dele sempre que você salva.
 
 ## Avançado
 
-- **Unidades de medida** podem ser **Polegadas**, **Centímetros**, **Milímetros**, **Pontos** ou **Paicas**. Elas definem as réguas e todas as caixas de medida. Até que você escolha, o JeffPub usa polegadas se a região do seu computador mede em polegadas, como nos Estados Unidos, e centímetros em todos os outros lugares. Um ponto equivale a 1/72 de polegada, e uma paica equivale a 12 pontos.
+- **Unidades de medida** podem ser **Polegadas**, **Centímetros**, **Milímetros**, **Pontos** ou **Paicas**. Elas definem as réguas e todas as caixas de medida. Até que você escolha, o JeffPub usa polegadas se a região do computador mede em polegadas, como nos Estados Unidos, e centímetros em todos os outros lugares. Um ponto equivale a 1/72 de polegada, e uma paica, a 12 pontos.
 - **As teclas de direção deslocam objetos em** define a distância que uma tecla de direção move um objeto selecionado.
 - **Mostrar este número de publicações recentes** é a quantidade de nomes que a página **Abrir** lista, de 0 a 50.
 - **Ao selecionar, selecionar automaticamente a palavra inteira** seleciona palavras inteiras quando você arrasta sobre o texto.
@@ -41,14 +41,18 @@ Estas caixas de seleção controlam a ajuda com ortografia e digitação. Consul
 
 Clique em **Arquivo > Sobre** para encontrar estas opções. As duas caixas de seleção também estão na guia **Geral** de **Arquivo > Opções**, junto com uma terceira, **Obter versões beta**.
 
-- **Verificar atualizações** procura uma versão mais recente agora. Se houver uma, a janela **Atualização disponível** mostra as novidades. Escolha **Atualizar agora**, **Mais tarde** ou **Ignorar esta versão**.
+- **Verificar se há atualizações** procura uma versão mais recente agora. Se houver uma, a janela **Atualização disponível** mostra as novidades. Escolha **Atualizar agora**, **Mais tarde** ou **Ignorar esta versão**.
 - **Obter versões beta (compilações antecipadas para teste)** faz o JeffPub oferecer também versões beta, que saem antes das versões normais e podem ter imperfeições.
-- **Verificar atualizações automaticamente** faz o JeffPub procurar atualizações sempre que é iniciado.
-- **Enviar estatísticas de uso anônimas** é a sua escolha sobre compartilhar informações sobre como o JeffPub é usado. Quando essa opção está ativada, o JeffPub envia estas informações uma vez por dia e no dia em que você atualiza: a versão dele, seu sistema operacional e idioma e a frequência com que cada comando é usado. Se o JeffPub fechar inesperadamente, ele também envia um relatório de falha na próxima vez que for iniciado. O relatório informa em que ponto do programa ele parou, para que o problema possa ser encontrado e corrigido. Ele nunca envia seus arquivos, os nomes deles ou qualquer conteúdo deles, nem nada que você tenha digitado. Clique em **O que é enviado** para saber mais. O JeffPub pergunta sobre isso na primeira vez que é iniciado, em uma janela chamada **Ajude a melhorar o JeffPub**. No Windows, o programa de instalação pode perguntar antes. A escolha vale para todos os aplicativos do JeffOffice: o JeffDeck envia o mesmo tipo de informação sobre ele próprio, somente se você tiver optado por compartilhar.
-- **Seu nome** é o mesmo nome de **Nome de usuário** acima.
+- **Verificar atualizações automaticamente** faz o JeffPub procurar sempre que é iniciado.
+- **Enviar estatísticas de uso anônimas** é sua escolha sobre compartilhar informações de como o JeffPub é usado. Quando ativada, o JeffPub envia estas informações uma vez por dia, e no dia em que você atualiza: a versão dele, seu sistema operacional e idioma, e a frequência de uso de cada comando. Se o JeffPub fechar inesperadamente, ele também envia um relatório de falha na próxima vez que for iniciado. O relatório indica em que ponto do programa ele parou, para que o problema possa ser encontrado e corrigido. Ele nunca envia seus arquivos, os nomes deles ou o conteúdo deles, nem nada que você digitou. Clique em **O que é enviado** para saber mais. O JeffPub pergunta sobre isso na primeira vez que é iniciado, em uma janela chamada **Ajude a melhorar o JeffPub**. No Windows, a instalação pode perguntar antes. A escolha vale para todos os aplicativos do JeffOffice: o JeffDeck envia o mesmo tipo de informação sobre si mesmo, somente se você optou por compartilhar.
+- **Aviso de privacidade**, ao lado dessa caixa de seleção, abre nosso aviso de privacidade em jeffoffice.com/privacy. Ele informa o que é enviado, para onde vai e por quanto tempo guardamos. Guardamos as estatísticas por 24 meses.
+- **Número de instalação** aparece abaixo da caixa de seleção. É um número aleatório criado para a sua cópia do JeffOffice, o mesmo em todos os aplicativos do JeffOffice. Ele não diz nada sobre você. Clique em **Copiar** para copiá-lo. Se as estatísticas estiverem desativadas, ou se ainda não houver um número, aparece **nenhum**.
+- Para que as estatísticas que já temos sejam excluídas, envie seu número de instalação para info@jeffoffice.com **antes** de desativar as estatísticas. Desativá-las apaga o número do seu computador e, sem ele, não conseguimos identificar quais registros são seus.
+- Para desativar as estatísticas definitivamente sem abrir o JeffPub, defina a variável de ambiente `JP_NO_TELEMETRY` com qualquer valor antes de iniciá-lo. Assim, nada é contado nem enviado, e o JeffPub não faz a pergunta da primeira execução.
+- **Seu nome** é o mesmo nome de **Nome de usuário**, acima.
 
 ## Relacionados
 
 - [Recuperar trabalho não salvo](recover)
-- [Verificar a ortografia e a hifenização](proofing)
+- [Verificar ortografia e hifenização](proofing)
 - [Obter ajuda e relatar problemas](support)

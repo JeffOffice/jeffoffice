@@ -1,7 +1,7 @@
-# Help bij JeffWrite
-<!-- keywords: inhoud, help, onderwerpen, starten, beginnen, inhoudsopgave, hulp -->
+# JeffWrite Help
+<!-- keywords: inhoud, help, onderwerpen, starten, beginnen, hulp -->
 
-Typ in het zoekvak hierboven om een onderwerp te vinden of een opdracht uit te voeren. Druk op elk moment op **F1** voor hulp bij waar u mee bezig bent: het tabblad van het lint waarop u zich bevindt of de pagina van het scherm Bestand waarop u zich bevindt.
+Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te voeren. Druk op elk moment op **F1** voor hulp bij waar u mee bezig bent: het tabblad van het lint waarop u zich bevindt, of de pagina van het scherm Bestand waarop u zich bevindt.
 
 ## Aan de slag
 
@@ -11,7 +11,7 @@ Typ in het zoekvak hierboven om een onderwerp te vinden of een opdracht uit te v
 - [RTF-bestanden openen](open-rtf)
 - [Afdrukken](print)
 
-## Aan uw tekst werken
+## Uw tekst controleren
 
 - [Uw spelling controleren](spelling)
 - [Wijzigingen bijhouden en accepteren of weigeren](track-changes)
@@ -21,7 +21,7 @@ Typ in het zoekvak hierboven om een onderwerp te vinden of een opdracht uit te v
 
 - [Het uiterlijk van tekst wijzigen](font)
 - [Stijlen gebruiken](styles)
-- [Opmaak overnemen met Opmaak kopiëren](format-painter)
+- [Een opmaak overnemen met Opmaak kopiëren](format-painter)
 - [Kopteksten, voetteksten en paginanummers toevoegen](headers-footers)
 - [Tabellen maken en wijzigen](tables)
 - [Voetnoten en eindnoten toevoegen](footnotes-endnotes)
@@ -37,4 +37,5 @@ Typ in het zoekvak hierboven om een onderwerp te vinden of een opdracht uit te v
 
 ## Sneller werken
 
-- [JeffWrite met het toetsenbord gebruiken](keyboard)
+- [JeffWrite gebruiken met het toetsenbord](keyboard)
+- [De instellingen van JeffWrite wijzigen](options)

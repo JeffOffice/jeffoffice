@@ -1,5 +1,5 @@
 # JeffCrunch-Hilfe
-<!-- keywords: Inhalt, Inhaltsverzeichnis, Hilfe, Themen, Hilfethemen, Start, Übersicht -->
+<!-- keywords: Inhalt, Hilfe, Themen, Start, Übersicht, Inhaltsverzeichnis, Erste Schritte -->
 
 Geben Sie oben in das Suchfeld etwas ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur aktuellen Registerkarte des Menübands oder zur aktuellen Seite im Menü „Datei“.
 
@@ -13,7 +13,7 @@ Geben Sie oben in das Suchfeld etwas ein, um ein Thema oder einen auszuführende
 
 ## Eine Arbeitsmappe ansehen
 
-- [Zellen markieren und navigieren](select-and-move)
+- [Zellen markieren und sich bewegen](select-and-move)
 - [Die Ansicht ändern](view)
 - [Wie Formeln angezeigt und berechnet werden](formulas)
 - [Namen für Zellen und Werte](names)
@@ -27,10 +27,10 @@ Geben Sie oben in das Suchfeld etwas ein, um ein Thema oder einen auszuführende
 - [Mit Blättern arbeiten](sheets)
 - [Zeilen, Spalten und Zellen einfügen und löschen](insert-delete)
 - [Spaltenbreite und Zeilenhöhe ändern](sizes)
-- [Ausschneiden, kopieren und einfügen](clipboard)
+- [Ausschneiden, Kopieren und Einfügen](clipboard)
 - [Zellen ausfüllen und addieren](fill-sum)
-- [Suchen, ersetzen und gehe zu](find-replace)
-- [Sortieren und filtern](sort-filter)
+- [Suchen, Ersetzen und Gehe zu](find-replace)
+- [Sortieren und Filtern](sort-filter)
 - [Tabellen](tables)
 - [Pivot-Tabellen](pivot-tables)
 - [Eine Funktion einfügen](insert-function)
@@ -48,3 +48,4 @@ Geben Sie oben in das Suchfeld etwas ein, um ein Thema oder einen auszuführende
 ## Schneller arbeiten
 
 - [JeffCrunch mit der Tastatur bedienen](keyboard)
+- [Die Einstellungen von JeffCrunch ändern](options)

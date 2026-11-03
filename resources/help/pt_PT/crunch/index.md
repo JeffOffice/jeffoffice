@@ -1,7 +1,7 @@
 # Ajuda do JeffCrunch
-<!-- keywords: conteúdo, índice, ajuda, tópicos, início, começar, primeiros passos -->
+<!-- keywords: conteúdo, ajuda, tópicos, início, começar, índice -->
 
-Escreva na caixa de pesquisa acima para localizar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do ecrã Ficheiro em que está.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer momento para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do ecrã Ficheiro em que se encontra.
 
 ## Introdução
 
@@ -48,3 +48,4 @@ Escreva na caixa de pesquisa acima para localizar um tópico ou um comando a exe
 ## Trabalhar mais depressa
 
 - [Utilizar o JeffCrunch com o teclado](keyboard)
+- [Alterar as definições do JeffCrunch](options)

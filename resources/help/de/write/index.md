@@ -1,7 +1,7 @@
 # JeffWrite-Hilfe
-<!-- keywords: Inhalt, Hilfe, Themen, Hilfethemen, Start, Erste Schritte, Übersicht -->
+<!-- keywords: Inhalt, Hilfe, Themen, Start -->
 
-Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu Ihrer aktuellen Tätigkeit zu erhalten: zur geöffneten Registerkarte des Menübands oder zur geöffneten Seite im Menü „Datei“.
+Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur aktuellen Registerkarte des Menübands oder zur aktuellen Seite im Menü „Datei“.
 
 ## Erste Schritte
 
@@ -21,7 +21,7 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 
 - [Aussehen von Text ändern](font)
 - [Formatvorlagen verwenden](styles)
-- [Formatierung mit „Formatierung kopieren“ übertragen](format-painter)
+- [Aussehen mit „Formatierung kopieren“ übertragen](format-painter)
 - [Kopfzeilen, Fußzeilen und Seitenzahlen hinzufügen](headers-footers)
 - [Tabellen erstellen und ändern](tables)
 - [Fußnoten und Endnoten hinzufügen](footnotes-endnotes)
@@ -38,3 +38,4 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 ## Schneller arbeiten
 
 - [JeffWrite mit der Tastatur bedienen](keyboard)
+- [Einstellungen von JeffWrite ändern](options)

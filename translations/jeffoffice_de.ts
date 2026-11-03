@@ -4145,7 +4145,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">&lt;b&gt;Publikation&lt;/b&gt;&lt;br&gt;Seiten: %1&lt;br&gt;Wörter: %2&lt;br&gt;Zeichen (ohne Leerzeichen): %3&lt;br&gt;Zeichen (mit Leerzeichen): %4&lt;br&gt;Absätze: %5&lt;br&gt;Textfelder: %6&lt;br&gt;Bilder: %7%8</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+54"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+55"/>
         <source>JeffPub Options</source>
         <translation type="unfinished">JeffPub-Optionen</translation>
     </message>
@@ -4200,7 +4200,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Einmal täglich sowie am Tag eines Updates: die JeffPub-Version, Ihr Betriebssystem und Ihre Sprache sowie die Häufigkeit, mit der jeder Befehl verwendet wird. Niemals Ihre Dateien, deren Namen oder deren Inhalt.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+14"/>
         <source>Check for updates when JeffPub starts</source>
         <translation type="unfinished">Beim Start von JeffPub nach Updates suchen</translation>
     </message>
@@ -6687,6 +6687,24 @@ So lassen Sie %1 zu: Öffnen Sie die Windows-Sicherheit, wählen Sie „Viren- u
 %2
 
 Oder speichern Sie in einem Ordner, der nicht geschützt ist.</translation>
+    </message>
+</context>
+<context>
+    <name>FileScreen</name>
+    <message>
+        <location filename="../libs/shell/app/filescreenparts.cpp" line="+80"/>
+        <source>Additional terms</source>
+        <translation type="unfinished">Zusätzliche Bedingungen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Privacy notice</source>
+        <translation type="unfinished">Datenschutzhinweis</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Trademark policy</source>
+        <translation type="unfinished">Markenrichtlinie</translation>
     </message>
 </context>
 <context>
@@ -13095,7 +13113,7 @@ Open it in your email program, add recipients and send.</source>
 <context>
     <name>Telemetry</name>
     <message>
-        <location filename="../libs/shell/app/telemetry.cpp" line="+149"/>
+        <location filename="../libs/shell/app/telemetry.cpp" line="+154"/>
         <source>Help improve %1</source>
         <translation type="unfinished">Helfen Sie, %1 zu verbessern</translation>
     </message>
@@ -13108,6 +13126,31 @@ Open it in your email program, add recipients and send.</source>
         <location line="+9"/>
         <source>Send anonymous usage statistics</source>
         <translation type="unfinished">Anonyme Nutzungsstatistiken senden</translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>Privacy notice</source>
+        <translation type="unfinished">Datenschutzhinweis</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Copy</source>
+        <translation type="unfinished">Kopieren</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>To have our copy of your statistics deleted, send this number to info@jeffoffice.com before you turn statistics off.</source>
+        <translation type="unfinished">Wenn Sie möchten, dass wir unsere Kopie Ihrer Statistiken löschen, senden Sie diese Nummer an info@jeffoffice.com, bevor Sie die Statistiken deaktivieren.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Install number: %1</source>
+        <translation type="unfinished">Installationsnummer: %1</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>none</source>
+        <translation type="unfinished">keine</translation>
     </message>
 </context>
 <context>
@@ -16434,7 +16477,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">Was gesendet wird</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+19"/>
         <source>Your name</source>
         <translation type="unfinished">Ihr Name</translation>
     </message>
@@ -16454,7 +16497,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;JeffPub ist freie Software unter der &lt;a href=&quot;%1&quot;&gt;GNU General Public License v3.0&lt;/a&gt;. Es wird OHNE JEGLICHE GEWÄHRLEISTUNG bereitgestellt; Einzelheiten finden Sie in der Lizenz. &lt;a href=&quot;%2&quot;&gt;Lizenz auf gnu.org lesen&lt;/a&gt;.&lt;br&gt;&lt;br&gt;JeffPub ist ein unabhängiges Open-Source-Projekt. Es steht in keiner Verbindung zu einem anderen Softwareunternehmen und wird von keinem solchen unterstützt oder empfohlen. Produktnamen sind Marken ihrer jeweiligen Inhaber.</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>Interface, text layout, PDF and printing</source>
         <translation type="unfinished">Oberfläche, Textlayout, PDF und Drucken</translation>
     </message>
@@ -25839,7 +25882,7 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">Version %1</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/filescreenparts.cpp" line="+201"/>
+        <location filename="../libs/shell/app/filescreenparts.cpp" line="+134"/>
         <source>JeffOffice apps</source>
         <translation type="unfinished">JeffOffice-Apps</translation>
     </message>

@@ -1,7 +1,7 @@
 # Ayuda de JeffWrite
 <!-- keywords: contenido, ayuda, temas, inicio, empezar, índice -->
 
-Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Presione **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que desee ejecutar. Presione **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
 
 ## Introducción
 
@@ -15,21 +15,21 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Revisar la ortografía](spelling)
 - [Controlar los cambios y aceptarlos o rechazarlos](track-changes)
-- [Agregar comentarios y responderlos](comments)
+- [Agregar y responder comentarios](comments)
 
-## Escribir y cambiar texto
+## Escribir y modificar texto
 
 - [Cambiar el aspecto del texto](font)
 - [Usar estilos](styles)
 - [Copiar un aspecto con Copiar formato](format-painter)
 - [Agregar encabezados, pies de página y números de página](headers-footers)
-- [Crear y cambiar tablas](tables)
+- [Crear y modificar tablas](tables)
 - [Agregar notas al pie y notas al final](footnotes-endnotes)
 - [Crear una tabla de contenido](table-of-contents)
 - [Usar campos](fields)
-- [Señalar otro lugar con referencias cruzadas](cross-references)
+- [Hacer referencia a otro lugar con referencias cruzadas](cross-references)
 - [Marcar lugares con marcadores](bookmarks)
-- [Agregar y cambiar imágenes](pictures)
+- [Agregar y modificar imágenes](pictures)
 - [Configurar la página](page-setup)
 - [Usar la regla](ruler)
 - [Buscar y reemplazar palabras](find-replace)
@@ -38,3 +38,4 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 ## Trabajar más rápido
 
 - [Usar JeffWrite con el teclado](keyboard)
+- [Cambiar la configuración de JeffWrite](options)

@@ -1,7 +1,7 @@
 # Aide de JeffCrunch
-<!-- keywords: sommaire, table des matières, aide, rubriques, démarrer, accueil, débuter -->
+<!-- keywords: sommaire, aide, rubriques, démarrer, table des matières, accueil -->
 
-Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez à tout moment sur **F1** pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban ou la page de l'écran Fichier sur lequel vous vous trouvez.
+Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban ou la page de l'écran Fichier sur laquelle vous vous trouvez.
 
 ## Prise en main
 
@@ -9,7 +9,7 @@ Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une comma
 - [Ouvrir et enregistrer des classeurs](open-save)
 - [Ouvrir des classeurs protégés par mot de passe](open-password)
 - [Saisir du texte dans les cellules](edit-cells)
-- [Règles de contenu des cellules](rules)
+- [Règles sur le contenu d'une cellule](rules)
 
 ## Consulter un classeur
 
@@ -39,12 +39,13 @@ Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une comma
 - [Notes et liens](notes-links)
 - [Protéger une feuille ou le classeur](protect)
 
-## Impression
+## Imprimer
 
-- [Mettre en page](page-layout)
+- [Configurer les pages](page-layout)
 - [La boîte de dialogue Mise en page](page-setup)
 - [Imprimer et créer un PDF](printing)
 
 ## Travailler plus vite
 
 - [Utiliser JeffCrunch avec le clavier](keyboard)
+- [Modifier les paramètres de JeffCrunch](options)

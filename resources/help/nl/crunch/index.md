@@ -1,7 +1,7 @@
 # Help bij JeffCrunch
-<!-- keywords: inhoud, help, onderwerpen, starten, beginnen, inhoudsopgave, overzicht -->
+<!-- keywords: inhoud, help, onderwerpen, starten, begin, inhoudsopgave -->
 
-Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te voeren. Druk op elk moment op **F1** voor hulp bij wat u aan het doen bent: het tabblad van het lint waarop u zich bevindt, of de pagina van het scherm Bestand waarop u zich bevindt.
+Typ in het zoekvak hierboven om een onderwerp te vinden of een opdracht uit te voeren. Druk op elk moment op **F1** voor hulp bij waar u mee bezig bent: het tabblad van het lint waarop u zich bevindt, of de pagina van het scherm Bestand waarop u zich bevindt.
 
 ## Aan de slag
 
@@ -29,7 +29,7 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te v
 - [De breedte van kolommen en de hoogte van rijen wijzigen](sizes)
 - [Knippen, kopiëren en plakken](clipboard)
 - [Cellen doorvoeren en optellen](fill-sum)
-- [Zoeken, vervangen en gaan naar](find-replace)
+- [Zoeken, vervangen en ga naar](find-replace)
 - [Sorteren en filteren](sort-filter)
 - [Tabellen](tables)
 - [Draaitabellen](pivot-tables)
@@ -47,4 +47,5 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken of een opdracht uit te v
 
 ## Sneller werken
 
-- [JeffCrunch met het toetsenbord gebruiken](keyboard)
+- [JeffCrunch gebruiken met het toetsenbord](keyboard)
+- [De instellingen van JeffCrunch wijzigen](options)
