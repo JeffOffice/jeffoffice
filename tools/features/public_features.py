@@ -46,6 +46,7 @@ SKIP_H2 = ("The Preview bar", "The beta bar", "How the tiers", "Fidelity and tes
            "Left out on purpose", "Decided", "Open questions")
 SKIP_H3 = ("What must survive a round trip",)
 ITEM = re.compile(r"^- \[([x~ ])\] (.*)$")
+SOON_TIERS = ("first release", "1.0")      # a [ ] item is "Coming soon" only with one of these tiers (not "later")
 TIER = re.compile(r"^(?:\*\*(?:first release|1\.0|later)\*\*\s*)+")
 ALT = re.compile(r"\*\*\(alt\)\*\*\s*")
 ALT_NOTE = re.compile(r"\*\*\((?:alt:\s*)?(.*?)\)\*\*")
@@ -78,7 +79,7 @@ def clean_item(raw):
 
 
 def parse_list(path):
-    """Returns tabs: [ {h: heading, direct: [(status, text, note)], groups: [ {h, items} ]} ]. Status is done ([x]) or partly ([~])."""
+    """Returns tabs: [ {h: heading, direct: [(status, text, note)], groups: [ {h, items} ]} ]. Status is done ([x]), partly ([~]), or todo ([ ] with a first release or 1.0 tier; the others are left out)."""
     tabs, tab, group = [], None, None
     for line in open(path, encoding="utf-8"):
         line = line.rstrip("\n")
@@ -103,8 +104,10 @@ def parse_list(path):
         if tab is None:
             continue
         if m:
-            if m.group(1) in "x~":
-                entry = ("done" if m.group(1) == "x" else "partly", clean_item(m.group(2)), item_note(m.group(2)))
+            tier = re.match(r"\*\*(first release|1\.0|later)\*\*", m.group(2))
+            if m.group(1) in "x~" or (tier and tier.group(1) in SOON_TIERS):
+                status = {"x": "done", "~": "partly", " ": "todo"}[m.group(1)]
+                entry = (status, clean_item(m.group(2)), item_note(m.group(2)))
                 (group["items"] if group else tab["direct"]).append(entry)
         elif line.startswith("- ") or line.startswith("  - "):
             sys.exit("unparsed list line in %s: %s" % (path, line[:120]))
@@ -167,39 +170,46 @@ def violations(text):
     return found
 
 
-def entry_problems(e):
-    if e.get("drop"):
+def _text_problems(d, label):
+    if d.get("drop"):
         return []
     out = []
     for lang in LANGS:
-        t = (e.get(lang) or "").strip()
+        t = (d.get(lang) or "").strip()
         if not t:
-            out.append("%s is empty" % lang)
+            out.append("%s %sis empty" % (lang, label))
         for v in violations(t):
-            out.append("%s uses \"%s\"" % (lang, v))
+            out.append("%s %suses \"%s\"" % (lang, label, v))
         if "*(" in t or "**" in t or "\n" in t:
-            out.append("%s has stray markup" % lang)
+            out.append("%s %shas stray markup" % (lang, label))
     return out
 
 
-PROMISES = re.compile(r"\b(coming soon|coming next|is coming|are coming|planned|will be|not yet)\b", re.I)
+def entry_problems(e):
+    """e: {drop, en, es, fr, soon: {drop, en, es, fr}}: the text of what works today and of what is missing."""
+    return _text_problems(e, "") + _text_problems(e.get("soon") or {"drop": True}, "soon text ")
+
+
+PROMISES = re.compile(r"\b(coming soon|coming next|is coming|are coming|planned|will|in progress)\b", re.I)
 OTHER_APPS = ("JeffPub", "JeffDeck", "JeffWrite", "JeffCrunch", "JeffMail", "JeffBase")
 
 
 def scope_problems(e, wanted_entry):
     """What a reworded text may not say about its own entry: another app's name (unless the source has it) or a promise."""
-    if e.get("drop"):
-        return []
     own = APPS[wanted_entry["app"]]["name"]
     source = wanted_entry["text"] + " " + wanted_entry.get("note", "")
     out = []
-    for lang in LANGS:
-        t = e.get(lang) or ""
-        for name in OTHER_APPS:
-            if name != own and name in t and name not in source:
-                out.append("%s names %s in %s's text" % (lang, name, own))
-    if PROMISES.search(e.get("en") or ""):
-        out.append("en promises something (%s)" % PROMISES.search(e["en"]).group(0))
+    for label, d in (("", e), ("soon text ", e.get("soon") or {"drop": True})):
+        if d.get("drop"):
+            continue
+        for lang in LANGS:
+            t = d.get(lang) or ""
+            for name in OTHER_APPS:
+                if name != own and name in t and name not in source:
+                    out.append("%s %snames %s in %s's text" % (lang, label, name, own))
+        m = PROMISES.search(d.get("en") or "")
+        if m:
+            out.append("en %spromises something (%s)" % (label, m.group(0)))
     return out
 
 
@@ -207,19 +217,25 @@ def scope_problems(e, wanted_entry):
 
 SYSTEM = """You write the public feature pages of JeffOffice, a free, open-source office suite for Windows, macOS, and Linux with four apps: JeffPub (desktop publishing), JeffDeck (presentations), JeffWrite (documents), and JeffCrunch (spreadsheets). JeffMail and JeffBase are planned.
 
-You receive entries from an internal checklist, as JSON: id, kind ("heading", "feature", or "partial"), app (the app the entry is about), path (the app, tab, and group the entry sits in), text, and for items a note. Return, for each entry, a public version in English, Spanish, and French.
+You receive entries from an internal checklist, as JSON: id, kind ("heading", "feature", "partial", or "todo"), app (the app the entry is about), path (the app, tab, and group the entry sits in), text, and for items a note. For each entry return two public texts, each in English, Spanish, and French: "works" (what the app does today) and "soon" (what is not there yet).
 
-For a "feature" or "partial" entry, write one or two plain sentences that say what the person can do in that app today, in factual words a visitor and a search engine can both use. The note is internal: it says how far the feature is, what works, and what is missing. For a "feature" (done) entry, use the note only to avoid saying more than is true. For a "partial" entry, the feature mostly works today and lacks only the part the note names: describe only what works today, and leave out what the note says is missing (do not mention the missing part at all). If the note says nothing usable works yet, return drop. Rules:
+The note is internal: it says how far the feature is, what works, and what is missing. Per kind:
+- "feature" (done): works = one or two plain sentences saying what the person can do in that app, in factual words a visitor and a search engine can both use; use the note only to avoid saying more than is true. soon = dropped.
+- "partial" (mostly works today): works = only what works today, leaving out what the note says is missing (if the note says nothing usable works yet, drop works). soon = the part the note names as missing, as one short noun-phrase line naming the capability in the present tense ("Conditional format rules: create and edit"); drop soon if the note names nothing concrete.
+- "todo" (not there yet): works = dropped. soon = one short plain line naming the feature the same way, from the text.
+- "heading": works = the heading; soon = dropped.
+To drop a text, set its drop flag (works_drop or soon_drop) true and its three strings empty. Rules:
+- Wording of "soon" lines: plain present-tense names of the capability, no dates, no "will", no "coming soon", "planned", or "in progress" (the page's heading says it).
 - The app is the one named in the entry's "app" field; whenever the sentence needs the app's name, use that name, and never another app's name. Do not mention other JeffOffice apps at all unless the source text itself does.
-- Never add a fact that is not in the source text or note. Never say anything is "coming", "coming soon", "planned", "in progress", or "will" happen; say only what works now.
+- Never add a fact that is not in the source text or note. In "works" texts never say anything is "coming", "coming soon", "planned", "in progress", or "will" happen; say only what works now.
 - American English, with the Oxford comma ("A, B, and C"). No marketing superlatives or hype: no "best", "powerful", "seamless", "ultimate", and the like. State facts.
 - Keep file extensions exactly (.pub, .docx, .xlsx, .pptx, .odt, .ods, .odp, .csv, and so on), each in backticks. Also put keyboard keys and function names in backticks.
 - Never name another company's product, program, font, or feature. Do not write Microsoft, Excel, Word (as a product), PowerPoint, Publisher, Office (except inside "JeffOffice"), Outlook, Access, Calibri, Cambria, Arial, Times New Roman, Courier New, Segoe, PivotTable, AutoSum, AutoFit, Format Painter, AutoRecover, Quick Access Toolbar, or Quick Parts, in any language. Say "the original program", "other office suites", or "other programs" where a product would be named; for fonts say "common fonts" or "stand-ins with the same letter widths"; for a product's own feature name use a plain description ("pivot table" is fine as a generic term). File formats are named by extension and, where useful, by plain description (for example "binary spreadsheet files from older programs").
 - Remove everything internal: tiers, status, version and release history, dates, percentages, counts of files or documents tested, the names of test collections or corpora, benchmark results, code paths and module names (libs/..., tools/...), and how the work was measured or tested. Keep a number only when it is a real limit or capability a user would care about (for example "up to 1,048,576 rows").
-- Use "drop": true (and empty strings) for an entry that is only about testing method, our own collection or corpus, internal code structure or build tooling, or that cannot be said without naming another product or only makes sense as a comparison with one. Do not drop a real user-facing feature just because it is hard to word.
+- Use the drop flags for a text that is only about testing method, our own collection or corpus, internal code structure or build tooling, or that cannot be said without naming another product or only makes sense as a comparison with one. Do not drop a real user-facing feature just because it is hard to word.
 - Do not invent features: say only what the source says. If a source line is vague, stay vague.
 
-For a "heading" entry, write a short plain title (under 9 words) in the three languages. Keep the structure and meaning. If a heading names another product, replace the name with neutral wording: "Beyond Excel" becomes "Beyond the usual spreadsheet", "Beyond Publisher" becomes "Beyond the usual desktop publisher", "Beyond Word" becomes "Beyond the usual word processor", "Beyond PowerPoint" becomes "Beyond the usual presentation program"; "Web tab (Publisher's web page tools)" becomes "Web tab (web page tools)"; "Under the ribbon: X" becomes "Behind the scenes: X". Tab names such as "Home tab" and "Insert tab" stay, using the natural Spanish and French words for "tab" ("pestaña", "onglet"). Never drop a heading.
+For a "heading" entry (works), write a short plain title (under 9 words) in the three languages. Keep the structure and meaning. If a heading names another product, replace the name with neutral wording: "Beyond Excel" becomes "Beyond the usual spreadsheet", "Beyond Publisher" becomes "Beyond the usual desktop publisher", "Beyond Word" becomes "Beyond the usual word processor", "Beyond PowerPoint" becomes "Beyond the usual presentation program"; "Web tab (Publisher's web page tools)" becomes "Web tab (web page tools)"; "Under the ribbon: X" becomes "Behind the scenes: X". Tab names such as "Home tab" and "Insert tab" stay, using the natural Spanish and French words for "tab" ("pestaña", "onglet"). Never drop a heading.
 
 Languages: Spanish addresses the reader as "usted" and avoids regional slang ("computadora", "archivo", "hoja de cálculo", "cinta de opciones" for ribbon). French addresses the reader as "vous" ("ruban", "tableur", "classeur", "feuille de calcul"). Keep the names JeffOffice, JeffPub, JeffDeck, JeffWrite, JeffCrunch, JeffMail, and JeffBase untranslated. Spanish and French translate your English wording, not the source. Use the typographic apostrophe (’) in French.
 
@@ -229,9 +245,11 @@ RESULT_SCHEMA = {
     "type": "object",
     "properties": {"results": {"type": "array", "items": {
         "type": "object",
-        "properties": {"id": {"type": "integer"}, "drop": {"type": "boolean"},
-                       "en": {"type": "string"}, "es": {"type": "string"}, "fr": {"type": "string"}},
-        "required": ["id", "drop", "en", "es", "fr"], "additionalProperties": False}}},
+        "properties": {"id": {"type": "integer"}, "works_drop": {"type": "boolean"},
+                       "en": {"type": "string"}, "es": {"type": "string"}, "fr": {"type": "string"},
+                       "soon_drop": {"type": "boolean"},
+                       "soon_en": {"type": "string"}, "soon_es": {"type": "string"}, "soon_fr": {"type": "string"}},
+        "required": ["id", "works_drop", "en", "es", "fr", "soon_drop", "soon_en", "soon_es", "soon_fr"], "additionalProperties": False}}},
     "required": ["results"], "additionalProperties": False,
 }
 
@@ -300,7 +318,7 @@ def collect(apps_tabs):
     wanted = {}
 
     def item(app, status, text, note, path):
-        wanted.setdefault(key_of(app, "item", text, note), {"app": app, "kind": "feature" if status == "done" else "partial", "path": path, "text": text, "note": note})
+        wanted.setdefault(key_of(app, "item", text, note), {"app": app, "kind": {"done": "feature", "partly": "partial", "todo": "todo"}[status], "path": path, "text": text, "note": note})
 
     for app, tabs in apps_tabs.items():
         base = APPS[app]["name"]
@@ -320,13 +338,26 @@ def collect(apps_tabs):
 def estimate(todo):
     chars = sum(len(v["text"]) + len(v["path"]) + len(v["note"]) for v in todo.values())
     batches = -(-len(todo) // BATCH)
-    tokens_in = chars / 3.5 + 45 * len(todo) + batches * (len(SYSTEM) / 3.5 + 300)
-    tokens_out = sum(max(len(v["text"]) * 0.75, 40) for v in todo.values()) * 3 / 3.2 + 30 * len(todo)
+    # (scaled by what the first real run measured: input 1.26x and output 1.75x the plain estimate)
+    tokens_in = 1.26 * (chars / 3.5 + 45 * len(todo) + batches * (len(SYSTEM) / 3.5 + 300))
+    two = lambda v: 1.5 if v["kind"] in ("partial", "todo") else 1.0     # a second text for what is missing
+    tokens_out = 1.75 * (sum(max(len(v["text"]) * 0.75, 40) * two(v) for v in todo.values()) * 3 / 3.2 + 30 * len(todo))
     return tokens_in, tokens_out, (tokens_in * PRICE_IN + tokens_out * PRICE_OUT) / 1e6
 
 
+def normalize(r, kind):
+    """The model's flat result as stored: works text plus a "soon" text; a kind that has only one of them drops the other."""
+    works = {"drop": bool(r["works_drop"]) or kind == "todo", "en": r["en"].strip(), "es": r["es"].strip(), "fr": r["fr"].strip()}
+    soon = {"drop": bool(r["soon_drop"]) or kind in ("feature", "heading"), "en": r["soon_en"].strip(), "es": r["soon_es"].strip(), "fr": r["soon_fr"].strip()}
+    for d in (works, soon):
+        if d["drop"]:
+            d.update(en="", es="", fr="")
+    works["soon"] = soon
+    return works
+
+
 def reword(wanted, cache, dry_run, checkpoint):
-    todo = {k: v for k, v in wanted.items() if k not in cache}
+    todo = {k: v for k, v in wanted.items() if k not in cache or "soon" not in cache[k]}
     print("%d distinct items and headings; %d cached; %d to send." % (len(wanted), len(wanted) - len(todo), len(todo)))
     if not todo:
         return
@@ -360,11 +391,12 @@ def reword(wanted, cache, dry_run, checkpoint):
                 if i not in by_id or i in seen or i in accepted:
                     continue
                 seen.add(i)
+                r = normalize(r, todo[by_id[i]]["kind"])
                 problems = entry_problems(r) + scope_problems(r, todo[by_id[i]])
                 if problems:
                     bad[i] = problems
                 else:
-                    accepted[i] = {"drop": bool(r["drop"]), "en": r["en"].strip(), "es": r["es"].strip(), "fr": r["fr"].strip()}
+                    accepted[i] = r
             for e in entries:
                 if e["id"] not in accepted and e["id"] not in seen:
                     bad[e["id"]] = ["no result returned"]

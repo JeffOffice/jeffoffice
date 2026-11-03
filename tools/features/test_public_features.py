@@ -22,6 +22,8 @@ Last reviewed November 2, 2026.
 - [x] **first release** Free and open source *(shared: libs/x)* **(needed for the Preview)**
 - [~] **1.0** **(alt)** Online pictures *(note (with parens))* *(second note)*
 - [ ] **later** Not there yet
+- [ ] **1.0** Planned thing *(not built)*
+- [ ] **first release** Another thing
 
 ## Home tab
 
@@ -35,7 +37,7 @@ Last reviewed November 2, 2026.
 - [x] **1.0** thrown away
 
 ### Empty group
-- [ ] **1.0** nothing
+- [ ] **later** nothing
 
 ## Fidelity and testing
 
@@ -55,7 +57,8 @@ class Parse(unittest.TestCase):
 
     def test_statuses_and_dropped_items(self):
         beyond = self.tabs[0]["direct"]
-        self.assertEqual(beyond, [("done", "Free and open source", "shared: libs/x"), ("partly", "Online pictures", "note (with parens) | second note")])
+        self.assertEqual(beyond, [("done", "Free and open source", "shared: libs/x"), ("partly", "Online pictures", "note (with parens) | second note"),
+                                  ("todo", "Planned thing", "not built"), ("todo", "Another thing", "")])
 
     def test_groups(self):
         home = self.tabs[1]
@@ -134,19 +137,19 @@ class Keys(unittest.TestCase):
 
     def test_collect_sends_app_and_note(self):
         tabs = {"jeffdeck": [{"h": "H", "direct": [("partly", "Same", "n1")], "groups": []}],
-                "jeffcrunch": [{"h": "H", "direct": [("partly", "Same", "n1")], "groups": []}]}
+                "jeffcrunch": [{"h": "H", "direct": [("partly", "Same", "n1"), ("todo", "Later one", "")], "groups": []}]}
         w = pf.collect(tabs)
         items = [v for v in w.values() if v["kind"] != "heading"]
-        self.assertEqual(sorted(v["app"] for v in items), ["jeffcrunch", "jeffdeck"])
-        self.assertEqual({v["note"] for v in items}, {"n1"})
-        self.assertEqual({v["kind"] for v in items}, {"partial"})
+        self.assertEqual(sorted(v["app"] for v in items), ["jeffcrunch", "jeffcrunch", "jeffdeck"])
+        self.assertEqual({v["note"] for v in items}, {"n1", ""})
+        self.assertEqual({v["kind"] for v in items}, {"partial", "todo"})
 
 
 class Scope(unittest.TestCase):
     ENTRY = {"app": "jeffcrunch", "text": "Installs without administrator rights", "note": "", "kind": "feature"}
 
     def ok(self, **kw):
-        return dict({"drop": False, "en": "Installs.", "es": "Se instala.", "fr": "S’installe."}, **kw)
+        return dict({"drop": False, "en": "Installs.", "es": "Se instala.", "fr": "S’installe.", "soon": {"drop": True, "en": "", "es": "", "fr": ""}}, **kw)
 
     def test_other_app_name(self):
         self.assertTrue(pf.scope_problems(self.ok(en="Install JeffDeck without rights."), self.ENTRY))
@@ -157,8 +160,41 @@ class Scope(unittest.TestCase):
         self.assertFalse(pf.scope_problems(self.ok(en="Paste cells into JeffWrite."), e))
 
     def test_promises(self):
-        for t in ["This is coming soon.", "Planned for later.", "It will be added", "Not yet available"]:
+        for t in ["This is coming soon.", "Planned for later.", "It will be added", "Work in progress"]:
             self.assertTrue(pf.scope_problems(self.ok(en=t), self.ENTRY), t)
+
+
+class Soon(unittest.TestCase):
+    FLAT = {"id": 0, "works_drop": False, "en": "Opens files.", "es": "Abre archivos.", "fr": "Ouvre des fichiers.",
+            "soon_drop": False, "soon_en": "Saving files", "soon_es": "Guardar archivos", "soon_fr": "Enregistrement de fichiers"}
+
+    def test_partial_keeps_both(self):
+        r = pf.normalize(self.FLAT, "partial")
+        self.assertFalse(r["drop"])
+        self.assertFalse(r["soon"]["drop"])
+        self.assertEqual(pf.entry_problems(r), [])
+
+    def test_feature_has_no_soon_text(self):
+        r = pf.normalize(self.FLAT, "feature")
+        self.assertTrue(r["soon"]["drop"])
+        self.assertEqual(r["soon"]["en"], "")
+
+    def test_todo_has_no_works_text(self):
+        r = pf.normalize(self.FLAT, "todo")
+        self.assertTrue(r["drop"])
+        self.assertFalse(r["soon"]["drop"])
+
+    def test_soon_text_is_checked(self):
+        r = pf.normalize(dict(self.FLAT, soon_en="Export to Excel files"), "partial")
+        self.assertTrue(pf.entry_problems(r))
+        r = pf.normalize(dict(self.FLAT, soon_en="Saving files will be added"), "partial")
+        self.assertTrue(pf.scope_problems(r, {"app": "jeffpub", "text": "x", "note": ""}))
+
+    def test_old_entry_without_soon_is_sent_again(self):
+        k = pf.key_of("jeffpub", "item", "A")
+        wanted = {k: {"app": "jeffpub", "kind": "feature", "path": "p", "text": "A", "note": ""}}
+        todo = {k: v for k, v in wanted.items() if k not in {k: {"drop": False}} or "soon" not in {k: {"drop": False}}[k]}
+        self.assertEqual(list(todo), [k])
 
 
 class Build(unittest.TestCase):
@@ -175,9 +211,9 @@ class Build(unittest.TestCase):
         self.assertEqual(tab["groups"][0]["items"][0]["text"], k("jeffpub", "item", "B", "n"))
         self.assertEqual(data["apps"]["jeffpub"]["version"], "0.20.0")
 
-    def test_no_coming_next_in_the_prompt(self):
-        self.assertNotIn("Coming next", pf.SYSTEM)
-        self.assertIn("describe only what works today", pf.SYSTEM)
+    def test_prompt_rules(self):
+        self.assertIn("no \"will\"", pf.SYSTEM)
+        self.assertIn("only what works today", pf.SYSTEM)
 
 
 if __name__ == "__main__":
