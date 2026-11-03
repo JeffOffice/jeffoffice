@@ -16908,6 +16908,23 @@ private Q_SLOTS:
         QVERIFY2(!text.left(lines[0].end).trimmed().endsWith(QLatin1String("fuses")), qPrintable(QString::number(firstEnd)));
     }
 
+    // A footer's text after a tab whose stop is past the right edge stays on its line, off to the right, and does not wrap to more lines: the footer is as tall as one with no such tab.
+    void aFootersTextAfterATabPastTheRightEdgeDoesNotWrap()
+    {
+        const QByteArray sect = "<w:sectPr><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"200\" w:gutter=\"0\"/></w:sectPr>";
+        auto bodyHeight = [&](const QByteArray &runs) {
+            const QByteArray footer = headerPart("ftr", {runs});
+            auto doc = open(makeDocxWithParts(paragraphs(3), sect, {{QStringLiteral("/word/footer1.xml"), footer}}));
+            return doc ? doc->pager().page(0).content.height() : -1.0;
+        };
+        QByteArray tabs;
+        for (int i = 0; i < 16; ++i) tabs += "<w:r><w:tab/></w:r>";
+        const QByteArray stops = "<w:pPr><w:tabs><w:tab w:val=\"center\" w:pos=\"4320\"/><w:tab w:val=\"right\" w:pos=\"8640\"/></w:tabs></w:pPr>";
+        const double plain = bodyHeight(stops + "<w:r><w:t>Left</w:t></w:r>"), run = bodyHeight(stops + "<w:r><w:t>Left</w:t></w:r>" + tabs + "<w:r><w:t>May 2001</w:t></w:r>");
+        QVERIFY(plain > 0);
+        QCOMPARE(run, plain);
+    }
+
     // ---- frames
 
     static QByteArray framedP(const QByteArray &text, const QByteArray &framePr)

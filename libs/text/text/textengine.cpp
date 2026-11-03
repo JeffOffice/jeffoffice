@@ -4352,6 +4352,26 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             }
                         }
                     }
+                    // A word processor's header or footer text after a tab whose stop is past the right edge stays on the line, off to the right (it does not wrap: the line goes on
+                    // to its next break): a footer with more tabs than its stops has.
+                    if (env.wordLines && wordTabs && gridTabs && al == Qt::AlignLeft && frames[f].tabsRunOff) {
+                        const int s0 = line.textStart(), e0 = s0 + line.textLength();
+                        if (e0 > s0 && e0 < B->disp.size() && B->disp[e0 - 1] != QChar::LineSeparator) {
+                            int k = e0 - 1;
+                            while (k > s0 && B->disp[k] == QLatin1Char(' ')) --k;
+                            if (B->disp[k] == QLatin1Char('\t')) {
+                                const double off = iv.x0 - col.left(), w = iv.x1 - iv.x0;
+                                const double pen = off + line.cursorToX(k) - line.cursorToX(s0);
+                                double stop = -1;
+                                for (const QTextOption::Tab &t : ownTabs) {
+                                    const double at = t.position * scale;
+                                    if (at > pen + 0.01 && (stop < 0 || at < stop)) stop = at;
+                                }
+                                if (stop < 0) stop = nextStop(pen, false);
+                                if (stop - off > w + 0.01) line.setLineWidth(1e6);
+                            }
+                        }
+                    }
                     // Hyphenation zone: a word is broken only if moving it whole to
                     // the next line would leave more than the zone empty here.
                     if (hyphenate && zone > 0) {
