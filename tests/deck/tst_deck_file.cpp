@@ -1,5 +1,11 @@
 // JeffDeck's tests of the file screen, saving from the window, and reusing slides.
+#include "../isolatesettings.h"
 #include "deckhelpers.h"
+#include "app/notespane.h"
+#include "app/outlineview.h"
+#include "app/slidespane.h"
+#include "app/widgets.h"
+#include "app/filetasks.h"
 #include <QListWidget>
 #include <QStandardPaths>
 
@@ -260,6 +266,157 @@ private Q_SLOTS:
         QCOMPARE(deck::importAnyPresentationFile(path, &notes)->pages.size(), slides + 2);
     }
 
+    // In a presentation open for reading only, nothing changes it: not the notes or the outline typed, not a change the editor is asked for (by a pane, a box, or a drag), not the slide
+    // show's set-up, timings, or custom shows; and the boxes of the ribbon are off.
+    void aReadOnlyPresentationIsChangedByNothing()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("talk.pptx"));
+        {
+            DeckWindow a;
+            a.newSlide();
+            QVERIFY(a.saveTo(path));
+        }
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY(w.openFile(path, OpenHow::ReadOnly));
+        QVERIFY(w.isReadOnly());
+        auto snapshot = [&] { return QJsonDocument(w.editor()->doc()->toJson()).toJson(QJsonDocument::Compact); };
+        const QByteArray before = snapshot();
+        const QString title = w.editor()->doc()->props.title;
+        const int steps = w.editor()->undoStack()->count();
+        // The notes and the outline, typed and committed.
+        QTest::keyClicks(w.notesPane(), QStringLiteral("spoken words"));
+        w.notesPane()->setPlainText(QStringLiteral("spoken words"));
+        w.notesPane()->commit();
+        w.act(QStringLiteral("view.outline"))->trigger();
+        QTest::keyClicks(w.outlineView(), QStringLiteral("typed in the outline"));
+        w.outlineView()->commit();
+        QCOMPARE(snapshot(), before);
+        // A change asked of the editor directly (what every pane and box does) is taken back, and makes no step.
+        w.editor()->beginChange(QStringLiteral("Probe"));
+        w.editor()->doc()->props.title = QStringLiteral("changed");
+        w.editor()->endChange();
+        QCOMPARE(w.editor()->doc()->props.title, title);
+        QCOMPARE(snapshot(), before);
+        w.slidesPane()->moveSlide(0, 1);
+        QCOMPARE(snapshot(), before);
+        // The commands that change the presentation, the show's set-up and timings among them, are off or refused.
+        for (const char *id : {"show.setUp", "show.customShows", "show.rehearse", "show.useTimings"}) {
+            QVERIFY(!AppWindow::commandAllowedReadOnly(QLatin1String(id)));
+            QAction *a = w.act(QLatin1String(id));
+            QVERIFY(a);
+            QVERIFY2(!a->isEnabled(), id);
+            a->trigger();
+        }
+        for (const QString &id : w.actionIds())
+            if (!AppWindow::commandAllowedReadOnly(id)) w.act(id)->trigger();
+        for (FontCombo *f : w.ribbon()->findChildren<FontCombo *>()) QVERIFY(!f->isEnabled());
+        for (SizeCombo *c : w.ribbon()->findChildren<SizeCombo *>()) QVERIFY(!c->isEnabled());
+        QCOMPARE(snapshot(), before);
+        QCOMPARE(w.editor()->undoStack()->count(), steps);
+        QVERIFY(!w.editor()->isModified());
+    }
+
+    // Save As in a presentation open for reading only refuses the file's own name; Save a Copy never writes over the file this window has open; a copy has the time of the save, and the
+    // presentation open here keeps its own.
+    void aPresentationIsNeverWrittenOverItsOwnFileByCopyOrReadOnlySaveAs()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("talk.pptx"));
+        {
+            DeckWindow a;
+            a.newSlide();
+            QVERIFY(a.saveTo(path));
+        }
+        auto bytesOf = [](const QString &p) {
+            QFile f(p);
+            return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray("(none)");
+        };
+        const QByteArray original = bytesOf(path);
+        QStringList told;
+        {
+            DeckWindow w;
+            w.setNotifier([&](const QString &, const QString &text) { told << text; });
+            QVERIFY(w.openFile(path, OpenHow::ReadOnly));
+            QString suggested;
+            w.setSavePathChooser([&](const QString &s, const QString &) {
+                suggested = s;
+                return path;
+            });
+            QVERIFY(!w.saveAs());
+            QVERIFY(!suggested.isEmpty() && QFileInfo(suggested).absoluteFilePath() != QFileInfo(path).absoluteFilePath());
+            QCOMPARE(told.size(), 1);
+            QCOMPARE(bytesOf(path), original);
+            QVERIFY(w.isReadOnly());
+            QVERIFY(!w.saveTo(dir.path() + QStringLiteral("/./talk.pptx")));
+            QCOMPARE(bytesOf(path), original);
+        }
+        told.clear();
+        DeckWindow o;
+        o.setNotifier([&](const QString &, const QString &text) { told << text; });
+        QVERIFY(o.openFile(path));
+        o.newSlide();
+        o.setSavePathChooser([&](const QString &, const QString &) { return path; });
+        QVERIFY(!o.saveCopy());
+        QCOMPARE(told.size(), 1);
+        QCOMPARE(bytesOf(path), original);
+        QVERIFY(o.editor()->isModified());
+        // A copy elsewhere leaves this presentation's properties as they were.
+        const QDateTime modified = o.editor()->doc()->props.modified;
+        const QString author = o.editor()->doc()->props.author;
+        QTest::qWait(1100);
+        const QString copy = dir.filePath(QStringLiteral("copy.pptx"));
+        o.setSavePathChooser([&](const QString &, const QString &) { return copy; });
+        QVERIFY(o.saveCopy());
+        QVERIFY(QFileInfo::exists(copy));
+        QCOMPARE(o.editor()->doc()->props.modified, modified);
+        QCOMPARE(o.editor()->doc()->props.author, author);
+        QVERIFY(o.editor()->isModified());
+    }
+
+    // A backup that can't be made asks before the save goes on, and not saving is the default: the file is as it was.
+    void aBackupThatFailsAsksBeforeThePresentationIsSaved()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("talk.pptx"));
+        DeckWindow w;
+        w.newSlide();
+        QVERIFY(w.saveTo(path));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray original = f.readAll();
+        f.close();
+        Settings::get().setValue(QStringLiteral("save/backup"), true);
+        struct Reset {
+            ~Reset()
+            {
+                Settings::get().setValue(QStringLiteral("save/backup"), false);
+                setBackupFailureStandIn({});
+            }
+        } reset;
+        QVERIFY(QDir().mkpath(backupPathFor(path)));
+        QStringList asked;
+        setBackupFailureStandIn([&](const QString &p) {
+            asked << p;
+            return false;
+        });
+        w.newSlide();
+        QVERIFY(!w.saveTo(path));
+        QCOMPARE(asked.size(), 1);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(f.readAll(), original);
+        f.close();
+        QVERIFY(w.editor()->isModified());
+        setBackupFailureStandIn([&](const QString &) { return true; });
+        QVERIFY(w.saveTo(path));
+        QVERIFY(!w.editor()->isModified());
+    }
+
     // The ways to open: read-only (nothing changes, Save asks for a new name), as a copy (no file of its own), and in a new window.
     void aPresentationOpensReadOnlyAsACopyAndInANewWindow()
     {
@@ -320,7 +477,7 @@ private Q_SLOTS:
     // Save as Template puts a .potx in My Templates (with a picture of the first slide) and leaves the presentation as it was; one made from it is a new presentation.
     void saveAsTemplatePutsAPresentationInMyTemplates()
     {
-        QStandardPaths::setTestModeEnabled(true);
+        jptest::TestModeGuard testMode;
         QDir(myTemplatesFolder()).removeRecursively();
         DeckWindow w;
         w.newSlide();
@@ -344,7 +501,6 @@ private Q_SLOTS:
         QCOMPARE(b.editor()->doc()->pages.size(), slides);
         QVERIFY(removeMyTemplate(found.first()));
         w.editor()->markSaved();
-        QStandardPaths::setTestModeEnabled(false);
     }
 
     // Open and Repair: a presentation whose end (the directory of its parts) was lost does not open as it is, and opens as a repaired copy with every part that was whole.

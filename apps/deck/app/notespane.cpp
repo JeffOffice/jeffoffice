@@ -44,7 +44,7 @@ void NotesPane::commit()
 {
     m_idle.stop();
     Document *d = m_ed->doc();
-    if (!d || !m_typed) return;
+    if (!d || !m_typed || m_ed->readOnly()) return;   // (a presentation open for reading only is not changed by what is typed)
     m_typed = false;
     const int i = d->pageIndexOf(m_pageId);
     if (i < 0) return;

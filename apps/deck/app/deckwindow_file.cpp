@@ -45,6 +45,9 @@ void DeckWindow::setReadOnly(bool on)
 {
     AppWindow::setReadOnly(on);
     m_ed->setReadOnly(on);
+    if (m_notes) m_notes->setReadOnly(on);
+    if (m_outline) m_outline->setReadOnly(on);
+    if (m_formatPane) m_formatPane->setEnabled(!on);   // (its boxes change the slide: a presentation open for reading only is not changed by them)
     // The commands that change the document are turned off (and refused if something still runs one).
     for (const QString &id : actionIds())
         if (QAction *a = act(id); a && !commandAllowedReadOnly(id)) a->setEnabled(!on);

@@ -1,6 +1,7 @@
 // Saving presentations in JeffDeck's window: File > Save and Save As, and
 // Automatic recovery copies of work that isn't saved yet.
 
+#include <QScopeGuard>
 #include "app/deckcanvas.h"
 #include "app/deckwindow.h"
 
@@ -89,7 +90,9 @@ bool DeckWindow::saveAs()
 {
     const QString from = m_ed->filePath().isEmpty() ? m_recoveredFrom : m_ed->filePath();
     const QString dir = from.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(from).absolutePath();
-    const QString name = from.isEmpty() ? m_ed->displayName() : QFileInfo(from).completeBaseName();
+    // (a presentation open for reading only is offered a name of its own, not the file's)
+    const QString baseName = from.isEmpty() ? m_ed->displayName() : QFileInfo(from).completeBaseName();
+    const QString name = isReadOnly() ? tr("%1 copy").arg(baseName) : baseName;
     // The dialog hands back the filter text it showed, so the choice is
     // recognized by comparing with these same (translated) texts.
     const QString pptxFilter = tr("Presentation (*.pptx)"), potxFilter = tr("Template (*.potx)"), ppsxFilter = tr("Show (*.ppsx)");
@@ -162,17 +165,33 @@ bool embedFontsOnSave() { return Settings::get().value(QStringLiteral("save/embe
 
 bool DeckWindow::saveTo(const QString &path, bool asCopy)
 {
+    // A presentation open for reading only is never written over its own file, and a copy is never saved over the file this window has open (it would be the same as saving).
+    if (asCopy ? sameFile(path, m_ed->filePath()) : isReadOnly() && sameFile(path, m_ed->filePath())) {
+        const QString text = asCopy ? tr("A copy can't be saved over \"%1\". Choose another name.").arg(QFileInfo(path).fileName()) : tr("This presentation is open for reading only. Choose another name for it.");
+        if (m_notifier) m_notifier(tr("Save"), text);
+        else jp::plainWarning(this, tr("Save"), text);
+        return false;
+    }
     // What was typed in the notes or a slide's text goes into the file.
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     m_ed->endCrop(true);   // what is written is a step, and a crop still going on is not yet
     Document *doc = m_ed->doc();
+    // (a copy has the time and the author a save gives, and the presentation open here keeps its own)
+    const QDateTime modifiedBefore = doc->props.modified;
+    const QString authorBefore = doc->props.author;
+    const auto restoreProperties = qScopeGuard([&] {
+        if (asCopy) {
+            doc->props.modified = modifiedBefore;
+            doc->props.author = authorBefore;
+        }
+    });
     doc->props.modified = QDateTime::currentDateTime();
     if (doc->props.author.isEmpty()) doc->props.author = Settings::get().userName();
     QString err;
     QStringList skipped;
-    keepBackupBeforeSave(path);
+    if (!backupBeforeSave(this, path)) return false;
     if (!deck::saveAnyPresentationFile(*doc, path, &err, &skipped, embedFontsOnSave())) {
         jp::plainWarning(this, tr("Save"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
