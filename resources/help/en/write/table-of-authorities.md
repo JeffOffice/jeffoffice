@@ -24,7 +24,7 @@ Mark each place that cites the authority. The table lists the authority once, wi
 
 ## Keep the table up to date
 
-Click in the table and click **References > Update List** (in the Table of Authorities group), or press **F9**.
+Click in the table and click **Update Authorities** (in the **Table of Authorities** group on the **References** tab), or press **F9**.
 
 ## Related
 
