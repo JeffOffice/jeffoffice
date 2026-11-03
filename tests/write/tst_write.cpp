@@ -2825,6 +2825,65 @@ private Q_SLOTS:
         checkTablesReopenTheSame(*doc);
     }
 
+    // New Table Style makes a style from the choices (one step that undoes), a table can take it, and the file keeps it; Modify Table Style changes it in place.
+    void aTableStyleIsMadeAndModifiedFromChoices()
+    {
+        auto doc = open(tableDocx(2, 2));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r0c0"));
+        office::wml::TableStyleSpec spec;
+        spec.name = QStringLiteral("Report Grid");
+        spec.basedOn = QStringLiteral("TableNormal");
+        spec.lineColor = QStringLiteral("336699");
+        spec.headerFill = QStringLiteral("FF0000");
+        spec.headerText = QStringLiteral("FFFFFF");
+        spec.bandedRowFill = QStringLiteral("EEEEEE");
+        QString problem;
+        const QString id = createTableStyle(*doc, spec, &problem);
+        QVERIFY2(!id.isEmpty(), qPrintable(problem));
+        QCOMPARE(id, QStringLiteral("ReportGrid"));
+        QVERIFY(!createTableStyle(*doc, spec, &problem).isEmpty() == false);   // (the name is taken)
+        QVERIFY(!problem.isEmpty());
+        setTableStyle(*doc, c, id);
+        QByteArray styles = styleXml(doc->toDocx());
+        QVERIFY(styles.contains("w:styleId=\"ReportGrid\""));
+        QVERIFY(styles.contains("w:fill=\"FF0000\"") && styles.contains("w:fill=\"EEEEEE\"") && styles.contains("w:color=\"336699\""));
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:tblStyle w:val=\"ReportGrid\"/>"));
+        checkTablesReopenTheSame(*doc);
+        auto back = open(doc->toDocx());
+        const auto read = office::wml::tableStyleSpecOf(*back->styleSheet().find(QStringLiteral("ReportGrid")));
+        QCOMPARE(read.headerFill, spec.headerFill);
+        QCOMPARE(read.bandedRowFill, spec.bandedRowFill);
+        QCOMPARE(read.lineColor, spec.lineColor);
+        QVERIFY(read.headerBold);
+        // Modify: another fill, one step.
+        spec.headerFill = QStringLiteral("00AA00");
+        spec.lines = office::wml::TableStyleSpec::Box;
+        QVERIFY(modifyTableStyle(*doc, id, spec, &problem));
+        styles = styleXml(doc->toDocx());
+        QVERIFY(styles.contains("w:fill=\"00AA00\"") && !styles.contains("w:fill=\"FF0000\""));
+        QVERIFY(!styles.contains("insideH"));
+        checkTablesReopenTheSame(*doc);
+        const QString signatureBefore = tablesSignature(*doc);
+        QVERIFY(doc->undo());
+        QVERIFY(styleXml(doc->toDocx()).contains("w:fill=\"FF0000\""));
+        QVERIFY(tablesSignature(*doc) != signatureBefore);
+        checkTablesReopenTheSame(*doc);
+        QVERIFY(doc->redo());
+        QCOMPARE(tablesSignature(*doc), signatureBefore);
+        QVERIFY(doc->undo());
+        // A built-in style is changed in place (and its name stays).
+        setTableStyle(*doc, c, QStringLiteral("GridTable4-Accent1"));
+        office::wml::TableStyleSpec built = office::wml::tableStyleSpecOf(office::wml::builtinStyle(QStringLiteral("GridTable4-Accent1")));
+        QCOMPARE(built.headerFill, QStringLiteral("4472C4"));
+        QVERIFY(modifyTableStyle(*doc, QStringLiteral("GridTable4-Accent1"), built, &problem));   // (unchanged: nothing happens)
+        built.headerFill = QStringLiteral("123456");
+        built.name = QStringLiteral("Other name");
+        QVERIFY(modifyTableStyle(*doc, QStringLiteral("GridTable4-Accent1"), built, &problem));
+        styles = styleXml(doc->toDocx());
+        QVERIFY(styles.contains("w:fill=\"123456\"") && styles.contains("Grid Table 4 - Accent 1") && !styles.contains("Other name"));
+        checkTablesReopenTheSame(*doc);
+    }
+
     void theCaretIsDrawnOnThePageThatHoldsIt()
     {
         auto doc = open(makeDocx(paragraphs(120), kStyles));

@@ -8,6 +8,7 @@
 #include "wml/xmltree.h"
 
 #include <QCoreApplication>
+#include <algorithm>
 #include <QDateTime>
 
 namespace jp::office::wml {
@@ -217,6 +218,63 @@ Style builtinTableStyle(const QString &id)
         }
     }
     return Style();
+}
+
+Style tableStyleFromSpec(const TableStyleSpec &spec)
+{
+    const QByteArray color = spec.lineColor.isEmpty() ? QByteArray("auto") : spec.lineColor.toLatin1();
+    const int size = std::clamp(spec.lineWidth, 2, 96);
+    QByteArray tail = "<w:tblPr><w:tblStyleRowBandSize w:val=\"1\"/><w:tblStyleColBandSize w:val=\"1\"/>";
+    if (spec.lines != TableStyleSpec::NoLines) tail += bordersXml("tblBorders", color, size, spec.lines == TableStyleSpec::Grid);
+    tail += "</w:tblPr>";
+    const QByteArray headerFill = spec.headerFill.toLatin1(), headerText = spec.headerText.toLatin1(), rowFill = spec.bandedRowFill.toLatin1(), columnFill = spec.bandedColumnFill.toLatin1();
+    const QByteArray none;
+    tail += stylePart("firstRow", spec.headerBold, headerText.isEmpty() ? nullptr : headerText.constData(), none, headerFill.isEmpty() ? nullptr : headerFill.constData());
+    tail += stylePart("lastRow", spec.totalBold, nullptr, spec.lines == TableStyleSpec::NoLines ? none : sideXml("top", size, color, "double"), nullptr);
+    tail += stylePart("firstCol", spec.firstColumnBold, nullptr, none, nullptr);
+    tail += stylePart("lastCol", spec.lastColumnBold, nullptr, none, nullptr);
+    if (!columnFill.isEmpty()) tail += stylePart("band1Vert", false, nullptr, none, columnFill.constData());
+    if (!rowFill.isEmpty()) tail += stylePart("band1Horz", false, nullptr, none, rowFill.constData());
+    Style s = tableStyle(QString(), spec.name, 99, tail);
+    s.basedOn = spec.basedOn.isEmpty() ? QStringLiteral("TableNormal") : spec.basedOn;
+    s.customStyle = true;
+    s.unhideWhenUsed = false;
+    s.qFormat = true;
+    return s;
+}
+
+TableStyleSpec tableStyleSpecOf(const Style &style)
+{
+    TableStyleSpec spec;
+    spec.name = style.name;
+    spec.basedOn = style.basedOn.isEmpty() ? QStringLiteral("TableNormal") : style.basedOn;
+    const TableStyleDef def = readTableStyle(style);
+    const TableMark &t = def.base.tbl;
+    spec.lines = t.insideH.stated() && t.insideH.val != QLatin1String("nil") && t.insideH.val != QLatin1String("none") ? TableStyleSpec::Grid
+                 : t.top.stated() && t.top.val != QLatin1String("nil") && t.top.val != QLatin1String("none") ? TableStyleSpec::Box : TableStyleSpec::NoLines;
+    if (spec.lines != TableStyleSpec::NoLines) {
+        spec.lineColor = t.top.color.isEmpty() ? QStringLiteral("auto") : t.top.color;
+        spec.lineWidth = t.top.size > 0 ? t.top.size : 4;
+    }
+    auto bold = [&](const char *part) {
+        const auto it = def.parts.constFind(QString::fromLatin1(part));
+        return it != def.parts.constEnd() && it->rPr && it->rPr->bold.value_or(false);
+    };
+    auto fill = [&](const char *part) {
+        const auto it = def.parts.constFind(QString::fromLatin1(part));
+        if (it == def.parts.constEnd() || it->cell.shdFill.isEmpty() || it->cell.shdFill == QLatin1String("auto")) return QString();
+        return it->cell.shdFill;
+    };
+    spec.headerBold = bold("firstRow");
+    spec.totalBold = bold("lastRow");
+    spec.firstColumnBold = bold("firstCol");
+    spec.lastColumnBold = bold("lastCol");
+    spec.headerFill = fill("firstRow");
+    const auto head = def.parts.constFind(QStringLiteral("firstRow"));
+    if (head != def.parts.constEnd() && head->rPr && head->rPr->color && head->rPr->color->val != QLatin1String("auto")) spec.headerText = head->rPr->color->val;
+    spec.bandedRowFill = fill("band1Horz");
+    spec.bandedColumnFill = fill("band1Vert");
+    return spec;
 }
 
 Style builtinStyle(const QString &id)

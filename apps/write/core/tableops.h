@@ -9,6 +9,7 @@
 #include "flow/tabledata.h"
 
 #include <QTextBlock>
+#include <QSet>
 #include <QTextCursor>
 #include <QVector>
 #include <optional>
@@ -127,6 +128,8 @@ TableProps tablePropsAt(WriteDoc &doc, const QTextCursor &c);
 void setTableProps(WriteDoc &doc, QTextCursor &c, const TableProps &was, const TableProps &now);
 // The table's style (a built-in one is added to the document when it lacks it), and the options: which of the look's bits are set.
 void setTableStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
+// The tables that have one of these styles made again from the style sheet as it is (after a table style changed), as part of the step in progress.
+void restyleTablesOfStyles(WriteDoc &doc, const QSet<QString> &styleIds);
 void setTableLook(WriteDoc &doc, QTextCursor &c, int mask, bool on);
 
 // ---- Convert, split, sort, and formulas

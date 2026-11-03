@@ -179,6 +179,21 @@ void WriteWindow::createTableActions()
         m_view->refresh();
         m_view->setFocus(Qt::OtherFocusReason);
     });
+    mk("table.style.new", tr("New Table Style…"), "plus", QKeySequence(), [this] {
+        if (!m_doc) return;
+        QString made;
+        if (write::tableStyleDialog(this, m_doc.get(), QString(), &made) && !made.isEmpty() && cursorInTable()) tableCommand([made](write::WriteDoc &d, QTextCursor &c) { write::setTableStyle(d, c, made); });
+        m_view->refresh();
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("table.style.modify", tr("Modify Table Style…"), "pencil", QKeySequence(), [this] {
+        if (!m_doc || !cursorInTable()) return;
+        const QString style = write::tablePropsAt(*m_doc, m_view->cursor()).style;
+        if (style.isEmpty() || style == QLatin1String("TableNormal")) return;
+        write::tableStyleDialog(this, m_doc.get(), style);
+        m_view->refresh();
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
     // The style options.
     struct Option { const char *id; const char *text; int bit; bool inverted; };
     const Option options[] = {{"header", QT_TR_NOOP("Header Row"), 0x20, false},        {"total", QT_TR_NOOP("Total Row"), 0x40, false},
@@ -347,7 +362,7 @@ void WriteWindow::tableRibbonParts(RibbonParts &parts)
                 if (s.type == QLatin1String("table") && !s.semiHidden) add(s);
             return items;
         });
-        g->setFooterActions({act("table.style.clear")});
+        g->setFooterActions({act("table.style.new"), act("table.style.modify"), act("table.style.clear")});
         g->reload();
         connect(g, &Gallery::activated, this, [this](const QString &id) { tableCommand([id](write::WriteDoc &d, QTextCursor &c) { write::setTableStyle(d, c, id); }); });
         m_tableStyleGallery = g;

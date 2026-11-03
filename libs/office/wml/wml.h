@@ -661,6 +661,25 @@ Style builtinStyle(const QString &id);
 QStringList builtinStyleIds();
 // The table styles a person may apply (the gallery's, in its order); builtinStyle gives each, and TableNormal, the style a table has when none is said.
 QStringList builtinTableStyleIds();
+// What the New Table Style and Modify Table Style dialogs choose: the lines, how the header row, the total row, and the first and last columns look, and the fills of banded rows and
+// columns (colors as "RRGGBB", empty for none). tableStyleFromSpec gives the style (the id is left empty); tableStyleSpecOf reads one back (what the style and the styles under it say).
+struct TableStyleSpec {
+    enum Lines { NoLines, Box, Grid };
+    QString name, basedOn = QStringLiteral("TableNormal");
+    Lines lines = Grid;
+    QString lineColor = QStringLiteral("auto");
+    int lineWidth = 4;                // eighths of a point
+    bool headerBold = true, totalBold = true, firstColumnBold = false, lastColumnBold = false;
+    QString headerFill, headerText, bandedRowFill, bandedColumnFill;
+    bool operator==(const TableStyleSpec &o) const
+    {
+        return name == o.name && basedOn == o.basedOn && lines == o.lines && lineColor == o.lineColor && lineWidth == o.lineWidth && headerBold == o.headerBold && totalBold == o.totalBold &&
+               firstColumnBold == o.firstColumnBold && lastColumnBold == o.lastColumnBold && headerFill == o.headerFill && headerText == o.headerText && bandedRowFill == o.bandedRowFill &&
+               bandedColumnFill == o.bandedColumnFill;
+    }
+};
+Style tableStyleFromSpec(const TableStyleSpec &spec);
+TableStyleSpec tableStyleSpecOf(const Style &style);
 
 // A fingerprint of blocks [from, to) of a body as they are written (every piece kept, as nothing says otherwise), for telling a table that has not changed.
 QByteArray blocksFingerprint(const QVector<Block> &body, qsizetype from, qsizetype to);

@@ -904,7 +904,8 @@ const StyleSheet &WriteDoc::tableSheet() const
     if (m_addedTableStyles.isEmpty()) return m_wml.styles;
     if (!m_tableSheet) {
         m_tableSheet = std::make_shared<StyleSheet>(m_wml.styles);
-        for (const Style &s : m_addedTableStyles) m_tableSheet->add(s);
+        for (const Style &s : m_addedTableStyles)
+            if (!m_wml.styles.find(s.id)) m_tableSheet->add(s);   // (a built-in style that the sheet has changed or kept is the sheet's)
     }
     return *m_tableSheet;
 }
@@ -943,6 +944,7 @@ void WriteDoc::putStyle(const Style &style)
     change.after = style;
     change.after->raw.clear();   // (the step keeps the bytes of what the style was, not of what it is)
     m_wml.styles.add(style);
+    m_tableSheet.reset();
     m_scratch.clear();
     ++m_styleRev;
     m_pendingStyleChanges.push_back(change);
@@ -972,6 +974,7 @@ void WriteDoc::applyChanges(const QVector<StyleChange> &changes, bool undo)
         m_wml.styles.modified = undo ? change.modifiedBefore : change.modifiedAfter;
     }
     m_wml.styles.changed();
+    m_tableSheet.reset();
     m_scratch.clear();
     ++m_styleRev;
 }

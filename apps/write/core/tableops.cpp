@@ -1872,6 +1872,28 @@ void setTableStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
     });
 }
 
+void restyleTablesOfStyles(WriteDoc &doc, const QSet<QString> &styleIds)
+{
+    TableCommand command(doc);
+    QTextDocument *d = doc.story();
+    for (int pos = 0; pos < d->characterCount() - 1;) {
+        const QTextBlock b = d->findBlock(pos);
+        if (!b.isValid()) break;
+        if (!cellKeyOf(b)) {
+            pos = b.position() + b.length();
+            continue;
+        }
+        QTextCursor c(d);
+        c.setPosition(b.position());
+        const QString style = tablePropsAt(doc, c).style;
+        QTextCursor whole(c);
+        selectInTable(doc, whole, TableUnit::Table);
+        const int end = std::max(whole.selectionEnd(), b.position() + b.length() - 1);
+        if (styleIds.contains(style)) restyleTable(doc, c);
+        pos = end + 1;
+    }
+}
+
 void setTableLook(WriteDoc &doc, QTextCursor &c, int mask, bool on)
 {
     TableCommand command(doc);

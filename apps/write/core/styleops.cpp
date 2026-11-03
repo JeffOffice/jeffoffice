@@ -1,6 +1,7 @@
 #include "core/styleops.h"
 
 #include "core/editops.h"
+#include "core/tableops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "flow/flowdocument.h"
@@ -413,6 +414,78 @@ bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const Style &
     addBuiltinInStep(doc, s.next);
     doc.putStyle(s);
     restyleText(doc, before, paragraphs, characters);
+    touchStyles(doc);
+    edit.endEditBlock();
+    if (!doc.settleStyleEdit()) return fail(QCoreApplication::translate("jp::write::Styles", "The document keeps no history, so the style was not changed."));
+    return true;
+}
+
+namespace {
+
+void addBuiltinTableStyleInStep(WriteDoc &doc, const QString &id, int depth = 0)
+{
+    if (id.isEmpty() || depth > 8 || doc.styleSheet().find(id)) return;
+    const Style b = builtinStyle(id);
+    if (b.id.isEmpty() || b.type != QLatin1String("table")) return;
+    addBuiltinTableStyleInStep(doc, b.basedOn, depth + 1);
+    if (!doc.styleSheet().find(id)) doc.putStyle(b);
+}
+
+} // namespace
+
+QString createTableStyle(WriteDoc &doc, const TableStyleSpec &spec, QString *problem)
+{
+    auto fail = [&](const QString &why) {
+        if (problem) *problem = why;
+        return QString();
+    };
+    if (doc.styleSheet().styles.size() >= kMostStylesMade) return fail(QCoreApplication::translate("jp::write::Styles", "The document has the most styles it can hold."));
+    const QString name = spec.name.trimmed();
+    if (const QString why = styleNameProblem(doc, name); !why.isEmpty()) return fail(why);
+    if (const QString why = styleBasedOnProblem(doc, QString(), spec.basedOn, QStringLiteral("table")); !why.isEmpty()) return fail(why);
+    Style s = tableStyleFromSpec(spec);
+    s.id = newStyleId(doc, name);
+    s.name = name;
+    QTextCursor edit(doc.story());
+    edit.beginEditBlock();
+    addBuiltinTableStyleInStep(doc, s.basedOn);
+    doc.putStyle(s);
+    touchStyles(doc);
+    edit.endEditBlock();
+    if (!doc.settleStyleEdit()) return fail(QCoreApplication::translate("jp::write::Styles", "The document keeps no history, so the style was not made."));
+    return s.id;
+}
+
+bool modifyTableStyle(WriteDoc &doc, const QString &id, const TableStyleSpec &spec, QString *problem)
+{
+    auto fail = [&](const QString &why) {
+        if (problem) *problem = why;
+        return false;
+    };
+    Style old;
+    if (const Style *found = doc.styleSheet().find(id)) old = *found;
+    else old = builtinStyle(id);
+    if (old.id.isEmpty() || old.type != QLatin1String("table")) return fail(QCoreApplication::translate("jp::write::Styles", "The document has no such style."));
+    TableStyleSpec now = spec;
+    const QString name = spec.name.trimmed();
+    if (!old.customStyle || name.isEmpty() || name == old.name) now.name = old.name;
+    else if (const QString why = styleNameProblem(doc, name, old.id); !why.isEmpty()) return fail(why);
+    else now.name = name;
+    if (now.basedOn != (old.basedOn.isEmpty() ? QStringLiteral("TableNormal") : old.basedOn)) {
+        if (const QString why = styleBasedOnProblem(doc, old.id, now.basedOn, QStringLiteral("table")); !why.isEmpty()) return fail(why);
+    }
+    if (now == tableStyleSpecOf(old)) return true;
+    Style s = old;
+    s.name = now.name;
+    s.basedOn = now.basedOn == QLatin1String("TableNormal") && old.basedOn.isEmpty() ? QString() : now.basedOn;
+    s.tail = tableStyleFromSpec(now).tail;
+    s.raw.clear();
+    QTextCursor edit(doc.story());
+    edit.beginEditBlock();
+    addBuiltinTableStyleInStep(doc, s.basedOn);
+    if (!doc.styleSheet().find(id)) doc.putStyle(old);
+    doc.putStyle(s);
+    restyleTablesOfStyles(doc, descendantsOf(doc.styleSheet(), id, QStringLiteral("table")) | QSet<QString>{id});
     touchStyles(doc);
     edit.endEditBlock();
     if (!doc.settleStyleEdit()) return fail(QCoreApplication::translate("jp::write::Styles", "The document keeps no history, so the style was not changed."));

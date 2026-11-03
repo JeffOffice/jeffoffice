@@ -29,4 +29,8 @@ bool sortTableDialog(QWidget *parent, int columns, QVector<TableSortKey> *keys, 
 // Formula: the formula (as the field's code has it, after the equals sign) and how the number is shown (a number picture such as 0.00; empty for as it comes). False when cancelled.
 bool tableFormulaDialog(QWidget *parent, QString *formula, QString *picture);
 
+// New Table Style (modifyId empty) or Modify Table Style: the name, the style it is based on, the lines, and how the header row, total row, first and last columns, and the bands look.
+// What is chosen is made or changed as one step; a problem is told in a message box. False when cancelled or when it could not be done. `madeId` gets the id of a style that was made.
+bool tableStyleDialog(QWidget *parent, WriteDoc *doc, const QString &modifyId = QString(), QString *madeId = nullptr);
+
 } // namespace jp::write

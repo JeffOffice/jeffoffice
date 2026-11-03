@@ -2,6 +2,7 @@
 
 #include "app/settings.h"
 #include "app/widgets.h"
+#include "core/styleops.h"
 #include "core/writedoc.h"
 
 #include <QButtonGroup>
@@ -17,7 +18,9 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QRadioButton>
+#include <QRegularExpression>
 #include <QSpinBox>
 #include <QTabWidget>
 #include <QTextCursor>
@@ -566,6 +569,139 @@ bool tableFormulaDialog(QWidget *parent, QString *formula, QString *picture)
     *formula = f->text().trimmed();
     *picture = p->currentText().trimmed();
     return !formula->isEmpty();
+}
+
+namespace {
+
+QString hexOf(const ColorButton *b, WriteDoc &doc)
+{
+    if (b->current().isNone()) return QString();
+    return b->current().resolve(doc.flow().env.colors).name().mid(1).toUpper();
+}
+
+void setHex(ColorButton *b, const QString &hex)
+{
+    static const QRegularExpression valid(QStringLiteral("^[0-9A-Fa-f]{6}$"));
+    b->setCurrent(valid.match(hex).hasMatch() ? ColorRef::rgb(QColor(QLatin1Char('#') + hex)) : ColorRef::none());
+}
+
+} // namespace
+
+bool tableStyleDialog(QWidget *parent, WriteDoc *doc, const QString &modifyId, QString *madeId)
+{
+    if (!doc) return false;
+    const bool modify = !modifyId.isEmpty();
+    office::wml::Style existing;
+    if (modify) {
+        if (const office::wml::Style *s = doc->styleSheet().find(modifyId)) existing = *s;
+        else existing = office::wml::builtinStyle(modifyId);
+        if (existing.id.isEmpty() || existing.type != QLatin1String("table")) return false;
+    }
+    const office::wml::TableStyleSpec start = modify ? office::wml::tableStyleSpecOf(existing) : office::wml::TableStyleSpec();
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("tableStyleDialog"));
+    dlg.setWindowTitle(modify ? tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Modify Table Style")) : tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "New Table Style")));
+    auto *v = new QVBoxLayout(&dlg);
+    auto *form = new QFormLayout;
+    v->addLayout(form);
+    auto *name = new QLineEdit(start.name, &dlg);
+    name->setObjectName(QStringLiteral("styleName"));
+    name->setMaxLength(kMostStyleNameLength);
+    name->setEnabled(!modify || existing.customStyle);   // (a built-in style keeps its name)
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Name:")), name);
+    auto *basedOn = new QComboBox(&dlg);
+    basedOn->setObjectName(QStringLiteral("basedOn"));
+    QStringList ids{QStringLiteral("TableNormal")};
+    for (const QString &id : office::wml::builtinTableStyleIds()) ids << id;
+    for (const office::wml::Style &s : doc->styleSheet().styles)
+        if (s.type == QLatin1String("table") && !ids.contains(s.id)) ids << s.id;
+    for (const QString &id : std::as_const(ids)) {
+        if (id == modifyId) continue;
+        const office::wml::Style *own = doc->styleSheet().find(id);
+        const office::wml::Style s = own ? *own : office::wml::builtinStyle(id);
+        basedOn->addItem(s.name.isEmpty() ? id : s.name, id);
+    }
+    basedOn->setCurrentIndex(std::max(0, basedOn->findData(start.basedOn)));
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Based on:")), basedOn);
+    auto *lines = new QComboBox(&dlg);
+    lines->setObjectName(QStringLiteral("lines"));
+    lines->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "No lines")), int(office::wml::TableStyleSpec::NoLines));
+    lines->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Outside lines only")), int(office::wml::TableStyleSpec::Box));
+    lines->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "All lines")), int(office::wml::TableStyleSpec::Grid));
+    lines->setCurrentIndex(int(start.lines));
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Lines:")), lines);
+    auto *width = new QComboBox(&dlg);
+    width->setObjectName(QStringLiteral("lineWidth"));
+    for (int eighths : {2, 4, 6, 8, 12, 18, 24, 36, 48}) width->addItem(QStringLiteral("%1 pt").arg(eighths / 8.0), eighths);
+    if (width->findData(start.lineWidth) < 0) width->addItem(QStringLiteral("%1 pt").arg(start.lineWidth / 8.0), start.lineWidth);
+    width->setCurrentIndex(width->findData(start.lineWidth));
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Line width:")), width);
+    auto makeColor = [&](const char *objectName, const QString &label, const QString &none) {
+        auto *b = new ColorButton(QStringLiteral("paint-bucket"), label, true, none, &dlg);
+        b->setObjectName(QLatin1String(objectName));
+        b->setWell(true);
+        return b;
+    };
+    auto *lineColor = makeColor("lineColor", tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Line color")), tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Automatic")));
+    setHex(lineColor, start.lineColor);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Line color:")), lineColor);
+    auto *headerBold = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Bold")), &dlg);
+    headerBold->setObjectName(QStringLiteral("headerBold"));
+    headerBold->setChecked(start.headerBold);
+    auto *headerFill = makeColor("headerFill", tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Header row fill")), tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "No Color")));
+    setHex(headerFill, start.headerFill);
+    auto *headerText = makeColor("headerText", tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Header row text color")), tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Automatic")));
+    setHex(headerText, start.headerText);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Header row:")), headerBold);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Header row fill:")), headerFill);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Header row text:")), headerText);
+    auto *totalBold = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Bold total row")), &dlg);
+    totalBold->setObjectName(QStringLiteral("totalBold"));
+    totalBold->setChecked(start.totalBold);
+    auto *firstBold = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Bold first column")), &dlg);
+    firstBold->setObjectName(QStringLiteral("firstColumnBold"));
+    firstBold->setChecked(start.firstColumnBold);
+    auto *lastBold = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Bold last column")), &dlg);
+    lastBold->setObjectName(QStringLiteral("lastColumnBold"));
+    lastBold->setChecked(start.lastColumnBold);
+    form->addRow(QString(), totalBold);
+    form->addRow(QString(), firstBold);
+    form->addRow(QString(), lastBold);
+    auto *bandRows = makeColor("bandedRowFill", tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Banded rows fill")), tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "No Color")));
+    setHex(bandRows, start.bandedRowFill);
+    auto *bandColumns = makeColor("bandedColumnFill", tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Banded columns fill")), tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "No Color")));
+    setHex(bandColumns, start.bandedColumnFill);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Banded rows:")), bandRows);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Banded columns:")), bandColumns);
+    auto *note = new QLabel(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "The header row, total row, first and last columns, and bands show when the table's style options turn them on.")), &dlg);
+    note->setWordWrap(true);
+    v->addWidget(note);
+    okCancel(&dlg, v);
+    while (dlg.exec() == QDialog::Accepted) {
+        office::wml::TableStyleSpec now;
+        now.name = name->text();
+        now.basedOn = basedOn->currentData().toString();
+        now.lines = office::wml::TableStyleSpec::Lines(lines->currentData().toInt());
+        now.lineColor = hexOf(lineColor, *doc);
+        if (now.lineColor.isEmpty()) now.lineColor = QStringLiteral("auto");
+        now.lineWidth = width->currentData().toInt();
+        now.headerBold = headerBold->isChecked();
+        now.headerFill = hexOf(headerFill, *doc);
+        now.headerText = hexOf(headerText, *doc);
+        now.totalBold = totalBold->isChecked();
+        now.firstColumnBold = firstBold->isChecked();
+        now.lastColumnBold = lastBold->isChecked();
+        now.bandedRowFill = hexOf(bandRows, *doc);
+        now.bandedColumnFill = hexOf(bandColumns, *doc);
+        QString problem;
+        QString made;
+        if (!modify) made = createTableStyle(*doc, now, &problem);
+        const bool done = modify ? modifyTableStyle(*doc, modifyId, now, &problem) : !made.isEmpty();
+        if (done && madeId) *madeId = made;
+        if (done) return true;
+        QMessageBox::warning(&dlg, dlg.windowTitle(), problem);
+    }
+    return false;
 }
 
 } // namespace jp::write
