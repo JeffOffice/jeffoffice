@@ -72,6 +72,34 @@ struct Open {
 
 } // namespace
 
+namespace {
+std::atomic<qint64> g_parsedMarks{0}, g_scans{0};
+}
+
+const ParsedFields &parsedFieldsNamed(const StoryScan &scan, const QString &name)
+{
+    const QString key = QStringLiteral("fields:") + name;
+    auto found = scan.memo.constFind(key);
+    if (found == scan.memo.constEnd()) {
+        auto made = std::make_shared<ParsedFields>();
+        for (int i = 0; i < scan.fields.size(); ++i) {
+            if (scan.fields[i].name != name) continue;
+            fields::Code code = fields::parseCode(scan.instructionOf(i));
+            ++g_parsedMarks;
+            if (code.name != name) continue;
+            made->index.push_back(i);
+            made->code.push_back(std::move(code));
+        }
+        found = scan.memo.insert(key, made);
+    }
+    return *static_cast<const ParsedFields *>(found.value().get());
+}
+
+qint64 parsedMarkCodesForTest() { return g_parsedMarks; }
+void resetParsedMarkCodesForTest() { g_parsedMarks = 0; }
+qint64 storyScansForTest() { return g_scans; }
+void resetStoryScansForTest() { g_scans = 0; }
+
 QString StoryScan::resultOf(int field) const
 {
     const FieldPlace &f = fields.value(field);
@@ -97,6 +125,9 @@ QString StoryScan::instructionOf(int field, const QHash<int, QString> &override)
 StoryScan scanStory(QTextDocument *story, bool withBookmarks)
 {
     StoryScan scan;
+    static std::atomic<quint64> lastRevision{0};
+    scan.revision = ++lastRevision;
+    ++g_scans;
     scan.plain = story->toPlainText();
     QVector<Open> open;
     int overflow = 0;   // (the marks of fields that are nested deeper than the most: they are matched and left out)

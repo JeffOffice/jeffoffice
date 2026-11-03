@@ -1644,6 +1644,8 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
                     QTextCharFormat cf = frag.charFormat();
                     const bool custom = foot && cf.boolProperty(tp::NoteMarkCustom);   // (shows nothing: its mark is the text after it)
                     cf.setProperty(tp::Field, QLatin1String("raw:") + (custom ? QString() : foot ? footMark(footnote++) : roman(endnote++)));
+                    // (A reference whose run names no style and says nothing of raising is shown raised, as a note's mark is; only the page's copy is: the run is written as the file has it.)
+                    if (cf.verticalAlignment() == QTextCharFormat::AlignNormal && cf.stringProperty(tp::CharStyle).isEmpty()) cf.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
                     dst.insertText(QString(ch), cf);
                 }
                 continue;

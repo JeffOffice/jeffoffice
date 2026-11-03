@@ -219,45 +219,8 @@ Style builtinTableStyle(const QString &id)
     return Style();
 }
 
-Style builtinStyle(const QString &id)
+Style referenceStyle(const QString &id)
 {
-    if (id == QLatin1String("Normal")) {
-        Style s;
-        s.id = QStringLiteral("Normal");
-        s.name = QStringLiteral("Normal");
-        s.type = QStringLiteral("paragraph");
-        s.isDefault = true;
-        s.qFormat = true;
-        return s;
-    }
-    if (id == QLatin1String("DefaultParagraphFont")) {
-        Style s;
-        s.id = id;
-        s.name = QStringLiteral("Default Paragraph Font");
-        s.type = QStringLiteral("character");
-        s.isDefault = true;
-        s.uiPriority = 1;
-        s.semiHidden = s.unhideWhenUsed = true;
-        return s;
-    }
-    if (id.startsWith(QLatin1String("Heading")) && id.size() == 8 && id[7] >= QLatin1Char('1') && id[7] <= QLatin1Char('9')) return heading(id[7].digitValue());
-    // The lines of a table of contents (toc 1 to toc 9, each set in a little more than the one before) and the heading above one.
-    if (id.startsWith(QLatin1String("TOC")) && id.size() == 4 && id[3] >= QLatin1Char('1') && id[3] <= QLatin1Char('9')) {
-        const int level = id[3].digitValue();
-        Style s = paragraphStyle(id, QStringLiteral("toc %1").arg(level), 39);
-        s.qFormat = false;
-        s.unhideWhenUsed = true;
-        s.pPr.after = 100;
-        if (level > 1) s.pPr.indLeft = 220 * (level - 1);
-        return s;
-    }
-    if (id == QLatin1String("TOCHeading")) {
-        Style s = paragraphStyle(id, QStringLiteral("TOC Heading"), 39);
-        s.basedOn = QStringLiteral("Heading1");
-        s.unhideWhenUsed = true;
-        s.pPr.outlineLvl = 9;
-        return s;
-    }
     // The captions of figures and tables, the lines of a table of figures, of an index, of a table of authorities, and of a bibliography.
     if (id == QLatin1String("Caption")) {
         Style s = paragraphStyle(id, QStringLiteral("caption"), 35);
@@ -308,6 +271,48 @@ Style builtinStyle(const QString &id)
         Style s = paragraphStyle(id, QStringLiteral("Bibliography"), 37);
         s.qFormat = false;
         s.unhideWhenUsed = true;
+        return s;
+    }
+    return Style();
+}
+
+Style builtinStyle(const QString &id)
+{
+    if (id == QLatin1String("Normal")) {
+        Style s;
+        s.id = QStringLiteral("Normal");
+        s.name = QStringLiteral("Normal");
+        s.type = QStringLiteral("paragraph");
+        s.isDefault = true;
+        s.qFormat = true;
+        return s;
+    }
+    if (id == QLatin1String("DefaultParagraphFont")) {
+        Style s;
+        s.id = id;
+        s.name = QStringLiteral("Default Paragraph Font");
+        s.type = QStringLiteral("character");
+        s.isDefault = true;
+        s.uiPriority = 1;
+        s.semiHidden = s.unhideWhenUsed = true;
+        return s;
+    }
+    if (id.startsWith(QLatin1String("Heading")) && id.size() == 8 && id[7] >= QLatin1Char('1') && id[7] <= QLatin1Char('9')) return heading(id[7].digitValue());
+    // The lines of a table of contents (toc 1 to toc 9, each set in a little more than the one before) and the heading above one.
+    if (id.startsWith(QLatin1String("TOC")) && id.size() == 4 && id[3] >= QLatin1Char('1') && id[3] <= QLatin1Char('9')) {
+        const int level = id[3].digitValue();
+        Style s = paragraphStyle(id, QStringLiteral("toc %1").arg(level), 39);
+        s.qFormat = false;
+        s.unhideWhenUsed = true;
+        s.pPr.after = 100;
+        if (level > 1) s.pPr.indLeft = 220 * (level - 1);
+        return s;
+    }
+    if (id == QLatin1String("TOCHeading")) {
+        Style s = paragraphStyle(id, QStringLiteral("TOC Heading"), 39);
+        s.basedOn = QStringLiteral("Heading1");
+        s.unhideWhenUsed = true;
+        s.pPr.outlineLvl = 9;
         return s;
     }
     if (id == QLatin1String("Title")) {

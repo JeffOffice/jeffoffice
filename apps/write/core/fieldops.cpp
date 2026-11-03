@@ -1014,38 +1014,41 @@ int lockFields(WriteDoc &doc, const QTextCursor &c, bool lock)
     return int(chosen.size());
 }
 
-bool insertField(WriteDoc &doc, QTextCursor &c, const QString &codeIn, const QString &fallbackResult)
+namespace {
+
+// The result the engine works out for a field with this code put at `position`, where the document can say (else `fallback`).
+QString resultForNewField(WriteDoc &doc, int position, const QString &code, const QString &fallback)
 {
-    const QString code = codeIn.trimmed();
-    if (code.isEmpty()) return false;
-    QString result = fallbackResult;
-    {
-        // The result the engine works out for it, where the document can say.
-        const StoryScan scan = scanStory(doc.story());
-        Context ctx(doc, doc.story(), scan, QDateTime());
-        FieldPlace at;
-        at.begin = c.selectionStart();
-        ctx.place(at);
-        const fields::Code parsed = fields::parseCode(code);
-        if (parsed.name == QLatin1String("PAGE") || parsed.name == QLatin1String("NUMPAGES") || parsed.name == QLatin1String("SECTIONPAGES")) ctx.placePages(at);
-        if (parsed.name == QLatin1String("NUMWORDS") || parsed.name == QLatin1String("NUMCHARS")) ctx.statistics();
-        if (parsed.name == QLatin1String("SEQ")) {
-            // (Counted from the fields before the caret.)
-            for (int i = 0; i < scan.fields.size(); ++i) {
-                const FieldPlace &f = scan.fields[i];
-                if (f.begin >= at.begin) break;
-                const fields::Code before = fields::parseCode(scan.instructionOf(i));
-                if (before.name == QLatin1String("SEQ")) {
-                    ctx.noteSequenceReset(before);
-                    ctx.resetSequencesAt(f.begin);
-                    fields::compute(before, ctx.env);
-                }
+    QString result = fallback;
+    const StoryScan scan = scanStory(doc.story());
+    Context ctx(doc, doc.story(), scan, QDateTime());
+    FieldPlace at;
+    at.begin = position;
+    ctx.place(at);
+    const fields::Code parsed = fields::parseCode(code);
+    if (parsed.name == QLatin1String("PAGE") || parsed.name == QLatin1String("NUMPAGES") || parsed.name == QLatin1String("SECTIONPAGES")) ctx.placePages(at);
+    if (parsed.name == QLatin1String("NUMWORDS") || parsed.name == QLatin1String("NUMCHARS")) ctx.statistics();
+    if (parsed.name == QLatin1String("SEQ")) {
+        // (Counted from the fields before the caret.)
+        for (int i = 0; i < scan.fields.size(); ++i) {
+            const FieldPlace &f = scan.fields[i];
+            if (f.begin >= at.begin) break;
+            const fields::Code before = fields::parseCode(scan.instructionOf(i));
+            if (before.name == QLatin1String("SEQ")) {
+                ctx.noteSequenceReset(before);
+                ctx.resetSequencesAt(f.begin);
+                fields::compute(before, ctx.env);
             }
-            ctx.noteSequenceReset(parsed);
-            ctx.resetSequencesAt(at.begin);
         }
-        if (const std::optional<QString> r = fields::compute(parsed, ctx.env)) result = *r;
+        ctx.noteSequenceReset(parsed);
+        ctx.resetSequencesAt(at.begin);
     }
+    if (const std::optional<QString> r = fields::compute(parsed, ctx.env)) result = *r;
+    return result;
+}
+
+Inline newFieldAtom(const QString &code, const QString &result)
+{
     Inline field;
     field.kind = Inline::ParaAtom;
     field.role = Inline::Single;
@@ -1055,7 +1058,34 @@ bool insertField(WriteDoc &doc, QTextCursor &c, const QString &codeIn, const QSt
     field.raw += "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
     field.key = liveFieldFor(QLatin1Char(' ') + code + QLatin1Char(' '));
     field.display = result;
-    return insertFieldAtom(doc, c, field);
+    return field;
+}
+
+} // namespace
+
+bool insertField(WriteDoc &doc, QTextCursor &c, const QString &codeIn, const QString &fallbackResult)
+{
+    const QString code = codeIn.trimmed();
+    if (code.isEmpty()) return false;
+    const QString result = resultForNewField(doc, c.selectionStart(), code, fallbackResult);
+    return insertFieldAtom(doc, c, newFieldAtom(code, result));
+}
+
+int insertFieldAtEach(WriteDoc &doc, const QVector<int> &positions, const QString &codeIn)
+{
+    const QString code = codeIn.trimmed();
+    if (code.isEmpty() || positions.isEmpty()) return 0;
+    // (One pass for all of them: the result is worked out once, which is right for the marks, whose result does not depend on where they stand.)
+    const Inline field = newFieldAtom(code, resultForNewField(doc, positions.first(), code, QString()));
+    QVector<int> order = positions;
+    std::sort(order.begin(), order.end(), std::greater<int>());   // (from the last, so that the earlier places stay)
+    int count = 0;
+    for (int position : std::as_const(order)) {
+        QTextCursor c(doc.story());
+        c.setPosition(position);
+        if (insertFieldAtom(doc, c, field)) ++count;
+    }
+    return count;
 }
 
 // ---- Show Field Codes

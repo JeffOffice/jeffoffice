@@ -11,6 +11,7 @@
 #include <QCryptographicHash>
 #include <QHash>
 #include <QSet>
+#include <limits>
 #include <algorithm>
 #include <vector>
 
@@ -796,6 +797,7 @@ QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesCh
     QByteArray root, out;
     QSet<QString> separatorsSeen;
     int highest = 0;   // (the highest Id the part has or is given, for a note that is added)
+    QSet<int> idsSeen;   // (the Ids the part has: the separators are -1 and 0, as the settings name them)
     if (original.isEmpty()) {
         root = withKnownPrefixes(QByteArray("<") + rootName + " xmlns:w=\"" + kWNs + "\" xmlns:r=\"" + kRNs + "\">", written);
         out = kXmlHead + root;
@@ -809,7 +811,7 @@ QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesCh
         }
         for (const auto &add : change.added) highest = std::max(highest, add.first);
         if (const auto notice = change.separators.constFind(QStringLiteral("continuationNotice")); notice != change.separators.constEnd() && !notice.value().isEmpty())
-            out += "<w:" + tag + " w:type=\"continuationNotice\" w:id=\"" + QByteArray::number(highest + 1) + "\">" + content(notice.value()) + "</w:" + tag + ">";
+            out += "<w:" + tag + " w:type=\"continuationNotice\" w:id=\"" + QByteArray::number(highest < std::numeric_limits<int>::max() ? highest + 1 : highest) + "\">" + content(notice.value()) + "</w:" + tag + ">";
     } else {
         if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty() && change.separators.isEmpty()) return original;
         XmlTree tree;
@@ -823,6 +825,7 @@ QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesCh
             bool ok = false;
             if (tree.is(c, tag.constData())) {
                 highest = std::max(highest, tree.attr(c, "id").toInt());
+                idsSeen.insert(tree.attr(c, "id").toInt());
                 const QString kind = tree.attr(c, "type");
                 const auto given = change.separators.constFind(kind);
                 if (given != change.separators.constEnd() && !separatorsSeen.contains(kind)) {
@@ -859,7 +862,18 @@ QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesCh
         for (const QString &kind : {QStringLiteral("separator"), QStringLiteral("continuationSeparator"), QStringLiteral("continuationNotice")}) {
             const auto given = change.separators.constFind(kind);
             if (given == change.separators.constEnd() || given.value().isEmpty() || separatorsSeen.contains(kind)) continue;
-            out += "<w:" + tag + " w:type=\"" + kind.toLatin1() + "\" w:id=\"" + QByteArray::number(++highest) + "\">" + content(given.value()) + "</w:" + tag + ">";
+            // (The separator and the continuation separator are the notes with the Ids -1 and 0, which the settings name; a part whose Ids are taken by other notes is left without one. The notice
+            // takes the Id above the others, and none where there is no room for one.)
+            int id = 0;
+            if (kind == QLatin1String("separator") || kind == QLatin1String("continuationSeparator")) {
+                id = kind == QLatin1String("separator") ? -1 : 0;
+                if (idsSeen.contains(id)) continue;
+            } else {
+                if (highest >= std::numeric_limits<int>::max()) continue;
+                id = ++highest;
+            }
+            idsSeen.insert(id);
+            out += "<w:" + tag + " w:type=\"" + kind.toLatin1() + "\" w:id=\"" + QByteArray::number(id) + "\">" + content(given.value()) + "</w:" + tag + ">";
         }
     }
     for (const auto &add : change.added) out += "<w:" + tag + " w:id=\"" + QByteArray::number(add.first) + "\">" + content(add.second) + "</w:" + tag + ">";

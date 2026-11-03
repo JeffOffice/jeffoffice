@@ -590,6 +590,8 @@ struct NoteProperties {
 };
 // The settings with that group made as these properties say (what was in it about the numbering is replaced; the notes it names for the separators stay); a part with none is made.
 QByteArray settingsWithNoteProperties(const QByteArray &settings, bool endnotes, const NoteProperties &properties);
+// Whether settingsWithNoteProperties can put the group in these settings (they are empty or can be read); on others it returns them as they were.
+bool settingsAcceptNoteProperties(const QByteArray &settings);
 
 // A font of a font table: its name, the alternate it names (a family to set it in where it is missing), its kind (roman, swiss, modern, script,
 // decorative, or auto), its pitch (fixed, variable, or default), its PANOSE classification (ten two-digit numbers), and its character set (two hex digits,
@@ -668,6 +670,9 @@ Document newDocument();
 // A style as it is written to styles.xml (from its fields, whatever `raw` holds).
 QByteArray styleXml(const Style &style);
 Style builtinStyle(const QString &id);
+// The styles our own commands put in a document when they make captions, tables of figures, indexes, tables of authorities, and bibliographies (Caption, Index1 to 9, ...). Not part of
+// builtinStyle: a document that names one it does not define keeps showing it as Normal. A command adds one with WriteDoc::ensureStyle, which writes its definition to the file.
+Style referenceStyle(const QString &id);
 QStringList builtinStyleIds();
 // The table styles a person may apply (the gallery's, in its order); builtinStyle gives each, and TableNormal, the style a table has when none is said.
 QStringList builtinTableStyleIds();

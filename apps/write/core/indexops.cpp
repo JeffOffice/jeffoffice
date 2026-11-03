@@ -102,6 +102,19 @@ QStringList splitLevels(const QString &entry)
     return out;
 }
 
+// The levels of each XE entry, worked out once for the scan.
+const QVector<QStringList> &levelsOf(const StoryScan &scan, const ParsedFields &marks)
+{
+    const QString key = QStringLiteral("xe-levels");
+    auto found = scan.memo.constFind(key);
+    if (found == scan.memo.constEnd()) {
+        auto made = std::make_shared<QVector<QStringList>>();
+        for (const fields::Code &xe : marks.code) made->push_back(xe.arguments.isEmpty() ? QStringList() : splitLevels(xe.arguments.first()));
+        found = scan.memo.insert(key, made);
+    }
+    return *static_cast<const QVector<QStringList> *>(found.value().get());
+}
+
 void addPage(QVector<PageMark> *pages, const PageMark &m)
 {
     if (m.text.isEmpty()) return;
@@ -201,13 +214,15 @@ QVector<GenLine> indexLines(WriteDoc &doc, const StoryScan &scan, int field, con
     }
     Node root;
     int made = 0;
-    for (int i = 0; i < scan.fields.size() && made < kMostIndexEntries; ++i) {
-        const FieldPlace &f = scan.fields[i];
-        if (f.name != QLatin1String("XE") || within(f, self) || f.begin < limitFrom || f.begin > limitTo) continue;
-        const fields::Code xe = fields::parseCode(scan.instructionOf(i));
-        if (xe.name != QLatin1String("XE") || xe.arguments.isEmpty()) continue;
+    const ParsedFields &marks = parsedFieldsNamed(scan, QStringLiteral("XE"));
+    const QVector<QStringList> &markLevels = levelsOf(scan, marks);
+    for (int k = 0; k < marks.index.size() && made < kMostIndexEntries; ++k) {
+        const FieldPlace &f = scan.fields[marks.index[k]];
+        if (within(f, self) || f.begin < limitFrom || f.begin > limitTo) continue;
+        const fields::Code &xe = marks.code[k];
+        if (xe.arguments.isEmpty()) continue;
         if (xe.argumentOf(QLatin1Char('f')).trimmed().compare(type, Qt::CaseInsensitive) != 0) continue;
-        const QStringList levels = splitLevels(xe.arguments.first());
+        const QStringList &levels = markLevels[k];
         if (levels.isEmpty()) continue;
         if (ranged) {
             const QChar first = letterOf(levels.first())[0];
@@ -308,14 +323,7 @@ int markAllIndexEntries(WriteDoc &doc, const IndexMark &mark)
     }
     if (places.isEmpty()) return 0;
     WriteDoc::StepGroup group(doc);
-    int count = 0;
-    const QString code = indexMarkCode(mark);
-    for (int i = int(places.size()) - 1; i >= 0; --i) {
-        QTextCursor c(story);
-        c.setPosition(places[i]);
-        if (insertField(doc, c, code)) ++count;
-    }
-    return count;
+    return insertFieldAtEach(doc, places, indexMarkCode(mark));
 }
 
 QStringList markedIndexEntries(WriteDoc &doc)
@@ -394,11 +402,11 @@ QVector<GenLine> authoritiesLines(WriteDoc &doc, const StoryScan &scan, int fiel
     if (code.has(QLatin1Char('c'))) wanted = std::clamp(code.argumentOf(QLatin1Char('c')).trimmed().toInt(), 0, 16);
     QMap<int, QMap<QString, Authority>> byCategory;   // category -> long citation in lower case -> the authority
     int made = 0;
-    for (int i = 0; i < scan.fields.size() && made < kMostIndexEntries; ++i) {
-        const FieldPlace &f = scan.fields[i];
-        if (f.name != QLatin1String("TA") || within(f, self) || f.begin < limitFrom || f.begin > limitTo) continue;
-        const fields::Code ta = fields::parseCode(scan.instructionOf(i));
-        if (ta.name != QLatin1String("TA")) continue;
+    const ParsedFields &marks = parsedFieldsNamed(scan, QStringLiteral("TA"));
+    for (int k = 0; k < marks.index.size() && made < kMostIndexEntries; ++k) {
+        const FieldPlace &f = scan.fields[marks.index[k]];
+        if (within(f, self) || f.begin < limitFrom || f.begin > limitTo) continue;
+        const fields::Code &ta = marks.code[k];
         const QString longText = ta.argumentOf(QLatin1Char('l')).simplified();
         if (longText.isEmpty()) continue;
         const int category = std::clamp(ta.has(QLatin1Char('c')) ? ta.argumentOf(QLatin1Char('c')).trimmed().toInt() : 1, 1, 16);

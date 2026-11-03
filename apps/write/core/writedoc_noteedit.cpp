@@ -416,7 +416,7 @@ int WriteDoc::duplicateFootnote(int id)
     return fresh;
 }
 
-int WriteDoc::convertedNote(int id, bool toEndnote)
+int WriteDoc::convertedNote(int id, bool toEndnote, int lastMade)
 {
     QVector<Block> blocks;
     if (toEndnote) {
@@ -456,7 +456,7 @@ int WriteDoc::convertedNote(int id, bool toEndnote)
         }
     }
     if (toEndnote) {
-        const int fresh = nextEndnoteId();
+        const int fresh = lastMade > 0 && lastMade < 999'999'999 ? lastMade + 1 : nextEndnoteId();   // (the Id above the one the caller made last: nothing else has changed)
         m_endnoteBlocks.insert(QString::number(fresh), blocks);
         m_createdEndnotes.insert(fresh);
         m_endnoteIdFloor = fresh;
@@ -464,7 +464,7 @@ int WriteDoc::convertedNote(int id, bool toEndnote)
         m_noteStepPending.push_back({true, fresh});
         return fresh;
     }
-    const int fresh = nextFootnoteId();
+    const int fresh = lastMade > 0 && lastMade < 999'999'999 ? lastMade + 1 : nextFootnoteId();
     const QString key = QStringLiteral("fn%1").arg(fresh);
     m_noteBlocks.insert(key, blocks);
     m_createdFootnotes.insert(fresh);
@@ -1136,6 +1136,11 @@ void WriteDoc::writeNoteParts(office::wml::Document *out)
                 kept.data = data;
                 break;
             }
+        // (A separator the part lacked was added with the Id the settings name it by: the settings name them, if they did not.)
+        if (change.separators.contains(QStringLiteral("separator")) || change.separators.contains(QStringLiteral("continuationSeparator"))) {
+            KeptPart *settings = settingsPartFor(out);
+            settings->data = settingsWithNoteSeparators(settings->data, false);
+        }
         return;
     }
     // A part the document did not have: the part, the relationship to it, and the settings that name its separators.
@@ -1187,6 +1192,11 @@ void WriteDoc::writeEndnoteParts(office::wml::Document *out)
                 kept.data = data;
                 break;
             }
+        // (A separator the part lacked was added with the Id the settings name it by: the settings name them, if they did not.)
+        if (change.separators.contains(QStringLiteral("separator")) || change.separators.contains(QStringLiteral("continuationSeparator"))) {
+            KeptPart *settings = settingsPartFor(out);
+            settings->data = settingsWithNoteSeparators(settings->data, true);
+        }
         return;
     }
     KeptPart kept;

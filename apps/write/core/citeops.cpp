@@ -1,5 +1,7 @@
 #include "core/citeops.h"
 
+#include <atomic>
+
 #include "core/editops.h"
 #include "wml/xmltree.h"
 
@@ -65,13 +67,12 @@ const char *const kStyleNames[] = {"APA", "MLA", "Chicago", "Harvard", "IEEE"};
 
 QString styleFile(const QString &style)
 {
-    // (The names the format gives the style files it ships with, which a file that names a style by its file has to be read by.)
-    const QString tail = QStringLiteral("Of") + QStringLiteral("ficeOnline.xsl");
-    if (style == QLatin1String("APA")) return QStringLiteral("\\APASixthEdition") + tail;
-    if (style == QLatin1String("MLA")) return QStringLiteral("\\MLASeventhEdition") + tail;
+    // The file format's own identifier of each style's file, which the sources part names its style by: a file only round-trips when these are written exactly as the format has them.
+    if (style == QLatin1String("APA")) return QStringLiteral("\\APASixthEditionOfficeOnline.xsl");
+    if (style == QLatin1String("MLA")) return QStringLiteral("\\MLASeventhEditionOfficeOnline.xsl");
     if (style == QLatin1String("Chicago")) return QStringLiteral("\\ChicagoFifteenthEditionSortByAuthor.xsl");
-    if (style == QLatin1String("Harvard")) return QStringLiteral("\\HarvardAnglia2008") + tail;
-    return QStringLiteral("\\IEEE2006") + tail;
+    if (style == QLatin1String("Harvard")) return QStringLiteral("\\HarvardAnglia2008OfficeOnline.xsl");
+    return QStringLiteral("\\IEEE2006OfficeOnline.xsl");
 }
 
 QString styleFromNames(const QString &styleName, const QString &selected)
@@ -119,6 +120,15 @@ QStringList citationStyles()
     QStringList out;
     for (const char *n : kStyleNames) out << QString::fromLatin1(n);
     return out;
+}
+
+QString citationStyleLabel(const QString &style)
+{
+    // (These are the editions the styles follow; newer ones are not built in.)
+    if (style == QLatin1String("APA")) return QCoreApplication::translate("jp::write::Sources", "APA (6th edition)");
+    if (style == QLatin1String("MLA")) return QCoreApplication::translate("jp::write::Sources", "MLA (7th edition)");
+    if (style == QLatin1String("Chicago")) return QCoreApplication::translate("jp::write::Sources", "Chicago (15th edition)");
+    return style;
 }
 
 QString defaultCitationStyle() { return QStringLiteral("APA"); }
@@ -224,33 +234,49 @@ QByteArray sourcesToXml(const QVector<Source> &sources, const QString &styleIn)
 }
 
 namespace {
+std::atomic<qint64> g_sourceParses{0};
 
-// The sources of one set of bytes, read once for the many CITATION fields a pass works out.
+// The sources of one revision of the document's sources part, read once for the many CITATION fields a pass works out.
 struct Cached {
-    QByteArray xml;
+    quint64 revision = 0;
     QVector<Source> sources;
+    QHash<QString, int> byTag;   // lower case tag -> the first source with it
     QString style;
     bool valid = false;
 };
 
-const Cached &cachedSources(const QByteArray &xml)
+const Cached &cachedSources(WriteDoc &doc)
 {
     static thread_local Cached c;
-    if (!c.valid || c.xml != xml) {
-        c.xml = xml;
+    const QByteArray xml = doc.sourcesXml();   // (first: it gives the revision of what it returns)
+    const quint64 revision = doc.sourcesRevision();
+    if (!c.valid || c.revision != revision) {
+        c.revision = revision;
+        c.byTag.clear();
         c.sources = parseSources(xml, &c.style);
+        ++g_sourceParses;
+        for (int i = int(c.sources.size()) - 1; i >= 0; --i) c.byTag.insert(c.sources[i].tag.toLower(), i);   // (backward, so the first source of a tag is the one kept)
         c.valid = true;
     }
     return c;
 }
 
+const Source *findSource(const Cached &c, const QString &tag)
+{
+    const auto found = c.byTag.constFind(tag.toLower());
+    return found == c.byTag.constEnd() ? nullptr : &c.sources[found.value()];
+}
+
 } // namespace
 
-QVector<Source> documentSources(WriteDoc &doc) { return cachedSources(doc.sourcesXml()).sources; }
+qint64 sourcesParsesForTest() { return g_sourceParses; }
+void resetSourcesParsesForTest() { g_sourceParses = 0; }
+
+QVector<Source> documentSources(WriteDoc &doc) { return cachedSources(doc).sources; }
 
 QString documentCitationStyle(WriteDoc &doc)
 {
-    const QString s = cachedSources(doc.sourcesXml()).style;
+    const QString s = cachedSources(doc).style;
     return s.isEmpty() ? defaultCitationStyle() : s;
 }
 
@@ -420,11 +446,11 @@ struct Citations {
 Citations citationsOf(const StoryScan &scan, int exceptWithin = -1)
 {
     Citations c;
-    for (int i = 0; i < scan.fields.size(); ++i) {
-        const FieldPlace &f = scan.fields[i];
-        if (f.name != QLatin1String("CITATION")) continue;
+    const ParsedFields &cites = parsedFieldsNamed(scan, QStringLiteral("CITATION"));
+    for (int k = 0; k < cites.index.size(); ++k) {
+        const FieldPlace &f = scan.fields[cites.index[k]];
         if (exceptWithin >= 0 && f.begin > scan.fields[exceptWithin].begin && f.begin < scan.fields[exceptWithin].end) continue;
-        const QString tag = fields::parseCode(scan.instructionOf(i)).arguments.value(0).trimmed();
+        const QString tag = cites.code[k].arguments.value(0).trimmed();
         if (tag.isEmpty() || c.number.contains(tag.toLower())) continue;
         c.number.insert(tag.toLower(), int(c.order.size()) + 1);
         c.order << tag;
@@ -432,31 +458,26 @@ Citations citationsOf(const StoryScan &scan, int exceptWithin = -1)
     return c;
 }
 
-const Source *findSource(const QVector<Source> &sources, const QString &tag)
+// The citations of the whole scan, worked out once for it (a new scan, whatever its address, has its own).
+const Citations &citationsOfScan(const StoryScan &scan)
 {
-    for (const Source &s : sources)
-        if (s.tag.compare(tag, Qt::CaseInsensitive) == 0) return &s;
-    return nullptr;
+    const QString key = QStringLiteral("citations");
+    auto found = scan.memo.constFind(key);
+    if (found == scan.memo.constEnd()) found = scan.memo.insert(key, std::make_shared<Citations>(citationsOf(scan)));
+    return *static_cast<const Citations *>(found.value().get());
 }
 
 } // namespace
 
 std::optional<QString> citationFieldText(WriteDoc &doc, const StoryScan &scan, const QString &tag, const fields::Code &code)
 {
-    const Cached &c = cachedSources(doc.sourcesXml());
-    const Source *s = findSource(c.sources, tag);
+    const Cached &c = cachedSources(doc);
+    const Source *s = findSource(c, tag);
     if (!s) return std::nullopt;
     const QString style = c.style.isEmpty() ? defaultCitationStyle() : c.style;
     int number = 0;
     if (style == QLatin1String("IEEE")) {
-        static thread_local const StoryScan *lastScan = nullptr;
-        static thread_local qsizetype lastFields = -1;
-        static thread_local Citations cache;
-        if (lastScan != &scan || lastFields != scan.fields.size() || cache.order.isEmpty()) {
-            cache = citationsOf(scan);
-            lastScan = &scan;
-            lastFields = scan.fields.size();
-        }
+        const Citations &cache = citationsOfScan(scan);
         number = cache.number.value(tag.toLower(), 0);
     }
     return fields::formatText(citationText(*s, style, code, number), code.general);
@@ -639,7 +660,7 @@ QString noBibliography() { return QCoreApplication::translate("jp::write::Fields
 
 QVector<GenLine> bibliographyLines(WriteDoc &doc, const StoryScan &scan, int field, const fields::Code &)
 {
-    const Cached &cached = cachedSources(doc.sourcesXml());
+    const Cached &cached = cachedSources(doc);
     const QString style = cached.style.isEmpty() ? defaultCitationStyle() : cached.style;
     const Citations cites = citationsOf(scan, field);
     struct Item {
@@ -648,7 +669,7 @@ QVector<GenLine> bibliographyLines(WriteDoc &doc, const StoryScan &scan, int fie
     };
     QVector<Item> items;
     for (const QString &tag : cites.order)
-        if (const Source *s = findSource(cached.sources, tag)) items.push_back(Item{s, cites.number.value(tag.toLower())});
+        if (const Source *s = findSource(cached, tag)) items.push_back(Item{s, cites.number.value(tag.toLower())});
     if (style != QLatin1String("IEEE")) {
         QCollator collator;
         collator.setCaseSensitivity(Qt::CaseInsensitive);
@@ -687,8 +708,7 @@ void setDocumentCitationStyle(WriteDoc &doc, const QString &style)
 
 bool insertCitation(WriteDoc &doc, QTextCursor &c, const QString &tag, const CitationOptions &o)
 {
-    const QVector<Source> sources = documentSources(doc);
-    const Source *s = findSource(sources, tag);
+    const Source *s = findSource(cachedSources(doc), tag);
     if (!s) return false;
     QString code = QStringLiteral("CITATION %1").arg(s->tag);
     if (!o.pages.trimmed().isEmpty()) code += QStringLiteral(" \\p \"%1\"").arg(QString(o.pages.trimmed()).replace(QLatin1Char('"'), QString()));

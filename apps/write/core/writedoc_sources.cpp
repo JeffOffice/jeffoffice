@@ -3,6 +3,7 @@
 #include "core/writedoc.h"
 
 #include <QUuid>
+#include <atomic>
 
 using namespace jp::office;
 using namespace jp::office::wml;
@@ -14,16 +15,28 @@ constexpr char kBibliographyNs[] = "officeDocument/2006/bibliography";
 constexpr char kCustomXmlRel[] = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml";
 constexpr char kCustomXmlPropsRel[] = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXmlProps";
 constexpr char kCustomXmlPropsType[] = "application/vnd.openxmlformats-officedocument.customXmlProperties+xml";
+constexpr qsizetype kMostSourcesBytes = 16 * 1024 * 1024;   // a sources part that is larger is left alone (not read, not changed)
+
+quint64 newSourcesRevision()
+{
+    static std::atomic<quint64> last{0};
+    return ++last;
+}
 }
 
 QByteArray WriteDoc::sourcesXml()
 {
     if (m_sourcesRead) return m_sourcesXml;
     m_sourcesRead = true;
+    m_sourcesRevision = newSourcesRevision();
     for (const KeptPart &p : std::as_const(m_wml.parts)) {
         if (!p.name.startsWith(QLatin1String("/customXml/"), Qt::CaseInsensitive) || p.name.contains(QLatin1String("Props"), Qt::CaseInsensitive)) continue;
         const QByteArray head = p.data.left(2048);
         if (head.contains(kBibliographyNs) && head.contains("Sources")) {
+            if (p.data.size() > kMostSourcesBytes) {
+                qWarning("The sources part %s is larger than %d MB and is ignored.", qUtf8Printable(p.name), int(kMostSourcesBytes >> 20));
+                continue;
+            }
             m_sourcesXml = p.data;
             m_sourcesPartName = p.name;
             break;
@@ -37,6 +50,7 @@ void WriteDoc::setSourcesXml(const QByteArray &xml)
     sourcesXml();
     if (xml == m_sourcesXml) return;
     m_sourcesXml = xml;
+    m_sourcesRevision = newSourcesRevision();
     m_sourcesDirty = true;
     setModified(true);
 }
@@ -47,7 +61,10 @@ void WriteDoc::writeSourcesPart(office::wml::Document *out)
     if (!m_sourcesPartName.isEmpty()) {
         for (KeptPart &kept : out->parts)
             if (kept.name.compare(m_sourcesPartName, Qt::CaseInsensitive) == 0) {
-                kept.data = m_sourcesXml;
+                // (Sources cleared: the part stays, holding an empty list, rather than an empty file, which is no XML.)
+                kept.data = m_sourcesXml.isEmpty() ? QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\r\n<b:Sources xmlns:b=\"http://schemas.openxmlformats.org/officeDocument/2006/bibliography\" "
+                                                                "xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/bibliography\"/>")
+                                                   : m_sourcesXml;
                 return;
             }
     }

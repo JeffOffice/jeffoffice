@@ -407,6 +407,15 @@ QByteArray settingsWithNoteProperties(const QByteArray &settings, bool endnotes,
     return settings.left(at) + "<" + prefix + group + ">" + inner(prefix, QByteArray()) + "</" + prefix + group + ">" + settings.mid(at);
 }
 
+bool settingsAcceptNoteProperties(const QByteArray &settings)
+{
+    if (settings.trimmed().isEmpty()) return true;
+    QVector<SettingsChild> children;
+    qsizetype rootEnd = 0;
+    QByteArray prefix;
+    return settingsChildren(settings, &children, &rootEnd, &prefix);
+}
+
 // ---- Fonts
 
 bool Fonts::operator==(const Fonts &o) const

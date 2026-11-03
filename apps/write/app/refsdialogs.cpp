@@ -704,9 +704,12 @@ bool citationStyleDialog(QWidget *parent, WriteDoc *doc)
 {
     if (!doc) return false;
     const QStringList styles = citationStyles();
+    QStringList labels;
+    for (const QString &s : styles) labels << citationStyleLabel(s);
     bool ok = false;
-    const QString chosen = QInputDialog::getItem(parent, tr("Citation Style"), tr("Show citations and the bibliography in the style:"), styles, std::max(0, int(styles.indexOf(documentCitationStyle(*doc)))), false, &ok);
-    if (!ok || chosen == documentCitationStyle(*doc)) return false;
+    const QString picked = QInputDialog::getItem(parent, tr("Citation Style"), tr("Show citations and the bibliography in the style:"), labels, std::max(0, int(styles.indexOf(documentCitationStyle(*doc)))), false, &ok);
+    const QString chosen = styles.value(int(labels.indexOf(picked)));
+    if (!ok || chosen.isEmpty() || chosen == documentCitationStyle(*doc)) return false;
     setDocumentCitationStyle(*doc, chosen);
     return true;
 }
@@ -715,6 +718,10 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
 {
     if (!doc) return false;
     if (endnotesChanged) *endnotesChanged = false;
+    if (!doc->noteSettingsCanBeSaved()) {
+        QMessageBox::warning(parent, tr("Footnote and Endnote"), tr("The settings of this file can't be read, so a change to how notes are numbered could not be saved with it. Nothing was changed."));
+        return false;
+    }
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("notesOptionsDialog"));
     dlg.setWindowTitle(tr("Footnote and Endnote"));
@@ -857,6 +864,8 @@ bool noteSeparatorsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
                      {"continuationSeparator", tr("Continuation separator (above a note that goes on):")},
                      {"continuationNotice", tr("Continuation notice (below a note that goes on):")}};
         for (const auto &k : kinds) {
+            // (Endnotes run on in the text like the paragraphs around them: no page breaks one off its notice or its continuation line, so only the separator is a choice there.)
+            if (endnotes && QLatin1String(k.type) != QLatin1String("separator")) continue;
             Row r;
             r.endnotes = endnotes;
             r.type = QLatin1String(k.type);

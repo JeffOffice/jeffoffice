@@ -166,13 +166,16 @@ QVector<TocLine> tocLines(WriteDoc &doc, const StoryScan &scan, int field, const
     // The captions' paragraphs, the headings' bookmarks, and the bookmark the table is limited to.
     QSet<int> captionBlocks;
     QHash<int, int> captionTextFrom;   // the block number -> where the text after the label and number begins (for \a)
-    if (captions)
-        for (int i = 0; i < scan.fields.size(); ++i)
-            if (scan.fields[i].name == QLatin1String("SEQ") && fields::parseCode(scan.instructionOf(i)).arguments.value(0).trimmed().toUpper() == captionId) {
-                const int n = story->findBlock(scan.fields[i].begin).blockNumber();
-                if (!captionBlocks.contains(n)) captionTextFrom.insert(n, scan.fields[i].end + 1);
+    if (captions) {
+        const ParsedFields &seqs = parsedFieldsNamed(scan, QStringLiteral("SEQ"));
+        for (int k = 0; k < seqs.index.size(); ++k)
+            if (seqs.code[k].arguments.value(0).trimmed().toUpper() == captionId) {
+                const FieldPlace &f = scan.fields[seqs.index[k]];
+                const int n = story->findBlock(f.begin).blockNumber();
+                if (!captionBlocks.contains(n)) captionTextFrom.insert(n, f.end + 1);
                 captionBlocks.insert(n);
             }
+    }
     QHash<int, QString> tocBookmark;
     for (const BookmarkSpan &s : scan.bookmarks)
         if (s.name.startsWith(QLatin1String("_Toc")) && s.start >= 0) {
@@ -247,13 +250,13 @@ QVector<TocLine> tocLines(WriteDoc &doc, const StoryScan &scan, int field, const
         int tcLo = 1, tcHi = 9;
         if (code.has(QLatin1Char('l'))) parseLevels(code.argumentOf(QLatin1Char('l')), &tcLo, &tcHi);
         bool added = false;
-        for (int i = 0; i < scan.fields.size(); ++i) {
-            const FieldPlace &f = scan.fields[i];
-            if (f.name != QLatin1String("TC")) continue;
+        const ParsedFields &tcs = parsedFieldsNamed(scan, QStringLiteral("TC"));
+        for (int k = 0; k < tcs.index.size(); ++k) {
+            const FieldPlace &f = scan.fields[tcs.index[k]];
             if (f.begin > self.begin && f.begin < self.end) continue;
             if (f.begin < limitFrom || f.begin > limitTo) continue;
-            const fields::Code tc = fields::parseCode(scan.instructionOf(i));
-            if (tc.name != QLatin1String("TC") || tc.arguments.isEmpty()) continue;
+            const fields::Code &tc = tcs.code[k];
+            if (tc.arguments.isEmpty()) continue;
             if (tc.argumentOf(QLatin1Char('f')).trimmed().compare(wanted, Qt::CaseInsensitive) != 0) continue;
             bool ok = false;
             const int level = tc.has(QLatin1Char('l')) ? tc.argumentOf(QLatin1Char('l')).trimmed().toInt(&ok) : 1;
@@ -378,15 +381,25 @@ bool rebuildToc(WriteDoc &doc, QTextDocument *story, const StoryScan &scan, int 
     const bool hyperlinks = code.has(QLatin1Char('h'));
     const QString separator = code.has(QLatin1Char('p')) ? code.argumentOf(QLatin1Char('p')) : QStringLiteral("\t");
     const bool figures = code.has(QLatin1Char('c')) || (code.has(QLatin1Char('a')) && !code.argumentOf(QLatin1Char('a')).isEmpty());
+    // (Each style is looked up by name once for the table, not once for each of its lines.)
+    QHash<int, QString> levelStyle;
+    QString figureStyle;
     auto blockFor = [&](const TocLine &l, QTextBlockFormat *out) {
-        QString style = styleForLevel(doc, l.level);
+        QString style;
         if (figures) {
             // (The lines of a table of figures are in the style of its own.)
-            style = QStringLiteral("TableofFigures");
-            for (const Style &st : doc.styleSheet().styles)
-                if (st.type == QLatin1String("paragraph") && st.name.compare(QLatin1String("table of figures"), Qt::CaseInsensitive) == 0) style = st.id;
-            const quint64 sheet = doc.styleSheetRevision();
-            if (doc.ensureStyle(style) && doc.styleSheetRevision() != sheet) doc.markStyleStep();
+            if (figureStyle.isEmpty()) {
+                figureStyle = QStringLiteral("TableofFigures");
+                for (const Style &st : doc.styleSheet().styles)
+                    if (st.type == QLatin1String("paragraph") && st.name.compare(QLatin1String("table of figures"), Qt::CaseInsensitive) == 0) figureStyle = st.id;
+                const quint64 sheet = doc.styleSheetRevision();
+                if (doc.ensureStyle(figureStyle) && doc.styleSheetRevision() != sheet) doc.markStyleStep();
+            }
+            style = figureStyle;
+        } else {
+            auto found = levelStyle.constFind(l.level);
+            if (found == levelStyle.constEnd()) found = levelStyle.insert(l.level, styleForLevel(doc, l.level));
+            style = found.value();
         }
         QTextBlockFormat nf = doc.styleBlockFormat(style);
         ParaProps pp = paraPropsOf(nf);
@@ -509,12 +522,24 @@ bool rebuildGenerated(WriteDoc &doc, QTextDocument *story, const StoryScan &scan
         c.insertText(empty, look);
         return true;
     }
+    QHash<QString, QString> idOfName;   // (the styles looked up by name once each)
     auto styleOf = [&](const GenLine &l) {
+        const auto known = idOfName.constFind(l.styleName.toLower());
+        if (known != idOfName.constEnd()) return known.value();
+        QString id = l.styleId;
+        bool found = false;
         for (const Style &st : doc.styleSheet().styles)
-            if (st.type == QLatin1String("paragraph") && st.name.compare(l.styleName, Qt::CaseInsensitive) == 0) return st.id;
-        const quint64 sheet = doc.styleSheetRevision();
-        if (doc.ensureStyle(l.styleId) && doc.styleSheetRevision() != sheet) doc.markStyleStep();
-        return l.styleId;
+            if (st.type == QLatin1String("paragraph") && st.name.compare(l.styleName, Qt::CaseInsensitive) == 0) {
+                id = st.id;
+                found = true;
+                break;
+            }
+        if (!found) {
+            const quint64 sheet = doc.styleSheetRevision();
+            if (doc.ensureStyle(l.styleId) && doc.styleSheetRevision() != sheet) doc.markStyleStep();
+        }
+        idOfName.insert(l.styleName.toLower(), id);
+        return id;
     };
     for (int i = 0; i < lines.size(); ++i) {
         const GenLine &l = lines[i];

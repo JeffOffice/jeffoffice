@@ -165,6 +165,11 @@ void WriteDoc::separatorsToWrite(bool endnotes, NotesChange *change) const
         if (m_separatorsEdited.contains(QLatin1String(endnotes ? "e:" : "f:") + QLatin1String(type))) change->separators.insert(QLatin1String(type), *separatorBlocks(endnotes, QLatin1String(type)));
 }
 
+bool WriteDoc::noteSettingsCanBeSaved() const
+{
+    return m_wml.settingsName.isEmpty() || settingsAcceptNoteProperties(partData(m_wml.settingsName));
+}
+
 void WriteDoc::writeNoteSettings(office::wml::Document *out)
 {
     for (int k = 0; k < 2; ++k) {

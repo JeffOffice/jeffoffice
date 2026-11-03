@@ -84,7 +84,7 @@ bool markTocEntry(WriteDoc &doc, QTextCursor &c, const QString &text, int level,
 // Makes the paragraphs the selection touches headings of this level (the style "Heading 1" to "Heading 9"), so that a table built from headings has them; level 0 makes them body text
 // again (the document's default paragraph style). One step of the history.
 bool addTextToToc(WriteDoc &doc, QTextCursor &c, int level);
-// The gallery's tables: a heading (in the style "TOC Heading") and a table built now ("Automatic Table 1" is headed "Contents", "Automatic Table 2" "Table of Contents"), or "Manual Table", which
+// The gallery's tables: a heading (in the style "TOC Heading") and a table built now (Automatic1, "Contents", is headed "Contents"; Automatic2, "Contents with Full Title", "Table of Contents"), or Manual ("Contents to Fill In"), which
 // is typed text in the table's styles that a person writes over and that no field keeps. One step of the history. False where it can't be put.
 enum class TocGallery { Automatic1, Automatic2, Manual };
 bool insertTocGallery(WriteDoc &doc, QTextCursor &c, TocGallery kind);

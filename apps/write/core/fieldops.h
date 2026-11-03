@@ -13,6 +13,7 @@
 #include <QTextCursor>
 #include <QVector>
 #include <functional>
+#include <memory>
 
 namespace jp::write {
 
@@ -61,7 +62,22 @@ struct StoryScan {
     QString resultOf(int field) const;
     // The code of a field with the nested fields' results (those in `override` in place of the ones the story has).
     QString instructionOf(int field, const QHash<int, QString> &override = QHash<int, QString>()) const;
+    quint64 revision = 0;                     // unique to each pass (a cache keyed on a scan's address can't tell two apart)
+    // Work done once for the scan's many fields (the parsed marks, the lists built from them): kept by name for as long as the scan lives.
+    mutable QHash<QString, std::shared_ptr<const void>> memo;
 };
+// The fields of one name (upper case) with their codes parsed, once for the scan: `index` are positions in StoryScan::fields, `code` the parsed instruction of each (nested results in place).
+struct ParsedFields {
+    QVector<int> index;
+    QVector<fields::Code> code;
+};
+const ParsedFields &parsedFieldsNamed(const StoryScan &scan, const QString &name);
+// How many field codes parsedFieldsNamed has parsed since the counts were reset.
+qint64 parsedMarkCodesForTest();
+void resetParsedMarkCodesForTest();
+// How many passes over a story scanStory has made since the counts were reset.
+qint64 storyScansForTest();
+void resetStoryScansForTest();
 StoryScan scanStory(QTextDocument *story, bool bookmarks = true);
 
 // The number a list gives the paragraph, without trailing periods ("2.1"); empty for a paragraph that is not numbered.
@@ -131,5 +147,8 @@ int fieldContaining(const StoryScan &scan, int position);
 // A field, as one character, inserted at the caret (or in place of the selection): its code and the result the engine works out (the text given when it can't). Returns false where it
 // can't be put (a header, a note, a table of a kind the program does not edit). `code` is the field's instruction, without the blanks round it.
 bool insertField(WriteDoc &doc, QTextCursor &c, const QString &code, const QString &fallbackResult = QString());
+// The same field at each of these places of the text, in one pass (one scan, not one for each place; the caller makes it one step). For the marks (XE, TA, TC), whose result does not depend
+// on the place. Returns how many were put.
+int insertFieldAtEach(WriteDoc &doc, const QVector<int> &positions, const QString &code);
 
 } // namespace jp::write

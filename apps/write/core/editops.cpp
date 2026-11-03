@@ -1885,9 +1885,17 @@ int convertNotes(WriteDoc &doc, NoteConversion mode, int onlyFootnote, int onlyE
     int done = 0;
     WriteDoc::StepGroup group(doc);
     NumberGuard numbers(doc, story);
+    // (The notes are all made first, then the references replaced: a note made while the text is being changed has the whole text read again to find which notes it cites, for each one.)
+    QVector<int> fresh;
+    int lastFootnote = 0, lastEndnote = 0;   // (the Id of the note made last of each kind: the next is the one above it)
     for (const Place &p : places) {
-        const int fresh = doc.convertedNote(p.id, !p.endnote);
-        if (!fresh) break;
+        const int id = doc.convertedNote(p.id, !p.endnote, p.endnote ? lastFootnote : lastEndnote);
+        if (!id) break;
+        (p.endnote ? lastFootnote : lastEndnote) = id;
+        fresh.push_back(id);
+    }
+    for (int i = 0; i < fresh.size(); ++i) {
+        const Place &p = places[i];
         const QTextBlock block = story->findBlock(p.position);
         const QString style = block.blockFormat().stringProperty(tp::StyleName);
         QTextCursor at(story);
@@ -1895,7 +1903,7 @@ int convertNotes(WriteDoc &doc, NoteConversion mode, int onlyFootnote, int onlyE
         at.beginEditBlock();
         at.setPosition(p.position + 1, QTextCursor::KeepAnchor);
         at.removeSelectedText();
-        at.insertText(QString(QChar::ObjectReplacementCharacter), p.endnote ? doc.footnoteReferenceFormat(fresh, style) : doc.endnoteReferenceFormat(fresh, style));
+        at.insertText(QString(QChar::ObjectReplacementCharacter), p.endnote ? doc.footnoteReferenceFormat(fresh[i], style) : doc.endnoteReferenceFormat(fresh[i], style));
         at.endEditBlock();
         ++done;
     }

@@ -275,8 +275,9 @@ public:
     // A copy of an endnote as a note of its own (what a pasted copy of a reference cites): its Id, 0 for none.
     int duplicateEndnote(int id);
     QTextCharFormat endnoteReferenceFormat(int id, const QString &paragraphStyle);
-    // A copy of a footnote as a new endnote (`toEndnote`), or of an endnote as a new footnote, with the note styles and the number mark of its new kind: its Id, 0 for none.
-    int convertedNote(int id, bool toEndnote);
+    // A copy of a footnote as a new endnote (`toEndnote`), or of an endnote as a new footnote, with the note styles and the number mark of its new kind: its Id, 0 for none. `lastMade` is the Id of the note of that kind that the caller made just before (0 for none): the new one is the Id above it,
+    // so that a run of conversions does not look for the highest Id each time.
+    int convertedNote(int id, bool toEndnote, int lastMade = 0);
     // (A test of the settling: whether the references followed as the story changed are the ones a new look through it finds.)
     bool endnoteSequenceMatchesStoryForTest();
     // After an edit of the text: if the notes that the text's references name are not the notes the pages set, the notes are set again (as part of the edit's own undo step), and the
@@ -355,10 +356,14 @@ public:
     // Sets it, written with the file (a setting of the document, not a step of the history). The footnotes' numbers show it at once; the endnotes' marks and notes are made again
     // when the document is read again from what toDocx gives, which a caller that changed the endnotes' settings does.
     void setNoteSettings(bool endnotes, const NoteSettings &settings);
+    // False where the file's settings part can't be read, so that a change of the notes' numbering could not be written into it (the window says so and makes none).
+    bool noteSettingsCanBeSaved() const;
     // The sources of the bibliography (core/citeops.h): the XML of the file's bibliography part (a custom XML part), as read or as last set; empty for none.
     QByteArray sourcesXml();
     // Sets it. A setting of the document, written with the file, not a step of the history.
     void setSourcesXml(const QByteArray &xml);
+    // A number that is new whenever the sources change (and the first time they are read), the same for as long as they do not; unique across documents.
+    quint64 sourcesRevision() const { return m_sourcesRevision; }
     // The person who makes the changes and comments, and their initials (the user name of the settings: the window gives them).
     QString reviewer() const { return m_reviewer; }
     QString reviewerInitials() const { return m_reviewerInitials; }
@@ -825,6 +830,7 @@ private:
     QByteArray m_sourcesXml;
     QString m_sourcesPartName;
     bool m_sourcesRead = false, m_sourcesDirty = false;
+    quint64 m_sourcesRevision = 0;
     void writeCommentParts(office::wml::Document *out);
     mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratch;
     QVector<office::wml::Style> m_addedTableStyles;                    // built-in table styles that tables made have (see ensureTableStyle)
