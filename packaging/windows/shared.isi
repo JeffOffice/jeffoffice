@@ -104,6 +104,7 @@ begin
     DeleteFile(Dir + '\jeffoffice.ico');
     DeleteFile(Dir + '\LICENSE');
     DeleteFile(Dir + '\README.md');
+    DeleteFile(Dir + '\ADDITIONAL-TERMS.md');
     RemoveDir(Dir);
   end;
 end;

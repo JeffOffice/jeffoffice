@@ -40,6 +40,16 @@ class Reflow(unittest.TestCase):
         # samples keep one line per source line, with their relative indent
         self.assertIn("\n    <program>  Copyright (C) <year>  <name of author>\n", self.txt)
 
+    def test_additional_terms_follow(self):
+        with open(os.path.join(ROOT, "ADDITIONAL-TERMS.md"), encoding="utf-8") as f:
+            md = r.parse_markdown(f.read())
+        txt = r.to_text(self.blocks + [("head", ["Additional Terms under section 7"])] + md)
+        self.assertGreater(txt.index("Additional Terms under section 7"), txt.index("END OF TERMS AND CONDITIONS"))
+        self.assertNotIn("**", txt)
+        self.assertNotIn("## ", txt)
+        self.assertIn("    - the copyright notice", txt)
+        self.assertIn("5. Indemnification (section 7(f)).", txt)
+
     def test_rtf_is_balanced(self):
         t = r.to_rtf(self.blocks)
         self.assertEqual(t.count("{") - t.count(r"\{"), t.count("}") - t.count(r"\}"))

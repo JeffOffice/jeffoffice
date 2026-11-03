@@ -11,8 +11,8 @@ if (-not (Test-Path $iscc)) { throw "Inno Setup's ISCC.exe was not found" }
 # ISCC prints "Compiler engine version: Inno Setup 6.x.y" when it compiles, so the version is in the log; the script
 # itself refuses anything before 6.6 (the artwork assumes that version's image sizes).
 Write-Host "ISCC: $iscc"
-# The license page shows the GPL as paragraphs, not the file's hard-wrapped lines.
-python tools/reflow_license.py --rtf LICENSE packaging/windows/license.rtf
+# The license page shows the GPL as paragraphs, not the file's hard-wrapped lines, then the Additional Terms.
+python tools/reflow_license.py --rtf LICENSE packaging/windows/license.rtf --append ADDITIONAL-TERMS.md
 if ($LASTEXITCODE -ne 0) { throw 'reflowing the license failed' }
 $defs = @("/DVERSION=$Version")
 if ($Write) { $defs += '/DWITH_WRITE' }

@@ -1,6 +1,6 @@
 ; JeffOffice Windows installer (Inno Setup 6.6 or later). Built by CI from dist\JeffOffice:
 ;   ISCC.exe /DVERSION=0.20.0 [/DWITH_WRITE] [/DWITH_CRUNCH] packaging\windows\installer.iss
-; after tools\reflow_license.py --rtf LICENSE packaging\windows\license.rtf (the license page).
+; after tools\reflow_license.py --rtf LICENSE packaging\windows\license.rtf --append ADDITIONAL-TERMS.md (the license page).
 ; Installs the suite's apps that are ready (JeffPub and JeffDeck, and JeffWrite and JeffCrunch as betas) into one folder,
 ; per user: no administrator rights needed. The apps still being built are listed as coming soon and can't be chosen yet.
 ; JeffWrite and JeffCrunch were among those until the owner decided each ships: building with /DWITH_WRITE or
@@ -111,8 +111,8 @@ WelcomeLabel1=Welcome to {#Suite}
 WelcomeLabel2={#Suite} {#VERSION} is a free, open-source office suite.%n%nJeffPub, for desktop publishing, and JeffDeck, for presentations, are ready now{#WelcomeApps} If JeffPub is already installed, setup moves it into {#Suite}, with your settings.%n%n{#Suite} is an independent open-source project.%n%nNo administrator rights are needed.
 WizardLicense=License
 LicenseLabel=Please read the license.
-LicenseLabel3={#Suite} is free software under the GNU General Public License v3.0. To install {#Suite}, you must accept its terms.
-LicenseAccepted=I &accept the terms of the GNU General Public License v3.0
+LicenseLabel3={#Suite} is free software under the GNU General Public License v3.0, with Additional Terms under section 7 after it. To install {#Suite}, you must accept its terms.
+LicenseAccepted=I &accept the terms of the GNU General Public License v3.0 and the Additional Terms
 LicenseNotAccepted=I &do not accept the terms
 SelectComponentsDesc=Choose what to install.
 SelectComponentsLabel2=Apps marked coming soon come in an update.
@@ -154,6 +154,7 @@ Name: "{app}"; Flags: uninsalwaysuninstall
 [Files]
 Source: "..\..\dist\JeffOffice\*"; DestDir: "{app}"; Excludes: "{#NotApps}"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "jeffoffice.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\ADDITIONAL-TERMS.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\JeffOffice\JeffDeck.exe"; DestDir: "{app}"; Components: deck; Flags: ignoreversion
 #ifdef WITH_WRITE
 Source: "..\..\dist\JeffOffice\JeffWrite.exe"; DestDir: "{app}"; Components: write; Flags: ignoreversion

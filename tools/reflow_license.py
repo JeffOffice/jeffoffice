@@ -3,6 +3,8 @@
 
     tools/reflow_license.py LICENSE out.txt          plain text, one line per paragraph
     tools/reflow_license.py --rtf LICENSE out.rtf    rich text: centered and bold headings, spaced paragraphs
+    tools/reflow_license.py --rtf LICENSE out.rtf --append ADDITIONAL-TERMS.md
+                                                     the Markdown terms follow, under the heading "Additional Terms under section 7"
 
 The Windows installer's license page shows the result, so its box wraps each paragraph once, at its own width.
 Kept as they are: blank lines between blocks, centered headings, numbered section titles, lettered list items
@@ -45,6 +47,28 @@ def parse(text):
         if kind in ("item", "para"):
             payload = re.sub(r"\s+", " ", payload).strip()
         out.append((kind, payload))
+    return out
+
+
+def parse_markdown(text):
+    """ADDITIONAL-TERMS.md (one line per paragraph, no hard wraps) as blocks: its title is dropped (the caller adds its own
+    heading), "## " lines and whole-bold lines are titles, "- " lines are items with a bullet, "> " lines are indented."""
+    out = []
+    for line in text.replace("\r\n", "\n").split("\n"):
+        line = line.strip()
+        if not line or line.startswith("# "):
+            continue
+        plain = line.replace("**", "")
+        if line.startswith("## "):
+            out.append(("title", plain[3:]))
+        elif line.startswith("**") and line.endswith("**"):
+            out.append(("title", plain))
+        elif line.startswith("- "):
+            out.append(("item", "- " + plain[2:]))
+        elif line.startswith("> "):
+            out.append(("item", plain[2:]))
+        else:
+            out.append(("para", plain))
     return out
 
 
@@ -94,10 +118,18 @@ def to_rtf(blocks):
 def main(argv):
     rtf = "--rtf" in argv
     args = [a for a in argv[1:] if a != "--rtf"]
+    extra = None
+    if "--append" in args:
+        i = args.index("--append")
+        extra = args[i + 1]
+        del args[i:i + 2]
     if len(args) != 2:
         sys.exit(__doc__)
     with open(args[0], encoding="utf-8") as f:
         blocks = parse(f.read())
+    if extra:
+        with open(extra, encoding="utf-8") as f:
+            blocks += [("head", ["Additional Terms under section 7"])] + parse_markdown(f.read())
     with open(args[1], "w", encoding="ascii", newline="\r\n" if not rtf else "\n") as f:
         f.write(to_rtf(blocks) if rtf else to_text(blocks))
 
