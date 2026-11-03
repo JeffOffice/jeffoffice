@@ -1,0 +1,73 @@
+name: Public features
+
+# When the feature lists (docs/features/*.md) or this tool change, reword and translate what is new or changed into
+# the public text the website renders (tools/features/public_features.py writes docs/features/public.json), and commit it
+# as JeffOffice LLC. Without the ANTHROPIC_API_KEY secret it does nothing.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/features/*.md'
+      - 'tools/features/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: features
+  cancel-in-progress: false
+
+jobs:
+  features:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Look for the API key
+        id: key
+        env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then echo "have=yes" >> "$GITHUB_OUTPUT"; else echo "::notice::No ANTHROPIC_API_KEY secret: nothing reworded."; fi
+
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.have == 'yes'
+
+      - uses: actions/setup-python@v5
+        if: steps.key.outputs.have == 'yes'
+        with:
+          python-version: '3.13'
+
+      - name: Test
+        if: steps.key.outputs.have == 'yes'
+        run: python3 tools/features/test_public_features.py
+
+      - name: Reword and translate
+        if: steps.key.outputs.have == 'yes'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          pip install -q -r tools/translate/requirements.txt
+          # (2: the service refused the key; anything else but 0, such as 1: some text broke the rules or the tool crashed.)
+          rc=0
+          python3 tools/features/public_features.py || rc=$?
+          if [ "$rc" = 2 ]; then echo "::error::The service refused ANTHROPIC_API_KEY: replace the secret."; exit 1; fi
+          if [ "$rc" != 0 ]; then echo "::error::The tool stopped (exit $rc); see the log."; exit 1; fi
+
+      - name: Commit
+        if: steps.key.outputs.have == 'yes'
+        run: |
+          git add docs/features/public.json
+          if git diff --cached --quiet; then echo "Nothing new."; exit 0; fi
+          # The identity for the commit and for replaying it onto a newer main.
+          git config user.name "JeffOffice LLC"
+          git config user.email "info@jeffoffice.com"
+          git commit -q -m "Public feature text, reworded and translated"
+          for i in 1 2 3 4 5; do
+            # On a clash in public.json, this run's version wins: it is built from the lists as they are now.
+            git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null || true
+            sleep 20
+          done
+          echo "::error::Could not push the public feature text."
+          exit 1
