@@ -107,6 +107,8 @@ struct MergeOptions {
 std::unique_ptr<WriteDoc> mergeToDocument(WriteDoc &source, const MergeSource &data, const QHash<QString, QString> &fieldMap, const MergeOptions &options, QString *error = nullptr);
 // The plain text of each merged record, for email messages (one string per record).
 QStringList mergeToTexts(WriteDoc &source, const MergeSource &data, const QHash<QString, QString> &fieldMap, const MergeOptions &options, QString *error = nullptr);
+// The text of `page` (an envelope, say) put first in `doc` as a section of its own, with the page setup of `page`, as one step of the history. False where it can't be done.
+bool addAsFirstSection(WriteDoc &doc, WriteDoc &page);
 // The records, in order, that fields show in an error-free merge: a record whose field names a column the list does not have is reported (the columns that are missing).
 QStringList missingColumns(WriteDoc &doc, const MergeSource &data);
 

@@ -724,6 +724,28 @@ QStringList mergeToTexts(WriteDoc &source, const MergeSource &data, const QHash<
     return texts;
 }
 
+bool addAsFirstSection(WriteDoc &doc, WriteDoc &page)
+{
+    QTextDocument *story = doc.story();
+    const QTextDocumentFragment fragment(page.story());
+    const office::wml::SectionProps lastBefore = doc.sectionProps(doc.sectionCount() - 1);   // (the record of the last section is kept on the first paragraph, which the page's text now begins with)
+    WriteDoc::StepGroup group(doc);
+    QTextCursor c(story);
+    c.beginEditBlock();
+    c.setPosition(0);
+    c.insertBlock();
+    c.setPosition(0);
+    c.insertFragment(fragment);
+    c.endEditBlock();
+    // (The fragment's last paragraph went into the empty one made for it: it is the last of the page's section.)
+    const QTextBlock last = story->findBlock(c.position());
+    doc.syncSections();
+    if (!doc.insertSectionBreak(last, QStringLiteral("nextPage"))) return false;
+    doc.setSectionProps(doc.sectionCount() - 1, lastBefore);
+    doc.setSectionProps(0, page.sectionProps(0));
+    return true;
+}
+
 QStringList missingColumns(WriteDoc &doc, const MergeSource &data)
 {
     QStringList missing;

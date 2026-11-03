@@ -412,6 +412,33 @@ private Q_SLOTS:
         QCOMPARE(again->pager().pageCount(), merged->pager().pageCount());
     }
 
+    void anEnvelopeAddedToADocumentIsItsFirstPageWithItsOwnSize()
+    {
+        auto doc = open(makeDocx(para(run("Dear Grace,")) + para(run("Thank you."))));
+        QVERIFY(doc);
+        QCOMPARE(doc->sectionCount(), 1);
+        auto env = mail::envelopeDocument(mail::envelopeSizes().first(), QStringLiteral("Ada"), mail::textRuns(QStringLiteral("Grace Hopper")));
+        QVERIFY(env);
+        QVERIFY(mail::addAsFirstSection(*doc, *env));
+        QCOMPARE(doc->sectionCount(), 2);
+        QCOMPARE(doc->sectionProps(0).pageW, 13680);
+        QCOMPARE(doc->sectionProps(0).orient, QStringLiteral("landscape"));
+        QCOMPARE(doc->sectionProps(1).pageW, 12240);   // (the letter is as it was)
+        QVERIFY(textOf(*doc).contains(QStringLiteral("Grace Hopper")) && textOf(*doc).contains(QStringLiteral("Dear Grace,|Thank you.")));
+        QVERIFY(textOf(*doc).indexOf(QStringLiteral("Grace Hopper")) < textOf(*doc).indexOf(QStringLiteral("Dear Grace")));
+        QCOMPARE(doc->pager().pageCount(), 2);
+        // One step takes it away.
+        doc->undo();
+        QCOMPARE(doc->sectionCount(), 1);
+        QCOMPARE(textOf(*doc), QStringLiteral("Dear Grace,|Thank you."));
+        // It saves and opens again.
+        doc->redo();
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(again->sectionCount(), 2);
+        QCOMPARE(again->sectionProps(0).pageW, 13680);
+    }
+
     void anEnvelopeIsAPageOfTheEnvelopesSize()
     {
         const QVector<mail::EnvelopeSize> sizes = mail::envelopeSizes();
@@ -586,6 +613,35 @@ private Q_SLOTS:
         ew.view()->setZoomMode(write::PageView::ZoomMode::OnePage);
         QTest::qWait(300);
         QVERIFY(ew.grab().save(dir + QStringLiteral("/envelope.png")));
+    }
+
+    void aListANamedFileIsReadOnlyFromBesideTheDocument()
+    {
+        QTemporaryDir here, elsewhere;
+        const QString far = writeFile(elsewhere, "people.csv", "First Name\r\nAda\r\n");
+        WriteWindow w;
+        QStringList said;
+        w.setNotifier([&](const QString &, const QString &text) { said << text; });
+        auto doc = open(makeDocx(para(field("MERGEFIELD First_Name", "x"))));
+        QVERIFY(doc);
+        mail::State &state = mail::stateOf(*doc);
+        state.settings.type = mail::kindValue(mail::Kind::Letters);
+        state.sourcePath = far;
+        w.setDocument(std::move(doc), here.filePath(QStringLiteral("letter.docx")));
+        w.show();
+        // A file the document names somewhere else is not read: the person is asked to choose it.
+        w.act(QStringLiteral("mail.preview"))->trigger();
+        QVERIFY(!w.findChild<write::MailPreviewPane *>());
+        QVERIFY2(said.last().contains(QStringLiteral("not next to it")), qPrintable(said.last()));
+        QVERIFY(!mail::stateIfAny(*w.document())->loaded);
+        // A file of the same name beside the document is.
+        writeFile(here, "people.csv", "First Name\r\nGrace\r\n");
+        w.act(QStringLiteral("mail.preview"))->trigger();
+        auto *pane = w.findChild<write::MailPreviewPane *>();
+        QVERIFY(pane);
+        QTRY_VERIFY(pane->shown());
+        QVERIFY(textOf(*pane->shown()).startsWith(QStringLiteral("Grace")));
+        QCOMPARE(mail::stateIfAny(*w.document())->sourcePath, far);   // (the link in the file is as it was)
     }
 
     void theMatchedFieldsAreKeptInTheDataSourcesFieldMap()

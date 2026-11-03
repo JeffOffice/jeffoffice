@@ -152,16 +152,37 @@ struct MailUi {
     }
     void message(const QString &text) { w->statusBar()->showMessage(text, 6000); }
 
+    // The file a document's list may be read from without asking: the file itself where it is in the folder the document is in (or a folder inside it), else a file of the same name beside the
+    // document. A file the document names anywhere else is not read (a document from someone else could name a private file), and the person is asked to choose the list.
+    QString listFileFor(const QString &named) const
+    {
+        if (w->m_path.isEmpty() || named.isEmpty()) return QString();
+        const QString folder = QFileInfo(w->m_path).canonicalPath();
+        const QString own = QFileInfo(named).canonicalFilePath();
+        if (!own.isEmpty() && !folder.isEmpty() && own.startsWith(folder + QLatin1Char('/'))) return own;
+        QString name = named;
+        name.replace(QLatin1Char('\\'), QLatin1Char('/'));
+        const QString beside = QFileInfo(w->m_path).absolutePath() + QLatin1Char('/') + name.section(QLatin1Char('/'), -1);
+        return QFileInfo(beside).isFile() ? beside : QString();
+    }
+
     // The list the document is merged with: read where it is not yet. With `ask`, says what is wrong where there is none.
     bool list(bool ask)
     {
         write::mail::State *s = state();
         if (s && s->loaded) return true;
         if (s && !s->sourcePath.isEmpty()) {
-            // (A list named by a file is read where it is: from its own place, else from beside the document.)
-            QString path = s->sourcePath;
-            if (!QFile::exists(path) && !w->m_path.isEmpty()) path = QFileInfo(w->m_path).absolutePath() + QLatin1Char('/') + QFileInfo(s->sourcePath).fileName();
-            if (write::mail::loadSource(*s, path)) return true;
+            const QString original = s->sourcePath;
+            const QString path = listFileFor(original);
+            if (!path.isEmpty() && write::mail::loadSource(*s, path)) {
+                s->sourcePath = original;   // (the link in the file is as it was)
+                return true;
+            }
+            if (ask) {
+                w->notice(QCoreApplication::translate("jp::WriteMail", "Mail Merge"),
+                          QCoreApplication::translate("jp::WriteMail", "The list of recipients this document is merged with is not next to it. Choose it again (Mailings > Select Recipients > Use an Existing List)."));
+                return false;
+            }
         }
         if (ask) w->notice(QCoreApplication::translate("jp::WriteMail", "Mail Merge"), QCoreApplication::translate("jp::WriteMail", "Choose the list of recipients first (Mailings > Select Recipients)."));
         return false;
@@ -647,23 +668,12 @@ struct MailUi {
         addToDocument(*env);
     }
 
-    // The envelope's page put first in this document, as a section of its own.
     void addToDocument(write::WriteDoc &env)
     {
-        using namespace write;
-        QTextDocument *story = doc()->story();
-        const QTextDocumentFragment fragment(env.story());
-        WriteDoc::StepGroup group(*doc());
-        QTextCursor c(story);
-        c.setPosition(0);
-        c.insertBlock();
-        c.setPosition(0);
-        c.insertFragment(fragment);
-        // (The fragment's last paragraph ended in the new empty one: it is the last of the envelope's section.)
-        QTextBlock last = story->findBlock(c.position());
-        doc()->syncSections();
-        doc()->insertSectionBreak(last, QStringLiteral("nextPage"));
-        doc()->setSectionProps(0, env.sectionProps(0));
+        if (!write::mail::addAsFirstSection(*doc(), env)) {
+            w->notice(QCoreApplication::translate("jp::WriteMail", "Envelopes"), QCoreApplication::translate("jp::WriteMail", "The envelope can't be added here."), true);
+            return;
+        }
         w->m_view->viewport()->update();
         message(QCoreApplication::translate("jp::WriteMail", "The envelope is added at the start of the document."));
     }
