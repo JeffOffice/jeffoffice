@@ -149,11 +149,12 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
     }
     // A template opens as a new document made from it; so does a file opened as a copy.
     const QString ending = QFileInfo(path).suffix().toLower();
-    const bool tmpl = ending == QLatin1String("dotx") || ending == QLatin1String("dotm") || ending == QLatin1String("dot") || ending == QLatin1String("ott");
+    // (opened read-only, the template is itself what is opened, for reading: nothing is made from it)
+    const bool tmpl = (ending == QLatin1String("dotx") || ending == QLatin1String("dotm") || ending == QLatin1String("dot") || ending == QLatin1String("ott")) && how != OpenHow::ReadOnly;
     const bool copy = how == OpenHow::Copy || repairing;   // (a repaired document is not the file it was repaired from: Save asks for a name)
     const bool leftOut = doc->leftSomethingOut();
     if (copy) target->m_untitled = (repairing ? tr("Repaired %1") : tr("Copy of %1")).arg(QFileInfo(path).completeBaseName());
-    target->setReadOnly(how == OpenHow::ReadOnly && !tmpl);
+    target->setReadOnly(how == OpenHow::ReadOnly);
     target->setDocument(std::move(doc), tmpl || copy ? QString() : path);
     target->m_macrosNoted = false;
     target->m_odtNoted.clear();
@@ -197,7 +198,8 @@ bool WriteWindow::saveAs()
 {
     const QString from = m_path.isEmpty() ? m_recoveredFrom : m_path;
     const QString dir = from.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(from).absolutePath();
-    const QString name = from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName();
+    // (a document open for reading only is offered a name of its own, not the file's)
+    const QString name = isReadOnly() ? tr("%1 copy").arg(from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName()) : from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName();
     // The dialog hands back the filter text it showed, so the choice is recognized by comparing with these same (translated) texts.
     const QString docxFilter = tr("Document (*.docx)"), dotxFilter = tr("Template (*.dotx)"), odtFilter = tr("OpenDocument Text (*.odt)"), ottFilter = tr("OpenDocument Text Template (*.ott)");
     const QString fromEnding = QFileInfo(from).suffix().toLower();
@@ -253,6 +255,11 @@ bool WriteWindow::saveAsTemplate()
 bool WriteWindow::saveTo(const QString &path, bool asCopy)
 {
     if (!m_doc) return false;
+    // A document open for reading only is never written over its own file, and a copy is never saved over the file this window has open (it would be the same as saving).
+    if (asCopy ? sameFile(path, m_path) : isReadOnly() && sameFile(path, m_path)) {
+        notice(tr("Save"), asCopy ? tr("A copy can't be saved over \"%1\". Choose another name.").arg(QFileInfo(path).fileName()) : tr("This document is open for reading only. Choose another name for it."));
+        return false;
+    }
     // (The same file again, by another way to it: the name is compared as the system sees it.)
     if (m_doc->leftSomethingOut() && !m_protectedPath.isEmpty() && QFileInfo(path).absoluteFilePath() == QFileInfo(m_protectedPath).absoluteFilePath()) {
         notice(tr("Save"), tr("Part of this file couldn't be opened, so saving it here would lose that part: choose a new name for the copy."));
@@ -264,7 +271,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
         notice(tr("Save"), tr("The macros in this document aren't saved, because a %1 file can't hold them.").arg(kind));
     }
     QString err;
-    keepBackupBeforeSave(path);
+    if (!backupBeforeSave(this, path)) return false;
     const bool tmpl = QFileInfo(path).suffix().compare(QLatin1String("dotx"), Qt::CaseInsensitive) == 0;
     const bool ott = QFileInfo(path).suffix().compare(QLatin1String("ott"), Qt::CaseInsensitive) == 0;
     const bool odt = ott || QFileInfo(path).suffix().compare(QLatin1String("odt"), Qt::CaseInsensitive) == 0;

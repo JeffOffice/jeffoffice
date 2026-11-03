@@ -338,7 +338,7 @@ bool PageView::insertPictureImage(const QImage &image, PictureWrap wrap)
 bool PageView::changeSelectedPicture(const std::function<bool(WriteDoc &, int)> &change)
 {
     const int position = selectedPicture();
-    if (position < 0 || !m_doc) return false;
+    if (position < 0 || !m_doc || m_readOnly) return false;
     m_doc->pictureNotice.clear();
     const bool changed = change(*m_doc, position);
     if (!changed && !m_doc->pictureNotice.isEmpty()) Q_EMIT notice(m_doc->pictureNotice);
