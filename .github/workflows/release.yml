@@ -46,6 +46,8 @@ jobs:
           (cd art/JeffOffice-windows && zip -r -q -X ../../out/JeffOffice-windows.zip .)
           cp art/JeffOffice-linux-packages/*.deb art/JeffOffice-linux-packages/*.AppImage out/
           cp art/JeffOffice-macos-dmg/*.dmg out/
+          # A checksum for every download, so people can check their copy is the one published here.
+          (cd out && sha256sum -- * > SHA256SUMS)
           ls -la out
       - name: Publish
         env:
