@@ -12,6 +12,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QDoubleSpinBox>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHash>
@@ -20,11 +21,13 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QRadioButton>
+#include <QSignalBlocker>
 #include <QRegularExpression>
 #include <QSpinBox>
 #include <QTabWidget>
 #include <QTextCursor>
 #include <QVBoxLayout>
+#include <memory>
 
 namespace jp::write {
 
@@ -244,6 +247,31 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     columnWidth->setObjectName(QStringLiteral("columnWidth"));
     set(columnWidth, was.columnWidth, false);
     cf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Column width:")), columnWidth);
+    // The same width as a share of the table's (the two follow each other).
+    auto *columnPercent = new QDoubleSpinBox(columnPage);
+    columnPercent->setObjectName(QStringLiteral("columnPercent"));
+    columnPercent->setRange(0, 100);
+    columnPercent->setDecimals(1);
+    columnPercent->setSuffix(QStringLiteral(" %"));
+    const double whole = was.gridWidth;
+    columnPercent->setEnabled(whole > 0);
+    columnPercent->setValue(whole > 0 ? 100.0 * was.columnWidth / whole : 0);
+    cf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Column width as a percent of the table:")), columnPercent);
+    if (whole > 0) {
+        auto syncing = std::make_shared<bool>(false);
+        QObject::connect(columnPercent, &QDoubleSpinBox::valueChanged, columnPage, [=](double percent) {
+            if (*syncing) return;
+            *syncing = true;
+            columnWidth->setPoints(std::round(percent * whole) / 100.0);
+            *syncing = false;
+        });
+        QObject::connect(columnWidth, &QDoubleSpinBox::valueChanged, columnPage, [=] {
+            if (*syncing) return;
+            *syncing = true;
+            columnPercent->setValue(100.0 * columnWidth->value() / whole);
+            *syncing = false;
+        });
+    }
     tabs->addTab(columnPage, tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Column")));
 
     // ---- Cell

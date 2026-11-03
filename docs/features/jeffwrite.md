@@ -201,7 +201,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 ### Tables
 - [x] **first release** Insert Table from the grid or the dialog (columns, rows, fixed or auto width, remember the size); everything else is under Table tools; drawing a table is its own line below *(tables: ours 20%, public 42%)* *(shared: JeffPub's tables)* *(beta wave B: Insert > Table has the grid to point at and Insert Table…, a table of Table Grid style at the cursor, one step to undo, written so that the file opens the same)*
 - [ ] **1.0** Convert Text to Table and Table to Text (by paragraphs, commas, tabs, or another character)
-- [ ] **1.0** Quick Tables gallery (calendars, matrices, tabular lists, with subheadings) and saving your own
+- [ ] **1.0** Ready-Made Tables gallery (calendars, matrices, tabular lists, with subheadings) and saving your own
 - [ ] **later** Excel Spreadsheet: an embedded worksheet, edited in place by JeffCrunch once it exists *(shared with JeffCrunch)*
 
 ### Illustrations

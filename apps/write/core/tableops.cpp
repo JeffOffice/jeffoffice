@@ -1807,6 +1807,7 @@ TableProps tablePropsAt(WriteDoc &doc, const QTextCursor &c)
         p.header = r.header;
     }
     p.columnWidth = a.c0 < x.columns.size() ? x.columns[a.c0] : 0;
+    for (double w : x.columns) p.gridWidth += w;
     for (int i = 0; i < v->layout->cellCount(); ++i)
         if (hits(v->layout->cell(i), a)) {
             p.valign = v->layout->cell(i).rec->cell.valign;
@@ -1907,13 +1908,13 @@ void setTableLook(WriteDoc &doc, QTextCursor &c, int mask, bool on)
 
 // ---- a new table
 
-bool insertQuickTable(WriteDoc &doc, QTextCursor &c, QuickTable kind, const QDate &month)
+bool insertReadyTable(WriteDoc &doc, QTextCursor &c, ReadyTable kind, const QDate &month)
 {
-    const auto word = [](const char *text) { return QCoreApplication::translate("jp::write::QuickTables", text); };
+    const auto word = [](const char *text) { return QCoreApplication::translate("jp::write::ReadyTables", text); };
     QVector<QStringList> rows;
     NewTable table;
     switch (kind) {
-    case QuickTable::Calendar: {
+    case ReadyTable::Calendar: {
         const QDate first(month.year(), month.month(), 1);
         QStringList days;
         for (int d = 0; d < 7; ++d) days << QLocale().dayName(d == 0 ? 7 : d, QLocale::ShortFormat);   // (Sunday first)
@@ -1934,17 +1935,17 @@ bool insertQuickTable(WriteDoc &doc, QTextCursor &c, QuickTable kind, const QDat
         table.style = QStringLiteral("TableGrid");
         break;
     }
-    case QuickTable::Matrix:
+    case ReadyTable::Matrix:
         rows << QStringList{QString(), word("Column 1"), word("Column 2"), word("Column 3")};
         for (int r = 1; r <= 3; ++r) rows << QStringList{word("Row %1").arg(r), QString(), QString(), QString()};
         table.style = QStringLiteral("GridTable4-Accent1");
         break;
-    case QuickTable::List:
+    case ReadyTable::List:
         rows << QStringList{word("Item"), word("Description"), word("Quantity"), word("Price")};
         for (int r = 0; r < 4; ++r) rows << QStringList{QString(), QString(), QString(), QString()};
         table.style = QStringLiteral("ListTable3-Accent1");
         break;
-    case QuickTable::Schedule:
+    case ReadyTable::Schedule:
         rows << QStringList{QString(), word("Monday"), word("Tuesday"), word("Wednesday"), word("Thursday"), word("Friday")};
         for (const char *time : {"9:00", "10:00", "11:00", "1:00", "2:00"}) rows << QStringList{word(time), QString(), QString(), QString(), QString(), QString()};
         table.style = QStringLiteral("GridTable4-Accent1");

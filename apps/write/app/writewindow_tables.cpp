@@ -93,16 +93,16 @@ void WriteWindow::insertTableNow(const write::NewTable &table)
 
 void WriteWindow::createTableActions()
 {
-    // Quick Tables: tables with their words in place.
-    const struct { const char *id; const char *text; const char *icon; write::QuickTable kind; } quick[] = {
-        {"insert.quick.calendar", QT_TR_NOOP("Calendar"), "calendar-range", write::QuickTable::Calendar},    {"insert.quick.matrix", QT_TR_NOOP("Matrix"), "grid-3x3", write::QuickTable::Matrix},
-        {"insert.quick.list", QT_TR_NOOP("Tabular List"), "table-properties", write::QuickTable::List},            {"insert.quick.schedule", QT_TR_NOOP("Weekly Schedule"), "table", write::QuickTable::Schedule}};
-    for (const auto &q : quick) {
-        const write::QuickTable kind = q.kind;
+    // Ready-Made Tables: tables with their words in place.
+    const struct { const char *id; const char *text; const char *icon; write::ReadyTable kind; } ready[] = {
+        {"insert.ready.calendar", QT_TR_NOOP("Calendar"), "calendar-range", write::ReadyTable::Calendar},    {"insert.ready.matrix", QT_TR_NOOP("Matrix"), "grid-3x3", write::ReadyTable::Matrix},
+        {"insert.ready.list", QT_TR_NOOP("Tabular List"), "table-properties", write::ReadyTable::List},            {"insert.ready.schedule", QT_TR_NOOP("Weekly Schedule"), "table", write::ReadyTable::Schedule}};
+    for (const auto &q : ready) {
+        const write::ReadyTable kind = q.kind;
         mk(QString::fromLatin1(q.id), tr(q.text), q.icon, QKeySequence(), [this, kind] {
             if (!m_doc) return;
             m_doc->tableNotice.clear();
-            if (!write::insertQuickTable(*m_doc, m_view->cursor(), kind)) {
+            if (!write::insertReadyTable(*m_doc, m_view->cursor(), kind)) {
                 statusBar()->showMessage(m_doc->tableNotice.isEmpty() ? tr("A table can't be put in a table cell here.") : m_doc->tableNotice, 5000);
                 return;
             }
@@ -296,8 +296,8 @@ void WriteWindow::tableRibbonParts(RibbonParts &parts)
         m->addAction(wa);
         m->addAction(act("insert.table"));
         m->addAction(act("insert.convertTextToTable"));
-        auto *quickMenu = m->addMenu(tr("Quick Tables"));
-        for (const char *id : {"insert.quick.calendar", "insert.quick.matrix", "insert.quick.list", "insert.quick.schedule"}) quickMenu->addAction(act(QString::fromLatin1(id)));
+        auto *readyMenu = m->addMenu(tr("Ready-Made Tables"));
+        for (const char *id : {"insert.ready.calendar", "insert.ready.matrix", "insert.ready.list", "insert.ready.schedule"}) readyMenu->addAction(act(QString::fromLatin1(id)));
         connect(grid, &TableGrid::picked, this, [this, m](int rows, int cols) {
             m->close();
             write::NewTable table;

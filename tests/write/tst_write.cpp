@@ -2884,13 +2884,13 @@ private Q_SLOTS:
         checkTablesReopenTheSame(*doc);
     }
 
-    // Quick Tables put a table with its words in at the cursor as one step.
-    void quickTablesPutATableWithItsWordsIn()
+    // Ready-Made Tables put a table with its words in at the cursor as one step.
+    void readyTablesPutATableWithItsWordsIn()
     {
         auto doc = open(makeDocx(cellP("before") + cellP("after"), kStyles));
         QTextCursor c = cursorAt(*doc, QStringLiteral("after"));
         const QString before = storyText(*doc);
-        QVERIFY(insertQuickTable(*doc, c, QuickTable::List));
+        QVERIFY(insertReadyTable(*doc, c, ReadyTable::List));
         QString now = tablesSignature(*doc);
         QVERIFY2(now.contains(QStringLiteral("cols=")), qPrintable(now));
         QCOMPARE(now.count(QStringLiteral("ROW ")), 5);
@@ -2905,7 +2905,7 @@ private Q_SLOTS:
         // A calendar has the days of its month under the days' names, 7 columns.
         auto cal = open(makeDocx(cellP("after"), kStyles));
         QTextCursor cc = cursorAt(*cal, QStringLiteral("after"));
-        QVERIFY(insertQuickTable(*cal, cc, QuickTable::Calendar, QDate(2026, 11, 15)));   // (November 2026 begins on a Sunday and has 30 days)
+        QVERIFY(insertReadyTable(*cal, cc, ReadyTable::Calendar, QDate(2026, 11, 15)));   // (November 2026 begins on a Sunday and has 30 days)
         now = tablesSignature(*cal);
         QCOMPARE(now.count(QStringLiteral("ROW ")), 6);
         QVERIFY(storyText(*cal).contains(QStringLiteral("1|2|3|4|5|6|7|8")));
@@ -2914,7 +2914,7 @@ private Q_SLOTS:
         // In a table nothing is put in.
         auto in = open(tableDocx(2, 2));
         QTextCursor ic = cursorAt(*in, QStringLiteral("r0c0"));
-        QVERIFY(!insertQuickTable(*in, ic, QuickTable::Matrix));
+        QVERIFY(!insertReadyTable(*in, ic, ReadyTable::Matrix));
     }
 
     void theCaretIsDrawnOnThePageThatHoldsIt()
@@ -14954,6 +14954,23 @@ private Q_SLOTS:
             QVERIFY2(x.contains("<w:tblInd w:w=\"" + QByteArray::number(twips) + "\""), qPrintable(QString::number(twips)));
             checkTablesReopenTheSame(*doc);
         }
+    }
+
+    // The Column tab takes the width as a percent of the table's (the points follow it).
+    void aColumnsWidthCanBeGivenAsAPercent()
+    {
+        auto doc = open(tableDocx(2, 3));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r0c0"));
+        answerDialog([](QDialog *d) {
+            auto *percent = d->findChild<QDoubleSpinBox *>(QStringLiteral("columnPercent"));
+            QVERIFY(percent && percent->isEnabled());
+            QCOMPARE(percent->value(), 33.3);
+            percent->setValue(50);
+            QCOMPARE(d->findChild<QDoubleSpinBox *>(QStringLiteral("columnWidth"))->value(), 150.0);
+        });
+        QVERIFY(tablePropertiesDialog(nullptr, doc.get(), &c));
+        QVERIFY2(tablesSignature(*doc).contains(QStringLiteral("cols=150.0,100.0,100.0")), qPrintable(tablesSignature(*doc)));
+        checkTablesReopenTheSame(*doc);
     }
 
     static void answerDialog(const std::function<void(QDialog *)> &fill)
