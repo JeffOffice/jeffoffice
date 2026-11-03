@@ -4,6 +4,7 @@
 #include "sheet/structref.h"
 
 #include "sheet/calculation.h"
+#include "sheet/pivotbook.h"
 
 #include "calc/budget.h"
 #include "calc/formula.h"
@@ -219,6 +220,63 @@ int WorkbookSource::rowHiddenKind(int sheet, quint32 row) const
 void WorkbookSource::hiddenRowsChanged(int sheet) const
 {
     if (sheet >= 0 && sheet < int(m_hiddenRowsReady.size())) m_hiddenRowsReady[size_t(sheet)] = 0;
+}
+
+jp::calc::CellSource::PivotAnswer WorkbookSource::pivotData(int sheet, quint32 row, quint32 col, const PivotRequest &request, jp::calc::Value *result, jp::calc::CellArea *table) const
+{
+    using jp::calc::Value;
+    PivotBook::View view;
+    if (!m_book.pivots().viewAt(sheet, row, col, &view)) {
+        // (no table there now: a table made there later changes the cells the formula names, and the formula is worked out again)
+        table->sheet1 = table->sheet2 = sheet;
+        table->row1 = table->row2 = row;
+        table->col1 = table->col2 = col;
+        return PivotAnswer::NotFound;
+    }
+    // (the formula is worked out again when any cell of the table changes)
+    table->sheet1 = table->sheet2 = sheet;
+    table->row1 = view.where.row1;
+    table->col1 = view.where.col1;
+    table->row2 = view.where.row2;
+    table->col2 = view.where.col2;
+    std::vector<std::pair<QString, PivotValue>> items;
+    for (const auto &[field, item] : request.items) {
+        PivotValue v;
+        if (item.isNumber()) {
+            v.kind = PivotValue::Number;
+            v.number = item.number();
+        } else if (item.isBool()) {
+            v.kind = PivotValue::Bool;
+            v.number = item.boolean() ? 1 : 0;
+        } else if (item.isEmpty()) {
+            v.kind = PivotValue::Missing;
+        } else {
+            v.kind = PivotValue::Text;
+            v.text = item.text();
+            // (a date or a number written as text also names the item that number is)
+            double reading = 0;
+            if (jp::calc::textToNumber(v.text, m_book.info().dateSystem, &reading)) {
+                v.reading = true;
+                v.number = reading;
+            }
+        }
+        items.emplace_back(field, v);
+    }
+    PivotCell cell;
+    if (!view.lookup->find(request.dataField, items, &cell)) return PivotAnswer::NotFound;
+    switch (cell.kind) {
+    case PivotCell::Number: *result = Value::number(cell.number); break;
+    case PivotCell::Bool: *result = Value::boolean(cell.number != 0); break;
+    case PivotCell::Text: *result = Value::text(cell.text); break;
+    case PivotCell::Error: {
+        bool known = false;
+        const jp::calc::ErrorKind e = jp::calc::errorKindFromText(cell.text, &known);
+        *result = Value::error(known ? e : jp::calc::ErrorKind::Value);
+        break;
+    }
+    case PivotCell::Empty: return PivotAnswer::NotFound;
+    }
+    return PivotAnswer::Found;
 }
 
 bool WorkbookSource::isSubtotal(int sheet, quint32 row, quint32 col) const

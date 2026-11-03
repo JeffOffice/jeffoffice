@@ -106,6 +106,9 @@ struct SheetChanges {
     // the file's; `frozenRows` and `frozenCols` count the rows and columns held, `topRow` and `leftCol` are where they begin, `paneRow` and `paneCol` where the part that scrolls does.
     bool setPane = false;
     SheetView pane;
+    // A pivot table on the sheet was changed: the selection the view keeps for a table (`pivotSelection`) names lines the table had, and is taken out (the sheet's other changes are written when it is
+    // written at all; this alone does not make the sheet be).
+    bool dropPivotSelection = false;
     // The relationship the sheet's `legacyDrawingHF` is to name (empty: the element is taken out), when the pictures of its headers and footers are not as the file has them (saving sets
     // this from the page setup's pictures; whoever asks for a save does not).
     bool hfSet = false;
@@ -251,6 +254,16 @@ struct SaveChanges {
         QByteArray xml;
     };
     std::vector<AddedTable> addedTables;
+    // Pivot tables made here: the sheet, the names of the parts (the cache's are those of the first table made from the cache), and what makes each part's bytes when the file is written (the table
+    // takes the id the file's list of caches gives its cache). The parts, their types, the sheet's link to the table, and the workbook's link to a new cache are made.
+    struct AddedPivot {
+        int sheet = 0;
+        QString tablePart, definitionPart, recordsPart;
+        bool newCache = false;
+        std::function<QByteArray(int cacheId)> table;
+        std::function<QByteArray()> definition, records;
+    };
+    std::vector<AddedPivot> addedPivots;
     struct RemovedTable {
         int sheet = 0;
         QString part;
@@ -352,6 +365,8 @@ bool patchDefinedNames(const QByteArray &xml, const std::vector<NameChange> &cha
 // For tests: the elements and lookups patchDefinedNames has made in all (it is linear in the names and the changes).
 qint64 patchDefinedNamesWork();
 // The workbook part with its calcPr saying how the workbook calculates (made if there is none).
+// The workbook part with `pivotCache` elements added to its list of caches (the list made if there is none): the elements take the prefix of the list and the file's own prefix for relationships.
+bool addPivotCaches(const QByteArray &xml, const std::vector<std::pair<int, QString>> &caches, QByteArray *out);
 bool patchCalcPr(const QByteArray &xml, CalcMode mode, bool iterate, int iterateCount, double iterateDelta, QByteArray *out);
 // The hidden name that other programs keep for the range of a sheet's filter (`_xlnm._FilterDatabase`, of the sheet at `localSheetId` in the workbook's list of sheets) made, changed, or taken
 // away: `range` is the range as a name writes it ("'Sheet1'!$A$1:$D$9"), or empty to take the name away.

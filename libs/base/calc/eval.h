@@ -81,6 +81,19 @@ public:
         *inIds = false;
         return definedName(sheet, name);
     }
+    // GETPIVOTDATA: the value the pivot table that covers the cell (sheet, row, col) shows for the data field `dataField` at the lines the items name (`items`: a field's name and an item, in the order given).
+    // Found, with the value in `*result`; NotFound when no such value is shown (the formula gives #REF!); NotKnown for a source that has no pivot tables. `*table` is given the cells the table covers,
+    // which the formula then depends on (it is worked out again when they change).
+    enum class PivotAnswer : quint8 { NotKnown, Found, NotFound };
+    struct PivotRequest {
+        QString dataField;
+        std::vector<std::pair<QString, Value>> items;
+    };
+    virtual PivotAnswer pivotData(int sheet, quint32 row, quint32 col, const PivotRequest &request, Value *result, CellArea *table) const
+    {
+        Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); Q_UNUSED(request); Q_UNUSED(result); Q_UNUSED(table);
+        return PivotAnswer::NotKnown;
+    }
     // The cell holds a formula that is a SUBTOTAL, which SUBTOTAL leaves out of what it adds up.
     virtual bool isSubtotal(int sheet, quint32 row, quint32 col) const { Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); return false; }
     // Changes when the sheets or their names do, so a program re-reads which sheet each name is (a source that is replaced by another at the same address must

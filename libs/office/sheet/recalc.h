@@ -50,6 +50,8 @@ public:
     QString definedName(int sheet, const QString &name) const override;
     QString heldName(int sheet, const QString &name, bool *inIds) const override;
     bool isSubtotal(int sheet, quint32 row, quint32 col) const override;
+    // GETPIVOTDATA: the pivot tables of the workbook answer it (see PivotBook::viewAt).
+    PivotAnswer pivotData(int sheet, quint32 row, quint32 col, const PivotRequest &request, jp::calc::Value *result, jp::calc::CellArea *table) const override;
     int rowHiddenKind(int sheet, quint32 row) const override;
     // The places of the lines a reference holds by their ids (see CellSource::rowRange) are the order of the sheet's lines.
     bool rowRange(int sheet, quint32 startId, quint32 endId, quint32 *first, quint32 *last) const override;

@@ -163,7 +163,7 @@ QString EditSession::notCopiedNote(int sheet) const
             QString what;
         };
         const Kind kinds[] = {{"/drawing", tr("pictures and charts")}, {"/image", tr("pictures and charts")}, {"/comments", tr("notes")}, {"/vmlDrawing", tr("notes")},
-                              {"/legacyDrawing", tr("notes")}, {"/threadedComment", tr("notes")}, {"/pivotTable", tr("PivotTables")}, {"/queryTable", tr("connections to outside data")},
+                              {"/legacyDrawing", tr("notes")}, {"/threadedComment", tr("notes")}, {"/pivotTable", tr("pivot tables")}, {"/queryTable", tr("connections to outside data")},
                               {"/ctrlProp", tr("form controls")}, {"/control", tr("form controls")}, {"/oleObject", tr("embedded objects")}, {"/package", tr("embedded objects")},
                               {"/slicer", tr("slicers")}, {"/timeline", tr("slicers")}};
         for (const Kind &k : kinds)

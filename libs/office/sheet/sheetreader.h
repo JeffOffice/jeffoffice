@@ -8,6 +8,7 @@
 #include "office/package.h"
 #include "calc/dates.h"
 #include "sheet/csvimport.h"
+#include "sheet/pivotbook.h"
 #include "sheet/protection.h"
 #include "sheet/sheetmodel.h"
 #include "sheet/tables.h"
@@ -376,6 +377,11 @@ public:
     void setTableColumnName(int table, int column, const QString &name);
     // The cells the pivot tables of a sheet cover, as the file says (a pivot table that can't be read covers the whole sheet, so that nothing is done to it).
     QVector<CellRange> pivotTablesOn(int sheet) const;
+    // The pivot tables and caches, as the file has them and as a person has changed them (made when first asked for).
+    PivotBook &pivots() const;
+    // The parts of the pivot tables and caches that are not as the file has them, as they would be written, by the part's name.
+    std::map<QString, QByteArray> changedPivotParts() const;
+    std::map<QString, std::function<QByteArray()>> changedPivotPartProducers() const;
     // Whether the tables allow the edit (not when it would cut through one, or remove one or its header row); if not, why.
     bool tablesAllow(const StructEdit &edit, QString *why) const;
     // Moves the tables for the edit (those it changes), and says where each was; putTablesBack puts them there again.
@@ -471,7 +477,7 @@ private:
     mutable QStringList m_tableNotes;   // what was left out of the tables when they were read (see readTables)
     mutable QSet<QString> m_tablePartSet;   // the parts of the file that are tables' (by the part's name), for looking one up
     mutable std::vector<std::pair<QString, int>> m_tablesInFile;   // the parts of the file that are tables' (by the part's name), and the sheet each is related to
-    mutable std::map<int, QVector<CellRange>> m_pivots;
+    mutable std::shared_ptr<PivotBook> m_pivotBook;
 };
 
 } // namespace jp::office::sheet

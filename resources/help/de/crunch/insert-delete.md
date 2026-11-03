@@ -26,7 +26,7 @@ Folgendes wird ebenfalls mit den Zellen angepasst: Formeln auf allen Blättern, 
 ## Was nicht möglich ist
 
 - Zellen können nicht durch einen Teil einer **Matrixformel** oder einer Datentabelle hindurch eingefügt oder gelöscht werden. Verschieben Sie diese als Ganzes, oder lassen Sie sie unverändert. Eine Zelle, die eine Datentabelle als Eingabe liest, kann ebenfalls nicht gelöscht werden.
-- Eine **PivotTable** kann derzeit nicht verschoben oder zerschnitten werden: Zeilen, Spalten oder Zellen können nicht eingefügt oder gelöscht werden, wenn sie dadurch verschoben oder verändert würde, und Zellen können nicht aus ihr heraus- oder in sie hineingeschnitten werden. Der Rest des Blatts lässt sich wie gewohnt ändern.
+- Eine **Pivot-Tabelle** kann derzeit nicht verschoben oder zerschnitten werden: Zeilen, Spalten oder Zellen können nicht eingefügt oder gelöscht werden, wenn sie dadurch verschoben oder verändert würde, und Zellen können nicht aus ihr heraus- oder in sie hineingeschnitten werden. Der Rest des Blatts lässt sich wie gewohnt ändern.
 - Eine **Tabelle** kann nicht zerschnitten werden: Sie können keine Spalte innerhalb der Tabelle einfügen und weder ihre Kopfzeile noch alle ihre Zeilen löschen. Fügen Sie Zeilen innerhalb der Tabelle ein oder löschen Sie sie, oder ändern Sie die Zellen um sie herum.
 - In einem **geschützten Blatt** können keine Zeilen, Spalten oder Zellen eingefügt oder gelöscht werden. Wählen Sie dazu auf der Registerkarte „Überprüfen“ den Befehl „Blattschutz aufheben“.
 - Zellen am Ende des Blatts, die Inhalt haben, können nicht über den Rand hinausgeschoben werden. Löschen Sie sie zuerst.

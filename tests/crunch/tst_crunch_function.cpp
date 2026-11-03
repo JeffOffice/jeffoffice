@@ -234,6 +234,9 @@ private Q_SLOTS:
         const crunch::ArgumentPlan sw = crunch::argumentPlanOf(*crunch::docOf(QStringLiteral("SWITCH")));
         QCOMPARE(sw.fixed, QStringList{"expression"});
         QCOMPARE(sw.repeating, (QStringList{"value1", "result1"}));
+        const crunch::ArgumentPlan gp = crunch::argumentPlanOf(*crunch::docOf(QStringLiteral("GETPIVOTDATA")));   // (a group that may be left out repeats too)
+        QCOMPARE(gp.fixed, (QStringList{"data_field", "pivot_table"}));
+        QCOMPARE(gp.repeating, (QStringList{"field1", "item1"}));
     }
 
     void theArgumentsOfAnExistingCallAreParsedAndTheCursorPicksTheInnermostFunction()
