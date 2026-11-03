@@ -4,8 +4,9 @@
 # SHIP_CRUNCH are "true"). Run from the repository's top folder.
 param([Parameter(Mandatory)][string]$Version, [switch]$Write, [switch]$Crunch)
 $ErrorActionPreference = 'Stop'
-$iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
-if (-not $iscc) { $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe' }
+# (On the runner, ISCC.exe on the PATH is only a Chocolatey shim, which has no version of its own.)
+$iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+if (-not (Test-Path $iscc)) { $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source }
 if (-not (Test-Path $iscc)) { throw "Inno Setup's ISCC.exe was not found" }
 # The version goes in the log. The artwork assumes the image sizes of Inno Setup 6.6 and later.
 $ver = (Get-Item $iscc).VersionInfo.ProductVersion
