@@ -189,7 +189,7 @@ const
   PubKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\JeffPub';
   // JeffPub was called JeffPub 79 through version 0.5.0; setup replaces that install too.
   OldKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\JeffPub79';
-  Cls = 'Software\Cls\';
+  Cls = 'Software\Classes\';
 
 var
   // A desktop shortcut JeffPub 79 had: JeffPub takes its place.
@@ -301,6 +301,20 @@ begin
     WizardForm.ComponentsList.Checked[3] := True;
 end;
 
+// The position of a task in the tasks list (its caption holds the words), or -1.
+function TaskIndex(const Words: String): Integer;
+var
+  I: Integer;
+begin
+  Result := -1;
+  for I := 0 to WizardForm.TasksList.Items.Count - 1 do
+    if Pos(Words, WizardForm.TasksList.Items[I]) > 0 then
+    begin
+      Result := I;
+      Break;
+    end;
+end;
+
 // An update shows the choice already made: turned off in an app (or in JeffPub before it kept the choice for the
 // suite), the statistics start unticked, and setup never turns them on for someone who said no.
 procedure PresetStats;
@@ -323,7 +337,7 @@ begin
   end;
   if Found and (V = 'false') then
   begin
-    I := WizardForm.TasksList.Items.IndexOf('{#TaskStats}');
+    I := TaskIndex('anonymous usage statistics');
     if I >= 0 then
       WizardForm.TasksList.Checked[I] := False;
   end;
@@ -354,9 +368,10 @@ begin
   PresetFolder := '';
   // With no setup types every component starts ticked: only JeffPub and JeffDeck do. The same goes for the file type
   // that makes JeffPub the default for .pub files: it starts unticked.
+  WizardForm.ComponentsList.Checked[1] := True;
   for I := 2 to 5 do
     WizardForm.ComponentsList.Checked[I] := False;
-  I := WizardForm.TasksList.Items.IndexOf('Make JeffPub the default for .pub files (off keeps your current program)');
+  I := TaskIndex('default for .pub files');
   if I >= 0 then
     WizardForm.TasksList.Checked[I] := False;
   PresetApps(WizardDirValue);
