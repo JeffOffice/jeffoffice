@@ -144,7 +144,7 @@ Name: "base"; Description: "JeffBase: databases (coming soon)"
 [Tasks]
 Name: "desktopicon"; Description: "Add shortcuts to the apps to your desktop"; GroupDescription: "Shortcuts:"
 Name: "jpub"; Description: "Open .jpub files with JeffPub"; GroupDescription: "File types:"
-Name: "pubdefault"; Description: "Make JeffPub the default for .pub files (off keeps your current program)"; GroupDescription: "File types:"
+Name: "pubdefault"; Description: "Make JeffPub the default for .pub files (off keeps your current program)"; GroupDescription: "File types:"; Flags: unchecked
 Name: "stats"; Description: "{#TaskStats}"; GroupDescription: "Usage statistics:"
 
 [Dirs]
