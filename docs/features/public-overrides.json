@@ -1,0 +1,555 @@
+[
+ {
+  "app": "jeffpub",
+  "source_startswith": "Runs on Linux as well as Windows",
+  "works": "JeffPub runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffpub",
+  "source_startswith": "Builds and runs on Linux (x86_64)",
+  "works": "JeffPub runs on Linux (x86_64), Windows 10 and 11 (x86_64), and macOS (Apple silicon and Intel).",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffpub",
+  "source_startswith": "macOS app (Apple silicon and Intel)",
+  "works": "JeffPub is available for macOS (Apple silicon and Intel). It isn't signed yet, so macOS asks before opening it the first time.",
+  "soon": "drop",
+  "exact": true
+ },
+ {
+  "app": "jeffpub",
+  "source_startswith": "Open `.pub` files (every version since 1998)",
+  "works": "JeffPub opens `.pub` files from 1998 on, including linked text boxes, tables, pictures, and master pages.",
+  "soon": "Fonts stored inside `.pub` files, and page numbering of sections after the first"
+ },
+ {
+  "app": "jeffpub",
+  "source_startswith": "Open `.pub` files from Publisher 98 on",
+  "works": "JeffPub opens `.pub` files from 1998 on: pages, master pages, text and its formatting, tables, pictures, and objects in text.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffpub",
+  "source_startswith": "Save `.pub` as a complete file",
+  "works": "JeffPub saves `.pub` files as complete files with all their pages in the 2003-and-later `.pub` layout.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffpub",
+  "source_startswith": "Every file reader is fuzzed",
+  "works": "JeffPub opens damaged `.pub` files as far as it can.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffpub",
+  "source_startswith": "A damaged file opens as far as it can",
+  "works": "JeffPub opens a damaged file as far as it can and says what it left out.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffpub",
+  "source_startswith": "In seven languages: English",
+  "works": "JeffPub's menus and Help are available in English, German, Spanish, French, Italian, Dutch, and Portuguese. The translations are machine-made and can be corrected by anyone.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Runs on Linux and Windows",
+  "works": "JeffDeck runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Installs without administrator rights",
+  "works": "JeffDeck installs without administrator rights, or runs with no installation (a Windows `.zip` or a Linux AppImage).",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Bundled open fonts, with stand-ins",
+  "works": "JeffDeck bundles open fonts, with stand-ins that keep the letter widths of common fonts, so text wraps the same way on a computer without those fonts.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Text Effects: shadow, glow",
+  "works": "Text effects (shadow, reflection, glow, and transform) are set from the Text Effects menu on the Shape Format tab, with text fill and outline in their own menus.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Shape Fill: theme colors",
+  "works": "Shape Fill offers theme colors, more colors, the eyedropper, and No Fill. The Format Shape pane adds gradient (with stops), picture, texture, and pattern fills.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Shape Outline: color and No Outline",
+  "works": "Shape Outline offers a color and No Outline. The Format Shape pane adds width, compound type, dash, cap, join, and arrowheads.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Quick Styles for shapes and text boxes",
+  "works": "The Shape Format tab has a gallery of 24 styles drawn from the theme, kept in `.pptx` and `.odp` files.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Shape Effects: shadow, reflection",
+  "works": "Shape Effects (shadow, reflection, glow, and soft edges) are on the Shape Format tab and in the Format Shape pane.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Text fit: text too long",
+  "works": "Text shrinks to fit its placeholder, a shape can grow to fit its text, and the Format Shape pane sets how text fits, margins, wrap, and columns for text boxes.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Text that fits a placeholder by shrinking",
+  "works": "drop",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Insert Shapes and Change Shape",
+  "works": "JeffDeck inserts shapes from a gallery on the Home and Insert tabs.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Corrections, Color, and Transparency",
+  "soon": "Sharpen, saturation, temperature, and set transparent color"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Link (Ctrl+K)",
+  "works": "Turn selected text or an object into a link to a web page, to a place in the presentation, or to an email address. In a slide show, web and email links open.",
+  "soon": "Links to slides and files that open in a slide show"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Save `.pptx` as a complete package",
+  "works": "JeffDeck saves `.pptx` files as complete packages with their elements in the standard's own parts.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "PDF with real text and embedded fonts",
+  "works": "PDF export keeps real text and embeds fonts.",
+  "soon": "PDF export: bookmarks for each slide title, tags for screen readers, PDF/A, and password protection"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "PDF extras: bookmarks",
+  "works": "drop",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "PDF/A, tagged PDF, bookmarks",
+  "works": "drop",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Export a slide as a picture",
+  "works": "The current slide can be exported to PNG or JPEG.",
+  "soon": "Slide pictures: all slides at once, other sizes, and GIF, TIFF, BMP, and SVG"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Export all slides as pictures",
+  "works": "drop",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Check Accessibility: a list of what a screen reader",
+  "works": "drop",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Every file reader is fuzzed",
+  "works": "JeffDeck opens damaged files as far as it can.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Tell Me: a box on the ribbon",
+  "works": "drop",
+  "soon": "Command search: a ribbon box that finds a command and runs it"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "Effects are saved as the original writes them",
+  "works": "Animation and transition effects are saved in the standard presentation format, so other presentation programs list each by its own name.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffdeck",
+  "source_startswith": "SmartArt drawn from the drawing a file keeps",
+  "works": "Diagrams in a file are drawn from the drawing the file keeps and are written back as they were.",
+  "soon": "Editing diagrams"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Runs on Linux and Windows",
+  "works": "JeffWrite runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Spelling and hyphenation work offline",
+  "works": "Spelling works offline, in 12 languages, as you type and in the Spelling pane. Hyphenation follows a file's settings.",
+  "soon": "Hyphenation: set from a menu or dialog"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "`jwritetool`",
+  "works": "drop",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Open `.docx`, `.doc`, `.rtf`, and `.odt`",
+  "works": "JeffWrite opens `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt`, `.fodt`, and `.ott` files.",
+  "soon": "Comments and form-field state when opening `.doc` files"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Save as `.docx` by default",
+  "works": "JeffWrite saves `.docx`, `.dotx`, and `.odt` files.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Character spacing: expanded",
+  "works": "drop",
+  "soon": "Character spacing: expanded, condensed, raised, and lowered"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Font color (theme colors",
+  "works": "Choose font color and highlight color from the Home tab.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Bulleted lists: the gallery",
+  "works": "Start a bulleted list from the Home tab.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Numbered lists: the number formats",
+  "works": "Start a numbered list from the Home tab. Lists in files keep their number formats.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Multilevel lists, nine levels",
+  "soon": "Choosing each level's options in the program, and drawing picture bullets"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Paragraph shading and borders on any side",
+  "works": "Paragraph shading and borders from a file are drawn.",
+  "soon": "Setting paragraph shading and borders"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Right-to-left paragraphs and text",
+  "works": "Right-to-left and mixed-direction text is laid out.",
+  "soon": "Left-to-Right and Right-to-Left buttons"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Hyperlink: a web address",
+  "works": "Links in a file are kept.",
+  "soon": "Insert, edit, and remove hyperlinks"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Page Break (Ctrl+Enter) and Blank Page",
+  "works": "Insert a page break with Ctrl+Enter.",
+  "soon": "Blank Page"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Text effects on letters",
+  "soon": "Editing text effects on letters"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Margins: the presets",
+  "works": "Margins can be set in the Page Setup dialog, including a left gutter.",
+  "soon": "Mirror margins and a top gutter"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Orientation and Size: Letter",
+  "works": "Page size and orientation can be set for each section in Page Setup.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Widow and orphan control, keep with next",
+  "works": "Widow and orphan control, keep with next, keep lines together, and page break before are applied when pages are laid out.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Insert in a header or footer: Date and Time",
+  "works": "Page numbers and fields can be inserted in headers and footers.",
+  "soon": "Insert Date and Time, Document Info, building blocks, and pictures in headers and footers"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Header from top and Footer from bottom",
+  "works": "The header and footer distances are set in Page Setup.",
+  "soon": "Insert Alignment Tab and Show Document Text"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Open and save macro-enabled files",
+  "works": "JeffWrite opens `.docm` and `.dotm` files and never runs their macros. Saving as `.docx` leaves them out and says so.",
+  "soon": "Save as `.docm` and `.dotm` with macros kept"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Save `.docx` so that every file opens",
+  "works": "JeffWrite saves `.docx` files that keep the document's content and look.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "File associations for `.docx`",
+  "works": "JeffWrite is associated with `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt`, and `.ott` files on Windows, macOS, and Linux.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffwrite",
+  "source_startswith": "Tracked changes as the file keeps them",
+  "works": "Tracked changes in a file are shown and kept: insertions, deletions, moves, and formatting changes. Changes in `.rtf` and `.odt` files are read and kept when you save as `.docx` or `.odt`."
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Runs on Linux and Windows",
+  "works": "JeffCrunch runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Spelling works offline",
+  "works": "drop",
+  "soon": "Spelling check (F7), offline, in 12 languages"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Every formula keeps its last result",
+  "works": "A formula whose function JeffCrunch doesn't have yet keeps the result the file stored and is written back as it was.",
+  "soon": "More functions"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "`jcrunchtool`",
+  "works": "drop",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Save as PDF: the active sheets",
+  "works": "Export to PDF the active sheets, the whole workbook, or the selection.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Help that works offline",
+  "soon": "A help page for every function"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Blank workbook, using the defaults",
+  "works": "drop",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Open `.xlsx`, `.xls`, `.ods`, `.csv`, and `.txt`",
+  "works": "JeffCrunch opens `.xlsx`, `.xlsm`, `.xls`, `.ods`, `.fods`, `.csv`, `.tsv`, and `.txt` files, and templates.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Save as `.xlsx` by default",
+  "works": "JeffCrunch saves `.xlsx` by default, `.xls` and `.ods` copies, `.csv`, `.tsv`, and `.txt`.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Right-to-left sheet",
+  "works": "A sheet that reads right to left is drawn mirrored.",
+  "soon": "A command to turn a sheet right to left"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Sum and its menu",
+  "works": "The Sum menu inserts common summary formulas.",
+  "soon": "Recently Used functions and a function gallery for each category"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Formulas that name another sheet",
+  "works": "Formulas can refer to other sheets and workbooks, 3-D ranges, whole rows and columns, and names.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Protect Workbook: lock the structure",
+  "works": "drop",
+  "soon": "Lock a workbook's structure"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Protect Workbook menu: Mark as Final",
+  "works": "Protect with Password encrypts `.xlsx` files when they are saved.",
+  "soon": "Mark as Final"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Filter (AutoFilter)",
+  "soon": "Status bar count of matching rows, and filter by icon"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Group and Ungroup rows and columns",
+  "works": "drop",
+  "soon": "Group and ungroup rows and columns, automatic outline, and clear outline"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Chart elements of a second axis",
+  "works": "drop",
+  "soon": "Chart Filters button"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "SmartArt Design and Format",
+  "works": "Diagrams in a file are kept as saved.",
+  "soon": "Diagrams: choose layouts, change colors, and edit text"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Shapes: lines, rectangles",
+  "works": "Shapes and text boxes in a file are shown, kept, and written back.",
+  "soon": "Insert and edit shapes"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Icons and Online Pictures",
+  "works": "drop",
+  "soon": "Icons, and online pictures from open image libraries"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "WordArt Styles, Text Fill",
+  "works": "drop",
+  "soon": "Text styles, text fill, text outline, and text effects for shapes, and align and group for objects"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Bring Forward and Send Backward",
+  "works": "Bring objects to the front or send them to the back.",
+  "soon": "Selection pane, align, group, rotate, flip, and snap"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Symbol: any character from any font",
+  "works": "drop",
+  "soon": "Symbol: any character from any font, and recent symbols"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Calculation on open",
+  "works": "Formulas keep the results the file stored. They are recalculated only when the file asks, when a changing function such as `NOW` is in it, or when you press F9.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "`NOW` and `TODAY`",
+  "works": "`NOW` and `TODAY` recalculate whenever the workbook calculates.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "The loan and investment functions",
+  "works": "The loan and investment functions `NPV`, `IRR`, `XIRR`, `XNPV`, and `PMT` work.",
+  "soon": "`RATE` and `DB`"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "`STDEV`, `MEDIAN`",
+  "works": "`STDEV`, `MEDIAN`, `CORREL`, `SLOPE`, and `INTERCEPT` work.",
+  "soon": "`LINEST` and `FREQUENCY`"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "`CELL` and `INFO`",
+  "works": "`CELL` works.",
+  "soon": "`INFO`"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Array functions `MMULT`",
+  "works": "`TRANSPOSE` works.",
+  "soon": "Array functions `MMULT`, `MINVERSE`, `MDETERM`, `FREQUENCY`, `LINEST`, `LOGEST`, `TREND`, and `GROWTH`, entered as array formulas"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Calling a function that does not exist",
+  "works": "drop",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Old macro-sheet calls in `.xls`",
+  "works": "Old macro-sheet calls in `.xls` files are kept as written and show the stored result.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Drag a selection's border",
+  "works": "Drag the fill handle to fill a series.",
+  "soon": "Move or copy a selection by dragging its border"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Sort and filter behave as the original",
+  "works": "drop",
+  "soon": "Ordering by value type and a stable sort"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Select a block of cells by the type of content",
+  "works": "Go To Special selects a block of cells by the type of content.",
+  "soon": "Select Objects and the Selection pane"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Save `.xlsx` so that every file opens",
+  "works": "JeffCrunch saves `.xlsx` files that keep the workbook's values, formulas, and formatting.",
+  "soon": "drop"
+ },
+ {
+  "app": "jeffcrunch",
+  "source_startswith": "Save `.xls` so Excel opens it",
+  "works": "drop",
+  "soon": "drop"
+ }
+]

@@ -30,6 +30,7 @@ import threading
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FEATURES_DIR = os.path.join(ROOT, "docs", "features")
 OUT = os.path.join(FEATURES_DIR, "public.json")
+OVERRIDES = os.path.join(FEATURES_DIR, "public-overrides.json")
 
 MODEL = "claude-sonnet-5-5"
 PRICE_IN, PRICE_OUT = 3.0, 15.0     # dollars per million tokens (assumed Sonnet 5.5 pricing)
@@ -138,7 +139,8 @@ def reviewed(path):
 
 _ALWAYS = ["Microsoft", "PowerPoint", "Calibri", "Cambria", "Arial", "Times New Roman", "Courier New", "Segoe",
            r"PivotTables?", "AutoSum", "AutoFit", "Format Painter", "AutoRecover", "Quick Access Toolbar", "Quick Parts",
-           "Outlook", "WordArt"]
+           "Outlook", "WordArt", "SmartArt", "Tell Me", "AutoFilter", "Flash Fill", "jpubtool", "jdecktool", "jwritetool", "writetool",
+           "jcrunchtool", "fuzz\\w*", "repair message", "corpus", "corpora", "the original program", "original program", "the original"]
 _ALWAYS_RE = re.compile(r"\b(?:" + "|".join(_ALWAYS) + r")\b", re.I)
 _CASED_RE = re.compile(r"\b(Excel|Publisher|Office)\b")
 _WORD_RE = re.compile(r"\bWord\b")
@@ -213,6 +215,23 @@ def scope_problems(e, wanted_entry):
     return out
 
 
+def load_overrides(path=None):
+    """docs/features/public-overrides.json: [{app, source_startswith, works, soon, exact?}], English texts (or "drop") that replace
+    the model's wording of a line whose source cannot say it right (the model only translates them)."""
+    try:
+        with open(path or OVERRIDES, encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+
+def find_override(overrides, app, text):
+    for o in overrides:
+        if o["app"] == app and (text == o["source_startswith"] if o.get("exact") else text.startswith(o["source_startswith"])):
+            return {k: o[k] for k in ("works", "soon") if k in o}
+    return None
+
+
 # ---------- the API ----------
 
 SYSTEM = """You write the public feature pages of JeffOffice, a free, open-source office suite for Windows, macOS, and Linux with four apps: JeffPub (desktop publishing), JeffDeck (presentations), JeffWrite (documents), and JeffCrunch (spreadsheets). JeffMail and JeffBase are planned.
@@ -226,11 +245,14 @@ The note is internal: it says how far the feature is, what works, and what is mi
 - "heading": works = the heading; soon = dropped.
 To drop a text, set its drop flag (works_drop or soon_drop) true and its three strings empty. Rules:
 - Wording of "soon" lines: plain present-tense names of the capability, no dates, no "will", no "coming soon", "planned", or "in progress" (the page's heading says it).
+- A note that says "shared: <another app>'s X" means X is built in that other app and is NOT in this app, unless the note itself says this app has it. Do not claim X for this app; for a "partial" or "todo" entry it belongs to "soon".
+- An entry may carry "fixed": English text for "works" and/or "soon" that is already correct and final. Return it unchanged in the English field (works: en; soon: soon_en), with its drop flag false (or true when the fixed value is "drop"), and translate it into Spanish and French. For a part that is not in "fixed", follow the rules as usual.
+- Never write "the original", "the original program", or "original" to mean another product. Do not write SmartArt (say "diagrams"), WordArt or Text Art (say "text styles"), Tell Me (say "command search"), AutoFilter (say "filter"), or Flash Fill. Never mention command-line or developer tools (names ending in "tool"), fuzzing, "repair message", test collections, or counts of files tested; drop those entries.
 - The app is the one named in the entry's "app" field; whenever the sentence needs the app's name, use that name, and never another app's name. Do not mention other JeffOffice apps at all unless the source text itself does.
 - Never add a fact that is not in the source text or note. In "works" texts never say anything is "coming", "coming soon", "planned", "in progress", or "will" happen; say only what works now.
 - American English, with the Oxford comma ("A, B, and C"). No marketing superlatives or hype: no "best", "powerful", "seamless", "ultimate", and the like. State facts.
 - Keep file extensions exactly (.pub, .docx, .xlsx, .pptx, .odt, .ods, .odp, .csv, and so on), each in backticks. Also put keyboard keys and function names in backticks.
-- Never name another company's product, program, font, or feature. Do not write Microsoft, Excel, Word (as a product), PowerPoint, Publisher, Office (except inside "JeffOffice"), Outlook, Access, Calibri, Cambria, Arial, Times New Roman, Courier New, Segoe, PivotTable, AutoSum, AutoFit, Format Painter, AutoRecover, Quick Access Toolbar, or Quick Parts, in any language. Say "the original program", "other office suites", or "other programs" where a product would be named; for fonts say "common fonts" or "stand-ins with the same letter widths"; for a product's own feature name use a plain description ("pivot table" is fine as a generic term). File formats are named by extension and, where useful, by plain description (for example "binary spreadsheet files from older programs").
+- Never name another company's product, program, font, or feature. Do not write Microsoft, Excel, Word (as a product), PowerPoint, Publisher, Office (except inside "JeffOffice"), Outlook, Access, Calibri, Cambria, Arial, Times New Roman, Courier New, Segoe, PivotTable, AutoSum, AutoFit, Format Painter, AutoRecover, Quick Access Toolbar, or Quick Parts, in any language. Say "other office suites" or "other programs" where a product would be named (never "the original program"); for fonts say "common fonts" or "stand-ins with the same letter widths"; for a product's own feature name use a plain description ("pivot table" is fine as a generic term). File formats are named by extension and, where useful, by plain description (for example "binary spreadsheet files from older programs").
 - Remove everything internal: tiers, status, version and release history, dates, percentages, counts of files or documents tested, the names of test collections or corpora, benchmark results, code paths and module names (libs/..., tools/...), and how the work was measured or tested. Keep a number only when it is a real limit or capability a user would care about (for example "up to 1,048,576 rows").
 - Use the drop flags for a text that is only about testing method, our own collection or corpus, internal code structure or build tooling, or that cannot be said without naming another product or only makes sense as a comparison with one. Do not drop a real user-facing feature just because it is hard to word.
 - Do not invent features: say only what the source says. If a source line is vague, stay vague.
@@ -313,12 +335,23 @@ def key_of(app, kind, text, note=""):
     return sha(app + "\n" + ("heading\n" if kind == "heading" else "") + text + (("\n" + note) if note else ""))
 
 
-def collect(apps_tabs):
+def item_key(app, text, note, ov):
+    """An item's key also holds its override, so changing an override sends the item again."""
+    return key_of(app, "item", text, note + (("\n" + json.dumps(ov, sort_keys=True, ensure_ascii=False)) if ov else ""))
+
+
+def norm_line(t):
+    return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
+
+
+def collect(apps_tabs, overrides=()):
     """Every distinct thing to reword: {key: {app, kind, path, text, note}} in page order."""
     wanted = {}
 
     def item(app, status, text, note, path):
-        wanted.setdefault(key_of(app, "item", text, note), {"app": app, "kind": {"done": "feature", "partly": "partial", "todo": "todo"}[status], "path": path, "text": text, "note": note})
+        ov = find_override(overrides, app, text)
+        k = item_key(app, text, note, ov)
+        wanted.setdefault(k, {"app": app, "kind": {"done": "feature", "partly": "partial", "todo": "todo"}[status], "path": path, "text": text, "note": note, "override": ov})
 
     for app, tabs in apps_tabs.items():
         base = APPS[app]["name"]
@@ -345,19 +378,26 @@ def estimate(todo):
     return tokens_in, tokens_out, (tokens_in * PRICE_IN + tokens_out * PRICE_OUT) / 1e6
 
 
-def normalize(r, kind):
+def normalize(r, kind, override=None):
     """The model's flat result as stored: works text plus a "soon" text; a kind that has only one of them drops the other."""
     works = {"drop": bool(r["works_drop"]) or kind == "todo", "en": r["en"].strip(), "es": r["es"].strip(), "fr": r["fr"].strip()}
     soon = {"drop": bool(r["soon_drop"]) or kind in ("feature", "heading"), "en": r["soon_en"].strip(), "es": r["soon_es"].strip(), "fr": r["soon_fr"].strip()}
     for d in (works, soon):
         if d["drop"]:
             d.update(en="", es="", fr="")
+    for name, d in (("works", works), ("soon", soon)):
+        v = (override or {}).get(name)
+        if v == "drop":
+            d.update(drop=True, en="", es="", fr="")
+        elif v:
+            d["drop"] = False
+            d["en"] = v.strip()          # the English is the override's own words; the model only translated it
     works["soon"] = soon
     return works
 
 
 def reword(wanted, cache, dry_run, checkpoint):
-    todo = {k: v for k, v in wanted.items() if k not in cache or "soon" not in cache[k]}
+    todo = {k: v for k, v in wanted.items() if k not in cache or "soon" not in cache[k] or entry_problems(cache[k]) or scope_problems(cache[k], v)}
     print("%d distinct items and headings; %d cached; %d to send." % (len(wanted), len(wanted) - len(todo), len(todo)))
     if not todo:
         return
@@ -376,7 +416,8 @@ def reword(wanted, cache, dry_run, checkpoint):
 
     def run(batch_keys):
         entries = [dict({"id": i, "kind": todo[k]["kind"], "app": APPS[todo[k]["app"]]["name"], "path": todo[k]["path"], "text": todo[k]["text"]},
-                        **({"note": todo[k]["note"]} if todo[k]["kind"] != "heading" else {})) for i, k in enumerate(batch_keys)]
+                        **({"note": todo[k]["note"]} if todo[k]["kind"] != "heading" else {}),
+                        **({"fixed": todo[k]["override"]} if todo[k].get("override") else {})) for i, k in enumerate(batch_keys)]
         by_id = dict(enumerate(batch_keys))
         accepted, bad = {}, {}
         for attempt in (1, 2):
@@ -391,7 +432,7 @@ def reword(wanted, cache, dry_run, checkpoint):
                 if i not in by_id or i in seen or i in accepted:
                     continue
                 seen.add(i)
-                r = normalize(r, todo[by_id[i]]["kind"])
+                r = normalize(r, todo[by_id[i]]["kind"], todo[by_id[i]].get("override"))
                 problems = entry_problems(r) + scope_problems(r, todo[by_id[i]])
                 if problems:
                     bad[i] = problems
@@ -433,8 +474,9 @@ def load_texts():
         return {}
 
 
-def build_public(apps_tabs, states, rev, texts):
-    """The file's content: the structure of each list (keys into texts) and the texts still in use."""
+def build_public(apps_tabs, states, rev, texts, overrides=()):
+    """The file's content: the structure of each list (keys into texts) and the texts still in use. Within an app, a Coming soon
+    line whose English repeats an earlier one (same words, ignoring case and punctuation) is marked hide_soon."""
     used = set()
 
     def ref(app, kind, text, note=""):
@@ -442,16 +484,32 @@ def build_public(apps_tabs, states, rev, texts):
         used.add(k)
         return k
 
+    def items(app, lst):
+        out = []
+        for s, x, n in lst:
+            k = item_key(app, x, n, find_override(overrides, app, x))
+            used.add(k)
+            out.append({"status": s, "text": k})
+        return out
+
     apps = {}
     for app, tabs in apps_tabs.items():
         out = []
+        seen = set()
         for tab in tabs:
-            out.append({
-                "heading": ref(app, "heading", tab["h"]),
-                "items": [{"status": s, "text": ref(app, "item", x, n)} for s, x, n in tab["direct"]],
-                "groups": [{"heading": ref(app, "heading", g["h"]), "items": [{"status": s, "text": ref(app, "item", x, n)} for s, x, n in g["items"]]}
-                           for g in tab["groups"] if g["items"]],
-            })
+            t = {"heading": ref(app, "heading", tab["h"]), "items": items(app, tab["direct"]),
+                 "groups": [{"heading": ref(app, "heading", g["h"]), "items": items(app, g["items"])} for g in tab["groups"] if g["items"]]}
+            for it in t["items"] + [i for g in t["groups"] for i in g["items"]]:
+                if it["status"] == "done":
+                    it["hide_soon"] = True       # a done line has nothing missing, whatever an older text says
+                    continue
+                soon = (texts.get(it["text"]) or {}).get("soon")
+                if soon and not soon["drop"]:
+                    n = norm_line(soon["en"])
+                    if n in seen:
+                        it["hide_soon"] = True
+                    seen.add(n)
+            out.append(t)
         r = rev.get(app)
         apps[app] = {"name": APPS[app]["name"], "state": states[app][0], "version": states[app][1],
                      "reviewed": {"month": r[0], "day": r[1], "year": r[2]} if r else None, "tabs": out}
@@ -483,9 +541,13 @@ def main():
         kept = sum(len(t["direct"]) + sum(len(g["items"]) for g in t["groups"]) for t in apps_tabs[app])
         print("%-10s %d tabs, %d items kept from the list" % (app, len(apps_tabs[app]), kept))
     texts = load_texts()
-    wanted = collect(apps_tabs)
+    overrides = load_overrides()
+    wanted = collect(apps_tabs, overrides)
+    for o in overrides:
+        if not any(find_override([o], app, x) is not None for app, tabs in apps_tabs.items() for t in tabs for _, x, _ in t["direct"] + [i for g in t["groups"] for i in g["items"]]):
+            print("warning: an override matches nothing: %s %r" % (o["app"], o["source_startswith"][:50]))
     state = (apps_tabs, states, rev)
-    reword(wanted, texts, args.dry_run, lambda: write_public(build_public(*state, texts)))
+    reword(wanted, texts, args.dry_run, lambda: write_public(build_public(*state, texts, overrides)))
     if args.dry_run:
         return
     bad = [(k, entry_problems(texts[k]) + scope_problems(texts[k], wanted[k])) for k in wanted if entry_problems(texts[k]) + scope_problems(texts[k], wanted[k])]
@@ -493,7 +555,7 @@ def main():
         for k, p in bad:
             print("  %s: %s" % (wanted[k]["text"][:120], "; ".join(p)), file=sys.stderr)
         sys.exit("stored text breaks the rules (delete those keys from public.json to redo them)")
-    data = build_public(*state, texts)
+    data = build_public(*state, texts, overrides)
     write_public(data)
     print("wrote %s: %d texts" % (os.path.relpath(OUT, ROOT), len(data["texts"])))
 

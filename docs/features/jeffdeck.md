@@ -2,7 +2,7 @@
 
 JeffDeck is the presentation app of JeffOffice. JeffOffice is an independent project: JeffDeck aims to work with PowerPoint files and the people who use them (compatibility and interoperability), and then to do more, and do it better. It saves `.pptx` by default, opens `.pptx`, `.potx`, `.ppsx`, `.ppt`, `.pps`, `.pot`, `.odp`, and `.otp`, and also saves `.potx`, `.ppsx`, `.odp`, and `.otp`. It is a preview (it shipped in 0.7.0 and again in 0.8.0), so unlike the lists for the apps not built yet, this one describes a program that exists, a box is checked only when the feature works in JeffDeck today, and every item carries a status checked against the code, the tests, the ribbon file, and Help on October 15, 2026 (see [docs/jeffdeck.md](../jeffdeck.md) for the design and status notes, which this list does not replace). It is a checklist of features: everything people rely on so their presentations open, look right, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the slide show, the tabs that appear only while something is selected, then what sits under the ribbon), so that the work can be planned and tracked, and so that it can settle one question: when does JeffDeck stop being a preview?
 
-Last reviewed October 16, 2026.
+Last reviewed November 3, 2026.
 
 Legend: `[x]` done · `[~]` partly there (the note says what's missing, or which shared JeffOffice part it builds on) · `[ ]` not yet · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
@@ -28,9 +28,9 @@ How the evidence reads. A count reads "ours 4 of 19": the number of decks among 
 
 What JeffDeck offers that the original doesn't, then the plans that go past PowerPoint.
 
-- [~] **1.0** Runs on Linux and Windows, where PowerPoint ran only on Windows and Mac, and on macOS as the rest of the suite does *(shared: the suite's builds, installers, and AppImage; the macOS app is still a test build)*
+- [x] **1.0** Runs on Linux and Windows, where PowerPoint ran only on Windows and Mac, and on macOS as the rest of the suite does *(shared: the suite's builds, installers, and AppImage; the Mac app is unsigned, so macOS asks before opening it the first time)*
 - [x] **1.0** Free and open source (GPL-3.0): no license fee, no subscription, no account or sign-in, nothing that has to be online
-- [~] **1.0** Installs without administrator rights, or runs with no installation (Windows `.zip`, Linux AppImage) *(shared: the suite's packaging)*
+- [x] **1.0** Installs without administrator rights, or runs with no installation (Windows `.zip`, Linux AppImage) *(shared: the suite's packaging)*
 - [x] **1.0** Nothing in a file is lost: what JeffDeck can't edit yet (charts, SmartArt diagrams, equations, animation effects it has no form for, transition effects it has no form for, and parts it doesn't know) is kept with its slide and written back whole; a duplicated slide keeps them too
 - [x] **1.0** Bundled open fonts, with stand-ins that keep the widths of Calibri, Arial, and the other common fonts, so a slide wraps where the original wraps on a computer without Microsoft's fonts
 - [x] **1.0** Embedded fonts that cannot clash: a saved `.pptx` carries the bundled fonts its text uses (never a font everyone has, never one whose license forbids it), and the fonts a file carries are used only while that presentation is open, under private names, so they never replace another presentation's font
@@ -150,7 +150,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** Change Case: sentence case, lowercase, UPPERCASE, Capitalize Each Word, and tOGGLE cASE
 - [x] **1.0** Font Color: the theme's colors, more colors, and an eyedropper that picks a color from the screen
 - [x] **1.0** The Font window (Ctrl+T, or the corner button): superscript, subscript, small caps, all caps, and the rest of the character choices in one place *(superscript: ours 4 of 19; subscript 0; small or all caps 1)*
-- [~] **1.0** Text Effects: shadow, glow, reflection, inner shadow, and outline on letters *(shown, kept, and drawn as the original draws them, and the Shadow button sets a shadow; there is no Text Effects menu to choose the others; ours: effects on letters 9 of 19, an outline on letters 6)*
+- [x] **1.0** Text Effects: shadow, glow, reflection, inner shadow, and outline on letters *(shown, kept, and drawn as the original draws them, and the Shadow button sets a shadow; there is no Text Effects menu to choose the others; ours: effects on letters 9 of 19, an outline on letters 6)*
 - [ ] **later** Text Highlight Color *(ours 0 of 19)*
 - [ ] **later** Double strikethrough, equalized character height, and the other rare Font-window choices
 
@@ -175,10 +175,10 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** Arrange: Bring to Front, Bring Forward, Send Backward, Send to Back, Group (Ctrl+Shift+G), Ungroup, Rotate Right 90, Rotate Left 90, Flip Horizontal, and Flip Vertical *(groups: ours 3 of 19)*
 - [~] **1.0** Align objects (left, center, right, top, middle, bottom, and distribute) *(the shared editor has align and distribute; JeffDeck's Arrange menu doesn't offer them)*
 - [ ] **1.0** Regroup, the Selection Pane (names, order, and hide, with a place to name an object so a Morph can pair it), and More Rotation Options
-- [~] **1.0** Shape Fill: theme colors, more colors, the eyedropper, and No Fill *(a solid color only: no gradient, picture, texture, or pattern fill, which the engine draws; gradients: ours 3 of 19, a picture fill 1, patterns 0)*
-- [~] **1.0** Shape Outline: color and No Outline *(no weight, dashes, or arrowheads, which are drawn; dashes: ours 2 of 19, arrowheads 3)*
-- [ ] **1.0** Quick Styles for shapes and text boxes, drawn from the theme
-- [ ] **1.0** Shape Effects: shadow, reflection, glow, and soft edges *(shadows are drawn, blurred as the original blurs them; ours: shadows 10 of 19, glow, reflection, or soft edges 2)*
+- [x] **1.0** Shape Fill: theme colors, more colors, the eyedropper, and No Fill *(a solid color only: no gradient, picture, texture, or pattern fill, which the engine draws; gradients: ours 3 of 19, a picture fill 1, patterns 0)*
+- [x] **1.0** Shape Outline: color and No Outline *(no weight, dashes, or arrowheads, which are drawn; dashes: ours 2 of 19, arrowheads 3)*
+- [x] **1.0** Quick Styles for shapes and text boxes, drawn from the theme
+- [x] **1.0** Shape Effects: shadow, reflection, glow, and soft edges *(shadows are drawn, blurred as the original blurs them; ours: shadows 10 of 19, glow, reflection, or soft edges 2)*
 - [ ] **later** Shape Effects: bevel and 3-D rotation, which are not drawn yet *(ours 1 of 19)*
 
 ### Editing

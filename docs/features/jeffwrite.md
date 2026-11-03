@@ -2,7 +2,7 @@
 
 JeffWrite is the word processor of JeffOffice. JeffOffice is an independent project: JeffWrite aims to work with Word files and the people who use them (compatibility and interoperability), and then to do more, and do it better. It saves `.docx`, and opens the older `.doc` too; It also opens `.rtf` and `.odt`, and saves `.odt`. Its first public version, 0.9.0 (a Preview, released October 19, 2026), was a window with the ribbon, the page view, editing, `.docx` and `.doc` files, tables, headers and footers, notes, and pictures and text boxes as files have them, spelling, and printing; each box says what that version does of an item (`[x]` all of it, `[~]` part, with the note saying what is missing, and `[ ]` none). This list is the whole job, a checklist of features: everything people rely on so their documents open, look right, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
 
-Last reviewed November 2, 2026.
+Last reviewed November 3, 2026.
 
 Legend: `[x]` works in JeffWrite as of the date above · `[~]` partly works (the note says what is missing) · `[ ]` not there yet (a *(shared: ...)* note names the part of the suite it builds on) · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
@@ -42,7 +42,7 @@ How the evidence reads. Where the counts measure a feature, its item carries how
 
 What JeffWrite offers that the original doesn't, then the plans that go past Word.
 
-- [~] **first release** Runs on Linux and Windows, where Word ran only on Windows and Mac, and on macOS as the rest of the suite does *(shared: the suite's builds, installers, and AppImage; the macOS app is still a test build)*
+- [x] **first release** Runs on Linux and Windows, where Word ran only on Windows and Mac, and on macOS as the rest of the suite does *(shared: the suite's builds, installers, and AppImage; the Mac app is unsigned, so macOS asks before opening it the first time)*
 - [x] **first release** Free and open source (GPL-3.0): no license fee, no subscription, no account or sign-in, nothing that has to be online
 - [x] **first release** Installs without administrator rights, or runs with no installation (Windows `.zip`, Linux AppImage) *(shared: the suite's packaging)*
 - [~] **first release** OpenDocument text (`.odt`, `.ott`) is opened and saved with the same care as `.docx`, not as an afterthought (details under File formats) *(shared: libs/office/odt turns an `.odt` or flat `.fodt` into the parts of a `.docx` for the one reader, and a `.docx` package into an `.odt`; opened by content, saved from Save As; styles, lists, tables, sections, headers and footers, notes, fields, pictures, text boxes, comments, and tracked changes are read and written; drawn shapes without text, formulas, and charts are left out and the person is told; `.ott` opens as a new document, and is not written)*

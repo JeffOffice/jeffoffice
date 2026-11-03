@@ -197,6 +197,79 @@ class Soon(unittest.TestCase):
         self.assertEqual(list(todo), [k])
 
 
+class Overrides(unittest.TestCase):
+    OV = [{"app": "jeffpub", "source_startswith": "Runs on", "works": "JeffPub runs on Windows.", "soon": "drop"},
+          {"app": "jeffpub", "source_startswith": "macOS app", "works": "Mac.", "soon": "drop", "exact": True}]
+
+    def test_match_by_app_and_start(self):
+        self.assertEqual(pf.find_override(self.OV, "jeffpub", "Runs on Linux"), {"works": "JeffPub runs on Windows.", "soon": "drop"})
+        self.assertIsNone(pf.find_override(self.OV, "jeffdeck", "Runs on Linux"))
+
+    def test_exact(self):
+        self.assertIsNotNone(pf.find_override(self.OV, "jeffpub", "macOS app"))
+        self.assertIsNone(pf.find_override(self.OV, "jeffpub", "macOS app (signed)"))
+
+    def test_override_changes_the_key(self):
+        tabs = {"jeffpub": [{"h": "H", "direct": [("partly", "Runs on Linux", "n")], "groups": []}]}
+        with_ov = {k for k, v in pf.collect(tabs, self.OV).items() if v["kind"] != "heading"}
+        without = {k for k, v in pf.collect(tabs).items() if v["kind"] != "heading"}
+        self.assertNotEqual(with_ov, without)
+
+    def test_override_wins_over_the_model(self):
+        flat = {"id": 0, "works_drop": False, "en": "Model English", "es": "Modelo", "fr": "Modèle",
+                "soon_drop": False, "soon_en": "Model soon", "soon_es": "x", "soon_fr": "x"}
+        r = pf.normalize(flat, "partial", {"works": "Fixed English.", "soon": "drop"})
+        self.assertEqual(r["en"], "Fixed English.")
+        self.assertEqual(r["es"], "Modelo")           # translated by the model
+        self.assertTrue(r["soon"]["drop"])
+        self.assertEqual(r["soon"]["en"], "")
+
+    def test_override_can_keep_the_models_other_part(self):
+        flat = {"id": 0, "works_drop": False, "en": "Model English", "es": "a", "fr": "b",
+                "soon_drop": False, "soon_en": "Model soon", "soon_es": "c", "soon_fr": "d"}
+        r = pf.normalize(flat, "partial", {"soon": "Only the soon text"})
+        self.assertEqual(r["en"], "Model English")
+        self.assertEqual(r["soon"]["en"], "Only the soon text")
+
+    def test_the_shipped_overrides_load(self):
+        for o in pf.load_overrides():
+            self.assertTrue(o["app"] in pf.APPS and o["source_startswith"])
+            for k in ("works", "soon"):
+                self.assertNotIn("original", o.get(k, "").lower())
+                self.assertEqual(pf.violations(o.get(k, "") if o.get(k) != "drop" else ""), [], o)
+
+
+class NewBannedWords(unittest.TestCase):
+    def test_words(self):
+        for t in ["SmartArt diagrams", "WordArt styles", "Tell Me box", "AutoFilter buttons", "Flash Fill", "the original program",
+                  "as the original writes it", "jcrunchtool converts", "jwritetool", "fuzzed readers", "no repair message",
+                  "a corpus of files", "Texto de WordArt", "the original"]:
+            self.assertTrue(pf.violations(t), t)
+
+    def test_still_allowed(self):
+        for t in ["Diagrams are kept", "Text styles", "Command search", "Filter buttons", "Original pictures are kept", "A toolbar"]:
+            self.assertEqual(pf.violations(t), [], t)
+
+
+class SoonDedupe(unittest.TestCase):
+    def test_duplicates_within_an_app_are_hidden(self):
+        k = pf.key_of
+        tabs = {"jeffdeck": [{"h": "T", "direct": [("partly", "A", ""), ("partly", "B", ""), ("todo", "C", ""), ("done", "D", "")], "groups": []}],
+                "jeffpub": [{"h": "T", "direct": [("partly", "E", "")], "groups": []}]}
+        soon = lambda en: {"drop": False, "en": en, "es": en, "fr": en}
+        texts = {}
+        for app, x, en in [("jeffdeck", "A", "PDF export: bookmarks."), ("jeffdeck", "B", "PDF export - Bookmarks"), ("jeffdeck", "C", "Other"),
+                           ("jeffdeck", "D", "Other"), ("jeffpub", "E", "PDF export: bookmarks.")]:
+            texts[k(app, "item", x)] = {"drop": False, "en": "w", "es": "w", "fr": "w", "soon": soon(en)}
+        data = pf.build_public(tabs, {"jeffdeck": ("beta", "1"), "jeffpub": ("beta", "1")}, {}, texts)
+        deck = data["apps"]["jeffdeck"]["tabs"][0]["items"]
+        self.assertEqual([bool(i.get("hide_soon")) for i in deck], [False, True, False, True])   # B repeats A; D is done
+        self.assertFalse(data["apps"]["jeffpub"]["tabs"][0]["items"][0].get("hide_soon"))        # another app: not a duplicate
+
+    def test_norm_line(self):
+        self.assertEqual(pf.norm_line("PDF export: Bookmarks!"), pf.norm_line("pdf export - bookmarks"))
+
+
 class Build(unittest.TestCase):
     def test_structure_and_stale_texts_dropped(self):
         tabs = {"jeffpub": [{"h": "Home tab", "direct": [("done", "A", "")], "groups": [{"h": "G", "items": [("partly", "B", "n")]}]}]}
