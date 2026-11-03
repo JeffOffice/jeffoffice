@@ -2334,6 +2334,29 @@ private Q_SLOTS:
         QVERIFY(written.contains("deep"));
     }
 
+    void theMailMergeIsFoundByTheNamespaceNotByThePrefix()
+    {
+        // The main namespace under the prefix x, the relationships under q, and w and r stand for other namespaces entirely.
+        const QByteArray file = "<?xml version=\"1.0\"?><x:settings xmlns:x=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:q=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                                "xmlns:w=\"urn:other\" xmlns:r=\"urn:other2\"><x:zoom x:percent=\"100\"/><x:mailMerge><x:mainDocumentType x:val=\"formLetters\"/><x:linkToQuery/>"
+                                "<w:mainDocumentType w:val=\"email\"/><x:dataSource q:id=\"rId4\" r:id=\"rId8\"/><x:mailSubject x:val=\"Hi\"/><x:odso><x:fieldMapData/></x:odso></x:mailMerge></x:settings>";
+        MailMergeSettings m;
+        QVERIFY(readMailMerge(file, &m));
+        QCOMPARE(m.type, QStringLiteral("formLetters"));   // (not the other namespace's element of the same name)
+        QCOMPARE(m.dataSourceId, QStringLiteral("rId4"));
+        QCOMPARE(m.mailSubject, QStringLiteral("Hi"));
+        QVERIFY(m.linkToQuery);
+        QVERIFY(m.odso.startsWith("<x:odso>"));
+        // The same with the main namespace as the default one.
+        const QByteArray plain = "<settings xmlns=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:q=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+                                 "<mailMerge><mainDocumentType val=\"mailingLabels\"/></mailMerge></settings>";
+        MailMergeSettings d;
+        QVERIFY(!readMailMerge(plain, &d));   // (its attributes have no namespace: not the schema's w:val)
+        // A part where w is not the main namespace holds none under w.
+        const QByteArray only = "<x:settings xmlns:x=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:w=\"urn:other\"><w:mailMerge><w:mainDocumentType w:val=\"formLetters\"/></w:mailMerge></x:settings>";
+        QVERIFY(!readMailMerge(only, &d));
+    }
+
     void theMailMergeOfTheSettingsIsReadAndWrittenInTheSchemasPlace()
     {
         const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";

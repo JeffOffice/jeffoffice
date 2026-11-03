@@ -341,56 +341,74 @@ bool readMailMerge(const QByteArray &settings, MailMergeSettings *out)
     qsizetype rootEnd = 0;
     QByteArray prefix;
     if (settings.trimmed().isEmpty() || !settingsChildren(settings, &children, &rootEnd, &prefix)) return false;
-    for (const SettingsChild &c : children) {
-        if (c.name != "mailMerge") continue;
-        const QByteArray whole = settings.mid(c.begin, c.end - c.begin);
-        MailMergeSettings m;
-        QXmlStreamReader r(whole);
-        r.setNamespaceProcessing(false);   // (the prefixes are declared on the root, which is not here)
-        int depth = 0;
-        auto val = [&] { return r.attributes().value(QStringLiteral("w:val")).toString(); };
-        auto on = [&] {
-            const QString v = val();
-            return !(v == QLatin1String("0") || v == QLatin1String("false") || v == QLatin1String("off"));
-        };
-        qsizetype odsoFrom = -1;
-        while (!r.atEnd()) {
-            r.readNext();
-            if (r.isStartElement()) {
-                ++depth;
-                if (depth != 2) continue;
-                const QString n = r.qualifiedName().toString().section(QLatin1Char(':'), -1);
-                if (n == QLatin1String("mainDocumentType")) m.type = val();
-                else if (n == QLatin1String("linkToQuery")) m.linkToQuery = on();
-                else if (n == QLatin1String("dataType")) m.dataType = val();
-                else if (n == QLatin1String("connectString")) m.connectString = val();
-                else if (n == QLatin1String("query")) m.query = val();
-                else if (n == QLatin1String("dataSource")) m.dataSourceId = r.attributes().value(QStringLiteral("r:id")).toString();
-                else if (n == QLatin1String("headerSource")) m.headerSourceId = r.attributes().value(QStringLiteral("r:id")).toString();
-                else if (n == QLatin1String("doNotSuppressBlankLines")) m.doNotSuppressBlankLines = on();
-                else if (n == QLatin1String("destination")) m.destination = val();
-                else if (n == QLatin1String("addressFieldName")) m.addressFieldName = val();
-                else if (n == QLatin1String("mailSubject")) m.mailSubject = val();
-                else if (n == QLatin1String("mailAsAttachment")) m.mailAsAttachment = on();
-                else if (n == QLatin1String("viewMergedData")) m.viewMergedData = on();
-                else if (n == QLatin1String("activeRecord")) m.activeRecord = val().toInt();
-                else if (n == QLatin1String("checkErrors")) m.checkErrors = val().toInt();
-                else if (n == QLatin1String("odso")) odsoFrom = r.characterOffset();
-            } else if (r.isEndElement()) {
-                if (depth == 2 && r.qualifiedName().toString().section(QLatin1Char(':'), -1) == QLatin1String("odso") && odsoFrom >= 0) {
-                    // (the element as it stands in the part: found by its tags, not by the reader's offsets)
-                    const qsizetype a = whole.indexOf("<" + prefix + "odso"), b = whole.lastIndexOf("</" + prefix + "odso>");
-                    if (a >= 0 && b > a) m.odso = whole.mid(a, b + prefix.size() + 7 - a);
-                    else if (a >= 0) m.odso = whole.mid(a, whole.indexOf("/>", a) + 2 - a);
-                }
-                --depth;
-            }
+    qsizetype begin = -1, end = -1;
+    for (const SettingsChild &c : children)
+        if (c.name == "mailMerge") {
+            begin = c.begin;
+            end = c.end;
+            break;
         }
-        if (m.type.isEmpty()) return false;
-        *out = m;
-        return true;
+    if (begin < 0) return false;
+    const QByteArray whole = settings.mid(begin, end - begin);
+    // The elements and attributes are told by their namespaces (the part's, declared on its root or on the elements), not by the letters of their prefixes.
+    static const QString kMain = QStringLiteral("http://schemas.openxmlformats.org/wordprocessingml/2006/main");
+    static const QString kRel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships");
+    MailMergeSettings m;
+    QXmlStreamReader r(settings);
+    int depth = 0;
+    bool found = false;
+    auto val = [&] { return r.attributes().value(kMain, QStringLiteral("val")).toString(); };
+    auto on = [&] {
+        const QString v = val();
+        return !(v == QLatin1String("0") || v == QLatin1String("false") || v == QLatin1String("off"));
+    };
+    int merge = -1;   // the depth of the mailMerge element
+    bool odsoOpen = false;
+    while (!r.atEnd()) {
+        r.readNext();
+        if (r.isStartElement()) {
+            ++depth;
+            const bool mine = r.namespaceUri() == kMain;
+            if (merge < 0) {
+                if (depth == 2 && mine && r.name() == u"mailMerge") merge = depth;
+                continue;
+            }
+            if (depth != merge + 1 || !mine) continue;
+            const QString n = r.name().toString();
+            if (n == QLatin1String("mainDocumentType")) m.type = val();
+            else if (n == QLatin1String("linkToQuery")) m.linkToQuery = on();
+            else if (n == QLatin1String("dataType")) m.dataType = val();
+            else if (n == QLatin1String("connectString")) m.connectString = val();
+            else if (n == QLatin1String("query")) m.query = val();
+            else if (n == QLatin1String("dataSource")) m.dataSourceId = r.attributes().value(kRel, QStringLiteral("id")).toString();
+            else if (n == QLatin1String("headerSource")) m.headerSourceId = r.attributes().value(kRel, QStringLiteral("id")).toString();
+            else if (n == QLatin1String("doNotSuppressBlankLines")) m.doNotSuppressBlankLines = on();
+            else if (n == QLatin1String("destination")) m.destination = val();
+            else if (n == QLatin1String("addressFieldName")) m.addressFieldName = val();
+            else if (n == QLatin1String("mailSubject")) m.mailSubject = val();
+            else if (n == QLatin1String("mailAsAttachment")) m.mailAsAttachment = on();
+            else if (n == QLatin1String("viewMergedData")) m.viewMergedData = on();
+            else if (n == QLatin1String("activeRecord")) m.activeRecord = val().toInt();
+            else if (n == QLatin1String("checkErrors")) m.checkErrors = val().toInt();
+            else if (n == QLatin1String("odso")) odsoOpen = true;
+        } else if (r.isEndElement()) {
+            if (merge >= 0 && depth == merge + 1 && odsoOpen && r.namespaceUri() == kMain && r.name() == u"odso") {
+                odsoOpen = false;
+                // (the element as it stands in the part: found by its tags, not by the reader's offsets)
+                const qsizetype a = whole.indexOf("<" + prefix + "odso"), b = whole.lastIndexOf("</" + prefix + "odso>");
+                if (a >= 0 && b > a) m.odso = whole.mid(a, b + prefix.size() + 7 - a);
+                else if (a >= 0) m.odso = whole.mid(a, whole.indexOf("/>", a) + 2 - a);
+            }
+            if (merge >= 0 && depth == merge) {
+                found = true;
+                break;
+            }
+            --depth;
+        }
     }
-    return false;
+    if (!found || m.type.isEmpty()) return false;
+    *out = m;
+    return true;
 }
 
 QByteArray settingsWithMailMerge(const QByteArray &settings, const MailMergeSettings &m)
