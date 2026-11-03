@@ -1,0 +1,6 @@
+The programs include libmspub and librevenge, which are licensed under the
+Mozilla Public License, version 2.0 (the text is in MPL-2.0.txt). We have
+modified both. The complete source code of the modified files is in this
+project's repository, in the folder third_party/ (third_party/libmspub and
+third_party/librevenge, each with its COPYING.MPL), at
+https://github.com/JeffOffice/jeffoffice
