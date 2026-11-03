@@ -152,7 +152,11 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
     }
     a->setCheckable(checkable);
     // Each command counts by its id for the usage statistics (when they're on).
-    connect(a, &QAction::triggered, this, [fn, id] {
+    connect(a, &QAction::triggered, this, [this, fn, id] {
+        if (isReadOnly() && !commandAllowedReadOnly(id)) {
+            refuseReadOnlyChange();
+            return;
+        }
         telemetry::count(id);
         fn();
     });
@@ -209,7 +213,7 @@ void WriteWindow::updateTitle()
     // A document that came from an old binary file shows its whole name, so its kind is plain until it is saved as a .docx.
     const QString ending = QFileInfo(m_path).suffix().toLower();
     const QString shown = ending == QLatin1String("doc") || ending == QLatin1String("dot") || ending == QLatin1String("rtf") ? QFileInfo(m_path).fileName() : displayName();
-    setWindowTitle(QStringLiteral("%1%2 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name));
+    setWindowTitle(QStringLiteral("%1%2%4 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name, isReadOnly() ? tr(" (Read-Only)") : QString()));
 }
 
 // ---- commands

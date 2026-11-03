@@ -36,6 +36,9 @@ public:
     enum class ZoomMode { Percent, PageWidth, OnePage, ManyPages };
     // The local document files (.docx, .doc, .rtf...) a drag holds, at most 20.
     static QStringList documentFilesIn(const QMimeData *mime);
+    // A document opened read-only: the keys that move the caret work, and nothing is typed, dropped, or dragged.
+    void setReadOnly(bool on) { m_readOnly = on; }
+    bool readOnly() const { return m_readOnly; }
 
     explicit PageView(QWidget *parent = nullptr);
     ~PageView() override;
@@ -213,6 +216,7 @@ protected:
     void dragMoveEvent(QDragMoveEvent *e) override;
     void dropEvent(QDropEvent *e) override;
     bool m_documentDrag = false;   // what is being dragged over is a document file, which the window opens
+    bool m_readOnly = false;
     void contextMenuEvent(QContextMenuEvent *e) override;
     void focusInEvent(QFocusEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;

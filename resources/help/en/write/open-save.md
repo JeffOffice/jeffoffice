@@ -1,5 +1,5 @@
 # Open, save, print, and export
-<!-- keywords: open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats -->
+<!-- keywords: open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ott, repair, open and repair, damaged -->
 
 Click **File** at the top left to see the File screen. It has pages for New, Open, Print, and Export, and commands for Save and Save As. Press **Esc** to go back to your document.
 
@@ -25,6 +25,35 @@ If a file has parts that JeffWrite can't edit yet, such as a table's layout or a
 ## Save a document
 
 Press **Ctrl+S** to save. The first time, JeffWrite asks for a name. **Save As** (F12) saves a copy under a new name. Choose **Template (*.dotx)** to save a template. A file that came from an older kind of file is always saved under a new name, so the old file is never written over.
+
+## Save a copy
+
+Click **File > Save a Copy**. Choose a name. JeffWrite writes the document to that file, and you keep working in the document you had. Its name and its unsaved changes stay as they were. This is handy when you want to send a version to someone and go on writing.
+
+## Keep a backup copy
+
+Click **File > Options**, and on the **General** page turn on **Always create backup copy**. Each time you save, JeffWrite first copies the old file to one called "Backup of" plus its name, in the same folder. Then you can go back to the last saved version.
+
+## Save as a template
+
+A template is a document you use as a starting point. Click **File > Save as Template**, and type a name. The template goes in **My Templates**, and the document you are writing is not changed. In **Save As**, you can also choose **Template (*.dotx)**, or **OpenDocument Text Template (*.ott)**, to save a template file where you like.
+
+To start a new document from your template, click **File > New**. Your templates are listed under **My Templates**. Click one. A new document opens with the template's text and styles. To remove a template from the list, right-click it and choose **Remove from My Templates**.
+
+## Other ways to open a file
+
+On the **Open** page, click **More Ways to Open**. You can also right-click a name in the Recent list. Each way asks for a file, or uses the one you clicked:
+
+- **Open Read-Only** opens the file for reading only. You can look, scroll, search, and copy, but you can't change anything. The title bar says "Read-Only". If you press **Save**, JeffWrite asks for a new name, so the file you opened is not changed.
+- **Open as Copy** opens a new document with the file's text. It has no file of its own, so **Save** asks where to put it. The file you opened is never changed.
+- **Open in New Window** opens the file in a window of its own, even when the window you are in is empty.
+- **Open and Repair** is for a .docx file that is damaged, for example one that was cut short when it was copied. See below.
+
+## Open and Repair
+
+Sometimes a .docx file is damaged. A copy stopped halfway, or a disk made mistakes. A .docx file is a bundle of smaller parts, such as the text, the styles, and the pictures. **Open and Repair** reads every part that it can. A part that stopped in the middle is kept up to the place where it stopped. A part that can't be read is left out. If the list of parts or the links between them are gone, JeffWrite makes them again.
+
+The repaired document opens as a copy with a name like "Repaired letter". A message tells you what was kept up to a break and what was left out. The damaged file is not changed. Save the repaired copy under a name of its own, and check it before you trust it.
 
 ## Get back unsaved work
 

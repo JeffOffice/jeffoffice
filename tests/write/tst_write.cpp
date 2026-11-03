@@ -13,6 +13,9 @@
 #include "app/help.h"
 #include "app/recovery.h"
 #include "app/settings.h"
+#include "app/filetasks.h"
+#include <QListWidget>
+#include <QStandardPaths>
 #include "app/ribbon.h"
 #include "app/widgets.h"
 #include "app/writefindpane.h"
@@ -895,6 +898,252 @@ private Q_SLOTS:
         QCOMPARE(b.document()->story()->toPlainText(), QStringLiteral("Dear reader,\nThis is the letter."));
         QCOMPARE(b.filePath(), a.filePath());
         QVERIFY(!b.isModified());
+    }
+
+    // Save a Copy writes the document to another file and goes on with the original: the window keeps its name and its unsaved changes.
+    void saveACopyKeepsWorkingInTheOriginal()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("First."));
+        const QString original = dir.filePath(QStringLiteral("letter.docx")), copy = dir.filePath(QStringLiteral("copy.docx"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return original; });
+        QVERIFY(w.saveAs());
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral(" More."));
+        QVERIFY(w.isModified());
+        w.setSavePathChooser([&](const QString &, const QString &) { return copy; });
+        QVERIFY(w.saveCopy());
+        QVERIFY(w.isModified());
+        QCOMPARE(w.filePath(), original);
+        WriteWindow a;
+        QVERIFY(a.openFile(copy));
+        QVERIFY(a.document()->story()->toPlainText().contains(QStringLiteral("More.")));
+        WriteWindow b;
+        QVERIFY(b.openFile(original));
+        QVERIFY(!b.document()->story()->toPlainText().contains(QStringLiteral("More.")));
+        // No name chosen: nothing is written.
+        w.setSavePathChooser([&](const QString &, const QString &) { return QString(); });
+        QVERIFY(!w.saveCopy());
+    }
+
+    // With "Always create backup copy" on, a save keeps the file as it was as "Backup of <name>".
+    void aBackupCopyIsKeptOnSave()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        const QString path = dir.filePath(QStringLiteral("letter.docx"));
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("First."));
+        QVERIFY(w.saveTo(path));
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral(" Second."));
+        QVERIFY(w.saveTo(path));
+        QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("Backup of letter.docx"))));   // (the option is off)
+        Settings::get().setValue(QStringLiteral("save/backup"), true);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral(" Third."));
+        const bool saved = w.saveTo(path);
+        Settings::get().setValue(QStringLiteral("save/backup"), false);
+        QVERIFY(saved);
+        WriteWindow old;
+        QVERIFY(old.openFile(dir.filePath(QStringLiteral("Backup of letter.docx"))));   // the file as it was before this save
+        QVERIFY(old.document()->story()->toPlainText().contains(QStringLiteral("Second.")));
+        QVERIFY(!old.document()->story()->toPlainText().contains(QStringLiteral("Third.")));
+    }
+
+    // Open Read-Only: the keys that move the caret work and nothing else changes the text; commands that change are refused; Save asks for a new name, and the new file is an ordinary one.
+    void aDocumentOpenedReadOnlyCannotBeChanged()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("letter.docx"));
+        {
+            WriteWindow a;
+            typeText(*a.document(), a.view()->cursor(), QStringLiteral("Dear reader."));
+            QVERIFY(a.saveTo(path));
+        }
+        WriteWindow w;
+        QVERIFY(w.openFile(path, OpenHow::ReadOnly));
+        QVERIFY(w.isReadOnly());
+        QVERIFY(w.windowTitle().contains(QLatin1String("Read-Only")));
+        const QString before = w.document()->story()->toPlainText();
+        QTest::keyClicks(w.view(), QStringLiteral("xyz"));
+        QTest::keyClick(w.view(), Qt::Key_Backspace);
+        QTest::keyClick(w.view(), Qt::Key_Return);
+        w.act(QStringLiteral("insert.pageBreak"))->trigger();
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+        QVERIFY(!w.isModified());
+        // Save asks for a new name (never the file it was opened from).
+        const QString other = dir.filePath(QStringLiteral("changed.docx"));
+        QStringList told;
+        w.setNotifier([&](const QString &, const QString &text) { told << text; });
+        w.setSavePathChooser([&](const QString &, const QString &) { return other; });
+        QVERIFY(w.save());
+        QCOMPARE(told.size(), 1);
+        QCOMPARE(w.filePath(), other);
+        QVERIFY(!w.isReadOnly());
+        QTest::keyClicks(w.view(), QStringLiteral("xyz"));
+        QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("xyz")));
+    }
+
+    // Open as Copy: the file's contents as a new document that has no file yet, so Save asks where, and the file is never written.
+    void aFileOpenedAsACopyIsANewDocument()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("letter.docx"));
+        {
+            WriteWindow a;
+            typeText(*a.document(), a.view()->cursor(), QStringLiteral("Dear reader."));
+            QVERIFY(a.saveTo(path));
+        }
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        f.close();
+        WriteWindow w;
+        QVERIFY(w.openFile(path, OpenHow::Copy));
+        QVERIFY(w.filePath().isEmpty());
+        QVERIFY(w.isModified());
+        QVERIFY(!w.isReadOnly());
+        QVERIFY(w.displayName().contains(QLatin1String("letter")));
+        QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("Dear reader.")));
+        const QString other = dir.filePath(QStringLiteral("second.docx"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return other; });
+        QVERIFY(w.save());
+        QVERIFY(QFileInfo::exists(other));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(f.readAll(), bytes);
+    }
+
+    // Open in New Window: even a window that holds a new document nobody has touched stays as it is, and the file opens in a window of its own.
+    void aFileCanBeOpenedInANewWindow()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("letter.docx"));
+        {
+            WriteWindow a;
+            typeText(*a.document(), a.view()->cursor(), QStringLiteral("Dear reader."));
+            QVERIFY(a.saveTo(path));
+        }
+        WriteWindow w;
+        const int before = AppWindow::windows().size();
+        QVERIFY(w.openFile(path, OpenHow::NewWindow));
+        QVERIFY(w.filePath().isEmpty());
+        QCOMPARE(AppWindow::windows().size(), before + 1);
+        WriteWindow *opened = nullptr;
+        for (AppWindow *other : AppWindow::windows())
+            if (auto *ww = qobject_cast<WriteWindow *>(other); ww && ww != &w && ww->filePath() == path) opened = ww;
+        QVERIFY(opened);
+        opened->setAttribute(Qt::WA_DeleteOnClose, false);
+        delete opened;
+    }
+
+    // Save as Template puts a .dotx in My Templates (with a picture of its first page) and leaves the document as it was; a document made from it has its text and no file.
+    void saveAsTemplatePutsADocumentInMyTemplates()
+    {
+        QStandardPaths::setTestModeEnabled(true);
+        QDir(myTemplatesFolder()).removeRecursively();
+        WriteWindow w;
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Dear <name>,"));
+        QVERIFY(w.isModified());
+        setTemplateNameStandIn([](const QString &) { return QStringLiteral("Letter"); });
+        const bool saved = w.saveAsTemplate();
+        setTemplateNameStandIn({});
+        QVERIFY(saved);
+        QVERIFY(w.isModified());
+        QVERIFY(w.filePath().isEmpty());
+        const QStringList found = myTemplateFiles({QStringLiteral("*.dotx")});
+        QCOMPARE(found.size(), 1);
+        QCOMPARE(QFileInfo(found.first()).fileName(), QStringLiteral("Letter.dotx"));
+        QVERIFY(!templateThumbnail(found.first()).isNull());
+        // The New page lists it, and choosing it makes a new document from it.
+        w.showFileScreen(QStringLiteral("new"));
+        auto *list = w.findChild<QListWidget *>(QStringLiteral("myTemplates"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 1);
+        w.hideFileScreen();
+        WriteWindow b;
+        QVERIFY(b.openFile(found.first()));
+        QVERIFY(b.filePath().isEmpty());
+        QVERIFY(b.document()->story()->toPlainText().contains(QStringLiteral("Dear <name>,")));
+        QVERIFY(removeMyTemplate(found.first()));
+        QVERIFY(myTemplateFiles({QStringLiteral("*.dotx")}).isEmpty());
+        QStandardPaths::setTestModeEnabled(false);
+    }
+
+    // Save As lists .ott, an OpenDocument template: the file is a template by its type, and opens as a new document.
+    void aDocumentCanBeSavedAsAnOpenDocumentTemplate()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Dear reader."));
+        const QString path = dir.filePath(QStringLiteral("letter.ott"));
+        QVERIFY(w.saveTo(path));
+        QMap<QString, QByteArray> parts;
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QVERIFY(jp::readZip(f.readAll(), parts));
+        QCOMPARE(parts.value(QStringLiteral("mimetype")), QByteArray("application/vnd.oasis.opendocument.text-template"));
+        WriteWindow b;
+        QVERIFY(b.openFile(path));
+        QVERIFY(b.filePath().isEmpty());
+        QVERIFY(b.document()->story()->toPlainText().contains(QStringLiteral("Dear reader.")));
+    }
+
+    // Open and Repair: a document cut short does not open as it is, and opens as a repaired copy with the text that could be read; what was left out is said, and Save asks for a name.
+    void aDamagedDocxOpensRepairedWithWhatCouldBeRead()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString good = dir.filePath(QStringLiteral("long.docx")), cutPath = dir.filePath(QStringLiteral("cut.docx"));
+        {
+            WriteWindow a;
+            QString text;
+            for (int i = 1; i <= 400; ++i) text += QStringLiteral("Paragraph %1 has some words in it, and a few more.\n").arg(i);
+            typeText(*a.document(), a.view()->cursor(), text);
+            QVERIFY(a.saveTo(good));
+        }
+        // The damage is made on purpose: the same package with the bytes of one named part, the document's text, cut part way.
+        QFile f(good);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(f.readAll(), parts));
+        f.close();
+        QVERIFY(parts.contains(QStringLiteral("word/document.xml")));
+        const qsizetype before = parts[QStringLiteral("word/document.xml")].size();
+        parts[QStringLiteral("word/document.xml")].truncate(before * 6 / 10);
+        jp::ZipWriter z;
+        z.add(QStringLiteral("[Content_Types].xml"), parts.take(QStringLiteral("[Content_Types].xml")), true);
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it) z.add(it.key(), it.value(), true);
+        QFile out(cutPath);
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write(z.finish());
+        out.close();
+        const qint64 damagedSize = QFileInfo(cutPath).size();
+        WriteWindow w;
+        QStringList told;
+        w.setNotifier([&](const QString &title, const QString &text) { told << title + QStringLiteral(": ") + text; });
+        QVERIFY(w.openFile(cutPath, OpenHow::Repair));
+        QVERIFY(w.filePath().isEmpty());
+        QVERIFY(w.isModified());
+        QVERIFY(w.displayName().contains(QLatin1String("cut")));
+        const QString text = w.document()->story()->toPlainText();
+        QVERIFY(text.startsWith(QStringLiteral("Paragraph 1 has some words")));
+        QVERIFY(text.contains(QStringLiteral("Paragraph 100 has")));
+        QVERIFY(text.size() < 400 * 40);   // (the end of the document was cut)
+        QVERIFY2(!told.isEmpty() && told.first().contains(QLatin1String("Open and Repair")) && told.first().contains(QLatin1String("word/document.xml")), qPrintable(told.join(QLatin1Char('|'))));
+        // The damaged file is as it was, and Save asks where the repaired copy goes.
+        const QString other = dir.filePath(QStringLiteral("repaired.docx"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return other; });
+        QVERIFY(w.save());
+        QFile again(cutPath);
+        QVERIFY(again.open(QIODevice::ReadOnly));
+        QCOMPARE(again.size(), damagedSize);
+        WriteWindow b;
+        QVERIFY(b.openFile(other));
+        QCOMPARE(b.document()->story()->toPlainText(), text);
     }
 
     // ---- an old binary file

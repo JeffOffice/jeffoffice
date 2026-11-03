@@ -2,6 +2,7 @@
 // JeffWrite's main window: the ribbon, the pages, and the status bar, with the File screen over them.
 
 #include "app/appwindow.h"
+#include "app/filetasks.h"
 #include "core/reviewops.h"
 #include "core/styleops.h"
 #include "core/tableops.h"
@@ -81,12 +82,20 @@ public:
     void setDocument(std::unique_ptr<write::WriteDoc> doc, const QString &path);
     // Opens a .docx in this window if it holds a new document nobody has touched, else in a window of its own. False, with the reason
     // shown, if the file can't be read.
-    bool openFile(const QString &path);
+    // `how`: as it is (the default), read-only, as a copy (an unsaved document made from the file; the file is never written), or in a window of its own even if this one holds nothing.
+    bool openFile(const QString &path, OpenHow how = OpenHow::Normal);
+    // Shows the file dialog and opens what is chosen the way `how` says.
+    void browseAndOpen(OpenHow how = OpenHow::Normal);
+    void setReadOnly(bool on) override;
     // Saves to the file the document came from, else asks where (Save As). False if nothing was written.
     bool save();
     bool saveAs();
-    // Writes the file; the document is saved and takes the file's name. On failure says why and leaves it unsaved.
-    bool saveTo(const QString &path);
+    // Save a Copy: asks for a name as Save As does, writes the document there, and goes on with the original (its name, and the changes it has not saved).
+    bool saveCopy();
+    // Save as Template: asks for a name and puts a template made from the document in My Templates (File > New); the document is as it was.
+    bool saveAsTemplate();
+    // Writes the file; the document is saved and takes the file's name (not for a copy, which is only written). On failure says why and leaves it unsaved.
+    bool saveTo(const QString &path, bool asCopy = false);
     // What Insert > Picture asks for a file with: the file dialog, unless this stands in for it (tests): the path chosen, empty for none.
     void setPictureChooser(const std::function<QString()> &chooser) { m_pictureChooser = chooser; }
     write::Ruler *ruler() const { return m_ruler; }

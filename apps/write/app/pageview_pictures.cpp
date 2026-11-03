@@ -156,7 +156,7 @@ int PageView::pictureAtPoint(const QPoint &pos)
 
 bool PageView::beginPictureDrag(QMouseEvent *e)
 {
-    if (!m_doc || m_hf.active || m_note.active || e->button() != Qt::LeftButton) return false;
+    if (!m_doc || m_readOnly || m_hf.active || m_note.active || e->button() != Qt::LeftButton) return false;
     const QPoint pos = e->position().toPoint();
     int target = selectedPicture();
     PictureHandle handle = target >= 0 ? pictureHandleAt(pos) : PictureHandle::None;
@@ -414,7 +414,7 @@ void PageView::dropEvent(QDropEvent *e)
         return;
     }
     if (dropText(e)) return;
-    if (!m_doc || !wantsDrop(e->mimeData())) {
+    if (!m_doc || m_readOnly || !wantsDrop(e->mimeData())) {
         e->ignore();
         return;
     }
