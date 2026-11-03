@@ -167,6 +167,238 @@ private Q_SLOTS:
         QCOMPARE(text(w.grid, w.grid.rows - 1, w.grid.cols - 1), QStringLiteral("22"));
     }
 
+    // A value shown as a share of the whole, its line, or its column, as an index, or against another item of a field (the difference from it, a percent of it,
+    // a percent difference from it, or a running total across the items); the first item is the base for what has no item before it.
+    void aValueCanBeShownAsAShareOrAgainstAnotherItem()
+    {
+        auto grid = [&](const QString &attrs) {
+            const Worked w = work(tableDefinition(true, QString(), QString(), attrs));
+            [&] { QVERIFY2(w.ok, qPrintable(w.why)); }();
+            return w.grid;
+        };
+        QCOMPARE(rowText(grid(QStringLiteral("showDataAs=\"percentOfTotal\" baseField=\"0\" baseItem=\"0\"")), 2), (QStringList{QStringLiteral("East"), QStringLiteral("0.306122448979592"), QStringLiteral("0.408163265306122"), QStringLiteral("0.714285714285714")}));
+        QCOMPARE(rowText(grid(QStringLiteral("showDataAs=\"percentOfRow\" baseField=\"0\" baseItem=\"0\"")), 2), (QStringList{QStringLiteral("East"), QStringLiteral("0.428571428571429"), QStringLiteral("0.571428571428571"), QStringLiteral("1")}));
+        QCOMPARE(rowText(grid(QStringLiteral("showDataAs=\"percentOfCol\" baseField=\"0\" baseItem=\"0\"")), 3), (QStringList{QStringLiteral("West"), QStringLiteral("0.318181818181818"), QStringLiteral("0.259259259259259"), QStringLiteral("0.285714285714286")}));
+        QCOMPARE(text(grid(QStringLiteral("showDataAs=\"index\" baseField=\"0\" baseItem=\"0\"")), 2, 1), QStringLiteral("0.954545454545455"));
+        // against Jan: the difference (the base item itself is blank), then a percent of it, a percent difference from it, and the one before (Feb has Jan, Jan has none)
+        QCOMPARE(rowText(grid(QStringLiteral("showDataAs=\"difference\" baseField=\"1\" baseItem=\"0\"")), 2), (QStringList{QStringLiteral("East"), QString(), QStringLiteral("5"), QString()}));
+        QCOMPARE(rowText(grid(QStringLiteral("showDataAs=\"percent\" baseField=\"1\" baseItem=\"0\"")), 2), (QStringList{QStringLiteral("East"), QStringLiteral("1"), QStringLiteral("1.33333333333333"), QString()}));
+        QCOMPARE(rowText(grid(QStringLiteral("showDataAs=\"percentDiff\" baseField=\"1\" baseItem=\"1048828\"")), 3), (QStringList{QStringLiteral("West"), QString(), QStringLiteral("0"), QString()}));
+        QCOMPARE(rowText(grid(QStringLiteral("showDataAs=\"runTotal\" baseField=\"1\" baseItem=\"0\"")), 2), (QStringList{QStringLiteral("East"), QStringLiteral("15"), QStringLiteral("35"), QString()}));
+        // written and read again: the base field and item are kept
+        Worked w = work(tableDefinition(true, QString(), QString(), QStringLiteral("showDataAs=\"difference\" baseField=\"1\" baseItem=\"1048829\"")));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(w.table.dataFields[0].baseField, 1);
+        QCOMPARE(w.table.dataFields[0].baseItem, 1048829);
+        const QByteArray out = writePivotTable(tableDefinition(true), w.table, false);
+        QVERIFY(out.contains("showDataAs=\"difference\""));
+        QVERIFY(out.contains("baseField=\"1\""));
+        QVERIFY(out.contains("baseItem=\"1048829\""));
+    }
+
+    // A field's items sorted by their labels, or by a value, and left out by a filter on the labels, the values, or the first or last few items.
+    void aFieldIsSortedAndFiltered()
+    {
+        Worked w = work(tableDefinition(true));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        pivotSortField(&w.table, w.cache, 0, PivotSort::Descending);
+        PivotGrid g;
+        QVERIFY(computePivot(w.table, w.cache, &g, &w.why));
+        QCOMPARE(text(g, 2, 0), QStringLiteral("West"));
+        QCOMPARE(text(g, 3, 0), QStringLiteral("East"));
+        QVERIFY(writePivotTable(tableDefinition(true), w.table, true).contains("sortType=\"descending\""));
+        // by the value: West (14) before East (35) when ascending; the scope is written
+        w = work(tableDefinition(true));
+        QVERIFY(pivotSortFieldByValue(&w.table, 0, 0, false));
+        QVERIFY(computePivot(w.table, w.cache, &g, &w.why));
+        QCOMPARE(text(g, 2, 0), QStringLiteral("West"));
+        const QByteArray sorted = writePivotTable(tableDefinition(true), w.table, true);
+        QVERIFY2(sorted.contains("<autoSortScope>"), sorted.constData());
+        PivotTable again;
+        QVERIFY(readPivotTable(sorted, &again, &w.why));
+        QCOMPARE(again.fields[0].sortByData, 0);
+        // the filters
+        auto shown = [&](PivotFilter f) {
+            Worked x = work(tableDefinition(true));
+            PivotGrid grid;
+            if (!x.ok || !pivotFilterField(&x.table, x.cache, 0, f, &x.why) || !computePivot(x.table, x.cache, &grid, &x.why)) return QStringList{QStringLiteral("failed: ") + x.why};
+            QStringList names;
+            for (int r = 2; r < grid.rows - 1; ++r) names << text(grid, r, 0);
+            return names;
+        };
+        PivotFilter f;
+        f.kind = PivotFilter::LabelContains;
+        f.text = QStringLiteral("ES");
+        QCOMPARE(shown(f), (QStringList{QStringLiteral("West")}));
+        f.kind = PivotFilter::LabelNotEquals;
+        f.text = QStringLiteral("east");
+        QCOMPARE(shown(f), (QStringList{QStringLiteral("West")}));
+        f.kind = PivotFilter::ValueGreater;
+        f.a = 20;
+        QCOMPARE(shown(f), (QStringList{QStringLiteral("East")}));
+        f.kind = PivotFilter::ValueBetween;
+        f.a = 10;
+        f.b = 20;
+        QCOMPARE(shown(f), (QStringList{QStringLiteral("West")}));
+        f.kind = PivotFilter::TopItems;
+        f.a = 1;
+        QCOMPARE(shown(f), (QStringList{QStringLiteral("East")}));
+        f.kind = PivotFilter::BottomItems;
+        QCOMPARE(shown(f), (QStringList{QStringLiteral("West")}));
+        f.kind = PivotFilter::None;
+        QCOMPARE(shown(f), (QStringList{QStringLiteral("East"), QStringLiteral("West")}));
+    }
+
+    // A field of dates grouped by months, as a file has it: the items of the field are the groups, a record is put in its month, and the part is written back with the group.
+    void aGroupOfMonthsIsReadWorkedOutAndWritten()
+    {
+        const QByteArray def = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheDefinition xmlns=\"%1\" refreshedBy=\"x\" refreshedDate=\"45000\" recordCount=\"3\">"
+                                              "<cacheSource type=\"worksheet\"><worksheetSource ref=\"A1:B4\" sheet=\"Data\"/></cacheSource><cacheFields count=\"2\">"
+                                              "<cacheField name=\"Date\" numFmtId=\"14\"><sharedItems containsSemiMixedTypes=\"0\" containsNonDate=\"0\" containsDate=\"1\" containsString=\"0\" minDate=\"2020-01-15T00:00:00\" maxDate=\"2021-01-10T00:00:00\" count=\"3\">"
+                                              "<d v=\"2020-01-15T00:00:00\"/><d v=\"2020-02-20T00:00:00\"/><d v=\"2021-01-10T00:00:00\"/></sharedItems>"
+                                              "<fieldGroup base=\"0\"><rangePr groupBy=\"months\" startDate=\"2020-01-15T00:00:00\" endDate=\"2021-01-10T00:00:00\"/><groupItems count=\"14\"><s v=\"&lt;1/15/2020\"/><s v=\"Jan\"/><s v=\"Feb\"/><s v=\"Mar\"/><s v=\"Apr\"/>"
+                                              "<s v=\"May\"/><s v=\"Jun\"/><s v=\"Jul\"/><s v=\"Aug\"/><s v=\"Sep\"/><s v=\"Oct\"/><s v=\"Nov\"/><s v=\"Dec\"/><s v=\"&gt;1/10/2021\"/></groupItems></fieldGroup></cacheField>"
+                                              "<cacheField name=\"Amount\" numFmtId=\"0\"><sharedItems containsSemiMixedTypes=\"0\" containsString=\"0\" containsNumber=\"1\" containsInteger=\"1\" minValue=\"1\" maxValue=\"4\"/></cacheField>"
+                                              "</cacheFields></pivotCacheDefinition>").arg(QLatin1String(kNs)).toUtf8();
+        const QByteArray rec = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheRecords xmlns=\"%1\" count=\"4\"><r><x v=\"0\"/><n v=\"1\"/></r><r><x v=\"1\"/><n v=\"2\"/></r>"
+                                              "<r><x v=\"2\"/><n v=\"3\"/></r><r><x v=\"0\"/><n v=\"4\"/></r></pivotCacheRecords>").arg(QLatin1String(kNs)).toUtf8();
+        QString items;
+        for (int i = 0; i < 14; ++i) items += QStringLiteral("<item x=\"%1\"/>").arg(i);
+        const QByteArray table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotTableDefinition xmlns=\"%1\" name=\"t\" cacheId=\"1\" compact=\"0\" outline=\"0\" compactData=\"0\">"
+                                                "<location ref=\"A3:B6\" firstHeaderRow=\"1\" firstDataRow=\"1\" firstDataCol=\"1\"/><pivotFields count=\"2\"><pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\" showAll=\"0\">"
+                                                "<items count=\"15\">%2<item t=\"default\"/></items></pivotField><pivotField dataField=\"1\" compact=\"0\" outline=\"0\" showAll=\"0\"/></pivotFields>"
+                                                "<rowFields count=\"1\"><field x=\"0\"/></rowFields><dataFields count=\"1\"><dataField name=\"Sum of Amount\" fld=\"1\" baseField=\"0\" baseItem=\"0\"/></dataFields></pivotTableDefinition>")
+                                    .arg(QLatin1String(kNs), items).toUtf8();
+        Worked w = work(table, def, rec);
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(w.cache.fields[0].items.size(), 14);
+        QVERIFY(w.cache.fields[0].hasRaw);
+        QCOMPARE(w.cache.fields[0].rawItems.size(), 3);
+        // (January 15 2020 is the first day, not before it; the 2021 date is a January too: 1 + 3 + 4)
+        QCOMPARE(text(w.grid, 1, 0), QStringLiteral("Jan"));
+        QCOMPARE(text(w.grid, 1, 1), QStringLiteral("8"));
+        QCOMPARE(text(w.grid, 2, 0), QStringLiteral("Feb"));
+        QCOMPARE(text(w.grid, 2, 1), QStringLiteral("2"));
+        // written back: the field's own dates, the group, and the records are the file's
+        const QByteArray written = writePivotCacheDefinition(def, w.cache, 4, 45000, DateSystem::Date1900);
+        QVERIFY2(written.contains("groupBy=\"months\""), written.constData());
+        QVERIFY(written.contains("<d v=\"2020-02-20T00:00:00\""));
+        QVERIFY(written.contains("1/10/2021\"/>"));
+        const QByteArray records = writePivotCacheRecords(w.cache, DateSystem::Date1900);
+        QVERIFY2(records.contains("<r><x v=\"1\"/><n v=\"2\"/></r>"), records.constData());
+        Worked again = work(table, written, records);
+        QVERIFY2(again.ok, qPrintable(again.why));
+        QCOMPARE(rowText(again.grid, 2), rowText(w.grid, 2));
+    }
+
+    // Dates are grouped by years and months (a field added for the coarser part), numbers in steps; the groups are written, read back, and read again from new data; a field of text can't be grouped.
+    void datesAndNumbersAreGroupedAndUngrouped()
+    {
+        Worked w = work(tableDefinition(true), cacheDefinition(), cacheRecords());
+        QVERIFY2(w.ok, qPrintable(w.why));
+        // Amount (3, 4, 5, 7, 10, 20) in steps of 10 from 1: 1-10, 11-20; a value that is the end is in the last group
+        PivotCache numbers = w.cache;
+        QVector<int> added;
+        QVERIFY2(pivotGroupField(&numbers, 2, QStringList(), 1, 20, 10, false, false, DateSystem::Date1900, &added, &w.why), qPrintable(w.why));
+        QCOMPARE(numbers.fields[2].items.size(), 4);   // <1, 1-10, 11-20, >20
+        QCOMPARE(numbers.fields[2].items[1].text, QStringLiteral("1-10"));
+        QCOMPARE(numbers.fields[2].items[2].text, QStringLiteral("11-20"));
+        int inFirst = 0, inSecond = 0;
+        for (qint32 r : numbers.fields[2].records) {
+            inFirst += r == 1;
+            inSecond += r == 2;
+        }
+        QCOMPARE(inFirst, 5);
+        QCOMPARE(inSecond, 1);
+        // text can't be grouped
+        PivotCache text_ = w.cache;
+        QVERIFY(!pivotGroupField(&text_, 0, QStringList{QStringLiteral("months")}, 0, 0, 1, true, true, DateSystem::Date1900, &added, &w.why));
+        QVERIFY(!w.why.isEmpty());
+        // taking the group away gives the field back
+        QVector<int> removed;
+        QVERIFY(pivotUngroupField(&numbers, 2, &removed));
+        QCOMPARE(numbers.fields[2].items.size(), w.cache.fields[2].items.size());
+        QVERIFY(!numbers.fields[2].hasRaw);
+        // dates: by years and months
+        PivotCache dates;
+        PivotTable t;
+        const QByteArray def = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheDefinition xmlns=\"%1\" refreshedBy=\"x\" refreshedDate=\"45000\" recordCount=\"4\">"
+                                              "<cacheSource type=\"worksheet\"><worksheetSource ref=\"A1:B5\" sheet=\"Data\"/></cacheSource><cacheFields count=\"2\">"
+                                              "<cacheField name=\"Date\" numFmtId=\"14\"><sharedItems containsSemiMixedTypes=\"0\" containsNonDate=\"0\" containsDate=\"1\" containsString=\"0\" minDate=\"2020-01-15T00:00:00\" maxDate=\"2021-01-10T00:00:00\" count=\"3\">"
+                                              "<d v=\"2020-01-15T00:00:00\"/><d v=\"2020-02-20T00:00:00\"/><d v=\"2021-01-10T00:00:00\"/></sharedItems></cacheField>"
+                                              "<cacheField name=\"Amount\" numFmtId=\"0\"><sharedItems containsSemiMixedTypes=\"0\" containsString=\"0\" containsNumber=\"1\" containsInteger=\"1\" minValue=\"1\" maxValue=\"4\"/></cacheField>"
+                                              "</cacheFields></pivotCacheDefinition>").arg(QLatin1String(kNs)).toUtf8();
+        const QByteArray rec = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheRecords xmlns=\"%1\" count=\"4\"><r><x v=\"0\"/><n v=\"1\"/></r><r><x v=\"1\"/><n v=\"2\"/></r>"
+                                              "<r><x v=\"2\"/><n v=\"3\"/></r><r><x v=\"0\"/><n v=\"4\"/></r></pivotCacheRecords>").arg(QLatin1String(kNs)).toUtf8();
+        QVERIFY2(readPivotCache(def, rec, DateSystem::Date1900, &dates, &w.why), qPrintable(w.why));
+        const QByteArray tableXml = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotTableDefinition xmlns=\"%1\" name=\"t\" cacheId=\"1\" compact=\"0\" outline=\"0\" compactData=\"0\">"
+                                                   "<location ref=\"A3:B6\" firstHeaderRow=\"1\" firstDataRow=\"1\" firstDataCol=\"1\"/><pivotFields count=\"2\"><pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\" showAll=\"0\"/>"
+                                                   "<pivotField dataField=\"1\" compact=\"0\" outline=\"0\" showAll=\"0\"/></pivotFields><rowFields count=\"1\"><field x=\"0\"/></rowFields>"
+                                                   "<dataFields count=\"1\"><dataField name=\"Sum of Amount\" fld=\"1\" baseField=\"0\" baseItem=\"0\"/></dataFields></pivotTableDefinition>").arg(QLatin1String(kNs)).toUtf8();
+        QVERIFY2(readPivotTable(tableXml, &t, &w.why), qPrintable(w.why));
+        QVERIFY2(pivotGroupField(&dates, 0, QStringList{QStringLiteral("months"), QStringLiteral("years")}, 0, 0, 1, true, true, DateSystem::Date1900, &added, &w.why), qPrintable(w.why));
+        QCOMPARE(added, (QVector<int>{0, 2}));
+        QCOMPARE(dates.fields[2].name, QStringLiteral("Years"));
+        QVERIFY(!dates.fields[2].group.databaseField);
+        QCOMPARE(dates.fields[2].items.size(), 4);   // <1/15/2020, 2020, 2021, >1/10/2021
+        t.fields.append(PivotField());
+        t.fields[2].compact = false;
+        t.fields[2].outline = false;
+        t.fields[0].items.clear();
+        t.fields[0].hasItems = false;
+        t.rowFields = {2, 0};
+        pivotSyncRoles(&t);
+        pivotPrepareFields(&t, &dates);
+        PivotGrid g;
+        QVERIFY2(computePivot(t, dates, &g, &w.why), qPrintable(w.why));
+        // 2020: Jan (1 + 4), Feb (2); 2021: Jan (3)
+        QStringList lines;
+        for (int r = 1; r < g.rows; ++r) lines << rowText(g, r).join(QLatin1Char('|'));
+        QVERIFY2(lines.join(QLatin1Char('/')).contains(QStringLiteral("2020|Jan|5")), qPrintable(lines.join(QLatin1Char('/'))));
+        QCOMPARE(text(g, g.rows - 1, 2), QStringLiteral("10"));
+        // the written parts: the new field has no records of its own, and they read back to the same table
+        const QByteArray writtenDef = writePivotCacheDefinition(def, dates, 4, 45000, DateSystem::Date1900);
+        QVERIFY2(writtenDef.contains("databaseField=\"0\""), writtenDef.constData());
+        QVERIFY(writtenDef.contains("groupBy=\"years\""));
+        const QByteArray writtenRec = writePivotCacheRecords(dates, DateSystem::Date1900);
+        QVERIFY2(!writtenRec.contains("<x v=\"3\"/>"), writtenRec.constData());
+        const QByteArray writtenTable = writePivotTable(tableXml, t, true);
+        QString why2;
+        QVERIFY2(pivotCheckShape(writtenTable, writtenDef, writtenRec, &why2), qPrintable(why2));
+        Worked back = work(writtenTable, writtenDef, writtenRec);
+        QVERIFY2(back.ok, qPrintable(back.why));
+        QCOMPARE(back.grid.rows, g.rows);
+        QCOMPARE(text(back.grid, back.grid.rows - 1, 2), QStringLiteral("10"));
+        // read again from the cells (a new date and an amount): the groups are made again
+        PivotSource src;
+        src.row1 = 0;
+        src.col1 = 0;
+        src.row2 = 5;
+        src.col2 = 1;
+        const double days[] = {43845, 43881, 44206, 43845, 44500};
+        src.cell = [&](quint32 row, quint32 col) {
+            PivotValue v;
+            if (row == 0) {
+                v.kind = PivotValue::Text;
+                v.text = col == 0 ? QStringLiteral("Date") : QStringLiteral("Amount");
+            } else if (col == 0) {
+                v.kind = PivotValue::Date;
+                v.number = days[row - 1];
+            } else {
+                v.kind = PivotValue::Number;
+                v.number = double(row);
+            }
+            return v;
+        };
+        PivotCache fresh;
+        QVERIFY2(buildPivotCache(src, dates, &fresh, &w.why), qPrintable(w.why));
+        QCOMPARE(fresh.fields.size(), 3);
+        QCOMPARE(fresh.fields[2].name, QStringLiteral("Years"));
+        QCOMPARE(fresh.fields[2].items.size(), 4);   // <, 2020, 2021, > (44500 is October 30, 2021: the end moves out with the data)
+        QVERIFY(fresh.fields[0].hasRaw);
+        QCOMPARE(fresh.fields[0].rawItems.size(), 4);
+    }
+
     // The outline form puts a field's item on a line of its own, the compact form puts every field in one column; each has a caption the file names.
     void theThreeLayoutsPutTheLabelsWhereTheyBelong()
     {

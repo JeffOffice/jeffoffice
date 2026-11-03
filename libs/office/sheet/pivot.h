@@ -57,6 +57,21 @@ struct PivotValue {
     bool operator==(const PivotValue &o) const { return kind == o.kind && number == o.number && text == o.text; }
 };
 
+// How a field of the cache is grouped (the file's fieldGroup): the dates of a field by their seconds, minutes, hours, days, months, quarters, or years; the numbers of a field in steps of a width;
+// or items of a field put in groups by a person. The items of such a field, as the table sees them, are the groups (`items`, the labels), and each record's place in them; the field's own values
+// are kept apart (`raw...`) to be written back.
+struct PivotFieldGroup {
+    enum Kind : quint8 { None, Range, Dates, Discrete } kind = None;
+    QString groupBy;               // Dates: seconds, minutes, hours, days, months, quarters, or years; Range: range
+    double start = 0, end = 0, interval = 1;   // the bounds (a day number for dates) and the width of a number range
+    bool autoStart = true, autoEnd = true;      // the bound is the least (greatest) value, worked out again when the data is read again
+    int base = -1, par = -1;       // the field the group is made from, and the field that groups this one in a finer way (its parent)
+    bool databaseField = true;     // false: a field the records have no values for (the group of another field)
+    QStringList labels;            // the group items' names, in order
+    QVector<qint32> discrete;      // (Discrete) for each shared item of the base field, the group it is in
+    QString extra;                 // (not in the file) why a group can't be worked out
+};
+
 struct PivotCacheField {
     QString name;
     int numFmtId = 0;
@@ -65,6 +80,17 @@ struct PivotCacheField {
     bool hasShared = false;      // the file lists shared items (`items` begins with them)
     QVector<qint32> records;     // for each record, the place of its value in `items`
     QString sharedAttrs;         // the attributes of <sharedItems> (kept for writing: containsBlank and the like are made again when written)
+    PivotFieldGroup group;
+    bool hasRaw = false;               // (a field that is the base of a group) `items` and `records` are the groups; these are the field's own
+    QVector<PivotValue> rawItems;
+    QVector<qint32> rawRecords;
+    int rawSharedCount = 0;
+    bool rawHasShared = false;
+    QString rawSharedAttrs;
+    const QVector<PivotValue> &storedItems() const { return hasRaw ? rawItems : items; }
+    const QVector<qint32> &storedRecords() const { return hasRaw ? rawRecords : records; }
+    bool storedHasShared() const { return hasRaw ? rawHasShared : hasShared; }
+    int storedSharedCount() const { return hasRaw ? rawSharedCount : sharedCount; }
     qint8 numericKnown = -1;   // whether the field holds numbers only, worked out when the cache is read or made (-1: not worked out: pivotFieldIsNumeric then reads the items, and keeps nothing)
 };
 
@@ -108,6 +134,7 @@ struct PivotField {
     bool subtotalTop = true;
     bool compact = true, outline = true;
     bool insertBlankRow = false;
+    bool fillDownLabels = false;   // (the tabular and outline forms) the label of an outer item is repeated on each of its lines
     QVector<PivotTableItem> items;
     bool hasItems = false;
     int sortByData = -1;         // the field is sorted by the values of this data field (autoSortScope)
@@ -120,7 +147,12 @@ struct PivotDataField {
     QString subtotal = QStringLiteral("sum");
     QString showDataAs = QStringLiteral("normal");
     int numFmtId = 0;
+    QString numFmtCode;          // (not in the file) a number format by its code, to be given an id when the step that sets it is made; the cells then name it as -2 less the value's place
+    int baseField = 0;           // (for difference, percent, percentDiff, and runTotal) the field whose items the value is shown against
+    int baseItem = 0;            // its item's place in the field's items; kPivotPreviousItem and kPivotNextItem for the one before or after
 };
+constexpr int kPivotPreviousItem = 1048828;
+constexpr int kPivotNextItem = 1048829;
 
 struct PivotPageField {
     int fld = 0;
@@ -143,6 +175,11 @@ struct PivotTable {
     bool compact = true, outline = false;
     bool mergeItem = false;
     bool gridDropZones = false;
+    // the table's style (pivotTableStyleInfo) and its options
+    bool hasStyleInfo = false;
+    QString styleName;
+    bool showRowHeaders = true, showColHeaders = true, showRowStripes = false, showColStripes = false, showLastColumn = true;
+    bool preserveFormatting = true, useAutoFormatting = false, showHeaders = true, multipleFieldFilters = true, showDrill = true;
     int autoFormatId = 0;   // the format the table was drawn with; 4097 (none) draws the classic table without the line of captions over the columns
     QVector<PivotField> fields;
     QVector<int> rowFields, colFields;   // a field's place; -2 for the values
@@ -183,6 +220,21 @@ bool readPivotCacheSource(const QByteArray &definition, PivotCache *out);
 // Only the cells a table covers, read by streaming: for a table that can't be read whole.
 bool readPivotTableLocation(const QByteArray &xml, QString *ref);
 
+// ---- grouping
+// The group items (their labels) a grouping of a field's values makes, with the place of each of the field's items among them (`map`: -1 for a value that can't be grouped). Dates group by their
+// parts (`groupBy`), numbers in steps; `group.start` and `group.end` are worked out from the items when they are automatic. False, with `why`, for what can't be grouped (text, blanks, errors).
+bool pivotGroupItems(const QVector<PivotValue> &items, PivotFieldGroup *group, jp::calc::DateSystem dates, QVector<qint32> *map, QString *why);
+// Makes a cache field's items and records the groups it has (the field's own are kept in `raw...`): the cache as it is read has this done to it. False, with `why`, when a group can't be worked out.
+bool pivotApplyGroup(PivotCache *cache, int field, jp::calc::DateSystem dates, QString *why);
+// Groups a field of a cache as a person asks: dates by the parts in `levels` (the finest last, as the original program makes them: a field for each coarser level is added at the end of the cache),
+// or numbers by a step. Returns the places of the new cache fields (those added, then the field itself first), empty with `why` set on failure. `dates` is the workbook's date system.
+bool pivotGroupField(PivotCache *cache, int field, const QStringList &levels, double start, double end, double step, bool autoStart, bool autoEnd, jp::calc::DateSystem dates, QVector<int> *added, QString *why);
+// Takes the grouping of a field away (and the fields that were added for it): returns the places of the fields taken out, which the caller takes out of its table.
+bool pivotUngroupField(PivotCache *cache, int field, QVector<int> *removed);
+
+// Takes the fields at these places (ascending or not) out of a table, and moves the places the rest of the table names.
+void pivotRemoveFields(PivotTable *table, const QVector<int> &removed);
+
 // ---- working out
 // The cells the table shows. The table's `location` is not read, the grid has the size the table needs. False, with `why`, when the table or the
 // cache has something this does not work out (a grouped field, a "show values as"), or is past a bound.
@@ -215,6 +267,11 @@ private:
 bool pivotGetData(const PivotTable &table, const PivotCache &cache, const PivotGrid &grid, const QString &dataField, const std::vector<std::pair<QString, PivotValue>> &items, PivotCell *cell);
 bool pivotGetDataArguments(const PivotTable &table, const PivotCache &cache, const PivotGrid &grid, int gridRow, int gridCol, QString *dataField, std::vector<std::pair<QString, PivotValue>> *items);
 
+// ---- the rows behind a value
+// The records of the cache (their places) that make up the cell of the grid at (gridRow, gridCol) (counted from the table's first cell): those that are on the lines and columns the cell is
+// in, among the items the table shows (an item left out by a filter or hidden has no records here). False for a cell that is no value.
+bool pivotDetailRecords(const PivotTable &table, const PivotCache &cache, const PivotGrid &grid, int gridRow, int gridCol, QVector<qint64> *records);
+
 // ---- reading the list again from the sheet
 // What a cell of the source holds, by row and column.
 using PivotSourceCell = std::function<PivotValue(quint32 row, quint32 col)>;
@@ -223,6 +280,7 @@ struct PivotSource {
     quint32 row1 = 0, col1 = 0, row2 = 0, col2 = 0;   // the range: its first row has the names of the fields
     QVector<int> numFmtIds;                            // the number format of each column's first cell of data (empty: those the cache had)
     QSet<int> axisFields;                              // the fields (by their place in the cache being replaced) a table has on an axis or a page: their items are shared
+    jp::calc::DateSystem dates = jp::calc::DateSystem::Date1900;   // (the workbook's: the groups of dates are worked out by it)
 };
 // A new cache from the cells of a range. A field of the same name in `previous` keeps the order of its shared items that remain, new ones are put after them;
 // `remap` of the result says where each shared item of the previous cache went (-1: gone). False, with `why`, past a bound or for a source with no fields.
@@ -247,6 +305,27 @@ QString pivotDataFieldName(const PivotTable &table, const PivotCache &cache, int
 void pivotSyncRoles(PivotTable *table);
 // Puts the text of a cell value in the order a sorted field has: numbers first (in number order), then text (without regard to case), then errors, then the blank.
 bool pivotValueLess(const PivotValue &a, const PivotValue &b);
+
+// ---- sorting and filtering a field's items
+enum class PivotSort { Manual, Ascending, Descending };
+// Puts the field's items in the order of their labels (numbers first, then text without regard to case, then errors, then the blank), and keeps the sort so that items that come later are put in order.
+// Manual leaves the order as it is and lets later items go at the end.
+void pivotSortField(PivotTable *table, const PivotCache &cache, int field, PivotSort how);
+// The field's items sorted by the values of a data field, as the original program does: the order is worked out when the table is.
+bool pivotSortFieldByValue(PivotTable *table, int field, int dataField, bool descending);
+// A filter on a field's items: by what the labels say, by the total of a data field for each item, or the first or last items by that total. What it leaves out is hidden (as the checks of the items do).
+struct PivotFilter {
+    enum Kind : quint8 {
+        None, LabelBeginsWith, LabelEndsWith, LabelContains, LabelNotContains, LabelEquals, LabelNotEquals,
+        ValueGreater, ValueGreaterOrEqual, ValueLess, ValueLessOrEqual, ValueEquals, ValueNotEquals, ValueBetween, ValueNotBetween, TopItems, BottomItems
+    };
+    Kind kind = None;
+    QString text;              // for a label filter
+    double a = 0, b = 0;       // for a value filter (b is the upper end of a Between); for a top or bottom filter, a is how many
+    int dataField = 0;         // the value the filter looks at
+};
+// Applies the filter: false, with `why`, when the field or the data field is not there.
+bool pivotFilterField(PivotTable *table, const PivotCache &cache, int field, const PivotFilter &filter, QString *why);
 
 // ---- writing (a part is made from the one the file has: what the program doesn't model is kept)
 QByteArray writePivotCacheDefinition(const QByteArray &original, const PivotCache &cache, qint64 recordCount, double refreshedDate, jp::calc::DateSystem dates);

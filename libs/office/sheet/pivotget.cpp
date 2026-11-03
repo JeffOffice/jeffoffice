@@ -342,3 +342,69 @@ bool pivotGetDataArguments(const PivotTable &t, const PivotCache &c, const Pivot
 }
 
 } // namespace jp::office::sheet
+
+namespace jp::office::sheet {
+
+bool pivotDetailRecords(const PivotTable &t, const PivotCache &c, const PivotGrid &grid, int gridRow, int gridCol, QVector<qint64> *records)
+{
+    records->clear();
+    QString dataField;
+    std::vector<std::pair<QString, PivotValue>> items;
+    if (!pivotGetDataArguments(t, c, grid, gridRow, gridCol, &dataField, &items)) return false;
+    const int nf = int(c.fields.size());
+    const qint64 n = nf > 0 ? c.fields[0].records.size() : 0;
+    auto fieldOf = [&](const QString &name) {
+        for (int f = 0; f < nf && f < t.fields.size(); ++f)
+            if ((t.fields[f].name.isEmpty() ? c.fields[f].name : t.fields[f].name) == name) return f;
+        return -1;
+    };
+    // the places of the items the table shows, for a field with a list of items: a record in a hidden item is not there
+    auto shownItem = [&](int f, qint32 x) {
+        const PivotField &pf = t.fields[f];
+        if (!pf.hasItems) return true;
+        for (const PivotTableItem &it : pf.items)
+            if (it.t.isEmpty() && it.x == x) return !it.hidden;
+        return false;
+    };
+    QVector<QPair<int, PivotValue>> wanted;
+    for (const auto &[name, value] : items) {
+        const int f = fieldOf(name);
+        if (f < 0) return false;
+        wanted.append({f, value});
+    }
+    for (qint64 r = 0; r < n; ++r) {
+        bool in = true;
+        for (int f : t.rowFields)
+            if (f >= 0 && !shownItem(f, c.fields[f].records[r])) in = false;
+        for (int f : t.colFields)
+            if (f >= 0 && !shownItem(f, c.fields[f].records[r])) in = false;
+        for (const PivotPageField &p : t.pageFields) {
+            const PivotField &pf = t.fields[p.fld];
+            const qint32 x = c.fields[p.fld].records[r];
+            if (!shownItem(p.fld, x)) in = false;
+            if (p.item >= 0) {
+                int want = p.item;
+                if (pf.hasItems) {
+                    int pos = 0;
+                    want = -1;
+                    for (const PivotTableItem &it : pf.items) {
+                        if (!it.t.isEmpty()) continue;
+                        if (pos++ == p.item) want = it.x;
+                    }
+                }
+                if (x != want) in = false;
+            }
+        }
+        for (int k = 0; k < wanted.size() && in; ++k) {
+            const PivotValue &have = c.fields[wanted[k].first].items[c.fields[wanted[k].first].records[r]];
+            const PivotValue &want = wanted[k].second;
+            const bool same = have.isNumeric() && want.isNumeric() ? have.number == want.number
+                              : have.kind == want.kind && (have.kind == PivotValue::Missing || have.number == want.number) && (have.kind != PivotValue::Text || have.text.compare(want.text, Qt::CaseInsensitive) == 0);
+            if (!same) in = false;
+        }
+        if (in) records->append(r);
+    }
+    return true;
+}
+
+} // namespace jp::office::sheet

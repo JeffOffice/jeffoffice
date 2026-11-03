@@ -212,7 +212,48 @@ static bool readRecordsFast(const QByteArray &data, jp::calc::DateSystem dates, 
     return true;
 }
 
+namespace {
+
+using DerivedFields = std::vector<std::pair<int, PivotCacheField>>;
+
+// What the definition has of a cache before groups are worked out: the fields that have records (and the others, with the places they have among all), without the groups applied.
+bool readPivotCacheCore(const QByteArray &definition, const QByteArray &records, jp::calc::DateSystem dates, PivotCache *out, QString *why, DerivedFields *derived);
+
+} // namespace
+
 bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp::calc::DateSystem dates, PivotCache *out, QString *why)
+{
+    DerivedFields derived;
+    if (!readPivotCacheCore(definition, records, dates, out, why, &derived)) return false;
+    // the fields with no records (the groups of another field) go where the file has them, then each group is worked out
+    for (auto &d : derived) {
+        if (d.first < 0 || d.first > out->fields.size()) {
+            if (why) *why = QStringLiteral("a field of the cache is out of place");
+            return false;
+        }
+        if (out->fields.size() >= kPivotMaxFields) {
+            if (why) *why = QStringLiteral("too many fields");
+            return false;
+        }
+        out->fields.insert(d.first, std::move(d.second));
+    }
+    for (int pass = 0; pass < 2; ++pass)
+        for (int f = 0; f < out->fields.size(); ++f) {
+            const PivotFieldGroup &g = out->fields[f].group;
+            if (g.kind == PivotFieldGroup::None || g.databaseField != (pass == 0)) continue;
+            QString problem;
+            if (!pivotApplyGroup(out, f, dates, &problem)) {
+                out->unsupported = QStringLiteral("a grouped field (%1)").arg(problem);
+                return true;
+            }
+        }
+    pivotKeepNumericFlags(out);
+    return true;
+}
+
+namespace {
+
+bool readPivotCacheCore(const QByteArray &definition, const QByteArray &records, jp::calc::DateSystem dates, PivotCache *out, QString *why, DerivedFields *derived)
 {
     *out = PivotCache();
     auto fail = [&](const QString &m) {
@@ -222,8 +263,8 @@ bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp:
     QXmlStreamReader r(definition);
     int depth = 0;
     bool sawRoot = false;
-    PivotCacheField *cur = nullptr;
-    bool inShared = false;
+    PivotCacheField *cur = nullptr, *dcur = nullptr;   // the field being read, or (for one with no records) its place among the others
+    bool inShared = false, inGroupItems = false, inDiscrete = false;
     std::vector<PivotIntern> interns;
     qint64 distinct = 0;
     while (!r.atEnd()) {
@@ -247,15 +288,24 @@ bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp:
                 out->name = a.value(QLatin1String("name")).toString();
                 out->externalSource = !a.value(QLatin1String("http://schemas.openxmlformats.org/officeDocument/2006/relationships"), QLatin1String("id")).isEmpty();
             } else if (n == QLatin1String("cacheField") && depth == 3) {
-                if (out->fields.size() >= kPivotMaxFields) return fail(QStringLiteral("too many fields"));
-                out->fields.append(PivotCacheField());
-                interns.emplace_back();
-                cur = &out->fields.last();
+                if (out->fields.size() + derived->size() >= size_t(kPivotMaxFields)) return fail(QStringLiteral("too many fields"));
                 const auto a = r.attributes();
-                cur->name = pivotDecodeXString(a.value(QLatin1String("name")).toString());
-                cur->numFmtId = toInt(a.value(QLatin1String("numFmtId")), 0);
-                if (!flag(a.value(QLatin1String("databaseField")), true) || !a.value(QLatin1String("formula")).isEmpty())
-                    out->unsupported = QStringLiteral("a calculated field");
+                const bool hasRecords = flag(a.value(QLatin1String("databaseField")), true) || !a.value(QLatin1String("formula")).isEmpty();
+                if (hasRecords) {
+                    out->fields.append(PivotCacheField());
+                    interns.emplace_back();
+                    cur = &out->fields.last();
+                    dcur = nullptr;
+                } else {
+                    derived->emplace_back(int(out->fields.size() + derived->size()), PivotCacheField());
+                    dcur = &derived->back().second;
+                    cur = nullptr;
+                    dcur->group.databaseField = false;
+                }
+                PivotCacheField *named = cur ? cur : dcur;
+                named->name = pivotDecodeXString(a.value(QLatin1String("name")).toString());
+                named->numFmtId = toInt(a.value(QLatin1String("numFmtId")), 0);
+                if (!a.value(QLatin1String("formula")).isEmpty()) out->unsupported = QStringLiteral("a calculated field");
             } else if (n == QLatin1String("sharedItems") && cur) {
                 inShared = true;
                 cur->hasShared = r.attributes().hasAttribute(QLatin1String("count"));
@@ -269,8 +319,46 @@ bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp:
                 cur->hasShared = true;
                 interns.back().put(v, qint32(cur->items.size()));
                 cur->items.append(v);
-            } else if (n == QLatin1String("fieldGroup") && cur) {
-                out->unsupported = QStringLiteral("a grouped field");
+            } else if (n == QLatin1String("fieldGroup") && depth == 4 && (cur || dcur)) {
+                PivotFieldGroup &g = (cur ? cur : dcur)->group;
+                const auto a = r.attributes();
+                g.base = a.hasAttribute(QLatin1String("base")) ? toInt(a.value(QLatin1String("base")), -1) : -1;
+                g.par = a.hasAttribute(QLatin1String("par")) ? toInt(a.value(QLatin1String("par")), -1) : -1;
+                if (g.base < 0) g.base = int(out->fields.size()) + int(derived->size()) - 1;   // (the field's own place, when the file does not say)
+                g.kind = PivotFieldGroup::Range;   // (the first child says which kind)
+                g.groupBy = QStringLiteral("range");
+            } else if (n == QLatin1String("rangePr") && depth == 5 && (cur || dcur)) {
+                PivotFieldGroup &g = (cur ? cur : dcur)->group;
+                const auto a = r.attributes();
+                g.groupBy = a.hasAttribute(QLatin1String("groupBy")) ? a.value(QLatin1String("groupBy")).toString() : QStringLiteral("range");
+                g.autoStart = flag(a.value(QLatin1String("autoStart")), true);
+                g.autoEnd = flag(a.value(QLatin1String("autoEnd")), true);
+                g.interval = a.hasAttribute(QLatin1String("groupInterval")) ? a.value(QLatin1String("groupInterval")).toDouble() : 1;
+                if (g.groupBy == QLatin1String("range")) {
+                    g.kind = PivotFieldGroup::Range;
+                    g.start = a.value(QLatin1String("startNum")).toDouble();
+                    g.end = a.value(QLatin1String("endNum")).toDouble();
+                } else {
+                    g.kind = PivotFieldGroup::Dates;
+                    jp::calc::parseIsoDate(a.value(QLatin1String("startDate")).toString(), dates, &g.start);
+                    jp::calc::parseIsoDate(a.value(QLatin1String("endDate")).toString(), dates, &g.end);
+                    if (g.interval != 1) out->unsupported = QStringLiteral("a field grouped by several days");
+                }
+            } else if (n == QLatin1String("discretePr") && depth == 5 && (cur || dcur)) {
+                (cur ? cur : dcur)->group.kind = PivotFieldGroup::Discrete;
+                inDiscrete = true;
+            } else if (n == QLatin1String("x") && inDiscrete && depth == 6 && (cur || dcur)) {
+                PivotFieldGroup &g = (cur ? cur : dcur)->group;
+                if (g.discrete.size() >= kPivotMaxItemsPerField) return fail(QStringLiteral("too many items"));
+                g.discrete.append(toInt(r.attributes().value(QLatin1String("v")), -1));
+            } else if (n == QLatin1String("groupItems") && depth == 5 && (cur || dcur)) {
+                inGroupItems = true;
+            } else if (inGroupItems && depth == 6 && (cur || dcur)) {
+                PivotFieldGroup &g = (cur ? cur : dcur)->group;
+                PivotValue v;
+                if (!valueOf(r, dates, &v)) return fail(QStringLiteral("a group item can't be read"));
+                if (g.labels.size() >= kPivotMaxItemsPerField) return fail(QStringLiteral("too many items"));
+                g.labels.append(v.kind == PivotValue::Text || v.kind == PivotValue::Error ? v.text : v.kind == PivotValue::Missing ? QString() : QString::number(v.number, 'g', 15));
             }
         } else if (tok == QXmlStreamReader::EndElement) {
             if (r.name() == QLatin1String("sharedItems") && depth == 4) {
@@ -278,6 +366,11 @@ bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp:
                 if (cur) cur->sharedCount = int(cur->items.size());
             } else if (r.name() == QLatin1String("cacheField") && depth == 3) {
                 cur = nullptr;
+                dcur = nullptr;
+            } else if (r.name() == QLatin1String("groupItems") && depth == 5) {
+                inGroupItems = false;
+            } else if (r.name() == QLatin1String("discretePr") && depth == 5) {
+                inDiscrete = false;
             }
             --depth;
         }
@@ -362,6 +455,8 @@ bool readPivotCache(const QByteArray &definition, const QByteArray &records, jp:
     return true;
 }
 
+} // namespace
+
 bool readPivotTable(const QByteArray &xml, PivotTable *out, QString *why)
 {
     *out = PivotTable();
@@ -405,9 +500,22 @@ bool readPivotTable(const QByteArray &xml, PivotTable *out, QString *why)
                 out->mergeItem = flag(a.value(QLatin1String("mergeItem")), false);
                 out->gridDropZones = flag(a.value(QLatin1String("gridDropZones")), false);
                 out->autoFormatId = a.value(QLatin1String("autoFormatId")).toInt();
+                out->preserveFormatting = flag(a.value(QLatin1String("preserveFormatting")), true);
+                out->useAutoFormatting = flag(a.value(QLatin1String("useAutoFormatting")), false);
+                out->showHeaders = flag(a.value(QLatin1String("showHeaders")), true);
+                out->multipleFieldFilters = flag(a.value(QLatin1String("multipleFieldFilters")), true);
+                out->showDrill = flag(a.value(QLatin1String("showDrill")), true);
             } else if (depth == 2) {
                 section = n.toString();
-                if (n == QLatin1String("location")) {
+                if (n == QLatin1String("pivotTableStyleInfo")) {
+                    out->hasStyleInfo = true;
+                    out->styleName = a.value(QLatin1String("name")).toString();
+                    out->showRowHeaders = flag(a.value(QLatin1String("showRowHeaders")), true);
+                    out->showColHeaders = flag(a.value(QLatin1String("showColHeaders")), true);
+                    out->showRowStripes = flag(a.value(QLatin1String("showRowStripes")), false);
+                    out->showColStripes = flag(a.value(QLatin1String("showColStripes")), false);
+                    out->showLastColumn = flag(a.value(QLatin1String("showLastColumn")), true);
+                } else if (n == QLatin1String("location")) {
                     out->ref = a.value(QLatin1String("ref")).toString();
                     out->firstHeaderRow = toInt(a.value(QLatin1String("firstHeaderRow")), 1);
                     out->firstDataRow = toInt(a.value(QLatin1String("firstDataRow")), 1);
@@ -470,6 +578,8 @@ bool readPivotTable(const QByteArray &xml, PivotTable *out, QString *why)
                     if (a.hasAttribute(QLatin1String("subtotal"))) d.subtotal = a.value(QLatin1String("subtotal")).toString();
                     if (a.hasAttribute(QLatin1String("showDataAs"))) d.showDataAs = a.value(QLatin1String("showDataAs")).toString();
                     d.numFmtId = toInt(a.value(QLatin1String("numFmtId")), 0);
+                    d.baseField = toInt(a.value(QLatin1String("baseField")), 0);
+                    d.baseItem = toInt(a.value(QLatin1String("baseItem")), 0);
                     out->dataFields.append(d);
                 } else if (section == QLatin1String("calculatedItems")) {
                     out->unsupported = QStringLiteral("a calculated item");
@@ -486,6 +596,8 @@ bool readPivotTable(const QByteArray &xml, PivotTable *out, QString *why)
                 it.showDetails = flag(a.value(QLatin1String("sd")), true);
                 it.n = pivotDecodeXString(a.value(QLatin1String("n")).toString());
                 field->items.append(it);
+            } else if (field && section == QLatin1String("pivotFields") && a.hasAttribute(QLatin1String("fillDownLabels"))) {
+                field->fillDownLabels = flag(a.value(QLatin1String("fillDownLabels")), false);
             } else if (field && section == QLatin1String("pivotFields") && n == QLatin1String("reference") && a.value(QLatin1String("field")) == QLatin1String("4294967294")) {
                 field->sortByData = -2;   // (the data field is the x inside)
             } else if (field && field->sortByData == -2 && section == QLatin1String("pivotFields") && n == QLatin1String("x")) {
