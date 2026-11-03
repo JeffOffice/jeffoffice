@@ -10,6 +10,10 @@ A **table** is a grid of **cells** in **rows** and **columns**. Each cell holds 
 
 The table goes where the caret is. If the caret is in the middle of a paragraph, the paragraph is cut in two and the table goes between the halves. The caret ends up in the first cell. Press **Tab** to go to the next cell, and **Shift+Tab** to go back. **Tab** in the last cell adds a row. A table can't be put inside a cell this way.
 
+## Ready-made tables
+
+Click **Insert > Table > Ready-Made Tables** and pick one. A calendar has the days of this month. A matrix has a top row and a left column to fill in. A list has four columns: item, description, quantity, and price. A schedule has the days of a work week and the hours of a day. The table has its words in place, so you can type over them.
+
 ## Make a table from text
 
 Select the paragraphs, then click **Insert > Table > Convert Text to Table**. Say what marks where one cell ends and the next begins:
@@ -68,6 +72,10 @@ Use them in **SUM**, **AVERAGE**, **COUNT**, **MIN**, **MAX**, **PRODUCT**, and 
 - **Table Design > Shading** fills the selected cells with a color, or with **No Color**.
 - **Borders and Shading** (in the Borders menu, or on the right-click menu) opens a window to pick the style of the line (single, double, dotted, dashed, or triple), its width and color, which sides get it, and the fill. Choose to apply it to the selected cells or to the table.
 
+## Make your own table style
+
+Open the gallery on **Table Design** and click **New Table Style**. Give it a name, pick the style it starts from, and choose the lines, the look of the header row, the total row, and the first and last columns, and the fills of banded rows and columns. The new style goes on the table you are in. To change a style, click in a table that has it and click **Modify Table Style**. Every table that has the style changes with it. The header row and the other parts show when **Table Style Options** turns them on. Changing a style takes one step, and Undo brings the old one back.
+
 ## See the edges of the cells
 
 **Table Layout > View Gridlines** draws faint dotted lines along the edges of cells, so that you can see a table that has no borders. The lines show on the screen only. They are never printed or saved in the file.
@@ -86,6 +94,14 @@ On **Table Layout**:
 - **Fit** sizes the columns to their contents, to the window, or fixes them where they are.
 - **Distribute Rows** and **Distribute Columns** make the selected rows as tall, or the selected columns as wide, as each other. With one row or column selected, they work on the whole table.
 
+### Pull the lines with the mouse
+
+- Point at the line on the right of a column. The pointer turns into two arrows. Press, pull sideways, and let go. The column gets that width. A dashed line shows where the edge will go.
+- Point at the line under a row, and pull up or down. The row gets at least that height.
+- Click in a table. A small square shows at its lower right corner. Pull it sideways to make the whole table wider or narrower. Every column grows or shrinks by the same share.
+
+Each pull is one step. Undo takes it back.
+
 ## Where the text sits in a cell
 
 The nine buttons on **Table Layout > Alignment** put the words at the top, the middle, or the bottom of the cell, and at its left, center, or right.
@@ -96,7 +112,7 @@ Click **Table Properties** on **Table Layout**, or on the right-click menu. It h
 
 - **Table**: where the table sits (left, center, or right), how far it is from the left margin, its preferred width (automatic, in points, or as a percent of the text area), whether the columns are fixed, the space inside every cell, and the space between cells.
 - **Row**: the height and whether it is a least height or an exact one, **Do not let the row break across pages**, and **Repeat as header row at the top of each page**. A header row shows again at the top of each page a long table runs onto. The button **Table Layout > Repeat Header Rows** does the same for the selected rows.
-- **Column**: the width of the column.
+- **Column**: the width of the column, in points or as a percent of the table. The two boxes follow each other.
 - **Cell**: where the words sit up and down, and whether the words may wrap.
 - **Alt Text**: a title and a description of the table for people who can't see it.
 
