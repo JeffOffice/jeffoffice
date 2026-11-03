@@ -659,11 +659,11 @@ private Q_SLOTS:
         o->layer()->select(0);
         QString why;
         QVERIFY(!o->canEditChart(0, 0, &why));
-        QVERIFY2(why.contains(QLatin1String("errBars")), qPrintable(why));
+        QVERIFY2(why.contains(QLatin1String("errBarType")), qPrintable(why));
         QVERIFY(!e.win.w.act(QStringLiteral("chartdesign.selectData"))->isEnabled());
         QTRY_VERIFY(!e.win.w.chartElementsButton() || !e.win.w.chartElementsButton()->isVisible());
         QVERIFY(!e.win.w.changePickedChart(QStringLiteral("Test"), [](Chart *c) { c->title.present = true; }));
-        QVERIFY(e.win.told.last().contains(QLatin1String("errBars")));
+        QVERIFY(e.win.told.last().contains(QLatin1String("errBarType")));
         // it can be moved
         o->layer()->nudge(1, 0, false, false);
         QVERIFY(e.win.w.isModified());

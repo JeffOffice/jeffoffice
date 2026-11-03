@@ -1090,6 +1090,63 @@ private Q_SLOTS:
 
     // A data bar is drawn inside the cell from the left, as long as its value is of the way from the lowest to the highest (between the shortest length and the longest), under the text,
     // and the text is left out when the rule says so.
+    void sparklinesAreDrawnInTheirCells()
+    {
+        using jp::office::sheet::Sparkline;
+        using jp::office::sheet::SparklineGroup;
+        auto make = [](SparklineGroup::Type type, const QVector<double> &values) {
+            auto f = std::make_unique<Fixture>();
+            for (int i = 0; i < values.size(); ++i) f->number(0, quint32(i), values[i]);
+            SparklineGroup g;
+            g.type = type;
+            g.series = ColorSpec::fromRgb(0x376092);
+            g.negativeColor = ColorSpec::fromRgb(0xD00000);
+            Sparkline s;
+            s.row = 1;
+            s.col = 4;
+            s.source = QStringLiteral("A1:C1");
+            g.sparklines.append(s);
+            f->sheet.sparklineGroups = {g};
+            return f;
+        };
+        const QRect cell(4 * 64, 20, 63, 19);
+        // columns: each as tall as its number, the highest the last
+        auto f = make(SparklineGroup::Type::Column, {1, 2, 3});
+        f->build();
+        QImage img = f->render();
+        QCOMPARE(f->painter->stats().sparklines, qint64(1));
+        const QRgb blue = QRgb(0xFF376092);
+        auto count = [&](const QImage &im, QRgb color, const QRect &r) {
+            int n = 0;
+            for (int y = r.top(); y <= r.bottom(); ++y)
+                for (int x = r.left(); x <= r.right(); ++x) n += im.pixel(x, y) == color;
+            return n;
+        };
+        QVERIFY(count(img, blue, cell) > 40);
+        QCOMPARE(count(img, blue, QRect(0, 0, 4 * 64, 400)), 0);                          // (nothing outside the cell)
+        QCOMPARE(img.pixel(cell.left() + 8, cell.top() + 4), kWhite);                       // the first column is short
+        QCOMPARE(img.pixel(cell.right() - 10, cell.top() + 4), blue);                       // the last reaches the top
+        // wins and losses: a loss hangs below the middle, in the color of negative points when they are shown
+        auto w = make(SparklineGroup::Type::WinLoss, {1, -1, 1});
+        w->sheet.sparklineGroups[0].negative = true;
+        w->build();
+        img = w->render();
+        const int middle = cell.center().x(), mid = cell.top() + 9;
+        QCOMPARE(img.pixel(middle, mid + 4), QRgb(0xFFD00000));
+        QCOMPARE(img.pixel(middle, mid - 4), kWhite);
+        QCOMPARE(img.pixel(cell.left() + 8, mid - 4), blue);
+        // a line is drawn from the points, its ends where the first and the last number are
+        auto l = make(SparklineGroup::Type::Line, {1, 2, 3});
+        l->build();
+        img = l->render();
+        QVERIFY(inkIn(img, cell) > 15);
+        // what reads no cells draws nothing, and a sheet with no sparklines draws no more than before
+        auto none = make(SparklineGroup::Type::Line, {});
+        none->build();
+        img = none->render();
+        QCOMPARE(count(img, blue, QRect(0, 0, 640, 400)), 0);
+    }
+
     void dataBarsAreDrawnInTheCell()
     {
         auto make = [](bool showValue, bool gradient) {

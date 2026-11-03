@@ -1,5 +1,6 @@
 #include "grid/painter.h"
 
+#include "grid/sparklinepaint.h"
 #include "sheet/cellref.h"
 
 #include <QGlyphRun>
@@ -897,6 +898,41 @@ marked:
                 }
                 if (cc && cc->hasBar) drawBar(p, cellRect, cc->bar, o.gridlines);
             }
+        // sparklines: over the fill, under the borders and the text
+        if (m_sheet->hasSparklines()) {
+            for (size_t j = c0; j < c1; ++j) {
+                if (!w.covered.empty() && w.covered[i * C + j]) continue;
+                if (rs.ring || w.cols[j].ring || rs.index < 0 || w.cols[j].index < 0) continue;
+                GridSheet::SparklineHit hit;
+                if (!m_sheet->sparklineAt(quint32(rs.index), quint32(w.cols[j].index), &hit)) continue;
+                if (m_stats.sparklines >= kMaxSparklines) {
+                    m_stats.truncated = true;
+                    break;
+                }
+                ++m_stats.sparklines;
+                const jp::office::sheet::SparklineGroup &g = *hit.group;
+                const jp::office::sheet::Styles *styles = m_sheet->data().styles;
+                auto color = [&](const jp::office::sheet::ColorSpec &spec, const char *which) {
+                    const jp::office::sheet::ColorSpec use = spec.isSet() ? spec : jp::office::sheet::defaultSparklineColor(which);
+                    return QColor::fromRgb(styles ? styles->resolve(use, 0x376092) : use.rgb);
+                };
+                SparklineColors colors;
+                colors.series = color(g.series, "series");
+                colors.negative = color(g.negativeColor, "negative");
+                colors.axis = color(g.axisColor, "axis");
+                colors.markers = color(g.markerColor, "markers");
+                colors.first = color(g.firstColor, "first");
+                colors.last = color(g.lastColor, "last");
+                colors.high = color(g.highColor, "high");
+                colors.low = color(g.lowColor, "low");
+                double low = 0, high = 0;
+                if (g.minAxis == jp::office::sheet::SparklineGroup::Axis::Group || g.maxAxis == jp::office::sheet::SparklineGroup::Axis::Group) {
+                    if (!m_sheet->sparklineGroupRange(hit.groupIndex, &low, &high)) low = high = std::numeric_limits<double>::quiet_NaN();
+                }
+                const QRect cellRect(w.cols[j].start, rs.start, w.cols[j].size, rs.size);
+                paintSparkline(p, cellRect & area, g, colors, m_sheet->sparklineValues(*hit.sparkline), low, high, std::clamp(m_sheet->layout().zoom(), 0.5, 4.0));
+            }
+        }
         // borders: the lines between the cells of this row, and above it
         if (anyBorder) {
             for (size_t k = c0; k <= c1; ++k) {

@@ -81,6 +81,21 @@ public:
     void setToday(double serial) const;
     // The look of a cell with the changes the rules of conditional formatting make to it (the cell's own, when there are none).
     const CellLook &lookOf(quint32 row, quint32 col, quint32 style) const;
+    // ---- sparklines (sheet/sparkline.h): the one that is drawn in a cell, what it reads, and the lowest and highest values of its group
+    bool hasSparklines() const { return m_data.sheet && !m_data.sheet->sparklineGroups.isEmpty(); }
+    struct SparklineHit {
+        const jp::office::sheet::SparklineGroup *group = nullptr;
+        const jp::office::sheet::Sparkline *sparkline = nullptr;
+        int groupIndex = -1;
+    };
+    static constexpr int kMaxSparklinePoints = 1000;
+    bool sparklineAt(quint32 row, quint32 col, SparklineHit *out) const;
+    // The numbers the sparkline reads, in order along its row or down its column; NaN for a cell with no number in it. At most kMaxSparklinePoints.
+    QVector<double> sparklineValues(const jp::office::sheet::Sparkline &s) const;
+    // The lowest and highest of the numbers every sparkline of the group reads; false when there are none.
+    bool sparklineGroupRange(int groupIndex, double *lowest, double *highest) const;
+    // The sheet's sparklines changed (or its values did): what was worked out of them is let go.
+    void resetSparklines() const;
     // ---- table styles (sheet/tablestyle.h): the cells of a table are drawn as its style says, under what the cell formats itself (a fill, borders, a text color, or bold of the cell's own stay)
     struct TableSkin {
         jp::office::sheet::Table table;
@@ -119,6 +134,7 @@ public:
     {
         m_texts.erase((quint64(row) << 16) | col);
         m_cond.valueChanged(row, col);
+        if (!m_sparkRanges.empty()) m_sparkRanges.clear();
     }
     // Shows the formula of a cell that has one in place of its value ("=SUM(A1:A3)", as text).
     // The sheet reads right to left: column A is at the right, and what a cell's alignment says of the left and right is the screen's. (The `align` a cell shows is in the grid's own places,
@@ -194,6 +210,9 @@ private:
     bool m_rtl = false;
     mutable CondFormats m_cond{this};
     std::vector<TableSkin> m_skins;
+    mutable std::unordered_map<quint64, std::pair<int, int>> m_sparkIndex;   // by cell: the group and the place in it
+    mutable bool m_sparkBuilt = false;
+    mutable std::unordered_map<int, std::pair<double, double>> m_sparkRanges;
     jp::calc::Value valueOfCell(int sheetIndex, quint32 row, quint32 col, const Sheet &sheet, const Cell &cell) const;
     std::shared_ptr<const GridGeometry> m_geometry;   // what the sheet's file gave (the layout above begins as a copy of its layout, which shares its places and merges), and the cell formats of the rows and columns, held where they were made
 };

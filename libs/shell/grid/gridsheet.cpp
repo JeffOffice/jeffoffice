@@ -228,6 +228,7 @@ double GridSheet::autoHeight(quint32 row, qint64 limit, qint64 *work) const
 
 void GridSheet::setData(const GridData &data)
 {
+    resetSparklines();
     m_data = data;
     m_rtl = data.sheet && data.sheet->view.rightToLeft;
     m_looks.setStyles(data.styles);
@@ -445,6 +446,91 @@ jp::calc::Value GridSheet::valueIn(int sheet, quint32 row, quint32 col) const
     if (!s || col >= jp::office::sheet::kMaxColumns) return jp::calc::Value();
     const Cell *cell = s->cells.find(row, col);
     return cell ? valueOfCell(sheet, row, col, *s, *cell) : jp::calc::Value();
+}
+
+void GridSheet::resetSparklines() const
+{
+    m_sparkIndex.clear();
+    m_sparkBuilt = false;
+    m_sparkRanges.clear();
+}
+
+bool GridSheet::sparklineAt(quint32 row, quint32 col, SparklineHit *out) const
+{
+    if (!hasSparklines()) return false;
+    if (!m_sparkBuilt) {
+        m_sparkBuilt = true;
+        const auto &groups = m_data.sheet->sparklineGroups;
+        for (int g = 0; g < groups.size(); ++g)
+            for (int i = 0; i < groups[g].sparklines.size(); ++i) m_sparkIndex[(quint64(groups[g].sparklines[i].row) << 20) | groups[g].sparklines[i].col] = {g, i};
+    }
+    const auto it = m_sparkIndex.find((quint64(row) << 20) | col);
+    if (it == m_sparkIndex.end()) return false;
+    const auto &groups = m_data.sheet->sparklineGroups;
+    if (it->second.first >= groups.size() || it->second.second >= groups[it->second.first].sparklines.size()) return false;
+    if (out) {
+        out->groupIndex = it->second.first;
+        out->group = &groups[it->second.first];
+        out->sparkline = &out->group->sparklines[it->second.second];
+    }
+    return true;
+}
+
+QVector<double> GridSheet::sparklineValues(const jp::office::sheet::Sparkline &s) const
+{
+    QVector<double> out;
+    // "Sheet1!$A$1:$E$1", "'My sheet'!A1:A9", or a range of this sheet
+    QString ref = s.source.trimmed(), name;
+    const qsizetype bang = ref.lastIndexOf(QLatin1Char('!'));
+    int sheet = m_data.sheetIndex;
+    if (bang >= 0) {
+        name = ref.left(bang);
+        ref = ref.mid(bang + 1);
+        if (name.startsWith(QLatin1Char('\'')) && name.endsWith(QLatin1Char('\'')) && name.size() >= 2) name = name.mid(1, name.size() - 2).replace(QLatin1String("''"), QLatin1String("'"));
+        sheet = -1;
+        for (int i = 0; i < m_data.sheetNames.size(); ++i)
+            if (m_data.sheetNames[i].compare(name, Qt::CaseInsensitive) == 0) {
+                sheet = i;
+                break;
+            }
+        if (sheet < 0) return out;
+    }
+    ref.remove(QLatin1Char('$'));
+    jp::office::sheet::CellRange range;
+    if (!jp::office::sheet::parseRangeRef(ref, &range)) return out;
+    // a row of cells, or a column of them; a block is read along its rows
+    for (quint32 r = range.row1; r <= range.row2 && out.size() < kMaxSparklinePoints; ++r)
+        for (quint32 c = range.col1; c <= range.col2 && out.size() < kMaxSparklinePoints; ++c) {
+            const jp::calc::Value v = valueIn(sheet, r, c);
+            out.append(v.isNumber() ? v.number() : std::numeric_limits<double>::quiet_NaN());
+        }
+    return out;
+}
+
+bool GridSheet::sparklineGroupRange(int groupIndex, double *lowest, double *highest) const
+{
+    const auto cached = m_sparkRanges.find(groupIndex);
+    if (cached != m_sparkRanges.end()) {
+        *lowest = cached->second.first;
+        *highest = cached->second.second;
+        return *lowest <= *highest;
+    }
+    double lo = std::numeric_limits<double>::infinity(), hi = -lo;
+    if (m_data.sheet && groupIndex >= 0 && groupIndex < m_data.sheet->sparklineGroups.size()) {
+        int read = 0;
+        for (const jp::office::sheet::Sparkline &s : m_data.sheet->sparklineGroups[groupIndex].sparklines) {
+            if (++read > 5000) break;
+            for (const double v : sparklineValues(s))
+                if (std::isfinite(v)) {
+                    lo = std::min(lo, v);
+                    hi = std::max(hi, v);
+                }
+        }
+    }
+    m_sparkRanges[groupIndex] = {lo, hi};
+    *lowest = lo;
+    *highest = hi;
+    return lo <= hi;
 }
 
 void GridSheet::resetConditional() const
