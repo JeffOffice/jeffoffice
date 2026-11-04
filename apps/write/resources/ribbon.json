@@ -25,6 +25,15 @@
           "items": [
             {
               "large": "edit.paste",
+              "split": true,
+              "menu": [
+                "edit.paste",
+                "edit.pasteMerge",
+                "edit.pasteText",
+                "edit.pastePicture",
+                "-",
+                "edit.pasteSpecial"
+              ],
               "keytip": "V"
             },
             {
@@ -69,6 +78,21 @@
                 {
                   "icon": "fmt.clear",
                   "keytip": "E"
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.changeCase",
+                    "text": "Change Case",
+                    "icon": "case-sensitive"
+                  },
+                  "keytip": "7",
+                  "menu": [
+                    "fmt.case.sentence",
+                    "fmt.case.lower",
+                    "fmt.case.upper",
+                    "fmt.case.capitalize",
+                    "fmt.case.toggle"
+                  ]
                 }
               ]
             },
@@ -157,6 +181,14 @@
                     "-",
                     "para.dialog"
                   ]
+                },
+                {
+                  "icon": "para.sort",
+                  "keytip": "SO"
+                },
+                {
+                  "icon": "para.horizontalLine",
+                  "keytip": "HL"
                 },
                 {
                   "icon": "view.marks",
@@ -943,6 +975,36 @@
             {
               "large": "review.checkAsType",
               "keytip": "T"
+            },
+            {
+              "large": "review.thesaurus",
+              "keytip": "TH"
+            },
+            {
+              "large": "review.accessibility",
+              "keytip": "AC"
+            },
+            {
+              "large": "review.wordCount",
+              "keytip": "WC"
+            }
+          ]
+        },
+        {
+          "name": "Language",
+          "keytip": "ZL",
+          "items": [
+            {
+              "large": "review.translate",
+              "keytip": "TR"
+            },
+            {
+              "large": "review.language",
+              "keytip": "LA"
+            },
+            {
+              "small": "review.noProof",
+              "keytip": "NP"
             }
           ]
         },
@@ -1022,6 +1084,10 @@
             {
               "large": "review.reviewingPane",
               "keytip": "TP"
+            },
+            {
+              "large": "review.trackOptions",
+              "keytip": "TO"
             }
           ]
         },
@@ -1063,6 +1129,30 @@
             {
               "small": "review.nextChange",
               "keytip": "NC"
+            }
+          ]
+        },
+        {
+          "name": "Compare",
+          "keytip": "ZO",
+          "items": [
+            {
+              "large": "review.compare",
+              "keytip": "CO"
+            }
+          ]
+        },
+        {
+          "name": "Protect",
+          "keytip": "ZR",
+          "items": [
+            {
+              "large": "review.restrictEditing",
+              "keytip": "RE"
+            },
+            {
+              "small": "review.lockTracking",
+              "keytip": "LT"
             }
           ]
         }

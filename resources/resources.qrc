@@ -1719,6 +1719,7 @@
     <file alias="en/crunch/names.md">help/en/crunch/names.md</file>
     <file alias="en/crunch/notes-links.md">help/en/crunch/notes-links.md</file>
     <file alias="en/crunch/number-formats.md">help/en/crunch/number-formats.md</file>
+    <file alias="en/crunch/info.md">help/en/crunch/info.md</file>
     <file alias="en/crunch/open-password.md">help/en/crunch/open-password.md</file>
     <file alias="en/crunch/open-save.md">help/en/crunch/open-save.md</file>
     <file alias="en/crunch/options.md">help/en/crunch/options.md</file>
@@ -1827,12 +1828,16 @@
     <file alias="en/write/format-painter.md">help/en/write/format-painter.md</file>
     <file alias="en/write/go-to-and-move-text.md">help/en/write/go-to-and-move-text.md</file>
     <file alias="en/write/headers-footers.md">help/en/write/headers-footers.md</file>
+    <file alias="en/write/home-tools.md">help/en/write/home-tools.md</file>
+    <file alias="en/write/protect.md">help/en/write/protect.md</file>
+    <file alias="en/write/proofing-tools.md">help/en/write/proofing-tools.md</file>
     <file alias="en/write/index.md">help/en/write/index.md</file>
     <file alias="en/write/keyboard.md">help/en/write/keyboard.md</file>
     <file alias="en/write/links.md">help/en/write/links.md</file>
     <file alias="en/write/mail-merge.md">help/en/write/mail-merge.md</file>
     <file alias="en/write/making-an-index.md">help/en/write/making-an-index.md</file>
     <file alias="en/write/navigation-pane.md">help/en/write/navigation-pane.md</file>
+    <file alias="en/write/info.md">help/en/write/info.md</file>
     <file alias="en/write/open-odt.md">help/en/write/open-odt.md</file>
     <file alias="en/write/open-rtf.md">help/en/write/open-rtf.md</file>
     <file alias="en/write/open-save.md">help/en/write/open-save.md</file>

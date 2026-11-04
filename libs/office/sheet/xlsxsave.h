@@ -10,6 +10,7 @@
 // on: nothing here reads the workbook's cells.
 
 #include "office/package.h"
+#include "office/packageprops.h"
 #include "sheet/drawingadd.h"
 #include "sheet/drawingsave.h"
 #include "sheet/links.h"
@@ -317,6 +318,10 @@ struct SaveChanges {
     // The workbook's protection of its structure, when a person changed it (made into the element `workbookProtection` in place of the file's).
     bool setWorkbookProtection = false;
     WorkbookProtection workbookProtection;
+    // The workbook's properties, when a person changed them: the core, extended, and custom parts get them (a part the file lacks is made, with its type and the package's relationship to it;
+    // the custom part goes when no property is left).
+    bool setProperties = false;
+    PackageProps properties;
     bool sheetsChanged = false;
     std::vector<SheetOp> sheetOps;
     int activeTab = 0;                           // the sheet that is open, by its place in the order of the tabs

@@ -976,6 +976,14 @@ bool Writer::run(const QByteArray &docx, QByteArray *out, QString *error, QStrin
     // The kind of mail merge and where its list is have no place in an .odt (the merge fields themselves are kept).
     if (m_settings && m_settings->child(m_settings->root(), "mailMerge") >= 0)
         left(QCoreApplication::translate("odt", "the mail merge settings (what the document is merged as, and where its list of recipients is; the merge fields stay)"));
+    // Document protection, pair kerning from a size, and "do not check spelling" have no place in an .odt.
+    if (m_settings && m_settings->child(m_settings->root(), "documentProtection") >= 0)
+        left(QCoreApplication::translate("odt", "document protection (restricted editing and its password)"));
+    for (int i = 0; i < m_doc->count(); ++i) {
+        const QByteArray local = m_doc->localName(i);
+        if (local == "kern") left(QCoreApplication::translate("odt", "pair kerning from a size"));
+        else if (local == "noProof") left(QCoreApplication::translate("odt", "\"do not check spelling\" marks"));
+    }
     // The body (which makes the automatic styles, the list styles used, and the master pages' headers).
     m_sectionIndex = 0;
     emitBlocks(*m_doc, m_doc->child(m_doc->root(), "body"), &m_bodyXml, 0, true);

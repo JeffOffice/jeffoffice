@@ -2,11 +2,15 @@
 // JeffWrite's main window: the ribbon, the pages, and the status bar, with the File screen over them.
 
 #include "app/appwindow.h"
+#include "app/infopage.h"
+#include "core/textexport.h"
 #include "app/filetasks.h"
 #include "core/reviewops.h"
 #include "core/styleops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
+#include "core/compareops.h"
+#include "core/homeops.h"
 
 #include <QHash>
 #include <QPointer>
@@ -44,6 +48,7 @@ namespace write {
 class PageView;
 class Ruler;
 class SpellPane;
+class AccessPane;
 }
 namespace recovery {
 struct Recovered;
@@ -59,6 +64,9 @@ struct WriteOutputOptions {
     int copies = 1;
     bool collate = true;  // the whole set again for each copy, else each page's copies together
     bool grayscale = false;
+    enum class Sides { All, Odd, Even };
+    Sides sides = Sides::All;   // only the pages whose numbers are odd or even, of the pages the range covers
+    bool reverse = false;       // last page first
 };
 
 class WriteWindow : public AppWindow {
@@ -74,6 +82,12 @@ public:
     // Brings the commands up to date with the selection at once (the window does it a moment after a change; a test does not wait for the moment).
     void refreshNow() { refreshUi(); }
     write::WriteDoc *document() const { return m_doc.get(); }
+    // Review > Compare: this document and the file at `revisedPath` made into a new document of tracked changes (this one is the original), shown in a window of its own. How many changes it
+    // holds; -1 when a file can't be read or compared (the reason is told).
+    bool openTranslation(const QString &text, const QString &target, const QString &server);
+    void setUrlOpener(const std::function<bool(const QUrl &)> &opener) { m_urlOpener = opener; }
+    int sortSelection(const write::SortOptions &options);
+    int compareWith(const QString &revisedPath, const write::CompareOptions &options);
     QString ribbonErrors() const { return m_ribbonErrors; }
 
     // ---- the file
@@ -122,11 +136,35 @@ public:
     void offerRecovery(bool askIfNone = false);
     WriteWindow *openRecovered(const recovery::Recovered &r, QString *error = nullptr);
 
+    // ---- the File screen's Info page: properties, protection, and Inspect
+    // The page, for the document as it is now.
+    QWidget *buildInfoPage(QWidget *parent);
+    // What Inspect Document looks for and can take out; the box shows them.
+    QVector<InspectItem> inspectItems();
+    void inspectDocument();
+    // Lists what an .odt file (the older kind this program writes) can't hold of the document.
+    QStringList incompatibilities();
+    void checkCompatibility();
+    // Mark as Final: the document is saved, then held for reading only; off, it can be edited again.
+    void setMarkedFinal(bool on);
+    // Encrypt with Password: asks for the password and keeps it; the file is written protected when it is saved.
+    void encryptWithPassword();
+    bool isPasswordProtected() const { return m_fileProtected; }
+    // The reason Mark as Final can't be done for this document, "" when it can.
+    QString markFinalBlocked() const;
+    // Takes the personal information out of the properties, and keeps it out (a later change of a property does not name the person again).
+    int removePersonalInformation();
+    // Applies properties the person edited (the dates and counts are brought up to date).
+    void applyProperties(const office::PackageProps &props);
+
     // The File screen over the window, on a page ("new", "open", "print", "export", "about"; Open when none is named), and back.
     void showFileScreen(const QString &page = QString());
     void hideFileScreen();
     bool printOutput(const WriteOutputOptions &options);
     bool exportPdf();
+    // Save as Plain Text: asks for the encoding, the line ends, and the file; and the writing itself (an empty path asks nothing and writes nothing).
+    bool exportTextAsk();
+    bool exportText(const QString &path, write::TextEncoding encoding, write::LineEnds ends);
     // The pages that an output covers (from 0), for the options and the document.
     QVector<int> outputPages(const WriteOutputOptions &options);
 
@@ -210,6 +248,12 @@ private:
     void insertRibbonParts(RibbonParts &parts);
     void refreshInsertUi();
     void createStyleActions();
+    void createHomeActions();
+    void createProtectActions();
+    void restrictEditing(bool lockTracking);
+    void applyProtection();
+    bool protectionAllows(const QString &id) const;
+    void updateLanguage();
     void createMailActions();
     void mailRibbonParts(RibbonParts &parts);
     void refreshMailUi();   // (the Mailings commands that need a list of recipients are dimmed without one)
@@ -271,9 +315,12 @@ private:
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
     QDockWidget *m_spellDock = nullptr;
+    QDockWidget *m_accessDock = nullptr;
+    write::AccessPane *m_accessPane = nullptr;
     write::SpellPane *m_spellPane = nullptr;
     WriteFindPane *m_find = nullptr;
     QDockWidget *m_findDock = nullptr;
+    QToolButton *m_langLabel = nullptr;
     QLabel *m_pageLabel = nullptr, *m_wordLabel = nullptr, *m_zoomLabel = nullptr;
     QSlider *m_zoomSlider = nullptr;
     bool m_noteLimitShown = false;   // the status bar has said that the document holds the most notes
@@ -307,15 +354,24 @@ private:
     QString m_path;
     QString m_untitled;
     QString m_recoveryCopy, m_recoveredFrom;
+    write::SortOptions m_sortOptions;
+    QString m_protectKind;   // what the enforced protection of the document allows (readOnly, comments, trackedChanges, or forms), else empty
+    bool m_readOnlyByProtection = false;
+    QString m_titledKind;
     QTimer m_refreshTimer, m_recoverTimer, m_wordTimer;
     quint64 m_serial = 0;
     bool m_updatingFields = false;
     std::function<QString(const QString &, const QString &)> m_pathChooser;
     std::function<QString()> m_pictureChooser;
+    std::function<bool(const QUrl &)> m_urlOpener;
     std::function<void(const QString &, const QString &)> m_notifier;
     std::function<void(QPrinter &)> m_printerPreparer;
     QSet<QString> m_odtNoted;       // (what the person was told an .odt file can't hold: told again only of what is new)
     bool m_macrosNoted = false;     // (the person was told that the macros are not saved)
+    QString m_filePassword;         // the password the file opened with or was given: the file is written protected with it (never shown, wiped when the window goes)
+    bool m_fileProtected = false;
+    bool m_recoveryNoted = false;       // (the person was told that no recovery copy is kept of a protected document)
+    bool m_personalInfoRemoved = false; // (Inspect took the personal information out: saving does not put the name of the person back)
     QString m_protectedPath;        // the file a document that has had something left out (see WriteDoc::leftSomethingOut) was opened from: not written over
 };
 

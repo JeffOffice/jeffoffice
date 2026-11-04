@@ -29,6 +29,15 @@ void WriteDoc::setTrackChanges(bool on)
     Q_EMIT reviewChanged();
 }
 
+void WriteDoc::setProtection(const std::optional<office::wml::DocumentProtection> &protection)
+{
+    const bool same = m_protection.has_value() == protection.has_value() && (!protection || (m_protection->xml == protection->xml));
+    if (same) return;
+    m_protection = protection;
+    setModified(true);
+    Q_EMIT reviewChanged();
+}
+
 void WriteDoc::setReviewer(const QString &name, const QString &initials)
 {
     const QString who = name.trimmed().isEmpty() ? QStringLiteral("Author") : name.trimmed();
@@ -102,8 +111,12 @@ int WriteDoc::nextRevisionId()
     return m_nextRevisionId++;
 }
 
-QVector<QTextDocument *> WriteDoc::storiesWithChanges()
+QVector<QTextDocument *> WriteDoc::storiesWithChanges(bool every)
 {
+    // (every story: the parts of headers and footers the file names are read now, if they were not)
+    if (every)
+        for (const Relationship &r : std::as_const(m_wml.mainRelationships))
+            if (!r.external && (r.type.endsWith(QLatin1String("/header")) || r.type.endsWith(QLatin1String("/footer")))) headerStory(r.id);
     auto marked = [](const QByteArray &x) {
         static const char *const names[] = {"<w:ins", "<w:del", "<w:moveFrom", "<w:moveTo", "rPrChange", "pPrChange"};
         for (const char *n : names)
@@ -118,7 +131,7 @@ QVector<QTextDocument *> WriteDoc::storiesWithChanges()
         if (part.unreadable || part.missing || part.created) {
             if (!(part.created && part.editForm && part.story)) continue;
         }
-        if (!part.editForm && !marked(partData(part.name))) continue;
+        if (!every && !part.editForm && !marked(partData(part.name))) continue;
         if (!makeEditable(part) || !part.story) continue;
         out.push_back(part.story.get());
     }
@@ -131,7 +144,7 @@ QVector<QTextDocument *> WriteDoc::storiesWithChanges()
                 has = true;
                 break;
             }
-        if (!has) continue;
+        if (!has && !every) continue;
         if (QTextDocument *n = editableFootnote(key.mid(2).toInt())) out.push_back(n);
     }
     return out;
@@ -173,6 +186,32 @@ void WriteDoc::setFieldCodes(bool all, const QSet<int> &ids)
 // Track Changes is a setting of the document: written when it differs from the file's.
 void WriteDoc::writeReviewSettings(office::wml::Document *out)
 {
+    // The protection is written first, into the settings part, when it is not the file's.
+    const bool protectionChanged = m_protection.has_value() != m_protectionAtOpen.has_value() || (m_protection && m_protection->xml != m_protectionAtOpen->xml);
+    if (protectionChanged) {
+        bool done = false;
+        if (!out->settingsName.isEmpty()) {
+            for (KeptPart &kept : out->parts)
+                if (kept.name.compare(out->settingsName, Qt::CaseInsensitive) == 0) {
+                    kept.data = settingsWithDocumentProtection(kept.data, m_protection);
+                    done = true;
+                }
+        }
+        if (!done && m_protection) {
+            KeptPart kept;
+            kept.name = QStringLiteral("/word/settings.xml");
+            for (int n = 2; partExists(kept.name) || kept.name.compare(out->mainName, Qt::CaseInsensitive) == 0; ++n) kept.name = QStringLiteral("/word/settings%1.xml").arg(n);
+            kept.contentType = QString(kSettingsType);
+            kept.data = settingsWithDocumentProtection(QByteArray(), m_protection);
+            out->parts.push_back(kept);
+            Relationship r;
+            r.id = nextRelationshipId(out->mainRelationships);
+            r.type = QString(kSettingsRel);
+            r.target = kept.name;
+            out->mainRelationships.push_back(r);
+            out->settingsName = kept.name;
+        }
+    }
     if (m_trackChanges == m_trackAtOpen) return;
     const bool on = m_trackChanges;
     if (!out->settingsName.isEmpty()) {

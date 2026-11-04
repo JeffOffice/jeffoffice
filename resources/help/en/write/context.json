@@ -13,6 +13,7 @@
   "tab:View": "navigation-pane",
   "pane:help": "index",
   "file:new": "open-save",
+  "file:info": "info",
   "file:open": "open-save",
   "file:print": "print",
   "file:export": "open-save",

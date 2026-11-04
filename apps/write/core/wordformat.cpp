@@ -695,6 +695,32 @@ ParaProps paraPropsOf(const QTextBlockFormat &f)
     }
     p.tabs = tabs;
     if (f.hasProperty(prop::RawPPr)) p.extra = unpackRaw(storedBytes(f, prop::RawPPr));
+    // Borders the program made (a horizontal line): written as w:pBdr, in the place the schema has it (those a file had stay as it wrote them, among the kept properties).
+    if (f.hasProperty(tp::Borders)) {
+        bool kept = false;
+        for (const RawChild &c : std::as_const(p.extra)) kept = kept || c.xml.startsWith("<w:pBdr");
+        const tp::ParaBox box = tp::ParaBox::parse(f.stringProperty(tp::Borders));
+        if (!kept && (box.top.visible() || box.left.visible() || box.bottom.visible() || box.right.visible() || box.between.visible())) {
+            QByteArray x = "<w:pBdr>";
+            auto side = [&](const char *name, const tp::BoxSide &b) {
+                if (!b.visible()) return;
+                x += "<w:" + QByteArray(name) + " w:val=\"" + b.style.toUtf8() + "\" w:sz=\"" + QByteArray::number(b.eighths) + "\" w:space=\"" + QByteArray::number(b.space) + "\" w:color=\"" +
+                     (b.color.isValid() ? b.color.name().mid(1).toUpper().toLatin1() : QByteArray("auto")) + "\"/>";
+            };
+            side("top", box.top);
+            side("left", box.left);
+            side("bottom", box.bottom);
+            side("right", box.right);
+            side("between", box.between);
+            x += "</w:pBdr>";
+            RawChild c;
+            c.rank = office::wml::paraChildRank("pBdr");
+            c.xml = x;
+            int at = 0;
+            while (at < p.extra.size() && p.extra.at(at).rank <= c.rank) ++at;
+            p.extra.insert(at, c);
+        }
+    }
     if (f.hasProperty(prop::SpacingAttrs)) p.spacingAttrs = storedBytes(f, prop::SpacingAttrs);
     if (f.hasProperty(prop::IndAttrs)) p.indAttrs = storedBytes(f, prop::IndAttrs);
     if (f.hasProperty(prop::NumExtra)) p.numExtra = storedBytes(f, prop::NumExtra);

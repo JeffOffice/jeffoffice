@@ -1,5 +1,7 @@
 #include "app/writewindow.h"
 
+#include "io/crypto.h"
+
 #include "app/icons.h"
 #include "app/keytips.h"
 #include "app/pageview.h"
@@ -9,6 +11,7 @@
 #include "app/ruler.h"
 #include "app/settings.h"
 #include "app/spellpane.h"
+#include "core/proofops.h"
 #include "app/stylespane.h"
 #include "app/telemetry.h"
 #include "app/widgets.h"
@@ -139,6 +142,7 @@ WriteWindow::~WriteWindow()
     if (m_navDock) m_navDock->disconnect(this);
     // (The view lets go of the document before the document goes.)
     m_view->setDocument(nullptr);
+    crypto::wipe(m_filePassword);
 }
 
 QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn, bool checkable)
@@ -155,7 +159,7 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
     a->setCheckable(checkable);
     // Each command counts by its id for the usage statistics (when they're on).
     connect(a, &QAction::triggered, this, [this, fn, id] {
-        if (isReadOnly() && !commandAllowedReadOnly(id)) {
+        if (isReadOnly() && !commandAllowedReadOnly(id) && !protectionAllows(id)) {
             refuseReadOnlyChange();
             return;
         }
@@ -197,12 +201,13 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
     if (m_doc) {
         // Who makes changes and comments here, and how the document shows them: a document with changes or comments opens showing its markup.
         m_doc->setReviewer(Settings::get().userName(), Settings::get().value(QStringLiteral("user/initials")).toString());
-        connect(m_doc.get(), &write::WriteDoc::reviewChanged, this, [this] { refreshReviewUi(); });
+        connect(m_doc.get(), &write::WriteDoc::reviewChanged, this, [this] { applyProtection(); });
         if (m_reviewView == ReviewView::NoMarkup || m_reviewView == ReviewView::Original) {
             if (write::revisionCount(m_doc->story()) > 0) setReviewView(ReviewView::AllMarkup);
         }
         applyReviewView();
         if (m_review) m_review->refresh();
+        applyProtection();
     }
     if (m_spellPane && m_spellDock->isVisible()) m_spellPane->start();
     updateTitle();
@@ -215,7 +220,7 @@ void WriteWindow::updateTitle()
     // A document that came from an old binary file shows its whole name, so its kind is plain until it is saved as a .docx.
     const QString ending = QFileInfo(m_path).suffix().toLower();
     const QString shown = ending == QLatin1String("doc") || ending == QLatin1String("dot") || ending == QLatin1String("rtf") ? QFileInfo(m_path).fileName() : displayName();
-    setWindowTitle(QStringLiteral("%1%2%4 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name, isReadOnly() ? tr(" (Read-Only)") : QString()));
+    setWindowTitle(QStringLiteral("%1%2%4 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name, isReadOnly() ? (m_readOnlyByProtection ? tr(" (Protected)") : tr(" (Read-Only)")) : QString()));
 }
 
 // ---- commands
@@ -239,6 +244,8 @@ void WriteWindow::createActions()
     createLayoutExtraActions();
     createViewExtraActions();
     createStyleActions();
+    createHomeActions();
+    createProtectActions();
     createMailActions();
 }
 
@@ -577,6 +584,7 @@ void WriteWindow::updateStatus()
     const int pages = m_view->pageCount();
     const QString total = m_view->pagesComplete() ? QString::number(pages) : QStringLiteral("%1+").arg(pages);
     m_pageLabel->setText(tr("Page %1 of %2").arg(m_doc ? m_view->currentPage() + 1 : 0).arg(total));
+    updateLanguage();
     if (m_doc && !m_wordTimer.isActive()) m_wordTimer.start();
 }
 
@@ -602,6 +610,15 @@ void WriteWindow::updateWords()
         const bool space = c.isSpace();
         if (!space && !in) ++words;
         in = !space;
+    }
+    // With words selected: "12 of 340 words".
+    const QTextCursor sel = m_view->cursor();
+    if (sel.hasSelection() && sel.document() == m_doc->story()) {
+        const int selected = write::countWordsIn(sel.document(), sel.selectionStart(), sel.selectionEnd(), false).words;
+        if (selected > 0) {
+            m_wordLabel->setText(tr("%1 of %n word(s)", nullptr, words).arg(selected));
+            return;
+        }
     }
     m_wordLabel->setText(tr("%n word(s)", nullptr, words));
 }

@@ -111,6 +111,11 @@ public:
     void cut();
     void copy();
     void paste();
+    // Paste with a choice: keep the source's formatting (as Paste), merge with the formatting around (the emphasis stays), text only, a picture, or the clipboard's HTML. Which of them the
+    // clipboard can give now.
+    enum class PasteKind { Keep, Merge, TextOnly, Picture, Html };
+    bool canPaste(PasteKind kind) const;
+    void pasteAs(PasteKind kind);
     void selectAll();
     void insertText(const QString &text);
     void typeKey(int key, Qt::KeyboardModifiers modifiers);   // the keys that edit and move, as the keyboard sends them

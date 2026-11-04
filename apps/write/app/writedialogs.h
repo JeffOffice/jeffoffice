@@ -16,6 +16,8 @@ struct Source;
 // The font, style, size, color, underline (its style and color), and effects of the characters the cursor selects (of the text typed next, with none
 // selected). What the person changed is given to the characters as one step that undoes; what they left alone stays as it was in each of them.
 void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
+// Tabs: the tab stops of the paragraph the cursor is in (position, alignment, and leader; Set, Clear, and Clear All), given to the paragraphs the cursor selects when OK is clicked.
+void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
 // Alignment, indents, spacing, and line spacing of the paragraphs the cursor selects (those it changes, and only those the person changed).
 void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
 // The Page Setup dialog for the section `section`: margins and gutter, orientation, paper size, and layout (how the section starts, a different first page, different odd and even
