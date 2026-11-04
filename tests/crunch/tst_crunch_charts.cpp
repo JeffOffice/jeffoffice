@@ -704,6 +704,42 @@ private Q_SLOTS:
         QCOMPARE(int(o->printObjects(0).size()), 0);
     }
 
+    // A logarithmic scale is chosen in Format Axis, saved, and refused when the lowest value is not over 0.
+    void aLogarithmicScaleIsChosenInFormatAxis()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.axisV"))->isEnabled());
+        const Chart before = chartOf(e);
+        const ChartAxis axisBefore = *primaryAxis(before, false);
+        FormatAxisDialog box(axisBefore, QStringLiteral("Format"));
+        QCheckBox *log = box.findChild<QCheckBox *>(QStringLiteral("axisLog"));
+        QVERIFY(log && !log->isChecked());
+        log->setChecked(true);
+        QVERIFY(box.result().logBase == 10);
+        QVERIFY(box.problem().isEmpty());
+        FormatAxisDialog low(axisBefore, QStringLiteral("Format"));
+        low.findChild<QCheckBox *>(QStringLiteral("axisLog"))->setChecked(true);
+        low.findChild<QCheckBox *>(QStringLiteral("axisMinAuto"))->setChecked(false);
+        low.findChild<QDoubleSpinBox *>(QStringLiteral("axisMin"))->setValue(0);
+        QVERIFY(!low.problem().isEmpty());
+        e.win.w.setFormatAxisAsker([&](bool, ChartAxis *axis) {
+            axis->logBase = 10;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("chartdesign.axisV"))->trigger();
+        Chart now = chartOf(e);
+        QCOMPARE(primaryAxis(now, false)->logBase, 10.0);
+        QVERIFY(save(e));
+        const Chart saved = savedCharts(e.path)[0].chart;
+        QCOMPARE(primaryAxis(saved, false)->logBase, 10.0);
+        pressUndo(&e.win.w);
+        now = chartOf(e);
+        QCOMPARE(primaryAxis(now, false)->logBase, 0.0);
+    }
+
     // The Format Axis box refuses a lowest value that is not under the highest, and a unit of 0 or less unless Automatic is chosen (0 stays "automatic" only there); the window refuses the same from any source.
     void theFormatAxisBoxRefusesWhatCannotBeUsed()
     {

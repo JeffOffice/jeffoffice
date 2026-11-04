@@ -260,6 +260,8 @@ QStringList labelPositionsFor(const Chart &chart)
 QString axisFormatProblem(const ChartAxis &axis)
 {
     if (axis.kind == ChartAxis::Value && !axis.autoMin && !axis.autoMax && axis.min >= axis.max) return QCoreApplication::translate("Chart", "The lowest value has to be less than the highest.");
+    if (axis.kind == ChartAxis::Value && axis.logBase != 0 && !(axis.logBase >= 2 && axis.logBase <= 1000)) return QCoreApplication::translate("Chart", "The base of a logarithmic scale has to be from 2 to 1000.");
+    if (axis.kind == ChartAxis::Value && axis.logBase != 0 && ((!axis.autoMin && axis.min <= 0) || (!axis.autoMax && axis.max <= 0))) return QCoreApplication::translate("Chart", "A logarithmic scale needs a lowest and a highest value that are more than 0.");
     if (axis.majorUnit < 0 || axis.minorUnit < 0) return QCoreApplication::translate("Chart", "A unit can't be negative.");
     return QString();
 }
@@ -275,6 +277,7 @@ void setAxisFormat(Chart *chart, bool horizontal, bool secondary, const ChartAxi
     a->majorUnit = from.majorUnit;
     a->minorUnit = from.minorUnit;
     a->reversed = from.reversed;
+    a->logBase = from.logBase;
     a->crosses = from.crosses;
     a->hasCrossesAt = from.hasCrossesAt;
     a->crossesAt = from.crossesAt;

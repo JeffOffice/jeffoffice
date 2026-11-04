@@ -665,6 +665,17 @@ FormatAxisDialog::FormatAxisDialog(const jp::office::ChartAxis &axis, const QStr
     m_reversed = new QCheckBox(tr("Values in reverse order"), this);
     m_reversed->setChecked(axis.reversed);
     form->addRow(m_reversed);
+    m_log = new QCheckBox(tr("Logarithmic scale, base:"), this);
+    m_log->setObjectName(QStringLiteral("axisLog"));
+    m_log->setChecked(axis.logBase >= 2);
+    m_logBase = new QDoubleSpinBox(this);
+    m_logBase->setDecimals(0);
+    m_logBase->setObjectName(QStringLiteral("axisLogBase"));
+    m_logBase->setRange(2, 1000);
+    m_logBase->setValue(axis.logBase >= 2 ? axis.logBase : 10);
+    m_logBase->setEnabled(axis.logBase >= 2);
+    connect(m_log, &QCheckBox::toggled, m_logBase, &QWidget::setEnabled);
+    if (axis.kind == jp::office::ChartAxis::Value) form->addRow(m_log, m_logBase);
     m_crosses = new QComboBox(this);
     m_crosses->setObjectName(QStringLiteral("axisCrosses"));
     m_crosses->addItem(tr("Automatic"), QStringLiteral("autoZero"));
@@ -745,6 +756,7 @@ jp::office::ChartAxis FormatAxisDialog::result() const
         a.max = m_max->value();
         a.majorUnit = m_autoMajor->isChecked() ? 0 : m_major->value();
         a.minorUnit = m_autoMinor->isChecked() ? 0 : m_minor->value();
+        a.logBase = m_log->isChecked() ? std::round(m_logBase->value()) : 0;
     }
     a.reversed = m_reversed->isChecked();
     const QString crosses = m_crosses->currentData().toString();

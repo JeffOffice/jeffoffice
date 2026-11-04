@@ -123,6 +123,16 @@ double niceUnit(double target)
 // Where an axis begins and ends and how often it is marked.
 struct Scale {
     double min = 0, max = 1, major = 0.2;
+    double logBase = 0;   // a logarithmic scale of this base (min and max are then positive, and the marks are at its powers); 0: linear
+    // Where a value stands from the scale's start (0) to its end (1), before any reversing; a value a log scale has no place for (zero or less) is at the start.
+    double frac(double v) const
+    {
+        if (logBase >= 2) {
+            if (!(v > 0)) return 0;
+            return (std::log(v) - std::log(min)) / (std::log(max) - std::log(min));
+        }
+        return (v - min) / (max - min);
+    }
 };
 
 // An axis scaled to its data the way charts are: the baseline is zero unless
@@ -153,6 +163,17 @@ Scale scaleOf(const ChartAxis &axis, double dataLow, double dataHigh, bool perce
         low = bottom;
     }
     const bool fixedMin = !axis.autoMin && usable(axis.min), fixedMax = !axis.autoMax && usable(axis.max);
+    if (axis.logBase >= 2 && axis.logBase <= 1000 && !percent && dataLow > 0) {
+        // (the marks are the powers of the base: from the one at or under the smallest value to the one at or over the largest)
+        const double b = axis.logBase;
+        Scale ls;
+        ls.logBase = b;
+        ls.min = fixedMin && axis.min > 0 ? axis.min : std::pow(b, std::floor(std::log(dataLow) / std::log(b) + 1e-9));
+        ls.max = fixedMax && axis.max > ls.min ? axis.max : std::pow(b, std::ceil(std::log(dataHigh) / std::log(b) - 1e-9));
+        if (!(ls.max > ls.min)) ls.max = ls.min * b;
+        ls.major = b;
+        if (usable(ls.min) && usable(ls.max) && std::isfinite(std::log(ls.max / ls.min))) return ls;
+    }
     const double from = fixedMin ? axis.min : low;
     double to = fixedMax ? axis.max : high;
     if (!(to > from)) to = from + 1;
@@ -826,7 +847,7 @@ void ChartPainter::stack(View *v) const
 // The page position along the value axis of a value: from the plot's bottom (or left, when categories run up the page).
 double ChartPainter::valueAlong(double value, const Scale &scale) const
 {
-    double f = (value - scale.min) / (scale.max - scale.min);
+    double f = scale.frac(value);
     if (!std::isfinite(f)) f = 0;
     if (m_valReversed) f = 1 - f;
     f = std::clamp(f, 0.0, 1.0);
@@ -1108,7 +1129,7 @@ void ChartPainter::drawScatter(const View &v, const Scale &xs, const Scale &ys)
         for (int i = 0; i < n; ++i) {
             present[i] = std::isfinite(s.values[i]) && std::isfinite(s.xValues[i]);
             if (!present[i]) continue;
-            const double fx = (s.xValues[i] - xs.min) / (xs.max - xs.min), fy = (s.values[i] - ys.min) / (ys.max - ys.min);
+            const double fx = xs.frac(s.xValues[i]), fy = ys.frac(s.values[i]);
             // A point far off its axes (a fixed axis that leaves the data out) is not drawn, nor is one that has no place.
             if (!(std::fabs(fx) <= 1000 && std::fabs(fy) <= 1000)) {
                 present[i] = false;
@@ -1155,7 +1176,7 @@ void ChartPainter::drawScatter(const View &v, const Scale &xs, const Scale &ys)
     for (const ChartSeries &s : plot.series) {
         if (!m_chart.drawTrendlines || s.trendlines.isEmpty()) continue;
         drawTrendlines(s, s.xValues, [&](double x, double y) {
-            const double fx = (x - xs.min) / (xs.max - xs.min), fy = (y - ys.min) / (ys.max - ys.min);
+            const double fx = xs.frac(x), fy = ys.frac(y);
             return QPointF(m_inner.left() + (m_catReversed ? 1 - fx : fx) * m_inner.width(), m_inner.bottom() - (m_valReversed ? 1 - fy : fy) * m_inner.height());
         });
     }
@@ -1388,6 +1409,10 @@ void ChartPainter::paintAxes(const QRectF &outer)
     const bool catLabels = !m_cat->deleted && m_cat->labelPosition != QLatin1String("none");
     auto ticksOf = [](const Scale &scale) {
         QVector<double> out;
+        if (scale.logBase >= 2) {
+            for (double t = scale.min; t <= scale.max * (1 + 1e-9) && out.size() < kMaxTicks + 2; t *= scale.logBase) out << t;
+            return out;
+        }
         for (double t = scale.min; t <= scale.max + scale.major * 1e-6 && out.size() < kMaxTicks + 2; t += scale.major) out << t;
         return out;
     };
@@ -1515,7 +1540,7 @@ void ChartPainter::paintAxes(const QRectF &outer)
         QVector<double> out;
         for (double t : ticks) {
             if (scatter && horizontal) {
-                double f = (t - scale.min) / (scale.max - scale.min);
+                double f = scale.frac(t);
                 if (!std::isfinite(f)) f = 0;
                 out << m_inner.left() + (m_catReversed ? 1 - f : f) * m_inner.width();
             } else {

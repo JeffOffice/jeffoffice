@@ -890,6 +890,10 @@ ChartAxis Reader::readAxis(const QDomElement &e) const
     a.position = valOf(cChild(e, "axPos"), a.kind == ChartAxis::Value ? QStringLiteral("l") : QStringLiteral("b"));
     const QDomElement scaling = cChild(e, "scaling");
     a.reversed = valOf(cChild(scaling, "orientation")) == QLatin1String("maxMin");
+    if (const QDomElement lb = cChild(scaling, "logBase"); !lb.isNull()) {
+        const double base = numberOf(lb);
+        if (std::isfinite(base) && base >= 2 && base <= 1000) a.logBase = base;
+    }
     if (const QDomElement max = cChild(scaling, "max"); !max.isNull()) {
         a.autoMax = false;
         a.max = numberOf(max);

@@ -179,6 +179,7 @@ struct ChartAxis {
     QString position = QStringLiteral("b");   // "b", "t", "l", "r"
     bool deleted = false;
     bool reversed = false;          // c:orientation "maxMin"
+    double logBase = 0;             // c:logBase (2 to 1000): a logarithmic scale of that base; 0: linear
     bool autoMin = true, autoMax = true;
     double min = 0, max = 0;        // when not automatic
     double majorUnit = 0, minorUnit = 0;     // 0: automatic
