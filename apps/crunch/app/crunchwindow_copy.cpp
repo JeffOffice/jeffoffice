@@ -83,6 +83,53 @@ bool CrunchWindow::exportCopy(const QString &path)
     return true;
 }
 
+void CrunchWindow::checkCompatibility()
+{
+    if (!m_session || !m_loaded || !m_loaded->book || m_saving) return;
+    if (!commitEdit()) return;
+    if (m_loading || !m_haveCalc) {
+        notice(tr("Check Compatibility"), tr("The workbook is still being read. Check it when the status bar says Ready."));
+        return;
+    }
+    syncPanes();
+    auto snapshot = std::make_shared<crunch::EditSession::Snapshot>();
+    QString why;
+    if (!m_session->takeSnapshot(snapshot.get(), &why, false)) {
+        notice(tr("Check Compatibility"), why);
+        return;
+    }
+    if (m_objects) m_objects->addToSave(&snapshot->changes);
+    setStatus(tr("Checking what an .xls file can hold…"));
+    const std::shared_ptr<office::sheet::Workbook> book = m_loaded->book;
+    const QPointer<CrunchWindow> self(this);
+    QThread *thread = QThread::create([self, book, snapshot] {
+        QByteArray xlsx, copy;
+        QString message;
+        office::sheet::SaveReport report;
+        office::sheet::CopyReport copyReport;
+        bool ok = office::sheet::saveXlsx(*book, snapshot->changes, &xlsx, &message, &report);
+        if (ok) {
+            office::Package package;
+            office::sheet::Workbook made;
+            ok = package.readLazy(xlsx, &message) && made.open(package, &message);
+            if (ok) ok = office::sheet::saveXls(made, &copy, &copyReport, &message);
+        }
+        QMetaObject::invokeMethod(qApp, [self, ok, message, copyReport] {
+            if (!self) return;
+            self->setStatus(tr("Ready"));
+            if (!ok) {
+                self->notice(tr("Check Compatibility"), message);
+                return;
+            }
+            const QString warning = crunch::copyWarning(QStringLiteral("xls"), copyReport.notKept, copyReport.trimmed);
+            if (warning.isEmpty()) self->notice(tr("Check Compatibility"), tr("Nothing in this workbook is lost when it is saved as an .xls file."), false);
+            else self->notice(tr("Check Compatibility"), warning);
+        }, Qt::QueuedConnection);
+    });
+    connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+    thread->start();
+}
+
 void CrunchWindow::onCopyMade(bool ok, const QString &message, const QString &path, const QByteArray &bytes, const QStringList &notKept, const QStringList &trimmed)
 {
     m_saving = false;

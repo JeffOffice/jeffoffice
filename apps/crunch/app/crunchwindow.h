@@ -328,6 +328,8 @@ public:
     // Writes the workbook as a copy in the older binary form (.xls) or as an OpenDocument spreadsheet (.ods) (see crunchwindow_copy.cpp): the person is told what the file cannot hold, and the
     // workbook open here is not changed or marked saved. `copyExported` says when it is over. A path ending in .xls or .ods given to save() or saveAs() comes here.
     bool exportCopy(const QString &path);
+    // Check Compatibility: works out what an .xls file would not hold, as a copy would, and says it; writes nothing.
+    void checkCompatibility();
     bool isModified() const { return m_session && m_session->isModified(); }
     bool isSaving() const { return m_saving; }
     // What the person is asked when the window is closed with changes that are not saved: Save, Don't Save, or Cancel (a message box, unless this stands in for it: tests).

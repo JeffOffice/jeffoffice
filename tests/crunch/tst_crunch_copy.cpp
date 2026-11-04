@@ -173,6 +173,27 @@ private Q_SLOTS:
 #endif
     }
 
+    // Check Compatibility says what an .xls file would lose, writes nothing, and leaves the workbook as it is.
+    void checkCompatibilityListsWhatAnOldFileCannotHold()
+    {
+        {
+            Win o;
+            QVERIFY(o.open(xlsxWithRules(), QStringLiteral("rules.xlsx")));
+            o.w.checkCompatibility();
+            QTRY_VERIFY_WITH_TIMEOUT(!o.told.isEmpty(), 20000);
+            QVERIFY2(o.told.last().startsWith(QLatin1String("Check Compatibility")) && o.told.last().contains(QLatin1String("conditional formatting")), qPrintable(o.told.last()));
+            QVERIFY(!o.w.isModified());
+            QVERIFY(o.originalIsUntouched());
+        }
+        {
+            Win o;
+            QVERIFY(o.open(odsBook(), QStringLiteral("book.ods")));
+            o.w.checkCompatibility();
+            QTRY_VERIFY_WITH_TIMEOUT(!o.told.isEmpty(), 20000);
+            QVERIFY2(o.told.last().startsWith(QLatin1String("Check Compatibility")) && o.told.last().contains(QLatin1String("Nothing")), qPrintable(o.told.last()));
+        }
+    }
+
     // What the file cannot hold is said before it is written; Cancel writes nothing, and "save as .xlsx" asks for that name instead.
     void thePersonIsToldWhatTheFileCannotHold()
     {
