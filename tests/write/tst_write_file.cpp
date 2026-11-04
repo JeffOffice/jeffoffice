@@ -1,6 +1,7 @@
 // Tests of JeffWrite's File screen: where editing stopped, the warning before a save to a format that holds less, and the Options pages. Every file is made here in code.
 
 #include "../isolatesettings.h"
+#include "app/optionsdialog.h"
 #include "app/settings.h"
 #include "app/pageview.h"
 #include "app/writeinfo.h"
@@ -11,6 +12,10 @@
 #include "core/writedoc.h"
 
 #include <QAction>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QLineEdit>
+#include <QSpinBox>
 #include <QFileInfo>
 #include <QTemporaryDir>
 #include <QTest>
@@ -183,6 +188,63 @@ private Q_SLOTS:
         });
         QVERIFY(saveInto(w, dir, QStringLiteral("a.odt")));
         QVERIFY(!asked);
+    }
+
+    void theSaveAndDisplayPagesChangeWhatNewWindowsStartWith()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        QVector<OptionsPage> pages = w.optionsPages();
+        QStringList titles;
+        for (const OptionsPage &p : pages) titles << p.title;
+        QVERIFY(titles.contains(QStringLiteral("Save")));
+        QVERIFY(titles.contains(QStringLiteral("Display")));
+        QList<QWidget *> built;
+        for (const OptionsPage &p : pages) built << p.build();
+        auto in = [&](const char *name) {
+            for (QWidget *page : built)
+                if (QWidget *f = page->findChild<QWidget *>(QString::fromLatin1(name))) return f;
+            return static_cast<QWidget *>(nullptr);
+        };
+        auto *minutes = qobject_cast<QSpinBox *>(in("autoRecoverMinutes"));
+        auto *format = qobject_cast<QComboBox *>(in("defaultFormat"));
+        auto *folder = qobject_cast<QLineEdit *>(in("defaultFolder"));
+        auto *marks = qobject_cast<QCheckBox *>(in("startWithMarks"));
+        auto *grid = qobject_cast<QCheckBox *>(in("startWithGridlines"));
+        QVERIFY(minutes && format && folder && marks && grid);
+        minutes->setValue(3);
+        format->setCurrentIndex(format->findData(QStringLiteral("odt")));
+        folder->setText(dir.path());
+        marks->setChecked(true);
+        grid->setChecked(true);
+        for (const OptionsPage &p : pages)
+            if (p.apply) p.apply();
+        qDeleteAll(built);
+        QCOMPARE(Settings::get().autoRecoverMinutes(), 3);
+        // this window changes at once
+        QVERIFY(w.view()->showMarks());
+        QVERIFY(w.act(QStringLiteral("view.marks"))->isChecked());
+        // a new window starts so, and its first Save As is an .odt in the folder
+        WriteWindow v;
+        QVERIFY(v.view()->showMarks());
+        QVERIFY(v.view()->showGridlines());
+        QString suggested, filter;
+        v.setSavePathChooser([&](const QString &s, const QString &f) {
+            suggested = s;
+            filter = f;
+            return QString();
+        });
+        QVERIFY(!v.saveAs());
+        QCOMPARE(QFileInfo(suggested).absolutePath(), QFileInfo(dir.path()).absoluteFilePath());
+        QVERIFY(suggested.endsWith(QLatin1String(".odt")));
+        QVERIFY(filter.contains(QLatin1String("*.odt")));
+        // put back what the other tests expect
+        Settings::get().setValue(QStringLiteral("view/marks"), false);
+        Settings::get().setValue(QStringLiteral("view/gridlines"), false);
+        Settings::get().setValue(QStringLiteral("save/format"), QStringLiteral("docx"));
+        Settings::get().setValue(QStringLiteral("dirs/default"), QString());
+        Settings::get().setValue(QStringLiteral("save/autoRecoverMinutes"), 10);
     }
 };
 

@@ -142,7 +142,7 @@ void WriteWindow::createFileActions()
         // The shared pages (General, Proofing); JeffWrite has no pages of its own yet.
         Editor stand;
         stand.view.spelling = m_view->spellingEnabled();   // (its "check spelling as you type" is the view's)
-        if (optionsDialog(this, &stand, {})) {
+        if (optionsDialog(this, &stand, optionsPages())) {
             act("review.checkAsType")->setChecked(stand.view.spelling);
             m_view->setSpellingEnabled(stand.view.spelling);
             Settings::get().setValue(QStringLiteral("proof/asYouType"), stand.view.spelling);
@@ -160,7 +160,7 @@ void WriteWindow::createFileActions()
 
 void WriteWindow::browseAndOpen(OpenHow how)
 {
-    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
+    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), Settings::get().value("dirs/open", defaultFolder()).toString(),
                                                    tr("Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott)") + QStringLiteral(";;") + tr("Rich Text Format (*.rtf)") + QStringLiteral(";;") + tr("OpenDocument Text (*.odt *.fodt *.ott)") + QStringLiteral(";;") + tr("All Files (*)"));
     if (p.isEmpty()) return;
     Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
@@ -281,13 +281,15 @@ void WriteWindow::notice(const QString &title, const QString &text, bool warning
 bool WriteWindow::saveAs()
 {
     const QString from = m_path.isEmpty() ? m_recoveredFrom : m_path;
-    const QString dir = from.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(from).absolutePath();
+    const QString dir = from.isEmpty() ? defaultFolder() : QFileInfo(from).absolutePath();
     // (a document open for reading only is offered a name of its own, not the file's)
     const QString name = isReadOnly() ? tr("%1 copy").arg(from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName()) : from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName();
     // The dialog hands back the filter text it showed, so the choice is recognized by comparing with these same (translated) texts.
     const QString docxFilter = tr("Document (*.docx)"), dotxFilter = tr("Template (*.dotx)"), odtFilter = tr("OpenDocument Text (*.odt)"), ottFilter = tr("OpenDocument Text Template (*.ott)");
     const QString fromEnding = QFileInfo(from).suffix().toLower();
     QString selected = fromEnding == QLatin1String("dotx") || fromEnding == QLatin1String("dot") ? dotxFilter : fromEnding == QLatin1String("ott") ? ottFilter : fromEnding == QLatin1String("odt") || fromEnding == QLatin1String("fodt") ? odtFilter : docxFilter;
+    // (a document with no file yet starts on the kind Options > Save names)
+    if (from.isEmpty() && Settings::get().value(QStringLiteral("save/format")).toString() == QLatin1String("odt")) selected = odtFilter;
     auto endingOf = [&](const QString &filter) { return filter == dotxFilter ? QStringLiteral(".dotx") : filter == odtFilter ? QStringLiteral(".odt") : filter == ottFilter ? QStringLiteral(".ott") : QStringLiteral(".docx"); };
     const QString suggested = dir + QLatin1Char('/') + name + endingOf(selected);
     QString path = m_pathChooser ? m_pathChooser(suggested, selected)

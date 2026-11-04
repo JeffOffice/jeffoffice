@@ -11,6 +11,7 @@
 #include "core/writedoc.h"
 #include "core/compareops.h"
 #include "core/homeops.h"
+#include "app/optionsdialog.h"
 
 #include <QHash>
 #include <QPointer>
@@ -133,6 +134,10 @@ public:
     // for the messages, the save goes ahead and says afterward what was left out.
     enum class FormatChoice { Keep, Docx, Cancel };
     void setFormatAsker(const std::function<FormatChoice(const QStringList &)> &asker) { m_formatAsker = asker; }
+    // The pages JeffWrite adds to Options after the shared ones (Save, Display); what they set applies to this window at once and to each new one.
+    QVector<OptionsPage> optionsPages();
+    // The folder the Open and Save As boxes start in when no file leads them: the one Options > Save names, else Documents.
+    static QString defaultFolder();
     // Where editing stopped: the place is kept with the file's name when the window closes and when the file is saved, and the file opens there again.
     void rememberPlace();
     // The last three places the text was edited, the latest first (Shift+F5 goes to each in turn).
@@ -381,6 +386,7 @@ private:
     QList<int> m_editPlaces;
     int m_placeStep = 0;
     void recordPlace(int position);
+    void applyDisplayDefaults();
     void returnToPlace(const QString &path);
     static QString placeKey(const QString &path);
     FormatChoice askFormatChoice(const QStringList &lost);

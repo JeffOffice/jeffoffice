@@ -131,6 +131,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     connect(&m_wordTimer, &QTimer::timeout, this, &WriteWindow::updateWords);
 
     setDocument(write::WriteDoc::blank(), QString());
+    applyDisplayDefaults();
     resize(1280, 800);
     updateTitle();
     refreshUi();
