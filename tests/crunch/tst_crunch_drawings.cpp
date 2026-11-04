@@ -1055,6 +1055,80 @@ private Q_SLOTS:
         QVERIFY2(relationshipsAllResolve(e.path, &bad), qPrintable(bad));
     }
 
+    // Two pictures that use one image: one is deleted and saved (the image stays, for the other), Undo and a save put it back, and both pictures show their image.
+    void twoPicturesSharingOneImageBothComeBack()
+    {
+        const QString anchors = twoCell(0, 6, 2, 9, pictureElement(3, QStringLiteral("rIdP"), QStringLiteral("First"))) + twoCell(4, 6, 6, 9, pictureElement(4, QStringLiteral("rIdP"), QStringLiteral("Second")));
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {imageTarget(QStringLiteral("rIdP"), 1, pngBytes(8, 4, Qt::red))})));
+        QTRY_VERIFY(shown(e, 2));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        o->layer()->select(1);   // the second
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(saveWindow(e));
+        QVERIFY2(!savedNames(e.path).contains(QStringLiteral("Second")) && savedNames(e.path).contains(QStringLiteral("First")), "one picture is gone");
+        const QVector<Reached> inUse = reachedBy(e.path, QStringLiteral("image"));
+        QCOMPARE(int(inUse.size()), 1);
+        QCOMPARE(inUse[0].bytes, pngBytes(8, 4, Qt::red));   // (the image is not taken away while the first picture uses it)
+        e.win.w.session()->undoStack()->undo();
+        QVERIFY(saveWindow(e));
+        const QStringList names = savedNames(e.path);
+        QVERIFY(names.contains(QStringLiteral("First")) && names.contains(QStringLiteral("Second")));
+        const QVector<Reached> images = reachedBy(e.path, QStringLiteral("image"));
+        QVERIFY(!images.isEmpty());
+        for (const Reached &r : images) QCOMPARE(r.bytes, pngBytes(8, 4, Qt::red));
+        QString bad;
+        QVERIFY2(relationshipsAllResolve(e.path, &bad), qPrintable(bad));
+        QVERIFY2(orphanParts(e.path).isEmpty(), qPrintable(orphanParts(e.path).join(QLatin1Char(','))));
+        // the reopened file draws both
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 2);
+        // and a delete of the first, Undo, and a save leave both again
+        o->layer()->select(0);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(saveWindow(e));
+        e.win.w.session()->undoStack()->undo();
+        QVERIFY(saveWindow(e));
+        QVERIFY(savedNames(e.path).contains(QStringLiteral("First")) && savedNames(e.path).contains(QStringLiteral("Second")));
+        QVERIFY2(relationshipsAllResolve(e.path, &bad), qPrintable(bad));
+    }
+
+    // A chart is deleted and saved, then the sheet it is on is deleted; Undo of the sheet and Undo of the chart bring both back, and the next save writes the chart on its sheet.
+    void aChartDeletedThenItsSheetDeletedComesBackWithBothUndone()
+    {
+        QByteArray chartXml, styleXml, colorsXml;
+        EditWindow e;
+        QVERIFY(e.open(chartWithStylePartsBook(&chartXml, &styleXml, &colorsXml, 2)));
+        QTRY_VERIFY(shown(e, 2));
+        crunch::SheetObjects *o = e.win.w.objects();
+        crunch::EditSession *s = e.win.w.session();
+        o->layer()->prepareAll();
+        o->layer()->select(0);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(saveWindow(e));
+        QVERIFY(reachedBy(e.path, QStringLiteral("chart")).isEmpty());
+        QVERIFY(s->deleteSheet(0).ok);
+        QVERIFY(e.settle());
+        s->undoStack()->undo();   // the sheet
+        QVERIFY(e.settle());
+        QVERIFY(s->canUndo());
+        s->undoStack()->undo();   // the chart
+        QVERIFY(e.settle());
+        QVERIFY(saveWindow(e));
+        const QVector<Reached> charts = reachedBy(e.path, QStringLiteral("chart"));
+        QCOMPARE(int(charts.size()), 1);
+        QCOMPARE(charts[0].bytes, chartXml);
+        QCOMPARE(charts[0].children.value(QStringLiteral("chartStyle")), styleXml);
+        QString bad;
+        QVERIFY2(relationshipsAllResolve(e.path, &bad), qPrintable(bad));
+        QVERIFY(orphanParts(e.path).isEmpty());
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 2);
+    }
+
     // A chart moved to another sheet, and then moved again, carries the parts it reached each time.
     void aChartMovedTwiceCarriesItsStyleAndColors()
     {

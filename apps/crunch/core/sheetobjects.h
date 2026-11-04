@@ -148,6 +148,8 @@ public:
     // What it takes to write an object of the saved file back after a save has dropped it (null for an object that is not in the file, or when it holds too much); the object is told it.
     std::shared_ptr<const jp::crunch::ObjectRevive> captureRevive(int sheet, int id, QString *why = nullptr);
     // An object put on a sheet (a chart made from a copy) is written from the bytes of another's record, so the parts it had come with it.
+    // An anchor given as a place and a size in points (an absolute one, with what it does when cells change as `editAs`) as two cells of this sheet: its own row heights and column widths say which.
+    jp::office::sheet::DrawingAnchor anchorKeepingSize(int sheet, const jp::office::sheet::DrawingAnchor &absolute);
     void adoptRevive(int sheet, int id, const std::shared_ptr<const jp::crunch::ObjectRevive> &revive);
     ObjectState stateMoved(int sheet, int id, const jp::office::sheet::DrawingAnchor &anchor);
     // The state with the object on the printed pages or off them; and whether it is on them now.

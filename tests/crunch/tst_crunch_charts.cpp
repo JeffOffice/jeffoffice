@@ -787,13 +787,14 @@ private Q_SLOTS:
         QCOMPARE(savedCharts(e.path, 1).size(), 1);
     }
 
-    // A hidden sheet is not offered by Move Chart, and the chart keeps its size in points on a sheet whose columns are wider.
-    void aMovedChartKeepsItsSizeAndSkipsHiddenSheets()
+    // A hidden sheet is not offered by Move Chart. The chart keeps its size in points on a sheet whose rows and columns are taller and wider, and still moves with its cells there: a row inserted
+    // above it moves it down, and the saved file has it as a two-cell anchor with the editAs it had.
+    void aMovedChartKeepsItsSizeAndStillFollowsCells()
     {
         QByteArray wide = dataSheet();
-        wide.replace("<sheetData>", "<cols><col min=\"1\" max=\"40\" width=\"30\" customWidth=\"1\"/></cols><sheetData>");
+        wide.replace("<sheetData>", "<sheetFormatPr defaultRowHeight=\"30\" customHeight=\"1\"/><cols><col min=\"1\" max=\"40\" width=\"30\" customWidth=\"1\"/></cols><sheetData>");
         EditWindow e;
-        QVERIFY(e.open(bookWithDrawing({dataSheet(), dataSheet(), wide}, drawingPart(twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Sales")))),
+        QVERIFY(e.open(bookWithDrawing({dataSheet(), dataSheet(), wide}, drawingPart(twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Sales")), QStringLiteral("oneCell"))),
                                        {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}}))})));
         QTRY_VERIFY(objectsShown(e, 1));
         QVERIFY(e.win.w.session()->setSheetHidden(1, true).ok);
@@ -812,10 +813,17 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.activeSheet(), 2);
         QTRY_VERIFY(objectsShown(e, 1, 2));
         const grid::ObjectBox now = e.win.w.objects()->layer()->boxNow(0);
-        QVERIFY2(std::abs(now.w - was.w) < 1.5 && std::abs(now.h - was.h) < 1.5, qPrintable(QStringLiteral("%1x%2 was %3x%4").arg(now.w).arg(now.h).arg(was.w).arg(was.h)));
+        QVERIFY2(std::abs((now.w - was.w) * 0.75) < 0.5 && std::abs((now.h - was.h) * 0.75) < 0.5, qPrintable(QStringLiteral("%1x%2 was %3x%4").arg(now.w).arg(now.h).arg(was.w).arg(was.h)));
+        // a row put in above it on the sheet moves it down by that row (30 pt, 40 pixels)
+        QVERIFY(e.win.w.session()->insertRows(2, 0, 1).ok);
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->layer()->boxNow(0).y > now.y + 30);
+        QVERIFY(std::abs((e.win.w.objects()->layer()->boxNow(0).h - now.h) * 0.75) < 0.5);
         QVERIFY(save(e));
         const QVector<SavedChart> saved = savedCharts(e.path, 2);
         QCOMPARE(saved.size(), 1);
+        QCOMPARE(int(saved[0].object.anchor.kind), int(AnchorKind::TwoCell));
+        QCOMPARE(int(saved[0].object.anchor.editAs), int(AnchorKind::OneCell));
     }
 
     // Move Chart is dimmed when the workbook has no other worksheet to move the chart to.

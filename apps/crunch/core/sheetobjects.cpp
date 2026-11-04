@@ -1512,6 +1512,20 @@ std::shared_ptr<const jp::crunch::ObjectRevive> SheetObjects::captureRevive(int 
     return rec;
 }
 
+DrawingAnchor SheetObjects::anchorKeepingSize(int sheet, const DrawingAnchor &absolute)
+{
+    if (absolute.kind != AnchorKind::Absolute || absolute.editAs == AnchorKind::Absolute || !m_source || !m_book || sheet < 0 || sheet >= int(m_sheets.size())) return absolute;
+    const std::shared_ptr<jp::grid::GridGeometry> geometry = jp::grid::GridSheet::makeGeometry(m_source->sheet(sheet), m_book->styles());
+    const double x = double(absolute.x) / double(kEmuPerPixel), y = double(absolute.y) / double(kEmuPerPixel);
+    const double w = double(absolute.cx) / double(kEmuPerPixel), h = double(absolute.cy) / double(kEmuPerPixel);
+    DrawingAnchor a;
+    a.kind = AnchorKind::TwoCell;
+    a.editAs = absolute.editAs;
+    a.from = jp::grid::anchorPointAt(geometry->layout.rows, geometry->layout.cols, x, y);
+    a.to = jp::grid::anchorPointAt(geometry->layout.rows, geometry->layout.cols, x + w, y + h);
+    return a;
+}
+
 void SheetObjects::adoptRevive(int sheet, int id, const std::shared_ptr<const jp::crunch::ObjectRevive> &revive)
 {
     Object *o = find(sheet, id);
