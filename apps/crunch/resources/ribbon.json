@@ -532,7 +532,8 @@
           "items": [
             {"small": "chartdesign.axisH", "keytip": "AH"},
             {"small": "chartdesign.axisV", "keytip": "AV"},
-            {"small": "chartdesign.moveChart", "keytip": "MC"}
+            {"small": "chartdesign.moveChart", "keytip": "MC"},
+            {"small": "chartdesign.saveAsPicture", "keytip": "SP"}
           ]
         },
         {

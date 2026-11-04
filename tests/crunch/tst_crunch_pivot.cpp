@@ -6,6 +6,7 @@
 #include "app/pivotpane.h"
 #include "app/ribbon.h"
 #include "app/slicerpane.h"
+#include "sheet/chartedit.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
@@ -1375,6 +1376,30 @@ private Q_SLOTS:
         const Parts after = readParts(e.path);
         for (auto it = after.cbegin(); it != after.cend(); ++it) any = any || it.key().startsWith(QLatin1String("xl/charts/chart"));
         QVERIFY(!any);
+    }
+
+    // A pivot chart has the Chart tab of any chart: its look is changed there, the saved chart is still the table's chart, and a refresh of the table leaves what was changed.
+    void aPivotChartHasTheChartTab()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("insert.pivotChart"))->trigger();
+        finish(e);
+        QTRY_VERIFY(e.win.w.pickedObject() >= 0);
+        QVERIFY(e.win.w.act(QStringLiteral("chartdesign.changeType"))->isEnabled());
+        QVERIFY(e.win.w.act(QStringLiteral("chartdesign.saveAsPicture"))->isEnabled());
+        QVERIFY(e.win.w.changePickedChart(QStringLiteral("Chart Title"), [](jp::office::Chart *c) { jp::office::sheet::setChartTitleText(c, QStringLiteral("Sales by month")); }));
+        QVERIFY(s->refreshPivot(0).ok);
+        finish(e);
+        QVERIFY(saveNow(e));
+        QByteArray chart;
+        const Parts saved = readParts(e.path);
+        for (auto it = saved.cbegin(); it != saved.cend(); ++it)
+            if (it.key().startsWith(QLatin1String("xl/charts/chart")) && it.key().endsWith(QLatin1String(".xml"))) chart = it.value();
+        QVERIFY2(chart.contains("<c:pivotSource>") && chart.contains("Sales by month"), chart.constData());
     }
 
     // The file's copy of a pivot table is the one just saved: save, change the table, save, undo the change, and save again leaves the file with the table as it is on screen (the second

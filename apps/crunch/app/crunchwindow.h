@@ -280,6 +280,7 @@ public:
     void setFormatAxisAsker(std::function<bool(bool, jp::office::ChartAxis *)> asker) { m_formatAxisAsker = std::move(asker); }
     void setMoveChartAsker(std::function<bool(const QStringList &, int *)> asker) { m_moveChartAsker = std::move(asker); }
     void moveChartDialog();
+    void saveChartAsPicture();
     void setDateAxisAsker(std::function<bool(QString *)> asker) { m_dateAxisAsker = std::move(asker); }
     void setAxisValueAsker(std::function<bool(bool, double *)> asker) { m_axisValueAsker = std::move(asker); }
     void setTableMakeAsker(std::function<bool(QString *, bool *)> asker) { m_tableMakeAsker = std::move(asker); }

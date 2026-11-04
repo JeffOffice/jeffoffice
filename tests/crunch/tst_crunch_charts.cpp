@@ -23,6 +23,7 @@
 #include <QDoubleSpinBox>
 #include <QMenu>
 #include <QRadioButton>
+#include <QTemporaryDir>
 #include <QToolButton>
 
 using namespace crunchtest;
@@ -596,6 +597,10 @@ private Q_SLOTS:
             found->trigger();
             return true;
         };
+        QVERIFY(fire({"Data Labels", "Label Contains", "Legend Key"}));
+        QVERIFY(labelPartsOf(chartOf(e)).legendKey);
+        QVERIFY(fire({"Data Labels", "Label Contains", "Legend Key"}));
+        QVERIFY(!labelPartsOf(chartOf(e)).legendKey);
         QVERIFY(fire({"Data Labels", "Label Contains", "Category Name"}));
         ChartLabelParts p = labelPartsOf(chartOf(e));
         QVERIFY(p.category && !p.value);
@@ -852,6 +857,85 @@ private Q_SLOTS:
         e.win.w.objects()->layer()->select(0);
         QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.axisV"))->isEnabled());
         QVERIFY(!e.win.w.act(QStringLiteral("chartdesign.moveChart"))->isEnabled());
+    }
+
+    // Save as Picture writes the picked chart as a picture file.
+    void aChartIsSavedAsAPicture()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        QVERIFY(!e.win.w.act(QStringLiteral("chartdesign.saveAsPicture"))->isEnabled());
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.saveAsPicture"))->isEnabled());
+        QTemporaryDir dir;
+        const QString target = dir.filePath(QStringLiteral("chart.png"));
+        e.win.w.setSavePicker([&](const QString &, const QString &) { return target; });
+        e.win.w.setPickedFilter(QStringLiteral("PNG (*.png)"));
+        e.win.w.act(QStringLiteral("chartdesign.saveAsPicture"))->trigger();
+        QImage img(target);
+        QVERIFY(!img.isNull());
+        QVERIFY(img.width() > 100 && img.height() > 60);
+        bool drawn = false;
+        for (int y = 0; y < img.height() && !drawn; ++y)
+            for (int x = 0; x < img.width(); ++x)
+                if (img.pixel(x, y) != qRgb(255, 255, 255)) { drawn = true; break; }
+        QVERIFY(drawn);
+    }
+
+    // The text of the chart title and of an axis title is typed in the list; "=Sheet1!A2" makes it follow that cell, and the file keeps the link.
+    void aTitleIsTypedOrLinkedToACell()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.chartElementsButton() && e.win.w.chartElementsButton()->isVisible());
+        QMenu *menu = e.win.w.chartElementsButton()->menu();
+        auto fire = [&](const QStringList &path) {
+            QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+            QMenu *m = menu;
+            QAction *found = nullptr;
+            for (int i = 0; i < path.size(); ++i) {
+                found = nullptr;
+                for (QAction *a : m->actions())
+                    if (a->text() == path[i]) found = a;
+                if (!found) return false;
+                if (i + 1 < path.size()) m = found->menu();
+            }
+            found->trigger();
+            return true;
+        };
+        QString answer;
+        e.win.w.setChartTextAsker([&](const QString &, QString *text) {
+            *text = answer;
+            return true;
+        });
+        answer = QStringLiteral("Sales Plan");
+        QVERIFY(fire({"Chart Title", "Title Text…"}));
+        QCOMPARE(chartOf(e).title.text, QStringLiteral("Sales Plan"));
+        QVERIFY(chartOf(e).title.present && chartOf(e).title.ref.isEmpty());
+        answer = QStringLiteral("=Sheet1!A2");
+        QVERIFY(fire({"Chart Title", "Title Text…"}));
+        QCOMPARE(chartOf(e).title.ref, QStringLiteral("Sheet1!$A$2"));
+        QCOMPARE(chartOf(e).title.text, QStringLiteral("Q1"));
+        // a link to nothing is refused and the title stays
+        answer = QStringLiteral("=Nowhere!A1");
+        QVERIFY(fire({"Chart Title", "Title Text…"}));
+        QCOMPARE(chartOf(e).title.ref, QStringLiteral("Sheet1!$A$2"));
+        // an axis title the same way
+        answer = QStringLiteral("=Sheet1!$A$3");
+        QVERIFY(fire({"Axis Titles", "Horizontal Title Text…"}));
+        const ChartAxis *across = primaryAxis(chartOf(e), true);
+        QVERIFY(across && across->title.present);
+        QCOMPARE(across->title.ref, QStringLiteral("Sheet1!$A$3"));
+        QCOMPARE(across->title.text, QStringLiteral("Q2"));
+        QVERIFY(save(e));
+        const Chart saved = savedCharts(e.path)[0].chart;
+        QCOMPARE(saved.title.ref, QStringLiteral("Sheet1!$A$2"));
+        QCOMPARE(primaryAxis(saved, true)->title.ref, QStringLiteral("Sheet1!$A$3"));
+        pressUndo(&e.win.w);
+        QVERIFY(!primaryAxis(chartOf(e), true)->title.present);
     }
 
     void theChartDesignTabAppearsWithAChart()
