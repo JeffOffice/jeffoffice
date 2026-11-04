@@ -23,6 +23,7 @@
 #include "core/formulaspot.h"
 #include "core/filterlist.h"
 #include "core/findrun.h"
+#include "core/functioninfo.h"
 #include "core/gotospecial.h"
 #include "core/loader.h"
 #include "grid/gridview.h"
@@ -753,7 +754,7 @@ private:
     int m_circularNotices = 0;
     bool m_circularNoticed = false;
     void createFunctionActions();
-    void insertFunctionCommand();
+    void insertFunctionCommand(const QString &preset = QString());   // (`preset`: the function a menu chose; else the dialog picks one)
     std::function<bool(QString *)> m_functionAsker;
     std::function<bool(FunctionArgumentsDialog *)> m_argumentsAsker;
     void functionArguments(const crunch::FunctionDoc &doc, const QStringList &arguments, int start, int end, const QString &writtenName = QString(), const QStringList &raw = QStringList());
@@ -858,7 +859,32 @@ private:
     void createDataToolsActions();
     void removeDuplicatesDialog();
     void textToColumnsDialog();
+    // Workbook Statistics, Goal Seek, Subtotal, and Advanced Filter (crunchwindow_tabs2.cpp)
+    void createTabs2Actions();
+    void workbookStatisticsDialog();
+    void goalSeekDialog();
+    void subtotalDialog();
+    void advancedFilterDialog();
+    void clearAdvancedFilter();
+    jp::office::sheet::CellRange m_advancedRows;   // the data rows of the list an Advanced Filter hid rows in (Clear in the Data tab shows them again)
+    jp::office::sheet::CellRange listRegion(const QString &title);   // (the selection, or the list around the cell with the cursor; not valid, and told, if none)
+    // Waits (with the window's events going, but not a person's keys) until the formulas are worked out; false if that took too long.
+    bool settleCalculation(int milliseconds = 20000);
 public:
+    // Goal Seek without the question: the cell with the formula, the value wanted, and the cell to change (names such as "B3"). The solution is one step of Undo; false (nothing changed) if none was found.
+    bool goalSeekIn(const QString &setCell, const QString &valueWanted, const QString &changeCell);
+    // Subtotal without the question: the list is the selection (or the block around the cell with the cursor); columns are places in the list, 0 is its first column. `function` is the number
+    // SUBTOTAL is called with (9 is Sum). One step of Undo. removeSubtotalsIn is Remove All.
+    bool subtotalIn(int changeColumn, int function, const std::vector<int> &columns, bool replace = true);
+    bool removeSubtotalsIn();
+    // Advanced Filter without the question: the list and the conditions as ranges ("A1:C20"), where to copy the rows to (a cell name; empty to hide the other rows in the list), and whether rows
+    // that repeat an earlier one are left out. One step of Undo.
+    bool advancedFilterIn(const QString &list, const QString &criteria, const QString &copyTo = QString(), bool unique = false);
+    // The functions used last, newest first (the Recently Used menu of the Formulas tab).
+    QStringList recentFunctions() const;
+    // The facts Workbook Statistics lists, as name and number: sheets, cells with data, formulas, charts, and pivot tables.
+    QVector<QPair<QString, QString>> statisticsRows() const;
+
     // The same, without the questions (for the tests): the columns compared (their places in the selection) and whether the first row is a header.
     bool removeDuplicatesIn(const std::vector<int> &columns, bool hasHeader);
     bool textToColumnsIn(const crunch::EditSession::SplitSpec &spec, const QString &destination);
@@ -1128,6 +1154,9 @@ public:
 private:
     void createChartActions();
     void chartRibbonParts(RibbonParts &parts);
+    void functionRibbonParts(RibbonParts &parts);
+    void fillFunctionMenu(QMenu *menu, const QList<crunch::FunctionCategory> &kinds);
+    void rememberFunction(const QString &name);   // (the function menus of the Formulas tab: crunchwindow_function.cpp)
     SelectDataRequest selectDataRequest(int id);
     void updateChartState();
     void placeChartButtons();

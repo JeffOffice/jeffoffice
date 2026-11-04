@@ -25,6 +25,10 @@ void CrunchWindow::createFilterActions()
 {
     mk("filter.toggle", tr("Filter"), "filter", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_L), [this] { toggleFilter(); }, true);
     mk("filter.clear", tr("Clear"), "filter-x", QKeySequence(), [this] {
+        if (m_advancedRows.valid) {
+            clearAdvancedFilter();
+            return;
+        }
         if (const int table = selectedTable(); table >= 0 && m_session && m_loaded) {
             applyFilter(m_session->filterCleared(m_sheet, table), tr("Clearing the filter"), table);
             return;

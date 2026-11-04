@@ -30,6 +30,7 @@ void CrunchWindow::ribbonParts(RibbonParts &parts)
     tableRibbonParts(parts);
     sparklineRibbonParts(parts);
     pivotRibbonParts(parts);
+    functionRibbonParts(parts);
 }
 
 } // namespace jp
