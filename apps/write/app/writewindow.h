@@ -2,6 +2,8 @@
 // JeffWrite's main window: the ribbon, the pages, and the status bar, with the File screen over them.
 
 #include "app/appwindow.h"
+#include "app/infopage.h"
+#include "core/textexport.h"
 #include "app/filetasks.h"
 #include "core/reviewops.h"
 #include "core/styleops.h"
@@ -57,6 +59,9 @@ struct WriteOutputOptions {
     int copies = 1;
     bool collate = true;  // the whole set again for each copy, else each page's copies together
     bool grayscale = false;
+    enum class Sides { All, Odd, Even };
+    Sides sides = Sides::All;   // only the pages whose numbers are odd or even, of the pages the range covers
+    bool reverse = false;       // last page first
 };
 
 class WriteWindow : public AppWindow {
@@ -114,11 +119,31 @@ public:
     void offerRecovery(bool askIfNone = false);
     WriteWindow *openRecovered(const recovery::Recovered &r, QString *error = nullptr);
 
+    // ---- the File screen's Info page: properties, protection, and Inspect
+    // The page, for the document as it is now.
+    QWidget *buildInfoPage(QWidget *parent);
+    // What Inspect Document looks for and can take out; the box shows them.
+    QVector<InspectItem> inspectItems();
+    void inspectDocument();
+    // Lists what an .odt file (the older kind this program writes) can't hold of the document.
+    QStringList incompatibilities();
+    void checkCompatibility();
+    // Mark as Final: the document is saved, then held for reading only; off, it can be edited again.
+    void setMarkedFinal(bool on);
+    // Encrypt with Password: asks for the password and keeps it; the file is written protected when it is saved.
+    void encryptWithPassword();
+    bool isPasswordProtected() const { return m_fileProtected; }
+    // Applies properties the person edited (the dates and counts are brought up to date).
+    void applyProperties(const office::PackageProps &props);
+
     // The File screen over the window, on a page ("new", "open", "print", "export", "about"; Open when none is named), and back.
     void showFileScreen(const QString &page = QString());
     void hideFileScreen();
     bool printOutput(const WriteOutputOptions &options);
     bool exportPdf();
+    // Save as Plain Text: asks for the encoding, the line ends, and the file; and the writing itself (an empty path asks nothing and writes nothing).
+    bool exportTextAsk();
+    bool exportText(const QString &path, write::TextEncoding encoding, write::LineEnds ends);
     // The pages that an output covers (from 0), for the options and the document.
     QVector<int> outputPages(const WriteOutputOptions &options);
 
@@ -282,6 +307,8 @@ private:
     std::function<void(QPrinter &)> m_printerPreparer;
     QSet<QString> m_odtNoted;       // (what the person was told an .odt file can't hold: told again only of what is new)
     bool m_macrosNoted = false;     // (the person was told that the macros are not saved)
+    QString m_filePassword;         // the password the file opened with or was given: the file is written protected with it (never shown, wiped when the window goes)
+    bool m_fileProtected = false;
     QString m_protectedPath;        // the file a document that has had something left out (see WriteDoc::leftSomethingOut) was opened from: not written over
 };
 

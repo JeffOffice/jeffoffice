@@ -84,6 +84,7 @@ struct Properties {
     QDateTime created, saved, printed;
     qint64 fileSize = -1;
     qint64 totalMinutes = 0;
+    QHash<QString, QString> custom;   // the person's own properties by name (lower case) with their values as text
     int pages = 0, words = 0, characters = 0, charactersWithSpaces = 0, lines = 0, paragraphs = 0;
     bool statistics = false;   // whether the counts are known
 };

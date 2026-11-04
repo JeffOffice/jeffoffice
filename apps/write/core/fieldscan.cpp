@@ -1,8 +1,10 @@
 #include "core/fieldops.h"
 
 #include "core/writeprops.h"
+#include "office/packageprops.h"
 #include "wml/wml.h"
 
+#include <QCoreApplication>
 #include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextDocument>
@@ -432,6 +434,16 @@ fields::Properties documentProperties(WriteDoc &doc)
     if (p.saved.isValid()) p.saved = p.saved.toLocalTime();
     if (p.printed.isValid()) p.printed = p.printed.toLocalTime();
     p.revision = revision;
+    for (const office::CustomProperty &c : office::readPackageProps({}, {}, doc.partData(QStringLiteral("/docProps/custom.xml"))).custom) {
+        QString value = c.value;
+        if (c.type == QLatin1String("filetime")) {
+            const QDateTime d = QDateTime::fromString(c.value, Qt::ISODate);
+            if (d.isValid()) value = QLocale().toString(d.toLocalTime(), QLocale::ShortFormat);
+        } else if (c.type == QLatin1String("bool")) {
+            value = c.value == QLatin1String("true") || c.value == QLatin1String("1") ? QCoreApplication::translate("jp::write::Fields", "Yes") : QCoreApplication::translate("jp::write::Fields", "No");
+        }
+        p.custom.insert(c.name.toLower().simplified(), value);
+    }
     p.totalMinutes = totalTime.toLongLong();
     if (!doc.filePath.isEmpty()) {
         p.filePath = doc.filePath;
