@@ -236,7 +236,7 @@ private Q_SLOTS:
         QVERIFY(group().dateRange.isEmpty());
         w.undoStack()->undo();
         QVERIFY(group().dateAxis);
-        QCOMPARE(group().dateRange, QStringLiteral("Sheet1!$A$1:$B$1"));
+        QCOMPARE(group().dateRange, QStringLiteral("Sheet1!$A$3:$B$3"));
         // the data of the group is edited: another place and other data
         where = QStringLiteral("F1:F3");
         w.setSparklineAsker([&](QString *data, QString *loc) {

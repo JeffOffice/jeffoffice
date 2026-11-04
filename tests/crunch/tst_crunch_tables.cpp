@@ -465,7 +465,7 @@ private Q_SLOTS:
         QStringList tabKeys;
         const QJsonArray tabs = root.value(QStringLiteral("tabs")).toArray();
         QVERIFY(tabs.size() > 8);
-        QStringList seenNew;
+        QSet<QString> seenNew;
         for (const QJsonValue &t : tabs) {
             const QJsonObject tab = t.toObject();
             tabKeys << tab.value(QStringLiteral("keytip")).toString();
@@ -477,7 +477,7 @@ private Q_SLOTS:
                 seen << k;
             }
             for (const QString &k : {QStringLiteral("ZU"), QStringLiteral("TZ"), QStringLiteral("TD"), QStringLiteral("PM"), QStringLiteral("DD"), QStringLiteral("DU")})
-                if (seen.contains(k)) seenNew << k;
+                if (seen.contains(k)) seenNew.insert(k);
         }
         QCOMPARE(int(seenNew.size()), 6);   // (all six are on a tab)
         QStringList uniqueTabs = tabKeys;
