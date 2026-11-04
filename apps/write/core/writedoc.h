@@ -344,6 +344,7 @@ public:
     // ---- tables
     // What the last table command that did nothing said of why (empty when it did what it was asked): a limit of the file, or a shape it can't take.
     QString tableNotice;
+    QSet<QString> builtInTableStylesAdded;   // built-in table styles a change put in the style sheet (their names stay)
     // The same for the picture commands (core/pictureops.h): why the last one that did nothing did nothing, when the person needs telling.
     QString pictureNotice;
     // What core/tableops.cpp keeps with the document: the tables of the story as they were last looked at, and the keys of the cell records that paragraphs held before a command

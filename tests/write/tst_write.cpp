@@ -2857,6 +2857,43 @@ private Q_SLOTS:
         QVERIFY(big->undo());
     }
 
+    // A file's own definition of a table style that has a built-in name is the one used; a style the file defines is editable (its name too) even without w:customStyle, a built-in one
+    // the file lacks keeps its name.
+    void aFilesOwnTableStyleWinsOverTheBuiltInOfTheSameName()
+    {
+        auto line = [](const char *side) { return QByteArray("<w:") + side + " w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"00FF00\"/>"; };
+        const QByteArray mine = "<w:style w:type=\"table\" w:styleId=\"GridTable4-Accent1\"><w:name w:val=\"Mine\"/><w:basedOn w:val=\"TableNormal\"/><w:tblPr><w:tblBorders>" + line("top") + line("left") + line("bottom") +
+                                line("right") + line("insideH") + line("insideV") + "</w:tblBorders></w:tblPr></w:style>"
+                                "<w:style w:type=\"table\" w:styleId=\"Plainish\"><w:name w:val=\"Plainish\"/><w:tblPr/></w:style>";
+        QByteArray table = tableX(rowX(cellX(cellP("a")) + cellX(cellP("b"))), 2);
+        table.replace("<w:tblPr>", "<w:tblPr><w:tblStyle w:val=\"GridTable4-Accent1\"/>");
+        auto doc = open(makeDocx(table + cellP("after"), kStyles + mine));
+        QVERIFY2(tablesSignature(*doc).contains(QStringLiteral("#00ff00")), qPrintable(tablesSignature(*doc)));
+        QVERIFY(!tablesSignature(*doc).contains(QStringLiteral("#8eaadb")));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("a"));
+        setTableStyle(*doc, c, QStringLiteral("GridTable4-Accent1"));
+        QVERIFY(tablesSignature(*doc).contains(QStringLiteral("#00ff00")));
+        const QByteArray styles = styleXml(doc->toDocx());
+        QVERIFY(styles.contains("00FF00") && !styles.contains("8EAADB"));
+        checkTablesReopenTheSame(*doc);
+        // Editable: the file's style may be renamed, though it has no w:customStyle.
+        office::wml::TableStyleSpec spec = office::wml::tableStyleSpecOf(*doc->styleSheet().find(QStringLiteral("Plainish")));
+        spec.name = QStringLiteral("Renamed");
+        QString problem;
+        QVERIFY(modifyTableStyle(*doc, QStringLiteral("Plainish"), spec, &problem));
+        QCOMPARE(doc->styleSheet().find(QStringLiteral("Plainish"))->name, QStringLiteral("Renamed"));
+        QVERIFY(tableStyleNameIsEditable(*doc, QStringLiteral("Plainish")));
+        QVERIFY(tableStyleNameIsEditable(*doc, QStringLiteral("GridTable4-Accent1")));   // (the file defines it)
+        QVERIFY(!tableStyleNameIsEditable(*doc, QStringLiteral("GridTable4-Accent2")));   // (built in, the file has none)
+        // A built-in style the file lacks keeps its name even after it is changed.
+        office::wml::TableStyleSpec built = office::wml::tableStyleSpecOf(office::wml::builtinStyle(QStringLiteral("GridTable4-Accent2")));
+        built.headerFill = QStringLiteral("123456");
+        built.name = QStringLiteral("Other");
+        QVERIFY(modifyTableStyle(*doc, QStringLiteral("GridTable4-Accent2"), built, &problem));
+        QVERIFY(!tableStyleNameIsEditable(*doc, QStringLiteral("GridTable4-Accent2")));
+        QVERIFY(styleXml(doc->toDocx()).contains("Grid Table 4 - Accent 2"));
+    }
+
     // New Table Style makes a style from the choices (one step that undoes), a table can take it, and the file keeps it; Modify Table Style changes it in place.
     void aTableStyleIsMadeAndModifiedFromChoices()
     {

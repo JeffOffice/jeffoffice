@@ -635,7 +635,7 @@ bool tableStyleDialog(QWidget *parent, WriteDoc *doc, const QString &modifyId, Q
     auto *name = new QLineEdit(start.name, &dlg);
     name->setObjectName(QStringLiteral("styleName"));
     name->setMaxLength(kMostStyleNameLength);
-    name->setEnabled(!modify || existing.customStyle);   // (a built-in style keeps its name)
+    name->setEnabled(!modify || tableStyleNameIsEditable(*doc, modifyId));   // (a built-in style keeps its name)
     form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Name:")), name);
     auto *basedOn = new QComboBox(&dlg);
     basedOn->setObjectName(QStringLiteral("basedOn"));

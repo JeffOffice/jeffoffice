@@ -54,6 +54,8 @@ bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const office:
 // Table styles: creates the table style the choices describe (based on any table style; the id is made from the name), or changes style `id` to them (the styles under it stay; a style that
 // the choices leave as it is changes nothing), each as one step of the history. A table style the document lacks that is built in is added with the step. Returns the id (empty,
 // with `problem` told, when it can't be made), or whether it was done.
+// Whether a table style's name may be changed: the file defines it (or it is none of ours); a built-in one the file lacks keeps its name, also after it is changed.
+bool tableStyleNameIsEditable(const WriteDoc &doc, const QString &id);
 QString createTableStyle(WriteDoc &doc, const office::wml::TableStyleSpec &spec, QString *problem = nullptr);
 bool modifyTableStyle(WriteDoc &doc, const QString &id, const office::wml::TableStyleSpec &spec, QString *problem = nullptr);
 // Update <style> to Match Selection: the style the cursor's paragraph has says what the selection says besides it.
