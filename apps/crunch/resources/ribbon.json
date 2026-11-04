@@ -546,7 +546,8 @@
             {"small": "pivot.ungroup", "keytip": "PU"},
             {"column": true},
             {"small": "pivot.expandField", "keytip": "PE"},
-            {"small": "pivot.collapseField", "keytip": "PK"}
+            {"small": "pivot.collapseField", "keytip": "PK"},
+            {"small": "pivot.slicers", "keytip": "PZ"}
           ]
         },
         {

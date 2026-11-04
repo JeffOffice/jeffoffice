@@ -1,5 +1,6 @@
 #include "sheet/slicer.h"
 
+#include <QRegularExpression>
 #include <QSet>
 #include <QXmlStreamReader>
 
@@ -126,6 +127,54 @@ bool pivotApplySlicer(PivotTable *table, const PivotCache &cache, int field, con
     for (PivotTableItem &it : pf.items)
         if (it.t.isEmpty()) it.hidden = any && !chosen.contains(it.x);
     return true;
+}
+
+QSet<qint32> pivotShownItems(const PivotTable &table, const PivotCache &cache, int field)
+{
+    QSet<qint32> shown;
+    if (field < 0 || field >= table.fields.size() || field >= cache.fields.size()) return shown;
+    const PivotField &pf = table.fields[field];
+    if (!pf.hasItems) {
+        for (qint32 i = 0; i < cache.fields[field].items.size(); ++i) shown.insert(i);
+        return shown;
+    }
+    for (const PivotTableItem &it : pf.items)
+        if (it.t.isEmpty() && !it.hidden && it.x >= 0) shown.insert(it.x);
+    return shown;
+}
+
+bool slicerSameChoice(const QSet<qint32> &a, const QSet<qint32> &b, qint64 itemCount)
+{
+    auto all = [&](const QSet<qint32> &s) { return s.isEmpty() || s.size() >= itemCount; };
+    if (all(a) && all(b)) return true;
+    return a == b;
+}
+
+QByteArray patchSlicerSelection(const QByteArray &xml, const QSet<qint32> &selected)
+{
+    QString text = QString::fromUtf8(xml);
+    static const QRegularExpression item(QStringLiteral("<i\\b[^>]*>"));
+    static const QRegularExpression xAttr(QStringLiteral("\\bx=\"(\\d+)\""));
+    static const QRegularExpression sAttr(QStringLiteral("\\s+s=\"[^\"]*\""));
+    QString out;
+    out.reserve(text.size() + 64);
+    qsizetype last = 0;
+    for (auto m = item.globalMatch(text); m.hasNext();) {
+        const auto match = m.next();
+        QString tag = match.captured(0);
+        const auto xm = xAttr.match(tag);
+        if (!xm.hasMatch()) continue;
+        tag.remove(sAttr);
+        if (selected.contains(xm.captured(1).toInt())) {
+            const qsizetype at = tag.endsWith(QLatin1String("/>")) ? tag.size() - 2 : tag.size() - 1;
+            tag.insert(at, QStringLiteral(" s=\"1\""));
+        }
+        out += QStringView(text).mid(last, match.capturedStart() - last);
+        out += tag;
+        last = match.capturedEnd();
+    }
+    out += QStringView(text).mid(last);
+    return out.toUtf8();
 }
 
 } // namespace jp::office::sheet

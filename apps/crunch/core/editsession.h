@@ -380,6 +380,19 @@ public:
     bool isPivotValue(int sheet, quint32 row, quint32 col) const;
     // Whether the table's data is read again when the file opens (the cache's mark).
     Outcome setPivotRefreshOnOpen(int table, bool on);
+    // ---- slicers: what the pane shows, and a click. A slicer's choice is its table's (the items the table shows), so Undo and the save follow the table.
+    struct SlicerInfo {
+        jp::office::sheet::SlicerCache cache;
+        QString caption, style;
+        int columns = 1;
+        QStringList tables;                            // the tables it filters that were found
+        int field = -1;                                // the field of the first of them
+        QStringList itemTexts;                         // the field's items, by place
+        QSet<qint32> shown;                            // the items the first table shows (the chosen)
+    };
+    std::vector<SlicerInfo> slicers() const;
+    // Chooses the items (by place) of the slicer: every table it filters shows only them (all, when none is given), as one step of Undo.
+    Outcome chooseSlicerItems(int slicer, const QSet<qint32> &chosen);
     // Makes the table from other cells ("Sheet1!A1:D100", "A1:D100" on the same sheet as the source now is, a table's name, or a defined name), then reads them.
     Outcome changePivotSource(int table, const QString &where);
     // Puts the table's layout, fields, and options as `changed` has them (a copy of the table with its fields moved, its totals switched, a filter set): the cells are worked out again.

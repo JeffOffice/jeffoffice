@@ -22,7 +22,10 @@ QVector<SlicerCache> Workbook::slicerCaches() const
             const QByteArray xml = package().part(r.target);
             if (xml.isEmpty() || xml.size() > kMaxSlicerPartBytes) continue;
             SlicerCache c;
-            if (readSlicerCache(xml, &c)) out.append(c);
+            if (readSlicerCache(xml, &c)) {
+                c.part = r.target;
+                out.append(c);
+            }
         }
     }
     return out;
@@ -41,6 +44,51 @@ QVector<SlicerView> Workbook::slicerViews(int sheet) const
             QVector<SlicerView> v;
             if (readSlicerViews(xml, &v)) out += v;
         }
+    }
+    return out;
+}
+
+QVector<std::pair<int, int>> slicerTargets(const Workbook &book, const SlicerCache &slicer)
+{
+    QVector<std::pair<int, int>> out;
+    if (slicer.timeline) return out;
+    const PivotBook &pb = book.pivots();
+    for (const SlicerCache::Connection &c : slicer.tables) {
+        for (int t = 0; t < pb.tableCount(); ++t) {
+            const PivotTableEntry &entry = pb.table(t);
+            if (!entry.table || entry.table->name.compare(c.name, Qt::CaseInsensitive) != 0 || entry.cache < 0 || !pb.cache(entry.cache).cache) continue;
+            const PivotCache &cache = *pb.cache(entry.cache).cache;
+            for (int f = 0; f < cache.fields.size() && f < entry.table->fields.size(); ++f) {
+                const QString shown = entry.table->fields[f].name.isEmpty() ? cache.fields[f].name : entry.table->fields[f].name;
+                if (cache.fields[f].name.compare(slicer.sourceName, Qt::CaseInsensitive) == 0 || shown.compare(slicer.sourceName, Qt::CaseInsensitive) == 0) {
+                    out.append({t, f});
+                    break;
+                }
+            }
+            break;
+        }
+    }
+    return out;
+}
+
+std::map<QString, QByteArray> slicerPartPatches(const Workbook &book)
+{
+    std::map<QString, QByteArray> out;
+    const PivotBook &pb = book.pivots();
+    if (pb.tableCount() == 0) return out;
+    for (const SlicerCache &sc : book.slicerCaches()) {
+        const auto targets = slicerTargets(book, sc);
+        if (targets.isEmpty() || sc.part.isEmpty()) continue;
+        if (!pb.tableChanged(targets[0].first) && !book.slicerPartsWritten().contains(sc.part)) continue;   // (a table as the file has it leaves the slicer as the file has it, whatever the two say)
+        const PivotTableEntry &entry = pb.table(targets[0].first);
+        const PivotCache &cache = *pb.cache(entry.cache).cache;
+        const QSet<qint32> shown = pivotShownItems(*entry.table, cache, targets[0].second);
+        QSet<qint32> inFile;
+        for (const SlicerItem &it : sc.items)
+            if (it.selected) inFile.insert(it.x);
+        if (slicerSameChoice(shown, inFile, cache.fields[targets[0].second].items.size())) continue;
+        out[sc.part] = patchSlicerSelection(book.package().part(sc.part), shown);
+        book.slicerPartsWritten().insert(sc.part);
     }
     return out;
 }

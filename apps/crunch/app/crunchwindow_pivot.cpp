@@ -3,6 +3,7 @@
 #include "app/crunchwindow.h"
 
 #include "app/pivotpane.h"
+#include "app/slicerpane.h"
 #include "app/settings.h"
 #include "core/formulaspot.h"
 #include "core/gotospecial.h"
@@ -13,6 +14,8 @@
 #include "sheet/pivot.h"
 #include "sheet/pivotbook.h"
 
+#include <QDate>
+#include <QUndoStack>
 #include <QAction>
 #include <QCheckBox>
 #include <QDialog>
@@ -308,6 +311,7 @@ void CrunchWindow::createPivotActions()
         pivotProblem(tr("Clear"), m_session->clearPivot(t, true));
     });
     mk("pivot.fieldList", tr("Field List"), "list-checks", QKeySequence(), [this] { showPivotFields(act("pivot.fieldList")->isChecked()); }, true);
+    mk("pivot.slicers", tr("Slicers"), "filter", QKeySequence(), [this] { showSlicers(act("pivot.slicers")->isChecked()); }, true);
     mk("pivot.valueSettings", tr("Value Field Settings…"), "settings", QKeySequence(), [this] { askValueField(0); });
 
     // Design: subtotals, grand totals, and the layout
@@ -470,7 +474,7 @@ void CrunchWindow::createPivotActions()
     for (const char *id : {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.blank.insert", "pivot.blank.remove", "pivot.repeat.on", "pivot.repeat.off", "pivot.style.rowHeaders",
                            "pivot.style.colHeaders", "pivot.style.rowStripes", "pivot.style.colStripes", "pivot.style.none"})
         m_opsActions << QString::fromLatin1(id);
-    for (const char *id : {"pivot.refresh", "pivot.refreshAll", "pivot.changeSource", "pivot.clearAll", "pivot.clearFilters", "pivot.fieldList", "pivot.valueSettings", "pivot.sub.none", "pivot.sub.top",
+    for (const char *id : {"pivot.refresh", "pivot.refreshAll", "pivot.changeSource", "pivot.clearAll", "pivot.clearFilters", "pivot.fieldList", "pivot.slicers", "pivot.valueSettings", "pivot.sub.none", "pivot.sub.top",
                            "pivot.sub.bottom", "pivot.grand.off", "pivot.grand.both", "pivot.grand.rows", "pivot.grand.cols", "pivot.layout.compact", "pivot.layout.outline", "pivot.layout.tabular"})
         m_opsActions << QString::fromLatin1(id);
 }
@@ -800,6 +804,89 @@ void CrunchWindow::askGroupField(int field)
     updateTableLooks();
 }
 
+void CrunchWindow::fillSlicers()
+{
+    if (!m_slicerPane || !m_session || m_slicerFilling) return;
+    m_slicerFilling = true;
+    const struct Done { bool *flag; ~Done() { *flag = false; } } done{&m_slicerFilling};
+    QVector<SlicerPane::Entry> entries;
+    for (const crunch::EditSession::SlicerInfo &info : m_session->slicers()) {
+        SlicerPane::Entry e;
+        e.caption = info.caption;
+        e.style = info.style;
+        e.timeline = info.cache.timeline;
+        e.usable = info.field >= 0;
+        e.items = info.itemTexts;
+        e.tables = info.tables;
+        e.columns = info.columns;
+        for (int i = 0; i < e.items.size(); ++i) e.chosen.append(info.shown.contains(i));
+        if (e.timeline) {
+            const auto date = [](const QString &iso) { return QDate::fromString(iso.left(10), Qt::ISODate).toString(Qt::TextDate); };
+            if (!info.cache.startDate.isEmpty()) e.span = tr("%1 to %2").arg(date(info.cache.startDate), date(info.cache.endDate));
+            e.level = info.cache.level;
+        }
+        entries.append(e);
+    }
+    m_slicerPane->setEntries(entries);
+}
+
+void CrunchWindow::showSlicers(bool show)
+{
+    if (show && !m_slicerPane) {
+        m_slicerDock = new QDockWidget(tr("Slicers"), this);
+        m_slicerDock->setObjectName(QStringLiteral("slicerDock"));
+        m_slicerDock->setFeatures(QDockWidget::DockWidgetClosable);
+        m_slicerPane = new SlicerPane(m_slicerDock);
+        m_slicerDock->setWidget(m_slicerPane);
+        addDockWidget(Qt::RightDockWidgetArea, m_slicerDock);
+        resizeDocks({m_slicerDock}, {260}, Qt::Horizontal);
+        connect(m_slicerPane, &SlicerPane::itemClicked, this, [this](int slicer, int item, bool extend) {
+            const auto all = m_session ? m_session->slicers() : std::vector<crunch::EditSession::SlicerInfo>();
+            if (slicer < 0 || slicer >= int(all.size())) return;
+            QSet<qint32> shown = all[size_t(slicer)].shown;
+            const qint64 count = all[size_t(slicer)].itemTexts.size();
+            if (extend) {
+                if (shown.size() >= count) {
+                    shown.clear();   // (all were chosen: Ctrl-click takes the item out of them)
+                    for (qint32 i = 0; i < count; ++i)
+                        if (i != item) shown.insert(i);
+                } else if (shown.contains(item)) {
+                    shown.remove(item);
+                } else {
+                    shown.insert(item);
+                }
+            } else if (shown.size() == 1 && shown.contains(item)) {
+                shown.clear();   // (the only one chosen is clicked again: the filter goes)
+            } else {
+                shown = {qint32(item)};
+            }
+            if (shown.isEmpty() || shown.size() >= count) shown.clear();
+            pivotProblem(tr("Slicer"), m_session->chooseSlicerItems(slicer, shown));
+            m_pivotShown = nullptr;
+            updatePivotTab();
+            updateTableLooks();
+            fillSlicers();
+        });
+        connect(m_slicerPane, &SlicerPane::connectionsRequested, this, [this](int slicer) {
+            const auto all = m_session ? m_session->slicers() : std::vector<crunch::EditSession::SlicerInfo>();
+            if (slicer < 0 || slicer >= int(all.size())) return;
+            const auto &info = all[size_t(slicer)];
+            notice(tr("Report Connections"), info.tables.isEmpty() ? tr("\"%1\" filters no pivot table that JeffCrunch can read.").arg(info.caption)
+                                                                    : tr("\"%1\" filters: %2.").arg(info.caption, info.tables.join(QStringLiteral(", "))), false);
+        });
+        connect(m_slicerDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+            if (QAction *a = act(QStringLiteral("pivot.slicers"))) {
+                const QSignalBlocker block(a);
+                a->setChecked(visible);
+            }
+            if (visible) fillSlicers();
+        });
+    }
+    if (!m_slicerDock) return;
+    m_slicerDock->setVisible(show);
+    if (show) fillSlicers();
+}
+
 void CrunchWindow::showPivotFields(bool show)
 {
     if (show && !m_pivotPane) {
@@ -849,6 +936,7 @@ void CrunchWindow::updatePivotFieldActions()
 void CrunchWindow::updatePivotTab()
 {
     updatePivotFieldActions();
+    if (m_slicerPane && m_slicerDock && m_slicerDock->isVisible() && m_session && !m_slicerFilling) fillSlicers();   // (an Undo or Redo of a table changes what a slicer shows)
     const int t = selectedPivot();
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Pivot Table"), t >= 0);
     if (t >= 0 && m_session) {

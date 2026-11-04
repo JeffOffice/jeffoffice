@@ -2,6 +2,7 @@
 #include <QInputMethodEvent>
 #include "app/functionargumentsdialog.h"
 #include "app/pivotpane.h"
+#include "app/slicerpane.h"
 #include "app/plaintext.h"
 
 #include "core/printjob.h"
@@ -227,6 +228,10 @@ CrunchWindow::~CrunchWindow()
     openWindows().removeAll(this);
     if (m_pivotDock) m_pivotDock->disconnect(this);   // (the pane going is not told to a window that is going)
     if (m_pivotPane) m_pivotPane->disconnect(this);
+    if (m_slicerDock) m_slicerDock->disconnect(this);
+    if (m_slicerPane) m_slicerPane->disconnect(this);
+    m_slicerPane = nullptr;   // (the session's steps going tell the window: it must not fill a pane from a session that is going)
+    m_slicerDock = nullptr;
     // (the session's undo stack tells the window as its steps go: it is let go of first, and the window is not told)
     if (m_session) {
         m_session->undoStack()->disconnect(this);
