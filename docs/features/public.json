@@ -2175,7 +2175,7 @@
      "items": []
     }
    ],
-   "version": "0.20.1"
+   "version": "0.21.0"
   },
   "jeffdeck": {
    "name": "JeffDeck",
@@ -3917,7 +3917,7 @@
      "items": []
     }
    ],
-   "version": "0.20.1"
+   "version": "0.21.0"
   },
   "jeffpub": {
    "name": "JeffPub",
@@ -5141,7 +5141,7 @@
      "items": []
     }
    ],
-   "version": "0.20.1"
+   "version": "0.21.0"
   },
   "jeffwrite": {
    "name": "JeffWrite",
@@ -6904,7 +6904,7 @@
      "items": []
     }
    ],
-   "version": "0.20.1"
+   "version": "0.21.0"
   }
  },
  "model": "claude-sonnet-5-5",
