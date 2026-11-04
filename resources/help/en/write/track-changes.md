@@ -1,5 +1,5 @@
 # Track changes, and accept or reject them
-<!-- keywords: track changes, tracked changes, revisions, markup, accept, reject, accept all, reject all, display for review, simple markup, all markup, no markup, original, show markup, balloons, reviewing pane, change bar, insertion, deletion, ctrl+shift+e, author, reviewer, user name, edits from someone else -->
+<!-- keywords: compare, compare documents, two versions, what changed, track changes, tracked changes, revisions, markup, accept, reject, accept all, reject all, display for review, simple markup, all markup, no markup, original, show markup, balloons, reviewing pane, change bar, insertion, deletion, ctrl+shift+e, author, reviewer, user name, edits from someone else -->
 
 **Track Changes** keeps a record of every edit you make, so that you (or someone else) can see what changed and decide whether to keep it. Use it when you edit a document that belongs to someone else, or that someone will review after you.
 
@@ -54,3 +54,17 @@ Click **Review > Reviewing Pane** to open a list of the changes in the document:
 ## What is not tracked yet
 
 Changes to tables (rows, cells, merging), to numbering and lists, to sections and page setup, and to text in headers, footers, and notes are made as usual, without a record. Changes other programs have recorded in those places are kept and saved as they were.
+
+## Compare two versions
+
+Compare finds the differences between two versions of a document and shows them as tracked changes.
+
+1. Open the older version. It is the **original**.
+2. Click **Compare** in the **Compare** group on the **Review** tab.
+3. Click **Browse** and choose the newer version. It is the **revised** version.
+4. Type the name to sign the changes with. Pick any choices you want, such as ignoring capital letters.
+5. Click **OK**.
+
+A new window opens with the original text and the changes that turn it into the revised text. Your two files are not changed. Use **Accept** and **Reject** as you do for any tracked change. If you accept every change, you get the revised text. If you reject every change, you get the original text.
+
+Compare looks at the text of the body of the document. It does not look at tables, headers, footers, footnotes, or how the text looks. A change of look alone is not found.

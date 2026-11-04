@@ -43,6 +43,10 @@ struct EncryptOptions {
 // The compound file (as bytes) that holds `zip` protected by `password`, in the agile form. Empty if the options are not any of the above.
 QByteArray encryptPackage(const QByteArray &zip, const QString &password, const EncryptOptions &options = EncryptOptions());
 
+// Whether `bytes` is a compound file that holds a protected package; if so, its two streams (`info` is "EncryptionInfo", `package` is "EncryptedPackage"). A compound file of another
+// kind (an older binary document) is not one.
+bool splitProtectedPackage(const QByteArray &bytes, QByteArray *info, QByteArray *package);
+
 // The same for the standard form, with AES-128 and SHA-1 (the tests make their files with it).
 QByteArray encryptPackageStandard(const QByteArray &zip, const QString &password);
 

@@ -1,0 +1,302 @@
+#include "app/navpane.h"
+
+#include "app/pageview.h"
+#include "app/writewindow.h"
+#include "core/editops.h"
+#include "core/gotoops.h"
+#include "core/writedoc.h"
+#include "core/writeprops.h"
+
+#include <QCoreApplication>
+#include <QHeaderView>
+#include <QLabel>
+#include <QLineEdit>
+#include <QListWidget>
+#include <QMenu>
+#include <QPixmap>
+#include <QScrollBar>
+#include <QTabWidget>
+#include <QTimer>
+#include <QTextBlock>
+#include <QTreeWidget>
+#include <QVBoxLayout>
+#include <algorithm>
+
+namespace jp {
+
+namespace {
+
+constexpr int kPositionRole = Qt::UserRole, kLevelRole = Qt::UserRole + 1, kLengthRole = Qt::UserRole + 2;
+constexpr int kMostThumbnails = 60, kThumbnailWidth = 96;
+
+
+} // namespace
+
+NavigationPane::NavigationPane(WriteWindow *win, QWidget *parent) : QWidget(parent), m_win(win)
+{
+    setObjectName(QStringLiteral("navigationPane"));
+    auto *v = new QVBoxLayout(this);
+    v->setContentsMargins(0, 0, 0, 0);
+    m_tabs = new QTabWidget(this);
+    m_tabs->setObjectName(QStringLiteral("navigationTabs"));
+    v->addWidget(m_tabs);
+
+    m_headings = new QTreeWidget(this);
+    m_headings->setObjectName(QStringLiteral("navigationHeadings"));
+    m_headings->setHeaderHidden(true);
+    m_headings->setAccessibleName(tr("Headings"));
+    m_headings->setContextMenuPolicy(Qt::CustomContextMenu);
+    m_tabs->addTab(m_headings, tr("Headings"));
+    connect(m_headings, &QTreeWidget::itemClicked, this, [this](QTreeWidgetItem *item) { goToHeading(item); });
+    connect(m_headings, &QWidget::customContextMenuRequested, this, [this](const QPoint &at) {
+        QTreeWidgetItem *item = m_headings->itemAt(at);
+        QMenu menu(this);
+        if (item) {
+            connect(menu.addAction(tr("Promote")), &QAction::triggered, this, [this, item] { moveHeadingLevel(item, -1); });
+            connect(menu.addAction(tr("Demote")), &QAction::triggered, this, [this, item] { moveHeadingLevel(item, 1); });
+            menu.addSeparator();
+        }
+        connect(menu.addAction(tr("Expand All")), &QAction::triggered, m_headings, &QTreeWidget::expandAll);
+        connect(menu.addAction(tr("Collapse All")), &QAction::triggered, m_headings, &QTreeWidget::collapseAll);
+        menu.exec(m_headings->viewport()->mapToGlobal(at));
+    });
+
+    m_pages = new QListWidget(this);
+    m_pages->setObjectName(QStringLiteral("navigationPages"));
+    m_pages->setAccessibleName(tr("Pages"));
+    m_pages->setViewMode(QListView::IconMode);
+    m_pages->setResizeMode(QListView::Adjust);
+    m_pages->setMovement(QListView::Static);
+    m_pages->setIconSize(QSize(kThumbnailWidth, kThumbnailWidth * 4 / 3));
+    m_tabs->addTab(m_pages, tr("Pages"));
+    connect(m_pages, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) { m_win->view()->goToPage(item->data(kPositionRole).toInt()); });
+
+    auto *resultsPage = new QWidget(this);
+    auto *rv = new QVBoxLayout(resultsPage);
+    m_search = new QLineEdit(resultsPage);
+    m_search->setObjectName(QStringLiteral("navigationSearch"));
+    m_search->setPlaceholderText(tr("Search document"));
+    m_search->setClearButtonEnabled(true);
+    m_results = new QListWidget(resultsPage);
+    m_results->setObjectName(QStringLiteral("navigationResults"));
+    m_results->setAccessibleName(tr("Results"));
+    rv->addWidget(m_search);
+    rv->addWidget(m_results, 1);
+    m_tabs->addTab(resultsPage, tr("Results"));
+    connect(m_search, &QLineEdit::returnPressed, this, &NavigationPane::search);
+    connect(m_results, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
+        if (!m_win->document()) return;
+        QTextCursor c(m_win->document()->story());
+        const int at = item->data(kPositionRole).toInt(), length = item->data(kLengthRole).toInt();
+        c.setPosition(std::clamp(at, 0, write::editableEnd(m_win->document()->story())));
+        c.setPosition(std::clamp(at + length, 0, write::editableEnd(m_win->document()->story())), QTextCursor::KeepAnchor);
+        m_win->view()->showCursor(c);
+        m_win->view()->setFocus(Qt::OtherFocusReason);
+    });
+    connect(m_tabs, &QTabWidget::currentChanged, this, [this] { refresh(); });
+    m_timer.setSingleShot(true);
+    m_timer.setInterval(kPause);
+    connect(&m_timer, &QTimer::timeout, this, [this] {
+        scanHeadings();
+        markCaretHeading();
+    });
+    connect(m_pages->verticalScrollBar(), &QScrollBar::valueChanged, this, [this] { fillThumbnails(); });
+}
+
+NavigationPane::~NavigationPane()
+{
+    m_dying = true;   // (the window has let go of its document by the time the panes it owns are taken down)
+}
+
+void NavigationPane::refresh()
+{
+    if (m_dying) return;
+    if (!m_win->document()) {
+        m_headings->clear();
+        m_pages->clear();
+        m_results->clear();
+        m_items.clear();
+        m_positions.clear();
+        m_shown.clear();
+        m_headingsOf = m_pagesOf = 0;
+        return;
+    }
+    write::WriteDoc *doc = m_win->document();
+    const int index = m_tabs->currentIndex();
+    if (index == 0) {
+        if (m_headingsOf != doc->id()) {
+            scanHeadings();   // (a document not seen yet: made at once, once)
+        } else if (m_revision != doc->story()->revision()) {
+            m_timer.start();   // (an edit: looked at when the typing has paused, not at each key)
+        }
+        markCaretHeading();
+    } else if (index == 1) {
+        rebuildPages();
+    }
+}
+
+// The headings of the text, found once and put in the tree if they are not the ones it shows (their words and levels): an edit that moves them only (text typed above them) changes
+// where each is and nothing the tree shows.
+void NavigationPane::scanHeadings()
+{
+    write::WriteDoc *doc = m_win->document();
+    if (!doc || m_dying) return;
+    m_timer.stop();
+    ++m_scanCount;
+    m_headingsOf = doc->id();
+    m_revision = doc->story()->revision();
+    QVector<std::pair<QString, int>> now;
+    QVector<int> positions;
+    for (const write::GoToItem &h : write::goToItems(*doc, write::GoToKind::Heading)) {
+        now.push_back({h.label, std::clamp(doc->story()->findBlock(h.position).blockFormat().intProperty(write::prop::Outline), 0, 8)});
+        positions.push_back(h.position);
+    }
+    m_positions = positions;
+    if (now == m_shown) return;
+    m_shown = now;
+    ++m_rebuildCount;
+    // (What was collapsed stays collapsed: the headings are found again by their text and level.)
+    QSet<QString> collapsed;
+    for (QTreeWidgetItemIterator it(m_headings); *it; ++it)
+        if (!(*it)->isExpanded() && (*it)->childCount() > 0) collapsed.insert((*it)->text(0) + QLatin1Char('\t') + QString::number((*it)->data(0, kLevelRole).toInt()));
+    m_headings->setUpdatesEnabled(false);
+    m_headings->clear();
+    m_items.clear();
+    QVector<QTreeWidgetItem *> open;   // the last heading of each level
+    for (int i = 0; i < now.size(); ++i) {
+        const int level = now[i].second;
+        while (!open.isEmpty() && open.last()->data(0, kLevelRole).toInt() >= level) open.removeLast();
+        auto *item = open.isEmpty() ? new QTreeWidgetItem(m_headings) : new QTreeWidgetItem(open.last());
+        item->setText(0, now[i].first);
+        item->setData(0, kPositionRole, i);   // (the heading's number: its place is m_positions[i], which is kept up to date)
+        item->setData(0, kLevelRole, level);
+        m_items.push_back(item);
+        open.push_back(item);
+    }
+    m_headings->expandAll();
+    for (QTreeWidgetItemIterator it(m_headings); *it; ++it)
+        if (collapsed.contains((*it)->text(0) + QLatin1Char('\t') + QString::number((*it)->data(0, kLevelRole).toInt()))) (*it)->setExpanded(false);
+    m_headings->setUpdatesEnabled(true);
+}
+
+void NavigationPane::markCaretHeading()
+{
+    // The heading the caret is under: the last one at or before it (the places are in order: a binary search).
+    const int caret = m_win->view()->cursor().position();
+    const auto after = std::upper_bound(m_positions.cbegin(), m_positions.cend(), caret);
+    const int found = int(after - m_positions.cbegin()) - 1;
+    QSignalBlocker block(m_headings);
+    m_headings->setCurrentItem(found >= 0 && found < m_items.size() ? m_items[found] : nullptr);
+}
+
+// The number (in the order of the text) of the heading of a row, with the headings looked for again first if the text has changed since (which may make the tree again, and the row
+// is not used after this); -1 where there is none.
+int NavigationPane::numberOf(QTreeWidgetItem *item)
+{
+    if (!item || !m_win->document()) return -1;
+    const int number = item->data(0, kPositionRole).toInt();
+    if (m_revision != m_win->document()->story()->revision()) scanHeadings();
+    return number >= 0 && number < m_positions.size() ? number : -1;
+}
+
+void NavigationPane::goToHeading(QTreeWidgetItem *item)
+{
+    const int number = numberOf(item);
+    if (number < 0) return;
+    QTextCursor c(m_win->document()->story());
+    c.setPosition(std::clamp(m_positions[number], 0, write::editableEnd(m_win->document()->story())));
+    m_win->view()->showCursor(c);
+    m_win->view()->setFocus(Qt::OtherFocusReason);
+}
+
+bool NavigationPane::moveHeadingLevel(QTreeWidgetItem *item, int by)
+{
+    write::WriteDoc *doc = m_win->document();
+    const int number = numberOf(item);
+    if (number < 0 || number >= m_shown.size() || m_win->isReadOnly()) return false;
+    const int start = m_positions[number];
+    // The heading and those under it (to the next of the same or a higher level): found in the text, each by its block.
+    QVector<int> blocks;
+    int most = 0, least = 8;
+    const int level = m_shown[number].second;
+    for (QTextBlock b = doc->story()->findBlock(start); b.isValid(); b = b.next()) {
+        const QTextBlockFormat bf = b.blockFormat();
+        if (!bf.hasProperty(write::prop::Outline) || bf.intProperty(write::prop::Outline) >= 9) continue;
+        const int l = bf.intProperty(write::prop::Outline);
+        if (!blocks.isEmpty() && l <= level) break;
+        blocks << b.position();
+        most = std::max(most, l);
+        least = std::min(least, l);
+    }
+    if (blocks.isEmpty() || least + by < 0 || most + by > 8) return false;
+    const write::WriteDoc::StepGroup group(*doc);
+    for (const int position : blocks) {
+        QTextCursor c(doc->story());
+        c.setPosition(position);
+        const int l = c.block().blockFormat().intProperty(write::prop::Outline);
+        write::applyParagraphStyle(*doc, c, QStringLiteral("Heading%1").arg(l + by + 1));
+    }
+    scanHeadings();
+    return true;
+}
+
+// The pages as small pictures: the list has a place for each page, and a picture is made for a page when its place is in view (as the list is shown, and as it is scrolled).
+void NavigationPane::rebuildPages()
+{
+    write::WriteDoc *doc = m_win->document();
+    write::PageView *view = m_win->view();
+    const int pages = std::min(view->pageCount(), kMostThumbnails);
+    if (m_pagesOf == doc->id() && m_pageRevision == doc->story()->revision() && m_pages->count() == pages) {
+        fillThumbnails();
+        return;
+    }
+    m_pagesOf = doc->id();
+    m_pageRevision = doc->story()->revision();
+    m_pages->clear();
+    QPixmap blank(m_pages->iconSize());
+    blank.fill(QColor(0xF4, 0xF4, 0xF4));
+    for (int i = 0; i < pages; ++i) {
+        auto *item = new QListWidgetItem(QIcon(blank), QString::number(i + 1), m_pages);
+        item->setData(kPositionRole, i);
+        item->setTextAlignment(Qt::AlignHCenter);
+    }
+    QTimer::singleShot(0, this, [this] { fillThumbnails(); });
+}
+
+void NavigationPane::fillThumbnails()
+{
+    if (m_dying || !m_win->document() || m_tabs->currentIndex() != 1) return;
+    const QRect shown = m_pages->viewport()->rect();
+    for (int i = 0; i < m_pages->count(); ++i) {
+        QListWidgetItem *item = m_pages->item(i);
+        if (item->data(kLengthRole).toBool() || !m_pages->visualItemRect(item).intersects(shown)) continue;
+        item->setData(kLengthRole, true);
+        ++m_thumbnailsMade;
+        item->setIcon(QIcon(QPixmap::fromImage(m_win->view()->pageImage(i, kThumbnailWidth * 2))));
+    }
+}
+
+void NavigationPane::search()
+{
+    m_results->clear();
+    write::WriteDoc *doc = m_win->document();
+    const QString what = m_search->text().trimmed();
+    if (!doc || what.isEmpty()) return;
+    const QTextDocument *story = doc->story();
+    const int end = write::editableEnd(story);
+    QTextCursor found = story->find(what, 0);
+    while (!found.isNull() && found.selectionEnd() <= end && m_results->count() < kMostResults) {
+        const QTextBlock b = found.block();
+        const int from = std::max(0, found.selectionStart() - b.position() - 24), to = std::min(b.length(), found.selectionEnd() - b.position() + 24);
+        QString context = b.text().mid(from, to - from).simplified();
+        if (from > 0) context.prepend(QChar(0x2026));
+        if (to < b.length() - 1) context.append(QChar(0x2026));
+        auto *item = new QListWidgetItem(context, m_results);
+        item->setData(kPositionRole, found.selectionStart());
+        item->setData(kLengthRole, found.selectionEnd() - found.selectionStart());
+        found = story->find(what, found.selectionEnd());
+    }
+    if (m_results->count() == 0) m_results->addItem(tr("No results"));
+}
+
+} // namespace jp

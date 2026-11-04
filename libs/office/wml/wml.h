@@ -23,6 +23,7 @@
 #include <QString>
 #include <QVector>
 #include <memory>
+#include <atomic>
 #include <optional>
 
 namespace jp::office::wml {
@@ -168,6 +169,9 @@ struct SectionProps {
     // Not a property of a section in a file: the document's use of different headers on odd and even pages (w:evenAndOddHeaders of the settings), carried by the record of the
     // last section in a program that edits it, so that a change to it goes with the text's steps. Never written to a section.
     bool oddEvenHeaders = false;
+    // The same for the document's facing pages with mirrored margins (w:mirrorMargins) and its automatic hyphenation (w:autoHyphenation).
+    bool mirrorMargins = false, autoHyphenation = false;
+    QString pageColor;                // and the page color (w:background): "RRGGBB", empty for none
     bool hasPgSz = false, hasPgMar = false, hasCols = false;   // stated in the file
     QByteArray attrs;                 // the attributes of w:sectPr (revision marks), as written
     // The attributes of w:pgSz (code...), w:pgMar, w:pgNumType (chapStyle, chapSep...), and w:cols that have no field here, as written.
@@ -486,9 +490,40 @@ inline const QLatin1String kFieldGroupTag("jwfield");
 void setHeaderReference(SectionProps *section, bool footer, int slot, const QString &relationshipId);
 // The settings part with the use of different headers on odd and even pages (w:evenAndOddHeaders) on or off, in the place the schema gives it. An empty part gives a minimal one.
 QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on);
+// The same for facing pages with mirrored margins (w:mirrorMargins) and automatic hyphenation (w:autoHyphenation).
+QByteArray settingsWithMirrorMargins(const QByteArray &settings, bool on);
+QByteArray settingsWithAutoHyphenation(const QByteArray &settings, bool on);
+// The settings with the page color shown (w:displayBackgroundShape), which a page color needs to be seen by the programs that read the file.
+QByteArray settingsWithDisplayBackgroundShape(const QByteArray &settings, bool on);
 // Whether the settings turn Track Changes on (w:trackRevisions, not turned off by a value), and the settings with it on or off, in the place the schema gives it. An empty part gives a minimal one.
 bool settingsTrackRevisions(const QByteArray &settings);
 QByteArray settingsWithTrackRevisions(const QByteArray &settings, bool on);
+// The document's protection (w:documentProtection of the settings part): what it allows (`edit`: none, readOnly, comments, trackedChanges, or forms), whether it is being enforced, and the
+// element as it is written (kept as it is when nothing changes, so a password hash from another program survives).
+struct DocumentProtection {
+    QString edit;
+    bool enforced = false;
+    QByteArray xml;
+    bool hasPassword() const;
+};
+std::optional<DocumentProtection> settingsDocumentProtection(const QByteArray &settings);
+// The settings with the protection `protection` (none: the element taken out), in the place the schema gives it. An empty part gives a minimal one.
+QByteArray settingsWithDocumentProtection(const QByteArray &settings, const std::optional<DocumentProtection> &protection);
+// A protection that allows `edit` and is enforced, with the password's hash as other word processors write it (the attributes cryptProviderType, cryptAlgorithmClass, cryptAlgorithmType,
+// cryptAlgorithmSid 14 for SHA-512, cryptSpinCount 100,000, hash, and salt); no password, no hash. The element is written with the prefix "w:" (settingsWithDocumentProtection changes it to the
+// document's own). `salt` is 16 random bytes when empty (a fixed one is for a known-answer test).
+DocumentProtection makeDocumentProtection(const QString &edit, const QString &password, const QByteArray &salt = QByteArray());
+// The hash of a password as the file format has it: the salt and the UTF-16 password hashed, then the hash and a four-byte counter hashed again for each of `spins` rounds (SHA-512 here). `cancel`, when
+// given, is looked at between rounds: true stops it, and the result is empty.
+QByteArray protectionHash(const QByteArray &salt, const QString &password, int spins, const std::atomic<bool> *cancel = nullptr);
+// The most rounds a protection may ask for (a file that asks for more is not checked).
+constexpr int kMostProtectionSpins = 1000000;
+enum class PasswordCheck { Right, Wrong, Unsupported, Canceled };
+// Whether `password` is the protection's: Right for a protection with none. Unsupported for a hash made another way than SHA-1, SHA-256, SHA-384, or SHA-512 as above (MD5 and the like), or one that asks
+// for more than kMostProtectionSpins rounds. `cancel` as above.
+PasswordCheck checkDocumentPassword(const DocumentProtection &protection, const QString &password, const std::atomic<bool> *cancel = nullptr);
+// checkDocumentPassword as a yes or no (only Right is yes).
+bool documentProtectionAccepts(const DocumentProtection &protection, const QString &password);
 // The mail merge of the settings part (w:mailMerge): what the document is merged as, and where its data comes from. The data source is a relationship of the settings part (its Id is
 // kept in `dataSourceId`); `odso` and the rest the program does not change are kept as written. `type` is empty for a document with none.
 struct MailMergeSettings {

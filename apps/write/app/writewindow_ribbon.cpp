@@ -104,6 +104,8 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
 {
     tableRibbonParts(parts);
     pictureRibbonParts(parts);
+    insertRibbonParts(parts);
+    layoutRibbonParts(parts);
     mailRibbonParts(parts);
     parts.widgets[QStringLiteral("fontCombo")] = [this]() -> QWidget * {
         auto *font = new FontCombo();
@@ -158,7 +160,7 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         auto *m = new QMenu(owner);
         for (const char *id : {"letter", "legal", "executive", "a3", "a4", "a5", "b5"}) m->addAction(act(QStringLiteral("layout.size.") + QLatin1String(id)));
         m->addSeparator();
-        m->addAction(act("layout.pageSetup"));
+        m->addAction(act("layout.moreSizes"));
         return m;
     };
     parts.widgets[QStringLiteral("styleGallery")] = [this]() -> QWidget * {
@@ -218,6 +220,7 @@ void WriteWindow::buildStatusBar()
     sb->addWidget(m_pageLabel);
     m_wordLabel = new QLabel(this);
     m_wordLabel->setObjectName(QStringLiteral("wordCount"));
+    m_wordLabel->setTextFormat(Qt::PlainText);
     m_wordLabel->setMinimumWidth(90);
     sb->addWidget(m_wordLabel);
     // Track Changes, on or off, which a click turns the other way.
@@ -230,6 +233,15 @@ void WriteWindow::buildStatusBar()
     m_trackLabel->setAccessibleName(tr("Track Changes"));
     connect(m_trackLabel, &QToolButton::clicked, this, [this] { act(QStringLiteral("review.trackChanges"))->trigger(); });
     sb->addWidget(m_trackLabel);
+    // The language the text at the caret is checked in, which a click changes.
+    m_langLabel = new QToolButton();
+    m_langLabel->setObjectName(QStringLiteral("languageStatus"));
+    m_langLabel->setAutoRaise(true);
+    m_langLabel->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    m_langLabel->setToolTip(tr("Proofing language"));
+    m_langLabel->setAccessibleName(tr("Proofing language"));
+    connect(m_langLabel, &QToolButton::clicked, this, [this] { act(QStringLiteral("review.language"))->trigger(); });
+    sb->addWidget(m_langLabel);
 
     auto button = [&](const char *id) {
         auto *b = new QToolButton();

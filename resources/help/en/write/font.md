@@ -1,5 +1,5 @@
 # Change how text looks
-<!-- keywords: font, font box, font dialog, typeface, size, style, bold, italic, color, underline, underline color, strikethrough, double strikethrough, superscript, subscript, small caps, all caps, hidden, hidden text, effects, preview, ctrl+d, character formatting -->
+<!-- keywords: character spacing, expanded, condensed, raised, lowered, position, kerning, set as default, default font, font, font box, font dialog, typeface, size, style, bold, italic, color, underline, underline color, strikethrough, double strikethrough, superscript, subscript, small caps, all caps, hidden, hidden text, effects, preview, ctrl+d, character formatting -->
 
 The **Home > Font** group has buttons for the common changes: font, size, bold, italic, and so on. The **Font** box has all of them in one place, and a few more.
 
@@ -32,6 +32,18 @@ The **Preview** at the bottom shows how the letters will look.
 - **Hidden** keeps the text in the document but does not show it or print it. To show hidden text again, select the text around it (press **Ctrl+A** to select everything), open the **Font** box, and click **Hidden** until its box is clear.
 
 Some effects cannot go together: both kinds of strikethrough, superscript with subscript, and small caps with all caps. Choosing one clears the other.
+
+## Character spacing
+
+The **Character spacing** part of the box changes the room between letters.
+
+- **Spacing** can be **Expanded** (letters farther apart) or **Condensed** (closer together). **By** says how many points.
+- **Position** can be **Raised** or **Lowered**. This moves the letters up or down from the line, by that many points, without making them smaller.
+- **Kerning** pulls pairs of letters such as A and V closer so that the gap looks even. Check the box and give the smallest size, in points, at which to do it.
+
+## Make the choices the default
+
+Click **Set as Default** and then **Yes**. The font, size, style, and color you chose become those of the document's Normal style, so they are used for all text that has no other choice. The text you selected takes them too.
 
 ## When the selected text is not all alike
 

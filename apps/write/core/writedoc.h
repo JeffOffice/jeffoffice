@@ -13,6 +13,7 @@
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
 #include "office/package.h"
+#include "office/packageprops.h"
 #include "wml/wml.h"
 
 #include <QHash>
@@ -218,6 +219,14 @@ public:
     bool differentFirstPage(int section) const;
     void setDifferentFirstPage(int section, bool on);
     bool differentOddEven() const { return m_wml.evenAndOddHeaders; }
+    // Facing pages with mirrored margins (the inside and outside margins swap on facing pages), and automatic hyphenation: the document's, one step of the history each.
+    bool mirrorMargins() const { return m_flow->mirrorMargins; }
+    void setMirrorMargins(bool on);
+    // The page color (none: an invalid color).
+    QColor pageColor() const { return m_flow->pageColor; }
+    void setPageColor(const QColor &color);
+    bool autoHyphenation() const { return m_flow->hyphenate; }
+    void setAutoHyphenation(bool on);
     void setDifferentOddEven(bool on);
     // The slot a page of a section uses.
     int headerSlotOf(int section, bool firstOfSection, int pageNumber) const;
@@ -326,12 +335,16 @@ public:
         WriteDoc &m_doc;
     };
     // The stories besides the text that hold tracked changes: the headers and footers and the footnotes (each made editable if it was not), in a fixed order. The endnotes' words are in the text.
-    QVector<QTextDocument *> storiesWithChanges();
+    // With `every`, the stories that hold no change too (the headers and footers the file names, and every footnote).
+    QVector<QTextDocument *> storiesWithChanges(bool every = false);
 
     // ---- review (core/reviewops.h, core/commentops.h)
     // Whether edits are tracked as changes (Track Changes: the file's w:trackRevisions). A setting of the document that is written with it, not a step of the history.
     bool trackChanges() const { return m_trackChanges; }
     void setTrackChanges(bool on);
+    // The document's protection (w:documentProtection): what it allows and whether it is enforced. Like Track Changes, a setting written with the document, not a step of the history.
+    std::optional<office::wml::DocumentProtection> protection() const { return m_protection; }
+    void setProtection(const std::optional<office::wml::DocumentProtection> &protection);
     // How a kind of note is numbered and where it is set, as the settings say now: the format of its numbers (a w:numFmt value; "decimal" where the file says none), the number the first
     // shows, whether the numbers begin again with each section or page (continuous, eachSect, eachPage), and where they are set (the footnotes' pageBottom or beneathText, the endnotes'
     // sectEnd or docEnd; empty where the file says none).
@@ -481,6 +494,26 @@ public:
     office::Relationship mainRelationship(const QString &id) const;
     // A kept part's bytes (and its content type); empty if the document has no such part.
     QByteArray partData(const QString &absoluteName, QString *contentType = nullptr) const;
+    // ---- the file's properties (the core, extended, and custom parts of docProps)
+    office::PackageProps packageProps() const;
+    // Puts the properties in the file's parts (made where the file has none, with the relationship that names each) and counts the document as changed. What the parts hold besides stays.
+    void setPackageProps(const office::PackageProps &props);
+    // The part (and its bytes) the package's relationship of this type (the end of its type, "/core-properties") names; empty if there is none.
+    QString propsPartName(const QString &typeSuffix) const;
+    QByteArray propsPartData(const QString &typeSuffix) const;
+    bool markedAsFinal() const;
+    // Puts a part in the file (replacing the one of that name), and the relationship of the package to it of the type given (none: no relationship is made).
+    void putPackagePart(const QString &absoluteName, const QString &contentType, const QByteArray &data, const QString &relationshipType = QString());
+    // Takes a part out, and the relationships of the package and the main part that name it. True if there was one.
+    bool removePackagePart(const QString &absoluteName);
+    // The names of the parts that are there (absolute).
+    QStringList packagePartNames() const;
+    // The counts of the text now (the pages are the layout's, not counted here).
+    struct TextCounts {
+        int words = 0, characters = 0, charactersWithSpaces = 0, paragraphs = 0;
+    };
+    TextCounts textCounts() const;
+
     // The Id of a relationship of the main part to an address outside the file, made if the document has none like it.
     QString addExternalLink(const QString &type, const QString &target);
     // The Id of an image relationship to a new part with these bytes (named image1.png and on, in word/media).
@@ -589,6 +622,7 @@ private:
     QVector<int> m_objectPending;                  // the forms a command touched that have no step yet
     quint64 m_objectsSeen = 0;                     // the serial the next step had when the pending ones were last attached
     qsizetype m_collectAt = 2000;
+    QSet<QString> m_madeLinks;                     // the Ids of the relationships to addresses outside the file that the program added (a link taken back by Undo leaves its own unused)
     QHash<QString, QString> m_madeMedia;           // the pictures' parts the program added: the Id of the relationship, and the part
     quint64 m_id = 0;
     bool m_hadMacros = false, m_leftOut = false;
@@ -744,6 +778,8 @@ private:
     quint64 m_nextSerial = 1, m_cleanSerial = 0;
     bool m_forcedDirty = false;
     bool m_wasModified = false;
+    QString m_pageColorAtOpen;                                         // the file's page color ("RRGGBB") when it was read
+    bool m_mirrorAtOpen = false, m_hyphenAtOpen = false;               // the file's facing pages with mirrored margins, and automatic hyphenation, when it was read
     bool m_oddEvenAtOpen = false;                                      // the file's use of different headers on odd and even pages when it was read
     QSet<QString> m_released;                                          // parts the sections let go of (a reference taken out): written no more if nothing names them
     // The empty header or footer shown to be typed in that is not made in the document yet (createHeaderFooter with `lazy`): its part, and the place it is shown in.
@@ -812,6 +848,7 @@ private:
     int m_letteringShapes = 0, m_letteringLetters = 0;   // the lettering on a path the document has drawn so far, and its letters (each is outlined, and may be stroked: they are bounded)
     bool m_syncing = false;
     bool m_trackChanges = false, m_trackAtOpen = false;
+    std::optional<office::wml::DocumentProtection> m_protection, m_protectionAtOpen;
     QString m_reviewer = QStringLiteral("Author"), m_reviewerInitials;
     QStringList m_reviewers;
     QHash<QString, int> m_reviewerPlaces;   // (the place of each, to find one without looking through the list)

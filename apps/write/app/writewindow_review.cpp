@@ -298,6 +298,11 @@ void WriteWindow::refreshReviewUi()
         for (const char *id : {"review.deleteComment", "review.deleteAllComments", "review.replyComment", "review.resolveComment", "review.nextComment", "review.previousComment"})
             act(QString::fromLatin1(id))->setEnabled(m_hasComments);
     }
+    // A document whose tracking is locked on lets neither Track Changes be turned off nor a change be accepted or rejected.
+    if (has && m_protectKind == QLatin1String("trackedChanges")) {
+        for (const char *id : {"review.trackChanges", "review.accept", "review.reject", "review.acceptShown", "review.rejectShown", "review.acceptAll", "review.rejectAll", "review.acceptAllStop"})
+            act(QString::fromLatin1(id))->setEnabled(false);
+    }
     if (m_trackLabel) {
         m_trackLabel->setVisible(has);
         m_trackLabel->setText(has && m_doc->trackChanges() ? tr("Track Changes: On") : tr("Track Changes: Off"));

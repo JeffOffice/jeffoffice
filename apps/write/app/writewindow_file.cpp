@@ -14,6 +14,9 @@
 #include "app/telemetry.h"
 #include "app/writefilescreen.h"
 #include "core/appinfo.h"
+#include "app/passworddialogs.h"
+#include "io/crypto.h"
+#include "office/officecrypt.h"
 #include "office/package.h"
 #include "office/repair.h"
 #include "odt/odttemplate.h"
@@ -40,6 +43,56 @@
 namespace jp {
 
 namespace {
+
+enum class UnlockResult { Opened, Cancelled, Failed };
+
+// A file protected with a password becomes the package inside it: the password files protected only against changes by accident have is tried first, then the person is asked, as often as it
+// takes. `bytes` is the package afterwards; `kept` the password that opened it; a file that is not protected is left as it is.
+UnlockResult unlockProtected(QWidget *parent, const QString &fileName, QByteArray *bytes, QString *kept, bool *wasProtected, QString *error)
+{
+    QByteArray info, package, zip;
+    if (!office::splitProtectedPackage(*bytes, &info, &package)) return UnlockResult::Opened;
+    // (the file's own bytes are let go: the package inside is what is worked on, and a file of a gigabyte is not held twice more)
+    *bytes = QByteArray();
+    bytes->squeeze();
+    auto decrypt = [&](const QString &password, office::CryptResult *result) {
+        // On a thread of its own, with a note and a Cancel button: a key made with many rounds of hashing takes seconds.
+        const bool finished = runWithCancel(parent, QCoreApplication::translate("jp::WriteWindow", "Checking the password…"), [&](const std::atomic<bool> *cancel) {
+            *result = office::decryptPackage(info, package, password, office::kMaxOpenFileBytes, false, &zip, [cancel] { return cancel->load(); });
+        });
+        if (!finished) *result = office::CryptResult::Cancelled;
+    };
+    office::CryptResult r = office::CryptResult::Unsupported;
+    decrypt(office::defaultPassword(), &r);
+    if (r == office::CryptResult::Ok) {
+        *bytes = zip;
+        return UnlockResult::Opened;
+    }
+    bool wrong = false;
+    for (;;) {
+        QString password;
+        if (!askOpenFilePassword(parent, fileName, wrong, &password)) return UnlockResult::Cancelled;
+        decrypt(password, &r);
+        if (r == office::CryptResult::Ok) {
+            *bytes = zip;
+            *kept = password;
+            *wasProtected = true;
+            return UnlockResult::Opened;
+        }
+        crypto::wipe(password);
+        if (r == office::CryptResult::Cancelled) return UnlockResult::Cancelled;
+        if (r == office::CryptResult::WrongPassword) {
+            wrong = true;
+            continue;
+        }
+        *error = r == office::CryptResult::Unsupported ? QCoreApplication::translate("jp::WriteWindow", "This file is protected in a way this program doesn't read.")
+               : r == office::CryptResult::TooLarge    ? QCoreApplication::translate("jp::WriteWindow", "The file is too large to open.")
+               : r == office::CryptResult::TooCostly   ? QCoreApplication::translate("jp::WriteWindow", "The password protection of this file asks for more work than this program allows.")
+                                                       : QCoreApplication::translate("jp::WriteWindow", "The file is damaged.");
+        return UnlockResult::Failed;
+    }
+}
+
 
 // The endings JeffWrite writes. A file with another (an old binary document) is read, never written over: it is saved under a new name.
 bool isWrittenEnding(const QString &path)
@@ -129,7 +182,21 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
     // (A file larger than the apps open is refused before it is read: it would all be held at once.)
     office::RepairReport repair;
     const bool repairing = how == OpenHow::Repair;
+    QString openedWith;   // the password a protected file was opened with
+    bool wasProtected = false, cancelledAsking = false;
     if (office::readWholeFile(path, &bytes, &err) && !bytes.isEmpty()) {
+        // A file protected with a password is opened with it: asked for, as often as it takes.
+        if (!repairing) {
+            QApplication::restoreOverrideCursor();
+            const UnlockResult unlocked = unlockProtected(this, QFileInfo(path).fileName(), &bytes, &openedWith, &wasProtected, &err);
+            QApplication::setOverrideCursor(Qt::WaitCursor);
+            if (unlocked == UnlockResult::Cancelled) {
+                cancelledAsking = true;
+                bytes.clear();
+            } else if (unlocked == UnlockResult::Failed) {
+                bytes.clear();
+            }
+        }
         // Open and Repair: what can be read of a damaged package is made into a package that opens, and what was left out is said.
         if (repairing) bytes = office::repairPackage(bytes, &err, &repair);
         if (!bytes.isEmpty()) doc = write::WriteDoc::fromFile(bytes, &err, &notes);
@@ -137,7 +204,8 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
     QApplication::restoreOverrideCursor();
     const QString name = QFileInfo(path).fileName();
     if (!doc) {
-        jp::plainWarning(this, tr("Open"), tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, err));
+        crypto::wipe(openedWith);
+        if (!cancelledAsking) jp::plainWarning(this, tr("Open"), tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, err));
         return false;
     }
     // A new document nobody has touched gives way; any other stays.
@@ -157,6 +225,17 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
     target->setReadOnly(how == OpenHow::ReadOnly);
     target->setDocument(std::move(doc), tmpl || copy ? QString() : path);
     target->m_macrosNoted = false;
+    target->m_personalInfoRemoved = false;
+    target->m_recoveryNoted = false;
+    target->m_fileProtected = wasProtected && !tmpl && !copy;
+    crypto::wipe(target->m_filePassword);
+    if (target->m_fileProtected) target->m_filePassword = openedWith;
+    crypto::wipe(openedWith);
+    // A document marked as final opens for reading only (the Info page lets it be edited again).
+    if (how == OpenHow::Normal && !tmpl && target->m_doc->markedAsFinal()) {
+        target->setReadOnly(true);
+        target->statusBar()->showMessage(tr("Marked as final: this document is open for reading only. Open File > Info and choose Marked as Final to edit it."), 12000);
+    }
     target->m_odtNoted.clear();
     target->m_protectedPath = leftOut && !tmpl && !copy && !isOldBinary(path) ? path : QString();
     if (tmpl || copy) target->m_doc->setModified(true);
@@ -271,14 +350,29 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
         notice(tr("Save"), tr("The macros in this document aren't saved, because a %1 file can't hold them.").arg(kind));
     }
     QString err;
-    if (!backupBeforeSave(this, path)) return false;
     const bool tmpl = QFileInfo(path).suffix().compare(QLatin1String("dotx"), Qt::CaseInsensitive) == 0;
     const bool ott = QFileInfo(path).suffix().compare(QLatin1String("ott"), Qt::CaseInsensitive) == 0;
     const bool odt = ott || QFileInfo(path).suffix().compare(QLatin1String("odt"), Qt::CaseInsensitive) == 0;
+    // A password protects a .docx file; an .odt file can't be protected yet, and is never written without the protection the person asked for.
+    if (m_fileProtected && odt) {
+        notice(tr("Save"), tr("This document is protected with a password, and a .odt file can't hold a password yet. Save it as a .docx file, or remove the password first (File > Info)."));
+        return false;
+    }
+    // The mark that a document is final is a property a .odt file does not keep: said, so that the window and the file do not disagree.
+    if (odt && m_doc->markedAsFinal()) {
+        notice(tr("Save"), tr("This document is marked as final, and a .odt file can't hold that mark. The file is saved without it."));
+        if (!asCopy) {
+            office::PackageProps unmarked = m_doc->packageProps();
+            unmarked.custom = office::withMarkAsFinal(unmarked.custom, false);
+            m_doc->setPackageProps(unmarked);
+        }
+    }
+    if (!backupBeforeSave(this, path)) return false;
     QStringList notKept;
     QApplication::setOverrideCursor(Qt::WaitCursor);
     QByteArray bytes = odt ? m_doc->toOdt(&err, &notKept) : m_doc->toDocx(&err, tmpl);
     if (ott && !bytes.isEmpty()) bytes = office::odt::odfAsTemplate(bytes);
+    if (m_fileProtected && !bytes.isEmpty()) bytes = office::encryptPackage(bytes, m_filePassword);
     bool ok = !bytes.isEmpty();
     if (ok) {
         QSaveFile out(path);
@@ -309,7 +403,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     m_doc->setModified(false);
     m_path = path;
     m_doc->filePath = path;
-    if (isReadOnly()) setReadOnly(false);
+    if (isReadOnly() && !m_readOnlyByProtection) setReadOnly(false);   // (a protected document is saved as it is: the protection stays)
     m_recoveredFrom.clear();
     dropRecoveryCopy();
     Settings::get().addRecentFile(path);
@@ -327,6 +421,16 @@ void WriteWindow::autoRecover()
     const int ms = std::max(1, Settings::get().autoRecoverMinutes()) * 60 * 1000;
     if (m_recoverTimer.interval() != ms) m_recoverTimer.start(ms);
     if (!m_doc || !isModified()) return;
+    // A document protected with a password is never written out as plain text: no copy is kept for it, and the person is told.
+    if (m_fileProtected) {
+        // (a copy written before the document was protected holds its text in the clear: it goes)
+        dropRecoveryCopy();
+        if (!m_recoveryNoted) {
+            m_recoveryNoted = true;
+            statusBar()->showMessage(tr("This document is protected with a password, so no recovery copy is kept of it. Save it to keep your work."), 10000);
+        }
+        return;
+    }
     // Named for the document as it is now (Save As moves it).
     const QString copy = recovery::copyPath(m_path, displayName(), m_serial);
     if (copy != m_recoveryCopy) dropRecoveryCopy();

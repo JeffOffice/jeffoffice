@@ -1007,6 +1007,9 @@ std::optional<QString> propertyValue(const Properties &p, const QString &nameIn,
     if (name == QLatin1String("number of characters (with spaces)")) return count(p.charactersWithSpaces);
     if (name == QLatin1String("number of lines") || name == QLatin1String("lines")) return p.lines > 0 ? count(p.lines) : std::nullopt;   // (lines are a layout's count, which a field of the text does not work out: the result it has stays)
     if (name == QLatin1String("number of paragraphs") || name == QLatin1String("paragraphs")) return count(p.paragraphs);
+    // (a property of the person's own, by the name the person gave it)
+    const auto own = p.custom.constFind(name);
+    if (own != p.custom.constEnd()) return text(own.value());
     return std::nullopt;
 }
 
