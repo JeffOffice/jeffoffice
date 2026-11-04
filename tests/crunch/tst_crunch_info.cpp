@@ -148,6 +148,39 @@ private Q_SLOTS:
         QVERIFY(!find("External links")->removable);
     }
 
+    void inspectFindsAndShowsHiddenRowsAndColumns()
+    {
+        EditWindow e;
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\" hidden=\"1\"><c r=\"A2\"><v>2</v></c></row>"
+                                            "<row r=\"3\" hidden=\"1\"><c r=\"A3\"><v>3</v></c></row><row r=\"5\" hidden=\"1\"><c r=\"A5\"><v>5</v></c></row>");
+        const QString cols = QStringLiteral("<cols><col min=\"2\" max=\"3\" width=\"9\" hidden=\"1\" customWidth=\"1\"/></cols>");
+        QVERIFY(e.open(buildXlsx({worksheet(rows, QString(), cols)})));
+        const QVector<InspectItem> items = e.win.w.inspectItems();
+        const InspectItem *item = nullptr;
+        for (const InspectItem &i : items)
+            if (i.title == QLatin1String("Hidden rows and columns")) item = &i;
+        QVERIFY(item);
+        QCOMPARE(item->count(), 5);   // (three rows and two columns)
+        QVERIFY(item->removable);
+        QCOMPARE(item->remove(), 5);
+        QCOMPARE(item->count(), 0);
+    }
+
+    void inspectFindsAndTakesOutHeadersAndFooters()
+    {
+        EditWindow e;
+        const QString after = QStringLiteral("<headerFooter><oddHeader>&amp;CQuarterly</oddHeader><oddFooter>&amp;LPage &amp;P</oddFooter></headerFooter>");
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), after)})));
+        const QVector<InspectItem> items = e.win.w.inspectItems();
+        const InspectItem *item = nullptr;
+        for (const InspectItem &i : items)
+            if (i.title == QLatin1String("Headers and footers")) item = &i;
+        QVERIFY(item);
+        QCOMPARE(item->count(), 1);
+        QCOMPARE(item->remove(), 1);
+        QCOMPARE(item->count(), 0);
+    }
+
     void personalInformationStaysOutOfLaterEdits()
     {
         EditWindow e;

@@ -42,6 +42,8 @@ public:
     bool collapsedOf(quint32 index) const;
     // The deepest level any line has (0 for none).
     int deepest() const { return m_deepest; }
+    // The lines that have a level, are hidden, or are collapsed, in order of index.
+    const std::vector<OutlineLine> &lines() const { return m_lines; }
     // The lines looked at by the calls so far, counted (for tests: expand and show-a-level are linear in the lines of the outline).
     qint64 stepsTaken() const { return m_steps; }
     // Every group that has a line in [from, to], outer ones first, then by place.

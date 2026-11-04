@@ -30,6 +30,8 @@ Click **Inspect Workbook** before you send a workbook to someone. It lists what 
 - **Notes** are notes that people left on cells. **Remove All** takes them off.
 - **Document properties and personal information** are the author, the person who last saved it, the company, and the manager. **Remove All** clears them.
 - **Hidden sheets** are sheets that do not show as tabs. **Show All** shows them, so you can see what they hold, and delete the ones you don't want.
+- **Hidden rows and columns** are lines you hid by hand. Rows hidden by a filter are not counted. **Show All** shows them, so you can see what they hold.
+- **Headers and footers** are the text printed at the top and the bottom of every page. **Remove All** clears them on every sheet.
 - **External links** are links to values in other workbooks. This list only counts them. Break them on the **Data** tab.
 - **Custom XML data** is data that other programs added to the file. This list only counts it.
 

@@ -3,6 +3,7 @@
 #include "app/crunchwindow.h"
 
 #include "core/appinfo.h"
+#include "core/outline.h"
 #include "app/settings.h"
 
 #include <QDateTime>
@@ -206,6 +207,55 @@ QVector<InspectItem> CrunchWindow::inspectItems()
                          return n;
                      },
                      true, tr("Show All")});
+    // Hidden rows and columns: the lines a person hid (those a filter hides are the filter's, and stay).
+    auto hiddenLines = [session](int sheet, bool columns) {
+        std::vector<crunch::OutlineChange> changes;
+        const crunch::Outline outline = session->outlineOf(sheet, columns);
+        for (const crunch::OutlineLine &l : outline.lines())
+            if (l.hidden && (columns || !session->rowFilteredOut(sheet, l.index))) changes.push_back({l.index, -1, 0, l.collapsed ? 0 : -1});
+        return changes;
+    };
+    items.push_back({tr("Hidden rows and columns"), tr("Rows and columns that are set to be hidden: they do not show on the sheet, but they are in the file. Show them to see what they hold."),
+                     [session, book, hiddenLines] {
+                         int n = 0;
+                         for (int i = 0; i < book->info().sheets.size(); ++i)
+                             if (!book->info().sheets[i].deleted)
+                                 n += int(hiddenLines(i, false).size() + hiddenLines(i, true).size());
+                         return n;
+                     },
+                     [this, session, book, hiddenLines] {
+                         int n = 0;
+                         for (int i = 0; i < book->info().sheets.size(); ++i) {
+                             if (book->info().sheets[i].deleted) continue;
+                             for (const bool columns : {false, true}) {
+                                 const auto changes = hiddenLines(i, columns);
+                                 if (!changes.empty() && session->changeOutline(i, columns, changes, tr("Show Hidden Rows and Columns")).ok) n += int(changes.size());
+                             }
+                         }
+                         updateEditActions();
+                         return n;
+                     },
+                     true, tr("Show All")});
+    // Headers and footers
+    items.push_back({tr("Headers and footers"), tr("Text printed at the top and the bottom of every page, which can hold names and file paths."),
+                     [session, book] {
+                         int n = 0;
+                         for (int i = 0; i < book->info().sheets.size(); ++i)
+                             if (!book->info().sheets[i].deleted && !session->pages().sheet(i).headerFooter.isEmpty()) ++n;
+                         return n;
+                     },
+                     [this, session, book] {
+                         int n = 0;
+                         for (int i = 0; i < book->info().sheets.size(); ++i) {
+                             if (book->info().sheets[i].deleted || session->pages().sheet(i).headerFooter.isEmpty()) continue;
+                             jp::office::sheet::PageSetup setup = session->pages().sheet(i);
+                             setup.headerFooter = jp::office::sheet::HeaderFooter();
+                             if (session->setPageSetup(i, setup, tr("Remove Headers and Footers")).ok) ++n;
+                         }
+                         updateEditActions();
+                         return n;
+                     },
+                     true, QString()});
     const auto partsMatching = [book](const QString &pattern) {
         const QRegularExpression re(pattern, QRegularExpression::CaseInsensitiveOption);
         int n = 0;
