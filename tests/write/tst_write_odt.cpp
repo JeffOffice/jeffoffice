@@ -7,7 +7,10 @@
 #include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "core/editops.h"
+#include "core/fieldops.h"
 #include "core/fonts.h"
+#include "core/styleops.h"
+#include "core/tableops.h"
 #include "core/writedoc.h"
 #include "odt/odtread.h"
 #include "io/zip.h"
@@ -266,6 +269,74 @@ private Q_SLOTS:
         said.clear();
         QVERIFY(w.saveTo(dir.filePath(QStringLiteral("three.odt"))));
         QVERIFY(said.isEmpty());
+    }
+
+    static QByteArray odtPart(const QByteArray &odt, const QString &name)
+    {
+        QMap<QString, QByteArray> parts;
+        return jp::readZip(odt, parts) ? parts.value(name) : QByteArray();
+    }
+
+    // A formula in a table cell is saved as the field's expression and comes back as the same formula, with the result it showed.
+    void aFormulaInATableCellSurvivesSavingAsOdt()
+    {
+        const QByteArray body = "<table:table><table:table-column table:number-columns-repeated=\"2\"/><table:table-row><table:table-cell><text:p>a</text:p></table:table-cell><table:table-cell><text:p>5</text:p></table:table-cell></table:table-row>"
+                                "<table:table-row><table:table-cell><text:p>b</text:p></table:table-cell><table:table-cell><text:p>7</text:p></table:table-cell></table:table-row>"
+                                "<table:table-row><table:table-cell><text:p>Total</text:p></table:table-cell><table:table-cell><text:p/></table:table-cell></table:table-row></table:table><text:p>after</text:p>";
+        auto doc = WriteDoc::fromFile(makeOdt(body));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.text().isEmpty() && cellKeyOf(b)) c.setPosition(b.position());
+        QVERIFY(insertField(*doc, c, QStringLiteral("= SUM(ABOVE) \\# \"0.00\"")));
+        updateFields(*doc);
+        auto docxText = [](WriteDoc &d) {
+            office::Package pk;
+            pk.read(d.toDocx());
+            return pk.part(QStringLiteral("/word/document.xml"));
+        };
+        QVERIFY2(docxText(*doc).contains(">12.00<"), docxText(*doc).right(1500).constData());
+        const QByteArray odt = doc->toOdt();
+        QVERIFY(!odt.isEmpty());
+        const QByteArray content = odtPart(odt, QStringLiteral("content.xml"));
+        QVERIFY2(content.contains("text:expression") && content.contains("of:=SUM(ABOVE)"), content.right(1500).constData());
+        auto back = WriteDoc::fromFile(odt);
+        QVERIFY(back);
+        const QByteArray x = docxText(*back);
+        QVERIFY2(x.contains("SUM(ABOVE)") && x.contains(">12.00<"), x.right(1500).constData());
+        // (and it can be updated again)
+        updateFields(*back);
+        QVERIFY2(docxText(*back).contains("SUM(ABOVE)") && docxText(*back).contains(">12<"), docxText(*back).right(1500).constData());
+    }
+
+    // What a table style gives the cells (the header row's fill, the bands) is written on the cells, so the table looks the same when the file is opened again.
+    void aTableStylesFillsAreKeptOnTheCellsWhenSavingAsOdt()
+    {
+        auto doc = WriteDoc::fromFile(makeOdt("<table:table><table:table-column table:number-columns-repeated=\"2\"/>"
+                                              "<table:table-row><table:table-cell><text:p>h1</text:p></table:table-cell><table:table-cell><text:p>h2</text:p></table:table-cell></table:table-row>"
+                                              "<table:table-row><table:table-cell><text:p>x</text:p></table:table-cell><table:table-cell><text:p>y</text:p></table:table-cell></table:table-row>"
+                                              "<table:table-row><table:table-cell><text:p>z</text:p></table:table-cell><table:table-cell><text:p>w</text:p></table:table-cell></table:table-row></table:table><text:p>after</text:p>"));
+        QVERIFY(doc);
+        office::wml::TableStyleSpec spec;
+        spec.name = QStringLiteral("Red Head");
+        spec.headerFill = QStringLiteral("FF0000");
+        spec.bandedRowFill = QStringLiteral("00FF00");
+        QString problem;
+        const QString id = createTableStyle(*doc, spec, &problem);
+        QVERIFY2(!id.isEmpty(), qPrintable(problem));
+        QTextCursor c(doc->story());
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (b.text() == QLatin1String("h1")) c.setPosition(b.position());
+        setTableStyle(*doc, c, id);
+        const QByteArray odt = doc->toOdt();
+        const QByteArray content = odtPart(odt, QStringLiteral("content.xml")).toLower();
+        QVERIFY(content.contains("fo:background-color=\"#ff0000\""));   // (a style the two header cells share)
+        QVERIFY(content.contains("fo:background-color=\"#00ff00\""));       // (the banded row)
+        auto back = WriteDoc::fromFile(odt);
+        QVERIFY(back);
+        office::Package p;
+        QVERIFY(p.read(back->toDocx()));
+        QCOMPARE(int(p.part(QStringLiteral("/word/document.xml")).toUpper().count("W:FILL=\"FF0000\"")), 2);
     }
 
     // Not a test of its own: the work of a process that the next function starts.

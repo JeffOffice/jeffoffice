@@ -495,6 +495,19 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
         if (sel.isEmpty() || sel == QLatin1String("current")) addField(pc, QStringLiteral("PAGE"), t.text(n), fmt);
         else addText(pc, t.text(n), fmt);
     } else if (o.is(n, "text:page-count")) addField(pc, QStringLiteral("NUMPAGES"), t.text(n), fmt);
+    else if (o.is(n, "text:expression") && !o.at(n, "text:formula").isEmpty()) {
+        // A formula: the cell names are written A1 (a file may write them [.A1:.B3] or <A1:B3>), and the field's own words are the result.
+        QString formula = o.at(n, "text:formula");
+        for (const char *prefix : {"of:=", "ooow:=", "oooc:=", "ooow:", "oooc:", "of:", "="})
+            if (formula.startsWith(QLatin1String(prefix))) {
+                formula = formula.mid(int(qstrlen(prefix)));
+                break;
+            }
+        formula.remove(QLatin1String("[.")).remove(QLatin1String(":.")).remove(QLatin1Char('[')).remove(QLatin1Char(']')).remove(QLatin1Char('<')).remove(QLatin1Char('>'));
+        formula = formula.trimmed();
+        if (formula.isEmpty()) addText(pc, t.text(n), fmt);
+        else addField(pc, QStringLiteral("= ") + formula, t.text(n), fmt);
+    }
     else if (o.is(n, "text:word-count")) addField(pc, QStringLiteral("NUMWORDS"), t.text(n), fmt);
     else if (o.is(n, "text:character-count")) addField(pc, QStringLiteral("NUMCHARS"), t.text(n), fmt);
     else if (o.is(n, "text:title")) addField(pc, QStringLiteral("TITLE"), t.text(n), fmt);

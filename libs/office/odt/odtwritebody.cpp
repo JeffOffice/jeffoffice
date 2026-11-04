@@ -630,6 +630,23 @@ QByteArray Writer::fieldXml(const QString &instrRaw, const QString &resultText, 
             if (parts[i].compare(QLatin1String(sw), Qt::CaseInsensitive) == 0) return true;
         return false;
     };
+    if (instr.startsWith(QLatin1Char('='))) {
+        // A formula: kept as the expression of the field (the number picture, \\# "...", is not kept in this format; the result shows as the field had it).
+        QString formula = instr.mid(1);
+        const int picture = int(formula.indexOf(QLatin1String("\\#")));
+        if (picture >= 0) formula.truncate(picture);
+        formula = formula.trimmed();
+        if (formula.isEmpty()) {
+            *known = false;
+            return resultXml;
+        }
+        bool numeric = false;
+        QString plain = resultText;
+        plain.remove(QLatin1Char(',')).remove(QLatin1Char('$')).remove(QLatin1Char(' '));
+        const double value = plain.toDouble(&numeric);
+        const QByteArray typed = numeric && std::isfinite(value) ? "office:value-type=\"float\" office:value=\"" + QByteArray::number(value, 'g', 15) + "\"" : QByteArray("office:value-type=\"string\" office:string-value=\"") + esc(resultText) + "\"";
+        return "<text:expression text:formula=\"of:=" + esc(formula) + "\" text:display=\"value\" " + typed + ">" + text + "</text:expression>";
+    }
     if (name == QLatin1String("PAGE")) return "<text:page-number text:select-page=\"current\">" + text + "</text:page-number>";
     if (name == QLatin1String("NUMPAGES")) return "<text:page-count>" + text + "</text:page-count>";
     if (name == QLatin1String("NUMWORDS")) return "<text:word-count>" + text + "</text:word-count>";
@@ -1347,6 +1364,76 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
             id = it->basedOn;
         }
     }
+    // The fill the table's style gives a cell by its place (the header row, the total row, the first and last columns, the bands), the table's own look options telling which of them show.
+    int look = 0x04A0;
+    {
+        const int tl = tblPr >= 0 ? t.child(tblPr, "tblLook") : -1;
+        if (tl >= 0) {
+            bool ok = false;
+            const int v = t.attr(tl, "val").toInt(&ok, 16);
+            if (ok) look = v;
+            else {
+                look = 0;
+                for (const auto &f : {std::make_pair("firstRow", 0x20), std::make_pair("lastRow", 0x40), std::make_pair("firstColumn", 0x80), std::make_pair("lastColumn", 0x100),
+                                      std::make_pair("noHBand", 0x200), std::make_pair("noVBand", 0x400)})
+                    if (t.attr(tl, f.first) == QLatin1String("1") || t.attr(tl, f.first) == QLatin1String("true")) look |= f.second;
+            }
+        }
+    }
+    QStringList styleChain;
+    if (tblPr >= 0 && m_styles) {
+        const int ts = t.child(tblPr, "tblStyle");
+        QString id = ts >= 0 ? t.val(ts) : QString();
+        for (int guard = 0; guard < kMaxStyleChain && !id.isEmpty(); ++guard) {
+            const auto it = m_dstyles.constFind(id);
+            if (it == m_dstyles.constEnd()) break;
+            styleChain << id;
+            id = it->basedOn;
+        }
+    }
+    auto bandSize = [&](const char *name) {
+        for (const QString &id : std::as_const(styleChain)) {
+            const int sp = m_styles->child(m_dstyles[id].node, "tblPr");
+            const int b = sp >= 0 ? m_styles->child(sp, name) : -1;
+            if (b >= 0) return std::clamp(m_styles->attr(b, "val").toInt(), 1, 100);
+        }
+        return 1;
+    };
+    const int rowBand = styleChain.isEmpty() ? 1 : bandSize("tblStyleRowBandSize"), columnBand = styleChain.isEmpty() ? 1 : bandSize("tblStyleColBandSize");
+    auto styleFill = [&](int r, int rowCount, int col, int colSpan, int columnCount) -> QString {
+        if (styleChain.isEmpty()) return QString();
+        const bool firstRow = (look & 0x20) && r == 0, lastRow = (look & 0x40) && r == rowCount - 1 && !firstRow;
+        const bool firstCol = (look & 0x80) && col == 0, lastCol = (look & 0x100) && col + colSpan >= columnCount;
+        QStringList parts;   // from the least to the most specific
+        if (!(look & 0x400)) parts << ((col - ((look & 0x80) ? 1 : 0)) / columnBand % 2 == 0 ? "band1Vert" : "band2Vert");
+        if (!(look & 0x200) && !firstRow && !lastRow) parts << ((r - ((look & 0x20) ? 1 : 0)) / rowBand % 2 == 0 ? "band1Horz" : "band2Horz");
+        if (lastCol) parts << "lastCol";
+        if (firstCol) parts << "firstCol";
+        if (lastRow) parts << "lastRow";
+        if (firstRow) parts << "firstRow";
+        if (firstRow && firstCol) parts << "nwCell";
+        if (firstRow && lastCol) parts << "neCell";
+        if (lastRow && firstCol) parts << "swCell";
+        if (lastRow && lastCol) parts << "seCell";
+        QString fill;
+        for (const QString &part : std::as_const(parts))
+            for (const QString &id : std::as_const(styleChain)) {   // (the style itself before the styles it is based on)
+                bool done = false;
+                for (int sp = m_styles->firstChild(m_dstyles[id].node); sp >= 0 && !done; sp = m_styles->next(sp)) {
+                    if (!m_styles->is(sp, "tblStylePr") || m_styles->attr(sp, "type") != part) continue;
+                    const int tp = m_styles->child(sp, "tcPr");
+                    const int shd = tp >= 0 ? m_styles->child(tp, "shd") : -1;
+                    if (shd < 0) continue;
+                    const QString c = shadeColor(*m_styles, shd);
+                    if (!c.isEmpty()) {
+                        fill = c;
+                        done = true;
+                    }
+                }
+                if (done) break;
+            }
+        return fill;
+    };
     auto tableBorder = [&](const char *side) -> QString {
         if (borders < 0) return QString();
         const int s = bt->child(borders, side);
@@ -1494,12 +1581,13 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
                     if (!lw.isEmpty()) cp += " style:border-line-width-" + QByteArray(s.odf) + "=\"" + lw.toUtf8() + "\"";
                 }
                 if (cb < 0 && borders < 0) cp += "";
+                {
+                    const int shd = tcPr >= 0 ? ct.child(tcPr, "shd") : -1;
+                    QString fill = shd >= 0 ? shadeColor(ct, shd) : QString();
+                    if (shd < 0) fill = styleFill(r, int(rows.size()), cell.col, cell.span, ncols);
+                    if (!fill.isEmpty()) cp += " fo:background-color=\"" + fill.toUtf8() + "\"";
+                }
                 if (tcPr >= 0) {
-                    const int shd = ct.child(tcPr, "shd");
-                    if (shd >= 0) {
-                        const QString col2 = shadeColor(ct, shd);
-                        if (!col2.isEmpty()) cp += " fo:background-color=\"" + col2.toUtf8() + "\"";
-                    }
                     const int va = ct.child(tcPr, "vAlign");
                     if (va >= 0) {
                         const QString v = ct.val(va);
