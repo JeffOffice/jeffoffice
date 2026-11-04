@@ -42,6 +42,9 @@ struct Code {
 
 // The code of an instruction (leading and trailing blanks do not matter). Never fails: what it cannot read is left out.
 Code parseCode(const QString &instruction);
+// How many instructions parseCode has read since the counts were reset (a bound on what a pass over hostile fields costs).
+qint64 parseCodeCallsForTest();
+void resetParseCodeCallsForTest();
 
 // ---- formats
 // The number as the general-format switches show it (roman, ROMAN, alphabetic, ALPHABETIC, arabic, Ordinal, CardText, OrdText, Hex, ArabicDash, then Upper, Lower, FirstCap, Caps

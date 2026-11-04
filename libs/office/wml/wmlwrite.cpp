@@ -810,8 +810,9 @@ QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesCh
             out += "</w:" + tag + ">";
         }
         for (const auto &add : change.added) highest = std::max(highest, add.first);
-        if (const auto notice = change.separators.constFind(QStringLiteral("continuationNotice")); notice != change.separators.constEnd() && !notice.value().isEmpty())
-            out += "<w:" + tag + " w:type=\"continuationNotice\" w:id=\"" + QByteArray::number(highest < std::numeric_limits<int>::max() ? highest + 1 : highest) + "\">" + content(notice.value()) + "</w:" + tag + ">";
+        // (The notice takes the Id above the others, and none where there is no room for one.)
+        if (const auto notice = change.separators.constFind(QStringLiteral("continuationNotice")); notice != change.separators.constEnd() && !notice.value().isEmpty() && highest < std::numeric_limits<int>::max())
+            out += "<w:" + tag + " w:type=\"continuationNotice\" w:id=\"" + QByteArray::number(highest + 1) + "\">" + content(notice.value()) + "</w:" + tag + ">";
     } else {
         if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty() && change.separators.isEmpty()) return original;
         XmlTree tree;

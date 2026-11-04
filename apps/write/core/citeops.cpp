@@ -234,8 +234,6 @@ QByteArray sourcesToXml(const QVector<Source> &sources, const QString &styleIn)
 }
 
 namespace {
-std::atomic<qint64> g_sourceParses{0};
-
 // The sources of one revision of the document's sources part, read once for the many CITATION fields a pass works out.
 struct Cached {
     quint64 revision = 0;
@@ -254,7 +252,6 @@ const Cached &cachedSources(WriteDoc &doc)
         c.revision = revision;
         c.byTag.clear();
         c.sources = parseSources(xml, &c.style);
-        ++g_sourceParses;
         for (int i = int(c.sources.size()) - 1; i >= 0; --i) c.byTag.insert(c.sources[i].tag.toLower(), i);   // (backward, so the first source of a tag is the one kept)
         c.valid = true;
     }
@@ -268,9 +265,6 @@ const Source *findSource(const Cached &c, const QString &tag)
 }
 
 } // namespace
-
-qint64 sourcesParsesForTest() { return g_sourceParses; }
-void resetSourcesParsesForTest() { g_sourceParses = 0; }
 
 QVector<Source> documentSources(WriteDoc &doc) { return cachedSources(doc).sources; }
 

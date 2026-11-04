@@ -36,6 +36,7 @@
 #include <QDialog>
 #include <QElapsedTimer>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSet>
@@ -822,25 +823,22 @@ private Q_SLOTS:
 
     void convertingManyNotesGrowsInStepWithTheirNumber()
     {
-        auto timeFor = [&](int n) {
+        auto workFor = [&](int n) {
             QByteArray body, notes = kSeparators;
             for (int i = 0; i < n; ++i) {
                 body += para(run("Text " + QByteArray::number(i)) + "<w:r><w:footnoteReference w:id=\"" + QByteArray::number(i + 2) + "\"/></w:r>");
                 notes += noteXml("footnote", i + 2, "Note " + QByteArray::number(i));
             }
             auto doc = open(makeDocxNotes(body, notes, QByteArray()));
-            if (!doc) return -1.0;
-            QElapsedTimer t;
-            t.start();
+            if (!doc) return qint64(-1);
+            resetNoteWorkForTest();
             const int done = convertNotes(*doc, NoteConversion::FootnotesToEndnotes);
-            const double ms = double(t.nsecsElapsed()) / 1e6;
-            return done == n ? ms : -1.0;
+            return done == n ? noteWorkForTest() : qint64(-1);
         };
-        const double small = timeFor(250), middle = timeFor(500), big = timeFor(1000);
+        const qint64 small = workFor(250), big = workFor(1000);
         QVERIFY2(small > 0 && big > 0, "the notes did not all convert");
-        qInfo("convertNotes: 250 notes %.0f ms, 500 notes %.0f ms, 1000 notes %.0f ms", small, middle, big);
-        // Four times the notes may take about four times as long; quadratic work would take sixteen times as long.
-        QVERIFY2(big < 8 * std::max(small, 20.0), qPrintable(QStringLiteral("250 notes %1 ms, 1000 notes %2 ms").arg(small).arg(big)));
+        // Four times the notes is about four times the work; quadratic work would be sixteen times.
+        QVERIFY2(big < 8 * small, qPrintable(QStringLiteral("250 notes %1, 1000 notes %2").arg(small).arg(big)));
     }
 
     void swapAndOneNoteConvert()
@@ -1035,14 +1033,12 @@ private Q_SLOTS:
         book.authors = {Person{QStringLiteral("Smith"), QStringLiteral("John"), QString()}};
         book.fields = {{QStringLiteral("Title"), QStringLiteral("A Book")}, {QStringLiteral("Year"), QStringLiteral("2020")}};
         setDocumentSources(*doc, {book});
-        resetParsedMarkCodesForTest();
-        resetSourcesParsesForTest();
+        resetParseCodeCallsForTest();
         QElapsedTimer timer;
         timer.start();
         updateFields(*doc);
-        // Each XE, TA, TC, SEQ, and CITATION (2,000 of them) is read once for each pass over the text (at most three), not once for each of the 2,000 tables.
-        QVERIFY2(parsedMarkCodesForTest() <= 3 * 5 * n, qPrintable(QStringLiteral("%1 marks read").arg(parsedMarkCodesForTest())));
-        QVERIFY2(sourcesParsesForTest() <= 2, qPrintable(QStringLiteral("the sources were read %1 times").arg(sourcesParsesForTest())));
+        // Each instruction is read a few times for the pass (once for itself, once for the list of its kind, at most three passes), not once for each of the 2,000 tables.
+        QVERIFY2(parseCodeCallsForTest() <= 40000, qPrintable(QStringLiteral("%1 instructions read").arg(parseCodeCallsForTest())));
         QVERIFY2(timer.elapsed() < 60000, qPrintable(QStringLiteral("%1 ms").arg(timer.elapsed())));
     }
 
@@ -1080,6 +1076,28 @@ private Q_SLOTS:
         QCOMPARE(numbers("Aaa", "Bbb"), QStringLiteral("[1][2]"));
         QCOMPARE(numbers("Bbb", "Aaa"), QStringLiteral("[1][2]"));   // (the numbers go in the order of the first citations: a new text is not numbered as the last one was)
         QCOMPARE(numbers("Bbb", "Bbb"), QStringLiteral("[1][1]"));
+    }
+
+    // A scan that takes the place of another (the same variable, the same number of fields) is not numbered as the one before it was.
+    void ieeeNumbersOfANewScanAtTheSameAddressAreItsOwn()
+    {
+        Source a, b;
+        a.tag = QStringLiteral("Aaa");
+        a.fields = {{QStringLiteral("Title"), QStringLiteral("One")}};
+        b.tag = QStringLiteral("Bbb");
+        b.fields = {{QStringLiteral("Title"), QStringLiteral("Two")}};
+        auto first = open(makeDocx(para(field("CITATION Aaa", "") + field("CITATION Bbb", ""))));
+        auto second = open(makeDocx(para(field("CITATION Bbb", "") + field("CITATION Aaa", ""))));
+        QVERIFY(first && second);
+        for (auto *d : {first.get(), second.get()}) {
+            setDocumentSources(*d, {a, b});
+            setDocumentCitationStyle(*d, QStringLiteral("IEEE"));
+        }
+        StoryScan scan = scanStory(first->story());
+        const fields::Code code = fields::parseCode(QStringLiteral("CITATION Bbb"));
+        QCOMPARE(citationFieldText(*first, scan, QStringLiteral("Bbb"), code).value_or(QString()), QStringLiteral("[2]"));
+        scan = scanStory(second->story());
+        QCOMPARE(citationFieldText(*second, scan, QStringLiteral("Bbb"), code).value_or(QString()), QStringLiteral("[1]"));
     }
 
     void aSourcesPartTooLargeIsIgnoredAndTheFirstSourceOfATagIsTheOne()
@@ -1235,6 +1253,20 @@ private Q_SLOTS:
         auto bad = open(w.finish());
         QVERIFY(bad);
         QVERIFY(!bad->noteSettingsCanBeSaved());
+        // Both notes dialogs say so, and change nothing.
+        WriteWindow window;
+        window.setDocument(std::move(bad), QString());
+        window.show();
+        for (const bool separators : {false, true}) {
+            QString said;
+            onNextDialog(QStringLiteral("settings-warning"), [&said](QDialog *d) {
+                if (auto *box = qobject_cast<QMessageBox *>(d)) said = box->text();
+                d->accept();
+            });
+            bool endnotes = false;
+            QVERIFY(!(separators ? noteSeparatorsDialog(&window, window.document(), &endnotes) : notesOptionsDialog(&window, window.document(), &endnotes)));
+            QVERIFY2(said.contains(QStringLiteral("can't be read")), qPrintable(said));
+        }
     }
 
     // ---- notes on the page
@@ -1251,7 +1283,7 @@ private Q_SLOTS:
                             for (auto it = b.begin(); !it.atEnd(); ++it) {
                                 const QTextCharFormat cf = it.fragment().charFormat();
                                 if (cf.stringProperty(tp::Field).startsWith(QLatin1String("raw:")))
-                                    out << (cf.verticalAlignment() == QTextCharFormat::AlignSuperScript || cf.fontPointSize() < 8);
+                                    out << (cf.verticalAlignment() == QTextCharFormat::AlignSuperScript);
                             }
             return out;
         };

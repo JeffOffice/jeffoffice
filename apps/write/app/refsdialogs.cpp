@@ -836,6 +836,10 @@ bool noteSeparatorsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
 {
     if (!doc) return false;
     if (endnotesChanged) *endnotesChanged = false;
+    if (!doc->noteSettingsCanBeSaved()) {
+        QMessageBox::warning(parent, tr("Note Separators"), tr("The settings of this file can't be read, so a change to the separators could not be saved with it. Nothing was changed."));
+        return false;
+    }
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("noteSeparatorsDialog"));
     dlg.setWindowTitle(tr("Note Separators"));

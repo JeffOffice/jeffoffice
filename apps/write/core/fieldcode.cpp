@@ -1,5 +1,7 @@
 #include "core/fieldcode.h"
 
+#include <atomic>
+
 #include <QCoreApplication>
 #include <QRegularExpression>
 #include <QSet>
@@ -179,8 +181,15 @@ bool Code::keepsFormat() const
     return false;
 }
 
+namespace {
+std::atomic<qint64> g_parseCalls{0};
+}
+qint64 parseCodeCallsForTest() { return g_parseCalls; }
+void resetParseCodeCallsForTest() { g_parseCalls = 0; }
+
 Code parseCode(const QString &instruction)
 {
+    ++g_parseCalls;
     Code code;
     QString text = instruction.left(kMostCodeChars).trimmed();
     if (text.isEmpty()) return code;

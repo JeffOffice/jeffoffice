@@ -273,8 +273,8 @@ int WriteDoc::nextFootnoteId()
 {
     indexFootnoteReferences();
     QSet<int> used;
-    for (auto it = m_noteBlocks.cbegin(); it != m_noteBlocks.cend(); ++it) used.insert(it.key().mid(2).toInt());
-    for (auto it = m_footnoteRefs.cbegin(); it != m_footnoteRefs.cend(); ++it) used.insert(it.key());
+    for (auto it = m_noteBlocks.cbegin(); it != m_noteBlocks.cend(); ++it, ++s_noteWalk) used.insert(it.key().mid(2).toInt());
+    for (auto it = m_footnoteRefs.cbegin(); it != m_footnoteRefs.cend(); ++it, ++s_noteWalk) used.insert(it.key());
     {
         // (And every Id that a header, a text box, or another note cites: a new note is not to be the note that they name.)
         QSet<int> beyond, unused;
@@ -428,7 +428,7 @@ int WriteDoc::convertedNote(int id, bool toEndnote, int lastMade)
         } else {
             blocks = m_noteBlocks.value(key);
         }
-        reclaimDeadNotes(true, 0);
+        if (!lastMade) reclaimDeadNotes(true, 0);
         if (!roomForEndnote()) return 0;
         activateEndnotes();
     } else {
@@ -436,7 +436,7 @@ int WriteDoc::convertedNote(int id, bool toEndnote, int lastMade)
         const QSet<int> one{id};
         captureEndnotes(&one);   // (what was said in it so far)
         blocks = m_endnoteBlocks.value(QString::number(id));
-        reclaimDeadNotes(false, 0);
+        if (!lastMade) reclaimDeadNotes(false, 0);
         if (!roomForFootnote()) return 0;
         activateNotes();
     }
@@ -807,8 +807,8 @@ int WriteDoc::nextEndnoteId()
     indexEndnoteReferences();
     int highest = std::max(m_endnotePartHighest, m_endnoteIdFloor);   // (above the Id of every element of the part)
     QSet<int> used;
-    for (auto it = m_endnoteBlocks.cbegin(); it != m_endnoteBlocks.cend(); ++it) used.insert(it.key().toInt());
-    for (auto it = m_endnoteRefIndex.cbegin(); it != m_endnoteRefIndex.cend(); ++it) used.insert(it.key());
+    for (auto it = m_endnoteBlocks.cbegin(); it != m_endnoteBlocks.cend(); ++it, ++s_noteWalk) used.insert(it.key().toInt());
+    for (auto it = m_endnoteRefIndex.cbegin(); it != m_endnoteRefIndex.cend(); ++it, ++s_noteWalk) used.insert(it.key());
     {
         QSet<int> unused, beyond;
         notesCitedBeyondTheText(&unused, &beyond);

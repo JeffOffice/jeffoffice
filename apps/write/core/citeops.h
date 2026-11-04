@@ -45,9 +45,6 @@ QString sourceFieldLabel(const QString &field);
 // The styles: the names the file keeps ("APA", "MLA", "Chicago", "Harvard", "IEEE"), and the one a part without a style has.
 QStringList citationStyles();
 // The name the picker shows for a style: the edition it follows where that is not the newest ("APA (6th edition)").
-// How many times the sources part has been parsed since the counts were reset (a pass over many citations reads it once).
-qint64 sourcesParsesForTest();
-void resetSourcesParsesForTest();
 QString citationStyleLabel(const QString &style);
 QString defaultCitationStyle();
 

@@ -1398,6 +1398,14 @@ private Q_SLOTS:
         QVERIFY2(!capped.contains("-2147483648"), capped.constData());
         const QVector<int> ids = idsOf(capped);
         QCOMPARE(QSet<int>(ids.begin(), ids.end()).size(), int(ids.size()));
+        // A new part whose added note has the highest Id: the notice is left out, not given that Id again.
+        NotesChange fresh;
+        fresh.added.push_back({2147483647, words("last")});
+        fresh.separators.insert(QStringLiteral("continuationNotice"), words("More"));
+        const QByteArray made = notesPartXml(QByteArray(), false, fresh);
+        const QVector<int> madeIds = idsOf(made);
+        QVERIFY2(!made.contains("continuationNotice"), made.constData());
+        QCOMPARE(QSet<int>(madeIds.begin(), madeIds.end()).size(), int(madeIds.size()));
     }
 
     // What the commands that make captions, indexes, authorities, and bibliographies add is not a built-in style a document may name without defining; the settings that cannot take the
