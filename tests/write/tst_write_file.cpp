@@ -10,6 +10,7 @@
 #include "core/editops.h"
 #include "core/fonts.h"
 #include "core/pdfbookmarks.h"
+#include "core/templates.h"
 #include "render/pdfpage.h"
 #include "office/package.h"
 #include "office/packageprops.h"
@@ -360,6 +361,58 @@ private Q_SLOTS:
         QVERIFY(pdf.contains("alpha, beta"));
         QVERIFY(pdf.contains("A Report"));
         QCOMPARE(PdfDocument::shared(pdf)->pageCount(), 2);
+    }
+
+    void theBuiltInTemplatesOpenAndSaveAsDocx()
+    {
+        const QVector<BuiltInTemplate> all = builtInTemplates();
+        QStringList ids;
+        for (const BuiltInTemplate &t : all) {
+            ids << t.id;
+            QVERIFY(!t.name.isEmpty());
+            QVERIFY(!t.category.isEmpty());
+            auto doc = builtInTemplateDocument(t.id);
+            QVERIFY2(doc, qPrintable(t.id));
+            QVERIFY(!doc->story()->toPlainText().trimmed().isEmpty());
+            doc->pager().paginate(0);
+            QVERIFY(doc->pager().materialize(0));
+            // what is saved opens again with the same words
+            QString err;
+            const QByteArray bytes = doc->toDocx(&err);
+            QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+            auto again = WriteDoc::fromDocx(bytes, &err, nullptr);
+            QVERIFY2(again, qPrintable(err));
+            QCOMPARE(again->story()->toPlainText(), doc->story()->toPlainText());
+        }
+        for (const char *id : {"letter", "report", "brief", "manuscript", "newsletter"}) QVERIFY2(ids.contains(QLatin1String(id)), id);
+        QVERIFY(!builtInTemplateDocument(QStringLiteral("no such template")));
+    }
+
+    void eachBuiltInTemplateFitsItsFirstPage()
+    {
+        // (a letter, a brief, and a newsletter are one page of placeholder text: the newsletter's stories begin under its masthead, not on a page of their own)
+        for (const char *id : {"letter", "brief", "newsletter"}) {
+            auto doc = builtInTemplateDocument(QString::fromLatin1(id));
+            QVERIFY(doc);
+            flow::Paginator &pg = doc->pager();
+            while (!pg.complete()) {
+                const int known = pg.pagesKnown();
+                pg.paginate(known);
+                if (pg.pagesKnown() == known) break;
+            }
+            QVERIFY2(pg.pagesKnown() == 1, id);
+        }
+    }
+
+    void aWindowStartsAnUntitledDocumentFromABuiltInTemplate()
+    {
+        WriteWindow w;
+        Quiet quiet(w);
+        QVERIFY(w.newFromBuiltInTemplate(QStringLiteral("report")));
+        QVERIFY(w.filePath().isEmpty());
+        QVERIFY(w.document()->story()->toPlainText().contains(QLatin1String("Summary")));
+        QVERIFY(w.isModified());   // (a new document made from a template is asked about on closing, as one made from a saved template is)
+        QVERIFY(!w.newFromBuiltInTemplate(QStringLiteral("nothing")));
     }
 };
 

@@ -138,6 +138,9 @@ public:
     QVector<OptionsPage> optionsPages();
     // The folder the Open and Save As boxes start in when no file leads them: the one Options > Save names, else Documents.
     static QString defaultFolder();
+    // Starts an untitled document from one of the templates JeffWrite comes with (by its id, see core/templates.h): in this window if it holds a new document nobody has touched,
+    // else in a window of its own. False for an id that names none.
+    bool newFromBuiltInTemplate(const QString &id);
     // Where editing stopped: the place is kept with the file's name when the window closes and when the file is saved, and the file opens there again.
     void rememberPlace();
     // The last three places the text was edited, the latest first (Shift+F5 goes to each in turn).

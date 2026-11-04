@@ -14,6 +14,7 @@
 #include "app/telemetry.h"
 #include "app/writefilescreen.h"
 #include "core/appinfo.h"
+#include "core/templates.h"
 #include "app/passworddialogs.h"
 #include "io/crypto.h"
 #include "office/officecrypt.h"
@@ -165,6 +166,21 @@ void WriteWindow::browseAndOpen(OpenHow how)
     if (p.isEmpty()) return;
     Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
     openFile(p, how);
+}
+
+bool WriteWindow::newFromBuiltInTemplate(const QString &id)
+{
+    auto doc = write::builtInTemplateDocument(id);
+    if (!doc) return false;
+    WriteWindow *target = this;
+    if (isModified() || !m_path.isEmpty()) {
+        target = new WriteWindow();
+        target->setAttribute(Qt::WA_DeleteOnClose);
+        target->show();
+    }
+    target->setDocument(std::move(doc), QString());
+    target->m_doc->setModified(true);
+    return true;
 }
 
 void WriteWindow::setReadOnly(bool on)

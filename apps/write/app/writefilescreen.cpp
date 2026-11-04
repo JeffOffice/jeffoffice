@@ -9,6 +9,7 @@
 #include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "core/printing.h"
+#include "core/templates.h"
 
 #include <QAction>
 #include <QButtonGroup>
@@ -159,7 +160,7 @@ QWidget *WriteFileScreen::buildNew()
     v->addWidget(heading(tr("New Document"), w));
     // The tile shows the blank document's first page.
     const qreal dpr = devicePixelRatioF();
-    const QSize box(200, 260);
+    const QSize box(144, 188);
     auto blank = write::WriteDoc::blank();
     QImage first(QSize(qRound((box.width() - 16) * dpr), qRound((box.width() - 16) * dpr * 11 / 8.5)), QImage::Format_RGB32);
     first.fill(Qt::white);
@@ -170,10 +171,55 @@ QWidget *WriteFileScreen::buildNew()
         LayoutCache cache;
         write::paintPage(&p, *page, &cache, write::PageDrawing());
     }
+    // One row of columns: the blank document, then each kind of template under its heading; each tile shows the first page of the document it makes.
+    auto *row = new QHBoxLayout();
+    row->setSpacing(10);
+    auto addColumn = [&](const QString &headingText, QHBoxLayout **tiles) {
+        auto *column = new QVBoxLayout();
+        auto *label = new QLabel(headingText, w);
+        label->setTextFormat(Qt::PlainText);
+        QFont f = label->font();
+        f.setBold(true);
+        label->setFont(f);
+        label->setContentsMargins(2, 6, 0, 2);
+        column->addWidget(label);
+        *tiles = new QHBoxLayout();
+        (*tiles)->setSpacing(4);
+        column->addLayout(*tiles);
+        column->addStretch(1);
+        row->addLayout(column);
+    };
+    QHBoxLayout *tiles = nullptr;
+    addColumn(tr("Start"), &tiles);
     auto *tile = new StartTile(tr("Blank Document"), paperPixmap(first, box, dpr), w);
     connect(tile, &QAbstractButton::clicked, this, [this] { startBlank(); });
-    auto *row = new QHBoxLayout();
-    row->addWidget(tile);
+    tiles->addWidget(tile);
+    QString category;
+    for (const write::BuiltInTemplate &tmpl : write::builtInTemplates()) {
+        auto doc = write::builtInTemplateDocument(tmpl.id);
+        if (!doc) continue;
+        if (tmpl.category != category) {
+            category = tmpl.category;
+            addColumn(category, &tiles);
+        }
+        QImage page(QSize(qRound((box.width() - 16) * dpr), qRound((box.width() - 16) * dpr * 11 / 8.5)), QImage::Format_RGB32);
+        page.fill(Qt::white);
+        page.setDevicePixelRatio(dpr);
+        if (const auto laid = doc->pager().materialize(0)) {
+            QPainter p(&page);
+            p.scale((box.width() - 16) / laid->size.width(), (box.width() - 16) / laid->size.width());
+            LayoutCache pageCache;
+            write::paintPage(&p, *laid, &pageCache, write::PageDrawing());
+        }
+        auto *card = new StartTile(tmpl.name, paperPixmap(page, box, dpr), w);
+        card->setObjectName(QStringLiteral("template_") + tmpl.id);
+        const QString id = tmpl.id;
+        connect(card, &QAbstractButton::clicked, this, [this, id] {
+            m_win->newFromBuiltInTemplate(id);
+            Q_EMIT closeRequested();
+        });
+        tiles->addWidget(card);
+    }
     row->addStretch(1);
     v->addLayout(row);
     // The templates a person saved: a document made from one starts as the template is.
