@@ -9,6 +9,7 @@
 #include "core/appinfo.h"
 #include "core/editops.h"
 #include "core/fonts.h"
+#include "core/emailops.h"
 #include "core/pdfbookmarks.h"
 #include "core/templates.h"
 #include "render/pdfpage.h"
@@ -449,6 +450,72 @@ private Q_SLOTS:
         o.pages = QStringLiteral("1");
         QVERIFY(w.printOutput(o));
         QCOMPARE(order, (QStringList{QStringLiteral("print")}));
+    }
+
+    void anEmailMessageHoldsItsAttachmentsAndPictures()
+    {
+        const QByteArray data = QByteArray("PK\x03\x04 some bytes that are not text \xFF\x00\x01", 36).repeated(10);
+        const QByteArray png("\x89PNG fake picture", 17);
+        const QByteArray eml = emailMessage(QStringLiteral("Caf\u00E9 \"report\"\nnext line"), QStringLiteral("See attached."),
+                                            {{QStringLiteral("report.docx"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document"), data, QString()}},
+                                            QStringLiteral("<p>pages</p><img src=\"cid:page1\">"), {{QStringLiteral("page1.png"), QStringLiteral("image/png"), png, QStringLiteral("page1")}});
+        // header lines end with CR LF, and the subject is one line, encoded because it has more than ASCII, with no quote marks in it to end it
+        QVERIFY(eml.startsWith("Subject: =?UTF-8?B?"));
+        QVERIFY(eml.contains("MIME-Version: 1.0\r\n"));
+        QVERIFY(eml.contains("X-Unsent: 1\r\n"));
+        const int subjectAt = eml.indexOf("Subject: ");
+        const QByteArray subjectLine = eml.mid(subjectAt, eml.indexOf("\r\n", subjectAt) - subjectAt);
+        const QByteArray encoded = subjectLine.mid(subjectLine.indexOf("?B?") + 3, subjectLine.size() - subjectLine.indexOf("?B?") - 5);
+        QCOMPARE(QString::fromUtf8(QByteArray::fromBase64(encoded)), QStringLiteral("Caf\u00E9 'report' next line"));
+        // the attachment comes back whole from its base64 lines, none longer than 76 characters
+        const int at = eml.indexOf("filename=\"report.docx\"");
+        QVERIFY(at > 0);
+        const int bodyAt = eml.indexOf("\r\n\r\n", at) + 4;
+        const int bodyEnd = eml.indexOf("\r\n--", bodyAt);
+        QByteArray b64 = eml.mid(bodyAt, bodyEnd - bodyAt);
+        for (const QByteArray &line : b64.split('\n')) QVERIFY(line.trimmed().size() <= 76);
+        QCOMPARE(QByteArray::fromBase64(b64.replace("\r\n", "")), data);
+        // the picture is inline, named by its content id, inside the part that holds the page's text
+        QVERIFY(eml.contains("Content-ID: <page1>"));
+        QVERIFY(eml.contains("multipart/related"));
+        QVERIFY(eml.contains("multipart/mixed"));
+        // two messages never share a boundary with the content: no line of the data starts with the boundary
+        const int boundaryAt = eml.indexOf("boundary=\"") + 10;
+        const QByteArray boundary = eml.mid(boundaryAt, eml.indexOf('"', boundaryAt) - boundaryAt);
+        QVERIFY(boundary.size() >= 16);
+        QVERIFY(!data.contains(boundary));
+        QVERIFY(eml.trimmed().endsWith("--" + boundary + "--"));
+        // without pictures it is a plain list of attachments after the words
+        const QByteArray simple = emailMessage(QStringLiteral("Hello"), QStringLiteral("Words"), {{QStringLiteral("a.pdf"), QStringLiteral("application/pdf"), QByteArray("%PDF"), QString()}});
+        QVERIFY(simple.contains("Subject: Hello\r\n"));
+        QVERIFY(!simple.contains("multipart/related"));
+        QVERIFY(simple.contains("Content-Type: text/plain; charset=utf-8"));
+    }
+
+    void emailMakesAnEmlWithTheDocumentThePdfOrThePages()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        w.show();
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Hello by mail"));
+        QString asked;
+        w.setSavePathChooser([&](const QString &suggested, const QString &) {
+            asked = suggested;
+            return dir.filePath(QStringLiteral("m.eml"));
+        });
+        for (auto what : {WriteWindow::EmailWhat::Document, WriteWindow::EmailWhat::Pdf, WriteWindow::EmailWhat::Pages}) {
+            QFile::remove(dir.filePath(QStringLiteral("m.eml")));
+            QVERIFY(w.exportEmail(what));
+            QVERIFY(asked.endsWith(QLatin1String(".eml")));
+            QFile f(dir.filePath(QStringLiteral("m.eml")));
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray eml = f.readAll();
+            QVERIFY(eml.contains("Subject: Document"));
+            if (what == WriteWindow::EmailWhat::Document) QVERIFY(eml.contains(".docx\""));
+            if (what == WriteWindow::EmailWhat::Pdf) QVERIFY(eml.contains("application/pdf"));
+            if (what == WriteWindow::EmailWhat::Pages) QVERIFY(eml.contains("image/png") && eml.contains("Content-ID: <page1>"));
+        }
     }
 
     void aWindowStartsAnUntitledDocumentFromABuiltInTemplate()

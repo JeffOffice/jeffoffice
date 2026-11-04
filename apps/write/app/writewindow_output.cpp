@@ -6,8 +6,10 @@
 #include "app/pageoutput.h"
 #include "app/pageview.h"
 #include "core/appinfo.h"
+#include "core/emailops.h"
 #include "core/pdfbookmarks.h"
 #include "core/printing.h"
+#include "office/officecrypt.h"
 #include "office/packageprops.h"
 
 #include <QApplication>
@@ -77,6 +79,35 @@ QString WriteWindow::pdfPathToWrite(const QString &title)
     return path;
 }
 
+QByteArray WriteWindow::pdfBytes(const QVector<int> &pages, QString *error)
+{
+    if (!m_doc || pages.isEmpty()) {
+        if (error) *error = tr("The pages can't be made.");
+        return {};
+    }
+    EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
+    // The pages are made in memory: the bookmarks from the headings are added to the finished file.
+    QBuffer made;
+    made.open(QIODevice::WriteOnly);
+    bool ok = false;
+    {
+        QPdfWriter pdf(&made);
+        pdf.setCreator(appInfo().name);
+        const office::PackageProps props = m_doc->packageProps();
+        const QString title = props.title.isEmpty() ? displayName() : props.title;
+        pdf.setTitle(title);
+        pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved ? QString() : props.creator, props.subject, props.keywords, appInfo().name));
+        pdf.setResolution(1200);
+        pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
+        ok = write::paintSheets(*m_doc, &pdf, pages, m_view->pageCount());
+    }
+    if (!ok) {
+        if (error) *error = tr("The pages can't be made.");
+        return {};
+    }
+    return write::addPdfBookmarks(made.data(), write::headingBookmarks(*m_doc, pages));
+}
+
 bool WriteWindow::exportPdf()
 {
     if (!m_doc) return false;
@@ -86,36 +117,84 @@ bool WriteWindow::exportPdf()
     const QVector<int> pages = outputPages(WriteOutputOptions());
     QString err;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    bool ok = !pages.isEmpty();
-    QSaveFile file(path);
-    if (ok) ok = file.open(QIODevice::WriteOnly);
+    const QByteArray bytes = pdfBytes(pages, &err);
+    bool ok = !bytes.isEmpty();
     if (ok) {
-        // The pages are made in memory: the bookmarks from the headings are added to the finished file.
-        QBuffer made;
-        made.open(QIODevice::WriteOnly);
-        {
-            QPdfWriter pdf(&made);
-            pdf.setCreator(appInfo().name);
-            const office::PackageProps props = m_doc->packageProps();
-            const QString title = props.title.isEmpty() ? displayName() : props.title;
-            pdf.setTitle(title);
-            pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved ? QString() : props.creator, props.subject, props.keywords, appInfo().name));
-            pdf.setResolution(1200);
-            pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
-            ok = write::paintSheets(*m_doc, &pdf, pages, m_view->pageCount());
-        }
-        if (ok) {
-            const QByteArray bytes = write::addPdfBookmarks(made.data(), write::headingBookmarks(*m_doc, pages));
-            ok = file.write(bytes) == bytes.size() && file.commit();
-        } else file.cancelWriting();
+        QSaveFile file(path);
+        ok = file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
+        if (!ok) err = file.errorString();
     }
-    if (!ok) err = file.error() != QFileDevice::NoError ? file.errorString() : tr("The pages can't be made.");
     QApplication::restoreOverrideCursor();
     if (!ok) {
         jp::plainWarning(this, tr("Export to PDF"), tr("%1 couldn't export \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
     statusBar()->showMessage(tr("Exported %1").arg(QFileInfo(path).fileName()), 5000);
+    return true;
+}
+
+bool WriteWindow::exportEmail(EmailWhat what)
+{
+    if (!m_doc) return false;
+    constexpr int kMostPages = 30;   // (the pages of a message are pictures: a long document would make a message no mail program takes)
+    const QString name = displayName();
+    const office::PackageProps props = m_doc->packageProps();
+    const QString subject = props.title.isEmpty() ? name : props.title;
+    QString err;
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    QVector<write::EmailPart> attachments, pictures;
+    QString text = tr("The document \"%1\" is attached.").arg(name), html;
+    bool ok = true;
+    const QVector<int> pages = outputPages(WriteOutputOptions());
+    if (what == EmailWhat::Document) {
+        QByteArray bytes = m_doc->toDocx(&err);
+        // (a document with a password is sent with it)
+        if (m_fileProtected && !bytes.isEmpty()) bytes = office::encryptPackage(bytes, m_filePassword);
+        ok = !bytes.isEmpty();
+        attachments.push_back({name + QStringLiteral(".docx"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document"), bytes, QString()});
+    } else if (what == EmailWhat::Pdf) {
+        const QByteArray bytes = pdfBytes(pages, &err);
+        ok = !bytes.isEmpty();
+        attachments.push_back({name + QStringLiteral(".pdf"), QStringLiteral("application/pdf"), bytes, QString()});
+        text = tr("The document \"%1\" is attached as a PDF.").arg(name);
+    } else {
+        html = QStringLiteral("<html><body>");
+        const int count = std::min<int>(pages.size(), kMostPages);
+        for (int i = 0; i < count && ok; ++i) {
+            const QImage image = m_view->pageImage(pages[i], 900);
+            QByteArray png;
+            QBuffer buffer(&png);
+            buffer.open(QIODevice::WriteOnly);
+            ok = !image.isNull() && image.save(&buffer, "PNG");
+            const QString id = QStringLiteral("page%1").arg(i + 1);
+            pictures.push_back({id + QStringLiteral(".png"), QStringLiteral("image/png"), png, id});
+            html += QStringLiteral("<p><img src=\"cid:%1\" alt=\"%2\" style=\"max-width:100%\"></p>").arg(id, tr("Page %1").arg(i + 1));
+        }
+        html += QStringLiteral("</body></html>");
+        text = tr("The pages of \"%1\" are shown as pictures in this message.").arg(name);
+        if (pages.isEmpty()) ok = false;
+        if (!ok && err.isEmpty()) err = tr("The pages can't be made.");
+    }
+    QApplication::restoreOverrideCursor();
+    if (!ok) {
+        jp::plainWarning(this, tr("Email"), tr("%1 couldn't make the message.\n%2").arg(appInfo().name, err));
+        return false;
+    }
+    const QString dir = m_path.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(m_path).absolutePath();
+    const QString filter = tr("Email Message (*.eml)");
+    const QString suggested = dir + QLatin1Char('/') + name + QStringLiteral(".eml");
+    QString path = m_pathChooser ? m_pathChooser(suggested, filter) : askSavePath(this, tr("Save Email"), suggested, filter);
+    if (path.isEmpty()) return false;
+    if (QFileInfo(path).suffix().compare(QLatin1String("eml"), Qt::CaseInsensitive) != 0) path += QStringLiteral(".eml");
+    const QByteArray message = write::emailMessage(subject, text, attachments, html, pictures);
+    QSaveFile file(path);
+    if (!(file.open(QIODevice::WriteOnly) && file.write(message) == message.size() && file.commit())) {
+        err = file.errorString();
+        jp::plainWarning(this, tr("Email"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
+        return false;
+    }
+    if (what == EmailWhat::Pages && pages.size() > kMostPages) notice(tr("Email"), tr("Only the first %1 pages are in the message. Send the document or a PDF to share all of it.").arg(kMostPages));
+    statusBar()->showMessage(tr("Saved %1. Open it in your email program, add who it is for, and send it.").arg(QFileInfo(path).fileName()), 8000);
     return true;
 }
 
@@ -135,6 +214,32 @@ bool WriteWindow::exportText(const QString &path, write::TextEncoding encoding, 
     if (lost > 0) notice(tr("Save as Plain Text"), tr("Some characters couldn't be saved in this encoding (%1 in all). They were saved as question marks.").arg(lost), true);
     statusBar()->showMessage(tr("Exported %1").arg(QFileInfo(path).fileName()), 5000);
     return true;
+}
+
+bool WriteWindow::exportEmailAsk()
+{
+    if (!m_doc) return false;
+    QDialog dialog(this);
+    dialog.setObjectName(QStringLiteral("emailDialog"));
+    dialog.setWindowTitle(tr("Make an Email"));
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *intro = new QLabel(tr("This makes a message file. Nothing is sent. Open the file in your email program, add who it is for, and send it."), &dialog);
+    intro->setWordWrap(true);
+    layout->addWidget(intro);
+    auto *what = new QComboBox(&dialog);
+    what->setObjectName(QStringLiteral("emailWhat"));
+    what->addItem(tr("The document, as a file"), int(EmailWhat::Document));
+    what->addItem(tr("The document, as a PDF"), int(EmailWhat::Pdf));
+    what->addItem(tr("The pages, shown in the message"), int(EmailWhat::Pages));
+    auto *form = new QFormLayout;
+    form->addRow(tr("Put in the message:"), what);
+    layout->addLayout(form);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    if (dialog.exec() != QDialog::Accepted) return false;
+    return exportEmail(static_cast<EmailWhat>(what->currentData().toInt()));
 }
 
 bool WriteWindow::exportTextAsk()

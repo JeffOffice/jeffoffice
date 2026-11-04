@@ -548,6 +548,13 @@ QWidget *WriteFileScreen::buildExport()
         if (m_win->exportTextAsk()) Q_EMIT closeRequested();
     });
     v->addWidget(t);
+    // A message as a file, for an email program: nothing is sent through an account.
+    auto *mail = new ActionCard(QStringLiteral("mail"), tr("Make an Email"), tr("A message file with the document, a PDF, or the pages in it. Open it in your email program, add who it is for, and send it."), w);
+    mail->setObjectName(QStringLiteral("exportEmail"));
+    connect(mail, &QAbstractButton::clicked, this, [this] {
+        if (m_win->exportEmailAsk()) Q_EMIT closeRequested();
+    });
+    v->addWidget(mail);
     v->addStretch(1);
     return w;
 }

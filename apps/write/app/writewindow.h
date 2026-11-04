@@ -146,6 +146,11 @@ public:
     QVector<WriteOutputOptions> handDuplexRuns(const WriteOutputOptions &options) const;
     // What asks the person to turn the stack over between the two runs: a message box, unless this stands in for it (tests); false to stop there.
     void setStackTurner(const std::function<bool()> &turner) { m_stackTurner = turner; }
+    // Email: makes a message as a .eml file (asking where to put it) with the document, the document as a PDF, or its pages as pictures; the person opens it in an email program.
+    enum class EmailWhat { Document, Pdf, Pages };
+    bool exportEmail(EmailWhat what);
+    // The pages (by index) as a PDF, in memory; empty, with the reason, when they can't be made.
+    QByteArray pdfBytes(const QVector<int> &pages, QString *error);
     // Where editing stopped: the place is kept with the file's name when the window closes and when the file is saved, and the file opens there again.
     void rememberPlace();
     // The last three places the text was edited, the latest first (Shift+F5 goes to each in turn).
@@ -188,6 +193,8 @@ public:
     bool exportPdf();
     // Save as Plain Text: asks for the encoding, the line ends, and the file; and the writing itself (an empty path asks nothing and writes nothing).
     bool exportTextAsk();
+    // Asks what the message holds (the document, a PDF, or the pages), then makes it as exportEmail does.
+    bool exportEmailAsk();
     bool exportText(const QString &path, write::TextEncoding encoding, write::LineEnds ends);
     // The pages that an output covers (from 0), for the options and the document.
     QVector<int> outputPages(const WriteOutputOptions &options);
