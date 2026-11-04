@@ -58,11 +58,13 @@ public:
     {
         auto *v = new QVBoxLayout(this);
         m_title = new QLabel(this);
+        m_title->setTextFormat(Qt::PlainText);
         QFont f = m_title->font();
         f.setBold(true);
         m_title->setFont(f);
         v->addWidget(m_title);
         m_text = new QLabel(this);
+        m_text->setTextFormat(Qt::PlainText);
         m_text->setWordWrap(true);
         v->addWidget(m_text);
         m_buttons = new QVBoxLayout();

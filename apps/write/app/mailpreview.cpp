@@ -50,7 +50,7 @@ MailPreviewPane::MailPreviewPane(const std::function<std::unique_ptr<WriteDoc>(i
     auto button = [&](const QString &text, const QString &tip, void (MailPreviewPane::*slot)()) {
         auto *b = new QToolButton(this);
         b->setText(text);
-        b->setToolTip(tip);
+        b->setToolTip(tip);   // plain: reviewed (the tips are our own tr() texts, given below)
         b->setAutoRaise(true);
         connect(b, &QToolButton::clicked, this, slot);
         bar->addWidget(b);
@@ -65,6 +65,7 @@ MailPreviewPane::MailPreviewPane(const std::function<std::unique_ptr<WriteDoc>(i
     button(QStringLiteral(">"), tr("Next Record"), &MailPreviewPane::next);
     button(QStringLiteral(">|"), tr("Last Record"), &MailPreviewPane::last);
     m_label = new QLabel(this);
+    m_label->setTextFormat(Qt::PlainText);
     bar->addWidget(m_label);
     bar->addStretch(1);
     v->addLayout(bar);
