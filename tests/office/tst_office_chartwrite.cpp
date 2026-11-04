@@ -390,6 +390,16 @@ private Q_SLOTS:
         QCOMPARE(l.externalDataId, QStringLiteral("rId2"));
         l.clearPartLinks();
         QVERIFY(!writeChartPart(l).contains("userShapes") && !writeChartPart(l).contains("externalData"));
+        // a chart that follows a pivot table: the table's name and the format id are kept, in the place the schema has them (before the chart)
+        QByteArray pivot = ours;
+        pivot.replace("<c:chart>", "<c:pivotSource><c:name>[Book.xlsx]Sheet1!PivotTable1</c:name><c:fmtId val=\"3\"/></c:pivotSource><c:chart>");
+        QVERIFY2(pivot != ours, "the chart is where the test looks for it");
+        Chart pc;
+        const QByteArray pivoted = roundTrip(pivot, "<c:pivotSource>", &pc);
+        QCOMPARE(pc.pivotName, QStringLiteral("[Book.xlsx]Sheet1!PivotTable1"));
+        QCOMPARE(pc.pivotFmtId, 3);
+        QVERIFY(pivoted.indexOf("<c:pivotSource>") < pivoted.indexOf("<c:chart>"));
+        QVERIFY(pivoted.indexOf("<c:style") < pivoted.indexOf("<c:pivotSource>"));
         // a chart area with no fill
         QByteArray none = ours;
         none.replace("</c:chart>", "</c:chart><c:spPr><a:noFill/></c:spPr>");

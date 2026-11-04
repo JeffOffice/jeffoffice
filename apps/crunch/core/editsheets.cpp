@@ -169,6 +169,7 @@ QString EditSession::notCopiedNote(int sheet) const
         for (const Kind &k : kinds)
             if (!book.package().relationshipsOfType(part, QString::fromLatin1(k.type)).isEmpty()) add(k.what);
     }
+    if (!m_book->book->pivots().tablesOn(sheet).empty()) add(tr("pivot tables"));   // (a table made in this session has no part in the package yet)
     for (const QString &id : m_book->calc->sheet(sheet).notKept) {
         if (id == QLatin1String("sparklines")) add(tr("sparklines"));
         else if (id == QLatin1String("validationLists")) add(tr("drop-down lists that read other sheets"));

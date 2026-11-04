@@ -480,6 +480,11 @@ target_link_libraries(writefieldtests PRIVATE jwcore Qt6::Test)
 set_target_properties(writefieldtests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME writefieldtests COMMAND writefieldtests)
 set_tests_properties(writefieldtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+qt_add_executable(writemailtests tests/write/tst_write_mail.cpp)
+target_link_libraries(writemailtests PRIVATE jwcore Qt6::Test)
+set_target_properties(writemailtests PROPERTIES WIN32_EXECUTABLE OFF)
+add_test(NAME writemailtests COMMAND writemailtests)
+set_tests_properties(writemailtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
 
 # JeffCrunch, the spreadsheet app: like JeffWrite, everything except main() is a library its tests link. It reads workbooks in libs/office/sheet, works their formulas out

@@ -1,6 +1,7 @@
 // Filling the story from the body of a file: paragraphs and runs become blocks and formatted text, lists become Qt lists, and what is kept
 // as XML becomes the pieces of writeprops.h.
 
+#include "core/fieldops.h"
 #include "core/writedoc.h"
 
 #include "core/drawnitems.h"
@@ -1234,6 +1235,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             int id;
             bool separated;
             QString code;
+            bool merge = false;   // a mail merge field
         };
         QVector<OpenField> openFields;
         int fieldsTooDeep = 0;   // (the fields opened past the most that are marked: their ends close nothing that is open)
@@ -1261,7 +1263,10 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 if (const auto ref = refOf.constFind(inAt); ref != refOf.constEnd() && !deleted) {
                     QTextCharFormat shown = formatOf(styleId, in.props);
                     shown.setProperty(tp::Field, QStringLiteral("pageref:") + ref->section(QChar(0x1f), 0, 0));
-                    if (insideResult()) shown.setProperty(tp::FieldId, openFields.first().id);
+                    if (insideResult()) {
+                        shown.setProperty(tp::FieldId, openFields.first().id);
+                        if (openFields.first().merge) shown.setProperty(tp::MergeField, true);
+                    }
                     c.insertText(ref->section(QChar(0x1f), 1), shown);
                     continue;
                 }
@@ -1273,7 +1278,10 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                         for (const RawChild &ch : in.props.extra)
                             if (ch.xml.startsWith("<w:rPrChange")) shown.setProperty(tp::RevisionFormat, true);
                     }
-                    if (insideResult()) shown.setProperty(tp::FieldId, openFields.first().id);
+                    if (insideResult()) {
+                        shown.setProperty(tp::FieldId, openFields.first().id);
+                        if (openFields.first().merge) shown.setProperty(tp::MergeField, true);
+                    }
                     c.insertText(in.text, shown);
                 }
                 continue;
@@ -1290,11 +1298,12 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 if (in.kind == Inline::RunAtom && in.tag == QLatin1String("fldChar")) {
                     if (in.key == QLatin1String("begin")) {
                         if (inside) af.setProperty(tp::FieldId, openFields.first().id);
-                        if (openFields.size() < kMostFieldNestingMarked) openFields.push_back({++fieldsNumbered, false, QString()});
+                        if (openFields.size() < kMostFieldNestingMarked) openFields.push_back({++fieldsNumbered, false, QString(), false});
                         else ++fieldsTooDeep;
                     } else if (in.key == QLatin1String("separate") && fieldsTooDeep == 0 && !openFields.isEmpty()) {
                         if (openFields.size() == 1 && !openFields.first().separated) {
                             openFields.first().separated = true;
+                            openFields.first().merge = isMergeFieldCode(openFields.first().code);
                             af.setProperty(tp::FieldId, openFields.first().id);
                             af.setProperty(tp::FieldCodeText, QStringLiteral("{ ") + openFields.first().code.trimmed() + QStringLiteral(" }"));
                         } else if (inside) {
@@ -1317,10 +1326,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                         }
                         const bool outermost = openFields.isEmpty();
                         const int id = ++fieldsNumbered;
-                        if (openFields.size() < kMostFieldNestingMarked) openFields.push_back({id, true, QString()});
+                        if (openFields.size() < kMostFieldNestingMarked) openFields.push_back({id, true, QString(), false});
                         else ++fieldsTooDeep;
                         if (outermost) {
                             const QString code = QString(attributeOfTag(in.raw, QStringLiteral("instr"))).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'")).replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&amp;"), QLatin1String("&"));
+                            if (!openFields.isEmpty()) openFields.last().merge = isMergeFieldCode(code);
                             af.setProperty(tp::FieldId, id);
                             af.setProperty(tp::FieldCodeText, QStringLiteral("{ ") + code.trimmed() + QStringLiteral(" }"));
                         }

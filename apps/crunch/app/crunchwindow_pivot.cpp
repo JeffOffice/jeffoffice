@@ -22,9 +22,12 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QRadioButton>
+#include <QRegularExpression>
 #include <QVBoxLayout>
 #include <QDockWidget>
 #include <QInputDialog>
+
+#include <cmath>
 
 namespace jp {
 
@@ -59,6 +62,7 @@ void CrunchWindow::editPivot(const std::function<void(PivotTable *)> &change, co
     PivotTable table = *m_session->workbook()->pivots().table(t).table;
     change(&table);
     pivotProblem(text, m_session->setPivot(t, table, structureChanged, text));
+    updateTableLooks();
 }
 
 namespace {
@@ -197,23 +201,65 @@ void CrunchWindow::createPivotActions()
         bool generate = Settings::get().value(QStringLiteral("crunch/generateGetPivotData"), true).toBool();
         if (m_pivotOptionsAsker) {
             if (!m_pivotOptionsAsker(&generate)) return;
-        } else {
-            QDialog dialog(this);
-            dialog.setWindowTitle(tr("Pivot Table Options"));
-            dialog.setObjectName(QStringLiteral("pivotOptionsDialog"));
-            auto *layout = new QVBoxLayout(&dialog);
-            auto *box = new QCheckBox(tr("Write GETPIVOTDATA when I click a value of a pivot table while typing a formula"), &dialog);
-            box->setObjectName(QStringLiteral("pivotOptions.generate"));
-            box->setChecked(generate);
-            layout->addWidget(box);
-            auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
-            QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-            QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-            layout->addWidget(buttons);
-            if (dialog.exec() != QDialog::Accepted) return;
-            generate = box->isChecked();
+            Settings::get().setValue(QStringLiteral("crunch/generateGetPivotData"), generate);
+            return;
         }
-        Settings::get().setValue(QStringLiteral("crunch/generateGetPivotData"), generate);
+        PivotOptionsChoice choice;
+        choice.generateGetPivotData = generate;
+        const int t = selectedPivot();
+        const PivotTableEntry *entry = t >= 0 && m_session ? &m_session->workbook()->pivots().table(t) : nullptr;
+        const PivotTable *table = entry ? entry->table.get() : nullptr;
+        const PivotCache *cache = entry && entry->cache >= 0 ? m_session->workbook()->pivots().cache(entry->cache).cache.get() : nullptr;
+        if (table && cache && m_session->pivotUsable(t)) {
+            choice.hasTable = true;
+            choice.name = table->name;
+            choice.mergeLabels = table->mergeItem;
+            choice.showError = table->showError;
+            choice.errorText = table->errorCaption;
+            choice.showMissing = table->showMissing;
+            choice.missingText = table->missingCaption;
+            choice.rowGrandTotals = table->rowGrandTotals;
+            choice.colGrandTotals = table->colGrandTotals;
+            choice.preserveFormatting = table->preserveFormatting;
+            choice.autofit = table->useAutoFormatting;
+            choice.showHeaders = table->showHeaders;
+            choice.refreshOnOpen = cache->refreshOnLoad;
+        }
+        const PivotOptionsChoice was = choice;
+        if (m_pivotOptionsChoiceAsker) {
+            if (!m_pivotOptionsChoiceAsker(&choice)) return;
+        } else {
+            PivotOptionsDialog dialog(choice, this);
+            if (dialog.exec() != QDialog::Accepted) return;
+            choice = dialog.choice();
+        }
+        Settings::get().setValue(QStringLiteral("crunch/generateGetPivotData"), choice.generateGetPivotData);
+        if (!choice.hasTable) return;
+        if (choice.name.isEmpty()) choice.name = was.name;
+        // a name no other table of the workbook has
+        for (int i = 0; i < m_session->workbook()->pivots().tableCount(); ++i)
+            if (i != t && m_session->workbook()->pivots().table(i).table && m_session->workbook()->pivots().table(i).table->name.compare(choice.name, Qt::CaseInsensitive) == 0) {
+                notice(tr("Pivot Table Options"), tr("Another pivot table is called \"%1\". Pick another name.").arg(choice.name));
+                return;
+            }
+        const bool tableChanged = choice.name != was.name || choice.mergeLabels != was.mergeLabels || choice.showError != was.showError || choice.errorText != was.errorText ||
+                                  choice.showMissing != was.showMissing || choice.missingText != was.missingText || choice.rowGrandTotals != was.rowGrandTotals ||
+                                  choice.colGrandTotals != was.colGrandTotals || choice.preserveFormatting != was.preserveFormatting || choice.autofit != was.autofit || choice.showHeaders != was.showHeaders;
+        if (tableChanged)
+            editPivot([&](PivotTable *table) {
+                table->name = choice.name;
+                table->mergeItem = choice.mergeLabels;
+                table->showError = choice.showError;
+                table->errorCaption = choice.errorText;
+                table->showMissing = choice.showMissing;
+                table->missingCaption = choice.missingText;
+                table->rowGrandTotals = choice.rowGrandTotals;
+                table->colGrandTotals = choice.colGrandTotals;
+                table->preserveFormatting = choice.preserveFormatting;
+                table->useAutoFormatting = choice.autofit;
+                table->showHeaders = choice.showHeaders;
+            }, tr("Pivot Table Options"), false);
+        if (choice.refreshOnOpen != was.refreshOnOpen) pivotProblem(tr("Pivot Table Options"), m_session->setPivotRefreshOnOpen(t, choice.refreshOnOpen));
     });
     m_opsActions << QStringLiteral("insert.pivot") << QStringLiteral("pivot.options");
     mk("pivot.refresh", tr("Refresh"), "refresh-cw", QKeySequence(), [this] {
@@ -318,6 +364,112 @@ void CrunchWindow::createPivotActions()
     mk("pivot.layout.compact", tr("Show in Compact Form"), "", QKeySequence(), [layout] { layout(2); });
     mk("pivot.layout.outline", tr("Show in Outline Form"), "", QKeySequence(), [layout] { layout(1); });
     mk("pivot.layout.tabular", tr("Show in Tabular Form"), "", QKeySequence(), [layout] { layout(0); });
+    // Field Settings, expanding and collapsing, blank lines and repeated labels, the options of the style, and the styles
+    mk("insert.pivotChart", tr("Pivot Chart"), "chart-column", QKeySequence(), [this] { insertPivotChart(); });
+    m_opsActions << QStringLiteral("insert.pivotChart");
+    mk("pivot.showDetail", tr("Show Details"), "table-properties", QKeySequence(), [this] {
+        if (selectedPivot() < 0) {
+            notice(tr("Show Details"), tr("Click a value of a pivot table first."), false);
+            return;
+        }
+        showPivotDetailAtCursor(false);
+    });
+    m_opsActions << QStringLiteral("pivot.showDetail");
+    mk("pivot.group", tr("Group Field…"), "group", QKeySequence(), [this] {
+        const int f = m_pivotPane ? m_pivotPane->selectedField() : -1;
+        if (selectedPivot() < 0) {
+            notice(tr("Group Field"), tr("Click a cell in a pivot table first."), false);
+            return;
+        }
+        if (f < 0) {
+            showPivotFields(true);
+            notice(tr("Group Field"), tr("Click a field in the Columns or Rows box of the Pivot Table Fields pane first."), false);
+            return;
+        }
+        askGroupField(f);
+    });
+    mk("pivot.ungroup", tr("Ungroup"), "ungroup", QKeySequence(), [this] {
+        const int f = m_pivotPane ? m_pivotPane->selectedField() : -1;
+        const int t = selectedPivot();
+        if (t < 0 || !editingAllowed()) return;
+        if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+        if (f < 0) {
+            notice(tr("Ungroup"), tr("Click a field in the Columns or Rows box of the Pivot Table Fields pane first."), false);
+            return;
+        }
+        pivotProblem(tr("Ungroup"), m_session->ungroupPivotField(t, f));
+        m_pivotShown = nullptr;
+        updatePivotTab();
+        updateTableLooks();
+    });
+    m_opsActions << QStringLiteral("pivot.group") << QStringLiteral("pivot.ungroup");
+    mk("pivot.fieldSettings", tr("Field Settings…"), "settings", QKeySequence(), [this] {
+        const int f = m_pivotPane ? m_pivotPane->selectedField() : -1;
+        if (selectedPivot() < 0) {
+            notice(tr("Field Settings"), tr("Click a cell in a pivot table first."), false);
+            return;
+        }
+        if (f < 0) {
+            showPivotFields(true);
+            notice(tr("Field Settings"), tr("Click a field in the Filters, Columns, or Rows box of the Pivot Table Fields pane first."), false);
+            return;
+        }
+        askFieldSettings(f);
+    });
+    auto expandAll = [this](bool open) {
+        const int f = m_pivotPane ? m_pivotPane->selectedField() : -1;
+        if (f < 0) {
+            showPivotFields(true);   // (the pane opens, where the field is picked)
+            notice(tr("Pivot Table"), tr("Click a field in the Columns or Rows box of the Pivot Table Fields pane first."), false);
+            return;
+        }
+        editPivot([=](PivotTable *t) {
+            if (f >= t->fields.size()) return;
+            for (PivotTableItem &it : t->fields[f].items)
+                if (it.t.isEmpty()) it.showDetails = open;
+        }, open ? tr("Expand Field") : tr("Collapse Field"), true);
+    };
+    mk("pivot.expandField", tr("Expand Entire Field"), "plus", QKeySequence(), [expandAll] { expandAll(true); });
+    mk("pivot.collapseField", tr("Collapse Entire Field"), "minus", QKeySequence(), [expandAll] { expandAll(false); });
+    auto blankRows = [this](bool on) {
+        editPivot([on](PivotTable *t) {
+            for (int f : t->rowFields)
+                if (f >= 0 && f < t->fields.size()) t->fields[f].insertBlankRow = on;
+        }, on ? tr("Insert Blank Line after Each Item") : tr("Remove Blank Line after Each Item"), true);
+    };
+    mk("pivot.blank.insert", tr("Insert Blank Line after Each Item"), "", QKeySequence(), [blankRows] { blankRows(true); });
+    mk("pivot.blank.remove", tr("Remove Blank Line after Each Item"), "", QKeySequence(), [blankRows] { blankRows(false); });
+    auto repeat = [this](bool on) {
+        editPivot([on](PivotTable *t) {
+            for (PivotField &pf : t->fields) pf.fillDownLabels = on;
+        }, on ? tr("Repeat All Item Labels") : tr("Do Not Repeat Item Labels"), true);
+    };
+    mk("pivot.repeat.on", tr("Repeat All Item Labels"), "", QKeySequence(), [repeat] { repeat(true); });
+    mk("pivot.repeat.off", tr("Do Not Repeat Item Labels"), "", QKeySequence(), [repeat] { repeat(false); });
+    auto styleOption = [this](const QString &text, std::function<void(PivotTable *)> change) {
+        editPivot([change](PivotTable *t) {
+            t->hasStyleInfo = true;
+            change(t);
+        }, text, false);
+    };
+    mk("pivot.style.rowHeaders", tr("Row Headers"), "", QKeySequence(), [this, styleOption] { const bool on = act("pivot.style.rowHeaders")->isChecked(); styleOption(tr("Row Headers"), [on](PivotTable *t) { t->showRowHeaders = on; }); }, true);
+    mk("pivot.style.colHeaders", tr("Column Headers"), "", QKeySequence(), [this, styleOption] { const bool on = act("pivot.style.colHeaders")->isChecked(); styleOption(tr("Column Headers"), [on](PivotTable *t) { t->showColHeaders = on; }); }, true);
+    mk("pivot.style.rowStripes", tr("Banded Rows"), "", QKeySequence(), [this, styleOption] { const bool on = act("pivot.style.rowStripes")->isChecked(); styleOption(tr("Banded Rows"), [on](PivotTable *t) { t->showRowStripes = on; }); }, true);
+    mk("pivot.style.colStripes", tr("Banded Columns"), "", QKeySequence(), [this, styleOption] { const bool on = act("pivot.style.colStripes")->isChecked(); styleOption(tr("Banded Columns"), [on](PivotTable *t) { t->showColStripes = on; }); }, true);
+    // the styles of the gallery: a name each (the file's names), drawn from our own looks
+    static const char *const kStyles[] = {"PivotStyleLight1", "PivotStyleLight9", "PivotStyleLight16", "PivotStyleLight17", "PivotStyleLight21", "PivotStyleMedium2", "PivotStyleMedium9",
+                                          "PivotStyleMedium16", "PivotStyleDark2", "PivotStyleDark9"};
+    mk("pivot.style.none", tr("Clear Style"), "", QKeySequence(), [this, styleOption] { styleOption(tr("Pivot Table Style"), [](PivotTable *t) { t->styleName.clear(); }); });
+    for (const char *name : kStyles) {
+        const QString style = QString::fromLatin1(name);
+        QString label = style.mid(10);
+        label.replace(QRegularExpression(QStringLiteral("^([A-Za-z]+)(\\d+)$")), QStringLiteral("\\1 \\2"));
+        mk(("pivot.style." + style).toLatin1().constData(), label, "", QKeySequence(), [styleOption, style, this] { styleOption(tr("Pivot Table Style"), [style](PivotTable *t) { t->styleName = style; }); });
+        m_opsActions << (QStringLiteral("pivot.style.") + style);
+    }
+    for (const char *id : {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.blank.insert", "pivot.blank.remove", "pivot.repeat.on", "pivot.repeat.off", "pivot.style.rowHeaders",
+                           "pivot.style.colHeaders", "pivot.style.rowStripes", "pivot.style.colStripes", "pivot.style.none"})
+        m_opsActions << QString::fromLatin1(id);
     for (const char *id : {"pivot.refresh", "pivot.refreshAll", "pivot.changeSource", "pivot.clearAll", "pivot.clearFilters", "pivot.fieldList", "pivot.valueSettings", "pivot.sub.none", "pivot.sub.top",
                            "pivot.sub.bottom", "pivot.grand.off", "pivot.grand.both", "pivot.grand.rows", "pivot.grand.cols", "pivot.layout.compact", "pivot.layout.outline", "pivot.layout.tabular"})
         m_opsActions << QString::fromLatin1(id);
@@ -342,17 +494,54 @@ void CrunchWindow::askValueField(int dataIndex)
     }
     const PivotDataField &d = entry.table->dataFields[dataIndex];
     const PivotCache *cache = m_session->workbook()->pivots().cache(entry.cache).cache.get();
-    QString name = d.name, function = d.subtotal;
-    const QString source = cache && d.fld >= 0 && d.fld < cache->fields.size() ? cache->fields[d.fld].name : QString();
-    if (m_valueFieldAsker) {
-        if (!m_valueFieldAsker(&name, &function)) return;
-    } else {
-        ValueFieldDialog dialog(source, name, function, this);
-        if (dialog.exec() != QDialog::Accepted) return;
-        name = dialog.name();
-        function = dialog.function();
+    ValueFieldSettings settings;
+    settings.name = d.name;
+    settings.function = d.subtotal;
+    settings.showAs = d.showDataAs;
+    settings.baseField = d.baseField;
+    settings.baseItem = d.baseItem;
+    settings.numFmtId = d.numFmtId;
+    settings.sourceName = cache && d.fld >= 0 && d.fld < cache->fields.size() ? cache->fields[d.fld].name : QString();
+    // the fields a value can be shown against: those on the axes, with their items
+    if (cache) {
+        auto addBase = [&](int f) {
+            if (f < 0 || f >= entry.table->fields.size() || f >= cache->fields.size()) return;
+            for (const auto &b : settings.bases)
+                if (b.field == f) return;
+            ValueFieldSettings::Base base;
+            base.field = f;
+            const PivotField &pf = entry.table->fields[f];
+            base.name = pf.name.isEmpty() ? cache->fields[f].name : pf.name;
+            auto label = [&](int shared) {
+                if (shared < 0 || shared >= cache->fields[f].items.size()) return QString();
+                const PivotValue &v = cache->fields[f].items[shared];
+                if (v.kind == PivotValue::Missing) return tr("(blank)");
+                return v.isNumeric() || v.kind == PivotValue::Bool ? QString::number(v.number, 'g', 15) : v.text;
+            };
+            if (pf.hasItems) {
+                for (const PivotTableItem &it : pf.items)
+                    if (it.t.isEmpty()) base.items << (it.n.isEmpty() ? label(it.x) : it.n);
+            } else {
+                for (int i = 0; i < cache->fields[f].items.size(); ++i) base.items << label(i);
+            }
+            settings.bases.append(base);
+        };
+        for (int f : entry.table->rowFields) addBase(f);
+        for (int f : entry.table->colFields) addBase(f);
     }
-    name = name.trimmed();
+    if (m_valueSettingsAsker) {
+        if (!m_valueSettingsAsker(&settings)) return;
+    } else if (m_valueFieldAsker) {
+        QString n = settings.name, fn = settings.function;
+        if (!m_valueFieldAsker(&n, &fn)) return;
+        settings.name = n;
+        settings.function = fn;
+    } else {
+        ValueFieldDialog dialog(settings, this);
+        if (dialog.exec() != QDialog::Accepted) return;
+        settings = dialog.settings();
+    }
+    QString name = settings.name.trimmed();
     if (name.isEmpty()) name = d.name;
     // a name no field and no other value has (the program that opens the file would refuse it)
     for (int i = 0; i < entry.table->dataFields.size(); ++i)
@@ -366,10 +555,249 @@ void CrunchWindow::askValueField(int dataIndex)
                 notice(tr("Value Field Settings"), tr("A field of the data is called \"%1\". Pick another name.").arg(name));
                 return;
             }
+    const bool relative = settings.showAs == QLatin1String("difference") || settings.showAs == QLatin1String("percent") || settings.showAs == QLatin1String("percentDiff") || settings.showAs == QLatin1String("runTotal");
+    if (relative && settings.bases.isEmpty()) {
+        notice(tr("Value Field Settings"), tr("Put a field in the rows or the columns first. A value is shown against the items of a field."));
+        return;
+    }
+    // (a file with no cell formats of its own has nowhere to keep a number format: the person is told, and the values keep the format they have)
+    const bool canFormat = !m_session->workbook()->styles().formats.isEmpty();
+    if (!canFormat && (!settings.numFmtCode.isEmpty() || settings.showAs == QLatin1String("percentOfTotal") || settings.showAs == QLatin1String("percentOfRow") || settings.showAs == QLatin1String("percentOfCol")))
+        notice(tr("Value Field Settings"), tr("This workbook has no cell formats, so a number format can't be kept in it. The values keep the format they have."), false);
     editPivot([&](PivotTable *table) {
-        table->dataFields[dataIndex].name = name;
-        table->dataFields[dataIndex].subtotal = function;
+        PivotDataField &df = table->dataFields[dataIndex];
+        df.name = name;
+        df.subtotal = settings.function;
+        df.showDataAs = settings.showAs;
+        df.baseField = relative ? settings.baseField : 0;
+        df.baseItem = relative && settings.showAs != QLatin1String("runTotal") ? settings.baseItem : 0;
+        if (!canFormat) {
+        } else if (!settings.numFmtCode.isEmpty()) {
+            df.numFmtCode = settings.numFmtCode;
+        } else if (settings.showAs != d.showDataAs && settings.showAs != QLatin1String("normal") && settings.showAs != QLatin1String("difference") && settings.showAs != QLatin1String("runTotal") && settings.showAs != QLatin1String("index")) {
+            df.numFmtCode = QStringLiteral("0.00%");   // (a share shows as a percent unless a format is chosen)
+        }
     }, tr("Value Field Settings"), false);
+}
+
+void CrunchWindow::askFieldSettings(int field)
+{
+    const int t = selectedPivot();
+    if (t < 0 || !m_session) {
+        notice(tr("Field Settings"), tr("Click a cell in a pivot table first."), false);
+        return;
+    }
+    const PivotTableEntry &entry = m_session->workbook()->pivots().table(t);
+    const PivotCache *cache = entry.cache >= 0 ? m_session->workbook()->pivots().cache(entry.cache).cache.get() : nullptr;
+    if (!entry.table || !cache || field < 0 || field >= entry.table->fields.size() || field >= cache->fields.size()) return;
+    const PivotField &pf = entry.table->fields[field];
+    FieldSettings fs;
+    fs.field = field;
+    fs.sourceName = cache->fields[field].name;
+    fs.name = pf.name.isEmpty() ? fs.sourceName : pf.name;
+    bool total = pf.defaultSubtotal;
+    if (pf.hasItems) {
+        total = false;
+        for (const PivotTableItem &it : pf.items) total = total || it.t == QLatin1String("default");
+    }
+    fs.subtotals = total;
+    fs.form = pf.compact ? 2 : (pf.outline ? 1 : 0);
+    fs.blankRow = pf.insertBlankRow;
+    fs.repeatLabels = pf.fillDownLabels;
+    fs.sort = pf.sortType == QLatin1String("ascending") ? 1 : pf.sortType == QLatin1String("descending") ? 2 : 0;
+    if (pf.sortByData >= 0) {
+        fs.sortByData = pf.sortByData;
+        fs.sortByDescending = pf.sortType == QLatin1String("descending");
+        fs.sort = 0;
+    }
+    for (const PivotDataField &d : entry.table->dataFields) fs.dataNames << d.name;
+    auto label = [&](int shared) {
+        if (shared < 0 || shared >= cache->fields[field].items.size()) return QString();
+        const PivotValue &v = cache->fields[field].items[shared];
+        if (v.kind == PivotValue::Missing) return tr("(blank)");
+        return v.isNumeric() || v.kind == PivotValue::Bool ? QString::number(v.number, 'g', 15) : v.text;
+    };
+    if (pf.hasItems) {
+        for (const PivotTableItem &it : pf.items)
+            if (it.t.isEmpty()) fs.items.append({it.n.isEmpty() ? label(it.x) : it.n, it.x, !it.hidden});
+    } else {
+        for (int i = 0; i < cache->fields[field].items.size(); ++i) fs.items.append({label(i), i, true});
+    }
+    if (m_fieldSettingsAsker) {
+        if (!m_fieldSettingsAsker(&fs)) return;
+    } else {
+        FieldSettingsDialog dialog(fs, this);
+        if (dialog.exec() != QDialog::Accepted) return;
+        fs = dialog.settings();
+    }
+    QString name = fs.name.trimmed();
+    if (name == fs.sourceName) name.clear();
+    if (!name.isEmpty()) {
+        for (int i = 0; i < entry.table->dataFields.size(); ++i)
+            if (entry.table->dataFields[i].name.compare(name, Qt::CaseInsensitive) == 0) {
+                notice(tr("Field Settings"), tr("A value is called \"%1\". Pick another name.").arg(name));
+                return;
+            }
+        for (int i = 0; i < cache->fields.size(); ++i)
+            if (i != field && cache->fields[i].name.compare(name, Qt::CaseInsensitive) == 0) {
+                notice(tr("Field Settings"), tr("Another field of the data is called \"%1\". Pick another name.").arg(name));
+                return;
+            }
+    }
+    QString problem;
+    const PivotCache &c = *cache;
+    bool ok = true;
+    editPivot([&](PivotTable *table) {
+        PivotField &f = table->fields[field];
+        f.name = name;
+        // the subtotal: automatic is the default line, none is no line
+        QVector<PivotTableItem> kept;
+        for (const PivotTableItem &it : f.items)
+            if (it.t.isEmpty()) kept.append(it);
+        if (fs.subtotals) {
+            f.defaultSubtotal = true;
+            if (f.hasItems) {
+                PivotTableItem totalLine;
+                totalLine.t = QStringLiteral("default");
+                kept.append(totalLine);
+            }
+        } else {
+            f.defaultSubtotal = false;
+            f.subtotals.clear();
+        }
+        if (f.hasItems) f.items = kept;
+        f.compact = fs.form == 2;
+        f.outline = fs.form != 0;
+        f.subtotalTop = fs.form != 0;
+        f.insertBlankRow = fs.blankRow;
+        f.fillDownLabels = fs.repeatLabels;
+        // the items that show
+        if (fs.itemsChanged || fs.filter.kind != PivotFilter::None) {
+            if (!f.hasItems && !pivotFilterField(table, c, field, PivotFilter(), &problem)) ok = false;
+            for (const auto &it : fs.items)
+                for (PivotTableItem &ti : table->fields[field].items)
+                    if (ti.t.isEmpty() && ti.x == it.x) ti.hidden = !it.shown;
+            if (ok && fs.filter.kind != PivotFilter::None) ok = pivotFilterField(table, c, field, fs.filter, &problem);
+        }
+        if (fs.sortByData >= 0) pivotSortFieldByValue(table, field, fs.sortByData, fs.sortByDescending);
+        else pivotSortField(table, c, field, fs.sort == 1 ? PivotSort::Ascending : fs.sort == 2 ? PivotSort::Descending : PivotSort::Manual);
+    }, tr("Field Settings"), true);
+    if (!ok) notice(tr("Field Settings"), tr("The filter can't be worked out: %1.").arg(problem));
+}
+
+bool CrunchWindow::showPivotDetailAtCursor(bool onlyForValues)
+{
+    if (!m_session || !m_loaded || !m_haveCalc || m_chartSheetShown || m_edit.active) return false;
+    const grid::Selection &sel = m_view->selection();
+    const quint32 row = quint32(std::max<qint64>(0, sel.activeRow)), col = quint32(std::max<qint64>(0, sel.activeCol));
+    if (onlyForValues && !m_session->isPivotValue(m_sheet, row, col)) return false;
+    if (!editingAllowed()) return true;
+    int made = -1;
+    QGuiApplication::setOverrideCursor(Qt::WaitCursor);
+    const auto o = m_session->showPivotDetail(m_sheet, row, col, &made);
+    QGuiApplication::restoreOverrideCursor();
+    if (!o.ok) {
+        notice(tr("Show Details"), o.problem);
+        return true;
+    }
+    if (made >= 0) goToFound(made, 0, 0);
+    return true;
+}
+
+void CrunchWindow::askGroupField(int field)
+{
+    const int t = selectedPivot();
+    if (t < 0 || !m_session) {
+        notice(tr("Group Field"), tr("Click a cell in a pivot table first."), false);
+        return;
+    }
+    if (!editingAllowed()) return;
+    if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+    QString why;
+    if (!m_session->pivotUsable(t, &why)) {
+        notice(tr("Group Field"), why);
+        return;
+    }
+    const PivotTableEntry &entry = m_session->workbook()->pivots().table(t);
+    const PivotCache *cache = entry.cache >= 0 ? m_session->workbook()->pivots().cache(entry.cache).cache.get() : nullptr;
+    if (!cache || field < 0 || field >= cache->fields.size()) return;
+    const PivotCacheField &cf = cache->fields[field];
+    if (cf.group.kind != PivotFieldGroup::None) {
+        notice(tr("Group Field"), tr("This field is already grouped. Ungroup it first to group it another way."));
+        return;
+    }
+    GroupChoice choice;
+    bool anyDate = false, first = true;
+    double lo = 0, hi = 0;
+    for (const PivotValue &v : cf.items) {
+        if (!v.isNumeric()) {
+            notice(tr("Group Field"), tr("This field has text or empty cells, so its values can't be grouped by number or date."));
+            return;
+        }
+        anyDate = anyDate || v.kind == PivotValue::Date;
+        lo = first ? v.number : std::min(lo, v.number);
+        hi = first ? v.number : std::max(hi, v.number);
+        first = false;
+    }
+    if (first) return;
+    choice.isDate = anyDate;
+    const jp::calc::DateSystem dates = m_session->workbook()->info().dateSystem;
+    auto dateText = [&](double serial) {
+        int y = 0, m = 0, d = 0;
+        if (!jp::calc::serialToDate(std::floor(serial), dates, &y, &m, &d)) return QString::number(serial, 'g', 15);
+        return QStringLiteral("%1/%2/%3").arg(m).arg(d).arg(y);
+    };
+    if (anyDate) {
+        choice.levels = {QStringLiteral("months")};
+        choice.startText = dateText(lo);
+        choice.endText = dateText(hi);
+    } else {
+        choice.startText = QString::number(lo, 'g', 15);
+        choice.endText = QString::number(hi, 'g', 15);
+        choice.stepText = QString::number(std::max(1.0, std::round((hi - lo) / 10)), 'g', 15);
+    }
+    const GroupChoice shown = choice;
+    if (m_groupAsker) {
+        if (!m_groupAsker(&choice)) return;
+        choice.autoStart = choice.startText == shown.startText;
+        choice.autoEnd = choice.endText == shown.endText;
+    } else {
+        GroupDialog dialog(choice, this);
+        if (dialog.exec() != QDialog::Accepted) return;
+        choice = dialog.choice();
+    }
+    auto number = [&](const QString &text, double *out) {
+        if (!anyDate) {
+            bool ok = false;
+            *out = text.toDouble(&ok);
+            return ok;
+        }
+        return jp::calc::dateValueOf(text, dates, out);
+    };
+    double start = lo, end = hi, step = 1;
+    if (!choice.autoStart && !number(choice.startText, &start)) {
+        notice(tr("Group Field"), tr("Type a start the field's values can be compared to."));
+        return;
+    }
+    if (!choice.autoEnd && !number(choice.endText, &end)) {
+        notice(tr("Group Field"), tr("Type an end the field's values can be compared to."));
+        return;
+    }
+    if (!anyDate) {
+        bool ok = false;
+        step = choice.stepText.toDouble(&ok);
+        if (!ok || step <= 0) {
+            notice(tr("Group Field"), tr("Type a step that is more than zero."));
+            return;
+        }
+    } else if (choice.levels.isEmpty()) {
+        notice(tr("Group Field"), tr("Choose what to group the dates by."));
+        return;
+    }
+    pivotProblem(tr("Group Field"), m_session->groupPivotField(t, field, anyDate ? choice.levels : QStringList(), start, end, step, choice.autoStart, choice.autoEnd));
+    m_pivotShown = nullptr;
+    updatePivotTab();
+    updateTableLooks();
 }
 
 void CrunchWindow::showPivotFields(bool show)
@@ -388,6 +816,8 @@ void CrunchWindow::showPivotFields(bool show)
             updatePivotTab();
         });
         connect(m_pivotPane, &PivotFieldsPane::valueSettingsRequested, this, [this](int i) { askValueField(i); });
+        connect(m_pivotPane, &PivotFieldsPane::fieldSelectionChanged, this, [this] { updatePivotFieldActions(); });
+        connect(m_pivotPane, &PivotFieldsPane::fieldSettingsRequested, this, [this](int f) { askFieldSettings(f); });
         connect(m_pivotDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             if (QAction *a = act(QStringLiteral("pivot.fieldList"))) {
                 const QSignalBlocker block(a);
@@ -407,10 +837,33 @@ void CrunchWindow::showPivotFields(bool show)
     }
 }
 
+void CrunchWindow::updatePivotFieldActions()
+{
+    // (a command that works on a pivot table's cell is dimmed away from one, not left to say so when it is used)
+    const bool open = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;
+    const bool inTable = selectedPivot() >= 0;
+    for (const char *id : {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.showDetail"})
+        if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(open && inTable);
+}
+
 void CrunchWindow::updatePivotTab()
 {
+    updatePivotFieldActions();
     const int t = selectedPivot();
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Pivot Table"), t >= 0);
+    if (t >= 0 && m_session) {
+        // (the style's choices show as they are for the table the cursor is in)
+        const PivotTableEntry &now = m_session->workbook()->pivots().table(t);
+        if (now.table) {
+            const std::pair<const char *, bool> marks[] = {{"pivot.style.rowHeaders", now.table->showRowHeaders}, {"pivot.style.colHeaders", now.table->showColHeaders},
+                                                           {"pivot.style.rowStripes", now.table->showRowStripes}, {"pivot.style.colStripes", now.table->showColStripes}};
+            for (const auto &m : marks)
+                if (QAction *a = act(QString::fromLatin1(m.first))) {
+                    const QSignalBlocker block(a);
+                    a->setChecked(m.second);
+                }
+        }
+    }
     if (!m_pivotPane || !m_pivotDock || !m_pivotDock->isVisible()) return;
     if (t < 0 || !m_session) {
         if (m_pivotShownIndex != -1 || m_pivotShown) {
@@ -438,7 +891,7 @@ void CrunchWindow::updatePivotTab()
         names << (i < entry.table->fields.size() && !entry.table->fields[i].name.isEmpty() ? entry.table->fields[i].name : cache->fields[i].name);
         numeric << pivotFieldIsNumeric(*cache, i);
     }
-    m_pivotPane->showTable(entry.table->name, *entry.table, names, numeric);
+    m_pivotPane->showTable(entry.table->name, *entry.table, names, numeric, entry.table.get());
 }
 
 } // namespace jp

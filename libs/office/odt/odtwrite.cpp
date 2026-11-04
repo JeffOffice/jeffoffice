@@ -963,6 +963,9 @@ bool Writer::run(const QByteArray &docx, QByteArray *out, QString *error, QStrin
             }
         }
     }
+    // The kind of mail merge and where its list is have no place in an .odt (the merge fields themselves are kept).
+    if (m_settings && m_settings->child(m_settings->root(), "mailMerge") >= 0)
+        left(QCoreApplication::translate("odt", "the mail merge settings (what the document is merged as, and where its list of recipients is; the merge fields stay)"));
     // The body (which makes the automatic styles, the list styles used, and the master pages' headers).
     m_sectionIndex = 0;
     emitBlocks(*m_doc, m_doc->child(m_doc->root(), "body"), &m_bodyXml, 0, true);

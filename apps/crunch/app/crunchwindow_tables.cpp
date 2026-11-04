@@ -11,6 +11,7 @@
 #include "sheet/cellref.h"
 #include "sheet/structref.h"
 #include "sheet/tablestyle.h"
+#include "sheet/pivotbook.h"
 
 #include <QAction>
 #include <QCheckBox>
@@ -152,6 +153,34 @@ void CrunchWindow::updateTableLooks()
             skin.style = style;
             skins.push_back(std::move(skin));
             if (skins.size() >= grid::GridSheet::kMaxTableSkins) break;
+        }
+    // the pivot tables of the sheet are drawn as tables are, by the look their style names (the same looks, under the pivot table's own names)
+    if (!m_chartSheetShown && m_session)
+        for (int i = 0; i < m_loaded->book->pivots().tableCount() && skins.size() < grid::GridSheet::kMaxTableSkins; ++i) {
+            const jp::office::sheet::PivotTableEntry &e = m_loaded->book->pivots().table(i);
+            if (e.sheet != m_sheet || !e.table || !e.table->styleName.startsWith(QLatin1String("PivotStyle"))) continue;
+            const TableStyle *style = m_tableStyleBook.find(QStringLiteral("TableStyle") + e.table->styleName.mid(10));
+            const jp::office::sheet::CellRange loc = m_loaded->book->pivots().locationOf(i);
+            if (!style || !loc.valid) continue;
+            const jp::office::sheet::PivotTable &pt = *e.table;
+            Table t;
+            t.sheet = m_sheet;
+            t.row1 = loc.row1;
+            t.row2 = loc.row2;
+            t.col1 = loc.col1;
+            t.col2 = loc.col2;
+            t.headerRows = pt.showColHeaders ? 1 : 0;
+            const bool bottomTotal = !pt.rowItems.isEmpty() && pt.rowItems.last().t == QLatin1String("grand");
+            const bool rightTotal = !pt.colItems.isEmpty() && pt.colItems.last().t == QLatin1String("grand");
+            t.totalsRows = bottomTotal && loc.row2 > loc.row1 ? 1 : 0;
+            t.showFirstColumn = pt.showRowHeaders;
+            t.showLastColumn = pt.showLastColumn && rightTotal;
+            t.showRowStripes = pt.showRowStripes;
+            t.showColumnStripes = pt.showColStripes;
+            grid::GridSheet::TableSkin skin;
+            skin.table = t;
+            skin.style = style;
+            skins.push_back(std::move(skin));
         }
     // (no skin before and none now, as for most sheets: nothing changes and nothing is drawn again)
     if (skins.empty() && !m_view->sheet().hasTableSkins()) {

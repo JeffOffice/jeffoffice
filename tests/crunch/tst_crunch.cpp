@@ -238,6 +238,21 @@ private Q_SLOTS:
         QCOMPARE(tabs->currentIndex(), 0);
     }
 
+    // The current sheet's tab has its name in bold, and every tab has room for its name in bold and the padding beside it.
+    void theCurrentSheetsTabIsBoldAndNoTabClipsItsName()
+    {
+        Folder folder;
+        Window win;
+        QVERIFY(win.open(folder.write(QStringLiteral("budget.xlsx"), budgetWorkbook())));
+        crunch::SheetTabBar *tabs = win.w.sheetTabs();
+        QVERIFY(tabs->styleSheet().contains(QStringLiteral("::tab:selected")));
+        QVERIFY(tabs->styleSheet().contains(QStringLiteral("font-weight: bold")));
+        QFont bold = tabs->font();
+        bold.setBold(true);
+        for (int i = 0; i < tabs->count(); ++i)
+            QVERIFY(tabs->tabRect(i).width() >= QFontMetrics(bold).horizontalAdvance(tabs->tabText(i)) + 28);
+    }
+
     // The sheet shown first is the one that was open when the workbook was saved; if that one is hidden (or is a chart), the first that is shown.
     void theSheetShownFirstIsTheOneThatWasOpen()
     {

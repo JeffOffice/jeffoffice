@@ -1,3 +1,4 @@
+#include "core/fieldops.h"
 #include "core/editops.h"
 #include "core/reviewops.h"
 #include "core/styleops.h"
@@ -1763,6 +1764,7 @@ bool insertFieldAtom(WriteDoc &doc, QTextCursor &c, const office::wml::Inline &f
         for (auto m = instr.globalMatch(QString::fromUtf8(field.raw.left(20000))); m.hasNext();) code += m.next().captured(1);
         code.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&amp;"), QLatin1String("&"));
         f.setProperty(tp::FieldId, nextFieldId());
+        if (isMergeFieldCode(code)) f.setProperty(tp::MergeField, true);
         f.setProperty(tp::FieldCodeText, QStringLiteral("{ ") + code.trimmed() + QStringLiteral(" }"));
     }
     edit.insertText(QString(QChar::ObjectReplacementCharacter), f);

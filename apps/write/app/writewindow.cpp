@@ -229,6 +229,7 @@ void WriteWindow::createActions()
     createTableActions();
     createPictureActions();
     createStyleActions();
+    createMailActions();
 }
 
 namespace {
@@ -425,6 +426,7 @@ void WriteWindow::refreshUi()
         for (const char *id : {"refs.updateTable", "refs.removeTable", "refs.nextFootnote", "refs.previousFootnote", "refs.nextEndnote", "refs.previousEndnote", "fields.update", "fields.unlink", "fields.lock", "fields.unlock", "fields.toggleCode", "fields.toggleAllCodes"}) act(QString::fromLatin1(id))->setEnabled(false);
         refreshTableUi();
         refreshPictureUi();
+        refreshMailUi();
         return;
     }
     QTextCursor &c = m_view->cursor();
@@ -542,6 +544,7 @@ void WriteWindow::refreshUi()
     }
     refreshTableUi();
     refreshPictureUi();
+    refreshMailUi();
 }
 
 void WriteWindow::updateStatus()

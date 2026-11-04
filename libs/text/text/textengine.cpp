@@ -3391,7 +3391,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 if (const QString v = ctx.resolve(field); !v.isEmpty()) {
                     B->map << Seg{rel, int(text.size()), int(B->disp.size()), int(v.size())};
                     ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};
-                    B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
+                    if (!env.wordLines || cf.boolProperty(tp::MergeField)) B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                     B->disp += v;
                     continue;
                 }
@@ -3418,7 +3418,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         // thousand takes each page more than a tenth of a second.)
                         if (env.wordLines && !ranges.isEmpty() && ranges.last().start + ranges.last().length == int(B->disp.size()) && ranges.last().format == rf) ranges.last().length += int(v.size());
                         else if (!(env.wordLines && v.isEmpty() && !ranges.isEmpty())) ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};   // (a range of no letters, after text, is none)
-                        B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
+                        if (!env.wordLines || cf.boolProperty(tp::MergeField)) B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                         B->disp += v;
                         continue;
                     }
@@ -3436,7 +3436,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     B->map << Seg{rel + i, 1, int(B->disp.size()), int(v.size()), env.wordLines && v.isEmpty()};
                     if (!(env.wordLines && v.isEmpty() && !ranges.isEmpty())) ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), env.wordLines ? withEastAsianFaces(rf, v) : rf};
-                    B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
+                    if (!env.wordLines || cf.boolProperty(tp::MergeField)) B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                     B->disp += v;
                 }
                 continue;
@@ -3647,6 +3647,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             B->runBorders << Block::RunBorder{fr.start, fr.length, side, ascent, descent};
                         }
                     }
+                // (A word processor's mail merge field shows its result in its own runs: shaded as the fields of a publication are, where the shading is on.)
+                if (env.wordLines && cf.boolProperty(tp::MergeField) && !cf.hasProperty(tp::FieldCodeText) && !shown.isEmpty()) B->fieldRanges << qMakePair(int(B->disp.size()), int(shown.size()));
                 B->disp += shown;
             }
         }

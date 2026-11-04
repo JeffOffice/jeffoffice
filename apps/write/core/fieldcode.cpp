@@ -25,6 +25,11 @@ bool takesArgument(const QString &name, QChar letter)
     if (name == QLatin1String("SEQ")) return l == QLatin1Char('r') || l == QLatin1Char('s');
     if (name == QLatin1String("REF")) return l == QLatin1Char('d');
     if (name == QLatin1String("HYPERLINK")) return l == QLatin1Char('l') || l == QLatin1Char('o') || l == QLatin1Char('t');
+    // The fields of a mail merge: text before and after a merge field, the format and countries of an address block and a greeting line, and the default answer of a question.
+    if (name == QLatin1String("MERGEFIELD")) return l == QLatin1Char('b') || l == QLatin1Char('f');
+    if (name == QLatin1String("ADDRESSBLOCK")) return QStringLiteral("fcel").contains(l);
+    if (name == QLatin1String("GREETINGLINE")) return QStringLiteral("fel").contains(l);
+    if (name == QLatin1String("ASK") || name == QLatin1String("FILLIN")) return l == QLatin1Char('d');
     return false;
 }
 
@@ -1093,6 +1098,7 @@ std::optional<QString> compute(const Code &code, Env &env)
         const std::optional<double> v = evaluateFormula(code.expression, env.number, env.formulaBudget);
         return v ? std::optional<QString>(showNumber(code, *v)) : std::nullopt;
     }
+    if (env.merge) return env.merge(code);
     return std::nullopt;
 }
 

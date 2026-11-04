@@ -29,6 +29,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Use fields](fields)
 - [Point to another place with cross-references](cross-references)
 - [Mark places with bookmarks](bookmarks)
+- [Mail merge, envelopes, and labels](mail-merge)
 - [Add and change pictures](pictures)
 - [Set up the page](page-setup)
 - [Use the ruler](ruler)

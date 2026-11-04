@@ -61,6 +61,12 @@ public:
         val("c:lang", QStringLiteral("en-US"));
         val("c:roundedCorners", QStringLiteral("0"));
         val("c:style", QString::number(std::clamp(c.style, 1, 48)));
+        if (!c.pivotName.isEmpty()) {
+            w.writeStartElement(QStringLiteral("c:pivotSource"));
+            w.writeTextElement(QStringLiteral("c:name"), c.pivotName);
+            val("c:fmtId", QString::number(c.pivotFmtId));
+            w.writeEndElement();
+        }
         chart();
         // the chart area
         shapeProps(c.background, c.backgroundNone && !c.background.isValid(), c.border, QColor(), 0, false, &c.backgroundKept);

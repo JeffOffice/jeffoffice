@@ -287,6 +287,13 @@
             <numerusform>Clearing %n cells</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <source>%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.</source>
+        <translation>
+            <numerusform>%n pivot table was not read again when the file opened: there is too much data. Use Refresh All.</numerusform>
+            <numerusform>%n pivot tables were not read again when the file opened: there is too much data. Use Refresh All.</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>jp::crunch::SheetObjects</name>

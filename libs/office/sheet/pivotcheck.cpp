@@ -140,13 +140,20 @@ bool pivotCheckShape(const QByteArray &tableXml, const QByteArray &defXml, const
     QVector<QString> names(nf);
     QVector<Kinds> inlined(nf);
     QVector<qint64> inlineCount(nf, 0);
-    QVector<int> shared(nf, 0);
+    QVector<int> shared(nf, 0), groups(nf, 0);   // (the groups a field has, which the items of the table name instead of the shared items)
+    QVector<int> recordFields;                   // the fields that have a value in each record (not the groups of another field)
     int fi = 0;
     for (QDomNode n = cacheFields.firstChild(); !n.isNull(); n = n.nextSibling()) {
         if (!n.isElement()) continue;
         const QDomElement cf = n.toElement();
         const QString name = cf.attribute(QStringLiteral("name"));
         names[fi] = name;
+        if (cf.attribute(QStringLiteral("databaseField")) != QLatin1String("0")) recordFields.append(fi);
+        if (const QDomElement fg = child(cf, "fieldGroup"); !fg.isNull()) {
+            const QDomElement gi = child(fg, "groupItems");
+            groups[fi] = gi.isNull() ? 0 : childCount(gi);
+            if (!gi.isNull() && gi.hasAttribute(QStringLiteral("count")) && gi.attribute(QStringLiteral("count")).toInt() != groups[fi]) return fail(QStringLiteral("field %1: groupItems count is not the number of items").arg(name));
+        }
         const QDomElement si = child(cf, "sharedItems");
         if (!si.isNull()) {
             const int items = childCount(si);
@@ -239,7 +246,7 @@ bool pivotCheckShape(const QByteArray &tableXml, const QByteArray &defXml, const
                 if (it.hasAttribute(QStringLiteral("t"))) continue;
                 if (!it.hasAttribute(QStringLiteral("x"))) return fail(QStringLiteral("table: an item with no place in the cache"));
                 const int x = it.attribute(QStringLiteral("x")).toInt();
-                if (x < 0 || x >= shared[fi]) return fail(QStringLiteral("table: an item names a shared item that is not there (%1)").arg(x));
+                if (x < 0 || x >= (groups[fi] > 0 ? groups[fi] : shared[fi])) return fail(QStringLiteral("table: an item names a shared item that is not there (%1)").arg(x));
             }
         }
         ++fi;
@@ -338,13 +345,14 @@ bool pivotCheckShape(const QByteArray &tableXml, const QByteArray &defXml, const
                     ++count;
                     field = 0;
                 } else if (depth == 3) {
-                    if (field >= nf) return fail(QStringLiteral("records: a record with more values than the cache has fields"));
+                    if (field >= recordFields.size()) return fail(QStringLiteral("records: a record with more values than the cache has fields"));
+                    const int column = recordFields[field];
                     if (r.name() == QLatin1String("x")) {
                         const int x = r.attributes().value(QLatin1String("v")).toInt();
-                        if (x < 0 || x >= shared[field]) return fail(QStringLiteral("records: a record names a shared item that is not there"));
+                        if (x < 0 || x >= shared[column]) return fail(QStringLiteral("records: a record names a shared item that is not there"));
                     } else {
-                        Kinds &k = inlined[field];
-                        ++inlineCount[field];
+                        Kinds &k = inlined[column];
+                        ++inlineCount[column];
                         const QStringView t = r.name();
                         if (t == QLatin1String("n")) k.number(r.attributes().value(QLatin1String("v")).toDouble());
                         else if (t == QLatin1String("s")) k.hasS = true;
@@ -356,7 +364,7 @@ bool pivotCheckShape(const QByteArray &tableXml, const QByteArray &defXml, const
                     ++field;
                 }
             } else if (tok == QXmlStreamReader::EndElement) {
-                if (depth == 2 && field != nf) return fail(QStringLiteral("records: a record with fewer values than the cache has fields"));
+                if (depth == 2 && field != recordFields.size()) return fail(QStringLiteral("records: a record with fewer values than the cache has fields"));
                 --depth;
             }
         }
