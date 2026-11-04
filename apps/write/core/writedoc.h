@@ -218,6 +218,14 @@ public:
     bool differentFirstPage(int section) const;
     void setDifferentFirstPage(int section, bool on);
     bool differentOddEven() const { return m_wml.evenAndOddHeaders; }
+    // Facing pages with mirrored margins (the inside and outside margins swap on facing pages), and automatic hyphenation: the document's, one step of the history each.
+    bool mirrorMargins() const { return m_flow->mirrorMargins; }
+    void setMirrorMargins(bool on);
+    // The page color (none: an invalid color).
+    QColor pageColor() const { return m_flow->pageColor; }
+    void setPageColor(const QColor &color);
+    bool autoHyphenation() const { return m_flow->hyphenate; }
+    void setAutoHyphenation(bool on);
     void setDifferentOddEven(bool on);
     // The slot a page of a section uses.
     int headerSlotOf(int section, bool firstOfSection, int pageNumber) const;
@@ -744,6 +752,8 @@ private:
     quint64 m_nextSerial = 1, m_cleanSerial = 0;
     bool m_forcedDirty = false;
     bool m_wasModified = false;
+    QString m_pageColorAtOpen;                                         // the file's page color ("RRGGBB") when it was read
+    bool m_mirrorAtOpen = false, m_hyphenAtOpen = false;               // the file's facing pages with mirrored margins, and automatic hyphenation, when it was read
     bool m_oddEvenAtOpen = false;                                      // the file's use of different headers on odd and even pages when it was read
     QSet<QString> m_released;                                          // parts the sections let go of (a reference taken out): written no more if nothing names them
     // The empty header or footer shown to be typed in that is not made in the document yet (createHeaderFooter with `lazy`): its part, and the place it is shown in.
