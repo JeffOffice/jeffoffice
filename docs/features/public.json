@@ -589,7 +589,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "761d3b8aac65c3f0afad455921bbc9c2a7fe3629cb40c8f933ca190c1af0a9d3"
+         "text": "58b99f1b368fe801709c1dcafc81dfe03e0b540e28945fb94b59da408c991126"
         },
         {
          "status": "partly",
@@ -657,8 +657,8 @@
          "text": "59c327fd54fbcfd11ffd18745c328782ed23dd9423473f74db4ca8014372f931"
         },
         {
-         "status": "todo",
-         "text": "55184ae072876bf5d0c4d26d3b4f287f6f57d096f8291f482918077bb9634ba5"
+         "status": "partly",
+         "text": "0f6adec6da1622f9c9e0aea86200862e07ddc193727f08f3038bf0c134ef3a7a"
         }
        ]
       },
@@ -675,12 +675,12 @@
        "heading": "c7d9a204fa65f0c37b2e00d59f8376532ad99e9227645972a9bb61d9f434a839",
        "items": [
         {
-         "status": "todo",
-         "text": "d86934dcd7639d0844c294ecd2c26f8e466cf936140e1a3965f60111211f3081"
+         "status": "partly",
+         "text": "2fb4787082d7ea1e2e173f04ef665d67ba54eeb063abf9d0f093ce9ad550d12b"
         },
         {
-         "status": "todo",
-         "text": "99e8cda5b12c78e7a804de3a786ed3a3b59b57b3e518ee719cfe7b4cefce7f8d"
+         "status": "partly",
+         "text": "14604e6f393d3746d984835d262082846f3caf2ef9f76ccbd4e28d88af7fc096"
         }
        ]
       },
@@ -1245,24 +1245,25 @@
        "heading": "dee31959d5728cb7b1fe1fb0b7508aa30abc16607afd3a0e7f06952a6ca637b0",
        "items": [
         {
-         "status": "partly",
-         "text": "c094325aabfee2cba4d8e61977644aeef4285f83d1a950c892fd44457e832100"
+         "hide_soon": true,
+         "status": "done",
+         "text": "b74269e812ac94829375d207541f5a441b22d5bcdaedba656efe8e0192ec1cad"
         },
         {
          "status": "partly",
-         "text": "249cc97ffedea5adacb1cc23ab3e59b6dcdd3a44e7504e15663838e00a227377"
+         "text": "e6a6781b1880e67e399599dd593ad4dca859d91e116fbe295a8be4daddd9579b"
         },
         {
-         "status": "todo",
-         "text": "68c65570b487de65ab1357fa9e075e1e667e425b0d770e4fff6fc4d78e3f21d5"
+         "status": "partly",
+         "text": "8dc8e377958dfd656ef7d675e16c547d528f752a29245823da6963cd26572e26"
         },
         {
-         "status": "todo",
-         "text": "7aea19999c462b883da40aa1bd1d3d25d34c79a0b2e529d592226d5baaf40177"
+         "status": "partly",
+         "text": "3947a08e13bede2fab9981e65e1639616089715324b190a8894ba837328ddf49"
         },
         {
-         "status": "todo",
-         "text": "c2e8d6dab884873165451b6cf6f37b3ae8f1c20da0d9a373eb15fa079a7751d8"
+         "status": "partly",
+         "text": "7596d6d06eabb42fb586495b6569d494ab61ae54915e9982c7deadeefef42ffe"
         },
         {
          "status": "todo",
@@ -1270,15 +1271,15 @@
         },
         {
          "status": "partly",
-         "text": "ede99a43a6b25faf48140675ec25b092138d549d9bbb5fb08af9e7d5d65fb50c"
-        },
-        {
-         "status": "todo",
-         "text": "29d0c1ad526ed2e331676726da6176acb7d42af40625be70839efec0ba2a393b"
+         "text": "590bf4f1d8d1d065714aec3d4a030615dc1c08ba414f69014a0ddf8474a68fb7"
         },
         {
          "status": "partly",
-         "text": "7192992cc37650cb2a09f6e90c6a6b77a363d8dca355e266bc5d895f7bfdb5fa"
+         "text": "081f3e637283e7b9dc6a892d02d2ff438d0071eb0b562a5cc836ebb631cdf098"
+        },
+        {
+         "status": "partly",
+         "text": "e4a8a370cd0d0c37e850ae8f53103fdf35bbf11aff6b9ef9552b27e7b27fada2"
         },
         {
          "status": "todo",
@@ -1290,21 +1291,21 @@
          "text": "322eea60ab8798ac4bbbb663b7c6a5d3d7e3929f293e4305052f86a7629b7a16"
         },
         {
-         "status": "todo",
-         "text": "4bc4065963756ac2eac848a1074631acc3326c965f553419972bad8f1919d51e"
+         "status": "partly",
+         "text": "51a591cfe6eadde7d614bab17bbf301eea89b3ff639e3005091842bf926b3f38"
         }
        ]
       },
       {
-       "heading": "3ac38ce2da16e68e1f4a4d67d86ac53b1fbc858863faa64e7ad63606631ff60e",
+       "heading": "d04a57cde3a6fcb29f1c73ad14a2c52c49d060d6172d1a07351be59a916f1177",
        "items": [
         {
          "status": "todo",
-         "text": "a0940aca6993e0d3e067761e453d3b70351ec9cd29eda408a672ecf8b8bbc90b"
+         "text": "d26d9f2c518b0313c42e2800ba6fab1b1d032a5d5d664806bb813d6d98c98579"
         },
         {
          "status": "todo",
-         "text": "e0b81a897d1bc213c3efd1a5d804f0fc783de018cf9916a85394013cc82b8a0a"
+         "text": "51e0bcac960ff64ae0dfc1242b1c803a65f5b9045ff46e607e7d2c284b9c2f0a"
         }
        ]
       },
@@ -1398,12 +1399,12 @@
        "heading": "ac0a70b726875b875409eeb32e2e6620f922e41e6e44240341ce8d14896ec32f",
        "items": [
         {
-         "status": "todo",
-         "text": "937e68cc5050b7a886ab8bb2bcf144e88a12bd5e7faee39a99123565931fa342"
+         "status": "partly",
+         "text": "3144b19cb338123d3049d8d3f6bf9caacdca281ea39900a1738f588025c76464"
         },
         {
-         "status": "todo",
-         "text": "e4c21e2d0f45cf3b6cdfa42b7049a885112a4ffcce1d23033e59c1a4465544b5"
+         "status": "partly",
+         "text": "fd14d6e639855db7ff62a2f5b508409ec8774653c1213e763e92a10f19b0980a"
         }
        ]
       },
@@ -7570,6 +7571,18 @@
     "fr": ""
    }
   },
+  "081f3e637283e7b9dc6a892d02d2ff438d0071eb0b562a5cc836ebb631cdf098": {
+   "drop": false,
+   "en": "Pivot table Options in JeffCrunch sets the name, merge cells with labels, the texts for errors and empty cells, fit column widths, keep formatting, grand totals for rows and columns, field headers, and refresh when the file opens.",
+   "es": "Las opciones de tabla dinámica de JeffCrunch permiten definir el nombre, combinar celdas con etiquetas, los textos para errores y celdas vacías, ajustar anchos de columna, conservar el formato, totales generales para filas y columnas, encabezados de campo y actualizar al abrir el archivo.",
+   "fr": "Les options de tableau croisé dynamique de JeffCrunch permettent de définir le nom, la fusion des cellules avec étiquettes, les textes pour les erreurs et les cellules vides, l’ajustement des largeurs de colonne, la conservation de la mise en forme, les totaux généraux des lignes et des colonnes, les en-têtes de champ et l’actualisation à l’ouverture du fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Options for display, printing, and saving the source data with the file",
+    "es": "Opciones de visualización, impresión y guardado de los datos de origen con el archivo",
+    "fr": "Options d’affichage, d’impression et d’enregistrement des données source avec le fichier"
+   }
+  },
   "08269fa4474bedb0df45a7c15b3311f8d3c0d9398a2ce1c249ec87f13e1b9e15": {
    "drop": false,
    "en": "The Alignment tab of the Format Cells dialog in JeffCrunch offers every alignment choice.",
@@ -8158,6 +8171,18 @@
     "fr": ""
    }
   },
+  "0f6adec6da1622f9c9e0aea86200862e07ddc193727f08f3038bf0c134ef3a7a": {
+   "drop": false,
+   "en": "Insert > Pivot Chart makes a column chart of a pivot table’s values, without the grand totals, as one step of Undo. The chart reads the table’s cells, so its numbers follow a refresh.",
+   "es": "Insertar > Gráfico dinámico crea un gráfico de columnas con los valores de una tabla dinámica, sin los totales generales, como un solo paso de Deshacer. El gráfico lee las celdas de la tabla, de modo que sus números siguen a una actualización.",
+   "fr": "Insertion > Graphique croisé dynamique crée un histogramme des valeurs d’un tableau croisé dynamique, sans les totaux généraux, en une seule étape d’annulation. Le graphique lit les cellules du tableau, donc ses nombres suivent une actualisation.",
+   "soon": {
+    "drop": false,
+    "en": "Pivot chart: field buttons, filters, and following a table that gains or loses rows or columns",
+    "es": "Gráfico dinámico: botones de campo, filtros y seguimiento de una tabla que gana o pierde filas o columnas",
+    "fr": "Graphique croisé dynamique : boutons de champ, filtres et suivi d’un tableau qui gagne ou perd des lignes ou des colonnes"
+   }
+  },
   "0fb62891620d776a436bcdcdec3b71fadb88f4acf892e14d767b004cdf42f830": {
    "drop": true,
    "en": "",
@@ -8456,6 +8481,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "14604e6f393d3746d984835d262082846f3caf2ef9f76ccbd4e28d88af7fc096": {
+   "drop": false,
+   "en": "JeffCrunch reads a timeline’s field, the tables it filters, the span, its caption, and style, and applies the choice to a table’s items.",
+   "es": "JeffCrunch lee el campo de una escala de tiempo, las tablas que filtra, el intervalo, su título y estilo, y aplica la selección a los elementos de una tabla.",
+   "fr": "JeffCrunch lit le champ d’une chronologie, les tableaux qu’elle filtre, la période, sa légende et son style, et applique le choix aux éléments d’un tableau.",
+   "soon": {
+    "drop": false,
+    "en": "Timeline: show on the sheet, click, connect to more tables, and save",
+    "es": "Escala de tiempo: mostrar en la hoja, hacer clic, conectar con más tablas y guardar",
+    "fr": "Chronologie : affichage sur la feuille, clic, connexion à d’autres tableaux et enregistrement"
    }
   },
   "1465d017d99685090e94d4e0883962679abf0b3847e8f7a1e9cc80ba06e05a73": {
@@ -9610,18 +9647,6 @@
     "fr": ""
    }
   },
-  "249cc97ffedea5adacb1cc23ab3e59b6dcdd3a44e7504e15663838e00a227377": {
-   "drop": false,
-   "en": "In JeffCrunch, Value Field Settings lets you choose how to total (sum, count, count numbers, average, max, min, product, and the standard deviation and variance of a sample or of all values) and set a custom name. Open it by double-clicking a value in the pane or from the pivot table tab.",
-   "es": "En JeffCrunch, Configuración del campo de valor permite elegir cómo totalizar (suma, recuento, recuento de números, promedio, máximo, mínimo, producto, y la desviación estándar y la varianza de una muestra o de todos los valores) y definir un nombre personalizado. Se abre con doble clic en un valor del panel o desde la pestaña de tabla dinámica.",
-   "fr": "Dans JeffCrunch, les Paramètres des champs de valeurs permettent de choisir le mode de total (somme, nombre, nombre de valeurs numériques, moyenne, max, min, produit, ainsi que l’écart type et la variance d’un échantillon ou de toutes les valeurs) et de définir un nom personnalisé. Ouvrez-les par un double-clic sur une valeur dans le volet ou depuis l’onglet du tableau croisé dynamique.",
-   "soon": {
-    "drop": false,
-    "en": "Value Field Settings: number format and Show Values As",
-    "es": "Configuración del campo de valor: formato de número y Mostrar valores como",
-    "fr": "Paramètres des champs de valeurs : format de nombre et Afficher les valeurs comme"
-   }
-  },
   "24c00247a58535c37a0b6fb4551048cd06a5b6cdd0047c312c380706a5b7d01c": {
    "drop": false,
    "en": "In JeffDeck, you can add a new comment from the Insert tab or the Review tab.",
@@ -10114,18 +10139,6 @@
     "fr": ""
    }
   },
-  "29d0c1ad526ed2e331676726da6176acb7d42af40625be70839efec0ba2a393b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Pivot table options: name, layout and format, totals and filters, display, printing, and data",
-    "es": "Opciones de tabla dinámica: nombre, diseño y formato, totales y filtros, visualización, impresión y datos",
-    "fr": "Options du tableau croisé dynamique : nom, disposition et format, totaux et filtres, affichage, impression et données"
-   }
-  },
   "2a097396755e8aae084fca274d81bda98dad9330c96f49672ba9a3d57815c46e": {
    "drop": false,
    "en": "JeffDeck draws and saves cropped pictures, flips, and turns.",
@@ -10534,6 +10547,18 @@
     "fr": ""
    }
   },
+  "2fb4787082d7ea1e2e173f04ef665d67ba54eeb063abf9d0f093ce9ad550d12b": {
+   "drop": false,
+   "en": "JeffCrunch reads a slicer’s field, the tables it filters, the items chosen, its caption, columns, and style, and applies the choice to a table’s items.",
+   "es": "JeffCrunch lee el campo de una segmentación, las tablas que filtra, los elementos elegidos, su título, columnas y estilo, y aplica la selección a los elementos de una tabla.",
+   "fr": "JeffCrunch lit le champ d’un segment, les tableaux qu’il filtre, les éléments choisis, sa légende, ses colonnes et son style, et applique le choix aux éléments d’un tableau.",
+   "soon": {
+    "drop": false,
+    "en": "Slicer: show on the sheet, click, connect to more tables, and save",
+    "es": "Segmentación: mostrar en la hoja, hacer clic, conectar con más tablas y guardar",
+    "fr": "Segment : affichage sur la feuille, clic, connexion à d’autres tableaux et enregistrement"
+   }
+  },
   "2feeef90d0d00a296443c58938ec231e930268bc3d5fc52b880c33d985f7d02d": {
    "drop": false,
    "en": "Insert a table using a grid picker or the Insert Table dialog.",
@@ -10616,6 +10641,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "3144b19cb338123d3049d8d3f6bf9caacdca281ea39900a1738f588025c76464": {
+   "drop": false,
+   "en": "JeffCrunch reads a slicer’s caption, columns, and style, the field and tables it filters, and the items chosen, and applies the choice to a table’s items.",
+   "es": "JeffCrunch lee el título, las columnas y el estilo de una segmentación, el campo y las tablas que filtra y los elementos elegidos, y aplica la selección a los elementos de una tabla.",
+   "fr": "JeffCrunch lit la légende, les colonnes et le style d’un segment, le champ et les tableaux qu’il filtre et les éléments choisis, et applique le choix aux éléments d’un tableau.",
+   "soon": {
+    "drop": false,
+    "en": "Slicer tab: show on the sheet, click, connect to more tables, and save",
+    "es": "Pestaña Segmentación: mostrar en la hoja, hacer clic, conectar con más tablas y guardar",
+    "fr": "Onglet Segment : affichage sur la feuille, clic, connexion à d’autres tableaux et enregistrement"
    }
   },
   "314585938d0a0aced492e4c4466eda30267aa30a1f5e5585ef1727d51836a8d2": {
@@ -11146,6 +11183,18 @@
     "fr": ""
    }
   },
+  "3947a08e13bede2fab9981e65e1639616089715324b190a8894ba837328ddf49": {
+   "drop": false,
+   "en": "JeffCrunch reads, calculates, and writes back groups of dates and numbers in pivot tables. Group Field makes date groups by one or several parts and number groups by a start, an end, and a step, Refresh rebuilds them from new data, and Ungroup removes them.",
+   "es": "JeffCrunch lee, calcula y vuelve a escribir los grupos de fechas y números de las tablas dinámicas. Agrupar campo crea grupos de fechas por una o varias partes y grupos de números por un inicio, un final y un paso; Actualizar los rehace con los datos nuevos y Desagrupar los elimina.",
+   "fr": "JeffCrunch lit, calcule et réécrit les groupes de dates et de nombres des tableaux croisés dynamiques. Grouper le champ crée des groupes de dates par une ou plusieurs parties et des groupes de nombres par un début, une fin et un pas ; Actualiser les refait à partir des nouvelles données et Dissocier les supprime.",
+   "soon": {
+    "drop": false,
+    "en": "Group text items by name, groups of several days, and groups when two tables share the data",
+    "es": "Agrupar elementos de texto por nombre, grupos de varios días y grupos cuando dos tablas comparten los datos",
+    "fr": "Regroupement d’éléments de texte par nom, groupes de plusieurs jours et groupes quand deux tableaux partagent les données"
+   }
+  },
   "3995b42ea1e0afb731b3b633038e68f05f1c31fac4fa7ddf772ac779b9cbf83b": {
    "drop": true,
    "en": "",
@@ -11235,18 +11284,6 @@
    "en": "In JeffCrunch, Zoom works from 10% to 400% and can fit the selection. 100% and Zoom to Selection are available, and the zoom is kept for each sheet.",
    "es": "En JeffCrunch, el zoom funciona del 10% al 400% y puede ajustarse a la selección. Están disponibles 100% y Zoom a la selección, y el zoom se conserva en cada hoja.",
    "fr": "Dans JeffCrunch, le zoom va de 10 % à 400 % et peut s’ajuster à la sélection. 100 % et Zoom sur la sélection sont disponibles, et le zoom est conservé pour chaque feuille.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "3ac38ce2da16e68e1f4a4d67d86ac53b1fbc858863faa64e7ad63606631ff60e": {
-   "drop": false,
-   "en": "Pivot chart tabs (while a pivot chart is selected)",
-   "es": "Pestañas de gráfico dinámico (con un gráfico dinámico seleccionado)",
-   "fr": "Onglets de graphique croisé dynamique (graphique sélectionné)",
    "soon": {
     "drop": true,
     "en": "",
@@ -12442,18 +12479,6 @@
     "fr": "Copier en tant qu’image, comme à l’écran ou à l’impression, et la coller dans JeffWrite ou JeffDeck comme image"
    }
   },
-  "4bc4065963756ac2eac848a1074631acc3326c965f553419972bad8f1919d51e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Slicers and timelines connected to a pivot table, with filter connections",
-    "es": "Segmentaciones y escalas de tiempo conectadas a una tabla dinámica, con conexiones de filtro",
-    "fr": "Segments et chronologies connectés à un tableau croisé dynamique, avec connexions de filtre"
-   }
-  },
   "4bc5cbadcafb7a0a2caefa92dfce77ed2864b0338321e4044a15202f4b352b40": {
    "drop": false,
    "en": "Older binary `.doc` and `.dot`",
@@ -12838,6 +12863,18 @@
     "fr": "Filtre avancé : plage de critères, filtrage sur place ou copie, et enregistrements uniques"
    }
   },
+  "51a591cfe6eadde7d614bab17bbf301eea89b3ff639e3005091842bf926b3f38": {
+   "drop": false,
+   "en": "JeffCrunch reads the slicers and timelines connected to a pivot table, with the field and tables they filter and the items chosen, and applies the choice to the table’s items.",
+   "es": "JeffCrunch lee las segmentaciones y escalas de tiempo conectadas a una tabla dinámica, con el campo y las tablas que filtran y los elementos elegidos, y aplica la selección a los elementos de la tabla.",
+   "fr": "JeffCrunch lit les segments et chronologies connectés à un tableau croisé dynamique, avec le champ et les tableaux qu’ils filtrent et les éléments choisis, et applique le choix aux éléments du tableau.",
+   "soon": {
+    "drop": false,
+    "en": "Filter connections: show, click, connect to more tables, and save slicers and timelines",
+    "es": "Conexiones de filtro: mostrar, hacer clic, conectar con más tablas y guardar segmentaciones y escalas de tiempo",
+    "fr": "Connexions de filtre : affichage, clic, connexion à d’autres tableaux et enregistrement des segments et chronologies"
+   }
+  },
   "51b3056b2a53b608aa87de0d93f2c35adb2c298bf4d255003cb42961f760a265": {
    "drop": false,
    "en": "Format paragraphs with bullets (gallery and custom bullet character), numbering (formats and starting number), indents, special characters (show ¶), alignment (left, center, right, justify, and distribute), line spacing, and paragraph spacing. The Paragraph dialog covers indents, spacing, line breaks, tabs, and baseline alignment.",
@@ -12896,6 +12933,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "51e0bcac960ff64ae0dfc1242b1c803a65f5b9045ff46e607e7d2c284b9c2f0a": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Pivot chart tab and Format: the same options as for other charts",
+    "es": "Pestaña y formato del gráfico dinámico: las mismas opciones que en otros gráficos",
+    "fr": "Onglet et format du graphique croisé dynamique : les mêmes options que pour les autres graphiques"
    }
   },
   "523bb5224c0cea88ca0bfaddaf2843576b0fa04fa0f1c482633982342976f67e": {
@@ -13114,18 +13163,6 @@
     "fr": "Notes mises en forme : gras, italique, listes, liens et images dans les notes du présentateur"
    }
   },
-  "55184ae072876bf5d0c4d26d3b4f287f6f57d096f8291f482918077bb9634ba5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Pivot chart: a chart that follows a pivot table, with field buttons and filters",
-    "es": "Gráfico dinámico: un gráfico que sigue una tabla dinámica, con botones de campo y filtros",
-    "fr": "Graphique croisé dynamique : un graphique lié à un tableau croisé dynamique, avec boutons de champ et filtres"
-   }
-  },
   "55302e714a3a4bde745e62c0f8c4926571bc9f3280310ef51bc5e5b19f9840c8": {
    "drop": true,
    "en": "",
@@ -13342,6 +13379,18 @@
     "fr": "Insertion d’une tabulation d’alignement et affichage du texte du document"
    }
   },
+  "58b99f1b368fe801709c1dcafc81dfe03e0b540e28945fb94b59da408c991126": {
+   "drop": false,
+   "en": "JeffCrunch shows pivot tables and pivot charts in a workbook as saved, with the numbers in the cells, the field list, and the filters. It keeps them whole, with the data behind them, and writes them back as they were.",
+   "es": "JeffCrunch muestra las tablas dinámicas y los gráficos dinámicos de un libro tal como se guardaron, con los números en las celdas, la lista de campos y los filtros. Los conserva completos, con los datos que hay detrás, y los vuelve a escribir tal como estaban.",
+   "fr": "JeffCrunch affiche les tableaux croisés dynamiques et les graphiques croisés dynamiques d’un classeur tels qu’ils ont été enregistrés, avec les nombres dans les cellules, la liste des champs et les filtres. Il les conserve intacts, avec les données qui se trouvent derrière, et les réécrit tels qu’ils étaient.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "58d8e8c298cf91db3553d889dadc3c6a2f506743078d78db49efcdcea798b0c1": {
    "drop": false,
    "en": "Track Changes can be turned on and off (`Ctrl+Shift+E`) and the setting is saved with the document. Typing is recorded as an insertion, deleting marks text as deleted and keeps it, Enter and Backspace over a paragraph mark are recorded as inserted and deleted marks, and changes to the look of text or a paragraph keep the old look. Each change has the user name and time, and each edit is one step of Undo.",
@@ -13364,6 +13413,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "590bf4f1d8d1d065714aec3d4a030615dc1c08ba414f69014a0ddf8474a68fb7": {
+   "drop": false,
+   "en": "JeffCrunch has Refresh, Refresh All, Change Data Source, and Clear for pivot tables, each one step of Undo. A table set to be read again when the file opens is refreshed on open, and Options sets this.",
+   "es": "JeffCrunch ofrece Actualizar, Actualizar todo, Cambiar origen de datos y Borrar para las tablas dinámicas, cada uno como un paso de Deshacer. Una tabla configurada para leerse de nuevo al abrir el archivo se actualiza al abrir, y Opciones lo define.",
+   "fr": "JeffCrunch propose Actualiser, Tout actualiser, Changer la source de données et Effacer pour les tableaux croisés dynamiques, chacun en une étape d’annulation. Un tableau configuré pour être relu à l’ouverture du fichier est actualisé à l’ouverture, et Options le définit.",
+   "soon": {
+    "drop": false,
+    "en": "Move pivot table and Select",
+    "es": "Mover tabla dinámica y Seleccionar",
+    "fr": "Déplacer le tableau croisé dynamique et Sélectionner"
    }
   },
   "5935e2eaadf6aff5730c8ca764629d833a06f16b21c4864998dfc75720888082": {
@@ -14506,18 +14567,6 @@
     "fr": ""
    }
   },
-  "68c65570b487de65ab1357fa9e075e1e667e425b0d770e4fff6fc4d78e3f21d5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Field Settings: custom name, subtotals, layout and print choices, and sort and filter by label, by value, and by top 10",
-    "es": "Configuración de campo: nombre personalizado, subtotales, opciones de diseño e impresión, y ordenar y filtrar por etiqueta, por valor y por los 10 mejores",
-    "fr": "Paramètres de champ : nom personnalisé, sous-totaux, choix de disposition et d’impression, et tri et filtre par étiquette, par valeur et par les 10 premiers"
-   }
-  },
   "68c9ddc6b7e28140bdefc5ea5b59543cd75d6581f5c963bfa9e91157f3466d18": {
    "drop": false,
    "en": "File (backstage)",
@@ -15106,18 +15155,6 @@
     "fr": "Autres choix de collage spécial : commentaires et notes, validation, largeurs de colonne et formats de nombre"
    }
   },
-  "7192992cc37650cb2a09f6e90c6a6b77a363d8dca355e266bc5d895f7bfdb5fa": {
-   "drop": false,
-   "en": "In JeffCrunch, the Design tab sets pivot table subtotals (hidden, at the top, or at the bottom), grand totals (all four choices), and report layout (compact, outline, or tabular).",
-   "es": "En JeffCrunch, la pestaña Diseño permite definir los subtotales de la tabla dinámica (ocultos, arriba o abajo), los totales generales (las cuatro opciones) y el diseño del informe (compacto, esquema o tabular).",
-   "fr": "Dans JeffCrunch, l’onglet Création permet de définir les sous-totaux du tableau croisé dynamique (masqués, en haut ou en bas), les totaux généraux (les quatre choix) et la disposition du rapport (compacte, plan ou tabulaire).",
-   "soon": {
-    "drop": false,
-    "en": "Pivot table repeat item labels, blank rows, header and banding choices, and styles gallery",
-    "es": "Repetir etiquetas de elementos, filas en blanco, opciones de encabezados y bandas, y galería de estilos de tabla dinámica",
-    "fr": "Répétition des étiquettes d’éléments, lignes vides, choix des en-têtes et des bandes, et galerie de styles de tableau croisé dynamique"
-   }
-  },
   "71988d1bfa61cab0593bddb1b101b945e34c100fd835393f29f13fe5751e287d": {
    "drop": false,
    "en": "Insert tab",
@@ -15490,23 +15527,23 @@
     "fr": "Aide sur les fonctions depuis la barre de formule : la fonction saisie ouvre sa page"
    }
   },
+  "7596d6d06eabb42fb586495b6569d494ab61ae54915e9982c7deadeefef42ffe": {
+   "drop": false,
+   "en": "In JeffCrunch, Expand Entire Field and Collapse Entire Field work on the field chosen in the pane. A double-click on a value, or Show Details, puts the rows behind it on a new sheet, with field names, as one step of Undo for the sheet and one for the rows.",
+   "es": "En JeffCrunch, Expandir campo completo y Contraer campo completo actúan sobre el campo elegido en el panel. Un doble clic en un valor, o Mostrar detalles, coloca las filas que hay detrás en una hoja nueva, con los nombres de los campos, como un paso de Deshacer para la hoja y otro para las filas.",
+   "fr": "Dans JeffCrunch, Développer tout le champ et Réduire tout le champ agissent sur le champ choisi dans le volet. Un double-clic sur une valeur, ou Afficher les détails, place les lignes sous-jacentes dans une nouvelle feuille, avec les noms des champs, en une étape d’annulation pour la feuille et une pour les lignes.",
+   "soon": {
+    "drop": false,
+    "en": "Plus and minus buttons in the cells, and Drill Up",
+    "es": "Botones de más y menos en las celdas, y Subir de nivel",
+    "fr": "Boutons plus et moins dans les cellules, et Explorer vers le haut"
+   }
+  },
   "75ad438e0cd646d3b7397deca30db3e15efcd884f2636987f7a8b8735a8984ce": {
    "drop": false,
    "en": "Slide Master, Handout Master, and Notes Master views",
    "es": "Vistas Patrón de diapositivas, Patrón de documentos y Patrón de notas",
    "fr": "Affichages Masque des diapositives, Masque du document et Masque des notes",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "761d3b8aac65c3f0afad455921bbc9c2a7fe3629cb40c8f933ca190c1af0a9d3": {
-   "drop": false,
-   "en": "In JeffCrunch, pivot tables in a workbook are shown as saved, with the numbers in the cells, the field list, and the filters. They are kept whole, with their data cache, and written back as they were. A pivot chart, a slicer, a timeline, and a filter pane for the items of a field are shown and kept as saved.",
-   "es": "En JeffCrunch, las tablas dinámicas de un libro se muestran tal como se guardaron, con los números en las celdas, la lista de campos y los filtros. Se conservan completas, con su caché de datos, y se vuelven a escribir tal como estaban. Un gráfico dinámico, una segmentación, una escala de tiempo y un panel de filtro para los elementos de un campo se muestran y se conservan tal como se guardaron.",
-   "fr": "Dans JeffCrunch, les tableaux croisés dynamiques d’un classeur s’affichent tels qu’ils ont été enregistrés, avec les nombres dans les cellules, la liste des champs et les filtres. Ils sont conservés en entier, avec leur cache de données, et réécrits tels qu’ils étaient. Un graphique croisé dynamique, un segment, une chronologie et un volet de filtre pour les éléments d’un champ sont affichés et conservés tels qu’enregistrés.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15776,18 +15813,6 @@
     "en": "Graphics tab for SVG pictures: change the graphic, Convert to Shape, styles, fill, outline, and effects",
     "es": "Pestaña Gráficos para imágenes SVG: cambiar el gráfico, convertir en forma, estilos, relleno, contorno y efectos",
     "fr": "Onglet Graphiques pour les images SVG : changer le graphique, convertir en forme, styles, remplissage, contour et effets"
-   }
-  },
-  "7aea19999c462b883da40aa1bd1d3d25d34c79a0b2e529d592226d5baaf40177": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Group Selection and Group Field: dates, numbers, and text items, with Ungroup",
-    "es": "Agrupar selección y Agrupar campo: fechas, números y elementos de texto, con Desagrupar",
-    "fr": "Grouper la sélection et Grouper le champ : dates, nombres et éléments de texte, avec Dissocier"
    }
   },
   "7af548a96b87ea065562937711e69b5c4415cf099fbcb1255af7b19b3c688df6": {
@@ -16954,6 +16979,18 @@
     "fr": "Ajouter du texte : marquer un paragraphe pour un niveau"
    }
   },
+  "8dc8e377958dfd656ef7d675e16c547d528f752a29245823da6963cd26572e26": {
+   "drop": false,
+   "en": "Field Settings in JeffCrunch sets a custom name, automatic or no subtotals, the form (compact, outline, or tabular), repeated item labels, and a blank line after each item. It also sorts by labels or by a value and filters by labels, by a value, and by top or bottom items, with a check for each item.",
+   "es": "La configuración de campo de JeffCrunch permite definir un nombre personalizado, subtotales automáticos o ninguno, la forma (compacta, de esquema o tabular), repetir etiquetas de elementos y una línea en blanco tras cada elemento. También ordena por etiquetas o por un valor y filtra por etiquetas, por un valor y por los primeros o últimos elementos, con una casilla para cada elemento.",
+   "fr": "Les paramètres de champ de JeffCrunch permettent de définir un nom personnalisé, des sous-totaux automatiques ou aucun, la forme (compacte, plan ou tabulaire), la répétition des étiquettes d’éléments et une ligne vide après chaque élément. Ils permettent aussi de trier par étiquettes ou par valeur et de filtrer par étiquettes, par valeur et par premiers ou derniers éléments, avec une case pour chaque élément.",
+   "soon": {
+    "drop": false,
+    "en": "Custom subtotal functions and show items with no data",
+    "es": "Funciones de subtotal personalizadas y mostrar elementos sin datos",
+    "fr": "Fonctions de sous-total personnalisées et affichage des éléments sans données"
+   }
+  },
   "8de0da0c29dd254fe752e10bcc139c7e205599686e509d769acdb999dc638c00": {
    "drop": false,
    "en": "In JeffDeck, Delete removes the open comment, all comments on this slide, or all in the presentation. Previous and Next visit each comment on its slide. Show Comments hides or shows the pane and the markers. A presentation that comes with comments opens with them shown, and `Ctrl+Z` takes any of it back.",
@@ -17374,18 +17411,6 @@
     "fr": ""
    }
   },
-  "937e68cc5050b7a886ab8bb2bcf144e88a12bd5e7faee39a99123565931fa342": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Slicer tab: caption, report connections, sort and display settings, styles, columns, and sizes",
-    "es": "Pestaña Segmentación: título, conexiones de informe, ajustes de orden y visualización, estilos, columnas y tamaños",
-    "fr": "Onglet Segment : légende, connexions de rapport, paramètres de tri et d’affichage, styles, colonnes et tailles"
-   }
-  },
   "93cf3a85695eaba9b88afdaf11af09716ec2240995819563d172ab6702670fc5": {
    "drop": true,
    "en": "",
@@ -17792,18 +17817,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "99e8cda5b12c78e7a804de3a786ed3a3b59b57b3e518ee719cfe7b4cefce7f8d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Timeline: a slider that filters a pivot table by year, quarter, month, or day",
-    "es": "Escala de tiempo: un control deslizante que filtra una tabla dinámica por año, trimestre, mes o día",
-    "fr": "Chronologie : un curseur qui filtre un tableau croisé dynamique par année, trimestre, mois ou jour"
    }
   },
   "99e8ecd92772507776320a372bb5ee9ec962f761281a5bfeb850c82e73c0929e": {
@@ -18308,18 +18321,6 @@
     "en": "Recover unsaved workbooks",
     "es": "Recuperación de libros sin guardar",
     "fr": "Récupération des classeurs non enregistrés"
-   }
-  },
-  "a0940aca6993e0d3e067761e453d3b70351ec9cd29eda408a672ecf8b8bbc90b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Pivot chart analyze commands: field buttons, expand and collapse buttons, field list, refresh, change source, and clear",
-    "es": "Comandos de análisis de gráfico dinámico: botones de campo, botones de expandir y contraer, lista de campos, actualizar, cambiar origen y borrar",
-    "fr": "Commandes d’analyse du graphique croisé dynamique : boutons de champ, boutons de développement et de réduction, liste de champs, actualisation, changement de source et effacement"
    }
   },
   "a12487ff7466e431b19082d7f09eeeb2290111f1fdd6d180658e8e2dd1ea6ca9": {
@@ -19582,6 +19583,18 @@
     "fr": "`RATE` et `DB`"
    }
   },
+  "b74269e812ac94829375d207541f5a441b22d5bcdaedba656efe8e0192ec1cad": {
+   "drop": false,
+   "en": "The Pivot Table Fields pane in JeffCrunch lists the fields of the source with a check box each and shows four boxes: Filters, Columns, Rows, and Values. Fields can be checked in or out, moved with Move To, ordered within a box, or removed, and the search box hides fields that do not match. Defer Layout Update holds changes until Update.",
+   "es": "El panel Campos de tabla dinámica de JeffCrunch enumera los campos del origen con una casilla cada uno y muestra cuatro cuadros: Filtros, Columnas, Filas y Valores. Puede marcar o desmarcar campos, moverlos con Mover a, ordenarlos dentro de un cuadro o quitarlos, y el cuadro de búsqueda oculta los campos que no coinciden. Aplazar actualización del diseño retiene los cambios hasta Actualizar.",
+   "fr": "Le volet Champs de tableau croisé dynamique de JeffCrunch liste les champs de la source avec une case à cocher chacun et affiche quatre zones : Filtres, Colonnes, Lignes et Valeurs. Vous pouvez cocher ou décocher des champs, les déplacer avec Déplacer vers, les ordonner dans une zone ou les supprimer, et la zone de recherche masque les champs qui ne correspondent pas. Différer la mise à jour de la disposition retient les changements jusqu’à Mettre à jour.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b74c0534ebfab6969be3315838b16898a1db075b97b95374bf0774adb1742aab": {
    "drop": true,
    "en": "",
@@ -20086,18 +20099,6 @@
     "fr": ""
    }
   },
-  "c094325aabfee2cba4d8e61977644aeef4285f83d1a950c892fd44457e832100": {
-   "drop": false,
-   "en": "In JeffCrunch, the Pivot Table Fields pane lists the source fields with a check box each and shows four boxes: Filters, Columns, Rows, and Values. You can check a field in or out, move it to another box, move it up or down in its box, or remove it, and each step can be undone.",
-   "es": "En JeffCrunch, el panel Campos de tabla dinámica enumera los campos de origen con una casilla cada uno y muestra cuatro cuadros: Filtros, Columnas, Filas y Valores. Usted puede marcar o desmarcar un campo, moverlo a otro cuadro, subirlo o bajarlo dentro de su cuadro, o quitarlo, y cada paso se puede deshacer.",
-   "fr": "Dans JeffCrunch, le volet Champs de tableau croisé dynamique liste les champs source avec une case à cocher chacun et affiche quatre zones : Filtres, Colonnes, Lignes et Valeurs. Vous pouvez cocher ou décocher un champ, le déplacer vers une autre zone, le monter ou le descendre dans sa zone, ou le retirer, et chaque étape peut être annulée.",
-   "soon": {
-    "drop": false,
-    "en": "Defer Layout Update and a search box in the field list pane",
-    "es": "Aplazar actualización del diseño y un cuadro de búsqueda en el panel de la lista de campos",
-    "fr": "Différer la mise à jour de la disposition et une zone de recherche dans le volet de la liste des champs"
-   }
-  },
   "c0e4345564aea0da590ed9fe982184ed685c0ef367ac603fad887f95cdf60f35": {
    "drop": false,
    "en": "JeffCrunch shows and keeps data validation rules as saved. Cells show a drop-down arrow for lists and an input message beside the cell on selection. Typed and pasted values are checked with the rule’s own style, title, and message. Rules that read other sheets are offered as lists and kept through saves and inserted rows and columns.",
@@ -20240,18 +20241,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c2e8d6dab884873165451b6cf6f37b3ae8f1c20da0d9a373eb15fa079a7751d8": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Expand and Collapse, Drill Down and Drill Up, and double-click a total to see the rows behind it on a new sheet",
-    "es": "Expandir y contraer, Explorar en profundidad y en sentido inverso, y doble clic en un total para ver las filas que lo componen en una hoja nueva",
-    "fr": "Développer et réduire, Explorer vers le bas et vers le haut, et double-clic sur un total pour voir les lignes sous-jacentes sur une nouvelle feuille"
    }
   },
   "c36593733c4bd0a82fb88fb1d8fd88c3f4c020508d53b28995252d7519fd76b6": {
@@ -21238,6 +21227,18 @@
     "fr": "Impression recto verso manuelle : pages impaires, puis paires, avec un message pour retourner la pile"
    }
   },
+  "d04a57cde3a6fcb29f1c73ad14a2c52c49d060d6172d1a07351be59a916f1177": {
+   "drop": false,
+   "en": "Pivot chart tabs (while a pivot chart is selected)",
+   "es": "Pestañas de gráfico dinámico (con un gráfico dinámico seleccionado)",
+   "fr": "Onglets de graphique croisé dynamique (graphique sélectionné)",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "d0982d849a7ffb80b053632caba431b0cda09a891a8025f6ecad374a81ce673c": {
    "drop": false,
    "en": "JeffDeck keeps macros and never runs them. A link opens only when you click it in the show.",
@@ -21356,6 +21357,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "d26d9f2c518b0313c42e2800ba6fab1b1d032a5d5d664806bb813d6d98c98579": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Pivot chart Analyze tab: field buttons, expand and collapse buttons, field list, and refresh, change source, and clear commands",
+    "es": "Pestaña Analizar del gráfico dinámico: botones de campo, botones de expandir y contraer, lista de campos y comandos de actualizar, cambiar origen y borrar",
+    "fr": "Onglet Analyse du graphique croisé dynamique : boutons de champ, boutons développer et réduire, liste des champs et commandes d’actualisation, de changement de source et d’effacement"
    }
   },
   "d319775f3cb92056b352ad44bee47979014d8b408e6de4d907cfbbcd77a975b2": {
@@ -21740,18 +21753,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d86934dcd7639d0844c294ecd2c26f8e466cf936140e1a3965f60111211f3081": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Slicer: buttons that filter a table or pivot table, with insert, connect, style, and multi-select",
-    "es": "Segmentación de datos: botones que filtran una tabla o tabla dinámica, con insertar, conectar, estilo y selección múltiple",
-    "fr": "Segment : boutons qui filtrent un tableau ou un tableau croisé dynamique, avec insertion, connexion, style et sélection multiple"
    }
   },
   "d8836a238b875d2aeecf7835c174775c48a4879c95a87962b19f28daf17ebc84": {
@@ -22306,18 +22307,6 @@
     "fr": ""
    }
   },
-  "e0b81a897d1bc213c3efd1a5d804f0fc783de018cf9916a85394013cc82b8a0a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Pivot chart design and format tabs, same as for other charts",
-    "es": "Pestañas de diseño y formato de gráfico dinámico, iguales que las de otros gráficos",
-    "fr": "Onglets de création et de format du graphique croisé dynamique, comme pour les autres graphiques"
-   }
-  },
   "e13325b23741881ec65606cde3067afd267f48836184675c62ca7d50ddc2272c": {
    "drop": false,
    "en": "In JeffCrunch, you can set a table’s name and change its size, and turn the header row, totals row (with a function for each column), first column, last column, banded rows, banded columns, and filter buttons on or off.",
@@ -22642,16 +22631,16 @@
     "fr": ""
    }
   },
-  "e4c21e2d0f45cf3b6cdfa42b7049a885112a4ffcce1d23033e59c1a4465544b5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
+  "e4a8a370cd0d0c37e850ae8f53103fdf35bbf11aff6b9ef9552b27e7b27fada2": {
+   "drop": false,
+   "en": "The Design tab in JeffCrunch has Subtotals, Grand Totals, Report Layout, Repeat Item Labels, Blank Rows, row and column headers, banded rows and columns, and a gallery of ten styles with Clear Style.",
+   "es": "La pestaña Diseño de JeffCrunch incluye Subtotales, Totales generales, Diseño de informe, Repetir etiquetas de elementos, Filas en blanco, encabezados de fila y de columna, filas y columnas con bandas, y una galería de diez estilos con Borrar estilo.",
+   "fr": "L’onglet Création de JeffCrunch comprend Sous-totaux, Totaux généraux, Disposition du rapport, Répéter les étiquettes d’éléments, Lignes vides, en-têtes de ligne et de colonne, lignes et colonnes à bandes, et une galerie de dix styles avec Effacer le style.",
    "soon": {
     "drop": false,
-    "en": "Timeline tab: caption, report connections, styles, display options, and time level",
-    "es": "Pestaña Escala de tiempo: título, conexiones de informe, estilos, opciones de visualización y nivel de tiempo",
-    "fr": "Onglet Chronologie : légende, connexions de rapport, styles, options d’affichage et niveau de temps"
+    "en": "New pivot table style, and subtotal lines marked in styles",
+    "es": "Nuevo estilo de tabla dinámica y líneas de subtotal marcadas en los estilos",
+    "fr": "Nouveau style de tableau croisé dynamique et lignes de sous-total marquées dans les styles"
    }
   },
   "e4dce1617ce07c55fa52123a929859e2a2d48c5bd74d30ef2cb106463597b1e7": {
@@ -22820,6 +22809,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e6a6781b1880e67e399599dd593ad4dca859d91e116fbe295a8be4daddd9579b": {
+   "drop": false,
+   "en": "Value Field Settings in JeffCrunch sets how to total and a custom name, plus a number format. Show Values As offers percent of grand, column, and row total, index, difference from, percent of, percent difference from, and running total.",
+   "es": "La configuración de campo de valor de JeffCrunch permite elegir cómo totalizar, un nombre personalizado y un formato de número. Mostrar valores como ofrece porcentaje del total general, de columna y de fila, índice, diferencia de, porcentaje de, porcentaje de diferencia de y total acumulado.",
+   "fr": "Les paramètres de champ de valeur de JeffCrunch permettent de choisir le mode de calcul du total, un nom personnalisé et un format de nombre. Afficher les valeurs sous forme de propose pourcentage du total général, de colonne et de ligne, indice, différence par rapport à, pourcentage de, pourcentage de différence par rapport à et total cumulé.",
+   "soon": {
+    "drop": false,
+    "en": "Show Values As: rank and percent of parent total",
+    "es": "Mostrar valores como: clasificación y porcentaje del total principal",
+    "fr": "Afficher les valeurs sous forme de : rang et pourcentage du total parent"
    }
   },
   "e6ab7e3cefef5b7e172099deafda4655a6b462e991266b85219814fa6cdf5fc5": {
@@ -23276,18 +23277,6 @@
     "en": "Chart: insert, edit data in a grid, and change type, elements, layout, style, and colors",
     "es": "Gráfico: insertar, editar los datos en una cuadrícula y cambiar tipo, elementos, diseño, estilo y colores",
     "fr": "Graphique : insertion, modification des données dans une grille, et changement du type, des éléments, de la disposition, du style et des couleurs"
-   }
-  },
-  "ede99a43a6b25faf48140675ec25b092138d549d9bbb5fb08af9e7d5d65fb50c": {
-   "drop": false,
-   "en": "In JeffCrunch, you can refresh one or all pivot tables, keeping the layout and column widths, change the data source (cells, a table, or a name), and clear a pivot table (all, or filters only). Each action is one step of Undo.",
-   "es": "En JeffCrunch, usted puede actualizar una o todas las tablas dinámicas conservando el diseño y el ancho de las columnas, cambiar el origen de datos (celdas, una tabla o un nombre) y borrar una tabla dinámica (todo, o solo los filtros). Cada acción es un paso de Deshacer.",
-   "fr": "Dans JeffCrunch, vous pouvez actualiser un ou tous les tableaux croisés dynamiques en conservant la disposition et la largeur des colonnes, changer la source de données (cellules, tableau ou nom) et effacer un tableau croisé dynamique (tout, ou seulement les filtres). Chaque action correspond à une étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Pivot table refresh when the file opens, move, and select",
-    "es": "Actualización de tablas dinámicas al abrir el archivo, mover y seleccionar",
-    "fr": "Actualisation des tableaux croisés dynamiques à l’ouverture du fichier, déplacement et sélection"
    }
   },
   "ee422eeb40c0d66b0025dd8625c381c8c1c2ebf5c5facdca2b2c75fb39aab37c": {
@@ -24344,6 +24333,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "fd14d6e639855db7ff62a2f5b508409ec8774653c1213e763e92a10f19b0980a": {
+   "drop": false,
+   "en": "JeffCrunch reads a timeline’s caption, span, and style, the field and tables it filters, and applies the choice to a table’s items.",
+   "es": "JeffCrunch lee el título, el intervalo y el estilo de una escala de tiempo, el campo y las tablas que filtra, y aplica la selección a los elementos de una tabla.",
+   "fr": "JeffCrunch lit la légende, la période et le style d’une chronologie, le champ et les tableaux qu’elle filtre, et applique le choix aux éléments d’un tableau.",
+   "soon": {
+    "drop": false,
+    "en": "Timeline tab: show on the sheet, click, connect to more tables, and save",
+    "es": "Pestaña Escala de tiempo: mostrar en la hoja, hacer clic, conectar con más tablas y guardar",
+    "fr": "Onglet Chronologie : affichage sur la feuille, clic, connexion à d’autres tableaux et enregistrement"
    }
   },
   "fd4f5d4321ed4ca4455b44d2dc6f7e9080989152695afdd4fa782ba751a764c7": {
