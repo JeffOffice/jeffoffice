@@ -9,6 +9,10 @@
 #include "core/appinfo.h"
 #include "core/editops.h"
 #include "core/fonts.h"
+#include "core/pdfbookmarks.h"
+#include "render/pdfpage.h"
+#include "office/package.h"
+#include "office/packageprops.h"
 #include "core/writedoc.h"
 
 #include <QAction>
@@ -16,7 +20,11 @@
 #include <QComboBox>
 #include <QLineEdit>
 #include <QSpinBox>
+#include <QBuffer>
+#include <QFile>
 #include <QFileInfo>
+#include <QPainter>
+#include <QPdfWriter>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -43,6 +51,44 @@ struct Quiet {
     Quiet(WriteWindow &w) { w.setNotifier([this](const QString &, const QString &text) { said << text; }); }
     QStringList said;
 };
+
+const char kNs[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+const QString kRel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+const QString kWord = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+
+// A .docx with two heading levels (and Normal) whose body is the given paragraphs.
+QByteArray headingsDocx(const QByteArray &body)
+{
+    office::PackageWriter w;
+    w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>",
+              kWord + QStringLiteral("document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), kRel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addPart(QStringLiteral("/word/styles.xml"),
+              QByteArray("<?xml version=\"1.0\"?><w:styles ") + kNs +
+                  "><w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                  "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr></w:style>"
+                  "<w:style w:type=\"paragraph\" w:styleId=\"Heading2\"><w:name w:val=\"heading 2\"/><w:pPr><w:outlineLvl w:val=\"1\"/></w:pPr></w:style></w:styles>",
+              kWord + QStringLiteral("styles+xml"));
+    w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+    return w.finish();
+}
+
+QByteArray para(const char *style, const char *text)
+{
+    return QByteArray("<w:p>") + (style ? QByteArray("<w:pPr><w:pStyle w:val=\"") + style + "\"/></w:pPr>" : QByteArray()) + "<w:r><w:t>" + text + "</w:t></w:r></w:p>";
+}
+
+const char kPageBreak[] = "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>";
+
+QByteArray utf16Hex(const QString &t)
+{
+    QByteArray b("\xFE\xFF", 2);
+    for (const QChar c : t) {
+        b.append(char(c.unicode() >> 8));
+        b.append(char(c.unicode() & 0xFF));
+    }
+    return b.toHex().toUpper();
+}
 
 void moveTo(WriteWindow &w, int pos)
 {
@@ -245,6 +291,75 @@ private Q_SLOTS:
         Settings::get().setValue(QStringLiteral("save/format"), QStringLiteral("docx"));
         Settings::get().setValue(QStringLiteral("dirs/default"), QString());
         Settings::get().setValue(QStringLiteral("save/autoRecoverMinutes"), 10);
+    }
+
+    void bookmarksAreAddedToAPdfAndItStillOpens()
+    {
+        QBuffer buf;
+        buf.open(QIODevice::WriteOnly);
+        {
+            QPdfWriter pdf(&buf);
+            pdf.setPageSize(QPageSize(QPageSize::Letter));
+            QPainter p(&pdf);
+            for (int i = 0; i < 3; ++i) {
+                if (i) pdf.newPage();
+                p.drawText(100, 200, QStringLiteral("page %1").arg(i));
+            }
+        }
+        const QByteArray plain = buf.data();
+        const QVector<PdfBookmark> marks{{QStringLiteral("Intro"), 0, 0}, {QStringLiteral("Part A"), 1, 1}, {QStringLiteral("Caf\u00E9"), 1, 2}, {QStringLiteral("End"), 0, 2}};
+        const QByteArray out = addPdfBookmarks(plain, marks);
+        // an update at the end: the pages are as they were, and the file still opens with all its pages
+        QVERIFY(out.size() > plain.size());
+        QVERIFY(out.startsWith(plain));
+        auto doc = PdfDocument::shared(out);
+        QVERIFY(doc);
+        QCOMPARE(doc->pageCount(), 3);
+        QVERIFY(out.contains("/Type /Outlines"));
+        QVERIFY(out.contains("/PageMode /UseOutlines"));
+        for (const PdfBookmark &m : marks) QVERIFY2(out.contains(utf16Hex(m.title)), qPrintable(m.title));
+        // Intro holds Part A and Cafe: it shows two below it; the outline shows all four
+        QVERIFY(out.contains("/Count 4"));
+        QVERIFY(out.contains("/Count 2"));
+        // a PDF that has an outline, or no marks to add, is left alone
+        QCOMPARE(addPdfBookmarks(out, marks), out);
+        QCOMPARE(addPdfBookmarks(plain, {}), plain);
+        QCOMPARE(addPdfBookmarks(QByteArray("not a pdf"), marks), QByteArray("not a pdf"));
+        QVERIFY(addPdfBookmarks(plain.left(plain.size() - 30), marks).size() <= plain.size());   // (a cut-off file is not extended)
+    }
+
+    void exportedPdfHasBookmarksFromHeadingsAndTheDocumentProperties()
+    {
+        QTemporaryDir dir;
+        const QString docx = dir.filePath(QStringLiteral("h.docx"));
+        QByteArray body = para("Heading1", "First part") + para(nullptr, "text") + para("Heading2", "Sub part") + kPageBreak + para("Heading1", "Second part") + para(nullptr, "more");
+        {
+            QFile f(docx);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(headingsDocx(body));
+        }
+        WriteWindow w;
+        Quiet quiet(w);
+        QVERIFY(w.openFile(docx));
+        office::PackageProps props = w.document()->packageProps();
+        props.title = QStringLiteral("A Report");
+        props.creator = QStringLiteral("An Author");
+        props.keywords = QStringLiteral("alpha, beta");
+        w.document()->setPackageProps(props);
+        const QString pdfPath = dir.filePath(QStringLiteral("h.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return pdfPath; });
+        QVERIFY(w.exportPdf());
+        QFile f(pdfPath);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray pdf = f.readAll();
+        QVERIFY(pdf.contains("/Type /Outlines"));
+        QVERIFY(pdf.contains(utf16Hex(QStringLiteral("First part"))));
+        QVERIFY(pdf.contains(utf16Hex(QStringLiteral("Sub part"))));
+        QVERIFY(pdf.contains(utf16Hex(QStringLiteral("Second part"))));
+        QVERIFY(pdf.contains("An Author"));
+        QVERIFY(pdf.contains("alpha, beta"));
+        QVERIFY(pdf.contains("A Report"));
+        QCOMPARE(PdfDocument::shared(pdf)->pageCount(), 2);
     }
 };
 

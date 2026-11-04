@@ -112,6 +112,19 @@ QVector<int> sectionStarts(WriteDoc &doc, int limit)
 
 qint64 goToBlocksVisitedForTest() { return g_blocksVisited; }
 
+QVector<OutlineHeading> outlineHeadings(WriteDoc &doc)
+{
+    QVector<OutlineHeading> out;
+    const int limit = editableEnd(doc.story());
+    for (QTextBlock b = doc.story()->begin(); b.isValid() && b.position() < limit && out.size() < kMostGoToItems; b = b.next()) {
+        if (!isHeading(b)) continue;
+        const QString t = headingText(b);
+        if (t.isEmpty()) continue;
+        out.push_back({t, b.position(), b.blockFormat().intProperty(prop::Outline)});
+    }
+    return out;
+}
+
 QVector<GoToItem> goToItems(WriteDoc &doc, GoToKind kind)
 {
     QVector<GoToItem> out;

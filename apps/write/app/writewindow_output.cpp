@@ -6,9 +6,12 @@
 #include "app/pageoutput.h"
 #include "app/pageview.h"
 #include "core/appinfo.h"
+#include "core/pdfbookmarks.h"
 #include "core/printing.h"
+#include "office/packageprops.h"
 
 #include <QApplication>
+#include <QBuffer>
 #include <QDir>
 #include <QFileInfo>
 #include <QMessageBox>
@@ -87,16 +90,24 @@ bool WriteWindow::exportPdf()
     QSaveFile file(path);
     if (ok) ok = file.open(QIODevice::WriteOnly);
     if (ok) {
+        // The pages are made in memory: the bookmarks from the headings are added to the finished file.
+        QBuffer made;
+        made.open(QIODevice::WriteOnly);
         {
-            QPdfWriter pdf(&file);
+            QPdfWriter pdf(&made);
             pdf.setCreator(appInfo().name);
-            pdf.setTitle(displayName());
+            const office::PackageProps props = m_doc->packageProps();
+            const QString title = props.title.isEmpty() ? displayName() : props.title;
+            pdf.setTitle(title);
+            pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved ? QString() : props.creator, props.subject, props.keywords, appInfo().name));
             pdf.setResolution(1200);
             pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
             ok = write::paintSheets(*m_doc, &pdf, pages, m_view->pageCount());
         }
-        if (ok) ok = file.commit();
-        else file.cancelWriting();
+        if (ok) {
+            const QByteArray bytes = write::addPdfBookmarks(made.data(), write::headingBookmarks(*m_doc, pages));
+            ok = file.write(bytes) == bytes.size() && file.commit();
+        } else file.cancelWriting();
     }
     if (!ok) err = file.error() != QFileDevice::NoError ? file.errorString() : tr("The pages can't be made.");
     QApplication::restoreOverrideCursor();
