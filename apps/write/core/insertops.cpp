@@ -1,9 +1,13 @@
 #include "core/insertops.h"
 
 #include "core/editops.h"
+#include "core/fieldops.h"
+#include "core/refops.h"
+#include "core/tableops.h"
 #include "core/writedoc.h"
 
 #include <QCoreApplication>
+#include <QDate>
 #include <QLocale>
 #include <QTextCursor>
 #include <memory>
@@ -28,6 +32,96 @@ void insertBlankPage(WriteDoc &doc, QTextCursor &c)
     const WriteDoc::StepGroup group(doc);
     insertPageBreak(doc, c);
     insertPageBreak(doc, c);
+}
+
+namespace {
+const QString kCoverMark = QStringLiteral("_JeffWriteCoverPage");
+
+BookmarkSpan coverSpan(WriteDoc &doc)
+{
+    const StoryScan scan = scanStory(doc.story());
+    const auto found = scan.bookmarkByName.constFind(kCoverMark.toLower());
+    return found == scan.bookmarkByName.constEnd() ? BookmarkSpan() : scan.bookmarks[found.value()];
+}
+}
+
+bool hasCoverPage(WriteDoc &doc)
+{
+    const BookmarkSpan s = coverSpan(doc);
+    return s.start >= 0 && s.end > s.start;
+}
+
+bool removeCoverPage(WriteDoc &doc)
+{
+    const BookmarkSpan s = coverSpan(doc);
+    if (s.start < 0 || s.end <= s.start) return false;
+    const WriteDoc::StepGroup group(doc);
+    QTextCursor c(doc.story());
+    c.setPosition(s.start);
+    // (To the start of the paragraph after the one the cover ends in: its paragraph mark goes with it.)
+    const QTextBlock last = doc.story()->findBlock(s.end);
+    c.setPosition(std::min(last.position() + last.length(), editableEnd(doc.story())), QTextCursor::KeepAnchor);
+    removeSelection(doc, c);
+    return true;
+}
+
+bool insertCoverPage(WriteDoc &doc, CoverDesign design, QString *problem)
+{
+    QTextDocument *story = doc.story();
+    if (inTable(story->begin())) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::CoverPage", "A cover page can't go before a table at the very start of the document. Put a paragraph before the table first.");
+        return false;
+    }
+    const WriteDoc::StepGroup group(doc);
+    removeCoverPage(doc);
+    struct Look {
+        double size, before, after;
+        bool bold;
+        QColor color;
+        Qt::Alignment align;
+    };
+    const QColor accent(0x1D, 0x55, 0xC4), gray(0x59, 0x59, 0x59), ink(0x20, 0x20, 0x20);
+    Look looks[4];
+    switch (design) {
+    case CoverDesign::Classic:
+        looks[0] = {36, 180, 12, true, accent, Qt::AlignHCenter};
+        looks[1] = {18, 0, 160, false, gray, Qt::AlignHCenter};
+        looks[2] = {14, 0, 4, false, ink, Qt::AlignHCenter};
+        looks[3] = {12, 0, 0, false, gray, Qt::AlignHCenter};
+        break;
+    case CoverDesign::Band:
+        looks[0] = {44, 200, 6, true, accent, Qt::AlignLeft};
+        looks[1] = {20, 0, 200, false, gray, Qt::AlignLeft};
+        looks[2] = {13, 0, 2, true, ink, Qt::AlignLeft};
+        looks[3] = {12, 0, 0, false, gray, Qt::AlignLeft};
+        break;
+    case CoverDesign::Plain:
+        looks[0] = {28, 72, 6, true, ink, Qt::AlignLeft};
+        looks[1] = {14, 0, 72, false, gray, Qt::AlignLeft};
+        looks[2] = {12, 0, 2, false, ink, Qt::AlignLeft};
+        looks[3] = {11, 0, 0, false, gray, Qt::AlignLeft};
+        break;
+    }
+    const QString lines[4] = {QCoreApplication::translate("jp::write::CoverPage", "Document Title"), QCoreApplication::translate("jp::write::CoverPage", "Subtitle"),
+                              QCoreApplication::translate("jp::write::CoverPage", "Author Name"), QLocale().toString(QDate::currentDate(), QStringLiteral("MMMM d, yyyy"))};
+    QTextCursor c(story);
+    c.setPosition(0);
+    // (The page break is the last character of the date's paragraph: what follows goes to the next page, with no empty paragraph before it.)
+    insertText(doc, c, lines[0] + QLatin1Char('\n') + lines[1] + QLatin1Char('\n') + lines[2] + QLatin1Char('\n') + lines[3] + QString(flow::kPageBreak) + QLatin1Char('\n'));
+    for (int i = 0; i < 4; ++i) {
+        QTextCursor sel(story);
+        sel.setPosition(story->findBlockByNumber(i).position());
+        sel.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        setFontSize(doc, sel, looks[i].size);
+        if (looks[i].bold) toggleBold(doc, sel);
+        setTextColor(doc, sel, looks[i].color);
+        setAlignment(doc, sel, looks[i].align);
+        setSpacing(doc, sel, looks[i].before, looks[i].after);
+    }
+    QTextCursor all(story);
+    all.setPosition(0);
+    all.setPosition(story->findBlockByNumber(3).position() + story->findBlockByNumber(3).length() - 1, QTextCursor::KeepAnchor);
+    return addBookmark(doc, all, kCoverMark, problem, true);
 }
 
 bool insertTextFromFile(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, QString *problem)

@@ -17,6 +17,7 @@
 #include "core/editops.h"
 #include "core/fieldops.h"
 #include "core/indexops.h"
+#include "core/insertops.h"
 #include "core/linkops.h"
 #include "core/mergeops.h"
 #include "core/tocops.h"
@@ -432,6 +433,11 @@ private Q_SLOTS:
                  QTextCursor inside(doc->story());
                  inside.setPosition(2);
                  asWrite(w)->view()->setCursor(inside);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a cover page"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::insertCoverPage(*asWrite(w)->document(), write::CoverDesign::Classic);
                  asWrite(w)->refreshNow();
              }, false},
             {QStringLiteral("a page color"), [typed](AppWindow *w, bool f) {

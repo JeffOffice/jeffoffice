@@ -3,9 +3,14 @@
 #include "app/writedialogs.h"
 
 #include "app/widgets.h"
+#include "core/editops.h"
+#include "core/fieldops.h"
 #include "core/layoutops.h"
+#include "app/pageview.h"
 
 #include <QCheckBox>
+#include <QDateTime>
+#include <QListWidget>
 #include <QColorDialog>
 #include <QComboBox>
 #include <QCoreApplication>
@@ -315,6 +320,52 @@ bool pageBordersDialog(QWidget *parent, WriteDoc *doc, int section)
     after.fromPage = from->currentIndex() == 1;
     after.display = show->currentData().toString();
     return applyToSections(*doc, section, scope->currentIndex() == 1, [after](office::wml::SectionProps *p) { setPageBorders(p, after); }) > 0;
+}
+
+bool dateTimeDialog(QWidget *parent, WriteDoc *doc, PageView *view)
+{
+    if (!doc || !view) return false;
+    struct Form {
+        const char *picture, *qt;   // the field's date picture, and the same for Qt
+        bool time;
+    };
+    static const Form forms[] = {{"M/d/yyyy", "M/d/yyyy", false}, {"dddd, MMMM d, yyyy", "dddd, MMMM d, yyyy", false}, {"MMMM d, yyyy", "MMMM d, yyyy", false},
+                                 {"d MMMM yyyy", "d MMMM yyyy", false}, {"yyyy-MM-dd", "yyyy-MM-dd", false}, {"MMM d, yyyy", "MMM d, yyyy", false},
+                                 {"M/d/yyyy h:mm AM/PM", "M/d/yyyy h:mm AP", true}, {"h:mm AM/PM", "h:mm AP", true}, {"HH:mm", "HH:mm", true}, {"HH:mm:ss", "HH:mm:ss", true}};
+    const QDateTime now = QDateTime::currentDateTime();
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("dateTimeDialog"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::LayoutDialogs", "Date and Time"));
+    auto *v = new QVBoxLayout(&dlg);
+    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::LayoutDialogs", "Available formats:"), &dlg));
+    auto *list = new QListWidget(&dlg);
+    list->setObjectName(QStringLiteral("formats"));
+    for (const Form &f : forms) {
+        auto *item = new QListWidgetItem(now.toString(QLatin1String(f.qt)), list);
+        item->setData(Qt::UserRole, QString::fromLatin1(f.picture));
+        item->setData(Qt::UserRole + 1, QString::fromLatin1(f.qt));
+        item->setData(Qt::UserRole + 2, f.time);
+    }
+    list->setCurrentRow(0);
+    v->addWidget(list);
+    auto *update = new QCheckBox(QCoreApplication::translate("jp::write::LayoutDialogs", "Update automatically"), &dlg);
+    update->setObjectName(QStringLiteral("update"));
+    update->setChecked(true);
+    v->addWidget(update);
+    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    v->addWidget(bb);
+    QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    QObject::connect(list, &QListWidget::itemDoubleClicked, &dlg, &QDialog::accept);
+    if (dlg.exec() != QDialog::Accepted || !list->currentItem()) return false;
+    const QListWidgetItem *chosen = list->currentItem();
+    QTextCursor &c = view->cursor();
+    const WriteDoc::StepGroup group(*doc);
+    if (update->isChecked())
+        return insertField(*doc, c, QStringLiteral("%1 \\@ \"%2\"").arg(chosen->data(Qt::UserRole + 2).toBool() ? QStringLiteral("TIME") : QStringLiteral("DATE"), chosen->data(Qt::UserRole).toString()),
+                           QDateTime::currentDateTime().toString(chosen->data(Qt::UserRole + 1).toString()));
+    insertText(*doc, c, QDateTime::currentDateTime().toString(chosen->data(Qt::UserRole + 1).toString()));
+    return true;
 }
 
 } // namespace jp::write

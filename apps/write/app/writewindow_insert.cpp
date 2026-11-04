@@ -80,6 +80,34 @@ void WriteWindow::createInsertActions()
             edit([ch](write::WriteDoc &d, QTextCursor &c) { write::insertText(d, c, ch); });
         });
     }
+    struct Cover {
+        const char *id;
+        const char *text;
+        write::CoverDesign design;
+    };
+    static const Cover covers[] = {{"classic", QT_TR_NOOP("Classic"), write::CoverDesign::Classic}, {"band", QT_TR_NOOP("Band"), write::CoverDesign::Band},
+                                   {"plain", QT_TR_NOOP("Plain"), write::CoverDesign::Plain}};
+    for (const Cover &cover : covers) {
+        const write::CoverDesign design = cover.design;
+        mk(QStringLiteral("insert.cover.") + QLatin1String(cover.id), QCoreApplication::translate("jp::WriteWindow", cover.text), "file-text", QKeySequence(), [this, design] {
+            if (!m_doc || refuseIfReadOnly()) return;
+            QString why;
+            m_view->leaveHeaderFooter();
+            m_view->leaveNote();
+            if (!write::insertCoverPage(*m_doc, design, &why)) statusBar()->showMessage(why, 8000);
+            m_view->setFocus(Qt::OtherFocusReason);
+        });
+    }
+    mk("insert.cover.remove", tr("Remove Current Cover Page"), "trash-2", QKeySequence(), [this] {
+        if (!m_doc || refuseIfReadOnly()) return;
+        write::removeCoverPage(*m_doc);
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("insert.dateTime", tr("Date & Time…"), "calendar-clock", QKeySequence(), [this] {
+        if (!m_doc || refuseIfReadOnly()) return;
+        write::dateTimeDialog(this, m_doc.get(), m_view);
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
     mk("insert.textFromFile", tr("Text from File…"), "file-input", QKeySequence(), [this] {
         if (!m_doc || refuseIfReadOnly()) return;
         QString path;
@@ -183,6 +211,9 @@ void WriteWindow::refreshInsertUi()
 {
     // A header, a footer, or a note has no pages to break (nor a blank page); the characters go in any text.
     const bool pages = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
+    for (const char *id : {"insert.cover.classic", "insert.cover.band", "insert.cover.plain"}) act(QString::fromLatin1(id))->setEnabled(m_doc != nullptr);
+    act("insert.cover.remove")->setEnabled(m_doc && write::hasCoverPage(*m_doc));
+    act("insert.dateTime")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
     act("insert.textFromFile")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
     act("insert.hyperlink")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
     act("insert.removeHyperlink")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote() && write::hyperlinkAt(*m_doc, m_view->cursor().position()).valid());

@@ -657,6 +657,70 @@ private Q_SLOTS:
         QVERIFY(win.w.ruler()->isVisible());
     }
 
+    // ---------------------------------------------------------------- Insert > Date & Time
+    void theDateAndTimeDialogPutsInFixedTextOrAFieldThatUpdates()
+    {
+        Win win;
+        QVERIFY(win.w.act("insert.dateTime"));
+        const QString format = QStringLiteral("MMMM d, yyyy");
+        withDialog([&] { win.w.act("insert.dateTime")->trigger(); }, QStringLiteral("dateTimeDialog"), [&](QDialog *dlg) {
+            auto *formats = dlg->findChild<QListWidget *>(QStringLiteral("formats"));
+            QVERIFY(formats && formats->count() >= 5);
+            int row = -1;
+            for (int i = 0; i < formats->count(); ++i)
+                if (formats->item(i)->data(Qt::UserRole).toString() == format) row = i;
+            QVERIFY(row >= 0);
+            formats->setCurrentRow(row);
+            dlg->findChild<QCheckBox *>(QStringLiteral("update"))->setChecked(false);
+        });
+        QVERIFY2(win.text().contains(QDate::currentDate().toString(format)), qPrintable(win.text()));
+        QVERIFY(!documentXml(win.w.document()->toDocx()).contains("DATE"));
+        win.w.document()->undo();
+        QCOMPARE(win.text(), QStringLiteral("Hello"));
+        withDialog([&] { win.w.act("insert.dateTime")->trigger(); }, QStringLiteral("dateTimeDialog"), [&](QDialog *dlg) {
+            auto *formats = dlg->findChild<QListWidget *>(QStringLiteral("formats"));
+            for (int i = 0; i < formats->count(); ++i)
+                if (formats->item(i)->data(Qt::UserRole).toString() == format) formats->setCurrentRow(i);
+            QVERIFY(dlg->findChild<QCheckBox *>(QStringLiteral("update"))->isChecked());
+        });
+        const QByteArray out = documentXml(win.w.document()->toDocx());
+        QVERIFY2(out.contains("DATE") && out.contains("MMMM d, yyyy"), out.constData());
+        QVERIFY2(out.contains(QDate::currentDate().toString(format).toUtf8()), "the field has no result");   // (a field is one character of the text, and its result is what the file keeps)
+    }
+
+    // ---------------------------------------------------------------- Insert > Cover Page
+    void aCoverPageIsPutBeforeTheTextOnAPageOfItsOwnAndTakenOffAgain()
+    {
+        Win win({"Body text"});
+        auto shown = [&] { return win.text().remove(QChar::ObjectReplacementCharacter); };   // (without the marks of the cover's bookmark)
+        for (const char *id : {"insert.cover.classic", "insert.cover.band", "insert.cover.plain", "insert.cover.remove"}) QVERIFY2(win.w.act(QString::fromLatin1(id)), id);
+        QVERIFY(!win.w.act("insert.cover.remove")->isEnabled());
+        win.w.act("insert.cover.classic")->trigger();
+        QTRY_COMPARE(win.w.view()->pageCount(), 2);
+        QVERIFY(shown().startsWith(QStringLiteral("Document Title\nSubtitle\n")));
+        QVERIFY(shown().contains(QChar(0x000C)));
+        QVERIFY(shown().endsWith(QStringLiteral("Body text")));
+        QVERIFY(win.w.document()->story()->begin().blockFormat().alignment() & Qt::AlignHCenter);
+        QVERIFY(write::hasCoverPage(*win.w.document()));
+        QTRY_VERIFY(win.w.act("insert.cover.remove")->isEnabled());
+        // It is kept in the file, and found again there.
+        auto again = open(win.w.document()->toDocx());
+        QVERIFY(again && write::hasCoverPage(*again));
+        // Another design takes the place of the first (one cover, one step).
+        win.w.act("insert.cover.band")->trigger();
+        QCOMPARE(shown().count(QStringLiteral("Document Title")), 1);
+        QVERIFY(!(win.w.document()->story()->begin().blockFormat().alignment() & Qt::AlignHCenter));
+        win.w.document()->undo();
+        QVERIFY(win.w.document()->story()->begin().blockFormat().alignment() & Qt::AlignHCenter);
+        QCOMPARE(shown().count(QStringLiteral("Document Title")), 1);
+        win.w.act("insert.cover.remove")->trigger();
+        QCOMPARE(shown(), QStringLiteral("Body text"));
+        QVERIFY(!write::hasCoverPage(*win.w.document()));
+        QTRY_COMPARE(win.w.view()->pageCount(), 1);
+        win.w.document()->undo();
+        QVERIFY(shown().startsWith(QStringLiteral("Document Title")));
+    }
+
     // ---------------------------------------------------------------- review round: links
     void aLinkShowsItsRealTargetAndScreenTipWhenHoveredOver()
     {

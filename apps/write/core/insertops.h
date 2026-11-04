@@ -14,6 +14,13 @@ void insertSymbol(WriteDoc &doc, QTextCursor &c, const QString &symbol, const QS
 // A whole empty page at the caret: the page ends at the caret, the next page is empty, and the text that followed goes on the page after it; one step of the history.
 void insertBlankPage(WriteDoc &doc, QTextCursor &c);
 
+// Cover pages: an original design (a title, a subtitle, an author, and the date, on a page of their own before the text, as ordinary paragraphs to be written over), put in at the start
+// of the text as one step that undoes. A document has one: a new one takes the place of the one there. The cover is the text of a hidden bookmark, which is how it is found again, in the file too.
+enum class CoverDesign { Classic, Band, Plain };
+bool hasCoverPage(WriteDoc &doc);
+bool insertCoverPage(WriteDoc &doc, CoverDesign design, QString *problem = nullptr);
+bool removeCoverPage(WriteDoc &doc);
+
 // The most a file inserted as text may be (bytes).
 constexpr qint64 kMostInsertedFile = qint64(64) << 20;
 // The most paragraphs (lines of a plain text file) it puts in.

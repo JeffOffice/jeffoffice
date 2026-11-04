@@ -196,7 +196,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 
 ### Pages
 - [x] **first release** Page Break (Ctrl+Enter) and Blank Page *(page breaks: ours 26%, public 38%)* *(round 9: Insert > Blank Page puts a whole empty page at the caret, in one step that undoes)*
-- [ ] **1.0** Cover Page gallery of built-in designs, Remove Current Cover Page, and saving your own
+- [~] **1.0** Cover Page gallery of built-in designs, Remove Current Cover Page, and saving your own *(round 9: Insert > Cover Page has three designs of our own (Classic, Band, and Plain), each a title, subtitle, author, and date on a page of their own as ordinary paragraphs, one cover to a document, in one step that undoes; Remove Current Cover Page; the cover is a hidden bookmark, so it is found again in the file; saving your own is not there)*
 
 ### Tables
 - [x] **first release** Insert Table from the grid or the dialog (columns, rows, fixed or auto width, remember the size); everything else is under Table tools; drawing a table is its own line below *(tables: ours 20%, public 42%)* *(shared: JeffPub's tables)* *(beta wave B: Insert > Table has the grid to point at and Insert Table…, a table of Table Grid style at the cursor, one step to undo, written so that the file opens the same)*
@@ -229,7 +229,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **1.0** Building blocks: AutoText, Document Property, Field, the Building Blocks Organizer, and saving a selection to a gallery, as the galleries for cover pages, headers, footers, equations, tables, and watermarks use *(glossary parts: ours <1%, public 0%; POI 9%)*
 - [~] **1.0** WordArt: styles, fill, outline, and effects, and text shapes (warps) *(shared: libs/draw text art)*
 - [ ] **1.0** Drop Cap: dropped or in the margin, lines high, distance from text, and font
-- [~] **1.0** Date & Time: formats and languages, updated automatically or fixed *(DATE field: ours 1%, public 2%)* *(beta wave F: Insert > Field puts a DATE or TIME field with a date picture, worked out and updated with F9; not a Date and Time dialog or languages)*
+- [~] **1.0** Date & Time: formats and languages, updated automatically or fixed *(DATE field: ours 1%, public 2%)* *(round 9: Insert > Date & Time lists ten formats of the date and time, put in as a field that updates or as fixed text, in one step that undoes; not languages) *(beta wave F: Insert > Field puts a DATE or TIME field with a date picture, worked out and updated with F9; not a Date and Time dialog or languages)*
 - [~] **1.0** Text from File: insert another document's text (`.docx`, `.doc`, `.rtf`, `.odt`, or plain text), or a bookmarked part of it *(shared: JeffPub's Insert File)* *(round 9: Insert > Text from File puts a document's text in with its looks, pictures, and links, or a plain text file as paragraphs, in one step that undoes; not a bookmarked part of it)*
 - [ ] **later** Signature Line: a drawn line for a name and title, signed digitally when digital signatures exist
 - [ ] **later** Object: embed or link an object made by another program (OLE on Windows; on other systems the picture and the data are kept and written back) *(OLE objects: ours 1%, public 10%)*

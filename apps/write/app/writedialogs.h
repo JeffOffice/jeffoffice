@@ -29,6 +29,9 @@ bool columnsDialog(QWidget *parent, WriteDoc *doc, int section);
 bool lineNumbersDialog(QWidget *parent, WriteDoc *doc, int section);
 // Page Borders: which sides, the line (style, width, color), its distance, where it is measured from, and the pages that have it; for the section or the whole document.
 bool pageBordersDialog(QWidget *parent, WriteDoc *doc, int section);
+// Date and Time: a list of ways to write today's date and the time, put in as the text of the moment or as a field that updates (F9, and when the document is opened). Returns whether the
+// text was changed.
+bool dateTimeDialog(QWidget *parent, WriteDoc *doc, PageView *view);
 // Hyperlink: the address (a web or email address) or the bookmark a link goes to, the words it shows, and a screen tip; for a link the caret is in it edits, and Remove Link takes it off.
 // OK stays open, saying why, until the link can be made. Returns whether the text was changed.
 bool linkDialog(QWidget *parent, WriteDoc *doc, PageView *view);

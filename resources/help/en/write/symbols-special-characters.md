@@ -1,5 +1,5 @@
 # Put in symbols and special characters
-<!-- keywords: symbol, symbols, special characters, character map, omega, nonbreaking space, nonbreaking hyphen, optional hyphen, soft hyphen, en dash, em dash, en space, em space, quotation marks, curly quotes, line break, no-width, zero width, blank page, insert symbol, unicode -->
+<!-- keywords: cover page, cover, title page, date, time, date and time, symbol, symbols, special characters, character map, omega, nonbreaking space, nonbreaking hyphen, optional hyphen, soft hyphen, en dash, em dash, en space, em space, quotation marks, curly quotes, line break, no-width, zero width, blank page, insert symbol, unicode -->
 
 A **symbol** is a character that is not on your keyboard, like the Greek letter omega or an arrow. A **special character** is one that the page treats in a certain way, like a space that never breaks across two lines.
 
@@ -30,3 +30,11 @@ Turn on **Home > Show/Hide** to see the marks for these in your text.
 ## A blank page
 
 **Insert > Blank Page** puts a whole empty page where the caret is. The text before it stays on its page, and the text after it moves to the page after the blank one. Undo takes it away in one step.
+
+## A cover page
+
+**Insert > Cover Page** puts a cover on a page of its own before your text. Pick a design: **Classic**, **Band**, or **Plain**. Click each line (the title, the subtitle, the author, and the date) and type over it. A document has one cover: picking another design takes the place of the first. **Remove Current Cover Page** takes it away. Undo brings it back.
+
+## The date and time
+
+**Insert > Date & Time** lists ways to write today's date and the time. Pick one. With **Update automatically** ticked, it goes in as a field, which shows the new date each time you press F9 or open the document. With it off, it goes in as plain words that stay as they are.

@@ -261,6 +261,21 @@
           "keytip": "ZG",
           "items": [
             {
+              "large": {
+                "id": "ribbon.cover",
+                "text": "Cover Page",
+                "icon": "book-open"
+              },
+              "keytip": "CP",
+              "menu": [
+                "insert.cover.classic",
+                "insert.cover.band",
+                "insert.cover.plain",
+                "-",
+                "insert.cover.remove"
+              ]
+            },
+            {
               "large": "insert.blankPage",
               "keytip": "BL"
             },
@@ -317,6 +332,10 @@
             {
               "large": "insert.textFromFile",
               "keytip": "TF"
+            },
+            {
+              "large": "insert.dateTime",
+              "keytip": "DT"
             }
           ]
         },
