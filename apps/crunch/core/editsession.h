@@ -791,6 +791,9 @@ public:
     Outcome clearCondRules(int sheet, const jp::office::sheet::CellRange &range);
     // (what a step of the rules does, and what the save puts in the file)
     void setCondRules(int sheet, const QVector<jp::office::sheet::CondRule> &rules);
+    // How many times the file was saved with rules of conditional formatting (a step of the rules made before that has nothing it may put back).
+    int condEpoch() const { return m_condEpoch; }
+    void condBook(int sheet, int shift, const std::set<int> &removed, bool on);
     void rememberDxf(const jp::office::sheet::DifferentialFormat &format);
     void forgetDxf(qint32 place);
     // Why the rules of the sheet are not changed (empty when they may be).
@@ -1050,6 +1053,9 @@ private:
     qint64 m_undoByteLimit = kUndoBytes;
     QLocale m_locale;
     QList<QStringList> m_customLists;
+    int m_condEpoch = 0;
+    std::map<int, int> m_condShift;               // by sheet: the rules made since the file was read or saved (the file's priorities are that much more)
+    std::map<int, std::set<int>> m_condRemoved;   // by sheet: the file's rules taken away, by their priority in the file
     std::map<int, bool> m_condWhole;   // by sheet: whether the file's rules are all held whole (looked at once)
     std::set<int> m_condTouched;   // the sheets whose rules differ from the file's
     QHash<QString, QPair<int, int>> m_customIndex;   // each item (in lower case) to its list and its place in it

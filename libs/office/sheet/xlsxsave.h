@@ -10,6 +10,9 @@
 // on: nothing here reads the workbook's cells.
 
 #include "office/package.h"
+
+#include <map>
+#include <set>
 #include "sheet/drawingadd.h"
 #include "sheet/drawingsave.h"
 #include "sheet/links.h"
@@ -28,6 +31,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <set>
 #include <vector>
 
 namespace jp::office::sheet {
@@ -115,10 +119,14 @@ struct SheetChanges {
     bool hfSet = false;
     QString hfRel;
     // The sparklines the sheet has now, when a person changed them: the extension that holds them is made from these in place of the file's (none left: it is taken out).
-    // The rules of conditional formatting the sheet has now, when a person made or cleared some: the `conditionalFormatting` elements of the file are taken out and these written in their
-    // place (the differential formats they name are in `newDxfs` or the file's). A sheet whose file has the 2010 extension forms of data bars is not changed this way.
-    bool replaceCondFormats = false;
-    QVector<CondRule> condFormats;
+    // Rules of conditional formatting a person made or cleared. The file's own elements stay as they are, byte for byte, but for their priorities (each is the one the file gave it, which names the
+    // rule, plus `condShift`), the cells of a rule that was trimmed, and the rules taken away (`condRemoved`, by priority in the file, with the 2010 entries that go with them); the rules made here
+    // (`condNew`) are written from the model, first. The 2010 block of the sheet's extension list is kept the same way.
+    bool condEdit = false;
+    int condShift = 0;
+    QVector<CondRule> condNew;
+    std::set<int> condRemoved;
+    std::map<int, QVector<CellRange>> condRanges;   // by priority in the file: the cells of each rule of the file that is still there
     bool replaceSparklines = false;
     QVector<SparklineGroup> sparklines;
     // For a sheet a person added: the XML it begins as (its view, default sizes, rules, and no cells: the cells, sizes of rows and columns, and merged ranges above are put in it).
@@ -152,7 +160,7 @@ struct SheetChanges {
     QString drawingRelId;
     // The links from the sheet to its tables' parts: the ids of the relationships of tables made here (saving sets them, from SaveChanges::addedTables), and of tables taken out.
     std::vector<QString> addTableRels, removeTableRels;
-    bool empty() const { return !replaceSparklines && !replaceCondFormats && drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && noteOps.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    bool empty() const { return !replaceSparklines && !condEdit && drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && noteOps.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.

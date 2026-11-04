@@ -174,6 +174,8 @@ public:
         QString value1, value2;
         int preset = 0;
     };
+    // How many rules the last change of the selection looked at for the choices of Clear Rules.
+    qint64 condRulesScanned() const { return m_condScanned; }
     void setCondAsker(const std::function<bool(CondAnswer *)> &asker) { m_condAsker = asker; }
     // Asks for the name of a new cell style (a test answers in place of the window); false when it is given up.
     void setStyleNameAsker(const std::function<bool(QString *)> &asker) { m_styleNameAsker = asker; }
@@ -861,6 +863,7 @@ private:
     void makeCondRule(CondAnswer::Kind kind);
     void clearCondRules(bool wholeSheet);
     void updateCondActions();
+    qint64 m_condScanned = 0;   // how many rules the last look for the choices of Clear Rules went through (a test reads it)
     void showNameInBox();
     // the clipboard (crunchwindow_clip.cpp)
     void createClipboardActions();

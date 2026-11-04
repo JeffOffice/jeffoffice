@@ -240,6 +240,7 @@ void CrunchWindow::updateCondActions()
     QAction *selection = act(QStringLiteral("cond.clearSelection")), *sheet = act(QStringLiteral("cond.clearSheet"));
     if (!selection || !sheet) return;
     bool any = false, onSelection = false;
+    m_condScanned = 0;
     if (m_session && m_sheet >= 0 && !isReadOnly()) {
         const jp::office::sheet::CellRange selected = selectedRange();
         const QVector<CondRule> rules = m_session->condRules(m_sheet);
@@ -248,6 +249,7 @@ void CrunchWindow::updateCondActions()
         if (rules.size() > kLook) onSelection = true;
         for (qsizetype at = 0; at < std::min<qsizetype>(rules.size(), kLook) && !onSelection; ++at) {
             const CondRule &r = rules[at];
+            ++m_condScanned;
             for (const jp::office::sheet::CellRange &c : r.ranges)
                 onSelection = onSelection || (c.valid && selected.valid && c.row1 <= selected.row2 && c.row2 >= selected.row1 && c.col1 <= selected.col2 && c.col2 >= selected.col1);
         }

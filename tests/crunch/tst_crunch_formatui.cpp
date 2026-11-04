@@ -895,7 +895,7 @@ private Q_SLOTS:
         QVERIFY(s->undoBytes() - afterAdd >= qint64(sizeof(jp::office::sheet::CondRule)));
     }
 
-    // On a sheet of 5,000 rules, moving the selection stays quick (the buttons of Clear Rules look at a bounded number of rules).
+    // On a sheet of 5,000 rules, a change of the selection looks at a bounded number of them (for the choices of Clear Rules), counted by the window.
     void movingTheSelectionOnASheetOfManyRulesStaysQuick()
     {
         QString rules;
@@ -905,34 +905,28 @@ private Q_SLOTS:
         QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), rules)}, QByteArray(), QString(), QString(), uiStyles())));
         QVERIFY(e.settle());
         QCOMPARE(int(e.win.w.session()->condRules(0).size()), 5000);
-        QElapsedTimer timer;
-        timer.start();
-        for (int i = 0; i < 200; ++i) e.view()->selectCell(quint32(10000 + i), quint32(i % 5));
-        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
+        qint64 most = 0;
+        for (int i = 0; i < 200; ++i) {
+            e.view()->selectCell(quint32(10000 + i), quint32(i % 5));
+            most = std::max(most, e.win.w.condRulesScanned());
+        }
+        QVERIFY2(most <= 2000, qPrintable(QString::number(most)));   // (a look goes through at most 2,000 of the 5,000 rules)
         QVERIFY(e.win.w.act(QStringLiteral("cond.clearSheet"))->isEnabled());
     }
 
-    // Rules the file has that JeffCrunch does not hold whole are not rewritten: an extension list, the 2010 block, a table's mark, a kind it does not know, more ranges than it reads, a workbook
-    // opened from another kind of file, and a sheet with more rules than it changes. Nothing changes and the reason is told.
+    // Rules the file has that cannot be told apart or are cut short on reading are not edited: more ranges than are read, the same priority twice, a workbook opened from another kind of file, and a
+    // sheet with more rules than are changed. Nothing changes and the reason is told.
     void sheetsWhoseRulesAreNotHeldWholeAreLeftAlone()
     {
         const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c></row>");
-        const QString plain = QStringLiteral("<conditionalFormatting sqref=\"A1\"><cfRule type=\"cellIs\" priority=\"3\" operator=\"equal\"><formula>1</formula></cfRule></conditionalFormatting>");
         QString many = QStringLiteral("<conditionalFormatting sqref=\"A1");
         for (int i = 0; i < 1100; ++i) many += QStringLiteral(" B%1").arg(i + 1);
         many += QStringLiteral("\"><cfRule type=\"cellIs\" priority=\"1\" operator=\"equal\"><formula>1</formula></cfRule></conditionalFormatting>");
         QString thousands;
         for (int i = 0; i < 5200; ++i) thousands += QStringLiteral("<conditionalFormatting sqref=\"A%1\"><cfRule type=\"cellIs\" priority=\"%1\" operator=\"equal\"><formula>1</formula></cfRule></conditionalFormatting>").arg(i + 1);
-        const QString x14 = QStringLiteral("<extLst><ext uri=\"{78C0D931-6437-407d-A8EE-F0AAD7539E65}\" xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><x14:conditionalFormattings>"
-                                           "<x14:conditionalFormatting><x14:cfRule type=\"iconSet\" priority=\"2\" id=\"{1}\"/></x14:conditionalFormatting></x14:conditionalFormattings></ext></extLst>");
-        const QStringList books = {
-            plain + QStringLiteral("<conditionalFormatting sqref=\"B1\"><cfRule type=\"iconSet\" priority=\"1\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/><cfvo type=\"percent\" val=\"33\"/>"
-                                   "<cfvo type=\"percent\" val=\"67\"/></iconSet><extLst><ext uri=\"{B025F937-C7B1-47D3-B67F-A62EFF666E3E}\"><x14:id xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\">{1}</x14:id></ext></extLst></cfRule></conditionalFormatting>"),
-            plain + x14,
-            QStringLiteral("<conditionalFormatting sqref=\"A1\" pivot=\"1\"><cfRule type=\"cellIs\" priority=\"1\" operator=\"equal\"><formula>1</formula></cfRule></conditionalFormatting>"),
-            plain + QStringLiteral("<conditionalFormatting sqref=\"B1\"><cfRule type=\"somethingNew\" priority=\"1\"/></conditionalFormatting>"),
-            many,
-            thousands};
+        const QString dupes = QStringLiteral("<conditionalFormatting sqref=\"A1\"><cfRule type=\"cellIs\" priority=\"1\" operator=\"equal\"><formula>1</formula></cfRule></conditionalFormatting>"
+                                             "<conditionalFormatting sqref=\"B1\"><cfRule type=\"cellIs\" priority=\"1\" operator=\"equal\"><formula>2</formula></cfRule></conditionalFormatting>");
+        const QStringList books = {many, thousands, dupes};
         for (int at = 0; at < books.size(); ++at) {
             EditWindow e;
             QVERIFY(e.open(buildXlsx({worksheet(rows, books[at])}, QByteArray(), QString(), QString(), uiStyles())));
@@ -960,6 +954,119 @@ private Q_SLOTS:
         csv.win.told.clear();
         run(csv, "cond.greater");
         QCOMPARE(csv.win.told.size(), 1);
+    }
+
+    // The tail of a sheet that current spreadsheet programs write: a data bar and an icon set of the main list, each tied to a 2010 entry by an id, a table's rule (marked `pivot`), and the 2010 block.
+    static QString extensionRulesTail()
+    {
+        const QString x14 = QStringLiteral("xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"");
+        return QStringLiteral(
+                   "<conditionalFormatting sqref=\"A1:A3\"><cfRule type=\"dataBar\" priority=\"2\"><dataBar><cfvo type=\"min\"/><cfvo type=\"max\"/><color rgb=\"FF638EC6\"/></dataBar>"
+                   "<extLst><ext uri=\"{B025F937-C7B1-47D3-B67F-A62EFF666E3E}\" %1><x14:id>{AAAAAAAA-0000-0000-0000-000000000001}</x14:id></ext></extLst></cfRule></conditionalFormatting>"
+                   "<conditionalFormatting sqref=\"B1:B3\"><cfRule type=\"iconSet\" priority=\"3\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/><cfvo type=\"percent\" val=\"33\"/><cfvo type=\"percent\" val=\"67\"/></iconSet>"
+                   "<extLst><ext uri=\"{B025F937-C7B1-47D3-B67F-A62EFF666E3E}\" %1><x14:id>{AAAAAAAA-0000-0000-0000-000000000002}</x14:id></ext></extLst></cfRule></conditionalFormatting>"
+                   "<conditionalFormatting sqref=\"C1:C3\" pivot=\"1\"><cfRule type=\"colorScale\" priority=\"4\"><colorScale><cfvo type=\"min\"/><cfvo type=\"max\"/><color rgb=\"FFF8696B\"/><color rgb=\"FF63BE7B\"/></colorScale></cfRule></conditionalFormatting>"
+                   "<pageMargins left=\"0.7\" right=\"0.7\" top=\"0.75\" bottom=\"0.75\" header=\"0.3\" footer=\"0.3\"/>"
+                   "<extLst><ext uri=\"{78C0D931-6437-407d-A8EE-F0AAD7539E65}\" xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><x14:conditionalFormattings>"
+                   "<x14:conditionalFormatting xmlns:xm=\"http://schemas.microsoft.com/office/excel/2006/main\"><x14:cfRule type=\"dataBar\" priority=\"2\" id=\"{AAAAAAAA-0000-0000-0000-000000000001}\"><x14:dataBar minLength=\"0\" maxLength=\"100\" gradient=\"0\">"
+                   "<x14:cfvo type=\"autoMin\"/><x14:cfvo type=\"autoMax\"/><x14:negativeFillColor rgb=\"FFFF0000\"/><x14:axisColor rgb=\"FF000000\"/></x14:dataBar></x14:cfRule><xm:sqref>A1:A3</xm:sqref></x14:conditionalFormatting>"
+                   "<x14:conditionalFormatting xmlns:xm=\"http://schemas.microsoft.com/office/excel/2006/main\"><x14:cfRule type=\"iconSet\" priority=\"3\" id=\"{AAAAAAAA-0000-0000-0000-000000000002}\"><x14:iconSet iconSet=\"3Arrows\" custom=\"1\">"
+                   "<x14:cfvo type=\"percent\"><xm:f>0</xm:f></x14:cfvo><x14:cfvo type=\"percent\"><xm:f>33</xm:f></x14:cfvo><x14:cfvo type=\"percent\"><xm:f>67</xm:f></x14:cfvo></x14:iconSet></x14:cfRule><xm:sqref>B1:B3</xm:sqref></x14:conditionalFormatting>"
+                   "</x14:conditionalFormattings></ext></extLst>").arg(x14);
+    }
+
+    // The common case: a sheet with a data bar, an icon set, a table's rule, and the 2010 block takes a new rule; saved and opened again, every rule the file had and the 2010 block are the same bytes
+    // but for the priorities (which are one more), the new rule is first, and nothing is lost.
+    void aSheetWithExtensionRulesTakesARuleAndKeepsEveryOriginalByteButPriorities()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c><c r=\"C1\"><v>3</v></c><c r=\"D1\"><v>4</v></c></row>");
+        const QString tail = extensionRulesTail();
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, tail)}, QByteArray(), QString(), QString(), uiStyles())));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        const int before = int(s->condRules(0).size());
+        QVERIFY(before >= 3);
+        selectRange(e, QStringLiteral("D1:D1"));
+        ask(e, CrunchWindow::CondAnswer::Kind::Greater, QStringLiteral("1"));
+        run(e, "cond.greater");
+        QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join('|')));
+        QCOMPARE(int(s->condRules(0).size()), before + 1);
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        Package p;
+        QString why;
+        QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
+        QString out = QString::fromUtf8(p.part(QStringLiteral("/xl/worksheets/sheet1.xml")));
+        out = out.mid(out.indexOf(QLatin1String("</sheetData>")) + 12);
+        // the new rule is first, as an element of its own
+        const QString closing = QStringLiteral("</conditionalFormatting>");
+        const int firstEnd = out.indexOf(closing) + closing.size();
+        const QString made = out.left(firstEnd);
+        QVERIFY2(made.contains(QLatin1String("sqref=\"D1\"")) && made.contains(QLatin1String("priority=\"1\"")), qPrintable(made));
+        out = out.mid(firstEnd);
+        // all the rest is what the file had, but for the priorities
+        const QRegularExpression priority(QStringLiteral("priority=\"\\d+\""));
+        QString was = tail, now = out;
+        if (now.endsWith(QLatin1String("</worksheet>"))) now.chop(12);
+        was.replace(priority, QStringLiteral("priority=\"P\""));
+        now.replace(priority, QStringLiteral("priority=\"P\""));
+        int at = 0;
+        while (at < now.size() && at < was.size() && now[at] == was[at]) ++at;
+        QVERIFY2(now == was, qPrintable(QStringLiteral("differs at %1: saved \"%2\" file \"%3\"").arg(at).arg(now.mid(at - 20, 120), was.mid(at - 20, 120))));
+        // and the priorities are the file's plus one, in the main list and in the 2010 block
+        QVERIFY(out.contains(QLatin1String("priority=\"3\"")) && out.contains(QLatin1String("priority=\"4\"")) && out.contains(QLatin1String("priority=\"5\"")));
+        QVERIFY(!out.contains(QLatin1String("priority=\"2\"")));
+        // opened again: every rule is there
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QCOMPARE(int(second.w.view()->sheet().data().sheet->conditionalFormats.size()), before + 1);
+    }
+
+    // Clearing the cells of a rule that has a 2010 entry (and one that has none): the entry follows the rule's cells, a rule cleared whole takes its entry with it, and everything else is as it was.
+    void clearingRulesWithExtensionEntriesTrimsOrRemovesTheirEntriesToo()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c><c r=\"C1\"><v>3</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, extensionRulesTail())}, QByteArray(), QString(), QString(), uiStyles())));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("A2:A3"))).ok);   // the data bar keeps A1
+        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("B1:B3"))).ok);   // the icon set goes whole
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        Package p;
+        QString why;
+        QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
+        const QString out = QString::fromUtf8(p.part(QStringLiteral("/xl/worksheets/sheet1.xml")));
+        QVERIFY2(out.contains(QLatin1String("sqref=\"A1\"")) && out.contains(QLatin1String("<xm:sqref>A1</xm:sqref>")), qPrintable(out));
+        QVERIFY(!out.contains(QLatin1String("3Arrows")) && !out.contains(QLatin1String("000000000002")));
+        QVERIFY(out.contains(QLatin1String("000000000001")) && out.contains(QLatin1String("pivot=\"1\"")) && out.contains(QLatin1String("colorScale")));
+        QVERIFY(out.contains(QLatin1String("<x14:conditionalFormattings>")));
+    }
+
+    // The 2010 block follows rows put in: its cells are moved as the main list's are.
+    void theExtensionBlockFollowsRowsPutIn()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, extensionRulesTail())}, QByteArray(), QString(), QString(), uiStyles())));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.session()->insertRows(0, 0, 2).ok);
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        Package p;
+        QString why;
+        QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
+        const QString out = QString::fromUtf8(p.part(QStringLiteral("/xl/worksheets/sheet1.xml")));
+        QVERIFY2(out.contains(QLatin1String("sqref=\"A3:A5\"")) && out.contains(QLatin1String("<xm:sqref>A3:A5</xm:sqref>")), qPrintable(out));
+        QVERIFY(out.contains(QLatin1String("<xm:sqref>B3:B5</xm:sqref>")));
     }
 
     // A sheet whose file has rules of several kinds that JeffCrunch holds whole (a color scale and an icon set, no extension) takes a new rule, and the others come out of the save as they were.

@@ -909,17 +909,217 @@ QByteArray withPrefix(const QByteArray &xml, const QByteArray &prefix)
     return QString::fromUtf8(xml).replace(name, QStringLiteral("<\\1") + QString::fromUtf8(prefix) + QStringLiteral("\\2")).toUtf8();
 }
 
-// The tail with its `conditionalFormatting` elements (there may be many) taken out and `generated` put where the first was (else where the format has them).
-QByteArray tailWithCondFormats(const QByteArray &after, const QByteArray &generated)
+namespace {
+
+struct Child {
+    qsizetype start = 0, end = 0;
+    QByteArray local;
+};
+
+// The direct children of the element that is `element` (whole, with its tags).
+std::vector<Child> childrenOf(const QByteArray &element, qsizetype *openEnd, qsizetype *closeStart)
+{
+    std::vector<Child> out;
+    Tag t;
+    qsizetype pos = 0;
+    if (!xmlscan::nextTag(element, pos, &t)) return out;
+    *openEnd = t.end;
+    *closeStart = element.size();
+    if (t.selfClosing) return out;
+    pos = t.end;
+    int depth = 0;
+    qsizetype childStart = -1;
+    while (xmlscan::nextTag(element, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (depth == 0) {
+                *closeStart = t.start;
+                break;
+            }
+            if (--depth == 0) {
+                out.back().end = t.end;
+            }
+            continue;
+        }
+        if (depth == 0) {
+            Child c;
+            c.start = t.start;
+            c.local = QByteArray(t.local);
+            c.end = t.selfClosing ? t.end : -1;
+            out.push_back(c);
+            childStart = t.start;
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    (void)childStart;
+    return out;
+}
+
+QByteArray withAttr(const QByteArray &element, const char *name, const QByteArray &value)
+{
+    Tag t;
+    if (!xmlscan::nextTag(element, 0, &t)) return element;
+    QByteArray open = element.left(t.end);
+    setAttr(&open, name, value);
+    return open + element.mid(t.end);
+}
+
+QString attrOf(const QByteArray &element, const char *name)
+{
+    Tag t;
+    if (!xmlscan::nextTag(element, 0, &t)) return QString();
+    bool found = false;
+    const QByteArrayView v = xmlscan::attribute(QByteArrayView(element).sliced(t.start, t.end - t.start), name, &found);
+    return found ? xmlscan::unescape(v) : QString();
+}
+
+QStringList sortedRanges(const QString &sqref)
+{
+    QStringList out;
+    for (const QString &part : sqref.split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+        CellRange r;
+        out << (parseRangeRef(part, &r) ? rangeName(r) : part);
+    }
+    out.sort();
+    return out;
+}
+
+QStringList sortedRanges(const QVector<CellRange> &ranges)
+{
+    QStringList out;
+    for (const CellRange &r : ranges) out << rangeName(r);
+    out.sort();
+    return out;
+}
+
+QString rangeText(const QVector<CellRange> &ranges)
+{
+    QStringList out;
+    for (const CellRange &r : ranges) out << rangeName(r);
+    return out.join(QLatin1Char(' '));
+}
+
+// The id an extension gives a rule of the main list (`x14:id` in the rule's extension list), or empty.
+QString extensionIdOf(const QByteArray &rule)
+{
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(rule, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != "id") continue;
+        const qsizetype close = rule.indexOf('<', t.end);
+        return close < 0 ? QString() : xmlscan::unescape(QByteArrayView(rule).sliced(t.end, close - t.end)).trimmed();
+    }
+    return QString();
+}
+
+// The 2010 rules of the sheet's extension list: those whose id is in `gone` are taken out (and their element when none is left), priorities are the file's plus the shift, and the cells of a
+// rule that was trimmed follow (by the rule of the main list the id ties it to).
+QByteArray extensionRulesEdited(const QByteArray &extLst, const SheetChanges &edit, const std::map<QString, int> &idToFilePriority, const std::set<QString> &gone)
+{
+    QByteArray out;
+    qsizetype copied = 0, pos = 0;
+    Tag t;
+    int depth = 0;
+    while (xmlscan::nextTag(extLst, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            --depth;
+            continue;
+        }
+        if (t.local == "conditionalFormatting" && depth >= 2 && !t.selfClosing) {
+            // the element, whole
+            qsizetype p = t.end;
+            int d = 1;
+            qsizetype end = t.end;
+            Tag c;
+            while (d > 0 && xmlscan::nextTag(extLst, p, &c)) {
+                p = c.end;
+                if (c.closing) --d;
+                else if (!c.selfClosing) ++d;
+                end = c.end;
+            }
+            const QByteArray element = extLst.mid(t.start, end - t.start);
+            qsizetype openEnd = 0, closeStart = 0;
+            const std::vector<Child> kids = childrenOf(element, &openEnd, &closeStart);
+            QByteArray rebuilt = element.left(openEnd);
+            qsizetype at = openEnd;
+            int rules = 0, left = 0;
+            QVector<CellRange> ranges;
+            bool haveRanges = false;
+            for (const Child &k : kids) {
+                const QByteArray part = element.mid(k.start, k.end - k.start);
+                rebuilt += element.mid(at, k.start - at);
+                at = k.end;
+                if (k.local == "cfRule") {
+                    ++rules;
+                    const QString id = attrOf(part, "id");
+                    if (gone.count(id)) continue;
+                    ++left;
+                    const auto owner = idToFilePriority.find(id);
+                    const int filePriority = owner != idToFilePriority.end() ? owner->second : attrOf(part, "priority").toInt();
+                    if (owner != idToFilePriority.end()) {
+                        const auto kept = edit.condRanges.find(owner->second);
+                        if (kept != edit.condRanges.end()) {
+                            ranges = kept->second;
+                            haveRanges = true;
+                        }
+                    }
+                    rebuilt += withAttr(part, "priority", QByteArray::number(filePriority + edit.condShift));
+                } else if (k.local == "sqref" && haveRanges) {
+                    rebuilt += part;   // (below)
+                } else {
+                    rebuilt += part;
+                }
+            }
+            rebuilt += element.mid(at);
+            if (rules > 0 && left == 0) {
+                out += extLst.mid(copied, t.start - copied);   // (no rule is left in it: the element goes)
+                copied = end;
+            } else {
+                if (haveRanges) {
+                    // the cells of the element are the trimmed cells of its rule
+                    qsizetype oe = 0, cs = 0;
+                    const std::vector<Child> again = childrenOf(rebuilt, &oe, &cs);
+                    for (const Child &k : again)
+                        if (k.local == "sqref") {
+                            const QByteArray inside = rebuilt.mid(k.start, k.end - k.start);
+                            const qsizetype gt = inside.indexOf('>'), lt = inside.lastIndexOf('<');
+                            if (gt > 0 && lt > gt && sortedRanges(xmlscan::unescape(QByteArrayView(inside).sliced(gt + 1, lt - gt - 1))) != sortedRanges(ranges))
+                                rebuilt = rebuilt.left(k.start) + inside.left(gt + 1) + xmlscan::escapeAttribute(rangeText(ranges)) + inside.mid(lt) + rebuilt.mid(k.end);
+                            break;
+                        }
+                }
+                out += extLst.mid(copied, t.start - copied) + rebuilt;
+                copied = end;
+            }
+            pos = end;
+            continue;
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    return out + extLst.mid(copied);
+}
+
+} // namespace
+
+// The tail with the rules of conditional formatting edited as `edit` says (see SheetChanges::condEdit): the file's elements kept as they are, apart from the priorities, the trimmed cells, and the
+// rules taken away; the rules made here put in first; the 2010 rules of the extension list the same way.
+QByteArray tailWithCondEdit(const QByteArray &after, const SheetChanges &edit, const QByteArray &prefix)
 {
     static const QList<QByteArray> later = {"dataValidations", "hyperlinks", "printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks", "customProperties", "cellWatches",
                                             "ignoredErrors", "smartTags", "drawing", "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
+    QByteArray generated;
+    if (!edit.condNew.isEmpty()) generated = withPrefix(conditionalFormatsXml(edit.condNew, nullptr), prefix);
     QByteArray out;
-    qsizetype copied = 0, firstAt = -1, insertAt = -1;
+    qsizetype copied = 0, insertAt = -1, firstAt = -1;
+    std::map<QString, int> idToFilePriority;   // the id of the 2010 entry of a rule of the main list, to the rule's priority in the file
+    std::set<QString> goneIds;
     Tag t;
     qsizetype pos = 0;
     int depth = 0;
-    qsizetype openAt = -1;
+    QByteArray extLst;
+    qsizetype extStart = -1, extEnd = -1;
     while (xmlscan::nextTag(after, pos, &t)) {
         pos = t.end;
         if (t.closing) {
@@ -927,35 +1127,140 @@ QByteArray tailWithCondFormats(const QByteArray &after, const QByteArray &genera
                 if (insertAt < 0) insertAt = t.start;
                 break;
             }
-            if (depth == 0 && openAt >= 0) {
-                out += after.mid(copied, openAt - copied);
-                if (firstAt < 0) firstAt = out.size();
-                copied = t.end;
-                openAt = -1;
-            }
             continue;
         }
-        if (depth == 0) {
-            if (t.local == "conditionalFormatting") {
-                if (t.selfClosing) {
-                    out += after.mid(copied, t.start - copied);
-                    if (firstAt < 0) firstAt = out.size();
-                    copied = t.end;
-                } else {
-                    openAt = t.start;
-                }
-            } else if (insertAt < 0 && later.contains(QByteArray(t.local))) {
-                insertAt = t.start;
+        if (depth == 0 && t.local == "conditionalFormatting" && !t.selfClosing) {
+            qsizetype p = t.end, end = t.end;
+            int d = 1;
+            Tag c;
+            while (d > 0 && xmlscan::nextTag(after, p, &c)) {
+                p = c.end;
+                if (c.closing) --d;
+                else if (!c.selfClosing) ++d;
+                end = c.end;
             }
+            const QByteArray element = after.mid(t.start, end - t.start);
+            qsizetype openEnd = 0, closeStart = 0;
+            const std::vector<Child> kids = childrenOf(element, &openEnd, &closeStart);
+            const QByteArray open = element.left(openEnd);
+            const QStringList here = sortedRanges(attrOf(open, "sqref"));
+            struct Kept {
+                QByteArray rule;
+                int filePriority;
+                QStringList ranges;
+                bool trimmed;
+            };
+            std::vector<Kept> kept;
+            QByteArray between;
+            for (const Child &k : kids) {
+                if (k.local != "cfRule") continue;
+                const QByteArray rule = element.mid(k.start, k.end - k.start);
+                const int filePriority = attrOf(rule, "priority").toInt();
+                const QString id = extensionIdOf(rule);
+                if (!id.isEmpty()) idToFilePriority[id] = filePriority;
+                if (edit.condRemoved.count(filePriority)) {
+                    if (!id.isEmpty()) goneIds.insert(id);
+                    continue;
+                }
+                const auto now = edit.condRanges.find(filePriority);
+                const QStringList mine = now == edit.condRanges.end() ? here : sortedRanges(now->second);
+                kept.push_back({withAttr(rule, "priority", QByteArray::number(filePriority + edit.condShift)), filePriority, mine, mine != here});
+            }
+            QByteArray rebuilt;
+            bool allSame = true;
+            for (const Kept &k : kept) allSame = allSame && !k.trimmed;
+            if (kept.empty()) {
+                rebuilt.clear();
+            } else if (allSame) {
+                // (the element as it was, its rules with their new priorities)
+                rebuilt = open;
+                qsizetype at = openEnd;
+                size_t next = 0;
+                for (const Child &k : kids) {
+                    rebuilt += element.mid(at, k.start - at);
+                    at = k.end;
+                    const QByteArray original = element.mid(k.start, k.end - k.start);
+                    if (k.local != "cfRule") {
+                        rebuilt += original;
+                        continue;
+                    }
+                    const int fp = attrOf(original, "priority").toInt();
+                    if (edit.condRemoved.count(fp)) continue;
+                    rebuilt += kept[next++].rule;
+                }
+                rebuilt += element.mid(at);
+            } else {
+                // (rules whose cells are not the element's go in elements of their own, in the same form)
+                for (const Kept &k : kept) {
+                    QByteArray o = open;
+                    if (k.trimmed) {
+                        const auto now = edit.condRanges.find(k.filePriority);
+                        setAttr(&o, "sqref", xmlscan::escapeAttribute(rangeText(now->second)));
+                    }
+                    rebuilt += o + k.rule + element.mid(closeStart);
+                }
+            }
+            if (firstAt < 0) firstAt = out.size() + (t.start - copied);
+            out += after.mid(copied, t.start - copied) + rebuilt;
+            copied = end;
+            pos = end;
+            continue;
         }
+        if (depth == 0 && t.local == "extLst" && !t.selfClosing) {
+            qsizetype p = t.end, end = t.end;
+            int d = 1;
+            Tag c;
+            while (d > 0 && xmlscan::nextTag(after, p, &c)) {
+                p = c.end;
+                if (c.closing) --d;
+                else if (!c.selfClosing) ++d;
+                end = c.end;
+            }
+            extStart = t.start;
+            extEnd = end;
+            pos = end;
+            if (insertAt < 0) insertAt = t.start;
+            continue;
+        }
+        if (depth == 0 && insertAt < 0 && later.contains(QByteArray(t.local))) insertAt = t.start;
         if (!t.selfClosing) ++depth;
     }
-    if (firstAt >= 0) {
-        out += after.mid(copied);
-        return out.left(firstAt) + generated + out.mid(firstAt);
+    QByteArray result = out + after.mid(copied);
+    // (the position of the extension list moved with the edits above: it is found again)
+    if (extStart >= 0) {
+        Tag e;
+        qsizetype q = 0;
+        int dd = 0;
+        while (xmlscan::nextTag(result, q, &e)) {
+            q = e.end;
+            if (e.closing) {
+                if (--dd < 0) break;
+                continue;
+            }
+            if (dd == 0 && e.local == "extLst" && !e.selfClosing) {
+                qsizetype p = e.end, end = e.end;
+                int d = 1;
+                Tag c;
+                while (d > 0 && xmlscan::nextTag(result, p, &c)) {
+                    p = c.end;
+                    if (c.closing) --d;
+                    else if (!c.selfClosing) ++d;
+                    end = c.end;
+                }
+                const QByteArray list = result.mid(e.start, end - e.start);
+                result = result.left(e.start) + extensionRulesEdited(list, edit, idToFilePriority, goneIds) + result.mid(end);
+                break;
+            }
+            if (!e.selfClosing) ++dd;
+        }
     }
-    if (generated.isEmpty() || insertAt < 0) return after;
-    return after.left(insertAt) + generated + after.mid(insertAt);
+    if (generated.isEmpty()) return result;
+    if (firstAt >= 0) return result.left(firstAt) + generated + result.mid(firstAt);
+    // no element of the file: where the format has them (before what comes after in the schema)
+    const TopElement e = findTopElement(result, "conditionalFormatting", later);
+    const qsizetype at = e.insertAt >= 0 ? e.insertAt : -1;
+    if (at < 0) return result;
+    return result.left(at) + generated + result.mid(at);
 }
 
 // The links of the tail: those with the ranges in `unlinks` taken out, `links` put in at the end of the container (made, where the format has it, if the file has none, and taken out when
@@ -1192,7 +1497,7 @@ public:
         m_hfSet = changes.hfSet;
         m_hfRel = changes.hfRel.toLatin1();
         if (changes.replaceSparklines) m_sparklines = &changes.sparklines;
-        if (changes.replaceCondFormats) m_cond = &changes.condFormats;
+        if (changes.condEdit) m_cond = &changes;
         m_legacyId = changes.legacyRelId.toLatin1();
         if (!changes.unlinks.empty() || !changes.links.empty()) {
             m_unlinks = &changes.unlinks;
@@ -1725,7 +2030,7 @@ private:
                 if (m_links) tail = tailWithLinks(tail, *m_unlinks, *m_links, m_prefix);
                 if (m_hfSet) tail = tailWithHeaderDrawing(tail, m_hfRel, m_prefix);
                 if (!m_addTables->empty() || !m_removeTables->empty()) tail = tailWithTableParts(tail, *m_addTables, *m_removeTables, m_prefix);
-                if (m_cond) tail = tailWithCondFormats(tail, withPrefix(conditionalFormatsXml(*m_cond, nullptr), m_prefix));
+                if (m_cond) tail = tailWithCondEdit(tail, *m_cond, m_prefix);
                 if (m_sparklines) tail = tailWithSparklines(tail, *m_sparklines, m_prefix);
                 return tail;
             };
@@ -1768,7 +2073,7 @@ private:
     const PageSetup *m_page = nullptr;
     QByteArray m_drawingId;
     const QVector<SparklineGroup> *m_sparklines = nullptr;
-    const QVector<CondRule> *m_cond = nullptr;
+    const SheetChanges *m_cond = nullptr;
     const std::vector<QString> *m_addTables = nullptr;
     const std::vector<QString> *m_removeTables = nullptr;
     const SheetFormat *m_format = nullptr;

@@ -1721,8 +1721,13 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
     for (const int s : m_condTouched) {
         if (s < 0 || s >= int(names.size()) || names[s].isEmpty() || !m_book->calc) continue;
         SheetChanges &sc = changes.sheets[s];
-        sc.replaceCondFormats = true;
-        sc.condFormats = m_book->calc->sheet(s).conditionalFormats;
+        sc.condEdit = true;
+        sc.condShift = m_condShift[s];
+        sc.condRemoved = m_condRemoved[s];
+        for (const jp::office::sheet::CondRule &r : m_book->calc->sheet(s).conditionalFormats) {
+            if (r.origPriority > 0) sc.condRanges[r.origPriority] = r.ranges;
+            else sc.condNew.append(r);
+        }
     }
         m_anchors.addToSave(&changes);
         // the protection of the sheets, and of the workbook, where it differs from the file's
@@ -1843,6 +1848,16 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     });
     ++m_saveGen;
     m_pages.saved();
+    // (the file has the rules as they are now: each is the file's own from here on, with the priority it has)
+    for (const int sheet : m_condTouched) {
+        QVector<jp::office::sheet::CondRule> rules = condRules(sheet);
+        for (jp::office::sheet::CondRule &r : rules) r.origPriority = r.priority;
+        if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) hold->calculation()->replaceConditionalFormats(sheet, rules);
+        m_condShift[sheet] = 0;
+        m_condRemoved[sheet].clear();
+    }
+    if (!m_condTouched.empty()) ++m_condEpoch;
+    m_condWhole.clear();
     m_condTouched.clear();
     m_anchors.saved();
     m_fileProtection.clear();

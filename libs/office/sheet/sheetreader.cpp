@@ -25,6 +25,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QSet>
+#include <set>
 #include <QXmlStreamReader>
 #include <algorithm>
 #include <cstring>
@@ -985,6 +986,7 @@ CondRule SheetReader::readCondRule(const QXmlStreamReader &r) const
     bool ok = false;
     c.priority = attribute(r, "priority").toInt(&ok);
     if (!ok) c.priority = 1 << 20;
+    c.origPriority = ok ? c.priority : 0;
     c.dxf = attribute(r, "dxfId").isEmpty() ? -1 : attribute(r, "dxfId").toInt(&ok);
     if (!ok) c.dxf = -1;
     c.stopIfTrue = parseBool(attribute(r, "stopIfTrue").toString());
@@ -2520,44 +2522,35 @@ bool Workbook::conditionalFormatsAreWhole(int sheet) const
 {
     if (sheet < 0 || sheet >= m_info.sheets.size() || m_info.sheets[sheet].part.isEmpty()) return !isConverted();
     if (isConverted()) return false;
-    static const QSet<QByteArray> known = {"cellIs", "expression", "colorScale", "dataBar", "iconSet", "top10", "uniqueValues", "duplicateValues", "containsText", "notContainsText", "beginsWith",
-                                           "endsWith", "containsBlanks", "notContainsBlanks", "containsErrors", "notContainsErrors", "timePeriod", "aboveAverage"};
     const QByteArray xml = m_package.part(m_info.sheets[sheet].part);
     // (a quick look first: a sheet that says nothing of rules is whole)
     if (!xml.contains("onditionalFormatting")) return true;
     xmlscan::Tag t;
     qsizetype pos = 0;
     qint64 rules = 0;
-    int ruleDepth = 0, depth = 0;
+    std::set<int> priorities;
     while (xmlscan::nextTag(xml, pos, &t)) {
         pos = t.end;
-        if (t.closing) {
-            --depth;
-            if (ruleDepth > 0 && depth < ruleDepth) ruleDepth = 0;
-            continue;
-        }
+        if (t.closing) continue;
         const QByteArrayView tag = QByteArrayView(xml).sliced(t.start, t.end - t.start);
-        if (t.local == "conditionalFormattings") return false;   // (the 2010 block: x14:conditionalFormattings)
         if (t.local == "conditionalFormatting") {
             bool found = false;
-            xmlscan::attribute(tag, "pivot", &found);
-            if (found) return false;
             const QByteArrayView sqref = xmlscan::attribute(tag, "sqref", &found);
             if (found) {
+                // (more ranges than are read: the rule would be cut short)
                 qint64 spaces = 0;
                 for (const char c : sqref) spaces += c == ' ';
                 if (spaces + 1 >= 1000) return false;
             }
         } else if (t.local == "cfRule") {
+            // (a rule of the file is told from its element by its priority: it has one, and no other rule of the main list has the same)
             if (++rules >= 50000) return false;
             bool found = false;
-            const QByteArrayView type = xmlscan::attribute(tag, "type", &found);
-            if (!found || !known.contains(QByteArray(type))) return false;
-            if (!t.selfClosing) ruleDepth = depth + 1;
-        } else if (t.local == "extLst" && ruleDepth > 0) {
-            return false;
+            xmlscan::attribute(tag, "id", &found);
+            if (found) continue;   // (a 2010 entry has an id, and the priority of the rule of the main list it belongs to)
+            const int priority = QByteArray(xmlscan::attribute(tag, "priority", &found)).toInt();
+            if (!found || priority <= 0 || !priorities.insert(priority).second) return false;
         }
-        if (!t.selfClosing) ++depth;
     }
     return true;
 }
