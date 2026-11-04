@@ -73,7 +73,7 @@ private Q_SLOTS:
         telemetry::count(QStringLiteral("file.open.pub"));
         Settings::get().sync();
         QSettings suite(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice")), pub(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffPub")),
-            deck(QStringLiteral("JeffOffice"), QStringLiteral("JeffDeck"));
+            deck(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffDeck"));
         const QJsonObject p = telemetry::payload();
         QCOMPARE(p[QStringLiteral("app")].toString(), QStringLiteral("jeffpub"));
         QVERIFY(suite.value(QStringLiteral("telemetry/enabled")).toBool());

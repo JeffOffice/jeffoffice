@@ -1177,7 +1177,7 @@ private Q_SLOTS:
     void deckSharesTheChoiceAndTheInstallButKeepsItsOwnCounts()
     {
         QSettings suite(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice")), pub(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffPub")),
-            deck(QStringLiteral("JeffOffice"), QStringLiteral("JeffDeck"));
+            deck(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffDeck"));
         QVERIFY(!telemetry::enabled());
         suite.setValue(QStringLiteral("telemetry/enabled"), true);
         suite.setValue(QStringLiteral("telemetry/install"), QStringLiteral("0f8fad5b-d9cb-469f-a165-70867728950e"));

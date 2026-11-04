@@ -50,7 +50,7 @@ inline const IsolateSettings isolateSettingsOnStart;
 // Whether a file of the folder holds the text.
 inline bool folderHolds(const QString &folder, const QByteArray &text)
 {
-    for (const QFileInfo &fi : QDir(folder).entryInfoList({QStringLiteral("*.conf")}, QDir::Files)) {
+    for (const QFileInfo &fi : QDir(folder).entryInfoList({QStringLiteral("*.conf"), QStringLiteral("*.ini")}, QDir::Files)) {
         QFile f(fi.absoluteFilePath());
         if (f.open(QIODevice::ReadOnly) && f.readAll().contains(text)) return true;
     }
