@@ -13,10 +13,10 @@ The **case** of a letter is whether it is a capital letter (A) or a small letter
    - **Sentence case** makes the first letter of each sentence a capital. The rest are small.
    - **lowercase** makes every letter small.
    - **UPPERCASE** makes every letter a capital.
-   - **Capitalize Each Word** makes the first letter of each word a capital.
+   - **Capitalize Words** makes the first letter of each word a capital.
    - **tOGGLE cASE** turns every capital into a small letter, and every small letter into a capital.
 
-Press **Shift+F3** to go through three of them in turn: **Capitalize Each Word**, then **UPPERCASE**, then **lowercase**.
+Press **Shift+F3** to go through three of them in turn: **Capitalize Words**, then **UPPERCASE**, then **lowercase**.
 
 The look of the letters stays the same. Bold stays bold. **Ctrl+Z** takes the change back in one step. If Track Changes is on, the change shows as a deletion and an insertion.
 

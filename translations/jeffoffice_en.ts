@@ -269,6 +269,16 @@
     </message>
 </context>
 <context>
+    <name>jp::write::HomeDialogs</name>
+    <message numerus="yes">
+        <source>%n problem(s) found. Click one to go to it.</source>
+        <translation>
+            <numerusform>%n problem found. Click it to go to it.</numerusform>
+            <numerusform>%n problems found. Click one to go to it.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
         <source>%1 of %n word(s)</source>

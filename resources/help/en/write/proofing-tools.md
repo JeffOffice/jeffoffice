@@ -1,11 +1,11 @@
 # Count words, check, and look up words
-<!-- keywords: accessibility, check accessibility, alt text, header row, screen reader, contrast, thesaurus, synonym, synonyms, translate, translation, libretranslate, word count, count words, characters, paragraphs, pages, selection, footnotes, endnotes, language, proofing language, set language, do not check spelling, spelling language, status bar -->
+<!-- keywords: count words, accessibility, check accessibility, alt text, header row, screen reader, contrast, thesaurus, synonym, synonyms, translate, translation, libretranslate, word count, count words, characters, paragraphs, pages, selection, footnotes, endnotes, language, proofing language, set language, do not check spelling, spelling language, status bar -->
 
 These tools are on the **Review** tab.
 
 ## Count the words
 
-1. Click **Word Count** in the **Proofing** group.
+1. Click **Count Words** in the **Proofing** group.
 2. The box shows the pages, words, characters without spaces, characters with spaces, and paragraphs.
 
 If you select some text first, the box counts only that text. The status bar at the bottom of the window also shows it, as "12 of 340 words".

@@ -32,7 +32,7 @@ void WriteWindow::createHomeActions()
 {
     struct Case { const char *id; const char *text; write::CaseMode mode; };
     for (const Case &k : {Case{"fmt.case.sentence", QT_TRANSLATE_NOOP("jp::WriteWindow", "Sentence case"), write::CaseMode::Sentence}, Case{"fmt.case.lower", QT_TRANSLATE_NOOP("jp::WriteWindow", "lowercase"), write::CaseMode::Lower},
-                          Case{"fmt.case.upper", QT_TRANSLATE_NOOP("jp::WriteWindow", "UPPERCASE"), write::CaseMode::Upper}, Case{"fmt.case.capitalize", QT_TRANSLATE_NOOP("jp::WriteWindow", "Capitalize Each Word"), write::CaseMode::Capitalize},
+                          Case{"fmt.case.upper", QT_TRANSLATE_NOOP("jp::WriteWindow", "UPPERCASE"), write::CaseMode::Upper}, Case{"fmt.case.capitalize", QT_TRANSLATE_NOOP("jp::WriteWindow", "Capitalize Words"), write::CaseMode::Capitalize},
                           Case{"fmt.case.toggle", QT_TRANSLATE_NOOP("jp::WriteWindow", "tOGGLE cASE"), write::CaseMode::Toggle}}) {
         const write::CaseMode mode = k.mode;
         mk(QString::fromLatin1(k.id), QCoreApplication::translate("jp::WriteWindow", k.text), "", QKeySequence(), [this, mode] {
@@ -174,7 +174,7 @@ void WriteWindow::createHomeActions()
         m_accessDock->raise();
         m_accessPane->check();
     });
-    mk("review.wordCount", tr("Word Count"), "hash", QKeySequence(), [this] {
+    mk("review.wordCount", tr("Count Words"), "hash", QKeySequence(), [this] {
         if (!m_doc) return;
         const QTextCursor sel = m_view->cursor();
         write::wordCountDialog(this, m_view->pageCount(), sel.hasSelection(), [this, sel](bool notes) { return write::countWords(*m_doc, sel, notes); });

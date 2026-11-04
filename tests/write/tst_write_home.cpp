@@ -705,6 +705,34 @@ private Q_SLOTS:
         QCOMPARE(blank, 4);
     }
 
+    // With JW_SHOTS set to a folder, saves a picture of each dialog there (for looking at them); skipped otherwise.
+    void picturesOfTheDialogs()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOTS");
+        if (dir.isEmpty()) QSKIP("JW_SHOTS is not set");
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1000, 700);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("pear tree")) + para(run("Apple pie")) + para(run("cherry")))), QString());
+        w.view()->selectAll();
+        auto shot = [&](const QString &command, const QString &name, const QString &file) {
+            withDialog([&] { w.act(command)->trigger(); }, name, [&](QDialog *d) { d->grab().save(dir + QLatin1Char('/') + file); }, false);
+        };
+        shot(QStringLiteral("fmt.fontDialog"), QStringLiteral("fontDialog"), QStringLiteral("dialog-font.png"));
+        shot(QStringLiteral("para.dialog"), QStringLiteral("paragraphDialog"), QStringLiteral("dialog-paragraph.png"));
+        shot(QStringLiteral("para.sort"), QStringLiteral("sortDialog"), QStringLiteral("dialog-sort.png"));
+        shot(QStringLiteral("review.wordCount"), QStringLiteral("wordCountDialog"), QStringLiteral("dialog-wordcount.png"));
+        shot(QStringLiteral("review.restrictEditing"), QStringLiteral("restrictEditingDialog"), QStringLiteral("dialog-restrict.png"));
+        shot(QStringLiteral("review.language"), QStringLiteral("languageDialog"), QStringLiteral("dialog-language.png"));
+        shot(QStringLiteral("review.compare"), QStringLiteral("compareDialog"), QStringLiteral("dialog-compare.png"));
+        shot(QStringLiteral("review.translate"), QStringLiteral("translateDialog"), QStringLiteral("dialog-translate.png"));
+        QTextCursor cursor = w.view()->cursor();
+        withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [&](QDialog *d) { d->grab().save(dir + QStringLiteral("/dialog-tabs.png")); });
+        w.act(QStringLiteral("review.accessibility"))->trigger();
+        w.grab().save(dir + QStringLiteral("/window-accessibility.png"));
+    }
+
     void theFontBoxLeftAloneChangesNothing()
     {
         WriteWindow w;

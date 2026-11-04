@@ -218,6 +218,7 @@ void WriteWindow::buildStatusBar()
     sb->addWidget(m_pageLabel);
     m_wordLabel = new QLabel(this);
     m_wordLabel->setObjectName(QStringLiteral("wordCount"));
+    m_wordLabel->setTextFormat(Qt::PlainText);
     m_wordLabel->setMinimumWidth(90);
     sb->addWidget(m_wordLabel);
     // Track Changes, on or off, which a click turns the other way.

@@ -116,7 +116,7 @@ void wordCountDialog(QWidget *parent, int pages, bool selection, const std::func
 {
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("wordCountDialog"));
-    dlg.setWindowTitle(QCoreApplication::translate("jp::write::HomeDialogs", "Word Count"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::HomeDialogs", "Count Words"));
     auto *v = new QVBoxLayout(&dlg);
     auto *title = plainLabel(new QLabel(selection ? QCoreApplication::translate("jp::write::HomeDialogs", "Selected text") : QCoreApplication::translate("jp::write::HomeDialogs", "Whole document"), &dlg));
     QFont bold = title->font();
