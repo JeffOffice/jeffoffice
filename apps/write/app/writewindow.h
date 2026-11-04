@@ -178,6 +178,7 @@ private:
     void createStyleActions();
     void createMailActions();
     void mailRibbonParts(RibbonParts &parts);
+    void refreshMailUi();   // (the Mailings commands that need a list of recipients are dimmed without one)
     friend struct MailUi;
     std::shared_ptr<void> m_mailHolder;   // (the Mailings tab: app/writewindow_mail.cpp)
     MailUi *m_mail = nullptr;

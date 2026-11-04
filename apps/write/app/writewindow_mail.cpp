@@ -150,6 +150,7 @@ struct MailUi {
     {
         make().changed = true;
         doc()->setModified(true);
+        w->refreshMailUi();
     }
     void message(const QString &text) { w->statusBar()->showMessage(text, 6000); }
 
@@ -170,6 +171,13 @@ struct MailUi {
         const QString own = inside(QFileInfo(name).isAbsolute() ? name : folder + QLatin1Char('/') + name);
         if (!own.isEmpty()) return own;
         return inside(folder + QLatin1Char('/') + name.section(QLatin1Char('/'), -1));
+    }
+
+    // Whether the document has a list of recipients, read or named (it is read when a command needs it); without one the commands that use it are dimmed.
+    bool hasList() const
+    {
+        const write::mail::State *s = state();
+        return s && (s->loaded || !s->sourcePath.isEmpty());
     }
 
     // The list the document is merged with: read where it is not yet. With `ask`, says what is wrong where there is none.
@@ -807,6 +815,17 @@ void WriteWindow::createMailActions()
     mk("mail.finish.print", tr("Print Documents…"), "printer", QKeySequence(), [m] { m->finishEdit(true); });
     mk("mail.finish.pdf", tr("Save as PDF…"), "file-text", QKeySequence(), [m] { m->finishPdf(); });
     mk("mail.finish.email", tr("Send Email Messages…"), "mail", QKeySequence(), [m] { m->finishEmail(); });
+}
+
+void WriteWindow::refreshMailUi()
+{
+    const bool listed = m_mail && m_mail->hasList();
+    for (const char *id : {"mail.editList", "mail.addressBlock", "mail.greeting", "mail.matchFields", "mail.rule.if", "mail.rule.ask", "mail.rule.fillin", "mail.rule.nextIf",
+                           "mail.rule.set", "mail.rule.skipIf", "mail.preview", "mail.first", "mail.prev", "mail.next", "mail.last", "mail.find", "mail.check", "mail.finish.edit",
+                           "mail.finish.print", "mail.finish.pdf", "mail.finish.email"})
+        if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(listed);
+    const write::mail::State *s = m_doc ? write::mail::stateIfAny(*m_doc) : nullptr;
+    act(QStringLiteral("mail.updateLabels"))->setEnabled(s && s->kind() == write::mail::Kind::Labels);
 }
 
 void WriteWindow::mailRibbonParts(RibbonParts &parts)

@@ -520,12 +520,15 @@ private Q_SLOTS:
         QVERIFY(mail::stateIfAny(*doc));
         QCOMPARE(mail::stateIfAny(*doc)->kind(), mail::Kind::Letters);
         QVERIFY(doc->isModified());
-        // Without a list the commands say so.
-        w.act(QStringLiteral("mail.check"))->trigger();
-        QVERIFY(said.last().contains(QStringLiteral("no list")));
+        // Without a list the commands that need one are dimmed.
+        QVERIFY(!w.act(QStringLiteral("mail.check"))->isEnabled());
+        QVERIFY(!w.act(QStringLiteral("mail.preview"))->isEnabled());
+        QVERIFY(!w.act(QStringLiteral("mail.addressBlock"))->isEnabled());
         mail::State &state = mail::stateOf(*doc);
         state.data = people();
         state.loaded = true;
+        w.refreshNow();
+        QVERIFY(w.act(QStringLiteral("mail.check"))->isEnabled());
         w.act(QStringLiteral("mail.check"))->trigger();
         QVERIFY2(said.last().contains(QStringLiteral("\"Nickname\"")), qPrintable(said.last()));
         // Preview Results opens a pane with the first recipient; Next goes on; the document is as it was.
