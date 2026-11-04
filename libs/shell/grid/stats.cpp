@@ -78,7 +78,7 @@ QString statsText(const Stats &s, int choices)
     auto number = [](double v) {
         const QLocale locale;
         const double a = std::fabs(v);
-        if (a >= 1e15 || (a > 0 && a < 1e-9)) return locale.toString(v, 'g', 10);
+        if (a == 0 || std::isnan(a) || a >= 1e15 || a < 1e-9) return locale.toString(v, 'g', 10);   // (and zero, which has no digits to count)
         const int whole = a >= 1 ? int(std::floor(std::log10(a))) + 1 : -int(std::floor(std::log10(a))) - 1;   // (digits before the point, or zeros after it)
         const int decimals = a >= 1 ? std::max(0, 10 - whole) : std::min(20, 10 + whole);
         QString text = locale.toString(v, 'f', decimals);

@@ -119,7 +119,14 @@ private Q_SLOTS:
     // The entries of a ZIP are found by their own headers: a file cut short, or with no directory, still gives the entries that are whole, and what there is of the last.
     void aDamagedZipGivesItsWholeEntries()
     {
-        const QByteArray big = QByteArray("<root>") + QByteArray("0123456789 abcdefghij ", 4000) + "</root>";
+        // (numbers that do not repeat, so that the entry stays long when it is compressed and a cut 600 bytes in falls inside it)
+        QByteArray big = "<root>";
+        quint32 n = 1;
+        for (int i = 0; i < 4000; ++i) {
+            n = n * 1664525u + 1013904223u;
+            big += QByteArray::number(n) + ' ';
+        }
+        big += "</root>";
         const QByteArray zip = zipOf({{QStringLiteral("a.xml"), "<a/>"}, {QStringLiteral("b.txt"), "second"}, {QStringLiteral("c.xml"), big}});
         // Cut in the middle of the last entry: the directory is gone with it.
         QByteArray cut = zip.left(zip.indexOf("c.xml") + 5 + 600);
