@@ -17,6 +17,7 @@
 #include "core/editops.h"
 #include "core/fieldops.h"
 #include "core/indexops.h"
+#include "core/linkops.h"
 #include "core/mergeops.h"
 #include "core/tocops.h"
 #include "core/pictureops.h"
@@ -419,6 +420,23 @@ private Q_SLOTS:
                  write::selectInTable(*asWrite(w)->document(), asWrite(w)->view()->cursor(), write::TableUnit::Row);
                  write::mergeCells(*asWrite(w)->document(), asWrite(w)->view()->cursor());
                  asWrite(w)->view()->refresh();
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("the caret in a link"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 c.setPosition(3, QTextCursor::KeepAnchor);
+                 write::insertHyperlink(*doc, c, QStringLiteral("https://example.com"), QString(), QString(), QString());
+                 QTextCursor inside(doc->story());
+                 inside.setPosition(2);
+                 asWrite(w)->view()->setCursor(inside);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a page color"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 asWrite(w)->document()->setPageColor(QColor(0xFF, 0xF4, 0xD6));
                  asWrite(w)->refreshNow();
              }, false},
         };

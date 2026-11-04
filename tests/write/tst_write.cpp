@@ -831,7 +831,7 @@ private Q_SLOTS:
         QCOMPARE(w.ribbonErrors(), QString());
         QStringList tabs;
         for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
-        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Layout", "References", "Mailings", "Review", "View", "Header & Footer", "Table Design", "Table Layout", "Picture Format"}));   // (the last four are there while a header or footer is edited, and the caret is in a table)
+        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Design", "Layout", "References", "Mailings", "Review", "View", "Header & Footer", "Table Design", "Table Layout", "Picture Format"}));   // (the last four are there while a header or footer is edited, and the caret is in a table)
         QCOMPARE(w.ribbon()->fileKeytip(), QStringLiteral("F"));
         QVERIFY(w.windowTitle().contains(QLatin1String("JeffWrite")));
         QVERIFY(w.windowTitle().startsWith(QLatin1String("Document")));
