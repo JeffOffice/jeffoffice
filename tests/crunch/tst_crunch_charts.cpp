@@ -1529,9 +1529,8 @@ private Q_SLOTS:
         QCOMPARE(partsOf(e.path).value(QStringLiteral("xl/media/image1.png")), original.value(QStringLiteral("xl/media/image1.png")));
     }
 
-    // A chart put on, undone, and the file saved cannot be put on again by Redo (the file was written without it): Redo is given up and nothing breaks; an object taken away after
-    // the save, with its steps before it, can't be undone past the save either.
-    void redoOfAnAddedChartAfterASaveIsGivenUp()
+    // A chart put on, undone, and the file saved (written without it) is put on again by Redo, and the next save writes it.
+    void redoOfAnAddedChartAfterASaveWritesItAgain()
     {
         EditWindow e;
         QVERIFY(e.open(plainBook()));
@@ -1545,16 +1544,13 @@ private Q_SLOTS:
         pressUndo(&e.win.w);
         QVERIFY(e.win.w.undoStack()->canRedo());
         QVERIFY(save(e));
+        QVERIFY(partsOf(e.path).value(QStringLiteral("xl/charts/chart1.xml")).isEmpty());
         pressRedo(&e.win.w);
         QVERIFY(e.settle());
-        // the chart is not there (it is not in the file either), and the window is whole
-        QCOMPARE(int(e.win.w.objects()->idsOf(0).size()), 0);
-        QVERIFY(partsOf(e.path).value(QStringLiteral("xl/charts/chart1.xml")).isEmpty());
-        selectRange(e, QStringLiteral("A1:C4"));
-        QVERIFY(e.win.w.insertChart(ChartKind::Line));
         QCOMPARE(int(e.win.w.objects()->idsOf(0).size()), 1);
         QVERIFY(save(e));
         QCOMPARE(savedCharts(e.path).size(), 1);
+        QVERIFY(!partsOf(e.path).value(QStringLiteral("xl/charts/chart1.xml")).isEmpty());
     }
 
     // The numbers of a chart made here are shown, and saved, in the format of the cells they come from.
