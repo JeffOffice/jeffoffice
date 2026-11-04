@@ -464,8 +464,9 @@
          "text": "b6be01ee53ddc53394caffb57f6e912798c6c37508fceb9b92febed18ad9f631"
         },
         {
-         "status": "partly",
-         "text": "c143554f64d4ee56c40ddf1724aa267d4476af9ed1068c7bc953d73a5eb163f3"
+         "hide_soon": true,
+         "status": "done",
+         "text": "0a297e6a2e0e489dbb2a27ad72d615088056bc727c019543283a169c8848c529"
         },
         {
          "hide_soon": true,
@@ -487,12 +488,12 @@
          "text": "722e85cf77f82fe1a84ee2c50e58c695fb53dfd1888ee35e617fd80db373ebfb"
         },
         {
-         "status": "todo",
-         "text": "66759c57f088650b7c1a0acb36d101b44a5835bf572f26b639552966cf66966c"
+         "status": "partly",
+         "text": "5c973f25b870dca7251d5d21ea6f035104c4e258c7e77268a056ad4d8f076485"
         },
         {
-         "status": "todo",
-         "text": "15732934ff19cf784ec99ca5944cef7eebfb01fbf0dd24be57cfb8a329e5f028"
+         "status": "partly",
+         "text": "cc555fcb7df67fcf51c42300ff331281c2c156da1ace8fd56f7a8cb3536b97b3"
         },
         {
          "status": "partly",
@@ -505,11 +506,11 @@
         },
         {
          "status": "partly",
-         "text": "2048675ea3cc48ca45fe0e5d9349060b2a9ea857d3b16ae5607ae260e62ac53d"
+         "text": "9b80765de4072b50e6f85f43abd1370a6e737b9fc915390bafd0edf2d7b6c757"
         },
         {
-         "status": "todo",
-         "text": "ed0a3eb760daaa14c852bd960640f2e00fa254f8d68927e2434e406ca3b41c1c"
+         "status": "partly",
+         "text": "d358bb74e03b241ad604680a2364c92b399c3228ff19e772f65d8db9e08f0eb9"
         }
        ]
       },
@@ -545,8 +546,8 @@
          "text": "a96884d5e4cd243b4f143d9dfe088f0d37d3913647d8ad507b53bd7b7bca6b73"
         },
         {
-         "status": "todo",
-         "text": "5248c401a2a6f25c8eb6748f9a687eb80df022a2d0d215961eb18870d8e24a49"
+         "status": "partly",
+         "text": "5028909fb2ca7f339d58aad8226175251a098f260f5f2d83766ff770318c05b2"
         }
        ]
       },
@@ -554,8 +555,9 @@
        "heading": "9410e47bec6a2df22bf2badbfb8ba7eb7e4057d1877acd30757c19cd68ec39a1",
        "items": [
         {
-         "status": "partly",
-         "text": "2f6b16178078c27472afa60eb0b39533b7b0555e6fa937bd5f52a5bf5517c85b"
+         "hide_soon": true,
+         "status": "done",
+         "text": "6d4fb1339f4205bd787dbaf59717a40514461ee8093ffec918b41cfb9a56ff8c"
         },
         {
          "hide_soon": true,
@@ -563,8 +565,9 @@
          "text": "34761b1e5caf2296423757a02f62387390e9c5fcce05ef894744ac827385efc6"
         },
         {
-         "status": "todo",
-         "text": "89064c1b588325a6d37d8b756fb022bced07bcdec5d8bfad119aaf37dbde287a"
+         "hide_soon": true,
+         "status": "done",
+         "text": "a40fdfbda18450583d837d5a624d657c7975890fe93e2893f29dd77c9134d49e"
         },
         {
          "status": "todo",
@@ -572,7 +575,7 @@
         },
         {
          "status": "partly",
-         "text": "2a1cbe966885ce10be43600035e7b88de955ff93393215a706e111cf367618bf"
+         "text": "78cad92fabb3d5eb07cf3322cd72022e90115775244ab94b6973c4b3905347b2"
         },
         {
          "hide_soon": true,
@@ -581,7 +584,7 @@
         },
         {
          "status": "partly",
-         "text": "8e3b7ad0e0bdb879aecd397815edb58c4fdd4e2c46923c4270c5905d8600013d"
+         "text": "eab6e62fb26a175eeb50644ca8ec8643de46f5e8b0dfa6ced997a2b6d7ba1000"
         }
        ]
       }
@@ -833,8 +836,9 @@
          "text": "1e5a2018f18177c9bb96edc78c515dab4976a1bb141c6d4a70baae4508b449fa"
         },
         {
-         "status": "todo",
-         "text": "7d96922f82eb81561ad24b942bae7f66ef75b28518d61a0eaf51f58ba839d1a6"
+         "hide_soon": true,
+         "status": "done",
+         "text": "bf1cd745b8479ad88d42bcea660169ef4ddd97e3ee97fcd967bb58c4098f4278"
         }
        ]
       },
@@ -1172,8 +1176,8 @@
          "text": "a6da045bc9eb0115cf16f2e1ffcc243ddaa71d4774dd975893b80fb7c1d9c7dd"
         },
         {
-         "status": "todo",
-         "text": "87ac7682ed7fc1eac2356c59ee87ac5cc582aa38c166900f45803f1d997b6329"
+         "status": "partly",
+         "text": "a1bee98c903dcb49df49adb6de24442e6441dd77eef7e96c7a2da4d1afa1c6b9"
         }
        ]
       }
@@ -1879,24 +1883,25 @@
          "text": "ac227c5d49b4dedee3f386084fdb3f3e91e4c5431a62686d0a9eb2d0491c865a"
         },
         {
-         "status": "todo",
-         "text": "d3243990ca24947469ab70f1219a6694adfb86e509a96012297167b1dda0427a"
+         "status": "partly",
+         "text": "e6e2880e938ed3d719538d584ca11aba1213b6dc7d1c826617d808a308b03808"
         },
         {
          "status": "partly",
          "text": "2170e16230e54f8a4bee6eb86be6a7f6bcbf2b7b4ed5934970725c232f661b0f"
         },
         {
-         "status": "todo",
-         "text": "ff40d9eb2a3333b51cd4f88a32bb9c86363527bfb05503ed2552d75964c31065"
+         "hide_soon": true,
+         "status": "done",
+         "text": "a4bf6e2bdcf37f71b6bdab8b5c093dc91b0b4abc185da91d7b5e1166d9299f72"
         },
         {
          "status": "todo",
          "text": "9cc4b156b92b3c834623cc58bbc20bb04d513b26ee84827fb0c50b05f32a252f"
         },
         {
-         "status": "todo",
-         "text": "5a549134e79c19de59d3f19bdc08245fef2ad0cdec6a77bd4d9ab103dbd2c953"
+         "status": "partly",
+         "text": "70230e112ef023bffbf4f2d7342f65a93ab34d4b49239f0b7a6ddcf38fbae4bc"
         },
         {
          "status": "partly",
@@ -7864,6 +7869,18 @@
     "fr": "Format d’image pour les images de l’en-tête et du pied de page"
    }
   },
+  "0a297e6a2e0e489dbb2a27ad72d615088056bc727c019543283a169c8848c529": {
+   "drop": false,
+   "en": "In JeffCrunch, apply Accounting Number Format for the US dollar, British pound, euro, yen, yuan, or Swiss franc from the list next to the Currency button. Percent Style, Comma Style, Increase Decimal, and Decrease Decimal are also available.",
+   "es": "En JeffCrunch, puede aplicar el formato de número de contabilidad para el dólar estadounidense, la libra esterlina, el euro, el yen, el yuan o el franco suizo desde la lista junto al botón Moneda. También están disponibles el estilo porcentual, el estilo de millares, Aumentar decimales y Disminuir decimales.",
+   "fr": "Dans JeffCrunch, vous pouvez appliquer le format comptable pour le dollar américain, la livre sterling, l’euro, le yen, le yuan ou le franc suisse depuis la liste à côté du bouton Devise. Le style pourcentage, le style milliers, Augmenter les décimales et Diminuer les décimales sont également disponibles.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "0a326edeb27908e36a853c98282da8488cc6e69e87ec06621e4cea437413383d": {
    "drop": false,
    "en": "Tables",
@@ -8608,18 +8625,6 @@
     "fr": ""
    }
   },
-  "15732934ff19cf784ec99ca5944cef7eebfb01fbf0dd24be57cfb8a329e5f028": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Top/Bottom Rules, Data Bars, Color Scales, and Icon Sets: create from the menu",
-    "es": "Reglas superiores e inferiores, barras de datos, escalas de color y conjuntos de iconos: crear desde el menú",
-    "fr": "Règles des valeurs supérieures et inférieures, barres de données, nuances de couleurs et jeux d’icônes : création depuis le menu"
-   }
-  },
   "15d3ebd2474eaa13d4b72804fd81f0a1553298ba707601709ccad9f8a669aace": {
    "drop": true,
    "en": "",
@@ -9302,18 +9307,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "2048675ea3cc48ca45fe0e5d9349060b2a9ea857d3b16ae5607ae260e62ac53d": {
-   "drop": false,
-   "en": "JeffCrunch has a gallery of cell styles, and you can apply a style to cells.",
-   "es": "JeffCrunch tiene una galería de estilos de celda, y usted puede aplicar un estilo a las celdas.",
-   "fr": "JeffCrunch propose une galerie de styles de cellule, et vous pouvez appliquer un style aux cellules.",
-   "soon": {
-    "drop": false,
-    "en": "Cell Styles: modify",
-    "es": "Estilos de celda: modificar",
-    "fr": "Styles de cellule : modification"
    }
   },
   "204ebea6183d0f25ba58448264e9988cd6e9410280b629a04f48fc71bc624a27": {
@@ -10180,18 +10173,6 @@
     "fr": ""
    }
   },
-  "2a1cbe966885ce10be43600035e7b88de955ff93393215a706e111cf367618bf": {
-   "drop": false,
-   "en": "In JeffCrunch, Clear All removes notes and links from cells, and Remove Link removes links.",
-   "es": "En JeffCrunch, Borrar todo quita las notas y los vínculos de las celdas, y Quitar vínculo elimina los vínculos.",
-   "fr": "Dans JeffCrunch, Tout effacer retire les notes et les liens des cellules, et Supprimer le lien retire les liens.",
-   "soon": {
-    "drop": false,
-    "en": "Clear Comments and Notes command",
-    "es": "Comando Borrar comentarios y notas",
-    "fr": "Commande Effacer les commentaires et les notes"
-   }
-  },
   "2a2527d3924c903603eaf65721dcd6112928664ccc7d044a748ebe1a69508d72": {
    "drop": false,
    "en": "Print mail merge and catalog merge jobs.",
@@ -10514,18 +10495,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "2f6b16178078c27472afa60eb0b39533b7b0555e6fa937bd5f52a5bf5517c85b": {
-   "drop": false,
-   "en": "In JeffCrunch, the Sum menu offers Sum, Average, Count Numbers, Max, and Min, and `Alt+=` (`Cmd+Shift+T` on a Mac) inserts the sum.",
-   "es": "En JeffCrunch, el menú Suma ofrece Suma, Promedio, Contar números, Máx y Mín, y `Alt+=` (`Cmd+Shift+T` en Mac) inserta la suma.",
-   "fr": "Dans JeffCrunch, le menu Somme propose Somme, Moyenne, Nb, Max et Min, et `Alt+=` (`Cmd+Shift+T` sur Mac) insère la somme.",
-   "soon": {
-    "drop": false,
-    "en": "More Functions in the Sum menu",
-    "es": "Más funciones en el menú Suma",
-    "fr": "Autres fonctions dans le menu Somme"
    }
   },
   "2f9f8ee2e4f85039b273491375b2928b5d0f04d4e11d144ecc606019ac7d8f90": {
@@ -12688,6 +12657,18 @@
     "fr": ""
    }
   },
+  "5028909fb2ca7f339d58aad8226175251a098f260f5f2d83766ff770318c05b2": {
+   "drop": false,
+   "en": "In JeffCrunch, drag the border of a selection to move the cells, or hold `Ctrl` to copy them. References to the cells follow, it is one undo step, and a dashed outline shows where they land.",
+   "es": "En JeffCrunch, arrastre el borde de una selección para mover las celdas, o mantenga presionada la tecla `Ctrl` para copiarlas. Las referencias a las celdas se actualizan, es un solo paso de deshacer y un contorno discontinuo muestra dónde se colocan.",
+   "fr": "Dans JeffCrunch, faites glisser la bordure d’une sélection pour déplacer les cellules, ou maintenez `Ctrl` pour les copier. Les références aux cellules suivent, c’est une seule étape d’annulation et un contour en pointillés indique où elles se placent.",
+   "soon": {
+    "drop": false,
+    "en": "Drop onto another sheet’s tab, insert by dragging, and insert copied cells",
+    "es": "Soltar sobre la pestaña de otra hoja, insertar al arrastrar e insertar celdas copiadas",
+    "fr": "Dépôt sur l’onglet d’une autre feuille, insertion par glissement et insertion de cellules copiées"
+   }
+  },
   "504c5677a2a2345c814b8fcc5e63470f8ef2cfe91e07c325af91e67f334e5ebd": {
    "drop": false,
    "en": "JeffPub shows a single page or a two-page spread.",
@@ -12902,18 +12883,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "5248c401a2a6f25c8eb6748f9a687eb80df022a2d0d215961eb18870d8e24a49": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Move a selection by dragging its border, with Alt to drop onto another sheet’s tab and Ctrl to copy, and insert copied cells, shifting the rest",
-    "es": "Mover una selección arrastrando su borde, con Alt para soltarla en la pestaña de otra hoja y Ctrl para copiar, e insertar celdas copiadas desplazando el resto",
-    "fr": "Déplacement d’une sélection en faisant glisser sa bordure, avec Alt pour la déposer sur l’onglet d’une autre feuille et Ctrl pour copier, et insertion de cellules copiées en décalant les autres"
    }
   },
   "525fcfe1070b1a8f66bb0eb38809ac895e801f499d81fa47b7bba3a7ebf9c2aa": {
@@ -13480,18 +13449,6 @@
     "fr": ""
    }
   },
-  "5a549134e79c19de59d3f19bdc08245fef2ad0cdec6a77bd4d9ab103dbd2c953": {
-   "drop": false,
-   "en": "Go To Special selects a block of cells by the type of content.",
-   "es": "Ir a especial selecciona un bloque de celdas según el tipo de contenido.",
-   "fr": "Atteindre spécial sélectionne un bloc de cellules selon le type de contenu.",
-   "soon": {
-    "drop": false,
-    "en": "Select Objects and the Selection pane",
-    "es": "Seleccionar objetos y el panel de selección",
-    "fr": "Sélection d’objets et volet de sélection"
-   }
-  },
   "5ad0db0bbc8e59144334752f140c842f2781e8acfa717026c7a7b6aa5b1db5ad": {
    "drop": true,
    "en": "",
@@ -13634,6 +13591,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "5c973f25b870dca7251d5d21ea6f035104c4e258c7e77268a056ad4d8f076485": {
+   "drop": false,
+   "en": "In JeffCrunch, the Conditional Formatting menu offers Greater Than, Less Than, Between, Equal To, Text That Contains, and Duplicate Values, each with a ready-made look. Clear Rules works on the selected cells and on the sheet. Rules are saved with the workbook.",
+   "es": "En JeffCrunch, el menú Formato condicional ofrece Mayor que, Menor que, Entre, Igual a, Texto que contiene y Valores duplicados, cada uno con un aspecto predefinido. Borrar reglas funciona en las celdas seleccionadas y en la hoja. Las reglas se guardan con el libro.",
+   "fr": "Dans JeffCrunch, le menu Mise en forme conditionnelle propose Supérieur à, Inférieur à, Entre, Égal à, Texte contenant et Valeurs en double, chacun avec un aspect prédéfini. Effacer les règles fonctionne sur les cellules sélectionnées et sur la feuille. Les règles sont enregistrées avec le classeur.",
+   "soon": {
+    "drop": false,
+    "en": "Conditional format rules: new rule with a formula, manage rules, and clear from a table or pivot table",
+    "es": "Reglas de formato condicional: nueva regla con una fórmula, administrar reglas y borrar desde una tabla o tabla dinámica",
+    "fr": "Règles de mise en forme conditionnelle : nouvelle règle avec formule, gestion des règles et effacement depuis un tableau ou un tableau croisé dynamique"
    }
   },
   "5cb55dad6778ac938ecb374e4cde941dd35842b67f8acc56f9a9bf20dda3ad72": {
@@ -14356,18 +14325,6 @@
     "fr": ""
    }
   },
-  "66759c57f088650b7c1a0acb36d101b44a5835bf572f26b639552966cf66966c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Conditional Formatting menu: create, manage, and clear rules",
-    "es": "Menú Formato condicional: crear, administrar y borrar reglas",
-    "fr": "Menu Mise en forme conditionnelle : création, gestion et effacement des règles"
-   }
-  },
   "66c9a9d91d403fbdbdcf1b0c24d59bf0d988c772aacbc1d326293209f66e2e4b": {
    "drop": false,
    "en": "In JeffDeck, you can bring objects to front or forward, send them backward or to back, group them with `Ctrl+Shift+G`, ungroup them, rotate them 90 degrees right or left, and flip them horizontally or vertically.",
@@ -14980,6 +14937,18 @@
     "fr": ""
    }
   },
+  "6d4fb1339f4205bd787dbaf59717a40514461ee8093ffec918b41cfb9a56ff8c": {
+   "drop": false,
+   "en": "In JeffCrunch, the Sum menu inserts Sum, Average, Count Numbers, Max, or Min, and `Alt+=` inserts a sum (`Cmd+Shift+T` on a Mac). All Functions opens the function list.",
+   "es": "En JeffCrunch, el menú Suma inserta Suma, Promedio, Contar números, Máx o Mín, y `Alt+=` inserta una suma (`Cmd+Shift+T` en Mac). Todas las funciones abre la lista de funciones.",
+   "fr": "Dans JeffCrunch, le menu Somme insère Somme, Moyenne, Compter les nombres, Max ou Min, et `Alt+=` insère une somme (`Cmd+Shift+T` sur Mac). Toutes les fonctions ouvre la liste des fonctions.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "6ddec3351d3989e71923ca52b67bb61a43695ed0abc4b6c327aaf2d2a0beb621": {
    "drop": false,
    "en": "In JeffWrite, you can zoom with a dialog (percent, page width, text width, whole page, many pages), the 100%, One Page, Multiple Pages, and Page Width commands, a slider in the status bar, or `Ctrl`+wheel.",
@@ -15086,6 +15055,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "70230e112ef023bffbf4f2d7342f65a93ab34d4b49239f0b7a6ddcf38fbae4bc": {
+   "drop": false,
+   "en": "Go To Special selects a block of cells by the type of content.",
+   "es": "Ir a especial selecciona un bloque de celdas según el tipo de contenido.",
+   "fr": "Atteindre spécial sélectionne un bloc de cellules selon le type de contenu.",
+   "soon": {
+    "drop": false,
+    "en": "Select Objects and the Selection pane",
+    "es": "Seleccionar objetos y el panel de selección",
+    "fr": "Sélectionner les objets et le volet Sélection"
    }
   },
   "702bb448a6ac626c8cdb8f574837567007a8c993bc49313e88402a183657e57f": {
@@ -15712,6 +15693,18 @@
     "fr": ""
    }
   },
+  "78cad92fabb3d5eb07cf3322cd72022e90115775244ab94b6973c4b3905347b2": {
+   "drop": false,
+   "en": "In JeffCrunch, the Clear menu offers Clear All, Clear Comments and Notes, and Clear Hyperlinks. Remove Link takes links off cells.",
+   "es": "En JeffCrunch, el menú Borrar ofrece Borrar todo, Borrar comentarios y notas y Borrar hipervínculos. Quitar vínculo elimina los vínculos de las celdas.",
+   "fr": "Dans JeffCrunch, le menu Effacer propose Tout effacer, Effacer les commentaires et notes et Effacer les liens hypertexte. Supprimer le lien retire les liens des cellules.",
+   "soon": {
+    "drop": false,
+    "en": "Remove Hyperlinks, also removing the link look from the text",
+    "es": "Quitar hipervínculos, que también quita el aspecto de vínculo del texto",
+    "fr": "Suppression des liens hypertexte, avec retrait de l’aspect de lien du texte"
+   }
+  },
   "78e4a0f74b62bee0908f7458f062ba7830a8de68d06ed4881fdf4878470ac4f3": {
    "drop": false,
    "en": "Sort & Filter",
@@ -16010,18 +16003,6 @@
     "en": "Editing text effects on letters",
     "es": "Edición de efectos de texto en las letras",
     "fr": "Modification des effets de texte sur les lettres"
-   }
-  },
-  "7d96922f82eb81561ad24b942bae7f66ef75b28518d61a0eaf51f58ba839d1a6": {
-   "drop": false,
-   "en": "A sheet that reads right to left is drawn mirrored.",
-   "es": "Una hoja que se lee de derecha a izquierda se dibuja en espejo.",
-   "fr": "Une feuille qui se lit de droite à gauche est affichée en miroir.",
-   "soon": {
-    "drop": false,
-    "en": "A command to turn a sheet right to left",
-    "es": "Un comando para cambiar una hoja a derecha-izquierda",
-    "fr": "Une commande pour passer une feuille de droite à gauche"
    }
   },
   "7da8428b6edc7339c6d8ef2e3e9af58a00486c63f2e97bd317cf9d167cb18c66": {
@@ -16648,18 +16629,6 @@
     "fr": "Effets"
    }
   },
-  "87ac7682ed7fc1eac2356c59ee87ac5cc582aa38c166900f45803f1d997b6329": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Full Screen, hide or show the ribbon, and status bar choices (average, count, numerical count, minimum, maximum, and sum of the selection; zoom slider; calculation mode)",
-    "es": "Pantalla completa, ocultar o mostrar la cinta de opciones, y opciones de la barra de estado (promedio, recuento, recuento numérico, mínimo, máximo y suma de la selección; control deslizante de zoom; modo de cálculo)",
-    "fr": "Plein écran, masquer ou afficher le ruban, et choix de la barre d’état (moyenne, nombre, nombre de valeurs numériques, minimum, maximum et somme de la sélection ; curseur de zoom ; mode de calcul)"
-   }
-  },
   "87c0f484ff28e102672ec0b68d029161ee739b881683d1ac8ed5123170b9d43a": {
    "drop": false,
    "en": "Shape Format, Text Box, and text effects tabs",
@@ -16694,18 +16663,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "89064c1b588325a6d37d8b756fb022bced07bcdec5d8bfad119aaf37dbde287a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Custom lists for fills",
-    "es": "Listas personalizadas para rellenar",
-    "fr": "Listes personnalisées pour la recopie"
    }
   },
   "898747049394d12dd491d9d3a15e2e329eb9da8516ede33ce564a58ec847e95c": {
@@ -17054,18 +17011,6 @@
     "en": "Paste choices for lists and tables: continue, restart, or merge a list; paste spreadsheet cells as a table, nested table, new rows, or picture; Set Default Paste",
     "es": "Opciones de pegado para listas y tablas: continuar, reiniciar o combinar una lista; pegar celdas de una hoja de cálculo como tabla, tabla anidada, filas nuevas o imagen; definir el pegado predeterminado",
     "fr": "Options de collage pour les listes et les tableaux : poursuivre, redémarrer ou fusionner une liste ; coller des cellules de tableur comme tableau, tableau imbriqué, nouvelles lignes ou image ; définir le collage par défaut"
-   }
-  },
-  "8e3b7ad0e0bdb879aecd397815edb58c4fdd4e2c46923c4270c5905d8600013d": {
-   "drop": false,
-   "en": "In JeffCrunch, Find, Find All, Replace, and Replace All work in the sheet or the workbook, by rows or columns, in formulas, values, or notes, with match case, match entire cell, and wildcards. Go To works by reference or name, and Go To Special selects blanks, constants and formulas by kind of result, errors, current region, last cell, visible cells, conditional formats, and data validation.",
-   "es": "En JeffCrunch, Buscar, Buscar todo, Reemplazar y Reemplazar todo funcionan en la hoja o en el libro, por filas o columnas, en fórmulas, valores o notas, con coincidencia de mayúsculas y minúsculas, celda completa y comodines. Ir a funciona por referencia o nombre, e Ir a Especial selecciona celdas en blanco, constantes y fórmulas según el tipo de resultado, errores, región actual, última celda, celdas visibles, formatos condicionales y validación de datos.",
-   "fr": "Dans JeffCrunch, Rechercher, Rechercher tout, Remplacer et Remplacer tout fonctionnent dans la feuille ou le classeur, par lignes ou par colonnes, dans les formules, les valeurs ou les notes, avec respect de la casse, cellule entière et caractères génériques. Atteindre fonctionne par référence ou par nom, et Atteindre spécial sélectionne les cellules vides, les constantes et les formules selon le type de résultat, les erreurs, la région courante, la dernière cellule, les cellules visibles, les mises en forme conditionnelles et la validation des données.",
-   "soon": {
-    "drop": false,
-    "en": "Find by format, replace in notes, Go To Special for arrays, objects, row and column differences, precedents, and dependents, Select Objects, and Selection Pane",
-    "es": "Buscar por formato, reemplazar en notas, Ir a Especial para matrices, objetos, diferencias de filas y columnas, precedentes y dependientes, Seleccionar objetos y Panel de selección",
-    "fr": "Recherche par format, remplacement dans les notes, Atteindre spécial pour les matrices, les objets, les différences de lignes et de colonnes, les antécédents et les dépendants, Sélectionner les objets et Volet Sélection"
    }
   },
   "8e670cea4878c8ec0e1a4bae77cd42863beefff50fc957a4db6fe29842b648f4": {
@@ -18052,6 +17997,18 @@
     "fr": ""
    }
   },
+  "9b80765de4072b50e6f85f43abd1370a6e737b9fc915390bafd0edf2d7b6c757": {
+   "drop": false,
+   "en": "In JeffCrunch, the Cell Styles gallery lets you apply a style to cells, and New Cell Style adds a style of your own to the gallery.",
+   "es": "En JeffCrunch, la galería Estilos de celda permite aplicar un estilo a las celdas, y Nuevo estilo de celda agrega un estilo propio a la galería.",
+   "fr": "Dans JeffCrunch, la galerie Styles de cellule permet d’appliquer un style aux cellules, et Nouveau style de cellule ajoute un style personnel à la galerie.",
+   "soon": {
+    "drop": false,
+    "en": "Cell styles: modify, with cells that use the style following",
+    "es": "Estilos de celda: modificar, con las celdas que usan el estilo siguiendo el cambio",
+    "fr": "Styles de cellule : modification, les cellules qui utilisent le style suivant le changement"
+   }
+  },
   "9ba1c0a9c150e5c7c99e5c7da024a712fb4aeae74b70fec78221b81e05393d75": {
    "drop": false,
    "en": "In JeffWrite, you can insert footnotes and endnotes with the References tab or `Ctrl+Alt+F` and `Ctrl+Alt+D`, and edit a note’s text where it stands. The Footnote and Endnote dialog sets the number format (1, a, A, i, I, or symbols), the first number, restarting each section (or, for footnotes, each page), and where endnotes are set (end of section or end of document).",
@@ -18472,6 +18429,18 @@
     "fr": "Plusieurs pages par feuille et mise à l’échelle selon un format de papier"
    }
   },
+  "a1bee98c903dcb49df49adb6de24442e6441dd77eef7e96c7a2da4d1afa1c6b9": {
+   "drop": false,
+   "en": "In JeffCrunch, Collapse the Ribbon (`Ctrl+F1`) and Full Screen (`Ctrl+Shift+F1`) are available. A right click on the status bar numbers chooses Average, Count, Numerical Count, Minimum, Maximum, or Sum.",
+   "es": "En JeffCrunch, están disponibles Contraer la cinta de opciones (`Ctrl+F1`) y Pantalla completa (`Ctrl+Shift+F1`). Un clic derecho en los números de la barra de estado permite elegir Promedio, Contar, Contar números, Mínimo, Máximo o Suma.",
+   "fr": "Dans JeffCrunch, Réduire le ruban (`Ctrl+F1`) et Plein écran (`Ctrl+Shift+F1`) sont disponibles. Un clic droit sur les nombres de la barre d’état permet de choisir Moyenne, Nb, Nb numérique, Minimum, Maximum ou Somme.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "a29fab786be6ae254dffc39fb5b00576c6453857b3d938a6f0f8201db0e7af54": {
    "drop": false,
    "en": "Clipboard",
@@ -18544,6 +18513,18 @@
     "fr": ""
    }
   },
+  "a40fdfbda18450583d837d5a624d657c7975890fe93e2893f29dd77c9134d49e": {
+   "drop": false,
+   "en": "In JeffCrunch, define custom lists under File > Options > Custom Lists, one list per line with commas between the words, up to 50 lists. The fill handle and Fill Series use them like weekdays and months, without regard to capitals.",
+   "es": "En JeffCrunch, defina listas personalizadas en Archivo > Opciones > Listas personalizadas, una lista por línea con comas entre las palabras, hasta 50 listas. El controlador de relleno y Rellenar serie las usan como los días de la semana y los meses, sin distinguir mayúsculas.",
+   "fr": "Dans JeffCrunch, définissez des listes personnalisées sous Fichier > Options > Listes personnalisées, une liste par ligne avec des virgules entre les mots, jusqu’à 50 listes. La poignée de recopie et Série de données les utilisent comme les jours de la semaine et les mois, sans tenir compte des majuscules.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "a423b0f56b4814e3eb1181bdd35d9a43bb2571e7c8050762b80249bdf67fe811": {
    "drop": true,
    "en": "",
@@ -18554,6 +18535,18 @@
     "en": "Files with more than 1,048,576 rows: load with a notice or continue into further sheets",
     "es": "Archivos con más de 1.048.576 filas: carga con aviso o continuación en más hojas",
     "fr": "Fichiers de plus de 1 048 576 lignes : chargement avec avertissement ou poursuite dans d’autres feuilles"
+   }
+  },
+  "a4bf6e2bdcf37f71b6bdab8b5c093dc91b0b4abc185da91d7b5e1166d9299f72": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Ordering by value type and a stable sort",
+    "es": "Ordenación por tipo de valor y ordenación estable",
+    "fr": "Tri par type de valeur et tri stable"
    }
   },
   "a4ea77d0cc854ad25167fdbfc818ed76812b0e18b3a8ee75b3c66173a714881e": {
@@ -20092,6 +20085,18 @@
     "fr": ""
    }
   },
+  "bf1cd745b8479ad88d42bcea660169ef4ddd97e3ee97fcd967bb58c4098f4278": {
+   "drop": false,
+   "en": "A sheet that reads right to left is drawn mirrored.",
+   "es": "Una hoja que se lee de derecha a izquierda se muestra en espejo.",
+   "fr": "Une feuille qui se lit de droite à gauche s’affiche en miroir.",
+   "soon": {
+    "drop": false,
+    "en": "A command to turn a sheet right to left",
+    "es": "Un comando para cambiar una hoja a derecha a izquierda",
+    "fr": "Une commande pour passer une feuille de droite à gauche"
+   }
+  },
   "bf2ee60bbbd33d44c9d5a50121b027b673b434a62f793fe93702a7efae47fc7c": {
    "drop": true,
    "en": "",
@@ -20234,18 +20239,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c143554f64d4ee56c40ddf1724aa267d4476af9ed1068c7bc953d73a5eb163f3": {
-   "drop": false,
-   "en": "In JeffCrunch, you can apply Currency with the language’s symbol, Percent Style, Comma Style, Increase Decimal, and Decrease Decimal.",
-   "es": "En JeffCrunch, usted puede aplicar Moneda con el símbolo del idioma, Estilo porcentual, Estilo de millares, Aumentar decimales y Disminuir decimales.",
-   "fr": "Dans JeffCrunch, vous pouvez appliquer Monétaire avec le symbole de la langue, Style pourcentage, Style de séparateur de milliers, Ajouter une décimale et Supprimer une décimale.",
-   "soon": {
-    "drop": false,
-    "en": "Accounting Number Format: choose a currency from a list on the button",
-    "es": "Formato de número de contabilidad: elegir una moneda de una lista en el botón",
-    "fr": "Format comptabilité : choix d’une devise dans une liste sur le bouton"
    }
   },
   "c150c6a5abb92c0582b63aa4004a5ab6e70d91473165f56636260a52c305598d": {
@@ -21076,6 +21069,18 @@
     "fr": ""
    }
   },
+  "cc555fcb7df67fcf51c42300ff331281c2c156da1ace8fd56f7a8cb3536b97b3": {
+   "drop": false,
+   "en": "In JeffCrunch, make Top 10 Items, Bottom 10 Items, Top 10 %, Bottom 10 %, Above Average, and Below Average rules from the menu. They are saved with the workbook.",
+   "es": "En JeffCrunch, puede crear desde el menú reglas de los 10 mejores elementos, los 10 últimos, el 10 % superior, el 10 % inferior, por encima del promedio y por debajo del promedio. Se guardan con el libro.",
+   "fr": "Dans JeffCrunch, vous pouvez créer depuis le menu des règles pour les 10 premiers éléments, les 10 derniers, les 10 % premiers, les 10 % derniers, au-dessus de la moyenne et en dessous de la moyenne. Elles sont enregistrées avec le classeur.",
+   "soon": {
+    "drop": false,
+    "en": "Data bars, color scales, and icon sets: create",
+    "es": "Barras de datos, escalas de color y conjuntos de iconos: crear",
+    "fr": "Barres de données, nuances de couleurs et jeux d’icônes : création"
+   }
+  },
   "cc98411f16b82071946349690f3623d494abac85c0159defb26bdcdab5504222": {
    "drop": false,
    "en": "JeffCrunch reads and keeps a workbook's theme (colors, fonts, and effects), and every color or font a cell takes from the theme uses it.",
@@ -21496,18 +21501,6 @@
     "fr": ""
    }
   },
-  "d3243990ca24947469ab70f1219a6694adfb86e509a96012297167b1dda0427a": {
-   "drop": false,
-   "en": "Drag the fill handle to fill a series.",
-   "es": "Arrastre el controlador de relleno para rellenar una serie.",
-   "fr": "Faites glisser la poignée de recopie pour remplir une série.",
-   "soon": {
-    "drop": false,
-    "en": "Move or copy a selection by dragging its border",
-    "es": "Mover o copiar una selección arrastrando su borde",
-    "fr": "Déplacement ou copie d’une sélection en faisant glisser sa bordure"
-   }
-  },
   "d3249263d810ee621c98d5f165b93728e8307173b0c42f0ef10bbc98cc2b4100": {
    "drop": false,
    "en": "The JeffPub window has a Pages list (drag to move a page; right-click to add, copy, delete, rename, or move), a status bar (page buttons, pointer position, selected size, view buttons, and zoom), and task panes on the right (Find and Replace, Design Checker, Mail Merge, Research, Graphics Manager, Online Pictures, Catalog Merge, and Help).",
@@ -21530,6 +21523,18 @@
     "en": "Text to Columns: a separate type for each piece, a date order, and skipping a piece",
     "es": "Texto en columnas: un tipo distinto para cada fragmento, un orden de fechas y omitir un fragmento",
     "fr": "Convertir en colonnes : un type distinct pour chaque morceau, un ordre des dates et l’exclusion d’un morceau"
+   }
+  },
+  "d358bb74e03b241ad604680a2364c92b399c3228ff19e772f65d8db9e08f0eb9": {
+   "drop": false,
+   "en": "In JeffCrunch, New Cell Style keeps the look of the current cell under a name, offers it in the gallery, applies it to the selected cells, and saves it with the workbook.",
+   "es": "En JeffCrunch, Nuevo estilo de celda guarda con un nombre el aspecto de la celda actual, lo ofrece en la galería, lo aplica a las celdas seleccionadas y lo guarda con el libro.",
+   "fr": "Dans JeffCrunch, Nouveau style de cellule conserve sous un nom l’aspect de la cellule active, le propose dans la galerie, l’applique aux cellules sélectionnées et l’enregistre avec le classeur.",
+   "soon": {
+    "drop": false,
+    "en": "Merge Styles from another workbook and delete a style",
+    "es": "Combinar estilos de otro libro y eliminar un estilo",
+    "fr": "Fusion des styles d’un autre classeur et suppression d’un style"
    }
   },
   "d367f1046c1628f69157953acde67589ef4bf490b054c5971a7cd3d927796045": {
@@ -22996,6 +23001,18 @@
     "fr": "Volet de navigation, nombre d’occurrences et surlignage de toutes les occurrences"
    }
   },
+  "e6e2880e938ed3d719538d584ca11aba1213b6dc7d1c826617d808a308b03808": {
+   "drop": false,
+   "en": "Drag the fill handle to fill a series.",
+   "es": "Arrastre el controlador de relleno para rellenar una serie.",
+   "fr": "Faites glisser la poignée de recopie pour remplir une série.",
+   "soon": {
+    "drop": false,
+    "en": "Move or copy a selection by dragging its border",
+    "es": "Mover o copiar una selección arrastrando su borde",
+    "fr": "Déplacement ou copie d’une sélection en faisant glisser sa bordure"
+   }
+  },
   "e712dd58f595cc9b452dff643a8e1057682cef4d9190adedf2eb6ecd7e608f37": {
    "drop": false,
    "en": "PDF, pictures, video, and web",
@@ -23200,6 +23217,18 @@
     "fr": "Fonction `INFO`"
    }
   },
+  "eab6e62fb26a175eeb50644ca8ec8643de46f5e8b0dfa6ced997a2b6d7ba1000": {
+   "drop": false,
+   "en": "In JeffCrunch, Find, Find All, Replace, and Replace All work in the sheet or the workbook, by rows or columns, in formulas, values, or notes, with match case, match entire cell, and the wildcards. Go To works by reference or name, and Go To Special selects blanks, constants and formulas by kind of result, errors, current region, current array, last cell, visible cells, conditional formats, data validation, and cells that differ from the cursor cell in their row or column.",
+   "es": "En JeffCrunch, Buscar, Buscar todo, Reemplazar y Reemplazar todo funcionan en la hoja o en el libro, por filas o columnas, en fórmulas, valores o notas, con coincidencia de mayúsculas, coincidencia de celda completa y comodines. Ir a funciona por referencia o nombre, e Ir a especial selecciona celdas en blanco, constantes y fórmulas según el tipo de resultado, errores, región actual, matriz actual, última celda, celdas visibles, formatos condicionales, validación de datos y celdas que difieren de la celda del cursor en su fila o columna.",
+   "fr": "Dans JeffCrunch, Rechercher, Rechercher tout, Remplacer et Remplacer tout fonctionnent dans la feuille ou le classeur, par lignes ou colonnes, dans les formules, les valeurs ou les notes, avec respect de la casse, cellule entière et caractères génériques. Atteindre fonctionne par référence ou par nom, et Atteindre spécial sélectionne les cellules vides, les constantes et formules selon le type de résultat, les erreurs, la région courante, la matrice courante, la dernière cellule, les cellules visibles, les mises en forme conditionnelles, la validation des données et les cellules qui diffèrent de la cellule du curseur dans leur ligne ou colonne.",
+   "soon": {
+    "drop": false,
+    "en": "Find by format, replace in notes, objects, precedents and dependents, Select Objects, and the Selection pane",
+    "es": "Buscar por formato, reemplazar en notas, objetos, precedentes y dependientes, Seleccionar objetos y el panel de selección",
+    "fr": "Recherche par format, remplacement dans les notes, objets, antécédents et dépendants, Sélectionner les objets et le volet Sélection"
+   }
+  },
   "eb49ec326a5e52225e357f8c1b688fc2fa2a1482b12a4008c26847854f4b0e22": {
    "drop": false,
    "en": "Comments",
@@ -23342,18 +23371,6 @@
     "en": "Insert Picture: link to the file",
     "es": "Insertar imagen: vincular al fichero",
     "fr": "Insertion d’image : lien vers le fichier"
-   }
-  },
-  "ed0a3eb760daaa14c852bd960640f2e00fa254f8d68927e2434e406ca3b41c1c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "New Cell Style, Merge Styles from another open workbook, and delete a style",
-    "es": "Nuevo estilo de celda, combinar estilos de otro libro abierto y eliminar un estilo",
-    "fr": "Nouveau style de cellule, fusion des styles d’un autre classeur ouvert et suppression d’un style"
    }
   },
   "ed281493944b96808deecc46c9e8010eb9cb44733282ba9ac11659d1f051ee69": {
@@ -24578,18 +24595,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ff40d9eb2a3333b51cd4f88a32bb9c86363527bfb05503ed2552d75964c31065": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Ordering by value type and a stable sort",
-    "es": "Ordenación por tipo de valor y ordenación estable",
-    "fr": "Tri par type de valeur et tri stable"
    }
   },
   "ff508b2c6b1ec140a92dd9d68c324f4a0c4b6daaf020dc772d5e33f7cd013b28": {
