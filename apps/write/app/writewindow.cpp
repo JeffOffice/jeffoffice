@@ -605,6 +605,11 @@ void WriteWindow::updateStatus()
     const int pages = m_view->pageCount();
     const QString total = m_view->pagesComplete() ? QString::number(pages) : QStringLiteral("%1+").arg(pages);
     m_pageLabel->setText(tr("Page %1 of %2").arg(m_doc ? m_view->currentPage() + 1 : 0).arg(total));
+    if (m_sectionLabel) {
+        const bool several = m_doc && m_doc->sectionCount() > 1;
+        m_sectionLabel->setVisible(several);
+        if (several) m_sectionLabel->setText(tr("Section %1").arg(m_view->cursorSection() + 1));
+    }
     updateLanguage();
     if (m_doc && !m_wordTimer.isActive()) m_wordTimer.start();
 }

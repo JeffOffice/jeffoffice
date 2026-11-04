@@ -366,7 +366,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **1.0** Collapse and expand headings in the document itself
 - [x] **first release** Zoom: a dialog (percent, page width, text width, whole page, many pages), 100%, One Page, Multiple Pages, Page Width, a slider in the status bar, and Ctrl+wheel *(shared: JeffPub's zoom)*
 - [x] **1.0** Page movement: vertical or side to side *(round 10: View > Page Movement has Vertical and Side to Side; side to side puts all the pages in one row, the mouse wheel turns them past, and Go To Page and the caret scroll across to a page)*
-- [~] **first release** Status bar: page x of y, word count, language, proofing errors, tracking, section, line, and column, with the view buttons and the zoom slider *(shared: JeffPub's and JeffDeck's status bars)* *(0.9.0: the page, the word count, and the zoom slider)*
+- [~] **first release** Status bar: page x of y, word count, language, proofing errors, tracking, section, line, and column, with the view buttons and the zoom slider *(shared: JeffPub's and JeffDeck's status bars)* *(0.9.0: the page, the word count, and the zoom slider)* *(round 10: the section the caret is in, shown where the document has more than one; no line, column, or proofing errors)*
 
 ### Window
 - [ ] **1.0** New Window, Arrange All, Switch Windows, View Side by Side with synchronous scrolling, Reset Window Position, and Split (two panes onto one document) *(shared: JeffPub's windows, apart from Split)*

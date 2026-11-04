@@ -336,6 +336,7 @@ private:
     WriteFindPane *m_find = nullptr;
     QDockWidget *m_findDock = nullptr;
     QToolButton *m_langLabel = nullptr;
+    QLabel *m_sectionLabel = nullptr;
     QLabel *m_pageLabel = nullptr, *m_wordLabel = nullptr, *m_zoomLabel = nullptr;
     QSlider *m_zoomSlider = nullptr;
     bool m_noteLimitShown = false;   // the status bar has said that the document holds the most notes

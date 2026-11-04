@@ -18,6 +18,7 @@
 
 #include <QAction>
 #include <QDockWidget>
+#include <QLabel>
 #include <QMenu>
 #include <QPair>
 #include <QScrollBar>
@@ -426,6 +427,30 @@ private Q_SLOTS:
         QVERIFY(w.readMode());
         w.act(QStringLiteral("view.readMode"))->trigger();
         QVERIFY(!w.readMode() && !w.focusMode());
+    }
+
+    void theStatusBarShowsTheSectionWhereThereAreSeveral()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QLabel *label = w.findChild<QLabel *>(QStringLiteral("sectionNumber"));
+        QVERIFY(label);
+        w.refreshNow();
+        QVERIFY(!label->isVisible());   // (one section: nothing to tell)
+        QTextCursor c = w.view()->cursor();
+        insertText(*w.document(), c, QStringLiteral("first"));
+        insertSectionBreak(*w.document(), c);
+        insertText(*w.document(), c, QStringLiteral("second"));
+        w.view()->setCursor(c);
+        w.refreshNow();
+        QVERIFY(label->isVisible());
+        QCOMPARE(label->text(), QStringLiteral("Section 2"));
+        QTextCursor top(w.document()->story());
+        top.setPosition(1);
+        w.view()->setCursor(top);
+        w.refreshNow();
+        QCOMPARE(label->text(), QStringLiteral("Section 1"));
     }
 };
 
