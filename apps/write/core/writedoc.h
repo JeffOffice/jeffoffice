@@ -789,6 +789,7 @@ private:
         bool footer = false;
     } m_pending;
     bool commitPending();
+    bool m_dropCapsAsFrames = true;   // the drop caps made here are written as a paragraph of their own set as a frame (.docx); off for the .odt, which would read them as two paragraphs
     bool m_committing = false;   // the document is being changed to make the header or footer that was shown to be typed in (the story being typed in is not sealed by it)
     // Takes the styles that making a header or footer added out of the styles to write when no paragraph written has them.
     void dropHeaderStyles(office::wml::Document *out) const;

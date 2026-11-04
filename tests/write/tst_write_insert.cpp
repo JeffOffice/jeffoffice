@@ -13,12 +13,15 @@
 #include "app/ruler.h"
 #include "app/writewindow.h"
 #include "core/appinfo.h"
+#include "core/designops.h"
+#include "core/dropcapops.h"
 #include "core/editops.h"
 #include "core/fonts.h"
 #include "core/insertops.h"
 #include "core/layoutops.h"
 #include "core/refops.h"
 #include "core/linkops.h"
+#include "core/watermarkops.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "office/package.h"
@@ -578,6 +581,156 @@ private Q_SLOTS:
         withDialog([&] { win.w.act("design.pageBorders")->trigger(); }, QStringLiteral("pageBordersDialog"), [&](QDialog *dlg) { dlg->findChild<QPushButton *>(QStringLiteral("none"))->click(); });
         QVERIFY(!win.w.document()->flow().section(0).pageBorders.any());
         QVERIFY(!documentXml(win.w.document()->toDocx()).contains("pgBorders"));
+    }
+
+    // ---------------------------------------------------------------- Watermark
+    void aWatermarkGoesInTheHeaderKeepsTheHeadersTextAndComesOut()
+    {
+        auto doc = WriteDoc::blank();
+        QVERIFY(doc->createHeaderFooter(0, false, WriteDoc::kDefaultSlot));
+        QTextCursor h(doc->editableHeaderFooter(0, false, WriteDoc::kDefaultSlot));
+        h.insertText(QStringLiteral("Quarterly report"));
+        QVERIFY(!watermarkOf(*doc));
+        WatermarkSetup w;
+        w.text = QStringLiteral("CONFIDENTIAL & DRAFT");
+        w.color = QColor(0xFF, 0, 0);
+        w.semitransparent = false;
+        w.diagonal = false;
+        QCOMPARE(insertWatermark(*doc, w), 1);
+        const auto found = watermarkOf(*doc);
+        QVERIFY(found);
+        QCOMPARE(found->text, w.text);
+        QCOMPARE(found->color, w.color);
+        QVERIFY(!found->diagonal);
+        QVERIFY(!found->semitransparent);
+        // The file has the shape in the header, behind the text, and the header's words as they were.
+        office::Package pkg;
+        pkg.read(doc->toDocx());
+        QByteArray header;
+        for (const QString &name : pkg.partNames())
+            if (name.startsWith(QLatin1String("/word/header"))) header = pkg.part(name);
+        QVERIFY2(header.contains("<v:textpath") && header.contains("string=\"CONFIDENTIAL &amp; DRAFT\"") && header.contains("z-index:-251658752"), header.constData());
+        QVERIFY(header.contains("Quarterly report"));
+        QVERIFY(!header.contains("rotation:"));
+        // Opened again, it is found; putting another in replaces it, and nothing is doubled.
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QVERIFY(watermarkOf(*again));
+        WatermarkSetup other;
+        other.text = QStringLiteral("DRAFT");
+        QCOMPARE(insertWatermark(*again, other), 1);
+        QCOMPARE(watermarkOf(*again)->text, QStringLiteral("DRAFT"));
+        QVERIFY(watermarkOf(*again)->diagonal);
+        pkg.read(again->toDocx());
+        for (const QString &name : pkg.partNames())
+            if (name.startsWith(QLatin1String("/word/header"))) QCOMPARE(pkg.part(name).count("string=\"DRAFT\""), 1);
+        QCOMPARE(removeWatermark(*again), 1);
+        QVERIFY(!watermarkOf(*again));
+        pkg.read(again->toDocx());
+        for (const QString &name : pkg.partNames())
+            if (name.startsWith(QLatin1String("/word/header"))) {
+                QVERIFY(!pkg.part(name).contains("textpath"));
+                QVERIFY(pkg.part(name).contains("Quarterly report"));
+            }
+    }
+
+    void aWatermarkMakesAHeaderWhereThereIsNoneAndNothingForNoWords()
+    {
+        auto doc = WriteDoc::blank();
+        WatermarkSetup w;
+        w.text = QStringLiteral("   ");
+        QCOMPARE(insertWatermark(*doc, w), 0);
+        w.text = QStringLiteral("SAMPLE");
+        QCOMPARE(insertWatermark(*doc, w), 1);
+        QVERIFY(watermarkOf(*doc));
+        QVERIFY(doc->hasOwnHeaderFooter(0, false, WriteDoc::kDefaultSlot));
+        QVERIFY(!builtInWatermarks().isEmpty());
+    }
+
+    // ---------------------------------------------------------------- Paragraph spacing
+    void paragraphSpacingPresetsSetTheDefaultStyleAsOneStepAndAreKept()
+    {
+        auto doc = open(makeDocx(para("First paragraph.") + para("Second paragraph.")));
+        QVERIFY(doc);
+        QVERIFY(!applyParagraphSpacing(*doc, QStringLiteral("nonsense")));
+        QVERIFY(applyParagraphSpacing(*doc, QStringLiteral("double")));
+        QCOMPARE(paragraphSpacingOf(*doc), QStringLiteral("double"));
+        const QByteArray styles = partOf(doc->toDocx(), QStringLiteral("/word/styles.xml"));
+        QVERIFY2(styles.contains("w:line=\"480\"") && styles.contains("w:lineRule=\"auto\""), styles.constData());
+        // Every ordinary paragraph is double spaced: the text is restyled with the style.
+        doc->pager().paginate(0);
+        QTextBlock first = doc->story()->begin();
+        QVERIFY(first.blockFormat().lineHeightType() == QTextBlockFormat::ProportionalHeight);
+        QCOMPARE(first.blockFormat().lineHeight(), 200.0);
+        auto again = open(doc->toDocx());
+        QCOMPARE(paragraphSpacingOf(*again), QStringLiteral("double"));
+        QVERIFY(applyParagraphSpacing(*doc, QStringLiteral("none")));
+        QCOMPARE(paragraphSpacingOf(*doc), QStringLiteral("none"));
+        doc->undo();
+        QCOMPARE(paragraphSpacingOf(*doc), QStringLiteral("double"));
+        QVERIFY(spacingPresets().size() == 7);
+        QVERIFY(!spacingPresetName(QStringLiteral("tight")).isEmpty());
+    }
+
+    // ---------------------------------------------------------------- Drop cap
+    void aDropCapIsSetAsOneStepAndWrittenAsAFrameBeforeTheParagraph()
+    {
+        auto doc = open(makeDocx(para("Once upon a time there was a drop cap.")));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(5);
+        DropCapSetup w;
+        w.lines = 3;
+        QVERIFY(canHaveDropCap(c.block()));
+        QVERIFY(setDropCap(*doc, c, w));
+        QCOMPARE(dropCapOf(doc->story()->begin()).lines, 3);
+        QCOMPARE(dropCapOf(doc->story()->begin()).chars, 1);
+        QCOMPARE(doc->story()->toPlainText(), QStringLiteral("Once upon a time there was a drop cap."));   // (the letters stay in the paragraph while it is edited)
+        const QByteArray out = documentXml(doc->toDocx());
+        const QRegularExpression frame(QStringLiteral("<w:p><w:pPr><w:keepNext/><w:framePr w:dropCap=\"drop\" w:lines=\"3\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"text\"/>.*?</w:pPr><w:r><w:rPr>(.*?)</w:rPr><w:t[^>]*>O</w:t></w:r></w:p><w:p><w:r><w:t xml:space=\"preserve\">nce upon a time there was a drop cap.</w:t></w:r></w:p>"));
+        const auto m = frame.match(QString::fromUtf8(out));
+        QVERIFY2(m.hasMatch(), out.constData());
+        QVERIFY(m.captured(1).contains(QLatin1String("<w:position w:val=\"-")) && m.captured(1).contains(QLatin1String("<w:sz w:val=\"")));
+        // The file opens as the frame and the paragraph after it, and the frame is a drop cap the window knows.
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(again->story()->blockCount(), 2);
+        QCOMPARE(dropCapOf(again->story()->begin()).lines, 3);
+        QCOMPARE(dropCapOf(again->story()->begin().next()).lines, 3);
+        QVERIFY(!canHaveDropCap(again->story()->begin().next()));
+        // Undo takes it away; None does too.
+        doc->undo();
+        QCOMPARE(dropCapOf(doc->story()->begin()).lines, 0);
+        doc->redo();
+        w.lines = 0;
+        QVERIFY(setDropCap(*doc, c, w));
+        QVERIFY(!documentXml(doc->toDocx()).contains("dropCap"));
+    }
+
+    void aDropCapOfMoreLettersAndAFontIsKept()
+    {
+        auto doc = open(makeDocx(para("Chapter one begins here.")));
+        QTextCursor c(doc->story());
+        DropCapSetup w;
+        w.lines = 2;
+        w.chars = 3;
+        w.font = QStringLiteral("Cousine");
+        QVERIFY(setDropCap(*doc, c, w));
+        const QByteArray out = documentXml(doc->toDocx());
+        QVERIFY2(out.contains("w:lines=\"2\"") && out.contains(">Cha</w:t>") && out.contains(">pter one begins here.</w:t>") && out.contains("Cousine"), out.constData());
+    }
+
+    void aDropCapIsRefusedWhereItCannotBe()
+    {
+        auto doc = WriteDoc::blank();
+        QTextCursor c(doc->story());
+        DropCapSetup w;
+        w.lines = 3;
+        QVERIFY(!canHaveDropCap(c.block()));   // (an empty paragraph)
+        QVERIFY(!setDropCap(*doc, c, w));
+        QVERIFY(!documentXml(doc->toDocx()).contains("dropCap"));
+        DropCapSetup none;
+        QVERIFY(!setDropCap(*doc, c, none));   // (nothing to take away)
     }
 
     // ---------------------------------------------------------------- View

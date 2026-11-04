@@ -11,10 +11,12 @@
 #include "core/writeprops.h"
 #include "text/textprops.h"
 
+#include <QCoreApplication>
 #include <QSet>
 #include <limits>
 #include <QTextBlock>
 #include <cctype>
+#include <cmath>
 #include <algorithm>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -53,6 +55,43 @@ RunProps WriteDoc::runPropsWritten(const QTextCharFormat &format, const QString 
     RunProps diff = run.differences(base);
     diff.style = run.style;
     return diff;
+}
+
+// A drop cap the paragraph has (the text engine's, set by Insert > Drop Cap): its first letters become a paragraph of their own, a frame set as a drop cap, in front of the rest, which is how
+// the file holds one. `size` is the paragraph's text size in points. Nothing is made, and the paragraph kept whole, where it does not begin with text.
+static bool takeDropCap(Paragraph *p, const ParaProps &direct, int lines, int chars, const QString &font, double size, Paragraph *cap)
+{
+    if (p->content.isEmpty() || p->content.first().kind != Inline::Text || lines <= 0) return false;
+    Inline &first = p->content.first();
+    qsizetype n = std::min<qsizetype>(std::max(1, chars), first.text.size());
+    if (n < first.text.size() && first.text.at(n - 1).isHighSurrogate()) ++n;
+    if (n <= 0) return false;
+    Inline letters = first;
+    letters.text = first.text.left(n);
+    first.text.remove(0, n);
+    if (first.text.isEmpty()) p->content.removeFirst();
+    const int half = std::clamp(int(std::lround(lines * size * 1.745 * 2)), 2, 4000);
+    letters.props.size = half;
+    letters.props.position = -int(std::lround(half * 0.09));
+    if (!font.isEmpty()) {
+        Fonts f = letters.props.fonts.value_or(Fonts());
+        f.ascii = f.hAnsi = font;
+        letters.props.fonts = f;
+    }
+    cap->content.push_back(letters);
+    cap->props.style = direct.style;
+    cap->props.keepNext = true;
+    cap->props.before = 0;
+    cap->props.after = 0;
+    cap->props.line = int(std::lround(lines * size * 1.52 * 20));
+    cap->props.lineRule = QStringLiteral("exact");
+    RawChild frame, baseline;
+    frame.rank = paraChildRank("framePr");
+    frame.xml = "<w:framePr w:dropCap=\"drop\" w:lines=\"" + QByteArray::number(lines) + "\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"text\"/>";
+    baseline.rank = paraChildRank("textAlignment");
+    baseline.xml = "<w:textAlignment w:val=\"baseline\"/>";
+    cap->props.extra << frame << baseline;
+    return true;
 }
 
 void WriteDoc::exportBody(QVector<Block> *out)
@@ -187,6 +226,12 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose, QTextBlock firs
         if (!ofText && lastPart.blockFormat().hasProperty(prop::SectionData) && !lastPart.blockFormat().boolProperty(flow::fp::SectionBreakAfter))
             direct.section = std::make_shared<SectionProps>(unpackSection(storedBytes(lastPart.blockFormat(), prop::SectionData)));
         p.props = direct;
+        if (const int dropLines = bf.intProperty(tp::DropCapLines); dropLines > 0 && !asNote && m_dropCapsAsFrames) {
+            double size = sheet.run(styleId, QString(), layer).size.value_or(sheet.defaultRun.size.value_or(22)) / 2.0;
+            if (!p.content.isEmpty() && p.content.first().props.size) size = *p.content.first().props.size / 2.0;
+            Block capBlock;
+            if (takeDropCap(&p, direct, dropLines, bf.intProperty(tp::DropCapChars), bf.stringProperty(tp::DropCapFont), size, &capBlock.para)) out.add(std::move(capBlock));
+        }
         out.add(std::move(blk));
         const QTextBlockFormat lastFormat = lastPart.blockFormat();
         if (lastFormat.hasProperty(prop::RawAfter))
@@ -256,9 +301,19 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
 
 QByteArray WriteDoc::toOdt(QString *error, QStringList *notes)
 {
+    m_dropCapsAsFrames = false;
     const QByteArray docx = toDocx(error);
+    m_dropCapsAsFrames = true;
     if (docx.isEmpty()) return QByteArray();
-    return office::odt::fromDocxPackage(docx, error, notes);
+    const QByteArray odt = office::odt::fromDocxPackage(docx, error, notes);
+    if (notes) {
+        for (QTextBlock b = story()->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().intProperty(tp::DropCapLines) > 0) {
+                *notes << QCoreApplication::translate("odt", "drop caps (the letters are saved as ordinary ones)");
+                break;
+            }
+    }
+    return odt;
 }
 
 QByteArray WriteDoc::toDocx(QString *error, bool template_)
