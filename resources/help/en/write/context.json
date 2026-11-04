@@ -1,6 +1,7 @@
 {
   "tab:Home": "start",
-  "tab:Insert": "start",
+  "tab:Insert": "symbols-special-characters",
+  "tab:Design": "page-look",
   "tab:Header & Footer": "headers-footers",
   "tab:Picture Format": "pictures",
   "tab:Table Design": "tables",
@@ -9,7 +10,7 @@
   "tab:Layout": "page-setup",
   "tab:Mailings": "mail-merge",
   "tab:Review": "track-changes",
-  "tab:View": "start",
+  "tab:View": "navigation-pane",
   "pane:help": "index",
   "file:new": "open-save",
   "file:open": "open-save",
