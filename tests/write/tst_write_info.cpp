@@ -440,6 +440,110 @@ private Q_SLOTS:
         QVERIFY(fileBytes(dir.filePath(QStringLiteral("out.txt"))).endsWith("second"));
     }
 
+    void textFilesAreReadAndWrittenInTheEncodingAndLineEndsChosen()
+    {
+        // UTF-16 either way round, the mark deciding; a code page; and the three line ends.
+        const QString words = QStringLiteral("café Ж\nsecond");
+        const QByteArray be = QByteArray("\xFE\xFF", 2) + QByteArray(QStringEncoder(QStringConverter::Utf16BE)(QStringLiteral("a\r\nb")));
+        TextForm f = detectTextForm(be);
+        QVERIFY(f.encoding == TextEncoding::Utf16Be && f.ends == LineEnds::Windows);
+        QCOMPARE(decodeTextFile(be, f), QStringLiteral("a\nb"));
+        const QByteArray utf8 = QByteArray("\xEF\xBB\xBF" "x\ry\rz");
+        f = detectTextForm(utf8);
+        QVERIFY(f.encoding == TextEncoding::Utf8WithMark && f.ends == LineEnds::ClassicMac);
+        QCOMPARE(decodeTextFile(utf8, f), QStringLiteral("x\ny\nz"));
+        // bytes that are not UTF-8 are in the page of the language given
+        const QByteArray cyr("\xCF\xF0\xE8\xE2\xE5\xF2\n");
+        f = detectTextForm(cyr, 1251);
+        QVERIFY(f.encoding == TextEncoding::CodePage && f.codePage == 1251 && f.ends == LineEnds::Unix);
+        QCOMPARE(decodeTextFile(cyr, f), QString::fromUtf16(u"Привет\n"));
+        QVERIFY(looksLikePlainText(cyr) && looksLikePlainText(be));
+        QVERIFY(!looksLikePlainText(QByteArray("PK\x03\x04", 4)) && !looksLikePlainText(QByteArray("a\0b", 3)) && !looksLikePlainText(QByteArray("{\\rtf1 x")));
+        // written
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), words);
+        int lost = 0;
+        QByteArray out = plainTextFile(*w.document(), TextEncoding::CodePage, LineEnds::Windows, &lost, 1251);
+        QCOMPARE(out, QByteArray("caf? \xC6\r\nsecond"));
+        QCOMPARE(lost, 1);   // (the e with an acute accent is not in the Cyrillic page)
+        out = plainTextFile(*w.document(), TextEncoding::Utf16Be, LineEnds::ClassicMac);
+        QCOMPARE(out.left(2), QByteArray("\xFE\xFF", 2));
+        QCOMPARE(decodeTextFile(out, detectTextForm(out)), words);
+        QVERIFY(canWriteCodePage(1252) && canWriteCodePage(28592) && !canWriteCodePage(99999));
+    }
+
+    void aTextFileOpensWithTheEncodingChosenAndSavesBackTheSameWay()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("notes.txt"));
+        const QByteArray original = QByteArray("\xFE\xFF", 2) + QByteArray(QStringEncoder(QStringConverter::Utf16BE)(QStringLiteral("one é\r\ntwo\r\n\r\nfour")));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly) && f.write(original) == original.size());
+        }
+        WriteWindow w;
+        QStringList said;
+        w.setNotifier([&](const QString &, const QString &text) { said << text; });
+        QByteArray shown;
+        TextForm offered;
+        w.setTextFormChooser([&](TextForm *form, const QByteArray *sample) {
+            if (sample) {
+                shown = *sample;
+                offered = *form;
+            }
+            return true;
+        });
+        QVERIFY(w.openFile(path));
+        QCOMPARE(shown, original);
+        QVERIFY(offered.encoding == TextEncoding::Utf16Be && offered.ends == LineEnds::Windows);
+        QCOMPARE(visibleText(*w.document()), QStringLiteral("one é\ntwo\n\nfour"));
+        QCOMPARE(w.document()->story()->blockCount(), 4);
+        QVERIFY(!w.isModified());
+        // saved again: the same bytes, with no question about the form
+        w.setTextFormChooser([&](TextForm *, const QByteArray *) {
+            QTest::qFail("the form is asked a second time", __FILE__, __LINE__);
+            return false;
+        });
+        QVERIFY(w.save());
+        QCOMPARE(fileBytes(path), original);
+        QVERIFY(!said.isEmpty() && said.last().contains(QLatin1String("only the words")));
+        // cancelling the choice opens nothing
+        WriteWindow v;
+        v.setTextFormChooser([](TextForm *, const QByteArray *) { return false; });
+        QVERIFY(!v.openFile(path));
+    }
+
+    void aDocumentSavedAsTextAsksOnceThenKeepsTheForm()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        QStringList said;
+        w.setNotifier([&](const QString &, const QString &text) { said << text; });
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("café €\nend"));
+        int asked = 0;
+        w.setTextFormChooser([&](TextForm *form, const QByteArray *) {
+            ++asked;
+            form->encoding = TextEncoding::CodePage;
+            form->codePage = 1252;
+            form->ends = LineEnds::Windows;
+            return true;
+        });
+        const QString path = dir.filePath(QStringLiteral("out.txt"));
+        QVERIFY(w.saveTo(path));
+        QCOMPARE(asked, 1);
+        QCOMPARE(fileBytes(path), QByteArray("caf\xE9 \x80\r\nend"));
+        QVERIFY(w.save());
+        QCOMPARE(asked, 1);
+        QVERIFY(!w.isModified());
+        // a lost character is said
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral(" Ж"));
+        QVERIFY(w.save());
+        QVERIFY(said.last().contains(QLatin1String("question marks")));
+    }
+
     // ---- the review's items
     void aTitleEditLeavesTheCustomPartAsItWas()
     {

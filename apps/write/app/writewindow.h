@@ -128,6 +128,8 @@ public:
     // What a short message to the person (a sentence said at Save, or on a refusal to write over a file) is shown with: a message box, unless this stands in for it
     // (tests): the title and the sentence.
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
+    // What asks how a plain text file is read (at Open) or written (at Save As), unless this stands in for it (tests): the form to start from and out, and the file's bytes when reading; true to go on.
+    void setTextFormChooser(const std::function<bool(write::TextForm *, const QByteArray *)> &chooser) { m_textFormChooser = chooser; }
     // What a printer is made ready with after the window has set it up (tests: a printer that writes to a file stands in for a real one).
     void setPrinterPreparer(const std::function<void(QPrinter &)> &preparer) { m_printerPreparer = preparer; }
     // Automatic recovery: a copy of unsaved work (the timer writes it at the interval Options sets), and the copies a run that crashed left.
@@ -164,7 +166,9 @@ public:
     bool exportPdf();
     // Save as Plain Text: asks for the encoding, the line ends, and the file; and the writing itself (an empty path asks nothing and writes nothing).
     bool exportTextAsk();
-    bool exportText(const QString &path, write::TextEncoding encoding, write::LineEnds ends);
+    bool exportText(const QString &path, write::TextEncoding encoding, write::LineEnds ends, int codePage = 1252);
+    // Asks how a text file is read or written (the encoding and line ends, with a preview of `sample`, the file's bytes, if given); false if cancelled. Tests stand in for the dialog.
+    bool askTextForm(const QString &title, const QString &intro, write::TextForm *form, const QByteArray *sample = nullptr);
     // The pages that an output covers (from 0), for the options and the document.
     QVector<int> outputPages(const WriteOutputOptions &options);
 
@@ -367,6 +371,10 @@ private:
     std::function<void(const QString &, const QString &)> m_notifier;
     std::function<void(QPrinter &)> m_printerPreparer;
     QSet<QString> m_odtNoted;       // (what the person was told an .odt file can't hold: told again only of what is new)
+    std::function<bool(write::TextForm *, const QByteArray *)> m_textFormChooser;
+    write::TextForm m_textForm;     // how the plain text file this document came from (or was saved to) is written
+    bool m_textFormKnown = false;   // (it was chosen: Save writes the same form without asking again)
+    bool m_textNoted = false;       // (the person was told that a text file holds only the words)
     bool m_macrosNoted = false;     // (the person was told that the macros are not saved)
     QString m_filePassword;         // the password the file opened with or was given: the file is written protected with it (never shown, wiped when the window goes)
     bool m_fileProtected = false;

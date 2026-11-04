@@ -75,6 +75,12 @@ QString writeFile(const QString &path, const QByteArray &bytes)
     return path;
 }
 
+QByteArray readAll(const QString &path)
+{
+    QFile f(path);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+
 } // namespace
 
 class WriteOdtTests : public QObject {
@@ -221,6 +227,52 @@ private Q_SLOTS:
         QVERIFY(win.saveTo(dir.filePath(QStringLiteral("plain.odt"))));
         QVERIFY(!said.isEmpty());
         QVERIFY2(said[0].contains(QLatin1String("macros")) && said[0].contains(QLatin1String(".odt")) && !said[0].contains(QLatin1String(".docx")), qPrintable(said[0]));
+    }
+
+    void aMacroFileSavedAsDocmKeepsItsProjectUntouched()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QString vbaRel = QStringLiteral("http://schemas.microsoft.com/office/2006/relationships/vbaProject");
+        const QByteArray project = QByteArray("VBA-project \x00\x01\x02\xFF bytes that must come back as they went", 56);
+        for (const bool tmpl : {false, true}) {
+            office::PackageWriter w;
+            w.addPart(QStringLiteral("/word/document.xml"),
+                      "<?xml version=\"1.0\"?><w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>with macros</w:t></w:r></w:p></w:body></w:document>",
+                      tmpl ? QStringLiteral("application/vnd.ms-word.template.macroEnabledTemplate.main+xml") : QStringLiteral("application/vnd.ms-word.document.macroEnabled.main+xml"));
+            w.addPart(QStringLiteral("/word/vbaProject.bin"), project, QStringLiteral("application/vnd.ms-office.vbaProject"));
+            w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdVba"), vbaRel, QStringLiteral("/word/vbaProject.bin"));
+            QTemporaryDir dir;
+            QVERIFY(dir.isValid());
+            const QString ext = tmpl ? QStringLiteral("dotm") : QStringLiteral("docm");
+            const QString path = writeFile(dir.filePath(QStringLiteral("macros.") + ext), w.finish());
+            WriteWindow win;
+            QStringList said;
+            win.setNotifier([&](const QString &, const QString &text) { said << text; });
+            QVERIFY(win.openFile(path, tmpl ? OpenHow::ReadOnly : OpenHow::Normal));
+            QVERIFY(win.document()->hadMacros());
+            const QString out = dir.filePath(QStringLiteral("saved.") + ext);
+            QVERIFY(win.saveTo(out));
+            QVERIFY2(said.isEmpty(), qPrintable(said.join(QLatin1Char('|'))));
+            office::Package p;
+            QVERIFY(p.read(readAll(out)));
+            QCOMPARE(p.part(QStringLiteral("/word/vbaProject.bin")), project);
+            QVERIFY(p.contentType(QStringLiteral("/word/document.xml")).contains(tmpl ? QLatin1String("macroEnabledTemplate.main+xml") : QLatin1String("macroEnabled.main+xml")));
+            QCOMPARE(p.contentType(QStringLiteral("/word/vbaProject.bin")), QStringLiteral("application/vnd.ms-office.vbaProject"));
+            QVERIFY(!p.relationshipsOfType(QStringLiteral("/word/document.xml"), QStringLiteral("/vbaProject")).isEmpty());
+            // Reopened, it still has them; and saved as a .docx they are left out, said so.
+            WriteWindow again;
+            QStringList told;
+            again.setNotifier([&](const QString &, const QString &text) { told << text; });
+            QVERIFY(again.openFile(out, OpenHow::ReadOnly));
+            QVERIFY(again.document()->hadMacros());
+            if (tmpl) continue;
+            QVERIFY(again.saveTo(dir.filePath(QStringLiteral("plain.docx")), true));
+            office::Package q;
+            QVERIFY(q.read(readAll(dir.filePath(QStringLiteral("plain.docx")))));
+            QVERIFY(q.part(QStringLiteral("/word/vbaProject.bin")).isEmpty());
+            QVERIFY(!told.isEmpty() && told[0].contains(QLatin1String(".docx")));
+        }
     }
 
     void saveOnAFlatOdtExplainsAndOffersAnOdt()

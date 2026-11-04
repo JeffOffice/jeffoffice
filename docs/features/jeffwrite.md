@@ -566,7 +566,7 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 - [~] **first release** Save `.docx` so that every file opens without a repair message, checked on a large collection as JeffPub's `.pub` files were, and the layout matches the reference pages
 - [x] **first release** Round trip keeps what JeffWrite can't edit: SmartArt, 3-D models, custom XML, document variables, the glossary document of building blocks, people and comment extensions, `mc:AlternateContent` choices, and the extension elements of newer Word versions (`w14`, `w15`, `w16`), written back as they were, and untouched parts kept byte for byte
 - [x] **first release** Open and save templates (`.dotx`) with their styles and building blocks
-- [ ] **1.0** Open and save macro-enabled files (`.docm`, `.dotm`), keeping the macro project untouched and never running it
+- [x] **1.0** Open and save macro-enabled files (`.docm`, `.dotm`), keeping the macro project untouched and never running it *(Save and Save As write `.docm` and `.dotm` with the macro project, its signature, and its data kept byte for byte, and the main part typed as macro-enabled; saved as `.docx` or `.odt` they are left out, and the person is told)*
 - [ ] **1.0** Open encrypted files and save with a password
 - [ ] **later** Open and save the Strict variant of Open XML, and Flat OPC (`.xml`) files
 
@@ -588,7 +588,7 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 
 ### Other formats
 - [x] **first release** PDF export (see Share and Export) *(shared: JeffPub)*
-- [ ] **first release** Open and save plain text with the encoding chosen (UTF-8, UTF-16, Windows code pages, ISO 8859, and the East Asian ones) and the line ends chosen
+- [x] **first release** Open and save plain text with the encoding chosen (UTF-8, UTF-16, Windows code pages, ISO 8859, and the East Asian ones) and the line ends chosen *(`.txt` opens after a question that offers the encoding its first bytes point to, with a preview of the first lines; the line ends (LF, CR LF, or CR) come from the file; Save writes it back in the same form, Save As to `.txt` asks once; a character the encoding can't hold is saved as a question mark and counted; the East Asian pages are written where the system or Qt converts to them)*
 - [ ] **1.0** Open an HTML page as a document, and save a document as HTML (single file and filtered) *(shared: JeffPub's web export)*
 - [ ] **1.0** EPUB export (see Beyond Word) *(shared: JeffPub's EPUB writer)*
 - [ ] **later** Open a PDF as editable text and pictures (Word's PDF reflow)

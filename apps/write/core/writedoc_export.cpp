@@ -261,7 +261,7 @@ QByteArray WriteDoc::toOdt(QString *error, QStringList *notes)
     return office::odt::fromDocxPackage(docx, error, notes);
 }
 
-QByteArray WriteDoc::toDocx(QString *error, bool template_)
+QByteArray WriteDoc::toDocx(QString *error, bool template_, bool macros)
 {
     syncSections();
     office::wml::Document out = m_wml;
@@ -305,10 +305,10 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
         }
         out.mainRelationships.push_back(office::Relationship{QStringLiteral("rId%1").arg(id), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"), out.stylesName, false});
     }
-    // Macros are not kept: a file that had them is saved without, as a plain document (the project, its signature, the data it has, and the
-    // links to them).
+    // Macros are kept only in a .docm or .dotm, as they were and never run; in any other file they are left out (the project, its signature, the
+    // data it has, and the links to them).
     QSet<QString> gone;
-    for (int i = int(out.parts.size()) - 1; i >= 0; --i) {
+    for (int i = int(out.parts.size()) - 1; !macros && i >= 0; --i) {
         const QString &type = out.parts[i].contentType;
         if (type.startsWith(QLatin1String("application/vnd.ms-office.vba")) || type.contains(QLatin1String("macroEnabled")) || type.contains(QLatin1String("vbaData"))) {
             gone.insert(out.parts[i].name.toLower());
@@ -323,12 +323,15 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
                     }),
                     rels->end());
     };
-    dropMacroLinks(&out.mainRelationships);
-    dropMacroLinks(&out.packageRelationships);
-    for (auto it = out.partRelationships.begin(); it != out.partRelationships.end(); ++it) dropMacroLinks(&it.value());
+    if (!macros) {
+        dropMacroLinks(&out.mainRelationships);
+        dropMacroLinks(&out.packageRelationships);
+        for (auto it = out.partRelationships.begin(); it != out.partRelationships.end(); ++it) dropMacroLinks(&it.value());
+    }
     pruneUnusedMedia(&out);
-    out.mainContentType = template_ ? QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml")
-                                    : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml");
+    out.mainContentType = macros ? template_ ? QStringLiteral("application/vnd.ms-word.template.macroEnabledTemplate.main+xml") : QStringLiteral("application/vnd.ms-word.document.macroEnabled.main+xml")
+                          : template_ ? QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml")
+                                      : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml");
     return writeDocx(out, error);
 }
 
