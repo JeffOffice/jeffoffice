@@ -481,7 +481,7 @@ void CrunchWindow::moveChartDialog()
     QVector<int> places;
     const auto &sheets = m_loaded->book->info().sheets;
     for (int i = 0; i < sheets.size(); ++i)
-        if (i != m_sheet && !sheets[i].deleted && sheets[i].kind == jp::office::sheet::SheetKind::Worksheet) {
+        if (i != m_sheet && !sheets[i].deleted && sheets[i].state == jp::office::sheet::SheetState::Visible && sheets[i].kind == jp::office::sheet::SheetKind::Worksheet) {
             names << sheets[i].name;
             places << i;
         }
@@ -501,7 +501,16 @@ void CrunchWindow::moveChartDialog()
     if (chosen < 0 || chosen >= places.size()) return;
     const int target = places[chosen];
     const Chart chart = m_objects->chartNow(m_sheet, id);
-    const DrawingAnchor anchor = m_objects->anchorOf(m_sheet, id);
+    // (it keeps its size and its place in points: the cells it spans may be wider or narrower on the other sheet, and it is put over the cells those points reach there)
+    const grid::ObjectBox box = m_objects->layer()->boxNow(id);
+    DrawingAnchor anchor = m_objects->anchorOf(m_sheet, id);
+    anchor = DrawingAnchor();
+    anchor.kind = jp::office::sheet::AnchorKind::Absolute;
+    anchor.editAs = jp::office::sheet::AnchorKind::Absolute;   // (held in points, so it stays where it was put and as large; Properties changes what it does when cells change)
+    anchor.x = qint64(std::llround(box.x * 9525.0));
+    anchor.y = qint64(std::llround(box.y * 9525.0));
+    anchor.cx = qint64(std::llround(box.w * 9525.0));
+    anchor.cy = qint64(std::llround(box.h * 9525.0));
     const int newId = m_objects->makeChart(target, chart, anchor, &why);
     if (newId < 0) {
         notice(tr("Move Chart"), why);

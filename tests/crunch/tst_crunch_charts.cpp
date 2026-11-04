@@ -111,10 +111,10 @@ SavedAnchor savedAnchor(const QString &path, const QString &name, int drawingNum
 class CrunchChartTests : public QObject {
     Q_OBJECT
 
-    static bool objectsShown(EditWindow &e, int count)
+    static bool objectsShown(EditWindow &e, int count, int sheet = 0)
     {
         crunch::SheetObjects *o = e.win.w.objects();
-        return o && o->shownSheet() == 0 && o->layer()->count() == count;
+        return o && o->shownSheet() == sheet && o->layer()->count() == count;
     }
     static bool save(EditWindow &e)
     {
@@ -785,6 +785,37 @@ private Q_SLOTS:
         QVERIFY(save(e));
         QCOMPARE(savedCharts(e.path, 0).size(), 0);
         QCOMPARE(savedCharts(e.path, 1).size(), 1);
+    }
+
+    // A hidden sheet is not offered by Move Chart, and the chart keeps its size in points on a sheet whose columns are wider.
+    void aMovedChartKeepsItsSizeAndSkipsHiddenSheets()
+    {
+        QByteArray wide = dataSheet();
+        wide.replace("<sheetData>", "<cols><col min=\"1\" max=\"40\" width=\"30\" customWidth=\"1\"/></cols><sheetData>");
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet(), dataSheet(), wide}, drawingPart(twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Sales")))),
+                                       {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}}))})));
+        QTRY_VERIFY(objectsShown(e, 1));
+        QVERIFY(e.win.w.session()->setSheetHidden(1, true).ok);
+        QVERIFY(e.settle());
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->select(0);
+        const grid::ObjectBox was = o->layer()->boxNow(0);
+        QStringList offered;
+        e.win.w.setMoveChartAsker([&](const QStringList &sheets, int *chosen) {
+            offered = sheets;
+            *chosen = 0;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("chartdesign.moveChart"))->trigger();
+        QCOMPARE(offered, QStringList{QStringLiteral("Sheet3")});
+        QCOMPARE(e.win.w.activeSheet(), 2);
+        QTRY_VERIFY(objectsShown(e, 1, 2));
+        const grid::ObjectBox now = e.win.w.objects()->layer()->boxNow(0);
+        QVERIFY2(std::abs(now.w - was.w) < 1.5 && std::abs(now.h - was.h) < 1.5, qPrintable(QStringLiteral("%1x%2 was %3x%4").arg(now.w).arg(now.h).arg(was.w).arg(was.h)));
+        QVERIFY(save(e));
+        const QVector<SavedChart> saved = savedCharts(e.path, 2);
+        QCOMPARE(saved.size(), 1);
     }
 
     // Move Chart is dimmed when the workbook has no other worksheet to move the chart to.

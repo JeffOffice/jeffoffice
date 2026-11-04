@@ -54,6 +54,9 @@ struct ObjectRevive {
     QByteArray anchorXml;
     std::vector<std::pair<QString, RevivePart>> parts;   // (token, part)
     jp::office::sheet::DrawingAnchor anchor;
+    std::shared_ptr<const jp::office::Chart> chart;   // a chart: the model the part's bytes are of (the file's); the object's own model is this one while the chart is as the file had it
+    QStringList refs;                                  // what the chart read when the record was made
+    bool unchanged = false;                            // the chart was as the file had it when the record was made
     qint64 bytes() const
     {
         qint64 n = qint64(sizeof(ObjectRevive)) + anchorXml.size();

@@ -13,6 +13,10 @@
 #include "office/theme.h"
 #include "office/xml.h"
 
+#include <QDir>
+#include <QMenu>
+#include <QRegularExpression>
+#include <QSet>
 #include <QProcess>
 #include <QRandomGenerator>
 #include <QToolButton>
@@ -118,14 +122,16 @@ QByteArray rightToLeftDrawingBook()
 }
 
 // A chart with the style and colors parts Excel-era files carry, and a picture beside it.
-QByteArray chartWithStylePartsBook(QByteArray *chartXml, QByteArray *styleXml, QByteArray *colorsXml)
+QByteArray chartWithStylePartsBook(QByteArray *chartXml, QByteArray *styleXml, QByteArray *colorsXml, int sheets = 1)
 {
     const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
     *chartXml = chartPart(QStringLiteral("barChart"), series);
     *styleXml = "<?xml version=\"1.0\"?><cs:chartStyle xmlns:cs=\"http://schemas.microsoft.com/office/drawing/2012/chartStyle\" id=\"201\"><cs:axisTitle/></cs:chartStyle>";
     *colorsXml = "<?xml version=\"1.0\"?><cs:colorStyle xmlns:cs=\"http://schemas.microsoft.com/office/drawing/2012/chartStyle\" meth=\"cycle\" id=\"10\"/>";
     const QString anchors = twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Sales"))) + twoCell(0, 6, 2, 9, pictureElement(3, QStringLiteral("rIdP"), QStringLiteral("Logo")));
-    const QByteArray book = bookWithDrawing({dataSheet()}, drawingPart(anchors), {chartTarget(QStringLiteral("rIdC"), 1, *chartXml), imageTarget(QStringLiteral("rIdP"), 1, pngBytes(8, 4, Qt::red))});
+    QVector<QByteArray> sheetList;
+    for (int i = 0; i < sheets; ++i) sheetList << dataSheet();
+    const QByteArray book = bookWithDrawing(sheetList, drawingPart(anchors), {chartTarget(QStringLiteral("rIdC"), 1, *chartXml), imageTarget(QStringLiteral("rIdP"), 1, pngBytes(8, 4, Qt::red))});
     const QByteArray rels = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
                             "<Relationship Id=\"rId1\" Type=\"http://schemas.microsoft.com/office/2011/relationships/chartStyle\" Target=\"style1.xml\"/>"
                             "<Relationship Id=\"rId2\" Type=\"http://schemas.microsoft.com/office/2011/relationships/chartColorStyle\" Target=\"colors1.xml\"/></Relationships>";
@@ -175,6 +181,56 @@ bool saveWindow(EditWindow &e)
     return e.win.w.save() && savedOk(saved, 20000);
 }
 
+
+// The parts of a saved file that nothing relates to (media, charts, and drawings other than a sheet's): none are left behind by an object that was taken away and brought back.
+QStringList orphanParts(const QString &path)
+{
+    QMap<QString, QByteArray> parts;
+    QFile f(path);
+    if (f.open(QIODevice::ReadOnly)) jp::readZip(f.readAll(), parts);
+    QSet<QString> referenced;
+    for (auto it = parts.begin(); it != parts.end(); ++it) {
+        if (!it.key().endsWith(QLatin1String(".rels"))) continue;
+        const QString dir = it.key().left(it.key().indexOf(QLatin1String("_rels/")));
+        static const QRegularExpression target(QStringLiteral("Target=\"([^\"]*)\""));
+        auto m = target.globalMatch(QString::fromUtf8(it.value()));
+        while (m.hasNext()) {
+            QString t = m.next().captured(1);
+            if (t.startsWith(QLatin1Char('/'))) referenced.insert(t.mid(1));
+            else referenced.insert(QDir::cleanPath(dir + t));
+        }
+    }
+    QStringList out;
+    for (auto it = parts.begin(); it != parts.end(); ++it)
+        if ((it.key().startsWith(QLatin1String("xl/media/")) || it.key().startsWith(QLatin1String("xl/charts/")) || it.key().startsWith(QLatin1String("xl/drawings/"))) && !it.key().contains(QLatin1String("_rels/")) && !referenced.contains(it.key()))
+            out << it.key();
+    return out;
+}
+
+// Whether every relationship of every part of a saved file names a part that is there (or leaves the package).
+bool relationshipsAllResolve(const QString &path, QString *bad)
+{
+    office::Package p;
+    QString why;
+    if (!p.readLazyFile(path, &why)) return false;
+    for (const QString &name : p.partNames())
+        for (const office::Relationship &r : p.relationships(name))
+            if (!r.external && !p.hasPart(r.target)) {
+                if (bad) *bad = name + QStringLiteral(" -> ") + r.target;
+                return false;
+            }
+    return true;
+}
+
+// The content types hold an override with exactly this part name (not a name that merely contains it).
+bool hasExactOverride(const QMap<QString, QByteArray> &parts, const QString &partName)
+{
+    static const QRegularExpression part(QStringLiteral("<Override\\b[^>]*\\bPartName=\"([^\"]*)\""));
+    auto m = part.globalMatch(QString::fromUtf8(parts.value(QStringLiteral("[Content_Types].xml"))));
+    while (m.hasNext())
+        if (m.next().captured(1).compare(partName, Qt::CaseInsensitive) == 0) return true;
+    return false;
+}
 
 } // namespace
 
@@ -639,7 +695,13 @@ private Q_SLOTS:
         QCOMPARE(charts[0].children.value(QStringLiteral("chartColorStyle")), colorsXml);
         // (the content types name the new parts)
         const QMap<QString, QByteArray> parts = savedParts(e.path);
-        QVERIFY(hasOverride(parts, QStringLiteral("/") + charts[0].part.mid(1)) || parts.value(QStringLiteral("[Content_Types].xml")).contains(charts[0].part.toUtf8()));
+        QVERIFY2(hasExactOverride(parts, charts[0].part), qPrintable(charts[0].part));
+        for (const char *word : {"chartStyle", "chartColorStyle"}) {
+            Q_UNUSED(word);
+        }
+        QString bad;
+        QVERIFY2(relationshipsAllResolve(e.path, &bad), qPrintable(bad));
+        QVERIFY(orphanParts(e.path).isEmpty());
         QVERIFY(parts.value(QStringLiteral("[Content_Types].xml")).contains("chartstyle+xml"));
         QVERIFY(parts.value(QStringLiteral("[Content_Types].xml")).contains("chartcolorstyle+xml"));
         Window second;
@@ -714,6 +776,339 @@ private Q_SLOTS:
         pressUndo(e.view());
         QVERIFY(!s->canUndo());
         QVERIFY(o->isDeleted(0, 0));
+    }
+
+    // A chart edited before it is deleted comes back edited (written from its model), keeping its style and colors parts; one that reads other cells (a row was inserted, a sheet renamed) reads them.
+    void anEditedChartComesBackEditedWithItsStyleAndColors()
+    {
+        QByteArray chartXml, styleXml, colorsXml;
+        EditWindow e;
+        QVERIFY(e.open(chartWithStylePartsBook(&chartXml, &styleXml, &colorsXml)));
+        QTRY_VERIFY(shown(e, 2));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        o->layer()->select(0);
+        QTRY_VERIFY(e.win.w.chartElementsButton() && e.win.w.chartElementsButton()->isVisible());
+        QMenu *menu = e.win.w.chartElementsButton()->menu();
+        QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+        for (QAction *a : menu->actions())
+            if (a->text() == QLatin1String("Chart Title"))
+                for (QAction *b : a->menu()->actions())
+                    if (b->text() == QLatin1String("On Top")) b->trigger();
+        QVERIFY(o->chartNow(0, 0).title.overlay);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(saveWindow(e));
+        e.win.w.session()->undoStack()->undo();   // (the delete; the title is the step under it)
+        QVERIFY(!o->isDeleted(0, 0));
+        QVERIFY(saveWindow(e));
+        const QVector<Reached> charts = reachedBy(e.path, QStringLiteral("chart"));
+        QCOMPARE(int(charts.size()), 1);
+        QVERIFY2(charts[0].bytes != chartXml, "written from the edited model");
+        office::Chart now;
+        QString why;
+        QVERIFY(office::readChart(charts[0].bytes, office::defaultTheme(), office::ColorMap(), &now, &why));
+        QVERIFY2(now.title.overlay, "the edit is in the file");
+        QCOMPARE(charts[0].children.value(QStringLiteral("chartStyle")), styleXml);
+        QCOMPARE(charts[0].children.value(QStringLiteral("chartColorStyle")), colorsXml);
+        QString bad;
+        QVERIFY2(relationshipsAllResolve(e.path, &bad), qPrintable(bad));
+        QVERIFY(orphanParts(e.path).isEmpty());
+    }
+
+    // A row inserted above a chart before it is deleted, and a rename of the sheet it reads: the chart comes back where the rows put it, reading the sheet by its new name.
+    void aRestoredChartFollowsRowsInsertedAndASheetRenamed()
+    {
+        QByteArray chartXml, styleXml, colorsXml;
+        EditWindow e;
+        QVERIFY(e.open(chartWithStylePartsBook(&chartXml, &styleXml, &colorsXml)));
+        QTRY_VERIFY(shown(e, 2));
+        crunch::SheetObjects *o = e.win.w.objects();
+        crunch::EditSession *s = e.win.w.session();
+        o->layer()->prepareAll();
+        QVERIFY(s->insertRows(0, 0, 1).ok);   // the chart was from row 2 (index 1): it is one row down
+        QVERIFY(s->renameSheet(0, QStringLiteral("Data")).ok);
+        QVERIFY(e.settle());
+        o->layer()->select(0);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(saveWindow(e));
+        s->undoStack()->undo();
+        QVERIFY(saveWindow(e));
+        office::Package p;
+        QString why;
+        QVERIFY(p.readLazyFile(e.path, &why));
+        jp::office::sheet::Workbook book;
+        QVERIFY(book.open(p, &why));
+        jp::office::sheet::SheetDrawing d;
+        QVERIFY(jp::office::sheet::readDrawing(p, jp::office::sheet::drawingPartOf(p, book.info().sheets[0].part), &d, &why));
+        int chartRow = -1;
+        for (const jp::office::sheet::DrawingObject &obj : std::as_const(d.objects))
+            if (obj.kind == jp::office::sheet::ObjectKind::Chart) chartRow = int(obj.anchor.from.row);
+        QCOMPARE(chartRow, 2);
+        const QVector<Reached> charts = reachedBy(e.path, QStringLiteral("chart"));
+        QCOMPARE(int(charts.size()), 1);
+        office::Chart c;
+        QVERIFY(office::readChart(charts[0].bytes, office::defaultTheme(), office::ColorMap(), &c, &why));
+        QVERIFY2(c.plots[0].series[0].valueRef.startsWith(QStringLiteral("Data!")), qPrintable(c.plots[0].series[0].valueRef));
+        QVERIFY2(c.plots[0].series[0].valueRef.contains(QStringLiteral("$B$3:$B$5")), qPrintable(c.plots[0].series[0].valueRef));
+    }
+
+    // A record is kept while the object is back: a new edit after Undo (which gives up the steps that held it) does not stop the picture, or the chart's style, from being written.
+    void aRestoredObjectSurvivesANewEditBeforeTheSave()
+    {
+        QByteArray chartXml, styleXml, colorsXml;
+        EditWindow e;
+        QVERIFY(e.open(chartWithStylePartsBook(&chartXml, &styleXml, &colorsXml)));
+        QTRY_VERIFY(shown(e, 2));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        for (const int id : {1, 0}) {
+            o->layer()->select(id);
+            QTest::keyClick(e.view(), Qt::Key_Delete);
+        }
+        QVERIFY(saveWindow(e));
+        pressUndo(e.view());
+        pressUndo(e.view());
+        e.select(QStringLiteral("E1"));
+        e.enter(QStringLiteral("7"));   // (a new step: the steps that were undone are given up)
+        QVERIFY(e.settle());
+        QVERIFY(saveWindow(e));
+        QCOMPARE(reachedBy(e.path, QStringLiteral("image"))[0].bytes, pngBytes(8, 4, Qt::red));
+        const QVector<Reached> charts = reachedBy(e.path, QStringLiteral("chart"));
+        QCOMPARE(int(charts.size()), 1);
+        QCOMPARE(charts[0].bytes, chartXml);
+        QCOMPARE(charts[0].children.value(QStringLiteral("chartStyle")), styleXml);
+    }
+
+    // A restored chart that reached a drawing of its own (user shapes) and a sheet that gets its first drawing in the same save do not fight over a part name.
+    void aRestoredChartsPartsDoNotCollideWithNamesChosenForNewObjects()
+    {
+        QByteArray chartXml, styleXml, colorsXml;
+        QByteArray book = chartWithStylePartsBook(&chartXml, &styleXml, &colorsXml, 2);
+        // (a second worksheet, no drawing; the chart gets user shapes: a drawing part its relationships reach)
+        const QByteArray rels = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                                "<Relationship Id=\"rId1\" Type=\"http://schemas.microsoft.com/office/2011/relationships/chartStyle\" Target=\"style1.xml\"/>"
+                                "<Relationship Id=\"rId2\" Type=\"http://schemas.microsoft.com/office/2011/relationships/chartColorStyle\" Target=\"colors1.xml\"/>"
+                                "<Relationship Id=\"rId3\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/chartUserShapes\" Target=\"../drawings/drawing2.xml\"/></Relationships>";
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(book, parts));
+        parts[QStringLiteral("xl/charts/_rels/chart1.xml.rels")] = rels;
+        parts[QStringLiteral("xl/drawings/drawing2.xml")] = "<c:userShapes xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"/>";
+        QByteArray types = parts[QStringLiteral("[Content_Types].xml")];
+        types.replace("</Types>", "<Override PartName=\"/xl/drawings/drawing2.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chartshapes+xml\"/></Types>");
+        parts[QStringLiteral("[Content_Types].xml")] = types;
+        jp::ZipWriter zip;
+        for (auto it = parts.begin(); it != parts.end(); ++it) zip.add(it.key(), it.value(), true);
+        book = zip.finish();
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QTRY_VERIFY(shown(e, 2));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        o->layer()->select(0);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(saveWindow(e));
+        e.win.w.session()->undoStack()->undo();
+        e.win.w.setActiveSheet(1);   // (a sheet with data and no drawing: a chart put on it is given one)
+        QTRY_COMPARE(e.win.w.activeSheet(), 1);
+        QVERIFY(e.settle());
+        e.view()->selectRange(0, 0, 3, 2);
+        QVERIFY(e.win.w.insertChart(jp::office::sheet::ChartKind::Column));
+        QVERIFY(e.settle());
+        QVERIFY2(saveWindow(e), "the save with a restored chart and a new drawing");
+        QString bad;
+        QVERIFY2(relationshipsAllResolve(e.path, &bad), qPrintable(bad));
+        QVERIFY(orphanParts(e.path).isEmpty());
+        const QVector<Reached> charts = reachedBy(e.path, QStringLiteral("chart"));
+        QCOMPARE(int(charts.size()), 1);
+    }
+
+    // An attribute that names a relationship in single quotes is found as well, and one that names none is left out (the restored picture has no dangling id).
+    void relationshipIdsInSingleQuotesAndUnresolvedOnesAreHandled()
+    {
+        QByteArray book;
+        {
+            QString pic = pictureElement(3, QStringLiteral("rIdP"), QStringLiteral("Quoted"));
+            pic.replace(QStringLiteral("r:embed=\"rIdP\""), QStringLiteral("r:embed='rIdP'"));
+            QString second = pictureElement(4, QStringLiteral("rIdMissing"), QStringLiteral("Dangling"));
+            const QString anchors = twoCell(0, 6, 2, 9, pic) + twoCell(4, 6, 6, 9, second);
+            book = bookWithDrawing({dataSheet()}, drawingPart(anchors), {imageTarget(QStringLiteral("rIdP"), 1, pngBytes(8, 4, Qt::red))});
+        }
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QTRY_VERIFY(shown(e, 2));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        for (const int id : {0, 1}) {
+            o->layer()->select(id);
+            QTest::keyClick(e.view(), Qt::Key_Delete);
+        }
+        QVERIFY(saveWindow(e));
+        pressUndo(e.view());
+        pressUndo(e.view());
+        QVERIFY(saveWindow(e));
+        QCOMPARE(reachedBy(e.path, QStringLiteral("image"))[0].bytes, pngBytes(8, 4, Qt::red));
+        const QByteArray drawing = savedParts(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY2(!drawing.contains("rIdMissing") && !drawing.contains("@@revive"), "no id that names nothing, and no token left");
+        QString bad;
+        QVERIFY2(relationshipsAllResolve(e.path, &bad), qPrintable(bad));
+    }
+
+    // A group, and the connector beside it, come back with the objects they hold; an external relationship stays external.
+    void aDeletedGroupAndAnExternalLinkComeBack()
+    {
+        QByteArray book = drawingBook();
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(book, parts));
+        QByteArray rels = parts[QStringLiteral("xl/drawings/_rels/drawing1.xml.rels")];
+        rels.replace("</Relationships>", "<Relationship Id=\"rIdExt\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink\" Target=\"https://example.com/x\" TargetMode=\"External\"/></Relationships>");
+        parts[QStringLiteral("xl/drawings/_rels/drawing1.xml.rels")] = rels;
+        QByteArray drawing = parts[QStringLiteral("xl/drawings/drawing1.xml")];
+        drawing.replace("<xdr:cNvPr id=\"4\" name=\"Box\"/>", "<xdr:cNvPr id=\"4\" name=\"Box\"><a:hlinkClick xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" r:id=\"rIdExt\"/></xdr:cNvPr>");
+        parts[QStringLiteral("xl/drawings/drawing1.xml")] = drawing;
+        jp::ZipWriter zip;
+        for (auto it = parts.begin(); it != parts.end(); ++it) zip.add(it.key(), it.value(), true);
+        EditWindow e;
+        QVERIFY(e.open(zip.finish()));
+        QTRY_VERIFY(shown(e, 5));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        for (const int id : {3, 2}) {   // the group, the box with the link
+            o->layer()->select(id);
+            QTest::keyClick(e.view(), Qt::Key_Delete);
+        }
+        QVERIFY(saveWindow(e));
+        QVERIFY(!savedNames(e.path).contains(QStringLiteral("In1")));
+        pressUndo(e.view());
+        pressUndo(e.view());
+        QVERIFY(saveWindow(e));
+        const QStringList names = savedNames(e.path);
+        QVERIFY2(names.contains(QStringLiteral("In1")) && names.contains(QStringLiteral("Box")), qPrintable(names.join(QLatin1Char(','))));
+        const QByteArray out = savedParts(e.path).value(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels"));
+        QVERIFY(out.contains("https://example.com/x") && out.contains("TargetMode=\"External\""));
+        QString bad;
+        QVERIFY2(relationshipsAllResolve(e.path, &bad), qPrintable(bad));
+    }
+
+    // Three rounds of delete, save, Undo, save, Redo, save leave one picture, one chart, and not one part nothing relates to.
+    void severalRoundsOfUndoAndRedoAcrossSavesLeaveNoOrphans()
+    {
+        QByteArray chartXml, styleXml, colorsXml;
+        EditWindow e;
+        QVERIFY(e.open(chartWithStylePartsBook(&chartXml, &styleXml, &colorsXml)));
+        QTRY_VERIFY(shown(e, 2));
+        crunch::SheetObjects *o = e.win.w.objects();
+        crunch::EditSession *s = e.win.w.session();
+        o->layer()->prepareAll();
+        for (const int id : {1, 0}) {
+            o->layer()->select(id);
+            QTest::keyClick(e.view(), Qt::Key_Delete);
+        }
+        for (int round = 0; round < 3; ++round) {
+            QVERIFY(saveWindow(e));
+            QVERIFY2(reachedBy(e.path, QStringLiteral("chart")).isEmpty(), "taken away");
+            QVERIFY(orphanParts(e.path).isEmpty());
+            s->undoStack()->undo();
+            s->undoStack()->undo();
+            QVERIFY(saveWindow(e));
+            QCOMPARE(int(reachedBy(e.path, QStringLiteral("chart")).size()), 1);
+            QCOMPARE(int(reachedBy(e.path, QStringLiteral("image")).size()), 1);
+            QCOMPARE(reachedBy(e.path, QStringLiteral("chart"))[0].children.value(QStringLiteral("chartColorStyle")), colorsXml);
+            QVERIFY2(orphanParts(e.path).isEmpty(), qPrintable(orphanParts(e.path).join(QLatin1Char(','))));
+            QString bad;
+            QVERIFY2(relationshipsAllResolve(e.path, &bad), qPrintable(bad));
+            s->undoStack()->redo();
+            s->undoStack()->redo();
+        }
+    }
+
+    // Redo after a save writes a pasted picture and a pasted shape again.
+    void aPastedPictureAndShapeAreWrittenAgainByRedoAfterASave()
+    {
+        EditWindow e;
+        QVERIFY(e.open(drawingBook()));
+        QTRY_VERIFY(shown(e, 5));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        for (const int id : {1, 2}) {   // the picture, then the box
+            o->layer()->select(id);
+            e.win.w.act(QStringLiteral("edit.copy"))->trigger();
+            e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+            QVERIFY(e.settle());
+        }
+        QCOMPARE(int(o->idsOf(0).size()), 7);
+        QVERIFY(saveWindow(e));
+        const int imagesWith = int(reachedBy(e.path, QStringLiteral("image")).size());
+        QVERIFY(imagesWith >= 2);
+        e.win.w.session()->undoStack()->undo();
+        e.win.w.session()->undoStack()->undo();
+        QVERIFY(saveWindow(e));
+        QCOMPARE(int(reachedBy(e.path, QStringLiteral("image")).size()), 1);
+        e.win.w.session()->undoStack()->redo();
+        e.win.w.session()->undoStack()->redo();
+        QVERIFY(saveWindow(e));
+        QCOMPARE(int(reachedBy(e.path, QStringLiteral("image")).size()), imagesWith);
+        int boxes = 0;
+        for (const QString &n : savedNames(e.path)) boxes += n.startsWith(QStringLiteral("Box"));
+        QVERIFY(boxes >= 2);
+        QVERIFY(orphanParts(e.path).isEmpty());
+        QString bad;
+        QVERIFY2(relationshipsAllResolve(e.path, &bad), qPrintable(bad));
+    }
+
+    // A chart moved to another sheet, and then moved again, carries the parts it reached each time.
+    void aChartMovedTwiceCarriesItsStyleAndColors()
+    {
+        QByteArray chartXml, styleXml, colorsXml;
+        EditWindow e;
+        QVERIFY(e.open(chartWithStylePartsBook(&chartXml, &styleXml, &colorsXml, 3)));
+        QTRY_VERIFY(shown(e, 2));
+        int to = 0;
+        e.win.w.setMoveChartAsker([&](const QStringList &, int *chosen) {
+            *chosen = to;
+            return true;
+        });
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        o->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.moveChart"))->isEnabled());
+        to = 0;   // Sheet2
+        e.win.w.act(QStringLiteral("chartdesign.moveChart"))->trigger();
+        QCOMPARE(e.win.w.activeSheet(), 1);
+        QTRY_VERIFY(shown(e, 1, 1));
+        o->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.moveChart"))->isEnabled());
+        to = 1;   // (Sheet1 and Sheet3 are offered, in that order)
+        e.win.w.act(QStringLiteral("chartdesign.moveChart"))->trigger();
+        QCOMPARE(e.win.w.activeSheet(), 2);
+        QVERIFY(saveWindow(e));
+        const QMap<QString, QByteArray> parts = savedParts(e.path);
+        int charts = 0;
+        for (const QString &name : parts.keys()) {
+            if (!name.startsWith(QStringLiteral("xl/charts/chart")) || name.contains(QStringLiteral("_rels"))) continue;
+            ++charts;
+            QCOMPARE(parts.value(name), chartXml);
+            const QByteArray rels = parts.value(QStringLiteral("xl/charts/_rels/") + name.mid(name.lastIndexOf(QLatin1Char('/')) + 1) + QStringLiteral(".rels"));
+            QVERIFY2(rels.contains("chartStyle") && rels.contains("chartColorStyle"), qPrintable(name));
+        }
+        QCOMPARE(charts, 1);
+        QVERIFY(orphanParts(e.path).isEmpty());
+    }
+
+    // A part many ways reach is read once, and a part too big for what is kept is refused before it is inflated: the delete is then not undone after a save, as before.
+    void aPartTooBigForWhatIsKeptIsRefusedAndOneSharedIsHeldOnce()
+    {
+        QByteArray huge(60 << 20, '\0');   // (compresses to almost nothing)
+        const QString anchors = twoCell(0, 6, 2, 9, pictureElement(3, QStringLiteral("rIdH"), QStringLiteral("Huge")));
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {imageTarget(QStringLiteral("rIdH"), 1, huge)})));
+        QTRY_VERIFY(shown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->select(0);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(o->isDeleted(0, 0));
+        QVERIFY2(e.win.w.session()->undoBytes() < (8 << 20), "its bytes were not read into the step");
+        QVERIFY(saveWindow(e));
+        QVERIFY(!e.win.w.session()->canUndo());
     }
 
     // An object put in, saved, and taken away by Undo leaves nothing of itself in the next save: no part, no relationship, no entry of the content types.

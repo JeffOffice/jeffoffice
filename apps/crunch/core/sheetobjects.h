@@ -230,7 +230,7 @@ private:
         QString fileName, savedName;                   // its name as the file has it, and as the save in flight writes it
         bool madeHere = false;                         // a person made it here (a chart, a pasted picture or shape): after a save has dropped it, it is written again from what is held of it
         std::weak_ptr<const jp::crunch::ObjectRevive> revive;   // what writes an object of the file back (held by the step that took it away)
-        std::shared_ptr<const jp::office::Chart> reviveChart;   // the chart as it was when `revive` was set: a chart changed since is written from its model instead
+        std::shared_ptr<const jp::crunch::ObjectRevive> reviveOwn;   // held while the object is back and not yet saved (the steps that hold the record may be given up by a new edit)
         bool filePrints = true, savedPrints = true;    // whether the file has it printing, and whether the save in flight writes it so
         int savedOrdinal = -1;                         // where it will be among the children of the drawing's root when what addToSave gave is saved
         int editable = -1;                             // whether the chart can be changed (-1 not looked at, 0 no, 1 yes), and why not: found once, for a part of the file is read to say

@@ -875,7 +875,11 @@ void SheetObjects::addToSave(SaveChanges *changes)
                 // a chart a person made: its part, and its anchor at the end of the drawing
                 if (!m_source || !m_cells || (!o->chart && !o->item)) continue;
                 // an object of the file that was taken away and brought back (or moved to another sheet): written as it was, with every part it reached
-                if (const auto rec = o->revive.lock(); rec && (o->meta.kind != ObjectKind::Chart || o->chart == o->reviveChart)) {
+                if (const auto rec = o->reviveOwn ? o->reviveOwn : o->revive.lock()) {
+                    const bool isChart = o->meta.kind == ObjectKind::Chart;
+                    // a chart as the file had it (the same model, reading the same cells) comes back byte for byte; one changed since (or one that reads other cells) is written from its model, and keeps
+                    // of what it reached only its style and its colors
+                    const bool raw = !isChart || (o->chart && o->chart == rec->chart && o->refs == rec->refs);
                     DrawingAnchor want = o->anchor;
                     if (want.kind != AnchorKind::TwoCell) want = twoCellFor(*o, geometryOf().layout.rows, geometryOf().layout.cols);
                     else want.editAs = o->anchor.editAs;
@@ -894,6 +898,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
                     xml = withFirstObjectPrints(withFirstObjectId(withFirstObjectName(xml, o->meta.name), o->meta.id), o->meta.prints);
                     AddedObject obj;
                     obj.xml = xml;
+                    o->savedPivotName.clear();
                     for (const auto &[token, part] : rec->parts) {
                         AddedPart p = addedFromRevive(part);
                         p.token = token;
@@ -901,6 +906,20 @@ void SheetObjects::addToSave(SaveChanges *changes)
                             p.part = freePartName(QStringLiteral("/xl/charts/chart"), QStringLiteral(".xml"), takenNames());
                             takenNames().insert(p.part.toLower());
                             o->savedPart = p.part;
+                            if (!raw && o->chart) {
+                                auto c = std::make_shared<Chart>(*o->chart);
+                                setChartRefs(c.get(), o->refs);
+                                applyChartCells(c.get(), int(i), *m_cells);
+                                applyChartFormats(c.get(), int(i), *m_cells);
+                                if (c->pivotTable >= 0 && m_pivotNamer) c->pivotName = o->savedPivotName = m_pivotNamer(*c);
+                                p.bytes.clear();
+                                p.produce = [c] { return writeChartPart(*c); };
+                                p.contentType = QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml");
+                                std::vector<AddedPart> keep;
+                                for (AddedPart &child : p.children)
+                                    if (child.relType.endsWith(QLatin1String("/chartStyle")) || child.relType.endsWith(QLatin1String("/chartColorStyle"))) keep.push_back(std::move(child));
+                                p.children = std::move(keep);
+                            }
                         } else if (p.relType.endsWith(QLatin1String("/image")) && !p.external) {
                             const int dot = int(part.name.lastIndexOf(QLatin1Char('.')));
                             p.part = freePartName(QStringLiteral("/xl/media/image"), dot >= 0 ? part.name.mid(dot) : QStringLiteral(".png"), takenNames());
@@ -908,7 +927,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
                         }
                         obj.parts.push_back(std::move(p));
                     }
-                    if (o->meta.kind != ObjectKind::Chart) o->savedPart = QStringLiteral("-");
+                    if (!isChart) o->savedPart = QStringLiteral("-");
                     o->savedName = o->meta.name;
                     o->savedPrints = o->meta.prints;
                     add.objects.push_back(std::move(obj));
@@ -1011,6 +1030,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
             changes->addedObjects[int(i)] = std::move(add);
         }
     }
+    for (const QString &n : taken) changes->reservedParts.insert(n);   // (the names chosen above are the only ones the saver keeps clear of when it names the parts that come back)
     // the caches of the charts whose cells changed or whose references moved, found in the parts of the file: a sheet that was never shown is not read for it
     if (!m_cells) return;
     int partsLooked = 0;
@@ -1055,6 +1075,15 @@ void SheetObjects::saved()
         for (const std::shared_ptr<Object> &o : s.objects) {
             if (o->deleted) {
                 if (!o->gone && !o->added) ++removedNow;
+                if (!o->gone) {
+                    // (what the file holds now is what the object's place and references are measured from, as for any other object: the rows the edits inserted are counted)
+                    o->base = o->anchor;
+                    o->fileAnchor = o->anchor;
+                    o->placements.clear();
+                    o->refPlacements.clear();
+                    o->baseRefs = o->refs;
+                    o->movedRefs = o->refs;
+                }
                 o->gone = true;
                 continue;
             }
@@ -1063,6 +1092,7 @@ void SheetObjects::saved()
             if (o->added) {
                 ++addedNow;
                 o->added = false;
+                o->reviveOwn.reset();   // (written: the steps that took it away hold the record for the next time)
                 if (o->meta.kind == ObjectKind::Chart) {
                     o->meta.chartPart = o->savedPart;
                     m_chartSheet.insert(o->savedPart.toLower(), int(i));
@@ -1317,7 +1347,7 @@ void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
             o->added = true;
             o->meta.ordinal = -1;
             o->savedPart.clear();
-            if (rec) o->reviveChart = o->chart;
+            o->reviveOwn = rec;   // (held until it is written: a new edit may give up the steps that held it)
         }
     }
     o->deleted = st.deleted;
@@ -1347,8 +1377,14 @@ void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
 
 namespace {
 
-// A part and the parts it reaches, as the package has them; false if more is held than the limits allow.
-bool captureRevivePart(const Package &package, const Relationship &r, const QString &owner, int depth, qint64 *budget, jp::crunch::RevivePart *out)
+// What one capture has read: each part once (a part reached by two ways is not read twice), and what is left of the bytes it may hold.
+struct ReviveRead {
+    QHash<QString, QByteArray> bytes;
+    qint64 budget = 0;
+};
+
+// A part and the parts it reaches, as the package has them; false if more is held than the limits allow. A part's size is asked before it is inflated.
+bool captureRevivePart(const Package &package, const Relationship &r, int depth, ReviveRead *read, jp::crunch::RevivePart *out)
 {
     if (depth > 4) return false;
     out->relType = r.type;
@@ -1360,16 +1396,21 @@ bool captureRevivePart(const Package &package, const Relationship &r, const QStr
     }
     if (!package.hasPart(r.target)) return false;
     out->name = r.target;
-    out->bytes = package.part(r.target);
     out->contentType = package.contentType(r.target);
-    *budget -= out->bytes.size() + 256;
-    if (*budget < 0 || (out->bytes.isEmpty() && !package.hasPart(r.target))) return false;
+    const QString key = r.target.toLower();
+    auto seen = read->bytes.constFind(key);
+    if (seen == read->bytes.constEnd()) {
+        const qint64 size = package.partSize(r.target);
+        if (size < 0 || size > read->budget) return false;
+        read->budget -= size + 256;
+        seen = read->bytes.insert(key, package.part(r.target));
+    }
+    out->bytes = seen.value();
     for (const Relationship &child : package.relationships(r.target)) {
         jp::crunch::RevivePart c;
-        if (!captureRevivePart(package, child, r.target, depth + 1, budget, &c)) return false;
+        if (!captureRevivePart(package, child, depth + 1, read, &c)) return false;
         out->children.push_back(std::move(c));
     }
-    Q_UNUSED(owner);
     return true;
 }
 
@@ -1388,16 +1429,31 @@ jp::office::sheet::AddedPart addedFromRevive(const jp::crunch::RevivePart &p)
 }
 
 constexpr qint64 kMaxReviveBytes = qint64(48) << 20;
+constexpr qint64 kMaxWorkbookReviveBytes = qint64(192) << 20;
 
 } // namespace
 
 std::shared_ptr<const jp::crunch::ObjectRevive> SheetObjects::captureRevive(int sheet, int id, QString *why)
 {
     Object *o = find(sheet, id);
-    if (!o || !m_book || o->added || o->gone || o->meta.ordinal < 0) return nullptr;   // (not in the file: nothing to keep)
+    if (!o || !m_book) return nullptr;
+    if (o->added) return o->reviveOwn ? o->reviveOwn : o->revive.lock();   // (not in the file: put back or moved here, its record is what writes it; none for one made here)
+    if (o->gone || o->meta.ordinal < 0) return nullptr;
     ensureBuilt(sheet, *o);
     Sheet &s = sheetState(sheet);
     if (s.drawingPart.isEmpty()) return nullptr;
+    // (what the objects hold already counts against the same total)
+    qint64 held = 0;
+    {
+        std::set<const void *> seen;
+        for (const Sheet &sh : m_sheets)
+            for (const std::shared_ptr<Object> &other : sh.objects)
+                if (const auto r = other->reviveOwn ? other->reviveOwn : other->revive.lock(); r && seen.insert(r.get()).second) held += r->bytes();
+    }
+    if (held >= kMaxWorkbookReviveBytes) {
+        if (why) *why = tr("JeffCrunch keeps no more of the objects taken away for Undo after a save.");
+        return nullptr;
+    }
     const Package &package = m_book->package();
     const QByteArray drawing = package.part(s.drawingPart);
     QByteArray anchor = jp::office::sheet::drawingChildXml(drawing, o->meta.ordinal);
@@ -1406,24 +1462,53 @@ std::shared_ptr<const jp::crunch::ObjectRevive> SheetObjects::captureRevive(int 
         return nullptr;
     }
     auto rec = std::make_shared<jp::crunch::ObjectRevive>();
-    qint64 budget = kMaxReviveBytes - anchor.size();
+    ReviveRead read;
+    read.budget = std::min(kMaxReviveBytes, kMaxWorkbookReviveBytes - held) - anchor.size();
+    // each attribute that names a relationship of the drawing (in either kind of quotes) gets a token in its place; one that names none is dropped, and a chart that names none is not kept
+    static const QRegularExpression attribute(QStringLiteral("\\s([A-Za-z_][\\w.-]*:(?:id|embed|link|pict|dm|lo|qs|cs))\\s*=\\s*(\"([^\"]*)\"|'([^']*)')"));
+    QString text = QString::fromUtf8(anchor);
+    QString out;
+    qsizetype last = 0;
     int n = 0;
-    for (const QString &rid : namedRelationships(anchor)) {
+    QHash<QString, QString> tokens;
+    bool unusable = false;
+    auto it = attribute.globalMatch(text);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        const QString rid = m.captured(3).isNull() ? m.captured(4) : m.captured(3);
+        const QString quote = m.captured(2).left(1);
+        out += text.mid(last, m.capturedStart() - last);
+        last = m.capturedEnd();
         const Relationship r = package.relationship(s.drawingPart, rid);
-        if (r.id.isEmpty()) continue;
-        jp::crunch::RevivePart part;
-        if (!captureRevivePart(package, r, s.drawingPart, 0, &budget, &part)) {
-            if (why) *why = tr("This object holds more than JeffCrunch keeps for Undo.");
-            return nullptr;
+        if (r.id.isEmpty()) {
+            static const QRegularExpression chartTag(QStringLiteral("<[\\w.-]+:chart\\b[^<>]*$"));
+            if (m.captured(1).endsWith(QLatin1String(":id")) && chartTag.match(text.left(m.capturedStart())).hasMatch()) unusable = true;
+            continue;   // (it names nothing: the attribute is left out)
         }
-        const QString token = QStringLiteral("@@revive%1@@").arg(n++);
-        anchor.replace("\"" + rid.toUtf8() + "\"", "\"" + token.toUtf8() + "\"");
-        rec->parts.emplace_back(token, std::move(part));
+        QString token = tokens.value(rid);
+        if (token.isEmpty()) {
+            jp::crunch::RevivePart part;
+            if (!captureRevivePart(package, r, 0, &read, &part)) {
+                if (why) *why = tr("This object holds more than JeffCrunch keeps for Undo.");
+                return nullptr;
+            }
+            token = QStringLiteral("@@revive%1@@").arg(n++);
+            tokens.insert(rid, token);
+            rec->parts.emplace_back(token, std::move(part));
+        }
+        out += QLatin1Char(' ') + m.captured(1) + QLatin1Char('=') + quote + token + quote;
     }
-    rec->anchorXml = anchor;
-    rec->anchor = o->anchor;
+    out += text.mid(last);
+    if (unusable) {
+        if (why) *why = tr("This chart names a part the file does not have, so it can't be kept for Undo.");
+        return nullptr;
+    }
+    rec->anchorXml = out.toUtf8();
+    rec->anchor = o->fileAnchor;   // (the anchor the bytes have: the file's, whatever the edits since have done to the object's own)
+    rec->chart = o->fileChart;
+    rec->unchanged = o->fileChart && o->chart == o->fileChart && o->refs == o->baseRefs;
+    rec->refs = o->baseRefs;   // (what the bytes read: the file's references; a chart that reads anything else now is written from its model)
     o->revive = rec;
-    o->reviveChart = o->chart;
     return rec;
 }
 
@@ -1432,7 +1517,12 @@ void SheetObjects::adoptRevive(int sheet, int id, const std::shared_ptr<const jp
     Object *o = find(sheet, id);
     if (!o || !revive) return;
     o->revive = revive;
-    o->reviveChart = o->chart;
+    o->reviveOwn = revive;   // (held until it is written)
+    // a chart that was as the file had it comes with the file's model, so that its part is written as it was; one changed is written from its own model
+    if (revive->unchanged && revive->chart && o->meta.kind == ObjectKind::Chart) {
+        o->chart = revive->chart;
+        o->refs = revive->refs;
+    }
 }
 
 int SheetObjects::makeChart(int sheet, const Chart &chart, const DrawingAnchor &anchor, QString *why)

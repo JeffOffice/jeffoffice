@@ -29,6 +29,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <set>
 #include <vector>
 
 namespace jp::office::sheet {
@@ -308,6 +309,8 @@ struct SaveChanges {
     std::map<QString, std::map<int, bool>> objectPrints;
     // Objects a person put on sheets (a chart, a picture, a shape): by the sheet's place, what the drawing part gets and the parts it relates to (drawingadd.h). A sheet with no drawing is given one.
     std::map<int, AddedDrawing> addedObjects;
+    // Part names the caller has chosen for what it adds (lower case): a part the saver names itself (one that comes back with an object) takes none of them.
+    std::set<QString> reservedParts;
     // Drawings whose objects are drawn in another order: for each drawing part (by its name), the order of all the children of its root as they are after what is above is done (the objects taken
     // away gone, those added at the end): the child at place k is the one this says (drawingsave.h, reorderDrawingChildren).
     std::map<QString, std::vector<int>> drawingOrder;

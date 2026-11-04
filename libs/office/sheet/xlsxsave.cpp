@@ -1809,7 +1809,9 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     const int dot = int(part.preferred.lastIndexOf(QLatin1Char('.')));
                     int digits = dot;
                     while (digits > 0 && part.preferred.at(digits - 1).isDigit()) --digits;
-                    part.part = freePartName(part.preferred.left(digits), dot >= 0 ? part.preferred.mid(dot) : QString(), taken);
+                    QSet<QString> avoid = taken;
+                    for (const QString &r : changes.reservedParts) avoid.insert(r);
+                    part.part = freePartName(part.preferred.left(digits), dot >= 0 ? part.preferred.mid(dot) : QString(), avoid);
                 }
                 if (!part.contentType.isEmpty()) {
                     // a part the file does not have
