@@ -670,6 +670,12 @@ SectionInfo Writer::sectionOf(const T &t, int sectPr)
             s.columns = std::max(1, t.has(c, "num") ? t.attr(c, "num").toInt() : 1);
             s.columnGap = tw(c, "space", 720);
             s.separator = t.attr(c, "sep") == QLatin1String("1") || t.attr(c, "sep") == QLatin1String("true");
+            if (t.attr(c, "equalWidth") == QLatin1String("0") || t.attr(c, "equalWidth") == QLatin1String("false"))
+                left(QCoreApplication::translate("odt", "columns of different widths (saved as equal ones)"));
+        } else if (name == "pgBorders") {
+            left(QCoreApplication::translate("odt", "page borders"));
+        } else if (name == "lnNumType") {
+            left(QCoreApplication::translate("odt", "line numbers"));
         } else if (name == "pgNumType") {
             if (t.has(c, "start")) s.pageStart = t.attr(c, "start").toInt();
         } else if (name == "headerReference" || name == "footerReference") {
@@ -963,6 +969,10 @@ bool Writer::run(const QByteArray &docx, QByteArray *out, QString *error, QStrin
             }
         }
     }
+    // The page's color, facing pages with mirrored margins, and automatic hyphenation are not written.
+    if (m_doc->child(m_doc->root(), "background") >= 0) left(QCoreApplication::translate("odt", "the page color"));
+    if (m_settings && m_settings->child(m_settings->root(), "mirrorMargins") >= 0) left(QCoreApplication::translate("odt", "mirrored margins"));
+    if (m_settings && m_settings->child(m_settings->root(), "autoHyphenation") >= 0) left(QCoreApplication::translate("odt", "automatic hyphenation (the words stay as they are)"));
     // The kind of mail merge and where its list is have no place in an .odt (the merge fields themselves are kept).
     if (m_settings && m_settings->child(m_settings->root(), "mailMerge") >= 0)
         left(QCoreApplication::translate("odt", "the mail merge settings (what the document is merged as, and where its list of recipients is; the merge fields stay)"));

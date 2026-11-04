@@ -463,6 +463,24 @@ void Paginator::addPageBorders(Document *d, const Section &sec, bool firstOfSect
     line(b.right, QPointF(r, up), QPointF(r, down), "right");
 }
 
+void Paginator::addColumnLines(Document *d, const Section &sec, const Furniture &f)
+{
+    const int n = sec.columnCount();
+    if (!sec.columnLine || n < 2) return;
+    const double top = f.body.isValid() ? f.body.top() : sec.content().top(), bottom = f.body.isValid() ? f.body.bottom() : sec.content().bottom();
+    for (int i = 0; i + 1 < n; ++i) {
+        const double x = (sec.columnRect(i).right() + sec.columnRect(i + 1).left()) / 2;
+        auto item = std::make_shared<LineItem>();
+        item->id = QStringLiteral("flow-column-line-%1-%2").arg(d->pages[0]->id).arg(i);
+        item->p1 = QPointF(x, top);
+        item->p2 = QPointF(x, bottom);
+        item->stroke = Stroke::line(ColorRef::fromString(QStringLiteral("#000000")), 0.5);
+        item->wrap.mode = Wrap::None;
+        item->syncRect();
+        d->pages[0]->items.push_back(item);
+    }
+}
+
 bool Paginator::substituteStyleRefs(QTextDocument *story, int from, int to) const
 {
     if (!m_doc->styleRefs || from < 0) return false;

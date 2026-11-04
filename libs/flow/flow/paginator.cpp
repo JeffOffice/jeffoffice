@@ -2022,6 +2022,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         d->pages[0]->items.push_back(fill);
     }
     addPageBorders(d.get(), sec, index <= 0 || st.firstOfSection, furniture);
+    addColumnLines(d.get(), sec, furniture);
     if (run.blank) {
         out->storyFrom = m_doc->story()->characterCount();
         addFurniture(d.get(), furniture, sec, st.section, out->number, out.get(), st.pos, st.pos);

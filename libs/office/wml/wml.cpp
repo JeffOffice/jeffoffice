@@ -287,6 +287,51 @@ QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on)
     return settingsWithFlag(settings, "evenAndOddHeaders", on, later);
 }
 
+// The elements the schema puts after the facing-pages setting (w:mirrorMargins).
+static QVector<QByteArray> afterMirrorMargins()
+{
+    return QVector<QByteArray>{"alignBordersAndEdges", "bordersDoNotSurroundHeader", "bordersDoNotSurroundFooter", "gutterAtTop", "hideSpellingErrors", "hideGrammaticalErrors",
+                                        "activeWritingStyle", "proofState", "formsDesign", "attachedTemplate", "linkStyles", "stylePaneFormatFilter", "stylePaneSortMethod", "documentType", "mailMerge",
+                                        "revisionView", "trackRevisions", "doNotTrackMoves", "doNotTrackFormatting", "documentProtection", "autoFormatOverride", "styleLockTheme", "styleLockQFSet",
+                                        "defaultTabStop", "autoHyphenation", "consecutiveHyphenLimit", "hyphenationZone", "doNotHyphenateCaps", "showEnvelope", "summaryLength", "clickAndTypeStyle",
+                                        "defaultTableStyle", "evenAndOddHeaders", "bookFoldRevPrinting", "bookFoldPrinting", "bookFoldPrintingSheets", "drawingGridHorizontalSpacing",
+                                        "drawingGridVerticalSpacing", "displayHorizontalDrawingGridEvery", "displayVerticalDrawingGridEvery", "doNotUseMarginsForDrawingGridOrigin",
+                                        "drawingGridHorizontalOrigin", "drawingGridVerticalOrigin", "doNotShadeFormData", "noPunctuationKerning", "characterSpacingControl", "printTwoOnOne",
+                                        "strictFirstAndLastChars", "noLineBreaksAfter", "noLineBreaksBefore", "savePreviewPicture", "doNotValidateAgainstSchema", "saveInvalidXml", "ignoreMixedContent",
+                                        "alwaysShowPlaceholderText", "doNotDemarcateInvalidXml", "saveXmlDataOnly", "useXSLTWhenSaving", "saveThroughXslt", "showXMLTags", "alwaysMergeEmptyNamespace",
+                                        "updateFields", "hdrShapeDefaults", "footnotePr", "endnotePr", "compat", "docVars", "rsids", "mathPr", "attachedSchema", "themeFontLang", "clrSchemeMapping",
+                                        "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures", "forceUpgrade", "captions", "readModeInkLockDown", "smartTagType", "schemaLibrary", "shapeDefaults",
+                                        "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
+}
+
+QByteArray settingsWithMirrorMargins(const QByteArray &settings, bool on)
+{
+    return settingsWithFlag(settings, "mirrorMargins", on, afterMirrorMargins());
+}
+
+QByteArray settingsWithDisplayBackgroundShape(const QByteArray &settings, bool on)
+{
+    // The elements the schema puts after it: the printing options, then the ones after mirrorMargins.
+    QVector<QByteArray> later = {"printPostScriptOverText", "printFractionalCharacterWidth", "printFormsData", "embedTrueTypeFonts", "embedSystemFonts", "saveSubsetFonts", "saveFormsData", "mirrorMargins"};
+    later += afterMirrorMargins();
+    return settingsWithFlag(settings, "displayBackgroundShape", on, later);
+}
+
+QByteArray settingsWithAutoHyphenation(const QByteArray &settings, bool on)
+{
+    // The elements the schema puts after it.
+    static const QVector<QByteArray> later = {"consecutiveHyphenLimit", "hyphenationZone", "doNotHyphenateCaps", "showEnvelope", "summaryLength", "clickAndTypeStyle", "defaultTableStyle",
+                                        "evenAndOddHeaders", "bookFoldRevPrinting", "bookFoldPrinting", "bookFoldPrintingSheets", "drawingGridHorizontalSpacing", "drawingGridVerticalSpacing",
+                                        "displayHorizontalDrawingGridEvery", "displayVerticalDrawingGridEvery", "doNotUseMarginsForDrawingGridOrigin", "drawingGridHorizontalOrigin",
+                                        "drawingGridVerticalOrigin", "doNotShadeFormData", "noPunctuationKerning", "characterSpacingControl", "printTwoOnOne", "strictFirstAndLastChars", "noLineBreaksAfter",
+                                        "noLineBreaksBefore", "savePreviewPicture", "doNotValidateAgainstSchema", "saveInvalidXml", "ignoreMixedContent", "alwaysShowPlaceholderText",
+                                        "doNotDemarcateInvalidXml", "saveXmlDataOnly", "useXSLTWhenSaving", "saveThroughXslt", "showXMLTags", "alwaysMergeEmptyNamespace", "updateFields", "hdrShapeDefaults",
+                                        "footnotePr", "endnotePr", "compat", "docVars", "rsids", "mathPr", "attachedSchema", "themeFontLang", "clrSchemeMapping", "doNotIncludeSubdocsInStats",
+                                        "doNotAutoCompressPictures", "forceUpgrade", "captions", "readModeInkLockDown", "smartTagType", "schemaLibrary", "shapeDefaults", "doNotEmbedSmartTags",
+                                        "decimalSymbol", "listSeparator"};
+    return settingsWithFlag(settings, "autoHyphenation", on, later);
+}
+
 QByteArray settingsWithTrackRevisions(const QByteArray &settings, bool on)
 {
     // The elements the schema puts after it: the rest of the track settings, the protection, and everything from the default tab stop on.

@@ -139,6 +139,7 @@ struct Section {
     double columnGap = 36;                   // between columns
     // Columns of unequal widths, when the file states them (one for each column, as many as `columns`, with the space after each: the last one's is not used); empty for equal columns.
     QVector<double> columnWidths, columnSpaces;
+    bool columnLine = false;                 // a line between the columns (w:cols w:sep)
     HeaderFooter header, footer;
     double headerDistance = 36, footerDistance = 36;   // from the page's edge
     bool differentFirstPage = false;         // the first page uses the header and footer's first slot

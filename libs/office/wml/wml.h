@@ -168,6 +168,9 @@ struct SectionProps {
     // Not a property of a section in a file: the document's use of different headers on odd and even pages (w:evenAndOddHeaders of the settings), carried by the record of the
     // last section in a program that edits it, so that a change to it goes with the text's steps. Never written to a section.
     bool oddEvenHeaders = false;
+    // The same for the document's facing pages with mirrored margins (w:mirrorMargins) and its automatic hyphenation (w:autoHyphenation).
+    bool mirrorMargins = false, autoHyphenation = false;
+    QString pageColor;                // and the page color (w:background): "RRGGBB", empty for none
     bool hasPgSz = false, hasPgMar = false, hasCols = false;   // stated in the file
     QByteArray attrs;                 // the attributes of w:sectPr (revision marks), as written
     // The attributes of w:pgSz (code...), w:pgMar, w:pgNumType (chapStyle, chapSep...), and w:cols that have no field here, as written.
@@ -486,6 +489,11 @@ inline const QLatin1String kFieldGroupTag("jwfield");
 void setHeaderReference(SectionProps *section, bool footer, int slot, const QString &relationshipId);
 // The settings part with the use of different headers on odd and even pages (w:evenAndOddHeaders) on or off, in the place the schema gives it. An empty part gives a minimal one.
 QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on);
+// The same for facing pages with mirrored margins (w:mirrorMargins) and automatic hyphenation (w:autoHyphenation).
+QByteArray settingsWithMirrorMargins(const QByteArray &settings, bool on);
+QByteArray settingsWithAutoHyphenation(const QByteArray &settings, bool on);
+// The settings with the page color shown (w:displayBackgroundShape), which a page color needs to be seen by the programs that read the file.
+QByteArray settingsWithDisplayBackgroundShape(const QByteArray &settings, bool on);
 // Whether the settings turn Track Changes on (w:trackRevisions, not turned off by a value), and the settings with it on or off, in the place the schema gives it. An empty part gives a minimal one.
 bool settingsTrackRevisions(const QByteArray &settings);
 QByteArray settingsWithTrackRevisions(const QByteArray &settings, bool on);
