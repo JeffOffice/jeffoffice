@@ -1366,6 +1366,67 @@ private Q_SLOTS:
         QCOMPARE(xml.count(QLatin1String("<cfRule")), 1);
     }
 
+    // Two rules of the main list with the same priority, one of them with an `id` (which an older check skipped), cannot be told apart by priority: a change of rules there is refused and nothing is
+    // changed.
+    void twoRulesWithOnePriorityAndOneWithAnIdAreRefused()
+    {
+        const QString tail = QStringLiteral("<conditionalFormatting sqref=\"A1\"><cfRule type=\"cellIs\" priority=\"1\" operator=\"equal\" id=\"{X}\"><formula>1</formula></cfRule></conditionalFormatting>"
+                                            "<conditionalFormatting sqref=\"B1\"><cfRule type=\"cellIs\" priority=\"1\" operator=\"equal\"><formula>2</formula></cfRule></conditionalFormatting>");
+        EditWindow e;
+        QVERIFY(e.open(bookWith(tail)));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        const int rules = int(s->condRules(0).size());
+        QVERIFY(!s->clearCondRules(0, rangeOf(QStringLiteral("B1"))).ok);
+        QCOMPARE(int(s->condRules(0).size()), rules);
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+    }
+
+    // A clear that would leave more blocks of cells than the cap is refused at once, and nothing is changed. (The rules are made in memory: 250 rules of 900 blocks each.)
+    void aClearThatWouldSplitPastTheCapIsRefusedQuickly()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWith(QString())));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        for (int i = 0; i < 250; ++i) {
+            jp::office::sheet::CondRule rule;
+            rule.type = jp::office::sheet::CondRule::Type::CellIs;
+            rule.op = jp::office::sheet::CondRule::Operator::GreaterThan;
+            rule.formula1 = QStringLiteral("0");
+            for (int r = 0; r < 900; ++r) {
+                jp::office::sheet::CellRange range;
+                range.valid = true;
+                range.row1 = range.row2 = quint32(r * 2);
+                range.col1 = range.col2 = quint32(i);
+                rule.ranges.append(range);
+            }
+            QVERIFY(s->addCondRule(0, rule, jp::office::sheet::DifferentialFormat()).ok);
+        }
+        const int steps = e.win.w.undoStack()->count();
+        QElapsedTimer timer;
+        timer.start();
+        const auto out = s->clearCondRules(0, rangeOf(QStringLiteral("A1")));   // (one block of the first rule)
+        QVERIFY2(timer.elapsed() < 5000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY(!out.ok);
+        QVERIFY(!out.problem.isEmpty());
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(int(s->condRules(0).size()), 250);
+    }
+
+    // The bytes the file had of a rule that a clear took away are kept for Undo, and counted with the steps of Undo.
+    void theBytesKeptOfAClearedRuleAreCountedInTheUndoBytes()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWith(plainRulesTail())));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->clearCondRules(0, jp::office::sheet::CellRange()).ok);
+        const qint64 before = s->undoBytes();
+        QVERIFY(saveNow(e));
+        QVERIFY2(s->undoBytes() - before >= 200, qPrintable(QString::number(s->undoBytes() - before)));   // (two rules' elements)
+    }
+
     // Rules of two sheets changed, then one save: each sheet has its own.
     void rulesOfSeveralSheetsAreSavedTogether()
     {
