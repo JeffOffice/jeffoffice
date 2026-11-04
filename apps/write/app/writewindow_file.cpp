@@ -52,7 +52,19 @@ UnlockResult unlockProtected(QWidget *parent, const QString &fileName, QByteArra
 {
     QByteArray info, package, zip;
     if (!office::splitProtectedPackage(*bytes, &info, &package)) return UnlockResult::Opened;
-    if (office::decryptPackage(info, package, office::defaultPassword(), office::kMaxOpenFileBytes, false, &zip) == office::CryptResult::Ok) {
+    // (the file's own bytes are let go: the package inside is what is worked on, and a file of a gigabyte is not held twice more)
+    *bytes = QByteArray();
+    bytes->squeeze();
+    auto decrypt = [&](const QString &password, office::CryptResult *result) {
+        // On a thread of its own, with a note and a Cancel button: a key made with many rounds of hashing takes seconds.
+        const bool finished = runWithCancel(parent, QCoreApplication::translate("jp::WriteWindow", "Checking the password…"), [&](const std::atomic<bool> *cancel) {
+            *result = office::decryptPackage(info, package, password, office::kMaxOpenFileBytes, false, &zip, [cancel] { return cancel->load(); });
+        });
+        if (!finished) *result = office::CryptResult::Cancelled;
+    };
+    office::CryptResult r = office::CryptResult::Unsupported;
+    decrypt(office::defaultPassword(), &r);
+    if (r == office::CryptResult::Ok) {
         *bytes = zip;
         return UnlockResult::Opened;
     }
@@ -60,9 +72,7 @@ UnlockResult unlockProtected(QWidget *parent, const QString &fileName, QByteArra
     for (;;) {
         QString password;
         if (!askOpenFilePassword(parent, fileName, wrong, &password)) return UnlockResult::Cancelled;
-        QApplication::setOverrideCursor(Qt::WaitCursor);
-        const office::CryptResult r = office::decryptPackage(info, package, password, office::kMaxOpenFileBytes, false, &zip);
-        QApplication::restoreOverrideCursor();
+        decrypt(password, &r);
         if (r == office::CryptResult::Ok) {
             *bytes = zip;
             *kept = password;
@@ -70,6 +80,7 @@ UnlockResult unlockProtected(QWidget *parent, const QString &fileName, QByteArra
             return UnlockResult::Opened;
         }
         crypto::wipe(password);
+        if (r == office::CryptResult::Cancelled) return UnlockResult::Cancelled;
         if (r == office::CryptResult::WrongPassword) {
             wrong = true;
             continue;
@@ -214,6 +225,8 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
     target->setReadOnly(how == OpenHow::ReadOnly);
     target->setDocument(std::move(doc), tmpl || copy ? QString() : path);
     target->m_macrosNoted = false;
+    target->m_personalInfoRemoved = false;
+    target->m_recoveryNoted = false;
     target->m_fileProtected = wasProtected && !tmpl && !copy;
     crypto::wipe(target->m_filePassword);
     if (target->m_fileProtected) target->m_filePassword = openedWith;
@@ -345,6 +358,15 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
         notice(tr("Save"), tr("This document is protected with a password, and a .odt file can't hold a password yet. Save it as a .docx file, or remove the password first (File > Info)."));
         return false;
     }
+    // The mark that a document is final is a property a .odt file does not keep: said, so that the window and the file do not disagree.
+    if (odt && m_doc->markedAsFinal()) {
+        notice(tr("Save"), tr("This document is marked as final, and a .odt file can't hold that mark. The file is saved without it."));
+        if (!asCopy) {
+            office::PackageProps unmarked = m_doc->packageProps();
+            unmarked.custom = office::withMarkAsFinal(unmarked.custom, false);
+            m_doc->setPackageProps(unmarked);
+        }
+    }
     if (!backupBeforeSave(this, path)) return false;
     QStringList notKept;
     QApplication::setOverrideCursor(Qt::WaitCursor);
@@ -399,6 +421,14 @@ void WriteWindow::autoRecover()
     const int ms = std::max(1, Settings::get().autoRecoverMinutes()) * 60 * 1000;
     if (m_recoverTimer.interval() != ms) m_recoverTimer.start(ms);
     if (!m_doc || !isModified()) return;
+    // A document protected with a password is never written out as plain text: no copy is kept for it, and the person is told.
+    if (m_fileProtected) {
+        if (!m_recoveryNoted) {
+            m_recoveryNoted = true;
+            statusBar()->showMessage(tr("This document is protected with a password, so no recovery copy is kept of it. Save it to keep your work."), 10000);
+        }
+        return;
+    }
     // Named for the document as it is now (Save As moves it).
     const QString copy = recovery::copyPath(m_path, displayName(), m_serial);
     if (copy != m_recoveryCopy) dropRecoveryCopy();

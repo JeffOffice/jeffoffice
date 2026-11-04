@@ -35,6 +35,7 @@
 #include <QElapsedTimer>
 #include <QHash>
 #include <QKeySequence>
+#include <QLabel>
 #include <QPointer>
 #include <QSet>
 #include <QTimer>
@@ -121,6 +122,11 @@ public:
     // Mark as Final: the workbook is saved, then held for reading only; off, it can be edited again.
     void setMarkedFinal(bool on);
     bool markedAsFinal() const { return office::isMarkedFinal(properties().custom); }
+    // The reason Mark as Final can't be done for this workbook ("" when it can): the file it is saved to must be a kind that keeps the mark.
+    QString markFinalBlocked() const;
+    int removePersonalInformation();
+    // Shows or hides the note on the status bar that says the workbook is marked as final and open for reading only.
+    void updateFinalNote();
     // What Inspect Workbook looks for (and can take out); the box shows them.
     QVector<InspectItem> inspectItems();
     void inspectWorkbook();
@@ -1214,6 +1220,8 @@ private:
     void updateProtectActions();
     void protectSheet();
     void protectWorkbook();
+    QLabel *m_finalNote = nullptr;                       // (on the status bar while the workbook is marked as final and read-only)
+    bool m_personalInfoRemoved = false;                  // (Inspect took the personal information out: saving does not put the name of the person back)
     std::optional<office::PackageProps> m_editedProps;   // properties a person edited, written at the next save
     OpenHow m_openHow = OpenHow::Normal;                 // how the file being read was asked for
     QString m_filePassword, m_pendingPassword;

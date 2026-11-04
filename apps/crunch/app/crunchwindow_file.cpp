@@ -124,7 +124,10 @@ void CrunchWindow::browseAndOpen(OpenHow how)
 void CrunchWindow::setReadOnly(bool on)
 {
     AppWindow::setReadOnly(on);
-    if (!m_actions.isEmpty()) updateEditActions();
+    if (!m_actions.isEmpty()) {
+        updateEditActions();
+        updateFinalNote();
+    }
     updateTitle();
 }
 
@@ -194,6 +197,7 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
     if (replacing) dropWorkbook();
     setReadOnly(how == OpenHow::ReadOnly);
     m_openHow = how;
+    m_personalInfoRemoved = false;
     m_editedProps.reset();
     m_openAsCopy = how == OpenHow::Copy;
     m_path = loadPath;
@@ -337,7 +341,6 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     // A workbook marked as final opens for reading only (the Info page lets it be edited again).
     if (m_openHow == OpenHow::Normal && !m_blank && repairedName.isEmpty() && !m_path.isEmpty() && m_loaded->book && office::isMarkedFinal(office::readPackageProps(m_loaded->book->package()).custom)) {
         setReadOnly(true);
-        setStatus(tr("Marked as final: this workbook is open for reading only. Open File > Info and choose Marked as Final to edit it."));
     }
     createEditing();
     if (m_objects && m_loaded->calc) m_objects->setCells(m_loaded->calc.get(), &m_values);

@@ -13,7 +13,8 @@
 
 class QLabel;
 class QPushButton;
-class QTableWidget;
+class QStandardItemModel;
+class QTableView;
 class QWidget;
 
 namespace jp {
@@ -27,6 +28,7 @@ struct InfoHost {
     std::function<void(const office::PackageProps &)> setProps;
     // The rows of the "Statistics" part (a label and its value, in the order shown), for the counts the file has.
     std::function<QVector<QPair<QString, QString>>()> statistics;
+    std::function<QString()> markFinalBlocked;   // why the file can't be marked as final ("" when it can); none: always
     std::function<bool()> markedFinal;
     std::function<void(bool)> setMarkedFinal;
     std::function<bool()> hasPassword;
@@ -46,19 +48,28 @@ QString folderOfFile(const QString &path);
 // The path as the system writes it, for Copy Path.
 QString pathForCopy(const QString &path);
 
-// The box that lists, adds, changes, and removes a file's custom properties.
+// The box that lists, adds, changes, and removes a file's custom properties: a table over a model (a file may have thousands), the kind of each chosen in a list that shows when the cell is edited.
+// A property of a kind this program does not model is listed, not editable, and kept as it was (or deleted with its row).
 class CustomPropertiesDialog : public QDialog {
     Q_OBJECT
 public:
     CustomPropertiesDialog(const QVector<office::CustomProperty> &now, QWidget *parent);
+    // What the table says; the properties not modeled are the file's own, as they were.
     QVector<office::CustomProperty> result() const;
-    // For tests: the row count, and a way to add one.
+    // The first thing wrong with the table (a name that is empty, used twice, or kept for the program's own use; a value that its kind can't hold), "" when nothing is.
+    QString problem() const;
+    // For tests: the row count, a way to add one, and to change a cell.
     int rowCount() const;
     void addRow(const office::CustomProperty &p);
+    void setCell(int row, int column, const QString &text);
+
+protected:
+    void accept() override;
 
 private:
     void addEmptyRow();
-    QTableWidget *m_table = nullptr;
+    QStandardItemModel *m_model = nullptr;
+    QTableView *m_table = nullptr;
 };
 
 // One kind of thing Inspect finds and can take out.

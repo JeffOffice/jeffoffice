@@ -4,6 +4,7 @@
 #include "app/filescreen.h"
 #include "app/infopage.h"
 #include "app/passworddialogs.h"
+#include "app/settings.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
 #include "app/pageview.h"
@@ -24,13 +25,70 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QStatusBar>
+#include <QElapsedTimer>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QThread>
+#include <QTimer>
 
 using namespace jp;
 using namespace jp::write;
 
 namespace {
+
+const char kNs[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+const QString kRel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+const QString kWord = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+
+// A .docx of this body, with the extra parts given as (name, content type, bytes, relationship type, from) and the package parts as they are given.
+struct Extra {
+    QString name, contentType;
+    QByteArray bytes;
+    QString relType, from, id;
+};
+
+QByteArray makeDocx(const QByteArray &body, const QVector<Extra> &extra = {}, const QVector<Extra> &packageLevel = {})
+{
+    office::PackageWriter w;
+    w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>",
+              kWord + QStringLiteral("document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), kRel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addPart(QStringLiteral("/word/styles.xml"), QByteArray("<?xml version=\"1.0\"?><w:styles ") + kNs + "><w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style></w:styles>",
+              kWord + QStringLiteral("styles+xml"));
+    w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+    for (const Extra &e : extra) {
+        w.addPart(e.name, e.bytes, e.contentType);
+        if (!e.relType.isEmpty()) {
+            if (e.id.isEmpty()) w.addRelationship(e.from.isEmpty() ? QStringLiteral("/word/document.xml") : e.from, e.relType, e.name);
+            else w.addRelationshipWithId(e.from.isEmpty() ? QStringLiteral("/word/document.xml") : e.from, e.id, e.relType, e.name, false);
+        }
+    }
+    for (const Extra &e : packageLevel) {
+        w.addPart(e.name, e.bytes, e.contentType);
+        w.addRelationship(QStringLiteral("/"), e.relType, e.name);
+    }
+    return w.finish();
+}
+
+QByteArray partOf(const QByteArray &zip, const QString &name)
+{
+    office::Package p;
+    p.read(zip);
+    return p.part(name);
+}
+
+QStringList partNamesOf(const QByteArray &zip)
+{
+    office::Package p;
+    p.read(zip);
+    return p.partNames();
+}
+
+std::unique_ptr<WriteDoc> openDocx(const QByteArray &zip)
+{
+    QString err;
+    return WriteDoc::fromDocx(zip, &err, nullptr);
+}
 
 void typeText(WriteDoc &doc, QTextCursor &c, const QString &text)
 {
@@ -70,6 +128,8 @@ private Q_SLOTS:
         setAppInfo(writeAppInfo());
         initCore();
     }
+    void cleanupTestCase() { QVERIFY(jptest::settingsStayInTheRunsFolder()); }
+    void init() { Settings::get().setValue(QStringLiteral("user/name"), QStringLiteral("Tester")); }
     void cleanup()
     {
         setNewPasswordStandIn(nullptr);
@@ -376,6 +436,258 @@ private Q_SLOTS:
         QTemporaryDir dir;
         QVERIFY(w.exportText(dir.filePath(QStringLiteral("out.txt")), TextEncoding::Utf8, LineEnds::Unix));
         QVERIFY(fileBytes(dir.filePath(QStringLiteral("out.txt"))).endsWith("second"));
+    }
+
+    // ---- the review's items
+    void aTitleEditLeavesTheCustomPartAsItWas()
+    {
+        const QByteArray custom =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/custom-properties\" "
+            "xmlns:vt=\"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes\">"
+            "<property fmtid=\"{D5CDD505-2E9C-101B-9397-08002B2CF9AE}\" pid=\"2\" name=\"A\"><vt:lpwstr>x</vt:lpwstr></property>"
+            "<property fmtid=\"{D5CDD505-2E9C-101B-9397-08002B2CF9AE}\" pid=\"3\" name=\"V\"><vt:vector size=\"1\" baseType=\"i4\"><vt:i4>5</vt:i4></vt:vector></property>"
+            "<property fmtid=\"{D5CDD505-2E9C-101B-9397-08002B2CF9AE}\" pid=\"4\" name=\"B\"><vt:i8>5</vt:i8></property></Properties>";
+        const QByteArray zip = makeDocx("<w:p><w:r><w:t>x</w:t></w:r></w:p>", {},
+                                        {{QStringLiteral("/docProps/custom.xml"), QString::fromLatin1(office::kCustomPartType), custom, QString::fromLatin1(office::kCustomRelationship), {}, {}}});
+        auto doc = openDocx(zip);
+        QVERIFY(doc);
+        QCOMPARE(doc->packageProps().custom.size(), 3);
+        office::PackageProps p = doc->packageProps();
+        p.title = QStringLiteral("Edited");
+        doc->setPackageProps(p);
+        const QByteArray saved = doc->toDocx();
+        QCOMPARE(partOf(saved, QStringLiteral("/docProps/custom.xml")), custom);
+        QCOMPARE(openDocx(saved)->packageProps().title, QStringLiteral("Edited"));
+        // a change of the list does rewrite it, and keeps what is not modeled
+        p.custom[0].value = QStringLiteral("y");
+        doc->setPackageProps(p);
+        const QByteArray again = partOf(doc->toDocx(), QStringLiteral("/docProps/custom.xml"));
+        QVERIFY(again.contains("<vt:vector size=\"1\" baseType=\"i4\"><vt:i4>5</vt:i4></vt:vector>"));
+        QVERIFY(again.contains(">y<"));
+    }
+
+    void thePropertiesPartsAreFoundByTheirRelationshipNotTheirNames()
+    {
+        const QByteArray core = "<cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:title>Elsewhere</dc:title></cp:coreProperties>";
+        const QByteArray zip = makeDocx("<w:p/>", {},
+                                        {{QStringLiteral("/meta/info/c.xml"), QString::fromLatin1(office::kCorePartType), core, QString::fromLatin1(office::kCoreRelationship), {}, {}}});
+        auto doc = openDocx(zip);
+        QVERIFY(doc);
+        QCOMPARE(doc->packageProps().title, QStringLiteral("Elsewhere"));
+        office::PackageProps p = doc->packageProps();
+        p.title = QStringLiteral("Changed");
+        p.company = QStringLiteral("Acme");
+        doc->setPackageProps(p);
+        const QByteArray saved = doc->toDocx();
+        QVERIFY(partOf(saved, QStringLiteral("/meta/info/c.xml")).contains("Changed"));
+        QVERIFY(!partNamesOf(saved).contains(QStringLiteral("/docProps/core.xml")));
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        QCOMPARE(pkg.relationshipsOfType(QStringLiteral("/"), QStringLiteral("/core-properties")).size(), 1);
+        QCOMPARE(pkg.relationshipsOfType(QStringLiteral("/"), QStringLiteral("/extended-properties")).size(), 1);   // (the app part is made, once)
+        QCOMPARE(openDocx(saved)->packageProps().company, QStringLiteral("Acme"));
+        // and the fields read the same part
+        QCOMPARE(documentProperties(*doc).title, QStringLiteral("Changed"));
+    }
+
+    void aPartWithMoreThanIsReadIsShownReadOnlyAndNeverRewritten()
+    {
+        QByteArray core = "<cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:title>Old</dc:title>";
+        for (int i = 0; i < 120000; ++i) core += "<cp:x/>";
+        core += "</cp:coreProperties>";
+        const QByteArray zip = makeDocx("<w:p/>", {}, {{QStringLiteral("/docProps/core.xml"), QString::fromLatin1(office::kCorePartType), core, QString::fromLatin1(office::kCoreRelationship), {}, {}}});
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QTemporaryDir dir;
+        QFile f(dir.filePath(QStringLiteral("big.docx")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(zip);
+        f.close();
+        QVERIFY(w.openFile(f.fileName()));
+        QVERIFY(w.document()->packageProps().truncated);
+        office::PackageProps p = w.document()->packageProps();
+        p.title = QStringLiteral("New");
+        w.applyProperties(p);
+        QCOMPARE(w.document()->propsPartData(QStringLiteral("/core-properties")), core);
+        w.show();
+        w.showFileScreen(QStringLiteral("info"));
+        QWidget *page = w.findChild<FileScreen *>()->findChild<QWidget *>(QStringLiteral("infoPage"));
+        QVERIFY(page->findChild<QWidget *>(QStringLiteral("infoPropertiesReadOnly")));
+        QVERIFY(page->findChild<QLineEdit *>(QStringLiteral("infoTitle"))->isReadOnly());
+        QVERIFY(!page->findChild<QPushButton *>(QStringLiteral("infoCustom"))->isEnabled());
+        w.hideFileScreen();
+    }
+
+    void removingEveryCommentLeavesNoNameInTheFile()
+    {
+        const QByteArray commentsPart = "<?xml version=\"1.0\"?><w:comments " + QByteArray(kNs) + "><w:comment w:id=\"0\" w:author=\"Zed Quux\" w:initials=\"ZQ\" w:date=\"2026-01-01T00:00:00Z\"><w:p><w:r><w:t>note</w:t></w:r></w:p></w:comment></w:comments>";
+        const QByteArray people = "<?xml version=\"1.0\"?><w15:people xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\"><w15:person w15:author=\"Zed Quux\"><w15:presenceInfo w15:providerId=\"None\" w15:userId=\"Zed Quux\"/></w15:person></w15:people>";
+        const QByteArray ex = "<?xml version=\"1.0\"?><w15:commentsEx xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\"/>";
+        const QByteArray ids = "<?xml version=\"1.0\"?><w16cid:commentsIds xmlns:w16cid=\"http://schemas.microsoft.com/office/word/2016/wordml/cid\"/>";
+        const QByteArray zip = makeDocx("<w:p><w:commentRangeStart w:id=\"0\"/><w:r><w:t>hello</w:t></w:r><w:commentRangeEnd w:id=\"0\"/><w:r><w:commentReference w:id=\"0\"/></w:r></w:p>",
+                                        {{QStringLiteral("/word/comments.xml"), kWord + QStringLiteral("comments+xml"), commentsPart, kRel + QStringLiteral("comments"), {}, {}},
+                                         {QStringLiteral("/word/people.xml"), kWord + QStringLiteral("people+xml"), people, QStringLiteral("http://schemas.microsoft.com/office/2011/relationships/people"), {}, {}},
+                                         {QStringLiteral("/word/commentsExtended.xml"), kWord + QStringLiteral("commentsExtended+xml"), ex, QStringLiteral("http://schemas.microsoft.com/office/2011/relationships/commentsExtended"), {}, {}},
+                                         {QStringLiteral("/word/commentsIds.xml"), kWord + QStringLiteral("commentsIds+xml"), ids, QStringLiteral("http://schemas.microsoft.com/office/2016/09/relationships/commentsIds"), {}, {}}});
+        auto doc = openDocx(zip);
+        QVERIFY(doc);
+        rememberCommentsAtOpen(*doc);
+        QCOMPARE(int(comments(*doc).size()), 1);
+        QCOMPARE(deleteAllComments(*doc), 1);
+        const QByteArray saved = doc->toDocx();
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        for (const QString &name : pkg.partNames())
+            QVERIFY2(!pkg.part(name).contains("Zed Quux"), qPrintable(name));
+        QVERIFY(!pkg.partNames().contains(QStringLiteral("/word/people.xml")));
+        QVERIFY(!pkg.partNames().contains(QStringLiteral("/word/commentsExtended.xml")));
+        QVERIFY(!pkg.partNames().contains(QStringLiteral("/word/commentsIds.xml")));
+        QVERIFY(!partOf(saved, QStringLiteral("/word/_rels/document.xml.rels")).contains("people"));
+    }
+
+    void hiddenTextIsFoundAndRemovedInEveryStory()
+    {
+        const QByteArray header = "<w:hdr " + QByteArray(kNs) + "><w:p><w:r><w:t>Visible head</w:t></w:r><w:r><w:rPr><w:vanish/></w:rPr><w:t>SECRETHEAD</w:t></w:r></w:p></w:hdr>";
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:id=\"1\"><w:p><w:r><w:t>Note</w:t></w:r><w:r><w:rPr><w:vanish/></w:rPr><w:t>SECRETNOTE</w:t></w:r></w:p></w:footnote></w:footnotes>";
+        const QByteArray body = "<w:p><w:r><w:t>Body</w:t></w:r><w:r><w:rPr><w:vanish/></w:rPr><w:t>SECRETBODY</w:t></w:r><w:r><w:footnoteReference w:id=\"1\"/></w:r></w:p>"
+                                "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdH\"/></w:sectPr>";
+        const QByteArray zip = makeDocx(body, {{QStringLiteral("/word/header1.xml"), kWord + QStringLiteral("header+xml"), header, kRel + QStringLiteral("header"), {}, QStringLiteral("rIdH")},
+                                               {QStringLiteral("/word/footnotes.xml"), kWord + QStringLiteral("footnotes+xml"), notes, kRel + QStringLiteral("footnotes"), {}, {}}});
+        auto doc = openDocx(zip);
+        QVERIFY(doc);
+        QCOMPARE(hiddenTextCount(*doc), 3);
+        QCOMPARE(removeHiddenText(*doc), 3);
+        QCOMPARE(hiddenTextCount(*doc), 0);
+        const QByteArray saved = doc->toDocx();
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        for (const QString &name : pkg.partNames()) {
+            QVERIFY2(!pkg.part(name).contains("SECRETHEAD"), qPrintable(name));
+            QVERIFY2(!pkg.part(name).contains("SECRETNOTE"), qPrintable(name));
+            QVERIFY2(!pkg.part(name).contains("SECRETBODY"), qPrintable(name));
+        }
+    }
+
+    void markAsFinalIsRefusedWhereTheFileCantHoldIt()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("x"));
+        QVERIFY(saveInto(w, dir, QStringLiteral("a.odt")));
+        QVERIFY(!w.markFinalBlocked().isEmpty());
+        w.setMarkedFinal(true);
+        QVERIFY(!w.isReadOnly());
+        QVERIFY(!w.document()->markedAsFinal());
+        QVERIFY(quiet.said.last().contains(QLatin1String(".odt")));
+        // the page says so, and the card does nothing
+        w.show();
+        w.showFileScreen(QStringLiteral("info"));
+        QWidget *card = w.findChild<FileScreen *>()->findChild<QWidget *>(QStringLiteral("infoMarkFinal"));
+        QVERIFY(card);
+        QVERIFY(!card->isEnabled());
+        w.hideFileScreen();
+        // a document marked as final and then saved as .odt is not marked, and the window agrees with the file
+        WriteWindow v;
+        Quiet quietV(v);
+        typeText(*v.document(), v.view()->cursor(), QStringLiteral("y"));
+        QVERIFY(saveInto(v, dir, QStringLiteral("b.docx")));
+        v.setMarkedFinal(true);
+        QVERIFY(v.isReadOnly());
+        QVERIFY(saveInto(v, dir, QStringLiteral("c.odt")));
+        QVERIFY(!v.isReadOnly());
+        QVERIFY(!v.document()->markedAsFinal());
+    }
+
+    void aProtectedDocumentIsNeverRecoveredAsPlainText()
+    {
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("secret words"));
+        setNewPasswordStandIn([](bool, QString *password) {
+            *password = QStringLiteral("pw");
+            return NewPasswordChoice::Set;
+        });
+        w.encryptWithPassword();
+        w.autoRecover();
+        QVERIFY(w.recoveryCopy().isEmpty());
+        QVERIFY(w.statusBar()->currentMessage().contains(QLatin1String("recovery copy")));
+        // (an unprotected one is kept, as it was)
+        WriteWindow v;
+        typeText(*v.document(), v.view()->cursor(), QStringLiteral("plain words"));
+        v.autoRecover();
+        QVERIFY(!v.recoveryCopy().isEmpty());
+        QFile::remove(v.recoveryCopy());
+    }
+
+    void removedPersonalInformationStaysOutOfLaterEdits()
+    {
+        WriteWindow w;
+        office::PackageProps p = w.document()->packageProps();
+        p.creator = QStringLiteral("Ann");
+        p.company = QStringLiteral("Acme");
+        w.applyProperties(p);
+        QCOMPARE(w.document()->packageProps().lastModifiedBy, QStringLiteral("Tester"));
+        QCOMPARE(w.removePersonalInformation(), 3);
+        p = w.document()->packageProps();
+        p.title = QStringLiteral("After");
+        w.applyProperties(p);
+        const office::PackageProps now = w.document()->packageProps();
+        QCOMPARE(now.title, QStringLiteral("After"));
+        QVERIFY(now.lastModifiedBy.isEmpty());
+        QVERIFY(now.creator.isEmpty());
+        QVERIFY(now.company.isEmpty());
+    }
+
+    void theCustomPropertiesBoxRefusesWhatItCannotKeep()
+    {
+        CustomPropertiesDialog d({}, nullptr);
+        d.addRow({QStringLiteral("Count"), QStringLiteral("i4"), QStringLiteral("7"), 0, QString(), QByteArray()});
+        QVERIFY(d.problem().isEmpty());
+        d.setCell(0, 2, QStringLiteral("seven"));
+        QVERIFY(d.problem().contains(QLatin1String("whole number")));
+        d.setCell(0, 2, QStringLiteral("7"));
+        d.addRow({QStringLiteral("When"), QStringLiteral("filetime"), QStringLiteral("not a date"), 0, QString(), QByteArray()});
+        QVERIFY(d.problem().contains(QLatin1String("not a date")));
+        d.setCell(1, 2, QStringLiteral("2026-11-04"));
+        QVERIFY(d.problem().isEmpty());
+        d.addRow({QStringLiteral("count"), QStringLiteral("lpwstr"), QStringLiteral("x"), 0, QString(), QByteArray()});
+        QVERIFY(d.problem().contains(QLatin1String("twice")));
+        d.setCell(2, 0, QStringLiteral("_MarkAsFinal"));
+        QVERIFY(d.problem().contains(QLatin1String("_MarkAsFinal")));
+        d.setCell(2, 0, QStringLiteral("Fine"));
+        QVERIFY(d.problem().isEmpty());
+        d.addRow({QString(), QStringLiteral("lpwstr"), QString(), 0, QString(), QByteArray()});
+        QVERIFY(d.problem().contains(QLatin1String("no name")));
+    }
+
+    void theCustomPropertiesBoxHoldsThousandsOfRowsAndKeepsWhatItDoesNotModel()
+    {
+        QVector<office::CustomProperty> many;
+        for (int i = 0; i < 5000; ++i) many.push_back({QStringLiteral("p%1").arg(i), QStringLiteral("lpwstr"), QStringLiteral("v"), i + 2, QString(), QByteArray()});
+        many[10].raw = "<property pid=\"12\" name=\"p10\"><vt:i8 xmlns:vt=\"urn:v\">1</vt:i8></property>";
+        QElapsedTimer t;
+        t.start();
+        CustomPropertiesDialog d(many, nullptr);
+        QCOMPARE(d.rowCount(), 5000);
+        QVERIFY2(t.elapsed() < 20000, "the box takes too long to make");
+        QVERIFY(d.problem().isEmpty());
+        QCOMPARE(d.result(), many);   // (the property that is not modeled is as it was, and so is every pid)
+    }
+
+    void aLongKeyDoesNotFreezeTheWindowAndCanBeCancelled()
+    {
+        int ticks = 0;
+        QTimer ticker;
+        QObject::connect(&ticker, &QTimer::timeout, [&] { ++ticks; });
+        ticker.start(10);
+        QTimer::singleShot(250, [] { cancelRunningForTest(); });
+        const bool finished = runWithCancel(nullptr, QStringLiteral("working"), [](const std::atomic<bool> *cancel) {
+            while (!cancel->load()) QThread::msleep(5);
+        });
+        QVERIFY(!finished);
+        QVERIFY2(ticks > 5, "the window's events were not handled while the work ran");
+        QVERIFY(runWithCancel(nullptr, QStringLiteral("working"), [](const std::atomic<bool> *) {}));
     }
 
     void aWrongPartIsRemadeNotTrusted()

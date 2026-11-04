@@ -409,7 +409,7 @@ fields::Properties documentProperties(WriteDoc &doc)
 {
     fields::Properties p;
     auto read = [&](const QString &part, const QHash<QString, QString *> &want) {
-        const QByteArray bytes = doc.partData(part);
+        const QByteArray bytes = doc.propsPartData(part);
         if (bytes.isEmpty()) return;
         QXmlStreamReader xml(bytes);
         int steps = 0;
@@ -421,10 +421,10 @@ fields::Properties documentProperties(WriteDoc &doc)
         }
     };
     QString created, modified, printed, totalTime, pages, words, characters, charactersWithSpaces, lines, paragraphs, revision;
-    read(QStringLiteral("/docProps/core.xml"), {{QStringLiteral("title"), &p.title}, {QStringLiteral("subject"), &p.subject}, {QStringLiteral("creator"), &p.author}, {QStringLiteral("keywords"), &p.keywords},
+    read(QStringLiteral("/core-properties"), {{QStringLiteral("title"), &p.title}, {QStringLiteral("subject"), &p.subject}, {QStringLiteral("creator"), &p.author}, {QStringLiteral("keywords"), &p.keywords},
                                                 {QStringLiteral("description"), &p.comments}, {QStringLiteral("lastModifiedBy"), &p.lastSavedBy}, {QStringLiteral("category"), &p.category},
                                                 {QStringLiteral("created"), &created}, {QStringLiteral("modified"), &modified}, {QStringLiteral("lastPrinted"), &printed}, {QStringLiteral("revision"), &revision}});
-    read(QStringLiteral("/docProps/app.xml"), {{QStringLiteral("Template"), &p.template_}, {QStringLiteral("Company"), &p.company}, {QStringLiteral("Manager"), &p.manager}, {QStringLiteral("TotalTime"), &totalTime},
+    read(QStringLiteral("/extended-properties"), {{QStringLiteral("Template"), &p.template_}, {QStringLiteral("Company"), &p.company}, {QStringLiteral("Manager"), &p.manager}, {QStringLiteral("TotalTime"), &totalTime},
                                                {QStringLiteral("Pages"), &pages}, {QStringLiteral("Words"), &words}, {QStringLiteral("Characters"), &characters},
                                                {QStringLiteral("CharactersWithSpaces"), &charactersWithSpaces}, {QStringLiteral("Lines"), &lines}, {QStringLiteral("Paragraphs"), &paragraphs}});
     p.created = QDateTime::fromString(created, Qt::ISODate);
@@ -434,7 +434,7 @@ fields::Properties documentProperties(WriteDoc &doc)
     if (p.saved.isValid()) p.saved = p.saved.toLocalTime();
     if (p.printed.isValid()) p.printed = p.printed.toLocalTime();
     p.revision = revision;
-    for (const office::CustomProperty &c : office::readPackageProps({}, {}, doc.partData(QStringLiteral("/docProps/custom.xml"))).custom) {
+    for (const office::CustomProperty &c : office::readPackageProps({}, {}, doc.propsPartData(QStringLiteral("/custom-properties"))).custom) {
         QString value = c.value;
         if (c.type == QLatin1String("filetime")) {
             const QDateTime d = QDateTime::fromString(c.value, Qt::ISODate);

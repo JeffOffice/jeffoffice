@@ -3,6 +3,7 @@
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/filescreen.h"
+#include "app/settings.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
@@ -12,6 +13,7 @@
 #include "../localepin.h"
 
 #include <QAction>
+#include <QLabel>
 #include <QLineEdit>
 #include <QSettings>
 #include <QSignalSpy>
@@ -53,6 +55,7 @@ private Q_SLOTS:
         setAppInfo(crunchAppInfo());
         initCore();
     }
+    void init() { Settings::get().setValue(QStringLiteral("user/name"), QStringLiteral("Tester")); }
 
     void propertiesAreWrittenIntoPartsTheFileDidNotHave()
     {
@@ -143,6 +146,45 @@ private Q_SLOTS:
         QCOMPARE(find("Hidden sheets")->remove(), 1);
         QCOMPARE(find("Hidden sheets")->count(), 0);
         QVERIFY(!find("External links")->removable);
+    }
+
+    void personalInformationStaysOutOfLaterEdits()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        office::PackageProps p = e.win.w.properties();
+        p.creator = QStringLiteral("Ann");
+        e.win.w.applyProperties(p);
+        QCOMPARE(e.win.w.removePersonalInformation(), 2);   // (the author, and the person who saved: the name in Settings)
+        p = e.win.w.properties();
+        p.title = QStringLiteral("After");
+        e.win.w.applyProperties(p);
+        QVERIFY(e.win.w.properties().lastModifiedBy.isEmpty());
+        QVERIFY(e.win.w.properties().creator.isEmpty());
+        QCOMPARE(e.win.w.properties().title, QStringLiteral("After"));
+    }
+
+    void markAsFinalIsRefusedForTextFilesAndStaysVisibleOnTheStatusBar()
+    {
+        EditWindow t;
+        QVERIFY(t.open("a,b\n1,2\n", QStringLiteral("data.csv")));
+        QVERIFY(!t.win.w.markFinalBlocked().isEmpty());
+        t.win.w.setMarkedFinal(true);
+        QVERIFY(!t.win.w.isReadOnly());
+        QVERIFY(!t.win.w.markedAsFinal());
+        QVERIFY(t.win.told.last().contains(QLatin1String("can't hold the mark")));
+        // a workbook marked as final shows its note on the status bar for as long as it is read-only, whatever else the bar says
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(e.win.w.markFinalBlocked().isEmpty());
+        e.win.w.setMarkedFinal(true);
+        QTRY_VERIFY(e.win.w.isReadOnly());
+        QLabel *note = e.win.w.findChild<QLabel *>(QStringLiteral("finalNote"));
+        QVERIFY(note);
+        QVERIFY(note->isVisibleTo(&e.win.w));
+        QVERIFY(note->text().contains(QLatin1String("final")));
+        e.win.w.setMarkedFinal(false);
+        QVERIFY(!note->isVisibleTo(&e.win.w));
     }
 
     void theInfoPageHasItsCardsAndEditsProperties()

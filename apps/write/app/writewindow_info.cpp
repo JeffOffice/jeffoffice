@@ -13,6 +13,7 @@
 #include "io/crypto.h"
 
 #include <QDateTime>
+#include <QFileInfo>
 #include <QStatusBar>
 
 namespace jp {
@@ -37,6 +38,7 @@ QWidget *WriteWindow::buildInfoPage(QWidget *parent)
         rows.push_back({tr("Paragraphs"), QLocale().toString(c.paragraphs)});
         return rows;
     };
+    h.markFinalBlocked = [this] { return markFinalBlocked(); };
     h.markedFinal = [this] { return m_doc->markedAsFinal(); };
     h.setMarkedFinal = [this](bool on) { setMarkedFinal(on); };
     h.hasPassword = [this] { return m_fileProtected; };
@@ -58,15 +60,47 @@ void WriteWindow::applyProperties(const office::PackageProps &edited)
     p.paragraphs = c.paragraphs;
     p.pages = std::max(1, m_view->pageCount());
     p.modified = QDateTime::currentDateTimeUtc();
-    if (!Settings::get().userName().isEmpty()) p.lastModifiedBy = Settings::get().userName();
+    if (m_personalInfoRemoved) {
+        // (the names stay out until the document is closed)
+        p.creator.clear();
+        p.lastModifiedBy.clear();
+        p.company.clear();
+        p.manager.clear();
+    } else if (!Settings::get().userName().isEmpty()) {
+        p.lastModifiedBy = Settings::get().userName();
+    }
     if (!p.created.isValid()) p.created = p.modified;
     m_doc->setPackageProps(p);
     updateTitle();
 }
 
+QString WriteWindow::markFinalBlocked() const
+{
+    if (m_doc && m_doc->packageProps().truncated) return tr("This file has more properties than %1 reads, so the mark can't be added.").arg(appInfo().name);
+    const QString ending = QFileInfo(m_path).suffix().toLower();
+    if (ending == QLatin1String("odt") || ending == QLatin1String("ott") || ending == QLatin1String("fodt"))
+        return tr("A .odt file can't hold the mark. Save the document as a .docx file first.");
+    return {};
+}
+
+int WriteWindow::removePersonalInformation()
+{
+    if (!m_doc) return 0;
+    const int n = write::removePersonalInfo(*m_doc);
+    m_personalInfoRemoved = true;
+    return n;
+}
+
 void WriteWindow::setMarkedFinal(bool on)
 {
     if (!m_doc) return;
+    if (on) {
+        const QString why = markFinalBlocked();
+        if (!why.isEmpty()) {
+            notice(tr("Mark as Final"), why);
+            return;
+        }
+    }
     office::PackageProps p = m_doc->packageProps();
     p.custom = office::withMarkAsFinal(p.custom, on);
     if (on) {
@@ -121,7 +155,7 @@ QVector<InspectItem> WriteWindow::inspectItems()
     items.push_back({tr("Tracked changes"), tr("Insertions and deletions that are still waiting to be accepted or rejected. Accept All keeps every change as part of the text; to choose, use the Review tab."),
                      [doc] { return write::revisionCount(doc->story()); }, [doc] { return write::acceptAll(*doc); }, true, tr("Accept All")});
     items.push_back({tr("Document properties and personal information"), tr("The author, the person who last saved it, the company, and the manager."), [doc] { return write::personalInfoCount(*doc); },
-                     [doc] { return write::removePersonalInfo(*doc); }, true, QString()});
+                     [this] { return removePersonalInformation(); }, true, QString()});
     items.push_back({tr("Hidden text"), tr("Text that is set to be hidden: it does not show or print, but it is in the file."), [doc] { return write::hiddenTextCount(*doc); },
                      [doc] { return write::removeHiddenText(*doc); }, true, QString()});
     items.push_back({tr("Headers and footers"), tr("The text at the top and bottom of the pages."), [doc] { return write::headerFooterCount(*doc); },

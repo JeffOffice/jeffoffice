@@ -51,21 +51,39 @@ int removePersonalInfo(WriteDoc &doc)
     return n;
 }
 
-int hiddenTextCount(WriteDoc &doc) { return int(hiddenRuns(doc.story()).size()); }
+// Every story that holds text a person reads: the body, and the headers, footers, and footnotes (made editable if they were not).
+static QVector<QTextDocument *> allStories(WriteDoc &doc)
+{
+    QVector<QTextDocument *> stories = {doc.story()};
+    for (QTextDocument *s : doc.storiesWithChanges(true))
+        if (s && !stories.contains(s)) stories.push_back(s);
+    return stories;
+}
+
+int hiddenTextCount(WriteDoc &doc)
+{
+    int n = 0;
+    for (const QTextDocument *story : allStories(doc)) n += int(hiddenRuns(story).size());
+    return n;
+}
 
 int removeHiddenText(WriteDoc &doc)
 {
-    const QVector<QPair<int, int>> runs = hiddenRuns(doc.story());
-    if (runs.isEmpty()) return 0;
-    QTextCursor c(doc.story());
-    c.beginEditBlock();
-    for (qsizetype i = runs.size() - 1; i >= 0; --i) {
-        c.setPosition(runs[i].first);
-        c.setPosition(runs[i].first + runs[i].second, QTextCursor::KeepAnchor);
-        c.removeSelectedText();
+    int n = 0;
+    for (QTextDocument *story : allStories(doc)) {
+        const QVector<QPair<int, int>> runs = hiddenRuns(story);
+        if (runs.isEmpty()) continue;
+        QTextCursor c(story);
+        c.beginEditBlock();
+        for (qsizetype i = runs.size() - 1; i >= 0; --i) {
+            c.setPosition(runs[i].first);
+            c.setPosition(runs[i].first + runs[i].second, QTextCursor::KeepAnchor);
+            c.removeSelectedText();
+        }
+        c.endEditBlock();
+        n += int(runs.size());
     }
-    c.endEditBlock();
-    return int(runs.size());
+    return n;
 }
 
 int headerFooterCount(WriteDoc &doc)

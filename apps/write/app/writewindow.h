@@ -133,6 +133,10 @@ public:
     // Encrypt with Password: asks for the password and keeps it; the file is written protected when it is saved.
     void encryptWithPassword();
     bool isPasswordProtected() const { return m_fileProtected; }
+    // The reason Mark as Final can't be done for this document, "" when it can.
+    QString markFinalBlocked() const;
+    // Takes the personal information out of the properties, and keeps it out (a later change of a property does not name the person again).
+    int removePersonalInformation();
     // Applies properties the person edited (the dates and counts are brought up to date).
     void applyProperties(const office::PackageProps &props);
 
@@ -309,6 +313,8 @@ private:
     bool m_macrosNoted = false;     // (the person was told that the macros are not saved)
     QString m_filePassword;         // the password the file opened with or was given: the file is written protected with it (never shown, wiped when the window goes)
     bool m_fileProtected = false;
+    bool m_recoveryNoted = false;       // (the person was told that no recovery copy is kept of a protected document)
+    bool m_personalInfoRemoved = false; // (Inspect took the personal information out: saving does not put the name of the person back)
     QString m_protectedPath;        // the file a document that has had something left out (see WriteDoc::leftSomethingOut) was opened from: not written over
 };
 

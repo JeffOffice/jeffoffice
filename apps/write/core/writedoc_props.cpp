@@ -2,6 +2,7 @@
 #include "core/writedoc.h"
 
 #include <QTextBlock>
+#include <functional>
 
 namespace jp::write {
 
@@ -22,9 +23,27 @@ QString plainTarget(const QString &target)
 
 } // namespace
 
+// The part the package's relationship of this type names (the part's name as the file has it), "" if there is none.
+QString WriteDoc::propsPartName(const QString &typeSuffix) const
+{
+    for (const Relationship &r : m_wml.packageRelationships)
+        if (!r.external && r.type.endsWith(typeSuffix)) {
+            QString name = r.target;
+            if (!name.startsWith(QLatin1Char('/'))) name.prepend(QLatin1Char('/'));
+            return name;
+        }
+    return {};
+}
+
+QByteArray WriteDoc::propsPartData(const QString &typeSuffix) const
+{
+    const QString name = propsPartName(typeSuffix);
+    return name.isEmpty() ? QByteArray() : partData(name);
+}
+
 office::PackageProps WriteDoc::packageProps() const
 {
-    return office::readPackageProps(partData(kCoreName), partData(kAppName), partData(kCustomName));
+    return office::readPackageProps(propsPartData(QStringLiteral("/core-properties")), propsPartData(QStringLiteral("/extended-properties")), propsPartData(QStringLiteral("/custom-properties")));
 }
 
 bool WriteDoc::markedAsFinal() const { return office::isMarkedFinal(packageProps().custom); }
@@ -41,7 +60,7 @@ void WriteDoc::putPackagePart(const QString &name, const QString &contentType, c
     if (!found) m_wml.parts.push_back({name, contentType, data});
     if (relationshipType.isEmpty()) return;
     for (const Relationship &r : std::as_const(m_wml.packageRelationships))
-        if (!r.external && plainTarget(r.target) == plainTarget(name)) return;
+        if (!r.external && (plainTarget(r.target) == plainTarget(name) || r.type == relationshipType)) return;
     m_wml.packageRelationships.push_back({nextRelationshipId(m_wml.packageRelationships), relationshipType, name, false});
 }
 
@@ -72,11 +91,24 @@ QStringList WriteDoc::packagePartNames() const
 
 void WriteDoc::setPackageProps(const office::PackageProps &props)
 {
-    putPackagePart(kCoreName, QString::fromLatin1(office::kCorePartType), office::writeCoreProps(partData(kCoreName), props), QString::fromLatin1(office::kCoreRelationship));
-    putPackagePart(kAppName, QString::fromLatin1(office::kAppPartType), office::writeAppProps(partData(kAppName), props), QString::fromLatin1(office::kAppRelationship));
-    // (the custom part is made when there is something for it, and taken out when the last property goes)
-    if (!props.custom.isEmpty()) putPackagePart(kCustomName, QString::fromLatin1(office::kCustomPartType), office::writeCustomProps(props), QString::fromLatin1(office::kCustomRelationship));
-    else removePackagePart(kCustomName);
+    // (a part the file has too much in to be read through is left as it is, and so are the properties)
+    if (props.truncated) return;
+    // The parts are the ones the package's relationships name, whatever their paths are; a file that has none gets them at the usual places.
+    auto put = [this](const QString &suffix, const QString &usual, const char *type, const char *rel, const std::function<QByteArray(const QByteArray &)> &make) {
+        const QString name = propsPartName(suffix).isEmpty() ? usual : propsPartName(suffix);
+        const QByteArray old = partData(name);
+        const QByteArray now = make(old);
+        if (now.isEmpty()) removePackagePart(name);
+        else if (now != old) putPackagePart(name, QString::fromLatin1(type), now, QString::fromLatin1(rel));
+        else if (propsPartName(suffix).isEmpty()) putPackagePart(name, QString::fromLatin1(type), now, QString::fromLatin1(rel));
+    };
+    put(QStringLiteral("/core-properties"), kCoreName, office::kCorePartType, office::kCoreRelationship, [&](const QByteArray &old) { return office::writeCoreProps(old, props); });
+    put(QStringLiteral("/extended-properties"), kAppName, office::kAppPartType, office::kAppRelationship, [&](const QByteArray &old) { return office::writeAppProps(old, props); });
+    // (the custom part is written only when the list changed, and goes when the last property does)
+    const office::PackageProps before = packageProps();
+    if (!(before.custom == props.custom))
+        put(QStringLiteral("/custom-properties"), kCustomName, office::kCustomPartType, office::kCustomRelationship,
+            [&](const QByteArray &old) { return props.custom.isEmpty() ? QByteArray() : office::writeCustomProps(old, props); });
     setModified(true);
 }
 

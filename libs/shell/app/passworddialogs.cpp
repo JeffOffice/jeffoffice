@@ -3,6 +3,11 @@
 #include "app/plaintext.h"
 
 #include <QCoreApplication>
+#include <QEventLoop>
+#include <QPointer>
+#include <QProgressDialog>
+#include <QThread>
+#include <QTimer>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -92,11 +97,6 @@ private:
 
 } // namespace
 
-namespace {
-struct Words {
-    Q_DECLARE_TR_FUNCTIONS(PasswordDialogs)
-};
-} // namespace
 
 NewPasswordChoice askNewFilePassword(QWidget *parent, bool hasPassword, QString *password)
 {
@@ -114,14 +114,14 @@ bool askOpenFilePassword(QWidget *parent, const QString &fileName, bool wrongBef
     if (g_openStandIn) return g_openStandIn(fileName, wrongBefore, password);
     QDialog dialog(parent);
     dialog.setObjectName(QStringLiteral("openPasswordDialog"));
-    dialog.setWindowTitle(Words::tr("Password"));
+    dialog.setWindowTitle(QCoreApplication::translate("jp::PasswordDialogs", "Password"));
     auto *layout = new QVBoxLayout(&dialog);
-    auto *intro = plainLabel(new QLabel(wrongBefore ? Words::tr("That password is not right. Type the password for \"%1\" again.").arg(fileName) : Words::tr("\"%1\" is protected with a password. Type it to open the file.").arg(fileName), &dialog));
+    auto *intro = plainLabel(new QLabel(wrongBefore ? QCoreApplication::translate("jp::PasswordDialogs", "That password is not right. Type the password for \"%1\" again.").arg(fileName) : QCoreApplication::translate("jp::PasswordDialogs", "\"%1\" is protected with a password. Type it to open the file.").arg(fileName), &dialog));
     intro->setWordWrap(true);
     layout->addWidget(intro);
     auto *edit = new QLineEdit(&dialog);
     edit->setObjectName(QStringLiteral("openPassword"));
-    edit->setAccessibleName(Words::tr("Password"));
+    edit->setAccessibleName(QCoreApplication::translate("jp::PasswordDialogs", "Password"));
     edit->setEchoMode(QLineEdit::Password);
     layout->addWidget(edit);
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
@@ -136,5 +136,43 @@ bool askOpenFilePassword(QWidget *parent, const QString &fileName, bool wrongBef
 
 void setNewPasswordStandIn(const std::function<NewPasswordChoice(bool, QString *)> &standIn) { g_newStandIn = standIn; }
 void setOpenPasswordStandIn(const std::function<bool(const QString &, bool, QString *)> &standIn) { g_openStandIn = standIn; }
+
+namespace {
+std::atomic<bool> *g_running = nullptr;
+}
+
+bool runWithCancel(QWidget *parent, const QString &text, const std::function<void(const std::atomic<bool> *cancel)> &work)
+{
+    std::atomic<bool> stop{false};
+    g_running = &stop;
+    QThread *thread = QThread::create([&] { work(&stop); });
+    QEventLoop loop;
+    QObject::connect(thread, &QThread::finished, &loop, &QEventLoop::quit);
+    QPointer<QProgressDialog> note;
+    QTimer later;
+    later.setSingleShot(true);
+    QObject::connect(&later, &QTimer::timeout, [&] {
+        note = new QProgressDialog(text, QCoreApplication::translate("jp::PasswordDialogs", "Cancel"), 0, 0, parent);
+        note->setObjectName(QStringLiteral("workNote"));
+        note->setWindowModality(Qt::ApplicationModal);
+        note->setAutoClose(false);
+        note->setAutoReset(false);
+        QObject::connect(note.data(), &QProgressDialog::canceled, [&] { stop = true; });
+        note->show();
+    });
+    later.start(300);
+    thread->start();
+    loop.exec(QEventLoop::ExcludeUserInputEvents);
+    thread->wait();
+    delete thread;
+    if (note) delete note.data();
+    g_running = nullptr;
+    return !stop.load();
+}
+
+void cancelRunningForTest()
+{
+    if (g_running) *g_running = true;
+}
 
 } // namespace jp

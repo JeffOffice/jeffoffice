@@ -327,7 +327,8 @@ public:
         WriteDoc &m_doc;
     };
     // The stories besides the text that hold tracked changes: the headers and footers and the footnotes (each made editable if it was not), in a fixed order. The endnotes' words are in the text.
-    QVector<QTextDocument *> storiesWithChanges();
+    // With `every`, the stories that hold no change too (the headers and footers the file names, and every footnote).
+    QVector<QTextDocument *> storiesWithChanges(bool every = false);
 
     // ---- review (core/reviewops.h, core/commentops.h)
     // Whether edits are tracked as changes (Track Changes: the file's w:trackRevisions). A setting of the document that is written with it, not a step of the history.
@@ -486,6 +487,9 @@ public:
     office::PackageProps packageProps() const;
     // Puts the properties in the file's parts (made where the file has none, with the relationship that names each) and counts the document as changed. What the parts hold besides stays.
     void setPackageProps(const office::PackageProps &props);
+    // The part (and its bytes) the package's relationship of this type (the end of its type, "/core-properties") names; empty if there is none.
+    QString propsPartName(const QString &typeSuffix) const;
+    QByteArray propsPartData(const QString &typeSuffix) const;
     bool markedAsFinal() const;
     // Puts a part in the file (replacing the one of that name), and the relationship of the package to it of the type given (none: no relationship is made).
     void putPackagePart(const QString &absoluteName, const QString &contentType, const QByteArray &data, const QString &relationshipType = QString());

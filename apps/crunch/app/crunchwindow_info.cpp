@@ -6,6 +6,7 @@
 #include "app/settings.h"
 
 #include <QDateTime>
+#include "app/otherformats.h"
 #include <QRegularExpression>
 #include <QStatusBar>
 
@@ -23,7 +24,15 @@ void CrunchWindow::applyProperties(const office::PackageProps &edited)
     if (!m_session) return;
     office::PackageProps p = edited;
     p.modified = QDateTime::currentDateTimeUtc();
-    if (!Settings::get().userName().isEmpty()) p.lastModifiedBy = Settings::get().userName();
+    if (m_personalInfoRemoved) {
+        // (the names stay out until the workbook is closed)
+        p.creator.clear();
+        p.lastModifiedBy.clear();
+        p.company.clear();
+        p.manager.clear();
+    } else if (!Settings::get().userName().isEmpty()) {
+        p.lastModifiedBy = Settings::get().userName();
+    }
     if (!p.created.isValid()) p.created = p.modified;
     m_editedProps = p;
     // (a change of the file's properties is a change to save, as a password is)
@@ -49,6 +58,7 @@ QWidget *CrunchWindow::buildInfoPage(QWidget *parent)
         }
         return rows;
     };
+    h.markFinalBlocked = [this] { return markFinalBlocked(); };
     h.markedFinal = [this] { return markedAsFinal(); };
     h.setMarkedFinal = [this](bool on) { setMarkedFinal(on); };
     h.hasPassword = [this] { return hasUserPassword(); };
@@ -57,9 +67,52 @@ QWidget *CrunchWindow::buildInfoPage(QWidget *parent)
     return jp::buildInfoPage(parent, h);
 }
 
+QString CrunchWindow::markFinalBlocked() const
+{
+    if (properties().truncated) return tr("This file has more properties than %1 reads, so the mark can't be added.").arg(appInfo().name);
+    // (a workbook read from a text file, or from an .xls or .ods, is saved as .xlsx: the first save asks for that name, and the workbook whose file is a text file can't keep the mark)
+    if (!m_path.isEmpty() && (crunch::isCsvName(m_path) || crunch::isCopyName(m_path)))
+        return tr("A text file, an .xls file, and an .ods file can't hold the mark. Save the workbook as an .xlsx file first.");
+    return {};
+}
+
+void CrunchWindow::updateFinalNote()
+{
+    if (!m_finalNote) {
+        m_finalNote = new QLabel(this);
+        m_finalNote->setObjectName(QStringLiteral("finalNote"));
+        m_finalNote->setTextFormat(Qt::PlainText);
+        statusBar()->addPermanentWidget(m_finalNote);
+    }
+    const bool show = isReadOnly() && markedAsFinal();
+    m_finalNote->setText(tr("Marked as final: open for reading only"));
+    m_finalNote->setVisible(show);
+}
+
+int CrunchWindow::removePersonalInformation()
+{
+    office::PackageProps p = properties();
+    int n = 0;
+    for (QString *s : {&p.creator, &p.lastModifiedBy, &p.company, &p.manager})
+        if (!s->isEmpty()) {
+            s->clear();
+            ++n;
+        }
+    m_personalInfoRemoved = true;
+    if (n > 0) applyProperties(p);
+    return n;
+}
+
 void CrunchWindow::setMarkedFinal(bool on)
 {
     if (!m_session || m_saving) return;
+    if (on) {
+        const QString why = markFinalBlocked();
+        if (!why.isEmpty()) {
+            notice(tr("Mark as Final"), why);
+            return;
+        }
+    }
     office::PackageProps p = properties();
     const office::PackageProps before = p;
     p.custom = office::withMarkAsFinal(p.custom, on);
@@ -74,8 +127,14 @@ void CrunchWindow::setMarkedFinal(bool on)
     if (isReadOnly()) setReadOnly(false);
     applyProperties(p);
     auto link = std::make_shared<QMetaObject::Connection>();
-    *link = connect(this, &CrunchWindow::saved, this, [this, link, before](const QString &, bool ok) {
+    *link = connect(this, &CrunchWindow::saved, this, [this, link, before](const QString &path, bool ok) {
         disconnect(*link);
+        // (saved as a kind of file that can't hold the mark: it is not final)
+        if (ok && (crunch::isCsvName(path) || crunch::isCopyName(path))) {
+            notice(tr("Mark as Final"), markFinalBlocked().isEmpty() ? tr("The file that was saved can't hold the mark, so the workbook is not marked as final.") : markFinalBlocked());
+            applyProperties(before);
+            return;
+        }
         if (ok) {
             setReadOnly(true);
             setStatus(tr("Marked as final and saved. It opens for reading only."));
@@ -127,23 +186,7 @@ QVector<InspectItem> CrunchWindow::inspectItems()
                              if (!s.isEmpty()) ++n;
                          return n;
                      },
-                     [this] {
-                         office::PackageProps p = properties();
-                         int n = 0;
-                         for (QString *s : {&p.creator, &p.lastModifiedBy, &p.company, &p.manager})
-                             if (!s->isEmpty()) {
-                                 s->clear();
-                                 ++n;
-                             }
-                         if (n > 0) applyProperties(p);
-                         // (applying the properties puts the name of whoever saves in; the mark of a clean-up is that nobody is named)
-                         if (n > 0) {
-                             office::PackageProps q = *m_editedProps;
-                             q.lastModifiedBy.clear();
-                             m_editedProps = q;
-                         }
-                         return n;
-                     },
+                     [this] { return removePersonalInformation(); },
                      true, QString()});
     items.push_back({tr("Hidden sheets"), tr("Sheets that are set to be hidden: they do not show as tabs, but they are in the file. Show them to see what they hold."),
                      [session, book] {

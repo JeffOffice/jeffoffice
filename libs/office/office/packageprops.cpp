@@ -1,6 +1,7 @@
 #include "office/packageprops.h"
 
 #include <QSet>
+#include <algorithm>
 #include <QTimeZone>
 #include <QXmlStreamReader>
 #include <QXmlStreamWriter>
@@ -19,6 +20,8 @@ const QString kExt = QStringLiteral("http://schemas.openxmlformats.org/officeDoc
 const QString kVt = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes");
 const QString kCustomNs = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/custom-properties");
 constexpr int kMostSteps = 200000;   // (the most tokens of a part that are read)
+constexpr int kMostCustom = 5000;
+// (the most custom properties that are read: kMostCustom above)
 
 QString dateText(const QDateTime &d) { return d.toUTC().toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss'Z'")); }
 
@@ -31,28 +34,29 @@ QDateTime dateOf(const QString &text)
 
 using Name = QPair<QString, QString>;   // namespace and local name
 
-// Copies `existing` and puts `append`'s elements at the end of its root, leaving out the root's children named in `managed`. Without a root of the right name, the part is made new.
+// Copies `existing` and puts `append`'s elements at the end of its root, leaving out the root's children named in `managed`. What the part holds besides is copied as it is, also from a part
+// that breaks part way (the rest of it is closed). Without a root of the right name, the part is made new. A part too large to be read through is left as it is (the result is `existing`).
 QByteArray rewrite(const QByteArray &existing, const QString &rootNs, const QString &rootLocal, const QVector<QPair<QString, QString>> &newPrefixes, const QSet<Name> &managed,
                    const std::function<void(QXmlStreamWriter &)> &append)
 {
-    QByteArray out;
-    QXmlStreamWriter w(&out);
-    w.setAutoFormatting(false);
-    w.writeStartDocument(QStringLiteral("1.0"), true);
-    bool copied = false;
     if (!existing.isEmpty()) {
         QXmlStreamReader r(existing);
         int depth = 0, steps = 0;
-        bool good = true, rooted = false;
+        bool good = true, rooted = false, appended = false;
         QByteArray trial;
         QXmlStreamWriter t(&trial);
         t.writeStartDocument(QStringLiteral("1.0"), true);
-        while (!r.atEnd() && good && ++steps < kMostSteps) {
+        while (!r.atEnd() && good && steps < kMostSteps) {
+            ++steps;
             const auto token = r.readNext();
             if (token == QXmlStreamReader::StartDocument || token == QXmlStreamReader::EndDocument || token == QXmlStreamReader::Comment || token == QXmlStreamReader::DTD) continue;
+            if (token == QXmlStreamReader::Invalid) break;
             if (token == QXmlStreamReader::StartElement) {
                 if (depth == 0) {
-                    if (r.namespaceUri() != rootNs || r.name() != rootLocal) { good = false; break; }
+                    if (r.namespaceUri() != rootNs || r.name() != rootLocal) {
+                        good = false;
+                        break;
+                    }
                     rooted = true;
                 } else if (depth == 1 && managed.contains({r.namespaceUri().toString(), r.name().toString()})) {
                     r.skipCurrentElement();
@@ -64,29 +68,40 @@ QByteArray rewrite(const QByteArray &existing, const QString &rootNs, const QStr
             }
             if (token == QXmlStreamReader::EndElement) {
                 --depth;
-                if (depth == 0) append(t);
+                if (depth == 0) {
+                    append(t);
+                    appended = true;
+                }
                 t.writeCurrentToken(r);
                 continue;
             }
             if (depth == 0) continue;   // (text outside the root)
             t.writeCurrentToken(r);
         }
-        t.writeEndDocument();
-        if (good && rooted && !r.hasError() && steps < kMostSteps) {
-            out = trial;
-            copied = true;
+        if (steps >= kMostSteps) return existing;
+        if (good && rooted && !r.hasError()) {
+            t.writeEndDocument();
+            return trial;
+        }
+        // A part that breaks part way: what was copied is kept, closed down to the root, and the properties are put in.
+        if (good && rooted && depth >= 1 && !appended) {
+            while (depth > 1) {
+                t.writeEndElement();
+                --depth;
+            }
+            append(t);
+            t.writeEndDocument();
+            return trial;
         }
     }
-    if (!copied) {
-        out.clear();
-        QXmlStreamWriter n(&out);
-        n.writeStartDocument(QStringLiteral("1.0"), true);
-        n.writeStartElement(rootNs, rootLocal);
-        for (const auto &p : newPrefixes) n.writeNamespace(p.second, p.first);
-        append(n);
-        n.writeEndElement();
-        n.writeEndDocument();
-    }
+    QByteArray out;
+    QXmlStreamWriter n(&out);
+    n.writeStartDocument(QStringLiteral("1.0"), true);
+    n.writeStartElement(rootNs, rootLocal);
+    for (const auto &p : newPrefixes) n.writeNamespace(p.second, p.first);
+    append(n);
+    n.writeEndElement();
+    n.writeEndDocument();
     return out;
 }
 
@@ -117,12 +132,13 @@ PackageProps readPackageProps(const QByteArray &core, const QByteArray &app, con
 {
     PackageProps p;
     // Each part is read into a list of (local name, text) of its root's children.
-    auto children = [](const QByteArray &bytes) {
+    auto children = [&p](const QByteArray &bytes) {
         QVector<QPair<QString, QString>> list;
         if (bytes.isEmpty()) return list;
         QXmlStreamReader r(bytes);
         int depth = 0, steps = 0;
-        while (!r.atEnd() && ++steps < kMostSteps) {
+        while (!r.atEnd() && steps < kMostSteps) {
+            ++steps;
             const auto token = r.readNext();
             if (token == QXmlStreamReader::StartElement) {
                 if (++depth == 2) {
@@ -130,7 +146,8 @@ PackageProps readPackageProps(const QByteArray &core, const QByteArray &app, con
                     // (the text of a child; a child with children of its own gives its first text)
                     QString text;
                     int inner = 1;
-                    while (!r.atEnd() && inner > 0 && ++steps < kMostSteps) {
+                    while (!r.atEnd() && inner > 0 && steps < kMostSteps) {
+                        ++steps;
                         const auto t = r.readNext();
                         if (t == QXmlStreamReader::StartElement) ++inner;
                         else if (t == QXmlStreamReader::EndElement) --inner;
@@ -143,6 +160,7 @@ PackageProps readPackageProps(const QByteArray &core, const QByteArray &app, con
                 --depth;
             }
         }
+        if (steps >= kMostSteps) p.truncated = true;
         return list;
     };
     for (const auto &c : children(core)) {
@@ -177,9 +195,15 @@ PackageProps readPackageProps(const QByteArray &core, const QByteArray &app, con
         else if (n == QLatin1String("TotalTime")) p.totalMinutes = v.toLongLong() >= 0 ? v.toLongLong() : -1;
     }
     if (!custom.isEmpty()) {
-        QXmlStreamReader r(custom);
+        // (read from the text, so that the places of the elements are places in it: a property this program does not model is cut out of it as it was written)
+        // (the reader counts "\r\n" as one character, which would move every place: it reads a copy with a space for each carriage return, and what is cut out is cut from the original)
+        const QString original = QString::fromUtf8(custom);
+        QString text = original;
+        text.replace(QLatin1Char('\r'), QLatin1Char(' '));
+        QXmlStreamReader r(text);
         int depth = 0, steps = 0;
-        while (!r.atEnd() && ++steps < kMostSteps && p.custom.size() < 5000) {
+        while (!r.atEnd() && steps < kMostSteps) {
+            ++steps;
             const auto token = r.readNext();
             if (token == QXmlStreamReader::EndElement) {
                 --depth;
@@ -188,30 +212,52 @@ PackageProps readPackageProps(const QByteArray &core, const QByteArray &app, con
             if (token != QXmlStreamReader::StartElement) continue;
             ++depth;
             if (depth != 2 || r.name() != QLatin1String("property")) continue;
+            if (p.custom.size() >= kMostCustom) {
+                p.truncated = true;
+                break;
+            }
+            // (where the element begins: the last "<" before the end of its start tag, which a value of an attribute can't hold)
+            const qint64 before = original.lastIndexOf(QLatin1Char('<'), int(r.characterOffset()) - 1);
             CustomProperty c;
             c.name = r.attributes().value(QLatin1String("name")).toString();
-            int inner = 1;
-            while (!r.atEnd() && inner > 0 && ++steps < kMostSteps) {
+            c.fmtid = r.attributes().value(QLatin1String("fmtid")).toString();
+            c.pid = r.attributes().value(QLatin1String("pid")).toString().toInt();
+            QString valueType, valueText;
+            int inner = 1, valueChildren = 0, nested = 0;
+            while (!r.atEnd() && inner > 0 && steps < kMostSteps) {
+                ++steps;
                 const auto t = r.readNext();
                 if (t == QXmlStreamReader::StartElement) {
-                    if (++inner == 2 && c.type.isEmpty()) {
-                        c.type = r.name().toString();
-                        c.value = elementText(r);
-                        --inner;
+                    ++inner;
+                    if (inner == 2) {
+                        ++valueChildren;
+                        if (valueType.isEmpty()) valueType = r.name().toString();
+                    } else if (inner > 2) {
+                        ++nested;
                     }
                 } else if (t == QXmlStreamReader::EndElement) {
                     --inner;
+                } else if (t == QXmlStreamReader::Characters && inner == 2) {
+                    valueText += r.text().toString();
                 }
             }
+            if (inner > 0) {
+                p.truncated = true;   // (the part ends inside the property, or is too long to read through)
+                break;
+            }
             --depth;
-            // (a value of a type this reads as text, whatever its type, so that it is kept as the file had it)
-            if (c.name.isEmpty()) continue;
-            if (!validType(c.type)) continue;
-            bool dup = false;
-            for (const CustomProperty &o : std::as_const(p.custom))
-                if (o.name == c.name) dup = true;
-            if (!dup) p.custom.push_back(c);
+            const qint64 end = r.characterOffset();
+            c.type = valueType;
+            if (validType(valueType) && valueChildren == 1 && nested == 0 && !c.name.isEmpty()) {
+                c.value = valueText.trimmed();
+                if (valueType == QLatin1String("lpwstr")) c.value = valueText;
+            } else {
+                // not modeled here: kept as it was
+                c.raw = original.mid(int(before), int(end - before)).toUtf8();
+            }
+            p.custom.push_back(c);
         }
+        if (steps >= kMostSteps) p.truncated = true;
     }
     return p;
 }
@@ -229,6 +275,7 @@ PackageProps readPackageProps(const Package &package)
 
 QByteArray writeCoreProps(const QByteArray &existing, const PackageProps &p)
 {
+    if (p.truncated) return existing;
     const QSet<Name> managed = {{kDc, QStringLiteral("title")}, {kDc, QStringLiteral("subject")}, {kDc, QStringLiteral("creator")}, {kCp, QStringLiteral("keywords")},
                                 {kDc, QStringLiteral("description")}, {kCp, QStringLiteral("lastModifiedBy")}, {kCp, QStringLiteral("category")}, {kCp, QStringLiteral("revision")},
                                 {kDcterms, QStringLiteral("created")}, {kDcterms, QStringLiteral("modified")}, {kCp, QStringLiteral("lastPrinted")}};
@@ -250,6 +297,7 @@ QByteArray writeCoreProps(const QByteArray &existing, const PackageProps &p)
 
 QByteArray writeAppProps(const QByteArray &existing, const PackageProps &p)
 {
+    if (p.truncated) return existing;
     QSet<Name> managed = {{kExt, QStringLiteral("Company")}, {kExt, QStringLiteral("Manager")}};
     auto number = [&managed](const char *name, qint64 v) {
         if (v >= 0) managed.insert({kExt, QString::fromLatin1(name)});
@@ -277,28 +325,58 @@ QByteArray writeAppProps(const QByteArray &existing, const PackageProps &p)
     });
 }
 
-QByteArray writeCustomProps(const PackageProps &p)
+QByteArray writeCustomProps(const QByteArray &existing, const PackageProps &p)
 {
-    QByteArray out;
-    QXmlStreamWriter w(&out);
-    w.writeStartDocument(QStringLiteral("1.0"), true);
-    w.writeStartElement(kCustomNs, QStringLiteral("Properties"));
-    w.writeDefaultNamespace(kCustomNs);
-    w.writeNamespace(kVt, QStringLiteral("vt"));
+    static const QString kFmtid = QStringLiteral("{D5CDD505-2E9C-101B-9397-08002B2CF9AE}");
+    if (p.truncated) return existing;
+    // The root as the part had it (its start tag, with the prefixes it binds), else a new one.
+    QString head, tail, vtPrefix;
+    if (!existing.isEmpty()) {
+        const QString original = QString::fromUtf8(existing);
+        QString text = original;
+        text.replace(QLatin1Char('\r'), QLatin1Char(' '));
+        QXmlStreamReader r(text);
+        while (!r.atEnd()) {
+            if (r.readNext() != QXmlStreamReader::StartElement) continue;
+            if (r.namespaceUri() == kCustomNs && r.name() == QLatin1String("Properties")) {
+                head = original.left(int(r.characterOffset()));
+                tail = QStringLiteral("</") + r.qualifiedName().toString() + QLatin1Char('>');
+                for (const auto &d : r.namespaceDeclarations())
+                    if (d.namespaceUri() == kVt) vtPrefix = d.prefix().toString();
+                if (head.endsWith(QLatin1String("/>"))) {
+                    head.chop(2);
+                    head += QLatin1Char('>');
+                }
+            }
+            break;
+        }
+    }
+    const bool fresh = head.isEmpty();
+    if (fresh) {
+        head = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Properties xmlns=\"%1\" xmlns:vt=\"%2\">").arg(kCustomNs, kVt);
+        tail = QStringLiteral("</Properties>");
+        vtPrefix = QStringLiteral("vt");
+    }
+    // The places a new property may have: above every one the file uses.
+    int nextPid = 2;
+    for (const CustomProperty &c : p.custom) nextPid = std::max(nextPid, c.pid + 1);
+    QByteArray out = head.toUtf8();
     QSet<QString> seen;
-    int pid = 2;
     for (const CustomProperty &c : p.custom) {
+        if (!c.raw.isEmpty()) {
+            out += c.raw;
+            continue;
+        }
         if (c.name.isEmpty() || !validType(c.type) || seen.contains(c.name)) continue;
         seen.insert(c.name);
-        w.writeStartElement(kCustomNs, QStringLiteral("property"));
-        w.writeAttribute(QStringLiteral("fmtid"), QStringLiteral("{D5CDD505-2E9C-101B-9397-08002B2CF9AE}"));
-        w.writeAttribute(QStringLiteral("pid"), QString::number(pid++));
-        w.writeAttribute(QStringLiteral("name"), c.name);
-        w.writeTextElement(kVt, c.type, c.value);
-        w.writeEndElement();
+        const QString tag = vtPrefix.isEmpty() ? c.type : vtPrefix + QLatin1Char(':') + c.type;
+        QString element = QStringLiteral("<property fmtid=\"%1\" pid=\"%2\" name=\"%3\"><%4%5>%6</%4></property>")
+                              .arg(c.fmtid.isEmpty() ? kFmtid : c.fmtid.toHtmlEscaped())
+                              .arg(c.pid > 0 ? c.pid : nextPid++)
+                              .arg(c.name.toHtmlEscaped(), tag, vtPrefix.isEmpty() ? QStringLiteral(" xmlns=\"%1\"").arg(kVt) : QString(), c.value.toHtmlEscaped());
+        out += element.toUtf8();
     }
-    w.writeEndElement();
-    w.writeEndDocument();
+    out += tail.toUtf8();
     return out;
 }
 

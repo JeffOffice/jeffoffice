@@ -13,9 +13,14 @@
 namespace jp::office {
 
 // A property of a person's own. `type` is the name of its value's type in the file: "lpwstr" (text), "i4" (a whole number), "r8" (a number), "bool" (true or false), or "filetime" (a date).
+// A property this program does not model (a vector, a date of another form, a type it does not know) is kept as the XML the file had, `raw`, and written back as it was; `pid` and `fmtid`
+// are the file's own (0 and empty for a property made here).
 struct CustomProperty {
     QString name, type, value;
-    bool operator==(const CustomProperty &o) const { return name == o.name && type == o.type && value == o.value; }
+    int pid = 0;
+    QString fmtid;
+    QByteArray raw;
+    bool operator==(const CustomProperty &o) const { return name == o.name && type == o.type && value == o.value && pid == o.pid && fmtid == o.fmtid && raw == o.raw; }
 };
 
 struct PackageProps {
@@ -26,6 +31,8 @@ struct PackageProps {
     int pages = -1, words = -1, characters = -1, charactersWithSpaces = -1, lines = -1, paragraphs = -1;
     qint64 totalMinutes = -1;
     QVector<CustomProperty> custom;
+    // A part had more than this program reads (a cap was reached): what was read is only some of it, and writing it back would lose the rest. The writers leave the parts as they were.
+    bool truncated = false;
 };
 
 // The properties of the three parts (any may be empty: a package that has none of that part).
@@ -37,8 +44,9 @@ PackageProps readPackageProps(const Package &package);
 // Each part with the properties of `p` put in: the text properties are set, and taken out when empty; a date is taken out when it isn't valid; a count that is -1 is left as it was.
 QByteArray writeCoreProps(const QByteArray &existing, const PackageProps &p);
 QByteArray writeAppProps(const QByteArray &existing, const PackageProps &p);
-// The custom part holding exactly `p.custom` (a name used twice keeps the first; a name that is empty or a type that isn't one of the five is left out).
-QByteArray writeCustomProps(const PackageProps &p);
+// The custom part holding exactly `p.custom`: the properties kept as raw XML as they were, the others written from their fields, in `existing`'s own root (the part as it was; empty:
+// a new one). A name that is empty or a type that isn't one of the five is left out of those written from fields.
+QByteArray writeCustomProps(const QByteArray &existing, const PackageProps &p);
 
 // The custom property that says the file was marked as final, and whether it is there and true.
 extern const char *const kMarkAsFinalName;

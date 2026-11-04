@@ -2013,7 +2013,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         const Prop parts[] = {
             {"/core-properties", "/docProps/core.xml", kCorePartType, kCoreRelationship, [&](const QByteArray &old) { return writeCoreProps(old, props); }},
             {"/extended-properties", "/docProps/app.xml", kAppPartType, kAppRelationship, [&](const QByteArray &old) { return writeAppProps(old, props); }},
-            {"/custom-properties", "/docProps/custom.xml", kCustomPartType, kCustomRelationship, [&](const QByteArray &) { return props.custom.isEmpty() ? QByteArray() : writeCustomProps(props); }},
+            {"/custom-properties", "/docProps/custom.xml", kCustomPartType, kCustomRelationship, [&](const QByteArray &old) {
+                 // (a part whose properties did not change is left as it is, byte for byte)
+                 if (!old.isEmpty() && readPackageProps({}, {}, old).custom == props.custom) return old;
+                 return props.custom.isEmpty() ? QByteArray() : writeCustomProps(old, props);
+             }},
         };
         QStringList used = relationshipIds(rootRels);
         for (const Prop &part : parts) {
@@ -2037,7 +2041,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     for (const Relationship &r : package.relationshipsOfType(QStringLiteral("/"), QString::fromLatin1(part.suffix))) ids << r.id;
                     if (removeRelationshipsById(rootRels, ids, &r2)) rootRels = r2;
                 } else if (entry >= 0) {
-                    replaced.insert(entry, now);
+                    if (now != old) replaced.insert(entry, now);
                 } else {
                     return bad();
                 }
