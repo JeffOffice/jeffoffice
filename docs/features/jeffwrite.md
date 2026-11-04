@@ -384,7 +384,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 ## Help tab
 
 - [~] **first release** Help (F1): a built-in, offline pane of plain-language topics with a contents page, links, Back and Forward, and a search that finds topics and commands *(shared: libs/shell help)*
-- [~] **first release** Keyboard Shortcuts (a table made from the commands themselves), What's New, Feedback (a GitHub page with the version filled in), and About with Check for Updates *(shared: libs/shell)*
+- [~] **first release** Keyboard Shortcuts (a table made from the commands themselves), What's New, Feedback (a GitHub page with the version filled in), and About with Check for Updates *(shared: libs/shell)* *(round 10: a Help tab with Help, Keyboard Shortcuts, What's New, and Feedback; the shortcuts page is written by hand, not made from the commands, and About with Check for Updates is on the File screen)*
 - [~] **1.0** A search box on the ribbon that finds a command by what it does and runs it *(shared: the help search)*
 
 ## Outline view and master documents

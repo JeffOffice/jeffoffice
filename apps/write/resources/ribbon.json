@@ -1266,6 +1266,40 @@
       ]
     },
     {
+      "name": "Help",
+      "keytip": "Y",
+      "groups": [
+        {
+          "name": "Help",
+          "keytip": "ZH",
+          "items": [
+            {
+              "large": "help.show",
+              "keytip": "H"
+            },
+            {
+              "large": "help.shortcuts",
+              "keytip": "K"
+            }
+          ]
+        },
+        {
+          "name": "About",
+          "keytip": "ZA",
+          "items": [
+            {
+              "large": "help.whatsNew",
+              "keytip": "N"
+            },
+            {
+              "large": "help.feedback",
+              "keytip": "F"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Header & Footer",
       "keytip": "JH",
       "context": "Header & Footer",

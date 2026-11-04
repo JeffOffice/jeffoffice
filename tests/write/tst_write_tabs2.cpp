@@ -1,6 +1,7 @@
 // Tests of what the Layout, References, Review, and View tabs, the outline, and the right-click menus add.
 
 #include "../isolatesettings.h"
+#include "app/help.h"
 #include "app/outlineview.h"
 #include "app/pageview.h"
 #include "app/ribbon.h"
@@ -16,6 +17,7 @@
 #include "core/writedoc.h"
 
 #include <QAction>
+#include <QDockWidget>
 #include <QMenu>
 #include <QPair>
 #include <QScrollBar>
@@ -320,6 +322,31 @@ private Q_SLOTS:
         QVERIFY(!w.view()->sideToSide());
         QVERIFY(w.view()->pageRect(1).top() > w.view()->pageRect(0).bottom() - 1);
         QCOMPARE(w.view()->horizontalScrollBar()->value(), 0);
+    }
+
+    // ---------------------------------------------------------------- Help
+    void theHelpTabHasHelpShortcutsWhatsNewAndFeedback()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QVERIFY(w.ribbon()->tab(QStringLiteral("Help")));
+        const auto saved = help::openUrl;
+        QList<QUrl> opened;
+        help::openUrl = [&](const QUrl &u) {
+            opened << u;
+            return true;
+        };
+        w.act(QStringLiteral("help.feedback"))->trigger();
+        w.act(QStringLiteral("help.whatsNew"))->trigger();
+        help::openUrl = saved;
+        QCOMPARE(opened, (QList<QUrl>{help::feedbackUrl(), help::whatsNewUrl()}));
+        QDockWidget *dock = w.findChild<QDockWidget *>(QStringLiteral("helpDock"));
+        QVERIFY(!dock || !dock->isVisible());
+        w.act(QStringLiteral("help.shortcuts"))->trigger();
+        dock = w.findChild<QDockWidget *>(QStringLiteral("helpDock"));
+        QVERIFY(dock && dock->isVisible());
     }
 };
 

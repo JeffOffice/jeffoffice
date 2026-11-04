@@ -12,6 +12,7 @@
   "tab:Mailings": "mail-merge",
   "tab:Review": "track-changes",
   "tab:View": "navigation-pane",
+  "tab:Help": "index",
   "pane:help": "index",
   "file:new": "open-save",
   "file:info": "info",

@@ -4,6 +4,7 @@
 #include <QtGlobal>
 
 [[maybe_unused]] static const char *const kRibbonStrings[] = {
+    QT_TRANSLATE_NOOP("Ribbon", "About"),
     QT_TRANSLATE_NOOP("Ribbon", "Accept"),
     QT_TRANSLATE_NOOP("Ribbon", "Add Text"),
     QT_TRANSLATE_NOOP("Ribbon", "Alignment"),
@@ -38,6 +39,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Footnotes"),
     QT_TRANSLATE_NOOP("Ribbon", "Header & Footer"),
     QT_TRANSLATE_NOOP("Ribbon", "Height:"),
+    QT_TRANSLATE_NOOP("Ribbon", "Help"),
     QT_TRANSLATE_NOOP("Ribbon", "Home"),
     QT_TRANSLATE_NOOP("Ribbon", "Hyphenation"),
     QT_TRANSLATE_NOOP("Ribbon", "Illustrations"),
