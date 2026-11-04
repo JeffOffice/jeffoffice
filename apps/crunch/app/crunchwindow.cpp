@@ -492,6 +492,7 @@ void CrunchWindow::createActions()
     createClipboardActions();
     createFindActions();
     createSortActions();
+    createDataToolsActions();
     createFilterActions();
     createFunctionActions();
     createNameActions();

@@ -308,6 +308,34 @@
       "keytip": "A",
       "groups": [
         {
+          "name": "Get Data",
+          "keytip": "ZG",
+          "items": [
+            {"large": "data.fromText", "keytip": "FT"}
+          ]
+        },
+        {
+          "name": "Sort & Filter",
+          "keytip": "ZS",
+          "items": [
+            {"small": "sort.ascending", "keytip": "SA"},
+            {"small": "sort.descending", "keytip": "SZ"},
+            {"small": "sort.custom", "keytip": "SC"},
+            {"column": true},
+            {"small": "filter.toggle", "keytip": "F1"},
+            {"small": "filter.clear", "keytip": "C"},
+            {"small": "filter.reapply", "keytip": "Y"}
+          ]
+        },
+        {
+          "name": "Data Tools",
+          "keytip": "ZD",
+          "items": [
+            {"large": "data.textToColumns", "keytip": "E"},
+            {"large": "data.removeDuplicates", "keytip": "M"}
+          ]
+        },
+        {
           "name": "Outline",
           "keytip": "ZU",
           "items": [

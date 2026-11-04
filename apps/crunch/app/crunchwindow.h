@@ -799,6 +799,15 @@ private:
     std::function<bool(jp::FieldSettings *)> m_fieldSettingsAsker;
     std::function<bool(jp::GroupChoice *)> m_groupAsker;
     std::function<bool(jp::PivotOptionsChoice *)> m_pivotOptionsChoiceAsker;
+    // the data tools: Remove Duplicates and Text to Columns (crunchwindow_datatools.cpp)
+    void createDataToolsActions();
+    void removeDuplicatesDialog();
+    void textToColumnsDialog();
+public:
+    // The same, without the questions (for the tests): the columns compared (their places in the selection) and whether the first row is a header.
+    bool removeDuplicatesIn(const std::vector<int> &columns, bool hasHeader);
+    bool textToColumnsIn(const crunch::EditSession::SplitSpec &spec, const QString &destination);
+private:
     // the filter (crunchwindow_filter.cpp)
     void createFilterActions();
     void updateFilterButtons();

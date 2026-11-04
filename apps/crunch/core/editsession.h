@@ -621,6 +621,25 @@ public:
     // The distinct colors of the cells (cell colors, or font colors) of a column of the range, in the order they first appear, at most `limit`; with `none` set if some cell has no color.
     std::vector<jp::office::sheet::ColorSpec> colorsIn(int sheet, const jp::office::sheet::CellRange &range, bool font, bool *none, int limit = 64) const;
 
+    // ---- Data tools (editdatatools.cpp)
+    // Remove Duplicates: the rows of the range whose cells in `columns` (their places in the range, from 0) repeat those of an earlier row go, and the rows under them in the range move up
+    // (what is under the range stays); one step. A header row (the first of the range) is kept and not compared. `*removed` is how many rows went. Not ok, and nothing changed, for a range that
+    // is too large or cells that cannot be moved.
+    Outcome removeDuplicates(int sheet, const jp::office::sheet::CellRange &range, const std::vector<int> &columns, bool hasHeader, qint64 *removed = nullptr);
+    // Text to Columns: how the text of a column is cut into several.
+    struct SplitSpec {
+        bool fixedWidth = false;
+        QString delimiters;                  // each character cuts ("\t" is a tab)
+        bool consecutiveAsOne = false;       // delimiters in a row cut once
+        QChar qualifier = QLatin1Char('"');  // text between two of these is not cut (a null character for none)
+        std::vector<int> breaks;             // fixed width: the places (counted in characters, from 1) at which a new column begins
+        std::vector<int> types;              // for each column that comes of it: 0 General (read as typed), 1 Text (kept as text), 2 not imported; General for the ones not told
+    };
+    // The pieces of each line.
+    static QVector<QStringList> splitText(const QStringList &lines, const SplitSpec &spec);
+    // The text of the cells of a column (one at a time, as a person would copy it), cut as the spec says and put at (destRow, destCol) as if typed; one step. `*covered` is the cells it filled.
+    Outcome textToColumns(int sheet, const jp::office::sheet::CellRange &source, const SplitSpec &spec, quint32 destRow, quint32 destCol, jp::office::sheet::CellRange *covered = nullptr);
+
     // ---- Filter (editfilter.cpp)
     // A filter being put on a sheet: the conditions it will have, the rows they hide (worked out a slice at a time by `prepareFilter`), and the one step it is (`applyFilter`). The rows hidden
     // by a filter are kept apart from the rows a person hid.
