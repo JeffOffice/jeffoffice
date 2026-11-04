@@ -225,10 +225,15 @@ public:
         if (!over && budget::refused()) tooLarge();   // an array was refused for the cells alive at once
         return !over;
     }
-    // The same for a count that is a double (a number a formula gave): one that is not a number, is below 0, or is past 10^12 is more than any evaluation may do.
+    // The same for a count that is a double (a number a formula gave): one that is not a number trips the budget at once, one past 10^12 is more than any evaluation may do, and one
+    // below 0 counts as 0 (no caller depends on a negative count to stop).
     bool chargeCount(double n)
     {
-        if (!(n >= 0)) n = 0;
+        if (std::isnan(n)) {
+            tooLarge();
+            return false;
+        }
+        if (n < 0) n = 0;
         return charge(qint64(std::min(n, 1e12)));
     }
     bool stopped() const { return over; }

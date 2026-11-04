@@ -2,6 +2,8 @@
 // the one the published definition of the function gives (the examples of its documentation, or worked out by hand from the formula).
 #include "calchelpers.h"
 
+#include "calc/machine.h"
+
 #include <QElapsedTimer>
 #include <QRegularExpression>
 
@@ -535,24 +537,18 @@ private Q_SLOTS:
             {"IMARGUMENT(\"3+4i\")", "~0.927295"},           {"IMARGUMENT(0)", "e:#DIV/0!"},                {"IMCONJUGATE(\"3+4i\")", "s:3-4i"},           {"IMSUM(\"3+4i\",\"5-3i\")", "s:8+i"},
             {"IMSUM(\"3+4i\",\"5-3j\")", "e:#VALUE!"},       {"IMSUB(\"13+4i\",\"5+3i\")", "s:8+i"},        {"IMPRODUCT(\"3+4i\",\"5-3i\")", "s:27+11i"},  {"IMDIV(\"-238+240i\",\"10+24i\")", "s:5+12i"},
             {"IMDIV(\"1\",0)", "e:#NUM!"},                   {"IMEXP(\"1+i\")", "s:1.46869393991589+2.28735528717884i"}, {"IMSQRT(\"1+i\")", "s:1.09868411346781+0.455089860562227i"},
-            {"IMPOWER(\"2+3i\",3)", "s:x"},                   {"IMLN(\"3+4i\")", "s:1.6094379124341+0.927295218001612i"}, {"IMLN(0)", "e:#NUM!"},
+            {"IMLN(\"3+4i\")", "s:1.6094379124341+0.927295218001612i"}, {"IMLN(0)", "e:#NUM!"},
             {"IMLOG10(\"3+4i\")", "s:0.698970004336019+0.402719196273373i"}, {"IMLOG2(\"3+4i\")", "s:2.32192809488736+1.33780421245098i"},
             {"IMSIN(\"3+4i\")", "s:3.85373803791938-27.0168132580039i"}, {"IMCOS(\"1+i\")", "s:0.833730025131149-0.988897705762865i"},
             {"IMSUM(A1:A2)", "s:0"},
         };
         for (const auto &c : cases) {
-            // (IMPOWER is compared by its two parts: the rounding noise is not the same on every machine)
-            if (QByteArray(c.formula).startsWith("IMPOWER")) {
-                const E parts[] = {{"IMREAL(IMPOWER(\"2+3i\",3))", "~-46.000000"}, {"IMAGINARY(IMPOWER(\"2+3i\",3))", "~9.000000"}};
-                for (const auto &part : parts) {
-                    const QString problem = check(part, Grid(), Settings());
-                    QVERIFY2(problem.isEmpty(), qPrintable(problem));
-                }
-                continue;
-            }
             const QString problem = check(c, Grid(), Settings());
             QVERIFY2(problem.isEmpty(), qPrintable(problem));
         }
+        // (IMPOWER is compared by its two parts: the rounding noise is not the same on every machine)
+        const E powers[] = {{"IMREAL(IMPOWER(\"2+3i\",3))", "~-46.000000"}, {"IMAGINARY(IMPOWER(\"2+3i\",3))", "~9.000000"}};
+        CHECK_ALL(powers, Grid(), Settings())
     }
 
     void unitConversions()
@@ -629,29 +625,124 @@ private Q_SLOTS:
         CHECK_ALL(cases, g, array)
     }
 
-    // A formula whose numbers are huge or whose counts are unbounded ends at once, with a result or an error (each of these ran for minutes before).
+    // A formula whose numbers are huge or whose counts are unbounded ends at once, with the result or the error it should give (each of these ran for minutes before). With
+    // JP_BUDGET_ONLY set, only the formulas that hold that text are tried (to try one alone).
     void budget()
     {
-        static const char *const formulas[] = {
-            "DB(1,0.5,1E300,1E300)", "AMORDEGRC(1,DATE(2020,1,1),DATE(2020,12,31),0,1E300,0.1)", "CUMIPMT(0.1,1E300,1,1,1E300,0)", "BINOM.DIST.RANGE(1E300,0.5,0,1E300)",
-            "BINOM.DIST.RANGE(1E300,0.5,1E300,1E300)", "HYPGEOM.DIST(1E300,1E300,1E300,1E300,TRUE)", "COMBINA(1E15,1E15)", "COMBINA(1E300,1E300)", "BINOM.INV(1E17,0.5,0.3)",
-            "BINOM.INV(1E300,0.5,0.3)", "CUMIPMT(0.1,1E15,1,1E15,1E15,0)", "MODE.MULT(SEQUENCE(20000,1,1,0))", "YIELD(DATE(2020,1,1),DATE(9999,12,31),0.05,90,100,4,1)",
-            "PRICE(DATE(2020,1,1),DATE(9999,12,31),0.05,0.04,100,4,1)", "DURATION(DATE(2020,1,1),DATE(9999,12,31),0.05,0.04,4,1)",
-            "ODDFYIELD(DATE(2020,1,1),DATE(9999,12,31),DATE(1900,1,2),DATE(2021,1,1),0.05,90,100,4,1)", "ODDLYIELD(DATE(9998,6,1),DATE(9999,12,31),DATE(1900,1,2),0.05,90,100,4,1)",
-            "ACCRINT(DATE(1900,1,2),DATE(9999,12,31),DATE(9999,12,30),0.05,100,4,1)", "CHISQ.INV.RT(1E-300,1E9)", "GAMMA.INV(0.5,1E9,1E9)", "BETA.INV(0.5,1E8,1E-8)",
-            "T.INV(1E-300,1E9)", "F.INV.RT(1E-300,1E9,1E9)", "CHISQ.DIST(1E9,1E9,TRUE)", "UNIQUE(SEQUENCE(100000,3,1,0.001))", "SORT(SEQUENCE(100000,2,1,0.001),{1,2})",
-            "BESSELJ(1E300,1)", "BESSELY(1E300,1)", "BESSELK(1E-300,1000)", "FREQUENCY(SEQUENCE(1000000),SEQUENCE(1000))", "LINEST(SEQUENCE(1000),SEQUENCE(1000,10),TRUE,TRUE)",
+        struct Case {
+            const char *formula;
+            const char *result;
         };
+        static const Case cases[] = {
+            {"DB(1,0.5,1E300,1E300)", "e:#VALUE!"},
+            {"AMORDEGRC(1,DATE(2020,1,1),DATE(2020,12,31),0,1E300,0.1)", "e:#VALUE!"},
+            {"CUMIPMT(0.1,1E300,1,1,1E300,0)", "e:#NUM!"},
+            {"BINOM.DIST.RANGE(1E300,0.5,0,1E300)", "e:#NUM!"},
+            {"BINOM.DIST.RANGE(1E300,0.5,1E300,1E300)", "e:#NUM!"},
+            {"HYPGEOM.DIST(1E300,1E300,1E300,1E300,TRUE)", "e:#NUM!"},
+            {"COMBINA(1E15,1E15)", "e:#VALUE!"},
+            {"COMBINA(1E300,1E300)", "e:#VALUE!"},
+            {"BINOM.INV(1E17,0.5,0.3)", "e:#NUM!"},
+            {"BINOM.INV(1E300,0.5,0.3)", "e:#NUM!"},
+            {"CUMIPMT(0.1,1E15,1,1E15,1E15,0)", "e:#NUM!"},
+            {"ROWS(MODE.MULT(INT(SEQUENCE(600000)/2)))", "n:299999"},
+            {"YIELD(DATE(2020,1,1),DATE(9999,12,31),0.05,90,100,4,1)", "e:#NUM!"},
+            {"PRICE(DATE(2020,1,1),DATE(9999,12,31),0.05,0.04,100,4,1)", "e:#NUM!"},
+            {"DURATION(DATE(2020,1,1),DATE(9999,12,31),0.05,0.04,4,1)", "e:#NUM!"},
+            {"ODDFYIELD(DATE(2020,1,1),DATE(9999,12,31),DATE(1900,1,2),DATE(2021,1,1),0.05,90,100,4,1)", "e:#NUM!"},
+            {"ODDLYIELD(DATE(9998,6,1),DATE(9999,12,31),DATE(1900,1,2),0.05,90,100,4,1)", "e:#NUM!"},
+            {"ACCRINT(DATE(1900,1,2),DATE(9999,12,31),DATE(9999,12,30),0.05,100,4,1)", "e:#NUM!"},
+            {"ISNUMBER(CHISQ.INV.RT(1E-300,1E9))", "b:1"},
+            {"ISNUMBER(GAMMA.INV(0.5,1E9,1E9))", "b:1"},
+            {"ISNUMBER(BETA.INV(0.5,1E8,1E-8))", "b:1"},
+            {"ISNUMBER(T.INV(1E-300,1E9))", "b:1"},
+            {"ISNUMBER(F.INV.RT(1E-300,1E9,1E9))", "b:1"},
+            {"ISNUMBER(CHISQ.DIST(1E9,1E9,TRUE))", "b:1"},
+            {"ROWS(UNIQUE(SEQUENCE(100000,3,1,0.001)))", "n:100000"},
+            {"ROWS(SORT(SEQUENCE(100000,2,1,0.001),{1,2}))", "n:100000"},
+            {"BESSELJ(1E300,1)", "e:#NUM!"},
+            {"BESSELY(1E300,1)", "e:#NUM!"},
+            {"BESSELK(1E-300,1000)", "e:#NUM!"},
+            {"ROWS(FREQUENCY(SEQUENCE(1000000),SEQUENCE(1000)))", "n:1001"},
+            {"COLUMNS(LINEST(SEQUENCE(1000),SEQUENCE(1000,10),TRUE,TRUE))", "n:11"},
+        };
+        const QString only = qEnvironmentVariable("JP_BUDGET_ONLY");
         Settings array;
         array.array = true;
         const Grid g = sample();
-        for (const char *f : formulas) {
+        QStringList problems;
+        for (const Case &c : cases) {
+            if (!only.isEmpty() && !QString::fromUtf8(c.formula).contains(only)) continue;
             QElapsedTimer timer;
             timer.start();
-            const QString got = ev(withPrefixes(QString::fromUtf8(f)), g, array);
-            QVERIFY2(!got.startsWith(QLatin1String("!")), qPrintable(QString::fromUtf8(f) + QStringLiteral(" -> ") + got.left(100)));
-            QVERIFY2(timer.elapsed() < 8000, qPrintable(QStringLiteral("%1 took %2 ms").arg(QString::fromUtf8(f)).arg(timer.elapsed())));
+            const QString got = ev(withPrefixes(QString::fromUtf8(c.formula)), g, array);
+            if (got != QString::fromUtf8(c.result)) problems << QStringLiteral("%1 gave [%2], expected [%3]").arg(QString::fromUtf8(c.formula), got.left(80), QString::fromUtf8(c.result));
+            if (timer.elapsed() >= 8000) problems << QStringLiteral("%1 took %2 ms").arg(QString::fromUtf8(c.formula)).arg(timer.elapsed());
         }
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QLatin1Char('\n'))));
+    }
+
+    // A count that is not a number, or that went negative, is stopped by the budget, and a count below 0 that a function gives is no work.
+    void theBudgetStopsCountsThatAreNotNumbersOrAreNegative()
+    {
+        jp::calc::Machine negative;
+        QVERIFY(!negative.charge(-1));
+        QVERIFY(negative.stopped());
+        jp::calc::Machine notANumber;
+        QVERIFY(!notANumber.chargeCount(std::nan("")));
+        QVERIFY(notANumber.stopped());
+        jp::calc::Machine huge;
+        QVERIFY(!huge.chargeCount(1E300));
+        QVERIFY(huge.stopped());
+        jp::calc::Machine below;
+        QVERIFY(below.chargeCount(-5));
+        QVERIFY(!below.stopped());
+        jp::calc::Machine fine;
+        QVERIFY(fine.chargeCount(1000));
+        QVERIFY(!fine.stopped());
+    }
+
+    void aDependentColumnOfLinestHasNoErrorAndTheFitStillCounts()
+    {
+        Settings array;
+        array.array = true;
+        const char *x = "{1,2;2,4;3,6;4,8}";
+        const QString y = QStringLiteral("{3;5;7;9}");
+        const QString stats = QStringLiteral("LINEST(%1,%2,TRUE,TRUE)").arg(y, QString::fromLatin1(x));
+        const E cases[] = {
+            {"ROUND(INDEX(LINEST({3;5;7;9},{1,2;2,4;3,6;4,8},TRUE,TRUE),2,1),8)", "n:0"},   // (the standard error of the dependent column)
+            {"ROUND(INDEX(LINEST({3;5;7;9},{1,2;2,4;3,6;4,8},TRUE,TRUE),2,3),8)", "n:0"},   // (and of the constant, of a fit with no error)
+            {"ROUND(INDEX(LINEST({3;5;7;9},{1,2;2,4;3,6;4,8},TRUE,TRUE),3,1),8)", "n:1"},   // (R squared)
+            {"INDEX(LINEST({3;5;7;9},{1,2;2,4;3,6;4,8},TRUE,TRUE),4,2)", "n:2"},            // (degrees of freedom: 4 points, one column, the constant)
+        };
+        Q_UNUSED(stats);
+        CHECK_ALL(cases, Grid(), array)
+        // data with a real error: the dependent column still has none and the others have theirs
+        const E noisy[] = {
+            {"ROUND(INDEX(LINEST({3;5;8;9},{1,2;2,4;3,6;4,8},TRUE,TRUE),2,1),8)", "n:0"},
+            {"ISNUMBER(INDEX(LINEST({3;5;8;9},{1,2;2,4;3,6;4,8},TRUE,TRUE),2,2))", "b:1"},
+            {"INDEX(LINEST({3;5;8;9},{1,2;2,4;3,6;4,8},TRUE,TRUE),4,2)", "n:2"},
+        };
+        CHECK_ALL(noisy, Grid(), array)
+    }
+
+    void confidenceTKeepsItsDigitsAtATinyAlpha()
+    {
+        const E cases[] = {
+            {"ABS(T.DIST.2T(CONFIDENCE.T(1E-12,1,50)*SQRT(50),49)/1E-12-1)<1E-9", "b:1"},
+            {"ABS(T.DIST.2T(CONFIDENCE.T(1E-15,2,10)*SQRT(10)/2,9)/1E-15-1)<1E-9", "b:1"},
+        };
+        CHECK_ALL(cases, Grid(), Settings())
+    }
+
+    // The cast of a function number that is past the whole numbers of a computer is no longer one: any such number is an error.
+    void aggregateGivesAnErrorForNumbersThatAreNoFunctionNumbers()
+    {
+        const E cases[] = {
+            {"AGGREGATE(1E300,6,A1:A4)", "e:#VALUE!"},      {"AGGREGATE(4294967299,6,A1:A4)", "e:#VALUE!"}, {"AGGREGATE(4294967300,6,A1:A4)", "e:#VALUE!"},
+            {"AGGREGATE(9,4294967302,A1:A4)", "e:#VALUE!"}, {"AGGREGATE(-4294967293,6,A1:A4)", "e:#VALUE!"}, {"AGGREGATE(9,6,A1:A4)", "n:10"},
+        };
+        CHECK_ALL(cases, sample(), Settings())
     }
 
     void resultsThatAreNotNumbersAreErrorsAndTheOddCasesAreRight()
