@@ -253,7 +253,7 @@ private Q_SLOTS:
 
     void aMergeMakesACopyOfTheTextForEachRecord()
     {
-        const QByteArray zip = makeDocx(para(run("Dear ") + field("MERGEFIELD First_Name", "\xC2\xABFirst Name\xC2\xBB") + run(",")) + para(run("Hello again")));
+        const QByteArray zip = makeDocx(para(run("Dear ") + field("MERGEFIELD First_Name", "\xC2\xAB" "First Name\xC2\xBB") + run(",")) + para(run("Hello again")));
         auto doc = open(zip);
         QVERIFY(doc);
         MergeSource m = people();
