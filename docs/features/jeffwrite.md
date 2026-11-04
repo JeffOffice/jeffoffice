@@ -220,7 +220,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **later** Online video: a poster picture with a link that plays the video in the browser
 
 ### Links
-- [~] **first release** Hyperlink: a web address, email address, place in this document (heading or bookmark), or new document, with screen tip, edit, remove, and Ctrl+click to follow *(hyperlinks: ours 32%, public 37%)* *(shared: JeffPub's hyperlinks)*
+- [~] **first release** Hyperlink: a web address, email address, place in this document (heading or bookmark), or new document, with screen tip, edit, remove, and Ctrl+click to follow *(hyperlinks: ours 32%, public 37%)* *(shared: JeffPub's hyperlinks)* *(round 9: Insert > Link (Ctrl+K) makes a link over the selection or over words typed, to a web or email address or a bookmark, with a screen tip; it edits and removes the link the caret is in; Ctrl+click follows web, email, FTP, and telephone addresses and bookmark links, and never starts a program or opens a file; not a link to a heading or to a new document)*
 - [x] **first release** Bookmark: add, go to, delete, sort by name or location, and hidden bookmarks *(bookmarks: ours 40% (.docx 77%, .doc and .rtf 1%), public 25%; most of them are the ones Word makes for contents and cross-references)* *(shared: JeffPub's bookmarks)* *(0.9.0: a file's bookmarks are kept, and what refers to them (page references) finds them; none can be added or used)* *(beta wave F: Insert > Bookmark (Ctrl+Shift+F5) adds, deletes, and goes to a bookmark, sorts by name or location, and shows hidden ones)*
 
 ### Text
@@ -230,7 +230,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [~] **1.0** WordArt: styles, fill, outline, and effects, and text shapes (warps) *(shared: libs/draw text art)*
 - [ ] **1.0** Drop Cap: dropped or in the margin, lines high, distance from text, and font
 - [~] **1.0** Date & Time: formats and languages, updated automatically or fixed *(DATE field: ours 1%, public 2%)* *(beta wave F: Insert > Field puts a DATE or TIME field with a date picture, worked out and updated with F9; not a Date and Time dialog or languages)*
-- [ ] **1.0** Text from File: insert another document's text (`.docx`, `.doc`, `.rtf`, `.odt`, or plain text), or a bookmarked part of it *(shared: JeffPub's Insert File)*
+- [~] **1.0** Text from File: insert another document's text (`.docx`, `.doc`, `.rtf`, `.odt`, or plain text), or a bookmarked part of it *(shared: JeffPub's Insert File)* *(round 9: Insert > Text from File puts a document's text in with its looks, pictures, and links, or a plain text file as paragraphs, in one step that undoes; not a bookmarked part of it)*
 - [ ] **later** Signature Line: a drawn line for a name and title, signed digitally when digital signatures exist
 - [ ] **later** Object: embed or link an object made by another program (OLE on Windows; on other systems the picture and the data are kept and written back) *(OLE objects: ours 1%, public 10%)*
 

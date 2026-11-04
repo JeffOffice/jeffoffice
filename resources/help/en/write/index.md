@@ -38,6 +38,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Set up the page](page-setup)
 - [Breaks, columns, hyphenation, and line numbers](breaks-columns)
 - [Put in symbols and special characters](symbols-special-characters)
+- [Add links and text from other files](links)
 - [Change the color and borders of the pages](page-look)
 - [Find your way with the Navigation pane](navigation-pane)
 - [Use the ruler](ruler)

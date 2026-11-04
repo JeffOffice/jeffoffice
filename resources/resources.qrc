@@ -1829,6 +1829,7 @@
     <file alias="en/write/headers-footers.md">help/en/write/headers-footers.md</file>
     <file alias="en/write/index.md">help/en/write/index.md</file>
     <file alias="en/write/keyboard.md">help/en/write/keyboard.md</file>
+    <file alias="en/write/links.md">help/en/write/links.md</file>
     <file alias="en/write/mail-merge.md">help/en/write/mail-merge.md</file>
     <file alias="en/write/making-an-index.md">help/en/write/making-an-index.md</file>
     <file alias="en/write/navigation-pane.md">help/en/write/navigation-pane.md</file>
