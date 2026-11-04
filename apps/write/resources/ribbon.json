@@ -25,6 +25,15 @@
           "items": [
             {
               "large": "edit.paste",
+              "split": true,
+              "menu": [
+                "edit.paste",
+                "edit.pasteMerge",
+                "edit.pasteText",
+                "edit.pastePicture",
+                "-",
+                "edit.pasteSpecial"
+              ],
               "keytip": "V"
             },
             {
@@ -69,6 +78,21 @@
                 {
                   "icon": "fmt.clear",
                   "keytip": "E"
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.changeCase",
+                    "text": "Change Case",
+                    "icon": "case-sensitive"
+                  },
+                  "keytip": "7",
+                  "menu": [
+                    "fmt.case.sentence",
+                    "fmt.case.lower",
+                    "fmt.case.upper",
+                    "fmt.case.capitalize",
+                    "fmt.case.toggle"
+                  ]
                 }
               ]
             },
@@ -157,6 +181,10 @@
                     "-",
                     "para.dialog"
                   ]
+                },
+                {
+                  "icon": "para.sort",
+                  "keytip": "SO"
                 },
                 {
                   "icon": "view.marks",
@@ -789,6 +817,24 @@
             {
               "large": "review.checkAsType",
               "keytip": "T"
+            },
+            {
+              "large": "review.wordCount",
+              "keytip": "WC"
+            }
+          ]
+        },
+        {
+          "name": "Language",
+          "keytip": "ZL",
+          "items": [
+            {
+              "large": "review.language",
+              "keytip": "LA"
+            },
+            {
+              "small": "review.noProof",
+              "keytip": "NP"
             }
           ]
         },

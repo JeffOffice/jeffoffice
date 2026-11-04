@@ -271,6 +271,20 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
+        <source>%1 of %n word(s)</source>
+        <translation>
+            <numerusform>%1 of %n word</numerusform>
+            <numerusform>%1 of %n words</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n paragraph(s) sorted.</source>
+        <translation>
+            <numerusform>%n paragraph sorted.</numerusform>
+            <numerusform>%n paragraphs sorted.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
         <source>%n word(s)</source>
         <translation>
             <numerusform>%n word</numerusform>

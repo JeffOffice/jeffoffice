@@ -9,6 +9,7 @@
 #include "app/ruler.h"
 #include "app/settings.h"
 #include "app/spellpane.h"
+#include "core/proofops.h"
 #include "app/stylespane.h"
 #include "app/telemetry.h"
 #include "app/widgets.h"
@@ -234,6 +235,7 @@ void WriteWindow::createActions()
     createTableActions();
     createPictureActions();
     createStyleActions();
+    createHomeActions();
     createMailActions();
 }
 
@@ -564,6 +566,7 @@ void WriteWindow::updateStatus()
     const int pages = m_view->pageCount();
     const QString total = m_view->pagesComplete() ? QString::number(pages) : QStringLiteral("%1+").arg(pages);
     m_pageLabel->setText(tr("Page %1 of %2").arg(m_doc ? m_view->currentPage() + 1 : 0).arg(total));
+    updateLanguage();
     if (m_doc && !m_wordTimer.isActive()) m_wordTimer.start();
 }
 
@@ -589,6 +592,15 @@ void WriteWindow::updateWords()
         const bool space = c.isSpace();
         if (!space && !in) ++words;
         in = !space;
+    }
+    // With words selected: "12 of 340 words".
+    const QTextCursor sel = m_view->cursor();
+    if (sel.hasSelection() && sel.document() == m_doc->story()) {
+        const int selected = write::countWordsIn(sel.document(), sel.selectionStart(), sel.selectionEnd(), false).words;
+        if (selected > 0) {
+            m_wordLabel->setText(tr("%1 of %n word(s)", nullptr, words).arg(selected));
+            return;
+        }
     }
     m_wordLabel->setText(tr("%n word(s)", nullptr, words));
 }

@@ -32,6 +32,7 @@
 #include <QApplication>
 #include <QBuffer>
 #include <QImage>
+#include <QMimeData>
 #include <QPlainTextEdit>
 #include <QRadioButton>
 #include <QScrollBar>
@@ -162,7 +163,18 @@ private Q_SLOTS:
             if (id == QLatin1String("zoom.100")) asWrite(w)->view()->setZoom(1.5);
             // Save has something to save once something was changed.
             if (id == QLatin1String("file.save") && fromFile) m_app.type(w);
-            if (id == QLatin1String("edit.paste")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
+            if (id == QLatin1String("edit.paste") || id == QLatin1String("edit.pasteText") || id == QLatin1String("edit.pasteSpecial")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
+            if (id == QLatin1String("edit.pasteMerge")) {
+                auto *mime = new QMimeData;
+                mime->setText(QStringLiteral("Pasted words"));
+                mime->setHtml(QStringLiteral("<p><b>Pasted</b> words</p>"));
+                QGuiApplication::clipboard()->setMimeData(mime);
+            }
+            if (id == QLatin1String("edit.pastePicture")) {
+                QImage image(40, 30, QImage::Format_ARGB32);
+                image.fill(QColor(160, 10, 60));
+                QGuiApplication::clipboard()->setImage(image);
+            }
             // Insert Picture asks for a file, and From Clipboard needs a picture there.
             if (id == QLatin1String("insert.picture")) asWrite(w)->setPictureChooser([] { return pngFile(40, 30); });
             if (id == QLatin1String("insert.pictureClipboard")) {

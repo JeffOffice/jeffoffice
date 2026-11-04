@@ -230,6 +230,15 @@ void WriteWindow::buildStatusBar()
     m_trackLabel->setAccessibleName(tr("Track Changes"));
     connect(m_trackLabel, &QToolButton::clicked, this, [this] { act(QStringLiteral("review.trackChanges"))->trigger(); });
     sb->addWidget(m_trackLabel);
+    // The language the text at the caret is checked in, which a click changes.
+    m_langLabel = new QToolButton();
+    m_langLabel->setObjectName(QStringLiteral("languageStatus"));
+    m_langLabel->setAutoRaise(true);
+    m_langLabel->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    m_langLabel->setToolTip(tr("Proofing language"));
+    m_langLabel->setAccessibleName(tr("Proofing language"));
+    connect(m_langLabel, &QToolButton::clicked, this, [this] { act(QStringLiteral("review.language"))->trigger(); });
+    sb->addWidget(m_langLabel);
 
     auto button = [&](const char *id) {
         auto *b = new QToolButton();

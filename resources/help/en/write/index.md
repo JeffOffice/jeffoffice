@@ -14,12 +14,14 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 ## Work on your text
 
 - [Check your spelling](spelling)
+- [Count words and set the language](proofing-tools)
 - [Track changes, and accept or reject them](track-changes)
 - [Add and answer comments](comments)
 
 ## Write and change text
 
 - [Change how text looks](font)
+- [Change case, sort, and paste in other ways](home-tools)
 - [Use styles](styles)
 - [Copy a look with Copy Formatting](format-painter)
 - [Add headers, footers, and page numbers](headers-footers)

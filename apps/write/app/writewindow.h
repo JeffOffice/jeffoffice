@@ -7,6 +7,7 @@
 #include "core/styleops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
+#include "core/homeops.h"
 
 #include <QHash>
 #include <QKeySequence>
@@ -187,6 +188,8 @@ private:
     void createTableActions();
     void createPictureActions();
     void createStyleActions();
+    void createHomeActions();
+    void updateLanguage();
     void createMailActions();
     void mailRibbonParts(RibbonParts &parts);
     void refreshMailUi();   // (the Mailings commands that need a list of recipients are dimmed without one)
@@ -251,6 +254,7 @@ private:
     write::SpellPane *m_spellPane = nullptr;
     WriteFindPane *m_find = nullptr;
     QDockWidget *m_findDock = nullptr;
+    QToolButton *m_langLabel = nullptr;
     QLabel *m_pageLabel = nullptr, *m_wordLabel = nullptr, *m_zoomLabel = nullptr;
     QSlider *m_zoomSlider = nullptr;
     bool m_noteLimitShown = false;   // the status bar has said that the document holds the most notes
@@ -273,6 +277,7 @@ private:
     QString m_path;
     QString m_untitled;
     QString m_recoveryCopy, m_recoveredFrom;
+    write::SortOptions m_sortOptions;
     QTimer m_refreshTimer, m_recoverTimer, m_wordTimer;
     quint64 m_serial = 0;
     bool m_updatingFields = false;
