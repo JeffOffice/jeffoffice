@@ -156,7 +156,7 @@ int PageView::pictureAtPoint(const QPoint &pos)
 
 bool PageView::beginPictureDrag(QMouseEvent *e)
 {
-    if (!m_doc || m_hf.active || m_note.active || e->button() != Qt::LeftButton) return false;
+    if (!m_doc || m_readOnly || m_hf.active || m_note.active || e->button() != Qt::LeftButton) return false;
     const QPoint pos = e->position().toPoint();
     int target = selectedPicture();
     PictureHandle handle = target >= 0 ? pictureHandleAt(pos) : PictureHandle::None;
@@ -338,7 +338,7 @@ bool PageView::insertPictureImage(const QImage &image, PictureWrap wrap)
 bool PageView::changeSelectedPicture(const std::function<bool(WriteDoc &, int)> &change)
 {
     const int position = selectedPicture();
-    if (position < 0 || !m_doc) return false;
+    if (position < 0 || !m_doc || m_readOnly) return false;
     m_doc->pictureNotice.clear();
     const bool changed = change(*m_doc, position);
     if (!changed && !m_doc->pictureNotice.isEmpty()) Q_EMIT notice(m_doc->pictureNotice);
@@ -414,7 +414,7 @@ void PageView::dropEvent(QDropEvent *e)
         return;
     }
     if (dropText(e)) return;
-    if (!m_doc || !wantsDrop(e->mimeData())) {
+    if (!m_doc || m_readOnly || !wantsDrop(e->mimeData())) {
         e->ignore();
         return;
     }

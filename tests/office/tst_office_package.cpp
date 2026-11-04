@@ -1,5 +1,6 @@
 // Tests of libs/office: packages, the XML they hold, and the writer.
 #include "officehelpers.h"
+#include "office/repair.h"
 
 #include <QFile>
 #include <QTemporaryDir>
@@ -115,6 +116,345 @@ class OfficePackageTests : public QObject {
 
 
 private Q_SLOTS:
+    // The entries of a ZIP are found by their own headers: a file cut short, or with no directory, still gives the entries that are whole, and what there is of the last.
+    void aDamagedZipGivesItsWholeEntries()
+    {
+        const QByteArray big = QByteArray("<root>") + QByteArray("0123456789 abcdefghij ", 4000) + "</root>";
+        const QByteArray zip = zipOf({{QStringLiteral("a.xml"), "<a/>"}, {QStringLiteral("b.txt"), "second"}, {QStringLiteral("c.xml"), big}});
+        // Cut in the middle of the last entry: the directory is gone with it.
+        QByteArray cut = zip.left(zip.indexOf("c.xml") + 5 + 600);
+        QVector<jp::ZipScanEntry> found = jp::scanZip(cut);
+        QCOMPARE(found.size(), 3);
+        QVERIFY(found[0].whole && found[0].data == "<a/>");
+        QVERIFY(found[1].whole && found[1].data == "second");
+        QVERIFY(!found[2].whole);
+        QVERIFY(!found[2].problem.isEmpty());
+        QVERIFY(found[2].data.size() > 0 && big.startsWith(found[2].data));
+        // Whole, the same.
+        found = jp::scanZip(zip);
+        QCOMPARE(found.size(), 3);
+        QVERIFY(found[2].whole && found[2].data == big);
+        // Bytes that are no ZIP have none.
+        QVERIFY(jp::scanZip(QByteArray("nothing here")).isEmpty());
+        // A bound on the entries held.
+        QCOMPARE(jp::scanZip(zip, 2).size(), 2);
+    }
+
+    // XML that breaks part way is kept up to the last whole piece and closed; well-formed XML is as it was; a DOCTYPE, or nothing with a root, leaves nothing.
+    void brokenXmlIsKeptAsFarAsItGoes()
+    {
+        bool cut = false;
+        QCOMPARE(jp::office::repairXml("<a><b>one</b><c x=\"1\"/></a>", &cut), QByteArray("<a><b>one</b><c x=\"1\"/></a>"));
+        QVERIFY(!cut);
+        const QByteArray fixed = jp::office::repairXml("<?xml version=\"1.0\"?><a><b>one</b><c><d>tw", &cut);
+        QVERIFY(cut);
+        QCOMPARE(fixed, QByteArray("<?xml version=\"1.0\"?><a><b>one</b><c><d>tw</d></c></a>"));
+        QCOMPARE(jp::office::repairXml("<a><b>one</b><c attr=\"va", &cut), QByteArray("<a><b>one</b></a>"));
+        QVERIFY(jp::office::repairXml("<!DOCTYPE a [<!ENTITY x \"y\">]><a>&x;</a>").isEmpty());
+        QVERIFY(jp::office::repairXml("just words").isEmpty());
+        QVERIFY(jp::office::repairXml("").isEmpty());
+    }
+
+    // A package cut short is made whole from what was readable: the part that broke is kept as far as it went, the parts after it are said to be gone, and the list of types and
+    // the links to the main part, if they were not reached, are made again.
+    void aPackageCutShortIsRepaired()
+    {
+        const QByteArray para = "<w:p><w:r><w:t>Paragraph number one has some words in it.</w:t></w:r></w:p>";
+        QByteArray body;
+        for (int i = 0; i < 300; ++i) body += para;
+        const QByteArray doc = "<?xml version=\"1.0\"?><w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body>" + body + "</w:body></w:document>";
+        const QByteArray styles = "<w:styles xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"/>";
+        // Only the parts: no list of types and no links (as when the front of the file was lost), the document cut short, and the styles after it never read.
+        // (stored, so the cut falls where it is put: in the middle of the 150th paragraph of the document part, which is what breaks)
+        const QByteArray zip = zipOf({{QStringLiteral("word/document.xml"), doc}, {QStringLiteral("word/styles.xml"), styles}}, false);
+        qsizetype at = zip.indexOf("<w:body>");
+        for (int i = 0; i < 150; ++i) at = zip.indexOf("<w:p>", at + 1);
+        QVERIFY(at > 0 && at < zip.indexOf("word/styles.xml"));
+        const QByteArray cut = zip.left(at + 30);
+        jp::office::RepairReport report;
+        QString error;
+        const QByteArray fixed = jp::office::repairPackage(cut, &error, &report);
+        QVERIFY2(!fixed.isEmpty(), qPrintable(error));
+        QVERIFY(report.damaged());
+        QVERIFY(report.typesMade && report.linksMade);
+        QCOMPARE(report.trimmed, QStringList{QStringLiteral("word/document.xml")});
+        jp::office::Package p;
+        QVERIFY2(p.read(fixed, &error), qPrintable(error));
+        QCOMPARE(p.mainPart(), QStringLiteral("/word/document.xml"));
+        const QByteArray part = p.part(QStringLiteral("/word/document.xml"));
+        QVERIFY(part.contains("Paragraph number one"));
+        QVERIFY(part.endsWith("</w:document>"));
+        QVERIFY(part.size() < doc.size());
+        QVERIFY(jp::office::repairSummary(report).contains(QLatin1String("word/document.xml")));
+        // A package that has no document in it can't be repaired, and says so.
+        QVERIFY(jp::office::repairPackage(zipOf({{QStringLiteral("notes.txt"), "hello"}}), &error).isEmpty());
+        QVERIFY(!error.isEmpty());
+        QVERIFY(jp::office::repairPackage(QByteArray("not a package"), &error).isEmpty());
+    }
+
+    // A package that is whole comes back whole, with nothing left out; one part that is broken is left out and named.
+    void aWholePackageNeedsNoRepairAndABrokenPartIsNamed()
+    {
+        jp::office::PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"), "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body/></w:document>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addPart(QStringLiteral("/word/media/image1.png"), QByteArray("\x89PNG-not-really", 16), QStringLiteral("image/png"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        const QByteArray whole = w.finish();
+        jp::office::RepairReport report;
+        QString error;
+        QByteArray fixed = jp::office::repairPackage(whole, &error, &report);
+        QVERIFY2(!fixed.isEmpty(), qPrintable(error));
+        QVERIFY(!report.damaged());
+        jp::office::Package p;
+        QVERIFY(p.read(fixed, &error));
+        QCOMPARE(p.mainPart(), QStringLiteral("/word/document.xml"));
+        QVERIFY(p.hasPart(QStringLiteral("/word/media/image1.png")));
+        // A picture whose bytes no longer match its CRC is left out, and named (the entries here are stored, so the damage is the one byte).
+        QByteArray damaged = zipOf({{QStringLiteral("[Content_Types].xml"), contentTypesXml(QStringLiteral("<Default Extension=\"xml\" ContentType=\"application/xml\"/>"
+                                                                      "<Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/>"))},
+                                    {QStringLiteral("word/document.xml"), "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body/></w:document>"},
+                                    {QStringLiteral("word/media/image1.png"), QByteArray("\x89PNG-not-really", 16)}}, false);
+        const qsizetype at = damaged.indexOf("PNG-not-really");
+        QVERIFY(at > 0);
+        damaged[at + 3] = 'X';
+        fixed = jp::office::repairPackage(damaged, &error, &report);
+        QVERIFY(!fixed.isEmpty());
+        QCOMPARE(report.dropped.size(), 1);
+        QVERIFY(report.dropped.first().contains(QLatin1String("image1.png")));
+        QVERIFY(p.read(fixed, &error));
+        QVERIFY(!p.hasPart(QStringLiteral("/word/media/image1.png")));
+    }
+
+    // ---- hostile input to a repair: each is bounded, and none changes what a good part of the file gives
+
+    // A part that inflates past the most a part may (a deflate bomb) is left out and said so, never kept cut at the limit; the rest of the package is repaired.
+    void aDeflateBombIsLeftOutNotKeptCut()
+    {
+        const QByteArray doc = "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body/></w:document>";
+        jp::ZipWriter z;
+        z.add(QStringLiteral("word/document.xml"), doc, true);
+        z.beginStream(QStringLiteral("word/bomb.xml"), true);   // (an XML part that begins well, then says nothing but "x" for 10 MB)
+        z.write("<r>", 3);
+        const QByteArray chunk(1 << 20, 'x');
+        for (int i = 0; i < 10; ++i) z.write(chunk.constData(), chunk.size());
+        z.endStream();
+        z.beginStream(QStringLiteral("word/media/bomb.bin"), true);
+        for (int i = 0; i < 10; ++i) z.write(chunk.constData(), chunk.size());
+        z.endStream();
+        const QByteArray zip = z.finish();
+        QVERIFY(zip.size() < (1 << 20));
+        jp::office::RepairLimits limits;
+        limits.maxPartBytes = 2 << 20;
+        jp::office::RepairReport report;
+        QString error;
+        QElapsedTimer clock;
+        clock.start();
+        const QByteArray fixed = jp::office::repairPackage(zip, &error, &report, limits);
+        QVERIFY2(!fixed.isEmpty(), qPrintable(error));
+        QVERIFY(clock.elapsed() < 20000);
+        QVERIFY(!report.trimmed.contains(QStringLiteral("word/bomb.xml")));
+        QCOMPARE(report.dropped.size(), 2);
+        for (const QString &d : report.dropped) QVERIFY(d.contains(QLatin1String("too large")));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(fixed, parts));
+        QVERIFY(parts.contains(QStringLiteral("word/document.xml")));
+        QVERIFY(!parts.contains(QStringLiteral("word/bomb.xml")) && !parts.contains(QStringLiteral("word/media/bomb.bin")));
+        // The scan itself keeps nothing of an entry past the limit.
+        const QVector<jp::ZipScanEntry> found = jp::scanZip(zip, 100, 2 << 20);
+        QCOMPARE(found.size(), 3);
+        QVERIFY(found[1].data.isEmpty() && found[1].problem == QLatin1String("too large"));
+    }
+
+    // An XML part larger than an open reads (except a sheet, which is read as a stream) is left out, as an open would refuse it.
+    void anXmlPartLargerThanAnOpenReadsIsLeftOut()
+    {
+        const QByteArray ns = " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+        const QByteArray big = "<w:styles" + ns + ">" + QByteArray(300000, ' ') + "</w:styles>";
+        jp::office::RepairLimits limits;
+        limits.maxXmlPartBytes = 100000;
+        jp::office::RepairReport report;
+        QString error;
+        const QByteArray fixed = jp::office::repairPackage(zipOf({{QStringLiteral("word/document.xml"), "<w:document" + ns + "/>"}, {QStringLiteral("word/styles.xml"), big},
+                                                                  {QStringLiteral("xl/worksheets/sheet1.xml"), big}}), &error, &report, limits);
+        QVERIFY2(!fixed.isEmpty(), qPrintable(error));
+        QCOMPARE(report.dropped.size(), 1);
+        QVERIFY(report.dropped.first().contains(QLatin1String("styles.xml")));
+        QVERIFY(report.kept.contains(QStringLiteral("xl/worksheets/sheet1.xml")));
+    }
+
+    // More than a package may hold is not held: what passes the total is left out and named, and the package written is no larger than the limit.
+    void aRepairHoldsNoMoreThanItsLimit()
+    {
+        const QByteArray ns = " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+        Entries e{{QStringLiteral("word/document.xml"), "<w:document" + ns + "/>"}};
+        for (int i = 1; i <= 4; ++i) e.append({QStringLiteral("word/media/image%1.bin").arg(i), QByteArray(300000, char('a' + i))});
+        jp::office::RepairLimits limits;
+        limits.maxKeptBytes = 700000;
+        jp::office::RepairReport report;
+        QString error;
+        const QByteArray fixed = jp::office::repairPackage(zipOf(e), &error, &report, limits);
+        QVERIFY2(!fixed.isEmpty(), qPrintable(error));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(fixed, parts));
+        qint64 held = 0;
+        for (const QByteArray &d : std::as_const(parts)) held += d.size();
+        QVERIFY(held <= limits.maxKeptBytes + 1000);   // (the types and links made are a few hundred bytes)
+        QCOMPARE(report.dropped.size(), 2);
+        QVERIFY(report.dropped.first().contains(QLatin1String("more than can be repaired")));
+    }
+
+    // Nesting past kMaxXmlDepth is cut there, said so, and never grows a stack of open elements: 100,000 deep, closed or not, gives 256 deep.
+    void deepNestingIsCutAtTheLimit()
+    {
+        const int depth = 100000;
+        QByteArray open;
+        for (int i = 0; i < depth; ++i) open += "<a>";
+        QByteArray closed = open + "text";
+        for (int i = 0; i < depth; ++i) closed += "</a>";
+        for (const QByteArray &xml : {open, closed}) {
+            bool cut = false;
+            QString why;
+            const QByteArray fixed = jp::office::repairXml(xml, &cut, &why);
+            QVERIFY(cut);
+            QVERIFY(!why.isEmpty());
+            QCOMPARE(fixed.count("<a>"), jp::office::kMaxXmlDepth);
+            QCOMPARE(fixed.count("</a>"), jp::office::kMaxXmlDepth);
+        }
+        // Exactly the limit is as it was.
+        QByteArray fits;
+        for (int i = 0; i < jp::office::kMaxXmlDepth; ++i) fits += "<a>";
+        for (int i = 0; i < jp::office::kMaxXmlDepth; ++i) fits += "</a>";
+        bool cut = true;
+        QCOMPARE(jp::office::repairXml(fits, &cut), fits);
+        QVERIFY(!cut);
+        // In a package, the part is trimmed and a note says why.
+        jp::office::RepairReport report;
+        QString error;
+        const QByteArray fixed = jp::office::repairPackage(zipOf({{QStringLiteral("word/document.xml"), closed}}), &error, &report);
+        QVERIFY2(!fixed.isEmpty(), qPrintable(error));
+        QCOMPARE(report.trimmed, QStringList{QStringLiteral("word/document.xml")});
+        QVERIFY(!report.notes.isEmpty());
+    }
+
+    // More entries than are looked at: the rest are left out, and the report says so.
+    void manyEntriesAreCountedAndSaid()
+    {
+        const QByteArray ns = " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+        Entries e{{QStringLiteral("word/document.xml"), "<w:document" + ns + "/>"}};
+        for (int i = 0; i < 120; ++i) e.append({QStringLiteral("word/media/m%1.png").arg(i), "x"});
+        const QByteArray zip = zipOf(e);
+        jp::office::RepairLimits limits;
+        limits.maxEntries = 50;
+        jp::office::RepairReport report;
+        QString error;
+        QVERIFY(!jp::office::repairPackage(zip, &error, &report, limits).isEmpty());
+        QCOMPARE(report.kept.size(), 50);
+        QCOMPARE(report.notes.size(), 1);
+        QVERIFY(report.notes.first().contains(QLatin1String("50")));
+        QVERIFY(report.damaged());
+        QVERIFY(jp::office::repairSummary(report).contains(report.notes.first()));
+        // Within the limit: no note.
+        limits.maxEntries = 500;
+        QVERIFY(!jp::office::repairPackage(zip, &error, &report, limits).isEmpty());
+        QVERIFY(report.notes.isEmpty());
+        // The same for a ZIP that is not a package.
+        limits.maxEntries = 50;
+        QVERIFY(!jp::office::repairZip(zip, &error, &report, limits).isEmpty());
+        QCOMPARE(report.kept.size(), 50);
+        QCOMPARE(report.notes.size(), 1);
+    }
+
+    // A stored entry whose size is a lie (4 GB) does not swallow the entries after it: it ends at the next entry's header, and the scan goes on.
+    void aLyingSizeDoesNotSwallowTheRest()
+    {
+        const QByteArray ns = " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+        QByteArray zip = zipOf({{QStringLiteral("junk.bin"), QByteArray(500, 'j')}, {QStringLiteral("word/document.xml"), "<w:document" + ns + "><w:body/></w:document>"},
+                                {QStringLiteral("word/media/a.png"), "later entry"}}, false);
+        qToLittleEndian<quint32>(0xFFFFFFF0u, zip.data() + 18);   // (the first local header: its sizes)
+        qToLittleEndian<quint32>(0xFFFFFFF0u, zip.data() + 22);
+        const QVector<jp::ZipScanEntry> found = jp::scanZip(zip);
+        QCOMPARE(found.size(), 3);
+        QVERIFY(!found[0].whole);
+        QVERIFY(found[1].whole && found[2].whole);
+        QCOMPARE(found[2].data, QByteArray("later entry"));
+        jp::office::RepairReport report;
+        QString error;
+        const QByteArray fixed = jp::office::repairPackage(zip, &error, &report);
+        QVERIFY2(!fixed.isEmpty(), qPrintable(error));
+        QVERIFY(report.kept.contains(QStringLiteral("word/media/a.png")));
+        QCOMPARE(report.dropped.size(), 1);
+        QVERIFY(report.dropped.first().contains(QLatin1String("junk.bin")));
+    }
+
+    // A stored entry whose size stays inside the file but runs over the entries after it ends at the next entry's header: those entries are found whole.
+    void aLyingSizeInsideTheFileDoesNotSwallowTheEntriesAfterIt()
+    {
+        QByteArray zip = zipOf({{QStringLiteral("first.bin"), QByteArray(40, 'f')}, {QStringLiteral("second.txt"), "second entry"}, {QStringLiteral("third.txt"), "third entry"}}, false);
+        const quint32 truth = qFromLittleEndian<quint32>(zip.constData() + 18);
+        QCOMPARE(truth, quint32(40));
+        // (the size says 150 bytes: that is inside the file, and covers the second and the third entries' headers)
+        qToLittleEndian<quint32>(150u, zip.data() + 18);
+        qToLittleEndian<quint32>(150u, zip.data() + 22);
+        QVERIFY(150 < zip.size() - 30);
+        const QVector<jp::ZipScanEntry> found = jp::scanZip(zip);
+        QCOMPARE(found.size(), 3);
+        QVERIFY(!found[0].whole);
+        QVERIFY(found[1].whole && found[1].data == "second entry");
+        QVERIFY(found[2].whole && found[2].data == "third entry");
+    }
+
+    // Two entries of one name: the first whole one stands; a later one replaces one that was cut; none is kept twice.
+    void entriesOfOneNameKeepTheFirstWholeOne()
+    {
+        const QByteArray ns = " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+        const QByteArray first = "<w:document" + ns + "><w:body>first</w:body></w:document>", second = "<w:document" + ns + "><w:body>second</w:body></w:document>";
+        jp::office::RepairReport report;
+        QString error;
+        QByteArray fixed = jp::office::repairPackage(zipOf({{QStringLiteral("word/document.xml"), first}, {QStringLiteral("word/document.xml"), second}, {QStringLiteral("word/document.xml"), second}}),
+                                                     &error, &report);
+        QVERIFY2(!fixed.isEmpty(), qPrintable(error));
+        QCOMPARE(report.kept, QStringList{QStringLiteral("word/document.xml")});
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(fixed, parts));
+        QCOMPARE(parts.value(QStringLiteral("word/document.xml")), first);
+        // The first cut short (a damaged copy), the second whole: the second stands.
+        const QByteArray broken = "<w:document" + ns + "><w:body>brok";
+        fixed = jp::office::repairPackage(zipOf({{QStringLiteral("word/document.xml"), broken}, {QStringLiteral("word/document.xml"), second}}), &error, &report);
+        QVERIFY(jp::readZip(fixed, parts));
+        QCOMPARE(parts.value(QStringLiteral("word/document.xml")), second);
+        // And in a ZIP that is not a package.
+        fixed = jp::office::repairZip(zipOf({{QStringLiteral("a.txt"), "one"}, {QStringLiteral("a.txt"), "two"}}), &error, &report);
+        QVERIFY(jp::readZip(fixed, parts));
+        QCOMPARE(parts.value(QStringLiteral("a.txt")), QByteArray("one"));
+    }
+
+    // A name that climbs out of the package, or is absolute, is never a part: it is left out and named, whichever way it is written.
+    void aTraversalNameIsNeverUsed()
+    {
+        const QByteArray ns = " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+        const QStringList bad{QStringLiteral("../evil.xml"), QStringLiteral("word/../../evil.xml"), QStringLiteral("..\\evil.xml"), QStringLiteral("word/.."), QStringLiteral(".."),
+                              QStringLiteral("word/./a.xml"), QStringLiteral("/../evil.xml"), QStringLiteral("a/b/../../../c.xml")};
+        Entries e{{QStringLiteral("word/document.xml"), "<w:document" + ns + "/>"}};
+        for (const QString &name : bad) e.append({name, "<x/>"});
+        for (jp::office::RepairReport report; ; ) {
+            QString error;
+            const QByteArray fixed = jp::office::repairPackage(zipOf(e), &error, &report);
+            QVERIFY2(!fixed.isEmpty(), qPrintable(error));
+            QCOMPARE(report.dropped.size(), bad.size());
+            QMap<QString, QByteArray> parts;
+            QVERIFY(jp::readZip(fixed, parts));
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it) QVERIFY2(!it.key().contains(QLatin1String("..")) && !it.key().contains(QLatin1String("./")), qPrintable(it.key()));
+            const QByteArray zipFixed = jp::office::repairZip(zipOf(e), &error, &report);
+            QVERIFY(!zipFixed.isEmpty());
+            QCOMPARE(report.dropped.size(), bad.size());
+            QMap<QString, QByteArray> kept;
+            QVERIFY(jp::readZip(zipFixed, kept));
+            QCOMPARE(kept.keys(), QStringList{QStringLiteral("word/document.xml")});
+            break;
+        }
+    }
+
     // ---- packages
 
     // A file larger than the most the apps open is refused before anything is read (each is held whole at once); one of the most is read.

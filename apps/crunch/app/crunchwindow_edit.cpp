@@ -30,6 +30,12 @@ void CrunchWindow::createEditing()
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, &CrunchWindow::onCellsChanged);
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, &CrunchWindow::onSizesChanged);
+    connect(m_session.get(), &crunch::EditSession::sparklinesChanged, this, [this](int sheet) {
+        if (sheet != m_sheet) return;
+        m_view->sheet().resetSparklines();
+        m_view->viewport()->update();
+        updateSparklineTab();
+    });
     connect(m_session.get(), &crunch::EditSession::sheetsChanged, this, &CrunchWindow::onSheetsChanged);
     connect(m_session.get(), &crunch::EditSession::tablesChanged, this, &CrunchWindow::onTablesChanged);
     connectObjects();
@@ -49,6 +55,7 @@ void CrunchWindow::createEditing()
     connect(u, &QUndoStack::indexChanged, this, &CrunchWindow::updateEditActions);   // (the oldest steps may be forgotten: Undo ends before them)
     connect(u, &QUndoStack::indexChanged, this, [this] { cancelCut(); });   // (any edit ends a cut)
     connect(u, &QUndoStack::indexChanged, this, [this] { updateFormatState(false); });   // (the buttons show the format the cell has now)
+    connect(u, &QUndoStack::indexChanged, this, [this] { updatePivotTab(); });   // (the fields pane shows the table as an Undo or Redo leaves it, and drops changes waiting for Update that were made on another version)
     connect(u, &QUndoStack::undoTextChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::redoTextChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::cleanChanged, this, [this](bool clean) {
@@ -72,19 +79,23 @@ void CrunchWindow::setLocale(const QLocale &locale)
 void CrunchWindow::updateEditActions()
 {
     QUndoStack *u = undoStack();
-    const bool open = m_session && !m_saving;
+    const bool open = m_session && !m_saving && !isReadOnly();
     act("edit.undo")->setEnabled(open && m_session->canUndo());
     act("edit.redo")->setEnabled(open && u->canRedo());
     act("edit.undo")->setToolTip(jp::plainToolTip(u && m_session->canUndo() ? tr("Undo %1 (%2)").arg(u->undoText(), QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)) : tr("Undo")));
     act("edit.redo")->setToolTip(jp::plainToolTip(u && u->canRedo() ? tr("Redo %1 (%2)").arg(u->redoText(), QKeySequence(QKeySequence::Redo).toString(QKeySequence::NativeText)) : tr("Redo")));
     // (a chart sheet has no cells to work on: none of the commands that do is on while one is in view, and they are back on a sheet of cells)
     for (const QString &id : m_opsActions)
-        if (QAction *a = act(id)) a->setEnabled(open && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown);
+        if (QAction *a = act(id)) a->setEnabled((open || (m_session && !m_saving && isReadOnly() && commandAllowedReadOnly(id))) && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown);   // (Find and Go To work in a workbook open for reading only; Replace and the rest do not)
     for (const char *id : {"edit.copy", "edit.selectAll", "view.formulas", "view.gridlines", "view.headings", "view.freeze", "view.freezeRow", "view.freezeCol", "view.unfreeze"})
         if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(!m_chartSheetShown);
-    const bool canSave = open && m_loaded && m_loaded->problem.isEmpty();
+    const bool canSave = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty();
     act("file.save")->setEnabled(canSave);
     act("file.saveAs")->setEnabled(canSave);
+    act("file.saveCopy")->setEnabled(canSave);
+    act("file.saveTemplate")->setEnabled(canSave);
+    updatePivotFieldActions();
+    updateSparklineTab();
     updateFormatState(false);
 }
 
@@ -92,6 +103,10 @@ void CrunchWindow::updateEditActions()
 bool CrunchWindow::editingAllowed()
 {
     QString why;
+    if (isReadOnly()) {
+        setStatus(tr("This workbook is open for reading only. Use Save a Copy to make a copy you can change."));
+        return false;
+    }
     if (!m_session) {
         setStatus(m_blank ? tr("The new workbook is getting ready. It can be changed in a moment.") : tr("The workbook is still being opened. It can be changed when it is open."));
         return false;

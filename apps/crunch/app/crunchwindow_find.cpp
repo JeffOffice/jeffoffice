@@ -70,8 +70,12 @@ void CrunchWindow::showFindDialog(bool replace)
         m_findDialog->setAttribute(Qt::WA_DeleteOnClose, false);
         connect(m_findDialog, &FindDialog::findNextRequested, this, [this] { startSearch(SearchFor::Next); });
         connect(m_findDialog, &FindDialog::findAllRequested, this, [this] { startSearch(SearchFor::All); });
-        connect(m_findDialog, &FindDialog::replaceRequested, this, [this] { replaceCurrent(); });
-        connect(m_findDialog, &FindDialog::replaceAllRequested, this, [this] { startSearch(SearchFor::ReplaceAll); });
+        connect(m_findDialog, &FindDialog::replaceRequested, this, [this] {
+            if (!refuseIfReadOnly()) replaceCurrent();
+        });
+        connect(m_findDialog, &FindDialog::replaceAllRequested, this, [this] {
+            if (!refuseIfReadOnly()) startSearch(SearchFor::ReplaceAll);
+        });
         connect(m_findDialog, &FindDialog::cancelRequested, this, [this] { cancelSearch(); });
         connect(m_findDialog, &FindDialog::resultChosen, this, [this](int sheet, quint32 row, quint32 col) { goToFound(sheet, row, col); });
         connect(m_findDialog, &QDialog::finished, this, [this] { cancelSearch(); });
@@ -100,6 +104,7 @@ void CrunchWindow::startSearch(SearchFor what)
     if (m_edit.active) return;
     if (m_findRun) cancelSearch();
     const bool replacing = what == SearchFor::ReplaceAll;
+    if (replacing && refuseIfReadOnly()) return;   // (a workbook open for reading only is not changed by Replace All)
     if (replacing) {
         QString why;
         if (!m_session->canEdit(&why)) {
@@ -317,7 +322,7 @@ void CrunchWindow::finishReplace(bool done)
 // Replace: the cell with the cursor, if it has the text, is changed and the search goes on to the next; else the search goes on to the first.
 void CrunchWindow::replaceCurrent()
 {
-    if (!m_findDialog || !m_session || !m_loaded) return;
+    if (!m_findDialog || !m_session || !m_loaded || refuseIfReadOnly()) return;
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active) return;
     const crunch::FindOptions options = searchOptions(true);

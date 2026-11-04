@@ -1,5 +1,6 @@
 #include "app/otherformats.h"
 
+#include "app/filetasks.h"
 #include "app/oldformat.h"
 #include "sheet/sheetreader.h"
 
@@ -7,12 +8,6 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-
-#ifdef Q_OS_WIN
-#include <windows.h>
-#else
-#include <sys/stat.h>
-#endif
 
 namespace jp::crunch {
 
@@ -25,14 +20,15 @@ bool isCsvName(const QString &path)
 bool isCopyName(const QString &path)
 {
     const QString ending = QFileInfo(path).suffix();
-    return ending.compare(QLatin1String("xls"), Qt::CaseInsensitive) == 0 || ending.compare(QLatin1String("ods"), Qt::CaseInsensitive) == 0;
+    return ending.compare(QLatin1String("xls"), Qt::CaseInsensitive) == 0 || ending.compare(QLatin1String("ods"), Qt::CaseInsensitive) == 0 || ending.compare(QLatin1String("ots"), Qt::CaseInsensitive) == 0;
 }
 
 QString copyKindOf(const QString &path) { return QFileInfo(path).suffix().toLower(); }
 
 QString xlsFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Older workbooks (*.xls)"); }
 QString odsFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "OpenDocument spreadsheets (*.ods)"); }
-QString copyFilters() { return xlsFilter() + QStringLiteral(";;") + odsFilter(); }
+QString otsFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "OpenDocument spreadsheet templates (*.ots)"); }
+QString copyFilters() { return xlsFilter() + QStringLiteral(";;") + odsFilter() + QStringLiteral(";;") + otsFilter(); }
 
 QString copyWarning(const QString &ending, const QStringList &notKept, const QStringList &trimmed)
 {
@@ -44,7 +40,7 @@ QString copyWarning(const QString &ending, const QStringList &notKept, const QSt
     return text;
 }
 
-QString openFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx *.xlsm *.xltx *.xltm *.xlam *.xls *.ods *.fods *.csv *.tsv *.txt)"); }
+QString openFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx *.xlsm *.xltx *.xltm *.xlam *.xls *.ods *.ots *.fods *.csv *.tsv *.txt)"); }
 
 QString workbookKindOfType(const QString &mainContentType)
 {
@@ -66,7 +62,7 @@ QString workbookKindFilter(const QString &kind)
         return QCoreApplication::translate("jp::crunch::OtherFormats", "Templates (*.xltx)") + QStringLiteral(";;") + QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)");
     if (kind == QLatin1String("xlsm"))
         return QCoreApplication::translate("jp::crunch::OtherFormats", "Macro-enabled workbooks (*.xlsm)") + QStringLiteral(";;") + QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)");
-    return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)");
+    return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)") + QStringLiteral(";;") + QCoreApplication::translate("jp::crunch::OtherFormats", "Templates (*.xltx)");
 }
 
 QStringList workbookKindsSavedAs(const QString &kind)
@@ -75,7 +71,7 @@ QStringList workbookKindsSavedAs(const QString &kind)
     if (kind == QLatin1String("xltx")) return {QStringLiteral("xltx"), QStringLiteral("xlsx")};
     if (kind == QLatin1String("xltm")) return {QStringLiteral("xltm"), QStringLiteral("xlsm"), QStringLiteral("xlsx")};
     if (kind == QLatin1String("xlam")) return {QStringLiteral("xlam"), QStringLiteral("xlsm")};
-    return {QStringLiteral("xlsx")};
+    return {QStringLiteral("xlsx"), QStringLiteral("xltx")};
 }
 
 bool workbookKindHoldsMacros(const QString &kind) { return kind == QLatin1String("xlsm") || kind == QLatin1String("xltm") || kind == QLatin1String("xlam"); }
@@ -93,7 +89,7 @@ QString workbookKindNotice(const QString &kind, const QString &programName)
         return QCoreApplication::translate("jp::crunch::OtherFormats", "This workbook is a template with macros in it. It can be saved as %1. Give the file a name that ends in one of them.").arg(list);
     if (kind == QLatin1String("xlam"))
         return QCoreApplication::translate("jp::crunch::OtherFormats", "This workbook is an add-in with macros in it. It can be saved as %1. Give the file a name that ends in one of them.").arg(list);
-    return QCoreApplication::translate("jp::crunch::OtherFormats", "%1 saves workbooks as .xlsx files. Give the file a name that ends in .xlsx.").arg(programName);
+    return QCoreApplication::translate("jp::crunch::OtherFormats", "%1 saves workbooks as .xlsx files, or as .xltx templates. Give the file a name that ends in one of them.").arg(programName);
 }
 
 QString csvFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Text files of values (*.csv)"); }
@@ -205,6 +201,8 @@ QStringList leftOutOfCsv(const jp::office::sheet::Workbook &book, qint64 formula
         if (!package.relationshipsOfType(main, QStringLiteral("/externalLink")).isEmpty()) out << QCoreApplication::translate("jp::crunch::OtherFormats", "links to other workbooks");
         if (!package.relationshipsOfType(main, QStringLiteral("/vbaProject")).isEmpty()) out << QCoreApplication::translate("jp::crunch::OtherFormats", "macros");
     }
+    // (a pivot table made in this session has no part in the package yet: the model says)
+    if (book.pivots().tableCount() > 0 && !out.contains(QCoreApplication::translate("jp::crunch::OtherFormats", "pivot tables"))) out << QCoreApplication::translate("jp::crunch::OtherFormats", "pivot tables");
     out << QCoreApplication::translate("jp::crunch::OtherFormats", "number formats, fonts, colors, and column widths");
     return out;
 }
@@ -217,51 +215,7 @@ QString csvExportWarning(const QString &sheetName, QChar separator, bool partial
     return text;
 }
 
-namespace {
-
-// Where a path really is: the file as it is (links followed), or for a file that is not there yet, its folder as it is with the file's name.
-QString placeOf(const QString &path)
-{
-    const QFileInfo info(path);
-    const QString real = info.canonicalFilePath();
-    if (!real.isEmpty()) return real;
-    const QString folder = QFileInfo(info.absolutePath()).canonicalFilePath();
-    return (folder.isEmpty() ? QDir::cleanPath(info.absolutePath()) : folder) + QLatin1Char('/') + info.fileName();
-}
-
-// Whether two names that both exist are one file on the disk (a hard link is a second name for the same file; the paths do not show it).
-bool sameFileOnDisk(const QString &a, const QString &b)
-{
-#ifdef Q_OS_WIN
-    auto identity = [](const QString &path, BY_HANDLE_FILE_INFORMATION *info) {
-        const HANDLE h = CreateFileW(reinterpret_cast<LPCWSTR>(QDir::toNativeSeparators(path).utf16()), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
-                                     FILE_FLAG_BACKUP_SEMANTICS, nullptr);
-        if (h == INVALID_HANDLE_VALUE) return false;
-        const bool ok = GetFileInformationByHandle(h, info) != 0;
-        CloseHandle(h);
-        return ok;
-    };
-    BY_HANDLE_FILE_INFORMATION x{}, y{};
-    return identity(a, &x) && identity(b, &y) && x.dwVolumeSerialNumber == y.dwVolumeSerialNumber && x.nFileIndexHigh == y.nFileIndexHigh && x.nFileIndexLow == y.nFileIndexLow;
-#else
-    struct stat x, y;
-    return ::stat(QFile::encodeName(a).constData(), &x) == 0 && ::stat(QFile::encodeName(b).constData(), &y) == 0 && x.st_dev == y.st_dev && x.st_ino == y.st_ino;
-#endif
-}
-
-} // namespace
-
-bool sameFile(const QString &a, const QString &b)
-{
-    if (a.isEmpty() || b.isEmpty()) return false;
-    // (the names of files are the same in capitals and small letters on the systems whose files are)
-#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
-    constexpr Qt::CaseSensitivity kCase = Qt::CaseInsensitive;
-#else
-    constexpr Qt::CaseSensitivity kCase = Qt::CaseSensitive;
-#endif
-    return QFileInfo(a) == QFileInfo(b) || placeOf(a).compare(placeOf(b), kCase) == 0 || sameFileOnDisk(a, b);
-}
+bool sameFile(const QString &a, const QString &b) { return jp::sameFile(a, b); }
 
 QString withPickedEnding(const QString &chosen, const QString &pickedFilter)
 {

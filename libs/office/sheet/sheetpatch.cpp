@@ -1016,6 +1016,87 @@ QByteArray tailWithTableParts(const QByteArray &after, const std::vector<QString
     return after.left(insertAt) + generated + after.mid(insertAt);
 }
 
+// The tail with the sparklines' extension made, replaced, or taken out (the extension list is made, where the format has it, when there is none, and goes when nothing is left in it).
+QByteArray tailWithSparklines(const QByteArray &after, const QVector<SparklineGroup> &groups, const QByteArray &prefix)
+{
+    QByteArray ext = sparklineExtensionXml(groups);
+    if (!prefix.isEmpty()) {
+        ext.replace("<ext ", "<" + prefix + "ext ");
+        ext.replace("</ext>", "</" + prefix + "ext>");
+    }
+    Tag t;
+    qsizetype pos = 0, listStart = -1, listEnd = -1, listClose = -1, worksheetClose = -1, openExt = -1;
+    std::vector<std::pair<qsizetype, qsizetype>> mine;   // the sparklines' extensions (a file may have more than one: the first takes the groups, the others go)
+    int depth = 0;
+    bool listSelfClosing = false;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                worksheetClose = t.start;
+                break;
+            }
+            if (depth == 0 && t.local == "extLst" && listStart >= 0 && listEnd < 0) {
+                listEnd = t.end;
+                listClose = t.start;
+            }
+            if (depth == 1 && t.local == "ext" && openExt >= 0) {
+                mine.push_back({openExt, t.end});
+                openExt = -1;
+            }
+            continue;
+        }
+        if (depth == 0 && t.local == "extLst" && listStart < 0) {
+            listStart = t.start;
+            if (t.selfClosing) {
+                listEnd = t.end;
+                listSelfClosing = true;
+            }
+        } else if (depth == 1 && listStart >= 0 && listEnd < 0 && t.local == "ext" && openExt < 0) {
+            const QByteArray tag = after.mid(t.start, t.end - t.start);
+            if (tag.contains(sparklineExtensionUri())) {
+                if (t.selfClosing) mine.push_back({t.start, t.end});
+                else openExt = t.start;
+            }
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    if (!mine.empty()) {
+        QByteArray out = after;
+        for (int i = int(mine.size()) - 1; i >= 0; --i) out = out.left(mine[size_t(i)].first) + (i == 0 ? ext : QByteArray()) + out.mid(mine[size_t(i)].second);
+        // (an extension list with nothing left in it is taken out)
+        if (ext.isEmpty() && listStart >= 0) {
+            Tag in;
+            qsizetype p = listStart;
+            int children = 0, d = 0;
+            bool started = false;
+            while (xmlscan::nextTag(out, p, &in)) {
+                p = in.end;
+                if (in.closing) {
+                    if (--d <= 0) break;
+                    continue;
+                }
+                if (started && d == 1) ++children;
+                started = true;
+                if (!in.selfClosing) ++d;
+                else if (d == 0) break;
+            }
+            if (children == 0) {
+                const QByteArray closeTag = "</" + prefix + "extLst>";
+                const qsizetype closeAt = out.indexOf(closeTag, listStart);
+                if (closeAt >= 0) return out.left(listStart) + out.mid(closeAt + closeTag.size());
+            }
+        }
+        return out;
+    }
+    if (ext.isEmpty()) return after;
+    if (listStart >= 0 && listEnd >= 0 && !listSelfClosing) return after.left(listClose) + ext + after.mid(listClose);
+    const QByteArray list = "<" + prefix + "extLst>" + ext + "</" + prefix + "extLst>";
+    if (listSelfClosing) return after.left(listStart) + list + after.mid(listEnd);
+    if (worksheetClose < 0) return after;
+    return after.left(worksheetClose) + list + after.mid(worksheetClose);
+}
+
 class Patcher {
 public:
     Patcher(QIODevice *in, PartSink *out, const SheetChanges &changes, bool hasShared, const std::atomic<bool> *cancel) : m_in(in), m_out(out), m_hasShared(hasShared), m_cancel(cancel)
@@ -1051,6 +1132,7 @@ public:
         m_dropPivotSelection = changes.dropPivotSelection;
         m_hfSet = changes.hfSet;
         m_hfRel = changes.hfRel.toLatin1();
+        if (changes.replaceSparklines) m_sparklines = &changes.sparklines;
         m_legacyId = changes.legacyRelId.toLatin1();
         if (!changes.unlinks.empty() || !changes.links.empty()) {
             m_unlinks = &changes.unlinks;
@@ -1563,7 +1645,7 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_legacyId.isEmpty() || m_links || m_protection || !m_addTables->empty() || !m_removeTables->empty()) {
+        if (m_merges || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || !m_addTables->empty() || !m_removeTables->empty()) {
             // (what follows the cells is held whole to change its merged ranges, its filter, its page setup, and its drawing)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -1583,6 +1665,7 @@ private:
                 if (m_links) tail = tailWithLinks(tail, *m_unlinks, *m_links, m_prefix);
                 if (m_hfSet) tail = tailWithHeaderDrawing(tail, m_hfRel, m_prefix);
                 if (!m_addTables->empty() || !m_removeTables->empty()) tail = tailWithTableParts(tail, *m_addTables, *m_removeTables, m_prefix);
+                if (m_sparklines) tail = tailWithSparklines(tail, *m_sparklines, m_prefix);
                 return tail;
             };
             if (m_dataClosed) put(tailOf(rest));   // (an empty sheetData was given its closing tag with its rows: what is left follows it)
@@ -1623,6 +1706,7 @@ private:
     const std::vector<CellRange> *m_merges = nullptr;
     const PageSetup *m_page = nullptr;
     QByteArray m_drawingId;
+    const QVector<SparklineGroup> *m_sparklines = nullptr;
     const std::vector<QString> *m_addTables = nullptr;
     const std::vector<QString> *m_removeTables = nullptr;
     const SheetFormat *m_format = nullptr;

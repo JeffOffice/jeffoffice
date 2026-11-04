@@ -3,6 +3,7 @@
 #include "wml/xmltree.h"
 
 #include <QRegularExpression>
+#include <QXmlStreamReader>
 #include <algorithm>
 #include <tuple>
 
@@ -318,6 +319,152 @@ bool settingsTrackRevisions(const QByteArray &settings)
     return false;
 }
 
+// The elements the schema puts after the mail merge.
+static const QVector<QByteArray> &afterMailMerge()
+{
+    static const QVector<QByteArray> later = {"revisionView", "trackRevisions", "doNotTrackMoves", "doNotTrackFormatting", "documentProtection", "autoFormatOverride", "styleLockTheme", "styleLockQFSet",
+                                        "defaultTabStop", "autoHyphenation", "consecutiveHyphenLimit", "hyphenationZone", "doNotHyphenateCaps", "showEnvelope", "summaryLength", "clickAndTypeStyle",
+                                        "defaultTableStyle", "evenAndOddHeaders", "bookFoldRevPrinting", "bookFoldPrinting", "bookFoldPrintingSheets", "drawingGridHorizontalSpacing",
+                                        "drawingGridVerticalSpacing", "displayHorizontalDrawingGridEvery", "displayVerticalDrawingGridEvery", "doNotUseMarginsForDrawingGridOrigin",
+                                        "drawingGridHorizontalOrigin", "drawingGridVerticalOrigin", "doNotShadeFormData", "noPunctuationKerning", "characterSpacingControl", "printTwoOnOne",
+                                        "strictFirstAndLastChars", "noLineBreaksAfter", "noLineBreaksBefore", "savePreviewPicture", "doNotValidateAgainstSchema", "saveInvalidXml", "ignoreMixedContent",
+                                        "alwaysShowPlaceholderText", "doNotDemarcateInvalidXml", "saveXmlDataOnly", "useXSLTWhenSaving", "saveThroughXslt", "showXMLTags", "alwaysMergeEmptyNamespace",
+                                        "updateFields", "hdrShapeDefaults", "footnotePr", "endnotePr", "compat", "docVars", "rsids", "mathPr", "attachedSchema", "themeFontLang", "clrSchemeMapping",
+                                        "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures", "forceUpgrade", "captions", "readModeInkLockDown", "smartTagType", "schemaLibrary", "shapeDefaults",
+                                        "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
+    return later;
+}
+
+bool readMailMerge(const QByteArray &settings, MailMergeSettings *out)
+{
+    QVector<SettingsChild> children;
+    qsizetype rootEnd = 0;
+    QByteArray prefix;
+    if (settings.trimmed().isEmpty() || !settingsChildren(settings, &children, &rootEnd, &prefix)) return false;
+    qsizetype begin = -1, end = -1;
+    for (const SettingsChild &c : children)
+        if (c.name == "mailMerge") {
+            begin = c.begin;
+            end = c.end;
+            break;
+        }
+    if (begin < 0) return false;
+    const QByteArray whole = settings.mid(begin, end - begin);
+    // The elements and attributes are told by their namespaces (the part's, declared on its root or on the elements), not by the letters of their prefixes.
+    static const QString kMain = QStringLiteral("http://schemas.openxmlformats.org/wordprocessingml/2006/main");
+    static const QString kRel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships");
+    MailMergeSettings m;
+    QXmlStreamReader r(settings);
+    int depth = 0;
+    bool found = false;
+    auto val = [&] { return r.attributes().value(kMain, QStringLiteral("val")).toString(); };
+    auto on = [&] {
+        const QString v = val();
+        return !(v == QLatin1String("0") || v == QLatin1String("false") || v == QLatin1String("off"));
+    };
+    int merge = -1;   // the depth of the mailMerge element
+    bool odsoOpen = false;
+    while (!r.atEnd()) {
+        r.readNext();
+        if (r.isStartElement()) {
+            ++depth;
+            const bool mine = r.namespaceUri() == kMain;
+            if (merge < 0) {
+                if (depth == 2 && mine && r.name() == u"mailMerge") merge = depth;
+                continue;
+            }
+            if (depth != merge + 1 || !mine) continue;
+            const QString n = r.name().toString();
+            if (n == QLatin1String("mainDocumentType")) m.type = val();
+            else if (n == QLatin1String("linkToQuery")) m.linkToQuery = on();
+            else if (n == QLatin1String("dataType")) m.dataType = val();
+            else if (n == QLatin1String("connectString")) m.connectString = val();
+            else if (n == QLatin1String("query")) m.query = val();
+            else if (n == QLatin1String("dataSource")) m.dataSourceId = r.attributes().value(kRel, QStringLiteral("id")).toString();
+            else if (n == QLatin1String("headerSource")) m.headerSourceId = r.attributes().value(kRel, QStringLiteral("id")).toString();
+            else if (n == QLatin1String("doNotSuppressBlankLines")) m.doNotSuppressBlankLines = on();
+            else if (n == QLatin1String("destination")) m.destination = val();
+            else if (n == QLatin1String("addressFieldName")) m.addressFieldName = val();
+            else if (n == QLatin1String("mailSubject")) m.mailSubject = val();
+            else if (n == QLatin1String("mailAsAttachment")) m.mailAsAttachment = on();
+            else if (n == QLatin1String("viewMergedData")) m.viewMergedData = on();
+            else if (n == QLatin1String("activeRecord")) m.activeRecord = val().toInt();
+            else if (n == QLatin1String("checkErrors")) m.checkErrors = val().toInt();
+            else if (n == QLatin1String("odso")) odsoOpen = true;
+        } else if (r.isEndElement()) {
+            if (merge >= 0 && depth == merge + 1 && odsoOpen && r.namespaceUri() == kMain && r.name() == u"odso") {
+                odsoOpen = false;
+                // (the element as it stands in the part: found by its tags, not by the reader's offsets)
+                const qsizetype a = whole.indexOf("<" + prefix + "odso"), b = whole.lastIndexOf("</" + prefix + "odso>");
+                if (a >= 0 && b > a) m.odso = whole.mid(a, b + prefix.size() + 7 - a);
+                else if (a >= 0) m.odso = whole.mid(a, whole.indexOf("/>", a) + 2 - a);
+            }
+            if (merge >= 0 && depth == merge) {
+                found = true;
+                break;
+            }
+            --depth;
+        }
+    }
+    if (!found || m.type.isEmpty()) return false;
+    *out = m;
+    return true;
+}
+
+QByteArray settingsWithMailMerge(const QByteArray &settings, const MailMergeSettings &m)
+{
+    QByteArray element;
+    {
+        const QByteArray p = "w:";
+        auto esc = [](const QString &s) {
+            QByteArray b = s.toUtf8();
+            b.replace('&', "&amp;").replace('<', "&lt;").replace('"', "&quot;").replace('>', "&gt;");
+            return b;
+        };
+        auto flag = [&](const char *name, bool on) { return on ? "<" + p + name + "/>" : QByteArray(); };
+        auto valued = [&](const char *name, const QString &v) { return "<" + p + name + " " + p + "val=\"" + esc(v) + "\"/>"; };
+        const bool declared = settings.contains("xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"");
+        element = "<" + p + "mailMerge" + (declared ? "" : " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"") + ">" + valued("mainDocumentType", m.type) + flag("linkToQuery", m.linkToQuery);
+        if (!m.dataType.isEmpty()) element += valued("dataType", m.dataType);
+        if (!m.dataType.isEmpty() || !m.connectString.isEmpty()) element += valued("connectString", m.connectString);
+        if (!m.query.isEmpty()) element += valued("query", m.query);
+        if (!m.dataSourceId.isEmpty()) element += "<" + p + "dataSource r:id=\"" + esc(m.dataSourceId) + "\"/>";
+        if (!m.headerSourceId.isEmpty()) element += "<" + p + "headerSource r:id=\"" + esc(m.headerSourceId) + "\"/>";
+        element += flag("doNotSuppressBlankLines", m.doNotSuppressBlankLines);
+        if (!m.destination.isEmpty()) element += valued("destination", m.destination);
+        if (!m.addressFieldName.isEmpty()) element += valued("addressFieldName", m.addressFieldName);
+        if (!m.mailSubject.isEmpty()) element += valued("mailSubject", m.mailSubject);
+        element += flag("mailAsAttachment", m.mailAsAttachment);
+        element += flag("viewMergedData", m.viewMergedData);
+        if (m.activeRecord > 0) element += valued("activeRecord", QString::number(m.activeRecord));
+        if (m.checkErrors >= 0) element += valued("checkErrors", QString::number(m.checkErrors));
+        element += m.odso;
+        element += "</" + p + "mailMerge>";
+    }
+    QVector<SettingsChild> children;
+    qsizetype rootEnd = 0;
+    QByteArray prefix;
+    const bool wellFormed = !settings.trimmed().isEmpty() && settingsChildren(settings, &children, &rootEnd, &prefix);
+    if (wellFormed) {
+        for (const SettingsChild &c : children) {
+            if (c.name != "mailMerge") continue;
+            if (m.type.isEmpty()) return settings.left(c.begin) + settings.mid(c.end);
+            if (prefix != "w:") element.replace("<w:", "<" + prefix).replace("</w:", "</" + prefix).replace(" w:val=", " " + prefix + "val=");
+            return settings.left(c.begin) + element + settings.mid(c.end);
+        }
+    }
+    if (m.type.isEmpty()) return settings;
+    // Put in its place with the machinery of the flags, then the flag stands for the element.
+    const QByteArray marked = settingsWithFlag(settings, "jwmailmerge", true, afterMailMerge());
+    const qsizetype at = marked.indexOf("jwmailmerge/>");
+    if (at < 0) return settings;
+    const qsizetype from = marked.lastIndexOf('<', at);
+    QByteArray pre = marked.mid(from + 1, at - from - 1);   // the prefix the part uses ("w:")
+    QByteArray fixed = element;
+    if (pre != "w:") fixed.replace("<w:", "<" + pre).replace("</w:", "</" + pre).replace(" w:val=", " " + pre + "val=");
+    return marked.left(from) + fixed + marked.mid(at + 13);
+}
+
 QByteArray settingsWithNoteSeparators(const QByteArray &settings, bool endnotes)
 {
     static const char kXml[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n";
@@ -358,6 +505,62 @@ QByteArray settingsWithNoteSeparators(const QByteArray &settings, bool endnotes)
         }
     }
     return settings.left(at) + open + inside + close + settings.mid(at);
+}
+
+QByteArray settingsWithNoteProperties(const QByteArray &settings, bool endnotes, const NoteProperties &p)
+{
+    static const char kXml[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n";
+    const QByteArray group = endnotes ? "endnotePr" : "footnotePr", note = endnotes ? "endnote" : "footnote";
+    auto inner = [&](const QByteArray &prefix, const QByteArray &refs) {
+        QByteArray out;
+        if (!p.position.isEmpty()) out += "<" + prefix + "pos " + prefix + "val=\"" + escapeXml(p.position, true) + "\"/>";
+        if (!p.format.isEmpty()) out += "<" + prefix + "numFmt " + prefix + "val=\"" + escapeXml(p.format, true) + "\"/>";
+        if (p.start > 0) out += "<" + prefix + "numStart " + prefix + "val=\"" + QByteArray::number(std::min(p.start, 32767)) + "\"/>";
+        if (!p.restart.isEmpty()) out += "<" + prefix + "numRestart " + prefix + "val=\"" + escapeXml(p.restart, true) + "\"/>";
+        return out + refs;
+    };
+    if (settings.trimmed().isEmpty())
+        return QByteArray(kXml) + "<w:settings xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><w:" + group + ">" +
+               inner("w:", QByteArray()) + "</w:" + group + "></w:settings>";
+    QVector<SettingsChild> children;
+    qsizetype rootEnd = 0;
+    QByteArray prefix;
+    if (!settingsChildren(settings, &children, &rootEnd, &prefix)) return settings;
+    for (const SettingsChild &c : children) {
+        if (c.name != group) continue;
+        // (The notes the group names, the separators, stay as they are; what it says of the numbering is made again.)
+        const QByteArray whole = settings.mid(c.begin, c.end - c.begin);
+        QByteArray refs;
+        const QByteArray tag = "<" + prefix + note;
+        for (qsizetype at = whole.indexOf(tag); at >= 0; at = whole.indexOf(tag, at + 1)) {
+            const qsizetype close = whole.indexOf('>', at);
+            if (close < 0) break;
+            if (at + tag.size() < whole.size() && whole[at + tag.size()] != ' ' && whole[at + tag.size()] != '/' && whole[at + tag.size()] != '>') continue;
+            refs += whole.mid(at, close - at + 1);
+        }
+        return settings.left(c.begin) + "<" + prefix + group + ">" + inner(prefix, refs) + "</" + prefix + group + ">" + settings.mid(c.end);
+    }
+    static const char *const later[] = {"endnotePr", "compat", "docVars", "rsids", "mathPr", "attachedSchema", "themeFontLang", "clrSchemeMapping", "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures",
+                                        "forceUpgrade", "captions", "readModeInkLockDown", "smartTagType", "schemaLibrary", "shapeDefaults", "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
+    qsizetype at = rootEnd;
+    for (const SettingsChild &c : children) {
+        bool after = false;
+        for (const char *name : later) after = after || (c.name == name && !(endnotes && c.name == "endnotePr"));
+        if (after) {
+            at = c.begin;
+            break;
+        }
+    }
+    return settings.left(at) + "<" + prefix + group + ">" + inner(prefix, QByteArray()) + "</" + prefix + group + ">" + settings.mid(at);
+}
+
+bool settingsAcceptNoteProperties(const QByteArray &settings)
+{
+    if (settings.trimmed().isEmpty()) return true;
+    QVector<SettingsChild> children;
+    qsizetype rootEnd = 0;
+    QByteArray prefix;
+    return settingsChildren(settings, &children, &rootEnd, &prefix);
 }
 
 // ---- Fonts

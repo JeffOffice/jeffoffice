@@ -29,10 +29,10 @@ struct Window {
         w.show();
     }
     // Opens a workbook and waits until it is read and every formula has its value.
-    bool open(const QString &path)
+    bool open(const QString &path, OpenHow how = OpenHow::Normal)
     {
         QSignalSpy first(&w, &CrunchWindow::firstScreenShown), done(&w, &CrunchWindow::calculationFinished), loaded(&w, &CrunchWindow::loadFinished);
-        if (!w.openFile(path)) return false;
+        if (!w.openFile(path, how)) return false;
         // (JP_TEST_WAIT_MS: how long each stage may take; a build without optimization is slow on the biggest sheets. The wait is for the
         // stage to end, not a measure of its speed, so it is long: a sheet of half a million rows took over 20 seconds to open on a machine busy with other builds.)
         const int ms = qEnvironmentVariableIntValue("JP_TEST_WAIT_MS") > 0 ? qEnvironmentVariableIntValue("JP_TEST_WAIT_MS") : 120000;

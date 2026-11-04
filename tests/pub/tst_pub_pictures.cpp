@@ -1,5 +1,6 @@
 // JeffPub's tests of pictures: linked, online, dropped, and the building blocks.
 #include "pubhelpers.h"
+#include "../isolatesettings.h"
 
 class PubPictureTests : public QObject {
     Q_OBJECT
@@ -504,7 +505,7 @@ private Q_SLOTS:
     // gallery looked).
     void savedBuildingBlocksInsert()
     {
-        QStandardPaths::setTestModeEnabled(true);   // a test folder, not the real one
+        jptest::TestModeGuard testMode;   // a test folder, not the real one
         QDir(jp::userBlocksDir()).removeRecursively();
         jp::MainWindow w;
         jp::Editor *ed = w.editor();
@@ -533,7 +534,6 @@ private Q_SLOTS:
         QVERIFY(made && made->id != box->id);
         QCOMPARE(ed->doc()->storyDoc(made->storyId)->toPlainText(), QStringLiteral("Block text"));
         QDir(jp::userBlocksDir()).removeRecursively();
-        QStandardPaths::setTestModeEnabled(false);
     }
 
     // A picture field shows each record's picture in the preview, printing,
@@ -757,6 +757,14 @@ private Q_SLOTS:
         jp::MergeSource x;
         QVERIFY2(jp::loadMergeSource(dir.filePath(QStringLiteral("list.xlsx")), &x, &err), qPrintable(err));
         for (const QStringList &r : x.rows) QVERIFY(r.size() <= 16384);
+        QCOMPARE(x.fields, (QStringList{"Name"}));
+        QCOMPARE(x.rows.size(), 1);
+        QCOMPARE(x.rows[0].value(0), QStringLiteral("Jane"));
+        // (the same bare package under the macro-enabled name)
+        QVERIFY(QFile::copy(dir.filePath(QStringLiteral("list.xlsx")), dir.filePath(QStringLiteral("list.xlsm"))));
+        jp::MergeSource y;
+        QVERIFY2(jp::loadMergeSource(dir.filePath(QStringLiteral("list.xlsm")), &y, &err), qPrintable(err));
+        QCOMPARE(y.rows.size(), 1);
     }
 
     // Online Pictures tells a library which program asks, as Wikimedia asks programs to: the running app's name and version, and

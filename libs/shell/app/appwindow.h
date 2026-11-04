@@ -20,6 +20,27 @@ public:
     virtual Ribbon *ribbon() const = 0;
     // Every app window that is open, in the order the system lists them.
     static QList<AppWindow *> windows();
+
+    // A file opened read-only: nothing in it can be changed here, and Save asks for a new name (which makes the window an ordinary one). The app's window overrides
+    // setReadOnly to show it (the title, what it will not let be typed or dragged), and calls the base.
+    bool isReadOnly() const { return m_readOnly; }
+    virtual void setReadOnly(bool on);
+    // Whether a command (by its id) still works in a read-only document: the ones that only look, find, copy, or leave. Every other is refused.
+    static bool commandAllowedReadOnly(const QString &id);
+    // Whether a control of the ribbon that is not a command (named as the ribbon file names its widgets) may be used in a read-only document.
+    static bool ribbonControlAllowedReadOnly(const QString &name);
+    // Says, in the status bar, why a change was refused.
+    void refuseReadOnlyChange();
+    // True, after saying why, when a change is asked for in a read-only document: for a control that changes the document without being a command (a box, a gallery, a menu made in code).
+    bool refuseIfReadOnly()
+    {
+        if (!m_readOnly) return false;
+        refuseReadOnlyChange();
+        return true;
+    }
+
+protected:
+    bool m_readOnly = false;
 };
 
 } // namespace jp

@@ -1,6 +1,7 @@
 // Tests of editing in JeffCrunch's window: typing over a cell, in it (F2, a double click), and in the formula bar; the keys that finish or give up an entry; what typed numbers,
 // percents, money, dates, and times are given as values and formats; a formula that is not one; Delete; what depends on a cell worked out again by the worker; Undo and Redo; and saving
 // (Save, Save As, a save that fails, the question when a window with changes is closed). Every workbook is built here, in a temporary folder.
+#include "../settingguard.h"
 #include "app/crunchinfo.h"
 #include "app/crunchfilescreen.h"
 #include "app/crunchwindow.h"
@@ -8,6 +9,14 @@
 #include "savedok.h"
 #include "app/help.h"
 #include "app/settings.h"
+#include "app/filetasks.h"
+#include "app/finddialog.h"
+#include "office/package.h"
+#include <QLineEdit>
+#include <QPushButton>
+#include "app/otherformats.h"
+#include "io/zip.h"
+#include <QStandardPaths>
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "core/resultmap.h"
@@ -518,6 +527,459 @@ private Q_SLOTS:
         QVERIFY(second.open(e.copyOfFile()));
         second.w.view()->selectCell(1, 5);
         QCOMPARE(second.w.formulaBar()->text(), QStringLiteral("=LET(x,A1,x*2)"));
+    }
+
+    // Save a Copy writes the workbook to another file and goes on with the original: the window keeps its name and its unsaved changes, and the copy has them.
+    void saveACopyKeepsWorkingInTheOriginal()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        const QString copy = e.folder.dir.filePath(QStringLiteral("book copy.xlsx"));
+        e.win.w.setSavePicker([&](const QString &, const QString &) { return copy; });
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("42"));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.isModified());
+        QSignalSpy made(&e.win.w, &CrunchWindow::copyExported);
+        QVERIFY(e.win.w.act(QStringLiteral("file.saveCopy"))->isEnabled());
+        QVERIFY(e.win.w.saveCopy());
+        QTRY_COMPARE_WITH_TIMEOUT(made.count(), 1, 20000);
+        QVERIFY(made.first().at(1).toBool());
+        QVERIFY(e.win.w.isModified());
+        QCOMPARE(e.win.w.filePath(), e.path);
+        QCOMPARE(savedCell(copy, QStringLiteral("A1")), QStringLiteral("n:42"));
+        QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:1"));   // (the original file is as it was)
+        // The window can still save itself over its own file.
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:42"));
+        // A copy is never written over the workbook's own file.
+        QStringList told;
+        e.win.w.setNotifier([&](const QString &, const QString &text) { told << text; });
+        e.win.w.setSavePicker([&](const QString &, const QString &) { return e.path; });
+        QVERIFY(!e.win.w.saveCopy());
+        QCOMPARE(told.size(), 1);
+    }
+
+    // With "Always create backup copy" on, a save keeps the file as it was as "Backup of <name>".
+    void aBackupCopyIsKeptOnSave()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        const QString backup = e.folder.dir.filePath(QStringLiteral("Backup of book.xlsx"));
+        auto saveWith = [&](const QString &value) {
+            e.select(QStringLiteral("A1"));
+            e.enter(value);
+            QVERIFY(e.settle());
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save());
+            QVERIFY2(savedOk(saved, 20000), "the save failed");
+        };
+        saveWith(QStringLiteral("2"));
+        QVERIFY(!QFileInfo::exists(backup));   // (the option is off)
+        {
+            jptest::SettingGuard keep(QStringLiteral("save/backup"), true, false);
+            saveWith(QStringLiteral("3"));
+        }
+        QVERIFY(QFileInfo::exists(backup));
+        QCOMPARE(savedCell(backup, QStringLiteral("A1")), QStringLiteral("n:2"));
+        QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:3"));
+    }
+
+    // Open Read-Only: no cell can be changed (typing, commands), Save asks for a new name, and the new file is an ordinary workbook.
+    void aWorkbookOpenedReadOnlyCannotBeChanged()
+    {
+        EditWindow e;
+        e.path = e.folder.write(QStringLiteral("book.xlsx"), editBook());
+        QVERIFY(e.win.open(e.path, OpenHow::ReadOnly));
+        QVERIFY(e.win.w.isReadOnly());
+        QVERIFY(e.win.w.windowTitle().contains(QLatin1String("Read-Only")));
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("5"));
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        QVERIFY(!e.win.w.isModified());
+        // Save asks for another name; the file it was opened from is as it was.
+        const QString other = e.folder.dir.filePath(QStringLiteral("changed.xlsx"));
+        e.win.w.setSavePicker([&](const QString &, const QString &) { return other; });
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QCOMPARE(e.win.w.filePath(), other);
+        QVERIFY(!e.win.w.isReadOnly());
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("5"));
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:5"));
+        QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:1"));
+    }
+
+    // In a workbook open for reading only, Replace and Replace All (the dialog is there for Find) change nothing, and the commands that change the workbook are refused.
+    void aReadOnlyWorkbookIsNotChangedByReplace()
+    {
+        EditWindow e;
+        e.path = e.folder.write(QStringLiteral("book.xlsx"), editBook());
+        QVERIFY(e.win.open(e.path, OpenHow::ReadOnly));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(!w.act(QStringLiteral("find.replace"))->isEnabled());
+        QVERIFY(!CrunchWindow::commandAllowedReadOnly(QStringLiteral("find.replace")));
+        const QString before = w.session()->editText(0, 0, 2);
+        QCOMPARE(before, QStringLiteral("hello"));
+        const int steps = w.undoStack()->count();
+        w.act(QStringLiteral("find.replace"))->trigger();
+        w.act(QStringLiteral("edit.find"))->trigger();   // (Find is allowed: its dialog has the Change buttons)
+        FindDialog *d = w.findDialog();
+        QVERIFY(d);
+        d->setTab(FindDialog::Tab::Replace);
+        d->findChild<QLineEdit *>(QStringLiteral("findText"))->setText(QStringLiteral("hello"));
+        d->findChild<QLineEdit *>(QStringLiteral("replaceText"))->setText(QStringLiteral("bye"));
+        e.select(QStringLiteral("C1"));
+        d->findChild<QPushButton *>(QStringLiteral("replaceOne"))->click();
+        d->findChild<QPushButton *>(QStringLiteral("replaceAll"))->click();
+        QTest::qWait(300);
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->editText(0, 0, 2), before);
+        QCOMPARE(w.undoStack()->count(), steps);
+        QVERIFY(!w.isModified());
+        // The commands that change it are off, or refused, one by one.
+        for (const QString &id : w.actionIds())
+            if (!CrunchWindow::commandAllowedReadOnly(id)) w.act(id)->trigger();
+        QCOMPARE(w.undoStack()->count(), steps);
+        QVERIFY(!w.isModified());
+        QCOMPARE(w.session()->editText(0, 0, 2), before);
+    }
+
+    // The package kept for the reader of an Open and Repair is removed when the read is over, when the window goes before then, and when the repair's own load fails: tied to an object, not to one path.
+    void theRepairFileGoesWithTheWindowOnEveryPath()
+    {
+        EditWindow e;
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(editBook(), parts));
+        const QString sheet = QStringLiteral("xl/worksheets/sheet1.xml");
+        parts[sheet].truncate(parts[sheet].indexOf("<row r=\"3\"") + 20);
+        jp::ZipWriter z;
+        z.add(QStringLiteral("[Content_Types].xml"), parts.take(QStringLiteral("[Content_Types].xml")), true);
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it) z.add(it.key(), it.value(), true);
+        const QString path = e.folder.write(QStringLiteral("cut.xlsx"), z.finish());
+        // (1) read to the end: the file is gone
+        QVERIFY(e.win.open(path, OpenHow::Repair));
+        const QString made = e.win.w.lastRepairFileForTest();
+        QVERIFY(!made.isEmpty());
+        QVERIFY(!QFileInfo::exists(made));
+        // (2) the window closes while the read is still running: the file exists until then, and goes with the window
+        QString second;
+        {
+            CrunchWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            QVERIFY(w.openFile(path, OpenHow::Repair));
+            QVERIFY(w.isLoading());   // (no event has run since: the read has not ended)
+            second = w.lastRepairFileForTest();
+            QVERIFY(!second.isEmpty() && second != made);
+            QVERIFY(QFileInfo::exists(second));
+        }
+        QVERIFY(!QFileInfo::exists(second));
+        // (3) the read fails: the file goes (the package has a workbook with no sheet in it)
+        {
+            CrunchWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            QSignalSpy loaded(&w, &CrunchWindow::loadFinished);
+            jp::ZipWriter bz;
+            bz.add(QStringLiteral("xl/workbook.xml"), "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheets/></workbook>", true);
+            const QString badPath = e.folder.write(QStringLiteral("bad.xlsx"), bz.finish());
+            QVERIFY(w.openFile(badPath, OpenHow::Repair));
+            const QString third = w.lastRepairFileForTest();
+            QVERIFY(!third.isEmpty());
+            QVERIFY(QFileInfo::exists(third));
+            QVERIFY(loaded.count() > 0 || loaded.wait(20000));
+            QVERIFY2(!loaded.last().first().toBool(), "the read was expected to fail");
+            QVERIFY(!QFileInfo::exists(third));
+        }
+        // (4) another open while the read goes on (it opens in a window of its own, as a window that is reading keeps its workbook): the first window's file stays until its read ends, then goes
+        {
+            CrunchWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            QSignalSpy loaded(&w, &CrunchWindow::loadFinished);
+            QVERIFY(w.openFile(path, OpenHow::Repair));
+            const QString one = w.lastRepairFileForTest();
+            QVERIFY(QFileInfo::exists(one));
+            QFile cutFile(path);
+            QVERIFY(cutFile.open(QIODevice::ReadOnly));
+            const QString otherPath = e.folder.write(QStringLiteral("cut2.xlsx"), cutFile.readAll());
+            const int windows = AppWindow::windows().size();
+            QVERIFY(w.openFile(otherPath, OpenHow::Repair));
+            QCOMPARE(AppWindow::windows().size(), windows + 1);
+            QCOMPARE(w.lastRepairFileForTest(), one);
+            QVERIFY(QFileInfo::exists(one));
+            QString two;
+            for (AppWindow *other : AppWindow::windows())
+                if (auto *c = qobject_cast<CrunchWindow *>(other); c && c != &w && !c->lastRepairFileForTest().isEmpty()) two = c->lastRepairFileForTest();
+            QVERIFY(!two.isEmpty() && two != one);
+            QVERIFY(loaded.count() > 0 || loaded.wait(20000));
+            QVERIFY(!QFileInfo::exists(one));
+            QTRY_VERIFY_WITH_TIMEOUT(!QFileInfo::exists(two), 20000);
+            for (AppWindow *other : AppWindow::windows())
+                if (auto *c = qobject_cast<CrunchWindow *>(other); c && c != &w && c != &e.win.w) {
+                    c->setAttribute(Qt::WA_DeleteOnClose, false);
+                    delete c;
+                }
+        }
+    }
+
+    // Open and Repair reads the file whole, so a file larger than the apps open is refused before anything is read, and the person is told.
+    void aRepairOfAFileLargerThanTheMostIsRefused()
+    {
+        EditWindow e;
+        const QString path = e.folder.dir.filePath(QStringLiteral("huge.xlsx"));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            QVERIFY(f.resize(jp::office::kMaxOpenFileBytes + 1));   // (a sparse file: nothing is stored)
+        }
+        QStringList told;
+        e.win.w.setNotifier([&](const QString &t, const QString &x) { told << t + QStringLiteral(": ") + x; });
+        QVERIFY(!e.win.w.openFile(path, OpenHow::Repair));
+        QVERIFY(!told.isEmpty());
+        QVERIFY2(told.last().contains(QLatin1String("larger")), qPrintable(told.last()));
+        QVERIFY(e.win.w.lastRepairFileForTest().isEmpty());
+    }
+
+    // A template made from a workbook with macros is a plain template: no macro project, the plain template type, and the person is told first, as Save As tells.
+    void aTemplateMadeFromAMacroWorkbookHasNoMacros()
+    {
+        QByteArray macroBook;
+        {
+            QMap<QString, QByteArray> parts;
+            QVERIFY(readZip(editBook(), parts));
+            ZipWriter z;
+            for (auto it = parts.begin(); it != parts.end(); ++it) {
+                QByteArray data = it.value();
+                if (it.key() == QLatin1String("[Content_Types].xml"))
+                    data.replace("spreadsheetml.sheet.main+xml", "ms-excel.sheet.macroEnabled.main+xml").replace("</Types>", "<Override PartName=\"/xl/vbaProject.bin\" ContentType=\"application/vnd.ms-office.vbaProject\"/></Types>");
+                if (it.key() == QLatin1String("xl/_rels/workbook.xml.rels"))
+                    data.replace("</Relationships>", "<Relationship Id=\"rIdVba\" Type=\"http://schemas.microsoft.com/office/2006/relationships/vbaProject\" Target=\"vbaProject.bin\"/></Relationships>");
+                z.add(it.key(), data, true);
+            }
+            z.add(QStringLiteral("xl/vbaProject.bin"), QByteArray("VBA project bytes \x01\x02\x03", 20), true);
+            macroBook = z.finish();
+        }
+        jptest::TestModeGuard testMode;
+        QDir(myTemplatesFolder()).removeRecursively();
+        EditWindow e;
+        QVERIFY(e.open(macroBook, QStringLiteral("macros.xlsm")));
+        setTemplateNameStandIn([](const QString &) { return QStringLiteral("Macros"); });
+        QSignalSpy made(&e.win.w, &CrunchWindow::copyExported);
+        const bool started = e.win.w.saveAsTemplate();
+        setTemplateNameStandIn({});
+        QVERIFY(started);
+        QTRY_COMPARE_WITH_TIMEOUT(made.count(), 1, 20000);
+        QVERIFY(made.first().at(1).toBool());
+        QVERIFY(e.win.told.last().contains(QLatin1String("macros")));
+        const QStringList found = myTemplateFiles({QStringLiteral("*.xltx")});
+        QCOMPARE(found.size(), 1);
+        QFile f(found.first());
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        f.close();
+        QVERIFY(!rawParts(bytes).contains(QStringLiteral("xl/vbaProject.bin")));
+        const QByteArray types = entriesOf(bytes).value(QStringLiteral("[Content_Types].xml"));
+        QVERIFY(!types.contains("macroEnabled"));
+        QVERIFY(types.contains("spreadsheetml.template.main+xml"));
+        QVERIFY(!entriesOf(bytes).value(QStringLiteral("xl/_rels/workbook.xml.rels")).contains("vbaProject"));
+        QVERIFY(removeMyTemplate(found.first()));
+    }
+
+    // A backup that can't be made asks before the save goes on (not saving is the default): the workbook's file is as it was when the answer is no.
+    void aBackupThatFailsAsksBeforeTheWorkbookIsSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QFile before(e.path);
+        QVERIFY(before.open(QIODevice::ReadOnly));
+        const QByteArray original = before.readAll();
+        before.close();
+        jptest::SettingGuard keep(QStringLiteral("save/backup"), true, false);
+        struct Reset {
+            ~Reset() { setBackupFailureStandIn({}); }
+        } reset;
+        QVERIFY(QDir().mkpath(backupPathFor(e.path)));   // (a folder where the backup would go)
+        QStringList asked;
+        setBackupFailureStandIn([&](const QString &p) {
+            asked << p;
+            return false;
+        });
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        QVERIFY(!e.win.w.save());
+        QCOMPARE(asked.size(), 1);
+        QVERIFY(!e.win.w.isSaving());
+        QFile after(e.path);
+        QVERIFY(after.open(QIODevice::ReadOnly));
+        QCOMPARE(after.readAll(), original);
+        QVERIFY(e.win.w.isModified());
+        after.close();
+        // Saying yes saves.
+        setBackupFailureStandIn([&](const QString &) { return true; });
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:5"));
+    }
+
+    // Open as Copy: the workbook has no file of its own, so Save asks where, and the file it was read from is never written.
+    void aWorkbookOpenedAsACopyHasNoFile()
+    {
+        EditWindow e;
+        e.path = e.folder.write(QStringLiteral("book.xlsx"), editBook());
+        QVERIFY(e.win.open(e.path, OpenHow::Copy));
+        QVERIFY(e.win.w.filePath().isEmpty());
+        QVERIFY(!e.win.w.isReadOnly());
+        QVERIFY(e.win.w.displayName().contains(QLatin1String("book")));
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("7"));
+        QVERIFY(e.settle());
+        const QString other = e.folder.dir.filePath(QStringLiteral("second.xlsx"));
+        e.win.w.setSavePicker([&](const QString &, const QString &) { return other; });
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QCOMPARE(e.win.w.filePath(), other);
+        QCOMPARE(savedCell(other, QStringLiteral("A1")), QStringLiteral("n:7"));
+        QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:1"));
+    }
+
+    // Open in New Window: a window that holds a new workbook nobody has touched stays as it is, and the file opens in a window of its own.
+    void aWorkbookCanBeOpenedInANewWindow()
+    {
+        EditWindow e;
+        const QString path = e.folder.write(QStringLiteral("book.xlsx"), editBook());
+        QVERIFY(e.openBlank());
+        const int before = AppWindow::windows().size();
+        QVERIFY(e.win.w.openFile(path, OpenHow::NewWindow));
+        QCOMPARE(AppWindow::windows().size(), before + 1);
+        QVERIFY(e.win.w.filePath().isEmpty());
+        CrunchWindow *opened = nullptr;
+        for (AppWindow *other : AppWindow::windows())
+            if (auto *w = qobject_cast<CrunchWindow *>(other); w && w != &e.win.w && w->filePath() == path) opened = w;
+        QVERIFY(opened);
+        QTRY_VERIFY_WITH_TIMEOUT(opened->session() != nullptr, 20000);
+        QTRY_VERIFY_WITH_TIMEOUT(!opened->isCalculating(), 20000);
+        opened->close();
+    }
+
+    // Save as Template puts an .xltx in My Templates (with a picture) and leaves the workbook as it was; a workbook made from it has its cells and no file.
+    void saveAsTemplatePutsAWorkbookInMyTemplates()
+    {
+        jptest::TestModeGuard testMode;
+        QDir(myTemplatesFolder()).removeRecursively();
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("42"));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.isModified());
+        setTemplateNameStandIn([](const QString &) { return QStringLiteral("Budget"); });
+        QSignalSpy made(&e.win.w, &CrunchWindow::copyExported);
+        QVERIFY(e.win.w.act(QStringLiteral("file.saveTemplate"))->isEnabled());
+        const bool started = e.win.w.saveAsTemplate();
+        setTemplateNameStandIn({});
+        QVERIFY(started);
+        QTRY_COMPARE_WITH_TIMEOUT(made.count(), 1, 20000);
+        QVERIFY(made.first().at(1).toBool());
+        QVERIFY(e.win.w.isModified());
+        QCOMPARE(e.win.w.filePath(), e.path);
+        const QStringList found = myTemplateFiles({QStringLiteral("*.xltx")});
+        QCOMPARE(found.size(), 1);
+        QCOMPARE(QFileInfo(found.first()).fileName(), QStringLiteral("Budget.xltx"));
+        QVERIFY(!templateThumbnail(found.first()).isNull());
+        QCOMPARE(savedCell(found.first(), QStringLiteral("A1")), QStringLiteral("n:42"));
+        {
+            Package p;
+            QString why;
+            QVERIFY(p.readLazyFile(found.first(), &why));
+            QVERIFY(p.contentType(QStringLiteral("/xl/workbook.xml")).contains(QLatin1String("template")));
+        }
+        // A workbook made from it: its cells, no file, and a name offered as a workbook.
+        EditWindow second;
+        second.path = found.first();
+        QVERIFY(second.win.open(found.first(), OpenHow::Copy));
+        QVERIFY(second.win.w.filePath().isEmpty());
+        QCOMPARE(second.valueAt(QStringLiteral("A1")), QStringLiteral("n:42"));
+        QString offered;
+        second.win.w.setSavePicker([&](const QString &start, const QString &) { offered = start; return QString(); });
+        second.win.w.act(QStringLiteral("file.saveAs"))->trigger();
+        QVERIFY2(offered.endsWith(QLatin1String(".xlsx")), qPrintable(offered));
+        QVERIFY(removeMyTemplate(found.first()));
+    }
+
+    // A workbook can be saved as an .xltx template, and as an .ots copy (an OpenDocument template).
+    void aWorkbookCanBeSavedAsTemplatesInBothKinds()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        const QString xltx = e.folder.dir.filePath(QStringLiteral("t.xltx")), ots = e.folder.dir.filePath(QStringLiteral("t.ots"));
+        QVERIFY(crunch::isCopyName(ots));
+        QVERIFY(crunch::copyFilters().contains(QLatin1String("*.ots")));
+        QVERIFY(crunch::workbookKindsSavedAs(QStringLiteral("xlsx")).contains(QLatin1String("xltx")));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.saveAs(xltx));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        {
+            Package p;
+            QString why;
+            QVERIFY(p.readLazyFile(xltx, &why));
+            QVERIFY(p.contentType(QStringLiteral("/xl/workbook.xml")).contains(QLatin1String("template")));
+        }
+        QSignalSpy made(&e.win.w, &CrunchWindow::copyExported);
+        QVERIFY(e.win.w.saveAs(ots));
+        QTRY_COMPARE_WITH_TIMEOUT(made.count(), 1, 20000);
+        QVERIFY(made.first().at(1).toBool());
+        QMap<QString, QByteArray> parts;
+        QFile f(ots);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QVERIFY(jp::readZip(f.readAll(), parts));
+        QCOMPARE(parts.value(QStringLiteral("mimetype")), QByteArray("application/vnd.oasis.opendocument.spreadsheet-template"));
+    }
+
+    // Open and Repair: a workbook cut short does not open as it is; opened with repair it has the sheets and cells that could be read, no file of its own, and a note of what was left out.
+    void aWorkbookCutShortOpensRepaired()
+    {
+        EditWindow e;
+        // The damage is made on purpose: the same package with one named part, the first sheet, cut in the middle of its third row.
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(editBook(), parts));
+        const QString sheet = QStringLiteral("xl/worksheets/sheet1.xml");
+        QVERIFY(parts.contains(sheet));
+        const qsizetype third = parts[sheet].indexOf("<row r=\"3\"");
+        QVERIFY(third > 0);
+        parts[sheet].truncate(third + 20);
+        jp::ZipWriter z;
+        z.add(QStringLiteral("[Content_Types].xml"), parts.take(QStringLiteral("[Content_Types].xml")), true);
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it) z.add(it.key(), it.value(), true);
+        const QByteArray damaged = z.finish();
+        const QString path = e.folder.write(QStringLiteral("cut.xlsx"), damaged);
+        e.path = path;
+        QVERIFY(e.win.open(path, OpenHow::Repair));
+        QVERIFY(e.win.w.filePath().isEmpty());
+        QVERIFY(e.win.w.displayName().contains(QLatin1String("cut")));
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        QCOMPARE(e.valueAt(QStringLiteral("A2")), QStringLiteral("n:10"));
+        QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("-"));   // (empty: the row that was cut is left out)
+        QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QLatin1String("Open and Repair")), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        // The package kept for the reader is not left behind (the one this load made: other programs' are not this test's to count).
+        QVERIFY(!e.win.w.lastRepairFileForTest().isEmpty());
+        QVERIFY(!QFileInfo::exists(e.win.w.lastRepairFileForTest()));
+        // Save asks where; the damaged file is as it was.
+        const QString other = e.folder.dir.filePath(QStringLiteral("repaired.xlsx"));
+        e.win.w.setSavePicker([&](const QString &, const QString &) { return other; });
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QCOMPARE(savedCell(other, QStringLiteral("A1")), QStringLiteral("n:5"));
+        QCOMPARE(QFileInfo(path).size(), qint64(damaged.size()));
     }
 
     // Backspace on a cell starts an entry with nothing in it (Enter then clears the cell, Esc leaves it as it was), on every platform.

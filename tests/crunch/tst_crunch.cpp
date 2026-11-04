@@ -67,7 +67,7 @@ private Q_SLOTS:
         QCOMPARE(w.ribbonErrors(), QString());
         QStringList tabs;
         for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
-        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Page Layout", "Formulas", "Data", "Review", "View", "Header and Footer", "Chart", "Table", "Pivot Table"}));
+        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Page Layout", "Formulas", "Data", "Review", "View", "Header and Footer", "Chart", "Table", "Sparkline", "Pivot Table"}));
         QCOMPARE(w.ribbon()->fileKeytip(), QStringLiteral("F"));
         QVERIFY(w.windowTitle().contains(QLatin1String("JeffCrunch")));
         QCOMPARE(w.windowTitle(), QStringLiteral("JeffCrunch"));   // (no workbook yet: a name is taken when a new workbook is made)
@@ -236,6 +236,21 @@ private Q_SLOTS:
         QCOMPARE(win.w.view()->selectionName(), QStringLiteral("A2"));
         win.w.setActiveSheet(0);
         QCOMPARE(tabs->currentIndex(), 0);
+    }
+
+    // The current sheet's tab has its name in bold, and every tab has room for its name in bold and the padding beside it.
+    void theCurrentSheetsTabIsBoldAndNoTabClipsItsName()
+    {
+        Folder folder;
+        Window win;
+        QVERIFY(win.open(folder.write(QStringLiteral("budget.xlsx"), budgetWorkbook())));
+        crunch::SheetTabBar *tabs = win.w.sheetTabs();
+        QVERIFY(tabs->styleSheet().contains(QStringLiteral("::tab:selected")));
+        QVERIFY(tabs->styleSheet().contains(QStringLiteral("font-weight: bold")));
+        QFont bold = tabs->font();
+        bold.setBold(true);
+        for (int i = 0; i < tabs->count(); ++i)
+            QVERIFY(tabs->tabRect(i).width() >= QFontMetrics(bold).horizontalAdvance(tabs->tabText(i)) + 28);
     }
 
     // The sheet shown first is the one that was open when the workbook was saved; if that one is hidden (or is a chart), the first that is shown.

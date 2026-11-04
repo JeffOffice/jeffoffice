@@ -197,6 +197,10 @@ QAction *DeckWindow::mk(const QString &id, const QString &text, const QString &i
     a->setCheckable(checkable);
     // Each command counts by its id for the usage statistics (when they're on).
     connect(a, &QAction::triggered, this, [this, fn, id] {
+        if (isReadOnly() && !commandAllowedReadOnly(id)) {
+            refuseReadOnlyChange();
+            return;
+        }
         telemetry::count(id);
         // A crop in progress ends (and is kept) when another command goes to work, except the ones that belong to it or only change the view.
         if (m_ed && !m_ed->cropItem.isEmpty() && !id.startsWith(QLatin1String("pic.")) && !id.startsWith(QLatin1String("view.")) && !id.startsWith(QLatin1String("zoom.")) &&
@@ -225,13 +229,7 @@ void DeckWindow::createActions()
         w->setAttribute(Qt::WA_DeleteOnClose);
         w->show();
     });
-    mk("file.open", tr("Open"), "folder-open", QKeySequence::Open, [this] {
-        const QString p = QFileDialog::getOpenFileName(this, tr("Open Presentation"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
-                                                       tr("Presentations (*.pptx *.potx *.ppsx *.ppt *.pps *.pot *.odp *.otp)") + QStringLiteral(";;") + tr("All Files (*)"));
-        if (p.isEmpty()) return;
-        Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
-        openFile(p);
-    });
+    mk("file.open", tr("Open"), "folder-open", QKeySequence::Open, [this] { browseAndOpen(); });
     mk("file.close", tr("Close"), "circle-x", QKeySequence::Close, [this] { close(); });
     mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [ed] { ed->undo(); });   // while cropping, takes the crop back, as Esc does
     mk("edit.redo", tr("Redo"), "redo-2", QKeySequence::Redo, [ed] { ed->redo(); });
@@ -378,7 +376,7 @@ void DeckWindow::refreshUi()
 
 void DeckWindow::updateTitle()
 {
-    setWindowTitle(QStringLiteral("%1%2 - %3").arg(m_ed->displayName(), m_ed->isModified() ? QStringLiteral("*") : QString(), appInfo().name));
+    setWindowTitle(QStringLiteral("%1%2%4 - %3").arg(m_ed->displayName(), m_ed->isModified() ? QStringLiteral("*") : QString(), appInfo().name, isReadOnly() ? tr(" (Read-Only)") : QString()));
 }
 
 void DeckWindow::showFileScreen(const QString &page)
@@ -422,6 +420,10 @@ bool DeckWindow::eventFilter(QObject *o, QEvent *e)
 
 void DeckWindow::newSlide(const QString &layoutType)
 {
+    if (isReadOnly()) {
+        refuseReadOnlyChange();
+        return;
+    }
     m_notes->commit();
     if (m_outline) m_outline->commit();
     Document *d = m_ed->doc();

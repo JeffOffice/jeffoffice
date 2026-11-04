@@ -5,6 +5,7 @@
 #include <QByteArray>
 #include <QMap>
 #include <QVector>
+#include <functional>
 #include <QString>
 
 namespace jp {
@@ -42,6 +43,28 @@ bool readZip(const QByteArray &zip, QMap<QString, QByteArray> &out, QString *err
 // One stored entry read straight from a file (the directory, then just that
 // entry), without loading the rest; empty if it isn't there.
 QByteArray readZipEntry(const QString &path, const QString &name);
+
+// One entry found in a damaged ZIP by looking for the entries' own headers (the directory at the end of the file may be gone or wrong). `data` is what could be inflated: all of it
+// when `whole` (the entry ended where it should, with the size and CRC the header gives, if it gives them), else the start of the entry up to where it broke.
+struct ZipScanEntry {
+    QString name;
+    QByteArray data;
+    bool whole = false;
+    QString problem;   // when not whole: what was wrong ("cut short", "damaged", "stored with no size")
+};
+// Every entry that can be found, in the order the file has them. The work is bounded: at most `maxEntries` entries, `maxEntryBytes` inflated from any one, and `maxTotalBytes` from all.
+// An entry that passes `maxEntryBytes` (or what is left of `maxTotalBytes`) is not kept: its `data` is empty and its `problem` is "too large".
+QVector<ZipScanEntry> scanZip(const QByteArray &zip, int maxEntries = 10000, qint64 maxEntryBytes = qint64(512) << 20, qint64 maxTotalBytes = qint64(2) << 30);
+
+// What a scan left out for want of its limits (so the caller can say so).
+struct ZipScanStats {
+    bool entriesLeftOut = false;   // there were entries after the `maxEntries` taken
+    bool sizeLeftOut = false;      // there were entries after the point where `maxTotalBytes` was used up
+};
+// The same scan, one entry at a time: `each` is handed each entry as it is found, and the scan keeps none, so a caller that holds only what it needs holds one entry's bytes at a time. The
+// order, the limits, and what is found are those of scanZip (and the same every time for the same bytes). `stats`, when given, says what was left out.
+void scanZipEach(const QByteArray &zip, const std::function<void(ZipScanEntry &)> &each, int maxEntries = 10000, qint64 maxEntryBytes = qint64(512) << 20, qint64 maxTotalBytes = qint64(2) << 30,
+                 ZipScanStats *stats = nullptr);
 
 quint32 crc32(const QByteArray &data);
 

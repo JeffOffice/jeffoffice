@@ -169,6 +169,7 @@ QString EditSession::notCopiedNote(int sheet) const
         for (const Kind &k : kinds)
             if (!book.package().relationshipsOfType(part, QString::fromLatin1(k.type)).isEmpty()) add(k.what);
     }
+    if (!m_book->book->pivots().tablesOn(sheet).empty()) add(tr("pivot tables"));   // (a table made in this session has no part in the package yet)
     for (const QString &id : m_book->calc->sheet(sheet).notKept) {
         if (id == QLatin1String("sparklines")) add(tr("sparklines"));
         else if (id == QLatin1String("validationLists")) add(tr("drop-down lists that read other sheets"));
@@ -509,6 +510,49 @@ EditSession::Outcome EditSession::setTabColor(int sheet, const ColorSpec &color)
     return pushSheetEdit(e, tr("Tab Color"));
 }
 
+const QVector<jp::office::sheet::SparklineGroup> &EditSession::sparklinesOf(int sheet) const
+{
+    static const QVector<jp::office::sheet::SparklineGroup> none;
+    return m_book && m_book->calc && sheet >= 0 && sheet < m_book->calc->sheetCount() ? m_book->calc->sheet(sheet).sparklineGroups : none;
+}
+
+EditSession::Outcome EditSession::setSparklines(int sheet, QVector<jp::office::sheet::SparklineGroup> groups, const QString &text)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    if (m_book->calc->sheet(sheet).sparklinesLossy) {
+        out.ok = false;
+        out.problem = tr("This sheet's sparklines have parts that JeffCrunch can't keep when it changes them (for example a range of cells for one sparkline), so it leaves them as they are.");
+        return out;
+    }
+    int count = 0;
+    for (int i = groups.size() - 1; i >= 0; --i) {
+        if (groups[i].sparklines.isEmpty()) {
+            groups.removeAt(i);
+            continue;
+        }
+        count += int(groups[i].sparklines.size());
+    }
+    if (groups.size() > jp::office::sheet::kMaxSparklineGroups || count > jp::office::sheet::kMaxSparklines) {
+        out.ok = false;
+        out.problem = tr("A sheet can have up to %1 sparklines.").arg(jp::office::sheet::kMaxSparklines);
+        return out;
+    }
+    const QVector<jp::office::sheet::SparklineGroup> &now = m_book->calc->sheet(sheet).sparklineGroups;
+    if (now == groups) return out;   // (nothing to change)
+    SheetEdit e;
+    e.kind = SheetEdit::Kind::Sparklines;
+    e.sheet = sheet;
+    e.sparksBefore = now;
+    e.sparksAfter = groups;
+    return pushSheetEdit(e, text);
+}
+
 // A sheet that was added is taken away: the values, results, and marks kept by cell for it are let go of, so that a sheet added later at its place starts with none.
 void EditSession::forgetSheet(int sheet)
 {
@@ -531,6 +575,11 @@ void EditSession::dropRemovedSheets(std::vector<jp::grid::ValueStore::Item> *ite
 // Makes a step's changes of the sheets, or takes them back (with the worker held back).
 bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, Workbook &book)
 {
+    // (the sparklines that read a sheet that is renamed or deleted are written again, as the model has them, unless the file's are held only as they are)
+    auto sparklinesRead = [&](const Calculation::SheetRewrite &r) {
+        for (const auto &entry : r.sparklines)
+            if (entry.first >= 0 && entry.first < calc->sheetCount() && !calc->sheet(entry.first).sparklinesLossy) m_sparklinesChanged.insert(entry.first);
+    };
     for (SheetEdit &e : step->sheets) {
         switch (e.kind) {
         case SheetEdit::Kind::Insert:
@@ -576,6 +625,7 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                     calc->setSheetNames(e.sheet, QString(), e.nameBefore);
                     return false;
                 }
+                sparklinesRead(e.rewrite);
                 book.setSheetName(e.sheet, QString());
                 book.setSheetDeleted(e.sheet, true);
                 book.setSheetOrder(e.orderAfter);
@@ -589,6 +639,7 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                 book.setSheetName(e.sheet, e.nameBefore);
                 book.setSheetDeleted(e.sheet, false);
                 calc->setSheetNames(e.sheet, QString(), e.nameBefore);
+                sparklinesRead(e.rewrite);
                 calc->undoSheetRewrite(e.rewrite);
                 book.setSheetOrder(e.orderBefore);
                 if (!m_sheetOps.empty() && m_sheetOps.back().kind == SheetOp::Kind::Delete && m_sheetOps.back().name == e.nameBefore) m_sheetOps.pop_back();
@@ -603,6 +654,7 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                     return false;
                 }
                 book.setSheetName(e.sheet, e.nameAfter);
+                sparklinesRead(e.rewrite);
                 for (const Calculation::EditRecord::Place &p : e.rewrite.rewritten)
                     if (!p.dataTable) markTouched(p.sheet, p.row, p.col);
                 SheetOp op;
@@ -613,6 +665,7 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
             } else {
                 calc->setSheetNames(e.sheet, e.nameAfter, e.nameBefore);
                 book.setSheetName(e.sheet, e.nameBefore);
+                sparklinesRead(e.rewrite);
                 calc->undoSheetRewrite(e.rewrite);
                 if (!m_sheetOps.empty() && m_sheetOps.back().kind == SheetOp::Kind::Rename && m_sheetOps.back().name == e.nameBefore && m_sheetOps.back().newName == e.nameAfter) m_sheetOps.pop_back();
             }
@@ -625,6 +678,10 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
         case SheetEdit::Kind::TabColor:
             calc->setTabColor(e.sheet, forward ? e.colorAfter : e.colorBefore);
             m_tabColorsChanged.insert(e.sheet);
+            break;
+        case SheetEdit::Kind::Sparklines:
+            calc->setSparklines(e.sheet, forward ? e.sparksAfter : e.sparksBefore);
+            m_sparklinesChanged.insert(e.sheet);
             break;
         }
         m_sheetsListed = true;

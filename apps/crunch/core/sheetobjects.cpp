@@ -91,7 +91,9 @@ bool sameEdit(const StructEdit &a, const StructEdit &b)
 // A chart made into a picture: this runs on a worker, and touches nothing but what it is given.
 QImage drawChart(const Chart &chart, const QSizeF &points, const RenderRequest &q)
 {
-    const QByteArray svg = chartSvg(chart, points);
+    Chart shown = chart;
+    shown.drawTrendlines = true;
+    const QByteArray svg = chartSvg(shown, points);
     QSvgRenderer renderer(svg);
     if (!renderer.isValid()) return QImage();
     QImage img(q.pixels, QImage::Format_ARGB32_Premultiplied);
@@ -896,6 +898,8 @@ void SheetObjects::addToSave(SaveChanges *changes)
                 setChartRefs(c.get(), o->refs);
                 applyChartCells(c.get(), int(i), *m_cells);
                 applyChartFormats(c.get(), int(i), *m_cells);
+                o->savedPivotName.clear();
+                if (c->pivotTable >= 0 && m_pivotNamer) c->pivotName = o->savedPivotName = m_pivotNamer(*c);
                 o->savedPart = freePartName(QStringLiteral("/xl/charts/chart"), QStringLiteral(".xml"), takenNames());
                 takenNames().insert(o->savedPart.toLower());
                 DrawingAnchor want = o->anchor;
@@ -935,11 +939,14 @@ void SheetObjects::addToSave(SaveChanges *changes)
                 o->savedAnchor = o->anchor;
             }
             // a chart a person changed is written whole from the model, over its part
-            if (o->chart && o->fileChart && o->chart != o->fileChart && !o->meta.chartPart.isEmpty() && m_source && m_cells) {
+            o->savedPivotName.clear();
+            const bool pivotRenamed = o->chart && o->chart->pivotTable >= 0 && m_pivotNamer && m_pivotNamer(*o->chart) != o->chart->pivotName;   // (the table, the sheet, or the file has another name now)
+            if (o->chart && o->fileChart && (o->chart != o->fileChart || pivotRenamed) && !o->meta.chartPart.isEmpty() && m_source && m_cells) {
                 auto c = std::make_shared<Chart>(*o->chart);
                 setChartRefs(c.get(), o->refs);
                 applyChartCells(c.get(), int(i), *m_cells);
                 applyChartFormats(c.get(), int(i), *m_cells);
+                if (c->pivotTable >= 0 && m_pivotNamer) c->pivotName = o->savedPivotName = m_pivotNamer(*c);
                 changes->producedParts[o->meta.chartPart] = [c] { return writeChartPart(*c); };
                 editedParts.insert(o->meta.chartPart.toLower());
             }
@@ -1019,6 +1026,13 @@ void SheetObjects::saved()
             o->fileAnchor = o->savedAnchor;   // (what addToSave said the file has)
             o->baseRefs = o->refs;
             o->movedRefs = o->refs;
+            if (!o->savedPivotName.isEmpty() && o->chart) {
+                // (the name the file has is the chart's own now)
+                auto named = std::make_shared<Chart>(*o->chart);
+                named->pivotName = o->savedPivotName;
+                o->chart = named;
+                o->savedPivotName.clear();
+            }
             o->fileChart = o->chart;
             o->fileName = o->savedName;
         }

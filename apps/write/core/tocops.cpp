@@ -146,9 +146,11 @@ QVector<TocLine> tocLines(WriteDoc &doc, const StoryScan &scan, int field, const
             if (ok && level >= 1 && level <= 9 && custom.size() < 64) custom.insert(parts[i].trimmed().toLower(), level);
         }
     }
-    const QString captionId = code.argumentOf(QLatin1Char('c')).trimmed().toUpper();
-    const bool captions = code.has(QLatin1Char('c')) && !captionId.isEmpty();
-    const bool useO = haveO || (!useU && custom.isEmpty() && !captions);
+    // A table of figures: \c lists the captions of a label whole, \a lists them without the label and number.
+    const bool withoutLabel = !code.has(QLatin1Char('c')) && code.has(QLatin1Char('a'));
+    const QString captionId = code.argumentOf(QLatin1Char(withoutLabel ? 'a' : 'c')).trimmed().toUpper();
+    const bool captions = (code.has(QLatin1Char('c')) || withoutLabel) && !captionId.isEmpty();
+    const bool useO = haveO || (!useU && custom.isEmpty() && !captions && !code.has(QLatin1Char('f')));
     if (useO && !haveO) lo = 1, hi = 9;
     // The styles: id -> the level a heading style has, and id -> name.
     QHash<QString, int> headingLevel;
@@ -163,10 +165,17 @@ QVector<TocLine> tocLines(WriteDoc &doc, const StoryScan &scan, int field, const
         if (!headingLevel.contains(QStringLiteral("Heading%1").arg(i)) && !nameOf.contains(QStringLiteral("Heading%1").arg(i))) headingLevel.insert(QStringLiteral("Heading%1").arg(i), i);
     // The captions' paragraphs, the headings' bookmarks, and the bookmark the table is limited to.
     QSet<int> captionBlocks;
-    if (captions)
-        for (int i = 0; i < scan.fields.size(); ++i)
-            if (scan.fields[i].name == QLatin1String("SEQ") && fields::parseCode(scan.instructionOf(i)).arguments.value(0).trimmed().toUpper() == captionId)
-                captionBlocks.insert(story->findBlock(scan.fields[i].begin).blockNumber());
+    QHash<int, int> captionTextFrom;   // the block number -> where the text after the label and number begins (for \a)
+    if (captions) {
+        const ParsedFields &seqs = parsedFieldsNamed(scan, QStringLiteral("SEQ"));
+        for (int k = 0; k < seqs.index.size(); ++k)
+            if (seqs.code[k].arguments.value(0).trimmed().toUpper() == captionId) {
+                const FieldPlace &f = scan.fields[seqs.index[k]];
+                const int n = story->findBlock(f.begin).blockNumber();
+                if (!captionBlocks.contains(n)) captionTextFrom.insert(n, f.end + 1);
+                captionBlocks.insert(n);
+            }
+    }
     QHash<int, QString> tocBookmark;
     for (const BookmarkSpan &s : scan.bookmarks)
         if (s.name.startsWith(QLatin1String("_Toc")) && s.start >= 0) {
@@ -204,6 +213,15 @@ QVector<TocLine> tocLines(WriteDoc &doc, const StoryScan &scan, int field, const
         TocLine line;
         line.level = level;
         line.text = entryText(b, self.separate + 1, self.end);
+        if (withoutLabel && captions && captionBlocks.contains(b.blockNumber())) {
+            // (What follows the number, without the punctuation that joins it to the text.)
+            const int from = captionTextFrom.value(b.blockNumber()) - b.position();
+            QString after = b.text().mid(std::clamp(from, 0, int(b.text().size())));
+            after.remove(QChar::ObjectReplacementCharacter);
+            int skip = 0;
+            while (skip < after.size() && (after[skip].isSpace() || QStringLiteral(".:;-\x2013\x2014").contains(after[skip]))) ++skip;
+            line.text = after.mid(skip).simplified();
+        }
         if (line.text.isEmpty()) continue;
         if (out.size() >= kMostTocEntries) {
             if (truncated) *truncated = true;
@@ -212,11 +230,7 @@ QVector<TocLine> tocLines(WriteDoc &doc, const StoryScan &scan, int field, const
         if (!captions) line.number = paragraphLabelOf(b);
         line.position = b.position();
         line.bookmark = tocBookmark.value(b.blockNumber());
-        if (line.bookmark.isEmpty() && code.has(QLatin1Char('h'))) {
-            do line.bookmark = QStringLiteral("_Toc%1").arg(100000001 + serial++);
-            while (scan.bookmarkByName.contains(line.bookmark.toLower()));
-            line.newBookmark = true;
-        }
+        if (line.bookmark.isEmpty() && code.has(QLatin1Char('h'))) line.newBookmark = true;   // (named below, once the lines are in the order of the text)
         // (The page the paragraph's text is on: where its bookmark begins, else its first character that is no page break or mark; a heading that begins with a page break is on the next page.)
         int at = b.position();
         if (const auto found = line.newBookmark ? scan.bookmarkByName.constEnd() : scan.bookmarkByName.constFind(line.bookmark.toLower()); found != scan.bookmarkByName.constEnd()) {
@@ -229,6 +243,55 @@ QVector<TocLine> tocLines(WriteDoc &doc, const StoryScan &scan, int field, const
         }
         line.page = pageOf ? pageOf(at) : QString();
         out.push_back(line);
+    }
+    // The entries that table entry fields (TC) mark, for a code with \f: those of the code's identifier (those with none, when the code names none), at the level \l gives them.
+    if (code.has(QLatin1Char('f'))) {
+        const QString wanted = code.argumentOf(QLatin1Char('f')).trimmed();
+        int tcLo = 1, tcHi = 9;
+        if (code.has(QLatin1Char('l'))) parseLevels(code.argumentOf(QLatin1Char('l')), &tcLo, &tcHi);
+        bool added = false;
+        const ParsedFields &tcs = parsedFieldsNamed(scan, QStringLiteral("TC"));
+        for (int k = 0; k < tcs.index.size(); ++k) {
+            const FieldPlace &f = scan.fields[tcs.index[k]];
+            if (f.begin > self.begin && f.begin < self.end) continue;
+            if (f.begin < limitFrom || f.begin > limitTo) continue;
+            const fields::Code &tc = tcs.code[k];
+            if (tc.arguments.isEmpty()) continue;
+            if (tc.argumentOf(QLatin1Char('f')).trimmed().compare(wanted, Qt::CaseInsensitive) != 0) continue;
+            bool ok = false;
+            const int level = tc.has(QLatin1Char('l')) ? tc.argumentOf(QLatin1Char('l')).trimmed().toInt(&ok) : 1;
+            if (tc.has(QLatin1Char('l')) && (!ok || level < 1 || level > 9)) continue;
+            if (level < tcLo || level > tcHi) continue;
+            TocLine line;
+            line.level = level;
+            line.text = tc.arguments.first().simplified();
+            if (line.text.isEmpty()) continue;
+            if (out.size() >= kMostTocEntries) {
+                if (truncated) *truncated = true;
+                break;
+            }
+            line.noPage = tc.has(QLatin1Char('n'));
+            const QTextBlock b = story->findBlock(f.begin);
+            line.position = b.position();
+            line.bookmark = tocBookmark.value(b.blockNumber());
+            if (line.bookmark.isEmpty() && code.has(QLatin1Char('h'))) line.newBookmark = true;
+            line.page = pageOf ? pageOf(f.begin) : QString();
+            out.push_back(line);
+            added = true;
+        }
+        if (added) std::stable_sort(out.begin(), out.end(), [](const TocLine &a, const TocLine &b) { return a.position < b.position; });
+    }
+    // The bookmarks that are to be made have names above those the text has, in the order of the places (see putTocBookmarks); entries of one paragraph share one.
+    QHash<int, QString> madeFor;
+    for (TocLine &l : out) {
+        if (!l.newBookmark) continue;
+        if (madeFor.contains(l.position)) {
+            l.bookmark = madeFor.value(l.position);
+            continue;
+        }
+        do l.bookmark = QStringLiteral("_Toc%1").arg(100000001 + serial++);
+        while (scan.bookmarkByName.contains(l.bookmark.toLower()));
+        madeFor.insert(l.position, l.bookmark);
     }
     return out;
 }
@@ -282,7 +345,7 @@ QStringList tocLineTexts(const QVector<TocLine> &lines, const fields::Code &code
     if (lines.isEmpty()) return {QCoreApplication::translate("jp::write::Fields", "No headings were found for this table of contents.")};
     for (const TocLine &l : lines) {
         QString t = l.number.isEmpty() ? l.text : l.number + QLatin1Char('\t') + l.text;
-        if (!omitsPage(code, l.level) && !l.page.isEmpty()) t += separator + l.page;
+        if (!(l.noPage || omitsPage(code, l.level)) && !l.page.isEmpty()) t += separator + l.page;
         out << t;
     }
     return out;
@@ -317,14 +380,33 @@ bool rebuildToc(WriteDoc &doc, QTextDocument *story, const StoryScan &scan, int 
                                int(flow::fp::Cell), int(flow::fp::Frame), int(tp::OutOfLayout)};
     const bool hyperlinks = code.has(QLatin1Char('h'));
     const QString separator = code.has(QLatin1Char('p')) ? code.argumentOf(QLatin1Char('p')) : QStringLiteral("\t");
+    const bool figures = code.has(QLatin1Char('c')) || (code.has(QLatin1Char('a')) && !code.argumentOf(QLatin1Char('a')).isEmpty());
+    // (Each style is looked up by name once for the table, not once for each of its lines.)
+    QHash<int, QString> levelStyle;
+    QString figureStyle;
     auto blockFor = [&](const TocLine &l, QTextBlockFormat *out) {
-        const QString style = styleForLevel(doc, l.level);
+        QString style;
+        if (figures) {
+            // (The lines of a table of figures are in the style of its own.)
+            if (figureStyle.isEmpty()) {
+                figureStyle = QStringLiteral("TableofFigures");
+                for (const Style &st : doc.styleSheet().styles)
+                    if (st.type == QLatin1String("paragraph") && st.name.compare(QLatin1String("table of figures"), Qt::CaseInsensitive) == 0) figureStyle = st.id;
+                const quint64 sheet = doc.styleSheetRevision();
+                if (doc.ensureStyle(figureStyle) && doc.styleSheetRevision() != sheet) doc.markStyleStep();
+            }
+            style = figureStyle;
+        } else {
+            auto found = levelStyle.constFind(l.level);
+            if (found == levelStyle.constEnd()) found = levelStyle.insert(l.level, styleForLevel(doc, l.level));
+            style = found.value();
+        }
         QTextBlockFormat nf = doc.styleBlockFormat(style);
         ParaProps pp = paraPropsOf(nf);
         QVector<TabStop> tabs;
         const int indent = pp.indLeft.value_or(0);
         if (!l.number.isEmpty()) tabs.push_back(TabStop{indent + 440, QStringLiteral("left"), QString()});
-        if (separator == QLatin1String("\t") && !omitsPage(code, l.level)) tabs.push_back(TabStop{textWidth, QStringLiteral("right"), leader == QLatin1String("none") ? QString() : leader});
+        if (separator == QLatin1String("\t") && !(l.noPage || omitsPage(code, l.level))) tabs.push_back(TabStop{textWidth, QStringLiteral("right"), leader == QLatin1String("none") ? QString() : leader});
         pp.tabs = tabs;
         nf = blockFormatOf(pp);
         *out = nf;
@@ -359,7 +441,7 @@ bool rebuildToc(WriteDoc &doc, QTextDocument *story, const StoryScan &scan, int 
         }
         if (!l.number.isEmpty()) c.insertText(l.number + QLatin1Char('\t'), entryLook);
         c.insertText(l.text, entryLook);
-        if (!omitsPage(code, l.level) && !l.page.isEmpty()) {
+        if (!(l.noPage || omitsPage(code, l.level)) && !l.page.isEmpty()) {
             c.insertText(separator, entryLook);
             if (hyperlinks) {
                 putAtomAt(c, markAtom("begin"), entryLook);
@@ -397,10 +479,113 @@ bool rebuildToc(WriteDoc &doc, QTextDocument *story, const StoryScan &scan, int 
 
 namespace jp::write {
 
+QString GenLine::text() const
+{
+    QString t;
+    for (const GenRun &r : runs) t += r.text;
+    return t;
+}
+
+QString resultLeader(QTextDocument *story, const StoryScan &scan, int field)
+{
+    const FieldPlace &f = scan.fields[field];
+    if (f.separate < 0 || f.end <= f.separate) return QStringLiteral("dot");
+    return leaderOf(story, f.separate, f.end);
+}
+
+bool rebuildGenerated(WriteDoc &doc, QTextDocument *story, const StoryScan &scan, int field, const QVector<GenLine> &lines, const QString &leaderAsked, const QString &empty)
+{
+    const FieldPlace &f = scan.fields[field];
+    if (f.form != FieldPlace::Complex || f.separate < 0 || f.end <= f.separate) return false;
+    const int s = f.separate, e = f.end;
+    QTextBlock firstBlock = story->findBlock(s), lastBlock = story->findBlock(e);
+    const bool sameBlock = firstBlock == lastBlock;
+    const QTextBlockFormat firstFormat = firstBlock.blockFormat(), lastFormat = lastBlock.blockFormat();
+    const QString leader = leaderAsked.isEmpty() ? leaderOf(story, s, e) : leaderAsked;
+    const QTextCharFormat look = [&] {
+        QTextCharFormat cf = formatAtPosition(story, s);
+        for (const int key : {int(prop::Atom), int(tp::Field), int(tp::LinkResult)}) cf.clearProperty(key);
+        return cf;
+    }();
+    const SectionProps place = doc.sectionProps(doc.sectionAt(s));
+    const int textWidth = std::max(1440, place.pageW - std::max(0, place.left + place.gutter) - std::max(0, place.right));
+
+    QTextCursor c(story);
+    c.setPosition(s + 1);
+    c.setPosition(e, QTextCursor::KeepAnchor);
+    if (c.hasSelection()) c.removeSelectedText();
+    c.setPosition(s + 1);
+
+    static const int kept[] = {int(prop::MarkFormat), int(prop::LastSection), int(prop::RawBefore), int(prop::ParaAttrs), int(prop::RawPPr), int(prop::SpacingAttrs), int(prop::IndAttrs), int(prop::NumExtra), int(prop::OddTabs),
+                               int(flow::fp::Cell), int(flow::fp::Frame), int(tp::OutOfLayout)};
+    if (lines.isEmpty()) {
+        c.insertText(empty, look);
+        return true;
+    }
+    QHash<QString, QString> idOfName;   // (the styles looked up by name once each)
+    auto styleOf = [&](const GenLine &l) {
+        const auto known = idOfName.constFind(l.styleName.toLower());
+        if (known != idOfName.constEnd()) return known.value();
+        QString id = l.styleId;
+        bool found = false;
+        for (const Style &st : doc.styleSheet().styles)
+            if (st.type == QLatin1String("paragraph") && st.name.compare(l.styleName, Qt::CaseInsensitive) == 0) {
+                id = st.id;
+                found = true;
+                break;
+            }
+        if (!found) {
+            const quint64 sheet = doc.styleSheetRevision();
+            if (doc.ensureStyle(l.styleId) && doc.styleSheetRevision() != sheet) doc.markStyleStep();
+        }
+        idOfName.insert(l.styleName.toLower(), id);
+        return id;
+    };
+    for (int i = 0; i < lines.size(); ++i) {
+        const GenLine &l = lines[i];
+        const QString style = styleOf(l);
+        QTextBlockFormat nf = doc.styleBlockFormat(style);
+        if (l.rightTab) {
+            ParaProps pp = paraPropsOf(nf);
+            QVector<TabStop> tabs = pp.tabs ? *pp.tabs : QVector<TabStop>();
+            tabs.push_back(TabStop{textWidth, QStringLiteral("right"), leader == QLatin1String("none") ? QString() : leader});
+            pp.tabs = tabs;
+            nf = blockFormatOf(pp);
+        }
+        const QTextCharFormat entryLook = doc.styleCharFormat(style);
+        if (i == 0) {
+            const QTextBlockFormat now = c.blockFormat();
+            for (int key : kept)
+                if (now.hasProperty(key)) nf.setProperty(key, now.property(key));
+            if (sameBlock && firstFormat.hasProperty(prop::RawAfter)) nf.clearProperty(prop::RawAfter);
+            c.setBlockFormat(nf);
+        } else {
+            c.insertBlock(nf, entryLook);
+        }
+        for (const GenRun &r : l.runs) {
+            QTextCharFormat cf = entryLook;
+            if (r.bold) cf.setFontWeight(QFont::Bold);
+            if (r.italic) cf.setFontItalic(true);
+            c.insertText(r.text, cf);
+        }
+    }
+    QTextBlockFormat endFormat;
+    if (!sameBlock) {
+        endFormat = lastFormat;
+    } else {
+        endFormat = doc.styleBlockFormat(doc.defaultParagraphStyle());
+        for (const int key : {int(prop::RawAfter), int(flow::fp::SectionBreakAfter), int(prop::SectionData)})
+            if (firstFormat.hasProperty(key)) endFormat.setProperty(key, firstFormat.property(key));
+    }
+    c.insertBlock(endFormat, doc.styleCharFormat(endFormat.stringProperty(tp::StyleName)));
+    return true;
+}
+
 QString tocCode(const TocOptions &o)
 {
     QString code = QStringLiteral(" TOC \\o \"1-%1\"").arg(std::clamp(o.levels, 1, 9));
     if (o.hyperlinks) code += QStringLiteral(" \\h");
+    if (o.entryFields) code += QStringLiteral(" \\f");
     code += QStringLiteral(" \\z \\u");
     if (!o.pageNumbers) code += QStringLiteral(" \\n");
     else if (!o.rightAlign) code += QStringLiteral(" \\p \" \"");
@@ -408,6 +593,49 @@ QString tocCode(const TocOptions &o)
 }
 
 bool insertTableOfContents(WriteDoc &doc, QTextCursor &c, const TocOptions &options, bool *truncated)
+{
+    return insertTableFromCode(doc, c, tocCode(options), options.leader, truncated);
+}
+
+bool insertTocGallery(WriteDoc &doc, QTextCursor &c, TocGallery kind)
+{
+    QTextDocument *story = doc.story();
+    if (c.document() != story || !intoBody(c)) return false;
+    WriteDoc::StepGroup group(doc);
+    EditScope scope(doc, story);
+    const quint64 sheet = doc.styleSheetRevision();
+    const QString headingStyle = QStringLiteral("TOCHeading");
+    if (doc.ensureStyle(headingStyle) && doc.styleSheetRevision() != sheet) doc.markStyleStep();
+    QTextCursor at(story);
+    at.setPosition(c.selectionEnd());
+    if (!at.block().text().isEmpty()) {
+        at.movePosition(QTextCursor::EndOfBlock);
+        at.insertBlock(doc.styleBlockFormat(doc.defaultParagraphStyle()), doc.styleCharFormat(doc.defaultParagraphStyle()));
+    }
+    at.setBlockFormat(doc.styleBlockFormat(headingStyle));
+    at.insertText(kind == TocGallery::Automatic1 ? QCoreApplication::translate("jp::write::Fields", "Contents") : QCoreApplication::translate("jp::write::Fields", "Table of Contents"), doc.styleCharFormat(headingStyle));
+    if (kind == TocGallery::Manual) {
+        const QString placeholder = QCoreApplication::translate("jp::write::Fields", "Type chapter title (level %1)");
+        const int levels[] = {1, 2, 3, 1};
+        for (int i = 0; i < 4; ++i) {
+            const QString style = styleForLevel(doc, levels[i]);
+            at.insertBlock(doc.styleBlockFormat(style), doc.styleCharFormat(style));
+            at.insertText(placeholder.arg(levels[i]) + QLatin1Char('\t') + QString::number(i + 1), doc.styleCharFormat(style));
+        }
+        at.insertBlock(doc.styleBlockFormat(doc.defaultParagraphStyle()), doc.styleCharFormat(doc.defaultParagraphStyle()));
+        c.setPosition(at.position());
+        return true;
+    }
+    at.insertBlock(doc.styleBlockFormat(doc.defaultParagraphStyle()), doc.styleCharFormat(doc.defaultParagraphStyle()));
+    QTextCursor put(story);
+    put.setPosition(at.position());
+    TocOptions options;
+    if (!insertTableOfContents(doc, put, options)) return false;
+    c = put;
+    return true;
+}
+
+bool insertTableFromCode(WriteDoc &doc, QTextCursor &c, const QString &code, const QString &leader, bool *truncated)
 {
     QTextDocument *story = doc.story();
     if (c.document() != story || !intoBody(c)) return false;
@@ -426,16 +654,46 @@ bool insertTableOfContents(WriteDoc &doc, QTextCursor &c, const TocOptions &opti
     const QTextCharFormat look = doc.styleCharFormat(at.block().blockFormat().stringProperty(tp::StyleName));
     auto put = [&](const Inline &a) { putAtomAt(at, a, look); };
     put(markAtom("begin"));
-    put(instructionAtom(tocCode(options)));
+    put(instructionAtom(code));
     put(markAtom("separate"));
     put(markAtom("end"));
     UpdateOptions u;
     u.from = begin;
     u.to = begin + 3;
-    u.tocLeader = options.leader;
+    u.tocLeader = leader;
     const UpdateReport report = updateFields(doc, u, true);
     if (truncated) *truncated = report.tocTruncated;
     c.setPosition(begin);
+    return true;
+}
+
+bool markTocEntry(WriteDoc &doc, QTextCursor &c, const QString &textIn, int level, const QString &identifier, bool noPage)
+{
+    QString text = textIn.isEmpty() ? c.selectedText() : textIn;
+    text.replace(QChar::ParagraphSeparator, QLatin1Char(' ')).replace(QChar::LineSeparator, QLatin1Char(' '));
+    text = text.simplified();
+    if (text.isEmpty()) return false;
+    QString code = QStringLiteral("TC \"%1\"").arg(QString(text).replace(QLatin1Char('"'), QStringLiteral("\\\"")));
+    if (!identifier.trimmed().isEmpty()) code += QStringLiteral(" \\f %1").arg(identifier.trimmed().left(1));
+    code += QStringLiteral(" \\l %1").arg(std::clamp(level, 1, 9));
+    if (noPage) code += QStringLiteral(" \\n");
+    QTextCursor at = c;
+    at.setPosition(c.selectionEnd());
+    if (!insertField(doc, at, code)) return false;
+    c = at;
+    return true;
+}
+
+bool addTextToToc(WriteDoc &doc, QTextCursor &c, int level)
+{
+    if (level < 0 || level > 9 || c.document() != doc.story()) return false;
+    const QString id = level == 0 ? doc.defaultParagraphStyle() : QStringLiteral("Heading%1").arg(level);
+    if (level > 0) {
+        const quint64 sheet = doc.styleSheetRevision();
+        if (!doc.ensureStyle(id)) return false;
+        if (doc.styleSheetRevision() != sheet) doc.markStyleStep();
+    }
+    applyParagraphStyle(doc, c, id);
     return true;
 }
 

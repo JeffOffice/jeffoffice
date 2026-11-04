@@ -43,7 +43,8 @@ bool addSpellingSuggestions(QMenu &menu, PageView *view)
 {
     // (Of what is being edited: the text, or the header or footer.)
     SpellCheck *spelling = view ? view->editedSpelling() : nullptr;
-    if (!view || !view->document() || !spelling || !spelling->enabled() || !spelling->story()) return false;
+    // (a document open for reading only is not changed by a correction: none is offered)
+    if (!view || !view->document() || view->readOnly() || !spelling || !spelling->enabled() || !spelling->story()) return false;
     const QPair<int, int> word = spelling->misspellingAt(view->contextPosition());
     if (word.first < 0) return false;
     QTextDocument *story = spelling->story();
@@ -289,7 +290,7 @@ bool SpellPane::stillThere()
 
 void SpellPane::change(bool all)
 {
-    if (m_complete || m_searching || !m_list->currentItem() || !stillThere()) return;
+    if (m_complete || m_searching || !m_list->currentItem() || m_view->readOnly() || !stillThere()) return;   // (a document open for reading only is not changed by a correction)
     QTextDocument *story = m_view->document()->story();
     const QString chosen = m_list->currentItem()->text(), word = m_word;
     const int first = m_range.first, delta = int(chosen.size() - word.size());

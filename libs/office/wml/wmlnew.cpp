@@ -301,6 +301,63 @@ TableStyleSpec tableStyleSpecOf(const Style &style)
     return spec;
 }
 
+Style referenceStyle(const QString &id)
+{
+    // The captions of figures and tables, the lines of a table of figures, of an index, of a table of authorities, and of a bibliography.
+    if (id == QLatin1String("Caption")) {
+        Style s = paragraphStyle(id, QStringLiteral("caption"), 35);
+        s.unhideWhenUsed = true;
+        s.pPr.after = 200;
+        s.pPr.line = 240;
+        s.pPr.lineRule = QStringLiteral("auto");
+        s.rPr.italic = true;
+        s.rPr.size = 18;
+        s.rPr.color = Color{QStringLiteral("595959"), QString(), QString(), QString()};
+        return s;
+    }
+    if (id == QLatin1String("TableofFigures") || id == QLatin1String("TableofAuthorities")) {
+        Style s = paragraphStyle(id, id == QLatin1String("TableofFigures") ? QStringLiteral("table of figures") : QStringLiteral("table of authorities"), 99);
+        s.qFormat = false;
+        s.unhideWhenUsed = true;
+        s.pPr.after = 0;
+        if (id == QLatin1String("TableofAuthorities")) {
+            s.pPr.indLeft = 220;
+            s.pPr.indFirst = -220;
+        }
+        return s;
+    }
+    if (id.startsWith(QLatin1String("Index")) && id.size() == 6 && id[5] >= QLatin1Char('1') && id[5] <= QLatin1Char('9')) {
+        const int level = id[5].digitValue();
+        Style s = paragraphStyle(id, QStringLiteral("index %1").arg(level), 99);
+        s.qFormat = false;
+        s.unhideWhenUsed = true;
+        s.pPr.after = 0;
+        s.pPr.line = 240;
+        s.pPr.lineRule = QStringLiteral("auto");
+        s.pPr.indLeft = 220 * level;
+        s.pPr.indFirst = -220;
+        return s;
+    }
+    if (id == QLatin1String("IndexHeading") || id == QLatin1String("TOAHeading")) {
+        Style s = paragraphStyle(id, id == QLatin1String("IndexHeading") ? QStringLiteral("index heading") : QStringLiteral("toa heading"), 99);
+        s.qFormat = false;
+        s.unhideWhenUsed = true;
+        s.pPr.keepNext = true;
+        s.pPr.before = 120;
+        s.pPr.after = 120;
+        s.rPr.bold = true;
+        if (id == QLatin1String("TOAHeading")) s.rPr.size = 24;
+        return s;
+    }
+    if (id == QLatin1String("Bibliography")) {
+        Style s = paragraphStyle(id, QStringLiteral("Bibliography"), 37);
+        s.qFormat = false;
+        s.unhideWhenUsed = true;
+        return s;
+    }
+    return Style();
+}
+
 Style builtinStyle(const QString &id)
 {
     if (id == QLatin1String("Normal")) {

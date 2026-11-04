@@ -1359,6 +1359,104 @@ private Q_SLOTS:
         QVERIFY(tree.parse(fresh));
     }
 
+    // A separator the part lacked is added with the Id the settings name it by (-1 and 0), and the notice with the Id above the others; none is added where another note has the Id, and none past
+    // the highest Id there is.
+    void aSeparatorAPartLackedIsAddedWithTheIdTheSettingsNameItBy()
+    {
+        auto words = [](const char *text) {
+            QVector<Block> blocks;
+            readBlocks(QByteArray("<w:ftr ") + kW + "><w:p><w:r><w:t>" + text + "</w:t></w:r></w:p></w:ftr>", &blocks);
+            return blocks;
+        };
+        auto idsOf = [](const QByteArray &part) {
+            QVector<int> ids;
+            for (qsizetype at = part.indexOf("<w:footnote "); at >= 0; at = part.indexOf("<w:footnote ", at + 1)) {
+                const qsizetype idAt = part.indexOf("w:id=\"", at);
+                ids << part.mid(idAt + 6, part.indexOf('"', idAt + 6) - idAt - 6).toInt();
+            }
+            return ids;
+        };
+        const QByteArray sep = R"(<w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>)";
+        const QByteArray original = xmlDoc(QByteArray("<w:footnotes ") + kW + ">" + sep + R"(<w:footnote w:id="2"><w:p><w:r><w:t>two</w:t></w:r></w:p></w:footnote>)" + "</w:footnotes>");
+        NotesChange change;
+        change.separators.insert(QStringLiteral("continuationSeparator"), words("* * *"));
+        change.separators.insert(QStringLiteral("continuationNotice"), words("More"));
+        const QByteArray out = notesPartXml(original, false, change);
+        QCOMPARE(idsOf(out), (QVector<int>{-1, 2, 0, 3}));
+        QVERIFY(out.contains("w:type=\"continuationSeparator\" w:id=\"0\""));
+        // An Id of the separators taken by another note: no separator is made to share it.
+        const QByteArray taken = xmlDoc(QByteArray("<w:footnotes ") + kW + R"(><w:footnote w:id="0"><w:p><w:r><w:t>zero</w:t></w:r></w:p></w:footnote></w:footnotes>)");
+        NotesChange only;
+        only.separators.insert(QStringLiteral("continuationSeparator"), words("* * *"));
+        QCOMPARE(idsOf(notesPartXml(taken, false, only)), (QVector<int>{0}));
+        // The highest Id there can be: the notice is not given one past it.
+        const QByteArray top = xmlDoc(QByteArray("<w:footnotes ") + kW + R"(><w:footnote w:id="2147483647"><w:p><w:r><w:t>last</w:t></w:r></w:p></w:footnote></w:footnotes>)");
+        NotesChange notice;
+        notice.separators.insert(QStringLiteral("continuationNotice"), words("More"));
+        const QByteArray capped = notesPartXml(top, false, notice);
+        QVERIFY(!capped.isEmpty());
+        QVERIFY2(!capped.contains("-2147483648"), capped.constData());
+        const QVector<int> ids = idsOf(capped);
+        QCOMPARE(QSet<int>(ids.begin(), ids.end()).size(), int(ids.size()));
+        // A new part whose added note has the highest Id: the notice is left out, not given that Id again.
+        NotesChange fresh;
+        fresh.added.push_back({2147483647, words("last")});
+        fresh.separators.insert(QStringLiteral("continuationNotice"), words("More"));
+        const QByteArray made = notesPartXml(QByteArray(), false, fresh);
+        const QVector<int> madeIds = idsOf(made);
+        QVERIFY2(!made.contains("continuationNotice"), made.constData());
+        QCOMPARE(QSet<int>(madeIds.begin(), madeIds.end()).size(), int(madeIds.size()));
+    }
+
+    // What the commands that make captions, indexes, authorities, and bibliographies add is not a built-in style a document may name without defining; the settings that cannot take the
+    // numbering are known.
+    void theReferenceStylesAreNotBuiltIn()
+    {
+        for (const char *id : {"Caption", "TableofFigures", "TableofAuthorities", "Index1", "Index9", "IndexHeading", "TOAHeading", "Bibliography"}) {
+            QVERIFY2(builtinStyle(QString::fromLatin1(id)).id.isEmpty(), id);
+            QCOMPARE(referenceStyle(QString::fromLatin1(id)).id, QString::fromLatin1(id));
+        }
+        QVERIFY(referenceStyle(QStringLiteral("Normal")).id.isEmpty());
+        QVERIFY(settingsAcceptNoteProperties(QByteArray()));
+        QVERIFY(settingsAcceptNoteProperties(xmlDoc(QByteArray("<w:settings ") + kW + "><w:zoom w:percent=\"100\"/></w:settings>")));
+        QVERIFY(!settingsAcceptNoteProperties(xmlDoc(QByteArray("<w:settings ") + kW + "/>")));
+    }
+
+    // The numbering of the notes is written in the group the schema has for it, in the order its elements have, with the separator notes kept, and read back.
+    void theSettingsSayHowTheNotesAreNumbered()
+    {
+        const QByteArray settings = xmlDoc(QByteArray("<w:settings ") + kW + "><w:zoom w:percent=\"100\"/><w:footnotePr><w:numFmt w:val=\"lowerRoman\"/><w:footnote w:id=\"-1\"/><w:footnote w:id=\"0\"/></w:footnotePr><w:compat/></w:settings>");
+        NoteProperties p;
+        p.format = QStringLiteral("upperLetter");
+        p.start = 3;
+        p.restart = QStringLiteral("eachSect");
+        p.position = QStringLiteral("beneathText");
+        const QByteArray out = settingsWithNoteProperties(settings, false, p);
+        QVERIFY2(out.contains("<w:footnotePr><w:pos w:val=\"beneathText\"/><w:numFmt w:val=\"upperLetter\"/><w:numStart w:val=\"3\"/><w:numRestart w:val=\"eachSect\"/><w:footnote w:id=\"-1\"/><w:footnote w:id=\"0\"/></w:footnotePr><w:compat/>"),
+                 out.constData());
+        const NoteNumbering read = readNoteNumbering(out, "footnotePr");
+        QCOMPARE(read.format, QStringLiteral("upperLetter"));
+        QCOMPARE(read.start, 3);
+        QCOMPARE(read.position, QStringLiteral("beneathText"));
+        QCOMPARE(noteNumberRestart(out, "footnotePr"), QStringLiteral("eachSect"));
+        QCOMPARE(settingsWithNoteProperties(out, false, p), out);
+        // A group that is not there is made before what the schema puts after it, the footnotes' before the endnotes'.
+        const QByteArray bare = xmlDoc(QByteArray("<w:settings ") + kW + "><w:zoom w:percent=\"100\"/><w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr><w:compat/></w:settings>");
+        const QByteArray made = settingsWithNoteProperties(bare, false, p);
+        QVERIFY(made.indexOf("<w:footnotePr>") > made.indexOf("<w:zoom") && made.indexOf("<w:footnotePr>") < made.indexOf("<w:endnotePr>"));
+        NoteProperties e;
+        e.format = QStringLiteral("lowerRoman");
+        e.position = QStringLiteral("docEnd");
+        const QByteArray ends = settingsWithNoteProperties(bare, true, e);
+        QVERIFY2(ends.contains("<w:endnotePr><w:pos w:val=\"docEnd\"/><w:numFmt w:val=\"lowerRoman\"/></w:endnotePr><w:compat/>"), ends.constData());
+        QCOMPARE(ends.count("<w:endnotePr>"), 1);
+        // No settings: a part that reads back.
+        const QByteArray fresh = settingsWithNoteProperties(QByteArray(), true, e);
+        XmlTree tree;
+        QVERIFY(tree.parse(fresh));
+        QCOMPARE(readNoteNumbering(fresh, "endnotePr").position, QStringLiteral("docEnd"));
+    }
+
     // The fonts of a font table come with their alternates and kinds; a part of thousands of fonts is read in step with its size, and one that is
     // not XML (unclosed elements) is refused.
     void readsTheFontsOfAFontTable()
@@ -2332,6 +2430,71 @@ private Q_SLOTS:
         const QByteArray written = documentXmlOf(writeDocx(d));
         QCOMPARE(count(written, "<w:smartTag"), 100);
         QVERIFY(written.contains("deep"));
+    }
+
+    void theMailMergeIsFoundByTheNamespaceNotByThePrefix()
+    {
+        // The main namespace under the prefix x, the relationships under q, and w and r stand for other namespaces entirely.
+        const QByteArray file = "<?xml version=\"1.0\"?><x:settings xmlns:x=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:q=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                                "xmlns:w=\"urn:other\" xmlns:r=\"urn:other2\"><x:zoom x:percent=\"100\"/><x:mailMerge><x:mainDocumentType x:val=\"formLetters\"/><x:linkToQuery/>"
+                                "<w:mainDocumentType w:val=\"email\"/><x:dataSource q:id=\"rId4\" r:id=\"rId8\"/><x:mailSubject x:val=\"Hi\"/><x:odso><x:fieldMapData/></x:odso></x:mailMerge></x:settings>";
+        MailMergeSettings m;
+        QVERIFY(readMailMerge(file, &m));
+        QCOMPARE(m.type, QStringLiteral("formLetters"));   // (not the other namespace's element of the same name)
+        QCOMPARE(m.dataSourceId, QStringLiteral("rId4"));
+        QCOMPARE(m.mailSubject, QStringLiteral("Hi"));
+        QVERIFY(m.linkToQuery);
+        QVERIFY(m.odso.startsWith("<x:odso>"));
+        // The same with the main namespace as the default one.
+        const QByteArray plain = "<settings xmlns=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:q=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+                                 "<mailMerge><mainDocumentType val=\"mailingLabels\"/></mailMerge></settings>";
+        MailMergeSettings d;
+        QVERIFY(!readMailMerge(plain, &d));   // (its attributes have no namespace: not the schema's w:val)
+        // A part where w is not the main namespace holds none under w.
+        const QByteArray only = "<x:settings xmlns:x=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:w=\"urn:other\"><w:mailMerge><w:mainDocumentType w:val=\"formLetters\"/></w:mailMerge></x:settings>";
+        QVERIFY(!readMailMerge(only, &d));
+    }
+
+    void theMailMergeOfTheSettingsIsReadAndWrittenInTheSchemasPlace()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        const QByteArray file = "<?xml version=\"1.0\"?><w:settings " + ns + "><w:zoom w:percent=\"100\"/><w:mailMerge><w:mainDocumentType w:val=\"formLetters\"/><w:linkToQuery/>"
+                                "<w:dataType w:val=\"textFile\"/><w:connectString w:val=\"\"/><w:query w:val=\"SELECT * FROM C:\\a &amp; b.csv\"/><w:dataSource r:id=\"rId1\"/><w:viewMergedData/>"
+                                "<w:activeRecord w:val=\"3\"/><w:odso><w:fieldMapData><w:column w:val=\"0\"/></w:fieldMapData></w:odso></w:mailMerge><w:trackRevisions/><w:defaultTabStop w:val=\"720\"/></w:settings>";
+        MailMergeSettings m;
+        QVERIFY(readMailMerge(file, &m));
+        QCOMPARE(m.type, QStringLiteral("formLetters"));
+        QVERIFY(m.linkToQuery && m.viewMergedData);
+        QCOMPARE(m.dataType, QStringLiteral("textFile"));
+        QCOMPARE(m.query, QStringLiteral("SELECT * FROM C:\\a & b.csv"));
+        QCOMPARE(m.dataSourceId, QStringLiteral("rId1"));
+        QCOMPARE(m.activeRecord, 3);
+        QVERIFY(m.odso.startsWith("<w:odso>") && m.odso.endsWith("</w:odso>"));
+        // Changing one thing keeps the rest, in the same place.
+        m.activeRecord = 5;
+        m.mailSubject = "Hello <you>";
+        const QByteArray changed = settingsWithMailMerge(file, m);
+        MailMergeSettings back;
+        QVERIFY(readMailMerge(changed, &back));
+        QCOMPARE(back.activeRecord, 5);
+        QCOMPARE(back.mailSubject, QStringLiteral("Hello <you>"));
+        QCOMPARE(back.odso, m.odso);
+        QVERIFY(changed.indexOf("<w:mailMerge>") < changed.indexOf("<w:trackRevisions/>"));
+        QVERIFY(changed.indexOf("<w:zoom") < changed.indexOf("<w:mailMerge>"));
+        // Added to settings that have none: before the elements the schema puts after it.
+        const QByteArray plain = "<?xml version=\"1.0\"?><w:settings " + ns + "><w:zoom w:percent=\"100\"/><w:trackRevisions/><w:compat/></w:settings>";
+        MailMergeSettings fresh;
+        fresh.type = QStringLiteral("mailingLabels");
+        fresh.dataSourceId = QStringLiteral("rId9");
+        const QByteArray added = settingsWithMailMerge(plain, fresh);
+        QVERIFY(added.indexOf("<w:zoom") < added.indexOf("<w:mailMerge>") && added.indexOf("<w:mailMerge>") < added.indexOf("<w:trackRevisions/>"));
+        QVERIFY(readMailMerge(added, &back));
+        QCOMPARE(back.type, QStringLiteral("mailingLabels"));
+        // An empty part gets a whole one, and an empty type takes the element out.
+        QVERIFY(readMailMerge(settingsWithMailMerge(QByteArray(), fresh), &back));
+        MailMergeSettings none;
+        QVERIFY(!readMailMerge(settingsWithMailMerge(added, none), &back));
+        QVERIFY(settingsWithMailMerge(added, none).contains("<w:trackRevisions/>"));
     }
 };
 

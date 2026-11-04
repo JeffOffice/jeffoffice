@@ -93,7 +93,7 @@ QByteArray pivotBook()
         addType(p, QStringLiteral("xl/pivotCache/pivotCacheRecords1.xml"), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheRecords+xml"));
         addType(p, QStringLiteral("xl/pivotTables/pivotTable1.xml"), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml"));
         p[QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml")] =
-            "<pivotCacheDefinition xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"rId1\" refreshOnLoad=\"1\" recordCount=\"2\">"
+            "<pivotCacheDefinition xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"rId1\" recordCount=\"2\">"
             "<cacheSource type=\"worksheet\"><worksheetSource ref=\"A1:A2\" sheet=\"Sheet1\"/></cacheSource><cacheFields count=\"1\"><cacheField name=\"Amount\" numFmtId=\"0\"><sharedItems containsSemiMixedTypes=\"0\" "
             "containsString=\"0\" containsNumber=\"1\" containsInteger=\"1\" minValue=\"1\" maxValue=\"10\"/></cacheField></cacheFields></pivotCacheDefinition>";
         p[QStringLiteral("xl/pivotCache/pivotCacheRecords1.xml")] = "<pivotCacheRecords xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"2\"><r><n v=\"1\"/></r><r><n v=\"10\"/></r></pivotCacheRecords>";

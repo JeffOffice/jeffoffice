@@ -61,6 +61,12 @@ public:
         val("c:lang", QStringLiteral("en-US"));
         val("c:roundedCorners", QStringLiteral("0"));
         val("c:style", QString::number(std::clamp(c.style, 1, 48)));
+        if (!c.pivotName.isEmpty()) {
+            w.writeStartElement(QStringLiteral("c:pivotSource"));
+            w.writeTextElement(QStringLiteral("c:name"), c.pivotName);
+            val("c:fmtId", QString::number(c.pivotFmtId));
+            w.writeEndElement();
+        }
         chart();
         // the chart area
         shapeProps(c.background, c.backgroundNone && !c.background.isValid(), c.border, QColor(), 0, false, &c.backgroundKept);
@@ -449,6 +455,8 @@ private:
             w.writeEndElement();
         }
         labels(s.labels, plot.type == ChartType::Pie || plot.type == ChartType::Doughnut);
+        if (plot.type != ChartType::Pie && plot.type != ChartType::Doughnut)
+            for (const ChartTrendline &t : s.trendlines) trendline(t);
         if (scatter) {
             numberData("c:xVal", s.xRef, s.xValues, s.categoryFormat);
             numberData("c:yVal", s.valueRef, s.values, s.format);
@@ -457,6 +465,23 @@ private:
             numberData("c:val", s.valueRef, s.values, s.format);
         }
         if (stroked) flag("c:smooth", s.smooth);
+        w.writeEndElement();
+    }
+
+    void trendline(const ChartTrendline &t)
+    {
+        w.writeStartElement(QStringLiteral("c:trendline"));
+        if (!t.name.isEmpty()) text("c:name", t.name);
+        shapeProps(QColor(), false, t.line, QColor(), 0, true);
+        val("c:trendlineType", t.type);
+        if (t.type == QLatin1String("poly")) val("c:order", QString::number(std::clamp(t.order, 2, 6)));
+        if (t.type == QLatin1String("movingAvg")) val("c:period", QString::number(std::clamp(t.period, 2, 255)));
+        if (t.forward > 0) val("c:forward", number(t.forward));
+        if (t.backward > 0) val("c:backward", number(t.backward));
+        if (t.hasIntercept) val("c:intercept", number(t.intercept));
+        flag("c:dispRSqr", t.dispRSqr);
+        flag("c:dispEq", t.dispEq);
+        raw(t.label);
         w.writeEndElement();
     }
 

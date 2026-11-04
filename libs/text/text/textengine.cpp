@@ -2987,7 +2987,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     static thread_local int noteDepth = 0;
     const bool withNotes = noteDepth == 0 && nF > 0;
     const FieldSource *notesDoc = nF > 0 ? frames.first().ctx.doc : nullptr;
-    int footCount = m_span.footnotesBefore + (notesDoc ? notesDoc->footnotesBefore() : 0), endCount = m_span.endnotesBefore + (notesDoc ? notesDoc->endnotesBefore() : 0);
+    int footCount = notesDoc && notesDoc->restartNotesEachPage() ? 0 : m_span.footnotesBefore + (notesDoc ? notesDoc->footnotesBefore() : 0), endCount = m_span.endnotesBefore + (notesDoc ? notesDoc->endnotesBefore() : 0);
     QHash<int, double> reserve;   // a column's room for footnotes, by frame * 64 + column
     QHash<int, double> lastTrail;   // the space after the last whole note of a column (a word processor's): it hangs below the column's foot where there is no room for it, by the same key
     auto rkey = [](int fi, int ci) { return fi * 64 + ci; };
@@ -3016,7 +3016,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         FrameSpec fs = frames.first();
         fs.size = QSizeF(width, height);
         fs.insets = QMarginsF(n.numberWidth, 0, 0, 0);
-        fs.ctx.noteMark = n.number > 0 ? QString::number(n.number) : QString();   // (a note of a custom mark has no number: the mark its text begins with shows nothing)
+        fs.ctx.noteMark = n.number > 0 ? (notesDoc ? notesDoc->noteMarkText(n.endnote, n.number) : QString::number(n.number)) : QString();   // (a note of a custom mark has no number: the mark its text begins with shows nothing)
         fs.columns = 1;
         fs.rightRoom = 0;   // (a note's box is no text area of a page: its text goes no farther than the box)
         fs.valign = VAlign::Top;
@@ -3391,7 +3391,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 if (const QString v = ctx.resolve(field); !v.isEmpty()) {
                     B->map << Seg{rel, int(text.size()), int(B->disp.size()), int(v.size())};
                     ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};
-                    B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
+                    if (!env.wordLines || cf.boolProperty(tp::MergeField)) B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                     B->disp += v;
                     continue;
                 }
@@ -3409,7 +3409,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             const bool customMark = env.wordLines && cf.boolProperty(tp::NoteMarkCustom);
                             n.number = customMark ? 0 : n.endnote ? ++endCount : ++footCount;
                             n.refPos = head.position() + rel + i;
-                            if (!customMark) v = QString::number(n.number);
+                            if (!customMark) v = notesDoc ? notesDoc->noteMarkText(n.endnote, n.number) : QString::number(n.number);
                             B->noteRefs << qMakePair(int(B->disp.size()), int(m_notes.size()));
                             m_notes << n;
                         }
@@ -3418,7 +3418,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         // thousand takes each page more than a tenth of a second.)
                         if (env.wordLines && !ranges.isEmpty() && ranges.last().start + ranges.last().length == int(B->disp.size()) && ranges.last().format == rf) ranges.last().length += int(v.size());
                         else if (!(env.wordLines && v.isEmpty() && !ranges.isEmpty())) ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), rf};   // (a range of no letters, after text, is none)
-                        B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
+                        if (!env.wordLines || cf.boolProperty(tp::MergeField)) B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                         B->disp += v;
                         continue;
                     }
@@ -3436,7 +3436,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     B->map << Seg{rel + i, 1, int(B->disp.size()), int(v.size()), env.wordLines && v.isEmpty()};
                     if (!(env.wordLines && v.isEmpty() && !ranges.isEmpty())) ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), env.wordLines ? withEastAsianFaces(rf, v) : rf};
-                    B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
+                    if (!env.wordLines || cf.boolProperty(tp::MergeField)) B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
                     B->disp += v;
                 }
                 continue;
@@ -3647,6 +3647,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             B->runBorders << Block::RunBorder{fr.start, fr.length, side, ascent, descent};
                         }
                     }
+                // (A word processor's mail merge field shows its result in its own runs: shaded as the fields of a publication are, where the shading is on.)
+                if (env.wordLines && cf.boolProperty(tp::MergeField) && !cf.hasProperty(tp::FieldCodeText) && !shown.isEmpty()) B->fieldRanges << qMakePair(int(B->disp.size()), int(shown.size()));
                 B->disp += shown;
             }
         }

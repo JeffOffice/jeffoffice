@@ -4,6 +4,7 @@
 #include "app/appfuncs.h"
 #include "app/dialogs.h"
 #include "app/filescreenparts.h"
+#include "app/filetasks.h"
 #include "app/icons.h"
 #include "app/mainwindow.h"
 #include "app/settings.h"
@@ -111,6 +112,8 @@ Backstage::Backstage(MainWindow *win) : FileScreen(win), m_win(win)
     addSection(tr("This publication"));
     addCommand(QStringLiteral("save"), QStringLiteral("save"), tr("Save"), [this] { if (m_win->save()) Q_EMIT closeRequested(); });
     addCommand(QStringLiteral("saveas"), QStringLiteral("copy"), tr("Save As"), [this] { if (m_win->saveAs()) Q_EMIT closeRequested(); });
+    addCommand(QStringLiteral("savecopy"), QStringLiteral("files"), tr("Save a Copy"), [this] { if (m_win->saveCopy()) Q_EMIT closeRequested(); });
+    addCommand(QStringLiteral("savetemplate"), QStringLiteral("layout-template"), tr("Save as Template"), [this] { saveAsTemplate(this, m_win); });
     addPage(QStringLiteral("print"), QStringLiteral("printer"), tr("Print"));
     addPage(QStringLiteral("export"), QStringLiteral("file-output"), tr("Export"));
     addPage(QStringLiteral("share"), QStringLiteral("share-2"), tr("Share"));
@@ -650,6 +653,7 @@ QWidget *Backstage::buildOpen()
     cards->addWidget(browse, 1);
     cards->addWidget(recover, 1);
     v->addLayout(cards);
+    v->addWidget(moreWaysToOpenCard(w, [this](OpenHow how) { m_win->browseAndOpen(how); }));
     v->addSpacing(14);
     auto section = [&](const QString &t) {
         QLabel *l = sectionLabel(t, w);
@@ -712,6 +716,10 @@ QWidget *Backstage::buildOpen()
                 showPage("open");
             });
             m.addAction(tr("Remove from list"), [this, f] { Settings::get().removeRecentFile(f); showPage("open"); });
+            m.addSeparator();
+            addOpenWays(&m, [this, f](OpenHow how) {
+                if (how == OpenHow::NewWindow || m_win->maybeSave()) m_win->openFile(f, how);
+            });
             m.exec(list->viewport()->mapToGlobal(pos));
         });
         v->addWidget(list);

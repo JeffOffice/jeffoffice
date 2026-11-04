@@ -11,6 +11,7 @@
 #include "core/appinfo.h"
 #include "core/loader.h"
 #include "core/sheetobjects.h"
+#include "odt/odttemplate.h"
 #include "sheet/oldsave.h"
 #include "sheet/xlsxsave.h"
 
@@ -51,14 +52,14 @@ bool CrunchWindow::exportCopy(const QString &path)
         return false;
     }
     if (m_objects) m_objects->addToSave(&snapshot->changes);
-    const bool xls = crunch::copyKindOf(path) == QLatin1String("xls");
+    const bool xls = crunch::copyKindOf(path) == QLatin1String("xls"), ots = crunch::copyKindOf(path) == QLatin1String("ots");
     m_saving = true;
     m_session->setBusy(true);
     updateEditActions();
     setStatus(tr("Saving %1…").arg(QFileInfo(path).fileName()));
     const std::shared_ptr<office::sheet::Workbook> book = m_loaded->book;
     const QPointer<CrunchWindow> self(this);
-    QThread *thread = QThread::create([self, book, snapshot, path, xls] {
+    QThread *thread = QThread::create([self, book, snapshot, path, xls, ots] {
         QByteArray xlsx, copy;
         QString message;
         office::sheet::SaveReport report;
@@ -70,6 +71,7 @@ bool CrunchWindow::exportCopy(const QString &path)
             office::sheet::Workbook made;
             ok = package.readLazy(xlsx, &message) && made.open(package, &message);
             if (ok) ok = xls ? office::sheet::saveXls(made, &copy, &copyReport, &message) : office::sheet::saveOds(made, &copy, &copyReport, &message);
+            if (ok && ots) copy = office::odt::odfAsTemplate(copy);
         }
         QMetaObject::invokeMethod(qApp, [self, ok, message, path, copy, copyReport] {
             if (self) self->onCopyMade(ok, message, path, copy, copyReport.notKept, copyReport.trimmed);

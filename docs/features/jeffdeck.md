@@ -66,7 +66,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 
 ### New
 - [x] **1.0** Blank Presentation (16:9, the first theme, nine layouts)
-- [ ] **1.0** Template gallery with live previews: the nine built-in themes, each with its variants, shown as places to start (they are only in the Design tab now), and your own templates under My Templates
+- [~] **1.0** Template gallery with live previews: the nine built-in themes, each with its variants, shown as places to start (they are only in the Design tab now), and your own templates under My Templates *(done: your own templates, saved with File > Save as Template, under My Templates on the New page; not done: the built-in themes as places to start)*
 - [x] **1.0** A presentation opened from a template (`.potx`, `.otp`) is saved as a new presentation, so the template stays as it was
 - [ ] **1.0** More built-in templates written by JeffOffice and open-licensed: a lesson, a report, a pitch, a photo album, and a training deck
 - [ ] **1.0** The default for new presentations: set the theme, fonts, and slide size every new presentation starts with
@@ -77,14 +77,14 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** Save (Ctrl+S) and Save As (F12) with a kind chosen by ending (`.pptx`, `.potx`, `.ppsx`, `.odp`, `.otp`); a star in the title bar marks unsaved changes; Close asks first; the old file is kept when the new one can't be written
 - [x] **1.0** A file that is not entirely readable opens with the rest and lists what it left out; a file that can't be read at all says why
 - [x] **1.0** AutoRecover every 10 minutes for each presentation with unsaved changes, offered again after a crash, and Recover Unsaved Work on the Open page
-- [~] **1.0** Open and Repair: recover what can be read from a damaged file *(a damaged `.pptx` or `.odp` opens with what can be read, as above; a badly damaged `.ppt` is refused; there is no separate Repair command)*
-- [ ] **1.0** Save a Copy (keeps working in the original) and Save as Template from the File screen
-- [ ] **1.0** Open read-only, open as a copy, and open in a new window
+- [~] **1.0** Open and Repair: recover what can be read from a damaged file *(a damaged `.pptx` or `.odp` opens with what can be read, as above; Open > More Ways to Open > Open and Repair also finds the parts of a `.pptx` cut short or with its directory gone by their own headers, keeps what broke part way, and opens the result as a copy with a note of what was left out; a badly damaged `.ppt` is refused; shared: libs/office repair)*
+- [x] **1.0** Save a Copy (keeps working in the original) and Save as Template from the File screen *(Save as Template puts a `.potx` in My Templates)*
+- [x] **1.0** Open read-only, open as a copy, and open in a new window *(More Ways to Open on the Open page, and the right-click menu of the Recent list)*
 - [ ] **1.0** Open an encrypted presentation by asking for its password
 - [ ] **1.0** Open and save the macro-enabled kinds (`.pptm`, `.ppsm`, `.potm`), keeping the macro project untouched and never running it *(macro projects: ours 0 of 19)*
 - [ ] **1.0** Save As lists `.ppt`, `.pps`, and `.pot`, with a warning of what they can't hold; until then Save on an old file asks for a new name (see File formats)
 - [ ] **1.0** A warning before saving to a kind that can't hold something in the presentation, naming what would change, with the choice to save a `.pptx` as well
-- [ ] **later** Backup copy kept on every save
+- [x] **later** Backup copy kept on every save *(Options > General, shared by every app)*
 - [ ] **later** Protected View: files from the Internet open for reading only until you choose to edit them
 - [ ] **later** Open from a web address and save back
 

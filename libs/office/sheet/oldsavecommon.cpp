@@ -162,6 +162,8 @@ QStringList Features::result() const
     } else {
         for (const QString &s : m_book.skippedFeatures()) found.insert(s);
     }
+    // (a pivot table made in this session has no part in the package yet: the model says)
+    if (m_book.pivots().tableCount() > 0) add(QT_TRANSLATE_NOOP("Sheet", "pivot tables"));
     if (m_book.info().protection.lockStructure) add(QT_TRANSLATE_NOOP("Sheet", "workbook protection"));
     QStringList out(found.cbegin(), found.cend());
     std::sort(out.begin(), out.end());

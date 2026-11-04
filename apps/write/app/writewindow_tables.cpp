@@ -71,7 +71,7 @@ QIcon tableStyleIcon(const QString &id, const office::wml::Style &style, const Q
 
 void WriteWindow::tableCommand(const std::function<void(write::WriteDoc &, QTextCursor &)> &fn)
 {
-    if (!m_doc) return;
+    if (!m_doc || refuseIfReadOnly()) return;
     m_doc->tableNotice.clear();
     fn(*m_doc, m_view->cursor());
     if (!m_doc->tableNotice.isEmpty()) statusBar()->showMessage(m_doc->tableNotice, 8000);   // (what a command that did nothing says of why)
@@ -81,7 +81,7 @@ void WriteWindow::tableCommand(const std::function<void(write::WriteDoc &, QText
 
 void WriteWindow::insertTableNow(const write::NewTable &table)
 {
-    if (!m_doc) return;
+    if (!m_doc || refuseIfReadOnly()) return;
     m_doc->tableNotice.clear();
     if (!write::insertTable(*m_doc, m_view->cursor(), table)) {
         statusBar()->showMessage(m_doc->tableNotice.isEmpty() ? tr("A table can't be put in a table cell here.") : m_doc->tableNotice, 5000);

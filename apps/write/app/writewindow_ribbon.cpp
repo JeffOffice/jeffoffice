@@ -92,6 +92,7 @@ void WriteWindow::buildRibbon()
     parts.launchers[QStringLiteral("paragraph")] = [this] { act("para.dialog")->trigger(); };
     parts.launchers[QStringLiteral("styles")] = [this] { act("style.pane")->trigger(); };
     parts.launchers[QStringLiteral("pageSetup")] = [this] { act("layout.pageSetup")->trigger(); };
+    parts.launchers[QStringLiteral("notes")] = [this] { act("refs.notesOptions")->trigger(); };
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
     // The Copy Formatting button is double-clicked to keep it on, and Esc in the text turns it off (see eventFilter).
     for (QToolButton *b : m_ribbon->findChildren<QToolButton *>())
@@ -103,9 +104,11 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
 {
     tableRibbonParts(parts);
     pictureRibbonParts(parts);
+    mailRibbonParts(parts);
     parts.widgets[QStringLiteral("fontCombo")] = [this]() -> QWidget * {
         auto *font = new FontCombo();
         connect(font, &FontCombo::familyChosen, this, [this](const QString &f) {
+            if (refuseIfReadOnly()) return;
             if (m_doc) write::setFontFamily(*m_doc, m_view->cursor(), f);
             m_view->setFocus();
         });
@@ -115,6 +118,7 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
     parts.widgets[QStringLiteral("sizeCombo")] = [this]() -> QWidget * {
         auto *size = new SizeCombo();
         connect(size, &SizeCombo::sizeChosen, this, [this](double s) {
+            if (refuseIfReadOnly()) return;
             if (m_doc) write::setFontSize(*m_doc, m_view->cursor(), s);
             m_view->setFocus();
         });
@@ -125,7 +129,7 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         auto *b = new ColorButton(QStringLiteral("baseline"), tr("Font Color"), true, tr("Automatic"));
         b->setCurrent(ColorRef::rgb(QColor(0xC0, 0, 0)));
         connect(b, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
-            if (!m_doc) return;
+            if (!m_doc || refuseIfReadOnly()) return;
             write::setTextColor(*m_doc, m_view->cursor(), c.isNone() ? QColor() : c.resolve(m_doc->flow().env.colors));
             m_view->setFocus();
         });
@@ -137,12 +141,14 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         for (const QString &name : write::highlightNames()) {
             QAction *a = m->addAction(colorSquare(write::highlightColor(name)), name);
             connect(a, &QAction::triggered, this, [this, name] {
+                if (refuseIfReadOnly()) return;
                 if (m_doc) write::setHighlight(*m_doc, m_view->cursor(), name);
                 m_view->setFocus();
             });
         }
         m->addSeparator();
         connect(m->addAction(icon(QStringLiteral("circle-slash")), tr("No Color")), &QAction::triggered, this, [this] {
+            if (refuseIfReadOnly()) return;
             if (m_doc) write::setHighlight(*m_doc, m_view->cursor(), QString());
             m_view->setFocus();
         });
@@ -170,7 +176,7 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         });
         g->reload();
         connect(g, &Gallery::activated, this, [this](const QString &id) {
-            if (!m_doc) return;
+            if (!m_doc || refuseIfReadOnly()) return;
             if (id.startsWith(QLatin1String("c:"))) write::applyCharacterStyle(*m_doc, m_view->cursor(), id.mid(2));
             else write::applyParagraphStyle(*m_doc, m_view->cursor(), id.mid(2));
             m_view->setFocus();
@@ -187,7 +193,7 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
             spin->setAccessibleName(which == 0 ? tr("Indent left") : which == 1 ? tr("Indent right") : which == 2 ? tr("Spacing before") : tr("Spacing after"));
             m_indentFields << spin;
             connect(spin, &QDoubleSpinBox::editingFinished, this, [this, spin, which] {
-                if (m_updatingFields || !m_doc) return;
+                if (m_updatingFields || !m_doc || refuseIfReadOnly()) return;
                 const double v = spin->value();
                 write::changeBlockFormat(*m_doc, m_view->cursor(), [which, v](QTextBlockFormat &bf) {
                     if (which == 0) bf.setLeftMargin(v);

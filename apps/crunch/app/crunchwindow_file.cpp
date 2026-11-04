@@ -9,6 +9,9 @@
 
 #include "app/crunchfilescreen.h"
 #include "app/oldformat.h"
+#include "app/otherformats.h"
+#include "office/package.h"
+#include "office/repair.h"
 #include "app/settings.h"
 #include "app/sheettabs.h"
 #include "app/telemetry.h"
@@ -16,9 +19,16 @@
 #include "core/appinfo.h"
 #include "core/threadtime.h"
 
+#include <QPointer>
+#include <QTimer>
 #include <QApplication>
 #include <QAbstractButton>
+#include <QDir>
+#include <QFile>
+#include <QFileDialog>
+#include <QTemporaryFile>
 #include <QFileInfo>
+#include <QStandardPaths>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLocale>
@@ -55,6 +65,7 @@ void CrunchWindow::dropWorkbook()
     m_loader.cancel();
     // (what was waiting for the old workbook is not done to the next: a save that waited for its calculation, a close that waited for that save, what was typed before it was ready)
     m_saveAfterCalculation.clear();
+    m_copyAfterCalculation = false;
     m_closeAfterSave = false;
     m_pendingTyping.clear();
     m_findRun.reset();
@@ -101,7 +112,23 @@ bool CrunchWindow::isUntouchedBlank() const
     return !m_session || (!m_session->isModified() && !m_session->viewsChanged());
 }
 
-bool CrunchWindow::openFile(const QString &path)
+void CrunchWindow::browseAndOpen(OpenHow how)
+{
+    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
+                                                   crunch::openFilter() + QStringLiteral(";;") + tr("All Files (*)"));
+    if (p.isEmpty()) return;
+    Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
+    openFile(p, how);
+}
+
+void CrunchWindow::setReadOnly(bool on)
+{
+    AppWindow::setReadOnly(on);
+    if (!m_actions.isEmpty()) updateEditActions();
+    updateTitle();
+}
+
+bool CrunchWindow::openFile(const QString &path, OpenHow how)
 {
     const QFileInfo info(path);
     const QString name = info.fileName();
@@ -110,7 +137,7 @@ bool CrunchWindow::openFile(const QString &path)
         return false;
     }
     // A file that is open in a window is not opened again: that window is brought to the front
-    if (CrunchWindow *have = windowWith(path)) {
+    if (CrunchWindow *have = how == OpenHow::Copy ? nullptr : windowWith(path)) {
         have->setWindowState(have->windowState() & ~Qt::WindowMinimized);
         have->show();
         have->raise();
@@ -119,9 +146,9 @@ bool CrunchWindow::openFile(const QString &path)
         return true;
     }
     // A new workbook nobody has changed gives way to the file (and comes back if the file can't be read).
-    const bool replacing = isUntouchedBlank();
+    const bool replacing = isUntouchedBlank() && how != OpenHow::NewWindow;
     // A window that shows a workbook, or is reading one, stays; the new one opens in a window of its own.
-    if ((m_loaded || m_loading) && !replacing) {
+    if (how == OpenHow::NewWindow || ((m_loaded || m_loading) && !replacing)) {
         auto *w = new CrunchWindow();
         w->setAttribute(Qt::WA_DeleteOnClose);
         w->m_closeIfOpenFails = true;
@@ -131,7 +158,7 @@ bool CrunchWindow::openFile(const QString &path)
         w->m_anchorHooks = m_anchorHooks;
         m_forceTextPrompt = false;
         w->show();
-        if (w->openFile(path)) return true;
+        if (w->openFile(path, how == OpenHow::NewWindow ? OpenHow::Normal : how)) return true;
         w->close();   // (it was made for this file: a window with nothing in it is not left)
         return false;
     }
@@ -141,8 +168,33 @@ bool CrunchWindow::openFile(const QString &path)
         m_forceTextPrompt = false;
         if (!askTextImport(path, &csv)) return false;
     }
+    // Open and Repair: what can be read of a damaged package is made into a package (kept in a file of its own for the reader), and what was left out is said when it is open.
+    QString loadPath = path;
+    if (how == OpenHow::Repair) {
+        QByteArray bytes;
+        QString why;
+        office::RepairReport report;
+        QByteArray fixed;
+        if (office::readWholeFile(path, &bytes, &why)) fixed = office::repairPackage(bytes, &why, &report);
+        // (the file is removed when this object goes, on every path)
+        auto temp = std::make_unique<QTemporaryFile>(QDir::temp().filePath(QStringLiteral("jeffcrunch-repair-XXXXXX.xlsx")));
+        if (fixed.isEmpty() || !temp->open() || temp->write(fixed) != fixed.size()) {
+            if (!fixed.isEmpty()) why = temp->errorString();
+            notice(tr("Open and Repair"), tr("%1 can't repair \"%2\".\n%3").arg(appInfo().name, name, why));
+            return false;
+        }
+        temp->close();
+        loadPath = temp->fileName();
+        m_repairTemp = std::move(temp);
+        m_lastRepairFile = loadPath;
+        m_repairFile = loadPath;
+        m_repairName = name;
+        m_repairNote = office::repairSummary(report);
+    }
     if (replacing) dropWorkbook();
-    m_path = path;
+    setReadOnly(how == OpenHow::ReadOnly);
+    m_openAsCopy = how == OpenHow::Copy;
+    m_path = loadPath;
     m_loading = true;
     m_haveFirstScreen = m_haveCalc = false;
     m_calculating = false;
@@ -150,7 +202,7 @@ bool CrunchWindow::openFile(const QString &path)
     m_longestBatchMicros = m_batches = m_longestBatchItems = 0;
     m_loadProblem.clear();
     // (a file that is protected with a password is refused by the read, which says so: the window asks for the password then, and reads again)
-    m_loader.start(path, csv);
+    m_loader.start(loadPath, csv);
     setStatus(tr("Opening %1…").arg(name));
     updateTitle();
     hideFileScreen();
@@ -233,7 +285,12 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
             if (askFilePasswordAgain(result->passwordNeed == jp::office::sheet::PasswordNeed::Wrong)) return;
             quietly = true;
         }
-        const QString name = QFileInfo(m_path).fileName();
+        const QString name = m_repairName.isEmpty() ? QFileInfo(m_path).fileName() : m_repairName;
+        m_openAsCopy = false;
+        m_repairTemp.reset();
+        m_repairFile.clear();
+        m_repairName.clear();
+        m_repairNote.clear();
         dropWorkbook();
         // (a window made for the file goes; any other has a new workbook: no window is left that cannot be changed)
         const bool goes = m_closeIfOpenFails;
@@ -254,8 +311,27 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     jp::crypto::wipe(m_pendingPassword);
     m_protectionChanged = false;
     m_haveCalc = true;
+    m_refreshOnOpenPending = true;
     // (a workbook read from a file of another form: that file is the one never written, whatever the workbook is saved as)
     m_originalPath = m_loaded->book->isConverted() ? m_path : QString();
+    // (opened as a copy: the workbook has no file of its own, so Save asks where; a workbook read from another form never writes its file, and has no need of this)
+    if (std::exchange(m_openAsCopy, false) && !m_loaded->book->isConverted()) {
+        m_untitled = tr("Copy of %1").arg(QFileInfo(m_path).completeBaseName());
+        m_path.clear();
+        updateTitle();
+    }
+    // (a repaired workbook is not the file it was repaired from, and its package was only kept for the reader: Save asks for a name)
+    QString repairNote, repairedName;
+    if (!m_repairFile.isEmpty()) {
+        m_repairTemp.reset();
+        m_repairFile.clear();
+        repairedName = std::exchange(m_repairName, QString());
+        repairNote = std::exchange(m_repairNote, QString());
+        m_untitled = tr("Repaired %1").arg(QFileInfo(repairedName).completeBaseName());
+        m_path.clear();
+        m_originalPath.clear();
+        updateTitle();
+    }
     createEditing();
     if (m_objects && m_loaded->calc) m_objects->setCells(m_loaded->calc.get(), &m_values);
     for (int i = 0; i < m_tabs->count(); ++i) m_tabs->setTabEnabled(i, true);
@@ -272,6 +348,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     // (what had to be changed is known once every sheet is read: sheet names the .xlsx form does not allow, and formulas that could not be converted)
     const QStringList changed = m_loaded->book->changedFeatures();
     if (!m_loaded->notRead.isEmpty() || !changed.isEmpty()) notice(tr("Open"), crunch::notReadNotice(m_loaded->notRead, changed));
+    if (!repairNote.isEmpty()) notice(tr("Open and Repair"), tr("\"%1\" was opened as a repaired copy. Save it under a name of its own.\n\n%2").arg(repairedName, repairNote), false);
     Q_EMIT loadFinished(true);
     // (what was typed while the new workbook was getting ready)
     if (!m_pendingTyping.isEmpty() && m_session) {
@@ -420,6 +497,7 @@ bool CrunchWindow::stopCalculation()
     // a save that was waiting for the calculation is not made later, when something else finishes one: it is given up, and the person is told
     const bool saveWaiting = !m_saveAfterCalculation.isNull();
     m_saveAfterCalculation.clear();
+    m_copyAfterCalculation = false;
     if (m_calculating || saveWaiting) {
         m_calculating = false;
         setStatus(saveWaiting ? tr("The calculation was stopped, so the save was cancelled. Save again when you want to.") : tr("Ready"));
@@ -465,10 +543,21 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
             updateBars();
             m_longestBatchMicros = std::max(m_longestBatchMicros, jp::threadCpuMicros() - cpu0);
             Q_EMIT calculationFinished();
+            if (m_refreshOnOpenPending && m_session) {
+                // (a table whose data says to be read again when the file opens is: one step, which the person can undo; it waits for the first screen to be drawn)
+                m_refreshOnOpenPending = false;
+                QPointer<CrunchWindow> self(this);
+                QTimer::singleShot(0, this, [self] {
+                    if (!self || !self->m_session) return;
+                    const auto refreshed = self->m_session->refreshPivotsOnOpen();
+                    if (!refreshed.problem.isEmpty()) self->setStatus(refreshed.problem.section(QLatin1Char('\n'), 0, 0));
+                });
+            }
             if (!m_saveAfterCalculation.isNull()) {
                 const QString path = m_saveAfterCalculation;
                 m_saveAfterCalculation.clear();
-                startSave(path);
+                if (std::exchange(m_copyAfterCalculation, false)) startCopy(path);
+                else startSave(path);
             }
             return;
         }

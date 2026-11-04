@@ -589,7 +589,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "761d3b8aac65c3f0afad455921bbc9c2a7fe3629cb40c8f933ca190c1af0a9d3"
+         "text": "58b99f1b368fe801709c1dcafc81dfe03e0b540e28945fb94b59da408c991126"
         },
         {
          "status": "partly",
@@ -657,8 +657,8 @@
          "text": "59c327fd54fbcfd11ffd18745c328782ed23dd9423473f74db4ca8014372f931"
         },
         {
-         "status": "todo",
-         "text": "55184ae072876bf5d0c4d26d3b4f287f6f57d096f8291f482918077bb9634ba5"
+         "status": "partly",
+         "text": "0f6adec6da1622f9c9e0aea86200862e07ddc193727f08f3038bf0c134ef3a7a"
         }
        ]
       },
@@ -666,8 +666,8 @@
        "heading": "d4c7bac5b475fee65512621f3327448cb4510158cc1cbc6a4ab3e8906c2713d7",
        "items": [
         {
-         "status": "todo",
-         "text": "83b04c95bec9953d2e1991c6e12cff59bd5bdb4e4b0ca6e4d129b534507e6c0d"
+         "status": "partly",
+         "text": "bc0a968f1f7b7d1dcffd7df0ca1d6423b44b2fa17b02efa3ffd17947ba49b745"
         }
        ]
       },
@@ -675,12 +675,12 @@
        "heading": "c7d9a204fa65f0c37b2e00d59f8376532ad99e9227645972a9bb61d9f434a839",
        "items": [
         {
-         "status": "todo",
-         "text": "d86934dcd7639d0844c294ecd2c26f8e466cf936140e1a3965f60111211f3081"
+         "status": "partly",
+         "text": "2fb4787082d7ea1e2e173f04ef665d67ba54eeb063abf9d0f093ce9ad550d12b"
         },
         {
-         "status": "todo",
-         "text": "99e8cda5b12c78e7a804de3a786ed3a3b59b57b3e518ee719cfe7b4cefce7f8d"
+         "status": "partly",
+         "text": "14604e6f393d3746d984835d262082846f3caf2ef9f76ccbd4e28d88af7fc096"
         }
        ]
       },
@@ -1245,24 +1245,25 @@
        "heading": "dee31959d5728cb7b1fe1fb0b7508aa30abc16607afd3a0e7f06952a6ca637b0",
        "items": [
         {
-         "status": "partly",
-         "text": "c094325aabfee2cba4d8e61977644aeef4285f83d1a950c892fd44457e832100"
+         "hide_soon": true,
+         "status": "done",
+         "text": "b74269e812ac94829375d207541f5a441b22d5bcdaedba656efe8e0192ec1cad"
         },
         {
          "status": "partly",
-         "text": "249cc97ffedea5adacb1cc23ab3e59b6dcdd3a44e7504e15663838e00a227377"
+         "text": "e6a6781b1880e67e399599dd593ad4dca859d91e116fbe295a8be4daddd9579b"
         },
         {
-         "status": "todo",
-         "text": "68c65570b487de65ab1357fa9e075e1e667e425b0d770e4fff6fc4d78e3f21d5"
+         "status": "partly",
+         "text": "8dc8e377958dfd656ef7d675e16c547d528f752a29245823da6963cd26572e26"
         },
         {
-         "status": "todo",
-         "text": "7aea19999c462b883da40aa1bd1d3d25d34c79a0b2e529d592226d5baaf40177"
+         "status": "partly",
+         "text": "3947a08e13bede2fab9981e65e1639616089715324b190a8894ba837328ddf49"
         },
         {
-         "status": "todo",
-         "text": "c2e8d6dab884873165451b6cf6f37b3ae8f1c20da0d9a373eb15fa079a7751d8"
+         "status": "partly",
+         "text": "7596d6d06eabb42fb586495b6569d494ab61ae54915e9982c7deadeefef42ffe"
         },
         {
          "status": "todo",
@@ -1270,15 +1271,15 @@
         },
         {
          "status": "partly",
-         "text": "ede99a43a6b25faf48140675ec25b092138d549d9bbb5fb08af9e7d5d65fb50c"
-        },
-        {
-         "status": "todo",
-         "text": "29d0c1ad526ed2e331676726da6176acb7d42af40625be70839efec0ba2a393b"
+         "text": "590bf4f1d8d1d065714aec3d4a030615dc1c08ba414f69014a0ddf8474a68fb7"
         },
         {
          "status": "partly",
-         "text": "7192992cc37650cb2a09f6e90c6a6b77a363d8dca355e266bc5d895f7bfdb5fa"
+         "text": "081f3e637283e7b9dc6a892d02d2ff438d0071eb0b562a5cc836ebb631cdf098"
+        },
+        {
+         "status": "partly",
+         "text": "e4a8a370cd0d0c37e850ae8f53103fdf35bbf11aff6b9ef9552b27e7b27fada2"
         },
         {
          "status": "todo",
@@ -1290,21 +1291,21 @@
          "text": "322eea60ab8798ac4bbbb663b7c6a5d3d7e3929f293e4305052f86a7629b7a16"
         },
         {
-         "status": "todo",
-         "text": "4bc4065963756ac2eac848a1074631acc3326c965f553419972bad8f1919d51e"
+         "status": "partly",
+         "text": "51a591cfe6eadde7d614bab17bbf301eea89b3ff639e3005091842bf926b3f38"
         }
        ]
       },
       {
-       "heading": "3ac38ce2da16e68e1f4a4d67d86ac53b1fbc858863faa64e7ad63606631ff60e",
+       "heading": "d04a57cde3a6fcb29f1c73ad14a2c52c49d060d6172d1a07351be59a916f1177",
        "items": [
         {
          "status": "todo",
-         "text": "a0940aca6993e0d3e067761e453d3b70351ec9cd29eda408a672ecf8b8bbc90b"
+         "text": "d26d9f2c518b0313c42e2800ba6fab1b1d032a5d5d664806bb813d6d98c98579"
         },
         {
          "status": "todo",
-         "text": "e0b81a897d1bc213c3efd1a5d804f0fc783de018cf9916a85394013cc82b8a0a"
+         "text": "51e0bcac960ff64ae0dfc1242b1c803a65f5b9045ff46e607e7d2c284b9c2f0a"
         }
        ]
       },
@@ -1317,8 +1318,8 @@
          "text": "253e0726467be3f8910baa7f2212a2c3788592e89cf484b0028556047ce7bcea"
         },
         {
-         "status": "todo",
-         "text": "817af2aa805f9449beea0d02fd99060b621e4b01cdee94640974ffc8ee1c2176"
+         "status": "partly",
+         "text": "9b5351148cb0b808e967776f136b87e5a5fd309a0b43575a4ded97c5b1d632b5"
         },
         {
          "hide_soon": true,
@@ -1348,8 +1349,8 @@
          "text": "2a71a531faa305dbb049198cff8986388c7e3077aa1bf9ef15d2229f535e1b15"
         },
         {
-         "status": "todo",
-         "text": "49964b4432e098a890cf862804e58c9dc0c56894feff258189f4c6b720898f3d"
+         "status": "partly",
+         "text": "e3671097c867a9909c5e44ca165b913aafc4723823247e76009bc8550cdb6515"
         },
         {
          "status": "partly",
@@ -1381,12 +1382,14 @@
        "heading": "39cdc953e4801895244ddd7a2bc4e680311704928f62ff33a62749f00522ce07",
        "items": [
         {
-         "status": "todo",
-         "text": "c45014a5a6a9c665e2b82b4db6fef0c81007e6a40469636fe3852c22427438bd"
+         "hide_soon": true,
+         "status": "done",
+         "text": "81a4d0877d78680d5c96e0e1aa04fc44d14bd9627c829868f8cb5eca73c62d30"
         },
         {
-         "status": "todo",
-         "text": "357e1e0bfbe2772982792bd2203ac7fbadf03b4271481f254f90d318d7a14ba4"
+         "hide_soon": true,
+         "status": "done",
+         "text": "e5a077d0419b7ffc41d667ed222064be7e236e044ee37acea97eda1284630e16"
         },
         {
          "status": "todo",
@@ -1398,12 +1401,12 @@
        "heading": "ac0a70b726875b875409eeb32e2e6620f922e41e6e44240341ce8d14896ec32f",
        "items": [
         {
-         "status": "todo",
-         "text": "937e68cc5050b7a886ab8bb2bcf144e88a12bd5e7faee39a99123565931fa342"
+         "status": "partly",
+         "text": "3144b19cb338123d3049d8d3f6bf9caacdca281ea39900a1738f588025c76464"
         },
         {
-         "status": "todo",
-         "text": "e4c21e2d0f45cf3b6cdfa42b7049a885112a4ffcce1d23033e59c1a4465544b5"
+         "status": "partly",
+         "text": "fd14d6e639855db7ff62a2f5b508409ec8774653c1213e763e92a10f19b0980a"
         }
        ]
       },
@@ -5872,16 +5875,19 @@
        "heading": "07240d6fcb5a0b4699576d7cb4cd766e442f744cc98e9cb81c4d64b273e2a382",
        "items": [
         {
-         "status": "partly",
-         "text": "f9efeff3aff905a4a697fdb15b484c367b6605136920d3e3c746f6ddb7984455"
+         "hide_soon": true,
+         "status": "done",
+         "text": "29484d236f66a10a66c57203781d56b7ec5dbfa244876a3e26ec35856eb3acb1"
         },
         {
-         "status": "partly",
-         "text": "8daec94ddd2be7f109810a1e01ce94bb646264ead57e9bff3447f8b06a41fc16"
+         "hide_soon": true,
+         "status": "done",
+         "text": "d50e7f3e2f633f3c4329ce4caec8ba3ea2ebcb88298287860f0e6e07e8355d91"
         },
         {
-         "status": "todo",
-         "text": "b1e67a531625693897a8d2abbea93859fd410aa7150045e94fb3d4e274442399"
+         "hide_soon": true,
+         "status": "done",
+         "text": "c5702a9ec899a02443ec5c13d1ffd9516c2845ea3f4f568d3e0cc12b31a80063"
         }
        ]
       },
@@ -5890,19 +5896,20 @@
        "items": [
         {
          "status": "partly",
-         "text": "8f311375eedfd61aad838b39458cb72b33f3e963fdefb9be7693df9223b77830"
+         "text": "9ba1c0a9c150e5c7c99e5c7da024a712fb4aeae74b70fec78221b81e05393d75"
         },
         {
          "status": "partly",
          "text": "5f21e12fb6f641a482772dbf44fa46928eca67c5e0ba3d347316e3831a7cd5f0"
         },
         {
-         "status": "todo",
-         "text": "282e4d225f29d505aa8ccd283731ffa35eab18de0310345d8780b1bacf7cc95d"
+         "hide_soon": true,
+         "status": "done",
+         "text": "9746f54ebcd65a1554caa6dd95bc9ef20dd85f55999cf68cddfddb2a5db818d5"
         },
         {
-         "status": "todo",
-         "text": "d40dff74d9901076dee30765d5a9c7953cd3118c9c710a21678593161a217629"
+         "status": "partly",
+         "text": "ee5bc7b2ee95d1cd7a92eb6e0b8b3aee946397a718aa8770904b577ed583aac8"
         }
        ]
       },
@@ -5910,12 +5917,13 @@
        "heading": "18e54f923d597bc0beb7b8f7f77125e7ad6971b605c3ddabe724c7d2893b5e13",
        "items": [
         {
-         "status": "todo",
-         "text": "cd27aa919e9b687c3e7b89c1c748e40e105eee7a83991bf9f5423c27e4e5f4d2"
+         "status": "partly",
+         "text": "e5bff83e061796a9ff7853d18120c79bb8bd5f8b4ace4c48c8f30c6da26d2916"
         },
         {
-         "status": "todo",
-         "text": "80777a3f40c7a370061536c724e2b2bd019289c52d266b73b04b4dc68fa7586d"
+         "hide_soon": true,
+         "status": "done",
+         "text": "fdbaf331e6f7a0f3d092a7f68bb98fa540c40280d11f3d9279d5df254b086fbd"
         }
        ]
       },
@@ -5923,12 +5931,12 @@
        "heading": "b79f58e9cfb8b90e647410b608bc397a1a119f1e10a784d0e8cd878f261a5dcd",
        "items": [
         {
-         "status": "todo",
-         "text": "59efec63a1e7773b6d0760d7de16d2ee756c369077cf4aee1b3d20aa8287c1f2"
+         "status": "partly",
+         "text": "53d87204e947885d252c7bdb40398690f69606cb4d09f7da1ba0a86809510ae7"
         },
         {
-         "status": "todo",
-         "text": "13709943792a3a263e98344c92e2dd43b5e87a0129a9343e6f7746b29290e22f"
+         "status": "partly",
+         "text": "632245ed4825adec0a0f65f8921c77b004e02123517010425b8b133a2bcfda04"
         },
         {
          "hide_soon": true,
@@ -5941,12 +5949,13 @@
        "heading": "9224d47ae272373381adb22505bfa08924ca3c68251329d965f7e61840cb6b6f",
        "items": [
         {
-         "status": "todo",
-         "text": "096511379657dfa1aed23259c8d9cb2376d863c147a74beee6ae31941779bd44"
+         "hide_soon": true,
+         "status": "done",
+         "text": "67bf0af0675b746d83c04aa44845f7cd927aeaab0a1b9339f8926387611ffa2a"
         },
         {
-         "status": "todo",
-         "text": "7b2895bee85b5d254e5264fb7a03bce316dac9488576328f91939ee51e91bda6"
+         "status": "partly",
+         "text": "625ac1afbf6e1bad443feaf972dfefba07606be0295376b0cbcd9f93a20f1548"
         }
        ]
       },
@@ -5954,8 +5963,8 @@
        "heading": "aac28b576a5c9bd8d8087ff3fef12af7624eeff15bcd7bcd3d141ad56a3fefae",
        "items": [
         {
-         "status": "todo",
-         "text": "b287319888869e8791c961d5784c8f311c8f1828f4125c25f352405dc16dfdf3"
+         "status": "partly",
+         "text": "45cb468a2f224e5be5ded33e48a28eacad205dab7dec7707defc051b28068f62"
         }
        ]
       }
@@ -5973,40 +5982,46 @@
        "text": "66728dae6e735e6a9fca1a0ad301b80ee5c5fd7d3b3ccae06e7fca954c34441f"
       },
       {
-       "status": "todo",
-       "text": "78b85dd864498fcbaff917880788bcca03b9d3889d5cf9225fabd508ef174e0a"
+       "hide_soon": true,
+       "status": "done",
+       "text": "ff508b2c6b1ec140a92dd9d68c324f4a0c4b6daaf020dc772d5e33f7cd013b28"
       },
       {
-       "status": "todo",
-       "text": "29187c54d30dd5a862a03e5668bf0da8127de016f668697cd5b2fa83db7be718"
+       "hide_soon": true,
+       "status": "done",
+       "text": "c8b2b1d40de6032758187a87d64881e4d97623f520336e3ba97d218369ffca77"
       },
       {
-       "status": "todo",
-       "text": "088b5098e06235aa4de2b15a04e7fe0c3d0f88943ea93bc5962ce692fb77cda6"
+       "status": "partly",
+       "text": "ec60e3febf580f312cf977138016fd69b19186eee8d24e2b98281056928e9d88"
       },
       {
-       "status": "todo",
-       "text": "d8196d749ef2f41bcfad766e1e7069c2e83c99de1beb600021ff3d60722229b3"
+       "status": "partly",
+       "text": "b3781803375c0f25c23038813a81a9e8b86f72cf5b8bae37df635d26c89a02a6"
       },
       {
-       "status": "todo",
-       "text": "ed390214fe614170955440990971aeaa871bb070f193acb3ee91e4bf0642b157"
+       "hide_soon": true,
+       "status": "done",
+       "text": "c87ea0e2cc9714e2000dac0883eeef0e6e141104a3b7c24a113490092e47bce3"
       },
       {
-       "status": "todo",
-       "text": "e1d69230658aa22537229745c8d56fca045e5aea0a558011a03548ed0fa1729b"
+       "hide_soon": true,
+       "status": "done",
+       "text": "12d03a46ce610d75a71badd21861a814b6dce8f11f49ad542fcf0b38b06d9d40"
       },
       {
-       "status": "todo",
-       "text": "228828bed4ce9ad0b38df9df29205cc4af7c3cc0493ea4991a64cc64b89571e6"
+       "hide_soon": true,
+       "status": "done",
+       "text": "1e3be64860c7664da0b12049f1f9b56683b1d1db3ff7cc7a4eae2d1dfcc53dfd"
       },
       {
-       "status": "todo",
-       "text": "9d24f8b145c9099a96cb3bac99abb52d7c158a1d2892052693dabbf70cda3512"
+       "status": "partly",
+       "text": "22891dd828a0adad3818639eb2ae0551c31f7ca3d9e72ace7f1c5155b7c1bb8b"
       },
       {
-       "status": "todo",
-       "text": "ee70b406e91a525b36f238910e4c20681d4af4d894b70ebd4ff63ca56245801b"
+       "hide_soon": true,
+       "status": "done",
+       "text": "8ee4fd000fb6d2e4b1770bffa6575cd8dd58f6a29f459072bd9f560b19179ee9"
       }
      ]
     },
@@ -6508,7 +6523,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "709b0606f3c194e72134d690c788d7e93883a67b5ca5ec0b740884f8b4c1d1a9"
+         "text": "700e5144522e5c247cf389eae3b4ab120d1231052ff4b7afd82b37e8878193f2"
         },
         {
          "status": "partly",
@@ -6529,11 +6544,11 @@
         },
         {
          "status": "partly",
-         "text": "ca2122134d578c2c332d8a31ddb7a35634acfe990ac8cabd55365d88b0c7d5d4"
+         "text": "663b74d3930ea49dcfa5c33bb2b554abb7be37fc0caa574084bace51f94a9165"
         },
         {
          "status": "partly",
-         "text": "9ed47ea4384637927ebee213ed2aaddfcf2fcff4f795c87ffd08ade3a6b30313"
+         "text": "79046250c874423862f82a838eee5dc8a9975084dc220c5c79ae6e08e2617ca3"
         },
         {
          "hide_soon": true,
@@ -7570,6 +7585,18 @@
     "fr": ""
    }
   },
+  "081f3e637283e7b9dc6a892d02d2ff438d0071eb0b562a5cc836ebb631cdf098": {
+   "drop": false,
+   "en": "Pivot table Options in JeffCrunch sets the name, merge cells with labels, the texts for errors and empty cells, fit column widths, keep formatting, grand totals for rows and columns, field headers, and refresh when the file opens.",
+   "es": "Las opciones de tabla dinámica de JeffCrunch permiten definir el nombre, combinar celdas con etiquetas, los textos para errores y celdas vacías, ajustar anchos de columna, conservar el formato, totales generales para filas y columnas, encabezados de campo y actualizar al abrir el archivo.",
+   "fr": "Les options de tableau croisé dynamique de JeffCrunch permettent de définir le nom, la fusion des cellules avec étiquettes, les textes pour les erreurs et les cellules vides, l’ajustement des largeurs de colonne, la conservation de la mise en forme, les totaux généraux des lignes et des colonnes, les en-têtes de champ et l’actualisation à l’ouverture du fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Options for display, printing, and saving the source data with the file",
+    "es": "Opciones de visualización, impresión y guardado de los datos de origen con el archivo",
+    "fr": "Options d’affichage, d’impression et d’enregistrement des données source avec le fichier"
+   }
+  },
   "08269fa4474bedb0df45a7c15b3311f8d3c0d9398a2ce1c249ec87f13e1b9e15": {
    "drop": false,
    "en": "The Alignment tab of the Format Cells dialog in JeffCrunch offers every alignment choice.",
@@ -7580,18 +7607,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "088b5098e06235aa4de2b15a04e7fe0c3d0f88943ea93bc5962ce692fb77cda6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Edit recipient list: sort, filter, find duplicates, validate addresses, and include or exclude records",
-    "es": "Edición de la lista de destinatarios: ordenar, filtrar, buscar duplicados, validar direcciones e incluir o excluir registros",
-    "fr": "Modification de la liste des destinataires : trier, filtrer, trouver les doublons, valider les adresses et inclure ou exclure des enregistrements"
    }
   },
   "08c0910f694c1639b64b9fae76aefb11f7b8f3424fc79c650101d900d380479e": {
@@ -7676,18 +7691,6 @@
     "en": "Text styles, text fill, text outline, and text effects for shapes, and align and group for objects",
     "es": "Estilos de texto, relleno de texto, contorno de texto y efectos de texto para formas, y alinear y agrupar objetos",
     "fr": "Styles de texte, remplissage, contour et effets de texte pour les formes, et alignement et groupement des objets"
-   }
-  },
-  "096511379657dfa1aed23259c8d9cb2376d863c147a74beee6ae31941779bd44": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Mark Entry and Mark All: main entries, subentries, cross-references, page ranges, and bold or italic page numbers",
-    "es": "Marcar entrada y marcar todo: entradas principales, subentradas, referencias cruzadas, intervalos de páginas y números de página en negrita o cursiva",
-    "fr": "Marquer l’entrée et tout marquer : entrées principales, sous-entrées, renvois, plages de pages et numéros de page en gras ou en italique"
    }
   },
   "098e9476ae23f7a76107523af9d69ef3fdafd6ba40d2c4eed8da5e2ccc16781f": {
@@ -8158,6 +8161,18 @@
     "fr": ""
    }
   },
+  "0f6adec6da1622f9c9e0aea86200862e07ddc193727f08f3038bf0c134ef3a7a": {
+   "drop": false,
+   "en": "Insert > Pivot Chart makes a column chart of a pivot table’s values, without the grand totals, as one step of Undo. The chart reads the table’s cells, so its numbers follow a refresh.",
+   "es": "Insertar > Gráfico dinámico crea un gráfico de columnas con los valores de una tabla dinámica, sin los totales generales, como un solo paso de Deshacer. El gráfico lee las celdas de la tabla, de modo que sus números siguen a una actualización.",
+   "fr": "Insertion > Graphique croisé dynamique crée un histogramme des valeurs d’un tableau croisé dynamique, sans les totaux généraux, en une seule étape d’annulation. Le graphique lit les cellules du tableau, donc ses nombres suivent une actualisation.",
+   "soon": {
+    "drop": false,
+    "en": "Pivot chart: field buttons, filters, and following a table that gains or loses rows or columns",
+    "es": "Gráfico dinámico: botones de campo, filtros y seguimiento de una tabla que gana o pierde filas o columnas",
+    "fr": "Graphique croisé dynamique : boutons de champ, filtres et suivi d’un tableau qui gagne ou perd des lignes ou des colonnes"
+   }
+  },
   "0fb62891620d776a436bcdcdec3b71fadb88f4acf892e14d767b004cdf42f830": {
    "drop": true,
    "en": "",
@@ -8350,6 +8365,18 @@
     "fr": ""
    }
   },
+  "12d03a46ce610d75a71badd21861a814b6dce8f11f49ad542fcf0b38b06d9d40": {
+   "drop": false,
+   "en": "Preview merge results in JeffWrite with first, previous, next, and last recipient buttons and a number box, find a recipient, and check for errors. The document itself is not changed.",
+   "es": "Obtenga una vista previa de los resultados de la combinación en JeffWrite con botones de primer, anterior, siguiente y último destinatario y un cuadro numérico, busque un destinatario y compruebe errores. El documento no se modifica.",
+   "fr": "Affichez un aperçu des résultats de la fusion dans JeffWrite avec des boutons premier, précédent, suivant et dernier destinataire et une zone numérique, recherchez un destinataire et vérifiez les erreurs. Le document lui-même n’est pas modifié.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "12e0e497b3d34c2220bd2bb45bd99fa318046e8b023aabe32a4d3125f2dad4c6": {
    "drop": false,
    "en": "JeffCrunch calculates 46 classic math and trigonometry functions, including `SUM`, `ROUND`, `SUBTOTAL`, `SUMIF`, `SUMIFS`, `SUMPRODUCT`, `SQRT`, `MOD`, `POWER`, `RAND`, `RANDBETWEEN`, `GCD`, and `LCM`.",
@@ -8410,18 +8437,6 @@
     "fr": ""
    }
   },
-  "13709943792a3a263e98344c92e2dd43b5e87a0129a9343e6f7746b29290e22f": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Table of Figures from a caption label or a style, with update",
-    "es": "Tabla de ilustraciones a partir de una etiqueta de leyenda o un estilo, con actualización",
-    "fr": "Table des illustrations à partir d’une étiquette de légende ou d’un style, avec mise à jour"
-   }
-  },
   "137e939cfa89e9168a1c39bd1d380b84ea3942a877a7cdf16d6d40591f6fa9ab": {
    "drop": false,
    "en": "Share and Export",
@@ -8456,6 +8471,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "14604e6f393d3746d984835d262082846f3caf2ef9f76ccbd4e28d88af7fc096": {
+   "drop": false,
+   "en": "JeffCrunch reads a timeline’s field, the tables it filters, the span, its caption, and style, and applies the choice to a table’s items.",
+   "es": "JeffCrunch lee el campo de una escala de tiempo, las tablas que filtra, el intervalo, su título y estilo, y aplica la selección a los elementos de una tabla.",
+   "fr": "JeffCrunch lit le champ d’une chronologie, les tableaux qu’elle filtre, la période, sa légende et son style, et applique le choix aux éléments d’un tableau.",
+   "soon": {
+    "drop": false,
+    "en": "Timeline: show on the sheet, click, connect to more tables, and save",
+    "es": "Escala de tiempo: mostrar en la hoja, hacer clic, conectar con más tablas y guardar",
+    "fr": "Chronologie : affichage sur la feuille, clic, connexion à d’autres tableaux et enregistrement"
    }
   },
   "1465d017d99685090e94d4e0883962679abf0b3847e8f7a1e9cc80ba06e05a73": {
@@ -9058,6 +9085,18 @@
     "fr": "Titre du mode de compatibilité et commande Convertir"
    }
   },
+  "1e3be64860c7664da0b12049f1f9b56683b1d1db3ff7cc7a4eae2d1dfcc53dfd": {
+   "drop": false,
+   "en": "Finish a merge in JeffWrite by editing individual documents in a new document, printing, saving as PDF, or making one `.eml` file for each recipient who has an address. No messages are sent. Letter copies each begin a page, and a directory runs on.",
+   "es": "Finalice una combinación en JeffWrite editando documentos individuales en un documento nuevo, imprimiendo, guardando como PDF o creando un archivo `.eml` por cada destinatario que tenga dirección. No se envía ningún mensaje. Cada copia de una carta empieza en una página nueva y un directorio continúa seguido.",
+   "fr": "Terminez une fusion dans JeffWrite en modifiant les documents individuels dans un nouveau document, en imprimant, en enregistrant en PDF ou en créant un fichier `.eml` pour chaque destinataire ayant une adresse. Aucun message n’est envoyé. Chaque copie de lettre commence une page et un répertoire se poursuit à la suite.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "1e5a2018f18177c9bb96edc78c515dab4976a1bb141c6d4a70baae4508b449fa": {
    "drop": false,
    "en": "View and print gridlines and headings, each separately.",
@@ -9454,18 +9493,6 @@
     "fr": ""
    }
   },
-  "228828bed4ce9ad0b38df9df29205cc4af7c3cc0493ea4991a64cc64b89571e6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Finish and merge: edit individual documents (a new document), print documents, and send email messages (one `.eml` file per recipient)",
-    "es": "Finalizar y combinar: editar documentos individuales (un documento nuevo), imprimir documentos y enviar mensajes de correo (un archivo `.eml` por destinatario)",
-    "fr": "Terminer et fusionner : modifier les documents individuels (un nouveau document), imprimer les documents et envoyer des e-mails (un fichier `.eml` par destinataire)"
-   }
-  },
   "228866671ffd3ba78890aac32980e7f442469fcfb811ee699d992d4eea3514cb": {
    "drop": false,
    "en": "Review tab",
@@ -9476,6 +9503,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "22891dd828a0adad3818639eb2ae0551c31f7ca3d9e72ace7f1c5155b7c1bb8b": {
+   "drop": false,
+   "en": "Make envelopes with delivery and return addresses, ten common sizes named by width and height, and print or add to the document as its own first-page section.",
+   "es": "Cree sobres con direcciones de destinatario y remitente, diez tamaños comunes indicados por ancho y alto, e imprima o agregue al documento como sección propia en la primera página.",
+   "fr": "Créez des enveloppes avec adresses du destinataire et de l’expéditeur, dix formats courants nommés par largeur et hauteur, et imprimez ou ajoutez au document en tant que section distincte en première page.",
+   "soon": {
+    "drop": false,
+    "en": "Envelope feed direction: choose",
+    "es": "Dirección de alimentación del sobre: elegir",
+    "fr": "Sens d’alimentation de l’enveloppe : choix"
    }
   },
   "232243cf614798d24ce11f3e0aa17d5b66a73dd5813ecf73dd7b3ab5e6b2c511": {
@@ -9608,18 +9647,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "249cc97ffedea5adacb1cc23ab3e59b6dcdd3a44e7504e15663838e00a227377": {
-   "drop": false,
-   "en": "In JeffCrunch, Value Field Settings lets you choose how to total (sum, count, count numbers, average, max, min, product, and the standard deviation and variance of a sample or of all values) and set a custom name. Open it by double-clicking a value in the pane or from the pivot table tab.",
-   "es": "En JeffCrunch, Configuración del campo de valor permite elegir cómo totalizar (suma, recuento, recuento de números, promedio, máximo, mínimo, producto, y la desviación estándar y la varianza de una muestra o de todos los valores) y definir un nombre personalizado. Se abre con doble clic en un valor del panel o desde la pestaña de tabla dinámica.",
-   "fr": "Dans JeffCrunch, les Paramètres des champs de valeurs permettent de choisir le mode de total (somme, nombre, nombre de valeurs numériques, moyenne, max, min, produit, ainsi que l’écart type et la variance d’un échantillon ou de toutes les valeurs) et de définir un nom personnalisé. Ouvrez-les par un double-clic sur une valeur dans le volet ou depuis l’onglet du tableau croisé dynamique.",
-   "soon": {
-    "drop": false,
-    "en": "Value Field Settings: number format and Show Values As",
-    "es": "Configuración del campo de valor: formato de número y Mostrar valores como",
-    "fr": "Paramètres des champs de valeurs : format de nombre et Afficher les valeurs comme"
    }
   },
   "24c00247a58535c37a0b6fb4551048cd06a5b6cdd0047c312c380706a5b7d01c": {
@@ -9922,18 +9949,6 @@
     "fr": ""
    }
   },
-  "282e4d225f29d505aa8ccd283731ffa35eab18de0310345d8780b1bacf7cc95d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Convert footnotes to endnotes and back, and swap them",
-    "es": "Convertir notas al pie en notas finales y viceversa, e intercambiarlas",
-    "fr": "Conversion des notes de bas de page en notes de fin et inversement, et échange des deux"
-   }
-  },
   "28444020004fb29f28be8d8e3629af527c1a0eb8d93e592be817aa4ba07bd0de": {
    "drop": true,
    "en": "",
@@ -10078,16 +10093,16 @@
     "fr": "Graphiques, images, commentaires, tableaux croisés dynamiques, macros, mises en forme conditionnelles et validation des données dans `.ods` : lecture"
    }
   },
-  "29187c54d30dd5a862a03e5668bf0da8127de016f668697cd5b2fa83db7be718": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
+  "29484d236f66a10a66c57203781d56b7ec5dbfa244876a3e26ec35856eb3acb1": {
+   "drop": false,
+   "en": "In JeffWrite, you can insert a table of contents from a gallery (Contents, Contents with Full Title, or Contents to Fill In) or a custom dialog. The table is built from heading styles, outline levels, or table entry fields, covers levels 1 to 9, and offers right-aligned page numbers, a tab leader, and links.",
+   "es": "En JeffWrite, usted puede insertar una tabla de contenido desde una galería (Contenido, Contenido con título completo o Contenido para rellenar) o desde un cuadro de diálogo personalizado. La tabla se genera a partir de estilos de título, niveles de esquema o campos de entrada de tabla, abarca los niveles 1 a 9 y ofrece números de página alineados a la derecha, un relleno de tabulación y vínculos.",
+   "fr": "Dans JeffWrite, vous pouvez insérer une table des matières à partir d’une galerie (Table des matières, Table des matières avec titre complet ou Table des matières à remplir) ou d’une boîte de dialogue personnalisée. La table est créée à partir des styles de titre, des niveaux de plan ou des champs d’entrée de table, couvre les niveaux 1 à 9 et propose des numéros de page alignés à droite, des points de suite de tabulation et des liens.",
    "soon": {
-    "drop": false,
-    "en": "Select recipients: type a new list, use an existing one (CSV, tab-delimited, `.xlsx`, `.ods`, vCard contacts), or choose contacts from any address book saved as `.vcf`",
-    "es": "Selección de destinatarios: escribir una lista nueva, usar una existente (CSV, delimitada por tabulaciones, `.xlsx`, `.ods`, contactos vCard) o elegir contactos de cualquier libreta de direcciones guardada como `.vcf`",
-    "fr": "Sélection des destinataires : saisir une nouvelle liste, en utiliser une existante (CSV, séparée par des tabulations, `.xlsx`, `.ods`, contacts vCard) ou choisir des contacts dans un carnet d’adresses enregistré au format `.vcf`"
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "2949bb3164fc338d69478a894893a468b34e67f99c5f5e95d29a3bf2847a04dd": {
@@ -10112,18 +10127,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "29d0c1ad526ed2e331676726da6176acb7d42af40625be70839efec0ba2a393b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Pivot table options: name, layout and format, totals and filters, display, printing, and data",
-    "es": "Opciones de tabla dinámica: nombre, diseño y formato, totales y filtros, visualización, impresión y datos",
-    "fr": "Options du tableau croisé dynamique : nom, disposition et format, totaux et filtres, affichage, impression et données"
    }
   },
   "2a097396755e8aae084fca274d81bda98dad9330c96f49672ba9a3d57815c46e": {
@@ -10534,6 +10537,18 @@
     "fr": ""
    }
   },
+  "2fb4787082d7ea1e2e173f04ef665d67ba54eeb063abf9d0f093ce9ad550d12b": {
+   "drop": false,
+   "en": "JeffCrunch reads a slicer’s field, the tables it filters, the items chosen, its caption, columns, and style, and applies the choice to a table’s items.",
+   "es": "JeffCrunch lee el campo de una segmentación, las tablas que filtra, los elementos elegidos, su título, columnas y estilo, y aplica la selección a los elementos de una tabla.",
+   "fr": "JeffCrunch lit le champ d’un segment, les tableaux qu’il filtre, les éléments choisis, sa légende, ses colonnes et son style, et applique le choix aux éléments d’un tableau.",
+   "soon": {
+    "drop": false,
+    "en": "Slicer: show on the sheet, click, connect to more tables, and save",
+    "es": "Segmentación: mostrar en la hoja, hacer clic, conectar con más tablas y guardar",
+    "fr": "Segment : affichage sur la feuille, clic, connexion à d’autres tableaux et enregistrement"
+   }
+  },
   "2feeef90d0d00a296443c58938ec231e930268bc3d5fc52b880c33d985f7d02d": {
    "drop": false,
    "en": "Insert a table using a grid picker or the Insert Table dialog.",
@@ -10616,6 +10631,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "3144b19cb338123d3049d8d3f6bf9caacdca281ea39900a1738f588025c76464": {
+   "drop": false,
+   "en": "JeffCrunch reads a slicer’s caption, columns, and style, the field and tables it filters, and the items chosen, and applies the choice to a table’s items.",
+   "es": "JeffCrunch lee el título, las columnas y el estilo de una segmentación, el campo y las tablas que filtra y los elementos elegidos, y aplica la selección a los elementos de una tabla.",
+   "fr": "JeffCrunch lit la légende, les colonnes et le style d’un segment, le champ et les tableaux qu’il filtre et les éléments choisis, et applique le choix aux éléments d’un tableau.",
+   "soon": {
+    "drop": false,
+    "en": "Slicer tab: show on the sheet, click, connect to more tables, and save",
+    "es": "Pestaña Segmentación: mostrar en la hoja, hacer clic, conectar con más tablas y guardar",
+    "fr": "Onglet Segment : affichage sur la feuille, clic, connexion à d’autres tableaux et enregistrement"
    }
   },
   "314585938d0a0aced492e4c4466eda30267aa30a1f5e5585ef1727d51836a8d2": {
@@ -10942,18 +10969,6 @@
     "fr": "Graphiques dans `.xls` : lecture et écriture dans `.xlsx` comme graphiques"
    }
   },
-  "357e1e0bfbe2772982792bd2203ac7fbadf03b4271481f254f90d318d7a14ba4": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Sparkline style, colors, marker colors, and line weight",
-    "es": "Estilo, colores, colores de marcadores y grosor de línea de minigráficos",
-    "fr": "Style, couleurs, couleurs des marqueurs et épaisseur de ligne des sparklines"
-   }
-  },
   "3595dd737a0f17bc1dd5c72fa87ea8a86b6c14573b3ca9000edb30ff1f215630": {
    "drop": true,
    "en": "",
@@ -11146,6 +11161,18 @@
     "fr": ""
    }
   },
+  "3947a08e13bede2fab9981e65e1639616089715324b190a8894ba837328ddf49": {
+   "drop": false,
+   "en": "JeffCrunch reads, calculates, and writes back groups of dates and numbers in pivot tables. Group Field makes date groups by one or several parts and number groups by a start, an end, and a step, Refresh rebuilds them from new data, and Ungroup removes them.",
+   "es": "JeffCrunch lee, calcula y vuelve a escribir los grupos de fechas y números de las tablas dinámicas. Agrupar campo crea grupos de fechas por una o varias partes y grupos de números por un inicio, un final y un paso; Actualizar los rehace con los datos nuevos y Desagrupar los elimina.",
+   "fr": "JeffCrunch lit, calcule et réécrit les groupes de dates et de nombres des tableaux croisés dynamiques. Grouper le champ crée des groupes de dates par une ou plusieurs parties et des groupes de nombres par un début, une fin et un pas ; Actualiser les refait à partir des nouvelles données et Dissocier les supprime.",
+   "soon": {
+    "drop": false,
+    "en": "Group text items by name, groups of several days, and groups when two tables share the data",
+    "es": "Agrupar elementos de texto por nombre, grupos de varios días y grupos cuando dos tablas comparten los datos",
+    "fr": "Regroupement d’éléments de texte par nom, groupes de plusieurs jours et groupes quand deux tableaux partagent les données"
+   }
+  },
   "3995b42ea1e0afb731b3b633038e68f05f1c31fac4fa7ddf772ac779b9cbf83b": {
    "drop": true,
    "en": "",
@@ -11235,18 +11262,6 @@
    "en": "In JeffCrunch, Zoom works from 10% to 400% and can fit the selection. 100% and Zoom to Selection are available, and the zoom is kept for each sheet.",
    "es": "En JeffCrunch, el zoom funciona del 10% al 400% y puede ajustarse a la selección. Están disponibles 100% y Zoom a la selección, y el zoom se conserva en cada hoja.",
    "fr": "Dans JeffCrunch, le zoom va de 10 % à 400 % et peut s’ajuster à la sélection. 100 % et Zoom sur la sélection sont disponibles, et le zoom est conservé pour chaque feuille.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "3ac38ce2da16e68e1f4a4d67d86ac53b1fbc858863faa64e7ad63606631ff60e": {
-   "drop": false,
-   "en": "PivotChart tabs (while a pivot chart is selected)",
-   "es": "Pestañas de gráfico dinámico (con un gráfico dinámico seleccionado)",
-   "fr": "Onglets de graphique croisé dynamique (graphique sélectionné)",
    "soon": {
     "drop": true,
     "en": "",
@@ -11938,6 +11953,18 @@
     "fr": "Effets de thème, jeux de couleurs et de polices personnalisés, et fichiers de thème"
    }
   },
+  "45cb468a2f224e5be5ded33e48a28eacad205dab7dec7707defc051b28068f62": {
+   "drop": false,
+   "en": "In JeffWrite, you can mark citations with `Alt+Shift+I` and insert a table of authorities with 16 categories, headings, \"passim,\" and a leader. The table can be updated.",
+   "es": "En JeffWrite, usted puede marcar citas con `Alt+Shift+I` e insertar una tabla de autoridades con 16 categorías, encabezados, \"passim\" y un relleno. La tabla se puede actualizar.",
+   "fr": "Dans JeffWrite, vous pouvez marquer des citations avec `Alt+Shift+I` et insérer une table des autorités avec 16 catégories, des titres, « passim » et des points de suite. La table peut être mise à jour.",
+   "soon": {
+    "drop": false,
+    "en": "Citation formatting kept in the table of authorities",
+    "es": "Formato de las citas conservado en la tabla de autoridades",
+    "fr": "Mise en forme des citations conservée dans la table des autorités"
+   }
+  },
   "45cc8acd49a3382b1a7fe95c1e832c8c6789e585c63c5eb85caaaa2e5f97a1c2": {
    "drop": false,
    "en": "JeffPub supports tabs with leaders (left, center, right, decimal). A publication’s default tab stops, 0.5 in unless it says otherwise, are set in the Tabs dialog from 1 to 1,584 pt as one undo step, and are read from and saved to `.pub` files.",
@@ -12310,18 +12337,6 @@
     "fr": ""
    }
   },
-  "49964b4432e098a890cf862804e58c9dc0c56894feff258189f4c6b720898f3d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Trendlines, error bars, data table, drop lines, high-low lines, series lines, and up/down bars",
-    "es": "Líneas de tendencia, barras de error, tabla de datos, líneas de caída, líneas de máximos y mínimos, líneas de series y barras ascendentes y descendentes",
-    "fr": "Courbes de tendance, barres d’erreur, tableau de données, lignes de projection, lignes haut-bas, lignes de séries et barres haussières et baissières"
-   }
-  },
   "49d56ec53ccb1f74bb4a9a70c5eeae8bb3b363215b3bcf101ed76d47871076ca": {
    "drop": true,
    "en": "",
@@ -12440,18 +12455,6 @@
     "en": "Copy as Picture, as shown on screen or as printed, pasted into JeffWrite or JeffDeck as a picture",
     "es": "Copiar como imagen, como se ve en pantalla o como se imprime, y pegarla en JeffWrite o JeffDeck como imagen",
     "fr": "Copier en tant qu’image, comme à l’écran ou à l’impression, et la coller dans JeffWrite ou JeffDeck comme image"
-   }
-  },
-  "4bc4065963756ac2eac848a1074631acc3326c965f553419972bad8f1919d51e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Slicers and timelines connected to a pivot table, with filter connections",
-    "es": "Segmentaciones y escalas de tiempo conectadas a una tabla dinámica, con conexiones de filtro",
-    "fr": "Segments et chronologies connectés à un tableau croisé dynamique, avec connexions de filtre"
    }
   },
   "4bc5cbadcafb7a0a2caefa92dfce77ed2864b0338321e4044a15202f4b352b40": {
@@ -12838,6 +12841,18 @@
     "fr": "Filtre avancé : plage de critères, filtrage sur place ou copie, et enregistrements uniques"
    }
   },
+  "51a591cfe6eadde7d614bab17bbf301eea89b3ff639e3005091842bf926b3f38": {
+   "drop": false,
+   "en": "JeffCrunch reads the slicers and timelines connected to a pivot table, with the field and tables they filter and the items chosen, and applies the choice to the table’s items.",
+   "es": "JeffCrunch lee las segmentaciones y escalas de tiempo conectadas a una tabla dinámica, con el campo y las tablas que filtran y los elementos elegidos, y aplica la selección a los elementos de la tabla.",
+   "fr": "JeffCrunch lit les segments et chronologies connectés à un tableau croisé dynamique, avec le champ et les tableaux qu’ils filtrent et les éléments choisis, et applique le choix aux éléments du tableau.",
+   "soon": {
+    "drop": false,
+    "en": "Filter connections: show, click, connect to more tables, and save slicers and timelines",
+    "es": "Conexiones de filtro: mostrar, hacer clic, conectar con más tablas y guardar segmentaciones y escalas de tiempo",
+    "fr": "Connexions de filtre : affichage, clic, connexion à d’autres tableaux et enregistrement des segments et chronologies"
+   }
+  },
   "51b3056b2a53b608aa87de0d93f2c35adb2c298bf4d255003cb42961f760a265": {
    "drop": false,
    "en": "Format paragraphs with bullets (gallery and custom bullet character), numbering (formats and starting number), indents, special characters (show ¶), alignment (left, center, right, justify, and distribute), line spacing, and paragraph spacing. The Paragraph dialog covers indents, spacing, line breaks, tabs, and baseline alignment.",
@@ -12896,6 +12911,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "51e0bcac960ff64ae0dfc1242b1c803a65f5b9045ff46e607e7d2c284b9c2f0a": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Pivot chart tab and Format: the same options as for other charts",
+    "es": "Pestaña y formato del gráfico dinámico: las mismas opciones que en otros gráficos",
+    "fr": "Onglet et format du graphique croisé dynamique : les mêmes options que pour les autres graphiques"
    }
   },
   "523bb5224c0cea88ca0bfaddaf2843576b0fa04fa0f1c482633982342976f67e": {
@@ -13018,6 +13045,18 @@
     "fr": ""
    }
   },
+  "53d87204e947885d252c7bdb40398690f69606cb4d09f7da1ba0a86809510ae7": {
+   "drop": false,
+   "en": "In JeffWrite, Insert Caption adds a Caption paragraph with a `SEQ` field next to the selection or the whole table. It counts from the chapter heading and renumbers the other captions.",
+   "es": "En JeffWrite, Insertar título agrega un párrafo de título con un campo `SEQ` junto a la selección o a toda la tabla. Cuenta a partir del encabezado del capítulo y vuelve a numerar los demás títulos.",
+   "fr": "Dans JeffWrite, Insérer une légende ajoute un paragraphe de légende avec un champ `SEQ` à côté de la sélection ou du tableau entier. Elle compte à partir du titre du chapitre et renumérote les autres légendes.",
+   "soon": {
+    "drop": false,
+    "en": "Automatic captions",
+    "es": "Títulos automáticos",
+    "fr": "Légendes automatiques"
+   }
+  },
   "5469da16f7d175ce6e9ab80fffb5f763dd2ac6067c30e2addc7aa70794e93d2a": {
    "drop": true,
    "en": "",
@@ -13112,18 +13151,6 @@
     "en": "Notes with formatting: bold, italic, lists, links, and pictures in speaker notes",
     "es": "Notas con formato: negrita, cursiva, listas, vínculos e imágenes en las notas del orador",
     "fr": "Notes mises en forme : gras, italique, listes, liens et images dans les notes du présentateur"
-   }
-  },
-  "55184ae072876bf5d0c4d26d3b4f287f6f57d096f8291f482918077bb9634ba5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "PivotChart: a chart that follows a pivot table, with field buttons and filters",
-    "es": "Gráfico dinámico: un gráfico que sigue una tabla dinámica, con botones de campo y filtros",
-    "fr": "Graphique croisé dynamique : un graphique lié à un tableau croisé dynamique, avec boutons de champ et filtres"
    }
   },
   "55302e714a3a4bde745e62c0f8c4926571bc9f3280310ef51bc5e5b19f9840c8": {
@@ -13342,6 +13369,18 @@
     "fr": "Insertion d’une tabulation d’alignement et affichage du texte du document"
    }
   },
+  "58b99f1b368fe801709c1dcafc81dfe03e0b540e28945fb94b59da408c991126": {
+   "drop": false,
+   "en": "JeffCrunch shows pivot tables and pivot charts in a workbook as saved, with the numbers in the cells, the field list, and the filters. It keeps them whole, with the data behind them, and writes them back as they were.",
+   "es": "JeffCrunch muestra las tablas dinámicas y los gráficos dinámicos de un libro tal como se guardaron, con los números en las celdas, la lista de campos y los filtros. Los conserva completos, con los datos que hay detrás, y los vuelve a escribir tal como estaban.",
+   "fr": "JeffCrunch affiche les tableaux croisés dynamiques et les graphiques croisés dynamiques d’un classeur tels qu’ils ont été enregistrés, avec les nombres dans les cellules, la liste des champs et les filtres. Il les conserve intacts, avec les données qui se trouvent derrière, et les réécrit tels qu’ils étaient.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "58d8e8c298cf91db3553d889dadc3c6a2f506743078d78db49efcdcea798b0c1": {
    "drop": false,
    "en": "Track Changes can be turned on and off (`Ctrl+Shift+E`) and the setting is saved with the document. Typing is recorded as an insertion, deleting marks text as deleted and keeps it, Enter and Backspace over a paragraph mark are recorded as inserted and deleted marks, and changes to the look of text or a paragraph keep the old look. Each change has the user name and time, and each edit is one step of Undo.",
@@ -13364,6 +13403,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "590bf4f1d8d1d065714aec3d4a030615dc1c08ba414f69014a0ddf8474a68fb7": {
+   "drop": false,
+   "en": "JeffCrunch has Refresh, Refresh All, Change Data Source, and Clear for pivot tables, each one step of Undo. A table set to be read again when the file opens is refreshed on open, and Options sets this.",
+   "es": "JeffCrunch ofrece Actualizar, Actualizar todo, Cambiar origen de datos y Borrar para las tablas dinámicas, cada uno como un paso de Deshacer. Una tabla configurada para leerse de nuevo al abrir el archivo se actualiza al abrir, y Opciones lo define.",
+   "fr": "JeffCrunch propose Actualiser, Tout actualiser, Changer la source de données et Effacer pour les tableaux croisés dynamiques, chacun en une étape d’annulation. Un tableau configuré pour être relu à l’ouverture du fichier est actualisé à l’ouverture, et Options le définit.",
+   "soon": {
+    "drop": false,
+    "en": "Move pivot table and Select",
+    "es": "Mover tabla dinámica y Seleccionar",
+    "fr": "Déplacer le tableau croisé dynamique et Sélectionner"
    }
   },
   "5935e2eaadf6aff5730c8ca764629d833a06f16b21c4864998dfc75720888082": {
@@ -13448,18 +13499,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "59efec63a1e7773b6d0760d7de16d2ee756c369077cf4aee1b3d20aa8287c1f2": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Insert Caption: label, position, chapter numbering, and automatic captions",
-    "es": "Insertar leyenda: etiqueta, posición, numeración con capítulo y leyendas automáticas",
-    "fr": "Insertion de légende : étiquette, position, numérotation avec chapitre et légendes automatiques"
    }
   },
   "5a549134e79c19de59d3f19bdc08245fef2ad0cdec6a77bd4d9ab103dbd2c953": {
@@ -14026,6 +14065,18 @@
     "fr": ""
    }
   },
+  "625ac1afbf6e1bad443feaf972dfefba07606be0295376b0cbcd9f93a20f1548": {
+   "drop": false,
+   "en": "In JeffWrite, Insert Index makes an indented or run-in index with letter headings, a type letter, and right-aligned page numbers with a leader. It is sorted by the language of the computer and updated with `F9`.",
+   "es": "En JeffWrite, Insertar índice crea un índice con sangría o continuo, con encabezados de letra, una letra de tipo y números de página alineados a la derecha con relleno. Se ordena según el idioma del equipo y se actualiza con `F9`.",
+   "fr": "Dans JeffWrite, Insérer un index crée un index en retrait ou continu, avec des lettres en en-tête, une lettre de type et des numéros de page alignés à droite avec points de suite. Il est trié selon la langue de l’ordinateur et mis à jour avec `F9`.",
+   "soon": {
+    "drop": false,
+    "en": "Index in columns and AutoMark from a list of words",
+    "es": "Índice en columnas y marcado automático a partir de una lista de palabras",
+    "fr": "Index en colonnes et marquage automatique à partir d’une liste de mots"
+   }
+  },
   "62ba419b7f98fe9fc1128a5aed94135380712bfb7dcd158548de223978364d60": {
    "drop": false,
    "en": "JeffDeck lines have width, dashes, caps, joins, and arrowheads.",
@@ -14084,6 +14135,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "632245ed4825adec0a0f65f8921c77b004e02123517010425b8b133a2bcfda04": {
+   "drop": false,
+   "en": "In JeffWrite, you can insert a table of figures from a caption label, with or without the label and number, in the table of figures style, and update it with `F9`. A table based on a style is read and updated from a file’s code.",
+   "es": "En JeffWrite, usted puede insertar una tabla de ilustraciones a partir de una etiqueta de título, con o sin la etiqueta y el número, en el estilo de tabla de ilustraciones, y actualizarla con `F9`. Una tabla basada en un estilo se lee y se actualiza a partir del código de un archivo.",
+   "fr": "Dans JeffWrite, vous pouvez insérer une table des illustrations à partir d’une étiquette de légende, avec ou sans l’étiquette et le numéro, dans le style de table des illustrations, et la mettre à jour avec `F9`. Une table basée sur un style est lue et mise à jour à partir du code d’un fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Table of figures from a style: create from the dialog",
+    "es": "Tabla de ilustraciones a partir de un estilo: creación desde el cuadro de diálogo",
+    "fr": "Table des illustrations à partir d’un style : création depuis la boîte de dialogue"
    }
   },
   "6347f4cde2903f3dd77fc53214b8abd86d2296123e6054003870a8cfc75d9a9e": {
@@ -14314,6 +14377,18 @@
     "fr": ""
    }
   },
+  "663b74d3930ea49dcfa5c33bb2b554abb7be37fc0caa574084bace51f94a9165": {
+   "drop": false,
+   "en": "In JeffWrite, the fields `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC`, and `SEQ` are worked out and updated, as are `CITATION` and `BIBLIOGRAPHY` from the document’s sources. `HYPERLINK` keeps the result the file has.",
+   "es": "En JeffWrite, los campos `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC` y `SEQ` se calculan y se actualizan, al igual que `CITATION` y `BIBLIOGRAPHY` a partir de las fuentes del documento. `HYPERLINK` conserva el resultado que tiene el archivo.",
+   "fr": "Dans JeffWrite, les champs `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC` et `SEQ` sont calculés et mis à jour, de même que `CITATION` et `BIBLIOGRAPHY` à partir des sources du document. `HYPERLINK` conserve le résultat du fichier.",
+   "soon": {
+    "drop": false,
+    "en": "`HYPERLINK` field: recalculate the result",
+    "es": "Campo `HYPERLINK`: recálculo del resultado",
+    "fr": "Champ `HYPERLINK` : recalcul du résultat"
+   }
+  },
   "664d7c3039fac094aedc08e0119f60a0938bdbcdb5631a8fb386ad5463202d39": {
    "drop": true,
    "en": "",
@@ -14403,6 +14478,18 @@
    "en": "Safety and limits",
    "es": "Seguridad y límites",
    "fr": "Sécurité et limites",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "67bf0af0675b746d83c04aa44845f7cd927aeaab0a1b9339f8926387611ffa2a": {
+   "drop": false,
+   "en": "In JeffWrite, you can mark index entries with `Alt+Shift+X`, and Mark All marks every place with the same words. Entries can have a main entry, subentry, cross-reference such as \"see,\" a page range from a bookmark, and a bold or italic page number.",
+   "es": "En JeffWrite, usted puede marcar entradas de índice con `Alt+Shift+X`, y Marcar todo marca cada lugar con las mismas palabras. Las entradas pueden tener una entrada principal, una subentrada, una referencia cruzada como \"véase\", un intervalo de páginas a partir de un marcador y un número de página en negrita o cursiva.",
+   "fr": "Dans JeffWrite, vous pouvez marquer des entrées d’index avec `Alt+Shift+X`, et Tout marquer marque chaque occurrence des mêmes mots. Les entrées peuvent avoir une entrée principale, une sous-entrée, un renvoi tel que « voir », une plage de pages issue d’un signet et un numéro de page en gras ou en italique.",
    "soon": {
     "drop": true,
     "en": "",
@@ -14504,18 +14591,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "68c65570b487de65ab1357fa9e075e1e667e425b0d770e4fff6fc4d78e3f21d5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Field Settings: custom name, subtotals, layout and print choices, and sort and filter by label, by value, and by top 10",
-    "es": "Configuración de campo: nombre personalizado, subtotales, opciones de diseño e impresión, y ordenar y filtrar por etiqueta, por valor y por los 10 mejores",
-    "fr": "Paramètres de champ : nom personnalisé, sous-totaux, choix de disposition et d’impression, et tri et filtre par étiquette, par valeur et par les 10 premiers"
    }
   },
   "68c9ddc6b7e28140bdefc5ea5b59543cd75d6581f5c963bfa9e91157f3466d18": {
@@ -15022,6 +15097,18 @@
     "fr": ""
    }
   },
+  "700e5144522e5c247cf389eae3b4ab120d1231052ff4b7afd82b37e8878193f2": {
+   "drop": false,
+   "en": "In JeffWrite, footnotes appear at the bottom of the page their mark lands on, under a separator. A note too long for the page continues on the next under a continuation separator and notice. Numbering runs across the document, by section, or by page, with custom marks and number formats.",
+   "es": "En JeffWrite, las notas al pie aparecen al final de la página donde cae su marca, bajo un separador. Una nota demasiado larga para la página continúa en la siguiente bajo un separador y un aviso de continuación. La numeración abarca el documento, por sección o por página, con marcas personalizadas y formatos de número.",
+   "fr": "Dans JeffWrite, les notes de bas de page apparaissent en bas de la page où se trouve leur repère, sous un séparateur. Une note trop longue pour la page continue sur la suivante sous un séparateur et un avis de continuation. La numérotation s’applique à tout le document, par section ou par page, avec des repères personnalisés et des formats de numérotation.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "7043ef0189689a0a99ccc32ab8c2db649782dff34c5ed84430a1969a81b7bcce": {
    "drop": false,
    "en": "In JeffCrunch, notes (text boxes that show on hover) can be created, edited, and deleted. You can move between notes with Previous and Next, show or hide a note, and use Show Every Note. Notes display a red mark, keep the author name, are saved with the file, and move with rows, columns, and sorting. Threaded comments are shown read-only and kept.",
@@ -15039,18 +15126,6 @@
    "en": "The grid",
    "es": "La cuadrícula",
    "fr": "La grille",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "709b0606f3c194e72134d690c788d7e93883a67b5ca5ec0b740884f8b4c1d1a9": {
-   "drop": false,
-   "en": "Footnotes appear at the bottom of the page their mark lands on, under a separator. A note too long for the page continues on the next under a continuation separator and notice. Numbering follows the file, with custom marks. Insert Footnote and Insert Endnote work, and a note can be edited where it stands.",
-   "es": "Las notas al pie aparecen al final de la página donde cae su marca, bajo un separador. Una nota demasiado larga para la página continúa en la siguiente con un separador y un aviso de continuación. La numeración sigue la del archivo, con marcas personalizadas. Insertar nota al pie e Insertar nota al final funcionan, y una nota se puede editar donde está.",
-   "fr": "Les notes de bas de page apparaissent au bas de la page où se trouve leur appel, sous un séparateur. Une note trop longue pour la page se poursuit sur la suivante avec un séparateur et un avis de continuation. La numérotation suit celle du fichier, avec des marques personnalisées. Insérer une note de bas de page et Insérer une note de fin fonctionnent, et une note peut être modifiée à son emplacement.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15104,18 +15179,6 @@
     "en": "More Paste Special choices: comments and notes, validation, column widths, and number formats",
     "es": "Más opciones de pegado especial: comentarios y notas, validación, anchos de columna y formatos de número",
     "fr": "Autres choix de collage spécial : commentaires et notes, validation, largeurs de colonne et formats de nombre"
-   }
-  },
-  "7192992cc37650cb2a09f6e90c6a6b77a363d8dca355e266bc5d895f7bfdb5fa": {
-   "drop": false,
-   "en": "In JeffCrunch, the Design tab sets pivot table subtotals (hidden, at the top, or at the bottom), grand totals (all four choices), and report layout (compact, outline, or tabular).",
-   "es": "En JeffCrunch, la pestaña Diseño permite definir los subtotales de la tabla dinámica (ocultos, arriba o abajo), los totales generales (las cuatro opciones) y el diseño del informe (compacto, esquema o tabular).",
-   "fr": "Dans JeffCrunch, l’onglet Création permet de définir les sous-totaux du tableau croisé dynamique (masqués, en haut ou en bas), les totaux généraux (les quatre choix) et la disposition du rapport (compacte, plan ou tabulaire).",
-   "soon": {
-    "drop": false,
-    "en": "Pivot table repeat item labels, blank rows, header and banding choices, and styles gallery",
-    "es": "Repetir etiquetas de elementos, filas en blanco, opciones de encabezados y bandas, y galería de estilos de tabla dinámica",
-    "fr": "Répétition des étiquettes d’éléments, lignes vides, choix des en-têtes et des bandes, et galerie de styles de tableau croisé dynamique"
    }
   },
   "71988d1bfa61cab0593bddb1b101b945e34c100fd835393f29f13fe5751e287d": {
@@ -15490,23 +15553,23 @@
     "fr": "Aide sur les fonctions depuis la barre de formule : la fonction saisie ouvre sa page"
    }
   },
+  "7596d6d06eabb42fb586495b6569d494ab61ae54915e9982c7deadeefef42ffe": {
+   "drop": false,
+   "en": "In JeffCrunch, Expand Entire Field and Collapse Entire Field work on the field chosen in the pane. A double-click on a value, or Show Details, puts the rows behind it on a new sheet, with field names, as one step of Undo for the sheet and one for the rows.",
+   "es": "En JeffCrunch, Expandir campo completo y Contraer campo completo actúan sobre el campo elegido en el panel. Un doble clic en un valor, o Mostrar detalles, coloca las filas que hay detrás en una hoja nueva, con los nombres de los campos, como un paso de Deshacer para la hoja y otro para las filas.",
+   "fr": "Dans JeffCrunch, Développer tout le champ et Réduire tout le champ agissent sur le champ choisi dans le volet. Un double-clic sur une valeur, ou Afficher les détails, place les lignes sous-jacentes dans une nouvelle feuille, avec les noms des champs, en une étape d’annulation pour la feuille et une pour les lignes.",
+   "soon": {
+    "drop": false,
+    "en": "Plus and minus buttons in the cells, and Drill Up",
+    "es": "Botones de más y menos en las celdas, y Subir de nivel",
+    "fr": "Boutons plus et moins dans les cellules, et Explorer vers le haut"
+   }
+  },
   "75ad438e0cd646d3b7397deca30db3e15efcd884f2636987f7a8b8735a8984ce": {
    "drop": false,
    "en": "Slide Master, Handout Master, and Notes Master views",
    "es": "Vistas Patrón de diapositivas, Patrón de documentos y Patrón de notas",
    "fr": "Affichages Masque des diapositives, Masque du document et Masque des notes",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "761d3b8aac65c3f0afad455921bbc9c2a7fe3629cb40c8f933ca190c1af0a9d3": {
-   "drop": false,
-   "en": "In JeffCrunch, pivot tables in a workbook are shown as saved, with the numbers in the cells, the field list, and the filters. They are kept whole, with their data cache, and written back as they were. A pivot chart, a slicer, a timeline, and a filter pane for the items of a field are shown and kept as saved.",
-   "es": "En JeffCrunch, las tablas dinámicas de un libro se muestran tal como se guardaron, con los números en las celdas, la lista de campos y los filtros. Se conservan completas, con su caché de datos, y se vuelven a escribir tal como estaban. Un gráfico dinámico, una segmentación, una escala de tiempo y un panel de filtro para los elementos de un campo se muestran y se conservan tal como se guardaron.",
-   "fr": "Dans JeffCrunch, les tableaux croisés dynamiques d’un classeur s’affichent tels qu’ils ont été enregistrés, avec les nombres dans les cellules, la liste des champs et les filtres. Ils sont conservés en entier, avec leur cache de données, et réécrits tels qu’ils étaient. Un graphique croisé dynamique, un segment, une chronologie et un volet de filtre pour les éléments d’un champ sont affichés et conservés tels qu’enregistrés.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15646,18 +15709,6 @@
     "fr": ""
    }
   },
-  "78b85dd864498fcbaff917880788bcca03b9d3889d5cf9225fabd508ef174e0a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Start mail merge: letters, email messages, envelopes, labels, directory, step-by-step wizard, and clear merge type",
-    "es": "Iniciar combinación de correspondencia: cartas, mensajes de correo, sobres, etiquetas, directorio, asistente paso a paso y borrado del tipo de combinación",
-    "fr": "Démarrer un publipostage : lettres, e-mails, enveloppes, étiquettes, répertoire, assistant pas à pas et effacement du type de fusion"
-   }
-  },
   "78be05f22ff08d256ae672131e3678bcae31bd5e062f5ede808ca5e465a01d2b": {
    "drop": false,
    "en": "In JeffDeck, Monitors offers Use Presenter View, and Presenter View (`Alt+F5`) to rehearse on one screen with the show in a small window.",
@@ -15692,6 +15743,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "79046250c874423862f82a838eee5dc8a9975084dc220c5c79ae6e08e2617ca3": {
+   "drop": false,
+   "en": "In JeffWrite, the fields `DATE`, `TIME`, `CREATEDATE`, `SAVEDATE`, `PRINTDATE`, `FILENAME`, `FILESIZE`, `AUTHOR`, `TITLE`, `SUBJECT`, `DOCPROPERTY`, `NUMWORDS`, `NUMCHARS`, `IF`, `QUOTE`, `INDEX`, and `TOA` are worked out, and `=` works as a formula without table cells. `TC`, `XE`, and `TA` are read, written, and made by Mark Entry and Mark Citation.",
+   "es": "En JeffWrite, los campos `DATE`, `TIME`, `CREATEDATE`, `SAVEDATE`, `PRINTDATE`, `FILENAME`, `FILESIZE`, `AUTHOR`, `TITLE`, `SUBJECT`, `DOCPROPERTY`, `NUMWORDS`, `NUMCHARS`, `IF`, `QUOTE`, `INDEX` y `TOA` se calculan, y `=` funciona como fórmula sin celdas de tabla. `TC`, `XE` y `TA` se leen, se escriben y se crean con Marcar entrada y Marcar cita.",
+   "fr": "Dans JeffWrite, les champs `DATE`, `TIME`, `CREATEDATE`, `SAVEDATE`, `PRINTDATE`, `FILENAME`, `FILESIZE`, `AUTHOR`, `TITLE`, `SUBJECT`, `DOCPROPERTY`, `NUMWORDS`, `NUMCHARS`, `IF`, `QUOTE`, `INDEX` et `TOA` sont calculés, et `=` fonctionne comme formule sans cellules de tableau. `TC`, `XE` et `TA` sont lus, écrits et créés avec Marquer l’entrée et Marquer la citation.",
+   "soon": {
+    "drop": false,
+    "en": "Fields `COMPARE`, `SET`, `ASK`, `FILLIN`, `LISTNUM`, and `SYMBOL`",
+    "es": "Campos `COMPARE`, `SET`, `ASK`, `FILLIN`, `LISTNUM` y `SYMBOL`",
+    "fr": "Champs `COMPARE`, `SET`, `ASK`, `FILLIN`, `LISTNUM` et `SYMBOL`"
    }
   },
   "79f9a9b38276b0824a91e9e2b520c5a67607ed23afbad698bda283714fd0ca28": {
@@ -15778,18 +15841,6 @@
     "fr": "Onglet Graphiques pour les images SVG : changer le graphique, convertir en forme, styles, remplissage, contour et effets"
    }
   },
-  "7aea19999c462b883da40aa1bd1d3d25d34c79a0b2e529d592226d5baaf40177": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Group Selection and Group Field: dates, numbers, and text items, with Ungroup",
-    "es": "Agrupar selección y Agrupar campo: fechas, números y elementos de texto, con Desagrupar",
-    "fr": "Grouper la sélection et Grouper le champ : dates, nombres et éléments de texte, avec Dissocier"
-   }
-  },
   "7af548a96b87ea065562937711e69b5c4415cf099fbcb1255af7b19b3c688df6": {
    "drop": true,
    "en": "",
@@ -15800,18 +15851,6 @@
     "en": "Function names in the language of the interface, with locale-specific argument separators",
     "es": "Nombres de funciones en el idioma de la interfaz, con separadores de argumentos según el idioma",
     "fr": "Noms de fonctions dans la langue de l’interface, avec séparateurs d’arguments selon la langue"
-   }
-  },
-  "7b2895bee85b5d254e5264fb7a03bce316dac9488576328f91939ee51e91bda6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Insert Index: formats, columns, page numbers, tab leader, sorting, update, and automatic marking from a word list",
-    "es": "Insertar índice: formatos, columnas, números de página, relleno de tabulación, ordenación, actualización y marcado automático desde una lista de palabras",
-    "fr": "Insertion d’index : formats, colonnes, numéros de page, points de suite, tri, mise à jour et marquage automatique depuis une liste de mots"
    }
   },
   "7bc9c63477a68415f084fa48769930fb919027b5dddda90484230652e1ea26ff": {
@@ -16162,18 +16201,6 @@
     "fr": ""
    }
   },
-  "80777a3f40c7a370061536c724e2b2bd019289c52d266b73b04b4dc68fa7586d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Bibliography galleries and Update Citations and Bibliography",
-    "es": "Galerías de bibliografía y actualización de citas y bibliografía",
-    "fr": "Galeries de bibliographie et mise à jour des citations et de la bibliographie"
-   }
-  },
   "80bdd003c47128dec4f78dc6f0f522dd0b51b13a8e127e1a033166fe0b8328e5": {
    "drop": true,
    "en": "",
@@ -16222,18 +16249,6 @@
     "fr": "Options de vérification : correction automatique, orthographe, mots ignorés et dictionnaires personnalisés"
    }
   },
-  "817af2aa805f9449beea0d02fd99060b621e4b01cdee94640974ffc8ee1c2176": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Chart Filters button",
-    "es": "Botón de filtros de gráfico",
-    "fr": "Bouton de filtres de graphique"
-   }
-  },
   "819b7a42f84d10870048a82a7c06c2118ce84f9641bc90b7af451b61b36d9356": {
    "drop": true,
    "en": "",
@@ -16244,6 +16259,18 @@
     "en": "Language options: editing languages, display language, and default language for new text",
     "es": "Opciones de idioma: idiomas de edición, idioma de la interfaz e idioma predeterminado para texto nuevo",
     "fr": "Options de langue : langues d’édition, langue d’affichage et langue par défaut du nouveau texte"
+   }
+  },
+  "81a4d0877d78680d5c96e0e1aa04fc44d14bd9627c829868f8cb5eca73c62d30": {
+   "drop": false,
+   "en": "In JeffCrunch, the Sparkline tab edits the location and source range of one sparkline or a group, sets the type to line, column, or win/loss, and shows the high, low, negative, first, and last points and markers.",
+   "es": "En JeffCrunch, la pestaña Minigráfico edita la ubicación y el rango de origen de un minigráfico o de un grupo, define el tipo como línea, columna o ganancia/pérdida, y muestra los puntos más alto, más bajo, negativos, primero y último, y los marcadores.",
+   "fr": "Dans JeffCrunch, l’onglet Sparkline modifie l’emplacement et la plage source d’une sparkline ou d’un groupe, définit le type en courbe, colonne ou gain/perte, et affiche les points le plus haut, le plus bas, négatifs, premier et dernier, ainsi que les marqueurs.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "81b75c2be2e44a4d112899d99329512c5dabb54798f6e610e25f367b6bc2f5fc": {
@@ -16376,18 +16403,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "83b04c95bec9953d2e1991c6e12cff59bd5bdb4e4b0ca6e4d129b534507e6c0d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Sparklines: Line, Column, and Win/Loss in a cell",
-    "es": "Minigráficos: de líneas, de columnas y de ganancias y pérdidas en una celda",
-    "fr": "Graphiques sparkline : courbe, colonnes et gain/perte dans une cellule"
    }
   },
   "844070ff3f18a60b9e50e79b9036f4bd880ecd6a2e8a15ea7d76c3bd92902b2e": {
@@ -16942,16 +16957,16 @@
     "fr": ""
    }
   },
-  "8daec94ddd2be7f109810a1e01ce94bb646264ead57e9bff3447f8b06a41fc16": {
+  "8dc8e377958dfd656ef7d675e16c547d528f752a29245823da6963cd26572e26": {
    "drop": false,
-   "en": "In JeffWrite, `F9` or References > Update Table updates page numbers only or the entire table. Remove Table of Contents deletes the table.",
-   "es": "En JeffWrite, `F9` o Referencias > Actualizar tabla actualiza solo los números de página o la tabla completa. Quitar tabla de contenido elimina la tabla.",
-   "fr": "Dans JeffWrite, `F9` ou Références > Mettre à jour la table met à jour uniquement les numéros de page ou la table entière. Supprimer la table des matières supprime la table.",
+   "en": "Field Settings in JeffCrunch sets a custom name, automatic or no subtotals, the form (compact, outline, or tabular), repeated item labels, and a blank line after each item. It also sorts by labels or by a value and filters by labels, by a value, and by top or bottom items, with a check for each item.",
+   "es": "La configuración de campo de JeffCrunch permite definir un nombre personalizado, subtotales automáticos o ninguno, la forma (compacta, de esquema o tabular), repetir etiquetas de elementos y una línea en blanco tras cada elemento. También ordena por etiquetas o por un valor y filtra por etiquetas, por un valor y por los primeros o últimos elementos, con una casilla para cada elemento.",
+   "fr": "Les paramètres de champ de JeffCrunch permettent de définir un nom personnalisé, des sous-totaux automatiques ou aucun, la forme (compacte, plan ou tabulaire), la répétition des étiquettes d’éléments et une ligne vide après chaque élément. Ils permettent aussi de trier par étiquettes ou par valeur et de filtrer par étiquettes, par valeur et par premiers ou derniers éléments, avec une case pour chaque élément.",
    "soon": {
     "drop": false,
-    "en": "Add Text: mark a paragraph for a level",
-    "es": "Agregar texto: marcar un párrafo para un nivel",
-    "fr": "Ajouter du texte : marquer un paragraphe pour un niveau"
+    "en": "Custom subtotal functions and show items with no data",
+    "es": "Funciones de subtotal personalizadas y mostrar elementos sin datos",
+    "fr": "Fonctions de sous-total personnalisées et affichage des éléments sans données"
    }
   },
   "8de0da0c29dd254fe752e10bcc139c7e205599686e509d769acdb999dc638c00": {
@@ -17038,6 +17053,18 @@
     "fr": "Menu d’objet : options de collage, enregistrer comme image, taille et position, format et texte de remplacement"
    }
   },
+  "8ee4fd000fb6d2e4b1770bffa6575cd8dd58f6a29f459072bd9f560b19179ee9": {
+   "drop": false,
+   "en": "Make labels in JeffWrite for a full page of one label or a single label, with twelve sheet sizes (letter and A4) named by label count and size, or your own. Print or save as a document; a merge fills each label with the next recipient.",
+   "es": "Cree etiquetas en JeffWrite para una página completa de una misma etiqueta o una sola etiqueta, con doce tamaños de hoja (carta y A4) indicados por cantidad y tamaño de etiquetas, o los suyos. Imprima o guarde como documento; una combinación llena cada etiqueta con el siguiente destinatario.",
+   "fr": "Créez des étiquettes dans JeffWrite pour une page entière d’une même étiquette ou une seule étiquette, avec douze formats de planche (lettre et A4) nommés selon le nombre et la taille des étiquettes, ou les vôtres. Imprimez ou enregistrez comme document ; une fusion remplit chaque étiquette avec le destinataire suivant.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "8ee7229f15276667148da220fbdac0c3b6b731d61ad484f1de4f841889ae8809": {
    "drop": false,
    "en": "Clipboard",
@@ -17060,18 +17087,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "8f311375eedfd61aad838b39458cb72b33f3e963fdefb9be7693df9223b77830": {
-   "drop": false,
-   "en": "In JeffWrite, the References tab and `Ctrl+Alt+F` and `Ctrl+Alt+D` insert a footnote or an endnote, numbered after the others. You edit a note’s text where it stands. JeffWrite also sets a file’s notes at the foot of the pages, after the text, or at a section’s end.",
-   "es": "En JeffWrite, la pestaña Referencias y `Ctrl+Alt+F` y `Ctrl+Alt+D` insertan una nota al pie o una nota final, numerada después de las demás. Usted edita el texto de una nota donde se encuentra. JeffWrite también coloca las notas de un documento al pie de las páginas, después del texto o al final de una sección.",
-   "fr": "Dans JeffWrite, l’onglet Références et `Ctrl+Alt+F` et `Ctrl+Alt+D` insèrent une note de bas de page ou une note de fin, numérotée après les autres. Vous modifiez le texte d’une note à son emplacement. JeffWrite place aussi les notes d’un fichier en bas des pages, après le texte ou à la fin d’une section.",
-   "soon": {
-    "drop": false,
-    "en": "Footnote and endnote dialog: number format, start at, restart, location, and notes in columns",
-    "es": "Cuadro de notas al pie y finales: formato de número, comenzar en, reiniciar, ubicación y notas en columnas",
-    "fr": "Boîte de dialogue des notes : format de numérotation, début, redémarrage, emplacement et notes en colonnes"
    }
   },
   "8f5c18de4307239e4435a8e4722059a4a58f9333e2763684089be36cbc8d9efc": {
@@ -17374,18 +17389,6 @@
     "fr": ""
    }
   },
-  "937e68cc5050b7a886ab8bb2bcf144e88a12bd5e7faee39a99123565931fa342": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Slicer tab: caption, report connections, sort and display settings, styles, columns, and sizes",
-    "es": "Pestaña Segmentación: título, conexiones de informe, ajustes de orden y visualización, estilos, columnas y tamaños",
-    "fr": "Onglet Segment : légende, connexions de rapport, paramètres de tri et d’affichage, styles, colonnes et tailles"
-   }
-  },
   "93cf3a85695eaba9b88afdaf11af09716ec2240995819563d172ab6702670fc5": {
    "drop": true,
    "en": "",
@@ -17662,6 +17665,18 @@
     "fr": ""
    }
   },
+  "9746f54ebcd65a1554caa6dd95bc9ef20dd85f55999cf68cddfddb2a5db818d5": {
+   "drop": false,
+   "en": "In JeffWrite, you can convert footnotes to endnotes and back, all or one at a time, and swap them, using References > Convert Notes. The words go with each note, and the conversion is one undo step.",
+   "es": "En JeffWrite, usted puede convertir notas al pie en notas finales y viceversa, todas o una por una, e intercambiarlas, con Referencias > Convertir notas. El texto acompaña a cada nota, y la conversión es un solo paso de deshacer.",
+   "fr": "Dans JeffWrite, vous pouvez convertir des notes de bas de page en notes de fin et inversement, toutes ou une seule, et les permuter, avec Références > Convertir les notes. Le texte suit chaque note, et la conversion s’annule en une seule étape.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "9772c93e87571867b3afff80cc5b63db48476337cd1193019caac55913821b76": {
    "drop": true,
    "en": "",
@@ -17792,18 +17807,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "99e8cda5b12c78e7a804de3a786ed3a3b59b57b3e518ee719cfe7b4cefce7f8d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Timeline: a slider that filters a pivot table by year, quarter, month, or day",
-    "es": "Escala de tiempo: un control deslizante que filtra una tabla dinámica por año, trimestre, mes o día",
-    "fr": "Chronologie : un curseur qui filtre un tableau croisé dynamique par année, trimestre, mois ou jour"
    }
   },
   "99e8ecd92772507776320a372bb5ee9ec962f761281a5bfeb850c82e73c0929e": {
@@ -17950,6 +17953,18 @@
     "fr": ""
    }
   },
+  "9b5351148cb0b808e967776f136b87e5a5fd309a0b43575a4ded97c5b1d632b5": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Chart Filters button",
+    "es": "Botón de filtros de gráfico",
+    "fr": "Bouton de filtres de graphique"
+   }
+  },
   "9b6859161de8113f907684721c72da6c12ac9f2d38467316ed33f8169d1e152d": {
    "drop": false,
    "en": "Arrange",
@@ -17972,6 +17987,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "9ba1c0a9c150e5c7c99e5c7da024a712fb4aeae74b70fec78221b81e05393d75": {
+   "drop": false,
+   "en": "In JeffWrite, you can insert footnotes and endnotes with the References tab or `Ctrl+Alt+F` and `Ctrl+Alt+D`, and edit a note’s text where it stands. The Footnote and Endnote dialog sets the number format (1, a, A, i, I, or symbols), the first number, restarting each section (or, for footnotes, each page), and where endnotes are set (end of section or end of document).",
+   "es": "En JeffWrite, usted puede insertar notas al pie y notas finales con la pestaña Referencias o con `Ctrl+Alt+F` y `Ctrl+Alt+D`, y editar el texto de una nota donde se encuentra. El cuadro de diálogo de notas al pie y notas finales define el formato de número (1, a, A, i, I o símbolos), el primer número, el reinicio en cada sección (o, para las notas al pie, en cada página) y dónde se colocan las notas finales (final de sección o final del documento).",
+   "fr": "Dans JeffWrite, vous pouvez insérer des notes de bas de page et des notes de fin avec l’onglet Références ou `Ctrl+Alt+F` et `Ctrl+Alt+D`, et modifier le texte d’une note à son emplacement. La boîte de dialogue des notes définit le format de numérotation (1, a, A, i, I ou symboles), le premier numéro, le redémarrage à chaque section (ou, pour les notes de bas de page, à chaque page) et l’emplacement des notes de fin (fin de section ou fin de document).",
+   "soon": {
+    "drop": false,
+    "en": "Footnotes below the text, a typed mark, and notes in columns",
+    "es": "Notas al pie debajo del texto, marca escrita por usted y notas en columnas",
+    "fr": "Notes de bas de page sous le texte, repère saisi et notes en colonnes"
    }
   },
   "9bb8474e6fdca87bb7941bcac4ab67bcc97ca38c4e8d1de3e6fab147a83b41db": {
@@ -18094,18 +18121,6 @@
     "fr": ""
    }
   },
-  "9d24f8b145c9099a96cb3bac99abb52d7c158a1d2892052693dabbf70cda3512": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Envelopes: delivery and return addresses, common envelope sizes, feed direction, and print or add to the document",
-    "es": "Sobres: direcciones de destinatario y remitente, tamaños de sobre comunes, dirección de alimentación e impresión o adición al documento",
-    "fr": "Enveloppes : adresses du destinataire et de l’expéditeur, formats d’enveloppe courants, sens d’alimentation, impression ou ajout au document"
-   }
-  },
   "9d416e99195406ba2533427775b4cea62de2a00ac4d2b704af0dbdb013df7b65": {
    "drop": true,
    "en": "",
@@ -18226,18 +18241,6 @@
     "fr": ""
    }
   },
-  "9ed47ea4384637927ebee213ed2aaddfcf2fcff4f795c87ffd08ade3a6b30313": {
-   "drop": false,
-   "en": "The `DATE`, `TIME`, `CREATEDATE`, `SAVEDATE`, `PRINTDATE`, `FILENAME`, `FILESIZE`, `AUTHOR`, `TITLE`, `SUBJECT`, `DOCPROPERTY`, `NUMWORDS`, `NUMCHARS`, `IF`, and `QUOTE` fields are worked out, as is `=` (formula, without table cells).",
-   "es": "Los campos `DATE`, `TIME`, `CREATEDATE`, `SAVEDATE`, `PRINTDATE`, `FILENAME`, `FILESIZE`, `AUTHOR`, `TITLE`, `SUBJECT`, `DOCPROPERTY`, `NUMWORDS`, `NUMCHARS`, `IF` y `QUOTE` se calculan, al igual que `=` (fórmula, sin celdas de tabla).",
-   "fr": "Les champs `DATE`, `TIME`, `CREATEDATE`, `SAVEDATE`, `PRINTDATE`, `FILENAME`, `FILESIZE`, `AUTHOR`, `TITLE`, `SUBJECT`, `DOCPROPERTY`, `NUMWORDS`, `NUMCHARS`, `IF` et `QUOTE` sont calculés, ainsi que `=` (formule, sans cellules de tableau).",
-   "soon": {
-    "drop": false,
-    "en": "Fields: `COMPARE`, `SET`, `ASK`, `FILLIN`, `LISTNUM`, `SYMBOL`, `TC`, `XE`, `INDEX`, `TA`, and `TOA`",
-    "es": "Campos: `COMPARE`, `SET`, `ASK`, `FILLIN`, `LISTNUM`, `SYMBOL`, `TC`, `XE`, `INDEX`, `TA` y `TOA`",
-    "fr": "Champs : `COMPARE`, `SET`, `ASK`, `FILLIN`, `LISTNUM`, `SYMBOL`, `TC`, `XE`, `INDEX`, `TA` et `TOA`"
-   }
-  },
   "9f568d6586e797babd101963a01eb03ceb53ac98fd239f9aa707958a943f70d5": {
    "drop": false,
    "en": "JeffPub saves `.pub` files as complete files with all their pages in the 2003-and-later `.pub` layout.",
@@ -18308,18 +18311,6 @@
     "en": "Recover unsaved workbooks",
     "es": "Recuperación de libros sin guardar",
     "fr": "Récupération des classeurs non enregistrés"
-   }
-  },
-  "a0940aca6993e0d3e067761e453d3b70351ec9cd29eda408a672ecf8b8bbc90b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Pivot chart analyze commands: field buttons, expand and collapse buttons, field list, refresh, change source, and clear",
-    "es": "Comandos de análisis de gráfico dinámico: botones de campo, botones de expandir y contraer, lista de campos, actualizar, cambiar origen y borrar",
-    "fr": "Commandes d’analyse du graphique croisé dynamique : boutons de champ, boutons de développement et de réduction, liste de champs, actualisation, changement de source et effacement"
    }
   },
   "a12487ff7466e431b19082d7f09eeeb2290111f1fdd6d180658e8e2dd1ea6ca9": {
@@ -19234,18 +19225,6 @@
     "fr": ""
    }
   },
-  "b1e67a531625693897a8d2abbea93859fd410aa7150045e94fb3d4e274442399": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Table entry fields: mark entries by hand",
-    "es": "Campos de entrada de tabla: marcar entradas manualmente",
-    "fr": "Champs d’entrée de table : marquer des entrées manuellement"
-   }
-  },
   "b1eac767ba26a2e0227c8aec122fc8c94f0da1c1bf672a2f38c52a4b042117ff": {
    "drop": true,
    "en": "",
@@ -19318,16 +19297,16 @@
     "fr": ""
    }
   },
-  "b287319888869e8791c961d5784c8f311c8f1828f4125c25f352405dc16dfdf3": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
+  "b3781803375c0f25c23038813a81a9e8b86f72cf5b8bae37df635d26c89a02a6": {
+   "drop": false,
+   "en": "Insert an Address Block with a choice of formats or your own lines, a country to leave out, and a preview. Insert a Greeting Line with formats, a line for recipients with no name, and a preview. Insert merge fields from the list's columns, use Match Fields, Highlight Merge Fields on screen, and Update Labels.",
+   "es": "Inserte un bloque de direcciones con una selección de formatos o sus propias líneas, un país que omitir y una vista previa. Inserte una línea de saludo con formatos, una línea para destinatarios sin nombre y una vista previa. Inserte campos de combinación de las columnas de la lista, use Coincidir campos, resalte los campos de combinación en pantalla y actualice las etiquetas.",
+   "fr": "Insérez un bloc d’adresse avec un choix de formats ou vos propres lignes, un pays à omettre et un aperçu. Insérez une formule d’appel avec des formats, une ligne pour les destinataires sans nom et un aperçu. Insérez des champs de fusion à partir des colonnes de la liste, utilisez la correspondance des champs, surlignez les champs de fusion à l’écran et mettez à jour les étiquettes.",
    "soon": {
     "drop": false,
-    "en": "Mark Citation and Insert Table of Authorities, with categories and update",
-    "es": "Marcar cita e insertar tabla de autoridades, con categorías y actualización",
-    "fr": "Marquage de citation et insertion de table des autorités, avec catégories et mise à jour"
+    "en": "Match Fields choices: save in the file",
+    "es": "Opciones de Coincidir campos: guardar en el archivo",
+    "fr": "Choix de correspondance des champs : enregistrement dans le fichier"
    }
   },
   "b38e10cc09add33946f35e7dc00c015f7fa19da66b2cfb10c6cbdb36b5670831": {
@@ -19582,6 +19561,18 @@
     "fr": "`RATE` et `DB`"
    }
   },
+  "b74269e812ac94829375d207541f5a441b22d5bcdaedba656efe8e0192ec1cad": {
+   "drop": false,
+   "en": "The Pivot Table Fields pane in JeffCrunch lists the fields of the source with a check box each and shows four boxes: Filters, Columns, Rows, and Values. Fields can be checked in or out, moved with Move To, ordered within a box, or removed, and the search box hides fields that do not match. Defer Layout Update holds changes until Update.",
+   "es": "El panel Campos de tabla dinámica de JeffCrunch enumera los campos del origen con una casilla cada uno y muestra cuatro cuadros: Filtros, Columnas, Filas y Valores. Puede marcar o desmarcar campos, moverlos con Mover a, ordenarlos dentro de un cuadro o quitarlos, y el cuadro de búsqueda oculta los campos que no coinciden. Aplazar actualización del diseño retiene los cambios hasta Actualizar.",
+   "fr": "Le volet Champs de tableau croisé dynamique de JeffCrunch liste les champs de la source avec une case à cocher chacun et affiche quatre zones : Filtres, Colonnes, Lignes et Valeurs. Vous pouvez cocher ou décocher des champs, les déplacer avec Déplacer vers, les ordonner dans une zone ou les supprimer, et la zone de recherche masque les champs qui ne correspondent pas. Différer la mise à jour de la disposition retient les changements jusqu’à Mettre à jour.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b74c0534ebfab6969be3315838b16898a1db075b97b95374bf0774adb1742aab": {
    "drop": true,
    "en": "",
@@ -19832,6 +19823,18 @@
     "en": "Sparkline axis options, hidden and empty cells, and group, ungroup, and clear",
     "es": "Opciones de eje de minigráficos, celdas ocultas y vacías, y agrupar, desagrupar y borrar",
     "fr": "Options d’axe des sparklines, cellules masquées et vides, et groupement, dissociation et effacement"
+   }
+  },
+  "bc0a968f1f7b7d1dcffd7df0ca1d6423b44b2fa17b02efa3ffd17947ba49b745": {
+   "drop": false,
+   "en": "In JeffCrunch, Insert > Sparklines makes line, column, and win/loss sparklines from a row or column of values, into one cell or a group of cells. They are drawn inside their cells, can color the high, low, first, last, and negative points, and are saved with the sheet.",
+   "es": "En JeffCrunch, Insertar > Minigráficos crea minigráficos de línea, de columna y de ganancia/pérdida a partir de una fila o columna de valores, en una celda o en un grupo de celdas. Se dibujan dentro de sus celdas, pueden colorear los puntos más alto, más bajo, primero, último y negativos, y se guardan con la hoja.",
+   "fr": "Dans JeffCrunch, Insertion > Graphiques sparkline crée des sparklines en courbe, en colonne et gain/perte à partir d’une ligne ou d’une colonne de valeurs, dans une cellule ou un groupe de cellules. Elles sont dessinées dans leurs cellules, peuvent colorer les points le plus haut, le plus bas, le premier, le dernier et les points négatifs, et sont enregistrées avec la feuille.",
+   "soon": {
+    "drop": false,
+    "en": "Sparklines: date axis with proportional spacing, and hidden rows and columns left out of the drawing",
+    "es": "Minigráficos: eje de fechas con espaciado proporcional y exclusión de filas y columnas ocultas en el dibujo",
+    "fr": "Sparklines : axe de dates avec espacement proportionnel et exclusion des lignes et colonnes masquées du dessin"
    }
   },
   "bc0b94d1aa27281b181db57d0ea0767d2855fd17ad5588a2cc50e0460c6e8108": {
@@ -20086,18 +20089,6 @@
     "fr": ""
    }
   },
-  "c094325aabfee2cba4d8e61977644aeef4285f83d1a950c892fd44457e832100": {
-   "drop": false,
-   "en": "In JeffCrunch, the Pivot Table Fields pane lists the source fields with a check box each and shows four boxes: Filters, Columns, Rows, and Values. You can check a field in or out, move it to another box, move it up or down in its box, or remove it, and each step can be undone.",
-   "es": "En JeffCrunch, el panel Campos de tabla dinámica enumera los campos de origen con una casilla cada uno y muestra cuatro cuadros: Filtros, Columnas, Filas y Valores. Usted puede marcar o desmarcar un campo, moverlo a otro cuadro, subirlo o bajarlo dentro de su cuadro, o quitarlo, y cada paso se puede deshacer.",
-   "fr": "Dans JeffCrunch, le volet Champs de tableau croisé dynamique liste les champs source avec une case à cocher chacun et affiche quatre zones : Filtres, Colonnes, Lignes et Valeurs. Vous pouvez cocher ou décocher un champ, le déplacer vers une autre zone, le monter ou le descendre dans sa zone, ou le retirer, et chaque étape peut être annulée.",
-   "soon": {
-    "drop": false,
-    "en": "Defer Layout Update and a search box in the field list pane",
-    "es": "Aplazar actualización del diseño y un cuadro de búsqueda en el panel de la lista de campos",
-    "fr": "Différer la mise à jour de la disposition et une zone de recherche dans le volet de la liste des champs"
-   }
-  },
   "c0e4345564aea0da590ed9fe982184ed685c0ef367ac603fad887f95cdf60f35": {
    "drop": false,
    "en": "JeffCrunch shows and keeps data validation rules as saved. Cells show a drop-down arrow for lists and an input message beside the cell on selection. Typed and pasted values are checked with the rule’s own style, title, and message. Rules that read other sheets are offered as lists and kept through saves and inserted rows and columns.",
@@ -20242,18 +20233,6 @@
     "fr": ""
    }
   },
-  "c2e8d6dab884873165451b6cf6f37b3ae8f1c20da0d9a373eb15fa079a7751d8": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Expand and Collapse, Drill Down and Drill Up, and double-click a total to see the rows behind it on a new sheet",
-    "es": "Expandir y contraer, Explorar en profundidad y en sentido inverso, y doble clic en un total para ver las filas que lo componen en una hoja nueva",
-    "fr": "Développer et réduire, Explorer vers le bas et vers le haut, et double-clic sur un total pour voir les lignes sous-jacentes sur une nouvelle feuille"
-   }
-  },
   "c36593733c4bd0a82fb88fb1d8fd88c3f4c020508d53b28995252d7519fd76b6": {
    "drop": true,
    "en": "",
@@ -20300,18 +20279,6 @@
     "en": "Hyphenation: set from a menu",
     "es": "Separación de palabras: definir desde un menú",
     "fr": "Césure : définir depuis un menu"
-   }
-  },
-  "c45014a5a6a9c665e2b82b4db6fef0c81007e6a40469636fe3852c22427438bd": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Sparkline data editing, type (line, column, or win/loss), and point display options",
-    "es": "Edición de datos de minigráficos, tipo (línea, columna o ganancia/pérdida) y opciones de visualización de puntos",
-    "fr": "Modification des données des sparklines, type (ligne, colonne ou gain/perte) et options d’affichage des points"
    }
   },
   "c45acd284a8704f7477ea67a11612b4d09349462ddef91768ca0309c9afe7b54": {
@@ -20432,6 +20399,18 @@
     "en": "Fonts stored inside `.pub` files, and page numbering of sections after the first",
     "es": "Fuentes almacenadas dentro de archivos `.pub` y numeración de páginas de las secciones posteriores a la primera",
     "fr": "Polices stockées dans les fichiers `.pub` et numérotation des pages des sections après la première"
+   }
+  },
+  "c5702a9ec899a02443ec5c13d1ffd9516c2845ea3f4f568d3e0cc12b31a80063": {
+   "drop": false,
+   "en": "In JeffWrite, you can mark entries for a table by hand with `TC` fields, using References > Mark Entry. Each entry has its text, level, identifier, and a \"no page number\" option, and a table lists them in the order of the text.",
+   "es": "En JeffWrite, usted puede marcar entradas para una tabla manualmente con campos `TC`, mediante Referencias > Marcar entrada. Cada entrada tiene su texto, nivel, identificador y la opción \"sin número de página\", y una tabla las enumera en el orden del texto.",
+   "fr": "Dans JeffWrite, vous pouvez marquer des entrées pour une table manuellement avec des champs `TC`, via Références > Marquer l’entrée. Chaque entrée a son texte, son niveau, son identifiant et une option « sans numéro de page », et une table les liste dans l’ordre du texte.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "c5a077f672b633645b3b4f22c4c2278544438ad4c844d3ebca10102b95b788dd": {
@@ -20662,11 +20641,35 @@
     "fr": ""
    }
   },
+  "c87ea0e2cc9714e2000dac0883eeef0e6e141104a3b7c24a113490092e47bce3": {
+   "drop": false,
+   "en": "Add merge rules to a JeffWrite document: If...Then...Else, Ask, Fill-in, Merge Record #, Merge Sequence #, Next Record, Next Record If, Set Bookmark, and Skip Record If. Ask and Fill-in prompt once for each question during the merge.",
+   "es": "Agregue reglas de combinación a un documento de JeffWrite: Si...Entonces...Si no, Preguntar, Rellenar, Nº de registro de combinación, Nº de secuencia de combinación, Registro siguiente, Registro siguiente si, Establecer marcador y Omitir registro si. Preguntar y Rellenar piden una vez cada pregunta durante la combinación.",
+   "fr": "Ajoutez des règles de fusion à un document JeffWrite : Si...Alors...Sinon, Demander, Remplir, N° d’enregistrement de fusion, N° de séquence de fusion, Enregistrement suivant, Enregistrement suivant si, Définir un signet et Ignorer l’enregistrement si. Demander et Remplir posent une fois chaque question pendant la fusion.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "c87fbb4fd5a78799233161ee9107c9ed7680e77db9e40301e9892e87e3c7e0e7": {
    "drop": false,
    "en": "JeffDeck keeps movies and sounds inside `.pptx` and `.odp` files, along with the calls that play them. Linked movies and sounds keep their address and poster.",
    "es": "JeffDeck conserva las películas y los sonidos dentro de los archivos `.pptx` y `.odp`, junto con las llamadas que los reproducen. Los vinculados conservan su dirección y su imagen de póster.",
    "fr": "JeffDeck conserve les films et les sons dans les fichiers `.pptx` et `.odp`, avec les appels qui les lisent. Ceux qui sont liés conservent leur adresse et leur affiche.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "c8b2b1d40de6032758187a87d64881e4d97623f520336e3ba97d218369ffca77": {
+   "drop": false,
+   "en": "In JeffWrite, select recipients by typing a new list, using an existing list (CSV, tab-delimited, `.xlsx`, `.ods`, or vCard contacts), or choosing contacts from any address book saved as `.vcf`.",
+   "es": "En JeffWrite, seleccione destinatarios escribiendo una lista nueva, usando una lista existente (CSV, texto delimitado por tabuladores, `.xlsx`, `.ods` o contactos vCard) o eligiendo contactos de cualquier libreta de direcciones guardada como `.vcf`.",
+   "fr": "Dans JeffWrite, sélectionnez les destinataires en saisissant une nouvelle liste, en utilisant une liste existante (CSV, texte délimité par des tabulations, `.xlsx`, `.ods` ou contacts vCard) ou en choisissant des contacts dans n’importe quel carnet d’adresses enregistré en `.vcf`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20739,18 +20742,6 @@
    "en": "Function Library",
    "es": "Biblioteca de funciones",
    "fr": "Bibliothèque de fonctions",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "ca2122134d578c2c332d8a31ddb7a35634acfe990ac8cabd55365d88b0c7d5d4": {
-   "drop": false,
-   "en": "The `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC`, and `SEQ` fields are worked out and updated. `HYPERLINK` fields keep their result.",
-   "es": "Los campos `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC` y `SEQ` se calculan y se actualizan. Los campos `HYPERLINK` conservan su resultado.",
-   "fr": "Les champs `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC` et `SEQ` sont calculés et mis à jour. Les champs `HYPERLINK` conservent leur résultat.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20984,18 +20975,6 @@
     "en": "Check Compatibility: name what an older or other format can't hold before saving",
     "es": "Comprobar compatibilidad: indicar antes de guardar lo que un formato anterior u otro no puede contener",
     "fr": "Vérification de compatibilité : indiquer avant l’enregistrement ce qu’un format ancien ou autre ne peut pas contenir"
-   }
-  },
-  "cd27aa919e9b687c3e7b89c1c748e40e105eee7a83991bf9f5423c27e4e5f4d2": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Insert Citation and Manage Sources, with source types and citation styles",
-    "es": "Insertar cita y administrar fuentes, con tipos de fuente y estilos de cita",
-    "fr": "Insertion de citations et gestion des sources, avec types de sources et styles de citation"
    }
   },
   "cd7bc1f968b84c9d8e4f326e1db02e9657ef7287da52cd3b571fd53b6956eab8": {
@@ -21238,6 +21217,18 @@
     "fr": "Impression recto verso manuelle : pages impaires, puis paires, avec un message pour retourner la pile"
    }
   },
+  "d04a57cde3a6fcb29f1c73ad14a2c52c49d060d6172d1a07351be59a916f1177": {
+   "drop": false,
+   "en": "Pivot chart tabs (while a pivot chart is selected)",
+   "es": "Pestañas de gráfico dinámico (con un gráfico dinámico seleccionado)",
+   "fr": "Onglets de graphique croisé dynamique (graphique sélectionné)",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "d0982d849a7ffb80b053632caba431b0cda09a891a8025f6ecad374a81ce673c": {
    "drop": false,
    "en": "JeffDeck keeps macros and never runs them. A link opens only when you click it in the show.",
@@ -21358,6 +21349,18 @@
     "fr": ""
    }
   },
+  "d26d9f2c518b0313c42e2800ba6fab1b1d032a5d5d664806bb813d6d98c98579": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Pivot chart Analyze tab: field buttons, expand and collapse buttons, field list, and refresh, change source, and clear commands",
+    "es": "Pestaña Analizar del gráfico dinámico: botones de campo, botones de expandir y contraer, lista de campos y comandos de actualizar, cambiar origen y borrar",
+    "fr": "Onglet Analyse du graphique croisé dynamique : boutons de champ, boutons développer et réduire, liste des champs et commandes d’actualisation, de changement de source et d’effacement"
+   }
+  },
   "d319775f3cb92056b352ad44bee47979014d8b408e6de4d907cfbbcd77a975b2": {
    "drop": false,
    "en": "JeffCrunch opens encrypted `.xlsx` files and saves `.xlsx` files with a password.",
@@ -21440,18 +21443,6 @@
     "en": "Split: four panes that scroll apart",
     "es": "Dividir: cuatro paneles que se desplazan por separado",
     "fr": "Fractionner : quatre volets qui défilent séparément"
-   }
-  },
-  "d40dff74d9901076dee30765d5a9c7953cd3118c9c710a21678593161a217629": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Edit the separator, continuation separator, and continuation notice for notes",
-    "es": "Modificar el separador, el separador de continuación y el aviso de continuación de las notas",
-    "fr": "Modification du séparateur, du séparateur de continuation et de l’avis de continuation des notes"
    }
   },
   "d42d1b46597c6fbb081682cd34b74df5a837f32c783588a14e92f5f9ecbfb9c4": {
@@ -21567,6 +21558,18 @@
    "en": "",
    "es": "",
    "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "d50e7f3e2f633f3c4329ce4caec8ba3ea2ebcb88298287860f0e6e07e8355d91": {
+   "drop": false,
+   "en": "In JeffWrite, you can update a table of contents with `F9` or References > Update Table, choosing page numbers only or the entire table. You can also remove the table and use Add Text to set a paragraph as Heading 1, 2, or 3, or as body text.",
+   "es": "En JeffWrite, usted puede actualizar una tabla de contenido con `F9` o con Referencias > Actualizar tabla, eligiendo solo los números de página o la tabla completa. También puede quitar la tabla y usar Agregar texto para dar a un párrafo el estilo Título 1, 2 o 3, o texto normal.",
+   "fr": "Dans JeffWrite, vous pouvez mettre à jour une table des matières avec `F9` ou Références > Mettre à jour la table, en choisissant les numéros de page seuls ou la table entière. Vous pouvez aussi supprimer la table et utiliser Ajouter du texte pour appliquer à un paragraphe le style Titre 1, 2 ou 3, ou le texte normal.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21706,18 +21709,6 @@
     "fr": ""
    }
   },
-  "d8196d749ef2f41bcfad766e1e7069c2e83c99de1beb600021ff3d60722229b3": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Insert fields: address block and greeting line (formats, country rules, preview), any merge field, match fields, highlight merge fields, and update labels",
-    "es": "Inserción de campos: bloque de direcciones y línea de saludo (formatos, reglas por país, vista previa), cualquier campo de combinación, coincidencia de campos, resaltado de campos de combinación y actualización de etiquetas",
-    "fr": "Insertion de champs : bloc d’adresse et formule de salutation (formats, règles par pays, aperçu), tout champ de fusion, correspondance des champs, mise en évidence des champs de fusion et mise à jour des étiquettes"
-   }
-  },
   "d841a4f3a2f4257ae9730886ef93cc1fb32d2ac63ab2afa3363fc139d3619342": {
    "drop": true,
    "en": "",
@@ -21740,18 +21731,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d86934dcd7639d0844c294ecd2c26f8e466cf936140e1a3965f60111211f3081": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Slicer: buttons that filter a table or pivot table, with insert, connect, style, and multi-select",
-    "es": "Segmentación de datos: botones que filtran una tabla o tabla dinámica, con insertar, conectar, estilo y selección múltiple",
-    "fr": "Segment : boutons qui filtrent un tableau ou un tableau croisé dynamique, avec insertion, connexion, style et sélection multiple"
    }
   },
   "d8836a238b875d2aeecf7835c174775c48a4879c95a87962b19f28daf17ebc84": {
@@ -22306,18 +22285,6 @@
     "fr": ""
    }
   },
-  "e0b81a897d1bc213c3efd1a5d804f0fc783de018cf9916a85394013cc82b8a0a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Pivot chart design and format tabs, same as for other charts",
-    "es": "Pestañas de diseño y formato de gráfico dinámico, iguales que las de otros gráficos",
-    "fr": "Onglets de création et de format du graphique croisé dynamique, comme pour les autres graphiques"
-   }
-  },
   "e13325b23741881ec65606cde3067afd267f48836184675c62ca7d50ddc2272c": {
    "drop": false,
    "en": "In JeffCrunch, you can set a table’s name and change its size, and turn the header row, totals row (with a function for each column), first column, last column, banded rows, banded columns, and filter buttons on or off.",
@@ -22400,18 +22367,6 @@
     "en": "Numbers with 15 significant digits kept and shown, including near-zero results and large numbers",
     "es": "Números con 15 cifras significativas conservadas y mostradas, incluidos los resultados casi nulos y los números grandes",
     "fr": "Nombres avec 15 chiffres significatifs conservés et affichés, y compris les résultats proches de zéro et les grands nombres"
-   }
-  },
-  "e1d69230658aa22537229745c8d56fca045e5aea0a558011a03548ed0fa1729b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Preview results with record navigation, find recipient, and check for errors",
-    "es": "Vista previa de resultados con navegación por registros, búsqueda de destinatarios y comprobación de errores",
-    "fr": "Aperçu des résultats avec navigation entre les enregistrements, recherche de destinataire et vérification des erreurs"
    }
   },
   "e1ee40744347eed67251c6647ae9b2c51a0c88fb4ecd109b253a4ced4fda3adf": {
@@ -22520,6 +22475,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e3671097c867a9909c5e44ca165b913aafc4723823247e76009bc8550cdb6515": {
+   "drop": false,
+   "en": "In JeffCrunch, trendlines of every kind can be drawn over a chart with a legend entry, and the Trendline menu of Chart Parts sets the kind, the equation, and R-squared.",
+   "es": "En JeffCrunch, las líneas de tendencia de todos los tipos se dibujan sobre el gráfico con una entrada en la leyenda, y el menú Línea de tendencia de Elementos del gráfico permite definir el tipo, la ecuación y R cuadrado.",
+   "fr": "Dans JeffCrunch, les courbes de tendance de tous types sont tracées sur le graphique avec une entrée de légende, et le menu Courbe de tendance des éléments de graphique permet de définir le type, l’équation et le R carré.",
+   "soon": {
+    "drop": false,
+    "en": "Error bars, data table, drop lines, high-low lines, series lines, and up/down bars",
+    "es": "Barras de error, tabla de datos, líneas de caída, líneas de máximos y mínimos, líneas de series y barras ascendentes/descendentes",
+    "fr": "Barres d’erreur, tableau de données, lignes de projection, lignes haut-bas, lignes de séries et barres haussières/baissières"
    }
   },
   "e39f7d3d0ce51c1ceab13b26f14e1594f5a759bc6c8ca4af9d158fa808f0f588": {
@@ -22642,16 +22609,16 @@
     "fr": ""
    }
   },
-  "e4c21e2d0f45cf3b6cdfa42b7049a885112a4ffcce1d23033e59c1a4465544b5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
+  "e4a8a370cd0d0c37e850ae8f53103fdf35bbf11aff6b9ef9552b27e7b27fada2": {
+   "drop": false,
+   "en": "The Design tab in JeffCrunch has Subtotals, Grand Totals, Report Layout, Repeat Item Labels, Blank Rows, row and column headers, banded rows and columns, and a gallery of ten styles with Clear Style.",
+   "es": "La pestaña Diseño de JeffCrunch incluye Subtotales, Totales generales, Diseño de informe, Repetir etiquetas de elementos, Filas en blanco, encabezados de fila y de columna, filas y columnas con bandas, y una galería de diez estilos con Borrar estilo.",
+   "fr": "L’onglet Création de JeffCrunch comprend Sous-totaux, Totaux généraux, Disposition du rapport, Répéter les étiquettes d’éléments, Lignes vides, en-têtes de ligne et de colonne, lignes et colonnes à bandes, et une galerie de dix styles avec Effacer le style.",
    "soon": {
     "drop": false,
-    "en": "Timeline tab: caption, report connections, styles, display options, and time level",
-    "es": "Pestaña Escala de tiempo: título, conexiones de informe, estilos, opciones de visualización y nivel de tiempo",
-    "fr": "Onglet Chronologie : légende, connexions de rapport, styles, options d’affichage et niveau de temps"
+    "en": "New pivot table style, and subtotal lines marked in styles",
+    "es": "Nuevo estilo de tabla dinámica y líneas de subtotal marcadas en los estilos",
+    "fr": "Nouveau style de tableau croisé dynamique et lignes de sous-total marquées dans les styles"
    }
   },
   "e4dce1617ce07c55fa52123a929859e2a2d48c5bd74d30ef2cb106463597b1e7": {
@@ -22702,6 +22669,18 @@
     "fr": ""
    }
   },
+  "e5a077d0419b7ffc41d667ed222064be7e236e044ee37acea97eda1284630e16": {
+   "drop": false,
+   "en": "In JeffCrunch, a sparkline can take one of twelve styles, a color for the line or bars, a color for each kind of point, and one of nine line weights.",
+   "es": "En JeffCrunch, un minigráfico puede tener uno de doce estilos, un color para la línea o las barras, un color para cada tipo de punto y uno de nueve grosores de línea.",
+   "fr": "Dans JeffCrunch, une sparkline peut avoir l’un des douze styles, une couleur pour la ligne ou les barres, une couleur pour chaque type de point et l’une des neuf épaisseurs de ligne.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "e5ac8f7f974c030645bcca61f9e960527d183fc3cc41fbbfc3fd42714552397f": {
    "drop": false,
    "en": "Turn selected text or an object into a link to a web page, to a place in the presentation, or to an email address. In a slide show, web and email links open.",
@@ -22736,6 +22715,18 @@
     "en": "More built-in templates: checkbook register, grade book, inventory list, mileage log, project plan, and sales report",
     "es": "Más plantillas incluidas: registro de chequera, libro de calificaciones, lista de inventario, registro de kilometraje, plan de proyecto e informe de ventas",
     "fr": "Plus de modèles intégrés : registre de chéquier, carnet de notes, liste d’inventaire, journal kilométrique, plan de projet et rapport de ventes"
+   }
+  },
+  "e5bff83e061796a9ff7853d18120c79bb8bd5f8b4ace4c48c8f30c6da26d2916": {
+   "drop": false,
+   "en": "In JeffWrite, Insert Citation adds a citation (with pages, without author, without year, or with title), and Source Manager lets you copy, create, edit, delete, and preview sources. There are 17 source types and the styles APA, MLA, Chicago, Harvard, and IEEE, changed for the whole document at once. A master list is kept in a file in the data folder.",
+   "es": "En JeffWrite, Insertar cita agrega una cita (con páginas, sin autor, sin año o con título), y el Administrador de fuentes permite copiar, crear, editar, eliminar y previsualizar fuentes. Hay 17 tipos de fuente y los estilos APA, MLA, Chicago, Harvard e IEEE, que se cambian para todo el documento a la vez. Una lista maestra se guarda en un archivo de la carpeta de datos.",
+   "fr": "Dans JeffWrite, Insérer une citation ajoute une citation (avec pages, sans auteur, sans année ou avec titre), et le Gestionnaire de sources permet de copier, créer, modifier, supprimer et prévisualiser des sources. Il existe 17 types de sources et les styles APA, MLA, Chicago, Harvard et IEEE, modifiés pour tout le document en une fois. Une liste principale est conservée dans un fichier du dossier de données.",
+   "soon": {
+    "drop": false,
+    "en": "Citation placeholders and additional styles",
+    "es": "Marcadores de posición de citas y estilos adicionales",
+    "fr": "Espaces réservés de citation et styles supplémentaires"
    }
   },
   "e5d24a5e8361e7f8c4d30b543af41732acc1899efb872cde2d53f6e99bb7bc53": {
@@ -22820,6 +22811,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e6a6781b1880e67e399599dd593ad4dca859d91e116fbe295a8be4daddd9579b": {
+   "drop": false,
+   "en": "Value Field Settings in JeffCrunch sets how to total and a custom name, plus a number format. Show Values As offers percent of grand, column, and row total, index, difference from, percent of, percent difference from, and running total.",
+   "es": "La configuración de campo de valor de JeffCrunch permite elegir cómo totalizar, un nombre personalizado y un formato de número. Mostrar valores como ofrece porcentaje del total general, de columna y de fila, índice, diferencia de, porcentaje de, porcentaje de diferencia de y total acumulado.",
+   "fr": "Les paramètres de champ de valeur de JeffCrunch permettent de choisir le mode de calcul du total, un nom personnalisé et un format de nombre. Afficher les valeurs sous forme de propose pourcentage du total général, de colonne et de ligne, indice, différence par rapport à, pourcentage de, pourcentage de différence par rapport à et total cumulé.",
+   "soon": {
+    "drop": false,
+    "en": "Show Values As: rank and percent of parent total",
+    "es": "Mostrar valores como: clasificación y porcentaje del total principal",
+    "fr": "Afficher les valeurs sous forme de : rang et pourcentage du total parent"
    }
   },
   "e6ab7e3cefef5b7e172099deafda4655a6b462e991266b85219814fa6cdf5fc5": {
@@ -23158,6 +23161,18 @@
     "fr": ""
    }
   },
+  "ec60e3febf580f312cf977138016fd69b19186eee8d24e2b98281056928e9d88": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Edit Recipient List: sort, filter, find duplicates, validate addresses, and include or exclude records",
+    "es": "Editar lista de destinatarios: ordenar, filtrar, buscar duplicados, validar direcciones e incluir o excluir registros",
+    "fr": "Modification de la liste de destinataires : trier, filtrer, trouver les doublons, valider les adresses et inclure ou exclure des enregistrements"
+   }
+  },
   "eca3f6af7c24d5ad068714876ae3af6e0a606ee21d84daadaa5010189ccc1acd": {
    "drop": false,
    "en": "Insert tab",
@@ -23242,18 +23257,6 @@
     "fr": "Défilement des pages : vertical ou horizontal"
    }
   },
-  "ed390214fe614170955440990971aeaa871bb070f193acb3ee91e4bf0642b157": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Rules: If...Then...Else, Ask, Fill-in, Merge Record #, Merge Sequence #, Next Record, Next Record If, Set Bookmark, and Skip Record If",
-    "es": "Reglas: Si...Entonces...Si no, Preguntar, Rellenar, N.º de registro combinado, N.º de secuencia combinada, Registro siguiente, Registro siguiente si, Establecer marcador y Omitir registro si",
-    "fr": "Règles : Si...Alors...Sinon, Demander, Remplir, N° d’enregistrement fusionné, N° de séquence fusionnée, Enregistrement suivant, Enregistrement suivant si, Définir un signet et Ignorer l’enregistrement si"
-   }
-  },
   "ed39bbebae54f348b0ccf0bac3a8dd7c80546a615d83bb4a0d21aca64adc982f": {
    "drop": false,
    "en": "In a JeffDeck show, a click on a link opens a web page or an email address.",
@@ -23278,18 +23281,6 @@
     "fr": "Graphique : insertion, modification des données dans une grille, et changement du type, des éléments, de la disposition, du style et des couleurs"
    }
   },
-  "ede99a43a6b25faf48140675ec25b092138d549d9bbb5fb08af9e7d5d65fb50c": {
-   "drop": false,
-   "en": "In JeffCrunch, you can refresh one or all pivot tables, keeping the layout and column widths, change the data source (cells, a table, or a name), and clear a pivot table (all, or filters only). Each action is one step of Undo.",
-   "es": "En JeffCrunch, usted puede actualizar una o todas las tablas dinámicas conservando el diseño y el ancho de las columnas, cambiar el origen de datos (celdas, una tabla o un nombre) y borrar una tabla dinámica (todo, o solo los filtros). Cada acción es un paso de Deshacer.",
-   "fr": "Dans JeffCrunch, vous pouvez actualiser un ou tous les tableaux croisés dynamiques en conservant la disposition et la largeur des colonnes, changer la source de données (cellules, tableau ou nom) et effacer un tableau croisé dynamique (tout, ou seulement les filtres). Chaque action correspond à une étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Pivot table refresh when the file opens, move, and select",
-    "es": "Actualización de tablas dinámicas al abrir el archivo, mover y seleccionar",
-    "fr": "Actualisation des tableaux croisés dynamiques à l’ouverture du fichier, déplacement et sélection"
-   }
-  },
   "ee422eeb40c0d66b0025dd8625c381c8c1c2ebf5c5facdca2b2c75fb39aab37c": {
    "drop": false,
    "en": "JeffPub supports undo and redo with full history.",
@@ -23302,16 +23293,16 @@
     "fr": ""
    }
   },
-  "ee70b406e91a525b36f238910e4c20681d4af4d894b70ebd4ff63ca56245801b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
+  "ee5bc7b2ee95d1cd7a92eb6e0b8b3aee946397a718aa8770904b577ed583aac8": {
+   "drop": false,
+   "en": "In JeffWrite, References > Separators sets the separator and continuation separator for footnotes, and the separator for endnotes, as a line, words, or nothing. Separators that hold more than that are kept as they were.",
+   "es": "En JeffWrite, Referencias > Separadores define el separador y el separador de continuación de las notas al pie, y el separador de las notas finales, como una línea, texto o nada. Los separadores que contienen algo más se conservan tal como estaban.",
+   "fr": "Dans JeffWrite, Références > Séparateurs définit le séparateur et le séparateur de continuation des notes de bas de page, ainsi que le séparateur des notes de fin, sous forme de ligne, de texte ou de rien. Les séparateurs qui contiennent autre chose sont conservés tels quels.",
    "soon": {
     "drop": false,
-    "en": "Labels: a full page of one label or a single label, common sheet sizes and custom sizes, and print or save as a document",
-    "es": "Etiquetas: una página completa de la misma etiqueta o una sola etiqueta, tamaños de hoja comunes y personalizados, e impresión o guardado como documento",
-    "fr": "Étiquettes : une page entière d’une même étiquette ou une seule étiquette, formats de planche courants et personnalisés, impression ou enregistrement comme document"
+    "en": "Endnote continuation separator and notice: display",
+    "es": "Separador y aviso de continuación de notas finales: visualización",
+    "fr": "Séparateur et avis de continuation des notes de fin : affichage"
    }
   },
   "ee726aa6d01f9760933c82658823462c7fa6afb1007f23b43d5529ed8e9e73a4": {
@@ -23998,18 +23989,6 @@
     "fr": ""
    }
   },
-  "f9efeff3aff905a4a697fdb15b484c367b6605136920d3e3c746f6ddb7984455": {
-   "drop": false,
-   "en": "In JeffWrite, References > Table of Contents makes a table from heading styles, outline levels, or a list of entries, with levels, page numbers, a right-aligned tab and leader, and links. It also lays out a file’s existing table of contents.",
-   "es": "En JeffWrite, Referencias > Tabla de contenido crea una tabla a partir de estilos de título, niveles de esquema o una lista de entradas, con niveles, números de página, tabulación alineada a la derecha con relleno y vínculos. También presenta la tabla de contenido existente de un documento.",
-   "fr": "Dans JeffWrite, Références > Table des matières crée une table à partir des styles de titre, des niveaux de plan ou d’une liste d’entrées, avec niveaux, numéros de page, tabulation alignée à droite avec points de suite et liens. Il met aussi en page la table des matières existante d’un fichier.",
-   "soon": {
-    "drop": false,
-    "en": "Table of Contents: gallery of built-in tables and tables from table entry fields",
-    "es": "Tabla de contenido: galería de tablas integradas y tablas a partir de campos de entrada de tabla",
-    "fr": "Table des matières : galerie de tables intégrées et tables à partir de champs d’entrée de table"
-   }
-  },
   "f9fee748ef0982d92b57afe3098aa17dc1b1c7b0fe237caab6caa569e9b95b87": {
    "drop": false,
    "en": "When saving `.pub`, JeffPub reports what it leaves out. Those objects stay in the publication and are kept in `.jpub`.",
@@ -24346,6 +24325,18 @@
     "fr": ""
    }
   },
+  "fd14d6e639855db7ff62a2f5b508409ec8774653c1213e763e92a10f19b0980a": {
+   "drop": false,
+   "en": "JeffCrunch reads a timeline’s caption, span, and style, the field and tables it filters, and applies the choice to a table’s items.",
+   "es": "JeffCrunch lee el título, el intervalo y el estilo de una escala de tiempo, el campo y las tablas que filtra, y aplica la selección a los elementos de una tabla.",
+   "fr": "JeffCrunch lit la légende, la période et le style d’une chronologie, le champ et les tableaux qu’elle filtre, et applique le choix aux éléments d’un tableau.",
+   "soon": {
+    "drop": false,
+    "en": "Timeline tab: show on the sheet, click, connect to more tables, and save",
+    "es": "Pestaña Escala de tiempo: mostrar en la hoja, hacer clic, conectar con más tablas y guardar",
+    "fr": "Onglet Chronologie : affichage sur la feuille, clic, connexion à d’autres tableaux et enregistrement"
+   }
+  },
   "fd4f5d4321ed4ca4455b44d2dc6f7e9080989152695afdd4fa782ba751a764c7": {
    "drop": true,
    "en": "",
@@ -24375,6 +24366,18 @@
    "en": "In JeffPub, the Edit Text dialog for Text Art sets the text, font, size, bold, and italic.",
    "es": "En JeffPub, el cuadro de diálogo Editar texto del texto artístico permite establecer el texto, la fuente, el tamaño, la negrita y la cursiva.",
    "fr": "Dans JeffPub, la boîte de dialogue Modifier le texte du texte décoratif permet de définir le texte, la police, la taille, le gras et l’italique.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "fdbaf331e6f7a0f3d092a7f68bb98fa540c40280d11f3d9279d5df254b086fbd": {
+   "drop": false,
+   "en": "In JeffWrite, you can insert a Bibliography, Works Cited, or References list made from the sources cited, in the chosen style. Pressing `F9` or changing the style updates it.",
+   "es": "En JeffWrite, usted puede insertar una lista de Bibliografía, Obras citadas o Referencias creada a partir de las fuentes citadas, en el estilo elegido. Pulsar `F9` o cambiar el estilo la actualiza.",
+   "fr": "Dans JeffWrite, vous pouvez insérer une Bibliographie, une liste d’Ouvrages cités ou de Références créée à partir des sources citées, dans le style choisi. Appuyer sur `F9` ou changer de style la met à jour.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24512,6 +24515,18 @@
     "en": "Ordering by value type and a stable sort",
     "es": "Ordenación por tipo de valor y ordenación estable",
     "fr": "Tri par type de valeur et tri stable"
+   }
+  },
+  "ff508b2c6b1ec140a92dd9d68c324f4a0c4b6daaf020dc772d5e33f7cd013b28": {
+   "drop": false,
+   "en": "Start a mail merge in JeffWrite for letters, email messages, envelopes, labels, or a directory, use the step-by-step pane, and clear the merge type.",
+   "es": "Inicie una combinación de correspondencia en JeffWrite para cartas, mensajes de correo electrónico, sobres, etiquetas o un directorio, use el panel paso a paso y borre el tipo de combinación.",
+   "fr": "Lancez un publipostage dans JeffWrite pour des lettres, des courriels, des enveloppes, des étiquettes ou un répertoire, utilisez le volet pas à pas et effacez le type de fusion.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "ffa7025ae37d2c11b1d1710ab560ef052fc8dfc16c11cc15cc8fcec4a0be0d0d": {

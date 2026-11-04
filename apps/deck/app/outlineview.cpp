@@ -419,7 +419,7 @@ void OutlineView::textTyped()
 void OutlineView::commit()
 {
     m_idle.stop();
-    if (!m_typed) return;
+    if (!m_typed || m_ed->readOnly()) return;   // (a presentation open for reading only is not changed by what is typed)
     m_typed = false;
     qApp->removeEventFilter(this);
     apply(tr("Outline"));

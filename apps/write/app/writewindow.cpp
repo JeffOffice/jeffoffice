@@ -152,7 +152,11 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
     }
     a->setCheckable(checkable);
     // Each command counts by its id for the usage statistics (when they're on).
-    connect(a, &QAction::triggered, this, [fn, id] {
+    connect(a, &QAction::triggered, this, [this, fn, id] {
+        if (isReadOnly() && !commandAllowedReadOnly(id)) {
+            refuseReadOnlyChange();
+            return;
+        }
         telemetry::count(id);
         fn();
     });
@@ -209,7 +213,7 @@ void WriteWindow::updateTitle()
     // A document that came from an old binary file shows its whole name, so its kind is plain until it is saved as a .docx.
     const QString ending = QFileInfo(m_path).suffix().toLower();
     const QString shown = ending == QLatin1String("doc") || ending == QLatin1String("dot") || ending == QLatin1String("rtf") ? QFileInfo(m_path).fileName() : displayName();
-    setWindowTitle(QStringLiteral("%1%2 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name));
+    setWindowTitle(QStringLiteral("%1%2%4 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name, isReadOnly() ? tr(" (Read-Only)") : QString()));
 }
 
 // ---- commands
@@ -226,9 +230,11 @@ void WriteWindow::createActions()
     createHeaderFooterActions();
     createNoteActions();
     createFieldActions();
+    createRefsActions();
     createTableActions();
     createPictureActions();
     createStyleActions();
+    createMailActions();
 }
 
 namespace {
@@ -417,7 +423,7 @@ void WriteWindow::refreshUi()
     for (QAction *a : m_actions) {
         const QString id = a->objectName();
         if (id.startsWith(QLatin1String("fmt.")) || id.startsWith(QLatin1String("para.")) || id.startsWith(QLatin1String("ls.")) || id.startsWith(QLatin1String("layout.")) ||
-            id.startsWith(QLatin1String("insert.")) || id.startsWith(QLatin1String("style.")) || id == QLatin1String("edit.formatPainter") || id == QLatin1String("edit.copyFormat") ||
+            id.startsWith(QLatin1String("insert.")) || id.startsWith(QLatin1String("refs.")) || id.startsWith(QLatin1String("style.")) || id == QLatin1String("edit.formatPainter") || id == QLatin1String("edit.copyFormat") ||
             id == QLatin1String("edit.pasteFormat") || id == QLatin1String("edit.goTo"))
             a->setEnabled(has);
     }
@@ -425,6 +431,7 @@ void WriteWindow::refreshUi()
         for (const char *id : {"refs.updateTable", "refs.removeTable", "refs.nextFootnote", "refs.previousFootnote", "refs.nextEndnote", "refs.previousEndnote", "fields.update", "fields.unlink", "fields.lock", "fields.unlock", "fields.toggleCode", "fields.toggleAllCodes"}) act(QString::fromLatin1(id))->setEnabled(false);
         refreshTableUi();
         refreshPictureUi();
+        refreshMailUi();
         return;
     }
     QTextCursor &c = m_view->cursor();
@@ -512,6 +519,12 @@ void WriteWindow::refreshUi()
             act("fields.toggleCode")->setEnabled(near.any);
             act("refs.updateTable")->setEnabled(near.toc);
             act("refs.removeTable")->setEnabled(near.toc);
+            act("refs.updateIndex")->setEnabled(near.index);
+            act("refs.updateAuthorities")->setEnabled(near.authorities);
+            for (const char *id : {"refs.tocAutomatic1", "refs.tocAutomatic2", "refs.tocManual", "refs.addText.none", "refs.addText.1", "refs.addText.2", "refs.addText.3", "refs.markTocEntry", "refs.insertCaption",
+                                   "refs.tableOfFigures", "refs.insertCitation", "refs.bibliography.bibliography", "refs.bibliography.references", "refs.bibliography.worksCited", "refs.markEntry", "refs.insertIndex",
+                                   "refs.markCitation", "refs.insertAuthorities"})
+                act(QString::fromLatin1(id))->setEnabled(inText);
             act("fields.lock")->setEnabled(near.unlocked);
             act("fields.unlock")->setEnabled(near.locked);
             act("fields.toggleAllCodes")->setEnabled(inText && m_doc->mayHaveFields());
@@ -542,6 +555,7 @@ void WriteWindow::refreshUi()
     }
     refreshTableUi();
     refreshPictureUi();
+    refreshMailUi();
 }
 
 void WriteWindow::updateStatus()

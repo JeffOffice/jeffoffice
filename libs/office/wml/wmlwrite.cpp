@@ -11,6 +11,7 @@
 #include <QCryptographicHash>
 #include <QHash>
 #include <QSet>
+#include <limits>
 #include <algorithm>
 #include <vector>
 
@@ -787,21 +788,33 @@ QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesCh
     QVector<Block> written;
     for (auto it = change.replaced.cbegin(); it != change.replaced.cend(); ++it) written += it.value();
     for (const auto &add : change.added) written += add.second;
+    for (auto it = change.separators.cbegin(); it != change.separators.cend(); ++it) written += it.value();
     auto content = [](const QVector<Block> &blocks) {
         QByteArray out;
         writeBodyBlocks(out, blocks, Whole(blocks));
         return out;
     };
     QByteArray root, out;
+    QSet<QString> separatorsSeen;
+    int highest = 0;   // (the highest Id the part has or is given, for a note that is added)
+    QSet<int> idsSeen;   // (the Ids the part has: the separators are -1 and 0, as the settings name them)
     if (original.isEmpty()) {
         root = withKnownPrefixes(QByteArray("<") + rootName + " xmlns:w=\"" + kWNs + "\" xmlns:r=\"" + kRNs + "\">", written);
         out = kXmlHead + root;
         for (const char *const kind : {"separator", "continuationSeparator"}) {
             const bool first = QByteArray(kind) == "separator";
-            out += "<w:" + tag + " w:type=\"" + kind + "\" w:id=\"" + (first ? "-1" : "0") + "\"><w:p><w:pPr><w:spacing w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr><w:r><w:" + kind + "/></w:r></w:p></w:" + tag + ">";
+            const auto given = change.separators.constFind(QString::fromLatin1(kind));
+            out += "<w:" + tag + " w:type=\"" + kind + "\" w:id=\"" + (first ? "-1" : "0") + "\">";
+            if (given != change.separators.constEnd()) out += content(given.value());
+            else out += "<w:p><w:pPr><w:spacing w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr><w:r><w:" + QByteArray(kind) + "/></w:r></w:p>";
+            out += "</w:" + tag + ">";
         }
+        for (const auto &add : change.added) highest = std::max(highest, add.first);
+        // (The notice takes the Id above the others, and none where there is no room for one.)
+        if (const auto notice = change.separators.constFind(QStringLiteral("continuationNotice")); notice != change.separators.constEnd() && !notice.value().isEmpty() && highest < std::numeric_limits<int>::max())
+            out += "<w:" + tag + " w:type=\"continuationNotice\" w:id=\"" + QByteArray::number(highest + 1) + "\">" + content(notice.value()) + "</w:" + tag + ">";
     } else {
-        if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty()) return original;
+        if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty() && change.separators.isEmpty()) return original;
         XmlTree tree;
         if (!tree.parse(original, nullptr) || tree.root() < 0) return QByteArray();
         root = tree.startTag(tree.root());
@@ -811,6 +824,19 @@ QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesCh
         QSet<int> seen;   // (Of notes with one Id the first is the note: the others are kept as they were.)
         for (int c = tree.firstChild(tree.root()); c >= 0; c = tree.next(c)) {
             bool ok = false;
+            if (tree.is(c, tag.constData())) {
+                highest = std::max(highest, tree.attr(c, "id").toInt());
+                idsSeen.insert(tree.attr(c, "id").toInt());
+                const QString kind = tree.attr(c, "type");
+                const auto given = change.separators.constFind(kind);
+                if (given != change.separators.constEnd() && !separatorsSeen.contains(kind)) {
+                    separatorsSeen.insert(kind);
+                    QByteArray start = tree.startTag(c);
+                    if (start.endsWith("/>")) start = start.left(start.size() - 2) + ">";
+                    out += start + content(given.value()) + "</" + qnameOf(start) + ">";
+                    continue;
+                }
+            }
             // (The separator, the continuation separator, and the notice have Ids as the notes have, and some producers number them as notes: only an element of no type, or of the type
             // "normal", is the note of its Id.)
             const QString type = tree.is(c, tag.constData()) ? tree.attr(c, "type") : QString();
@@ -830,6 +856,25 @@ QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesCh
             QByteArray start = tree.startTag(c);
             if (start.endsWith("/>")) start = start.left(start.size() - 2) + ">";
             out += start + content(replaced.value()) + "</" + qnameOf(start) + ">";
+        }
+    }
+    if (!original.isEmpty()) {
+        for (const auto &add : change.added) highest = std::max(highest, add.first);
+        for (const QString &kind : {QStringLiteral("separator"), QStringLiteral("continuationSeparator"), QStringLiteral("continuationNotice")}) {
+            const auto given = change.separators.constFind(kind);
+            if (given == change.separators.constEnd() || given.value().isEmpty() || separatorsSeen.contains(kind)) continue;
+            // (The separator and the continuation separator are the notes with the Ids -1 and 0, which the settings name; a part whose Ids are taken by other notes is left without one. The notice
+            // takes the Id above the others, and none where there is no room for one.)
+            int id = 0;
+            if (kind == QLatin1String("separator") || kind == QLatin1String("continuationSeparator")) {
+                id = kind == QLatin1String("separator") ? -1 : 0;
+                if (idsSeen.contains(id)) continue;
+            } else {
+                if (highest >= std::numeric_limits<int>::max()) continue;
+                id = ++highest;
+            }
+            idsSeen.insert(id);
+            out += "<w:" + tag + " w:type=\"" + kind.toLatin1() + "\" w:id=\"" + QByteArray::number(id) + "\">" + content(given.value()) + "</w:" + tag + ">";
         }
     }
     for (const auto &add : change.added) out += "<w:" + tag + " w:id=\"" + QByteArray::number(add.first) + "\">" + content(add.second) + "</w:" + tag + ">";

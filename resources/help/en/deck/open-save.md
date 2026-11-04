@@ -1,5 +1,5 @@
 # Open and save presentations
-<!-- keywords: open, save, save as, otp, libreoffice, left out, close, new, recent files, pinned, file types, pptx, potx, ppsx, ppt, odp, template, show, rename, Ctrl+S, backup, file formats, old files, open document, kept, not shown, fonts, embed fonts, embedded fonts, missing font -->
+<!-- keywords: open, save, save as, otp, libreoffice, left out, close, new, recent files, pinned, file types, pptx, potx, ppsx, ppt, odp, template, show, rename, Ctrl+S, backup, file formats, old files, open document, kept, not shown, fonts, embed fonts, embedded fonts, missing font, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, repair, open and repair, damaged -->
 
 JeffDeck saves your work in .pptx files, and in .odp files, and opens several kinds of presentation files.
 
@@ -29,6 +29,18 @@ If you leave off the ending, JeffDeck adds the one that goes with the kind. Afte
 
 A presentation you opened from a template is saved as a new presentation: **Save** asks for a name, so the template stays as it was. The same goes for one opened from an older .ppt, .pps, or .pot file. A presentation you opened from an .odp file is saved as an .odp file again, over the same file.
 
+## Save a copy
+
+Click **File > Save a Copy** and choose a name. JeffDeck writes the presentation to that file, and you keep working in the one you had. Its name and its unsaved changes stay as they were.
+
+## Keep a backup copy
+
+Click **File > Options**, and on the **General** tab turn on **Always create backup copy**. Each time you save, JeffDeck first copies the old file to one called "Backup of" plus its name, in the same folder. If the copy can't be made, the app asks whether to save without it. The answer is No unless you say Yes, and the file stays as it was.
+
+## Save as a template
+
+A template is a presentation you use as a starting point. Click **File > Save as Template** and type a name. The template (a **.potx** file) goes in **My Templates**, and your presentation is not changed. To start a new presentation from it, click **File > New**, and click the template under **My Templates**. The new presentation has no file of its own yet, so the template is not changed. To remove a template from the list, right-click it and choose **Remove from My Templates**.
+
 ## Open
 
 Press Ctrl+O to pick a file at once. Or click **File > Open**, and then click **Browse**, or a name under **Pinned** or **Recent Presentations**.
@@ -36,6 +48,15 @@ Press Ctrl+O to pick a file at once. Or click **File > Open**, and then click **
 The file opens in this window if it holds a new presentation that nobody has touched. Otherwise, it opens in a window of its own.
 
 Right-click a name in the list to **Pin to list** (it stays at the top), **Unpin from list**, or **Remove from list**. A name in gray means JeffDeck can't find that file now.
+
+## Other ways to open a file
+
+On the **Open** page, click **More Ways to Open**. You can also right-click a name in the Recent list.
+
+- **Open Read-Only** opens the presentation for reading only. You can look, move through the slides, and copy, but you can't change anything. The title bar says "Read-Only". If you press **Save**, JeffDeck asks for a new name, so the file you opened is not changed.
+- **Open as Copy** opens the slides as a new presentation with no file of its own. **Save** asks where to put it.
+- **Open in New Window** opens the file in a window of its own, even when the window you are in is empty.
+- **Open and Repair** is for a .pptx file that is damaged, for example one that was cut short when it was copied. JeffDeck reads every part that it can, keeps a part that stopped in the middle up to the place where it stopped, and leaves out a part it can't read. The repaired slides open as a copy called "Repaired" plus the name, and a message tells you what was left out. The damaged file is not changed.
 
 ## Fonts in the file
 

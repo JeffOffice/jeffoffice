@@ -1,0 +1,203 @@
+// How the notes are numbered and where they are set: the document's settings (footnotePr and endnotePr), read, changed, and written back with the file.
+
+#include "core/wordformat.h"
+#include "core/writedoc.h"
+#include "flow/flowdocument.h"
+#include "flow/paginator.h"
+
+using namespace jp::office;
+using namespace jp::office::wml;
+
+namespace jp::write {
+
+namespace {
+constexpr char kSettingsRel[] = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings";
+constexpr char kSettingsType[] = "application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml";
+
+NoteProperties propertiesOf(const WriteDoc::NoteSettings &s)
+{
+    NoteProperties p;
+    p.format = s.format;
+    p.start = s.start;
+    p.restart = s.restart;
+    p.position = s.position;
+    return p;
+}
+} // namespace
+
+WriteDoc::NoteSettings WriteDoc::noteSettings(bool endnotes) const
+{
+    if (m_noteEdited[endnotes ? 1 : 0]) return m_noteEdit[endnotes ? 1 : 0];
+    if (m_noteReadDone[endnotes ? 1 : 0]) return m_noteRead[endnotes ? 1 : 0];
+    NoteSettings out;
+    const QByteArray settings = m_wml.settingsName.isEmpty() ? QByteArray() : partData(m_wml.settingsName);
+    const char *group = endnotes ? "endnotePr" : "footnotePr";
+    const NoteNumbering n = readNoteNumbering(settings, group);
+    if (!n.format.isEmpty()) out.format = n.format;
+    else if (endnotes) out.format = QStringLiteral("lowerRoman");   // (the endnotes' own where the settings say none)
+    if (n.start > 0) out.start = n.start;
+    out.position = n.position;
+    const QString restart = noteNumberRestart(settings, group);
+    if (!restart.isEmpty()) out.restart = restart;
+    m_noteRead[endnotes ? 1 : 0] = out;
+    m_noteReadDone[endnotes ? 1 : 0] = true;
+    return out;
+}
+
+void WriteDoc::setNoteSettings(bool endnotes, const NoteSettings &s)
+{
+    const int k = endnotes ? 1 : 0;
+    if (noteSettings(endnotes) == s) return;
+    m_noteEdit[k] = s;
+    m_noteEdited[k] = true;
+    if (endnotes) {
+        // (What the endnotes' numbers show is made again when the document is read from what is saved.)
+        m_endnoteFormat = s.format;
+        m_endnoteStart = std::max(1, s.start);
+        m_endnotePosition = s.position;
+        m_endnoteRestartSections = s.restart == QLatin1String("eachSect");
+    } else {
+        applyFootnoteSettings();
+        if (m_pager) m_pager->invalidate();
+    }
+    setModified(true);
+}
+
+QString NoteFields::noteMarkText(bool endnote, int number) const
+{
+    if (endnote || number <= 0) return QString::number(number);
+    return noteNumberText(footnoteFormat.isEmpty() ? QStringLiteral("decimal") : footnoteFormat, number + std::max(footnoteStart, 1) - 1);
+}
+
+void WriteDoc::applyFootnoteSettings()
+{
+    const NoteSettings s = noteSettings(false);
+    m_flow->restartNotesInSections = s.restart == QLatin1String("eachSect");
+    if (m_noteFields) {
+        m_noteFields->footnoteFormat = s.format;
+        m_noteFields->footnoteStart = s.start;
+        m_noteFields->eachPage = s.restart == QLatin1String("eachPage");
+    }
+}
+
+QVector<Block> *WriteDoc::separatorBlocks(bool endnotes, const QString &type) const
+{
+    auto *self = const_cast<WriteDoc *>(this);
+    if (type == QLatin1String("separator")) return endnotes ? &self->m_endnoteSeparator : &self->m_noteSeparator;
+    if (type == QLatin1String("continuationSeparator")) return endnotes ? &self->m_endnoteContinuation : &self->m_noteContinuation;
+    if (type == QLatin1String("continuationNotice")) return endnotes ? &self->m_endnoteNotice : &self->m_noteNotice;
+    return nullptr;
+}
+
+bool WriteDoc::hasNotesOfKind(bool endnotes) const
+{
+    return endnotes ? (m_endnotesPart == NotesPart::Readable && !m_endnoteBlocks.isEmpty()) : (m_footnotesPart == NotesPart::Readable && !m_noteBlocks.isEmpty());
+}
+
+WriteDoc::NoteSeparator WriteDoc::noteSeparator(bool endnotes, const QString &type) const
+{
+    NoteSeparator out;
+    const QVector<Block> *blocks = separatorBlocks(endnotes, type);
+    if (!blocks) return out;
+    const bool notice = type == QLatin1String("continuationNotice");
+    if (blocks->isEmpty()) {
+        out.kind = notice ? NoteSeparator::None : NoteSeparator::Line;   // (none in the file: the pages draw the line)
+        return out;
+    }
+    if (blocks->size() != 1 || blocks->first().isRaw) {
+        out.kind = NoteSeparator::Kept;
+        return out;
+    }
+    QString text;
+    for (const Inline &in : blocks->first().para.content) {
+        if (in.kind == Inline::RunAtom && in.tag == type) {
+            out.kind = NoteSeparator::Line;
+            return out;
+        }
+        if (in.kind != Inline::Text) {
+            out.kind = NoteSeparator::Kept;
+            return out;
+        }
+        text += in.text;
+    }
+    out.kind = text.trimmed().isEmpty() ? NoteSeparator::None : NoteSeparator::Text;
+    if (out.kind == NoteSeparator::Text) out.text = text;
+    return out;
+}
+
+bool WriteDoc::setNoteSeparator(bool endnotes, const QString &type, const NoteSeparator &s)
+{
+    QVector<Block> *blocks = separatorBlocks(endnotes, type);
+    if (!blocks || !hasNotesOfKind(endnotes) || s.kind == NoteSeparator::Kept) return false;
+    if (noteSeparator(endnotes, type) == s) return true;
+    QVector<Block> made;
+    Block b;
+    if (s.kind == NoteSeparator::Line) {
+        if (type == QLatin1String("continuationNotice")) return false;
+        QVector<NotePart> fresh;
+        office::wml::readNotes(notesPartXml(QByteArray(), endnotes, NotesChange()), &fresh);
+        for (NotePart &n : fresh)
+            if (n.type == type) made = std::move(n.blocks);
+        if (made.isEmpty()) return false;
+    } else {
+        if (s.kind == NoteSeparator::Text && !s.text.trimmed().isEmpty()) {
+            Inline t;
+            t.text = s.text.simplified().left(500);
+            b.para.content.push_back(t);
+        }
+        made.push_back(b);
+    }
+    *blocks = made;
+    m_separatorsEdited.insert(QLatin1String(endnotes ? "e:" : "f:") + type);
+    if (!endnotes) {
+        m_noticeStory.reset();
+        m_continuationStory.reset();
+        measureNoteSeparator();
+        if (m_pager) m_pager->invalidate();
+    }
+    setModified(true);
+    return true;
+}
+
+void WriteDoc::separatorsToWrite(bool endnotes, NotesChange *change) const
+{
+    for (const char *type : {"separator", "continuationSeparator", "continuationNotice"})
+        if (m_separatorsEdited.contains(QLatin1String(endnotes ? "e:" : "f:") + QLatin1String(type))) change->separators.insert(QLatin1String(type), *separatorBlocks(endnotes, QLatin1String(type)));
+}
+
+bool WriteDoc::noteSettingsCanBeSaved() const
+{
+    return m_wml.settingsName.isEmpty() || settingsAcceptNoteProperties(partData(m_wml.settingsName));
+}
+
+void WriteDoc::writeNoteSettings(office::wml::Document *out)
+{
+    for (int k = 0; k < 2; ++k) {
+        if (!m_noteEdited[k]) continue;
+        const NoteProperties p = propertiesOf(m_noteEdit[k]);
+        bool done = false;
+        if (!out->settingsName.isEmpty()) {
+            for (KeptPart &kept : out->parts)
+                if (kept.name.compare(out->settingsName, Qt::CaseInsensitive) == 0) {
+                    kept.data = settingsWithNoteProperties(kept.data, k == 1, p);
+                    done = true;
+                    break;
+                }
+        }
+        if (done) continue;
+        KeptPart kept;
+        kept.name = QStringLiteral("/word/settings.xml");
+        for (int n = 2; partExists(kept.name) || kept.name.compare(out->mainName, Qt::CaseInsensitive) == 0; ++n) kept.name = QStringLiteral("/word/settings%1.xml").arg(n);
+        kept.contentType = QString(kSettingsType);
+        kept.data = settingsWithNoteProperties(QByteArray(), k == 1, p);
+        out->parts.push_back(kept);
+        Relationship r;
+        r.id = nextRelationshipId(out->mainRelationships);
+        r.type = QString(kSettingsRel);
+        r.target = kept.name;
+        out->mainRelationships.push_back(r);
+        out->settingsName = kept.name;
+    }
+}
+
+} // namespace jp::write

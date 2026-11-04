@@ -94,6 +94,7 @@ struct PivotEdit {
     int table = -1;
     std::shared_ptr<const jp::office::sheet::PivotTable> tableBefore, tableAfter;
     bool structureBefore = false, structureAfter = false;
+    bool formatCodes = false;   // the table's values have number formats given by code: their ids are made when the step is first done
     int cache = -1;   // -1: the cache stays as it is
     std::shared_ptr<const jp::office::sheet::PivotCache> cacheBefore, cacheAfter;
     jp::office::sheet::CellRange sourceBefore, sourceAfter;
@@ -129,12 +130,13 @@ struct SizeEdit {
 // A sheet added, copied, renamed, deleted, moved, shown or hidden, or given a tab color by a step. The sheets are never renumbered (see Calculation::addSheet): `sheet` is the sheet's place for
 // good, and what a step changes of the order of the tabs is kept whole.
 struct SheetEdit {
-    enum class Kind : quint8 { Insert, Copy, Delete, Rename, Move, State, TabColor } kind = Kind::Insert;
+    enum class Kind : quint8 { Insert, Copy, Delete, Rename, Move, State, TabColor, Sparklines } kind = Kind::Insert;
     int sheet = 0;
     QString nameBefore, nameAfter;
     QVector<int> orderBefore, orderAfter;
     jp::office::sheet::SheetState stateBefore = jp::office::sheet::SheetState::Visible, stateAfter = jp::office::sheet::SheetState::Visible;
     jp::office::sheet::ColorSpec colorBefore, colorAfter;
+    QVector<jp::office::sheet::SparklineGroup> sparksBefore, sparksAfter;   // Sparklines: the sheet's groups as they were and are
     int copyOf = -1;                                       // Copy: the sheet it is a copy of
     std::vector<std::pair<QString, QString>> tableRenames;   // Copy: the tables that were copied, by the name they had and have (the copy's formulas name its own tables)
     jp::office::sheet::Calculation::SheetRewrite rewrite;  // Rename and Delete: what the formulas were (made when the step is done)
@@ -364,6 +366,21 @@ public:
     // when `sheet` is -1 (the sheet is made first: a step of Undo of its own). The cells the empty table covers must be empty. `*made` is the new table's place.
     Outcome createPivot(const QString &source, int sheet, quint32 row, quint32 col, int *made = nullptr);
     Outcome refreshAllPivots();
+    // The pivot tables whose cache says to refresh when the file opens are refreshed, as one step (nothing is done when there are none, or when the calculation has not finished).
+    Outcome refreshPivotsOnOpen();
+    // The most cells of source data that are read again when a file opens, all the tables together (0: the usual); for tests.
+    static void setRefreshOnOpenLimit(qint64 cells);
+    // Groups the dates (by the parts in `levels`: seconds, minutes, hours, days, months, quarters, years) or the numbers (no levels: from `start` to `end` in steps of `step`) of a field the table
+    // has on an axis; a field is added for each coarser part of a date. Ungroup takes the grouping of the field away, and the fields that were added for it.
+    Outcome groupPivotField(int table, int field, const QStringList &levels, double start, double end, double step, bool autoStart, bool autoEnd);
+    Outcome ungroupPivotField(int table, int field);
+    // The rows behind a value of a pivot table (the cell at `row`, `col` of `sheet`), put on a new sheet with the names of the fields above them: one step of Undo for the sheet, one for the rows.
+    // `made` is the sheet's place. A cell that is no value, or a table that can't be read, is refused.
+    Outcome showPivotDetail(int sheet, quint32 row, quint32 col, int *made = nullptr);
+    // Whether the cell is a value of a pivot table (a double click on it shows its rows instead of editing it).
+    bool isPivotValue(int sheet, quint32 row, quint32 col) const;
+    // Whether the table's data is read again when the file opens (the cache's mark).
+    Outcome setPivotRefreshOnOpen(int table, bool on);
     // Makes the table from other cells ("Sheet1!A1:D100", "A1:D100" on the same sheet as the source now is, a table's name, or a defined name), then reads them.
     Outcome changePivotSource(int table, const QString &where);
     // Puts the table's layout, fields, and options as `changed` has them (a copy of the table with its fields moved, its totals switched, a filter set): the cells are worked out again.
@@ -712,6 +729,9 @@ public:
     Outcome moveSheet(int sheet, int before);
     Outcome setSheetHidden(int sheet, bool hidden);
     Outcome setTabColor(int sheet, const jp::office::sheet::ColorSpec &color);
+    // The sparklines of a sheet made into these groups (one step of Undo, called `text`): a group with none left is dropped. Saved as the sheet's extension.
+    Outcome setSparklines(int sheet, QVector<jp::office::sheet::SparklineGroup> groups, const QString &text);
+    const QVector<jp::office::sheet::SparklineGroup> &sparklinesOf(int sheet) const;
     // Whether a sheet holds any cells (what a person is asked about before it is deleted).
     bool sheetHasCells(int sheet) const;
     // The most rows one resize changes.
@@ -857,6 +877,8 @@ public:
 Q_SIGNALS:
     // The sheets were changed (added, deleted, renamed, moved, shown, hidden, or given a color) by a step, Undo, or Redo: the window makes its tabs again.
     void sheetsChanged();
+    // The sparklines of a sheet were changed by a step, undone, or redone.
+    void sparklinesChanged(int sheet);
     // How the workbook calculates was changed (by a step, or by Undo of one).
     void calcSettingsChanged();
     // Cells were changed by an edit, Undo, or Redo (the window draws them again).
@@ -1000,6 +1022,7 @@ private:
     bool m_sheetsListed = false;                          // a step changed the list of sheets since the file was read or saved
     std::set<int> m_sheetsRestyled;                       // the sheets a step gave the format of very many cells (drawn again whole)
     std::set<int> m_statesChanged;                        // the sheets a step hid or showed
+    std::set<int> m_sparklinesChanged;                    // the sheets whose sparklines a step changed
     std::set<int> m_tabColorsChanged;                     // the sheets whose tab color a step changed
     std::vector<jp::office::sheet::SheetOp> m_sheetOps;   // renames and deletes of sheets since the file was read or saved that are done (not undone), for the file
     // The sheets copied since the file was read or saved that are done (not undone): the copy, the sheet it is a copy of, and how many edits to rows and columns (m_edits) there were then.

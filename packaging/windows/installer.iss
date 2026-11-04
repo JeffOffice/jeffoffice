@@ -376,6 +376,10 @@ begin
   if I >= 0 then
     WizardForm.TasksList.Checked[I] := False;
   PresetApps(WizardDirValue);
+  // The lists leave room for a check box of the 100% size, but Windows draws a larger one on a scaled display, and its
+  // left edge was cut off. The space before the box (and after it) grows by the difference.
+  WizardForm.ComponentsList.Offset := ScaleX(13) - 13 + ScaleX(4);
+  WizardForm.TasksList.Offset := ScaleX(13) - 13 + ScaleX(4);
   // The description of the chosen app sits under the list.
   DescLabel := TNewStaticText.Create(WizardForm);
   DescLabel.Parent := WizardForm.SelectComponentsPage;

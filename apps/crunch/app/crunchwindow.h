@@ -4,6 +4,7 @@
 // cell, in it with F2 or a double click, or in the formula bar), clears them with Delete, undoes and redoes, and saves the workbook as it was read with only what changed put in.
 
 #include "app/appwindow.h"
+#include "app/filetasks.h"
 
 #include <tuple>
 #include "app/anchordialogs.h"
@@ -39,6 +40,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <QTemporaryFile>
 #include <memory>
 #include <set>
 #include <unordered_map>
@@ -79,6 +81,10 @@ class FormulaHelper;
 class FunctionArgumentsDialog;
 class HelpView;
 class PivotFieldsPane;
+struct ValueFieldSettings;
+struct FieldSettings;
+struct GroupChoice;
+struct PivotOptionsChoice;
 class HelpWindow;
 class Ribbon;
 struct RibbonParts;
@@ -109,7 +115,12 @@ public:
     bool hasWorkbook() const { return bool(m_loaded); }
     // Opens a workbook: in this window if it holds none, else in a window of its own. The reading goes on in the background (loadFinished says when it is over); false, with the
     // reason shown, if the file can't be read at all.
-    bool openFile(const QString &path);
+    // `how`: as it is (the default), read-only, as a copy (a workbook with no file of its own; the file is never written), or in a window of its own even if this one holds nothing.
+    bool openFile(const QString &path, OpenHow how = OpenHow::Normal);
+    // Shows the file dialog and opens what is chosen the way `how` says.
+    void browseAndOpen(OpenHow how = OpenHow::Normal);
+    void setReadOnly(bool on) override;
+    QString lastRepairFileForTest() const { return m_lastRepairFile; }
     bool isLoading() const { return m_loading; }
     // Makes the window hold a new, empty workbook (one sheet, "Sheet1", and a name like "Book1" until it is saved), read the way a file is: the calculation, the worker and the editing session
     // are the same. loadFinished says when it is ready. A window that is already showing a workbook is not changed (false).
@@ -230,6 +241,8 @@ public:
     QWidget *makeTableLooksPicker(QWidget *parent);
     void tableGalleryChosen(const QString &style);
     bool showTotalsMenu(qint64 row, qint64 col);
+    void setSparklineAsker(std::function<bool(QString *, QString *)> asker) { m_sparklineAsker = std::move(asker); }
+    void setAxisValueAsker(std::function<bool(bool, double *)> asker) { m_axisValueAsker = std::move(asker); }
     void setTableMakeAsker(std::function<bool(QString *, bool *)> asker) { m_tableMakeAsker = std::move(asker); }
     void setTableSizeAsker(std::function<bool(jp::office::sheet::CellRange *)> asker) { m_tableSizeAsker = std::move(asker); }
     // test hook: the cells or table the new pivot table is made from, whether it goes on a sheet of its own, and where on a sheet (a cell, with the sheet's name before it if it is another)
@@ -237,6 +250,10 @@ public:
     void setPivotOptionsAsker(std::function<bool(bool *)> asker) { m_pivotOptionsAsker = std::move(asker); }   // test hook: whether a click writes GETPIVOTDATA
     void setPivotSourceAsker(std::function<bool(QString *)> asker) { m_pivotSourceAsker = std::move(asker); }
     void setValueFieldAsker(std::function<bool(QString *, QString *)> asker) { m_valueFieldAsker = std::move(asker); }
+    void setGroupAsker(std::function<bool(jp::GroupChoice *)> asker) { m_groupAsker = std::move(asker); }   // test hook: all of Group Field
+    void setFieldSettingsAsker(std::function<bool(jp::FieldSettings *)> asker) { m_fieldSettingsAsker = std::move(asker); }   // test hook: all of Field Settings
+    void setPivotOptionsChoiceAsker(std::function<bool(jp::PivotOptionsChoice *)> asker) { m_pivotOptionsChoiceAsker = std::move(asker); }   // test hook: all of Pivot Table Options
+    void setValueSettingsAsker(std::function<bool(jp::ValueFieldSettings *)> asker) { m_valueSettingsAsker = std::move(asker); }   // test hook: all of Value Field Settings
     // The Pivot Table Fields pane (null until the Field List was shown).
     jp::PivotFieldsPane *pivotPane() const { return m_pivotPane; }
     int pivotAtCursor() const { return selectedPivot(); }
@@ -255,7 +272,13 @@ public:
     // For tests and tools: the bytes a save would write now, made at once on this thread from the same snapshot a save takes. Nothing is written, and the session is not told it was saved (Undo
     // keeps all its steps), so it can be called after every edit; false, with the reason, when a save could not be made.
     bool snapshotBytesForTest(QByteArray *bytes, QString *why);
-    bool saveAs(const QString &path);
+    // `asCopy`: the workbook is written to the path (as a workbook, or the .csv, .xls, or .ods copy its ending says) and the window goes on with the original: its name and its unsaved
+    // changes stay (see crunchwindow_savecopy.cpp). `copyExported` says when it is over.
+    bool saveAs(const QString &path, bool asCopy = false);
+    // Save a Copy: asks for a name as Save As does, then writes the copy.
+    bool saveCopy();
+    // Save as Template: asks for a name and puts a template (.xltx) made from the workbook in My Templates (File > New); the workbook is as it was. `copyExported` says when it is over.
+    bool saveAsTemplate();
     // Writes the values of the sheet in view as a .csv file (see crunchwindow_csv.cpp); `csvExported` says when it is over. A path ending in .csv given to save() or saveAs() comes here.
     // `how` gives the choices (for tests and tools); without it they are those the ending of the name and the file the workbook came from say, and the person may change them in the question.
     bool exportCsv(const QString &path, const crunch::CsvWrite *how = nullptr);
@@ -581,6 +604,9 @@ private:
     bool editingAllowed();
     // saving
     bool startSave(const QString &path);
+    bool startCopy(const QString &path);
+    QString m_copyAsKind;   // the kind a copy being made is saved as, when it is not the kind of the ending alone (a template made from a workbook with macros)
+    void onWorkbookCopyMade(bool ok, const QString &message, const QString &path);
     void onSaved(bool ok, const QString &message, const QString &path, const QByteArray &bytes, const std::shared_ptr<crunch::EditSession::Snapshot> &snapshot);
     bool askAboutChanges();
     QString saveKind() const;
@@ -691,6 +717,20 @@ private:
     void insertTableCommand();
     void tableDialog(int mode);
     void addTableMenu(QMenu *menu);   // the table's commands in the cell menu, when the cursor is in a table
+    // sparklines (crunchwindow_sparklines.cpp): Insert > Sparklines, and the Sparkline tab that shows while the selection holds one
+    void createSparklineActions();
+    void sparklineRibbonParts(RibbonParts &parts);
+    void updateSparklineTab();
+    void insertSparklinesCommand(jp::office::sheet::SparklineGroup::Type type);
+    void editSparklineData(bool wholeGroup);
+    void groupSparklines(bool together);
+    void clearSparklines(bool wholeGroups);
+    QStringList m_sparklineActions;                            // the commands of the Sparkline tab (on while the selection holds a sparkline)
+    QVector<int> selectedSparklineGroups() const;              // the groups of the sparklines in the selected cells
+    void changeSparklineGroups(const std::function<void(jp::office::sheet::SparklineGroup *)> &change, const QString &text);
+    bool makeSparklines(const QString &data, const QString &where, QVector<jp::office::sheet::Sparkline> *out, QString *why) const;
+    std::function<bool(QString *, QString *)> m_sparklineAsker;   // test hook: the data and the cells of sparklines being made or edited
+    std::function<bool(bool, double *)> m_axisValueAsker;          // test hook: the custom minimum (true) or maximum of a sparkline axis
     // pointing at cells while a formula is typed (crunchwindow_point.cpp): a click or a drag writes the cells' address (a header, whole rows or columns), the arrow keys move a pointer,
     // F4 changes which parts of the reference are fixed, another sheet can be pointed at, and the cells the formula names are outlined, each in the color it has in the text
     bool pointAtCells(const jp::grid::GridView::PointSpan &span, bool first, Qt::KeyboardModifiers modifiers);
@@ -730,11 +770,16 @@ private:
     // pivot tables (crunchwindow_pivot.cpp): the Pivot Table tab, the fields pane, and the commands that refresh and change a table
     void createPivotActions();
     void pivotRibbonParts(RibbonParts &parts);
+    void updatePivotFieldActions();                           // the commands that work on a pivot table's cell are on only with the cursor in one
     void updatePivotTab();                                     // the Pivot Table tab shows for a cell in a pivot table; the fields pane shows that table
     int selectedPivot() const;                                 // the pivot table the cursor is in, or -1
     void editPivot(const std::function<void(jp::office::sheet::PivotTable *)> &change, const QString &text, bool structureChanged);
     void showPivotFields(bool show);
     void askValueField(int dataIndex);
+    void askFieldSettings(int field);
+    bool showPivotDetailAtCursor(bool onlyForValues);
+    bool insertPivotChart();
+    void askGroupField(int field);
     void pivotProblem(const QString &title, const jp::crunch::EditSession::Outcome &o);
     PivotFieldsPane *m_pivotPane = nullptr;
     QDockWidget *m_pivotDock = nullptr;
@@ -744,6 +789,10 @@ private:
     std::function<bool(bool *)> m_pivotOptionsAsker;
     std::function<bool(QString *)> m_pivotSourceAsker;         // test hook: the cells the data is in
     std::function<bool(QString *, QString *)> m_valueFieldAsker;   // test hook: the name and function of a value
+    std::function<bool(jp::ValueFieldSettings *)> m_valueSettingsAsker;
+    std::function<bool(jp::FieldSettings *)> m_fieldSettingsAsker;
+    std::function<bool(jp::GroupChoice *)> m_groupAsker;
+    std::function<bool(jp::PivotOptionsChoice *)> m_pivotOptionsChoiceAsker;
     // the filter (crunchwindow_filter.cpp)
     void createFilterActions();
     void updateFilterButtons();
@@ -1024,6 +1073,7 @@ private:
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
     QString m_path;
+    QString m_saveFileName;   // the file name of the save being made (a pivot chart's name in the file has it)
     QString m_untitled;       // the name of a workbook that has no file yet ("Book1")
     bool m_blank = false;     // the workbook is a new one (made by newBlank) that has not been saved
     bool m_closeIfOpenFails = false;   // the window was made only to hold one file: if the file can't be read, the window goes
@@ -1033,6 +1083,7 @@ private:
     crunch::WorkbookLoader m_loader;
     std::shared_ptr<crunch::LoadedBook> m_loaded;
     bool m_loading = false, m_calculating = false, m_haveFirstScreen = false, m_haveCalc = false;
+    bool m_refreshOnOpenPending = false;   // pivot tables that say so are read again once the calculation of a file that was just opened is done
     int m_sheet = -1;                            // the sheet in the grid, by its place in the workbook
     QVector<int> m_tabSheets;                    // the workbook's place of each tab
     QHash<int, grid::GridView::ViewState> m_views;   // what was done in each sheet, kept when another is shown
@@ -1067,6 +1118,12 @@ private:
     bool m_saving = false, m_closeAfterSave = false, m_closing = false;
     QPointer<QThread> m_saveThread;
     QString m_saveAfterCalculation;
+    // (the repaired package is kept in a file that goes with this object, whatever ends the open: the read, a failed read, another open, or the window)
+    std::unique_ptr<QTemporaryFile> m_repairTemp;
+    QString m_lastRepairFile;   // the name of the last one, for a test
+    QString m_repairFile, m_repairName, m_repairNote;   // a file being opened with Open and Repair: the repaired package kept in a file for the reader, the original's name, and what was left out
+    bool m_openAsCopy = false;             // the file being read is opened as a copy: when it is read, the workbook has no file of its own
+    bool m_copyAfterCalculation = false;   // what waits for the calculation is a copy, not a save
     QPointer<QObject> m_csvRun;   // a .csv being written
     void onCopyMade(bool ok, const QString &message, const QString &path, const QByteArray &bytes, const QStringList &notKept, const QStringList &trimmed);
     std::function<Answer(const QString &, const QString &)> m_asker;

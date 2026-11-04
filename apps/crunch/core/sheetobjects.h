@@ -123,6 +123,8 @@ public:
         qint64 maxPoints = 400000;
         qint64 maxBytes = jp::office::sheet::kMaxAddedBytes;   // the pictures pasted since the last save
     };
+    // How a pivot chart made here is named in the file now (`[file]Sheet!Table`, from the table's place the chart keeps): asked at each save, so that a rename or a Save As is followed.
+    void setPivotNamer(const std::function<QString(const jp::office::Chart &)> &namer) { m_pivotNamer = namer; }
     void setLimits(const Limits &limits) { m_limits = limits; }
     const Limits &limits() const { return m_limits; }
     // The objects put there since the file was read or saved that are not taken away, and the points of the charts that are new or changed, in the whole workbook.
@@ -217,6 +219,7 @@ private:
         std::shared_ptr<jp::office::DrawingContext> ownContext;
         QByteArray pasteXml, pasteNamespaces;
         QList<jp::crunch::ClipMedia> pasteMedia;
+        QString savedPivotName;                        // the name the chart's pivot source has in the file being written
         QString fileName, savedName;                   // its name as the file has it, and as the save in flight writes it
         int savedOrdinal = -1;                         // where it will be among the children of the drawing's root when what addToSave gave is saved
         int editable = -1;                             // whether the chart can be changed (-1 not looked at, 0 no, 1 yes), and why not: found once, for a part of the file is read to say
@@ -300,6 +303,7 @@ private:
     qint64 m_chartsDrawn = 0;
     qint64 m_editSteps = 0;
     Limits m_limits;
+    std::function<QString(const jp::office::Chart &)> m_pivotNamer;
     int m_epoch = 0;                                         // counts the saves that followed edits to rows and columns (see core/objectstate.h)
 };
 

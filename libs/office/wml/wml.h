@@ -489,6 +489,25 @@ QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on);
 // Whether the settings turn Track Changes on (w:trackRevisions, not turned off by a value), and the settings with it on or off, in the place the schema gives it. An empty part gives a minimal one.
 bool settingsTrackRevisions(const QByteArray &settings);
 QByteArray settingsWithTrackRevisions(const QByteArray &settings, bool on);
+// The mail merge of the settings part (w:mailMerge): what the document is merged as, and where its data comes from. The data source is a relationship of the settings part (its Id is
+// kept in `dataSourceId`); `odso` and the rest the program does not change are kept as written. `type` is empty for a document with none.
+struct MailMergeSettings {
+    QString type;                  // w:mainDocumentType: formLetters, mailingLabels, envelopes, catalog, email, or fax
+    bool linkToQuery = false;
+    QString dataType;              // w:dataType: textFile, database, spreadsheet, query, odbc, or native
+    QString connectString, query;
+    QString dataSourceId, headerSourceId;
+    bool doNotSuppressBlankLines = false, viewMergedData = false, mailAsAttachment = false;
+    QString destination;           // newDocument, printer, email, or fax
+    QString addressFieldName, mailSubject;
+    int activeRecord = 0;          // from 1; 0 where the file says none
+    int checkErrors = -1;          // -1 where the file says none
+    QByteArray odso;               // the w:odso element as written (empty for none)
+};
+// The mail merge of the settings, false where there is none.
+bool readMailMerge(const QByteArray &settings, MailMergeSettings *out);
+// The settings with the mail merge replaced by `merge` (or put in the place the schema gives it; taken out where its type is empty).
+QByteArray settingsWithMailMerge(const QByteArray &settings, const MailMergeSettings &merge);
 
 // A drawn object of a run: a picture, a rule, a box, or a text box, read from the VML of a w:pict (or an object) or the DrawingML of a w:drawing. Sizes are
 // points. An object is `floating` where its style says it is set at a place (anchored to a paragraph, the margin, or the page), else it is in the line.
@@ -573,6 +592,7 @@ struct NotesChange {
     QHash<int, QVector<Block>> replaced;   // notes whose paragraphs are written from these blocks (the note's own tag, with its attributes, is kept)
     QSet<int> removed;                     // notes left out
     QVector<std::pair<int, QVector<Block>>> added;   // new notes, after the others, in this order
+    QHash<QString, QVector<Block>> separators;       // by type ("separator", "continuationSeparator", "continuationNotice"): the paragraphs the separator note is written with; one the part lacks is added, with an Id above the others
 };
 // The notes part with the changes made and every other child of it as it was written: a note that is not named is byte for byte what it was, and so are the separator and
 // continuation notes. With no `original`, a new part: the separator and the continuation separator, then the added notes.
@@ -580,6 +600,17 @@ QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesCh
 // The settings with the Ids of the separator notes named (w:footnotePr, or w:endnotePr, with a w:footnote or w:endnote child for each of -1 and 0), put where the schema has the
 // group; one that names notes already is as it was. An empty part gives a minimal one.
 QByteArray settingsWithNoteSeparators(const QByteArray &settings, bool endnotes);
+// What a settings part says of how a kind of note is numbered and where it is set (its footnotePr or endnotePr group).
+struct NoteProperties {
+    QString position;   // pageBottom, beneathText, sectEnd, or docEnd (empty: not said)
+    QString format;     // numFmt (empty: not said)
+    int start = 0;      // numStart (0: not said)
+    QString restart;    // continuous, eachSect, or eachPage (empty: not said)
+};
+// The settings with that group made as these properties say (what was in it about the numbering is replaced; the notes it names for the separators stay); a part with none is made.
+QByteArray settingsWithNoteProperties(const QByteArray &settings, bool endnotes, const NoteProperties &properties);
+// Whether settingsWithNoteProperties can put the group in these settings (they are empty or can be read); on others it returns them as they were.
+bool settingsAcceptNoteProperties(const QByteArray &settings);
 
 // A font of a font table: its name, the alternate it names (a family to set it in where it is missing), its kind (roman, swiss, modern, script,
 // decorative, or auto), its pitch (fixed, variable, or default), its PANOSE classification (ten two-digit numbers), and its character set (two hex digits,
@@ -658,6 +689,9 @@ Document newDocument();
 // A style as it is written to styles.xml (from its fields, whatever `raw` holds).
 QByteArray styleXml(const Style &style);
 Style builtinStyle(const QString &id);
+// The styles our own commands put in a document when they make captions, tables of figures, indexes, tables of authorities, and bibliographies (Caption, Index1 to 9, ...). Not part of
+// builtinStyle: a document that names one it does not define keeps showing it as Normal. A command adds one with WriteDoc::ensureStyle, which writes its definition to the file.
+Style referenceStyle(const QString &id);
 QStringList builtinStyleIds();
 // The table styles a person may apply (the gallery's, in its order); builtinStyle gives each, and TableNormal, the style a table has when none is said.
 QStringList builtinTableStyleIds();

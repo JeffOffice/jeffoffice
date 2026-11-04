@@ -264,6 +264,18 @@ void PageView::keyPressEvent(QKeyEvent *e)
         e->accept();
         return;
     }
+    if (m_readOnly) {
+        // (only the keys that move the caret)
+        switch (e->key()) {
+        case Qt::Key_Left: case Qt::Key_Right: case Qt::Key_Up: case Qt::Key_Down: case Qt::Key_Home: case Qt::Key_End: case Qt::Key_PageUp: case Qt::Key_PageDown:
+            typeKey(e->key(), e->modifiers());
+            e->accept();
+            return;
+        default:
+            e->ignore();
+            return;
+        }
+    }
     switch (e->key()) {
     case Qt::Key_Left: case Qt::Key_Right: case Qt::Key_Up: case Qt::Key_Down: case Qt::Key_Home: case Qt::Key_End: case Qt::Key_PageUp: case Qt::Key_PageDown:
     case Qt::Key_Backspace: case Qt::Key_Delete: case Qt::Key_Return: case Qt::Key_Enter: case Qt::Key_Tab: case Qt::Key_Backtab: case Qt::Key_Escape:
@@ -286,7 +298,7 @@ void PageView::keyPressEvent(QKeyEvent *e)
 
 void PageView::inputMethodEvent(QInputMethodEvent *e)
 {
-    if (!m_doc) return;
+    if (!m_doc || m_readOnly) return;
     if (!e->commitString().isEmpty()) insertText(e->commitString());
     e->accept();
 }
@@ -385,7 +397,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
     m_lastClickTime = now;
     m_lastPos = e->position().toPoint();
     // A press inside the selection may begin a drag of its text: the selection stays until the pointer has moved (or the button is let go, which puts the caret there).
-    if (m_clicks == 1 && m_textDragAllowed && !(e->modifiers() & Qt::ShiftModifier) && m_cursor.hasSelection() && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story() &&
+    if (m_clicks == 1 && m_textDragAllowed && !m_readOnly && !(e->modifiers() & Qt::ShiftModifier) && m_cursor.hasSelection() && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story() &&
         at >= m_cursor.selectionStart() && at < m_cursor.selectionEnd() && !isLocked(m_cursor.block())) {
         m_textDrag.pending = true;
         m_textDrag.start = e->position().toPoint();
@@ -612,7 +624,7 @@ void PageView::startTextDrag()
 
 bool PageView::wantsTextDrop(const QMimeData *mime) const
 {
-    return m_doc && !m_hf.active && !m_note.active && mime && (mime->hasFormat(QString::fromLatin1(kTextDragMime)) || (mime->hasText() && !mime->hasUrls()));
+    return m_doc && !m_readOnly && !m_hf.active && !m_note.active && mime && (mime->hasFormat(QString::fromLatin1(kTextDragMime)) || (mime->hasText() && !mime->hasUrls()));
 }
 
 bool PageView::dropText(QDropEvent *e)

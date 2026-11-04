@@ -36,6 +36,9 @@ public:
     enum class ZoomMode { Percent, PageWidth, OnePage, ManyPages };
     // The local document files (.docx, .doc, .rtf...) a drag holds, at most 20.
     static QStringList documentFilesIn(const QMimeData *mime);
+    // A document opened read-only: the keys that move the caret work, and nothing is typed, dropped, or dragged.
+    void setReadOnly(bool on) { m_readOnly = on; }
+    bool readOnly() const { return m_readOnly; }
 
     explicit PageView(QWidget *parent = nullptr);
     ~PageView() override;
@@ -87,6 +90,8 @@ public:
 
     // ---- showing
     void setShowMarks(bool on);
+    void setShadeFields(bool on);   // the fields shaded gray on the screen (never in print or a PDF)
+    bool shadeFields() const { return m_shadeFields; }
     bool showMarks() const { return m_marks; }
     // The faint edges of the cells of tables that have no lines (View Gridlines).
     void setShowGridlines(bool on);
@@ -216,6 +221,7 @@ protected:
     void dragMoveEvent(QDragMoveEvent *e) override;
     void dropEvent(QDropEvent *e) override;
     bool m_documentDrag = false;   // what is being dragged over is a document file, which the window opens
+    bool m_readOnly = false;
     void contextMenuEvent(QContextMenuEvent *e) override;
     void focusInEvent(QFocusEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;
@@ -400,6 +406,7 @@ private:
     int m_across = 1, m_down = 1;
     bool m_marks = false;
     bool m_gridlines = false;
+    bool m_shadeFields = false;
     bool m_caretWithoutFocus = false;
 
     // Where each page is, in the content (pixels at the zoom), and how big the content is.

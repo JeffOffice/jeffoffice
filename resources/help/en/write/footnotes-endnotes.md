@@ -1,5 +1,5 @@
 # Footnotes and endnotes
-<!-- keywords: footnote, endnote, note, notes, reference, citation, source, insert footnote, insert endnote, References tab, number, foot of the page, end of the document, caption, Ctrl+Alt+F, Ctrl+Alt+D -->
+<!-- keywords: footnote, endnote, note, notes, reference, citation, source, insert footnote, insert endnote, References tab, number, foot of the page, end of the document, caption, Ctrl+Alt+F, Ctrl+Alt+D, number format, start at, restart, convert, swap, separator, continuation notice, numbering, location, roman numerals, letters, symbols, footnote and endnote options -->
 
 A **note** tells the reader more about some words without breaking up the sentence. A small raised number in the text, called the **reference**, points to the note that goes with it. A **footnote** is set at the bottom of the page that has its reference. An **endnote** is set after the last text of the document, or at the end of a section when the file asks for that.
 
@@ -15,6 +15,38 @@ Notes are numbered in the order of their references in the text. If you add a fo
 ## Add an endnote
 
 Click where the reference should go, then click **References > Insert Endnote**, or press **Ctrl+Alt+D**. JeffWrite puts the reference in the text and a new endnote after the last text, with its number, and the caret moves into it. Endnotes have their own numbers, in the style the file asks for.
+
+## Change how notes are numbered
+
+Click the small arrow in the corner of the **Footnotes** group on the **References** tab. The box has one part for footnotes and one for endnotes:
+
+- **Number format** is how the numbers look: 1, 2, 3; a, b, c; A, B, C; i, ii, iii; I, II, III; or the marks \*, †, ‡, §.
+- **Start at** is the number the first note has. If you pick 3 and the format i, ii, iii, the first note shows iii.
+- **Numbering** says when the numbers begin again: never (**Continuous**), at each new section, or, for footnotes, at the top of each page.
+- **Location** (endnotes only) puts the endnotes at the end of each section or at the end of the document.
+
+The footnotes change at once. For endnotes, JeffWrite reads the document again so that every mark and note takes the new look, and the **Undo** list starts over. The change is saved with the file, so other programs show the same numbers.
+
+## Turn footnotes into endnotes, or endnotes into footnotes
+
+Click **References > Convert...** (a small button beside the notes buttons). The box offers four choices:
+
+- **Convert all footnotes to endnotes**
+- **Convert all endnotes to footnotes**
+- **Swap footnotes and endnotes**: each footnote becomes an endnote, and each endnote becomes a footnote.
+- **Convert this note**: this choice is on when the caret is in a note, and it changes only that one.
+
+The words of each note go with it. Each note gets the look of its new kind, and the notes are numbered again. It is one step, so **Undo** brings every note back.
+
+## Change the line above the notes
+
+A note has three parts that are not text:
+
+- The **separator** is the line between the text and the notes.
+- The **continuation separator** is the line above a note that carries on from the page before.
+- The **continuation notice** is the words below a note that carries on to the next page, such as "Continued on the next page."
+
+Click **References > Separators...**. For each part, choose **Line**, **Text** (and type the words), or **Nothing**. Endnotes have only the separator, because they run on in the text and are not split at the foot of a page; the other two parts of an endnote that a file has are kept as they are. A part that holds something more than a line or a few words, such as a picture, shows **As in the file**, and JeffWrite keeps it as it is. The box needs at least one note of the kind. When you change an endnote's part, JeffWrite reads the document again, as it does for the numbering, and the **Undo** list starts over.
 
 ## Edit a note
 
@@ -34,7 +66,7 @@ To leave a note, press **Esc**, press **Up** at its first line or **Down** at it
 ## What JeffWrite keeps
 
 - A part of the file that you did not change is saved exactly as it was. When you change a note, only the notes you changed are written again, and anything in them that JeffWrite can't edit (a picture, a bookmark, a link, a field) stays where it was.
-- The line above the notes, and the line that goes above a note that carries on from the page before, are kept as the file has them.
+- The line above the notes, and the line that goes above a note that carries on from the page before, are kept as the file has them until you change them in **Note Separators**.
 - If the file has no notes, the first one you add also adds what a notes part needs, so that other programs open the file without a message.
 - A note stays in the file as long as anything cites it: the text, a header or footer, a text box, or another note. When the last of these lets it go, the note goes.
 - A document can hold up to 5,000 notes of each kind that its text cites. When it has that many, **Insert Footnote** and **Insert Endnote** are off, and the status bar says why. Notes you put in and then undo do not count.

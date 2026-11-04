@@ -119,6 +119,8 @@ WriteFileScreen::WriteFileScreen(WriteWindow *win) : FileScreen(win), m_win(win)
     addSection(tr("This document"));
     addCommand(QStringLiteral("save"), QStringLiteral("save"), tr("Save"), [this] { if (m_win->save()) Q_EMIT closeRequested(); });
     addCommand(QStringLiteral("saveas"), QStringLiteral("copy"), tr("Save As"), [this] { if (m_win->saveAs()) Q_EMIT closeRequested(); });
+    addCommand(QStringLiteral("savecopy"), QStringLiteral("files"), tr("Save a Copy"), [this] { if (m_win->saveCopy()) Q_EMIT closeRequested(); });
+    addCommand(QStringLiteral("savetemplate"), QStringLiteral("layout-template"), tr("Save as Template"), [this] { if (m_win->saveAsTemplate()) Q_EMIT closeRequested(); });
     addPage(QStringLiteral("print"), QStringLiteral("printer"), tr("Print"));
     addPage(QStringLiteral("export"), QStringLiteral("file-output"), tr("Export"));
     addCommand(QStringLiteral("close"), QStringLiteral("circle-x"), tr("Close"), [this] { m_win->act("file.close")->trigger(); Q_EMIT closeRequested(); });
@@ -172,6 +174,11 @@ QWidget *WriteFileScreen::buildNew()
     row->addWidget(tile);
     row->addStretch(1);
     v->addLayout(row);
+    // The templates a person saved: a document made from one starts as the template is.
+    v->addWidget(myTemplatesPanel(w, {QStringLiteral("*.dotx"), QStringLiteral("*.ott")}, QStringLiteral("file-text"), [this](const QString &path) {
+        m_win->openFile(path);
+        Q_EMIT closeRequested();
+    }));
     v->addStretch(1);
     return w;
 }
@@ -192,6 +199,7 @@ QWidget *WriteFileScreen::buildOpen()
     cards->addWidget(browse, 1);
     cards->addWidget(recover, 1);
     v->addLayout(cards);
+    v->addWidget(moreWaysToOpenCard(w, [this](OpenHow how) { m_win->browseAndOpen(how); }));
     v->addSpacing(14);
     auto section = [&](const QString &t) {
         QLabel *l = sectionLabel(t, w);
@@ -244,6 +252,8 @@ QWidget *WriteFileScreen::buildOpen()
                 Settings::get().removeRecentFile(f);
                 showPage(QStringLiteral("open"));
             });
+            m.addSeparator();
+            addOpenWays(&m, [this, f](OpenHow how) { m_win->openFile(f, how); });
             m.exec(list->viewport()->mapToGlobal(pos));
         });
         v->addWidget(list);

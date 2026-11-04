@@ -5,6 +5,7 @@
 #include "io/zipindex.h"
 #include "odt/odt.h"
 #include "odt/odtcommon.h"
+#include "odt/odttemplate.h"
 #include "office/package.h"
 #include "wml/wml.h"
 #include "wml/xmltree.h"
@@ -116,6 +117,28 @@ QString odtContentOf(const QByteArray &bodyXml, QStringList *notes = nullptr, co
 class OdtTests : public QObject {
     Q_OBJECT
 private Q_SLOTS:
+    // A package written as a template: the type in "mimetype" (first, stored) and in the manifest's root entry is the template's; every other part is the same.
+    void aPackageIsWrittenAsATemplate()
+    {
+        const QByteArray manifest = "<manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\"><manifest:file-entry manifest:full-path=\"/\" manifest:version=\"1.2\" "
+                                    "manifest:media-type=\"application/vnd.oasis.opendocument.text\"/><manifest:file-entry manifest:full-path=\"content.xml\" manifest:media-type=\"text/xml\"/></manifest:manifest>";
+        jp::ZipWriter z;
+        z.add(QStringLiteral("mimetype"), kMime, false);
+        z.add(QStringLiteral("content.xml"), "<office:document-content/>", true);
+        z.add(QStringLiteral("META-INF/manifest.xml"), manifest, true);
+        const QByteArray made = odfAsTemplate(z.finish());
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(made, parts));
+        QCOMPARE(parts.value(QStringLiteral("mimetype")), QByteArray("application/vnd.oasis.opendocument.text-template"));
+        QVERIFY(parts.value(QStringLiteral("META-INF/manifest.xml")).contains("manifest:media-type=\"application/vnd.oasis.opendocument.text-template\""));
+        QVERIFY(parts.value(QStringLiteral("META-INF/manifest.xml")).contains("manifest:full-path=\"content.xml\" manifest:media-type=\"text/xml\""));
+        QCOMPARE(parts.value(QStringLiteral("content.xml")), QByteArray("<office:document-content/>"));
+        QCOMPARE(made.mid(30, 8), QByteArray("mimetype"));   // (the first entry in the file)
+        // A template already, and bytes that are no package, are given back as they were.
+        QCOMPARE(odfAsTemplate(made), made);
+        QCOMPARE(odfAsTemplate(QByteArray("not a zip")), QByteArray("not a zip"));
+    }
+
     void detectsByContent()
     {
         Made m;

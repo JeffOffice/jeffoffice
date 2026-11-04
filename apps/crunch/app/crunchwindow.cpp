@@ -156,6 +156,8 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
         const bool away = m_edit.active && m_sheet != m_edit.sheet;
         return commitEdit(CellEditor::Way::Stay) && !away;
     });
+    // (a double click on a value of a pivot table shows the rows behind it, on a new sheet; F2 still edits)
+    m_view->setDoubleClickGuard([this] { return showPivotDetailAtCursor(true); });
     m_view->setPointGuard([this](qint64 row, qint64 col) { return pointAtPivotCell(row, col) || pointAtTableCell(row, col); });
     m_view->setPointer([this](const grid::GridView::PointSpan &span, bool first, Qt::KeyboardModifiers modifiers) { return pointAtCells(span, first, modifiers); });
     m_view->setPointAdjuster([this](int id, const grid::GridRange &block, bool final) { adjustReference(id, block, final); });
@@ -251,7 +253,11 @@ QAction *CrunchWindow::mk(const QString &id, const QString &text, const QString 
     a->setCheckable(checkable);
     a->setEnabled(enabled);
     // Each command counts by its id for the usage statistics (when they're on).
-    connect(a, &QAction::triggered, this, [fn, id] {
+    connect(a, &QAction::triggered, this, [this, fn, id] {
+        if (isReadOnly() && !commandAllowedReadOnly(id)) {
+            refuseReadOnlyChange();
+            return;
+        }
         telemetry::count(id);
         if (fn) fn();
     });
@@ -387,13 +393,7 @@ void CrunchWindow::createActions()
         w->show();
     });
     mk("file.open", tr("Open"), "folder-open", QKeySequence::Open, [this] { act("file.openDialog")->trigger(); });
-    mk("file.openDialog", tr("Open Workbook…"), "folder-open", QKeySequence(), [this] {
-        const QString p = QFileDialog::getOpenFileName(this, tr("Open Workbook"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
-                                                       crunch::openFilter() + QStringLiteral(";;") + tr("All Files (*)"));
-        if (p.isEmpty()) return;
-        Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
-        openFile(p);
-    });
+    mk("file.openDialog", tr("Open Workbook…"), "folder-open", QKeySequence(), [this] { browseAndOpen(); });
     mk("file.openText", tr("Open Text File…"), "file-text", QKeySequence(), [this] {
         const QString p = QFileDialog::getOpenFileName(this, tr("Open Text File"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
                                                        tr("Text files (*.csv *.tsv *.txt)") + QStringLiteral(";;") + tr("All Files (*)"));
@@ -412,12 +412,16 @@ void CrunchWindow::createActions()
             if (!path.isEmpty()) saveAs(path);
             return;
         }
+        // (a workbook made from a template, with no file yet, is first offered a name as a workbook)
         const QString kind = saveKind();
-        const QString start = m_path.isEmpty() ? displayName() + QLatin1Char('.') + kind : m_path;
-        const QString filter = crunch::workbookKindFilter(kind) + QStringLiteral(";;") + crunch::copyFilters() + QStringLiteral(";;") + crunch::csvFilter() + QStringLiteral(";;") + crunch::tabFilter();
+        const QString shown = m_path.isEmpty() && kind == QLatin1String("xltx") ? QStringLiteral("xlsx") : kind;
+        const QString start = m_path.isEmpty() ? displayName() + QLatin1Char('.') + shown : m_path;
+        const QString filter = crunch::workbookKindFilter(shown) + QStringLiteral(";;") + crunch::copyFilters() + QStringLiteral(";;") + crunch::csvFilter() + QStringLiteral(";;") + crunch::tabFilter();
         const QString p = askForSavePath(tr("Save Workbook As"), start, filter);
         if (!p.isEmpty()) saveAs(p);
     }, false, false);
+    mk("file.saveCopy", tr("Save a Copy…"), "files", QKeySequence(), [this] { saveCopy(); }, false, false);
+    mk("file.saveTemplate", tr("Save as Template…"), "layout-template", QKeySequence(), [this] { saveAsTemplate(); }, false, false);
     mk("file.close", tr("Close"), "circle-x", QKeySequence::Close, [this] { close(); });
     mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [this] { undoRedo(false); }, false, false);
     mk("edit.redo", tr("Redo"), "redo-2", QKeySequence::Redo, [this] { undoRedo(true); }, false, false);
@@ -496,6 +500,7 @@ void CrunchWindow::createActions()
     createOutlineActions();
     createChartActions();
     createTableActions();
+    createSparklineActions();
     createPivotActions();
     createNoteActions();
     createProtectActions();
@@ -545,6 +550,7 @@ void CrunchWindow::notice(const QString &title, const QString &text, bool warnin
 void CrunchWindow::updateBars()
 {
     updateTableTab();
+    updateSparklineTab();
     updatePivotTab();
     updateDropDown();
     showNameInBox();
@@ -631,7 +637,7 @@ QString CrunchWindow::nextUntitledName() { return tr("Book%1").arg(++s_untitledC
 void CrunchWindow::updateTitle()
 {
     const QString name = m_path.isEmpty() ? m_untitled : QFileInfo(m_path).fileName();
-    setWindowTitle(name.isEmpty() ? appInfo().name : QStringLiteral("%1[*] - %2").arg(name, appInfo().name));
+    setWindowTitle(name.isEmpty() ? appInfo().name : QStringLiteral("%1[*]%3 - %2").arg(name, appInfo().name, isReadOnly() ? tr(" (Read-Only)") : QString()));
 }
 
 QString CrunchWindow::displayName() const { return m_path.isEmpty() ? m_untitled : QFileInfo(m_path).completeBaseName(); }

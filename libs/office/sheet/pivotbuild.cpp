@@ -158,15 +158,16 @@ bool buildPivotCache(const PivotSource &src, const PivotCache &prev, PivotCache 
         if (dist.values.size() > kPivotMaxItemsPerField || distinctAll > 12000000) return fail(QStringLiteral("the source has too many different values"));
         // (a field keeps being shared or not as it was, as the original program keeps it; a new field of text is shared, unless a text is too long for a shared item (more than 255 characters))
         const bool onAxis = p >= 0 && src.axisFields.contains(p);
-        pf.hasShared = onAxis || (!longText && (p >= 0 ? prev.fields[p].hasShared : hasText));
+        pf.hasShared = onAxis || (!longText && (p >= 0 ? prev.fields[p].storedHasShared() : hasText));
         // the order: the shared items of the previous cache that remain (in their order), then the others as they first appear
         QVector<qint32> order;
         order.reserve(dist.values.size());
         QVector<qint32> newId(dist.values.size(), -1);
         if (p >= 0 && pf.hasShared) {
-            for (int i = 0; i < prev.fields[p].sharedCount; ++i) {
+            const bool grouped = prev.fields[p].group.kind != PivotFieldGroup::None;   // (the places of the groups are worked out below)
+            for (int i = 0; i < prev.fields[p].storedSharedCount(); ++i) {
                 // find the previous item among the new values
-                const PivotValue &pv = prev.fields[p].items[i];
+                const PivotValue &pv = prev.fields[p].storedItems()[i];
                 qint32 id = -1;
                 switch (pv.kind) {
                 case PivotValue::Missing: id = dist.missing; break;
@@ -179,7 +180,7 @@ bool buildPivotCache(const PivotSource &src, const PivotCache &prev, PivotCache 
                 if (id >= 0 && newId[id] < 0) {
                     newId[id] = qint32(order.size());
                     order.append(id);
-                    out->remap[p][i] = newId[id];
+                    if (!grouped) out->remap[p][i] = newId[id];
                 }
             }
         }
@@ -193,6 +194,53 @@ bool buildPivotCache(const PivotSource &src, const PivotCache &prev, PivotCache 
         pf.sharedCount = pf.hasShared ? int(pf.items.size()) : 0;
         pf.records.resize(temp.size());
         for (qsizetype i = 0; i < temp.size(); ++i) pf.records[i] = newId[temp[i]];
+    }
+    // the groups the previous cache had are made again from the new values (a field added for a group goes after the others)
+    bool anyGroup = false;
+    for (const PivotCacheField &pf : prev.fields) anyGroup = anyGroup || pf.group.kind != PivotFieldGroup::None;
+    if (anyGroup) {
+        QVector<int> newOfPrev(prev.fields.size(), -1);
+        for (int f = 0; f < out->fields.size(); ++f)
+            if (out->fromField[f] >= 0) newOfPrev[out->fromField[f]] = f;
+        for (int p = 0; p < prev.fields.size(); ++p) {
+            const PivotFieldGroup &pg = prev.fields[p].group;
+            if (pg.kind == PivotFieldGroup::None || pg.databaseField) continue;
+            if (out->fields.size() >= kPivotMaxFields) return fail(QStringLiteral("too many fields"));
+            PivotCacheField nf;
+            nf.name = prev.fields[p].name;
+            nf.numFmtId = prev.fields[p].numFmtId;
+            out->fields.append(nf);
+            out->fromField.append(p);
+            newOfPrev[p] = int(out->fields.size()) - 1;
+        }
+        for (int f = 0; f < out->fields.size(); ++f) {
+            const int p = out->fromField[f];
+            if (p < 0 || prev.fields[p].group.kind == PivotFieldGroup::None) continue;
+            PivotFieldGroup g = prev.fields[p].group;
+            if (g.kind == PivotFieldGroup::Discrete) return fail(QStringLiteral("a field has groups of items that were made by hand, which can't be read again yet"));
+            g.labels.clear();
+            g.base = g.base >= 0 && g.base < newOfPrev.size() ? newOfPrev[g.base] : -1;
+            g.par = g.par >= 0 && g.par < newOfPrev.size() ? newOfPrev[g.par] : -1;
+            if (g.base < 0) return fail(QStringLiteral("the field a group is made from is not in the data any more"));
+            out->fields[f].group = g;
+        }
+        for (int pass = 0; pass < 2; ++pass)
+            for (int f = 0; f < out->fields.size(); ++f) {
+                if (out->fields[f].group.kind == PivotFieldGroup::None || out->fields[f].group.databaseField != (pass == 0)) continue;
+                QString problem;
+                if (!pivotApplyGroup(out, f, src.dates, &problem)) return fail(QStringLiteral("a group can't be made again: %1").arg(problem));
+            }
+        // each group item that was is where its label is now
+        for (int f = 0; f < out->fields.size(); ++f) {
+            const int p = out->fromField[f];
+            if (p < 0 || prev.fields[p].group.kind == PivotFieldGroup::None) continue;
+            QHash<QString, int> placeOf;   // (the first item of each label)
+            for (int k = int(out->fields[f].items.size()) - 1; k >= 0; --k) placeOf.insert(out->fields[f].items[k].text, k);
+            for (int i = 0; i < prev.fields[p].items.size(); ++i) {
+                const auto at = placeOf.constFind(prev.fields[p].items[i].text);
+                if (at != placeOf.constEnd()) out->remap[p][i] = at.value();
+            }
+        }
     }
     pivotKeepNumericFlags(out);
     return true;
@@ -264,6 +312,7 @@ void matchPivotItems(PivotTable *t, const PivotCache &prev, const PivotCache &fr
         if (of.sortType == QLatin1String("ascending") || of.sortType == QLatin1String("descending")) {
             const bool desc = of.sortType == QLatin1String("descending");
             std::stable_sort(items.begin(), items.end(), [&](const PivotTableItem &a, const PivotTableItem &b) {
+                if (cf.group.kind != PivotFieldGroup::None) return desc ? b.x < a.x : a.x < b.x;
                 const PivotValue &va = cf.items[a.x], &vb = cf.items[b.x];
                 return desc ? pivotValueLess(vb, va) : pivotValueLess(va, vb);
             });
@@ -369,7 +418,7 @@ bool pivotFieldIsNumeric(const PivotCache &c, int f)
     const PivotCacheField &cf = c.fields[f];
     if (cf.numericKnown >= 0) return cf.numericKnown != 0;
     bool any = false;
-    for (const PivotValue &v : cf.items) {
+    for (const PivotValue &v : cf.storedItems()) {
         if (v.kind == PivotValue::Missing) continue;
         if (v.kind != PivotValue::Number) return false;
         any = true;
@@ -425,7 +474,8 @@ bool pivotPrepareFields(PivotTable *t, PivotCache *c)
         if (pf.hasItems) return;
         QVector<qint32> order(cf.sharedCount);
         for (qint32 i = 0; i < cf.sharedCount; ++i) order[i] = i;
-        std::stable_sort(order.begin(), order.end(), [&](qint32 a, qint32 b) { return pivotValueLess(cf.items[a], cf.items[b]); });
+        // (the groups of a field are in the order the grouping has: January before February, 1-10 before 11-20)
+        if (cf.group.kind == PivotFieldGroup::None) std::stable_sort(order.begin(), order.end(), [&](qint32 a, qint32 b) { return pivotValueLess(cf.items[a], cf.items[b]); });
         pf.items.clear();
         for (qint32 x : order) {
             PivotTableItem it;
@@ -486,6 +536,50 @@ QString pivotDataFieldName(const PivotTable &t, const PivotCache &c, int f, cons
     };
     while (taken(name)) name += QLatin1Char(' ');
     return name;
+}
+
+} // namespace jp::office::sheet
+
+namespace jp::office::sheet {
+
+void pivotSortField(PivotTable *t, const PivotCache &cache, int field, PivotSort how)
+{
+    if (field < 0 || field >= t->fields.size() || field >= cache.fields.size()) return;
+    PivotField &pf = t->fields[field];
+    pf.sortByData = -1;
+    pf.sortType = how == PivotSort::Ascending ? QStringLiteral("ascending") : how == PivotSort::Descending ? QStringLiteral("descending") : QStringLiteral("manual");
+    if (how == PivotSort::Manual) return;
+    const PivotCacheField &cf = cache.fields[field];
+    if (!pf.hasItems) {
+        // (a field with no list of items has all of the cache's, which are listed now so that the order is kept)
+        pf.hasItems = true;
+        for (int i = 0; i < cf.items.size(); ++i) {
+            PivotTableItem it;
+            it.x = i;
+            pf.items.append(it);
+        }
+        PivotTableItem total;
+        total.t = QStringLiteral("default");
+        if (pf.defaultSubtotal) pf.items.append(total);
+    }
+    QVector<PivotTableItem> data, totals;
+    for (const PivotTableItem &it : pf.items) (it.t.isEmpty() ? data : totals).append(it);
+    const bool desc = how == PivotSort::Descending;
+    std::stable_sort(data.begin(), data.end(), [&](const PivotTableItem &a, const PivotTableItem &b) {
+        if (a.x < 0 || a.x >= cf.items.size() || b.x < 0 || b.x >= cf.items.size()) return a.x < b.x;
+        if (cf.group.kind != PivotFieldGroup::None) return desc ? b.x < a.x : a.x < b.x;   // (the groups of a field are in the order of the grouping: April is after March, 11-20 after 1-10)
+        return desc ? pivotValueLess(cf.items[b.x], cf.items[a.x]) : pivotValueLess(cf.items[a.x], cf.items[b.x]);
+    });
+    pf.items = data + totals;
+}
+
+bool pivotSortFieldByValue(PivotTable *t, int field, int dataField, bool descending)
+{
+    if (field < 0 || field >= t->fields.size() || dataField < 0 || dataField >= t->dataFields.size()) return false;
+    PivotField &pf = t->fields[field];
+    pf.sortType = descending ? QStringLiteral("descending") : QStringLiteral("ascending");
+    pf.sortByData = dataField;
+    return true;
 }
 
 } // namespace jp::office::sheet

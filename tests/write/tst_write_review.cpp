@@ -1,6 +1,7 @@
 // Tests of JeffWrite's review features (apps/write/core/reviewops.*, commentops.*): tracked changes (finding, accepting, rejecting, making), the way they are shown, and comments.
 // Each document is built here from a few lines of XML.
 
+#include "../isolatesettings.h"
 #include "app/writeinfo.h"
 #include "app/pageview.h"
 #include "app/settings.h"
@@ -198,6 +199,9 @@ QByteArray commented(int id, const char *words) { return "<w:commentRangeStart w
 class ReviewTests : public QObject {
     Q_OBJECT
 private Q_SLOTS:
+    // The run's settings are its own, and none reached the person's (checked at the end).
+    void cleanupTestCase() { QVERIFY(jptest::settingsStayInTheRunsFolder()); }
+
     void initTestCase()
     {
         Q_INIT_RESOURCE(resources);

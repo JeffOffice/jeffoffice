@@ -20,7 +20,8 @@ bool isCopyName(const QString &path);
 QString copyKindOf(const QString &path);
 QString xlsFilter();
 QString odsFilter();
-// The two kinds of file for the Save As dialog, one after the other (";;" between).
+QString otsFilter();   // .ots, an OpenDocument template (an .ods with the type of a template)
+// The kinds of file for the Save As dialog, one after the other (";;" between).
 QString copyFilters();
 // What the person is told before a copy is written in `ending` ("xls" or "ods"): what the workbook has that the file cannot hold, and what was cut to fit. Empty if there is nothing to say.
 QString copyWarning(const QString &ending, const QStringList &notKept, const QStringList &trimmed);

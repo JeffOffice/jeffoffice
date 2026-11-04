@@ -3,6 +3,7 @@
 // sources, printing layouts, and opening any supported publication.
 
 #include "core/document.h"
+#include "core/mergesource.h"
 
 #include <QJsonObject>
 #include <QImage>
@@ -24,9 +25,6 @@ class Editor;
 bool loadTextFileInto(QTextDocument *doc, const QString &path);
 QString docxToHtml(const QByteArray &docx);
 
-bool loadMergeSource(const QString &path, MergeSource *out, QString *error);
-bool saveMergeCsv(const MergeSource &m, const QString &path);
-QVector<QStringList> parseDelimited(const QString &text, QChar sep);
 std::unique_ptr<Document> mergeToNewPublication(const Document &src);
 void mergeToEmailFiles(QWidget *parent, Editor *ed);
 
