@@ -864,7 +864,8 @@ private Q_SLOTS:
             QVERIFY(textOf(*pane->shown()).startsWith(QStringLiteral("Nora")));
         }
         // A link in the folder to a file outside it is not followed, by its own name or by the name beside the document.
-        if (!QFile::link(outside, here.filePath(QStringLiteral("people.csv")))) QSKIP("links are not made here");
+        // On Windows QFile::link makes a shortcut file, not a link the file system follows, so there is nothing to test there.
+        if (!QFile::link(outside, here.filePath(QStringLiteral("people.csv"))) || !QFileInfo(here.filePath(QStringLiteral("people.csv"))).isSymbolicLink()) QSKIP("links are not made here");
         for (const QString &named : {here.filePath(QStringLiteral("people.csv")), QStringLiteral("people.csv"), QStringLiteral("/nowhere/people.csv")}) {
             WriteWindow w;
             QStringList said;

@@ -143,6 +143,8 @@ private Q_SLOTS:
         QVERIFY(dir.isValid());
         const QString path = writeFile(dir.filePath(QStringLiteral("letter.odt")), makeOdt(kBody, kAuto));
         WriteWindow a;
+        QStringList said;
+        a.setNotifier([&](const QString &, const QString &text) { said << text; });
         QVERIFY(a.openFile(path));
         QString suggested, filter;
         a.setSavePathChooser([&](const QString &s, const QString &f) {
@@ -150,15 +152,19 @@ private Q_SLOTS:
             filter = f;
             return dir.filePath(QStringLiteral("copy.odt"));
         });
-        QVERIFY(a.saveAs());
+        QVERIFY2(a.saveAs(), qPrintable(said.join(QLatin1Char('\n'))));
         // The dialog started on the kind the file is, with the suggested name in that ending.
         QVERIFY2(suggested.endsWith(QLatin1String("letter.odt")), qPrintable(suggested));
         QVERIFY2(filter.contains(QLatin1String("*.odt")), qPrintable(filter));
         QVERIFY(a.filePath().endsWith(QLatin1String("copy.odt")));
         QVERIFY(!a.isModified());
-        QFile f(a.filePath());
-        QVERIFY(f.open(QIODevice::ReadOnly));
-        const QByteArray bytes = f.readAll();
+        QByteArray bytes;
+        {
+            // Closed before the next save: Windows refuses to replace a file another handle holds open.
+            QFile f(a.filePath());
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            bytes = f.readAll();
+        }
         QVERIFY(office::odt::looksLikeOdt(bytes));
         QVERIFY(bytes.startsWith("PK"));
         // It opens again with the same text and looks, and Save writes an .odt again (it is a kind JeffWrite writes).
@@ -167,7 +173,7 @@ private Q_SLOTS:
         QCOMPARE(b.document()->story()->toPlainText(), a.document()->story()->toPlainText());
         QVERIFY(hasBold(*b.document(), QStringLiteral("bold words")));
         const qint64 before = QFileInfo(a.filePath()).size();
-        QVERIFY(a.save());
+        QVERIFY2(a.save(), qPrintable(said.join(QLatin1Char('\n'))));
         QCOMPARE(QFileInfo(a.filePath()).size(), before);
         QFile again(a.filePath());
         QVERIFY(again.open(QIODevice::ReadOnly));
