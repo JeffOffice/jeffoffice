@@ -1,5 +1,5 @@
 # Find your way with the Navigation pane
-<!-- keywords: navigation pane, navigation, headings, outline, pages, thumbnails, results, search, promote, demote, collapse, expand, outline view, outlining, page movement, side to side, move heading, show level, focus, focus mode, full screen, gridlines -->
+<!-- keywords: navigation pane, navigation, headings, outline, pages, thumbnails, results, search, promote, demote, collapse, expand, outline view, outlining, page movement, side to side, read mode, move heading, show level, focus, focus mode, full screen, gridlines -->
 
 The **Navigation pane** is a panel on the left of the window. Open it with **View > Navigation Pane**. It has three tabs.
 
@@ -41,6 +41,10 @@ Each change is one step to undo. You write the words of the document in Print La
 ## Page movement
 
 **View > Page Movement** chooses how the pages are laid out. **Vertical** puts them in a column, one below the next. **Side to Side** puts all of them in one row, and the mouse wheel moves along the row.
+
+## Read Mode
+
+**View > Read Mode** is for reading. It hides the ribbon, the ruler, and the panes, puts the pages side by side in a row with each page fitted to the window, and keeps the text from being changed. Roll the mouse wheel to move along the row. Press **Esc** or **F11**, or choose **Read Mode** again, to go back.
 
 ## Gridlines
 

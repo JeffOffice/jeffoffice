@@ -184,6 +184,9 @@ public:
     // Focus mode: the ribbon, ruler, status bar, and panes hidden and the window full screen (View > Focus, F11; Esc leaves it).
     void setFocusMode(bool on);
     bool focusMode() const { return m_focusMode; }
+    // Read Mode (View > Read Mode): Focus mode with the pages side by side, each fitted to the window, and nothing typed; Esc, F11, or the command again leaves it.
+    bool readMode() const { return m_readMode; }
+    void setReadMode(bool on);
     // Outline view (View > Outline): the paragraphs as a tree to promote, demote, and move, in place of the pages; the Outlining tab is there while it is.
     bool outlineMode() const { return m_outlineOn; }
     void setOutlineMode(bool on);
@@ -355,6 +358,12 @@ private:
         bool fullScreen = false, ribbon = true, ruler = true, status = true;
         QList<QPointer<QDockWidget>> docks;
     } m_focusWas;
+    bool m_readMode = false;
+    struct {
+        bool readOnly = false, sideToSide = false;
+        int zoomMode = 0;
+        double zoom = 1;
+    } m_readWas;
     StylesPane *m_styles = nullptr;
     QDockWidget *m_stylesDock = nullptr;
     PainterMode m_painter = PainterMode::Off;

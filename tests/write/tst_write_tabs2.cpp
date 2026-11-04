@@ -397,6 +397,36 @@ private Q_SLOTS:
         QCOMPARE(shown.trimmed(), QStringLiteral("= 2 + 3"));
         QCOMPARE(fieldCodeAt(*w.document(), 1).trimmed(), QStringLiteral("= 7 * 6"));
     }
+
+    void readModeFitsTheCommandsOfFocusAndLeavesTheTextAsItWas()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        QTextCursor c = w.view()->cursor();
+        insertText(*w.document(), c, QStringLiteral("some words"));
+        const QString before = w.document()->story()->toPlainText();
+        QVERIFY(!w.readMode() && !w.act("view.readMode")->isChecked());
+        w.act(QStringLiteral("view.readMode"))->trigger();
+        QVERIFY(w.readMode() && w.focusMode());
+        QVERIFY(w.view()->readOnly() && w.view()->sideToSide());
+        QCOMPARE(w.view()->zoomMode(), PageView::ZoomMode::OnePage);
+        QTest::keyClick(w.view(), Qt::Key_X);
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+        // Focus's own command ends it, and the window is as it was.
+        w.act(QStringLiteral("view.focus"))->trigger();
+        QVERIFY(!w.readMode() && !w.focusMode());
+        QVERIFY(!w.view()->readOnly() && !w.view()->sideToSide());
+        QVERIFY(!w.act("view.readMode")->isChecked());
+        QCOMPARE(w.view()->zoomMode(), PageView::ZoomMode::Percent);
+        QCOMPARE(w.view()->zoom(), 1.0);
+        // Again, and ended by the command itself.
+        w.act(QStringLiteral("view.readMode"))->trigger();
+        QVERIFY(w.readMode());
+        w.act(QStringLiteral("view.readMode"))->trigger();
+        QVERIFY(!w.readMode() && !w.focusMode());
+    }
 };
 
 QTEST_MAIN(Tabs2Tests)

@@ -1173,6 +1173,10 @@
             {
               "large": "view.outline",
               "keytip": "O"
+            },
+            {
+              "large": "view.readMode",
+              "keytip": "R"
             }
           ]
         },
