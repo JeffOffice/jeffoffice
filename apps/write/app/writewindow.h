@@ -68,6 +68,7 @@ struct WriteOutputOptions {
     enum class Sides { All, Odd, Even };
     Sides sides = Sides::All;   // only the pages whose numbers are odd or even, of the pages the range covers
     bool reverse = false;       // last page first
+    bool byHand = false;        // both sides of the paper with a printer that has no duplex: the odd pages, a prompt to turn the stack over, then the even pages last first
 };
 
 class WriteWindow : public AppWindow {
@@ -141,6 +142,10 @@ public:
     // Starts an untitled document from one of the templates JeffWrite comes with (by its id, see core/templates.h): in this window if it holds a new document nobody has touched,
     // else in a window of its own. False for an id that names none.
     bool newFromBuiltInTemplate(const QString &id);
+    // The two runs a print on both sides by hand is made of: the odd pages of the range, then the even ones, last first.
+    QVector<WriteOutputOptions> handDuplexRuns(const WriteOutputOptions &options) const;
+    // What asks the person to turn the stack over between the two runs: a message box, unless this stands in for it (tests); false to stop there.
+    void setStackTurner(const std::function<bool()> &turner) { m_stackTurner = turner; }
     // Where editing stopped: the place is kept with the file's name when the window closes and when the file is saved, and the file opens there again.
     void rememberPlace();
     // The last three places the text was edited, the latest first (Shift+F5 goes to each in turn).
@@ -386,6 +391,7 @@ private:
     std::function<void(const QString &, const QString &)> m_notifier;
     std::function<void(QPrinter &)> m_printerPreparer;
     std::function<FormatChoice(const QStringList &)> m_formatAsker;
+    std::function<bool()> m_stackTurner;
     QList<int> m_editPlaces;
     int m_placeStep = 0;
     void recordPlace(int position);

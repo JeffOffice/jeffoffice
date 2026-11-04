@@ -182,9 +182,35 @@ bool WriteWindow::exportTextAsk()
     return exportText(path, static_cast<write::TextEncoding>(encoding->currentData().toInt()), static_cast<write::LineEnds>(ends->currentData().toInt()));
 }
 
+QVector<WriteOutputOptions> WriteWindow::handDuplexRuns(const WriteOutputOptions &options) const
+{
+    WriteOutputOptions odd = options, even = options;
+    odd.byHand = even.byHand = false;
+    odd.sides = WriteOutputOptions::Sides::Odd;
+    odd.reverse = false;
+    even.sides = WriteOutputOptions::Sides::Even;
+    even.reverse = true;
+    return {odd, even};
+}
+
 bool WriteWindow::printOutput(const WriteOutputOptions &options)
 {
     if (!m_doc) return false;
+    // Both sides by hand (a file has no sides): the odd pages, the stack turned over, then the even pages.
+    if (options.byHand && !options.toFile) {
+        const QVector<WriteOutputOptions> runs = handDuplexRuns(options);
+        if (!printOutput(runs[0])) return false;
+        if (outputPages(runs[1]).isEmpty()) return true;
+        const QString ask = tr("The odd pages are printed. Turn the stack over and put it back in the printer, then choose OK to print the even pages.");
+        bool go = true;
+        if (m_stackTurner) go = m_stackTurner();
+        else {
+            QMessageBox box(QMessageBox::Information, tr("Print"), ask, QMessageBox::Ok | QMessageBox::Cancel, this);
+            box.setTextFormat(Qt::PlainText);
+            go = box.exec() == QMessageBox::Ok;
+        }
+        return go && printOutput(runs[1]);
+    }
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     const QVector<int> pages = outputPages(options);
     if (pages.isEmpty()) return false;

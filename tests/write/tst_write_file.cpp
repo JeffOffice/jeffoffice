@@ -25,6 +25,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QPainter>
+#include <QPrinter>
 #include <QPdfWriter>
 #include <QTemporaryDir>
 #include <QTest>
@@ -402,6 +403,52 @@ private Q_SLOTS:
             }
             QVERIFY2(pg.pagesKnown() == 1, id);
         }
+    }
+
+    void printingBothSidesByHandPrintsOddThenEvenAfterAPrompt()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        w.show();
+        for (int i = 0; i < 4; ++i) {
+            typeText(*w.document(), w.view()->cursor(), QStringLiteral("page text"));
+            insertPageBreak(*w.document(), w.view()->cursor());
+        }
+        WriteOutputOptions o;
+        o.byHand = true;
+        const QVector<int> all = w.outputPages(WriteOutputOptions());
+        QVERIFY(all.size() >= 5);
+        const QVector<WriteOutputOptions> runs = w.handDuplexRuns(o);
+        QCOMPARE(runs.size(), 2);
+        QVector<int> odd, even;
+        for (int i : all) ((i + 1) % 2 ? odd : even) << i;
+        std::reverse(even.begin(), even.end());
+        QCOMPARE(w.outputPages(runs[0]), odd);
+        QCOMPARE(w.outputPages(runs[1]), even);
+        // the printing: two runs with one prompt between them, and nothing more when the prompt is declined
+        QStringList order;
+        w.setPrinterPreparer([&](QPrinter &printer) {
+            order << QStringLiteral("print");
+            printer.setOutputFormat(QPrinter::PdfFormat);
+            printer.setOutputFileName(dir.filePath(QStringLiteral("p%1.pdf").arg(order.size())));
+        });
+        bool turn = true;
+        w.setStackTurner([&] {
+            order << QStringLiteral("turn");
+            return turn;
+        });
+        QVERIFY(w.printOutput(o));
+        QCOMPARE(order, (QStringList{QStringLiteral("print"), QStringLiteral("turn"), QStringLiteral("print")}));
+        order.clear();
+        turn = false;
+        QVERIFY(!w.printOutput(o));
+        QCOMPARE(order, (QStringList{QStringLiteral("print"), QStringLiteral("turn")}));
+        // one page has no even side: it is printed, and no prompt comes
+        order.clear();
+        o.range = WriteOutputOptions::Range::Pages;
+        o.pages = QStringLiteral("1");
+        QVERIFY(w.printOutput(o));
+        QCOMPARE(order, (QStringList{QStringLiteral("print")}));
     }
 
     void aWindowStartsAnUntitledDocumentFromABuiltInTemplate()

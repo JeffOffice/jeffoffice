@@ -397,6 +397,10 @@ QWidget *WriteFileScreen::buildPrint()
     reverse->setObjectName(QStringLiteral("printReverse"));
     reverse->setToolTip(tr("Print the pages in reverse order, so the stack comes out in order."));
     left->addWidget(reverse);
+    auto *byHand = new QCheckBox(tr("Both sides by hand"), w);
+    byHand->setObjectName(QStringLiteral("printByHand"));
+    byHand->setToolTip(tr("For a printer that can't print on both sides: the odd pages first, then a message to turn the stack over, then the even pages."));
+    left->addWidget(byHand);
     left->addStretch(1);
     h->addLayout(left, 1);
 
@@ -443,6 +447,7 @@ QWidget *WriteFileScreen::buildPrint()
         o.collate = collate->isChecked();
         o.sides = static_cast<WriteOutputOptions::Sides>(sides->currentData().toInt());
         o.reverse = reverse->isChecked();
+        o.byHand = byHand->isChecked() && !choice.toFile;
         return o;
     };
     auto page = std::make_shared<int>(0);
@@ -458,6 +463,12 @@ QWidget *WriteFileScreen::buildPrint()
         next->setEnabled(*page + 1 < pages.size());
         printBtn->setEnabled(!pages.isEmpty());
         collate->setEnabled(copies->value() > 1);
+        // (a file has no sides; by hand, the pages of each side are chosen by the program)
+        const bool toFile = write::printerChoice(printer).toFile;
+        const bool hand = byHand->isChecked() && !toFile;
+        byHand->setEnabled(!toFile);
+        sides->setEnabled(!hand);
+        reverse->setEnabled(!hand);
         // The paper of the page shown; where the sections of the document set others for the pages to print, that is said.
         if (pages.isEmpty()) {
             paper->clear();
@@ -501,6 +512,7 @@ QWidget *WriteFileScreen::buildPrint()
     connect(copies, &QSpinBox::valueChanged, w, [=] { covered(); });
     connect(sides, &QComboBox::currentIndexChanged, w, [=] { restart(); });
     connect(reverse, &QCheckBox::toggled, w, [=] { restart(); });
+    connect(byHand, &QCheckBox::toggled, w, [=] { restart(); });
     connect(previous, &QToolButton::clicked, w, [=] { --*page; paint(); });
     connect(next, &QToolButton::clicked, w, [=] { ++*page; paint(); });
     connect(printBtn, &QPushButton::clicked, this, [=] {
