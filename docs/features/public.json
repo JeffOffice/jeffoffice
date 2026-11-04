@@ -148,8 +148,9 @@
          "text": "e5b09bc53af396762bd1a5c5c0273f2840b332b07ca253d05402e4782fa01436"
         },
         {
-         "status": "todo",
-         "text": "26c83d2d1d8c5acff7731956834f05463c973181d8e61bd7149889381104eafc"
+         "hide_soon": true,
+         "status": "done",
+         "text": "5ed7e7dc42d72a1119a7913159f5c32d790b5fb47814f7402d48881ad380a829"
         },
         {
          "status": "todo",
@@ -178,11 +179,13 @@
          "text": "d108b0c0941ce5d5826cfb43e4d47d8356798bd436f07fcf863f4f174b096d10"
         },
         {
-         "status": "partly",
-         "text": "b09f2e48d3666cfe6607ec7d429d4640e10cdc6f2794413e1729f8250c5af6ed"
+         "hide_soon": true,
+         "status": "done",
+         "text": "17a53275e33109c410ee5b7acb6dddecff310380637803ec47669163e24314bd"
         },
         {
-         "status": "todo",
+         "hide_soon": true,
+         "status": "done",
          "text": "656bb2546ffbbab9fbc6d46467ff75827a26d44648fdb6810ac6321e1eaa5bae"
         },
         {
@@ -191,12 +194,13 @@
          "text": "d4942d9af695c3c5a148bf0aae38bd8e6f7056aa475b92793169f1b3c17cbb97"
         },
         {
-         "status": "todo",
-         "text": "2514a4b6a301bc8a99032d38995f06f56ec69e455b41e7dc8cddd60e8aa5c020"
+         "status": "partly",
+         "text": "e42497d72e5d51ad8eace925e52020f073a37af3ab1c385cfab0843da295c3cb"
         },
         {
-         "status": "todo",
-         "text": "e956d9d1fafe9a552771d93bd093ce2897158bcdd278e5f1e644f298a03ffea3"
+         "hide_soon": true,
+         "status": "done",
+         "text": "990df6875795e7170c654f1f5cd79130472c0630fb30b8e694cf945f70cd6374"
         },
         {
          "hide_soon": true,
@@ -2283,8 +2287,8 @@
          "text": "9c85c6d1a52024e83f30a5116ba436856fb4b1f15176e9fdef472f546bd16e97"
         },
         {
-         "status": "todo",
-         "text": "fe5f01b62d958913c7ad3dc8e303b2141238978489243a4a14e699c3b58433d4"
+         "status": "partly",
+         "text": "58cc9e1557531891621cb230c4c7f598f8a1f95c08f1abae9d24e74a9c836822"
         },
         {
          "hide_soon": true,
@@ -2326,15 +2330,17 @@
         },
         {
          "status": "partly",
-         "text": "b4965fd1a0cb986acb6d3e7a045250386843079f3c00027f1dc62224685db45c"
+         "text": "1e987b7140aa9156f4c443080aba94d1a7a6d7404e5da9cb0591611177233fa0"
         },
         {
-         "status": "todo",
-         "text": "ae1a6fd0998dc17e88f9eec0a88fc891be8396bc7199a9319d03899a6e8bc003"
+         "hide_soon": true,
+         "status": "done",
+         "text": "cfa99b5d668d7aa16d656289d6626a4999485e2103bab502e8a92ca78d42f566"
         },
         {
-         "status": "todo",
-         "text": "7362e78a0a4caaf376d594dd51fa5f674372d9b0ef2bf21a4ac6fab81d18a6fd"
+         "hide_soon": true,
+         "status": "done",
+         "text": "47c0b141501e3c2a959bb990d2010aa5f48e96e44a078995821fc8fbf9750d78"
         },
         {
          "status": "todo",
@@ -2351,6 +2357,11 @@
         {
          "status": "todo",
          "text": "2132c27d243179890c5da6a94d8a84c76bdd5ef1780e76d050843ec343146d56"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "102b122b81a9e221543c19ee46aeefba41193f35385d0688eb372b1559900811"
         }
        ]
       },
@@ -4081,6 +4092,11 @@
          "hide_soon": true,
          "status": "done",
          "text": "270b34f111dd5a25b10a3627e7caa37426d0b0a3dd3481e8a2fa0860c2eeac90"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "f9d222c975fb1734178ada2b4418882114a2e100afffd463dd04af5e9eefc5b8"
         }
        ]
       },
@@ -5247,8 +5263,9 @@
          "text": "ce022df46ca9a928ff09b1706fb373e4e0cd14a9ffe4cbf28c56b3106907b90b"
         },
         {
-         "status": "todo",
-         "text": "bbabd87beac0f72cf56980b1a344f0078e96d7132e0141acbde48c6ee07dde36"
+         "hide_soon": true,
+         "status": "done",
+         "text": "bfd80d281c26ec625af6df9c84d0a1b1d8fd7f77c5805c32a7a0a67482d9688c"
         },
         {
          "status": "todo",
@@ -5277,11 +5294,13 @@
          "text": "65b68e84599e6c70813d7207cfcbf1df7b3aab8d639ca6cdc2298efc87c588f3"
         },
         {
-         "status": "todo",
-         "text": "9c7ca991ff3eb642b0fb1bbb2ff867312392cd2a549987e6cbd9ea72d3e40c43"
+         "hide_soon": true,
+         "status": "done",
+         "text": "c27e688647cb90eaf19078e47a031862418dfd905cb644709e5245a3a4efbbd0"
         },
         {
-         "status": "todo",
+         "hide_soon": true,
+         "status": "done",
          "text": "3722fb251e2a0b5d515d11bc19a0dc6f370bb957dd7c4e6d495caeff0de9661a"
         },
         {
@@ -5289,12 +5308,13 @@
          "text": "a9edb7a3ccd0ebf323b67a4e486b49e6b133454a7eff0ee6154866fedb381cbf"
         },
         {
-         "status": "todo",
-         "text": "16f18f0c4a18822821c57df636d2f5cbc76aa9ca99bf8071e5695f9dec0009ba"
+         "status": "partly",
+         "text": "811bcc8a346db5d61746006a5e0d4e6721c5dd9175d70e26fbd300bfba44d3bc"
         },
         {
-         "status": "todo",
-         "text": "6f66fcb02a0f1b90e97749f8fdfb0b7c4cafef63561889ffe9904dc1dcdb9969"
+         "hide_soon": true,
+         "status": "done",
+         "text": "702bb448a6ac626c8cdb8f574837567007a8c993bc49313e88402a183657e57f"
         },
         {
          "status": "todo",
@@ -8185,6 +8205,18 @@
     "fr": "Galerie de collage avec aperçu en direct, et collage en image, image liée, lien ou lien hypertexte"
    }
   },
+  "102b122b81a9e221543c19ee46aeefba41193f35385d0688eb372b1559900811": {
+   "drop": false,
+   "en": "JeffDeck keeps a backup copy on every save. You can set this in Options > General.",
+   "es": "JeffDeck conserva una copia de seguridad en cada guardado. Usted puede configurarlo en Opciones > General.",
+   "fr": "JeffDeck conserve une copie de sauvegarde à chaque enregistrement. Vous pouvez le régler dans Options > Général.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "1094381f1739cd5ce7333c5016f5da63ac369950316b1bb1382546837956d306": {
    "drop": false,
    "en": "Drawing Tools / Shape Format tab",
@@ -8641,18 +8673,6 @@
     "fr": ""
    }
   },
-  "16f18f0c4a18822821c57df636d2f5cbc76aa9ca99bf8071e5695f9dec0009ba": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Open and Repair: recover text and pictures from a damaged `.docx` or `.doc`",
-    "es": "Abrir y reparar: recuperar texto e imágenes de un `.docx` o `.doc` dañado",
-    "fr": "Ouvrir et réparer : récupérer le texte et les images d’un `.docx` ou `.doc` endommagé"
-   }
-  },
   "171049ee7d65a1d2b759193035d060ab6d1c303b52c5f90a8903512d8ef5c873": {
    "drop": false,
    "en": "JeffDeck opens damaged files as far as it can.",
@@ -8682,6 +8702,18 @@
    "en": "In JeffPub, preview merge results, move between records, and find a recipient.",
    "es": "En JeffPub, usted puede obtener una vista previa de los resultados de la combinación, desplazarse entre registros y buscar un destinatario.",
    "fr": "Dans JeffPub, vous pouvez prévisualiser les résultats de la fusion, naviguer entre les enregistrements et rechercher un destinataire.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "17a53275e33109c410ee5b7acb6dddecff310380637803ec47669163e24314bd": {
+   "drop": false,
+   "en": "JeffCrunch keeps a backup copy on every save. You can set this in Options > General.",
+   "es": "JeffCrunch conserva una copia de seguridad en cada guardado. Usted puede configurarlo en Opciones > General.",
+   "fr": "JeffCrunch conserve une copie de sauvegarde à chaque enregistrement. Vous pouvez le régler dans Options > Général.",
    "soon": {
     "drop": true,
     "en": "",
@@ -9119,6 +9151,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "1e987b7140aa9156f4c443080aba94d1a7a6d7404e5da9cb0591611177233fa0": {
+   "drop": false,
+   "en": "In JeffDeck, a damaged `.pptx` or `.odp` file opens with what can be read. Open and Repair also recovers the parts of a `.pptx` file that was cut short or has lost its directory, keeps what broke part way, and opens the result as a copy with a note of what was left out.",
+   "es": "En JeffDeck, un archivo `.pptx` o `.odp` dañado se abre con lo que se pueda leer. Abrir y reparar también recupera las partes de un `.pptx` truncado o sin su directorio, conserva lo que se interrumpió a medias y abre el resultado como copia con una nota de lo que se omitió.",
+   "fr": "Dans JeffDeck, un fichier `.pptx` ou `.odp` endommagé s’ouvre avec ce qui peut être lu. Ouvrir et réparer récupère aussi les parties d’un `.pptx` tronqué ou sans son répertoire, conserve ce qui s’est interrompu en cours de route et ouvre le résultat comme copie avec une note de ce qui a été omis.",
+   "soon": {
+    "drop": false,
+    "en": "Open and Repair for a badly damaged `.ppt` file",
+    "es": "Abrir y reparar para un archivo `.ppt` muy dañado",
+    "fr": "Ouvrir et réparer pour un fichier `.ppt` très endommagé"
    }
   },
   "1eca182d04724a67c2a94bea3211de575f7d578c740debe216a8b9cc75b48dd4": {
@@ -9673,18 +9717,6 @@
     "fr": "Fenêtre des options de correction automatique : liste de remplacements, exceptions, règles de majuscules et symboles mathématiques"
    }
   },
-  "2514a4b6a301bc8a99032d38995f06f56ec69e455b41e7dc8cddd60e8aa5c020": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Open and Repair: recover values, formulas, and styles from a damaged `.xlsx` or `.xls`",
-    "es": "Abrir y reparar: recuperar valores, fórmulas y estilos de un `.xlsx` o `.xls` dañado",
-    "fr": "Ouvrir et réparer : récupérer valeurs, formules et styles d’un `.xlsx` ou `.xls` endommagé"
-   }
-  },
   "2530381d0c31cbee4e1cd3605076d9f3c8d5a7abb3a96588041c6361356724a2": {
    "drop": true,
    "en": "",
@@ -9863,18 +9895,6 @@
     "en": "Bubble, radar, stock, 3-D, pie of pie, bar of pie, and surface charts: create and edit",
     "es": "Gráficos de burbujas, radiales, de cotizaciones, 3D, circular de circular, circular de barras y de superficie: crear y editar",
     "fr": "Graphiques à bulles, radar, boursiers, 3D, secteurs de secteur, secteurs de barres et de surface : créer et modifier"
-   }
-  },
-  "26c83d2d1d8c5acff7731956834f05463c973181d8e61bd7149889381104eafc": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Save as template (`.xltx`, `.ots`) and reuse under My Templates",
-    "es": "Guardar como plantilla (`.xltx`, `.ots`) y reutilizar en Mis plantillas",
-    "fr": "Enregistrer comme modèle (`.xltx`, `.ots`) et réutiliser dans Mes modèles"
    }
   },
   "26e645121a6d7212868bd9dca4edbfbe45197ed23a553f0fc6c073f157aaf8b1": {
@@ -12169,6 +12189,18 @@
     "fr": "Commandes de fenêtre : Nouvelle fenêtre, Réorganiser tout, Changer de fenêtre, Affichage côte à côte avec défilement synchrone, Réinitialiser la position de la fenêtre et Fractionner"
    }
   },
+  "47c0b141501e3c2a959bb990d2010aa5f48e96e44a078995821fc8fbf9750d78": {
+   "drop": false,
+   "en": "In JeffDeck, you can open a presentation read-only, as a copy, or in a new window, from More Ways to Open or the right-click menu of the Recent list.",
+   "es": "En JeffDeck, usted puede abrir una presentación como solo lectura, como copia o en una ventana nueva, desde Más formas de abrir o desde el menú contextual de la lista Recientes.",
+   "fr": "Dans JeffDeck, vous pouvez ouvrir une présentation en lecture seule, en tant que copie ou dans une nouvelle fenêtre, depuis Autres façons d’ouvrir ou le menu contextuel de la liste Récents.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "47e4fa93bdc466ef3104a6d3a1a89bd8cb3dd0c0b1ee43933e23eaef6f704cbb": {
    "drop": true,
    "en": "",
@@ -13381,6 +13413,18 @@
     "fr": ""
    }
   },
+  "58cc9e1557531891621cb230c4c7f598f8a1f95c08f1abae9d24e74a9c836822": {
+   "drop": false,
+   "en": "In JeffDeck, you can save your own templates with File > Save as Template and find them under My Templates on the New page.",
+   "es": "En JeffDeck, usted puede guardar sus propias plantillas con Archivo > Guardar como plantilla y encontrarlas en Mis plantillas, en la página Nuevo.",
+   "fr": "Dans JeffDeck, vous pouvez enregistrer vos propres modèles avec Fichier > Enregistrer comme modèle et les retrouver sous Mes modèles, sur la page Nouveau.",
+   "soon": {
+    "drop": false,
+    "en": "Built-in themes as places to start on the New page",
+    "es": "Temas integrados como punto de partida en la página Nuevo",
+    "fr": "Thèmes intégrés comme points de départ sur la page Nouveau"
+   }
+  },
   "58d8e8c298cf91db3553d889dadc3c6a2f506743078d78db49efcdcea798b0c1": {
    "drop": false,
    "en": "Track Changes can be turned on and off (`Ctrl+Shift+E`) and the setting is saved with the document. Typing is recorded as an insertion, deleting marks text as deleted and keeps it, Enter and Backspace over a paragraph mark are recorded as inserted and deleted marks, and changes to the look of text or a paragraph keep the old look. Each change has the user name and time, and each edit is one step of Undo.",
@@ -13806,6 +13850,18 @@
    "en": "In JeffDeck, you can drag a text box on the slide and type in it. You can move, resize, and rotate the box.",
    "es": "En JeffDeck, usted puede arrastrar un cuadro de texto en la diapositiva y escribir en él. Puede moverlo, cambiar su tamaño y girarlo.",
    "fr": "Dans JeffDeck, vous pouvez tracer une zone de texte sur la diapositive et y saisir du texte. Vous pouvez la déplacer, la redimensionner et la faire pivoter.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "5ed7e7dc42d72a1119a7913159f5c32d790b5fb47814f7402d48881ad380a829": {
+   "drop": false,
+   "en": "In JeffCrunch, you can save a workbook as a template (`.xltx` or `.ots`) and reuse your own templates under My Templates. A template can hold formulas, styles, and sheets.",
+   "es": "En JeffCrunch, usted puede guardar un libro como plantilla (`.xltx` o `.ots`) y reutilizar sus propias plantillas en Mis plantillas. Una plantilla puede contener fórmulas, estilos y hojas.",
+   "fr": "Dans JeffCrunch, vous pouvez enregistrer un classeur comme modèle (`.xltx` ou `.ots`) et réutiliser vos propres modèles sous Mes modèles. Un modèle peut contenir des formules, des styles et des feuilles.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15061,18 +15117,6 @@
     "fr": ""
    }
   },
-  "6f66fcb02a0f1b90e97749f8fdfb0b7c4cafef63561889ffe9904dc1dcdb9969": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Open read-only, open as a copy, and open in a new window",
-    "es": "Abrir como solo lectura, abrir como copia y abrir en una ventana nueva",
-    "fr": "Ouvrir en lecture seule, ouvrir comme copie et ouvrir dans une nouvelle fenêtre"
-   }
-  },
   "6fe81d09ae0ae5f6c054371b6a905f18f43e9b7ec7c4b1ebdbd37949cea19205": {
    "drop": true,
    "en": "",
@@ -15102,6 +15146,18 @@
    "en": "In JeffWrite, footnotes appear at the bottom of the page their mark lands on, under a separator. A note too long for the page continues on the next under a continuation separator and notice. Numbering runs across the document, by section, or by page, with custom marks and number formats.",
    "es": "En JeffWrite, las notas al pie aparecen al final de la página donde cae su marca, bajo un separador. Una nota demasiado larga para la página continúa en la siguiente bajo un separador y un aviso de continuación. La numeración abarca el documento, por sección o por página, con marcas personalizadas y formatos de número.",
    "fr": "Dans JeffWrite, les notes de bas de page apparaissent en bas de la page où se trouve leur repère, sous un séparateur. Une note trop longue pour la page continue sur la suivante sous un séparateur et un avis de continuation. La numérotation s’applique à tout le document, par section ou par page, avec des repères personnalisés et des formats de numérotation.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "702bb448a6ac626c8cdb8f574837567007a8c993bc49313e88402a183657e57f": {
+   "drop": false,
+   "en": "In JeffWrite, you can open a document read-only, as a copy, or in a new window. A read-only document refuses typing, dropping, dragging, and commands that change it, and Save asks for a new name.",
+   "es": "En JeffWrite, usted puede abrir un documento como solo lectura, como copia o en una ventana nueva. Un documento de solo lectura no admite escritura, soltar ni arrastrar, rechaza los comandos que lo modifican, y Guardar pide un nombre nuevo.",
+   "fr": "Dans JeffWrite, vous pouvez ouvrir un document en lecture seule, en tant que copie ou dans une nouvelle fenêtre. Un document en lecture seule refuse la saisie, le dépôt, le glisser et les commandes qui le modifient, et Enregistrer demande un nouveau nom.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15347,18 +15403,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "7362e78a0a4caaf376d594dd51fa5f674372d9b0ef2bf21a4ac6fab81d18a6fd": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Open read-only, open as a copy, and open in a new window",
-    "es": "Abrir como solo lectura, abrir como copia y abrir en una ventana nueva",
-    "fr": "Ouvrir en lecture seule, ouvrir comme copie et ouvrir dans une nouvelle fenêtre"
    }
   },
   "7379e597142b9a4b7da1adb6fd090415f4820395209d9a18ac71c53a8893d11a": {
@@ -16235,6 +16279,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "811bcc8a346db5d61746006a5e0d4e6721c5dd9175d70e26fbd300bfba44d3bc": {
+   "drop": false,
+   "en": "In JeffWrite, Open and Repair recovers what can be read from a damaged `.docx` file. It keeps a part that broke part way as far as it goes, leaves out what can't be read, opens the result as a copy, and says what was cut or left out.",
+   "es": "En JeffWrite, Abrir y reparar recupera lo que se pueda leer de un archivo `.docx` dañado. Conserva hasta donde llega una parte que se interrumpió a medias, omite lo que no se puede leer, abre el resultado como copia e indica lo que se cortó u omitió.",
+   "fr": "Dans JeffWrite, Ouvrir et réparer récupère ce qui peut être lu d’un fichier `.docx` endommagé. Il conserve jusqu’où elle va une partie interrompue en cours de route, omet ce qui est illisible, ouvre le résultat comme copie et indique ce qui a été coupé ou omis.",
+   "soon": {
+    "drop": false,
+    "en": "Open and Repair for a damaged `.doc` file",
+    "es": "Abrir y reparar para un archivo `.doc` dañado",
+    "fr": "Ouvrir et réparer pour un fichier `.doc` endommagé"
    }
   },
   "8142b6bd031d5a724f9f6a09673b144af547e5c4a509c21b702d9b4227fbe563": {
@@ -17773,6 +17829,18 @@
     "fr": ""
    }
   },
+  "990df6875795e7170c654f1f5cd79130472c0630fb30b8e694cf945f70cd6374": {
+   "drop": false,
+   "en": "In JeffCrunch, you can open a workbook read-only, as a copy, or in a new window. A read-only workbook refuses every change to a cell and every command that changes one, and Save asks for a new name.",
+   "es": "En JeffCrunch, usted puede abrir un libro como solo lectura, como copia o en una ventana nueva. Un libro de solo lectura rechaza cualquier cambio en una celda y todo comando que la modifique, y Guardar pide un nombre nuevo.",
+   "fr": "Dans JeffCrunch, vous pouvez ouvrir un classeur en lecture seule, en tant que copie ou dans une nouvelle fenêtre. Un classeur en lecture seule refuse toute modification d’une cellule et toute commande qui en modifie une, et Enregistrer demande un nouveau nom.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "99410560d56184c44045964abee9e7d87b6afb41b13a9e4d6578ed4c1ef93284": {
    "drop": false,
    "en": "In JeffDeck options you can set a user name and initials (used on comments), the interface theme (system, light, or dark), the display language, update checks and beta builds, and usage statistics (opt in). These choices apply to every JeffOffice app.",
@@ -18059,18 +18127,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "9c7ca991ff3eb642b0fb1bbb2ff867312392cd2a549987e6cbd9ea72d3e40c43": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Backup copy kept on every save",
-    "es": "Copia de seguridad en cada guardado",
-    "fr": "Copie de sauvegarde à chaque enregistrement"
    }
   },
   "9c85c6d1a52024e83f30a5116ba436856fb4b1f15176e9fdef472f546bd16e97": {
@@ -19057,18 +19113,6 @@
     "fr": "Personnalisation du clavier : attribuer des touches aux commandes, styles, symboles et blocs de construction, et les réinitialiser"
    }
   },
-  "ae1a6fd0998dc17e88f9eec0a88fc891be8396bc7199a9319d03899a6e8bc003": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Save a Copy and Save as Template from the File screen",
-    "es": "Guardar una copia y Guardar como plantilla desde la pantalla Archivo",
-    "fr": "Enregistrer une copie et Enregistrer comme modèle depuis l’écran Fichier"
-   }
-  },
   "ae377c02daaf4679b94ecdcbba6d734a80a7e5e19923c486454188428dffbfe5": {
    "drop": false,
    "en": "JeffDeck saves a recovery copy every 10 minutes for each presentation with unsaved changes, offers it again after a crash, and has Recover Unsaved Work on the Open page.",
@@ -19175,18 +19219,6 @@
     "en": "Proofing language: set it for the selected text or the whole presentation, and language preferences",
     "es": "Idioma de revisión: definirlo para el texto seleccionado o toda la presentación, y preferencias de idioma",
     "fr": "Langue de vérification : la définir pour le texte sélectionné ou toute la présentation, et préférences de langue"
-   }
-  },
-  "b09f2e48d3666cfe6607ec7d429d4640e10cdc6f2794413e1729f8250c5af6ed": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Backup copy kept on every save",
-    "es": "Copia de seguridad en cada guardado",
-    "fr": "Copie de sauvegarde à chaque enregistrement"
    }
   },
   "b0b2d2e904966e95e5ee26adeb650c3c8b519535c3cf4d8a1c4db77f62a45680": {
@@ -19391,18 +19423,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b4965fd1a0cb986acb6d3e7a045250386843079f3c00027f1dc62224685db45c": {
-   "drop": false,
-   "en": "A damaged `.pptx` or `.odp` opens in JeffDeck with what can be read.",
-   "es": "Un `.pptx` o `.odp` dañado se abre en JeffDeck con lo que se puede leer.",
-   "fr": "Un `.pptx` ou `.odp` endommagé s’ouvre dans JeffDeck avec ce qui peut être lu.",
-   "soon": {
-    "drop": false,
-    "en": "Open and Repair: a separate Repair command",
-    "es": "Abrir y reparar: un comando de reparación independiente",
-    "fr": "Ouvrir et réparer : une commande de réparation distincte"
    }
   },
   "b4cda088ed8b25f87a7d970c8811e890b8c40b86108255a1744fe8d3be7a51a0": {
@@ -19801,18 +19821,6 @@
     "fr": ""
    }
   },
-  "bbabd87beac0f72cf56980b1a344f0078e96d7132e0141acbde48c6ee07dde36": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Save as a template (`.dotx`, `.ott`) and reuse your own under My Templates",
-    "es": "Guardar como plantilla (`.dotx`, `.ott`) y reutilizar las propias en Mis plantillas",
-    "fr": "Enregistrer comme modèle (`.dotx`, `.ott`) et réutiliser les vôtres dans Mes modèles"
-   }
-  },
   "bbf327518c02bb741705a03d6ae5f35375e30e20612208bf792f64523ef2c1ea": {
    "drop": true,
    "en": "",
@@ -20041,6 +20049,18 @@
     "fr": "Texte de cellule jusqu’à 32 767 caractères ; formules jusqu’à 8 192 caractères, 64 niveaux d’imbrication et 255 arguments"
    }
   },
+  "bfd80d281c26ec625af6df9c84d0a1b1d8fd7f77c5805c32a7a0a67482d9688c": {
+   "drop": false,
+   "en": "In JeffWrite, you can save a document as a template (`.dotx` or `.ott`) and reuse your own templates under My Templates, which the New page lists with a picture of the first page.",
+   "es": "En JeffWrite, usted puede guardar un documento como plantilla (`.dotx` o `.ott`) y reutilizar sus propias plantillas en Mis plantillas, que la página Nuevo muestra con una imagen de la primera página.",
+   "fr": "Dans JeffWrite, vous pouvez enregistrer un document comme modèle (`.dotx` ou `.ott`) et réutiliser vos propres modèles sous Mes modèles, que la page Nouveau affiche avec une image de la première page.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "bfdcde01e7102765cb402890cd1dc9af7f7a1d888e5c37f9085eda881d26dc64": {
    "drop": true,
    "en": "",
@@ -20214,6 +20234,18 @@
    "en": "",
    "es": "",
    "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "c27e688647cb90eaf19078e47a031862418dfd905cb644709e5245a3a4efbbd0": {
+   "drop": false,
+   "en": "JeffWrite keeps a backup copy on every save. You can set this in Options > General.",
+   "es": "JeffWrite conserva una copia de seguridad en cada guardado. Usted puede configurarlo en Opciones > General.",
+   "fr": "JeffWrite conserve une copie de sauvegarde à chaque enregistrement. Vous pouvez le régler dans Options > Général.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21186,6 +21218,18 @@
    "en": "Mailings tab",
    "es": "Pestaña Correspondencia",
    "fr": "Onglet Publipostage",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "cfa99b5d668d7aa16d656289d6626a4999485e2103bab502e8a92ca78d42f566": {
+   "drop": false,
+   "en": "In JeffDeck, you can save a copy and keep working in the current file. Save as Template puts a `.potx` file in My Templates.",
+   "es": "En JeffDeck, usted puede guardar una copia y seguir trabajando en el archivo actual. Guardar como plantilla coloca un archivo `.potx` en Mis plantillas.",
+   "fr": "Dans JeffDeck, vous pouvez enregistrer une copie et continuer à travailler dans le fichier actuel. Enregistrer comme modèle place un fichier `.potx` sous Mes modèles.",
    "soon": {
     "drop": true,
     "en": "",
@@ -22573,6 +22617,18 @@
     "fr": ""
    }
   },
+  "e42497d72e5d51ad8eace925e52020f073a37af3ab1c385cfab0843da295c3cb": {
+   "drop": false,
+   "en": "In JeffCrunch, Open and Repair recovers what can be read from a damaged `.xlsx` file. It keeps a sheet that broke part way as far as it goes, leaves out what can't be read, and opens the workbook as a copy with a note of what was dropped.",
+   "es": "En JeffCrunch, Abrir y reparar recupera lo que se pueda leer de un archivo `.xlsx` dañado. Conserva hasta donde llega una hoja que se interrumpió a medias, omite lo que no se puede leer y abre el libro como copia con una nota de lo que se descartó.",
+   "fr": "Dans JeffCrunch, Ouvrir et réparer récupère ce qui peut être lu d’un fichier `.xlsx` endommagé. Il conserve jusqu’où elle va une feuille interrompue en cours de route, omet ce qui est illisible et ouvre le classeur comme copie avec une note de ce qui a été abandonné.",
+   "soon": {
+    "drop": false,
+    "en": "Open and Repair for a damaged `.xls` file",
+    "es": "Abrir y reparar para un archivo `.xls` dañado",
+    "fr": "Ouvrir et réparer pour un fichier `.xls` endommagé"
+   }
+  },
   "e42743bd4e04d12edd3d1d98023d11c39d958a1bfcbe5db181a3f2b006dd1b68": {
    "drop": false,
    "en": "JeffCrunch shows the values a file stored for external references without opening the other workbook, and keeps the link parts.",
@@ -22991,18 +23047,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "e956d9d1fafe9a552771d93bd093ce2897158bcdd278e5f1e644f298a03ffea3": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Open read-only, open as a copy, and open in a new window",
-    "es": "Abrir como solo lectura, abrir como copia y abrir en una ventana nueva",
-    "fr": "Ouvrir en lecture seule, ouvrir en tant que copie et ouvrir dans une nouvelle fenêtre"
    }
   },
   "e96478d4ced7d86403d483764a7724d989d44b65a71ba25d948a6b1bcd5be775": {
@@ -23977,6 +24021,18 @@
     "fr": ""
    }
   },
+  "f9d222c975fb1734178ada2b4418882114a2e100afffd463dd04af5e9eefc5b8": {
+   "drop": false,
+   "en": "In JeffPub, you can save a copy of a publication and keep working in the current file. You can also open a file read-only, as a copy, or in a new window, and use Open and Repair for a damaged `.jpub` file.",
+   "es": "En JeffPub, usted puede guardar una copia de una publicación y seguir trabajando en el documento actual. También puede abrir un documento como solo lectura, como copia o en una ventana nueva, y usar Abrir y reparar para un `.jpub` dañado.",
+   "fr": "Dans JeffPub, vous pouvez enregistrer une copie d’une publication et continuer à travailler dans le fichier actuel. Vous pouvez aussi ouvrir un fichier en lecture seule, en tant que copie ou dans une nouvelle fenêtre, et utiliser Ouvrir et réparer pour un fichier `.jpub` endommagé.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "f9dfc66e4eedd4c3a149bd76bebe25fcdff3560ffffcbd887e5772f0eae8250f": {
    "drop": false,
    "en": "Behind the scenes: the animation and transition engines",
@@ -24419,18 +24475,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "fe5f01b62d958913c7ad3dc8e303b2141238978489243a4a14e699c3b58433d4": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Template gallery with live previews: built-in themes and variants as starting points, and your own templates",
-    "es": "Galería de plantillas con vistas previas: temas y variantes incluidos como puntos de partida, y sus propias plantillas",
-    "fr": "Galerie de modèles avec aperçus : thèmes et variantes inclus comme points de départ, et vos propres modèles"
    }
   },
   "fe89ca0b74b5214bbda8c4ff573b109cf572687ee58ef14f5741db6819ad9b25": {

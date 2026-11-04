@@ -30,6 +30,9 @@ inline const QString &isolatedSettingsFolder()
     static QTemporaryDir dir;
     static const bool redirected = [] {
         realSettingsFolder();   // (found before the settings are moved: after, it would be the run's own)
+        // (the system's own store cannot be moved on macOS and Windows, where it is the preferences and the registry: a run keeps its settings in files, which can, and the
+        // apps make theirs in QSettings::defaultFormat())
+        QSettings::setDefaultFormat(QSettings::IniFormat);
         QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, dir.path());
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, dir.path());
         return true;
@@ -47,7 +50,7 @@ inline const IsolateSettings isolateSettingsOnStart;
 // Whether a file of the folder holds the text.
 inline bool folderHolds(const QString &folder, const QByteArray &text)
 {
-    for (const QFileInfo &fi : QDir(folder).entryInfoList({QStringLiteral("*.conf")}, QDir::Files)) {
+    for (const QFileInfo &fi : QDir(folder).entryInfoList({QStringLiteral("*.conf"), QStringLiteral("*.ini")}, QDir::Files)) {
         QFile f(fi.absoluteFilePath());
         if (f.open(QIODevice::ReadOnly) && f.readAll().contains(text)) return true;
     }
@@ -59,16 +62,16 @@ inline bool settingsStayInTheRunsFolder()
 {
     const QString key = QStringLiteral("jptest/probe-%1-%2").arg(QCoreApplication::applicationPid()).arg(QDateTime::currentMSecsSinceEpoch());
     {
-        QSettings app(QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite"));   // (as the apps make theirs)
+        QSettings app(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite"));   // (as the apps make theirs)
         app.setValue(key, 1);
         app.sync();
     }
-    const QString written = QSettings(QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite")).fileName();
+    const QString written = QSettings(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite")).fileName();
     const QByteArray name = key.mid(QStringLiteral("jptest/").size()).toUtf8();
     const bool kept = QFileInfo(written).absolutePath().startsWith(QDir::tempPath() + QLatin1Char('/')) && folderHolds(QFileInfo(written).absolutePath(), name);
     const bool leaked = folderHolds(realSettingsFolder(), name);
     {
-        QSettings app(QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite"));   // (as the apps make theirs)
+        QSettings app(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffWrite"));   // (as the apps make theirs)
         app.remove(key);
     }
     return kept && !leaked;

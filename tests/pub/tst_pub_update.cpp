@@ -72,8 +72,8 @@ private Q_SLOTS:
         telemetry::setEnabled(true);
         telemetry::count(QStringLiteral("file.open.pub"));
         Settings::get().sync();
-        QSettings suite(QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice")), pub(QStringLiteral("JeffOffice"), QStringLiteral("JeffPub")),
-            deck(QStringLiteral("JeffOffice"), QStringLiteral("JeffDeck"));
+        QSettings suite(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice")), pub(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffPub")),
+            deck(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffDeck"));
         const QJsonObject p = telemetry::payload();
         QCOMPARE(p[QStringLiteral("app")].toString(), QStringLiteral("jeffpub"));
         QVERIFY(suite.value(QStringLiteral("telemetry/enabled")).toBool());
@@ -196,7 +196,7 @@ private Q_SLOTS:
         Updater::noteOffered(tag);
         QVERIFY(!Updater::offeredByAnotherAppToday(tag));
         st.sync();
-        QSettings suite(QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice"));
+        QSettings suite(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice"));
         QCOMPARE(suite.value(QStringLiteral("updates/offered")).toString(), tag);
         QCOMPARE(suite.value(QStringLiteral("updates/offeredBy")).toString(), QStringLiteral("jeffpub"));
         QCOMPARE(suite.value(QStringLiteral("updates/offeredOn")).toDate(), QDate::currentDate());
@@ -439,7 +439,7 @@ private Q_SLOTS:
     // The channel is Stable until Beta is chosen, and the choice is kept.
     void updateChannelSetting()
     {
-        QSettings raw(QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"));
+        QSettings raw(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"));
         raw.remove(QStringLiteral("updates/channel"));
         QVERIFY(!jp::Updater::betaChannel());
         jp::Updater::setBetaChannel(true);
@@ -455,7 +455,7 @@ private Q_SLOTS:
     void optionsBetaUpdates()
     {
         jp::MainWindow w;
-        QSettings raw(QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"));
+        QSettings raw(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"));
         raw.remove(QStringLiteral("updates/channel"));
         // Opens Options, notes whether the box was checked (-1: no box), and sets it.
         auto choose = [&w](bool on) {
@@ -524,7 +524,7 @@ private Q_SLOTS:
             QVERIFY2(!jp::suiteWide(QString::fromLatin1(k)), k);
 
         // A choice made in one app is kept in the suite's store, where every app reads it.
-        QSettings suite(QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice")), app(QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"));
+        QSettings suite(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice")), app(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"));
         const QVariant theme = jp::Settings::get().value("ui/theme"), nudge = jp::Settings::get().value("edit/nudge");
         jp::Settings::get().setValue("ui/theme", 2);
         jp::Settings::get().setValue("edit/nudge", 4.5);

@@ -13,10 +13,10 @@ namespace jp {
 void moveFromJeffPub79()
 {
     const QString marker = QStringLiteral("migration/jeffpub79");
-    QSettings now(QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"));
+    QSettings now(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"));
     if (now.value(marker).toBool()) return;
     {
-        const QSettings old(QStringLiteral("JeffPub79"), QStringLiteral("JeffPub79"));
+        const QSettings old(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffPub79"), QStringLiteral("JeffPub79"));
         copyMissingSettings(old, now);
     }
     // The old folder is where QStandardPaths put it under the old names.
