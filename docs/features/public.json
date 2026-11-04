@@ -1235,11 +1235,11 @@
         },
         {
          "status": "partly",
-         "text": "639f3e028fc445f486fcaf559632fc5479684996c38f171fd1241e6099f3638f"
+         "text": "97c16ff77d867f1ec48ab41cc783bb081c2088ca8c419ac39827930a74189ab0"
         },
         {
          "status": "partly",
-         "text": "95d75fc2f2508b52f44803bffe9e6f9e430c8ece207d77322054fd2db44d46f1"
+         "text": "0bc3d2fb4026fd0935eb4e378991cdd6cbee7f4acc2708d73ea349178bae6ec6"
         },
         {
          "hide_soon": true,
@@ -1270,15 +1270,16 @@
         },
         {
          "status": "partly",
-         "text": "7596d6d06eabb42fb586495b6569d494ab61ae54915e9982c7deadeefef42ffe"
+         "text": "694f2d850314aec7ecff9177dc38cff43c3192141d8852bd37c713791fcc2085"
         },
         {
          "status": "todo",
          "text": "d841a4f3a2f4257ae9730886ef93cc1fb32d2ac63ab2afa3363fc139d3619342"
         },
         {
-         "status": "partly",
-         "text": "590bf4f1d8d1d065714aec3d4a030615dc1c08ba414f69014a0ddf8474a68fb7"
+         "hide_soon": true,
+         "status": "done",
+         "text": "6d38246ca79bddd5d63aa320eb3ed32021b2f6b4804c8d697285b75a96b3d7e1"
         },
         {
          "status": "partly",
@@ -1348,12 +1349,12 @@
          "text": "77c56c28460ae0aa3e00639b099ac92fb18cfb93ed7b25ee7a7e6bdc63c131ee"
         },
         {
-         "status": "todo",
-         "text": "a7d74b6a89a3d91240a58414aaf3865aca5f056e30fcc1b1f5394fd6f344b839"
+         "status": "partly",
+         "text": "2deafcc9139b6096736173fbda0299133244143497810e2bf6f613c1e34129e7"
         },
         {
-         "status": "todo",
-         "text": "2a71a531faa305dbb049198cff8986388c7e3077aa1bf9ef15d2229f535e1b15"
+         "status": "partly",
+         "text": "ace237441c8b60464eadf59cc95a4df1d17416ef0cc7ae6058c1265d34cb3899"
         },
         {
          "status": "partly",
@@ -1377,7 +1378,7 @@
         },
         {
          "status": "partly",
-         "text": "0d579d0b714d9f0c77522a6ee50f00f2dfd16815c63ea2d5fdd589f40c4ab070"
+         "text": "bfcb190aa034111c244a97b55c02f703497f9c3ff6a8a79fd3cdf169766a58a7"
         },
         {
          "status": "partly",
@@ -1399,8 +1400,9 @@
          "text": "e5a077d0419b7ffc41d667ed222064be7e236e044ee37acea97eda1284630e16"
         },
         {
-         "status": "todo",
-         "text": "bbf327518c02bb741705a03d6ae5f35375e30e20612208bf792f64523ef2c1ea"
+         "hide_soon": true,
+         "status": "done",
+         "text": "a7491f408e93ea0a813a53673cab8f963e1de47a3ba4ae9a8603cda210b77329"
         }
        ]
       },
@@ -1434,7 +1436,7 @@
         },
         {
          "status": "partly",
-         "text": "2ea9ee0b2633bf46c70cc3aea59ce08a23a40b0ea9cdeb27ab1868fb8a0a286e"
+         "text": "ae90400aa8a7578e149609c28952598661e079b5df014c820b78a3b398de4795"
         }
        ]
       },
@@ -1468,12 +1470,13 @@
          "text": "73566caba80190a92c89998696ab05f73c4c8e0ad150d89c8eb7e3cdb01362bc"
         },
         {
-         "status": "todo",
-         "text": "06610a4c7eb1b4d1f8de75125ade8e43fa1a3e4e628f01bc1bb2301c25f8132a"
+         "status": "partly",
+         "text": "0a133e34789eda8908467b1a9b46a6c3d06866579682cbc2af38ea8e1f57591d"
         },
         {
-         "status": "todo",
-         "text": "ab5879e2491f46a812322c7ef7751bbf8820a421db3f244a0ff4e95b77e64df1"
+         "hide_soon": true,
+         "status": "done",
+         "text": "0a8bb087643cc2a2fe4be320b86f1db63c83c3b461c7c2060324d9e2cb742f0f"
         }
        ]
       },
@@ -7475,18 +7478,6 @@
     "fr": ""
    }
   },
-  "06610a4c7eb1b4d1f8de75125ade8e43fa1a3e4e628f01bc1bb2301c25f8132a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Header and footer galleries of built-in forms, Format Picture, and Go to Header and Go to Footer",
-    "es": "Galerías de encabezados y pies de página predefinidos, Formato de imagen, e Ir al encabezado e Ir al pie de página",
-    "fr": "Galeries d’en-têtes et de pieds de page prédéfinis, Format de l’image, et Atteindre l’en-tête et Atteindre le pied de page"
-   }
-  },
   "06718b48d9de60d8a06b725cdae156f26b8c4c7e2b8c2e9ba3b5414590b01d02": {
    "drop": false,
    "en": "In JeffWrite, apply small caps and all caps in the Font box.",
@@ -7871,6 +7862,18 @@
     "fr": "Options d’affichage : quadrillage, formules et zéros, en-têtes, onglets de feuille, barres de défilement, symboles du plan, sauts de page et affichage des commentaires"
    }
   },
+  "0a133e34789eda8908467b1a9b46a6c3d06866579682cbc2af38ea8e1f57591d": {
+   "drop": false,
+   "en": "Insert the page number, number of pages, date, time, folder, file name, sheet name, or a picture into a header or footer. Pick from eight ready-made forms for each of the header and footer, and jump to the header or footer.",
+   "es": "Inserte en un encabezado o pie de página el número de página, el número de páginas, la fecha, la hora, la carpeta, el nombre del archivo, el nombre de la hoja o una imagen. Elija entre ocho formas predefinidas para el encabezado y para el pie de página, y vaya directamente al encabezado o al pie de página.",
+   "fr": "Insérez dans un en-tête ou un pied de page le numéro de page, le nombre de pages, la date, l’heure, le dossier, le nom du fichier, le nom de la feuille ou une image. Choisissez parmi huit modèles prêts à l’emploi pour l’en-tête et pour le pied de page, et accédez directement à l’en-tête ou au pied de page.",
+   "soon": {
+    "drop": false,
+    "en": "Format Picture for header and footer pictures",
+    "es": "Formato de imagen para las imágenes del encabezado y del pie de página",
+    "fr": "Format d’image pour les images de l’en-tête et du pied de page"
+   }
+  },
   "0a326edeb27908e36a853c98282da8488cc6e69e87ec06621e4cea437413383d": {
    "drop": false,
    "en": "Tables",
@@ -7929,6 +7932,18 @@
     "en": "Ink: keep ink drawn in a file and write it back as it was",
     "es": "Tinta: conservar la tinta dibujada en un fichero y escribirla de nuevo tal como estaba",
     "fr": "Encre : conservation de l’encre dessinée dans un fichier et réécriture à l’identique"
+   }
+  },
+  "0a8bb087643cc2a2fe4be320b86f1db63c83c3b461c7c2060324d9e2cb742f0f": {
+   "drop": false,
+   "en": "Use a different first page, different odd and even pages, scale the header and footer with the document, and align them with the page margins.",
+   "es": "Use una primera página diferente, páginas impares y pares diferentes, escale el encabezado y el pie de página con el documento y alinéelos con los márgenes de la página.",
+   "fr": "Utilisez une première page différente, des pages paires et impaires différentes, adaptez l’en-tête et le pied de page à l’échelle du document et alignez-les sur les marges de la page.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "0ae0380812d15e0d2bc26baa5d6dab8d89ffa76de30e103c769eb5141065bcd5": {
@@ -8003,6 +8018,18 @@
     "fr": ""
    }
   },
+  "0bc3d2fb4026fd0935eb4e378991cdd6cbee7f4acc2708d73ea349178bae6ec6": {
+   "drop": false,
+   "en": "Summarize a table with a pivot table, remove duplicate rows by choosing the columns to compare, and convert a table back to a plain range of cells. Formulas that point at the cells follow the change.",
+   "es": "Resuma una tabla con una tabla dinámica, elimine filas duplicadas eligiendo las columnas que se comparan y convierta una tabla en un rango de celdas normal. Las fórmulas que apuntan a las celdas siguen el cambio.",
+   "fr": "Résumez un tableau avec un tableau croisé dynamique, supprimez les lignes en double en choisissant les colonnes à comparer et reconvertissez un tableau en plage de cellules ordinaire. Les formules qui pointent vers les cellules suivent le changement.",
+   "soon": {
+    "drop": false,
+    "en": "Insert Slicer for a table",
+    "es": "Insertar segmentación de datos para una tabla",
+    "fr": "Insertion d’un segment pour un tableau"
+   }
+  },
   "0bd860cda4599639aacc85bb0fb5d5305942098906a4c243f56bddfbb05009ce": {
    "drop": true,
    "en": "",
@@ -8073,18 +8100,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "0d579d0b714d9f0c77522a6ee50f00f2dfd16815c63ea2d5fdd589f40c4ab070": {
-   "drop": false,
-   "en": "In JeffCrunch, a chart moves and sizes with its cells as you choose in Properties (move and size with cells, move but don’t size, or don’t move or size with cells), and the choice is saved.",
-   "es": "En JeffCrunch, un gráfico se mueve y cambia de tamaño con sus celdas según lo que elija en Propiedades (mover y cambiar tamaño con las celdas, mover sin cambiar tamaño, o no mover ni cambiar tamaño), y la elección se guarda.",
-   "fr": "Dans JeffCrunch, un graphique se déplace et se redimensionne avec ses cellules selon votre choix dans Propriétés (déplacer et dimensionner avec les cellules, déplacer sans dimensionner, ou ne ni déplacer ni dimensionner), et ce choix est enregistré.",
-   "soon": {
-    "drop": false,
-    "en": "Chart print or hide setting",
-    "es": "Opción de imprimir u ocultar el gráfico",
-    "fr": "Option d’impression ou de masquage du graphique"
    }
   },
   "0d94133aa193bf33476ef54fe09e240dd1d1132b5e929192826733a8dbe994fc": {
@@ -10211,18 +10226,6 @@
     "fr": ""
    }
   },
-  "2a71a531faa305dbb049198cff8986388c7e3077aa1bf9ef15d2229f535e1b15": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Data label options: content, separator, position, number format, leader lines, and value from cells",
-    "es": "Opciones de etiquetas de datos: contenido, separador, posición, formato de número, líneas guía y valor de celdas",
-    "fr": "Options des étiquettes de données : contenu, séparateur, position, format de nombre, lignes de repère et valeur issue de cellules"
-   }
-  },
   "2ab76d38b0879a19ea225609c18e093cb5b6974ae81c93a7df53f8acaf1c208c": {
    "drop": false,
    "en": "JeffPub stores publication properties: title, author, subject, keywords, and comments.",
@@ -10415,6 +10418,18 @@
     "fr": ""
    }
   },
+  "2deafcc9139b6096736173fbda0299133244143497810e2bf6f613c1e34129e7": {
+   "drop": false,
+   "en": "Format the horizontal and vertical axes of a chart: bounds, major and minor units, reverse order, where the other axis crosses, number format, tick marks, label position, and label rotation.",
+   "es": "Dé formato a los ejes horizontal y vertical de un gráfico: límites, unidades principales y secundarias, orden inverso, punto donde cruza el otro eje, formato de número, marcas de graduación, posición de las etiquetas y giro de las etiquetas.",
+   "fr": "Mettez en forme les axes horizontal et vertical d’un graphique : limites, unités principales et secondaires, ordre inversé, point de croisement de l’autre axe, format de nombre, graduations, position des étiquettes et rotation des étiquettes.",
+   "soon": {
+    "drop": false,
+    "en": "Chart format panes: log scale, display units, text direction, series, and point",
+    "es": "Paneles de formato de gráfico: escala logarítmica, unidades de visualización, dirección del texto, series y puntos",
+    "fr": "Volets de mise en forme de graphique : échelle logarithmique, unités d’affichage, orientation du texte, séries et points"
+   }
+  },
   "2e0add71177aa3481e43701694a9eac6797c11eeb88a41b881ea61a86f7ee224": {
    "drop": false,
    "en": "JeffCrunch calculates the logical functions `IF`, `AND`, `OR`, `NOT`, `TRUE`, `FALSE`, and `IFERROR`.",
@@ -10473,18 +10488,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "2ea9ee0b2633bf46c70cc3aea59ce08a23a40b0ea9cdeb27ab1868fb8a0a286e": {
-   "drop": false,
-   "en": "In JeffCrunch, you can choose in Properties whether a picture moves and sizes with cells, moves but doesn’t size, or doesn’t move or size, and the choice is saved.",
-   "es": "En JeffCrunch, usted puede elegir en Propiedades si una imagen se mueve y cambia de tamaño con las celdas, solo se mueve, o no se mueve ni cambia de tamaño, y la elección se guarda.",
-   "fr": "Dans JeffCrunch, vous pouvez choisir dans Propriétés si une image se déplace et se redimensionne avec les cellules, se déplace seulement, ou ne bouge ni ne change de taille, et ce choix est enregistré.",
-   "soon": {
-    "drop": false,
-    "en": "Picture locked, print object, and picture as a cell fill or sheet background",
-    "es": "Imagen bloqueada, imprimir objeto e imagen como relleno de celda o fondo de hoja",
-    "fr": "Image verrouillée, impression de l’objet, et image comme remplissage de cellule ou arrière-plan de feuille"
    }
   },
   "2f24bc4d23c18322673b778f5f14d6719e23ee6fae0e935541faddc0022e8dd2": {
@@ -13355,18 +13358,6 @@
     "fr": ""
    }
   },
-  "590bf4f1d8d1d065714aec3d4a030615dc1c08ba414f69014a0ddf8474a68fb7": {
-   "drop": false,
-   "en": "JeffCrunch has Refresh, Refresh All, Change Data Source, and Clear for pivot tables, each one step of Undo. A table set to be read again when the file opens is refreshed on open, and Options sets this.",
-   "es": "JeffCrunch ofrece Actualizar, Actualizar todo, Cambiar origen de datos y Borrar para las tablas dinámicas, cada uno como un paso de Deshacer. Una tabla configurada para leerse de nuevo al abrir el archivo se actualiza al abrir, y Opciones lo define.",
-   "fr": "JeffCrunch propose Actualiser, Tout actualiser, Changer la source de données et Effacer pour les tableaux croisés dynamiques, chacun en une étape d’annulation. Un tableau configuré pour être relu à l’ouverture du fichier est actualisé à l’ouverture, et Options le définit.",
-   "soon": {
-    "drop": false,
-    "en": "Move pivot table and Select",
-    "es": "Mover tabla dinámica y Seleccionar",
-    "fr": "Déplacer le tableau croisé dynamique et Sélectionner"
-   }
-  },
   "5935e2eaadf6aff5730c8ca764629d833a06f16b21c4864998dfc75720888082": {
    "drop": false,
    "en": "JeffPub counts pages, words, characters, paragraphs, text boxes, and pictures.",
@@ -14087,18 +14078,6 @@
     "fr": ""
    }
   },
-  "639f3e028fc445f486fcaf559632fc5479684996c38f171fd1241e6099f3638f": {
-   "drop": false,
-   "en": "In JeffCrunch, the Table Styles gallery is available.",
-   "es": "En JeffCrunch, la galería de estilos de tabla está disponible.",
-   "fr": "Dans JeffCrunch, la galerie de styles de tableau est disponible.",
-   "soon": {
-    "drop": false,
-    "en": "Clear and New Table Style",
-    "es": "Borrar y Nuevo estilo de tabla",
-    "fr": "Effacer et Nouveau style de tableau"
-   }
-  },
   "63d66995d20a3634330ce10b22664af9425cd37f699fd60dd33188f3bc663e59": {
    "drop": false,
    "en": "When you edit, JeffDeck writes the timing tree again without an empty main sequence. It keeps the media and the numbers they name, keeps effects on charts, tables, and frames, drops effects of shapes that are gone, and keeps a deep or unknown effect as it was.",
@@ -14615,6 +14594,18 @@
     "fr": "Galerie de jeux de styles, préréglages d’espacement de paragraphe, Définir par défaut et Rétablir le jeu du modèle"
    }
   },
+  "694f2d850314aec7ecff9177dc38cff43c3192141d8852bd37c713791fcc2085": {
+   "drop": false,
+   "en": "Expand or collapse an entire pivot table field, drill down or up on the item named in the selected cell, and double-click a value to see the rows behind it on a new sheet.",
+   "es": "Expanda o contraiga un campo completo de una tabla dinámica, profundice o retroceda en el elemento cuyo nombre está en la celda seleccionada, y haga doble clic en un valor para ver las filas que lo componen en una hoja nueva.",
+   "fr": "Développez ou réduisez un champ entier d’un tableau croisé dynamique, explorez vers le bas ou vers le haut l’élément dont le nom se trouve dans la cellule sélectionnée, et double-cliquez sur une valeur pour afficher les lignes correspondantes dans une nouvelle feuille.",
+   "soon": {
+    "drop": false,
+    "en": "Expand and collapse buttons (plus and minus) in pivot table cells",
+    "es": "Botones de expandir y contraer (más y menos) en las celdas de la tabla dinámica",
+    "fr": "Boutons développer et réduire (plus et moins) dans les cellules du tableau croisé dynamique"
+   }
+  },
   "69501209df30e21261c6622b1a1e50fb32f0d953324663187bdeb3f411197449": {
    "drop": false,
    "en": "JeffWrite has four review views (Simple Markup, All Markup, No Markup, and Original). Show Markup covers insertions and deletions, formatting, and comments, inline or in balloons, with change bars. The Reviewing pane lists comments and changes and lets you choose a reviewer. A document with changes opens with All Markup, and views are never saved in the file.",
@@ -14937,6 +14928,18 @@
     "en": "Left-to-Right and Right-to-Left buttons",
     "es": "Botones de izquierda a derecha y de derecha a izquierda",
     "fr": "Boutons de gauche à droite et de droite à gauche"
+   }
+  },
+  "6d38246ca79bddd5d63aa320eb3ed32021b2f6b4804c8d697285b75a96b3d7e1": {
+   "drop": false,
+   "en": "Refresh one or all pivot tables from the source while keeping the layout and column widths, change the data source, refresh when the file opens, and clear a pivot table. You can also select its labels, values, or the whole table, and move it to a cell on the same sheet.",
+   "es": "Actualice una o todas las tablas dinámicas desde el origen conservando el diseño y el ancho de las columnas, cambie el origen de datos, actualice al abrir el archivo y borre una tabla dinámica. También puede seleccionar sus etiquetas, sus valores o la tabla completa, y moverla a una celda de la misma hoja.",
+   "fr": "Actualisez un ou tous les tableaux croisés dynamiques depuis la source en conservant la mise en page et la largeur des colonnes, changez la source de données, actualisez à l’ouverture du fichier et effacez un tableau croisé dynamique. Vous pouvez aussi sélectionner ses étiquettes, ses valeurs ou le tableau entier, et le déplacer vers une cellule de la même feuille.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "6d3969a81708e9d8eaa9a2e86e1d67794c91154441401866825975072e7c2e74": {
@@ -15513,18 +15516,6 @@
     "en": "Function help from the formula bar: the function being typed opens its page",
     "es": "Ayuda de funciones desde la barra de fórmulas: la función que se escribe abre su página",
     "fr": "Aide sur les fonctions depuis la barre de formule : la fonction saisie ouvre sa page"
-   }
-  },
-  "7596d6d06eabb42fb586495b6569d494ab61ae54915e9982c7deadeefef42ffe": {
-   "drop": false,
-   "en": "In JeffCrunch, Expand Entire Field and Collapse Entire Field work on the field chosen in the pane. A double-click on a value, or Show Details, puts the rows behind it on a new sheet, with field names, as one step of Undo for the sheet and one for the rows.",
-   "es": "En JeffCrunch, Expandir campo completo y Contraer campo completo actúan sobre el campo elegido en el panel. Un doble clic en un valor, o Mostrar detalles, coloca las filas que hay detrás en una hoja nueva, con los nombres de los campos, como un paso de Deshacer para la hoja y otro para las filas.",
-   "fr": "Dans JeffCrunch, Développer tout le champ et Réduire tout le champ agissent sur le champ choisi dans le volet. Un double-clic sur une valeur, ou Afficher les détails, place les lignes sous-jacentes dans une nouvelle feuille, avec les noms des champs, en une étape d’annulation pour la feuille et une pour les lignes.",
-   "soon": {
-    "drop": false,
-    "en": "Plus and minus buttons in the cells, and Drill Up",
-    "es": "Botones de más y menos en las celdas, y Subir de nivel",
-    "fr": "Boutons plus et moins dans les cellules, et Explorer vers le haut"
    }
   },
   "75ad438e0cd646d3b7397deca30db3e15efcd884f2636987f7a8b8735a8984ce": {
@@ -17603,18 +17594,6 @@
     "fr": ""
    }
   },
-  "95d75fc2f2508b52f44803bffe9e6f9e430c8ece207d77322054fd2db44d46f1": {
-   "drop": false,
-   "en": "In JeffCrunch, a table can be converted back to plain cells, and formulas that named the table then name its cells.",
-   "es": "En JeffCrunch, una tabla se puede convertir de nuevo en celdas normales, y las fórmulas que nombraban la tabla pasan a nombrar sus celdas.",
-   "fr": "Dans JeffCrunch, un tableau peut être reconverti en cellules ordinaires, et les formules qui nommaient le tableau nomment alors ses cellules.",
-   "soon": {
-    "drop": false,
-    "en": "Remove Duplicates, Summarize with pivot table, and Insert Slicer for a table",
-    "es": "Quitar duplicados, Resumir con tabla dinámica e Insertar segmentación para una tabla",
-    "fr": "Supprimer les doublons, Synthétiser avec un tableau croisé dynamique et Insérer un segment pour un tableau"
-   }
-  },
   "95db4f944c94bd48f100ecf9cdd532a27ef3f21d0ac5fe9dbc35d23ff9fdc800": {
    "drop": false,
    "en": "Drawing",
@@ -17769,6 +17748,18 @@
     "en": "Formulas options page: calculation, iterative calculation, R1C1 style, error-checking rules, and 1904 date system",
     "es": "Página de opciones de fórmulas: cálculo, cálculo iterativo, estilo R1C1, reglas de comprobación de errores y sistema de fechas 1904",
     "fr": "Page d’options des formules : calcul, calcul itératif, style L1C1, règles de vérification des erreurs et système de dates 1904"
+   }
+  },
+  "97c16ff77d867f1ec48ab41cc783bb081c2088ca8c419ac39827930a74189ab0": {
+   "drop": false,
+   "en": "Apply a table style from the Table Styles gallery with live preview, and clear a table’s style to remove its look.",
+   "es": "Aplique un estilo de tabla desde la galería de estilos de tabla con vista previa en vivo, y borre el estilo de una tabla para quitar su aspecto.",
+   "fr": "Appliquez un style de tableau depuis la galerie des styles de tableau avec aperçu en direct, et effacez le style d’un tableau pour en retirer l’aspect.",
+   "soon": {
+    "drop": false,
+    "en": "New Table Style: define a style for each part of a table",
+    "es": "Nuevo estilo de tabla: defina un estilo para cada parte de una tabla",
+    "fr": "Nouveau style de tableau : définir un style pour chaque partie d’un tableau"
    }
   },
   "9877966dae1391618900ee88282b0c4a83fb75ae2dd179251edc3b71ddf3dde6": {
@@ -18671,6 +18662,18 @@
     "fr": "Nouvelle fenêtre, Réorganiser tout, Affichage côte à côte avec défilement synchrone, Rétablir la position de la fenêtre, Masquer et afficher la fenêtre, et Changer de fenêtre"
    }
   },
+  "a7491f408e93ea0a813a53673cab8f963e1de47a3ba4ae9a8603cda210b77329": {
+   "drop": false,
+   "en": "Set up a sparkline axis: space points by dates in cells you name, show the axis, plot data right to left, and choose the minimum and maximum (automatic, the same for all, or custom). Set how hidden and empty cells are handled, and group, ungroup, or clear sparklines.",
+   "es": "Configure el eje de un minigráfico: separe los puntos según las fechas de las celdas que indique, muestre el eje, trace los datos de derecha a izquierda y elija el mínimo y el máximo (automático, igual para todos o personalizado). Defina cómo se tratan las celdas ocultas y vacías, y agrupe, desagrupe o borre minigráficos.",
+   "fr": "Configurez l’axe d’un graphique miniature : espacez les points selon les dates des cellules que vous indiquez, affichez l’axe, tracez les données de droite à gauche et choisissez le minimum et le maximum (automatique, identique pour tous ou personnalisé). Définissez le traitement des cellules masquées et vides, et groupez, dissociez ou effacez les graphiques miniatures.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "a74ca51d9d761c058a960397daaf6b8fd9b107f599ad9f5d722df8862a57df98": {
    "drop": false,
    "en": "Print in JeffPub with a chosen printer, number of copies, page range (all, current, or custom), and printer properties.",
@@ -18741,18 +18744,6 @@
     "en": "Query steps editor: choose columns, filter, sort, split, group, pivot, merge, append, and load",
     "es": "Editor de pasos de consulta: elegir columnas, filtrar, ordenar, dividir, agrupar, dinamizar, combinar, anexar y cargar",
     "fr": "Éditeur d’étapes de requête : choisir des colonnes, filtrer, trier, fractionner, regrouper, pivoter, fusionner, ajouter et charger"
-   }
-  },
-  "a7d74b6a89a3d91240a58414aaf3865aca5f056e30fcc1b1f5394fd6f344b839": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Format panes for axes, series, and points",
-    "es": "Paneles de formato para ejes, series y puntos",
-    "fr": "Volets de format pour les axes, les séries et les points"
    }
   },
   "a85e59e305b39d1d578e31b5573982c9908ce2ecb0edb465ce01df1ba93a96a4": {
@@ -18959,18 +18950,6 @@
     "fr": ""
    }
   },
-  "ab5879e2491f46a812322c7ef7751bbf8820a421db3f244a0ff4e95b77e64df1": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Different First Page, Different Odd & Even Pages, Scale with Document, and Align with Page Margins",
-    "es": "Primera página diferente, páginas pares e impares diferentes, ajustar a escala con el documento y alinear con los márgenes de la página",
-    "fr": "Première page différente, pages paires et impaires différentes, mise à l’échelle avec le document et alignement sur les marges de la page"
-   }
-  },
   "ab67eee0cd587c7011b8d13213b3e8389c2038426557dbc3ba0d4ba0619188bc": {
    "drop": false,
    "en": "JeffCrunch bundles open fonts, with stand-ins that have the same letter widths as common fonts, so column widths and wrapped text fall in the same places on a computer without those fonts.",
@@ -19067,6 +19046,18 @@
     "fr": "Code QR ou code-barres sur une diapositive en image vectorielle"
    }
   },
+  "ace237441c8b60464eadf59cc95a4df1d17416ef0cc7ae6058c1265d34cb3899": {
+   "drop": false,
+   "en": "Add data labels to a chart showing the value, category name, series name, or percentage, with a separator, a number format, and a position.",
+   "es": "Agregue rótulos de datos a un gráfico que muestren el valor, el nombre de categoría, el nombre de serie o el porcentaje, con un separador, un formato de número y una posición.",
+   "fr": "Ajoutez à un graphique des étiquettes de données indiquant la valeur, le nom de catégorie, le nom de série ou le pourcentage, avec un séparateur, un format de nombre et une position.",
+   "soon": {
+    "drop": false,
+    "en": "Data labels: legend key, leader lines, and value from cells",
+    "es": "Rótulos de datos: clave de leyenda, líneas de guía y valor de celdas",
+    "fr": "Étiquettes de données : clé de légende, lignes de repère et valeur issue de cellules"
+   }
+  },
   "ad0b951a96dc325309af41cfb88b1a88daa270ea5fd1144ef214924b418f24e7": {
    "drop": true,
    "en": "",
@@ -19161,6 +19152,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "ae90400aa8a7578e149609c28952598661e079b5df014c820b78a3b398de4795": {
+   "drop": false,
+   "en": "Choose whether a picture moves and sizes with cells, moves but doesn’t size, or does neither, and whether it prints. The choices are saved in the file.",
+   "es": "Elija si una imagen se mueve y cambia de tamaño con las celdas, solo se mueve, o ninguna de las dos cosas, y si se imprime. Las opciones se guardan en el archivo.",
+   "fr": "Choisissez si une image se déplace et se redimensionne avec les cellules, se déplace sans se redimensionner, ou ne fait ni l’un ni l’autre, et si elle s’imprime. Les choix sont enregistrés dans le fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Picture properties: locked, and a picture as a cell’s fill or the sheet’s background",
+    "es": "Propiedades de imagen: bloqueada, e imagen como relleno de celda o fondo de la hoja",
+    "fr": "Propriétés d’image : verrouillée, et image en remplissage de cellule ou en arrière-plan de la feuille"
    }
   },
   "af31e8b43ba5760eb4fd4faae230382b222209d493695f279d522df96be01cb5": {
@@ -19859,18 +19862,6 @@
     "fr": ""
    }
   },
-  "bbf327518c02bb741705a03d6ae5f35375e30e20612208bf792f64523ef2c1ea": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Sparkline axis options, hidden and empty cells, and group, ungroup, and clear",
-    "es": "Opciones de eje de minigráficos, celdas ocultas y vacías, y agrupar, desagrupar y borrar",
-    "fr": "Options d’axe des sparklines, cellules masquées et vides, et groupement, dissociation et effacement"
-   }
-  },
   "bc0a968f1f7b7d1dcffd7df0ca1d6423b44b2fa17b02efa3ffd17947ba49b745": {
    "drop": false,
    "en": "In JeffCrunch, Insert > Sparklines makes line, column, and win/loss sparklines from a row or column of values, into one cell or a group of cells. They are drawn inside their cells, can color the high, low, first, last, and negative points, and are saved with the sheet.",
@@ -20109,6 +20100,18 @@
     "en": "Cell text up to 32,767 characters; formulas up to 8,192 characters, 64 levels deep, and 255 arguments",
     "es": "Texto de celda de hasta 32 767 caracteres; fórmulas de hasta 8192 caracteres, 64 niveles de anidamiento y 255 argumentos",
     "fr": "Texte de cellule jusqu’à 32 767 caractères ; formules jusqu’à 8 192 caractères, 64 niveaux d’imbrication et 255 arguments"
+   }
+  },
+  "bfcb190aa034111c244a97b55c02f703497f9c3ff6a8a79fd3cdf169766a58a7": {
+   "drop": false,
+   "en": "Choose whether a chart, picture, or shape moves and sizes with its cells, moves but doesn’t size, or does neither, and whether it prints. The choices are saved in the file.",
+   "es": "Elija si un gráfico, una imagen o una forma se mueve y cambia de tamaño con sus celdas, solo se mueve, o ninguna de las dos cosas, y si se imprime. Las opciones se guardan en el archivo.",
+   "fr": "Choisissez si un graphique, une image ou une forme se déplace et se redimensionne avec ses cellules, se déplace sans se redimensionner, ou ne fait ni l’un ni l’autre, et s’il s’imprime. Les choix sont enregistrés dans le fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Hide an object",
+    "es": "Ocultar un objeto",
+    "fr": "Masquage d’un objet"
    }
   },
   "bfd80d281c26ec625af6df9c84d0a1b1d8fd7f77c5805c32a7a0a67482d9688c": {
