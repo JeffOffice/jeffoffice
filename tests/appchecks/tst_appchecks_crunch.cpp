@@ -414,6 +414,7 @@ private Q_SLOTS:
             {QStringLiteral("formulas.options"), menu},
             {QStringLiteral("sheet.tabColor"), menu},
             {QStringLiteral("sheet.unhide"), menu},
+            {QStringLiteral("review.statistics"), QStringLiteral("it tells the numbers in a message and changes nothing in the workbook")},
         };
         m_app.neverRun = {
             {QStringLiteral("cond.clearSelection"), QStringLiteral("it is on only when a rule of conditional formatting covers the selected cells, and no place here has a rule; the conditional formatting tests run it")},
