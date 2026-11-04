@@ -12,6 +12,7 @@
 
 #include <QAction>
 #include <QComboBox>
+#include <QElapsedTimer>
 #include <QMenu>
 #include <QRegularExpression>
 #include <QSignalSpy>
@@ -29,13 +30,20 @@ namespace {
 //   1     1   2   3
 //   2     4   5   6
 //   3     7   8   9
+// The locale of the typed values is pinned for the tests of them.
+struct EnglishUs {
+    QLocale was = QLocale();
+    EnglishUs() { QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates)); }
+    ~EnglishUs() { QLocale::setDefault(was); }
+};
+
 // The styles part of uiBook (a workbook with none has no place to keep the look of a rule).
-QByteArray uiStyles()
+QByteArray uiStyles(const QString &extra = QString())
 {
     const QString lists = QStringLiteral("<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/><family val=\"2\"/><scheme val=\"minor\"/></font></fonts>"
                                          "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
                                          "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"
-                                         "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>");
+                                         "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>") + extra;
     return stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>"), lists);
 }
 
@@ -689,17 +697,11 @@ private Q_SLOTS:
         });
     }
 
-    // Values that cannot be a rule's are refused with the reason (a formula that does not parse, infinity, "not a number"), From and To of Between go in order, TRUE and a date are values and not
-    // texts, and the cells a typed formula names are as seen from the cell with the cursor.
-    void typedValuesOfARuleAreCheckedAndRead()
+    // Values that cannot be a rule's are refused with the reason (a formula that does not parse, infinity, "not a number").
+    void typedValuesThatCannotBeARuleAreRefused()
     {
         using Kind = CrunchWindow::CondAnswer::Kind;
-        const QLocale was = QLocale();
-        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
-        struct Restore {
-            QLocale was;
-            ~Restore() { QLocale::setDefault(was); }
-        } restore{was};
+        EnglishUs english;
         EditWindow e;
         QVERIFY(e.open(uiBook()));
         selectRange(e, QStringLiteral("A1:C3"));
@@ -709,10 +711,29 @@ private Q_SLOTS:
             run(e, "cond.greater");
             QVERIFY2(e.win.told.size() == 1 && e.win.w.session()->condRules(0).isEmpty(), qPrintable(bad));
         }
-        ask(e, Kind::Between, QStringLiteral("9"), QStringLiteral("2"));
+    }
+
+    // From and To of Between go in order.
+    void betweenPutsItsValuesInOrder()
+    {
+        EnglishUs english;
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        selectRange(e, QStringLiteral("A1:C3"));
+        ask(e, CrunchWindow::CondAnswer::Kind::Between, QStringLiteral("9"), QStringLiteral("2"));
         run(e, "cond.between");
         QCOMPARE(e.win.w.session()->condRules(0)[0].formula1, QStringLiteral("2"));
         QCOMPARE(e.win.w.session()->condRules(0)[0].formula2, QStringLiteral("9"));
+    }
+
+    // TRUE and a date are values and not texts; other words are texts.
+    void equalToReadsTrueAndDatesAsValues()
+    {
+        using Kind = CrunchWindow::CondAnswer::Kind;
+        EnglishUs english;
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        selectRange(e, QStringLiteral("A1:C3"));
         ask(e, Kind::Equal, QStringLiteral("TRUE"));
         run(e, "cond.equal");
         QCOMPARE(e.win.w.session()->condRules(0)[0].formula1, QStringLiteral("TRUE"));
@@ -722,10 +743,17 @@ private Q_SLOTS:
         ask(e, Kind::Equal, QStringLiteral("hello"));
         run(e, "cond.equal");
         QCOMPARE(e.win.w.session()->condRules(0)[0].formula1, QStringLiteral("\"hello\""));
-        // the cursor is on C3 and the cells are B2:C3: "=D5" is the cell one up and one left of D5 for the first cell
+    }
+
+    // The cells a typed formula names are as seen from the cell with the cursor: the cursor is on C3 and the cells are B2:C3, so "=D5" is "C4" for the first cell.
+    void aTypedFormulaIsSeenFromTheCellWithTheCursor()
+    {
+        EnglishUs english;
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
         e.view()->selectRange(2, 2, 1, 1);
         QCOMPARE(e.view()->selection().activeRow, qint64(2));
-        ask(e, Kind::Greater, QStringLiteral("=D5"));
+        ask(e, CrunchWindow::CondAnswer::Kind::Greater, QStringLiteral("=D5"));
         run(e, "cond.greater");
         QCOMPARE(e.win.w.session()->condRules(0)[0].formula1, QStringLiteral("C4"));
     }
@@ -777,9 +805,42 @@ private Q_SLOTS:
         }
     }
 
-    // Clear Rules of the selected cells takes the cells out of a rule's ranges (splitting them), and drops a rule only when no cells are left; no overlap changes nothing. Undo and Redo go back and
-    // forth, and the look a rule made goes with it on Undo.
-    void clearingRulesTrimsTheirRangesAndUndoTakesTheLookOut()
+    // Clear Rules of the selected cells takes the cells out of a rule's ranges (splitting them), and drops a rule only when no cells are left; no overlap changes nothing. Undo and Redo go back
+    // and forth.
+    void clearingRulesTrimsAndSplitsTheirRanges()
+    {
+        using Kind = CrunchWindow::CondAnswer::Kind;
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        crunch::EditSession *s = e.win.w.session();
+        selectRange(e, QStringLiteral("A1:C3"));
+        ask(e, Kind::Greater, QStringLiteral("0"));
+        run(e, "cond.greater");
+        // the middle cell cleared: the rule keeps the four blocks around it
+        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("B2"))).ok);
+        QVector<jp::office::sheet::CondRule> rules = s->condRules(0);
+        QCOMPARE(int(rules.size()), 1);
+        QStringList where;
+        for (const auto &r : rules[0].ranges) where << rangeName(r);
+        where.sort();
+        QCOMPARE(where, QStringList({"A1:C1", "A2", "A3:C3", "C2"}));
+        QVERIFY(fillAt(e, QStringLiteral("B2")) != fillAt(e, QStringLiteral("A1")));
+        // cells that are not under the rule: nothing is changed, and no step is made
+        const int steps = e.win.w.undoStack()->count();
+        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("E5:F6"))).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        // undo and redo of the clear
+        e.win.w.undoStack()->undo();
+        QCOMPARE(rangeName(s->condRules(0)[0].ranges[0]), QStringLiteral("A1:C3"));
+        e.win.w.undoStack()->redo();
+        QCOMPARE(int(s->condRules(0)[0].ranges.size()), 4);
+        // every cell cleared: the rule is dropped
+        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("A1:C3"))).ok);
+        QVERIFY(s->condRules(0).isEmpty());
+    }
+
+    // Undo of a rule takes the look the rule made out of the styles (and Redo puts it back where it was); the count of looks is read from where the fixture starts.
+    void undoOfARuleTakesItsLookOutOfTheStyles()
     {
         using Kind = CrunchWindow::CondAnswer::Kind;
         EditWindow e;
@@ -791,37 +852,64 @@ private Q_SLOTS:
         ask(e, Kind::Greater, QStringLiteral("0"));
         run(e, "cond.greater");
         QCOMPARE(int(book->styles().dxfs.size()), dxfsAtStart + 1);
-        // the middle cell cleared: the rule keeps the four blocks around it
-        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("B2"))).ok);
-        QVector<jp::office::sheet::CondRule> rules = s->condRules(0);
-        QCOMPARE(int(rules.size()), 1);
-        QStringList where;
-        for (const auto &r : rules[0].ranges) where << rangeName(r);
-        where.sort();
-        QCOMPARE(where, QStringList({"A1:C1", "A2", "A3:C3", "C2"}));
-        QCOMPARE(fillAt(e, QStringLiteral("B2")) == fillAt(e, QStringLiteral("A1")), false);
-        // cells that are not under the rule: nothing is changed, and no step is made
-        const int steps = e.win.w.undoStack()->count();
-        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("E5:F6"))).ok);
-        QCOMPARE(e.win.w.undoStack()->count(), steps);
-        // undo and redo of the clear
-        e.win.w.undoStack()->undo();
-        QCOMPARE(rangeName(s->condRules(0)[0].ranges[0]), QStringLiteral("A1:C3"));
-        e.win.w.undoStack()->redo();
-        QCOMPARE(int(s->condRules(0)[0].ranges.size()), 4);
-        // every cell cleared: the rule is dropped; Undo of the rule takes its look out of the styles
-        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("A1:C3"))).ok);
-        QVERIFY(s->condRules(0).isEmpty());
-        e.win.w.undoStack()->undo();
-        e.win.w.undoStack()->undo();
         e.win.w.undoStack()->undo();
         QVERIFY(s->condRules(0).isEmpty());
         QCOMPARE(int(book->styles().dxfs.size()), dxfsAtStart);
         QVERIFY(book->addedDxfs().isEmpty());
-        e.win.w.undoStack()->redo();                                              // (the rule again, and its look)
+        e.win.w.undoStack()->redo();
         QCOMPARE(int(s->condRules(0).size()), 1);
         QCOMPARE(int(book->styles().dxfs.size()), dxfsAtStart + 1);
         QCOMPARE(s->condRules(0)[0].dxf, qint32(dxfsAtStart));
+    }
+
+    // A look the file has that matches a rule's on bold, italic, color, and fill but also has a font size is not reused (the size is not kept in what is read, and the rule would take it too).
+    void aFileLookWithMoreThanTheRuleHasIsNotReused()
+    {
+        const QString dxfs = QStringLiteral("<dxfs count=\"1\"><dxf><font><b/><color rgb=\"FF1F3864\"/><sz val=\"20\"/></font></dxf></dxfs>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>5</v></c></row>"))}, QByteArray(), QString(), QString(), uiStyles(dxfs))));
+        crunch::EditSession *s = e.win.w.session();
+        QCOMPARE(int(s->workbook()->styles().dxfs.size()), 1);
+        selectRange(e, QStringLiteral("A1:A1"));
+        ask(e, CrunchWindow::CondAnswer::Kind::Greater, QStringLiteral("1"), QString(), 5);   // (bold, dark blue text)
+        run(e, "cond.greater");
+        QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join('|')));
+        QCOMPARE(s->condRules(0)[0].dxf, qint32(1));                                           // (a new look: the file's own is left as it is)
+        QCOMPARE(int(s->workbook()->styles().dxfs.size()), 2);
+    }
+
+    // The steps of rules are counted with the other steps of Undo: Add and Clear each grow the count by about the rules they hold.
+    void theStepsOfRulesAreCountedInTheUndoBytes()
+    {
+        using Kind = CrunchWindow::CondAnswer::Kind;
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        crunch::EditSession *s = e.win.w.session();
+        selectRange(e, QStringLiteral("A1:C3"));
+        const qint64 start = s->undoBytes();
+        ask(e, Kind::Greater, QStringLiteral("0"));
+        run(e, "cond.greater");
+        const qint64 afterAdd = s->undoBytes();
+        QVERIFY2(afterAdd - start >= qint64(sizeof(jp::office::sheet::CondRule)), qPrintable(QString::number(afterAdd - start)));   // (a rule is held for Undo and for Redo)
+        QVERIFY(s->clearCondRules(0, jp::office::sheet::CellRange()).ok);
+        QVERIFY(s->undoBytes() - afterAdd >= qint64(sizeof(jp::office::sheet::CondRule)));
+    }
+
+    // On a sheet of 5,000 rules, moving the selection stays quick (the buttons of Clear Rules look at a bounded number of rules).
+    void movingTheSelectionOnASheetOfManyRulesStaysQuick()
+    {
+        QString rules;
+        for (int i = 0; i < 5000; ++i)
+            rules += QStringLiteral("<conditionalFormatting sqref=\"A%1\"><cfRule type=\"cellIs\" priority=\"%1\" operator=\"equal\"><formula>1</formula></cfRule></conditionalFormatting>").arg(i + 1);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), rules)}, QByteArray(), QString(), QString(), uiStyles())));
+        QVERIFY(e.settle());
+        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 5000);
+        QElapsedTimer timer;
+        timer.start();
+        for (int i = 0; i < 200; ++i) e.view()->selectCell(quint32(10000 + i), quint32(i % 5));
+        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY(e.win.w.act(QStringLiteral("cond.clearSheet"))->isEnabled());
     }
 
     // Rules the file has that JeffCrunch does not hold whole are not rewritten: an extension list, the 2010 block, a table's mark, a kind it does not know, more ranges than it reads, a workbook
