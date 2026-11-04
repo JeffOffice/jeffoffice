@@ -738,6 +738,7 @@ private:
     // pivot tables (crunchwindow_pivot.cpp): the Pivot Table tab, the fields pane, and the commands that refresh and change a table
     void createPivotActions();
     void pivotRibbonParts(RibbonParts &parts);
+    void updatePivotFieldActions();                           // the commands that work on a pivot table's cell are on only with the cursor in one
     void updatePivotTab();                                     // the Pivot Table tab shows for a cell in a pivot table; the fields pane shows that table
     int selectedPivot() const;                                 // the pivot table the cursor is in, or -1
     void editPivot(const std::function<void(jp::office::sheet::PivotTable *)> &change, const QString &text, bool structureChanged);

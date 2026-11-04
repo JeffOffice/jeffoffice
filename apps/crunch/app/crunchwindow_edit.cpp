@@ -86,6 +86,7 @@ void CrunchWindow::updateEditActions()
     const bool canSave = open && m_loaded && m_loaded->problem.isEmpty();
     act("file.save")->setEnabled(canSave);
     act("file.saveAs")->setEnabled(canSave);
+    updatePivotFieldActions();
     updateFormatState(false);
 }
 
