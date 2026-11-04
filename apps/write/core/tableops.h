@@ -127,6 +127,7 @@ struct TableProps {
     bool rowExact = false, cantSplit = false, header = false;
     // the column and the cell
     double columnWidth = 0;
+    double columnPercent = 0;           // set by the caller with a new columnWidth when the person gave the width as a percent of the table: the cells say it so (tcW in percent)
     double gridWidth = 0;               // (the columns' widths together; not set by setTableProps)
     flow::CellAlign valign = flow::CellAlign::Top;
     bool noWrap = false;

@@ -15308,6 +15308,13 @@ private Q_SLOTS:
         });
         QVERIFY(tablePropertiesDialog(nullptr, doc.get(), &c));
         QVERIFY2(tablesSignature(*doc).contains(QStringLiteral("cols=150.0,100.0,100.0")), qPrintable(tablesSignature(*doc)));
+        QVERIFY2(documentXml(doc->toDocx()).contains("<w:tcW w:w=\"2500\" w:type=\"pct\"/>"), documentXml(doc->toDocx()).left(1500).constData());   // (50 percent, in fiftieths)
+        checkTablesReopenTheSame(*doc);
+        // The table made wider keeps the percent; a width in points puts the cells back to points.
+        setTableWidth(*doc, c, 600);
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:tcW w:w=\"2500\" w:type=\"pct\"/>"));
+        setColumnWidth(*doc, c, 80);
+        QVERIFY(!documentXml(doc->toDocx()).contains("w:type=\"pct\"/>"));
         checkTablesReopenTheSame(*doc);
     }
 

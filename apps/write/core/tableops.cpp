@@ -1625,6 +1625,9 @@ void setColumnWidth(WriteDoc &doc, QTextCursor &c, double points)
         QVector<double> columns = x.columns;
         for (int col = a.c0; col <= a.c1 && col < columns.size(); ++col) columns[col] = std::max(1.0, points);
         setColumns(x, v, columns);
+        forCells(x, v, a, [&](XCell &cc, const flow::TableLayout::Cell &lc) {   // (a width in points replaces one in percent)
+            cc.open = patchPr(cc.open, kCell, {{"tcW", "<w:tcW w:w=\"" + QByteArray::number(twipsOf(columns, lc.col, lc.span)) + "\" w:type=\"dxa\"/>"}});
+        });
         return true;
     });
 }
@@ -1859,6 +1862,12 @@ void setTableProps(WriteDoc &doc, QTextCursor &c, const TableProps &was, const T
             QVector<double> columns = x.columns;
             for (int col = a.c0; col <= a.c1 && col < columns.size(); ++col) columns[col] = now.columnWidth;
             setColumns(x, v, columns);
+            // (the cells of the columns say the width as it was given: in percent when it was, else in points)
+            forCells(x, v, a, [&](XCell &cc, const flow::TableLayout::Cell &lc) {
+                const QByteArray w = now.columnPercent > 0 && lc.span == 1 ? "<w:tcW w:w=\"" + QByteArray::number(int(std::lround(now.columnPercent * 50))) + "\" w:type=\"pct\"/>"
+                                                                           : "<w:tcW w:w=\"" + QByteArray::number(twipsOf(columns, lc.col, lc.span)) + "\" w:type=\"dxa\"/>";
+                cc.open = patchPr(cc.open, kCell, {{"tcW", w}});
+            });
         }
         return true;
     });

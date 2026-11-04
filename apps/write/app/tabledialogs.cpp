@@ -262,12 +262,14 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
         QObject::connect(columnPercent, &QDoubleSpinBox::valueChanged, columnPage, [=](double percent) {
             if (*syncing) return;
             *syncing = true;
+            columnPercent->setProperty("typed", true);
             columnWidth->setPoints(std::round(percent * whole) / 100.0);
             *syncing = false;
         });
         QObject::connect(columnWidth, &QDoubleSpinBox::valueChanged, columnPage, [=] {
             if (*syncing) return;
             *syncing = true;
+            columnPercent->setProperty("typed", false);   // (the width was given in points)
             columnPercent->setValue(100.0 * columnWidth->value() / whole);
             *syncing = false;
         });
@@ -316,6 +318,7 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     now.cantSplit = cantSplit->isChecked();
     now.header = header->isChecked();
     now.columnWidth = took(columnWidth, was.columnWidth);
+    now.columnPercent = columnPercent->property("typed").toBool() && now.columnWidth != was.columnWidth ? columnPercent->value() : 0;
     now.valign = flow::CellAlign(valign->currentData().toInt());
     now.noWrap = noWrap->isChecked();
     now.altTitle = title->text();
