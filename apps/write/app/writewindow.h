@@ -77,6 +77,8 @@ public:
     write::WriteDoc *document() const { return m_doc.get(); }
     // Review > Compare: this document and the file at `revisedPath` made into a new document of tracked changes (this one is the original), shown in a window of its own. How many changes it
     // holds; -1 when a file can't be read or compared (the reason is told).
+    bool openTranslation(const QString &text, const QString &target, const QString &server);
+    void setUrlOpener(const std::function<bool(const QUrl &)> &opener) { m_urlOpener = opener; }
     int sortSelection(const write::SortOptions &options);
     int compareWith(const QString &revisedPath, const write::CompareOptions &options);
     QString ribbonErrors() const { return m_ribbonErrors; }
@@ -298,6 +300,7 @@ private:
     bool m_updatingFields = false;
     std::function<QString(const QString &, const QString &)> m_pathChooser;
     std::function<QString()> m_pictureChooser;
+    std::function<bool(const QUrl &)> m_urlOpener;
     std::function<void(const QString &, const QString &)> m_notifier;
     std::function<void(QPrinter &)> m_printerPreparer;
     QSet<QString> m_odtNoted;       // (what the person was told an .odt file can't hold: told again only of what is new)

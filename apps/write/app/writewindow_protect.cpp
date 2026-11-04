@@ -12,7 +12,12 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QEventLoop>
 #include <QFileInfo>
+#include <QProgressDialog>
+#include <QThread>
+#include <QTimer>
+#include <atomic>
 #include <QStatusBar>
 
 namespace jp {
@@ -31,8 +36,37 @@ bool allowedWithComments(const QString &id)
 
 bool WriteWindow::protectionAllows(const QString &id) const
 {
+    // The boxes that stop a protection are always there to be used in a window it holds read only.
+    if (m_readOnlyByProtection && (id == QLatin1String("review.restrictEditing") || id == QLatin1String("review.lockTracking"))) return true;
     return m_protectKind == QLatin1String("comments") && allowedWithComments(id);
 }
+
+namespace {
+
+// The check of a password against the protection's hash, which takes a moment for a file that asks for many rounds: done in a thread of its own, with a box that can be canceled when it takes long.
+office::wml::PasswordCheck checkWithProgress(QWidget *parent, const office::wml::DocumentProtection &protection, const QString &password)
+{
+    std::atomic<bool> cancel{false};
+    office::wml::PasswordCheck result = office::wml::PasswordCheck::Canceled;
+    QThread *worker = QThread::create([&] { result = office::wml::checkDocumentPassword(protection, password, &cancel); });
+    QProgressDialog box(QCoreApplication::translate("jp::WriteWindow", "Checking the password…"), QCoreApplication::translate("jp::WriteWindow", "Cancel"), 0, 0, parent);
+    box.setWindowModality(Qt::WindowModal);
+    box.setMinimumDuration(300);
+    QObject::connect(&box, &QProgressDialog::canceled, &box, [&] { cancel = true; });
+    QEventLoop loop;
+    QTimer poll;
+    QObject::connect(&poll, &QTimer::timeout, &loop, [&] {
+        if (worker->isFinished()) loop.quit();
+    });
+    worker->start();
+    poll.start(15);
+    loop.exec();
+    worker->wait();
+    delete worker;
+    return result;
+}
+
+} // namespace
 
 void WriteWindow::createProtectActions()
 {
@@ -66,8 +100,26 @@ int WriteWindow::compareWith(const QString &revisedPath, const write::CompareOpt
     if (office::readWholeFile(revisedPath, &bytes, &err) && !bytes.isEmpty()) revised = write::WriteDoc::fromFile(bytes, &err, nullptr);
     std::unique_ptr<write::WriteDoc> result;
     int changes = 0;
-    if (revised) result = write::compareDocuments(*m_doc, *revised, options, &changes, &err);
+    bool canceled = false;
+    if (revised) {
+        QProgressDialog box(tr("Comparing…"), tr("Cancel"), 0, 100, this);
+        box.setWindowModality(Qt::WindowModal);
+        box.setMinimumDuration(400);
+        box.setAutoClose(false);
+        box.setAutoReset(false);
+        result = write::compareDocuments(*m_doc, *revised, options, &changes, &err, [&](int done, int total) {
+            box.setValue(total > 0 ? std::min(99, done * 100 / total) : 0);
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents | QEventLoop::ExcludeSocketNotifiers);
+            if (box.wasCanceled()) canceled = true;
+            return !canceled;
+        });
+        box.reset();
+    }
     QApplication::restoreOverrideCursor();
+    if (canceled) {
+        statusBar()->showMessage(tr("Compare was canceled."), 5000);
+        return -1;
+    }
     if (!result) {
         notice(tr("Compare"), tr("\"%1\" can't be compared.\n%2").arg(QFileInfo(revisedPath).fileName(), err), true);
         return -1;
@@ -93,8 +145,14 @@ void WriteWindow::restrictEditing(bool lockTracking)
         m_doc->setProtection(office::wml::makeDocumentProtection(edit, password));
         statusBar()->showMessage(tr("Protection is on."), 5000);
     } else if (answer == 2) {
-        if (!office::wml::documentProtectionAccepts(*now, password)) {
-            statusBar()->showMessage(now->hasPassword() && password.isEmpty() ? tr("Type the password to stop the protection.") : tr("That is not the password."), 6000);
+        const office::wml::PasswordCheck check = now->hasPassword() && password.isEmpty() ? office::wml::PasswordCheck::Wrong : checkWithProgress(this, *now, password);
+        if (check == office::wml::PasswordCheck::Canceled) return;
+        if (check == office::wml::PasswordCheck::Unsupported) {
+            statusBar()->showMessage(tr("This document's password uses a form %1 can't check, so the protection can't be stopped here.").arg(appInfo().name), 9000);
+            return;
+        }
+        if (check == office::wml::PasswordCheck::Wrong) {
+            statusBar()->showMessage(password.isEmpty() ? tr("Type the password to stop the protection.") : tr("That is not the password."), 6000);
             return;
         }
         m_doc->setProtection(std::nullopt);

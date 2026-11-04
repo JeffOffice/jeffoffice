@@ -3,6 +3,7 @@
 
 #include "core/writedoc.h"
 
+#include <functional>
 #include <memory>
 
 namespace jp::write {
@@ -24,7 +25,9 @@ QVector<TextEdit> diffText(const QString &from, const QString &to, const Compare
 
 // A copy of `original` with the changes that make it `revised` as tracked changes by `options.author`: paragraphs of the text that are only in one, and the words that differ in the paragraphs
 // that are in both. Only the text of the body is compared (tables, headers and footers, notes, and the looks of the text are not). `changes` gets how many changes were made.
-// Null, with `error`, when the original cannot be copied.
-std::unique_ptr<WriteDoc> compareDocuments(WriteDoc &original, WriteDoc &revised, const CompareOptions &options, int *changes = nullptr, QString *error = nullptr);
+// Inserted paragraphs have the revised paragraph's style, list, alignment, indents, and the look of its letters; the result has no protection of the original's. `progress` is told how many of the
+// differing places are done (of the total), and returns false to cancel (the result is then null, with an empty `error`). Null, with `error`, when the original cannot be copied.
+std::unique_ptr<WriteDoc> compareDocuments(WriteDoc &original, WriteDoc &revised, const CompareOptions &options, int *changes = nullptr, QString *error = nullptr,
+                                           const std::function<bool(int done, int total)> &progress = {});
 
 } // namespace jp::write

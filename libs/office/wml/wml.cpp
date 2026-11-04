@@ -359,7 +359,14 @@ QByteArray settingsWithDocumentProtection(const QByteArray &settings, const std:
     QByteArray prefix;
     if (!settingsChildren(with, &children, &rootEnd, &prefix)) return with;
     QByteArray element = protection->xml;
-    if (element.isEmpty()) element = "<" + prefix + "documentProtection/>";
+    if (element.isEmpty()) {
+        element = "<" + prefix + "documentProtection/>";
+    } else if (element.startsWith("<w:") && prefix != "w:") {
+        // (Made here with the prefix "w:": the document's own is used, for the element and its attributes. A document that names the namespace by default has its attributes still in a prefix it must declare.)
+        const QByteArray attributePrefix = prefix.isEmpty() ? (with.contains("xmlns:w=") ? QByteArray("w:") : QByteArray()) : prefix;
+        element.replace("<w:", "<" + prefix);
+        element.replace(" w:", " " + attributePrefix);
+    }
     for (const SettingsChild &c : children)
         if (c.name == "documentProtection") return with.left(c.begin) + element + with.mid(c.end);
     return with;
@@ -384,7 +391,7 @@ static QCryptographicHash::Algorithm protectionAlgorithm(const QByteArray &xml, 
     return QCryptographicHash::Sha512;
 }
 
-static QByteArray protectionHash(QCryptographicHash::Algorithm algorithm, const QByteArray &salt, const QString &password, int spins)
+static QByteArray protectionHashWith(QCryptographicHash::Algorithm algorithm, const QByteArray &salt, const QString &password, int spins, const std::atomic<bool> *cancel)
 {
     QByteArray utf16;
     for (const QChar ch : password) {
@@ -393,6 +400,7 @@ static QByteArray protectionHash(QCryptographicHash::Algorithm algorithm, const 
     }
     QByteArray h = QCryptographicHash::hash(salt + utf16, algorithm);
     for (quint32 i = 0; i < quint32(spins); ++i) {
+        if (cancel && (i & 255) == 0 && cancel->load()) return QByteArray();
         QByteArray iterator;
         for (int b = 0; b < 4; ++b) iterator.append(char((i >> (8 * b)) & 0xFF));
         h = QCryptographicHash::hash(h + iterator, algorithm);
@@ -400,30 +408,38 @@ static QByteArray protectionHash(QCryptographicHash::Algorithm algorithm, const 
     return h;
 }
 
-DocumentProtection makeDocumentProtection(const QString &edit, const QString &password)
+QByteArray protectionHash(const QByteArray &salt, const QString &password, int spins, const std::atomic<bool> *cancel)
+{
+    return protectionHashWith(QCryptographicHash::Sha512, salt, password, spins, cancel);
+}
+
+DocumentProtection makeDocumentProtection(const QString &edit, const QString &password, const QByteArray &saltGiven)
 {
     DocumentProtection p;
     p.edit = edit;
     p.enforced = true;
     QByteArray x = "<w:documentProtection w:edit=\"" + edit.toUtf8() + "\" w:enforcement=\"1\"";
     if (!password.isEmpty()) {
-        QByteArray salt(16, 0);
-        for (char &b : salt) b = char(QRandomGenerator::system()->bounded(256));
+        QByteArray salt = saltGiven;
+        if (salt.isEmpty()) {
+            salt.resize(16);
+            for (char &b : salt) b = char(QRandomGenerator::system()->bounded(256));
+        }
         const int spins = 100000;
-        x += " w:algorithmName=\"SHA-512\" w:hashValue=\"" + protectionHash(QCryptographicHash::Sha512, salt, password, spins).toBase64() + "\" w:saltValue=\"" + salt.toBase64() +
-             "\" w:spinCount=\"" + QByteArray::number(spins) + "\"";
+        x += " w:cryptProviderType=\"rsaAES\" w:cryptAlgorithmClass=\"hash\" w:cryptAlgorithmType=\"typeAny\" w:cryptAlgorithmSid=\"14\" w:cryptSpinCount=\"" + QByteArray::number(spins) +
+             "\" w:hash=\"" + protectionHash(salt, password, spins).toBase64() + "\" w:salt=\"" + salt.toBase64() + "\"";
     }
     x += "/>";
     p.xml = x;
     return p;
 }
 
-bool documentProtectionAccepts(const DocumentProtection &protection, const QString &password)
+PasswordCheck checkDocumentPassword(const DocumentProtection &protection, const QString &password, const std::atomic<bool> *cancel)
 {
-    if (!protection.hasPassword()) return true;
+    if (!protection.hasPassword()) return PasswordCheck::Right;
     bool known = false;
     const QCryptographicHash::Algorithm algorithm = protectionAlgorithm(protection.xml, &known);
-    if (!known) return false;
+    if (!known) return PasswordCheck::Unsupported;
     QString hashValue = protectionAttribute(protection.xml, "hashValue"), saltValue = protectionAttribute(protection.xml, "saltValue"), spin = protectionAttribute(protection.xml, "spinCount");
     if (hashValue.isEmpty()) {
         hashValue = protectionAttribute(protection.xml, "hash");
@@ -432,8 +448,15 @@ bool documentProtectionAccepts(const DocumentProtection &protection, const QStri
     }
     bool ok = false;
     const int spins = spin.toInt(&ok);
-    if (!ok || spins < 0 || spins > 10000000) return false;
-    return protectionHash(algorithm, QByteArray::fromBase64(saltValue.toLatin1()), password, spins) == QByteArray::fromBase64(hashValue.toLatin1());
+    if (!ok || spins < 0 || spins > kMostProtectionSpins) return PasswordCheck::Unsupported;
+    const QByteArray h = protectionHashWith(algorithm, QByteArray::fromBase64(saltValue.toLatin1()), password, spins, cancel);
+    if (h.isEmpty()) return PasswordCheck::Canceled;
+    return h == QByteArray::fromBase64(hashValue.toLatin1()) ? PasswordCheck::Right : PasswordCheck::Wrong;
+}
+
+bool documentProtectionAccepts(const DocumentProtection &protection, const QString &password)
+{
+    return checkDocumentPassword(protection, password) == PasswordCheck::Right;
 }
 
 bool settingsTrackRevisions(const QByteArray &settings)

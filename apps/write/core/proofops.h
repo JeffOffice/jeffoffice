@@ -34,8 +34,20 @@ QTextCharFormat withProofingLanguage(QTextCharFormat format, const QString &tag)
 
 
 // ---- Translate
-// The address that opens the translation service `server` (a LibreTranslate address, http or https) with `text` (at most 5,000 letters) to be translated into the language `target`; empty when the
-// address is not one of the web (nothing else is ever opened).
+constexpr int kMostTranslateLetters = 5000;   // the service's limit for one request (UTF-16 letters)
+constexpr int kMostTranslateAddress = 8000;   // the longest address (once written out) that is opened
+struct TranslateRequest {
+    QString url;            // empty when the service address is refused
+    QString sentText;       // the text in the address: the start of the text, cut at a whole letter
+    bool cut = false;       // the text was longer than what is sent
+};
+// The address that opens the translation service `server` (a LibreTranslate address) with the text to be translated into `target`. Only https addresses are used, and http ones for this computer
+// (localhost, 127.0.0.1, ::1); the text is cut to kMostTranslateLetters and then, if its address is too long once written out (letters outside the Latin ones take nine characters each), shorter,
+// never in the middle of a pair of surrogates.
+TranslateRequest translateRequest(const QString &server, const QString &target, const QString &text);
+// translateRequest's address; empty when the address of the service is refused.
 QString translateUrl(const QString &server, const QString &target, const QString &text);
+// The text cut to at most `most` letters, never in the middle of a pair of surrogates.
+QString cutAtLetters(const QString &text, int most);
 
 } // namespace jp::write

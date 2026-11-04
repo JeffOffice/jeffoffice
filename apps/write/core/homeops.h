@@ -31,6 +31,7 @@ struct SortOptions {
     bool header = false;        // the first paragraph stays where it is
     bool caseSensitive = false;
 };
+constexpr int kMostSortParagraphs = 5000;   // a sort of more paragraphs is refused (each moves as a piece of the story)
 // The text of the paragraph that the key sorts by, as the key reads it.
 QString sortFieldOf(const QString &paragraph, const SortKey &key, QChar separator);
 // The paragraphs the selection touches sorted by the keys, as one step: the text moves, and each paragraph's place keeps its own look (style, list, indents). How many paragraphs are sorted

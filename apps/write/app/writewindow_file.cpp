@@ -309,7 +309,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     m_doc->setModified(false);
     m_path = path;
     m_doc->filePath = path;
-    if (isReadOnly()) setReadOnly(false);
+    if (isReadOnly() && !m_readOnlyByProtection) setReadOnly(false);   // (a protected document is saved as it is: the protection stays)
     m_recoveredFrom.clear();
     dropRecoveryCopy();
     Settings::get().addRecentFile(path);

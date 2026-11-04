@@ -258,7 +258,7 @@ QString thesaurusDialog(QWidget *parent, const QString &word)
     return list->currentItem()->data(Qt::UserRole).toString();
 }
 
-bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, QString *server)
+bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, QString *server, int textLength)
 {
     struct Target { const char *name; const char *code; };
     static const Target kTargets[] = {{QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "English"), "en"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Spanish"), "es"}, {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "French"), "fr"},
@@ -285,9 +285,15 @@ bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, Q
     auto *address = new QLineEdit(*server, &dlg);
     address->setObjectName(QStringLiteral("translateServer"));
     v->addWidget(address);
-    auto *note = plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Your web browser will open that address with the text. Nothing is sent until you click OK."), &dlg));
+    auto *note = plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Your web browser will open that address with the text. Nothing is sent until you click OK. Only secure (https) addresses are used, and http ones for this computer."), &dlg));
     note->setWordWrap(true);
     v->addWidget(note);
+    if (textLength > kMostTranslateLetters) {
+        auto *cut = plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "The text has %1 letters. Only the first %2 will be sent to be translated.").arg(textLength).arg(kMostTranslateLetters), &dlg));
+        cut->setObjectName(QStringLiteral("translateCutNote"));
+        cut->setWordWrap(true);
+        v->addWidget(cut);
+    }
     auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);

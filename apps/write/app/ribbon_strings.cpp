@@ -85,7 +85,6 @@
     QT_TRANSLATE_NOOP("Ribbon", "Tables"),
     QT_TRANSLATE_NOOP("Ribbon", "Text Highlight Color"),
     QT_TRANSLATE_NOOP("Ribbon", "Tracking"),
-    QT_TRANSLATE_NOOP("Ribbon", "Tracking Options"),
     QT_TRANSLATE_NOOP("Ribbon", "View"),
     QT_TRANSLATE_NOOP("Ribbon", "Views"),
     QT_TRANSLATE_NOOP("Ribbon", "Width:"),

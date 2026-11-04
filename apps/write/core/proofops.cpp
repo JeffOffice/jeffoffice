@@ -138,16 +138,42 @@ bool noProofAt(const QTextCursor &c)
     return allSelected(c, [](const QTextCharFormat &f) { return f.boolProperty(tp::NoProof); });
 }
 
-QString translateUrl(const QString &server, const QString &target, const QString &text)
+QString cutAtLetters(const QString &text, int most)
 {
-    QUrl url(server.trimmed().isEmpty() ? QStringLiteral("https://libretranslate.com/") : server.trimmed(), QUrl::StrictMode);
-    if (!url.isValid() || (url.scheme() != QLatin1String("https") && url.scheme() != QLatin1String("http")) || url.host().isEmpty()) return QString();
-    QUrlQuery q;
-    q.addQueryItem(QStringLiteral("source"), QStringLiteral("auto"));
-    q.addQueryItem(QStringLiteral("target"), target);
-    q.addQueryItem(QStringLiteral("q"), text.left(5000));
-    url.setQuery(q);
-    return url.toString(QUrl::FullyEncoded);
+    if (text.size() <= most) return text;
+    int n = most;
+    if (n > 0 && text.at(n - 1).isHighSurrogate()) --n;
+    return text.left(n);
 }
+
+TranslateRequest translateRequest(const QString &server, const QString &target, const QString &text)
+{
+    TranslateRequest out;
+    QUrl base(server.trimmed().isEmpty() ? QStringLiteral("https://libretranslate.com/") : server.trimmed(), QUrl::StrictMode);
+    if (!base.isValid() || base.host().isEmpty()) return out;
+    const QString host = base.host().toLower();
+    const bool thisComputer = host == QLatin1String("localhost") || host == QLatin1String("127.0.0.1") || host == QLatin1String("::1") || host == QLatin1String("[::1]");
+    if (base.scheme() != QLatin1String("https") && !(base.scheme() == QLatin1String("http") && thisComputer)) return out;
+    QString sent = cutAtLetters(text, kMostTranslateLetters);
+    for (;;) {
+        QUrl url = base;
+        QUrlQuery q;
+        q.addQueryItem(QStringLiteral("source"), QStringLiteral("auto"));
+        q.addQueryItem(QStringLiteral("target"), target);
+        q.addQueryItem(QStringLiteral("q"), sent);
+        url.setQuery(q);
+        const QString written = url.toString(QUrl::FullyEncoded);
+        if (written.size() <= kMostTranslateAddress || sent.isEmpty()) {
+            out.url = written;
+            break;
+        }
+        sent = cutAtLetters(sent, std::max(0, int(sent.size() * 9 / 10) - 1));
+    }
+    out.sentText = sent;
+    out.cut = sent.size() < text.size();
+    return out;
+}
+
+QString translateUrl(const QString &server, const QString &target, const QString &text) { return translateRequest(server, target, text).url; }
 
 } // namespace jp::write

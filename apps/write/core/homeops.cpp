@@ -158,22 +158,41 @@ bool dateOf(const QString &text, QDate *date)
     return false;
 }
 
+// A key's field read once for the sort: as text (in the case the sort compares it in), and as a number or a date.
+struct ParsedField {
+    QString text;
+    double number = 0;
+    qint64 day = 0;
+    bool hasNumber = false, hasDate = false;
+};
+
+ParsedField parseField(const QString &field, SortKey::Type type, bool caseSensitive)
+{
+    ParsedField p;
+    if (type == SortKey::Number) {
+        p.hasNumber = numberOf(field, &p.number);
+    } else if (type == SortKey::Date) {
+        QDate d;
+        p.hasDate = dateOf(field, &d);
+        if (p.hasDate) p.day = d.toJulianDay();
+    } else {
+        p.text = caseSensitive ? field : field.toLower();
+    }
+    return p;
+}
+
 // -1, 0, or 1; a field that is not a number (or date) sorts before those that are.
-int compareField(const QString &a, const QString &b, SortKey::Type type, bool caseSensitive)
+int compareParsed(const ParsedField &a, const ParsedField &b, SortKey::Type type)
 {
     if (type == SortKey::Number) {
-        double x = 0, y = 0;
-        const bool hx = numberOf(a, &x), hy = numberOf(b, &y);
-        if (hx != hy) return hx ? 1 : -1;
-        return !hx || x == y ? 0 : (x < y ? -1 : 1);
+        if (a.hasNumber != b.hasNumber) return a.hasNumber ? 1 : -1;
+        return !a.hasNumber || a.number == b.number ? 0 : (a.number < b.number ? -1 : 1);
     }
     if (type == SortKey::Date) {
-        QDate x, y;
-        const bool hx = dateOf(a, &x), hy = dateOf(b, &y);
-        if (hx != hy) return hx ? 1 : -1;
-        return !hx || x == y ? 0 : (x < y ? -1 : 1);
+        if (a.hasDate != b.hasDate) return a.hasDate ? 1 : -1;
+        return !a.hasDate || a.day == b.day ? 0 : (a.day < b.day ? -1 : 1);
     }
-    const int r = QString::localeAwareCompare(caseSensitive ? a : a.toLower(), caseSensitive ? b : b.toLower());
+    const int r = QString::localeAwareCompare(a.text, b.text);
     return r < 0 ? -1 : (r > 0 ? 1 : 0);
 }
 
@@ -186,50 +205,60 @@ int sortParagraphs(WriteDoc &doc, QTextCursor &c, const SortOptions &options)
     const NoteScopeGuard scopeGuard(doc, sel);
     if (!intoBody(sel)) return 0;
     const QVector<QTextBlock> blocks = selectedBlocks(sel);
+    if (blocks.size() > kMostSortParagraphs) return 0;
     for (const QTextBlock &b : blocks)
         if (isLocked(b) || b.blockFormat().hasProperty(prop::EndnoteBlock)) return 0;
     const int skip = options.header ? 1 : 0;
     if (int(blocks.size()) - skip < 2) return 0;
     QTextDocument *d = sel.document();
     const int keyCount = int(std::min<qsizetype>(3, options.keys.size()));
-    struct Item { QTextDocumentFragment text; QStringList fields; };
-    QVector<Item> items;
-    for (int i = skip; i < blocks.size(); ++i) {
-        const QTextBlock &b = blocks.at(i);
+    // Each paragraph's keys are read once (decorate), the order is worked out on those, and only the paragraphs that move are taken out as pieces.
+    const int n = int(blocks.size()) - skip;
+    QVector<QVector<ParsedField>> parsed(n);
+    for (int i = 0; i < n; ++i) {
+        const QTextBlock &b = blocks.at(i + skip);
         QTextCursor t(d);
         t.setPosition(b.position());
         t.setPosition(b.position() + b.length() - 1, QTextCursor::KeepAnchor);
-        Item it{t.selection(), {}};
         const QString plain = t.selectedText().replace(QChar::LineSeparator, QLatin1Char('\n'));
-        for (int k = 0; k < keyCount; ++k) it.fields << sortFieldOf(plain, options.keys.at(k), options.separator);
-        items.push_back(it);
+        for (int k = 0; k < keyCount; ++k) parsed[i] << parseField(sortFieldOf(plain, options.keys.at(k), options.separator), options.keys.at(k).type, options.caseSensitive);
     }
-    QVector<int> order(items.size());
-    for (int i = 0; i < order.size(); ++i) order[i] = i;
+    QVector<int> order(n);
+    for (int i = 0; i < n; ++i) order[i] = i;
     std::stable_sort(order.begin(), order.end(), [&](int x, int y) {
         for (int k = 0; k < keyCount; ++k) {
             const SortKey &key = options.keys.at(k);
-            const int r = compareField(items.at(x).fields.at(k), items.at(y).fields.at(k), key.type, options.caseSensitive);
+            const int r = compareParsed(parsed.at(x).at(k), parsed.at(y).at(k), key.type);
             if (r != 0) return key.descending ? r > 0 : r < 0;
         }
         return false;
     });
-    bool moved = false;
-    for (int i = 0; i < order.size(); ++i) moved = moved || order.at(i) != i;
-    if (!moved) return int(items.size());
-    // Each place keeps its own paragraph look; the text is put into the places in the new order.
+    QVector<int> moving;
+    for (int slot = 0; slot < n; ++slot)
+        if (order.at(slot) != slot) moving << slot;
+    if (moving.isEmpty()) return n;
+    // Each place keeps its own paragraph look; the text of the paragraphs that move is put into the places in the new order.
+    QHash<int, QTextDocumentFragment> pieces;
+    for (const int slot : std::as_const(moving)) {
+        const QTextBlock &b = blocks.at(slot + skip);
+        QTextCursor t(d);
+        t.setPosition(b.position());
+        t.setPosition(b.position() + b.length() - 1, QTextCursor::KeepAnchor);
+        pieces.insert(slot, t.selection());
+    }
     QTextCursor edit(d);
     edit.beginEditBlock();
-    for (int slot = int(items.size()) - 1; slot >= 0; --slot) {
+    for (int m = int(moving.size()) - 1; m >= 0; --m) {
+        const int slot = moving.at(m);
         const QTextBlock target = blocks.at(slot + skip);
         QTextCursor t(d);
         t.setPosition(target.position());
         t.setPosition(target.position() + target.length() - 1, QTextCursor::KeepAnchor);
         t.removeSelectedText();
-        t.insertFragment(items.at(order.at(slot)).text);
+        t.insertFragment(pieces.value(order.at(slot)));
     }
     edit.endEditBlock();
-    return int(items.size());
+    return n;
 }
 
 void pasteMerged(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment)

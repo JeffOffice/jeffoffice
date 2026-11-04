@@ -146,15 +146,10 @@ void WriteWindow::createHomeActions()
         }
         QString target = Settings::get().value(QStringLiteral("translate/targetCode"), QStringLiteral("es")).toString();
         QString server = Settings::get().value(QStringLiteral("translate/server"), QStringLiteral("https://libretranslate.com/")).toString();
-        if (!write::translateDialog(this, whole, &target, &server)) return;
-        const QString url = write::translateUrl(server, target, text);
-        if (url.isEmpty()) {
-            statusBar()->showMessage(tr("The translation service needs a web address (http or https)."), 6000);
-            return;
-        }
+        if (!write::translateDialog(this, whole, &target, &server, int(text.size()))) return;
         Settings::get().setValue(QStringLiteral("translate/targetCode"), target);
         Settings::get().setValue(QStringLiteral("translate/server"), server);
-        QDesktopServices::openUrl(QUrl(url));
+        openTranslation(text, target, server);
     });
     mk("review.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] {
         if (!m_doc) return;
@@ -182,6 +177,23 @@ void WriteWindow::createHomeActions()
     });
 }
 
+// Opens the translation service in the web browser with the text; whether it was opened. What is cut off, a refused address, and a browser that does not open are told.
+bool WriteWindow::openTranslation(const QString &text, const QString &target, const QString &server)
+{
+    const write::TranslateRequest req = write::translateRequest(server, target, text);
+    if (req.url.isEmpty()) {
+        statusBar()->showMessage(tr("The translation service needs a secure web address (https). An http address is only used for this computer."), 8000);
+        return false;
+    }
+    const bool opened = m_urlOpener ? m_urlOpener(QUrl(req.url)) : QDesktopServices::openUrl(QUrl(req.url));
+    if (!opened) {
+        statusBar()->showMessage(tr("The web browser could not be opened. Nothing was sent."), 8000);
+        return false;
+    }
+    if (req.cut) statusBar()->showMessage(tr("Only the first %n letter(s) of the text were sent to be translated.", nullptr, int(req.sentText.size())), 8000);
+    return true;
+}
+
 // Sorts the paragraphs selected, or the rows of the table the caret is in; how many were sorted.
 int WriteWindow::sortSelection(const write::SortOptions &options)
 {
@@ -195,6 +207,10 @@ int WriteWindow::sortSelection(const write::SortOptions &options)
         n = write::sortTableRows(*m_doc, c, keys, options.header) ? 1 : 0;
         statusBar()->showMessage(n > 0 ? tr("The rows are sorted.") : tr("Nothing was sorted."), 5000);
     } else {
+        if (write::selectedBlocks(m_view->cursor()).size() > write::kMostSortParagraphs) {
+            statusBar()->showMessage(tr("There are too many paragraphs to sort at once. Select %n paragraph(s) or fewer.", nullptr, write::kMostSortParagraphs), 8000);
+            return 0;
+        }
         n = write::sortParagraphs(*m_doc, m_view->cursor(), options);
         statusBar()->showMessage(n > 0 ? tr("%n paragraph(s) sorted.", nullptr, n) : tr("Nothing was sorted."), 5000);
     }

@@ -288,6 +288,20 @@
         </translation>
     </message>
     <message numerus="yes">
+        <source>There are too many paragraphs to sort at once. Select %n paragraph(s) or fewer.</source>
+        <translation>
+            <numerusform>There are too many paragraphs to sort at once. Select %n paragraph or fewer.</numerusform>
+            <numerusform>There are too many paragraphs to sort at once. Select %n paragraphs or fewer.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Only the first %n letter(s) of the text were sent to be translated.</source>
+        <translation>
+            <numerusform>Only the first %n letter of the text was sent to be translated.</numerusform>
+            <numerusform>Only the first %n letters of the text were sent to be translated.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
         <source>%n paragraph(s) sorted.</source>
         <translation>
             <numerusform>%n paragraph sorted.</numerusform>

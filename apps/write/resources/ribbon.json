@@ -928,16 +928,8 @@
               "keytip": "TP"
             },
             {
-              "large": {
-                "id": "ribbon.trackOptions",
-                "text": "Tracking Options",
-                "icon": "settings"
-              },
-              "keytip": "TO",
-              "menu": [
-                "review.trackOptions",
-                "review.lockTracking"
-              ]
+              "large": "review.trackOptions",
+              "keytip": "TO"
             }
           ]
         },
@@ -999,6 +991,10 @@
             {
               "large": "review.restrictEditing",
               "keytip": "RE"
+            },
+            {
+              "small": "review.lockTracking",
+              "keytip": "LT"
             }
           ]
         }

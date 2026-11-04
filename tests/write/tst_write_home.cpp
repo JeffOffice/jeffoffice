@@ -21,6 +21,10 @@
 #include "text/textprops.h"
 
 #include <QAction>
+#include <QElapsedTimer>
+#include <QLineEdit>
+#include <QStatusBar>
+#include <QUrlQuery>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QCheckBox>
@@ -126,6 +130,32 @@ void withDialog(const std::function<void()> &open, const QString &objectName, co
     watchdog.start(10000);
     open();
     QCOMPARE(opened, objectName);
+}
+
+QByteArray pngBytes()
+{
+    QImage image(40, 20, QImage::Format_ARGB32);
+    image.fill(Qt::blue);
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    return png;
+}
+
+// A package of a document protected as `edit` says (with the password, when given).
+QByteArray protectedDocx(const QString &edit, const QString &password)
+{
+    auto d = open(makeDocx(para(run("hello"))));
+    d->setProtection(office::wml::makeDocumentProtection(edit, password));
+    return d->toDocx();
+}
+
+int picturesIn(WriteDoc &doc)
+{
+    int n = 0;
+    for (int i = 0; i < doc.story()->characterCount(); ++i) n += isPictureAt(doc.story(), i);
+    return n;
 }
 
 } // namespace
@@ -390,7 +420,7 @@ private Q_SLOTS:
         const QByteArray saved = part(doc->toDocx(), QStringLiteral("/word/settings.xml"));
         // In the schema's place: after the zoom, before the default tab stop.
         QVERIFY2(saved.indexOf("<w:zoom") < saved.indexOf("<w:documentProtection") && saved.indexOf("<w:documentProtection") < saved.indexOf("<w:defaultTabStop"), saved.constData());
-        QVERIFY(saved.contains("w:edit=\"trackedChanges\"") && saved.contains("w:enforcement=\"1\"") && saved.contains("w:algorithmName=\"SHA-512\""));
+        QVERIFY(saved.contains("w:edit=\"trackedChanges\"") && saved.contains("w:enforcement=\"1\"") && saved.contains("w:cryptAlgorithmSid=\"14\""));
         QVERIFY(!saved.contains("secret"));
         auto again = open(doc->toDocx());
         QVERIFY(again->protection());
@@ -813,10 +843,13 @@ private Q_SLOTS:
         w.view()->selectAll();
         withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *d) {
             d->findChild<QDoubleSpinBox *>(QStringLiteral("fontSize"))->setValue(15);
-            QTimer::singleShot(100, [] {
+            // (Polled: the box is answered when it is there, however long the machine takes to show it.)
+            auto *poll = new QTimer(d);
+            QObject::connect(poll, &QTimer::timeout, poll, [] {
                 for (QWidget *top : QApplication::topLevelWidgets())
                     if (auto *box = qobject_cast<QMessageBox *>(top); box && box->isVisible()) box->button(QMessageBox::Yes)->click();
             });
+            poll->start(20);
             d->findChild<QPushButton *>(QStringLiteral("setAsDefault"))->click();
         }, false);
         const QByteArray styles = part(w.document()->toDocx(), QStringLiteral("/word/styles.xml"));
@@ -849,6 +882,289 @@ private Q_SLOTS:
         const QByteArray back = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
         QVERIFY2(!back.contains("<w:keepNext/>") && !back.contains("<w:pageBreakBefore/>") && !back.contains("outlineLvl"), back.constData());
         QVERIFY(back.contains("<w:keepLines/>"));
+    }
+
+    // ---- the review's fixes
+    void saveAsOfAProtectedDocumentDoesNotLiftTheProtection()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(protectedDocx(QStringLiteral("readOnly"), QStringLiteral("pw"))), QString());
+        QVERIFY(w.isReadOnly());
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("copy.docx")); });
+        QVERIFY(w.saveAs());
+        QVERIFY2(w.isReadOnly(), "Save As lifted the protection");
+        QVERIFY(w.document()->protection() && w.document()->protection()->enforced);
+    }
+
+    void restrictEditingAndLockTrackingCanBeRunInAProtectedWindowToStopTheProtection()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(protectedDocx(QStringLiteral("readOnly"), QStringLiteral("pw"))), QString());
+        QVERIFY(w.isReadOnly());
+        // Lock Tracking opens its box too (and a wrong password stops nothing).
+        withDialog([&w] { w.act(QStringLiteral("review.lockTracking"))->trigger(); }, QStringLiteral("restrictEditingDialog"), [](QDialog *d) {
+            d->findChild<QLineEdit *>(QStringLiteral("protectPassword"))->setText(QStringLiteral("wrong"));
+        });
+        QVERIFY(w.isReadOnly());
+        withDialog([&w] { w.act(QStringLiteral("review.restrictEditing"))->trigger(); }, QStringLiteral("restrictEditingDialog"), [](QDialog *d) {
+            d->findChild<QLineEdit *>(QStringLiteral("protectPassword"))->setText(QStringLiteral("pw"));
+        });
+        QVERIFY(!w.isReadOnly());
+        QVERIFY(!w.document()->protection());
+    }
+
+    void theOdtNoteListsProtectionKerningAndNoProofing()
+    {
+        auto doc = open(makeDocx(para(run("kerned", "<w:kern w:val=\"28\"/>") + run(" skipped", "<w:noProof/>")), "<w:zoom w:percent=\"100\"/>"));
+        doc->setProtection(office::wml::makeDocumentProtection(QStringLiteral("readOnly"), QString()));
+        QStringList notes;
+        QString err;
+        QVERIFY(!doc->toOdt(&err, &notes).isEmpty());
+        const QString all = notes.join(QLatin1Char('\n'));
+        QVERIFY2(all.contains(QLatin1String("protection")) && all.contains(QLatin1String("kerning")) && all.contains(QLatin1String("spelling")), qPrintable(all));
+    }
+
+    // The pair of documents for the Compare tests below: a picture between two words that change, and a heading and a list item that are new.
+    std::unique_ptr<WriteDoc> compareResult(bool protectOriginal, bool changeTheWords = true)
+    {
+        auto original = open(makeDocx(para(run("Alpha")) + para(run("one two")) + para(run("Omega"))));
+        QTextCursor at(original->story());
+        at.setPosition(original->story()->findBlockByNumber(1).position() + 4);
+        if (insertPicture(*original, at, pngBytes(), QStringLiteral("p")) != PictureResult::Ok) return nullptr;   // "one <pic>two"
+        if (protectOriginal) original->setProtection(office::wml::makeDocumentProtection(QStringLiteral("trackedChanges"), QString()));
+        auto revised = open(makeDocx(para(run("Alpha")) + para(run("New heading")) + para(run("New item")) + para(run(changeTheWords ? "three" : "one two")) + para(run("Omega"))));
+        QTextCursor h(revised->story());
+        h.setPosition(revised->story()->findBlockByNumber(1).position());
+        applyParagraphStyle(*revised, h, QStringLiteral("Heading1"));
+        QTextCursor l(revised->story());
+        l.setPosition(revised->story()->findBlockByNumber(2).position());
+        toggleList(*revised, l, false);
+        return compareDocuments(*original, *revised, CompareOptions(), nullptr);
+    }
+
+    void theCompareResultDoesNotInheritTheOriginalsProtection()
+    {
+        auto result = compareResult(true);
+        QVERIFY(result);
+        QVERIFY2(!result->protection(), "the Compare window inherited the protection");
+    }
+
+    void compareNeverDeletesAnUnchangedPictureBetweenChangedWords()
+    {
+        auto result = compareResult(false);
+        QVERIFY(result);
+        auto accepted = open(result->toDocx());
+        acceptAll(*accepted);
+        QCOMPARE(picturesIn(*accepted), 1);   // (not swallowed by the deleted words around it)
+        auto rejected = open(result->toDocx());
+        rejectAll(*rejected);
+        QCOMPARE(picturesIn(*rejected), 1);
+    }
+
+    void aParagraphCompareInsertsKeepsItsStyle()
+    {
+        auto result = compareResult(false, false);
+        QVERIFY(result);
+        auto accepted = open(result->toDocx());
+        acceptAll(*accepted);
+        bool found = false, heading = false;
+        for (QTextBlock b = accepted->story()->begin(); b.isValid(); b = b.next())
+            if (b.text() == QLatin1String("New heading")) {
+                found = true;
+                heading = b.blockFormat().stringProperty(tp::StyleName) == QLatin1String("Heading1");
+            }
+        QVERIFY(found);
+        QVERIFY2(heading, "the inserted heading lost its style");
+    }
+
+    void aListItemCompareInsertsStaysAListItem()
+    {
+        auto result = compareResult(false, false);
+        QVERIFY(result);
+        auto accepted = open(result->toDocx());
+        acceptAll(*accepted);
+        bool found = false, item = false;
+        for (QTextBlock b = accepted->story()->begin(); b.isValid(); b = b.next())
+            if (b.text() == QLatin1String("New item")) {
+                found = true;
+                item = listKindOf(*accepted, b) == ListKind::Bullets;
+            }
+        QVERIFY(found);
+        QVERIFY2(item, "the inserted list item lost its list");
+    }
+
+    void aLargeCompareWithOneInsertedParagraphStaysOneChange()
+    {
+        QByteArray one, two;
+        for (int i = 0; i < 7000; ++i) {
+            const QByteArray text = QByteArray("Line number ") + QByteArray::number(i) + " of the long document";
+            one += para(run(text.constData()));
+            if (i == 3) two += para(run("A paragraph that was added near the top"));
+            two += para(run(text.constData()));
+        }
+        auto a = open(makeDocx(one)), b = open(makeDocx(two));
+        int changes = 0;
+        auto r = compareDocuments(*a, *b, CompareOptions(), &changes);
+        QVERIFY(r);
+        QVERIFY2(changes <= 2, qPrintable(QString::number(changes)));
+        auto accepted = open(r->toDocx());
+        acceptAll(*accepted);
+        QCOMPARE(texts(*accepted), texts(*b));
+    }
+
+    void sortRefusesTooManyParagraphsWithAMessage()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QByteArray body;
+        for (int i = 0; i < 5200; ++i) body += para(run(QByteArray::number(5200 - i).constData()));
+        w.setDocument(open(makeDocx(body)), QString());
+        w.view()->selectAll();
+        SortOptions o;
+        o.keys = {SortKey{}};
+        QCOMPARE(w.sortSelection(o), 0);
+        QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("too many")), qPrintable(w.statusBar()->currentMessage()));
+        QCOMPARE(w.document()->story()->findBlockByNumber(0).text(), QStringLiteral("5200"));
+    }
+
+    void translateRefusesPlainHttpExceptForThisComputerAndKeepsTheAddressShort()
+    {
+        QVERIFY(translateUrl(QStringLiteral("http://translate.example.org/"), QStringLiteral("fr"), QStringLiteral("x")).isEmpty());
+        QVERIFY(!translateUrl(QStringLiteral("http://localhost:5000/"), QStringLiteral("fr"), QStringLiteral("x")).isEmpty());
+        QVERIFY(!translateUrl(QStringLiteral("http://127.0.0.1:5000/"), QStringLiteral("fr"), QStringLiteral("x")).isEmpty());
+        // Letters that take nine characters each once written into the address are cut to keep it under 8 KB.
+        const QString url = translateUrl(QString(), QStringLiteral("ja"), QString(5000, QChar(0x3042)));
+        QVERIFY(!url.isEmpty() && url.size() < 8200);
+        // A pair of surrogates is never cut in two.
+        QString emoji = QStringLiteral("a");
+        for (int i = 0; i < 2600; ++i) emoji += QString::fromUcs4(U"\U0001F600");
+        const QString cutUrl = translateUrl(QString(), QStringLiteral("fr"), emoji);
+        QUrlQuery q{QUrl(cutUrl)};
+        const QString sent = q.queryItemValue(QStringLiteral("q"), QUrl::FullyDecoded);
+        QVERIFY(!sent.isEmpty());
+        for (int i = 0; i < sent.size(); ++i) {
+            if (sent.at(i).isHighSurrogate()) {
+                QVERIFY2(i + 1 < sent.size() && sent.at(i + 1).isLowSurrogate(), "a pair was cut");
+                ++i;   // (its second half)
+            } else {
+                QVERIFY2(!sent.at(i).isLowSurrogate(), "a pair was cut");
+            }
+        }
+    }
+
+    void protectionIsWrittenTheWayOtherProgramsReadItInTheDocumentsOwnPrefix()
+    {
+        namespace wml = jp::office::wml;
+        const QByteArray settings = "<x:zoom x:percent=\"100\"/>";
+        QByteArray body = "<?xml version=\"1.0\"?><x:document xmlns:x=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><x:body><x:p><x:r><x:t>a</x:t></x:r></x:p></x:body></x:document>";
+        Q_UNUSED(body);
+        const QByteArray out = wml::settingsWithDocumentProtection("<?xml version=\"1.0\"?><x:settings xmlns:x=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" + settings + "</x:settings>",
+                                                                   wml::makeDocumentProtection(QStringLiteral("readOnly"), QStringLiteral("pw")));
+        QVERIFY2(out.contains("<x:documentProtection x:edit=\"readOnly\""), out.constData());
+        QVERIFY(!out.contains("<w:") && !out.contains(" w:"));
+        for (const char *a : {"cryptProviderType=\"rsaAES\"", "cryptAlgorithmClass=\"hash\"", "cryptAlgorithmType=\"typeAny\"", "cryptAlgorithmSid=\"14\"", "cryptSpinCount=\"100000\"", ":hash=\"", ":salt=\""})
+            QVERIFY2(out.contains(a), a);
+        // Read back (by either form), it accepts the password.
+        const auto read = wml::settingsDocumentProtection(out);
+        QVERIFY(read && read->hasPassword() && wml::documentProtectionAccepts(*read, QStringLiteral("pw")) && !wml::documentProtectionAccepts(*read, QStringLiteral("px")));
+    }
+
+    void theHashOfAFixedSaltAndPasswordIsTheKnownAnswer()
+    {
+        namespace wml = jp::office::wml;
+        QByteArray salt;
+        for (int i = 0; i < 16; ++i) salt.append(char(i));
+        // Worked out apart from this code (SHA-512 of the salt and the UTF-16 password, then 10,000 rounds of the hash and a four-byte counter).
+        QCOMPARE(wml::protectionHash(salt, QStringLiteral("secret"), 10000).toBase64(),
+                 QByteArray("AC+1sAKQzIdc0mQ+PRuDVuw+IuWZnDJeVt5/o//z13rTpptv+u/9lComOtJwhRUVIqRGjBMjO7vSsz9kqvxzqg=="));
+        const wml::DocumentProtection p = wml::makeDocumentProtection(QStringLiteral("readOnly"), QStringLiteral("secret"), salt);
+        QVERIFY(p.xml.contains("w:salt=\"AAECAwQFBgcICQoLDA0ODw==\""));
+        QCOMPARE(wml::checkDocumentPassword(p, QStringLiteral("secret")), wml::PasswordCheck::Right);
+        QCOMPARE(wml::checkDocumentPassword(p, QStringLiteral("nope")), wml::PasswordCheck::Wrong);
+    }
+
+    void aHashThatIsLegacyOrAsksForTooManyRoundsIsSaidToBeUnsupportedAndIsNeverRun()
+    {
+        namespace wml = jp::office::wml;
+        wml::DocumentProtection p;
+        p.edit = QStringLiteral("readOnly");
+        p.enforced = true;
+        p.xml = "<w:documentProtection w:edit=\"readOnly\" w:enforcement=\"1\" w:cryptAlgorithmSid=\"1\" w:cryptSpinCount=\"50000\" w:hash=\"AAAA\" w:salt=\"AAAA\"/>";   // (MD2)
+        QCOMPARE(wml::checkDocumentPassword(p, QStringLiteral("x")), wml::PasswordCheck::Unsupported);
+        p.xml = "<w:documentProtection w:edit=\"readOnly\" w:enforcement=\"1\" w:algorithmName=\"SHA-512\" w:hashValue=\"AAAA\" w:saltValue=\"AAAA\" w:spinCount=\"2000000000\"/>";
+        QElapsedTimer timer;
+        timer.start();
+        QCOMPARE(wml::checkDocumentPassword(p, QStringLiteral("x")), wml::PasswordCheck::Unsupported);
+        QVERIFY(timer.elapsed() < 1000);
+        // A check that is canceled stops.
+        std::atomic<bool> cancel{true};
+        p.xml = "<w:documentProtection w:edit=\"readOnly\" w:enforcement=\"1\" w:algorithmName=\"SHA-512\" w:hashValue=\"AAAA\" w:saltValue=\"AAAA\" w:spinCount=\"900000\"/>";
+        QCOMPARE(wml::checkDocumentPassword(p, QStringLiteral("x"), &cancel), wml::PasswordCheck::Canceled);
+    }
+
+    void aProtectedWindowSaysPlainlyWhenItCannotCheckThePassword()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QByteArray docx = protectedDocx(QStringLiteral("readOnly"), QStringLiteral("pw"));
+        auto d = open(docx);
+        office::wml::DocumentProtection md2;
+        md2.edit = QStringLiteral("readOnly");
+        md2.enforced = true;
+        md2.xml = "<w:documentProtection w:edit=\"readOnly\" w:enforcement=\"1\" w:cryptAlgorithmSid=\"1\" w:cryptSpinCount=\"10\" w:hash=\"AAAA\" w:salt=\"AAAA\"/>";
+        d->setProtection(md2);
+        w.setDocument(std::move(d), QString());
+        QVERIFY(w.isReadOnly());
+        withDialog([&w] { w.act(QStringLiteral("review.restrictEditing"))->trigger(); }, QStringLiteral("restrictEditingDialog"), [](QDialog *dlg) {
+            dlg->findChild<QLineEdit *>(QStringLiteral("protectPassword"))->setText(QStringLiteral("anything"));
+        });
+        QVERIFY(w.isReadOnly());
+        QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("can't check")), qPrintable(w.statusBar()->currentMessage()));
+        QVERIFY(!w.statusBar()->currentMessage().contains(QLatin1String("not the password")));
+    }
+
+    void translateIsRefusedForPlainHttpAndOpensThroughTheBrowserHookWithTheCutTextTold()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("x")))), QString());
+        QList<QUrl> opened;
+        bool answer = true;
+        w.setUrlOpener([&](const QUrl &u) {
+            opened << u;
+            return answer;
+        });
+        QVERIFY(!w.openTranslation(QStringLiteral("hello"), QStringLiteral("fr"), QStringLiteral("http://elsewhere.example/")));
+        QVERIFY(opened.isEmpty());
+        QVERIFY(w.openTranslation(QStringLiteral("hello"), QStringLiteral("fr"), QStringLiteral("https://translate.example/")));
+        QCOMPARE(opened.size(), 1);
+        QCOMPARE(opened.first().scheme(), QStringLiteral("https"));
+        QVERIFY(opened.first().query().contains(QLatin1String("target=fr")));
+        // Longer than the limit: opened, and the cut told.
+        QVERIFY(w.openTranslation(QString(6000, QLatin1Char('b')), QStringLiteral("fr"), QString()));
+        QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("5000")) || w.statusBar()->currentMessage().contains(QLatin1String("5,000")), qPrintable(w.statusBar()->currentMessage()));
+        // A browser that does not open is said so.
+        answer = false;
+        QVERIFY(!w.openTranslation(QStringLiteral("hello"), QStringLiteral("fr"), QString()));
+        QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("could not be opened")), qPrintable(w.statusBar()->currentMessage()));
+        QCOMPARE(cutAtLetters(QStringLiteral("ab"), 5), QStringLiteral("ab"));
+    }
+
+    void aCompareThatIsCanceledMakesNothing()
+    {
+        auto a = open(makeDocx(para(run("one")) + para(run("two")))), b = open(makeDocx(para(run("one")) + para(run("three"))));
+        QString err = QStringLiteral("x");
+        auto r = compareDocuments(*a, *b, CompareOptions(), nullptr, &err, [](int, int) { return false; });
+        QVERIFY(!r);
+        QVERIFY(err.isEmpty());
     }
 };
 

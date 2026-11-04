@@ -30,8 +30,8 @@ bool languageDialog(QWidget *parent, const QString &current, bool noProof, QStri
 
 // Thesaurus: synonyms of `word` (from the dictionary on this computer), a box to look up another word, and Replace. Returns the word chosen to replace `word`, or empty.
 QString thesaurusDialog(QWidget *parent, const QString &word);
-// Translate: the language to translate into (its LibreTranslate code, remembered) and the address of the service (changeable, remembered). False if canceled.
-bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, QString *server);
+// Translate: (it says when the text, `textLength` letters, is longer than what is sent) the language to translate into (its LibreTranslate code, remembered) and the address of the service (changeable, remembered). False if canceled.
+bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, QString *server, int textLength = 0);
 
 // Restrict Editing. With none enforced: the kind of editing to allow (readOnly, comments, trackedChanges, or forms) and a password (twice), and Start Enforcing; `lockTracking` offers only tracked changes. With
 // one enforced: its kind, and Stop Protection (the password asked for in the box when the protection has one). Returns 0 for canceled, 1 for start (`edit` and `password` set), 2 for stop (`password` set).
