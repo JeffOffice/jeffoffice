@@ -81,6 +81,10 @@ class FormulaHelper;
 class FunctionArgumentsDialog;
 class HelpView;
 class PivotFieldsPane;
+struct ValueFieldSettings;
+struct FieldSettings;
+struct GroupChoice;
+struct PivotOptionsChoice;
 class HelpWindow;
 class Ribbon;
 struct RibbonParts;
@@ -237,6 +241,8 @@ public:
     QWidget *makeTableLooksPicker(QWidget *parent);
     void tableGalleryChosen(const QString &style);
     bool showTotalsMenu(qint64 row, qint64 col);
+    void setSparklineAsker(std::function<bool(QString *, QString *)> asker) { m_sparklineAsker = std::move(asker); }
+    void setAxisValueAsker(std::function<bool(bool, double *)> asker) { m_axisValueAsker = std::move(asker); }
     void setTableMakeAsker(std::function<bool(QString *, bool *)> asker) { m_tableMakeAsker = std::move(asker); }
     void setTableSizeAsker(std::function<bool(jp::office::sheet::CellRange *)> asker) { m_tableSizeAsker = std::move(asker); }
     // test hook: the cells or table the new pivot table is made from, whether it goes on a sheet of its own, and where on a sheet (a cell, with the sheet's name before it if it is another)
@@ -244,6 +250,10 @@ public:
     void setPivotOptionsAsker(std::function<bool(bool *)> asker) { m_pivotOptionsAsker = std::move(asker); }   // test hook: whether a click writes GETPIVOTDATA
     void setPivotSourceAsker(std::function<bool(QString *)> asker) { m_pivotSourceAsker = std::move(asker); }
     void setValueFieldAsker(std::function<bool(QString *, QString *)> asker) { m_valueFieldAsker = std::move(asker); }
+    void setGroupAsker(std::function<bool(jp::GroupChoice *)> asker) { m_groupAsker = std::move(asker); }   // test hook: all of Group Field
+    void setFieldSettingsAsker(std::function<bool(jp::FieldSettings *)> asker) { m_fieldSettingsAsker = std::move(asker); }   // test hook: all of Field Settings
+    void setPivotOptionsChoiceAsker(std::function<bool(jp::PivotOptionsChoice *)> asker) { m_pivotOptionsChoiceAsker = std::move(asker); }   // test hook: all of Pivot Table Options
+    void setValueSettingsAsker(std::function<bool(jp::ValueFieldSettings *)> asker) { m_valueSettingsAsker = std::move(asker); }   // test hook: all of Value Field Settings
     // The Pivot Table Fields pane (null until the Field List was shown).
     jp::PivotFieldsPane *pivotPane() const { return m_pivotPane; }
     int pivotAtCursor() const { return selectedPivot(); }
@@ -707,6 +717,20 @@ private:
     void insertTableCommand();
     void tableDialog(int mode);
     void addTableMenu(QMenu *menu);   // the table's commands in the cell menu, when the cursor is in a table
+    // sparklines (crunchwindow_sparklines.cpp): Insert > Sparklines, and the Sparkline tab that shows while the selection holds one
+    void createSparklineActions();
+    void sparklineRibbonParts(RibbonParts &parts);
+    void updateSparklineTab();
+    void insertSparklinesCommand(jp::office::sheet::SparklineGroup::Type type);
+    void editSparklineData(bool wholeGroup);
+    void groupSparklines(bool together);
+    void clearSparklines(bool wholeGroups);
+    QStringList m_sparklineActions;                            // the commands of the Sparkline tab (on while the selection holds a sparkline)
+    QVector<int> selectedSparklineGroups() const;              // the groups of the sparklines in the selected cells
+    void changeSparklineGroups(const std::function<void(jp::office::sheet::SparklineGroup *)> &change, const QString &text);
+    bool makeSparklines(const QString &data, const QString &where, QVector<jp::office::sheet::Sparkline> *out, QString *why) const;
+    std::function<bool(QString *, QString *)> m_sparklineAsker;   // test hook: the data and the cells of sparklines being made or edited
+    std::function<bool(bool, double *)> m_axisValueAsker;          // test hook: the custom minimum (true) or maximum of a sparkline axis
     // pointing at cells while a formula is typed (crunchwindow_point.cpp): a click or a drag writes the cells' address (a header, whole rows or columns), the arrow keys move a pointer,
     // F4 changes which parts of the reference are fixed, another sheet can be pointed at, and the cells the formula names are outlined, each in the color it has in the text
     bool pointAtCells(const jp::grid::GridView::PointSpan &span, bool first, Qt::KeyboardModifiers modifiers);
@@ -746,11 +770,16 @@ private:
     // pivot tables (crunchwindow_pivot.cpp): the Pivot Table tab, the fields pane, and the commands that refresh and change a table
     void createPivotActions();
     void pivotRibbonParts(RibbonParts &parts);
+    void updatePivotFieldActions();                           // the commands that work on a pivot table's cell are on only with the cursor in one
     void updatePivotTab();                                     // the Pivot Table tab shows for a cell in a pivot table; the fields pane shows that table
     int selectedPivot() const;                                 // the pivot table the cursor is in, or -1
     void editPivot(const std::function<void(jp::office::sheet::PivotTable *)> &change, const QString &text, bool structureChanged);
     void showPivotFields(bool show);
     void askValueField(int dataIndex);
+    void askFieldSettings(int field);
+    bool showPivotDetailAtCursor(bool onlyForValues);
+    bool insertPivotChart();
+    void askGroupField(int field);
     void pivotProblem(const QString &title, const jp::crunch::EditSession::Outcome &o);
     PivotFieldsPane *m_pivotPane = nullptr;
     QDockWidget *m_pivotDock = nullptr;
@@ -760,6 +789,10 @@ private:
     std::function<bool(bool *)> m_pivotOptionsAsker;
     std::function<bool(QString *)> m_pivotSourceAsker;         // test hook: the cells the data is in
     std::function<bool(QString *, QString *)> m_valueFieldAsker;   // test hook: the name and function of a value
+    std::function<bool(jp::ValueFieldSettings *)> m_valueSettingsAsker;
+    std::function<bool(jp::FieldSettings *)> m_fieldSettingsAsker;
+    std::function<bool(jp::GroupChoice *)> m_groupAsker;
+    std::function<bool(jp::PivotOptionsChoice *)> m_pivotOptionsChoiceAsker;
     // the filter (crunchwindow_filter.cpp)
     void createFilterActions();
     void updateFilterButtons();
@@ -1040,6 +1073,7 @@ private:
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
     QString m_path;
+    QString m_saveFileName;   // the file name of the save being made (a pivot chart's name in the file has it)
     QString m_untitled;       // the name of a workbook that has no file yet ("Book1")
     bool m_blank = false;     // the workbook is a new one (made by newBlank) that has not been saved
     bool m_closeIfOpenFails = false;   // the window was made only to hold one file: if the file can't be read, the window goes
@@ -1049,6 +1083,7 @@ private:
     crunch::WorkbookLoader m_loader;
     std::shared_ptr<crunch::LoadedBook> m_loaded;
     bool m_loading = false, m_calculating = false, m_haveFirstScreen = false, m_haveCalc = false;
+    bool m_refreshOnOpenPending = false;   // pivot tables that say so are read again once the calculation of a file that was just opened is done
     int m_sheet = -1;                            // the sheet in the grid, by its place in the workbook
     QVector<int> m_tabSheets;                    // the workbook's place of each tab
     QHash<int, grid::GridView::ViewState> m_views;   // what was done in each sheet, kept when another is shown

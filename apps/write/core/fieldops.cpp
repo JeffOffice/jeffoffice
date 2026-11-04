@@ -1,6 +1,8 @@
 #include "core/fieldops.h"
 
+#include "core/citeops.h"
 #include "core/editops.h"
+#include "core/indexops.h"
 #include "core/tocops.h"
 #include "core/writeprops.h"
 #include "flow/flowdocument.h"
@@ -300,7 +302,7 @@ namespace {
 bool pageDependent(const QString &name)
 {
     return name == QLatin1String("PAGE") || name == QLatin1String("NUMPAGES") || name == QLatin1String("SECTIONPAGES") || name == QLatin1String("PAGEREF") || name == QLatin1String("TOC") ||
-           name == QLatin1String("STYLEREF");
+           name == QLatin1String("STYLEREF") || name == QLatin1String("INDEX") || name == QLatin1String("TOA");
 }
 
 // Everything a pass of updating needs about the document, found when it is first asked and kept for the pass.
@@ -322,6 +324,7 @@ public:
         };
         env.noteNumber = [this](const QString &name, const fields::Code &) { return noteNumber(name); };
         env.styleRef = [this](const QString &style, const fields::Code &code) { return styleReference(style, code); };
+        env.citation = [this](const QString &tag, const fields::Code &code) { return citationFieldText(this->doc, this->scan, tag, code); };
         env.number = [this](const QString &name) -> std::optional<double> {
             const std::optional<fields::BookmarkInfo> b = bookmarkInfo(name);
             if (!b) return std::nullopt;
@@ -579,6 +582,9 @@ struct Planned {
     QVector<TocLine> toc;
     fields::Code code;
     bool isToc = false;
+    bool isGenerated = false;     // an index or a table of authorities (a bibliography): its result is `lines`
+    QVector<GenLine> lines;
+    QString empty;                // the one line shown where there are none
 };
 
 // What one pass found and did.
@@ -611,6 +617,7 @@ PassResult updatePass(WriteDoc &doc, const UpdateOptions &options, bool keepChan
     std::sort(chosen.begin(), chosen.end(), byEnd);
 
     Context ctx(doc, story, scan, options.now);
+    ctx.env.merge = options.merge;
     QHash<int, QString> computed;
     ctx.setComputed(&computed);
     // A part of the text counts the sequences that come before it: the earlier fields of each sequence are worked through (and left as they are).
@@ -695,7 +702,48 @@ PassResult updatePass(WriteDoc &doc, const UpdateOptions &options, bool keepChan
             }
             continue;
         }
-        if (!fields::isKnown(code.name)) {
+        if (code.name == QLatin1String("INDEX") || code.name == QLatin1String("TOA") || code.name == QLatin1String("BIBLIOGRAPHY")) {
+            if (options.pageNumbersOnly) {
+                note(FieldChange::Kept, change.before);
+                continue;
+            }
+            const bool isIndex = code.name == QLatin1String("INDEX"), isBibliography = code.name == QLatin1String("BIBLIOGRAPHY");
+            PageRefLookup pageOf;
+            if (!isBibliography) {
+                ctx.pages.ensure();
+                pageOf = [&](int position) {
+                    const PageAt a = ctx.pages.at(position);
+                    return PageRef{a.text, a.index};
+                };
+            }
+            const QVector<GenLine> lines = isBibliography ? bibliographyLines(doc, scan, index, code) : isIndex ? indexLines(doc, scan, index, code, pageOf) : authoritiesLines(doc, scan, index, code, pageOf);
+            const QString empty = isBibliography ? noBibliography() : isIndex ? noIndexEntries() : noAuthorities();
+            QStringList texts;
+            for (const GenLine &l : lines) texts << l.text();
+            if (lines.isEmpty()) texts << empty;
+            const QString after = texts.join(QLatin1Char('\n'));
+            QString before = change.before;
+            before.replace(QChar::ParagraphSeparator, QLatin1Char('\n'));
+            QStringList stored = before.split(QLatin1Char('\n'));
+            stored.removeAll(QString());
+            change.before = stored.join(QLatin1Char('\n'));
+            if (change.before == after) {
+                note(FieldChange::Unchanged, after);
+            } else {
+                note(FieldChange::Changed, after);
+                Planned p;
+                p.field = index;
+                p.before = change.before;
+                p.after = after;
+                p.code = code;
+                p.isGenerated = true;
+                p.lines = lines;
+                p.empty = empty;
+                plans.push_back(p);
+            }
+            continue;
+        }
+        if (!fields::isKnown(code.name) && !options.merge) {
             note(FieldChange::Kept, change.before);
             continue;
         }
@@ -768,6 +816,11 @@ PassResult updatePass(WriteDoc &doc, const UpdateOptions &options, bool keepChan
         }
         if (inside) continue;
         const LookMode mode = p.code.mergesFormat() ? LookMode::Merge : p.code.usesCodeFormat() ? LookMode::Code : LookMode::First;
+        if (p.isGenerated) {
+            if (rebuildGenerated(doc, story, scan, p.field, p.lines, options.tocLeader, p.empty)) replaced.insert(f.separate, f.end);
+            out.changedText = true;
+            continue;
+        }
         if (p.isToc) {
             if (rebuildToc(doc, story, scan, p.field, p.code, p.toc, options.tocLeader)) replaced.insert(f.separate, f.end);
             out.changedText = true;
@@ -962,38 +1015,41 @@ int lockFields(WriteDoc &doc, const QTextCursor &c, bool lock)
     return int(chosen.size());
 }
 
-bool insertField(WriteDoc &doc, QTextCursor &c, const QString &codeIn, const QString &fallbackResult)
+namespace {
+
+// The result the engine works out for a field with this code put at `position`, where the document can say (else `fallback`).
+QString resultForNewField(WriteDoc &doc, int position, const QString &code, const QString &fallback)
 {
-    const QString code = codeIn.trimmed();
-    if (code.isEmpty()) return false;
-    QString result = fallbackResult;
-    {
-        // The result the engine works out for it, where the document can say.
-        const StoryScan scan = scanStory(doc.story());
-        Context ctx(doc, doc.story(), scan, QDateTime());
-        FieldPlace at;
-        at.begin = c.selectionStart();
-        ctx.place(at);
-        const fields::Code parsed = fields::parseCode(code);
-        if (parsed.name == QLatin1String("PAGE") || parsed.name == QLatin1String("NUMPAGES") || parsed.name == QLatin1String("SECTIONPAGES")) ctx.placePages(at);
-        if (parsed.name == QLatin1String("NUMWORDS") || parsed.name == QLatin1String("NUMCHARS")) ctx.statistics();
-        if (parsed.name == QLatin1String("SEQ")) {
-            // (Counted from the fields before the caret.)
-            for (int i = 0; i < scan.fields.size(); ++i) {
-                const FieldPlace &f = scan.fields[i];
-                if (f.begin >= at.begin) break;
-                const fields::Code before = fields::parseCode(scan.instructionOf(i));
-                if (before.name == QLatin1String("SEQ")) {
-                    ctx.noteSequenceReset(before);
-                    ctx.resetSequencesAt(f.begin);
-                    fields::compute(before, ctx.env);
-                }
+    QString result = fallback;
+    const StoryScan scan = scanStory(doc.story());
+    Context ctx(doc, doc.story(), scan, QDateTime());
+    FieldPlace at;
+    at.begin = position;
+    ctx.place(at);
+    const fields::Code parsed = fields::parseCode(code);
+    if (parsed.name == QLatin1String("PAGE") || parsed.name == QLatin1String("NUMPAGES") || parsed.name == QLatin1String("SECTIONPAGES")) ctx.placePages(at);
+    if (parsed.name == QLatin1String("NUMWORDS") || parsed.name == QLatin1String("NUMCHARS")) ctx.statistics();
+    if (parsed.name == QLatin1String("SEQ")) {
+        // (Counted from the fields before the caret.)
+        for (int i = 0; i < scan.fields.size(); ++i) {
+            const FieldPlace &f = scan.fields[i];
+            if (f.begin >= at.begin) break;
+            const fields::Code before = fields::parseCode(scan.instructionOf(i));
+            if (before.name == QLatin1String("SEQ")) {
+                ctx.noteSequenceReset(before);
+                ctx.resetSequencesAt(f.begin);
+                fields::compute(before, ctx.env);
             }
-            ctx.noteSequenceReset(parsed);
-            ctx.resetSequencesAt(at.begin);
         }
-        if (const std::optional<QString> r = fields::compute(parsed, ctx.env)) result = *r;
+        ctx.noteSequenceReset(parsed);
+        ctx.resetSequencesAt(at.begin);
     }
+    if (const std::optional<QString> r = fields::compute(parsed, ctx.env)) result = *r;
+    return result;
+}
+
+Inline newFieldAtom(const QString &code, const QString &result)
+{
     Inline field;
     field.kind = Inline::ParaAtom;
     field.role = Inline::Single;
@@ -1003,7 +1059,42 @@ bool insertField(WriteDoc &doc, QTextCursor &c, const QString &codeIn, const QSt
     field.raw += "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
     field.key = liveFieldFor(QLatin1Char(' ') + code + QLatin1Char(' '));
     field.display = result;
-    return insertFieldAtom(doc, c, field);
+    return field;
+}
+
+} // namespace
+
+bool insertField(WriteDoc &doc, QTextCursor &c, const QString &codeIn, const QString &fallbackResult)
+{
+    const QString code = codeIn.trimmed();
+    if (code.isEmpty()) return false;
+    const QString result = resultForNewField(doc, c.selectionStart(), code, fallbackResult);
+    return insertFieldAtom(doc, c, newFieldAtom(code, result));
+}
+
+int insertFieldAtEach(WriteDoc &doc, const QVector<int> &positions, const QString &codeIn)
+{
+    const QString code = codeIn.trimmed();
+    if (code.isEmpty() || positions.isEmpty()) return 0;
+    // (One pass for all of them: the result is worked out once, which is right for the marks, whose result does not depend on where they stand.)
+    const Inline field = newFieldAtom(code, resultForNewField(doc, positions.first(), code, QString()));
+    QVector<int> order = positions;
+    std::sort(order.begin(), order.end(), std::greater<int>());   // (from the last, so that the earlier places stay)
+    int count = 0;
+    for (int position : std::as_const(order)) {
+        QTextCursor c(doc.story());
+        c.setPosition(position);
+        if (insertFieldAtom(doc, c, field)) ++count;
+    }
+    return count;
+}
+
+bool isMergeFieldCode(const QString &code)
+{
+    static const QSet<QString> names = {QStringLiteral("MERGEFIELD"), QStringLiteral("ADDRESSBLOCK"), QStringLiteral("GREETINGLINE"), QStringLiteral("NEXT"),   QStringLiteral("NEXTIF"),
+                                        QStringLiteral("SKIPIF"),     QStringLiteral("SET"),          QStringLiteral("ASK"),          QStringLiteral("FILLIN"), QStringLiteral("MERGEREC"),
+                                        QStringLiteral("MERGESEQ"),   QStringLiteral("IF"),           QStringLiteral("COMPARE")};
+    return names.contains(code.trimmed().section(QLatin1Char(' '), 0, 0).toUpper());
 }
 
 // ---- Show Field Codes

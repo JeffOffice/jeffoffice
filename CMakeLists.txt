@@ -283,6 +283,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_xlsformula.cpp
   tests/sheet/tst_sheet_xlshostile.cpp
   tests/sheet/tst_sheet_notes.cpp
+  tests/sheet/tst_sheet_sparkline.cpp
   tests/sheet/tst_sheet_ods.cpp
   tests/sheet/tst_sheet_odsformula.cpp
   tests/sheet/tst_sheet_odshostile.cpp
@@ -479,6 +480,16 @@ target_link_libraries(writefieldtests PRIVATE jwcore Qt6::Test)
 set_target_properties(writefieldtests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME writefieldtests COMMAND writefieldtests)
 set_tests_properties(writefieldtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+qt_add_executable(writerefstests tests/write/tst_write_refs.cpp)
+target_link_libraries(writerefstests PRIVATE jwcore Qt6::Test)
+set_target_properties(writerefstests PROPERTIES WIN32_EXECUTABLE OFF)
+add_test(NAME writerefstests COMMAND writerefstests)
+set_tests_properties(writerefstests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+qt_add_executable(writemailtests tests/write/tst_write_mail.cpp)
+target_link_libraries(writemailtests PRIVATE jwcore Qt6::Test)
+set_target_properties(writemailtests PROPERTIES WIN32_EXECUTABLE OFF)
+add_test(NAME writemailtests COMMAND writemailtests)
+set_tests_properties(writemailtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
 
 # JeffCrunch, the spreadsheet app: like JeffWrite, everything except main() is a library its tests link. It reads workbooks in libs/office/sheet, works their formulas out
@@ -529,7 +540,7 @@ target_link_libraries(jeffcrunch PRIVATE jccore)
 jo_add_version_info(jeffcrunch JeffCrunch "JeffCrunch: spreadsheets")
 set_target_properties(jeffcrunch PROPERTIES OUTPUT_NAME JeffCrunch)
 # The tests of the window (the grid's own are in sheettests).
-qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/crunch/tst_crunch_rules.cpp tests/crunch/tst_crunch_xls.cpp tests/crunch/tst_crunch_convert.cpp tests/crunch/tst_crunch_copy.cpp tests/crunch/tst_crunch_datatable.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp tests/sheet/odshelpers.cpp tests/crunch/tst_crunch_format.cpp tests/crunch/tst_crunch_formatcodes.cpp tests/crunch/tst_crunch_formatdialog.cpp tests/crunch/tst_crunch_formatui.cpp tests/crunch/tst_crunch_sheets.cpp tests/crunch/tst_crunch_review.cpp tests/crunch/tst_crunch_drawings.cpp tests/crunch/tst_crunch_print.cpp tests/crunch/tst_crunch_find.cpp tests/crunch/tst_crunch_sort.cpp tests/crunch/tst_crunch_filter.cpp tests/crunch/tst_crunch_function.cpp tests/crunch/tst_crunch_charts.cpp tests/crunch/tst_crunch_names.cpp tests/crunch/tst_crunch_formulas.cpp tests/crunch/tst_crunch_notes.cpp tests/crunch/tst_crunch_links.cpp tests/crunch/tst_crunch_protect.cpp tests/crunch/tst_crunch_autoheight.cpp tests/crunch/tst_crunch_text.cpp tests/crunch/tst_crunch_tables.cpp tests/crunch/tst_crunch_pivot.cpp tests/crunch/tst_crunch_structmodel.cpp tests/crunch/structmodel.cpp tests/crunch/tst_crunch_viewedit.cpp tests/crunch/tst_crunch_keep.cpp tests/crunch/tst_crunch_hostile.cpp tests/crunch/tst_crunch_outline.cpp tests/crunch/tst_crunch_point.cpp)
+qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/crunch/tst_crunch_rules.cpp tests/crunch/tst_crunch_xls.cpp tests/crunch/tst_crunch_convert.cpp tests/crunch/tst_crunch_copy.cpp tests/crunch/tst_crunch_datatable.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp tests/sheet/odshelpers.cpp tests/crunch/tst_crunch_format.cpp tests/crunch/tst_crunch_formatcodes.cpp tests/crunch/tst_crunch_formatdialog.cpp tests/crunch/tst_crunch_formatui.cpp tests/crunch/tst_crunch_sheets.cpp tests/crunch/tst_crunch_review.cpp tests/crunch/tst_crunch_drawings.cpp tests/crunch/tst_crunch_print.cpp tests/crunch/tst_crunch_find.cpp tests/crunch/tst_crunch_sort.cpp tests/crunch/tst_crunch_filter.cpp tests/crunch/tst_crunch_function.cpp tests/crunch/tst_crunch_charts.cpp tests/crunch/tst_crunch_names.cpp tests/crunch/tst_crunch_formulas.cpp tests/crunch/tst_crunch_notes.cpp tests/crunch/tst_crunch_links.cpp tests/crunch/tst_crunch_protect.cpp tests/crunch/tst_crunch_autoheight.cpp tests/crunch/tst_crunch_text.cpp tests/crunch/tst_crunch_tables.cpp tests/crunch/tst_crunch_pivot.cpp tests/crunch/tst_crunch_structmodel.cpp tests/crunch/structmodel.cpp tests/crunch/tst_crunch_viewedit.cpp tests/crunch/tst_crunch_keep.cpp tests/crunch/tst_crunch_hostile.cpp tests/crunch/tst_crunch_outline.cpp tests/crunch/tst_crunch_point.cpp tests/crunch/tst_crunch_sparklines.cpp)
 target_link_libraries(crunchtests PRIVATE jccore Qt6::Test)
 target_include_directories(crunchtests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 target_compile_definitions(crunchtests PRIVATE JC_SOURCE_DIR="${CMAKE_SOURCE_DIR}")

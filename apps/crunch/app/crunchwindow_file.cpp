@@ -19,6 +19,8 @@
 #include "core/appinfo.h"
 #include "core/threadtime.h"
 
+#include <QPointer>
+#include <QTimer>
 #include <QApplication>
 #include <QAbstractButton>
 #include <QDir>
@@ -309,6 +311,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     jp::crypto::wipe(m_pendingPassword);
     m_protectionChanged = false;
     m_haveCalc = true;
+    m_refreshOnOpenPending = true;
     // (a workbook read from a file of another form: that file is the one never written, whatever the workbook is saved as)
     m_originalPath = m_loaded->book->isConverted() ? m_path : QString();
     // (opened as a copy: the workbook has no file of its own, so Save asks where; a workbook read from another form never writes its file, and has no need of this)
@@ -540,6 +543,16 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
             updateBars();
             m_longestBatchMicros = std::max(m_longestBatchMicros, jp::threadCpuMicros() - cpu0);
             Q_EMIT calculationFinished();
+            if (m_refreshOnOpenPending && m_session) {
+                // (a table whose data says to be read again when the file opens is: one step, which the person can undo; it waits for the first screen to be drawn)
+                m_refreshOnOpenPending = false;
+                QPointer<CrunchWindow> self(this);
+                QTimer::singleShot(0, this, [self] {
+                    if (!self || !self->m_session) return;
+                    const auto refreshed = self->m_session->refreshPivotsOnOpen();
+                    if (!refreshed.problem.isEmpty()) self->setStatus(refreshed.problem.section(QLatin1Char('\n'), 0, 0));
+                });
+            }
             if (!m_saveAfterCalculation.isNull()) {
                 const QString path = m_saveAfterCalculation;
                 m_saveAfterCalculation.clear();

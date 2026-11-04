@@ -512,7 +512,7 @@ int main(int argc, char **argv)
     const QStringList args = app.arguments();
     QTextStream out(stdout);
     if (args.size() < 2 || (args[1] != "bench" && args.size() < 3) || ((args[1] == "render" || args[1] == "pdf") && args.size() < 4)) {
-        out << "usage: writetool render <file.txt|.docx|.doc> <outdir> [width=800] | pdf <file.txt|.docx|.doc> <out.pdf> | info <file.txt|.docx|.doc> | docpkg <file.doc> <out.docx> | bench [paragraphs=26443]   (options for a .txt: columns=N a4 legal landscape margin=INCHES hyphenate justify)\n";
+        out << "usage: writetool fields-update <in.docx> <out.docx> | render <file.txt|.docx|.doc> <outdir> [width=800] | pdf <file.txt|.docx|.doc> <out.pdf> | info <file.txt|.docx|.doc> | docpkg <file.doc> <out.docx> | bench [paragraphs=26443]   (options for a .txt: columns=N a4 legal landscape margin=INCHES hyphenate justify)\n";
         return 2;
     }
     const QString cmd = args[1];
@@ -603,6 +603,21 @@ int main(int argc, char **argv)
         for (const write::FieldChange &c : r.changes)
             out << c.name << '\t' << outcomes[c.outcome] << '\t' << (write::fields::dependsOnTheMachine(c.name) ? "machine" : "doc") << '\t' << flat(c.before) << '\t' << flat(c.after) << '\t' << flat(c.instruction).left(120) << '\n';
         out << "#fields\t" << r.found << "\t" << timer.elapsed() << " ms\n";
+        return 0;
+    }
+    if (cmd == "fields-update" && args.size() >= 4) {
+        // Updates every field (tables, indexes, bibliographies...) and saves: a file whose fields were never worked out shows them made.
+        QFile f(args[2]);
+        if (!f.open(QIODevice::ReadOnly)) { out << "cannot read: " << f.errorString() << "\n"; return 1; }
+        QString why;
+        QStringList notes;
+        std::unique_ptr<write::WriteDoc> d = write::WriteDoc::fromDocx(f.readAll(), &why, &notes);
+        if (!d) { out << "cannot open: " << why << "\n"; return 1; }
+        const write::UpdateReport r = write::updateFields(*d);
+        const QByteArray zip = d->toDocx(&why);
+        QFile w(args[3]);
+        if (zip.isEmpty() || !w.open(QIODevice::WriteOnly) || w.write(zip) != zip.size()) { out << "cannot save: " << why << "\n"; return 1; }
+        out << "fields\t" << r.found << "\tchanged\t" << r.changed << "\n";
         return 0;
     }
     if (cmd == "docsave" && args.size() >= 4) {

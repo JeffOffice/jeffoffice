@@ -1,5 +1,5 @@
-# Charts, pictures, and shapes
-<!-- keywords: chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series -->
+# Charts, sparklines, pictures, and shapes
+<!-- keywords: chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, win/loss, tiny chart, markers -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -33,9 +33,30 @@ When a chart is picked, two buttons appear beside it and a **Chart** tab appears
 - The **+** button (and **Chart Parts** on the tab) turns the chart's title, axes, axis titles, gridlines, legend, and data labels on or off, and says where the legend and the labels go.
 - The brush button (and **Colors** and **Looks** on the tab) gives the chart one of JeffCrunch's sets of colors and one of its looks. **Layouts** sets several elements at once.
 - **Chart Data** lists the chart's series. You can add, edit, remove, and reorder them, change the cells each one reads, set the cells with the labels, switch the rows and columns, and choose how empty cells and hidden rows and columns are charted.
+- **Trendline** (in the **+** menu) draws a line fitted to the numbers of each series, so you can see where they are heading. Pick **Linear** for a straight line, **Exponential** for numbers that grow by a steady percent, **Logarithmic** for numbers that rise fast and then level off, **Polynomial** for a curve with bends, **Power**, or **Moving Average**, which draws the average of the last few numbers. **Show Equation** writes the line's formula on the chart, and **Show R-squared** writes how well the line fits (1 is a perfect fit; 0 is no fit at all). The trendline gets its own entry in the legend.
+- When a series is drawn against a second vertical axis, the **Axes** and **Axis Titles** menus have **Second Horizontal** and **Second Vertical** entries for it. The **Legend** menu has **Over the Chart**, which lays the legend on the plot instead of beside it.
 - **Chart Kind** changes the kind for the whole chart, or for each series: columns with a line over them, or a series against a second vertical axis.
 
 A reference to cells is written like **Sheet1!$B$2:$B$9**, with the sheet's name in single quotes when it has spaces.
+
+## Sparklines
+
+A sparkline is a tiny chart that fits inside one cell. It shows the trend of a row or a column of numbers right next to them.
+
+1. Select the numbers. For one sparkline per row, select several rows of numbers.
+2. On the **Insert** tab, in **Sparklines**, pick **Line**, **Column**, or **Win/Loss**. A **Line** joins the numbers with a line. A **Column** draws a bar for each number. A **Win/Loss** draws a bar up for each number above zero and a bar down for each number below it, all the same size, which suits results that are only good or bad.
+3. In the **Create Sparklines** box, check the **Data range** (the cells the sparklines read) and type the **Location range** (the cells they go in). Choose one location cell for each row of data, or for each column of data. If you choose one cell, the sparkline reads all of the data.
+
+The sparklines you make in one step are a group, and they share one look. Click a cell with a sparkline, and the **Sparkline** tab appears.
+
+- **Edit Data** changes the data and the location of the whole group, or the data of the one you clicked. It also says what to do with empty cells (leave a gap, treat them as zero, or join the points across them) and whether to read cells in hidden rows and columns.
+- **Type** switches between line, column, and win/loss.
+- **Show** marks points: the **High Point**, the **Low Point**, **Negative Points**, the **First Point**, the **Last Point**, and, for a line, **Markers** on every point.
+- **Styles** gives the group a set of colors. **Sparkline Color** sets the color of the line or bars and the **Weight** (how thick the line is, in points). **Marker Color** sets the color of each kind of marked point.
+- **Axis** shows a line at zero, plots the numbers right to left, and sets the lowest and highest values of the vertical axis. **Automatic for Each Sparkline** fits each one to its own numbers. **Same for All Sparklines** gives the whole group one scale, so you can compare them. **Custom Value** lets you type a number.
+- **Group** puts the selected sparklines in one group. **Ungroup** gives each its own look. **Clear** takes away the selected sparklines, or their whole groups.
+
+A sparkline follows its cells: insert a row above the data, and it still reads the same numbers. Every change is one step you can undo. Sparklines are saved in the file in the form other spreadsheet programs read.
 
 ## Cut, copy, and paste an object
 
@@ -54,4 +75,4 @@ Press **Delete** with the object picked. Undo brings it back.
 
 ## What is saved
 
-Everything above is saved in the file in the form other spreadsheet programs read, so a chart you make here opens there the same way. A chart that came from another program with something JeffCrunch cannot keep when it rewrites a chart (a gradient fill, a trend line, a three-dimensional chart) can still be moved, sized, and deleted, but its elements and data are not changed here.
+Everything above is saved in the file in the form other spreadsheet programs read, so a chart you make here opens there the same way. A chart that came from another program with something JeffCrunch cannot keep when it rewrites a chart (error bars, a three-dimensional chart) can still be moved, sized, and deleted, but its elements and data are not changed here.

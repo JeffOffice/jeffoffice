@@ -3,6 +3,8 @@
 #include <QAbstractButton>
 #include <QCoreApplication>
 #include <QDialogButtonBox>
+#include <QCheckBox>
+#include <QComboBox>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QLabel>
@@ -46,6 +48,13 @@ PivotFieldsPane::PivotFieldsPane(QWidget *parent) : QWidget(parent)
     m_title->setTextFormat(Qt::PlainText);   // (a table's name comes from a file)
     m_title->setWordWrap(true);
     layout->addWidget(m_title);
+    m_search = new QLineEdit(this);
+    m_search->setObjectName(QStringLiteral("pivot.search"));
+    m_search->setPlaceholderText(tr("Search"));
+    m_search->setClearButtonEnabled(true);
+    m_search->setAccessibleName(tr("Search fields"));
+    layout->addWidget(m_search);
+    connect(m_search, &QLineEdit::textChanged, this, [this](const QString &text) { search(text); });
     m_fields = new QListWidget(this);
     m_fields->setObjectName(QStringLiteral("pivot.fields"));
     m_fields->setAccessibleName(tr("Pivot table fields"));
@@ -88,12 +97,28 @@ PivotFieldsPane::PivotFieldsPane(QWidget *parent) : QWidget(parent)
     m_settings = new QToolButton(this);
     m_settings->setText(tr("Value Field Settings…"));
     m_settings->setObjectName(QStringLiteral("pivot.valueSettings"));
-    for (QToolButton *b : {m_moveTo, m_up, m_down, m_remove, m_settings}) {
+    m_fieldSettings = new QToolButton(this);
+    m_fieldSettings->setText(tr("Field Settings…"));
+    m_fieldSettings->setObjectName(QStringLiteral("pivot.fieldSettings"));
+    for (QToolButton *b : {m_moveTo, m_up, m_down, m_remove, m_settings, m_fieldSettings}) {
         b->setToolButtonStyle(Qt::ToolButtonTextOnly);
         buttons->addWidget(b);
     }
     buttons->addStretch(1);
     layout->addLayout(buttons);
+    auto *defer = new QHBoxLayout();
+    m_deferBox = new QCheckBox(tr("Defer Layout Update"), this);
+    m_deferBox->setObjectName(QStringLiteral("pivot.defer"));
+    m_update = new QToolButton(this);
+    m_update->setText(tr("Update"));
+    m_update->setObjectName(QStringLiteral("pivot.update"));
+    m_update->setEnabled(false);
+    defer->addWidget(m_deferBox);
+    defer->addStretch(1);
+    defer->addWidget(m_update);
+    layout->addLayout(defer);
+    connect(m_deferBox, &QCheckBox::toggled, this, [this](bool on) { setDeferred(on); });
+    connect(m_update, &QToolButton::clicked, this, [this] { applyDeferred(); });
     connect(m_up, &QToolButton::clicked, this, [this] { shiftSelected(-1); });
     connect(m_down, &QToolButton::clicked, this, [this] { shiftSelected(1); });
     connect(m_remove, &QToolButton::clicked, this, [this] { removeSelected(); });
@@ -103,6 +128,15 @@ PivotFieldsPane::PivotFieldsPane(QWidget *parent) : QWidget(parent)
         const Entry e = entryOf(m_boxes[3]->currentItem());
         if (e.data >= 0) Q_EMIT valueSettingsRequested(e.data);
     });
+    connect(m_fieldSettings, &QToolButton::clicked, this, [this] {
+        const int f = selectedField();
+        if (f >= 0) Q_EMIT fieldSettingsRequested(f);
+    });
+    for (int i = 0; i < 3; ++i)
+        connect(m_boxes[i], &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *item) {
+            const Entry e = entryOf(item);
+            if (e.field >= 0) Q_EMIT fieldSettingsRequested(e.field);
+        });
     connect(m_boxes[3], &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *item) {
         const Entry e = entryOf(item);
         if (e.data >= 0) Q_EMIT valueSettingsRequested(e.data);
@@ -113,13 +147,18 @@ PivotFieldsPane::PivotFieldsPane(QWidget *parent) : QWidget(parent)
     });
     for (int i = 0; i < 4; ++i)
         connect(m_boxes[i], &QListWidget::itemSelectionChanged, this, [this, i] {
-            if (m_filling || m_boxes[i]->selectedItems().isEmpty()) return;
+            if (m_filling) return;
+            if (m_boxes[i]->selectedItems().isEmpty()) {
+                Q_EMIT fieldSelectionChanged();
+                return;
+            }
             for (int k = 0; k < 4; ++k)
                 if (k != i) {
                     const QSignalBlocker block(m_boxes[k]);
                     m_boxes[k]->clearSelection();
                     m_boxes[k]->setCurrentRow(-1);
                 }
+            Q_EMIT fieldSelectionChanged();
         });
     showNothing();
 }
@@ -130,14 +169,25 @@ void PivotFieldsPane::showNothing()
     m_fields->clear();
     for (QListWidget *b : m_boxes) b->clear();
     m_table = PivotTable();
+    m_pending = false;
+    if (m_update) m_update->setEnabled(false);
     m_names.clear();
     m_numeric.clear();
     m_title->setText(tr("Click a pivot table to see its fields."));
     m_filling = false;
 }
 
-void PivotFieldsPane::showTable(const QString &name, const PivotTable &table, const QStringList &fieldNames, const QVector<bool> &numeric, const QVector<QString> &)
+void PivotFieldsPane::showTable(const QString &name, const PivotTable &table, const QStringList &fieldNames, const QVector<bool> &numeric, const void *identity)
 {
+    // (changes waiting for Update are not thrown away by the same table being shown again; a different table, or the same one changed by something else, drops them)
+    const quintptr stamp = quintptr(identity);
+    if (m_pending) {
+        if (name == m_pendingName && stamp == m_pendingStamp) return;
+        m_pending = false;
+        if (m_update) m_update->setEnabled(false);
+    }
+    m_shownName = name;
+    m_shownStamp = stamp;
     m_table = table;
     m_names = fieldNames;
     m_numeric = numeric;
@@ -174,6 +224,15 @@ void PivotFieldsPane::fillBoxes()
     for (int i = 0; i < m_table.dataFields.size(); ++i) add(3, m_table.dataFields[i].name, m_table.dataFields[i].fld, i);
     if (boxWas >= 0) m_boxes[boxWas]->setCurrentRow(std::min(rowWas, m_boxes[boxWas]->count() - 1));
     m_filling = false;
+    if (m_search && !m_search->text().isEmpty()) search(m_search->text());
+}
+
+int PivotFieldsPane::selectedField() const
+{
+    const int b = selectedBox();
+    if (b < 0 || b > 2) return -1;
+    const Entry e = entryOf(m_boxes[b]->currentItem());
+    return e.field >= 0 ? e.field : -1;
 }
 
 int PivotFieldsPane::selectedBox() const
@@ -205,7 +264,40 @@ bool PivotFieldsPane::select(int box, int row)
 
 void PivotFieldsPane::changed(const PivotTable &table, const QString &text)
 {
+    if (m_deferBox && m_deferBox->isChecked()) {
+        // (Defer Layout Update: the change is kept, and shown in the boxes, until Update)
+        m_table = table;
+        m_pending = true;
+        m_pendingName = m_shownName;
+        m_pendingStamp = m_shownStamp;
+        m_pendingText = text;
+        m_update->setEnabled(true);
+        fillBoxes();
+        return;
+    }
     Q_EMIT changeRequested(table, text);
+}
+
+void PivotFieldsPane::search(const QString &text)
+{
+    for (int i = 0; i < m_fields->count(); ++i) m_fields->item(i)->setHidden(!text.trimmed().isEmpty() && !m_fields->item(i)->text().contains(text.trimmed(), Qt::CaseInsensitive));
+}
+
+void PivotFieldsPane::setDeferred(bool on)
+{
+    if (m_deferBox->isChecked() != on) {
+        const QSignalBlocker block(m_deferBox);
+        m_deferBox->setChecked(on);
+    }
+    if (!on) applyDeferred();
+}
+
+void PivotFieldsPane::applyDeferred()
+{
+    if (!m_pending) return;
+    m_pending = false;
+    m_update->setEnabled(false);
+    Q_EMIT changeRequested(m_table, m_pendingText.isEmpty() ? tr("Move Field in Pivot Table") : m_pendingText);
 }
 
 // A value for a field: its sum, named so that no field and no other value has the name.
@@ -318,16 +410,281 @@ void PivotFieldsPane::shiftSelected(int by)
     if (done) changed(t, tr("Move Field in Pivot Table"));
 }
 
+// ---------------------------------------------------------------- Group Field
+
+GroupDialog::GroupDialog(const GroupChoice &c, QWidget *parent) : QDialog(parent), m_choice(c)
+{
+    setWindowTitle(tr("Grouping"));
+    setObjectName(QStringLiteral("groupDialog"));
+    auto *form = new QFormLayout(this);
+    m_start = new QLineEdit(c.startText, this);
+    m_start->setObjectName(QStringLiteral("group.start"));
+    m_start->setAccessibleName(tr("Starting at"));
+    form->addRow(tr("Starting at:"), m_start);
+    m_end = new QLineEdit(c.endText, this);
+    m_end->setObjectName(QStringLiteral("group.end"));
+    m_end->setAccessibleName(tr("Ending at"));
+    form->addRow(tr("Ending at:"), m_end);
+    if (c.isDate) {
+        m_levels = new QListWidget(this);
+        m_levels->setObjectName(QStringLiteral("group.levels"));
+        m_levels->setAccessibleName(tr("By"));
+        const std::pair<const char *, const char *> parts[] = {{"seconds", QT_TR_NOOP("Seconds")}, {"minutes", QT_TR_NOOP("Minutes")}, {"hours", QT_TR_NOOP("Hours")}, {"days", QT_TR_NOOP("Days")},
+                                                              {"months", QT_TR_NOOP("Months")}, {"quarters", QT_TR_NOOP("Quarters")}, {"years", QT_TR_NOOP("Years")}};
+        for (const auto &p : parts) {
+            auto *item = new QListWidgetItem(tr(p.second), m_levels);
+            item->setData(Qt::UserRole, QString::fromLatin1(p.first));
+            item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+            item->setCheckState(c.levels.contains(QLatin1String(p.first)) ? Qt::Checked : Qt::Unchecked);
+        }
+        form->addRow(tr("By:"), m_levels);
+    } else {
+        m_step = new QLineEdit(c.stepText, this);
+        m_step->setObjectName(QStringLiteral("group.step"));
+        m_step->setAccessibleName(tr("By"));
+        form->addRow(tr("By:"), m_step);
+    }
+    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    form->addRow(box);
+    connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
+}
+
+GroupChoice GroupDialog::choice() const
+{
+    GroupChoice c = m_choice;
+    c.levels.clear();
+    if (m_levels)
+        for (int i = 0; i < m_levels->count(); ++i)
+            if (m_levels->item(i)->checkState() == Qt::Checked) c.levels << m_levels->item(i)->data(Qt::UserRole).toString();
+    c.autoStart = m_start->text().trimmed() == m_choice.startText;
+    c.autoEnd = m_end->text().trimmed() == m_choice.endText;
+    c.startText = m_start->text().trimmed();
+    c.endText = m_end->text().trimmed();
+    if (m_step) c.stepText = m_step->text().trimmed();
+    return c;
+}
+
+// ---------------------------------------------------------------- Pivot Table Options
+
+PivotOptionsDialog::PivotOptionsDialog(const PivotOptionsChoice &c, QWidget *parent) : QDialog(parent), m_choice(c)
+{
+    setWindowTitle(tr("Pivot Table Options"));
+    setObjectName(QStringLiteral("pivotOptionsDialog"));
+    auto *layout = new QVBoxLayout(this);
+    auto check = [&](const QString &text, const char *objectName, bool on) {
+        auto *b = new QCheckBox(text, this);
+        b->setObjectName(QLatin1String(objectName));
+        b->setChecked(on);
+        layout->addWidget(b);
+        return b;
+    };
+    if (c.hasTable) {
+        auto *form = new QFormLayout();
+        m_name = new QLineEdit(c.name, this);
+        m_name->setObjectName(QStringLiteral("pivotOptions.name"));
+        m_name->setAccessibleName(tr("Pivot table name"));
+        form->addRow(tr("Name:"), m_name);
+        layout->addLayout(form);
+        m_merge = check(tr("Merge and center cells with labels"), "pivotOptions.merge", c.mergeLabels);
+        m_showError = check(tr("For error values show:"), "pivotOptions.showError", c.showError);
+        m_error = new QLineEdit(c.errorText, this);
+        m_error->setObjectName(QStringLiteral("pivotOptions.errorText"));
+        m_error->setAccessibleName(tr("Text for error values"));
+        layout->addWidget(m_error);
+        m_showMissing = check(tr("For empty cells show:"), "pivotOptions.showMissing", c.showMissing);
+        m_missing = new QLineEdit(c.missingText, this);
+        m_missing->setObjectName(QStringLiteral("pivotOptions.missingText"));
+        m_missing->setAccessibleName(tr("Text for empty cells"));
+        layout->addWidget(m_missing);
+        m_autofit = check(tr("Fit column widths when the table is updated"), "pivotOptions.autofit", c.autofit);
+        m_preserve = check(tr("Keep the formatting of cells when the table is updated"), "pivotOptions.preserve", c.preserveFormatting);
+        m_colGrand = check(tr("Show grand totals for rows"), "pivotOptions.rowGrand", c.colGrandTotals);
+        m_rowGrand = check(tr("Show grand totals for columns"), "pivotOptions.colGrand", c.rowGrandTotals);
+        m_headers = check(tr("Show field headers"), "pivotOptions.headers", c.showHeaders);
+        m_refresh = check(tr("Refresh the data when the file is opened"), "pivotOptions.refresh", c.refreshOnOpen);
+    }
+    m_generate = check(tr("Write GETPIVOTDATA when I click a value of a pivot table while typing a formula"), "pivotOptions.generate", c.generateGetPivotData);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    layout->addWidget(buttons);
+}
+
+PivotOptionsChoice PivotOptionsDialog::choice() const
+{
+    PivotOptionsChoice c = m_choice;
+    c.generateGetPivotData = m_generate->isChecked();
+    if (!c.hasTable) return c;
+    c.name = m_name->text().trimmed();
+    c.mergeLabels = m_merge->isChecked();
+    c.showError = m_showError->isChecked();
+    c.errorText = m_error->text();
+    c.showMissing = m_showMissing->isChecked();
+    c.missingText = m_missing->text();
+    c.autofit = m_autofit->isChecked();
+    c.preserveFormatting = m_preserve->isChecked();
+    // (the text says "for rows" for the totals the file calls the column totals: a row of totals at the right is one for each row)
+    c.colGrandTotals = m_colGrand->isChecked();
+    c.rowGrandTotals = m_rowGrand->isChecked();
+    c.showHeaders = m_headers->isChecked();
+    c.refreshOnOpen = m_refresh->isChecked();
+    return c;
+}
+
+// ---------------------------------------------------------------- Field Settings
+
+FieldSettingsDialog::FieldSettingsDialog(const FieldSettings &settings, QWidget *parent) : QDialog(parent), m_settings(settings)
+{
+    setWindowTitle(tr("Field Settings"));
+    setObjectName(QStringLiteral("fieldSettingsDialog"));
+    auto *form = new QFormLayout(this);
+    auto *source = new QLabel(settings.sourceName, this);
+    source->setTextFormat(Qt::PlainText);
+    form->addRow(tr("Source name:"), source);
+    m_name = new QLineEdit(settings.name, this);
+    m_name->setObjectName(QStringLiteral("field.name"));
+    m_name->setAccessibleName(tr("Custom name"));
+    form->addRow(tr("Custom name:"), m_name);
+    m_subtotals = new QComboBox(this);
+    m_subtotals->setObjectName(QStringLiteral("field.subtotals"));
+    m_subtotals->setAccessibleName(tr("Subtotals"));
+    m_subtotals->addItem(tr("Automatic"), true);
+    m_subtotals->addItem(tr("None"), false);
+    m_subtotals->setCurrentIndex(settings.subtotals ? 0 : 1);
+    form->addRow(tr("Subtotals:"), m_subtotals);
+    m_form = new QComboBox(this);
+    m_form->setObjectName(QStringLiteral("field.form"));
+    m_form->setAccessibleName(tr("Layout"));
+    m_form->addItem(tr("Compact form"), 2);
+    m_form->addItem(tr("Outline form"), 1);
+    m_form->addItem(tr("Tabular form"), 0);
+    m_form->setCurrentIndex(settings.form == 2 ? 0 : settings.form == 1 ? 1 : 2);
+    form->addRow(tr("Show item labels in:"), m_form);
+    m_blank = new QCheckBox(tr("Insert a blank line after each item"), this);
+    m_blank->setObjectName(QStringLiteral("field.blank"));
+    m_blank->setChecked(settings.blankRow);
+    form->addRow(m_blank);
+    m_repeat = new QCheckBox(tr("Repeat item labels (outline and tabular forms)"), this);
+    m_repeat->setObjectName(QStringLiteral("field.repeat"));
+    m_repeat->setChecked(settings.repeatLabels);
+    form->addRow(m_repeat);
+    // sort
+    m_sort = new QComboBox(this);
+    m_sort->setObjectName(QStringLiteral("field.sort"));
+    m_sort->setAccessibleName(tr("Sort"));
+    m_sort->addItem(tr("Manual (keep the order of the items)"), 0);
+    m_sort->addItem(tr("A to Z by the labels"), 1);
+    m_sort->addItem(tr("Z to A by the labels"), 2);
+    m_sort->addItem(tr("Smallest to largest by a value"), 3);
+    m_sort->addItem(tr("Largest to smallest by a value"), 4);
+    m_sort->setCurrentIndex(settings.sortByData >= 0 ? (settings.sortByDescending ? 4 : 3) : settings.sort);
+    form->addRow(tr("Sort:"), m_sort);
+    m_sortData = new QComboBox(this);
+    m_sortData->setObjectName(QStringLiteral("field.sortData"));
+    m_sortData->setAccessibleName(tr("Sort by this value"));
+    for (int i = 0; i < settings.dataNames.size(); ++i) m_sortData->addItem(settings.dataNames[i], i);
+    if (settings.sortByData >= 0) m_sortData->setCurrentIndex(settings.sortByData);
+    form->addRow(tr("by the value:"), m_sortData);
+    // filter
+    m_filter = new QComboBox(this);
+    m_filter->setObjectName(QStringLiteral("field.filter"));
+    m_filter->setAccessibleName(tr("Filter"));
+    const std::pair<PivotFilter::Kind, const char *> kinds[] = {
+        {PivotFilter::None, QT_TR_NOOP("No filter")}, {PivotFilter::LabelBeginsWith, QT_TR_NOOP("Label begins with")}, {PivotFilter::LabelEndsWith, QT_TR_NOOP("Label ends with")},
+        {PivotFilter::LabelContains, QT_TR_NOOP("Label contains")}, {PivotFilter::LabelNotContains, QT_TR_NOOP("Label does not contain")}, {PivotFilter::LabelEquals, QT_TR_NOOP("Label equals")},
+        {PivotFilter::LabelNotEquals, QT_TR_NOOP("Label does not equal")}, {PivotFilter::ValueGreater, QT_TR_NOOP("Value is greater than")},
+        {PivotFilter::ValueGreaterOrEqual, QT_TR_NOOP("Value is greater than or equal to")}, {PivotFilter::ValueLess, QT_TR_NOOP("Value is less than")},
+        {PivotFilter::ValueLessOrEqual, QT_TR_NOOP("Value is less than or equal to")}, {PivotFilter::ValueEquals, QT_TR_NOOP("Value equals")},
+        {PivotFilter::ValueNotEquals, QT_TR_NOOP("Value does not equal")}, {PivotFilter::ValueBetween, QT_TR_NOOP("Value is between")},
+        {PivotFilter::ValueNotBetween, QT_TR_NOOP("Value is not between")}, {PivotFilter::TopItems, QT_TR_NOOP("Top items (by a value)")}, {PivotFilter::BottomItems, QT_TR_NOOP("Bottom items (by a value)")}};
+    for (const auto &k : kinds) m_filter->addItem(tr(k.second), int(k.first));
+    form->addRow(tr("Filter:"), m_filter);
+    m_filterData = new QComboBox(this);
+    m_filterData->setObjectName(QStringLiteral("field.filterData"));
+    m_filterData->setAccessibleName(tr("Filter by this value"));
+    for (int i = 0; i < settings.dataNames.size(); ++i) m_filterData->addItem(settings.dataNames[i], i);
+    form->addRow(tr("by the value:"), m_filterData);
+    m_text = new QLineEdit(this);
+    m_text->setObjectName(QStringLiteral("field.filterText"));
+    m_text->setAccessibleName(tr("Filter text or number"));
+    form->addRow(tr("Text or number:"), m_text);
+    m_text2 = new QLineEdit(this);
+    m_text2->setObjectName(QStringLiteral("field.filterText2"));
+    m_text2->setAccessibleName(tr("Filter second number"));
+    form->addRow(tr("and:"), m_text2);
+    m_items = new QListWidget(this);
+    m_items->setObjectName(QStringLiteral("field.items"));
+    m_items->setAccessibleName(tr("Items to show"));
+    for (const auto &it : settings.items) {
+        auto *w = new QListWidgetItem(it.label, m_items);
+        w->setFlags(w->flags() | Qt::ItemIsUserCheckable);
+        w->setCheckState(it.shown ? Qt::Checked : Qt::Unchecked);
+    }
+    form->addRow(tr("Show these items:"), m_items);
+    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    form->addRow(box);
+    connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
+}
+
+FieldSettings FieldSettingsDialog::settings() const
+{
+    FieldSettings s = m_settings;
+    s.name = m_name->text().trimmed();
+    s.subtotals = m_subtotals->currentData().toBool();
+    s.form = m_form->currentData().toInt();
+    s.blankRow = m_blank->isChecked();
+    s.repeatLabels = m_repeat->isChecked();
+    const int sort = m_sort->currentData().toInt();
+    s.sortByData = -1;
+    s.sort = 0;
+    if (sort == 1 || sort == 2) s.sort = sort;
+    else if (sort >= 3 && m_sortData->count() > 0) {
+        s.sortByData = m_sortData->currentData().toInt();
+        s.sortByDescending = sort == 4;
+    }
+    s.filter = PivotFilter();
+    s.filter.kind = PivotFilter::Kind(m_filter->currentData().toInt());
+    s.filter.text = m_text->text();
+    s.filter.a = m_text->text().toDouble();
+    s.filter.b = m_text2->text().toDouble();
+    s.filter.dataField = m_filterData->count() > 0 ? m_filterData->currentData().toInt() : 0;
+    s.itemsChanged = false;
+    for (int i = 0; i < s.items.size() && i < m_items->count(); ++i) {
+        const bool shown = m_items->item(i)->checkState() == Qt::Checked;
+        if (shown != s.items[i].shown) s.itemsChanged = true;
+        s.items[i].shown = shown;
+    }
+    return s;
+}
+
 // ---------------------------------------------------------------- Value Field Settings
 
 ValueFieldDialog::ValueFieldDialog(const QString &sourceName, const QString &name, const QString &function, QWidget *parent) : QDialog(parent)
 {
+    ValueFieldSettings s;
+    s.sourceName = sourceName;
+    s.name = name;
+    s.function = function;
+    build(s);
+}
+
+ValueFieldDialog::ValueFieldDialog(const ValueFieldSettings &settings, QWidget *parent) : QDialog(parent)
+{
+    build(settings);
+}
+
+void ValueFieldDialog::build(const ValueFieldSettings &settings)
+{
+    m_settings = settings;
     setWindowTitle(tr("Value Field Settings"));
+    setObjectName(QStringLiteral("valueFieldDialog"));
     auto *form = new QFormLayout(this);
-    m_source = new QLabel(sourceName, this);
+    m_source = new QLabel(settings.sourceName, this);
     m_source->setTextFormat(Qt::PlainText);   // (a field's name comes from a file)
     form->addRow(tr("Source name:"), m_source);
-    m_name = new QLineEdit(name, this);
+    m_name = new QLineEdit(settings.name, this);
     m_name->setObjectName(QStringLiteral("pivot.valueName"));
     m_name->setAccessibleName(tr("Custom name"));
     form->addRow(tr("Custom name:"), m_name);
@@ -337,17 +694,87 @@ ValueFieldDialog::ValueFieldDialog(const QString &sourceName, const QString &nam
     for (const char *fn : kFunctions) {
         auto *item = new QListWidgetItem(functionLabel(QLatin1String(fn)), m_functions);
         item->setData(Qt::UserRole, QString::fromLatin1(fn));
-        if (function == QLatin1String(fn)) m_functions->setCurrentItem(item);
+        if (settings.function == QLatin1String(fn)) m_functions->setCurrentItem(item);
     }
     form->addRow(tr("Summarize value field by:"), m_functions);
+    // Show Values As
+    m_showAs = new QComboBox(this);
+    m_showAs->setObjectName(QStringLiteral("pivot.showAs"));
+    m_showAs->setAccessibleName(tr("Show values as"));
+    const std::pair<const char *, const char *> kinds[] = {
+        {"normal", QT_TR_NOOP("No Calculation")}, {"percentOfTotal", QT_TR_NOOP("% of Grand Total")}, {"percentOfCol", QT_TR_NOOP("% of Column Total")},
+        {"percentOfRow", QT_TR_NOOP("% of Row Total")}, {"index", QT_TR_NOOP("Index")}, {"difference", QT_TR_NOOP("Difference From")}, {"percent", QT_TR_NOOP("% Of")},
+        {"percentDiff", QT_TR_NOOP("% Difference From")}, {"runTotal", QT_TR_NOOP("Running Total In")}};
+    for (const auto &k : kinds) {
+        m_showAs->addItem(tr(k.second), QString::fromLatin1(k.first));
+        if (settings.showAs == QLatin1String(k.first)) m_showAs->setCurrentIndex(m_showAs->count() - 1);
+    }
+    form->addRow(tr("Show values as:"), m_showAs);
+    m_baseField = new QComboBox(this);
+    m_baseField->setObjectName(QStringLiteral("pivot.baseField"));
+    m_baseField->setAccessibleName(tr("Base field"));
+    for (const auto &b : settings.bases) {
+        m_baseField->addItem(b.name, b.field);
+        if (b.field == settings.baseField) m_baseField->setCurrentIndex(m_baseField->count() - 1);
+    }
+    form->addRow(tr("Base field:"), m_baseField);
+    m_baseItem = new QComboBox(this);
+    m_baseItem->setObjectName(QStringLiteral("pivot.baseItem"));
+    m_baseItem->setAccessibleName(tr("Base item"));
+    form->addRow(tr("Base item:"), m_baseItem);
+    connect(m_baseField, &QComboBox::currentIndexChanged, this, [this] { baseChanged(); });
+    connect(m_showAs, &QComboBox::currentIndexChanged, this, [this] {
+        const QString k = m_showAs->currentData().toString();
+        const bool relative = k == QLatin1String("difference") || k == QLatin1String("percent") || k == QLatin1String("percentDiff") || k == QLatin1String("runTotal");
+        m_baseField->setEnabled(relative && m_baseField->count() > 0);
+        m_baseItem->setEnabled(relative && k != QLatin1String("runTotal") && m_baseField->count() > 0);
+    });
+    baseChanged();
+    // the number format, as a code
+    m_format = new QComboBox(this);
+    m_format->setObjectName(QStringLiteral("pivot.numberFormat"));
+    m_format->setAccessibleName(tr("Number format"));
+    m_format->setEditable(true);
+    m_format->addItems({QString(), QStringLiteral("General"), QStringLiteral("0"), QStringLiteral("0.00"), QStringLiteral("#,##0"), QStringLiteral("#,##0.00"), QStringLiteral("$#,##0.00"),
+                        QStringLiteral("0%"), QStringLiteral("0.00%"), QStringLiteral("m/d/yyyy")});
+    m_format->setCurrentText(settings.numFmtCode);
+    form->addRow(tr("Number format (a code; empty keeps the cells' own):"), m_format);
     auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     form->addRow(box);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    Q_EMIT m_showAs->currentIndexChanged(m_showAs->currentIndex());
+}
+
+void ValueFieldDialog::baseChanged()
+{
+    m_baseItem->clear();
+    const int field = m_baseField->currentData().toInt();
+    for (const auto &b : m_settings.bases)
+        if (b.field == field) {
+            m_baseItem->addItem(tr("(previous)"), kPivotPreviousItem);
+            m_baseItem->addItem(tr("(next)"), kPivotNextItem);
+            for (int i = 0; i < b.items.size(); ++i) m_baseItem->addItem(b.items[i], i);
+        }
+    const int at = m_baseItem->findData(m_settings.baseItem);
+    if (at >= 0) m_baseItem->setCurrentIndex(at);
+    else if (m_baseItem->count() > 2) m_baseItem->setCurrentIndex(2);
 }
 
 QString ValueFieldDialog::name() const { return m_name->text(); }
 
 QString ValueFieldDialog::function() const { return m_functions->currentItem() ? m_functions->currentItem()->data(Qt::UserRole).toString() : QStringLiteral("sum"); }
+
+ValueFieldSettings ValueFieldDialog::settings() const
+{
+    ValueFieldSettings s = m_settings;
+    s.name = name();
+    s.function = function();
+    s.showAs = m_showAs->currentData().toString();
+    s.baseField = m_baseField->count() > 0 ? m_baseField->currentData().toInt() : 0;
+    s.baseItem = m_baseItem->count() > 0 ? m_baseItem->currentData().toInt() : 0;
+    s.numFmtCode = m_format->currentText().trimmed();
+    return s;
+}
 
 } // namespace jp

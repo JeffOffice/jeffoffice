@@ -90,6 +90,8 @@ public:
 
     // ---- showing
     void setShowMarks(bool on);
+    void setShadeFields(bool on);   // the fields shaded gray on the screen (never in print or a PDF)
+    bool shadeFields() const { return m_shadeFields; }
     bool showMarks() const { return m_marks; }
     // Spelling as you type: misspelled words get a red wave on the screen. The checking is the document's own, found a paragraph at a time for the pages in view.
     // (The check of what is being edited: the header's or footer's while one is, else the text's.)
@@ -381,6 +383,7 @@ private:
     ZoomMode m_mode = ZoomMode::Percent;
     int m_across = 1, m_down = 1;
     bool m_marks = false;
+    bool m_shadeFields = false;
     bool m_caretWithoutFocus = false;
 
     // Where each page is, in the content (pixels at the zoom), and how big the content is.

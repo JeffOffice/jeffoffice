@@ -100,6 +100,23 @@ struct ChartDataLabels {
     bool shown() const { return value || category || series || percent; }
 };
 
+// The most trendlines a chart is read with, and the points they are fitted to in all (a line of a series counts the series' values).
+constexpr qint64 kChartMaxTrendlines = 64, kChartMaxTrendlinePoints = 400000;
+
+// A line fitted to a series' values (c:trendline): what kind of line, how far it runs past the data, and whether its equation and R-squared are written on the chart.
+struct ChartTrendline {
+    QString type = QStringLiteral("linear");    // "linear", "exp", "log", "poly", "power", or "movingAvg"
+    QString name;                   // its own name in the legend; empty: the usual ("Linear (Series1)")
+    int order = 2;                  // a polynomial's, 2 to 6
+    int period = 2;                 // a moving average's, 2 up
+    double forward = 0, backward = 0;   // how far past the last and before the first point it runs, in the units of the categories or of x
+    bool hasIntercept = false;      // the line is made to pass through (0, intercept)
+    double intercept = 0;
+    bool dispRSqr = false, dispEq = false;
+    ChartLine line;                 // how it looks (the series' color, dotted, when the file says nothing)
+    QByteArray label;               // the file's c:trendlineLbl, as it wrote it
+};
+
 struct ChartSeries {
     QString name;
     // What the file stores for each point; a point it stores none for is a
@@ -132,6 +149,7 @@ struct ChartSeries {
     bool smooth = false;
     ChartDataLabels labels;
     double explosion = 0;           // a pie's slice pulled out, percent of the radius
+    QVector<ChartTrendline> trendlines;
 };
 
 // A kind of drawing in the plot area (c:barChart, c:lineChart, ...); a chart
@@ -207,6 +225,7 @@ struct Chart {
     ChartTitle title;
     ChartLegend legend;
     int style = 2;                  // c:style, 1 to 48
+    bool drawTrendlines = false;    // the series' trendlines are drawn (and named in the legend); a program that has not asked for them draws a chart as it always has
     // What it is set in and drawn on, from the theme and the color map.
     QVector<QColor> palette;        // the colors series (and slices) take when the file gives none, in order
     QString fontFamily;
@@ -221,6 +240,10 @@ struct Chart {
     // The relationships of the chart part's own (xl/charts/_rels) that it names: the drawing of shapes over the chart (c:userShapes) and the workbook it was made from (c:externalData). They
     // are good only for the part they were read in: a chart put in another part has them cleared (clearPartLinks).
     QString userShapesId, externalDataId;
+    // A chart that follows a pivot table (c:pivotSource): the table's name as the file writes it ("[Book.xlsx]Sheet1!Table1", or just the table's name) and the chart's format id.
+    QString pivotName;
+    int pivotFmtId = 0;
+    int pivotTable = -1;   // (not in the file) for a chart made here: the place of its table among the workbook's, so that the name above is made again from the table's name when the file is saved
     bool externalAutoUpdate = false;
     void clearPartLinks() { userShapesId.clear(); externalDataId.clear(); }
     // The plot area's place when the file fixes it, as fractions of the chart.

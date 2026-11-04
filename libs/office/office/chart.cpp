@@ -771,6 +771,26 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
     }
     *ownLabels = !cChild(ser, "dLbls").isNull();
     if (*ownLabels) s.labels = readLabels(cChild(ser, "dLbls"));
+    for (const QDomElement &t : cChildren(ser, "trendline")) {
+        if (s.trendlines.size() >= 8) break;
+        ChartTrendline line;
+        const QString type = valOf(cChild(t, "trendlineType"));
+        if (type == QLatin1String("exp") || type == QLatin1String("log") || type == QLatin1String("poly") || type == QLatin1String("power") || type == QLatin1String("movingAvg")) line.type = type;
+        line.name = cChild(t, "name").text().left(kChartMaxLabel);
+        line.order = int(std::clamp<qint64>(parseInt(valOf(cChild(t, "order")), 2), 2, 6));
+        line.period = int(std::clamp<qint64>(parseInt(valOf(cChild(t, "period")), 2), 2, 255));
+        line.forward = std::clamp(numberOf(cChild(t, "forward"), 0), 0.0, 1e9);
+        line.backward = std::clamp(numberOf(cChild(t, "backward"), 0), 0.0, 1e9);
+        if (const QDomElement i = cChild(t, "intercept"); !i.isNull()) {
+            line.hasIntercept = true;
+            line.intercept = numberOf(i, 0);
+        }
+        line.dispRSqr = flagOf(cChild(t, "dispRSqr"), false);
+        line.dispEq = flagOf(cChild(t, "dispEq"), false);
+        line.line = readLine(cChild(t, "spPr"));
+        line.label = fragment(cChild(t, "trendlineLbl"));
+        s.trendlines.append(line);
+    }
     // Its data.
     const bool scatter = plot.type == ChartType::Scatter;
     const Data values = readData(cChild(ser, scatter ? "yVal" : "val"));
@@ -978,6 +998,10 @@ bool Reader::read(const QDomElement &root, QString *error)
         if (c.style < 1 || c.style > 48) c.style = 2;
     }
     c.font = readTxPr(cChild(root, "txPr"));
+    if (const QDomElement pivot = cChild(root, "pivotSource"); !pivot.isNull()) {
+        c.pivotName = cChild(pivot, "name").text().left(512);
+        c.pivotFmtId = int(parseInt(valOf(cChild(pivot, "fmtId")), 0));
+    }
     c.userShapesId = attrNs(cChild(root, "userShapes"), ns::R, QStringLiteral("id"));
     if (const QDomElement ext = cChild(root, "externalData"); !ext.isNull()) {
         c.externalDataId = attrNs(ext, ns::R, QStringLiteral("id"));
@@ -1103,6 +1127,19 @@ bool readChart(const QByteArray &chartPartXml, const Theme &theme, const ColorMa
     Chart chart;
     Reader reader(theme, colors, &chart);
     if (!reader.read(doc.documentElement(), error)) return false;
+    // trendlines are bounded in all: how many a chart has, and the points they are fitted to
+    qint64 lines = 0, points = 0;
+    for (ChartPlot &plot : chart.plots)
+        for (ChartSeries &series : plot.series) {
+            QVector<ChartTrendline> kept;
+            for (const ChartTrendline &t : std::as_const(series.trendlines)) {
+                if (lines >= kChartMaxTrendlines || points + series.values.size() > kChartMaxTrendlinePoints) break;
+                kept.append(t);
+                ++lines;
+                points += series.values.size();
+            }
+            series.trendlines = kept;
+        }
     *out = chart;
     return true;
 }

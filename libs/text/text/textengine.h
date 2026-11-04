@@ -49,6 +49,9 @@ public:
     // numbers its own go on from), the footnotes cut at the foot of the page before (each "story|number|from"), and the height of the paragraph that
     // separates the notes from the text (0: a publication's).
     virtual int footnotesBefore() const { return 0; }
+    // How a note's number is shown (a word processor numbers its notes in a format of its own: 1, i, a, symbols...), and whether the numbers begin again on each page.
+    virtual QString noteMarkText(bool endnote, int number) const { Q_UNUSED(endnote); return QString::number(number); }
+    virtual bool restartNotesEachPage() const { return false; }
     virtual int endnotesBefore() const { return 0; }
     virtual QStringList carriedNotes() const { return {}; }
     virtual double noteSeparatorHeight() const { return 0; }

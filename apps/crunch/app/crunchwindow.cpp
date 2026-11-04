@@ -156,6 +156,8 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
         const bool away = m_edit.active && m_sheet != m_edit.sheet;
         return commitEdit(CellEditor::Way::Stay) && !away;
     });
+    // (a double click on a value of a pivot table shows the rows behind it, on a new sheet; F2 still edits)
+    m_view->setDoubleClickGuard([this] { return showPivotDetailAtCursor(true); });
     m_view->setPointGuard([this](qint64 row, qint64 col) { return pointAtPivotCell(row, col) || pointAtTableCell(row, col); });
     m_view->setPointer([this](const grid::GridView::PointSpan &span, bool first, Qt::KeyboardModifiers modifiers) { return pointAtCells(span, first, modifiers); });
     m_view->setPointAdjuster([this](int id, const grid::GridRange &block, bool final) { adjustReference(id, block, final); });
@@ -498,6 +500,7 @@ void CrunchWindow::createActions()
     createOutlineActions();
     createChartActions();
     createTableActions();
+    createSparklineActions();
     createPivotActions();
     createNoteActions();
     createProtectActions();
@@ -547,6 +550,7 @@ void CrunchWindow::notice(const QString &title, const QString &text, bool warnin
 void CrunchWindow::updateBars()
 {
     updateTableTab();
+    updateSparklineTab();
     updatePivotTab();
     updateDropDown();
     showNameInBox();

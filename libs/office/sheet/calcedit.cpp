@@ -1316,6 +1316,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     // ---- the rules of validation
     adjustValidations(e, names, rec);
     adjustConditionalFormats(e, names, rec);
+    adjustSparklines(e, names, rec);
 
     // ---- the defined names (one held in ids is as it was for an edit of whole lines: the same ids; for an edit of cells it is looked at by its places)
     bool namesChanged = false;
@@ -1603,6 +1604,8 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
         }
     for (const auto &entry : rec.conditionalFormats)
         if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].conditionalFormats = entry.second;
+    for (const auto &entry : rec.sparklines)
+        if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].sparklineGroups = entry.second;
     // (a list the edit did not change is as it was; if the edit that undoes it changed one, that one is put back as it was before that: what the edit left)
     if (rec.rangesSaved) S.ranges = rec.ranges;
     else if (throwaway.rangesSaved) S.ranges = throwaway.ranges;
@@ -1779,6 +1782,39 @@ void Calculation::adjustConditionalFormats(const StructEdit &e, const QStringLis
         if (!changed) continue;
         rec->conditionalFormats.push_back({si, sheet.conditionalFormats});
         sheet.conditionalFormats = std::move(now);
+    }
+}
+
+// The sparklines follow the edit: the cell each is drawn in, and the cells it reads (a sparkline that reads nothing now, or whose cell is gone, is dropped). The sheets whose sparklines changed are
+// recorded as they were.
+void Calculation::adjustSparklines(const StructEdit &e, const QStringList &names, EditRecord *rec)
+{
+    for (int si = 0; si < int(m_sheets.size()); ++si) {
+        Sheet &sheet = m_sheets[size_t(si)];
+        if (sheet.sparklineGroups.isEmpty()) continue;
+        QVector<SparklineGroup> now;
+        bool changed = false;
+        for (const SparklineGroup &was : sheet.sparklineGroups) {
+            SparklineGroup g = was;
+            g.sparklines.clear();
+            for (Sparkline s : was.sparklines) {
+                int at = si;
+                bool kept = adjustCell(e, &at, &s.row, &s.col) != RefFate::Gone && at == si;
+                s.source = adjustFormula(s.source, si, names, e);
+                if (s.source.contains(QLatin1String("#REF!"))) kept = false;
+                if (kept) g.sparklines.append(s);
+            }
+            if (g.sparklines != was.sparklines) changed = true;
+            if (!g.dateRange.isEmpty()) {
+                bool c = false;
+                g.dateRange = adjustFormula(g.dateRange, si, names, e, &c);
+                changed = changed || c;
+            }
+            if (!g.sparklines.isEmpty()) now.append(g);
+        }
+        if (!changed) continue;
+        rec->sparklines.push_back({si, sheet.sparklineGroups});
+        sheet.sparklineGroups = std::move(now);
     }
 }
 

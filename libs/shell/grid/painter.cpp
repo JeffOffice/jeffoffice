@@ -1,5 +1,6 @@
 #include "grid/painter.h"
 
+#include "grid/sparklinepaint.h"
 #include "sheet/cellref.h"
 
 #include <QGlyphRun>
@@ -897,6 +898,52 @@ marked:
                 }
                 if (cc && cc->hasBar) drawBar(p, cellRect, cc->bar, o.gridlines);
             }
+        // sparklines: over the fill, under the borders and the text
+        if (m_sheet->hasSparklines()) {
+            for (size_t j = c0; j < c1; ++j) {
+                if (!w.covered.empty() && w.covered[i * C + j]) continue;
+                if (rs.ring || w.cols[j].ring || rs.index < 0 || w.cols[j].index < 0) continue;
+                GridSheet::SparklineHit hit;
+                if (!m_sheet->sparklineAt(quint32(rs.index), quint32(w.cols[j].index), &hit)) continue;
+                if (m_stats.sparklines >= kMaxSparklines) {
+                    m_stats.truncated = true;
+                    break;
+                }
+                ++m_stats.sparklines;
+                const jp::office::sheet::SparklineGroup &g = *hit.group;
+                // (a group's colors are made once in a paint)
+                auto found = m_sparkColors.find(hit.groupIndex);
+                if (found == m_sparkColors.end()) {
+                    const jp::office::sheet::Styles *styles = m_sheet->data().styles;
+                    auto color = [&](const jp::office::sheet::ColorSpec &spec, const char *which) {
+                        const jp::office::sheet::ColorSpec use = spec.isSet() ? spec : jp::office::sheet::defaultSparklineColor(which);
+                        return QColor::fromRgb(styles ? styles->resolve(use, 0x376092) : use.rgb);
+                    };
+                    SparklineColors made;
+                    made.series = color(g.series, "series");
+                    made.negative = color(g.negativeColor, "negative");
+                    made.axis = color(g.axisColor, "axis");
+                    made.markers = color(g.markerColor, "markers");
+                    made.first = color(g.firstColor, "first");
+                    made.last = color(g.lastColor, "last");
+                    made.high = color(g.highColor, "high");
+                    made.low = color(g.lowColor, "low");
+                    found = m_sparkColors.emplace(hit.groupIndex, made).first;
+                    ++m_stats.sparklineColorSets;
+                }
+                double low = 0, high = 0;
+                if (g.minAxis == jp::office::sheet::SparklineGroup::Axis::Group || g.maxAxis == jp::office::sheet::SparklineGroup::Axis::Group) {
+                    if (!m_sheet->sparklineGroupRange(hit.groupIndex, &low, &high)) low = high = std::numeric_limits<double>::quiet_NaN();
+                }
+                const QRect cellRect(w.cols[j].start, rs.start, w.cols[j].size, rs.size);
+                const QVector<double> dates = g.dateAxis && !g.dateRange.isEmpty() ? m_sheet->sparklineValues(g.dateRange, g.hidden) : QVector<double>();
+                // (the whole cell is drawn into, and the part of it that is in this pane is what shows)
+                p->save();
+                p->setClipRect(area, Qt::IntersectClip);
+                paintSparkline(p, cellRect, g, found->second, m_sheet->sparklineValues(hit.sparkline->source, g.hidden), low, high, dates);
+                p->restore();
+            }
+        }
         // borders: the lines between the cells of this row, and above it
         if (anyBorder) {
             for (size_t k = c0; k <= c1; ++k) {
@@ -1226,6 +1273,8 @@ void GridPainter::paint(QPainter *p, const QRect &clip, const PaintOptions &o)
     m_mono = o.monochrome;
     m_strokedDashes = o.strokedDashes;
     m_sheet->conditional().beginPaint();   // (the steps this paint may spend on the rules' formulas)
+    m_sheet->beginSparklinePaint();
+    m_sparkColors.clear();
     struct EndOfPaint {   // (what the rules kept of the cells, if the paint filled it, is let go of when the paint is over, not in the middle of it)
         const CondFormats &rules;
         ~EndOfPaint() { rules.endPaint(); }

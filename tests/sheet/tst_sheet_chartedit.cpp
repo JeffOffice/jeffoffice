@@ -209,6 +209,105 @@ private Q_SLOTS:
         QCOMPARE(combo.axes.size(), 4);
     }
 
+    // Choosing another kind changes the kind and nothing else of the trendline: its order, period, name, reach, and look stay, and so do the other trendlines of the series.
+    void aChosenKindKeepsTheRestOfTheTrendlines()
+    {
+        Chart c = columns(ChartKind::Line);
+        ChartTrendline first;
+        first.type = QStringLiteral("poly");
+        first.order = 4;
+        first.period = 7;
+        first.name = QStringLiteral("My fit");
+        first.forward = 2;
+        first.hasIntercept = true;
+        first.intercept = 1.5;
+        ChartTrendline second;
+        second.type = QStringLiteral("movingAvg");
+        second.period = 5;
+        c.plots[0].series[0].trendlines = {first, second};
+        setTrendlines(&c, QStringLiteral("exp"));
+        const QVector<ChartTrendline> now = c.plots[0].series[0].trendlines;
+        QCOMPARE(int(now.size()), 2);
+        QCOMPARE(now[0].type, QStringLiteral("exp"));
+        QCOMPARE(now[0].order, 4);
+        QCOMPARE(now[0].period, 7);
+        QCOMPARE(now[0].name, QStringLiteral("My fit"));
+        QCOMPARE(now[0].forward, 2.0);
+        QVERIFY(now[0].hasIntercept && now[0].intercept == 1.5);
+        QCOMPARE(now[1].type, QStringLiteral("movingAvg"));
+        QCOMPARE(now[1].period, 5);
+        // a series with none is given one of the usual order and period
+        QCOMPARE(c.plots[0].series[1].trendlines.value(0).type, QStringLiteral("exp"));
+        QCOMPARE(c.plots[0].series[1].trendlines.value(0).order, 2);
+        // an order asked for is the order
+        setTrendlines(&c, QStringLiteral("poly"), 3);
+        QCOMPARE(c.plots[0].series[0].trendlines[0].order, 3);
+        QCOMPARE(c.plots[0].series[0].trendlines[0].period, 7);
+    }
+
+    // The trendline element: every series has one of the kind chosen, it keeps what it shows when the kind changes, it is written and read, and "none" takes it away.
+    void trendlinesGoOnAndOff()
+    {
+        Chart c = columns(ChartKind::Line);
+        QVERIFY(elementsOf(c).trendline.isEmpty());
+        setTrendlines(&c, QStringLiteral("linear"));
+        setTrendlineDisplay(&c, true, true);
+        for (const Chart &x : {c, roundTrip(c)}) {
+            const ChartElements e = elementsOf(x);
+            QCOMPARE(e.trendline, QStringLiteral("linear"));
+            QVERIFY(e.trendlineEquation && e.trendlineRSquared);
+            for (const ChartSeries &s : seriesOf(x)) QCOMPARE(int(s.trendlines.size()), 1);
+        }
+        setTrendlines(&c, QStringLiteral("poly"), 4);
+        const Chart back = roundTrip(c);
+        QCOMPARE(elementsOf(back).trendline, QStringLiteral("poly"));
+        QCOMPARE(seriesOf(back)[0].trendlines[0].order, 4);
+        QVERIFY(elementsOf(back).trendlineEquation);   // (kept across the change of kind)
+        QCOMPARE(seriesOf(back)[0].trendlines[0].line.color, seriesOf(back)[0].color);
+        setTrendlines(&c, QStringLiteral("movingAvg"), 2, 3);
+        QCOMPARE(roundTrip(c).plots[0].series[0].trendlines[0].period, 3);
+        // a pie has no trendlines
+        Chart pie = columns(ChartKind::Pie);
+        setTrendlines(&pie, QStringLiteral("linear"));
+        QVERIFY(pie.plots[0].series[0].trendlines.isEmpty());
+        setTrendlines(&c, QString());
+        QVERIFY(elementsOf(roundTrip(c)).trendline.isEmpty());
+        // columns and a scatter take them too
+        Chart bars = columns();
+        setTrendlines(&bars, QStringLiteral("exp"));
+        QCOMPARE(elementsOf(roundTrip(bars)).trendline, QStringLiteral("exp"));
+        Chart sc = columns(ChartKind::Scatter);
+        setTrendlines(&sc, QStringLiteral("power"));
+        QCOMPARE(elementsOf(roundTrip(sc)).trendline, QStringLiteral("power"));
+    }
+
+    // The legend over the plot, and the elements of the second pair of axes (a series against them).
+    void theLegendOverTheChartAndTheSecondAxes()
+    {
+        Chart c = columns();
+        setLegend(&c, QStringLiteral("r"), true);
+        QVERIFY(elementsOf(c).legendOverlay);
+        QVERIFY(elementsOf(roundTrip(c)).legendOverlay);
+        setLegend(&c, QStringLiteral("r"));
+        QVERIFY(!elementsOf(roundTrip(c)).legendOverlay);
+        // no second axes on a plain chart
+        ChartElements e = elementsOf(c);
+        QVERIFY(!e.hasSecondaryHorizontal && !e.hasSecondaryVertical);
+        const Chart combo = roundTrip(withKind(c, ChartKind::Combo, defaultTheme()));
+        e = elementsOf(combo);
+        QVERIFY(e.hasSecondaryVertical && e.hasSecondaryHorizontal);
+        QVERIFY(!e.axisSecondaryHorizontal);   // (a second horizontal axis is not shown: the usual of such a chart)
+        Chart d = combo;
+        setAxisTitle(&d, false, true, true);
+        setAxisShown(&d, true, true, true);
+        e = elementsOf(roundTrip(d));
+        QVERIFY(e.axisTitleSecondaryVertical && !e.axisTitleVertical);
+        QVERIFY(e.axisSecondaryHorizontal && e.axisSecondaryVertical);
+        setAxisShown(&d, false, false, true);
+        QVERIFY(!elementsOf(roundTrip(d)).axisSecondaryVertical);
+        QVERIFY(elementsOf(roundTrip(d)).axisVertical);   // (the first pair is as it was)
+    }
+
     void eachSeriesHasItsOwnKind()
     {
         Chart c = makeChart(ChartKind::Column, planOf(QStringLiteral("A1:D4"), ChartKind::Column), defaultTheme());

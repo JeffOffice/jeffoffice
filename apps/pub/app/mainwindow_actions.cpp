@@ -626,7 +626,7 @@ void MainWindow::createActions()
         recipientsDialog(this, m_ed, false);
     };
     mk("mm.existing", tr("Use an Existing List…"), "file-spreadsheet", QKeySequence(), [useList] {
-        useList(tr("Select Data Source"), tr("Data Sources (*.csv *.txt *.tsv *.xlsx *.vcf)"));
+        useList(tr("Select Data Source"), tr("Data Sources (*.csv *.txt *.tsv *.xlsx *.xlsm *.xls *.ods *.fods *.vcf)"));
     });
     // The other program reads one mail program's contacts; JeffPub reads the
     // contacts any address book can save, as vCard files.

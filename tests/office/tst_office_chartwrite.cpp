@@ -197,15 +197,110 @@ private Q_SLOTS:
         QVERIFY(gradient != ours);
         QVERIFY2(chartIsFullyModeled(gradient, &why), qPrintable(why));   // (a gradient is kept: see whatTheModelKeepsIsWrittenBack)
         QByteArray trend = ours;
-        trend.replace("<c:cat>", "<c:trendline><c:trendlineType val=\"linear\"/></c:trendline><c:cat>");
+        trend.replace("<c:cat>", "<c:errBars><c:errBarType val=\"both\"/><c:errValType val=\"fixedVal\"/><c:val val=\"1\"/></c:errBars><c:cat>");
         QVERIFY(!chartIsFullyModeled(trend, &why));
-        QCOMPARE(why, QStringLiteral("trendline"));
+        QCOMPARE(why, QStringLiteral("errBarType"));
         QByteArray threeD = ours;
         threeD.replace("<c:barChart>", "<c:bar3DChart>").replace("</c:barChart>", "</c:bar3DChart>");
         QVERIFY(!chartIsFullyModeled(threeD, &why));
         QVERIFY(!chartIsFullyModeled(QByteArray("<c:chartSpace"), &why));
     }
 
+
+    // A chart is read with only so many trendlines in all (a hostile file asks for one on every series, eight on each), and with the points they are fitted to counted.
+    void aChartIsReadWithABoundedNumberOfTrendlines()
+    {
+        Chart c = comboChart();
+        ChartSeries proto = c.plots[0].series[0];
+        c.plots[0].series.clear();
+        c.plots[1].series.clear();
+        for (int i = 0; i < 100; ++i) {
+            ChartSeries s = proto;
+            s.name = QStringLiteral("S%1").arg(i);
+            ChartTrendline t;
+            s.trendlines << t << t << t;
+            c.plots[0].series << s;
+        }
+        QByteArray part = writeChartPart(c);
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(part, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        qint64 lines = 0;
+        for (const ChartPlot &p : r.plots)
+            for (const ChartSeries &s : p.series) lines += s.trendlines.size();
+        QCOMPARE(lines, jp::office::kChartMaxTrendlines);
+        // the ones kept are the first in the order of the series
+        QCOMPARE(int(r.plots[0].series[0].trendlines.size()), 3);
+        QCOMPARE(int(r.plots[0].series.last().trendlines.size()), 0);
+    }
+
+    // A trendline is read, written in the schema's order, and drawn: with its kind, how far it runs, its look, and the equation shown.
+    void aTrendlineIsKeptAndDrawn()
+    {
+        Chart c = comboChart();
+        ChartTrendline t;
+        t.type = QStringLiteral("poly");
+        t.order = 2;
+        t.forward = 1.5;
+        t.backward = 0.5;
+        t.hasIntercept = true;
+        t.intercept = 2;
+        t.dispEq = true;
+        t.dispRSqr = true;
+        t.name = QStringLiteral("Fit");
+        t.line.set = true;
+        t.line.color = QColor("#C00000");
+        t.line.width = 1.5;
+        t.line.dash = QStringLiteral("dash");
+        c.plots[0].series[0].trendlines << t;
+        ChartTrendline m;
+        m.type = QStringLiteral("movingAvg");
+        m.period = 3;
+        c.plots[1].series[0].trendlines << m;
+        const QByteArray part = writeChartPart(c);
+        QString why;
+        QVERIFY2(chartIsFullyModeled(part, &why), qPrintable(why));
+        // the elements follow the schema: name, spPr, trendlineType, order, period, forward, backward, intercept, dispRSqr, dispEq; and they come after the labels and before the data
+        const int at = part.indexOf("<c:trendline>");
+        QVERIFY(at > part.indexOf("<c:tx>"));
+        QVERIFY(at < part.indexOf("<c:cat>"));
+        const QByteArray body = part.mid(at, part.indexOf("</c:trendline>", at) - at);
+        QByteArrayList order = {"<c:name>", "<c:spPr>", "<c:trendlineType val=\"poly\"/>", "<c:order val=\"2\"/>", "<c:forward val=\"1.5\"/>", "<c:backward val=\"0.5\"/>",
+                                "<c:intercept val=\"2\"/>", "<c:dispRSqr val=\"1\"/>", "<c:dispEq val=\"1\"/>"};
+        int last = -1;
+        for (const QByteArray &e : order) {
+            const int where = body.indexOf(e);
+            QVERIFY2(where > last, e.constData());
+            last = where;
+        }
+        Chart r;
+        QVERIFY(readChart(part, defaultTheme(), ColorMap(), &r, &why));
+        const ChartTrendline got = r.plots[0].series[0].trendlines.value(0);
+        QCOMPARE(got.type, QStringLiteral("poly"));
+        QCOMPARE(got.order, 2);
+        QCOMPARE(got.forward, 1.5);
+        QCOMPARE(got.backward, 0.5);
+        QVERIFY(got.hasIntercept);
+        QCOMPARE(got.intercept, 2.0);
+        QVERIFY(got.dispEq && got.dispRSqr);
+        QCOMPARE(got.name, QStringLiteral("Fit"));
+        QCOMPARE(got.line.color, QColor("#C00000"));
+        QCOMPARE(r.plots[1].series[0].trendlines.value(0).period, 3);
+        QCOMPARE(writeChartPart(r), part);
+        // it is drawn: the picture has the equation, the legend names the line, and without it there is neither
+        // (only for a program that asks: a deck draws a chart with trendlines as it always has)
+        const QByteArray notAsked = chartSvg(c, QSizeF(480, 288));
+        c.drawTrendlines = true;
+        const QByteArray with = chartSvg(c, QSizeF(480, 288));
+        Chart plain = comboChart();
+        QVERIFY(notAsked == chartSvg(plain, QSizeF(480, 288)));
+        const QByteArray without = chartSvg(plain, QSizeF(480, 288));
+        QVERIFY(with != without);
+        QVERIFY(with.contains("Fit"));
+        QVERIFY(with.contains("3 per. Mov. Avg. (Total)"));
+        QVERIFY(with.contains("R"));
+        QVERIFY(!without.contains("Fit"));
+    }
 
     // What the model has no place for but keeps as the file wrote it, or carries as a field, is written back: for each, the part is one that may be written over, what is written has the element,
     // and what is written and read again is written the same (read, write, read: equal).
@@ -295,6 +390,16 @@ private Q_SLOTS:
         QCOMPARE(l.externalDataId, QStringLiteral("rId2"));
         l.clearPartLinks();
         QVERIFY(!writeChartPart(l).contains("userShapes") && !writeChartPart(l).contains("externalData"));
+        // a chart that follows a pivot table: the table's name and the format id are kept, in the place the schema has them (before the chart)
+        QByteArray pivot = ours;
+        pivot.replace("<c:chart>", "<c:pivotSource><c:name>[Book.xlsx]Sheet1!PivotTable1</c:name><c:fmtId val=\"3\"/></c:pivotSource><c:chart>");
+        QVERIFY2(pivot != ours, "the chart is where the test looks for it");
+        Chart pc;
+        const QByteArray pivoted = roundTrip(pivot, "<c:pivotSource>", &pc);
+        QCOMPARE(pc.pivotName, QStringLiteral("[Book.xlsx]Sheet1!PivotTable1"));
+        QCOMPARE(pc.pivotFmtId, 3);
+        QVERIFY(pivoted.indexOf("<c:pivotSource>") < pivoted.indexOf("<c:chart>"));
+        QVERIFY(pivoted.indexOf("<c:style") < pivoted.indexOf("<c:pivotSource>"));
         // a chart area with no fill
         QByteArray none = ours;
         none.replace("</c:chart>", "</c:chart><c:spPr><a:noFill/></c:spPr>");

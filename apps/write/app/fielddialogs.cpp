@@ -301,9 +301,12 @@ bool tableOfContentsDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     auto *links = new QCheckBox(QCoreApplication::translate("jp::write::FieldDialogs", "Use hyperlinks"), &dlg);
     links->setObjectName(QStringLiteral("tocLinks"));
     links->setChecked(true);
+    auto *entries = new QCheckBox(QCoreApplication::translate("jp::write::FieldDialogs", "Include entries marked with Mark Entry"), &dlg);
+    entries->setObjectName(QStringLiteral("tocEntries"));
     v->addWidget(pages);
     v->addWidget(right);
     v->addWidget(links);
+    v->addWidget(entries);
     auto *form = new QFormLayout;
     auto *leader = new QComboBox(&dlg);
     leader->setObjectName(QStringLiteral("tocLeader"));
@@ -335,6 +338,7 @@ bool tableOfContentsDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     o.rightAlign = right->isChecked();
     o.leader = leader->currentData().toString();
     o.hyperlinks = links->isChecked();
+    o.entryFields = entries->isChecked();
     QTextCursor c = view->cursor();
     bool cut = false;
     const bool ok = insertTableOfContents(*doc, c, o, &cut);

@@ -162,7 +162,8 @@
           "keytip": "ZT",
           "items": [
             {"large": "insert.table", "keytip": "T"},
-            {"large": "insert.pivot", "keytip": "V"}
+            {"large": "insert.pivot", "keytip": "V"},
+            {"large": "insert.pivotChart", "keytip": "VC"}
           ]
         },
         {
@@ -179,6 +180,15 @@
             {"small": "chart.scatter", "keytip": "CS", "split": true, "menu": ["chart.scatter.points", "chart.scatter.joined", "chart.scatter.smooth"]},
             {"column": true},
             {"small": "chart.combo", "keytip": "CO"}
+          ]
+        },
+        {
+          "name": "Sparklines",
+          "keytip": "ZJ",
+          "items": [
+            {"small": "spark.insert.line", "keytip": "JL"},
+            {"small": "spark.insert.column", "keytip": "JC"},
+            {"small": "spark.insert.winloss", "keytip": "JW"}
           ]
         },
         {
@@ -513,6 +523,62 @@
       ]
     },
     {
+      "name": "Sparkline",
+      "keytip": "JK",
+      "context": "Sparkline",
+      "color": "sparklineDesign",
+      "groups": [
+        {
+          "name": "Sparkline",
+          "keytip": "ZE",
+          "items": [
+            {"large": {"id": "ribbon.sparkEdit", "text": "Edit Data", "icon": "square-pen"}, "keytip": "ED", "menu": ["spark.editGroup", "spark.editOne", "-", "spark.empty.gaps", "spark.empty.zero", "spark.empty.span", "-", "spark.hidden"]}
+          ]
+        },
+        {
+          "name": "Type",
+          "keytip": "ZY",
+          "items": [
+            {"small": "spark.type.line", "keytip": "TL"},
+            {"small": "spark.type.column", "keytip": "TC"},
+            {"small": "spark.type.winloss", "keytip": "TW"}
+          ]
+        },
+        {
+          "name": "Show",
+          "keytip": "ZW",
+          "items": [
+            {"small": "spark.show.high", "keytip": "SH"},
+            {"small": "spark.show.low", "keytip": "SO"},
+            {"small": "spark.show.negative", "keytip": "SN"},
+            {"column": true},
+            {"small": "spark.show.first", "keytip": "SF"},
+            {"small": "spark.show.last", "keytip": "SA"},
+            {"small": "spark.show.markers", "keytip": "SM"}
+          ]
+        },
+        {
+          "name": "Style",
+          "keytip": "ZL",
+          "items": [
+            {"large": {"id": "ribbon.sparkLooks", "text": "Styles", "icon": "brush"}, "keytip": "ST", "menu": "@sparkLooks"},
+            {"large": {"id": "ribbon.sparkColor", "text": "Sparkline Color", "icon": "palette"}, "keytip": "SC", "menu": "@sparkColor"},
+            {"large": {"id": "ribbon.sparkMarkerColor", "text": "Marker Color", "icon": "circle-dot"}, "keytip": "MC", "menu": "@sparkMarkerColor"}
+          ]
+        },
+        {
+          "name": "Group",
+          "keytip": "ZG",
+          "items": [
+            {"large": {"id": "ribbon.sparkAxis", "text": "Axis", "icon": "ruler"}, "keytip": "AX", "menu": "@sparkAxis"},
+            {"small": "spark.group", "keytip": "GR"},
+            {"small": "spark.ungroup", "keytip": "UG"},
+            {"small": {"id": "ribbon.sparkClear", "text": "Clear", "icon": "eraser"}, "keytip": "CL", "menu": ["spark.clearSelected", "spark.clearGroups"]}
+          ]
+        }
+      ]
+    },
+    {
       "name": "Pivot Table",
       "keytip": "JP",
       "context": "Pivot Table",
@@ -538,7 +604,14 @@
           "keytip": "ZS",
           "items": [
             {"large": "pivot.fieldList", "keytip": "PL"},
-            {"small": "pivot.valueSettings", "keytip": "PV"}
+            {"small": "pivot.valueSettings", "keytip": "PV"},
+            {"small": "pivot.fieldSettings", "keytip": "PA"},
+            {"small": "pivot.showDetail", "keytip": "PJ"},
+            {"small": "pivot.group", "keytip": "PQ"},
+            {"small": "pivot.ungroup", "keytip": "PU"},
+            {"column": true},
+            {"small": "pivot.expandField", "keytip": "PE"},
+            {"small": "pivot.collapseField", "keytip": "PK"}
           ]
         },
         {
@@ -547,7 +620,21 @@
           "items": [
             {"large": {"id": "ribbon.pivotSubtotals", "text": "Subtotals", "icon": "sigma"}, "keytip": "PS", "menu": ["pivot.sub.none", "pivot.sub.top", "pivot.sub.bottom"]},
             {"large": {"id": "ribbon.pivotGrand", "text": "Grand Totals", "icon": "calculator"}, "keytip": "PG", "menu": ["pivot.grand.off", "pivot.grand.both", "pivot.grand.rows", "pivot.grand.cols"]},
-            {"large": {"id": "ribbon.pivotLayout", "text": "Report Layout", "icon": "layout-list"}, "keytip": "PR", "menu": ["pivot.layout.compact", "pivot.layout.outline", "pivot.layout.tabular"]}
+            {"large": {"id": "ribbon.pivotLayout", "text": "Report Layout", "icon": "layout-list"}, "keytip": "PR", "menu": ["pivot.layout.compact", "pivot.layout.outline", "pivot.layout.tabular"]},
+            {"large": {"id": "ribbon.pivotBlank", "text": "Blank Rows", "icon": "rows-3"}, "keytip": "PB", "menu": ["pivot.blank.insert", "pivot.blank.remove"]},
+            {"large": {"id": "ribbon.pivotRepeat", "text": "Repeat Labels", "icon": "repeat"}, "keytip": "PT", "menu": ["pivot.repeat.on", "pivot.repeat.off"]}
+          ]
+        },
+        {
+          "name": "Style Options",
+          "keytip": "ZY",
+          "items": [
+            {"small": "pivot.style.rowHeaders", "keytip": "PW"},
+            {"small": "pivot.style.colHeaders", "keytip": "PH"},
+            {"column": true},
+            {"small": "pivot.style.rowStripes", "keytip": "PX"},
+            {"small": "pivot.style.colStripes", "keytip": "PZ"},
+            {"large": {"id": "ribbon.pivotStyles", "text": "Styles", "icon": "palette"}, "keytip": "PY", "menu": ["pivot.style.none", "-", "pivot.style.PivotStyleLight1", "pivot.style.PivotStyleLight9", "pivot.style.PivotStyleLight16", "pivot.style.PivotStyleLight17", "pivot.style.PivotStyleLight21", "pivot.style.PivotStyleMedium2", "pivot.style.PivotStyleMedium9", "pivot.style.PivotStyleMedium16", "pivot.style.PivotStyleDark2", "pivot.style.PivotStyleDark9"]}
           ]
         },
         {

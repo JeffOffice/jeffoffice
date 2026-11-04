@@ -59,6 +59,7 @@ enum : int {
     DisplayStyle,                                // QString: layout only, how a run is set when its format does not say: "i" italic, "b" bold, "ib" both (an equation's letters, a styled letter of the mathematical alphanumeric block shown as its letter): never written to a file (LayoutEnv::wordLines)
     FieldId,                                     // int: layout only, the field (a number of this program's own) whose result or code a run belongs to; never written to a file (see kShowFieldCodes)
     FieldCodeText,                               // QString: layout only, on the mark that stands for a field's code, the code in braces ("{ PAGE }"), shown in place of the result while the field's codes are shown
+    MergeField,                                  // bool: layout only, on a field of a mail merge (its result, or its mark): the ones Highlight Merge Fields shades
     BlankFieldResult,                            // bool: layout only, the run is the result of a field (a reference) that is nothing but blanks: it is shown, and takes no part in its line's height (LayoutEnv::wordLines)
 
     // block
@@ -116,6 +117,7 @@ enum : int {
     RevisionAuthor,                              // int (char format): who made the change the run is in, a place in the document's list of people (the color it is marked with)
     RevisionInserted,                            // bool (char format): a run that a change deleted (tp::Revision 2 or 3) was inserted by a change too: it was never in the document as it was (LayoutEnv::revisionView)
     RevisionFormat,                              // bool (char format): the run's properties were changed by a tracked change (a change bar beside its line)
+    RaisedRef,                                   // bool (char format): layout only, a note's reference whose run names no style and says nothing of raising is shown raised on the page: never written to a file
 };
 
 // How tracked changes are shown in the lines (LayoutEnv::revisionView, and the same number as the story's property kRevisionViewProperty, which the places that have no environment

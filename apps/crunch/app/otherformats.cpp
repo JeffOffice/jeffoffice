@@ -201,6 +201,8 @@ QStringList leftOutOfCsv(const jp::office::sheet::Workbook &book, qint64 formula
         if (!package.relationshipsOfType(main, QStringLiteral("/externalLink")).isEmpty()) out << QCoreApplication::translate("jp::crunch::OtherFormats", "links to other workbooks");
         if (!package.relationshipsOfType(main, QStringLiteral("/vbaProject")).isEmpty()) out << QCoreApplication::translate("jp::crunch::OtherFormats", "macros");
     }
+    // (a pivot table made in this session has no part in the package yet: the model says)
+    if (book.pivots().tableCount() > 0 && !out.contains(QCoreApplication::translate("jp::crunch::OtherFormats", "pivot tables"))) out << QCoreApplication::translate("jp::crunch::OtherFormats", "pivot tables");
     out << QCoreApplication::translate("jp::crunch::OtherFormats", "number formats, fonts, colors, and column widths");
     return out;
 }

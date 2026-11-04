@@ -16,6 +16,7 @@
 #include "sheet/notesave.h"
 #include "sheet/pagesetupxml.h"
 #include "sheet/protection.h"
+#include "sheet/sparkline.h"
 #include "sheet/refshift.h"
 #include "sheet/sheetreader.h"
 
@@ -113,6 +114,9 @@ struct SheetChanges {
     // this from the page setup's pictures; whoever asks for a save does not).
     bool hfSet = false;
     QString hfRel;
+    // The sparklines the sheet has now, when a person changed them: the extension that holds them is made from these in place of the file's (none left: it is taken out).
+    bool replaceSparklines = false;
+    QVector<SparklineGroup> sparklines;
     // For a sheet a person added: the XML it begins as (its view, default sizes, rules, and no cells: the cells, sizes of rows and columns, and merged ranges above are put in it).
     QByteArray skeleton;
     // For a sheet a person copied: the part of the sheet it was copied from (in the file as it was read or last saved), and the edits to rows and columns made to the cells it was copied from
@@ -144,7 +148,7 @@ struct SheetChanges {
     QString drawingRelId;
     // The links from the sheet to its tables' parts: the ids of the relationships of tables made here (saving sets them, from SaveChanges::addedTables), and of tables taken out.
     std::vector<QString> addTableRels, removeTableRels;
-    bool empty() const { return drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && noteOps.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    bool empty() const { return !replaceSparklines && drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && noteOps.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
