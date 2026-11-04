@@ -17,6 +17,8 @@
 #include "core/editops.h"
 #include "core/fieldops.h"
 #include "core/indexops.h"
+#include "core/insertops.h"
+#include "core/linkops.h"
 #include "core/mergeops.h"
 #include "core/tocops.h"
 #include "core/pictureops.h"
@@ -32,6 +34,7 @@
 #include <QApplication>
 #include <QBuffer>
 #include <QImage>
+#include <QMimeData>
 #include <QPlainTextEdit>
 #include <QRadioButton>
 #include <QScrollBar>
@@ -162,7 +165,18 @@ private Q_SLOTS:
             if (id == QLatin1String("zoom.100")) asWrite(w)->view()->setZoom(1.5);
             // Save has something to save once something was changed.
             if (id == QLatin1String("file.save") && fromFile) m_app.type(w);
-            if (id == QLatin1String("edit.paste")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
+            if (id == QLatin1String("edit.paste") || id == QLatin1String("edit.pasteText") || id == QLatin1String("edit.pasteSpecial")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
+            if (id == QLatin1String("edit.pasteMerge")) {
+                auto *mime = new QMimeData;
+                mime->setText(QStringLiteral("Pasted words"));
+                mime->setHtml(QStringLiteral("<p><b>Pasted</b> words</p>"));
+                QGuiApplication::clipboard()->setMimeData(mime);
+            }
+            if (id == QLatin1String("edit.pastePicture")) {
+                QImage image(40, 30, QImage::Format_ARGB32);
+                image.fill(QColor(160, 10, 60));
+                QGuiApplication::clipboard()->setImage(image);
+            }
             // Insert Picture asks for a file, and From Clipboard needs a picture there.
             if (id == QLatin1String("insert.picture")) asWrite(w)->setPictureChooser([] { return pngFile(40, 30); });
             if (id == QLatin1String("insert.pictureClipboard")) {
@@ -419,6 +433,28 @@ private Q_SLOTS:
                  write::selectInTable(*asWrite(w)->document(), asWrite(w)->view()->cursor(), write::TableUnit::Row);
                  write::mergeCells(*asWrite(w)->document(), asWrite(w)->view()->cursor());
                  asWrite(w)->view()->refresh();
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("the caret in a link"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 c.setPosition(3, QTextCursor::KeepAnchor);
+                 write::insertHyperlink(*doc, c, QStringLiteral("https://example.com"), QString(), QString(), QString());
+                 QTextCursor inside(doc->story());
+                 inside.setPosition(2);
+                 asWrite(w)->view()->setCursor(inside);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a cover page"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::insertCoverPage(*asWrite(w)->document(), write::CoverDesign::Classic);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a page color"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 asWrite(w)->document()->setPageColor(QColor(0xFF, 0xF4, 0xD6));
                  asWrite(w)->refreshNow();
              }, false},
         };

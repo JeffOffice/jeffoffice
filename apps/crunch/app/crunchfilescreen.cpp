@@ -28,6 +28,7 @@ CrunchFileScreen::CrunchFileScreen(CrunchWindow *win) : FileScreen(win), m_win(w
     addPage(QStringLiteral("new"), QStringLiteral("file-plus"), tr("New"));
     addPage(QStringLiteral("open"), QStringLiteral("folder-open"), tr("Open"));
     addSection(tr("This workbook"));
+    addPage(QStringLiteral("info"), QStringLiteral("file-text"), tr("Info"));
     addCommand(QStringLiteral("save"), QStringLiteral("save"), tr("Save"), [this] {
         if (m_win->act("file.save")->isEnabled()) m_win->act("file.save")->trigger();
         Q_EMIT closeRequested();
@@ -59,6 +60,7 @@ CrunchFileScreen::CrunchFileScreen(CrunchWindow *win) : FileScreen(win), m_win(w
 // The pages are built when they are shown, so they show what is now.
 QWidget *CrunchFileScreen::buildPage(const QString &key)
 {
+    if (key == "info") return m_win->buildInfoPage(nullptr);
     if (key == "new") return buildNew();
     if (key == "open") return buildOpen();
     if (key == "print") return buildPrint();

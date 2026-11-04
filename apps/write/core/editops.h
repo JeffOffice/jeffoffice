@@ -209,6 +209,8 @@ ListKind listKindOf(const WriteDoc &doc, const QTextBlock &block);
 void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered);
 void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
 void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
+// Takes a character style off the characters that have it (their look goes back to the paragraph's).
+void clearCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
 // The style the first selected paragraph has (its id).
 QString paragraphStyleAt(const WriteDoc &doc, const QTextCursor &c);
 // The format with what `was` gave it (and it still has) taken for what `now` gives: the text keeps what it says itself, and follows a style that changed.

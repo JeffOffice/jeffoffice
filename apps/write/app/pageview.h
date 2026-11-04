@@ -111,6 +111,11 @@ public:
     void cut();
     void copy();
     void paste();
+    // Paste with a choice: keep the source's formatting (as Paste), merge with the formatting around (the emphasis stays), text only, a picture, or the clipboard's HTML. Which of them the
+    // clipboard can give now.
+    enum class PasteKind { Keep, Merge, TextOnly, Picture, Html };
+    bool canPaste(PasteKind kind) const;
+    void pasteAs(PasteKind kind);
     void selectAll();
     void insertText(const QString &text);
     void typeKey(int key, Qt::KeyboardModifiers modifiers);   // the keys that edit and move, as the keyboard sends them
@@ -206,8 +211,10 @@ Q_SIGNALS:
     void headerFooterModeChanged();         // a header or footer is edited now, or none is any more
     void noteModeChanged();                 // a footnote is edited now, or none is any more
     void notice(const QString &text);       // a sentence for the person about what a command could not do
+    void linkFollowed(const QString &address, const QString &shown);   // Ctrl+click on a link to an address outside the document, with the words it shows (the window asks if need be, then opens it)
 
 protected:
+    bool viewportEvent(QEvent *e) override;   // (the tip of a link: where it goes, and its screen tip)
     void paintEvent(QPaintEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
     void scrollContentsBy(int dx, int dy) override;

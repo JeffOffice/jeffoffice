@@ -116,9 +116,9 @@ QString bookmarkNameProblem(const QString &name)
     return QString();
 }
 
-bool addBookmark(WriteDoc &doc, const QTextCursor &c, const QString &name, QString *problem)
+bool addBookmark(WriteDoc &doc, const QTextCursor &c, const QString &name, QString *problem, bool hidden)
 {
-    const QString why = bookmarkNameProblem(name);
+    const QString why = bookmarkNameProblem(hidden && name.startsWith(QLatin1Char('_')) ? name.mid(1) : name);
     if (!why.isEmpty()) {
         if (problem) *problem = why;
         return false;

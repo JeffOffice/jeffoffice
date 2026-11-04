@@ -291,6 +291,26 @@ capitals is in capitals, a symbol is `(`, a picture in the line is `\x01`, a not
 of a file and `review-save` saves the file with all accepted or rejected. The tests are `writereviewtests` (one class, `tests/write/tst_write_review.cpp`): the hostile cases are 20,000 changes in a paragraph (Undo of Accept All gives the
 exact file), nested changes as deep as the reader goes, comments with no range, and a loop of replies (at 100,000 changes, paragraphs with deleted marks, 100,000 comments with loops, and a reply chain 50,000 deep, Accept All and Reject All take 2 to 8 seconds).
 
+## Insert, Layout, Design, and View (round 9, November 4, 2026)
+
+Symbols, special characters, a blank page, hyperlinks, text from another file, the breaks, columns, hyphenation, line numbers, mirrored margins, the page's color and borders, the Navigation pane, and Focus.
+
+- **Symbols** reuse JeffPub's Symbol dialog (`libs/page/app/textdialogs.cpp`): `symbolDialog(parent, insertOne)` takes the function that puts a symbol in, so JeffWrite's `core/insertops.cpp` puts it in a font of its own (one step through `WriteDoc::StepGroup`). The special characters are plain characters of the text; the two hyphens are `w:noBreakHyphen` and `w:softHyphen` in the file.
+- **Document-level settings** (mirrored margins, automatic hyphenation, the page color) ride in the record of the last section, as the different odd and even headers do, so an undo brings them back; they are written to `word/settings.xml` (`settingsWithMirrorMargins`, `settingsWithAutoHyphenation`, `settingsWithDisplayBackgroundShape`) and to `w:background` only when they changed.
+- **Columns, line numbers, and page borders** are set on a section's properties by `core/layoutops.cpp` (the line numbers and borders are kept elements of `w:sectPr`, written in the schema's order). The Columns dialog sets unequal widths (`w:equalWidth="0"` and `w:col`) and a line between (`w:sep`, drawn by `Paginator::addColumnLines`).
+- **Hyperlinks** are a pair of `w:hyperlink` tags round the words, an address outside the file being a relationship of the main part (`core/linkops.cpp`); a Ctrl+click follows web, email, FTP, and telephone addresses only, and no link starts a program or opens a file.
+- **Text from File** opens the other file as a document of its own and pastes its text with its looks, pictures, and links through the same copy a paste between two windows uses.
+- **The Navigation pane** (`app/navpane.cpp`) lists the paragraphs that have an outline level (the same list as Go To), draws small pictures of the first 60 pages with `PageView::pageImage`, and finds words.
+- **What an `.odt` leaves out**: the notes of the save now name page borders, line numbers, unequal columns, the page color, mirrored margins, and automatic hyphenation.
+
+## Home and Review tools (round 9, November 4, 2026)
+
+- `core/homeops.*` holds Change Case, Sort, and Merge Formatting paste. Change Case replaces text a run at a time, from the end, so no place moves before it is used; under Track Changes it deletes and inserts through `removeSelection` and `insertText`, so it is a tracked replacement. Sort takes the text of each paragraph out as a fragment and puts the fragments into the paragraphs' places in the new order (each place keeps its own style, list, and indents); in a table it hands the rows to `sortTableRows`. It is refused while Track Changes is on, because a sort is not a change a file can describe.
+- `core/proofops.*` holds the word count (hidden text and text a tracked change deleted are not counted), the language of text (`w:lang` is a kept child of the run's properties, put where `runChildRank` says; `tp::Language` is what spelling reads), `w:noProof`, and the address Translate opens.
+- `core/compareops.*` makes a copy of the original through `toDocx` and `fromDocx`, turns Track Changes on for it, and applies the differences from the last gap to the first: paragraphs are matched by the longest common run of equal paragraphs; the paragraphs between two matches are paired in order and told apart word by word (a table of lengths, at most 3,000 words a paragraph), and the extra ones are inserted or deleted. Every edit goes through the ordinary tracked commands, so Accept All gives the revised text and Reject All the original (the tests check both).
+- `core/accessops.*` walks the story once (tables by the key of each cell) and reports pictures, tables, headings, colors, and floating pictures; its pane is `AccessPane`.
+- Protection is `office::wml::DocumentProtection`: the `w:documentProtection` element of the settings part, read and written in the place the schema gives it, kept as it was unless changed. A password is hashed as the format says (the salt and the UTF-16 password, then the hash and a four-byte counter, for the spin count); an algorithm that is not known is never matched. `WriteWindow::applyProtection` holds an enforced protection: read only and forms use the read-only mode of the window (the title says "Protected"), comments adds the comment commands to what that mode lets through (`protectionAllows`), and tracked changes turns Track Changes on and dims the commands that would turn it off or resolve a change.
+
 ## Checking it
 
 - Reference pages of documents, and every file JeffWrite saves opened and re-saved without a repair

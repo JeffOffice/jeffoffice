@@ -1,66 +1,74 @@
 # Cómo se muestran y calculan las fórmulas
-<!-- keywords: fórmula, fórmulas, calcular, cálculo, recalcular, volver a calcular, función, funciones, valor, resultado, almacenado, F9, circular, referencia circular, mostrar fórmulas, barra de fórmulas, error, señalar, apuntar, hacer clic en una celda, referencia, F4 -->
+<!-- keywords: fórmula, fórmulas, calcular, cálculo, recalcular, función, funciones, valor, resultado, almacenado, F9, circular, mostrar fórmulas, barra de fórmulas, error, señalar, apuntar, hacer clic en una celda, referencia, F4 -->
 
-Una **fórmula** es una celda que calcula su valor a partir de otras celdas, como =SUMA(B3:B8). La celda muestra el valor y la **barra de fórmulas** muestra la fórmula.
+Una **fórmula** es una celda que calcula su valor a partir de otras celdas, como =SUMA(B3:B8). La celda muestra el valor, y la **barra de fórmulas** muestra la fórmula.
 
-## Qué hace JeffCrunch con ellas
+## Qué hace JeffCrunch con las fórmulas
 
-Al abrir un libro, el archivo contiene el último valor de cada fórmula, de modo que la hoja se puede mostrar al instante. Después, JeffCrunch vuelve a calcular todas las fórmulas, unas pocas cada vez, para que la ventana siga respondiendo con rapidez. Mientras lo hace, la barra de estado muestra **Calculando** con un porcentaje. Cuando termina, las celdas contienen los resultados calculados por JeffCrunch. Para volver a calcularlo todo, haga clic en **Volver a calcular todo** en la pestaña **Fórmulas** o presione **F9**.
+Al abrir un libro, el archivo guarda el último valor de cada fórmula, de modo que la hoja puede mostrarse de inmediato. Después, JeffCrunch vuelve a calcular cada fórmula, unas pocas cada vez, para que la ventana siga siendo rápida. La barra de estado muestra **Calculando** con un porcentaje mientras lo hace. Cuando termina, las celdas contienen los resultados de JeffCrunch. Para volver a calcular todo, haga clic en **Volver a calcular todo** en la pestaña **Fórmulas**, o pulse **F9**.
 
 ## Cuando JeffCrunch no puede calcular una fórmula
 
-JeffCrunch tiene más de 200 funciones, y siguen aumentando. Una fórmula que usa una función que JeffCrunch aún no tiene conserva el valor que el archivo almacenó para ella. Lo mismo ocurre con una fórmula que hace referencia a otro libro. Las celdas que dependen de ellas se calculan a partir de los valores almacenados.
+JeffCrunch tiene más de 400 funciones, y sigue creciendo. Una fórmula que usa una función que JeffCrunch todavía no tiene conserva el valor que el archivo guardó para ella. Lo mismo ocurre con una fórmula que hace referencia a otro libro. Las celdas que dependen de esas se calculan a partir de los valores guardados.
 
-## RESIDUO: el resto
+## Funciones que necesitan algunas notas
 
-**RESIDUO(n; d)** devuelve lo que queda de **n** después de quitar el mayor número posible de veces enteras **d**: es decir, n - d * ENTERO(n / d). Ejemplo: **=RESIDUO(10; 3)** es 1, y **=RESIDUO(-10; 3)** es 2, porque ENTERO(-10 / 3) es -4 y -10 - 3 * -4 es 2. El resultado tiene el signo de **d**. Si **d** es 0, el resultado es #¡DIV/0!.
+- **Bonos y préstamos.** PRECIO, RENDTO, DURACION, PRECIO.PERIODO.IMPAR y las demás funciones de bonos cuentan los días según la **base** que indique (0 es de 30 días por mes en un año de 360 días, 1 son los días reales, y así sucesivamente). RENDTO, RENDTO.PERIODO.IMPAR, RENDTO.ULT.PERIODO.IMPAR y TASA encuentran su respuesta probando valores hasta que el precio o el pago coinciden. Se detienen cuando la respuesta es correcta hasta unos 15 dígitos, así que las últimas cifras pueden diferir de las de otro programa.
+- **Distribuciones y pruebas.** Las funciones que terminan en .DIST, .INV, .PRUEBA y los nombres anteriores, como DISTR.NORM y DISTR.T, dan las mismas respuestas: un nombre anterior se conserva para que los archivos antiguos sigan funcionando. Las funciones *.INV también se calculan probando valores.
+- **Listas que ocupan varias celdas.** ORDENAR, ORDENARPOR, FILTRAR, UNICOS, SECUENCIA, MATRIZALEATORIA, BUSCARX, MMULT, MINVERSA y ESTIMACION.LINEAL devuelven un bloque de valores. Introdúzcalas como fórmula matricial (**Ctrl+Mayús+Intro**) sobre las celdas que deben llenar. Todavía no se admite que una fórmula se extienda automáticamente a las celdas contiguas.
+- **Textos en otros alfabetos.** LENB, IZQUIERDAB, EXTRAEB, DERECHAB, ENCONTRARB, HALLARB y REEMPLAZARB cuentan cada carácter como uno, como ocurre en un equipo que no está configurado para textos de doble byte. FONETICO devuelve el texto de la celda, porque JeffCrunch no guarda las lecturas del texto japonés.
+- **CONVERTIR.** Las unidades se escriben como texto, con mayúsculas y minúsculas tal como aparecen en la lista de la función: "kg", "lbm", "mi", "F". Un prefijo métrico puede ir delante de una unidad que lo admita, como "km" o "mL".
+
+## MOD: el resto
+
+**MOD(n; d)** devuelve lo que queda de **n** después de quitar el mayor número entero de veces **d**: es n - d * ENTERO(n / d). Ejemplo: **=MOD(10; 3)** es 1, y **=MOD(-10; 3)** es 2, porque ENTERO(-10 / 3) es -4 y -10 - 3 * -4 es 2. El resultado tiene el signo de **d**. Si **d** es 0, el resultado es #¡DIV/0!.
 
 ## Mostrar las fórmulas
 
-Haga clic en **Mostrar fórmulas** en la pestaña **Fórmulas**, o presione **Ctrl+`** (en un Mac, la tecla Control, no la tecla Comando), para ver la fórmula de cada celda en lugar de su valor. Las columnas que contienen fórmulas se ensanchan, hasta un límite, para que las fórmulas se vean completas; recuperan su ancho al desactivar esta opción, y los anchos del archivo no se modifican.
+Haga clic en **Mostrar fórmulas** en la pestaña **Fórmulas**, o pulse **Ctrl+'** (en un Mac, la tecla Control y no la tecla Comando), para ver la fórmula de cada celda en lugar de su valor. Las columnas que contienen fórmulas se ensanchan, hasta un límite, para que las fórmulas se vean completas; vuelven a su anchura al desactivar la opción, y las anchuras de su archivo no se modifican.
 
-## Modificar fórmulas
+## Cambiar fórmulas
 
-Para modificar una fórmula, seleccione su celda, presione **F2**, edítela y presione **Entrar**. También puede editarla en la barra de fórmulas. Cuando cambia una celda, las fórmulas que dependen de ella se vuelven a calcular en segundo plano. Consulte [Escribir en las celdas](edit-cells).
+Para cambiar una fórmula, seleccione su celda, pulse **F2**, edítela y pulse **Entrar**. También puede editarla en la barra de fórmulas. Cuando cambia una celda, las fórmulas que dependen de ella se vuelven a calcular en segundo plano. Consulte [Escribir en celdas](edit-cells).
 
 ## Escribir una fórmula
 
-Escriba **=** y las primeras letras de una función, y aparecerá una lista breve con las funciones y los [nombres](names) que empiezan así, con una frase sobre cada uno. Presione **Tab** para elegir el que está marcado. Use las flechas **Abajo** y **Arriba** para marcar otro y, después, presione **Tab** o **Entrar**. **Esc** cierra la lista. Cuando el cursor está dentro de los paréntesis de una función, sus argumentos se muestran debajo de la celda, con el que está escribiendo en negrita. La lista y los argumentos son los mismos que muestra **Elegir una función**. Los argumentos se separan con comas, o con punto y coma en los idiomas que usan la coma como separador decimal.
+Escriba **=** y las primeras letras de una función, y aparecerá una lista corta con las funciones y [nombres](names) que empiezan así, con una frase sobre cada una. Pulse **Tab** para tomar la que está marcada. Use las flechas **Abajo** y **Arriba** para marcar otra, y después **Tab** o **Entrar**. **Esc** cierra la lista. Una vez dentro de los paréntesis de una función, sus argumentos aparecen debajo de la celda, con el que está escribiendo en negrita. La lista y los argumentos son los mismos que muestra **Elegir una función**. Los argumentos se separan con comas, o con punto y coma donde su idioma usa la coma como separador decimal.
 
 ## Señalar celdas
 
-En lugar de escribir la dirección de una celda, puede señalarla. Mientras escribe una fórmula, coloque el cursor donde puede ir una celda (justo después de **=**, de un operador como **+**, de un paréntesis de apertura o de un separador) y haga clic en la celda. Su dirección se escribe automáticamente. Arrastre sobre varias celdas para escribir un rango como B2:D5. Si vuelve a hacer clic antes de escribir nada más, la nueva celda reemplaza a la que se acaba de escribir. Mantenga presionada **Ctrl** y haga clic para agregar otra dirección después de un separador. Haga clic en la letra de una columna para escribir una columna entera, como A:A, o en el número de una fila para escribir una fila entera, como 3:3, y arrastre por las letras o los números para obtener B:D o 2:5.
+En lugar de escribir la dirección de una celda, puede señalarla. Mientras escribe una fórmula, coloque el cursor donde puede ir una celda (justo después de **=**, de un operador como **+**, de un paréntesis de apertura o de una coma) y haga clic en la celda. Su dirección se escribe por usted. Arrastre sobre las celdas para escribir un bloque, como B2:D5. Haga clic de nuevo antes de escribir cualquier otra cosa, y la nueva celda reemplazará a la que acaba de escribir. Mantenga pulsada **Ctrl** y haga clic para añadir otra dirección después de una coma. Haga clic en una letra de columna para escribir una columna completa, como A:A, o en un número de fila para escribir una fila completa, como 3:3, y arrastre por las letras o los números para obtener B:D o 2:5.
 
-También funcionan las teclas de dirección. Presione una flecha y un puntero se aleja de la celda en la que escribe y se escribe su dirección; presione más flechas para moverlo, o mantenga presionada **Mayús** para extender el puntero sobre un rango. La barra de estado muestra **Señalar** mientras las teclas de dirección señalan celdas, **Introducir** mientras escribe y **Modificar** mientras las teclas de dirección mueven el cursor por el texto. Presione **F2** para cambiar entre señalar y editar el texto.
+Las teclas de flecha también funcionan. Pulse una flecha y un puntero se aleja de la celda en la que escribe, y su dirección se escribe; pulse más flechas para seguir avanzando, o mantenga pulsada **Mayús** para extender el puntero sobre un bloque. La barra de estado muestra **Señalar** mientras las flechas señalan, **Entrar** mientras escribe, y **Editar** mientras las flechas mueven el cursor dentro del texto. Pulse **F2** para cambiar entre señalar y editar el texto.
 
-Para señalar una celda de otra hoja, haga clic en la pestaña de esa hoja mientras el cursor está donde puede ir una celda y, después, haga clic en la celda. El nombre de la hoja se escribe con ella, entre comillas si es necesario, como en 'Mi hoja'!B3. **Entrar** le devuelve a la hoja en la que empezó y coloca la fórmula en su celda. **Esc** lo cancela todo, incluido el cambio de hoja.
+Para señalar una celda de otra hoja, haga clic en la pestaña de esa hoja mientras el cursor está donde puede ir una celda, y después haga clic en la celda. El nombre de la hoja se escribe junto con la dirección, entre comillas cuando hacen falta, como en 'Mi hoja'!B3. **Entrar** le devuelve a la hoja en la que empezó y coloca la fórmula en su celda. **Esc** descarta todo, incluido el cambio de hoja.
 
-También puede arrastrar el borde de un rango resaltado en la hoja para mover esa dirección, o arrastrar su cuadrado de la esquina para ampliarlo; la fórmula cambia mientras arrastra.
+También puede arrastrar el borde de un bloque con contorno en la hoja para mover esa dirección, o arrastrar su cuadrado de esquina para estirarlo; la fórmula cambia mientras arrastra.
 
-Presione **F4** con el cursor dentro o justo después de una dirección para fijar partes de ella con el signo de dólar: A1 pasa a ser $A$1, luego A$1, luego $A1 y de nuevo A1.
+Pulse **F4** con el cursor dentro de una dirección o justo detrás de ella para fijar partes de la dirección con un signo de dólar: A1 pasa a ser $A$1, después A$1, luego $A1, y después vuelve a A1.
 
-Cada dirección de la fórmula aparece coloreada en el texto, y las celdas a las que hace referencia se resaltan en la hoja con el mismo color, para que vea de un vistazo qué lee la fórmula. Un clic después de una dirección completa, como =A1, finaliza la entrada y selecciona la celda en la que hizo clic, como ocurre con cualquier otro texto.
+Cada dirección de la fórmula aparece coloreada en el texto, y las celdas a las que hace referencia se marcan con un contorno de ese mismo color en la hoja, así puede ver de un vistazo qué lee la fórmula. Un clic después de una dirección completa, como en =A1, termina la entrada y selecciona la celda en la que hizo clic, como ocurre con cualquier otro texto.
 
 ## Tablas de datos
 
-Una tabla de datos (tabla de hipótesis) muestra el resultado de una fórmula para muchos valores de una o dos celdas. Si abre un libro que tiene una, JeffCrunch calcula sus celdas: en una tabla con dos variables, la fórmula está en la celda de la esquina superior izquierda de la tabla, los valores horizontales se colocan en la celda de entrada de fila y los verticales en la celda de entrada de columna. En una tabla con una variable, los valores van hacia abajo por la columna de su izquierda (y las fórmulas están en la fila superior) o a lo largo de la fila superior (y las fórmulas están en la columna de su izquierda). Cada celda de la tabla es el resultado de la fórmula, y de todas las fórmulas que dependen de la celda de entrada, con la entrada establecida en ese valor; no se modifica nada más del libro. En el modo **Automático**, las tablas se calculan junto con las fórmulas, y después se calculan las fórmulas que leen las celdas de una tabla. Todavía no se pueden crear tablas de datos nuevas. Una tabla que no se puede calcular (porque una fórmula que depende de la entrada usa una función que JeffCrunch no tiene, o cambia por sí sola, como ALEATORIO o AHORA) conserva los valores que contiene su archivo.
+Una tabla de datos (tabla de hipótesis) muestra el resultado de una fórmula para muchos valores de una o dos celdas. Al abrir un libro que contiene una, JeffCrunch calcula sus celdas: en una tabla con dos entradas, la fórmula está en la celda de la esquina superior izquierda de la tabla, los valores que se prueban en horizontal van en la celda de entrada de fila, y los que van en vertical, en la celda de entrada de columna. En una tabla de una sola entrada, los valores van en la columna de su izquierda (y las fórmulas están en la fila de encima) o en la fila de encima (y las fórmulas están en la columna de su izquierda). Cada celda de la tabla es el resultado de la fórmula, y de todas las fórmulas que dependen de la celda de entrada, con la entrada fijada a ese valor; no se modifica nada más del libro. En modo **Automático** las tablas se calculan junto con las fórmulas, y las fórmulas que leen las celdas de una tabla se actualizan con ellas. Crear una nueva tabla de datos todavía no está disponible. Una tabla que no puede calcularse (una fórmula que depende de la entrada usa una función que JeffCrunch no tiene, o cambia por sí sola, como ALEATORIO o AHORA) conserva los valores que contiene su archivo.
 
-## Cálculo manual
+## Calcular manualmente
 
 Haga clic en **Modo de cálculo** en la pestaña **Fórmulas** para elegir cómo calcula el libro sus fórmulas:
 
 - **Automático** las calcula a medida que cambia las celdas.
-- **Automático, excepto tablas** hace lo mismo, pero deja las celdas de las tablas de datos como están hasta que presiona **F9**.
-- **Manual** no calcula nada, ni siquiera las tablas de datos, hasta que usted lo pida. Después de un cambio, la barra de estado muestra **Desactualizado**. Presione **F9** (**Volver a calcular todo**) para calcularlo todo, o **Mayús+F9** (**Recalcular esta hoja**) para calcular las fórmulas de la hoja en la que está y todo lo que estuviera pendiente. Un libro configurado en Manual se abre con los resultados que contiene su archivo.
+- **Automático, excepto tablas** hace lo mismo, pero deja las celdas de las tablas de datos como están hasta que pulse **F9**.
+- **Manual** no calcula nada, tablas de datos incluidas, hasta que lo pida. La barra de estado muestra **Desactualizado** después de un cambio. Pulse **F9** (**Volver a calcular todo**) para calcularlo todo, o **Mayús+F9** (**Recalcular esta hoja**) para calcular las fórmulas de la hoja en la que está, y lo que estuviera pendiente. Un libro configurado como Manual se abre con los resultados que contiene su archivo.
 
-La opción se guarda con el libro y se puede deshacer en un solo paso.
+La elección se guarda con el libro, y es un paso que puede deshacer.
 
-## Fórmulas que hacen referencia a sí mismas
+## Fórmulas que se leen a sí mismas
 
-Una fórmula que lee su propio resultado, directamente o a través de otras celdas, no se puede calcular de la forma habitual. JeffCrunch se lo indica una vez, nombra las celdas y las resalta en la hoja; estas conservan los valores que tenían. Haga clic en **Referencias circulares** en la pestaña **Fórmulas** para ver la lista, y haga doble clic en una celda de la lista para ir a ella.
+Una fórmula que lee su propio resultado, directamente o a través de otras celdas, no puede calcularse de la forma habitual. JeffCrunch se lo indica una vez, nombra las celdas y las marca con un contorno en la hoja; conservan los valores que tenían. Haga clic en **Referencias circulares** en la pestaña **Fórmulas** para ver la lista, y haga doble clic en una celda de la lista para ir a ella.
 
-Algunos modelos necesitan este tipo de círculo a propósito. Elija **Iterar fórmulas circulares** en el menú **Modo de cálculo**, y las fórmulas se calcularán una y otra vez, cada una leyendo los últimos valores de las demás, hasta que ningún valor cambie más de la cantidad que indique o se alcance el número de iteraciones que permita.
+Algunos modelos necesitan un circuito así a propósito. Elija **Iterar fórmulas circulares** en el menú **Modo de cálculo**, y las fórmulas se calculan una y otra vez, leyendo cada una los valores más recientes de las demás, hasta que ningún valor cambie más de la cantidad que indique o se agote el número de iteraciones permitido.
 
 ## Ver qué lee una fórmula
 
-Seleccione una celda y haga clic en **Mostrar lo que alimenta esta celda** para dibujar flechas desde las celdas que lee su fórmula. Haga clic de nuevo para retroceder un paso más. **Mostrar lo que usa esta celda** dibuja flechas hacia las fórmulas que leen la celda, y cada clic avanza un paso. Una pequeña página representa una celda de otra hoja. Se dibujan como máximo 2.000 flechas, y la barra de estado indica si había más. **Quitar flechas** las quita, igual que cualquier cambio en el libro.
+Seleccione una celda y haga clic en **Mostrar lo que alimenta esta celda** para dibujar flechas desde las celdas que lee su fórmula. Haga clic de nuevo para retroceder un paso más. **Mostrar lo que usa esta celda** dibuja flechas hacia las fórmulas que leen la celda, y cada clic avanza un paso. Una pequeña hoja representa una celda de otra hoja. Se dibujan como máximo 2000 flechas, y la barra de estado indica cuando había más. **Quitar flechas** las borra, y también lo hace cualquier cambio en el libro.

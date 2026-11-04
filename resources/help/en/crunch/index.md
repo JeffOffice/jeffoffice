@@ -7,6 +7,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 
 - [Welcome to JeffCrunch](start)
 - [Open and save workbooks](open-save)
+- [Info: properties, passwords, and Inspect](info)
 - [Open password-protected workbooks](open-password)
 - [Type in cells](edit-cells)
 - [Rules for what a cell may hold](rules)
@@ -31,6 +32,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Fill cells and add them up](fill-sum)
 - [Find, replace, and go to](find-replace)
 - [Sort and filter](sort-filter)
+- [Data tools](data-tools)
 - [Tables](tables)
 - [Pivot tables](pivot-tables)
 - [Insert a function](insert-function)

@@ -77,6 +77,10 @@ bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error, b
 // the files kept the digits of the original: with these two rules 21 cells in 3.1 million of the practice workbooks, instead of 1,900, differ by more than a few units of the last place.)
 double powerOf(double x, double y);
 
+// Days between two dates counted 30 to a month, and the span as a fraction of a year by YEARFRAC's basis (fn_date.cpp); false for a date or basis that is none.
+bool daysBetween360(double a, double b, bool european, DateSystem sys, double *days);
+bool yearFractionOf(double a, double b, int basis, DateSystem sys, double *out);
+
 // A sum or difference of numbers that cancel is zero where what is left is no more than the rounding error of the terms. The limits were found by comparing with the
 // results of the files (a wider one makes a zero of differences the files keep, a narrower one keeps the rounding error of differences they make zero): the last
 // operation of a formula is zero within 2^-49 of the larger term (9450 - 9449.999999999989 is zero; 0.01 - 0.00999999999999997 is not), and SUM, at each step, within 2^-50.
@@ -201,6 +205,10 @@ public:
     // Counts n steps; false when the evaluation has gone past its limit (then stopped() is true).
     bool charge(qint64 n)
     {
+        if (n < 0) {
+            tooLarge();   // (a count that went negative is a count that overflowed)
+            return false;
+        }
         work += n + budget::takeWork();
         if (work > limit && !over) {
             over = true;
@@ -216,6 +224,17 @@ public:
         }
         if (!over && budget::refused()) tooLarge();   // an array was refused for the cells alive at once
         return !over;
+    }
+    // The same for a count that is a double (a number a formula gave): one that is not a number trips the budget at once, one past 10^12 is more than any evaluation may do, and one
+    // below 0 counts as 0 (no caller depends on a negative count to stop).
+    bool chargeCount(double n)
+    {
+        if (std::isnan(n)) {
+            tooLarge();
+            return false;
+        }
+        if (n < 0) n = 0;
+        return charge(qint64(std::min(n, 1e12)));
     }
     bool stopped() const { return over; }
     void tooLarge()

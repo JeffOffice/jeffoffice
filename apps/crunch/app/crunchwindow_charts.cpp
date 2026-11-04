@@ -16,6 +16,9 @@
 #include <QActionGroup>
 #include <QApplication>
 #include <QClipboard>
+#include <cmath>
+#include <QInputDialog>
+#include <QLineEdit>
 #include <QMenu>
 #include <QMimeData>
 #include <QPainter>
@@ -121,6 +124,8 @@ void CrunchWindow::createChartActions()
         }
         changePickedChart(tr("Swap Rows and Columns"), [switched](Chart *c) { *c = switched; });
     }, false, false);
+    mk("chartdesign.axisH", tr("Format Horizontal Axis…"), "ruler", QKeySequence(), [this] { formatAxisDialog(true); }, false, false);
+    mk("chartdesign.axisV", tr("Format Vertical Axis…"), "ruler", QKeySequence(), [this] { formatAxisDialog(false); }, false, false);
     mk("object.properties", tr("Properties…"), "sliders-horizontal", QKeySequence(), [this] { propertiesDialog(); }, false, false);
     mk("object.front", tr("Bring to Front"), "bring-to-front", QKeySequence(), [this] { reorderObject(2); }, false, false);
     mk("object.forward", tr("Bring Forward"), "arrow-up", QKeySequence(), [this] { reorderObject(1); }, false, false);
@@ -359,6 +364,7 @@ void CrunchWindow::propertiesDialog()
     p.follows = now.editAs;
     p.name = m_objects->nameOf(m_sheet, id);
     p.keepProportions = m_objects->kindOf(m_sheet, id) == ObjectKind::Picture;
+    p.prints = m_objects->printsOf(m_sheet, id);
     ObjectProperties out = p;
     if (m_propertiesAsker) {
         if (!m_propertiesAsker(p, &out)) return;
@@ -367,6 +373,17 @@ void CrunchWindow::propertiesDialog()
         if (d.exec() != QDialog::Accepted) return;
         out = d.result();
     }
+    if (out.prints != p.prints) {
+        crunch::ObjectEdit e;
+        e.sheet = m_sheet;
+        e.id = id;
+        e.before = m_objects->stateOf(m_sheet, id);
+        e.after = m_objects->stateWithPrints(m_sheet, id, out.prints);
+        const crunch::EditSession::Outcome o = m_session->changeObjects({e}, out.prints ? tr("Print Object") : tr("Do Not Print Object"));
+        if (!o.ok) notice(tr("Properties"), o.problem);
+    }
+    // (the box shows sizes to a tenth of a point: a size within that of the one it started with is not a change)
+    if (std::abs(out.widthPoints - p.widthPoints) < 0.06 && std::abs(out.heightPoints - p.heightPoints) < 0.06 && out.follows == p.follows) return;   // (only what it prints with changed: done above)
     grid::ObjectBox nb = box;
     nb.w = out.widthPoints / 0.75;
     nb.h = out.heightPoints / 0.75;
@@ -447,6 +464,34 @@ void CrunchWindow::selectDataDialog()
         result = d.result();
     }
     changePickedChart(tr("Chart Data"), [result](Chart *c) { *c = result; });
+}
+
+// Format Axis: the axis across the chart (or up it), asked about and set as one step.
+void CrunchWindow::formatAxisDialog(bool horizontal)
+{
+    const int id = pickedObject();
+    if (id < 0 || !m_session || !m_objects) return;
+    QString why;
+    if (!m_objects->canEditChart(m_sheet, id, &why)) {
+        notice(tr("Format Axis"), why);
+        return;
+    }
+    const Chart chart = m_objects->chartNow(m_sheet, id);   // (kept: the axis is read from it)
+    const ChartAxis *now = primaryAxis(chart, horizontal);
+    if (!now) return;
+    ChartAxis made = *now;
+    if (m_formatAxisAsker) {
+        if (!m_formatAxisAsker(horizontal, &made)) return;
+    } else {
+        FormatAxisDialog dialog(*now, horizontal ? tr("Format Horizontal Axis") : tr("Format Vertical Axis"), this);
+        if (dialog.exec() != QDialog::Accepted) return;
+        made = dialog.result();
+    }
+    if (const QString problem = axisFormatProblem(made); !problem.isEmpty()) {
+        notice(tr("Format Axis"), problem);
+        return;
+    }
+    changePickedChart(tr("Format Axis"), [horizontal, made](Chart *c) { setAxisFormat(c, horizontal, false, made); });
 }
 
 QDialog *CrunchWindow::makeChangeTypeDialog()
@@ -547,6 +592,49 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
             if (!allowed.contains(code)) continue;
             choice(labels, labelGroup, QCoreApplication::translate("jp::CrunchWindow", p.name), e.labels && e.labelPosition == code, [code](Chart *c) { setDataLabels(c, true, code); }, tr("Data Labels"));
         }
+        {
+            labels->addSeparator();
+            const ChartLabelParts parts = labelPartsOf(chart);
+            QMenu *contains = labels->addMenu(tr("Label Contains"));
+            contains->setObjectName(QStringLiteral("labelContainsMenu"));
+            struct Part {
+                QString text;
+                bool on;
+                bool ChartLabelParts::*member;
+            };
+            const Part list[] = {{tr("Value"), parts.value, &ChartLabelParts::value}, {tr("Category Name"), parts.category, &ChartLabelParts::category},
+                                 {tr("Series Name"), parts.series, &ChartLabelParts::series}, {tr("Percentage"), parts.percent, &ChartLabelParts::percent}};
+            for (const Part &part : list)
+                check(contains, part.text, part.on, [parts, member = part.member, on = !part.on](Chart *c) {
+                    ChartLabelParts now = parts;
+                    now.*member = on;
+                    setDataLabelParts(c, now);
+                }, tr("Data Labels"));
+            QMenu *separator = labels->addMenu(tr("Separator"));
+            separator->setObjectName(QStringLiteral("labelSeparatorMenu"));
+            auto *separatorGroup = new QActionGroup(separator);
+            const struct { QString text, code; } separators[] = {{tr("Comma"), QString()}, {tr("Semicolon"), QStringLiteral("; ")}, {tr("Period"), QStringLiteral(". ")},
+                                                                  {tr("New Line"), QStringLiteral("\n")}, {tr("Space"), QStringLiteral(" ")}};
+            for (const auto &sep : separators)
+                choice(separator, separatorGroup, sep.text, parts.separator == sep.code, [parts, code = sep.code](Chart *c) {
+                    ChartLabelParts now = parts;
+                    now.separator = code;
+                    setDataLabelParts(c, now);
+                }, tr("Data Labels"));
+            QAction *format = labels->addAction(tr("Number Format…"));
+            connect(format, &QAction::triggered, this, [this, parts] {
+                QString code = parts.format;
+                bool ok = false;
+                if (m_chartTextAsker) ok = m_chartTextAsker(tr("Number Format"), &code);
+                else code = QInputDialog::getText(this, tr("Number Format"), tr("Format code for the numbers in the labels (leave empty to show the numbers as they are):"), QLineEdit::Normal, code, &ok);
+                if (!ok) return;
+                changePickedChart(tr("Data Labels"), [parts, code](Chart *c) {
+                    ChartLabelParts now = parts;
+                    now.format = code.trimmed();
+                    setDataLabelParts(c, now);
+                });
+            });
+        }
         if (e.hasHorizontal || e.hasVertical) {
             QMenu *grid = menu->addMenu(tr("Gridlines"));
             grid->setObjectName(QStringLiteral("gridlinesMenu"));
@@ -616,6 +704,11 @@ void CrunchWindow::updateChartState()
     bool editable = false;
     if (chart) editable = m_objects->canEditChart(m_sheet, id);
     for (const char *name : {"chartdesign.selectData", "chartdesign.changeType", "chartdesign.switch"}) act(QString::fromLatin1(name))->setEnabled(editable);
+    {
+        const ChartElements e = editable && id >= 0 ? elementsOf(m_objects->chartNow(m_sheet, id)) : ChartElements();
+        act(QStringLiteral("chartdesign.axisH"))->setEnabled(e.hasHorizontal);
+        act(QStringLiteral("chartdesign.axisV"))->setEnabled(e.hasVertical);
+    }
     for (const char *name : {"object.properties", "object.front", "object.forward", "object.backward", "object.back", "object.delete"}) act(QString::fromLatin1(name))->setEnabled(picked);
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Chart"), chart);
     m_chartButtonsTimer.start();

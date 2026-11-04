@@ -26,4 +26,4 @@ Choose **This section** (the section the caret is in) or **Whole document**. Onl
 
 Everything in the window is one step to undo, whatever the number of sections.
 
-The quick commands on the ribbon (**Margins**, **Orientation**, **Size**, and **Columns**) change the section the caret is in.
+The quick commands on the ribbon (**Margins**, **Orientation**, **Size**, and **Columns**) change the section the caret is in. **Margins > Custom Margins** and **Size > More Paper Sizes** open this window. For breaks, columns, hyphenation, and line numbers, see [Breaks, columns, hyphenation, and line numbers](breaks-columns).

@@ -5,6 +5,7 @@
 #include "calc/functions.h"
 #include "calc/idframe.h"
 #include "calc/refs.h"
+#include "sheet/entry.h"
 #include "sheet/structref.h"
 #include "sheet/tables.h"
 
@@ -248,6 +249,20 @@ QString Calculation::heldNameText(int scope, const QString &typed, bool *inIds) 
     if (!placesToIds(*this, scope >= 0 ? scope : 0, typed, &held, &wide)) return typed;
     *inIds = true;
     return held;
+}
+
+bool Calculation::formulaInfo(int sheet, quint32 row, quint32 col, QString *text) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
+    const Sheet &s = m_sheets[size_t(sheet)];
+    const Cell *c = s.cells.find(row, col);
+    if (!c || !c->hasFormula() || c->formula < 0 || c->formula >= s.formulas.size()) return false;
+    if (text) {
+        QString held = s.formulaText(*c);
+        if (inIds(s, s.formulas[c->formula].text)) held = idsToPlaces(*this, sheet, held, jp::calc::ParseLimits::ids());
+        *text = formulaToLocale(held, QLocale::c());
+    }
+    return true;
 }
 
 QString Calculation::namePlaces(const QString &key, const QString &held) const

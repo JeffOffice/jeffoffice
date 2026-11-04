@@ -25,6 +25,15 @@
           "items": [
             {
               "large": "edit.paste",
+              "split": true,
+              "menu": [
+                "edit.paste",
+                "edit.pasteMerge",
+                "edit.pasteText",
+                "edit.pastePicture",
+                "-",
+                "edit.pasteSpecial"
+              ],
               "keytip": "V"
             },
             {
@@ -69,6 +78,21 @@
                 {
                   "icon": "fmt.clear",
                   "keytip": "E"
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.changeCase",
+                    "text": "Change Case",
+                    "icon": "case-sensitive"
+                  },
+                  "keytip": "7",
+                  "menu": [
+                    "fmt.case.sentence",
+                    "fmt.case.lower",
+                    "fmt.case.upper",
+                    "fmt.case.capitalize",
+                    "fmt.case.toggle"
+                  ]
                 }
               ]
             },
@@ -157,6 +181,14 @@
                     "-",
                     "para.dialog"
                   ]
+                },
+                {
+                  "icon": "para.sort",
+                  "keytip": "SO"
+                },
+                {
+                  "icon": "para.horizontalLine",
+                  "keytip": "HL"
                 },
                 {
                   "icon": "view.marks",
@@ -261,6 +293,25 @@
           "keytip": "ZG",
           "items": [
             {
+              "large": {
+                "id": "ribbon.cover",
+                "text": "Cover Page",
+                "icon": "book-open"
+              },
+              "keytip": "CP",
+              "menu": [
+                "insert.cover.classic",
+                "insert.cover.band",
+                "insert.cover.plain",
+                "-",
+                "insert.cover.remove"
+              ]
+            },
+            {
+              "large": "insert.blankPage",
+              "keytip": "BL"
+            },
+            {
               "large": "insert.pageBreak",
               "keytip": "BR"
             }
@@ -285,6 +336,14 @@
           "keytip": "ZK",
           "items": [
             {
+              "large": "insert.hyperlink",
+              "keytip": "HL"
+            },
+            {
+              "large": "insert.removeHyperlink",
+              "keytip": "RL"
+            },
+            {
               "large": "insert.bookmark",
               "keytip": "BM"
             },
@@ -295,6 +354,89 @@
             {
               "large": "insert.field",
               "keytip": "FD"
+            }
+          ]
+        },
+        {
+          "name": "Text",
+          "keytip": "ZX",
+          "items": [
+            {
+              "large": "insert.textFromFile",
+              "keytip": "TF"
+            },
+            {
+              "large": "insert.dateTime",
+              "keytip": "DT"
+            }
+          ]
+        },
+        {
+          "name": "Symbols",
+          "keytip": "ZS",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.symbol",
+                "text": "Symbol",
+                "icon": "omega"
+              },
+              "keytip": "U",
+              "menu": "@symbolMenu"
+            },
+            {
+              "large": {
+                "id": "ribbon.special",
+                "text": "Special Characters",
+                "icon": "pilcrow"
+              },
+              "keytip": "SC",
+              "menu": [
+                "insert.special.nbsp",
+                "insert.special.nbHyphen",
+                "insert.special.optHyphen",
+                "-",
+                "insert.special.enDash",
+                "insert.special.emDash",
+                "insert.special.enSpace",
+                "insert.special.emSpace",
+                "-",
+                "insert.special.openDouble",
+                "insert.special.closeDouble",
+                "insert.special.openSingle",
+                "insert.special.closeSingle",
+                "-",
+                "insert.special.lineBreak",
+                "insert.special.noWidthBreak",
+                "insert.special.noWidthNoBreak"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Design",
+      "keytip": "G",
+      "groups": [
+        {
+          "name": "Page Background",
+          "keytip": "PB",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Page Color:"
+                },
+                {
+                  "widget": "pageColor",
+                  "keytip": "PC"
+                }
+              ]
+            },
+            {
+              "large": "design.pageBorders",
+              "keytip": "PG"
             }
           ]
         }
@@ -323,8 +465,10 @@
                 "layout.margins.narrow",
                 "layout.margins.moderate",
                 "layout.margins.wide",
+                "layout.margins.mirrored",
                 "-",
-                "layout.pageSetup"
+                "layout.mirrorMargins",
+                "layout.customMargins"
               ]
             },
             {
@@ -358,7 +502,11 @@
               "menu": [
                 "layout.columns.1",
                 "layout.columns.2",
-                "layout.columns.3"
+                "layout.columns.3",
+                "layout.columns.left",
+                "layout.columns.right",
+                "-",
+                "layout.columns.more"
               ]
             },
             {
@@ -369,8 +517,46 @@
               },
               "keytip": "B",
               "menu": [
+                {
+                  "section": "Page Breaks"
+                },
                 "insert.pageBreak",
-                "layout.sectionBreak"
+                "layout.columnBreak",
+                {
+                  "section": "Section Breaks"
+                },
+                "layout.sectionBreak",
+                "layout.sectionBreak.continuous",
+                "layout.sectionBreak.evenPage",
+                "layout.sectionBreak.oddPage"
+              ]
+            },
+            {
+              "large": {
+                "id": "ribbon.lineNumbers",
+                "text": "Line Numbers",
+                "icon": "list-ordered"
+              },
+              "keytip": "LN",
+              "menu": [
+                "layout.lineNumbers.none",
+                "layout.lineNumbers.continuous",
+                "layout.lineNumbers.eachPage",
+                "layout.lineNumbers.eachSection",
+                "-",
+                "layout.lineNumbers.options"
+              ]
+            },
+            {
+              "large": {
+                "id": "ribbon.hyphenation",
+                "text": "Hyphenation",
+                "icon": "whole-word"
+              },
+              "keytip": "HY",
+              "menu": [
+                "layout.hyphenation.none",
+                "layout.hyphenation.auto"
               ]
             }
           ]
@@ -789,6 +975,36 @@
             {
               "large": "review.checkAsType",
               "keytip": "T"
+            },
+            {
+              "large": "review.thesaurus",
+              "keytip": "TH"
+            },
+            {
+              "large": "review.accessibility",
+              "keytip": "AC"
+            },
+            {
+              "large": "review.wordCount",
+              "keytip": "WC"
+            }
+          ]
+        },
+        {
+          "name": "Language",
+          "keytip": "ZL",
+          "items": [
+            {
+              "large": "review.translate",
+              "keytip": "TR"
+            },
+            {
+              "large": "review.language",
+              "keytip": "LA"
+            },
+            {
+              "small": "review.noProof",
+              "keytip": "NP"
             }
           ]
         },
@@ -868,6 +1084,10 @@
             {
               "large": "review.reviewingPane",
               "keytip": "TP"
+            },
+            {
+              "large": "review.trackOptions",
+              "keytip": "TO"
             }
           ]
         },
@@ -911,6 +1131,30 @@
               "keytip": "NC"
             }
           ]
+        },
+        {
+          "name": "Compare",
+          "keytip": "ZO",
+          "items": [
+            {
+              "large": "review.compare",
+              "keytip": "CO"
+            }
+          ]
+        },
+        {
+          "name": "Protect",
+          "keytip": "ZR",
+          "items": [
+            {
+              "large": "review.restrictEditing",
+              "keytip": "RE"
+            },
+            {
+              "small": "review.lockTracking",
+              "keytip": "LT"
+            }
+          ]
         }
       ]
     },
@@ -939,6 +1183,24 @@
             {
               "large": "view.ruler",
               "keytip": "SR"
+            },
+            {
+              "large": "table.gridlines",
+              "keytip": "SG"
+            },
+            {
+              "large": "view.navigationPane",
+              "keytip": "SN"
+            }
+          ]
+        },
+        {
+          "name": "Focus",
+          "keytip": "FO",
+          "items": [
+            {
+              "large": "view.focus",
+              "keytip": "FM"
             }
           ]
         },

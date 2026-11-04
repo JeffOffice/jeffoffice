@@ -1082,7 +1082,9 @@ private Q_SLOTS:
         QVERIFY(w.act(QStringLiteral("review.trackChanges"))->isChecked());
         w.view()->insertText(QStringLiteral("hello"));
         QCOMPARE(revisionCount(doc->story()), 1);
-        QCOMPARE(revisionsIn(doc->story()).value(0).author, Settings::get().userName());
+        // (a computer whose account has no full name records the change as by "Author")
+        const QString me = Settings::get().userName().trimmed();
+        QCOMPARE(revisionsIn(doc->story()).value(0).author, me.isEmpty() ? QStringLiteral("Author") : me);
         QTRY_COMPARE(w.findChild<QToolButton *>(QStringLiteral("trackStatus"))->text(), QStringLiteral("Track Changes: On"));
         w.act(QStringLiteral("review.trackChanges"))->trigger();
         QVERIFY(!doc->trackChanges());

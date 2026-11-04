@@ -269,7 +269,45 @@
     </message>
 </context>
 <context>
+    <name>jp::write::HomeDialogs</name>
+    <message numerus="yes">
+        <source>%n problem(s) found. Click one to go to it.</source>
+        <translation>
+            <numerusform>%n problem found. Click it to go to it.</numerusform>
+            <numerusform>%n problems found. Click one to go to it.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::WriteWindow</name>
+    <message numerus="yes">
+        <source>%1 of %n word(s)</source>
+        <translation>
+            <numerusform>%1 of %n word</numerusform>
+            <numerusform>%1 of %n words</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>There are too many paragraphs to sort at once. Select %n paragraph(s) or fewer.</source>
+        <translation>
+            <numerusform>There are too many paragraphs to sort at once. Select %n paragraph or fewer.</numerusform>
+            <numerusform>There are too many paragraphs to sort at once. Select %n paragraphs or fewer.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Only the first %n letter(s) of the text were sent to be translated.</source>
+        <translation>
+            <numerusform>Only the first %n letter of the text was sent to be translated.</numerusform>
+            <numerusform>Only the first %n letters of the text were sent to be translated.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n paragraph(s) sorted.</source>
+        <translation>
+            <numerusform>%n paragraph sorted.</numerusform>
+            <numerusform>%n paragraphs sorted.</numerusform>
+        </translation>
+    </message>
     <message numerus="yes">
         <source>%n word(s)</source>
         <translation>

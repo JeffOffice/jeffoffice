@@ -4,6 +4,8 @@
 #include "app/pageview.h"
 #include "app/widgets.h"
 #include "core/editops.h"
+#include "core/rulerops.h"
+#include "core/styleops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
@@ -20,6 +22,9 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QListWidget>
+#include <QMessageBox>
+#include <QPushButton>
 #include <QPainter>
 #include <QRadioButton>
 #include <QSpinBox>
@@ -130,6 +135,36 @@ struct Effect {
     Qt::CheckState was = Qt::Unchecked;
     int change() const { return box->checkState() == was || box->checkState() == Qt::PartiallyChecked ? -1 : box->checkState() == Qt::Checked ? 1 : 0; }
 };
+
+// The document's Normal style takes the font, size, emphasis, and color given (what is empty or zero is left as the style has it): Set as Default in the Font box.
+void setDefaultFont(WriteDoc &doc, const QString &family, double size, int styleIndex, const ColorRef &color, const ColorScheme &colors)
+{
+    const QString id = doc.defaultParagraphStyle();
+    const std::optional<office::wml::Style> now = styleOfDocument(doc, id);
+    if (!now) return;
+    office::wml::Style def = *now;
+    if (!family.isEmpty() && !family.startsWith(QLatin1Char('+'))) {
+        office::wml::Fonts fonts = def.rPr.fonts.value_or(office::wml::Fonts());
+        fonts.ascii = fonts.hAnsi = family;
+        fonts.asciiTheme.clear();
+        fonts.hAnsiTheme.clear();
+        def.rPr.fonts = fonts;
+    }
+    if (size > 0) def.rPr.size = std::clamp(int(std::lround(size * 2)), 1, 4000);
+    if (styleIndex >= 0) {
+        def.rPr.bold = styleIndex >= 2;
+        def.rPr.italic = styleIndex % 2 == 1;
+    }
+    if (!color.isNone()) {
+        const QColor rgb = color.resolve(colors);
+        office::wml::Color c;
+        c.val = QStringLiteral("%1").arg(rgb.rgb() & 0xFFFFFF, 6, 16, QLatin1Char('0')).toUpper();
+        def.rPr.color = c;
+    }
+    QTextCursor at(doc.story());
+    QString problem;
+    modifyStyle(doc, at, id, def, &problem);
+}
 
 } // namespace
 
@@ -289,6 +324,70 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     either(smallCaps, allCaps);
     v->addWidget(effects);
 
+    // Character spacing: expanded or condensed, raised or lowered, and the size from which pairs of letters are kerned. A box that the selection does not agree on shows "(mixed)" and, left alone, changes nothing.
+    auto *spacingBox = new QGroupBox(QCoreApplication::translate("jp::write::Dialogs", "Character spacing"), &dlg);
+    auto *sg = new QGridLayout(spacingBox);
+    auto spacingOf = [](const QTextCharFormat &f) { return f.hasProperty(QTextFormat::FontLetterSpacing) && f.fontLetterSpacingType() == QFont::AbsoluteSpacing ? f.fontLetterSpacing() : 0.0; };
+    auto raisedOf = [](const QTextCharFormat &f) { return f.intProperty(prop::Raised) / 2.0; };   // (half points in the file)
+    auto kernOf = [](const QTextCharFormat &f) { return f.hasProperty(tp::KernAbove) ? f.property(tp::KernAbove).toDouble() : 0.0; };
+    const bool spacingMixed = !agree(formats, [&](const QTextCharFormat &f) { return QVariant(qRound(spacingOf(f) * 100)); });
+    const bool raisedMixed = !agree(formats, [&](const QTextCharFormat &f) { return QVariant(qRound(raisedOf(f) * 100)); });
+    const bool kernMixed = !agree(formats, [&](const QTextCharFormat &f) { return QVariant(qRound(kernOf(f) * 100)); });
+    auto kindCombo = [&](const char *name, const QString &a, const QString &b, int index, bool mixed) {
+        auto *combo = new QComboBox(spacingBox);
+        combo->setObjectName(QString::fromLatin1(name));
+        combo->addItems({QCoreApplication::translate("jp::write::Dialogs", "Normal"), a, b});
+        if (mixed) {
+            combo->addItem(QCoreApplication::translate("jp::write::Dialogs", "(mixed)"));
+            combo->setCurrentIndex(3);
+        } else {
+            combo->setCurrentIndex(index);
+        }
+        return combo;
+    };
+    const double spacing0 = spacingOf(first), raised0 = raisedOf(first), kern0 = kernOf(first);
+    auto *spacingKind = kindCombo("spacingKind", QCoreApplication::translate("jp::write::Dialogs", "Expanded"), QCoreApplication::translate("jp::write::Dialogs", "Condensed"), spacing0 > 0.001 ? 1 : spacing0 < -0.001 ? 2 : 0, spacingMixed);
+    auto *spacingBy = new DecimalSpin(spacingBox);
+    spacingBy->setObjectName(QStringLiteral("spacingBy"));
+    spacingBy->setRange(0, 1584);
+    spacingBy->setSuffix(QCoreApplication::translate("jp::write::Dialogs", " pt"));
+    spacingBy->setValue(std::abs(spacing0));
+    auto *raisedKind = kindCombo("positionKind", QCoreApplication::translate("jp::write::Dialogs", "Raised"), QCoreApplication::translate("jp::write::Dialogs", "Lowered"), raised0 > 0.001 ? 1 : raised0 < -0.001 ? 2 : 0, raisedMixed);
+    auto *raisedBy = new DecimalSpin(spacingBox);
+    raisedBy->setObjectName(QStringLiteral("positionBy"));
+    raisedBy->setRange(0, 1584);
+    raisedBy->setSuffix(QCoreApplication::translate("jp::write::Dialogs", " pt"));
+    raisedBy->setValue(std::abs(raised0));
+    auto *kern = new QCheckBox(QCoreApplication::translate("jp::write::Dialogs", "Kerning for fonts of this size and above:"), spacingBox);
+    kern->setObjectName(QStringLiteral("kerning"));
+    kern->setTristate(kernMixed);
+    kern->setCheckState(kernMixed ? Qt::PartiallyChecked : kern0 > 0.001 ? Qt::Checked : Qt::Unchecked);
+    auto *kernFrom = new DecimalSpin(spacingBox);
+    kernFrom->setObjectName(QStringLiteral("kerningFrom"));
+    kernFrom->setRange(1, 1638);
+    kernFrom->setSuffix(QCoreApplication::translate("jp::write::Dialogs", " pt"));
+    kernFrom->setValue(kern0 > 0.001 ? kern0 : 12);
+    sg->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Spacing:"), spacingBox)), 0, 0);
+    sg->addWidget(spacingKind, 0, 1);
+    sg->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "By:"), spacingBox)), 0, 2);
+    sg->addWidget(spacingBy, 0, 3);
+    sg->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Position:"), spacingBox)), 1, 0);
+    sg->addWidget(raisedKind, 1, 1);
+    sg->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "By:"), spacingBox)), 1, 2);
+    sg->addWidget(raisedBy, 1, 3);
+    sg->addWidget(kern, 2, 0, 1, 3);
+    sg->addWidget(kernFrom, 2, 3);
+    auto syncSpacing = [=] {
+        spacingBy->setEnabled(spacingKind->currentIndex() == 1 || spacingKind->currentIndex() == 2);
+        raisedBy->setEnabled(raisedKind->currentIndex() == 1 || raisedKind->currentIndex() == 2);
+        kernFrom->setEnabled(kern->checkState() == Qt::Checked);
+    };
+    syncSpacing();
+    QObject::connect(spacingKind, &QComboBox::currentIndexChanged, &dlg, syncSpacing);
+    QObject::connect(raisedKind, &QComboBox::currentIndexChanged, &dlg, syncSpacing);
+    QObject::connect(kern, &QCheckBox::checkStateChanged, &dlg, syncSpacing);
+    v->addWidget(spacingBox);
+
     // The preview shows the look the boxes describe.
     auto *preview = new QLabel(QCoreApplication::translate("jp::write::Dialogs", "AaBbYyZz"), &dlg);
     preview->setObjectName(QStringLiteral("preview"));
@@ -327,9 +426,19 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     v->addWidget(preview);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *setDefault = buttons->addButton(QCoreApplication::translate("jp::write::Dialogs", "Set as Default…"), QDialogButtonBox::ResetRole);
+    setDefault->setObjectName(QStringLiteral("setAsDefault"));
     v->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    bool makeDefault = false;
+    QObject::connect(setDefault, &QPushButton::clicked, &dlg, [&] {
+        if (plainQuestion(&dlg, QCoreApplication::translate("jp::write::Dialogs", "Set as Default"),
+                          QCoreApplication::translate("jp::write::Dialogs", "Make the font, size, and look chosen here the default for all new text in this document?"), QMessageBox::Yes | QMessageBox::Cancel) == QMessageBox::Yes) {
+            makeDefault = true;
+            dlg.accept();
+        }
+    });
     if (dlg.exec() != QDialog::Accepted) return;
 
     // Only what the person changed goes to the characters: what they left alone stays as each character had it.
@@ -349,6 +458,9 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     const bool underlineColorChanged = underlineColorMixed ? (!underlineColor->mixed() || !underlineColor->current().isNone()) : underlineColor->current() != underlineColor0;
     const int strikeChange = strike.change(), doubleChange = doubleStrike.change(), upChange = superscript.change(), downChange = subscript.change();
     const int smallChange = smallCaps.change(), allChange = allCaps.change(), hiddenChange = hidden.change();
+    const bool spacingChanged = spacingKind->currentIndex() != 3 && (spacingKind->currentIndex() != (spacing0 > 0.001 ? 1 : spacing0 < -0.001 ? 2 : 0) || (spacingKind->currentIndex() != 0 && std::abs(spacingBy->value() - std::abs(spacing0)) > 0.001) || spacingMixed);
+    const bool raisedChanged = raisedKind->currentIndex() != 3 && (raisedKind->currentIndex() != (raised0 > 0.001 ? 1 : raised0 < -0.001 ? 2 : 0) || (raisedKind->currentIndex() != 0 && std::abs(raisedBy->value() - std::abs(raised0)) > 0.001) || raisedMixed);
+    const bool kernChanged = kern->checkState() != Qt::PartiallyChecked && (kernMixed || (kern->checkState() == Qt::Checked) != (kern0 > 0.001) || (kern->checkState() == Qt::Checked && std::abs(kernFrom->value() - kern0) > 0.001));
     c.beginEditBlock();   // (one step for all of it)
     if (familyChanged) setFontFamily(*doc, c, chosen);
     if (sizeChanged) setFontSize(*doc, c, size->value());
@@ -414,8 +526,120 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
         }
         if (hiddenChange == 1) f.setProperty(tp::HiddenText, true);
         else if (hiddenChange == 0) f.clearProperty(tp::HiddenText);
+        if (spacingChanged) {
+            const double by = spacingKind->currentIndex() == 0 ? 0.0 : (spacingKind->currentIndex() == 1 ? 1 : -1) * spacingBy->value();
+            if (std::abs(by) < 0.001) {
+                f.clearProperty(QTextFormat::FontLetterSpacing);
+                f.clearProperty(QTextFormat::FontLetterSpacingType);
+            } else {
+                f.setFontLetterSpacingType(QFont::AbsoluteSpacing);
+                f.setFontLetterSpacing(by);
+            }
+        }
+        if (raisedChanged) {
+            const double by = raisedKind->currentIndex() == 0 ? 0.0 : (raisedKind->currentIndex() == 1 ? 1 : -1) * raisedBy->value();
+            if (std::abs(by) < 0.001) f.clearProperty(prop::Raised);
+            else f.setProperty(prop::Raised, int(std::lround(by * 2)));
+        }
+        if (kernChanged) {
+            if (kern->checkState() == Qt::Checked) f.setProperty(tp::KernAbove, kernFrom->value());
+            else f.clearProperty(tp::KernAbove);
+        }
     });
     c.endEditBlock();
+    // Set as Default: the document's Normal style takes the font, size, and look chosen (the characters selected took them above).
+    if (makeDefault) setDefaultFont(*doc, familyChanged ? chosen : (familyMixed ? QString() : family), sizeMixed ? 0 : size->value(), style->currentIndex(), color->mixed() ? ColorRef::none() : color->current(), colors);
+}
+
+void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
+{
+    if (!doc || !cursor) return;
+    QVector<TabStopEntry> stops = tabStopsOf(cursor->block().blockFormat());
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("tabsDialog"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::Dialogs", "Tabs"));
+    auto *v = new QVBoxLayout(&dlg);
+    auto *position = new MeasureSpin(&dlg);
+    position->setObjectName(QStringLiteral("tabPosition"));
+    position->setRange(0, kMostTabPosition);
+    auto *list = new QListWidget(&dlg);
+    list->setObjectName(QStringLiteral("tabList"));
+    auto *type = new QComboBox(&dlg);
+    type->setObjectName(QStringLiteral("tabType"));
+    type->addItem(QCoreApplication::translate("jp::write::Dialogs", "Left"), int(QTextOption::LeftTab));
+    type->addItem(QCoreApplication::translate("jp::write::Dialogs", "Center"), int(QTextOption::CenterTab));
+    type->addItem(QCoreApplication::translate("jp::write::Dialogs", "Right"), int(QTextOption::RightTab));
+    type->addItem(QCoreApplication::translate("jp::write::Dialogs", "Decimal"), int(QTextOption::DelimiterTab));
+    auto *leader = new QComboBox(&dlg);
+    leader->setObjectName(QStringLiteral("tabLeader"));
+    leader->addItem(QCoreApplication::translate("jp::write::Dialogs", "None"), QChar(QLatin1Char(' ')));
+    leader->addItem(QCoreApplication::translate("jp::write::Dialogs", "Dots"), QChar(QLatin1Char('.')));
+    leader->addItem(QCoreApplication::translate("jp::write::Dialogs", "Dashes"), QChar(QLatin1Char('-')));
+    leader->addItem(QCoreApplication::translate("jp::write::Dialogs", "Line"), QChar(QLatin1Char('_')));
+    auto describe = [](const TabStopEntry &t) {
+        const char *kinds[] = {QT_TRANSLATE_NOOP("jp::write::Dialogs", "left"), QT_TRANSLATE_NOOP("jp::write::Dialogs", "right"), QT_TRANSLATE_NOOP("jp::write::Dialogs", "center"), QT_TRANSLATE_NOOP("jp::write::Dialogs", "decimal")};
+        const int k = t.type == QTextOption::LeftTab ? 0 : t.type == QTextOption::RightTab ? 1 : t.type == QTextOption::CenterTab ? 2 : 3;
+        return QCoreApplication::translate("jp::write::Dialogs", "%1 pt, %2%3").arg(t.position, 0, 'f', 1).arg(QCoreApplication::translate("jp::write::Dialogs", kinds[k]), t.leader == QLatin1Char(' ') ? QString() : QCoreApplication::translate("jp::write::Dialogs", ", with a leader"));
+    };
+    auto refill = [&] {
+        list->clear();
+        for (const TabStopEntry &t : std::as_const(stops)) list->addItem(describe(t));
+    };
+    refill();
+    auto *form = new QFormLayout;
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Tab stop position:"), position);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Tab stops to clear:"), list);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Alignment:"), type);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Leader:"), leader);
+    v->addLayout(form);
+    auto *row = new QHBoxLayout;
+    auto *set = new QPushButton(QCoreApplication::translate("jp::write::Dialogs", "Set"), &dlg);
+    set->setObjectName(QStringLiteral("tabSet"));
+    auto *clear = new QPushButton(QCoreApplication::translate("jp::write::Dialogs", "Clear"), &dlg);
+    clear->setObjectName(QStringLiteral("tabClear"));
+    auto *clearAll = new QPushButton(QCoreApplication::translate("jp::write::Dialogs", "Clear All"), &dlg);
+    clearAll->setObjectName(QStringLiteral("tabClearAll"));
+    row->addWidget(set);
+    row->addWidget(clear);
+    row->addWidget(clearAll);
+    v->addLayout(row);
+    QObject::connect(set, &QPushButton::clicked, &dlg, [&] {
+        TabStopEntry t;
+        t.position = position->value();
+        t.type = QTextOption::TabType(type->currentData().toInt());
+        t.leader = leader->currentData().toChar();
+        for (TabStopEntry &e : stops)
+            if (std::abs(e.position - t.position) < 0.5) {
+                e = t;
+                refill();
+                return;
+            }
+        if (stops.size() >= kMostTabStops) return;
+        stops.push_back(t);
+        std::sort(stops.begin(), stops.end(), [](const TabStopEntry &a, const TabStopEntry &b) { return a.position < b.position; });
+        refill();
+    });
+    QObject::connect(clear, &QPushButton::clicked, &dlg, [&] {
+        const int i = list->currentRow();
+        if (i >= 0 && i < stops.size()) stops.removeAt(i);
+        refill();
+    });
+    QObject::connect(clearAll, &QPushButton::clicked, &dlg, [&] {
+        stops.clear();
+        refill();
+    });
+    QObject::connect(list, &QListWidget::currentRowChanged, &dlg, [&](int i) {
+        if (i < 0 || i >= stops.size()) return;
+        position->setPoints(stops.at(i).position);
+        type->setCurrentIndex(std::max(0, type->findData(int(stops.at(i).type))));
+        leader->setCurrentIndex(std::max(0, leader->findData(QChar(stops.at(i).leader))));
+    });
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    v->addWidget(buttons);
+    if (dlg.exec() != QDialog::Accepted) return;
+    if (stops != tabStopsOf(cursor->block().blockFormat())) setTabStops(*doc, *cursor, stops);
 }
 
 void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
@@ -504,7 +728,41 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     QObject::connect(lineType, &QComboBox::currentIndexChanged, &dlg, show);
     QObject::connect(special, &QComboBox::currentIndexChanged, &dlg, show);
 
+    // Line and page breaks.
+    auto *breaks = new QGroupBox(QCoreApplication::translate("jp::write::Dialogs", "Line and page breaks"), &dlg);
+    auto *bg = new QGridLayout(breaks);
+    auto flag = [&](const char *name, const QString &text, bool on, int row, int column) {
+        auto *box = new QCheckBox(text, breaks);
+        box->setObjectName(QString::fromLatin1(name));
+        box->setChecked(on);
+        bg->addWidget(box, row, column);
+        return box;
+    };
+    const bool widow0 = start.boolProperty(tp::WidowControl), keepNext0 = start.boolProperty(tp::KeepWithNext), keepLines0 = start.boolProperty(tp::KeepTogether);
+    const bool pageBefore0 = (start.pageBreakPolicy() & QTextFormat::PageBreak_AlwaysBefore) != 0, noHyphen0 = start.boolProperty(tp::NoAutoHyphen), contextual0 = start.boolProperty(tp::ContextualSpacing);
+    auto *widow = flag("widowControl", QCoreApplication::translate("jp::write::Dialogs", "Widow and orphan control"), widow0, 0, 0);
+    auto *keepNext = flag("keepWithNext", QCoreApplication::translate("jp::write::Dialogs", "Keep with next"), keepNext0, 0, 1);
+    auto *keepLines = flag("keepLinesTogether", QCoreApplication::translate("jp::write::Dialogs", "Keep lines together"), keepLines0, 1, 0);
+    auto *pageBefore = flag("pageBreakBefore", QCoreApplication::translate("jp::write::Dialogs", "Page break before"), pageBefore0, 1, 1);
+    auto *noHyphen = flag("dontHyphenate", QCoreApplication::translate("jp::write::Dialogs", "Don't hyphenate"), noHyphen0, 2, 0);
+    auto *contextual = flag("contextualSpacing", QCoreApplication::translate("jp::write::Dialogs", "Don't add space between paragraphs of the same style"), contextual0, 3, 0);
+    bg->addWidget(contextual, 3, 0, 1, 2);
+    auto *outline = new QComboBox(breaks);
+    outline->setObjectName(QStringLiteral("outlineLevel"));
+    outline->addItem(QCoreApplication::translate("jp::write::Dialogs", "Body text"), 9);
+    for (int level = 1; level <= 9; ++level) outline->addItem(QCoreApplication::translate("jp::write::Dialogs", "Level %1").arg(level), level - 1);
+    const int outline0 = start.hasProperty(prop::Outline) ? start.intProperty(prop::Outline) : 9;
+    outline->setCurrentIndex(std::clamp(outline0 == 9 ? 0 : outline0 + 1, 0, 9));
+    auto *outlineRow = new QHBoxLayout;
+    outlineRow->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Outline level:"), breaks)));
+    outlineRow->addWidget(outline, 1);
+    bg->addLayout(outlineRow, 2, 1);
+    v->addWidget(breaks);
+
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *tabs = buttons->addButton(QCoreApplication::translate("jp::write::Dialogs", "Tabs…"), QDialogButtonBox::ActionRole);
+    tabs->setObjectName(QStringLiteral("tabsButton"));
+    QObject::connect(tabs, &QPushButton::clicked, &dlg, [&] { tabsDialog(&dlg, doc, cursor); });
     v->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -519,7 +777,33 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     const int k = lineType->currentIndex();
     const bool lineChanged = k != lineKind || (k == 5 && std::abs(multiple->value() - lineValue) > 0.001) || ((k == 3 || k == 4) && std::abs(at->value() - lineValue) > 0.001);
     const Qt::Alignment chosen = Qt::Alignment(align->currentData().toInt());
+    const int outlineNow = outline->currentData().toInt();
     changeBlockFormat(*doc, *cursor, [&](QTextBlockFormat &bf) {
+        if (widow->isChecked() != widow0) {
+            if (widow->isChecked()) bf.setProperty(tp::WidowControl, true);
+            else bf.setProperty(tp::WidowControl, false);
+        }
+        if (keepNext->isChecked() != keepNext0) {
+            if (keepNext->isChecked()) bf.setProperty(tp::KeepWithNext, true);
+            else bf.clearProperty(tp::KeepWithNext);
+        }
+        if (keepLines->isChecked() != keepLines0) {
+            if (keepLines->isChecked()) bf.setProperty(tp::KeepTogether, true);
+            else bf.clearProperty(tp::KeepTogether);
+        }
+        if (pageBefore->isChecked() != pageBefore0) bf.setPageBreakPolicy(pageBefore->isChecked() ? QTextFormat::PageBreak_AlwaysBefore : QTextFormat::PageBreak_Auto);
+        if (noHyphen->isChecked() != noHyphen0) {
+            if (noHyphen->isChecked()) bf.setProperty(tp::NoAutoHyphen, true);
+            else bf.clearProperty(tp::NoAutoHyphen);
+        }
+        if (contextual->isChecked() != contextual0) {
+            if (contextual->isChecked()) bf.setProperty(tp::ContextualSpacing, true);
+            else bf.clearProperty(tp::ContextualSpacing);
+        }
+        if (outlineNow != outline0) {
+            if (outlineNow == 9) bf.clearProperty(prop::Outline);
+            else bf.setProperty(prop::Outline, outlineNow);
+        }
         if (alignChanged) {
             bf.setAlignment(chosen);
             bf.clearProperty(prop::JcRaw);

@@ -10,10 +10,7 @@
 // on: nothing here reads the workbook's cells.
 
 #include "office/package.h"
-
-#include <map>
-#include <memory>
-#include <set>
+#include "office/packageprops.h"
 #include "sheet/drawingadd.h"
 #include "sheet/drawingsave.h"
 #include "sheet/links.h"
@@ -32,6 +29,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <memory>
 #include <set>
 #include <vector>
 
@@ -328,6 +326,8 @@ struct SaveChanges {
     std::map<QString, std::map<int, DrawingAnchor>> anchors;
     // Objects a person named: for each drawing part (by its name), the new name of the object at a place (DrawingObject::ordinal). Applied with the anchors, before objects are taken away.
     std::map<QString, std::map<int, QString>> objectNames;
+    // Objects a person took off the printed pages or put back on them: for each drawing part, whether the object at a place prints. Applied with the names.
+    std::map<QString, std::map<int, bool>> objectPrints;
     // Objects a person put on sheets (a chart, a picture, a shape): by the sheet's place, what the drawing part gets and the parts it relates to (drawingadd.h). A sheet with no drawing is given one.
     std::map<int, AddedDrawing> addedObjects;
     // Drawings whose objects are drawn in another order: for each drawing part (by its name), the order of all the children of its root as they are after what is above is done (the objects taken
@@ -342,6 +342,10 @@ struct SaveChanges {
     // The workbook's protection of its structure, when a person changed it (made into the element `workbookProtection` in place of the file's).
     bool setWorkbookProtection = false;
     WorkbookProtection workbookProtection;
+    // The workbook's properties, when a person changed them: the core, extended, and custom parts get them (a part the file lacks is made, with its type and the package's relationship to it;
+    // the custom part goes when no property is left).
+    bool setProperties = false;
+    PackageProps properties;
     bool sheetsChanged = false;
     std::vector<SheetOp> sheetOps;
     int activeTab = 0;                           // the sheet that is open, by its place in the order of the tabs

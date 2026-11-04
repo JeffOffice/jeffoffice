@@ -35,7 +35,7 @@ InsertFunctionDialog::InsertFunctionDialog(QWidget *parent, const QString &searc
     m_category->setAccessibleName(tr("Kind of function"));
     m_category->addItem(tr("All"), -1);
     for (FunctionCategory c : {FunctionCategory::Financial, FunctionCategory::DateTime, FunctionCategory::MathTrig, FunctionCategory::Statistical, FunctionCategory::LookupReference,
-                               FunctionCategory::Text, FunctionCategory::Logical, FunctionCategory::Information, FunctionCategory::Database})
+                               FunctionCategory::Text, FunctionCategory::Logical, FunctionCategory::Information, FunctionCategory::Database, FunctionCategory::Engineering})
         m_category->addItem(categoryName(c), int(c));
     form->addRow(tr("Kind:"), m_category);
     layout->addLayout(form);

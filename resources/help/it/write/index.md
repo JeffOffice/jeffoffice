@@ -1,41 +1,55 @@
-# Guida di JeffWrite
-<!-- keywords: sommario, guida, aiuto, argomenti, inizio, introduzione -->
+# JeffWrite Guida
+<!-- keywords: sommario, guida, argomenti, inizio -->
 
-Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere informazioni su ciò che stai facendo: la scheda della barra multifunzione su cui ti trovi o la pagina del menu File in cui ti trovi.
+Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione o la pagina della schermata File in cui ti trovi.
 
-## Introduzione
+## Per iniziare
 
-- [Benvenuti in JeffWrite](start)
-- [Aprire, salvare, stampare ed esportare](open-save)
-- [Aprire e salvare file OpenDocument](open-odt)
-- [Aprire file RTF](open-rtf)
-- [Stampare](print)
+- [Benvenuto in JeffWrite](start)
+- [Apri, salva, stampa ed esporta](open-save)
+- [Info: proprietà, password e Ispeziona](info)
+- [Apri e salva file OpenDocument](open-odt)
+- [Apri file RTF](open-rtf)
+- [Stampa](print)
 
-## Lavorare sul testo
+## Lavora sul testo
 
-- [Controllare l'ortografia](spelling)
-- [Tenere traccia delle modifiche e accettarle o rifiutarle](track-changes)
-- [Aggiungere commenti e rispondere](comments)
+- [Controlla l'ortografia](spelling)
+- [Conta le parole, imposta la lingua, verifica l'accessibilità e cerca parole](proofing-tools)
+- [Tieni traccia delle modifiche, e accettale o rifiutale](track-changes)
+- [Aggiungi e rispondi ai commenti](comments)
+- [Proteggi un documento e blocca il rilevamento delle modifiche](protect)
 
-## Scrivere e modificare il testo
+## Scrivi e modifica il testo
 
-- [Modificare l'aspetto del testo](font)
-- [Usare gli stili](styles)
-- [Copiare un aspetto con Copia formato](format-painter)
-- [Aggiungere intestazioni, piè di pagina e numeri di pagina](headers-footers)
-- [Creare e modificare tabelle](tables)
-- [Aggiungere note a piè di pagina e note di chiusura](footnotes-endnotes)
-- [Creare un sommario](table-of-contents)
-- [Usare i campi](fields)
-- [Fare riferimento a un'altra posizione con i riferimenti incrociati](cross-references)
-- [Contrassegnare posizioni con i segnalibri](bookmarks)
-- [Aggiungere e modificare immagini](pictures)
-- [Impostare la pagina](page-setup)
-- [Usare il righello](ruler)
-- [Trovare e sostituire parole](find-replace)
-- [Andare a una posizione e spostare il testo](go-to-and-move-text)
+- [Cambia l'aspetto del testo](font)
+- [Cambia maiuscole/minuscole, ordina e incolla in altri modi](home-tools)
+- [Usa gli stili](styles)
+- [Copia un aspetto con Copia formato](format-painter)
+- [Aggiungi intestazioni, piè di pagina e numeri di pagina](headers-footers)
+- [Crea e modifica tabelle](tables)
+- [Aggiungi note a piè di pagina e note di chiusura](footnotes-endnotes)
+- [Crea un sommario](table-of-contents)
+- [Aggiungi didascalie e un elenco delle figure](captions)
+- [Cita fonti e crea una bibliografia](citations)
+- [Crea un indice analitico](making-an-index)
+- [Crea un indice delle fonti giuridiche](table-of-authorities)
+- [Usa i campi](fields)
+- [Punta a un altro punto con i riferimenti incrociati](cross-references)
+- [Segna punti con i segnalibri](bookmarks)
+- [Stampa unione, buste ed etichette](mail-merge)
+- [Aggiungi e modifica immagini](pictures)
+- [Imposta la pagina](page-setup)
+- [Interruzioni, colonne, sillabazione e numerazione di riga](breaks-columns)
+- [Inserisci simboli e caratteri speciali](symbols-special-characters)
+- [Aggiungi collegamenti e testo da altri file](links)
+- [Cambia il colore e i bordi delle pagine](page-look)
+- [Orientati con il riquadro di navigazione](navigation-pane)
+- [Usa il righello](ruler)
+- [Trova e sostituisci parole](find-replace)
+- [Vai a un punto e sposta il testo](go-to-and-move-text)
 
-## Lavorare più velocemente
+## Lavora più velocemente
 
-- [Usare JeffWrite con la tastiera](keyboard)
-- [Modificare le impostazioni di JeffWrite](options)
+- [Usa JeffWrite con la tastiera](keyboard)
+- [Cambia le impostazioni di JeffWrite](options)

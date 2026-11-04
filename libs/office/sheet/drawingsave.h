@@ -38,6 +38,11 @@ bool setDrawingObjectNames(const QByteArray &xml, const std::map<int, QString> &
 // An object's element (or several) with the name of its first cNvPr set to `name`.
 QByteArray withFirstObjectName(const QByteArray &element, const QString &name);
 
+// Whether the objects at the given places print: the fPrintsWithSheet of the first clientData of each written as "0" (does not print) or left out (prints). Every other byte stays.
+bool setDrawingObjectPrints(const QByteArray &xml, const std::map<int, bool> &prints, QByteArray *out, bool *changed);
+// An object's element (or several) with its first clientData set so.
+QByteArray withFirstObjectPrints(const QByteArray &element, bool prints);
+
 // The references a chart part reads (the text of each c:f), in order, as written (unescaped).
 QStringList chartPartRefs(const QByteArray &xml);
 

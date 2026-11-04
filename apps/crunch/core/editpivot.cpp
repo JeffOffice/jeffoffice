@@ -295,6 +295,7 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
         if (!cache) return tr("JeffCrunch can't read the data this pivot table is made from.");
         const CellRange oldLoc = pb.locationOf(ch.table);
         if (!oldLoc.valid) return tr("JeffCrunch can't read this pivot table.");
+        const quint32 originRow = ch.moveRow >= 0 ? quint32(ch.moveRow) : oldLoc.row1, originCol = ch.moveCol >= 0 ? quint32(ch.moveCol) : oldLoc.col1;
         const PivotTable &old = *entry.table;
         const CellRange oldPage = pageArea(old, oldLoc);
         PivotOptions options;
@@ -332,7 +333,7 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
         QString problem;
         if (!computePivot(*ch.now, *cache, &grid, &problem, options)) return tr("This pivot table can't be worked out: %1.").arg(problem);
         const int pages = int(ch.now->pageFields.size());
-        if (pages > 0 && oldLoc.row1 < quint32(pages) + 1) return tr("There is no room above the pivot table for its filters. Move the table down first.");
+        if (pages > 0 && originRow < quint32(pages) + 1) return tr("There is no room above the pivot table for its filters. Move the table down first.");
         // (a table with nothing in it claims no more than it had, or its frame below)
         const bool emptyTable = ch.now->rowFields.isEmpty() && ch.now->colFields.isEmpty() && ch.now->dataFields.isEmpty();
         if (emptyTable) {
@@ -344,7 +345,7 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
         }
         ch.now->rowPageCount = pages;
         ch.now->colPageCount = pages > 0 ? 1 : 0;
-        pivotApplyGrid(ch.now.get(), grid, oldLoc.row1, oldLoc.col1);
+        pivotApplyGrid(ch.now.get(), grid, originRow, originCol);
         CellRange newLoc;
         parseRangeRef(ch.now->ref, &newLoc);
         if (!newLoc.valid || newLoc.row2 >= 1048576 || newLoc.col2 >= 16384) return tr("The pivot table would go past the edge of the sheet.");
@@ -359,6 +360,7 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
             }
             for (const auto &p : placed)
                 if (pb.table(p.first).sheet == sheet && overlap(area, p.second)) return false;
+            if (ch.cellsMoved) return true;   // (a move of the table moved its cells there already, after looking at what was in the way)
             bool free = true;
             m_book->calc->sheet(sheet).cells.forEachInRange(area.row1, area.col1, area.row2, area.col2, [&](quint32 r, quint32 c, const Cell &cell) {
                 if (oldLoc.contains(r, c) || oldPage.contains(r, c)) return true;
@@ -407,7 +409,7 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
                 grid.cols = 7;
                 grid.cells.resize(98);
                 grid.cells.fill(PivotCell());
-                pivotApplyGrid(ch.now.get(), grid, oldLoc.row1, oldLoc.col1);
+                pivotApplyGrid(ch.now.get(), grid, originRow, originCol);
                 parseRangeRef(ch.now->ref, &newLoc);
             }
         }
@@ -1112,6 +1114,131 @@ EditSession::Outcome EditSession::ungroupPivotField(int table, int field)
     ch.sourceSheet = ce.sourceSheet;
     ch.sourceName = ce.sourceName;
     return pivotStep({ch}, tr("Ungroup Field"));
+}
+
+EditSession::Outcome EditSession::drillPivotItem(int sheet, quint32 row, quint32 col, bool open)
+{
+    Outcome out;
+    auto refuse = [&](const QString &why) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    };
+    PivotBook::View view;
+    if (!m_book || !m_book->book || !m_book->book->pivots().viewAt(sheet, row, col, &view) || !view.where.valid || !view.grid || !view.table) return refuse(tr("Click the name of an item in a pivot table first."));
+    const PivotGrid &g = *view.grid;
+    const int gridRow = int(qint64(row) - view.where.row1), gridCol = int(qint64(col) - view.where.col1);
+    const int ri = gridRow - g.firstDataRow;
+    if (gridCol < 0 || gridCol >= g.firstDataCol || ri < 0 || ri >= g.rowItems.size()) return refuse(tr("Click the name of an item in the rows of a pivot table first."));
+    const PivotAxisItem &line = g.rowItems[ri];
+    const PivotTable &t = *view.table;
+    if (!line.t.isEmpty() || line.labelOnly || line.x.isEmpty()) return refuse(tr("Click the name of an item in the rows of a pivot table first."));
+    // (in the compact form every level is in the first column, the line's last item; otherwise the column says which level the cell names, if the line holds it)
+    const bool oneColumn = t.compact && !t.outline;
+    const int level = oneColumn ? line.r + int(line.x.size()) - 1 : gridCol;
+    if (!oneColumn && (level < line.r || level >= line.r + int(line.x.size()))) return refuse(tr("Click the name of an item in the rows of a pivot table first."));
+    const int place = oneColumn ? line.x.back() : line.x[level - line.r];
+    if (level < 0 || level >= t.rowFields.size()) return refuse(tr("Click the name of an item in the rows of a pivot table first."));
+    if (level + 1 >= t.rowFields.size()) return refuse(tr("This item has nothing under it."));
+    const int field = t.rowFields[level];
+    if (field < 0 || field >= t.fields.size() || place < 0 || place >= t.fields[field].items.size() || !t.fields[field].items[place].t.isEmpty()) return refuse(tr("JeffCrunch can't find this item."));
+    if (t.fields[field].items[place].showDetails == open) return out;
+    PivotTable changed = t;
+    changed.fields[field].items[place].showDetails = open;
+    return setPivot(view.index, changed, true, open ? tr("Drill Down") : tr("Drill Up"));
+}
+
+EditSession::Outcome EditSession::movePivot(int table, quint32 row, quint32 col)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) {
+        out.ok = false;
+        out.problem = why.isEmpty() ? tr("There is no pivot table here.") : why;
+        return out;
+    }
+    PivotBook &pb = m_book->book->pivots();
+    const CellRange at = pb.locationOf(table);
+    if (at.valid && at.row1 == row && at.col1 == col) return out;
+    if (row >= 1048576 || col >= 16384) {
+        out.ok = false;
+        out.problem = tr("The pivot table would go past the edge of the sheet.");
+        return out;
+    }
+    PivotChange ch;
+    ch.table = table;
+    ch.now = std::make_shared<PivotTable>(*pb.table(table).table);
+    ch.moveRow = row;
+    ch.moveCol = col;
+    if (!at.valid) return pivotStep({ch}, tr("Move Pivot Table"));
+    // The cells (the filters above the table too) are moved as cut cells are, so the formulas that point at them follow; then the table is drawn at its new place, which finds its cells there.
+    CellRange box = at;
+    const CellRange page = pageArea(*pb.table(table).table, at);
+    if (page.valid) {
+        box.row1 = std::min(box.row1, page.row1);
+        box.col1 = std::min(box.col1, page.col1);
+        box.row2 = std::max(box.row2, page.row2);
+        box.col2 = std::max(box.col2, page.col2);
+    }
+    const qint64 dRow = qint64(row) - at.row1, dCol = qint64(col) - at.col1;
+    if (qint64(box.row1) + dRow < 0 || qint64(box.col1) + dCol < 0 || qint64(box.row2) + dRow >= 1048576 || qint64(box.col2) + dCol >= 16384) {
+        out.ok = false;
+        out.problem = tr("The pivot table would go past the edge of the sheet.");
+        return out;
+    }
+    const int sheet = pb.table(table).sheet;
+    CellRange target = box;
+    target.row1 = quint32(qint64(box.row1) + dRow);
+    target.row2 = quint32(qint64(box.row2) + dRow);
+    target.col1 = quint32(qint64(box.col1) + dCol);
+    target.col2 = quint32(qint64(box.col2) + dCol);
+    // (what is in the way is looked for first: a move of cells writes over what is there)
+    bool free = true;
+    m_book->calc->sheet(sheet).cells.forEachInRange(target.row1, target.col1, target.row2, target.col2, [&](quint32 r, quint32 c, const Cell &cell) {
+        if (box.contains(r, c)) return true;
+        if (cell.hasFormula() || cell.type != CellType::Empty) {
+            free = false;
+            return false;
+        }
+        return true;
+    });
+    // (and anything else that sits there: a table, another pivot table, merged cells, the sheet's filter; none of it is moved or covered, so it is found before the cells are touched)
+    QString inTheWay;
+    auto meets = [&](const CellRange &r) { return r.valid && !(r.row2 < target.row1 || r.row1 > target.row2 || r.col2 < target.col1 || r.col1 > target.col2); };
+    for (const Table &tb : m_book->book->tables())
+        if (tb.sheet == sheet && !(tb.row2 < target.row1 || tb.row1 > target.row2 || tb.col2 < target.col1 || tb.col1 > target.col2)) inTheWay = tr("There is a table in the way (%1).").arg(tb.name);
+    for (int other = 0; other < pb.tableCount() && inTheWay.isEmpty(); ++other) {
+        if (other == table || pb.table(other).sheet != sheet) continue;
+        const CellRange ol = pb.locationOf(other);
+        if (meets(ol) || (pb.table(other).table && meets(pageArea(*pb.table(other).table, ol)))) inTheWay = tr("There is another pivot table in the way.");
+    }
+    if (inTheWay.isEmpty())
+        for (const CellRange &m : m_book->calc->mergesOf(sheet))
+            if (meets(m) && !box.contains(m.row1, m.col1)) inTheWay = tr("There are merged cells in the way (%1).").arg(rangeName(m));
+    if (inTheWay.isEmpty() && meets(m_book->calc->autoFilterOf(sheet).ref)) inTheWay = tr("The sheet's filter is in the way.");
+    if (!inTheWay.isEmpty()) {
+        out.ok = false;
+        out.problem = inTheWay + QLatin1Char(' ') + tr("Move the pivot table somewhere else, or clear those cells first.");
+        return out;
+    }
+    if (!free) {
+        out.ok = false;
+        out.problem = tr("The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.").arg(rangeName(target));
+        return out;
+    }
+    const int startIndex = m_undo.index();
+    m_undo.beginMacro(tr("Move Pivot Table"));
+    m_movingPivot = true;
+    Outcome step = moveCells(sheet, box, sheet, target.row1, target.col1);
+    m_movingPivot = false;
+    ch.cellsMoved = true;
+    if (step.ok) step = pivotStep({ch}, tr("Move Pivot Table"));
+    m_undo.endMacro();
+    if (!step.ok) {
+        while (m_undo.index() > startIndex) m_undo.undo();
+        return step;
+    }
+    return out;
 }
 
 EditSession::Outcome EditSession::setPivotRefreshOnOpen(int table, bool on)

@@ -16,6 +16,8 @@
 #include "sheet/drawing.h"
 #include "sheet/xlsxsave.h"
 
+#include <QCheckBox>
+#include <QDoubleSpinBox>
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QDoubleSpinBox>
@@ -436,6 +438,41 @@ private Q_SLOTS:
         QCOMPARE(e.selected(), QStringLiteral("A1"));
     }
 
+    // Properties: "Print this object" off keeps the object off the printed pages, is one step of Undo, and is saved as the client data's fPrintsWithSheet and kept.
+    void anObjectThatDoesNotPrintIsLeftOffThePages()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->select(0);
+        QCOMPARE(int(o->printObjects(0).size()), 1);
+        bool printedBefore = false;
+        e.win.w.setPropertiesAsker([&](const ObjectProperties &now, ObjectProperties *out) {
+            printedBefore = now.prints;
+            *out = now;
+            out->prints = false;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("object.properties"))->trigger();
+        QVERIFY(printedBefore);
+        QCOMPARE(int(o->printObjects(0).size()), 0);
+        QVERIFY(save(e));
+        Package p;
+        QString why;
+        QVERIFY(p.readLazyFile(e.path, &why));
+        QVERIFY(p.part(QStringLiteral("/xl/drawings/drawing1.xml")).contains("fPrintsWithSheet=\"0\""));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 1);
+        QCOMPARE(int(second.w.objects()->printObjects(0).size()), 0);
+        e.win.w.session()->undoStack()->undo();
+        QCOMPARE(int(o->printObjects(0).size()), 1);
+        QVERIFY(save(e));
+        QVERIFY(p.readLazyFile(e.path, &why));
+        QVERIFY(!p.part(QStringLiteral("/xl/drawings/drawing1.xml")).contains("fPrintsWithSheet"));
+    }
+
     // Properties: the size and what the object does when cells change; it is saved as the anchor's editAs (a two-cell anchor that moves and does not size), and kept.
     void whatAnObjectDoesWhenCellsChangeIsSaved()
     {
@@ -534,6 +571,184 @@ private Q_SLOTS:
         QCOMPARE(chartOf(e).background.name(), QStringLiteral("#262626"));
         QVERIFY(save(e));
         QCOMPARE(savedCharts(e.path)[0].chart.background.name(), QStringLiteral("#262626"));
+    }
+
+    // What the data labels hold, what stands between, and their number format are chosen in the Data Labels list; each a step of Undo, and the file holds them.
+    void dataLabelContentsAreChosenInTheElementsList()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.chartElementsButton() && e.win.w.chartElementsButton()->isVisible());
+        QMenu *menu = e.win.w.chartElementsButton()->menu();
+        auto fire = [&](const QStringList &path) {
+            QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+            QMenu *m = menu;
+            QAction *found = nullptr;
+            for (int i = 0; i < path.size(); ++i) {
+                found = nullptr;
+                for (QAction *a : m->actions())
+                    if (a->text() == path[i]) found = a;
+                if (!found) return false;
+                if (i + 1 < path.size()) m = found->menu();
+            }
+            found->trigger();
+            return true;
+        };
+        QVERIFY(fire({"Data Labels", "Label Contains", "Category Name"}));
+        ChartLabelParts p = labelPartsOf(chartOf(e));
+        QVERIFY(p.category && !p.value);
+        QVERIFY(fire({"Data Labels", "Label Contains", "Value"}));
+        QVERIFY(fire({"Data Labels", "Separator", "New Line"}));
+        QCOMPARE(labelPartsOf(chartOf(e)).separator, QStringLiteral("\n"));
+        QVERIFY(fire({"Data Labels", "Separator", "Space"}));
+        QCOMPARE(labelPartsOf(chartOf(e)).separator, QStringLiteral(" "));
+        QVERIFY(fire({"Data Labels", "Separator", "New Line"}));
+        e.win.w.setChartTextAsker([](const QString &, QString *text) {
+            *text = QStringLiteral("0.00");
+            return true;
+        });
+        QVERIFY(fire({"Data Labels", "Number Format…"}));
+        p = labelPartsOf(chartOf(e));
+        QVERIFY(p.category && p.value && !p.series);
+        QCOMPARE(p.separator, QStringLiteral("\n"));
+        QCOMPARE(p.format, QStringLiteral("0.00"));
+        QVERIFY(save(e));
+        const ChartLabelParts saved = labelPartsOf(savedCharts(e.path)[0].chart);
+        QVERIFY(saved.category && saved.value);
+        QCOMPARE(saved.format, QStringLiteral("0.00"));
+        pressUndo(&e.win.w);
+        QVERIFY(labelPartsOf(chartOf(e)).format.isEmpty());
+        QVERIFY(labelPartsOf(chartOf(e)).category);
+        // the last content turned off takes the labels away
+        pressRedo(&e.win.w);
+        QVERIFY(fire({"Data Labels", "Label Contains", "Category Name"}));
+        QVERIFY(fire({"Data Labels", "Label Contains", "Value"}));
+        QVERIFY(!elementsOf(chartOf(e)).labels);
+    }
+
+    // Format Axis sets an axis from the Chart tab as one step of Undo, only for a chart that has the axis, and the saved file holds it.
+    void anAxisIsFormattedFromTheChartTab()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        QVERIFY(!e.win.w.act(QStringLiteral("chartdesign.axisV"))->isEnabled());
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.axisV"))->isEnabled());
+        QVERIFY(e.win.w.act(QStringLiteral("chartdesign.axisH"))->isEnabled());
+        bool across = true;
+        e.win.w.setFormatAxisAsker([&](bool horizontal, ChartAxis *axis) {
+            across = horizontal;
+            axis->autoMin = false;
+            axis->min = 5;
+            axis->reversed = true;
+            axis->majorTick = QStringLiteral("none");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("chartdesign.axisV"))->trigger();
+        QVERIFY(!across);
+        const Chart nowChart = chartOf(e);
+        const ChartAxis *a = primaryAxis(nowChart, false);
+        QVERIFY(!a->autoMin && a->min == 5 && a->reversed);
+        QCOMPARE(a->majorTick, QStringLiteral("none"));
+        QVERIFY(!primaryAxis(chartOf(e), true)->reversed);
+        QVERIFY(save(e));
+        const QVector<SavedChart> savedList = savedCharts(e.path);
+        const ChartAxis *saved = primaryAxis(savedList[0].chart, false);
+        QVERIFY(!saved->autoMin && saved->min == 5 && saved->reversed);
+        pressUndo(&e.win.w);
+        QVERIFY(primaryAxis(chartOf(e), false)->autoMin);
+        // a cancelled pane changes nothing
+        e.win.w.setFormatAxisAsker([](bool, ChartAxis *) { return false; });
+        const int steps = e.win.w.session()->undoStack()->index();
+        e.win.w.act(QStringLiteral("chartdesign.axisH"))->trigger();
+        QCOMPARE(e.win.w.session()->undoStack()->index(), steps);
+    }
+
+    // Turning only "Print this object" on or off does not resize the object: the box shows sizes to a tenth of a point, so a size like it is not a change.
+    void togglingOnlyPrintLeavesTheSizeAlone()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->select(0);
+        // a size that is not a whole number of points or pixels
+        e.win.w.setPropertiesAsker([&](const ObjectProperties &now, ObjectProperties *out) {
+            *out = now;
+            out->widthPoints = 301.37;
+            out->heightPoints = 177.77;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("object.properties"))->trigger();
+        const grid::ObjectBox was = o->layer()->boxNow(0);
+        const int steps = e.win.w.session()->undoStack()->index();
+        e.win.w.setPropertiesAsker([&](const ObjectProperties &now, ObjectProperties *out) {
+            *out = now;
+            out->widthPoints = std::round(now.widthPoints * 10) / 10;   // (what the box gives back)
+            out->heightPoints = std::round(now.heightPoints * 10) / 10;
+            out->prints = false;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("object.properties"))->trigger();
+        QCOMPARE(e.win.w.session()->undoStack()->index(), steps + 1);
+        QCOMPARE(o->layer()->boxNow(0).w, was.w);
+        QCOMPARE(o->layer()->boxNow(0).h, was.h);
+        QCOMPARE(int(o->printObjects(0).size()), 0);
+    }
+
+    // The Format Axis box refuses a lowest value that is not under the highest, and a unit of 0 or less unless Automatic is chosen (0 stays "automatic" only there); the window refuses the same from any source.
+    void theFormatAxisBoxRefusesWhatCannotBeUsed()
+    {
+        ChartAxis axis;
+        axis.kind = ChartAxis::Value;
+        FormatAxisDialog d(axis, QStringLiteral("Format Axis"));
+        auto box = [&](const char *name) { return d.findChild<QDoubleSpinBox *>(QString::fromLatin1(name)); };
+        auto automatic = [&](const char *name) { return d.findChild<QCheckBox *>(QString::fromLatin1(name)); };
+        QVERIFY(d.problem().isEmpty());
+        automatic("axisMajorAuto")->setChecked(false);   // (the unit is 0 now, and not automatic)
+        QVERIFY(!d.problem().isEmpty());
+        box("axisMajor")->setValue(5);
+        QVERIFY(d.problem().isEmpty());
+        QCOMPARE(d.result().majorUnit, 5.0);
+        automatic("axisMajorAuto")->setChecked(true);
+        QCOMPARE(d.result().majorUnit, 0.0);
+        automatic("axisMinorAuto")->setChecked(false);
+        box("axisMinor")->setValue(-2);
+        QVERIFY(!d.problem().isEmpty());
+        automatic("axisMinorAuto")->setChecked(true);
+        automatic("axisMinAuto")->setChecked(false);
+        automatic("axisMaxAuto")->setChecked(false);
+        box("axisMin")->setValue(10);
+        box("axisMax")->setValue(10);
+        QVERIFY(!d.problem().isEmpty());
+        box("axisMax")->setValue(11);
+        QVERIFY(d.problem().isEmpty());
+    }
+
+    void theWindowRefusesAnAxisThatCannotBeUsed()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.axisV"))->isEnabled());
+        e.win.w.setFormatAxisAsker([](bool, ChartAxis *axis) {
+            axis->autoMin = false;
+            axis->autoMax = false;
+            axis->min = 50;
+            axis->max = 5;
+            return true;
+        });
+        const int steps = e.win.w.session()->undoStack()->index();
+        e.win.told.clear();
+        e.win.w.act(QStringLiteral("chartdesign.axisV"))->trigger();
+        QCOMPARE(e.win.w.session()->undoStack()->index(), steps);
+        QVERIFY(!e.win.told.isEmpty());
+        const Chart now = chartOf(e);
+        QVERIFY(primaryAxis(now, false)->autoMin);
     }
 
     void theChartDesignTabAppearsWithAChart()

@@ -96,6 +96,8 @@ public:
     }
     // The cell holds a formula that is a SUBTOTAL, which SUBTOTAL leaves out of what it adds up.
     virtual bool isSubtotal(int sheet, quint32 row, quint32 col) const { Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); return false; }
+    // The cell holds a formula; `*text` (if given) is its text without the "=", with A1 references and the English names of functions (without the prefixes a file gives the newer ones).
+    virtual bool formulaInfo(int sheet, quint32 row, quint32 col, QString *text) const { Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); Q_UNUSED(text); return false; }
     // Changes when the sheets or their names do, so a program re-reads which sheet each name is (a source that is replaced by another at the same address must
     // change it too).
     virtual qint64 generation() const { return 0; }

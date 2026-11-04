@@ -29,6 +29,7 @@
 #include "wml/xmltree.h"
 
 #include <QApplication>
+#include <QFontInfo>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -1384,6 +1385,8 @@ private Q_SLOTS:
         for (const int width : {2200, 1440}) {
 #ifndef Q_OS_LINUX
             if (width < 2000) continue;
+#else
+            if (width < 2000 && QFontInfo(QApplication::font()).family() != QLatin1String("Noto Sans")) continue;
 #endif
             WriteWindow w;
             w.resize(width, 900);

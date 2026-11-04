@@ -176,6 +176,66 @@ bool nameEdit(const QByteArray &element, qsizetype from, qsizetype to, const QSt
 
 } // namespace
 
+namespace {
+
+// `element[from, to)` with the first clientData tag's fPrintsWithSheet set ("0" when the object does not print; the attribute left out when it does); false if it has no clientData.
+bool printsEdit(const QByteArray &element, qsizetype from, qsizetype to, bool prints, qsizetype *tagStart, qsizetype *tagEnd, QByteArray *replacement)
+{
+    qsizetype pos = from;
+    Tag t;
+    while (xmlscan::nextTag(element, pos, &t) && t.start < to) {
+        pos = t.end;
+        if (t.closing || t.local != "clientData") continue;
+        QString text = QString::fromUtf8(element.mid(t.start, t.end - t.start));
+        static const QRegularExpression attr(QStringLiteral("\\sfPrintsWithSheet\\s*=\\s*(\"[^\"]*\"|'[^']*')"));
+        const QRegularExpressionMatch m = attr.match(text);
+        if (m.hasMatch()) text.remove(m.capturedStart(), m.capturedLength());
+        if (!prints) {
+            const qsizetype at = text.endsWith(QLatin1String("/>")) ? text.size() - 2 : text.size() - 1;
+            text.insert(at, QStringLiteral(" fPrintsWithSheet=\"0\""));
+        }
+        *tagStart = t.start;
+        *tagEnd = t.end;
+        *replacement = text.toUtf8();
+        return true;
+    }
+    return false;
+}
+
+} // namespace
+
+QByteArray withFirstObjectPrints(const QByteArray &element, bool prints)
+{
+    qsizetype a = 0, b = 0;
+    QByteArray r;
+    if (!printsEdit(element, 0, element.size(), prints, &a, &b, &r)) return element;
+    return element.left(a) + r + element.mid(b);
+}
+
+bool setDrawingObjectPrints(const QByteArray &xml, const std::map<int, bool> &prints, QByteArray *out, bool *changed)
+{
+    *out = xml;
+    *changed = false;
+    if (prints.empty()) return true;
+    std::vector<std::pair<qsizetype, qsizetype>> children;
+    if (!childrenOfRoot(xml, &children)) return false;
+    QByteArray result;
+    qsizetype copied = 0;
+    for (const auto &[ordinal, on] : prints) {
+        if (ordinal < 0 || size_t(ordinal) >= children.size()) continue;
+        qsizetype a = 0, b = 0;
+        QByteArray r;
+        if (!printsEdit(xml, children[size_t(ordinal)].first, children[size_t(ordinal)].second, on, &a, &b, &r) || a < copied) continue;
+        result += xml.mid(copied, a - copied) + r;
+        copied = b;
+    }
+    if (copied == 0) return true;
+    result += xml.mid(copied);
+    *out = result;
+    *changed = *out != xml;
+    return true;
+}
+
 QByteArray withFirstObjectName(const QByteArray &element, const QString &name)
 {
     qsizetype a = 0, b = 0;

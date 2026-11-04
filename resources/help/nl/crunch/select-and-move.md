@@ -1,20 +1,21 @@
-# Cellen selecteren en verplaatsen
-<!-- keywords: selecteren, selectie, cel, cellen, bereik, celbereik, rij, kolom, klikken, slepen, shift, ctrl, pijltoetsen, home, end, page up, page down, tab, enter, hele rij, hele kolom, naamvak, ga naar, schuiven, scrollen, statusbalk, som, gemiddelde, aantal -->
+# Cellen selecteren en je verplaatsen in het blad
+<!-- keywords: selecteren, selectie, cel, bereik, rij, kolom, klikken, slepen, shift, ctrl, pijltjestoets, home, end, page up, page down, tab, enter, hele rij, hele kolom, naamvak, ga naar, cellen verplaatsen, rand slepen, scrollen, statusbalk, som, gemiddelde, aantal -->
 
-**Selecteren** betekent dat u de cellen kiest waarop de volgende opdracht van toepassing is. De geselecteerde cellen zijn gekleurd en hebben een groene rand. De **actieve cel** is de cel met de cursor. Deze blijft wit binnen de selectie.
+**Selecteren** betekent cellen kiezen waarop de volgende opdracht van toepassing is. De geselecteerde cellen krijgen een gekleurde achtergrond en een groene rand. De **actieve cel** is de cel met de cursor; die blijft wit binnen de selectie.
 
 ## Met de muis
 
-- **Klik** op een cel om deze te selecteren. Klik in een samengevoegde cel om de hele samengevoegde cel te selecteren.
-- **Sleep** over cellen om een blok te selecteren. Sleept u voorbij de rand van het venster, dan schuift het blad mee.
-- **Shift+klik** op een andere cel om alles van de actieve cel tot daar te selecteren.
+- **Klik** op een cel om die te selecteren. Klik in een samengevoegde cel om de hele samengevoegde cel te selecteren.
+- **Sleep** over cellen om een blok te selecteren. Sleep voorbij de rand van het venster en het blad scrolt mee.
+- **Shift+klik** op een andere cel om te selecteren van de actieve cel tot daar.
 - Klik op een **kolomletter** of een **rijnummer** om de hele kolom of rij te selecteren. Sleep over de letters of nummers, of gebruik Shift+klik, om er meerdere te selecteren.
 - Klik op de **hoek** waar de letters en nummers samenkomen om alles te selecteren.
-- Draai aan het **muiswiel** om drie rijen te schuiven. Houd **Shift** ingedrukt om horizontaal te schuiven, of houd **Ctrl** ingedrukt om te zoomen.
+- **Sleep aan de rand** van de selectie om de cellen naar een andere plek te verplaatsen. Plaats de aanwijzer op de rand van de groene omlijning totdat de aanwijzer vier pijlen toont. Een gestreepte omtrek laat zien waar de cellen komen. Alles wat naar de cellen verwijst, zoals een formule, volgt de cellen. Houd **Ctrl** ingedrukt terwijl u sleept om de cellen te kopiëren. Als u alleen op de rand klikt zonder te verslepen, wordt de cel gewoon geselecteerd.
+- Draai aan het **muiswiel** om drie rijen tegelijk te scrollen. Houd **Shift** ingedrukt om zijwaarts te scrollen, of houd **Ctrl** ingedrukt om in of uit te zoomen.
 
 ## Met het toetsenbord
 
-Met de pijltoetsen verplaatst u de actieve cel. Verborgen rijen en kolommen worden overgeslagen. Houd **Shift** ingedrukt om de selectie uit te breiden. **Ctrl** met een pijltoets gaat naar de rand van de gegevens: naar het einde van een reeks cellen waarin iets staat, of, vanaf het einde van een reeks, naar de volgende cel waarin iets staat. Zie [JeffCrunch met het toetsenbord gebruiken](keyboard) voor alle toetsen.
+De pijltjestoetsen verplaatsen de actieve cel en slaan verborgen rijen en kolommen over. Houd **Shift** ingedrukt om de selectie uit te breiden. **Ctrl** met een pijltjestoets gaat naar de rand van de gegevens: naar het einde van een reeks cellen met inhoud, of, vanaf het einde van een reeks, naar de volgende cel met inhoud. Zie [Werken met JeffCrunch via het toetsenbord](keyboard) voor alle toetsen.
 
 ## Naar een cel gaan
 
@@ -22,4 +23,4 @@ Typ een adres in het **Naamvak**, zoals **C5**, **A1:D10**, **B:D** of **3:7**, 
 
 ## De getallen van de selectie
 
-Als u twee of meer cellen selecteert, geeft de statusbalk het **gemiddelde**, het **aantal** en de **som** van de cellen weer. Het aantal is het aantal cellen waarin iets staat; het gemiddelde en de som gebruiken alleen de getallen. Verborgen rijen en kolommen worden niet meegeteld. Druk op **Ctrl+C** om de selectie als tekst te kopiëren.
+Als u twee of meer cellen selecteert, toont de statusbalk het **gemiddelde**, het **aantal** en de **som** van de cellen. Het aantal is het aantal cellen met inhoud; het gemiddelde en de som gebruiken alleen de getallen. Verborgen rijen en kolommen worden niet meegerekend. Om de selectie als tekst te kopiëren, drukt u op **Ctrl+C**.

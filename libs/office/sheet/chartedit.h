@@ -55,10 +55,24 @@ void setLegend(Chart *chart, const QString &position, bool overlay = false);
 void setTrendlines(Chart *chart, const QString &kind, int order = -1, int period = -1);
 // The equation and R-squared of the series' trendlines shown or not.
 void setTrendlineDisplay(Chart *chart, bool equation, bool rSquared);
+// The parts of an axis a format pane sets: its bounds and units, its order, where the other axis crosses it, the labels' number format, turn, and place, and its tick marks, taken from `from`
+// (the axis as the pane made it); the rest of the axis (its title, line, gridlines, and fonts) is left as it is. Nothing for an axis the chart does not have.
+void setAxisFormat(Chart *chart, bool horizontal, bool secondary, const ChartAxis &from);
+// Why the axis a format pane made can't be used, in a sentence (the lowest value is not under the highest, a unit is negative); empty when it can.
+QString axisFormatProblem(const ChartAxis &axis);
 // The positions data labels may be given for this chart (empty means the usual only).
 QStringList labelPositionsFor(const Chart &chart);
 // Labels of the values on every series (`position` empty: the usual), or none.
 void setDataLabels(Chart *chart, bool shown, const QString &position = QString());
+
+// What the data labels hold: the value, the category's name, the series' name, and the percentage, with what stands between them ("" for the usual comma and space) and a number format
+// ("" for the values' own). Read from the first series that has labels; set on every series: one that has none gets labels in the usual place, and none chosen takes the labels away.
+struct ChartLabelParts {
+    bool value = false, category = false, series = false, percent = false;
+    QString separator, format;
+};
+ChartLabelParts labelPartsOf(const Chart &chart);
+void setDataLabelParts(Chart *chart, const ChartLabelParts &parts);
 
 // ---- colors and looks of our own
 int chartColorSchemeCount();

@@ -1,21 +1,22 @@
 # Ajuda do JeffCrunch
-<!-- keywords: conteúdo, ajuda, tópicos, início, começar, índice -->
+<!-- keywords: conteúdo, ajuda, tópicos, início -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer momento para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do ecrã Ficheiro em que se encontra.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** a qualquer momento para obter ajuda sobre o que está a fazer: o separador do friso em que está ou a página do ecrã Ficheiro em que se encontra.
 
-## Introdução
+## Primeiros passos
 
 - [Bem-vindo ao JeffCrunch](start)
 - [Abrir e guardar livros](open-save)
+- [Informações: propriedades, palavras-passe e Inspecionar](info)
 - [Abrir livros protegidos por palavra-passe](open-password)
 - [Escrever em células](edit-cells)
-- [Regras para o que uma célula pode conter](rules)
+- [Regras para o conteúdo de uma célula](rules)
 
 ## Ver um livro
 
 - [Selecionar células e deslocar-se](select-and-move)
 - [Alterar a vista](view)
-- [Como as fórmulas são mostradas e calculadas](formulas)
+- [Como as fórmulas são apresentadas e calculadas](formulas)
 - [Nomes para células e valores](names)
 - [Formatação condicional](conditional-formats)
 
@@ -27,10 +28,11 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Trabalhar com folhas](sheets)
 - [Inserir e eliminar linhas, colunas e células](insert-delete)
 - [Alterar a largura das colunas e a altura das linhas](sizes)
-- [Cortar, copiar e colar](clipboard)
+- [Recortar, copiar e colar](clipboard)
 - [Preencher células e somá-las](fill-sum)
 - [Localizar, substituir e ir para](find-replace)
 - [Ordenar e filtrar](sort-filter)
+- [Ferramentas de dados](data-tools)
 - [Tabelas](tables)
 - [Tabelas dinâmicas](pivot-tables)
 - [Inserir uma função](insert-function)
