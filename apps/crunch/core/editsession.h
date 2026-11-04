@@ -986,6 +986,7 @@ private:
         int sourceSheet = -1;
         QString sourceName;
         qint64 moveRow = -1, moveCol = -1;   // the table's first cell, when it is moved
+        bool cellsMoved = false;             // its cells are at the new place already
     };
     Outcome pivotStep(std::vector<PivotChange> changes, const QString &text, QStringList *skipped = nullptr);
     // Where a cache's data is now: the sheet and the cells (a table or a name resolved). `over`, if given, is where the person has just said it is.
@@ -1025,6 +1026,7 @@ private:
     WorkbookLoader *m_loader;
     std::shared_ptr<LoadedBook> m_book;
     jp::grid::ValueStore *m_values;
+    bool m_movingPivot = false;   // Move Pivot Table is moving the cells of a pivot table
     QUndoStack m_undo;
     std::shared_ptr<qint64> m_undoBytes = std::make_shared<qint64>(0);   // (shared with the steps, which count themselves off as they go, whenever that is)
     qint64 m_undoByteLimit = kUndoBytes;

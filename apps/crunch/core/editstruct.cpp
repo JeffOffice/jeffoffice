@@ -188,6 +188,7 @@ bool EditSession::canMove(const StructEdit &edit, QString *why) const
     for (const int sheet : {edit.sheet, edit.kind == K::Move ? edit.toSheet : edit.sheet}) {
         for (const CellRange &pivot : m_book->book->pivotTablesOn(sheet)) {
             if (!touches(sheet, pivot)) continue;
+            if (m_movingPivot && edit.kind == K::Move) continue;   // (Move Pivot Table moves the cells, then draws the table where they went)
             if (why) *why = tr("That would move or change a pivot table, which JeffCrunch can't do yet. Change cells that are not part of it.");
             return false;
         }

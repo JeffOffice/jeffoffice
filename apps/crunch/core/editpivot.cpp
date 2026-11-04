@@ -360,6 +360,7 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
             }
             for (const auto &p : placed)
                 if (pb.table(p.first).sheet == sheet && overlap(area, p.second)) return false;
+            if (ch.cellsMoved) return true;   // (a move of the table moved its cells there already, after looking at what was in the way)
             bool free = true;
             m_book->calc->sheet(sheet).cells.forEachInRange(area.row1, area.col1, area.row2, area.col2, [&](quint32 r, quint32 c, const Cell &cell) {
                 if (oldLoc.contains(r, c) || oldPage.contains(r, c)) return true;
@@ -1137,7 +1138,56 @@ EditSession::Outcome EditSession::movePivot(int table, quint32 row, quint32 col)
     ch.now = std::make_shared<PivotTable>(*pb.table(table).table);
     ch.moveRow = row;
     ch.moveCol = col;
-    return pivotStep({ch}, tr("Move Pivot Table"));
+    if (!at.valid) return pivotStep({ch}, tr("Move Pivot Table"));
+    // The cells (the filters above the table too) are moved as cut cells are, so the formulas that point at them follow; then the table is drawn at its new place, which finds its cells there.
+    CellRange box = at;
+    const CellRange page = pageArea(*pb.table(table).table, at);
+    if (page.valid) {
+        box.row1 = std::min(box.row1, page.row1);
+        box.col1 = std::min(box.col1, page.col1);
+        box.row2 = std::max(box.row2, page.row2);
+        box.col2 = std::max(box.col2, page.col2);
+    }
+    const qint64 dRow = qint64(row) - at.row1, dCol = qint64(col) - at.col1;
+    if (qint64(box.row1) + dRow < 0 || qint64(box.col1) + dCol < 0 || qint64(box.row2) + dRow >= 1048576 || qint64(box.col2) + dCol >= 16384) {
+        out.ok = false;
+        out.problem = tr("The pivot table would go past the edge of the sheet.");
+        return out;
+    }
+    const int sheet = pb.table(table).sheet;
+    CellRange target = box;
+    target.row1 = quint32(qint64(box.row1) + dRow);
+    target.row2 = quint32(qint64(box.row2) + dRow);
+    target.col1 = quint32(qint64(box.col1) + dCol);
+    target.col2 = quint32(qint64(box.col2) + dCol);
+    // (what is in the way is looked for first: a move of cells writes over what is there)
+    bool free = true;
+    m_book->calc->sheet(sheet).cells.forEachInRange(target.row1, target.col1, target.row2, target.col2, [&](quint32 r, quint32 c, const Cell &cell) {
+        if (box.contains(r, c)) return true;
+        if (cell.hasFormula() || cell.type != CellType::Empty) {
+            free = false;
+            return false;
+        }
+        return true;
+    });
+    if (!free) {
+        out.ok = false;
+        out.problem = tr("The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.").arg(rangeName(target));
+        return out;
+    }
+    const int startIndex = m_undo.index();
+    m_undo.beginMacro(tr("Move Pivot Table"));
+    m_movingPivot = true;
+    Outcome step = moveCells(sheet, box, sheet, target.row1, target.col1);
+    m_movingPivot = false;
+    ch.cellsMoved = true;
+    if (step.ok) step = pivotStep({ch}, tr("Move Pivot Table"));
+    m_undo.endMacro();
+    if (!step.ok) {
+        while (m_undo.index() > startIndex) m_undo.undo();
+        return step;
+    }
+    return out;
 }
 
 EditSession::Outcome EditSession::setPivotRefreshOnOpen(int table, bool on)

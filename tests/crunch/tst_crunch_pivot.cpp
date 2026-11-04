@@ -940,6 +940,39 @@ private Q_SLOTS:
         QCOMPARE(int(s->workbook()->pivots().locationOf(0).row1), 2);
     }
 
+    // A formula that points at a cell of the pivot table follows it when the table is moved, as it follows cells that are cut and pasted; one that points elsewhere stays, and Undo is one step.
+    void formulasPointingAtAMovedPivotTableFollowIt()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, 11, 0, QStringLiteral("=F5")).ok);
+        QVERIFY(s->type(0, 11, 1, QStringLiteral("=SUM(F5:H5)+C2")).ok);
+        QVERIFY(s->type(0, 11, 2, QStringLiteral("=C2")).ok);
+        finish(e);
+        QCOMPARE(s->valueAt(0, 11, 1).number(), 70.0 + 10);
+        const int steps = s->undoStack()->count();
+        const auto o = s->movePivot(0, 19, 9);   // J20: 17 rows down and 5 columns right
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(s->editText(0, 11, 0), QStringLiteral("=K22"));
+        QCOMPARE(s->editText(0, 11, 1), QStringLiteral("=SUM(K22:M22)+C2"));
+        QCOMPARE(s->editText(0, 11, 2), QStringLiteral("=C2"));
+        QCOMPARE(s->valueAt(0, 11, 0).number(), 15.0);
+        s->undoStack()->undo();
+        finish(e);
+        QCOMPARE(s->editText(0, 11, 0), QStringLiteral("=F5"));
+        QCOMPARE(s->editText(0, 11, 1), QStringLiteral("=SUM(F5:H5)+C2"));
+        QCOMPARE(int(s->workbook()->pivots().locationOf(0).row1), 2);
+        // a place with something in it is refused, and nothing is left half done
+        const int again = s->undoStack()->index();
+        QVERIFY(!s->movePivot(0, 11, 0).ok);
+        finish(e);
+        QCOMPARE(s->undoStack()->index(), again);
+        QCOMPARE(s->editText(0, 11, 0), QStringLiteral("=F5"));
+    }
+
     // Changes waiting for Update are dropped too when the SAME table is changed under them (an Undo, say): Update then writes nothing.
     void deferredChangesAreDroppedWhenTheSameTableChangesByUndo()
     {

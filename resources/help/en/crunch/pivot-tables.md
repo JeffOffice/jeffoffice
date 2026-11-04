@@ -82,7 +82,7 @@ If the report would grow over cells that have something in them, JeffCrunch does
 
 ## Select and move
 
-**Select** on the **Pivot Table** tab selects part of the report: **Entire Pivot Table**, **Values** (the numbers), or **Labels** (the names down the side; if the report has none down the side, the names across the top). **Move Pivot Table…** asks for a cell on the same sheet and draws the report again with its first cell there. The cells it leaves are emptied. If the new place has something in it, JeffCrunch does not move the report and tells you. One **Undo** moves it back.
+**Select** on the **Pivot Table** tab selects part of the report: **Entire Pivot Table**, **Values** (the numbers), or **Labels** (the names down the side; if the report has none down the side, the names across the top). **Move Pivot Table…** asks for a cell on the same sheet and draws the report again with its first cell there. The cells it leaves are emptied. Formulas that point at the report's cells follow them, as they do when you cut and paste. If the new place has something in it, JeffCrunch does not move the report and tells you. One **Undo** moves it back.
 
 ## The fields pane
 

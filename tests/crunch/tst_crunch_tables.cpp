@@ -346,6 +346,50 @@ private Q_SLOTS:
         QVERIFY(!s->removeTableDuplicates(0, {}, &removed).ok);
     }
 
+    // What points at the cells of a table follows Remove Duplicates as it follows a delete: a formula under the table keeps its cells (the cells under a table stay where they are), a range that
+    // ends in the removed row is shorter, a formula on another sheet follows too, and a reference to a removed row is #REF!. One step of Undo puts it all back.
+    void removingDuplicatesAdjustsTheFormulasThatPointAtTheRows()
+    {
+        EditWindow e;
+        const QByteArray other = worksheet(row(1, formula(QStringLiteral("A1"), QStringLiteral("Sheet1!B5")) + formula(QStringLiteral("B1"), QStringLiteral("Sheet1!B6")) + formula(QStringLiteral("C1"), QStringLiteral("Sheet1!B4"))
+                                                 + formula(QStringLiteral("D1"), QStringLiteral("SUM(Sheet1!B2:B5)"))));
+        QVERIFY(e.open(buildXlsx({salesRows(), other})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(s->type(0, 4, 0, QStringLiteral("West")).ok);   // (row 5: a repeat of row 3)
+        QVERIFY(s->type(0, 4, 1, QStringLiteral("2")).ok);
+        QVERIFY(s->type(0, 4, 2, QStringLiteral("20")).ok);
+        QVERIFY(s->type(0, 6, 1, QStringLiteral("=SUM(B2:B5)")).ok);
+        QVERIFY(s->type(0, 7, 0, QStringLiteral("=B5")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(int(s->workbook()->tables().first().row2), 4);
+        QUndoStack *u = e.win.w.undoStack();
+        const int before = u->count();
+        int removed = 0;
+        QVERIFY(s->removeTableDuplicates(0, {0, 1, 2}, &removed).ok);
+        QCOMPARE(removed, 1);
+        QVERIFY(e.settle());
+        QCOMPARE(u->count(), before + 1);
+        QCOMPARE(int(s->workbook()->tables().first().row2), 3);
+        QCOMPARE(editOf(e, QStringLiteral("B6")), QStringLiteral("=SUM(B2:B4)"));   // (under the table: still there, and still reads the same rows)
+        QCOMPARE(editOf(e, QStringLiteral("B7")), QStringLiteral("=SUM(B2:B4)"));   // (the range ended in the removed row)
+        QCOMPARE(editOf(e, QStringLiteral("A8")), QStringLiteral("=#REF!"));
+        QCOMPARE(editOf(e, QStringLiteral("A1"), 1), QStringLiteral("=Sheet1!#REF!"));
+        QCOMPARE(editOf(e, QStringLiteral("B1"), 1), QStringLiteral("=Sheet1!B6"));   // (a cell under the table is where it was)
+        QCOMPARE(editOf(e, QStringLiteral("C1"), 1), QStringLiteral("=Sheet1!B4"));
+        QCOMPARE(editOf(e, QStringLiteral("D1"), 1), QStringLiteral("=SUM(Sheet1!B2:B4)"));
+        QCOMPARE(valueOf(e, QStringLiteral("B7")), QStringLiteral("n:6"));
+        u->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(int(s->workbook()->tables().first().row2), 4);
+        QCOMPARE(editOf(e, QStringLiteral("B7")), QStringLiteral("=SUM(B2:B5)"));
+        QCOMPARE(editOf(e, QStringLiteral("A8")), QStringLiteral("=B5"));
+        QCOMPARE(editOf(e, QStringLiteral("A1"), 1), QStringLiteral("=Sheet1!B5"));
+        QCOMPARE(editOf(e, QStringLiteral("D1"), 1), QStringLiteral("=SUM(Sheet1!B2:B5)"));
+    }
+
     // The row of totals: on puts a label and a sum, a function chosen for a column is written as the subtotal of its column, a custom formula is kept, off clears the row; and the numbers
     // are right.
     void theTotalsRowShowsTheFunctionOfEachColumn()
