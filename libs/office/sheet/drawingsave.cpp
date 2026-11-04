@@ -204,12 +204,54 @@ bool printsEdit(const QByteArray &element, qsizetype from, qsizetype to, bool pr
 
 } // namespace
 
+QByteArray withFirstObjectId(const QByteArray &element, qint64 id)
+{
+    qsizetype pos = 0;
+    Tag t;
+    while (xmlscan::nextTag(element, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != "cNvPr") continue;
+        QString text = QString::fromUtf8(element.mid(t.start, t.end - t.start));
+        static const QRegularExpression attr(QStringLiteral("\\sid\\s*=\\s*(\"[^\"]*\"|'[^']*')"));
+        const QRegularExpressionMatch m = attr.match(text);
+        const QString value = QStringLiteral(" id=\"%1\"").arg(id);
+        if (m.hasMatch()) text.replace(m.capturedStart(), m.capturedLength(), value);
+        else text.insert(text.indexOf(QLatin1String("cNvPr")) + 5, value);
+        return element.left(t.start) + text.toUtf8() + element.mid(t.end);
+    }
+    return element;
+}
+
 QByteArray withFirstObjectPrints(const QByteArray &element, bool prints)
 {
     qsizetype a = 0, b = 0;
     QByteArray r;
     if (!printsEdit(element, 0, element.size(), prints, &a, &b, &r)) return element;
     return element.left(a) + r + element.mid(b);
+}
+
+QByteArray drawingChildXml(const QByteArray &xml, int ordinal)
+{
+    std::vector<std::pair<qsizetype, qsizetype>> children;
+    if (ordinal < 0 || !childrenOfRoot(xml, &children) || size_t(ordinal) >= children.size()) return QByteArray();
+    Tag root;
+    if (!xmlscan::nextTag(xml, 0, &root) || root.closing) return QByteArray();
+    const QString rootTag = QString::fromUtf8(xml.mid(root.start, root.end - root.start));
+    QByteArray child = xml.mid(children[size_t(ordinal)].first, children[size_t(ordinal)].second - children[size_t(ordinal)].first);
+    Tag open;
+    if (!xmlscan::nextTag(child, 0, &open) || open.closing) return QByteArray();
+    QString first = QString::fromUtf8(child.left(open.end));
+    static const QRegularExpression declaration(QStringLiteral("\\sxmlns(?::(\\w+))?\\s*=\\s*(\"[^\"]*\"|'[^']*')"));
+    QString add;
+    auto it = declaration.globalMatch(rootTag);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        const QRegularExpression has(QStringLiteral("\\sxmlns") + (m.captured(1).isEmpty() ? QString() : QStringLiteral(":") + m.captured(1)) + QStringLiteral("\\s*="));
+        if (!has.match(first).hasMatch()) add += m.captured(0);
+    }
+    const qsizetype at = first.endsWith(QLatin1String("/>")) ? first.size() - 2 : first.size() - 1;
+    first.insert(at, add);
+    return first.toUtf8() + child.mid(open.end);
 }
 
 bool setDrawingObjectPrints(const QByteArray &xml, const std::map<int, bool> &prints, QByteArray *out, bool *changed)

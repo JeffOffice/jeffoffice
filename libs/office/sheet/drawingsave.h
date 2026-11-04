@@ -42,6 +42,12 @@ QByteArray withFirstObjectName(const QByteArray &element, const QString &name);
 bool setDrawingObjectPrints(const QByteArray &xml, const std::map<int, bool> &prints, QByteArray *out, bool *changed);
 // An object's element (or several) with its first clientData set so.
 QByteArray withFirstObjectPrints(const QByteArray &element, bool prints);
+// An object's element (or several) with the number of its first cNvPr set to `id`.
+QByteArray withFirstObjectId(const QByteArray &element, qint64 id);
+
+// The child of the drawing's root at `ordinal` (as DrawingObject::ordinal counts), whole, with the namespace declarations of the root it does not have itself added to its first tag, so that
+// it can be put in another drawing. Empty if there is no such child.
+QByteArray drawingChildXml(const QByteArray &xml, int ordinal);
 
 // The references a chart part reads (the text of each c:f), in order, as written (unescaped).
 QStringList chartPartRefs(const QByteArray &xml);

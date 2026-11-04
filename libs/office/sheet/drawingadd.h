@@ -23,6 +23,14 @@ struct AddedPart {
     QByteArray bytes;        // for a part the package does not have
     std::function<QByteArray()> produce;   // or the way to make them, run by the thread that writes the file (a chart is written there, not where the save began)
     QString token;           // what the object's XML has where the relationship's id goes; the id is put in its place
+    // An object that comes back (Undo of a delete that was saved) brings the parts it reached, as they were: the part's name is made new from `preferred` (an earlier name; its prefix and
+    // extension are kept) when `part` is empty; `children` are the parts its own relationships reached, each named in them by `keepId` (the id its XML has); a relationship that leaves the
+    // package (`external`) has no part, only `externalTarget`. `relType` may then be a whole type.
+    QString preferred;
+    QString keepId;
+    bool external = false;
+    QString externalTarget;
+    std::vector<AddedPart> children;
 };
 
 struct AddedObject {

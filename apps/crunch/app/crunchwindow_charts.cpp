@@ -510,7 +510,11 @@ void CrunchWindow::moveChartDialog()
     crunch::ObjectEdit away, here;
     away.sheet = m_sheet;
     away.id = id;
+    // (what the chart reached in the file comes along to the new sheet, and what writes it back if Undo is used after a save)
+    const auto revive = m_objects->captureRevive(m_sheet, id);
+    m_objects->adoptRevive(target, newId, revive);
     away.before = m_objects->stateOf(m_sheet, id);
+    away.before.revive = revive;
     away.after = away.before;
     away.after.deleted = true;
     here.sheet = target;

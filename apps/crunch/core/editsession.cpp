@@ -151,7 +151,7 @@ public:
     {
         if (!m_forgotten)
             for (const ObjectEdit &e : m_step.objects)
-                if (e.deletes()) return true;   // (an object taken away is not in the saved file: an Undo of it could not give it back to the file)
+                if (e.deletes() && !e.after.revive && !e.before.madeHere) return true;   // (an object of the file taken away with nothing kept of it: an Undo of it could not give it back to the file)
         if (m_forgotten || !m_step.structure) return false;
         using K = jp::office::sheet::StructEdit::Kind;
         const K k = m_step.structure->edit.kind;
@@ -182,7 +182,7 @@ public:
         for (const SizeEdit &e : m_step.sizes)
             n += qint64(sizeof(e)) + qint64(e.columnsBefore.size() + e.columnsAfter.size()) * qint64(sizeof(jp::office::sheet::ColumnSpan)) + qint64(e.rowsBefore.size() + e.rowsAfter.size()) * qint64(sizeof(jp::office::sheet::RowSpec));
         if (m_step.structure) n += m_step.structure->bytes();
-        for (const ObjectEdit &e : m_step.objects) n += qint64(sizeof(e)) + approxBytes(e.before) + (e.after.chart == e.before.chart ? 0 : approxBytes(e.after));
+        for (const ObjectEdit &e : m_step.objects) n += qint64(sizeof(e)) + approxBytes(e.before) + (e.after.chart == e.before.chart && e.after.revive == e.before.revive ? 0 : approxBytes(e.after));
         for (const RowSpecsEdit &e : m_step.rowSpecs) n += qint64(sizeof(e)) + qint64(e.before.size() + e.after.size()) * qint64(sizeof(jp::office::sheet::RowSpec));
         for (const auto &p : m_step.permutes) n += qint64(sizeof(*p)) + qint64(p->to.size()) * 4;
         for (const PageEdit &e : m_step.pages) n += qint64(sizeof(e)) + qint64(e.before.rowBreaks.size() + e.before.colBreaks.size() + e.after.rowBreaks.size() + e.after.colBreaks.size()) * 16 + qint64(e.before.printArea.size() + e.after.printArea.size()) * qint64(sizeof(jp::office::sheet::CellRange)) + qint64(e.before.headerFooter.oddHeader.size() + e.after.headerFooter.oddHeader.size()) * 2;
@@ -302,14 +302,6 @@ void EditSession::forgetDeletesInFile()
         eachStep(m_undo.command(i), [&](ChangeCells *step) {
             if (step->deletes() || step->sheetStructure()) last = i;
         });
-    // (an object put there that was undone and is not in the saved file could not be put there again by Redo: that step, and the ones after it, are given up)
-    int firstUndoneAdd = -1;
-    for (int i = m_undo.index(); i < m_undo.count() && firstUndoneAdd < 0; ++i)
-        eachStep(m_undo.command(i), [&](ChangeCells *step) {
-            if (step->adds()) firstUndoneAdd = i;
-        });
-    if (firstUndoneAdd >= 0)
-        for (int i = firstUndoneAdd; i < m_undo.count(); ++i) eachStep(m_undo.command(i), [](ChangeCells *step) { step->forget(); });
     m_forgotBySave = 0;
     for (int i = 0; i <= last; ++i) {
         if (!commandForgotten(m_undo.command(i))) ++m_forgotBySave;

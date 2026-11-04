@@ -5,6 +5,7 @@
 #include "sheet/hfpictures.h"
 #include "sheet/notes.h"
 
+#include <functional>
 #include "io/zip.h"
 #include "io/zipindex.h"
 #include "sheet/structsave.h"
@@ -1793,28 +1794,55 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             }
             QStringList used = relationshipIds(drawingRels);
             QByteArray anchors;
+            // a part the object relates to is written (when the file does not have it) with the relationships and content types that name it, and the parts it reaches in turn
+            std::function<bool(const AddedPart &, const QString &, QByteArray *, const QString &, int)> writePart = [&](const AddedPart &part0, const QString &owner, QByteArray *ownerRels, const QString &id, int depth) -> bool {
+                if (depth > 6) return false;
+                AddedPart part = part0;
+                if (part.external) {
+                    QByteArray ext;
+                    if (!addRelationship(*ownerRels, id, part.relType, part.externalTarget, &ext, true)) return false;
+                    *ownerRels = ext;
+                    return true;
+                }
+                if (part.part.isEmpty() && !part.preferred.isEmpty()) {
+                    // (a part that comes back is named anew: its old name's stem and extension, and the first number that is free)
+                    const int dot = int(part.preferred.lastIndexOf(QLatin1Char('.')));
+                    int digits = dot;
+                    while (digits > 0 && part.preferred.at(digits - 1).isDigit()) --digits;
+                    part.part = freePartName(part.preferred.left(digits), dot >= 0 ? part.preferred.mid(dot) : QString(), taken);
+                }
+                if (!part.contentType.isEmpty()) {
+                    // a part the file does not have
+                    const QByteArray data = part.produce ? part.produce() : part.bytes;
+                    bytesAdded += data.size();
+                    if (bytesAdded > kMaxAddedBytes || taken.contains(part.part.toLower()) || data.isEmpty()) return false;
+                    taken.insert(part.part.toLower());
+                    newEntries.emplace_back(part.part.startsWith(QLatin1Char('/')) ? part.part.mid(1) : part.part, data);
+                    QByteArray t2;
+                    const int dot = int(part.part.lastIndexOf(QLatin1Char('.')));
+                    const bool media = part.part.startsWith(QLatin1String("/xl/media/"), Qt::CaseInsensitive) && dot > 0;
+                    if (!(media ? addContentDefault(types, part.part.mid(dot + 1), part.contentType, &t2) : addContentOverride(types, part.part, part.contentType, &t2))) return false;
+                    types = t2;
+                }
+                QByteArray r2;
+                if (!addRelationship(*ownerRels, id, part.relType, relativeTarget(owner, part.part), &r2)) return false;
+                *ownerRels = r2;
+                if (!part.children.empty()) {
+                    QByteArray ownRels;
+                    for (const AddedPart &child : part.children)
+                        if (!writePart(child, part.part, &ownRels, child.keepId, depth + 1)) return false;
+                    const QString relsName = relationshipsPartOf(part.part);
+                    newEntries.emplace_back(relsName.startsWith(QLatin1Char('/')) ? relsName.mid(1) : relsName, ownRels);
+                }
+                return true;
+            };
             for (const AddedObject &obj : add.objects) {
                 QByteArray xml = obj.xml;
                 for (const AddedPart &part : obj.parts) {
                     const QString id = freeRelationshipId(used);
                     used << id;
                     xml.replace(xmlscan::escapeAttribute(part.token), xmlscan::escapeAttribute(id));
-                    if (!part.contentType.isEmpty()) {
-                        // a part the file does not have
-                        const QByteArray data = part.produce ? part.produce() : part.bytes;
-                        bytesAdded += data.size();
-                        if (bytesAdded > kMaxAddedBytes || taken.contains(part.part.toLower()) || data.isEmpty()) return bad();
-                        taken.insert(part.part.toLower());
-                        newEntries.emplace_back(part.part.startsWith(QLatin1Char('/')) ? part.part.mid(1) : part.part, data);
-                        QByteArray t2;
-                        const int dot = int(part.part.lastIndexOf(QLatin1Char('.')));
-                        const bool media = part.part.startsWith(QLatin1String("/xl/media/"), Qt::CaseInsensitive) && dot > 0;
-                        if (!(media ? addContentDefault(types, part.part.mid(dot + 1), part.contentType, &t2) : addContentOverride(types, part.part, part.contentType, &t2))) return bad();
-                        types = t2;
-                    }
-                    QByteArray r2;
-                    if (!addRelationship(drawingRels, id, part.relType, relativeTarget(drawingPart, part.part), &r2)) return bad();
-                    drawingRels = r2;
+                    if (!writePart(part, drawingPart, &drawingRels, id, 0)) return bad();
                 }
                 anchors += xml;
             }

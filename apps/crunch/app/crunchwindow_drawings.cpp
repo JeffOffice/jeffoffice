@@ -123,7 +123,11 @@ void CrunchWindow::deleteObject(int id)
     const crunch::ObjectState before = m_objects->stateOf(m_sheet, id);
     crunch::ObjectState after = before;
     after.deleted = true;
-    const crunch::EditSession::Outcome o = m_session->deleteObject(m_sheet, id, tr("Delete Object"), before, after);
+    // (what writes it back if Undo is used after a save has dropped it: kept with the step)
+    after.revive = m_objects->captureRevive(m_sheet, id);
+    crunch::ObjectState keep = before;
+    keep.revive = after.revive;
+    const crunch::EditSession::Outcome o = m_session->deleteObject(m_sheet, id, tr("Delete Object"), keep, after);
     if (!o.ok) notice(tr("Delete"), o.problem);
 }
 

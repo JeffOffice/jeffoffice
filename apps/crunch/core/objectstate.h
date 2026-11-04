@@ -9,6 +9,7 @@
 #include "office/chart.h"
 #include "sheet/drawing.h"
 
+#include <QByteArray>
 #include <QString>
 #include <QStringList>
 
@@ -29,7 +30,41 @@ struct RefPlacement {
     QStringList refs;
 };
 
+// A part an object of the saved file reached through its relationships, as the file had it: its bytes and media type, and the parts it reached in turn, each by the id its own relationships gave.
+struct RevivePart {
+    QString name;                     // its name in the file it was taken from
+    QString relType;                  // the whole type of the relationship that reached it
+    QString contentType;
+    QByteArray bytes;
+    QString relId;                    // the id of that relationship in the part that owns it
+    bool external = false;            // the relationship leaves the package: there is no part, only `externalTarget`
+    QString externalTarget;
+    std::vector<RevivePart> children;
+    qint64 size() const
+    {
+        qint64 n = qint64(sizeof(RevivePart)) + bytes.size() + (name.size() + externalTarget.size() + relType.size() + contentType.size()) * 2;
+        for (const RevivePart &c : children) n += c.size();
+        return n;
+    }
+};
+
+// What it takes to write an object of the saved file back after the save dropped it: its anchor element (with a token where each relationship id of the drawing is, in `parts`), every part it
+// reached, and where it was. Taken when the object is deleted, held by the step that deletes it (so it counts against the bytes Undo keeps, and goes when the step does).
+struct ObjectRevive {
+    QByteArray anchorXml;
+    std::vector<std::pair<QString, RevivePart>> parts;   // (token, part)
+    jp::office::sheet::DrawingAnchor anchor;
+    qint64 bytes() const
+    {
+        qint64 n = qint64(sizeof(ObjectRevive)) + anchorXml.size();
+        for (const auto &p : parts) n += p.first.size() * 2 + p.second.size();
+        return n;
+    }
+};
+
 struct ObjectState {
+    std::shared_ptr<const ObjectRevive> revive;       // set on the state of a delete of an object that is in the saved file: what Undo writes back after a save
+    bool madeHere = false;                            // a person made the object here (a chart, a pasted picture): it is written again from what the program holds of it
     std::vector<AnchorPlacement> placements;          // where it was put, in the order it was put there (the file's anchor, moved by the edits, is where it begins)
     std::shared_ptr<const jp::office::Chart> chart;   // a chart's model (null: whatever the object has; for a picture or shape)
     std::vector<RefPlacement> refs;                   // what the chart reads, as given by a person
@@ -52,7 +87,7 @@ struct ObjectEdit {
 // About how many bytes a state holds that a step of Undo keeps: the numbers and words of a chart's series (a chart made from many cells is a large thing), and its references.
 inline qint64 approxBytes(const ObjectState &st)
 {
-    qint64 n = qint64(sizeof(ObjectState)) + qint64(st.placements.size()) * qint64(sizeof(AnchorPlacement));
+    qint64 n = qint64(sizeof(ObjectState)) + qint64(st.placements.size()) * qint64(sizeof(AnchorPlacement)) + (st.revive ? st.revive->bytes() : 0);
     for (const RefPlacement &r : st.refs) n += 64 + qint64(r.refs.size()) * 96;
     if (st.chart)
         for (const jp::office::ChartPlot &p : st.chart->plots)

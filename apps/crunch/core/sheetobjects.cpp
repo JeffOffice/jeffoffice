@@ -765,6 +765,8 @@ bool changedIn(const Cells &cells, const jp::office::sheet::CellRange &r)
     return false;
 }
 
+jp::office::sheet::AddedPart addedFromRevive(const jp::crunch::RevivePart &p);
+
 bool nearly(const AnchorPoint &a, const AnchorPoint &b)
 {
     return a.col == b.col && a.row == b.row && std::llabs(a.colOff - b.colOff) <= kEmuPerPixel / 2 && std::llabs(a.rowOff - b.rowOff) <= kEmuPerPixel / 2;
@@ -872,6 +874,46 @@ void SheetObjects::addToSave(SaveChanges *changes)
             if (o->added) {
                 // a chart a person made: its part, and its anchor at the end of the drawing
                 if (!m_source || !m_cells || (!o->chart && !o->item)) continue;
+                // an object of the file that was taken away and brought back (or moved to another sheet): written as it was, with every part it reached
+                if (const auto rec = o->revive.lock(); rec && (o->meta.kind != ObjectKind::Chart || o->chart == o->reviveChart)) {
+                    DrawingAnchor want = o->anchor;
+                    if (want.kind != AnchorKind::TwoCell) want = twoCellFor(*o, geometryOf().layout.rows, geometryOf().layout.cols);
+                    else want.editAs = o->anchor.editAs;
+                    o->savedAnchor = want;
+                    if (o->meta.id <= 0) o->meta.id = s.nextShapeId++;
+                    QByteArray xml = rec->anchorXml;
+                    if (rec->anchor.kind != AnchorKind::TwoCell || !nearly(want.from, rec->anchor.from) || !nearly(want.to, rec->anchor.to) || want.editAs != rec->anchor.editAs) {
+                        const QByteArray wrapped = "<xdr:wsDr xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\">" + xml + "</xdr:wsDr>";
+                        QByteArray patched;
+                        bool changed = false;
+                        if (setDrawingAnchors(wrapped, {{0, want}}, &patched, &changed) && changed) {
+                            const QByteArray child = drawingChildXml(patched, 0);
+                            if (!child.isEmpty()) xml = child;
+                        }
+                    }
+                    xml = withFirstObjectPrints(withFirstObjectId(withFirstObjectName(xml, o->meta.name), o->meta.id), o->meta.prints);
+                    AddedObject obj;
+                    obj.xml = xml;
+                    for (const auto &[token, part] : rec->parts) {
+                        AddedPart p = addedFromRevive(part);
+                        p.token = token;
+                        if (p.relType.endsWith(QLatin1String("/chart"))) {
+                            p.part = freePartName(QStringLiteral("/xl/charts/chart"), QStringLiteral(".xml"), takenNames());
+                            takenNames().insert(p.part.toLower());
+                            o->savedPart = p.part;
+                        } else if (p.relType.endsWith(QLatin1String("/image")) && !p.external) {
+                            const int dot = int(part.name.lastIndexOf(QLatin1Char('.')));
+                            p.part = freePartName(QStringLiteral("/xl/media/image"), dot >= 0 ? part.name.mid(dot) : QStringLiteral(".png"), takenNames());
+                            takenNames().insert(p.part.toLower());
+                        }
+                        obj.parts.push_back(std::move(p));
+                    }
+                    if (o->meta.kind != ObjectKind::Chart) o->savedPart = QStringLiteral("-");
+                    o->savedName = o->meta.name;
+                    o->savedPrints = o->meta.prints;
+                    add.objects.push_back(std::move(obj));
+                    continue;
+                }
                 if (!o->chart) {
                     // a picture or shape from a copy: its element, and its pictures as parts of their own
                     DrawingAnchor want = o->anchor;
@@ -1202,6 +1244,7 @@ ObjectState SheetObjects::stateOf(int sheet, int id)
     st.placements = o->placements;
     st.chart = o->chart;
     st.name = o->meta.name;
+    st.madeHere = o->madeHere;
     st.prints = o->meta.prints ? 1 : 0;
     st.refs = o->refPlacements;
     st.deleted = o->deleted;
@@ -1265,6 +1308,18 @@ void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
     replay(sheet, *o);
     o->frozen = o->anchor.kind != AnchorKind::TwoCell;
     o->meta.anchor.editAs = o->anchor.editAs;
+    if (st.revive) o->revive = st.revive;
+    // an object the saved file lacks (a delete was saved) is put back: written again by the next save, from what was kept of it (an object of the file) or from what is held of it (one made here)
+    if (o->gone && !st.deleted) {
+        const std::shared_ptr<const jp::crunch::ObjectRevive> rec = o->revive.lock();
+        if (rec || o->madeHere) {
+            o->gone = false;
+            o->added = true;
+            o->meta.ordinal = -1;
+            o->savedPart.clear();
+            if (rec) o->reviveChart = o->chart;
+        }
+    }
     o->deleted = st.deleted;
     // a chart put on and taken away again lets go of its numbers (the step that put it on holds them, and gives them back)
     if (o->deleted && o->added && o->chart) {
@@ -1290,6 +1345,96 @@ void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
     m_layer.layoutChanged();
 }
 
+namespace {
+
+// A part and the parts it reaches, as the package has them; false if more is held than the limits allow.
+bool captureRevivePart(const Package &package, const Relationship &r, const QString &owner, int depth, qint64 *budget, jp::crunch::RevivePart *out)
+{
+    if (depth > 4) return false;
+    out->relType = r.type;
+    out->relId = r.id;
+    if (r.external) {
+        out->external = true;
+        out->externalTarget = r.target;
+        return true;
+    }
+    if (!package.hasPart(r.target)) return false;
+    out->name = r.target;
+    out->bytes = package.part(r.target);
+    out->contentType = package.contentType(r.target);
+    *budget -= out->bytes.size() + 256;
+    if (*budget < 0 || (out->bytes.isEmpty() && !package.hasPart(r.target))) return false;
+    for (const Relationship &child : package.relationships(r.target)) {
+        jp::crunch::RevivePart c;
+        if (!captureRevivePart(package, child, r.target, depth + 1, budget, &c)) return false;
+        out->children.push_back(std::move(c));
+    }
+    Q_UNUSED(owner);
+    return true;
+}
+
+jp::office::sheet::AddedPart addedFromRevive(const jp::crunch::RevivePart &p)
+{
+    jp::office::sheet::AddedPart a;
+    a.relType = p.relType;
+    a.external = p.external;
+    a.externalTarget = p.externalTarget;
+    a.keepId = p.relId;
+    a.preferred = p.name;
+    a.contentType = p.contentType;
+    a.bytes = p.bytes;
+    for (const jp::crunch::RevivePart &c : p.children) a.children.push_back(addedFromRevive(c));
+    return a;
+}
+
+constexpr qint64 kMaxReviveBytes = qint64(48) << 20;
+
+} // namespace
+
+std::shared_ptr<const jp::crunch::ObjectRevive> SheetObjects::captureRevive(int sheet, int id, QString *why)
+{
+    Object *o = find(sheet, id);
+    if (!o || !m_book || o->added || o->gone || o->meta.ordinal < 0) return nullptr;   // (not in the file: nothing to keep)
+    ensureBuilt(sheet, *o);
+    Sheet &s = sheetState(sheet);
+    if (s.drawingPart.isEmpty()) return nullptr;
+    const Package &package = m_book->package();
+    const QByteArray drawing = package.part(s.drawingPart);
+    QByteArray anchor = jp::office::sheet::drawingChildXml(drawing, o->meta.ordinal);
+    if (anchor.isEmpty()) {
+        if (why) *why = tr("This object can't be kept for Undo.");
+        return nullptr;
+    }
+    auto rec = std::make_shared<jp::crunch::ObjectRevive>();
+    qint64 budget = kMaxReviveBytes - anchor.size();
+    int n = 0;
+    for (const QString &rid : namedRelationships(anchor)) {
+        const Relationship r = package.relationship(s.drawingPart, rid);
+        if (r.id.isEmpty()) continue;
+        jp::crunch::RevivePart part;
+        if (!captureRevivePart(package, r, s.drawingPart, 0, &budget, &part)) {
+            if (why) *why = tr("This object holds more than JeffCrunch keeps for Undo.");
+            return nullptr;
+        }
+        const QString token = QStringLiteral("@@revive%1@@").arg(n++);
+        anchor.replace("\"" + rid.toUtf8() + "\"", "\"" + token.toUtf8() + "\"");
+        rec->parts.emplace_back(token, std::move(part));
+    }
+    rec->anchorXml = anchor;
+    rec->anchor = o->anchor;
+    o->revive = rec;
+    o->reviveChart = o->chart;
+    return rec;
+}
+
+void SheetObjects::adoptRevive(int sheet, int id, const std::shared_ptr<const jp::crunch::ObjectRevive> &revive)
+{
+    Object *o = find(sheet, id);
+    if (!o || !revive) return;
+    o->revive = revive;
+    o->reviveChart = o->chart;
+}
+
 int SheetObjects::makeChart(int sheet, const Chart &chart, const DrawingAnchor &anchor, QString *why)
 {
     auto refuse = [&](const QString &text) {
@@ -1307,6 +1452,7 @@ int SheetObjects::makeChart(int sheet, const Chart &chart, const DrawingAnchor &
     auto o = std::make_shared<Object>();
     o->id = s.nextId++;
     o->added = true;
+    o->madeHere = true;
     o->deleted = true;   // (until the step that makes it is done)
     o->meta.kind = ObjectKind::Chart;
     o->meta.name = newName(sheet, ObjectKind::Chart);
@@ -1585,6 +1731,7 @@ int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, con
     auto o = std::make_shared<Object>();
     o->id = s.nextId++;
     o->added = true;
+    o->madeHere = true;
     o->deleted = true;
     const QString kind = el.localName();
     o->meta.kind = kind == QLatin1String("pic") ? ObjectKind::Picture : kind == QLatin1String("grpSp") ? ObjectKind::Group : kind == QLatin1String("cxnSp") ? ObjectKind::Connector : ObjectKind::Shape;

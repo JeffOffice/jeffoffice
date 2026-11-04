@@ -774,6 +774,17 @@ private Q_SLOTS:
         QVERIFY(again.open(e.copyOfFile()));
         again.w.setActiveSheet(1);
         QTRY_VERIFY(again.w.objects()->shownSheet() == 1 && again.w.objects()->layer()->count() == 1);
+        // Undo after the save puts the chart back on the first sheet, and on that one only, once saved again; Redo moves it again
+        QVERIFY(e.win.w.session()->canUndo());
+        e.win.w.session()->undoStack()->undo();
+        QVERIFY(save(e));
+        QCOMPARE(savedCharts(e.path, 0).size(), 1);
+        QCOMPARE(savedCharts(e.path, 1).size(), 0);
+        QCOMPARE(seriesOf(savedCharts(e.path, 0)[0].chart)[0].values, (QVector<double>{10, 20, 30}));
+        e.win.w.session()->undoStack()->redo();
+        QVERIFY(save(e));
+        QCOMPARE(savedCharts(e.path, 0).size(), 0);
+        QCOMPARE(savedCharts(e.path, 1).size(), 1);
     }
 
     // Move Chart is dimmed when the workbook has no other worksheet to move the chart to.

@@ -14,6 +14,7 @@
 #include "office/xml.h"
 
 #include <QProcess>
+#include <QRandomGenerator>
 #include <QToolButton>
 #include <QThreadPool>
 #include <QFileInfo>
@@ -115,6 +116,65 @@ QByteArray rightToLeftDrawingBook()
     for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
     return z.finish();
 }
+
+// A chart with the style and colors parts Excel-era files carry, and a picture beside it.
+QByteArray chartWithStylePartsBook(QByteArray *chartXml, QByteArray *styleXml, QByteArray *colorsXml)
+{
+    const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
+    *chartXml = chartPart(QStringLiteral("barChart"), series);
+    *styleXml = "<?xml version=\"1.0\"?><cs:chartStyle xmlns:cs=\"http://schemas.microsoft.com/office/drawing/2012/chartStyle\" id=\"201\"><cs:axisTitle/></cs:chartStyle>";
+    *colorsXml = "<?xml version=\"1.0\"?><cs:colorStyle xmlns:cs=\"http://schemas.microsoft.com/office/drawing/2012/chartStyle\" meth=\"cycle\" id=\"10\"/>";
+    const QString anchors = twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Sales"))) + twoCell(0, 6, 2, 9, pictureElement(3, QStringLiteral("rIdP"), QStringLiteral("Logo")));
+    const QByteArray book = bookWithDrawing({dataSheet()}, drawingPart(anchors), {chartTarget(QStringLiteral("rIdC"), 1, *chartXml), imageTarget(QStringLiteral("rIdP"), 1, pngBytes(8, 4, Qt::red))});
+    const QByteArray rels = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                            "<Relationship Id=\"rId1\" Type=\"http://schemas.microsoft.com/office/2011/relationships/chartStyle\" Target=\"style1.xml\"/>"
+                            "<Relationship Id=\"rId2\" Type=\"http://schemas.microsoft.com/office/2011/relationships/chartColorStyle\" Target=\"colors1.xml\"/></Relationships>";
+    return sheettest::withParts(book, {{QStringLiteral("xl/charts/style1.xml"), *styleXml, QStringLiteral("application/vnd.ms-office.chartstyle+xml"), -1, QString(), QString(), QString()},
+                                       {QStringLiteral("xl/charts/colors1.xml"), *colorsXml, QStringLiteral("application/vnd.ms-office.chartcolorstyle+xml"), -1, QString(), QString(), QString()},
+                                       {QStringLiteral("xl/charts/_rels/chart1.xml.rels"), rels, QString(), -1, QString(), QString(), QString()}});
+}
+
+// The part a saved file's drawing reaches by a relationship of this type (the last word), and its bytes; the parts its own relationships reach, by type.
+struct Reached {
+    QString part;
+    QByteArray bytes;
+    QMap<QString, QByteArray> children;   // by the last word of the type
+};
+QVector<Reached> reachedBy(const QString &path, const QString &typeWord)
+{
+    QVector<Reached> out;
+    office::Package p;
+    QString why;
+    if (!p.readLazyFile(path, &why)) return out;
+    for (const office::Relationship &r : p.relationships(QStringLiteral("/xl/drawings/drawing1.xml"))) {
+        if (r.external || !r.type.endsWith(typeWord) || !p.hasPart(r.target)) continue;
+        Reached x;
+        x.part = r.target;
+        x.bytes = p.part(r.target);
+        for (const office::Relationship &c : p.relationships(r.target))
+            if (!c.external && p.hasPart(c.target)) x.children.insert(c.type.mid(c.type.lastIndexOf(QLatin1Char('/')) + 1), p.part(c.target));
+        out << x;
+    }
+    return out;
+}
+QStringList savedNames(const QString &path)
+{
+    office::Package p;
+    QString why;
+    QStringList names;
+    if (!p.readLazyFile(path, &why)) return names;
+    QDomDocument drawing;
+    if (!office::parseXml(p.part(QStringLiteral("/xl/drawings/drawing1.xml")), &drawing)) return names;
+    const QDomNodeList all = drawing.elementsByTagName(QStringLiteral("cNvPr"));
+    for (int i = 0; i < all.size(); ++i) names << all.at(i).toElement().attribute(QStringLiteral("name"));
+    return names;
+}
+bool saveWindow(EditWindow &e)
+{
+    QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+    return e.win.w.save() && savedOk(saved, 20000);
+}
+
 
 } // namespace
 
@@ -504,42 +564,156 @@ private Q_SLOTS:
         QVERIFY(third.readLazyFile(e.path, &why));
         QCOMPARE(third.part(QStringLiteral("/xl/charts/chart1.xml")), chartBefore);
         QCOMPARE(third.part(QStringLiteral("/xl/drawings/drawing1.xml")), after.part(QStringLiteral("/xl/drawings/drawing1.xml")));
-        // Undo goes back over the typing and no further: the object that was taken away is not in the file to be given back
+        // Undo goes back over the typing, and over the delete too: the picture is written again by the next save
+        pressUndo(e.view());
         pressUndo(e.view());
         pressUndo(e.view());
         QVERIFY(!e.win.w.session()->canUndo());
-        QCOMPARE(int(o->idsOf(0).size()), 4);
+        QVERIFY(!o->isDeleted(0, 1));
         // the file opens with four objects
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 4);
     }
 
-    // An object taken away and saved is not in the file, so Undo is not offered for the step that took it away (it could not be written back): nothing is silently lost, the saved file keeps what it
-    // was, and a save with nothing else done does not change it. (Undo goes back as far as the last delete saved, no further: see EditSession::forgetDeletesInFile.)
-    void anObjectDeletedAndSavedIsNotOfferedBackByUndo()
+    // A picture taken away, saved, and brought back by Undo is written again by the next save: the picture is in the reopened file with the bytes it had, and its relationship names a part that is there.
+    void aDeletedPictureComesBackAfterASaveAndUndo()
     {
         EditWindow e;
         QVERIFY(e.open(drawingBook()));
         QTRY_VERIFY(shown(e, 5));
         crunch::SheetObjects *o = e.win.w.objects();
         o->layer()->prepareAll();
-        for (const int id : {1, 0}) {
-            o->layer()->select(id);
-            QTest::keyClick(e.view(), Qt::Key_Delete);
-            QVERIFY(o->isDeleted(0, id));
-        }
-        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
-        QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
-        const QMap<QString, QByteArray> parts = savedParts(e.path);
-        QVERIFY(!parts.contains(QStringLiteral("xl/media/image1.png")));
-        QVERIFY(!parts.contains(QStringLiteral("xl/charts/chart1.xml")));
-        QVERIFY2(!e.win.w.session()->canUndo(), "Undo is not offered for a delete that is in the saved file");
-        QVERIFY(!e.win.w.isModified());
+        o->layer()->select(1);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(o->isDeleted(0, 1));
+        QVERIFY(saveWindow(e));
+        QVERIFY(!savedNames(e.path).contains(QStringLiteral("Logo")));
+        QVERIFY(reachedBy(e.path, QStringLiteral("image")).isEmpty());
+        QVERIFY2(e.win.w.session()->canUndo(), "Undo is offered for a delete that is in the saved file");
+        pressUndo(e.view());
+        QVERIFY(!o->isDeleted(0, 1));
+        QVERIFY(e.win.w.isModified());
+        QVERIFY(saveWindow(e));
+        QVERIFY(savedNames(e.path).contains(QStringLiteral("Logo")));
+        const QVector<Reached> images = reachedBy(e.path, QStringLiteral("image"));
+        QCOMPARE(int(images.size()), 1);
+        QCOMPARE(images[0].bytes, pngBytes(8, 4, Qt::red));
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
-        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 3);
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 5);
+        // Redo takes it away again, and Undo once more brings it back
+        e.win.w.session()->undoStack()->redo();
+        QVERIFY(o->isDeleted(0, 1));
+        QVERIFY(saveWindow(e));
+        QVERIFY(!savedNames(e.path).contains(QStringLiteral("Logo")));
+        e.win.w.session()->undoStack()->undo();
+        QVERIFY(saveWindow(e));
+        QVERIFY(savedNames(e.path).contains(QStringLiteral("Logo")));
+        QCOMPARE(reachedBy(e.path, QStringLiteral("image"))[0].bytes, pngBytes(8, 4, Qt::red));
+    }
+
+    // A chart that has style and colors parts comes back with them, byte for byte (only the names of the parts and the ids of the relationships are new).
+    void aDeletedChartWithItsStyleAndColorsComesBackWhole()
+    {
+        QByteArray chartXml, styleXml, colorsXml;
+        EditWindow e;
+        QVERIFY(e.open(chartWithStylePartsBook(&chartXml, &styleXml, &colorsXml)));
+        QTRY_VERIFY(shown(e, 2));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        o->layer()->select(0);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(o->isDeleted(0, 0));
+        QVERIFY(saveWindow(e));
+        QVERIFY(reachedBy(e.path, QStringLiteral("chart")).isEmpty());
+        const QMap<QString, QByteArray> gone = savedParts(e.path);
+        for (const QString &name : gone.keys()) QVERIFY2(!name.startsWith(QStringLiteral("xl/charts/")), qPrintable(name));
+        QVERIFY(e.win.w.session()->canUndo());
+        pressUndo(e.view());
+        QVERIFY(saveWindow(e));
+        const QVector<Reached> charts = reachedBy(e.path, QStringLiteral("chart"));
+        QCOMPARE(int(charts.size()), 1);
+        QCOMPARE(charts[0].bytes, chartXml);
+        QCOMPARE(charts[0].children.value(QStringLiteral("chartStyle")), styleXml);
+        QCOMPARE(charts[0].children.value(QStringLiteral("chartColorStyle")), colorsXml);
+        // (the content types name the new parts)
+        const QMap<QString, QByteArray> parts = savedParts(e.path);
+        QVERIFY(hasOverride(parts, QStringLiteral("/") + charts[0].part.mid(1)) || parts.value(QStringLiteral("[Content_Types].xml")).contains(charts[0].part.toUtf8()));
+        QVERIFY(parts.value(QStringLiteral("[Content_Types].xml")).contains("chartstyle+xml"));
+        QVERIFY(parts.value(QStringLiteral("[Content_Types].xml")).contains("chartcolorstyle+xml"));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 2);
+        QCOMPARE(int(second.w.objects()->chartNow(0, 0).plots.size()), 1);
+    }
+
+    // A mix: A is deleted and saved, B is deleted and saved, Undo twice brings both back, and the next save writes both.
+    void twoObjectsDeletedInTwoSavesBothComeBack()
+    {
+        EditWindow e;
+        QVERIFY(e.open(drawingBook()));
+        QTRY_VERIFY(shown(e, 5));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        o->layer()->select(1);   // the picture
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(saveWindow(e));
+        o->layer()->select(0);   // the chart
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(saveWindow(e));
+        const QStringList names = savedNames(e.path);
+        QVERIFY(!names.contains(QStringLiteral("Logo")) && !names.contains(QStringLiteral("Sales")));
+        pressUndo(e.view());
+        pressUndo(e.view());
+        QVERIFY(!o->isDeleted(0, 0) && !o->isDeleted(0, 1));
+        QVERIFY(saveWindow(e));
+        const QStringList back = savedNames(e.path);
+        QVERIFY2(back.contains(QStringLiteral("Logo")) && back.contains(QStringLiteral("Sales")) && back.contains(QStringLiteral("Box")), qPrintable(back.join(QLatin1Char(','))));
+        QCOMPARE(int(reachedBy(e.path, QStringLiteral("image")).size()), 1);
+        QCOMPARE(int(reachedBy(e.path, QStringLiteral("chart")).size()), 1);
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 5);
+    }
+
+    // What is kept to bring an object back counts against the bytes Undo holds: a big picture is counted when it is deleted, and let go of, with its step, when the limit drops the step.
+    void theBytesKeptForAnObjectCountAgainstTheUndoLimit()
+    {
+        EditWindow e;
+        QRandomGenerator gen(7);
+        QImage big(500, 500, QImage::Format_RGB32);
+        for (int y = 0; y < big.height(); ++y)
+            for (int x = 0; x < big.width(); ++x) big.setPixel(x, y, qRgb(int(gen.bounded(256)), int(gen.bounded(256)), int(gen.bounded(256))));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        big.save(&buffer, "PNG");
+        QVERIFY(png.size() > 400000);
+        const QString anchors = twoCell(0, 6, 2, 9, pictureElement(3, QStringLiteral("rIdP"), QStringLiteral("Big")));
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {imageTarget(QStringLiteral("rIdP"), 1, png)})));
+        QTRY_VERIFY(shown(e, 1));
+        crunch::EditSession *s = e.win.w.session();
+        s->setUndoByteLimit(qint64(png.size()) * 2);
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        const qint64 before = s->undoBytes();
+        o->layer()->select(0);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY2(s->undoBytes() >= before + png.size(), "the picture's bytes are counted with the step");
+        // a limit lower than that drops the step (the newest step is kept, so another is made first)
+        s->setUndoByteLimit(qint64(png.size()) / 2);
+        e.select(QStringLiteral("D1"));
+        e.enter(QStringLiteral("1"));
+        QVERIFY(e.settle());
+        QVERIFY2(s->undoBytes() < png.size(), "the step that held the picture is let go of");
+        QVERIFY(saveWindow(e));
+        QVERIFY(reachedBy(e.path, QStringLiteral("image")).isEmpty());
+        // what is held is the typing only: Undo takes it back and no further
+        QVERIFY(s->canUndo());
+        pressUndo(e.view());
+        QVERIFY(!s->canUndo());
+        QVERIFY(o->isDeleted(0, 0));
     }
 
     // An object put in, saved, and taken away by Undo leaves nothing of itself in the next save: no part, no relationship, no entry of the content types.

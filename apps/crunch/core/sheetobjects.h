@@ -145,6 +145,10 @@ public:
     int makeElement(int sheet, const jp::crunch::ObjectClip &clip, const jp::office::sheet::DrawingAnchor &anchor, QString *why = nullptr);
     // The state with a changed chart (its references as they are now), for the step that changes it; and with the object put in another place.
     ObjectState stateWithChart(int sheet, int id, const jp::office::Chart &chart);
+    // What it takes to write an object of the saved file back after a save has dropped it (null for an object that is not in the file, or when it holds too much); the object is told it.
+    std::shared_ptr<const jp::crunch::ObjectRevive> captureRevive(int sheet, int id, QString *why = nullptr);
+    // An object put on a sheet (a chart made from a copy) is written from the bytes of another's record, so the parts it had come with it.
+    void adoptRevive(int sheet, int id, const std::shared_ptr<const jp::crunch::ObjectRevive> &revive);
     ObjectState stateMoved(int sheet, int id, const jp::office::sheet::DrawingAnchor &anchor);
     // The state with the object on the printed pages or off them; and whether it is on them now.
     ObjectState stateWithPrints(int sheet, int id, bool prints);
@@ -224,6 +228,9 @@ private:
         QList<jp::crunch::ClipMedia> pasteMedia;
         QString savedPivotName;                        // the name the chart's pivot source has in the file being written
         QString fileName, savedName;                   // its name as the file has it, and as the save in flight writes it
+        bool madeHere = false;                         // a person made it here (a chart, a pasted picture or shape): after a save has dropped it, it is written again from what is held of it
+        std::weak_ptr<const jp::crunch::ObjectRevive> revive;   // what writes an object of the file back (held by the step that took it away)
+        std::shared_ptr<const jp::office::Chart> reviveChart;   // the chart as it was when `revive` was set: a chart changed since is written from its model instead
         bool filePrints = true, savedPrints = true;    // whether the file has it printing, and whether the save in flight writes it so
         int savedOrdinal = -1;                         // where it will be among the children of the drawing's root when what addToSave gave is saved
         int editable = -1;                             // whether the chart can be changed (-1 not looked at, 0 no, 1 yes), and why not: found once, for a part of the file is read to say
