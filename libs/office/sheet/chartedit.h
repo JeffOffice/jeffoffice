@@ -55,6 +55,9 @@ void setLegend(Chart *chart, const QString &position, bool overlay = false);
 void setTrendlines(Chart *chart, const QString &kind, int order = -1, int period = -1);
 // The equation and R-squared of the series' trendlines shown or not.
 void setTrendlineDisplay(Chart *chart, bool equation, bool rSquared);
+// The parts of an axis a format pane sets: its bounds and units, its order, where the other axis crosses it, the labels' number format, turn, and place, and its tick marks, taken from `from`
+// (the axis as the pane made it); the rest of the axis (its title, line, gridlines, and fonts) is left as it is. Nothing for an axis the chart does not have.
+void setAxisFormat(Chart *chart, bool horizontal, bool secondary, const ChartAxis &from);
 // The positions data labels may be given for this chart (empty means the usual only).
 QStringList labelPositionsFor(const Chart &chart);
 // Labels of the values on every series (`position` empty: the usual), or none.

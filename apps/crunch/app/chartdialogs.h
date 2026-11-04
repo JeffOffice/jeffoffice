@@ -125,6 +125,22 @@ private:
     bool m_loading = false;
 };
 
+// Format Axis: the bounds and units (automatic or a number), the order, where the other axis crosses, the labels' number format, turn, and place, and the tick marks of one axis. It is given the
+// axis as it is and gives it back with those parts as the person set them.
+class FormatAxisDialog : public QDialog {
+    Q_OBJECT
+public:
+    FormatAxisDialog(const jp::office::ChartAxis &axis, const QString &title, QWidget *parent = nullptr);
+    jp::office::ChartAxis result() const;
+
+private:
+    jp::office::ChartAxis m_axis;
+    QCheckBox *m_autoMin = nullptr, *m_autoMax = nullptr, *m_autoMajor = nullptr, *m_autoMinor = nullptr, *m_reversed = nullptr, *m_linked = nullptr, *m_rotate = nullptr;
+    QDoubleSpinBox *m_min = nullptr, *m_max = nullptr, *m_major = nullptr, *m_minor = nullptr, *m_crossAt = nullptr, *m_angle = nullptr;
+    QComboBox *m_crosses = nullptr, *m_majorTick = nullptr, *m_minorTick = nullptr, *m_labels = nullptr;
+    QLineEdit *m_format = nullptr;
+};
+
 // The size of an object, and whether it follows the cells when they are moved or made larger or smaller.
 struct ObjectProperties {
     double widthPoints = 0, heightPoints = 0;

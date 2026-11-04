@@ -570,6 +570,43 @@ private Q_SLOTS:
         QVERIFY(!elementsOf(chartOf(e)).labels);
     }
 
+    // Format Axis sets an axis from the Chart tab as one step of Undo, only for a chart that has the axis, and the saved file holds it.
+    void anAxisIsFormattedFromTheChartTab()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        QVERIFY(!e.win.w.act(QStringLiteral("chartdesign.axisV"))->isEnabled());
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.axisV"))->isEnabled());
+        QVERIFY(e.win.w.act(QStringLiteral("chartdesign.axisH"))->isEnabled());
+        bool across = true;
+        e.win.w.setFormatAxisAsker([&](bool horizontal, ChartAxis *axis) {
+            across = horizontal;
+            axis->autoMin = false;
+            axis->min = 5;
+            axis->reversed = true;
+            axis->majorTick = QStringLiteral("none");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("chartdesign.axisV"))->trigger();
+        QVERIFY(!across);
+        const ChartAxis *a = primaryAxis(chartOf(e), false);
+        QVERIFY(!a->autoMin && a->min == 5 && a->reversed);
+        QCOMPARE(a->majorTick, QStringLiteral("none"));
+        QVERIFY(!primaryAxis(chartOf(e), true)->reversed);
+        QVERIFY(save(e));
+        const ChartAxis *saved = primaryAxis(savedCharts(e.path)[0].chart, false);
+        QVERIFY(!saved->autoMin && saved->min == 5 && saved->reversed);
+        pressUndo(&e.win.w);
+        QVERIFY(primaryAxis(chartOf(e), false)->autoMin);
+        // a cancelled pane changes nothing
+        e.win.w.setFormatAxisAsker([](bool, ChartAxis *) { return false; });
+        const int steps = e.win.w.session()->undoStack()->index();
+        e.win.w.act(QStringLiteral("chartdesign.axisH"))->trigger();
+        QCOMPARE(e.win.w.session()->undoStack()->index(), steps);
+    }
+
     void theChartDesignTabAppearsWithAChart()
     {
         EditWindow e;

@@ -489,6 +489,14 @@
           ]
         },
         {
+          "name": "Format",
+          "keytip": "ZF",
+          "items": [
+            {"small": "chartdesign.axisH", "keytip": "AH"},
+            {"small": "chartdesign.axisV", "keytip": "AV"}
+          ]
+        },
+        {
           "name": "Object",
           "keytip": "ZO",
           "items": [

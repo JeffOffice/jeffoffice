@@ -238,6 +238,29 @@ QStringList labelPositionsFor(const Chart &chart)
     return {};
 }
 
+void setAxisFormat(Chart *chart, bool horizontal, bool secondary, const ChartAxis &from)
+{
+    ChartAxis *a = secondary ? secondaryAxis(chart, horizontal) : primaryAxis(chart, horizontal);
+    if (!a) return;
+    a->autoMin = from.autoMin;
+    a->autoMax = from.autoMax;
+    a->min = from.min;
+    a->max = from.max;
+    a->majorUnit = from.majorUnit;
+    a->minorUnit = from.minorUnit;
+    a->reversed = from.reversed;
+    a->crosses = from.crosses;
+    a->hasCrossesAt = from.hasCrossesAt;
+    a->crossesAt = from.crossesAt;
+    a->format = from.format;
+    a->formatLinked = from.formatLinked;
+    a->majorTick = from.majorTick;
+    a->minorTick = from.minorTick;
+    a->labelPosition = from.labelPosition;
+    a->hasRotation = from.hasRotation;
+    a->labelRotation = from.labelRotation;
+}
+
 void setDataLabels(Chart *chart, bool shown, const QString &position)
 {
     const bool pie = isPie(*chart);

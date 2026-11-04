@@ -134,6 +134,61 @@ private Q_SLOTS:
         QVERIFY(!elementsOf(c).labels);
     }
 
+    // An axis formatted as a person does in its pane: bounds, units, order, where the other axis crosses, number format, tick marks, label place and turn; only those parts change, the rest of
+    // the axis is as it was, and the file holds them.
+    void anAxisIsFormatted()
+    {
+        Chart c = columns();
+        const ChartAxis before = *primaryAxis(c, false);
+        ChartAxis edit = before;
+        edit.autoMin = false;
+        edit.min = 5;
+        edit.autoMax = false;
+        edit.max = 50;
+        edit.majorUnit = 10;
+        edit.minorUnit = 2;
+        edit.reversed = true;
+        edit.crosses = QStringLiteral("max");
+        edit.format = QStringLiteral("0.0");
+        edit.formatLinked = false;
+        edit.majorTick = QStringLiteral("in");
+        edit.minorTick = QStringLiteral("cross");
+        edit.labelPosition = QStringLiteral("low");
+        edit.hasRotation = true;
+        edit.labelRotation = -45;
+        edit.title.text = QStringLiteral("not changed by this");
+        setAxisFormat(&c, false, false, edit);
+        for (const Chart &x : {c, roundTrip(c)}) {
+            const ChartAxis *a = primaryAxis(x, false);
+            QVERIFY(!a->autoMin && !a->autoMax);
+            QCOMPARE(a->min, 5.0);
+            QCOMPARE(a->max, 50.0);
+            QCOMPARE(a->majorUnit, 10.0);
+            QCOMPARE(a->minorUnit, 2.0);
+            QVERIFY(a->reversed);
+            QCOMPARE(a->crosses, QStringLiteral("max"));
+            QCOMPARE(a->format, QStringLiteral("0.0"));
+            QVERIFY(!a->formatLinked);
+            QCOMPARE(a->majorTick, QStringLiteral("in"));
+            QCOMPARE(a->minorTick, QStringLiteral("cross"));
+            QCOMPARE(a->labelPosition, QStringLiteral("low"));
+            QVERIFY(a->hasRotation);
+            QCOMPARE(a->labelRotation, -45.0);
+            QCOMPARE(a->title.text, before.title.text);   // (the title is not part of what the pane sets)
+            QCOMPARE(a->id, before.id);
+        }
+        // the other axis is not touched
+        QCOMPARE(primaryAxis(c, true)->reversed, false);
+        // back to automatic
+        setAxisFormat(&c, false, false, before);
+        QVERIFY(primaryAxis(roundTrip(c), false)->autoMin);
+        QVERIFY(!primaryAxis(roundTrip(c), false)->reversed);
+        // an axis the chart does not have: nothing happens (a pie)
+        Chart pie = columns(ChartKind::Pie);
+        setAxisFormat(&pie, false, false, edit);
+        QVERIFY(!primaryAxis(pie, false));
+    }
+
     void aSingleSeriesTitleIsItsName()
     {
         Chart c = makeChart(ChartKind::Column, planOf(QStringLiteral("A1:B4"), ChartKind::Column), defaultTheme());

@@ -27,6 +27,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Editing"),
     QT_TRANSLATE_NOOP("Ribbon", "Font"),
     QT_TRANSLATE_NOOP("Ribbon", "Footer"),
+    QT_TRANSLATE_NOOP("Ribbon", "Format"),
     QT_TRANSLATE_NOOP("Ribbon", "Format Cells"),
     QT_TRANSLATE_NOOP("Ribbon", "Formulas"),
     QT_TRANSLATE_NOOP("Ribbon", "Freeze Panes"),

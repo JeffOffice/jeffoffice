@@ -123,6 +123,8 @@ void CrunchWindow::createChartActions()
         }
         changePickedChart(tr("Swap Rows and Columns"), [switched](Chart *c) { *c = switched; });
     }, false, false);
+    mk("chartdesign.axisH", tr("Format Horizontal Axis…"), "ruler", QKeySequence(), [this] { formatAxisDialog(true); }, false, false);
+    mk("chartdesign.axisV", tr("Format Vertical Axis…"), "ruler", QKeySequence(), [this] { formatAxisDialog(false); }, false, false);
     mk("object.properties", tr("Properties…"), "sliders-horizontal", QKeySequence(), [this] { propertiesDialog(); }, false, false);
     mk("object.front", tr("Bring to Front"), "bring-to-front", QKeySequence(), [this] { reorderObject(2); }, false, false);
     mk("object.forward", tr("Bring Forward"), "arrow-up", QKeySequence(), [this] { reorderObject(1); }, false, false);
@@ -451,6 +453,29 @@ void CrunchWindow::selectDataDialog()
     changePickedChart(tr("Chart Data"), [result](Chart *c) { *c = result; });
 }
 
+// Format Axis: the axis across the chart (or up it), asked about and set as one step.
+void CrunchWindow::formatAxisDialog(bool horizontal)
+{
+    const int id = pickedObject();
+    if (id < 0 || !m_session || !m_objects) return;
+    QString why;
+    if (!m_objects->canEditChart(m_sheet, id, &why)) {
+        notice(tr("Format Axis"), why);
+        return;
+    }
+    const ChartAxis *now = primaryAxis(m_objects->chartNow(m_sheet, id), horizontal);
+    if (!now) return;
+    ChartAxis made = *now;
+    if (m_formatAxisAsker) {
+        if (!m_formatAxisAsker(horizontal, &made)) return;
+    } else {
+        FormatAxisDialog dialog(*now, horizontal ? tr("Format Horizontal Axis") : tr("Format Vertical Axis"), this);
+        if (dialog.exec() != QDialog::Accepted) return;
+        made = dialog.result();
+    }
+    changePickedChart(tr("Format Axis"), [horizontal, made](Chart *c) { setAxisFormat(c, horizontal, false, made); });
+}
+
 QDialog *CrunchWindow::makeChangeTypeDialog()
 {
     const int id = pickedObject();
@@ -661,6 +686,11 @@ void CrunchWindow::updateChartState()
     bool editable = false;
     if (chart) editable = m_objects->canEditChart(m_sheet, id);
     for (const char *name : {"chartdesign.selectData", "chartdesign.changeType", "chartdesign.switch"}) act(QString::fromLatin1(name))->setEnabled(editable);
+    {
+        const ChartElements e = editable && id >= 0 ? elementsOf(m_objects->chartNow(m_sheet, id)) : ChartElements();
+        act(QStringLiteral("chartdesign.axisH"))->setEnabled(e.hasHorizontal);
+        act(QStringLiteral("chartdesign.axisV"))->setEnabled(e.hasVertical);
+    }
     for (const char *name : {"object.properties", "object.front", "object.forward", "object.backward", "object.back", "object.delete"}) act(QString::fromLatin1(name))->setEnabled(picked);
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Chart"), chart);
     m_chartButtonsTimer.start();

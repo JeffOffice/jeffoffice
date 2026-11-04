@@ -622,4 +622,118 @@ ObjectProperties ObjectPropertiesDialog::result() const
     return p;
 }
 
+FormatAxisDialog::FormatAxisDialog(const jp::office::ChartAxis &axis, const QString &title, QWidget *parent)
+    : QDialog(parent), m_axis(axis)
+{
+    setWindowTitle(title);
+    setObjectName(QStringLiteral("formatAxisDialog"));
+    auto *form = new QFormLayout(this);
+    const bool numbers = axis.kind == jp::office::ChartAxis::Value;
+    auto spin = [this](double value) {
+        auto *box = new QDoubleSpinBox(this);
+        box->setRange(-1e15, 1e15);
+        box->setDecimals(4);
+        box->setValue(value);
+        return box;
+    };
+    // a number that is automatic or set: a box to turn the automatic on, and the number beside it
+    auto row = [&](const QString &label, bool automatic, double value, QCheckBox **autoBox, QDoubleSpinBox **number) {
+        auto *line = new QWidget(this);
+        auto *h = new QHBoxLayout(line);
+        h->setContentsMargins(0, 0, 0, 0);
+        *autoBox = new QCheckBox(tr("Automatic"), line);
+        (*autoBox)->setChecked(automatic);
+        *number = spin(value);
+        (*number)->setEnabled(!automatic);
+        connect(*autoBox, &QCheckBox::toggled, *number, [n = *number](bool on) { n->setEnabled(!on); });
+        h->addWidget(*autoBox);
+        h->addWidget(*number);
+        form->addRow(label, line);
+        line->setEnabled(numbers);
+    };
+    row(tr("Lowest value:"), axis.autoMin, axis.min, &m_autoMin, &m_min);
+    row(tr("Highest value:"), axis.autoMax, axis.max, &m_autoMax, &m_max);
+    row(tr("Major unit:"), axis.majorUnit == 0, axis.majorUnit, &m_autoMajor, &m_major);
+    row(tr("Minor unit:"), axis.minorUnit == 0, axis.minorUnit, &m_autoMinor, &m_minor);
+    m_reversed = new QCheckBox(tr("Values in reverse order"), this);
+    m_reversed->setChecked(axis.reversed);
+    form->addRow(m_reversed);
+    m_crosses = new QComboBox(this);
+    m_crosses->setObjectName(QStringLiteral("axisCrosses"));
+    m_crosses->addItem(tr("Automatic"), QStringLiteral("autoZero"));
+    m_crosses->addItem(tr("At the lowest value"), QStringLiteral("min"));
+    m_crosses->addItem(tr("At the highest value"), QStringLiteral("max"));
+    m_crosses->addItem(tr("At this value:"), QStringLiteral("at"));
+    m_crossAt = spin(axis.crossesAt);
+    m_crosses->setCurrentIndex(axis.hasCrossesAt ? 3 : std::max(0, m_crosses->findData(axis.crosses)));
+    m_crossAt->setEnabled(m_crosses->currentIndex() == 3);
+    connect(m_crosses, &QComboBox::currentIndexChanged, m_crossAt, [this](int i) { m_crossAt->setEnabled(i == 3); });
+    form->addRow(tr("The other axis crosses:"), m_crosses);
+    form->addRow(QString(), m_crossAt);
+    m_linked = new QCheckBox(tr("Numbers as the cells show them"), this);
+    m_linked->setChecked(axis.formatLinked);
+    m_format = new QLineEdit(axis.format, this);
+    m_format->setEnabled(!axis.formatLinked);
+    connect(m_linked, &QCheckBox::toggled, m_format, [this](bool on) { m_format->setEnabled(!on); });
+    form->addRow(m_linked);
+    form->addRow(tr("Number format:"), m_format);
+    auto ticks = [&](const QString &label, const QString &now, QComboBox **box) {
+        *box = new QComboBox(this);
+        (*box)->addItem(tr("None"), QStringLiteral("none"));
+        (*box)->addItem(tr("Outside"), QStringLiteral("out"));
+        (*box)->addItem(tr("Inside"), QStringLiteral("in"));
+        (*box)->addItem(tr("Across"), QStringLiteral("cross"));
+        (*box)->setCurrentIndex(std::max(0, (*box)->findData(now)));
+        form->addRow(label, *box);
+    };
+    ticks(tr("Major tick marks:"), axis.majorTick, &m_majorTick);
+    ticks(tr("Minor tick marks:"), axis.minorTick, &m_minorTick);
+    m_labels = new QComboBox(this);
+    m_labels->setObjectName(QStringLiteral("axisLabels"));
+    m_labels->addItem(tr("Next to the axis"), QStringLiteral("nextTo"));
+    m_labels->addItem(tr("At the low end"), QStringLiteral("low"));
+    m_labels->addItem(tr("At the high end"), QStringLiteral("high"));
+    m_labels->addItem(tr("None"), QStringLiteral("none"));
+    m_labels->setCurrentIndex(std::max(0, m_labels->findData(axis.labelPosition)));
+    form->addRow(tr("Labels:"), m_labels);
+    m_rotate = new QCheckBox(tr("Turn the labels:"), this);
+    m_rotate->setChecked(axis.hasRotation);
+    m_angle = spin(axis.labelRotation);
+    m_angle->setRange(-90, 90);
+    m_angle->setSuffix(QString::fromUtf8("\xC2\xB0"));
+    m_angle->setEnabled(axis.hasRotation);
+    connect(m_rotate, &QCheckBox::toggled, m_angle, &QWidget::setEnabled);
+    form->addRow(m_rotate, m_angle);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    form->addRow(buttons);
+}
+
+jp::office::ChartAxis FormatAxisDialog::result() const
+{
+    jp::office::ChartAxis a = m_axis;
+    if (a.kind == jp::office::ChartAxis::Value) {
+        a.autoMin = m_autoMin->isChecked();
+        a.autoMax = m_autoMax->isChecked();
+        a.min = m_min->value();
+        a.max = m_max->value();
+        a.majorUnit = m_autoMajor->isChecked() ? 0 : m_major->value();
+        a.minorUnit = m_autoMinor->isChecked() ? 0 : m_minor->value();
+    }
+    a.reversed = m_reversed->isChecked();
+    const QString crosses = m_crosses->currentData().toString();
+    a.hasCrossesAt = crosses == QLatin1String("at");
+    if (a.hasCrossesAt) a.crossesAt = m_crossAt->value();
+    else a.crosses = crosses;
+    a.formatLinked = m_linked->isChecked();
+    if (!a.formatLinked) a.format = m_format->text().isEmpty() ? QStringLiteral("General") : m_format->text();
+    a.majorTick = m_majorTick->currentData().toString();
+    a.minorTick = m_minorTick->currentData().toString();
+    a.labelPosition = m_labels->currentData().toString();
+    a.hasRotation = m_rotate->isChecked();
+    if (a.hasRotation) a.labelRotation = m_angle->value();
+    return a;
+}
+
 } // namespace jp
