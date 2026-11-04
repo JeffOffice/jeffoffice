@@ -3,7 +3,7 @@
   "jeffcrunch": {
    "name": "JeffCrunch",
    "reviewed": {
-    "day": "3",
+    "day": "4",
     "month": "November",
     "year": "2026"
    },
@@ -881,7 +881,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "8b934c3f9b7ecd618621fdccee5b4d3ab71cee5aba4172a3cccccc98bbd29288"
+         "text": "41248743fd5073dbce5a8463ac14318d5d84e6aab0b9306efa95fd67e937a802"
         },
         {
          "status": "partly",
@@ -931,8 +931,9 @@
          "text": "dea57a6a414c01eacf38b3a9a15a0d5288777782551d386e1bb6c4f0a139f6ca"
         },
         {
-         "status": "partly",
-         "text": "32a941909fe79a385294d8ff368e349b8558d17a299dc2b719b88480f68f66ca"
+         "hide_soon": true,
+         "status": "done",
+         "text": "36ec3ce1d0a4855aef1ae508a6f7aa68cf32ac397b3a4707014c300f35a3932e"
         }
        ]
       }
@@ -947,7 +948,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "d93ef80b2324fcc3a28cfc16562e2b44d1eb8160224223614bf7b2ee22caf1cf"
+         "text": "bea7657e37bcebfaf5305cd8db6cd49e2f176b9a1df203e4665dbe8d3c568fc3"
         },
         {
          "status": "todo",
@@ -1006,15 +1007,17 @@
        "heading": "a52a2e964b5943e5c7bcd388b759d2c39a22636ad063aaf6e4cdbc25692cf604",
        "items": [
         {
-         "status": "todo",
-         "text": "8e362cfe152a84545de8dc33d3b88a66bdda29240627017c39b7d4a6f8384a1e"
-        },
-        {
-         "status": "todo",
-         "text": "47eb057578241c86281590d9adb05b4e4c0b355e22caf477e563f94b5f0c0cf7"
-        },
-        {
          "status": "partly",
+         "text": "d34412e942b4f7e8a796dab2f8c6a62a91194243aba5dbca5e818ad00058b786"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "9c325bc184488d0e431383b677b24623ba813170982adedfcd11494750fdc3d9"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
          "text": "c0e4345564aea0da590ed9fe982184ed685c0ef367ac603fad887f95cdf60f35"
         },
         {
@@ -1571,20 +1574,20 @@
          "text": "09967c12564893bc7b18e195581e66c2b05e83240e88dcc9f7eda66a28df451f"
         },
         {
-         "status": "todo",
-         "text": "b6d1fc4ce770419028fbd21b46eb263995353400d9c096b29b31a61dcd04e872"
+         "status": "partly",
+         "text": "c32dcd695ef83704e93867eb05ec5868c63a2349628cbb0f934e59b6c8649961"
         },
         {
-         "status": "todo",
-         "text": "dd8fd7af07f01d0d49a53584541a6fa140bf0cd2e650e89a9e9254674b56114e"
+         "status": "partly",
+         "text": "514d122a327fb503c5fa58c94ac09411ca3c273146d3035f91fce7152636f9bd"
         },
         {
-         "status": "todo",
-         "text": "63e5c5c4a3dfd3f52d6a1a0f9f95a636a8abe86bbd2b035fbce95e739f6fc292"
+         "status": "partly",
+         "text": "24a0a957e798d9eb03e5e8b755eed12a2336170bafe5b0d42f3303944178c52b"
         },
         {
-         "status": "todo",
-         "text": "f5b45a77f4fde4079b6806c1e9ab30b0917f320425d3364a5b7c27f308854072"
+         "status": "partly",
+         "text": "df6848f808daf15e0d4f81d19804708de2a37d48ad9b9c49aa8a4527f0b453d7"
         },
         {
          "status": "todo",
@@ -1600,24 +1603,28 @@
      "heading": "e23dd099fd5339b5763d3e905cdd45021cd4b206d103a4604192460416fdac59",
      "items": [
       {
-       "status": "partly",
-       "text": "12e0e497b3d34c2220bd2bb45bd99fa318046e8b023aabe32a4d3125f2dad4c6"
+       "hide_soon": true,
+       "status": "done",
+       "text": "8e6792a8544ba1291503f34da971418b79034d765d1cd01e92af12c8a4d4737d"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "bb91ba069ba34f0ff7f8750446fd336cc62f521467215365e10cc42cf04ced54"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "83474a9a144215be7bfd3dc34496802fc6015d122d667f974cefef8b363f8692"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "bdf6e50f597cdda517d628acfdab82f657f5d21ebe908ca51862181e129c193c"
       },
       {
        "status": "partly",
-       "text": "b38e10cc09add33946f35e7dc00c015f7fa19da66b2cfb10c6cbdb36b5670831"
-      },
-      {
-       "status": "partly",
-       "text": "6544859bfba04fbc6ee3980bd9fd4abcb8a1c255de8fbf261ae9faca02478c31"
-      },
-      {
-       "status": "partly",
-       "text": "ce124ef1db413a1de8123e1b25a561aa4869d1acb46422e67c69f5c4e8bb1390"
-      },
-      {
-       "status": "partly",
-       "text": "cc0b7899ccfbb66b79b675e6addbbbbe5b38d21da955f99a7b46bda3a3c29838"
+       "text": "9fceb32801340ec6e3bb42ff24a2ec43252e144b5f609beb593d7cafe735ac30"
       },
       {
        "hide_soon": true,
@@ -1626,15 +1633,16 @@
       },
       {
        "status": "partly",
-       "text": "a48910fdcce021327c8b084da8171144349334723cf62a8ac31e0ed672f95034"
+       "text": "a555cc3b23ff7b784fff2524acf2db07547f7350264e8e746f2004507582871e"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "e327f08d0103e1c72091de9b5fd28e82ad9a2947b16193ea3837cdbc71af817d"
       },
       {
        "status": "partly",
-       "text": "08d27f4ae785ae1b26671f1dfb1932e4f0205fc5211e046ad7340f563e31603b"
-      },
-      {
-       "status": "todo",
-       "text": "9017feb07821db8700bcd5514f1ffa3b867accb5d75d78dc24c346a82292ac3c"
+       "text": "115f22fde689dd9a13c92d7533d9811f18d3a0219fc7f3456769dcf2226811f4"
       },
       {
        "hide_soon": true,
@@ -1642,8 +1650,9 @@
        "text": "e3abb02f9f4fa6ed0d0e10d94f6018f558a5254847c8c097082132de84a7f89c"
       },
       {
-       "status": "partly",
-       "text": "dbf9832f9eeb19e2df31f9dcf5133739ecede909ac2645bc1464ee8ce2d88b0e"
+       "hide_soon": true,
+       "status": "done",
+       "text": "37e594a047eb41b8889f01c4198c4bac0b9bc1d37476f14996d433fc3a0f6231"
       },
       {
        "hide_soon": true,
@@ -1651,24 +1660,28 @@
        "text": "5246017dd0b6c939e16c9bbd0f04a80e07993bc2c1c118cbca1e52393613dbc4"
       },
       {
-       "status": "partly",
-       "text": "def862f0e76b9e98f6afce9d8af5d4549777f4deb596ec0433f3b29a473bf0f6"
+       "hide_soon": true,
+       "status": "done",
+       "text": "b433a0982ad8c171c9cefcefc55a3121ba6530759ef1168831d1501b2d5e48db"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "cee0c5273b9fe1c76cda9bd3506ce45ba14d918a32249e908d5f1b3231c64304"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "91e7a57a97b8d086a98e5df3af551a99bdb53d3ba5e1a5ad1aff6fda1ba7d3b9"
       },
       {
        "status": "partly",
-       "text": "e5043779d20f7bd9da26f498a96e6afd12f7f4b8cbafcdde85e47c831ce1fb5c"
+       "text": "ea8fb54a167e34f19f941c660774c93a5fb769e18446df0f461f209fc4e7b7e1"
       },
       {
-       "status": "todo",
-       "text": "3b967e44c91f6a9ea093f661802b8cc347453dd891e0901ea2f5d98d9d256be0"
-      },
-      {
-       "status": "partly",
-       "text": "6e84d475f0b2185d42e6f2a3a09333ff42df2ece222505adb9f40e80d21f56df"
-      },
-      {
-       "status": "todo",
-       "text": "b74c0534ebfab6969be3315838b16898a1db075b97b95374bf0774adb1742aab"
+       "hide_soon": true,
+       "status": "done",
+       "text": "284a12717a2d6d67d9067d08a8af8ca9a9ac4a8e883547cd29e5dd8192ba0119"
       },
       {
        "hide_soon": true,
@@ -1676,12 +1689,13 @@
        "text": "e612faca8093b29ce1c2c6e2c479fb26ef3b3f1351d68fe26ab63838f65632ad"
       },
       {
-       "status": "todo",
-       "text": "008b95bc834c3e61ed94f86c54478657eae5e8562d4c0b7f9cfba667d310eeb7"
+       "hide_soon": true,
+       "status": "done",
+       "text": "622d1c654c62cfa2bd758ce273d6af09c1aeedba57a816dea759fb74429bf5d2"
       },
       {
-       "status": "todo",
-       "text": "b67aa93bf45a61d970df77f6d952d31264e615ad7aeabf05047b2e9815e36503"
+       "status": "partly",
+       "text": "55da475027e88a2f1bded7b93edd3e9d699be2746c926ab36c19b2c8907b341e"
       },
       {
        "status": "todo",
@@ -6938,18 +6952,6 @@
     "fr": ""
    }
   },
-  "008b95bc834c3e61ed94f86c54478657eae5e8562d4c0b7f9cfba667d310eeb7": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Engineering functions: base conversions (`BIN2DEC` and the rest), bit functions, complex-number functions (`IMSUM` and the rest), Bessel functions, `ERF`, `CONVERT`, `DELTA`, and `GESTEP`",
-    "es": "Funciones de ingeniería: conversiones de base (`BIN2DEC` y las demás), funciones de bits, funciones de números complejos (`IMSUM` y las demás), funciones de Bessel, `ERF`, `CONVERT`, `DELTA` y `GESTEP`",
-    "fr": "Fonctions d’ingénierie : conversions de base (`BIN2DEC` et les autres), fonctions sur les bits, fonctions sur les nombres complexes (`IMSUM` et les autres), fonctions de Bessel, `ERF`, `CONVERT`, `DELTA` et `GESTEP`"
-   }
-  },
   "009b3de0946ff315b78384cc74116d2078909f9500543335238af9144f8ab9c1": {
    "drop": false,
    "en": "In JeffDeck, the transitions gallery offers None, Morph, Fade, Push, Wipe, Split, Reveal, Cover, Uncover, Zoom, and Cut. A cut goes through black. The effect is shown on the slide in the pane, marked with a star.",
@@ -7670,18 +7672,6 @@
     "fr": "Balises de paramètres régionaux, calendriers alternatifs et formes numériques d’Asie orientale dans les formats de nombre"
    }
   },
-  "08d27f4ae785ae1b26671f1dfb1932e4f0205fc5211e046ad7340f563e31603b": {
-   "drop": false,
-   "en": "JeffCrunch calculates 15 lookup and reference functions, including `VLOOKUP`, `HLOOKUP`, `LOOKUP`, `MATCH`, `INDEX`, `OFFSET`, `INDIRECT`, `CHOOSE`, `TRANSPOSE`, `ADDRESS`, and `HYPERLINK`.",
-   "es": "JeffCrunch calcula 15 funciones de búsqueda y referencia, entre ellas `VLOOKUP`, `HLOOKUP`, `LOOKUP`, `MATCH`, `INDEX`, `OFFSET`, `INDIRECT`, `CHOOSE`, `TRANSPOSE`, `ADDRESS` y `HYPERLINK`.",
-   "fr": "JeffCrunch calcule 15 fonctions de recherche et de référence, dont `VLOOKUP`, `HLOOKUP`, `LOOKUP`, `MATCH`, `INDEX`, `OFFSET`, `INDIRECT`, `CHOOSE`, `TRANSPOSE`, `ADDRESS` et `HYPERLINK`.",
-   "soon": {
-    "drop": false,
-    "en": "`AREAS` lookup and reference function",
-    "es": "Función de búsqueda y referencia `AREAS`",
-    "fr": "Fonction de recherche et de référence `AREAS`"
-   }
-  },
   "08d2e8521ca692a1c19b1fa4dd15afd505fdc8e041cfea419aa966eed75c5096": {
    "drop": false,
    "en": "In JeffDeck, text direction can be horizontal or rotated 90 degrees.",
@@ -8306,6 +8296,18 @@
     "fr": ""
    }
   },
+  "115f22fde689dd9a13c92d7533d9811f18d3a0219fc7f3456769dcf2226811f4": {
+   "drop": false,
+   "en": "JeffCrunch includes the newer lookup and reference functions `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `XLOOKUP`, `XMATCH`, `FORMULATEXT`, and `GETPIVOTDATA`. The array ones return their results in an array formula.",
+   "es": "JeffCrunch incluye las funciones de búsqueda y referencia más recientes `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `XLOOKUP`, `XMATCH`, `FORMULATEXT` y `GETPIVOTDATA`. Las matriciales devuelven sus resultados en una fórmula matricial.",
+   "fr": "JeffCrunch inclut les fonctions de recherche et de référence plus récentes `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `XLOOKUP`, `XMATCH`, `FORMULATEXT` et `GETPIVOTDATA`. Les fonctions matricielles renvoient leurs résultats dans une formule matricielle.",
+   "soon": {
+    "drop": false,
+    "en": "Spilling a result into the cells beside the formula",
+    "es": "Desbordar un resultado a las celdas contiguas a la fórmula",
+    "fr": "Débordement d’un résultat dans les cellules voisines de la formule"
+   }
+  },
   "119be82562b25872bc4b3f8204953e89cd62d627492e18756fdcb0da80778ac9": {
    "drop": false,
    "en": "JeffCrunch has a search box on the ribbon that finds a command by what it does and runs it.",
@@ -8424,18 +8426,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "12e0e497b3d34c2220bd2bb45bd99fa318046e8b023aabe32a4d3125f2dad4c6": {
-   "drop": false,
-   "en": "JeffCrunch calculates 46 classic math and trigonometry functions, including `SUM`, `ROUND`, `SUBTOTAL`, `SUMIF`, `SUMIFS`, `SUMPRODUCT`, `SQRT`, `MOD`, `POWER`, `RAND`, `RANDBETWEEN`, `GCD`, and `LCM`.",
-   "es": "JeffCrunch calcula 46 funciones matemáticas y trigonométricas clásicas, entre ellas `SUM`, `ROUND`, `SUBTOTAL`, `SUMIF`, `SUMIFS`, `SUMPRODUCT`, `SQRT`, `MOD`, `POWER`, `RAND`, `RANDBETWEEN`, `GCD` y `LCM`.",
-   "fr": "JeffCrunch calcule 46 fonctions mathématiques et trigonométriques classiques, dont `SUM`, `ROUND`, `SUBTOTAL`, `SUMIF`, `SUMIFS`, `SUMPRODUCT`, `SQRT`, `MOD`, `POWER`, `RAND`, `RANDBETWEEN`, `GCD` et `LCM`.",
-   "soon": {
-    "drop": false,
-    "en": "Math functions: `MMULT`, `MINVERSE`, `MDETERM`, `ACOSH`, `ASINH`, `ATANH`, `FACTDOUBLE`, `MULTINOMIAL`, `ROMAN`, `SERIESSUM`, `SQRTPI`, `SUMX2MY2`, `SUMX2PY2`, `SUMXMY2`",
-    "es": "Funciones matemáticas: `MMULT`, `MINVERSE`, `MDETERM`, `ACOSH`, `ASINH`, `ATANH`, `FACTDOUBLE`, `MULTINOMIAL`, `ROMAN`, `SERIESSUM`, `SQRTPI`, `SUMX2MY2`, `SUMX2PY2`, `SUMXMY2`",
-    "fr": "Fonctions mathématiques : `MMULT`, `MINVERSE`, `MDETERM`, `ACOSH`, `ASINH`, `ATANH`, `FACTDOUBLE`, `MULTINOMIAL`, `ROMAN`, `SERIESSUM`, `SQRTPI`, `SUMX2MY2`, `SUMX2PY2`, `SUMXMY2`"
    }
   },
   "12fd2e193722e310f683728fad0d5878ba314d922430914b4f30e6d37652f8b4": {
@@ -9686,6 +9676,18 @@
     "fr": ""
    }
   },
+  "24a0a957e798d9eb03e5e8b755eed12a2336170bafe5b0d42f3303944178c52b": {
+   "drop": false,
+   "en": "`TRANSPOSE` works.",
+   "es": "`TRANSPOSE` funciona.",
+   "fr": "`TRANSPOSE` fonctionne.",
+   "soon": {
+    "drop": false,
+    "en": "Array functions `MMULT`, `MINVERSE`, `MDETERM`, `FREQUENCY`, `LINEST`, `LOGEST`, `TREND`, and `GROWTH`, entered as array formulas",
+    "es": "Funciones matriciales `MMULT`, `MINVERSE`, `MDETERM`, `FREQUENCY`, `LINEST`, `LOGEST`, `TREND` y `GROWTH`, introducidas como fórmulas matriciales",
+    "fr": "Fonctions matricielles `MMULT`, `MINVERSE`, `MDETERM`, `FREQUENCY`, `LINEST`, `LOGEST`, `TREND` et `GROWTH`, saisies comme formules matricielles"
+   }
+  },
   "24c00247a58535c37a0b6fb4551048cd06a5b6cdd0047c312c380706a5b7d01c": {
    "drop": false,
    "en": "In JeffDeck, you can add a new comment from the Insert tab or the Review tab.",
@@ -9955,6 +9957,18 @@
    "en": "Fit the sheet to a number of pages wide and tall, or automatic, or set a percent from 10 to 400; a warning appears when the type becomes too small to read.",
    "es": "Ajuste la hoja a un número de páginas de ancho y alto, o automático, o defina un porcentaje de 10 a 400; aparece una advertencia cuando el texto se vuelve demasiado pequeño para leerse.",
    "fr": "Ajustez la feuille à un nombre de pages en largeur et en hauteur, ou en automatique, ou définissez un pourcentage de 10 à 400 ; un avertissement apparaît quand le texte devient trop petit pour être lu.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "284a12717a2d6d67d9067d08a8af8ca9a9ac4a8e883547cd29e5dd8192ba0119": {
+   "drop": false,
+   "en": "JeffCrunch includes the newer information functions `ISFORMULA`, `SHEET`, and `SHEETS`.",
+   "es": "JeffCrunch incluye las funciones de información más recientes `ISFORMULA`, `SHEET` y `SHEETS`.",
+   "fr": "JeffCrunch inclut les fonctions d’information plus récentes `ISFORMULA`, `SHEET` et `SHEETS`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -10706,18 +10720,6 @@
     "fr": "Options d’enregistrement : format par défaut, intervalle de récupération automatique et dossier par défaut"
    }
   },
-  "32a941909fe79a385294d8ff368e349b8558d17a299dc2b719b88480f68f66ca": {
-   "drop": false,
-   "en": "`F9` and `Shift+F9` recalculate. Calculate Sheet works out the formulas of the sheet and whatever else was waiting.",
-   "es": "`F9` y `Shift+F9` recalculan. Calcular hoja calcula las fórmulas de la hoja y cualquier otra cosa que estuviera en espera.",
-   "fr": "`F9` et `Shift+F9` recalculent. Calculer la feuille calcule les formules de la feuille et tout ce qui était en attente.",
-   "soon": {
-    "drop": false,
-    "en": "Recalculate everything (`Ctrl+Alt+F9`) and rebuild the dependency list (`Ctrl+Shift+Alt+F9`)",
-    "es": "Recalcular todo (`Ctrl+Alt+F9`) y reconstruir la lista de dependencias (`Ctrl+Shift+Alt+F9`)",
-    "fr": "Tout recalculer (`Ctrl+Alt+F9`) et reconstruire la liste des dépendances (`Ctrl+Shift+Alt+F9`)"
-   }
-  },
   "32abd7080f973bfcd499f134dd63f09f7ea4f55b4b13a6966beda87cd5880b6a": {
    "drop": false,
    "en": "View tab",
@@ -10994,6 +10996,18 @@
     "fr": ""
    }
   },
+  "36ec3ce1d0a4855aef1ae508a6f7aa68cf32ac397b3a4707014c300f35a3932e": {
+   "drop": false,
+   "en": "In JeffCrunch, you can recalculate with `F9`, calculate only the current sheet with `Shift+F9`, recalculate everything with `Ctrl+Alt+F9`, and rebuild the dependency list and recalculate with `Ctrl+Shift+Alt+F9`.",
+   "es": "En JeffCrunch, usted puede recalcular con `F9`, calcular solo la hoja actual con `Shift+F9`, recalcular todo con `Ctrl+Alt+F9` y reconstruir la lista de dependencias y recalcular con `Ctrl+Shift+Alt+F9`.",
+   "fr": "Dans JeffCrunch, vous pouvez recalculer avec `F9`, calculer uniquement la feuille active avec `Shift+F9`, tout recalculer avec `Ctrl+Alt+F9` et reconstruire la liste des dépendances puis recalculer avec `Ctrl+Shift+Alt+F9`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "37012ba0ae98fd88f5235fbb123c5e20b97e9b391103fc1852026b5355899121": {
    "drop": false,
    "en": "JeffPub paragraph settings include alignment, indents (left, right, first line, hanging), spacing before and after, line spacing (single, multiple, exact, at least), keep with next, keep lines together, widow and orphan control, and start in next text box.",
@@ -11064,6 +11078,18 @@
     "en": "Handout Master view: slides per page, orientation, header, date, footer, and page number, and its background",
     "es": "Vista Patrón de documentos: diapositivas por página, orientación, encabezado, fecha, pie de página y número de página, y su fondo",
     "fr": "Affichage Masque du document : diapositives par page, orientation, en-tête, date, pied de page et numéro de page, et son arrière-plan"
+   }
+  },
+  "37e594a047eb41b8889f01c4198c4bac0b9bc1d37476f14996d433fc3a0f6231": {
+   "drop": false,
+   "en": "JeffCrunch includes the newer text functions `CONCAT`, `NUMBERVALUE`, `TEXTJOIN`, `UNICHAR`, and `UNICODE`, and the double-byte and byte-counting forms for East Asian text, such as `ASC`, `DBCS`, `LEFTB`, `LENB`, `MIDB`, and `PHONETIC`.",
+   "es": "JeffCrunch incluye las funciones de texto más recientes `CONCAT`, `NUMBERVALUE`, `TEXTJOIN`, `UNICHAR` y `UNICODE`, y las formas de doble byte y de conteo de bytes para texto de Asia oriental, como `ASC`, `DBCS`, `LEFTB`, `LENB`, `MIDB` y `PHONETIC`.",
+   "fr": "JeffCrunch inclut les fonctions de texte plus récentes `CONCAT`, `NUMBERVALUE`, `TEXTJOIN`, `UNICHAR` et `UNICODE`, ainsi que les formes à double octet et de comptage d’octets pour le texte d’Asie orientale, comme `ASC`, `DBCS`, `LEFTB`, `LENB`, `MIDB` et `PHONETIC`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "38193b2d61751d5f6f294a6614a563522e863fb3e63cfffe4c10a846f1af281d": {
@@ -11256,18 +11282,6 @@
     "en": "Filters and sorts on pivot tables",
     "es": "Filtros y ordenación en tablas dinámicas",
     "fr": "Filtres et tris sur les tableaux croisés dynamiques"
-   }
-  },
-  "3b967e44c91f6a9ea093f661802b8cc347453dd891e0901ea2f5d98d9d256be0": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Newer financial functions: `PDURATION` and `RRI`",
-    "es": "Funciones financieras más recientes: `PDURATION` y `RRI`",
-    "fr": "Fonctions financières plus récentes : `PDURATION` et `RRI`"
    }
   },
   "3ba3cb60d581888eb1c93b1e94f10d0cc7c58beeccfcc064112098376fbec76b": {
@@ -11628,6 +11642,18 @@
     "en": "Save as a single-file web page",
     "es": "Guardar como página web de un solo archivo",
     "fr": "Enregistrement en page web d’un seul fichier"
+   }
+  },
+  "41248743fd5073dbce5a8463ac14318d5d84e6aab0b9306efa95fd67e937a802": {
+   "drop": false,
+   "en": "In JeffCrunch, you can name a cell, a range, a constant, or a formula, with the workbook or one sheet as its scope. The Name Box jumps to a name or creates one, and Go To follows names. Names can be created, changed, and deleted, with each change undone in one step, and they are checked against the rules for names, with the reason shown as you type. Built-in names for print areas, print titles, and filters are kept as saved.",
+   "es": "En JeffCrunch, usted puede dar nombre a una celda, un rango, una constante o una fórmula, con el libro o una sola hoja como ámbito. El Cuadro de nombres salta a un nombre o crea uno, e Ir a sigue los nombres. Los nombres se pueden crear, cambiar y eliminar, y cada cambio se deshace en un solo paso, y se comprueban según las reglas de los nombres, con el motivo indicado mientras escribe. Los nombres integrados para áreas de impresión, títulos de impresión y filtros se conservan tal como se guardaron.",
+   "fr": "Dans JeffCrunch, vous pouvez nommer une cellule, une plage, une constante ou une formule, avec le classeur ou une seule feuille comme portée. La zone Nom permet d’atteindre un nom ou d’en créer un, et Atteindre suit les noms. Les noms peuvent être créés, modifiés et supprimés, chaque modification s’annulant en une seule étape, et ils sont vérifiés selon les règles des noms, avec le motif indiqué pendant la saisie. Les noms intégrés pour les zones d’impression, les titres d’impression et les filtres sont conservés tels qu’enregistrés.",
+   "soon": {
+    "drop": false,
+    "en": "Formulas that use a name defined for a block of several sheets",
+    "es": "Fórmulas que usan un nombre definido para un bloque de varias hojas",
+    "fr": "Formules utilisant un nom défini pour un bloc de plusieurs feuilles"
    }
   },
   "414efa00510f17d5f3cba6f1f8876f9892ef2dcf017d5d928cf93fcea261e0b1": {
@@ -12120,18 +12146,6 @@
     "en": "Spike, Overtype, and the `Insert` key",
     "es": "Spike, modo sobrescribir y la tecla `Insert`",
     "fr": "Spike, mode refrappe et touche `Inser`"
-   }
-  },
-  "47eb057578241c86281590d9adb05b4e4c0b355e22caf477e563f94b5f0c0cf7": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Remove Duplicates: choose matching columns and see rows removed and remaining",
-    "es": "Quitar duplicados: elegir columnas coincidentes y ver las filas quitadas y restantes",
-    "fr": "Supprimer les doublons : choisir les colonnes à comparer et voir les lignes supprimées et restantes"
    }
   },
   "47ed129b8dae9c51ddcd442d1b50e58f56f20520062859e4d6b110c8ab0bd6bc": {
@@ -12758,6 +12772,18 @@
     "fr": ""
    }
   },
+  "514d122a327fb503c5fa58c94ac09411ca3c273146d3035f91fce7152636f9bd": {
+   "drop": false,
+   "en": "`STDEV`, `MEDIAN`, `CORREL`, `SLOPE`, and `INTERCEPT` work.",
+   "es": "`STDEV`, `MEDIAN`, `CORREL`, `SLOPE` e `INTERCEPT` funcionan.",
+   "fr": "`STDEV`, `MEDIAN`, `CORREL`, `SLOPE` et `INTERCEPT` fonctionnent.",
+   "soon": {
+    "drop": false,
+    "en": "`LINEST` and `FREQUENCY`",
+    "es": "`LINEST` y `FREQUENCY`",
+    "fr": "`LINEST` et `FREQUENCY`"
+   }
+  },
   "5159d1561181274a8a38f01e86a4c736c3bab8b67834f28584362ebef1dfc482": {
    "drop": false,
    "en": "Start a numbered list from the Home tab. Lists in files keep their number formats.",
@@ -13152,6 +13178,18 @@
     "en": "Forecast Sheet: chart and table of future values with confidence band and seasonality",
     "es": "Hoja de previsión: gráfico y tabla de valores futuros con banda de confianza y estacionalidad",
     "fr": "Feuille de prévision : graphique et tableau de valeurs futures avec intervalle de confiance et saisonnalité"
+   }
+  },
+  "55da475027e88a2f1bded7b93edd3e9d699be2746c926ab36c19b2c8907b341e": {
+   "drop": false,
+   "en": "JeffCrunch includes the web function `ENCODEURL`.",
+   "es": "JeffCrunch incluye la función web `ENCODEURL`.",
+   "fr": "JeffCrunch inclut la fonction web `ENCODEURL`.",
+   "soon": {
+    "drop": false,
+    "en": "`FILTERXML` function: read a value from XML text with an XPath expression",
+    "es": "Función `FILTERXML`: leer un valor de texto XML con una expresión XPath",
+    "fr": "Fonction `FILTERXML` : lire une valeur dans du texte XML avec une expression XPath"
    }
   },
   "55ec9dea8a6cf8ffee77e01f22610b2327e4a4f1e4fc9571e46691fd7df3e78e": {
@@ -13970,6 +14008,18 @@
     "fr": "Comparaison de documents qui détecte les déplacements et les différences de mise en forme"
    }
   },
+  "622d1c654c62cfa2bd758ce273d6af09c1aeedba57a816dea759fb74429bf5d2": {
+   "drop": false,
+   "en": "JeffCrunch includes 54 engineering functions: base conversions such as `BIN2DEC`, bit functions, complex-number functions such as `IMSUM`, Bessel functions, `ERF`, `CONVERT`, `DELTA`, and `GESTEP`.",
+   "es": "JeffCrunch incluye 54 funciones de ingeniería: conversiones de base como `BIN2DEC`, funciones de bits, funciones de números complejos como `IMSUM`, funciones de Bessel, `ERF`, `CONVERT`, `DELTA` y `GESTEP`.",
+   "fr": "JeffCrunch inclut 54 fonctions d’ingénierie : conversions de base comme `BIN2DEC`, fonctions sur les bits, fonctions sur les nombres complexes comme `IMSUM`, fonctions de Bessel, `ERF`, `CONVERT`, `DELTA` et `GESTEP`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "62480301f3832906b222f868db2b00ce8b0d5631cafeafeeca51196d89303ab4": {
    "drop": false,
    "en": "JeffCrunch reads shared formulas as one formula for each cell and writes a shared formula back as it was.",
@@ -14090,18 +14140,6 @@
     "fr": ""
    }
   },
-  "63e5c5c4a3dfd3f52d6a1a0f9f95a636a8abe86bbd2b035fbce95e739f6fc292": {
-   "drop": false,
-   "en": "`TRANSPOSE` works.",
-   "es": "`TRANSPOSE` funciona.",
-   "fr": "`TRANSPOSE` fonctionne.",
-   "soon": {
-    "drop": false,
-    "en": "Array functions `MMULT`, `MINVERSE`, `MDETERM`, `FREQUENCY`, `LINEST`, `LOGEST`, `TREND`, and `GROWTH`, entered as array formulas",
-    "es": "Funciones matriciales `MMULT`, `MINVERSE`, `MDETERM`, `FREQUENCY`, `LINEST`, `LOGEST`, `TREND` y `GROWTH`, introducidas como fórmulas matriciales",
-    "fr": "Fonctions matricielles `MMULT`, `MINVERSE`, `MDETERM`, `FREQUENCY`, `LINEST`, `LOGEST`, `TREND` et `GROWTH`, saisies comme formules matricielles"
-   }
-  },
   "63e900e7db0da0e37adb75e479edf5c9aa3fdddc90ffee38c5849dbf13a0045c": {
    "drop": false,
    "en": "In JeffDeck, the Shape Format tab has a gallery of 24 styles drawn from the theme, plus Shape Fill, Shape Outline, and Shape Effects menus. One click styles every selected shape, text box, and line in one step, and the styles are kept in `.pptx` and `.odp` files.",
@@ -14220,18 +14258,6 @@
     "en": "Character spacing: expanded, condensed, raised, and lowered",
     "es": "Espaciado entre caracteres: expandido, comprimido, elevado y reducido",
     "fr": "Espacement des caractères : étendu, condensé, relevé et abaissé"
-   }
-  },
-  "6544859bfba04fbc6ee3980bd9fd4abcb8a1c255de8fbf261ae9faca02478c31": {
-   "drop": false,
-   "en": "JeffCrunch calculates 23 classic statistical functions, including `AVERAGE`, `MIN`, `MAX`, `COUNT`, `COUNTA`, `COUNTIF`, `COUNTIFS`, `AVERAGEIF`, `AVERAGEIFS`, `MEDIAN`, `CORREL`, `SLOPE`, `INTERCEPT`, `FORECAST`, `SMALL`, and `LARGE`.",
-   "es": "JeffCrunch calcula 23 funciones estadísticas clásicas, entre ellas `AVERAGE`, `MIN`, `MAX`, `COUNT`, `COUNTA`, `COUNTIF`, `COUNTIFS`, `AVERAGEIF`, `AVERAGEIFS`, `MEDIAN`, `CORREL`, `SLOPE`, `INTERCEPT`, `FORECAST`, `SMALL` y `LARGE`.",
-   "fr": "JeffCrunch calcule 23 fonctions statistiques classiques, dont `AVERAGE`, `MIN`, `MAX`, `COUNT`, `COUNTA`, `COUNTIF`, `COUNTIFS`, `AVERAGEIF`, `AVERAGEIFS`, `MEDIAN`, `CORREL`, `SLOPE`, `INTERCEPT`, `FORECAST`, `SMALL` et `LARGE`.",
-   "soon": {
-    "drop": false,
-    "en": "Statistical functions: `FREQUENCY`, `LINEST`, `KURT`, `SKEW`, `GEOMEAN`, `AVEDEV`, `STDEVPA`, `STDEVA`, `STEYX`, `DEVSQ`, `FISHER`, `FISHERINV`, `GAMMALN`, `GROWTH`, `HARMEAN`, `LOGEST`, `PROB`, `STANDARDIZE`, `TREND`, `TRIMMEAN`, `VARA`, `VARPA`",
-    "es": "Funciones estadísticas: `FREQUENCY`, `LINEST`, `KURT`, `SKEW`, `GEOMEAN`, `AVEDEV`, `STDEVPA`, `STDEVA`, `STEYX`, `DEVSQ`, `FISHER`, `FISHERINV`, `GAMMALN`, `GROWTH`, `HARMEAN`, `LOGEST`, `PROB`, `STANDARDIZE`, `TREND`, `TRIMMEAN`, `VARA`, `VARPA`",
-    "fr": "Fonctions statistiques : `FREQUENCY`, `LINEST`, `KURT`, `SKEW`, `GEOMEAN`, `AVEDEV`, `STDEVPA`, `STDEVA`, `STEYX`, `DEVSQ`, `FISHER`, `FISHERINV`, `GAMMALN`, `GROWTH`, `HARMEAN`, `LOGEST`, `PROB`, `STANDARDIZE`, `TREND`, `TRIMMEAN`, `VARA`, `VARPA`"
    }
   },
   "654ef67f184c2ce48b567f96ef59974c29328dfa8556eca5f697d5b90ee256b2": {
@@ -15000,18 +15026,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "6e84d475f0b2185d42e6f2a3a09333ff42df2ece222505adb9f40e80d21f56df": {
-   "drop": false,
-   "en": "JeffCrunch calculates 16 information functions, including `CELL`, `ISNUMBER`, `ISTEXT`, `ISBLANK`, `ISERROR`, `ISNA`, `ISEVEN`, `ISODD`, `ISREF`, `NA`, `N`, `TYPE`, and `ERROR.TYPE`.",
-   "es": "JeffCrunch calcula 16 funciones de información, entre ellas `CELL`, `ISNUMBER`, `ISTEXT`, `ISBLANK`, `ISERROR`, `ISNA`, `ISEVEN`, `ISODD`, `ISREF`, `NA`, `N`, `TYPE` y `ERROR.TYPE`.",
-   "fr": "JeffCrunch calcule 16 fonctions d’information, dont `CELL`, `ISNUMBER`, `ISTEXT`, `ISBLANK`, `ISERROR`, `ISNA`, `ISEVEN`, `ISODD`, `ISREF`, `NA`, `N`, `TYPE` et `ERROR.TYPE`.",
-   "soon": {
-    "drop": false,
-    "en": "`INFO` information function",
-    "es": "Función de información `INFO`",
-    "fr": "Fonction d’information `INFO`"
    }
   },
   "6ef07ea5be232551b565df92e5d54e6d92bd3d238744b1024d9f983f6b3bc32f": {
@@ -16394,6 +16408,18 @@
     "fr": ""
    }
   },
+  "83474a9a144215be7bfd3dc34496802fc6015d122d667f974cefef8b363f8692": {
+   "drop": false,
+   "en": "JeffCrunch includes 45 statistical functions, including `AVERAGE`, `MIN`, `MAX`, `COUNTIF`, `COUNTIFS`, `AVERAGEIF`, `MEDIAN`, `CORREL`, `SLOPE`, `INTERCEPT`, `LINEST`, `TREND`, and `GROWTH`.",
+   "es": "JeffCrunch incluye 45 funciones estadísticas, entre ellas `AVERAGE`, `MIN`, `MAX`, `COUNTIF`, `COUNTIFS`, `AVERAGEIF`, `MEDIAN`, `CORREL`, `SLOPE`, `INTERCEPT`, `LINEST`, `TREND` y `GROWTH`.",
+   "fr": "JeffCrunch inclut 45 fonctions statistiques, dont `AVERAGE`, `MIN`, `MAX`, `COUNTIF`, `COUNTIFS`, `AVERAGEIF`, `MEDIAN`, `CORREL`, `SLOPE`, `INTERCEPT`, `LINEST`, `TREND` et `GROWTH`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "835769050144ca30fff4947c972029a7429e45a039eaf5b7551b0245a4cddb9b": {
    "drop": false,
    "en": "JeffPub has a template gallery with live previews, in these categories: Award Certificates, Banners, Brochures, Business Cards, Business Forms, Calendars, Catalogs, Email, Envelopes, Flyers, Gift Certificates, Greeting Cards, Invitation Cards, Labels, Letterhead, Menus, Newsletters, Paper Folding Projects, Postcards, Programs, Resumes, Signs, and With Compliments Cards.",
@@ -16874,18 +16900,6 @@
     "fr": "Limitation de la mise en forme à des styles choisis ; exceptions pour des personnes ou des parties"
    }
   },
-  "8b934c3f9b7ecd618621fdccee5b4d3ab71cee5aba4172a3cccccc98bbd29288": {
-   "drop": false,
-   "en": "Define names for a cell, a range, a constant, or a formula, scoped to the workbook or one sheet; names are checked against naming rules, Go To follows them, and built-in names for print areas, print titles, and filters are kept as saved.",
-   "es": "Defina nombres para una celda, un rango, una constante o una fórmula, con ámbito de libro o de una hoja; los nombres se comprueban según las reglas de nomenclatura, Ir a los sigue, y los nombres integrados de áreas de impresión, títulos de impresión y filtros se conservan tal como se guardaron.",
-   "fr": "Définissez des noms pour une cellule, une plage, une constante ou une formule, avec pour portée le classeur ou une feuille ; les noms sont vérifiés selon les règles de nommage, Atteindre les suit, et les noms intégrés des zones d’impression, titres d’impression et filtres sont conservés tels qu’enregistrés.",
-   "soon": {
-    "drop": false,
-    "en": "Name Box: create a name by typing it; names for a block of several sheets in formulas",
-    "es": "Cuadro de nombres: crear un nombre al escribirlo; nombres para un bloque de varias hojas en fórmulas",
-    "fr": "Zone Nom : créer un nom en le saisissant ; noms pour un bloc de plusieurs feuilles dans les formules"
-   }
-  },
   "8bbbb6bcf2133a60ffc9ffe842b5fee7477d006ef64b93297aedd0add884572e": {
    "drop": true,
    "en": "",
@@ -17030,18 +17044,6 @@
     "fr": ""
    }
   },
-  "8e362cfe152a84545de8dc33d3b88a66bdda29240627017c39b7d4a6f8384a1e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Text to Columns: split by separator or fixed width",
-    "es": "Texto en columnas: dividir por separador o ancho fijo",
-    "fr": "Texte en colonnes : fractionner par séparateur ou largeur fixe"
-   }
-  },
   "8e376ec2dcfae855851b7015b5324bfba865d8c25fe9d806fc50303d71c9d24a": {
    "drop": true,
    "en": "",
@@ -17076,6 +17078,18 @@
     "en": "Chart: gallery of types and a data grid to create and edit charts",
     "es": "Gráfico: galería de tipos y cuadrícula de datos para crear y editar gráficos",
     "fr": "Graphique : galerie de types et grille de données pour créer et modifier des graphiques"
+   }
+  },
+  "8e6792a8544ba1291503f34da971418b79034d765d1cd01e92af12c8a4d4737d": {
+   "drop": false,
+   "en": "JeffCrunch includes 60 math and trigonometry functions, including `SUM`, `ROUND`, `SUBTOTAL`, `SUMIF`, `SUMIFS`, `SUMPRODUCT`, `MMULT`, `MINVERSE`, `MDETERM`, `RANDBETWEEN`, `GCD`, `LCM`, and the usual trigonometric and hyperbolic functions.",
+   "es": "JeffCrunch incluye 60 funciones matemáticas y trigonométricas, entre ellas `SUM`, `ROUND`, `SUBTOTAL`, `SUMIF`, `SUMIFS`, `SUMPRODUCT`, `MMULT`, `MINVERSE`, `MDETERM`, `RANDBETWEEN`, `GCD`, `LCM` y las funciones trigonométricas e hiperbólicas habituales.",
+   "fr": "JeffCrunch inclut 60 fonctions mathématiques et trigonométriques, dont `SUM`, `ROUND`, `SUBTOTAL`, `SUMIF`, `SUMIFS`, `SUMPRODUCT`, `MMULT`, `MINVERSE`, `MDETERM`, `RANDBETWEEN`, `GCD`, `LCM` et les fonctions trigonométriques et hyperboliques usuelles.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "8ea373634cef28924ea2061233d69656b8b9714facc6832de443012d9fd7a27e": {
@@ -17172,18 +17186,6 @@
     "en": "Drawing canvas: a frame that holds shapes and pictures together",
     "es": "Lienzo de dibujo: un marco que agrupa formas e imágenes",
     "fr": "Zone de dessin : un cadre qui regroupe formes et images"
-   }
-  },
-  "9017feb07821db8700bcd5514f1ffa3b867accb5d75d78dc24c346a82292ac3c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Newer lookup and reference functions: `GETPIVOTDATA`, `FILTER`, `FORMULATEXT`, `SORT`, `SORTBY`, `UNIQUE`, `XLOOKUP`, `XMATCH`",
-    "es": "Funciones de búsqueda y referencia más recientes: `GETPIVOTDATA`, `FILTER`, `FORMULATEXT`, `SORT`, `SORTBY`, `UNIQUE`, `XLOOKUP`, `XMATCH`",
-    "fr": "Fonctions de recherche et de référence plus récentes : `GETPIVOTDATA`, `FILTER`, `FORMULATEXT`, `SORT`, `SORTBY`, `UNIQUE`, `XLOOKUP`, `XMATCH`"
    }
   },
   "903a2aefb3ca2b85b1485d03bc57752fe778ed51305515752d939fa726c0cb78": {
@@ -17311,6 +17313,18 @@
    "en": "JeffDeck's help and interface work offline in English, German, Spanish, French, Italian, Dutch, and two forms of Portuguese. Usage statistics and crash reports are sent only for people who opted in, and commands are counted by id, never by name.",
    "es": "La ayuda y la interfaz de JeffDeck funcionan sin conexión en inglés, alemán, español, francés, italiano, neerlandés y dos variantes del portugués. Las estadísticas de uso y los informes de fallos solo se envían si usted lo ha aceptado, y los comandos se cuentan por id, nunca por nombre.",
    "fr": "L’aide et l’interface de JeffDeck fonctionnent hors ligne en anglais, allemand, espagnol, français, italien, néerlandais et deux variantes du portugais. Les statistiques d’utilisation et les rapports de plantage ne sont envoyés que si vous y avez consenti, et les commandes sont comptées par identifiant, jamais par nom.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "91e7a57a97b8d086a98e5df3af551a99bdb53d3ba5e1a5ad1aff6fda1ba7d3b9": {
+   "drop": false,
+   "en": "JeffCrunch includes the newer financial functions `PDURATION` and `RRI`.",
+   "es": "JeffCrunch incluye las funciones financieras más recientes `PDURATION` y `RRI`.",
+   "fr": "JeffCrunch inclut les fonctions financières plus récentes `PDURATION` et `RRI`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -18110,6 +18124,18 @@
     "fr": ""
    }
   },
+  "9c325bc184488d0e431383b677b24623ba813170982adedfcd11494750fdc3d9": {
+   "drop": false,
+   "en": "In JeffCrunch, Remove Duplicates on the Data tab removes rows that match in the columns you choose, keeps the header row, ignores capitals, and reports how many rows were removed and how many remain. It can be undone in one step.",
+   "es": "En JeffCrunch, Quitar duplicados, en la pestaña Datos, elimina las filas que coinciden en las columnas que usted elija, conserva la fila de encabezado, ignora las mayúsculas y minúsculas, e indica cuántas filas se eliminaron y cuántas quedan. Se puede deshacer en un solo paso.",
+   "fr": "Dans JeffCrunch, Supprimer les doublons, dans l’onglet Données, supprime les lignes identiques dans les colonnes que vous choisissez, conserve la ligne d’en-tête, ignore la casse, et indique combien de lignes ont été supprimées et combien restent. L’action s’annule en une seule étape.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "9c5d968e44bc7376d04cd844e3483f330bd93b92e484101ebb16fc4d099ab0f4": {
    "drop": false,
    "en": "JeffPub shows measurements to three decimal places in every unit (8.125\", 1.234 cm, 10.125 pt), without trailing zeros and without rounding the stored value.",
@@ -18350,6 +18376,18 @@
     "fr": ""
    }
   },
+  "9fceb32801340ec6e3bb42ff24a2ec43252e144b5f609beb593d7cafe735ac30": {
+   "drop": false,
+   "en": "JeffCrunch includes 62 newer statistical functions, including the `.DIST`, `.INV`, `.TEST`, `.S`, and `.P` forms of the distributions, `FORECAST.LINEAR`, `MAXIFS`, and `MINIFS`.",
+   "es": "JeffCrunch incluye 62 funciones estadísticas más recientes, entre ellas las formas `.DIST`, `.INV`, `.TEST`, `.S` y `.P` de las distribuciones, `FORECAST.LINEAR`, `MAXIFS` y `MINIFS`.",
+   "fr": "JeffCrunch inclut 62 fonctions statistiques plus récentes, dont les formes `.DIST`, `.INV`, `.TEST`, `.S` et `.P` des distributions, `FORECAST.LINEAR`, `MAXIFS` et `MINIFS`.",
+   "soon": {
+    "drop": false,
+    "en": "Exponential smoothing forecasts: `FORECAST.ETS`, `FORECAST.ETS.CONFINT`, `FORECAST.ETS.SEASONALITY`, and `FORECAST.ETS.STAT`",
+    "es": "Previsiones por suavizado exponencial: `FORECAST.ETS`, `FORECAST.ETS.CONFINT`, `FORECAST.ETS.SEASONALITY` y `FORECAST.ETS.STAT`",
+    "fr": "Prévisions par lissage exponentiel : `FORECAST.ETS`, `FORECAST.ETS.CONFINT`, `FORECAST.ETS.SEASONALITY` et `FORECAST.ETS.STAT`"
+   }
+  },
   "a01cee174c33518608ce6de980cfdc7faf82668718c3c4d9bf8034872de00f31": {
    "drop": true,
    "en": "",
@@ -18518,18 +18556,6 @@
     "fr": "Fichiers de plus de 1 048 576 lignes : chargement avec avertissement ou poursuite dans d’autres feuilles"
    }
   },
-  "a48910fdcce021327c8b084da8171144349334723cf62a8ac31e0ed672f95034": {
-   "drop": false,
-   "en": "JeffCrunch calculates the newer logical functions `IFNA`, `IFS`, `SWITCH`, and `XOR`.",
-   "es": "JeffCrunch calcula las funciones lógicas más recientes `IFNA`, `IFS`, `SWITCH` y `XOR`.",
-   "fr": "JeffCrunch calcule les fonctions logiques plus récentes `IFNA`, `IFS`, `SWITCH` et `XOR`.",
-   "soon": {
-    "drop": false,
-    "en": "`LET`: give names to values inside one formula",
-    "es": "`LET`: asignar nombres a valores dentro de una fórmula",
-    "fr": "`LET` : donner des noms à des valeurs dans une même formule"
-   }
-  },
   "a4ea77d0cc854ad25167fdbfc818ed76812b0e18b3a8ee75b3c66173a714881e": {
    "drop": false,
    "en": "Formulas can refer to other sheets and workbooks, 3-D ranges, whole rows and columns, and names.",
@@ -18552,6 +18578,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "a555cc3b23ff7b784fff2524acf2db07547f7350264e8e746f2004507582871e": {
+   "drop": false,
+   "en": "JeffCrunch includes the newer logical functions `IFNA`, `IFS`, `SWITCH`, and `XOR`.",
+   "es": "JeffCrunch incluye las funciones lógicas más recientes `IFNA`, `IFS`, `SWITCH` y `XOR`.",
+   "fr": "JeffCrunch inclut les fonctions logiques plus récentes `IFNA`, `IFS`, `SWITCH` et `XOR`.",
+   "soon": {
+    "drop": false,
+    "en": "`LET`: names for values inside one formula",
+    "es": "`LET`: nombres para valores dentro de una fórmula",
+    "fr": "`LET` : noms pour des valeurs à l’intérieur d’une formule"
    }
   },
   "a5da13cab92a9f3c7da3d5dda5a79da7077e3cf96e0d62535ce25c0790f444bf": {
@@ -19394,18 +19432,6 @@
     "fr": "Choix de correspondance des champs : enregistrement dans le fichier"
    }
   },
-  "b38e10cc09add33946f35e7dc00c015f7fa19da66b2cfb10c6cbdb36b5670831": {
-   "drop": false,
-   "en": "JeffCrunch calculates the newer math functions `CEILING.MATH` and `FLOOR.MATH`.",
-   "es": "JeffCrunch calcula las funciones matemáticas más recientes `CEILING.MATH` y `FLOOR.MATH`.",
-   "fr": "JeffCrunch calcule les fonctions mathématiques plus récentes `CEILING.MATH` et `FLOOR.MATH`.",
-   "soon": {
-    "drop": false,
-    "en": "Newer math functions: `ACOT`, `ACOTH`, `AGGREGATE`, `ARABIC`, `BASE`, `CEILING.PRECISE`, `COMBINA`, `COT`, `COTH`, `CSC`, `CSCH`, `DECIMAL`, `FLOOR.PRECISE`, `ISO.CEILING`, `MUNIT`, `RANDARRAY`, `SEC`, `SECH`",
-    "es": "Funciones matemáticas más recientes: `ACOT`, `ACOTH`, `AGGREGATE`, `ARABIC`, `BASE`, `CEILING.PRECISE`, `COMBINA`, `COT`, `COTH`, `CSC`, `CSCH`, `DECIMAL`, `FLOOR.PRECISE`, `ISO.CEILING`, `MUNIT`, `RANDARRAY`, `SEC`, `SECH`",
-    "fr": "Fonctions mathématiques plus récentes : `ACOT`, `ACOTH`, `AGGREGATE`, `ARABIC`, `BASE`, `CEILING.PRECISE`, `COMBINA`, `COT`, `COTH`, `CSC`, `CSCH`, `DECIMAL`, `FLOOR.PRECISE`, `ISO.CEILING`, `MUNIT`, `RANDARRAY`, `SEC`, `SECH`"
-   }
-  },
   "b3c2bc5bc2adcf570f6a863930e3ba28dfb4b0d2b398b08f902c9532e2fc51d2": {
    "drop": false,
    "en": "JeffWrite reads an equation from `.docx`, draws it as a line of text in its order, and writes it back as it was.",
@@ -19428,6 +19454,18 @@
     "en": "Save `.ots` templates",
     "es": "Guardar plantillas `.ots`",
     "fr": "Enregistrement de modèles `.ots`"
+   }
+  },
+  "b433a0982ad8c171c9cefcefc55a3121ba6530759ef1168831d1501b2d5e48db": {
+   "drop": false,
+   "en": "JeffCrunch includes the newer date and time functions `DAYS`, `ISOWEEKNUM`, `NETWORKDAYS.INTL`, and `WORKDAY.INTL`.",
+   "es": "JeffCrunch incluye las funciones de fecha y hora más recientes `DAYS`, `ISOWEEKNUM`, `NETWORKDAYS.INTL` y `WORKDAY.INTL`.",
+   "fr": "JeffCrunch inclut les fonctions de date et d’heure plus récentes `DAYS`, `ISOWEEKNUM`, `NETWORKDAYS.INTL` et `WORKDAY.INTL`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "b48c8812864b838a56e40f6b481d2cbdd2a64056cedda9e9241ab4a1388d41b8": {
@@ -19562,18 +19600,6 @@
     "fr": ""
    }
   },
-  "b67aa93bf45a61d970df77f6d952d31264e615ad7aeabf05047b2e9815e36503": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Web functions: `ENCODEURL` and `FILTERXML` (reads a value out of XML text with an XPath expression)",
-    "es": "Funciones web: `ENCODEURL` y `FILTERXML` (lee un valor de texto XML con una expresión XPath)",
-    "fr": "Fonctions web : `ENCODEURL` et `FILTERXML` (lit une valeur dans du texte XML avec une expression XPath)"
-   }
-  },
   "b6a6bb433884dc129638aaedf7f32677d97bd8307f67071c6f7c74c869a45938": {
    "drop": false,
    "en": "Text",
@@ -19598,18 +19624,6 @@
     "fr": ""
    }
   },
-  "b6d1fc4ce770419028fbd21b46eb263995353400d9c096b29b31a61dcd04e872": {
-   "drop": false,
-   "en": "The loan and investment functions `NPV`, `IRR`, `XIRR`, `XNPV`, and `PMT` work.",
-   "es": "Las funciones de préstamos e inversiones `NPV`, `IRR`, `XIRR`, `XNPV` y `PMT` funcionan.",
-   "fr": "Les fonctions de prêt et d’investissement `NPV`, `IRR`, `XIRR`, `XNPV` et `PMT` fonctionnent.",
-   "soon": {
-    "drop": false,
-    "en": "`RATE` and `DB`",
-    "es": "`RATE` y `DB`",
-    "fr": "`RATE` et `DB`"
-   }
-  },
   "b74269e812ac94829375d207541f5a441b22d5bcdaedba656efe8e0192ec1cad": {
    "drop": false,
    "en": "The Pivot Table Fields pane in JeffCrunch lists the fields of the source with a check box each and shows four boxes: Filters, Columns, Rows, and Values. Fields can be checked in or out, moved with Move To, ordered within a box, or removed, and the search box hides fields that do not match. Defer Layout Update holds changes until Update.",
@@ -19620,18 +19634,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b74c0534ebfab6969be3315838b16898a1db075b97b95374bf0774adb1742aab": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Newer information functions: `ISFORMULA`, `SHEET`, `SHEETS`",
-    "es": "Funciones de información más recientes: `ISFORMULA`, `SHEET`, `SHEETS`",
-    "fr": "Fonctions d’information plus récentes : `ISFORMULA`, `SHEET`, `SHEETS`"
    }
   },
   "b770959a1d49b6b4cc8263ad173f3f3d00753404ddf584df7d6e758b3a088a24": {
@@ -19862,6 +19864,18 @@
     "fr": ""
    }
   },
+  "bb91ba069ba34f0ff7f8750446fd336cc62f521467215365e10cc42cf04ced54": {
+   "drop": false,
+   "en": "JeffCrunch includes 21 more math and trigonometry functions, including `AGGREGATE`, `BASE`, `DECIMAL`, `CEILING.MATH`, `FLOOR.MATH`, `MUNIT`, `SEQUENCE`, and `RANDARRAY`. `SEQUENCE` and `RANDARRAY` return their results in an array formula.",
+   "es": "JeffCrunch incluye otras 21 funciones matemáticas y trigonométricas, entre ellas `AGGREGATE`, `BASE`, `DECIMAL`, `CEILING.MATH`, `FLOOR.MATH`, `MUNIT`, `SEQUENCE` y `RANDARRAY`. `SEQUENCE` y `RANDARRAY` devuelven sus resultados en una fórmula matricial.",
+   "fr": "JeffCrunch inclut 21 autres fonctions mathématiques et trigonométriques, dont `AGGREGATE`, `BASE`, `DECIMAL`, `CEILING.MATH`, `FLOOR.MATH`, `MUNIT`, `SEQUENCE` et `RANDARRAY`. `SEQUENCE` et `RANDARRAY` renvoient leurs résultats dans une formule matricielle.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "bc0a968f1f7b7d1dcffd7df0ca1d6423b44b2fa17b02efa3ffd17947ba49b745": {
    "drop": false,
    "en": "In JeffCrunch, Insert > Sparklines makes line, column, and win/loss sparklines from a row or column of values, into one cell or a group of cells. They are drawn inside their cells, can color the high, low, first, last, and negative points, and are saved with the sheet.",
@@ -19982,6 +19996,18 @@
     "fr": "Fichiers `.odt` protégés par mot de passe : ouverture et enregistrement"
    }
   },
+  "bdf6e50f597cdda517d628acfdab82f657f5d21ebe908ca51862181e129c193c": {
+   "drop": false,
+   "en": "JeffCrunch reads and writes 38 older-style statistical functions, including `STDEV`, `NORMDIST`, `RANK`, `VAR`, `MODE`, `QUARTILE`, `PERCENTILE`, `TDIST`, and `TTEST`.",
+   "es": "JeffCrunch lee y escribe 38 funciones estadísticas de nombre antiguo, entre ellas `STDEV`, `NORMDIST`, `RANK`, `VAR`, `MODE`, `QUARTILE`, `PERCENTILE`, `TDIST` y `TTEST`.",
+   "fr": "JeffCrunch lit et écrit 38 fonctions statistiques à l’ancienne dénomination, dont `STDEV`, `NORMDIST`, `RANK`, `VAR`, `MODE`, `QUARTILE`, `PERCENTILE`, `TDIST` et `TTEST`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "be30d142205f2e36d2b506a204ae14cd53476a580b8b3931211addd76ed0cf08": {
    "drop": false,
    "en": "In JeffPub, every type of object has a right-click menu.",
@@ -20016,6 +20042,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "bea7657e37bcebfaf5305cd8db6cd49e2f176b9a1df203e4665dbe8d3c568fc3": {
+   "drop": false,
+   "en": "In JeffCrunch, From Text/CSV on the Data tab opens a text file through an import preview, where you choose the file origin and encoding, the delimiter, and the column types, then loads it into a sheet. Text files can also be opened with File > Open.",
+   "es": "En JeffCrunch, Desde texto/CSV, en la pestaña Datos, abre un archivo de texto mediante una vista previa de importación, donde usted elige el origen del archivo y la codificación, el delimitador y los tipos de columna, y luego lo carga en una hoja. Los archivos de texto también se pueden abrir con Archivo > Abrir.",
+   "fr": "Dans JeffCrunch, Depuis un fichier texte/CSV, dans l’onglet Données, ouvre un fichier texte via un aperçu d’importation, où vous choisissez l’origine du fichier et l’encodage, le délimiteur et les types de colonnes, puis le charge dans une feuille. Les fichiers texte peuvent aussi être ouverts avec Fichier > Ouvrir.",
+   "soon": {
+    "drop": false,
+    "en": "Import preview: choose how many rows to check to guess types",
+    "es": "Vista previa de importación: elegir cuántas filas revisar para deducir los tipos",
+    "fr": "Aperçu d’importation : choix du nombre de lignes à vérifier pour deviner les types"
    }
   },
   "bec59dd81b51bb60c45ac167f14d9fe8ac8a6bbf53c9a2964f65952f18e730b7": {
@@ -20340,6 +20378,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "c32dcd695ef83704e93867eb05ec5868c63a2349628cbb0f934e59b6c8649961": {
+   "drop": false,
+   "en": "The loan and investment functions `NPV`, `IRR`, `XIRR`, `XNPV`, and `PMT` work.",
+   "es": "Las funciones de préstamos e inversiones `NPV`, `IRR`, `XIRR`, `XNPV` y `PMT` funcionan.",
+   "fr": "Les fonctions de prêts et d’investissements `NPV`, `IRR`, `XIRR`, `XNPV` et `PMT` fonctionnent.",
+   "soon": {
+    "drop": false,
+    "en": "`RATE` and `DB`",
+    "es": "`RATE` y `DB`",
+    "fr": "`RATE` et `DB`"
    }
   },
   "c36593733c4bd0a82fb88fb1d8fd88c3f4c020508d53b28995252d7519fd76b6": {
@@ -20978,18 +21028,6 @@
     "fr": ""
    }
   },
-  "cc0b7899ccfbb66b79b675e6addbbbbe5b38d21da955f99a7b46bda3a3c29838": {
-   "drop": false,
-   "en": "JeffCrunch calculates the newer statistical functions `MAXIFS`, `MINIFS`, `STDEV.P`, `STDEV.S`, `VAR.P`, and `VAR.S`.",
-   "es": "JeffCrunch calcula las funciones estadísticas más recientes `MAXIFS`, `MINIFS`, `STDEV.P`, `STDEV.S`, `VAR.P` y `VAR.S`.",
-   "fr": "JeffCrunch calcule les fonctions statistiques plus récentes `MAXIFS`, `MINIFS`, `STDEV.P`, `STDEV.S`, `VAR.P` et `VAR.S`.",
-   "soon": {
-    "drop": false,
-    "en": "Newer statistical functions: `BETA.DIST`, `BETA.INV`, `BINOM.DIST`, `BINOM.DIST.RANGE`, `BINOM.INV`, `CHISQ.DIST`, `CHISQ.DIST.RT`, `CHISQ.INV`, `CHISQ.INV.RT`, `CHISQ.TEST`, `CONFIDENCE.NORM`, `CONFIDENCE.T`, `COVARIANCE.P`, `COVARIANCE.S`, `EXPON.DIST`, `F.DIST`, `F.DIST.RT`, `F.INV`, `F.INV.RT`, `F.TEST`, `FORECAST.ETS`, `FORECAST.ETS.CONFINT`, `FORECAST.ETS.SEASONALITY`, `FORECAST.ETS.STAT`, `FORECAST.LINEAR`, `GAMMA`, `GAMMA.DIST`, `GAMMA.INV`, `GAMMALN.PRECISE`, `GAUSS`, `HYPGEOM.DIST`, `LOGNORM.DIST`, `LOGNORM.INV`, `MODE.MULT`, `MODE.SNGL`, `NEGBINOM.DIST`, `NORM.DIST`, `NORM.INV`, `NORM.S.DIST`, `NORM.S.INV`, `PERCENTILE.EXC`, `PERCENTILE.INC`, `PERCENTRANK.EXC`, `PERCENTRANK.INC`, `PERMUTATIONA`, `PHI`, `POISSON.DIST`, `QUARTILE.EXC`, `QUARTILE.INC`, `RANK.AVG`, `RANK.EQ`, `SKEW.P`, `T.DIST`, `T.DIST.2T`, `T.DIST.RT`, `T.INV`, `T.INV.2T`, `T.TEST`, `WEIBULL.DIST`, `Z.TEST`",
-    "es": "Funciones estadísticas más recientes: `BETA.DIST`, `BETA.INV`, `BINOM.DIST`, `BINOM.DIST.RANGE`, `BINOM.INV`, `CHISQ.DIST`, `CHISQ.DIST.RT`, `CHISQ.INV`, `CHISQ.INV.RT`, `CHISQ.TEST`, `CONFIDENCE.NORM`, `CONFIDENCE.T`, `COVARIANCE.P`, `COVARIANCE.S`, `EXPON.DIST`, `F.DIST`, `F.DIST.RT`, `F.INV`, `F.INV.RT`, `F.TEST`, `FORECAST.ETS`, `FORECAST.ETS.CONFINT`, `FORECAST.ETS.SEASONALITY`, `FORECAST.ETS.STAT`, `FORECAST.LINEAR`, `GAMMA`, `GAMMA.DIST`, `GAMMA.INV`, `GAMMALN.PRECISE`, `GAUSS`, `HYPGEOM.DIST`, `LOGNORM.DIST`, `LOGNORM.INV`, `MODE.MULT`, `MODE.SNGL`, `NEGBINOM.DIST`, `NORM.DIST`, `NORM.INV`, `NORM.S.DIST`, `NORM.S.INV`, `PERCENTILE.EXC`, `PERCENTILE.INC`, `PERCENTRANK.EXC`, `PERCENTRANK.INC`, `PERMUTATIONA`, `PHI`, `POISSON.DIST`, `QUARTILE.EXC`, `QUARTILE.INC`, `RANK.AVG`, `RANK.EQ`, `SKEW.P`, `T.DIST`, `T.DIST.2T`, `T.DIST.RT`, `T.INV`, `T.INV.2T`, `T.TEST`, `WEIBULL.DIST`, `Z.TEST`",
-    "fr": "Fonctions statistiques plus récentes : `BETA.DIST`, `BETA.INV`, `BINOM.DIST`, `BINOM.DIST.RANGE`, `BINOM.INV`, `CHISQ.DIST`, `CHISQ.DIST.RT`, `CHISQ.INV`, `CHISQ.INV.RT`, `CHISQ.TEST`, `CONFIDENCE.NORM`, `CONFIDENCE.T`, `COVARIANCE.P`, `COVARIANCE.S`, `EXPON.DIST`, `F.DIST`, `F.DIST.RT`, `F.INV`, `F.INV.RT`, `F.TEST`, `FORECAST.ETS`, `FORECAST.ETS.CONFINT`, `FORECAST.ETS.SEASONALITY`, `FORECAST.ETS.STAT`, `FORECAST.LINEAR`, `GAMMA`, `GAMMA.DIST`, `GAMMA.INV`, `GAMMALN.PRECISE`, `GAUSS`, `HYPGEOM.DIST`, `LOGNORM.DIST`, `LOGNORM.INV`, `MODE.MULT`, `MODE.SNGL`, `NEGBINOM.DIST`, `NORM.DIST`, `NORM.INV`, `NORM.S.DIST`, `NORM.S.INV`, `PERCENTILE.EXC`, `PERCENTILE.INC`, `PERCENTRANK.EXC`, `PERCENTRANK.INC`, `PERMUTATIONA`, `PHI`, `POISSON.DIST`, `QUARTILE.EXC`, `QUARTILE.INC`, `RANK.AVG`, `RANK.EQ`, `SKEW.P`, `T.DIST`, `T.DIST.2T`, `T.DIST.RT`, `T.INV`, `T.INV.2T`, `T.TEST`, `WEIBULL.DIST`, `Z.TEST`"
-   }
-  },
   "cc2c6d13ae7830afdb4e355ca2ce4ee192c44013b350d513c811e279338e890d": {
    "drop": false,
    "en": "Slides",
@@ -21110,18 +21148,6 @@
     "fr": "Plus de modèles intégrés : CV, lettres de motivation, factures, flyers, brochures, notes de réunion, actes de procédure et intérieurs de livres"
    }
   },
-  "ce124ef1db413a1de8123e1b25a561aa4869d1acb46422e67c69f5c4e8bb1390": {
-   "drop": false,
-   "en": "JeffCrunch calculates 13 older-name statistical functions kept for compatibility: `STDEV`, `STDEVP`, `VAR`, `VARP`, `NORMDIST`, `NORMSDIST`, `NORMINV`, `NORMSINV`, `RANK`, `MODE`, `QUARTILE`, `PERCENTILE`, and `COVAR`.",
-   "es": "JeffCrunch calcula 13 funciones estadísticas con nombres antiguos que se conservan por compatibilidad: `STDEV`, `STDEVP`, `VAR`, `VARP`, `NORMDIST`, `NORMSDIST`, `NORMINV`, `NORMSINV`, `RANK`, `MODE`, `QUARTILE`, `PERCENTILE` y `COVAR`.",
-   "fr": "JeffCrunch calcule 13 fonctions statistiques à noms anciens conservées pour la compatibilité : `STDEV`, `STDEVP`, `VAR`, `VARP`, `NORMDIST`, `NORMSDIST`, `NORMINV`, `NORMSINV`, `RANK`, `MODE`, `QUARTILE`, `PERCENTILE` et `COVAR`.",
-   "soon": {
-    "drop": false,
-    "en": "Older-name compatibility functions: `TINV`, `CONFIDENCE`, `TDIST`, `BINOMDIST`, `CHIDIST`, `CHIINV`, `BETAINV`, `CHITEST`, `FDIST`, `FINV`, `GAMMADIST`, `LOGINV`, `PERCENTRANK`, `BETADIST`, `CRITBINOM`, `EXPONDIST`, `FTEST`, `GAMMAINV`, `HYPGEOMDIST`, `LOGNORMDIST`, `NEGBINOMDIST`, `POISSON`, `TTEST`, `WEIBULL`, `ZTEST`",
-    "es": "Funciones de compatibilidad con nombres antiguos: `TINV`, `CONFIDENCE`, `TDIST`, `BINOMDIST`, `CHIDIST`, `CHIINV`, `BETAINV`, `CHITEST`, `FDIST`, `FINV`, `GAMMADIST`, `LOGINV`, `PERCENTRANK`, `BETADIST`, `CRITBINOM`, `EXPONDIST`, `FTEST`, `GAMMAINV`, `HYPGEOMDIST`, `LOGNORMDIST`, `NEGBINOMDIST`, `POISSON`, `TTEST`, `WEIBULL`, `ZTEST`",
-    "fr": "Fonctions de compatibilité à noms anciens : `TINV`, `CONFIDENCE`, `TDIST`, `BINOMDIST`, `CHIDIST`, `CHIINV`, `BETAINV`, `CHITEST`, `FDIST`, `FINV`, `GAMMADIST`, `LOGINV`, `PERCENTRANK`, `BETADIST`, `CRITBINOM`, `EXPONDIST`, `FTEST`, `GAMMAINV`, `HYPGEOMDIST`, `LOGNORMDIST`, `NEGBINOMDIST`, `POISSON`, `TTEST`, `WEIBULL`, `ZTEST`"
-   }
-  },
   "ce2f24dd4a6529bd82233c03a63c1a8f644767298c083c9fdeff9e7fd87a4ae8": {
    "drop": true,
    "en": "",
@@ -21223,6 +21249,18 @@
    "en": "Numbers, dates, and text",
    "es": "Números, fechas y texto",
    "fr": "Nombres, dates et texte",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "cee0c5273b9fe1c76cda9bd3506ce45ba14d918a32249e908d5f1b3231c64304": {
+   "drop": false,
+   "en": "JeffCrunch includes 53 financial functions: loan and investment functions such as `NPV`, `PMT`, `IRR`, `XIRR`, `PV`, `FV`, and `RATE`, depreciation functions such as `SLN`, `DB`, and `VDB`, and bond and Treasury bill functions such as `PRICE`, `YIELD`, and `TBILLPRICE`.",
+   "es": "JeffCrunch incluye 53 funciones financieras: funciones de préstamos e inversiones como `NPV`, `PMT`, `IRR`, `XIRR`, `PV`, `FV` y `RATE`, funciones de depreciación como `SLN`, `DB` y `VDB`, y funciones de bonos y letras del Tesoro como `PRICE`, `YIELD` y `TBILLPRICE`.",
+   "fr": "JeffCrunch inclut 53 fonctions financières : fonctions de prêts et d’investissements comme `NPV`, `PMT`, `IRR`, `XIRR`, `PV`, `FV` et `RATE`, fonctions d’amortissement comme `SLN`, `DB` et `VDB`, et fonctions d’obligations et de bons du Trésor comme `PRICE`, `YIELD` et `TBILLPRICE`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21480,6 +21518,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "d34412e942b4f7e8a796dab2f8c6a62a91194243aba5dbca5e818ad00058b786": {
+   "drop": false,
+   "en": "In JeffCrunch, Text to Columns on the Data tab splits one column of text at tabs, semicolons, commas, spaces, or your own marks, or at fixed positions. Runs of marks can count as one, and text in quotes is kept whole. Each piece is read as typed or kept as text, and the results go from a cell you name. A preview shows the first rows, and the change is one step of undo.",
+   "es": "En JeffCrunch, Texto en columnas, en la pestaña Datos, divide una columna de texto en tabulaciones, punto y coma, comas, espacios o sus propios signos, o en posiciones fijas. Las secuencias de signos pueden contar como uno, y el texto entre comillas se mantiene entero. Cada fragmento se interpreta tal como se escribió o se conserva como texto, y los resultados se colocan a partir de una celda que usted indique. Una vista previa muestra las primeras filas, y el cambio se deshace en un solo paso.",
+   "fr": "Dans JeffCrunch, Convertir en colonnes, dans l’onglet Données, divise une colonne de texte aux tabulations, points-virgules, virgules, espaces ou à vos propres séparateurs, ou à des positions fixes. Les séries de séparateurs peuvent compter pour un seul, et le texte entre guillemets reste entier. Chaque morceau est lu tel que saisi ou conservé comme texte, et les résultats sont placés à partir d’une cellule que vous indiquez. Un aperçu montre les premières lignes, et la modification s’annule en une seule étape.",
+   "soon": {
+    "drop": false,
+    "en": "Text to Columns: a separate type for each piece, a date order, and skipping a piece",
+    "es": "Texto en columnas: un tipo distinto para cada fragmento, un orden de fechas y omitir un fragmento",
+    "fr": "Convertir en colonnes : un type distinct pour chaque morceau, un ordre des dates et l’exclusion d’un morceau"
    }
   },
   "d367f1046c1628f69157953acde67589ef4bf490b054c5971a7cd3d927796045": {
@@ -21902,18 +21952,6 @@
     "fr": ""
    }
   },
-  "d93ef80b2324fcc3a28cfc16562e2b44d1eb8160224223614bf7b2ee22caf1cf": {
-   "drop": false,
-   "en": "JeffCrunch opens a text file through File > Open > Open a Text File, and when a text file is opened. An import preview lets you set the file origin and encoding, the delimiter, and the column types, then loads the file into a sheet.",
-   "es": "JeffCrunch abre un archivo de texto mediante Archivo > Abrir > Abrir un archivo de texto, y cuando se abre un archivo de texto. Una vista previa de importación permite definir el origen y la codificación del archivo, el delimitador y los tipos de columna, y luego carga el archivo en una hoja.",
-   "fr": "JeffCrunch ouvre un fichier texte via Fichier > Ouvrir > Ouvrir un fichier texte, et lorsqu’un fichier texte est ouvert. Un aperçu d’importation permet de définir l’origine et l’encodage du fichier, le séparateur et les types de colonnes, puis charge le fichier dans une feuille.",
-   "soon": {
-    "drop": false,
-    "en": "Data tab entry for text import, with the number of rows to check for types",
-    "es": "Importación de texto desde la pestaña Datos, con el número de filas para comprobar los tipos",
-    "fr": "Importation de texte depuis l’onglet Données, avec le nombre de lignes à vérifier pour les types"
-   }
-  },
   "d98841ccbf1a94f4f3c5f999d91656b57f3308ba6fd736862afaa3caf648c4fa": {
    "drop": false,
    "en": "JeffDeck shows a picture of each slide in the slide pane, the sorter, and the animation pane, redrawn as the slide changes.",
@@ -22008,18 +22046,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "dbf9832f9eeb19e2df31f9dcf5133739ecede909ac2645bc1464ee8ce2d88b0e": {
-   "drop": false,
-   "en": "JeffCrunch calculates the newer text functions `CONCAT` and `TEXTJOIN`.",
-   "es": "JeffCrunch calcula las funciones de texto más recientes `CONCAT` y `TEXTJOIN`.",
-   "fr": "JeffCrunch calcule les fonctions de texte plus récentes `CONCAT` et `TEXTJOIN`.",
-   "soon": {
-    "drop": false,
-    "en": "Newer text functions: `NUMBERVALUE`, `UNICHAR`, and the double-byte and byte-counting forms for East Asian text (`BAHTTEXT`, `DBCS`, `FINDB`, `LEFTB`, `LENB`, `MIDB`, `PHONETIC`, `REPLACEB`, `RIGHTB`, `SEARCHB`)",
-    "es": "Funciones de texto más recientes: `NUMBERVALUE`, `UNICHAR` y las formas de doble byte y de conteo de bytes para texto de Asia oriental (`BAHTTEXT`, `DBCS`, `FINDB`, `LEFTB`, `LENB`, `MIDB`, `PHONETIC`, `REPLACEB`, `RIGHTB`, `SEARCHB`)",
-    "fr": "Fonctions de texte plus récentes : `NUMBERVALUE`, `UNICHAR` et les formes à double octet et à comptage d’octets pour le texte d’Asie de l’Est (`BAHTTEXT`, `DBCS`, `FINDB`, `LEFTB`, `LENB`, `MIDB`, `PHONETIC`, `REPLACEB`, `RIGHTB`, `SEARCHB`)"
    }
   },
   "dbfad81bf0879812fa8e428f75d12304041607a0fe66b4b404b474b35456d0c6": {
@@ -22142,18 +22168,6 @@
     "fr": ""
    }
   },
-  "dd8fd7af07f01d0d49a53584541a6fa140bf0cd2e650e89a9e9254674b56114e": {
-   "drop": false,
-   "en": "`STDEV`, `MEDIAN`, `CORREL`, `SLOPE`, and `INTERCEPT` work.",
-   "es": "`STDEV`, `MEDIAN`, `CORREL`, `SLOPE` e `INTERCEPT` funcionan.",
-   "fr": "`STDEV`, `MEDIAN`, `CORREL`, `SLOPE` et `INTERCEPT` fonctionnent.",
-   "soon": {
-    "drop": false,
-    "en": "`LINEST` and `FREQUENCY`",
-    "es": "`LINEST` y `FREQUENCY`",
-    "fr": "`LINEST` et `FREQUENCY`"
-   }
-  },
   "de3a22c9368c5a43d3868b4404dc3e290ffd9f4344f2169e33b21f2839de8dfa": {
    "drop": false,
    "en": "Compare",
@@ -22226,18 +22240,6 @@
     "fr": ""
    }
   },
-  "def862f0e76b9e98f6afce9d8af5d4549777f4deb596ec0433f3b29a473bf0f6": {
-   "drop": false,
-   "en": "JeffCrunch calculates the newer date functions `DAYS` and `ISOWEEKNUM`.",
-   "es": "JeffCrunch calcula las funciones de fecha más recientes `DAYS` e `ISOWEEKNUM`.",
-   "fr": "JeffCrunch calcule les fonctions de date plus récentes `DAYS` et `ISOWEEKNUM`.",
-   "soon": {
-    "drop": false,
-    "en": "Newer date functions: `NETWORKDAYS.INTL` and `WORKDAY.INTL`",
-    "es": "Funciones de fecha más recientes: `NETWORKDAYS.INTL` y `WORKDAY.INTL`",
-    "fr": "Fonctions de date plus récentes : `NETWORKDAYS.INTL` et `WORKDAY.INTL`"
-   }
-  },
   "def9a35fc38b437b86274a7f48ee7894958ed70cfa5a949e5f2971ddd9b9c5cf": {
    "drop": false,
    "en": "In JeffDeck, Master Layout and Insert Placeholder set which placeholders a layout has and where (title, text, content, picture, chart, table, media, online image, date, footer, and slide number), with Title and Footers check boxes.",
@@ -22272,6 +22274,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "df6848f808daf15e0d4f81d19804708de2a37d48ad9b9c49aa8a4527f0b453d7": {
+   "drop": false,
+   "en": "JeffCrunch includes the dynamic-array functions `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP`, and `XMATCH`, which return their results in an array formula.",
+   "es": "JeffCrunch incluye las funciones de matriz dinámica `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP` y `XMATCH`, que devuelven sus resultados en una fórmula matricial.",
+   "fr": "JeffCrunch inclut les fonctions de matrice dynamique `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP` et `XMATCH`, qui renvoient leurs résultats dans une formule matricielle.",
+   "soon": {
+    "drop": false,
+    "en": "`LET` and spilling a result into the cells beside the formula",
+    "es": "`LET` y desbordar un resultado a las celdas contiguas a la fórmula",
+    "fr": "`LET` et débordement d’un résultat dans les cellules voisines de la formule"
    }
   },
   "dfd14e131569c64f0d9f1228410097a2a2f783a73affd964c1086aca56790c5c": {
@@ -22562,6 +22576,18 @@
     "fr": ""
    }
   },
+  "e327f08d0103e1c72091de9b5fd28e82ad9a2947b16193ea3837cdbc71af817d": {
+   "drop": false,
+   "en": "JeffCrunch includes 16 lookup and reference functions, including `VLOOKUP`, `HLOOKUP`, `MATCH`, `INDEX`, `OFFSET`, `LOOKUP`, `CHOOSE`, `INDIRECT`, `TRANSPOSE`, and `HYPERLINK`.",
+   "es": "JeffCrunch incluye 16 funciones de búsqueda y referencia, entre ellas `VLOOKUP`, `HLOOKUP`, `MATCH`, `INDEX`, `OFFSET`, `LOOKUP`, `CHOOSE`, `INDIRECT`, `TRANSPOSE` y `HYPERLINK`.",
+   "fr": "JeffCrunch inclut 16 fonctions de recherche et de référence, dont `VLOOKUP`, `HLOOKUP`, `MATCH`, `INDEX`, `OFFSET`, `LOOKUP`, `CHOOSE`, `INDIRECT`, `TRANSPOSE` et `HYPERLINK`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "e343f8f5eea157ca385aa538ad537f9aba92a775192cfad71fefed45f9258962": {
    "drop": false,
    "en": "JeffPub has a step-by-step mail merge wizard in a task pane.",
@@ -22740,18 +22766,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "e5043779d20f7bd9da26f498a96e6afd12f7f4b8cbafcdde85e47c831ce1fb5c": {
-   "drop": false,
-   "en": "JeffCrunch calculates 16 financial functions, including `NPV`, `XNPV`, `IRR`, `XIRR`, `PMT`, `PPMT`, `IPMT`, `PV`, `FV`, `NPER`, `SLN`, `SYD`, `DDB`, `VDB`, `EFFECT`, and `NOMINAL`.",
-   "es": "JeffCrunch calcula 16 funciones financieras, entre ellas `NPV`, `XNPV`, `IRR`, `XIRR`, `PMT`, `PPMT`, `IPMT`, `PV`, `FV`, `NPER`, `SLN`, `SYD`, `DDB`, `VDB`, `EFFECT` y `NOMINAL`.",
-   "fr": "JeffCrunch calcule 16 fonctions financières, dont `NPV`, `XNPV`, `IRR`, `XIRR`, `PMT`, `PPMT`, `IPMT`, `PV`, `FV`, `NPER`, `SLN`, `SYD`, `DDB`, `VDB`, `EFFECT` et `NOMINAL`.",
-   "soon": {
-    "drop": false,
-    "en": "Financial functions: `MDURATION`, `PRICE`, `YIELD`, `RATE`, `ACCRINT`, `ACCRINTM`, `AMORDEGRC`, `AMORLINC`, `COUPDAYBS`, `COUPDAYS`, `COUPDAYSNC`, `COUPNCD`, `COUPNUM`, `COUPPCD`, `CUMIPMT`, `CUMPRINC`, `DB`, `DISC`, `DOLLARDE`, `DOLLARFR`, `DURATION`, `FVSCHEDULE`, `INTRATE`, `ISPMT`, `MIRR`, `ODDFPRICE`, `ODDFYIELD`, `ODDLPRICE`, `ODDLYIELD`, `PRICEDISC`, `PRICEMAT`, `RECEIVED`, `TBILLEQ`, `TBILLPRICE`, `TBILLYIELD`, `YIELDDISC`, `YIELDMAT`",
-    "es": "Funciones financieras: `MDURATION`, `PRICE`, `YIELD`, `RATE`, `ACCRINT`, `ACCRINTM`, `AMORDEGRC`, `AMORLINC`, `COUPDAYBS`, `COUPDAYS`, `COUPDAYSNC`, `COUPNCD`, `COUPNUM`, `COUPPCD`, `CUMIPMT`, `CUMPRINC`, `DB`, `DISC`, `DOLLARDE`, `DOLLARFR`, `DURATION`, `FVSCHEDULE`, `INTRATE`, `ISPMT`, `MIRR`, `ODDFPRICE`, `ODDFYIELD`, `ODDLPRICE`, `ODDLYIELD`, `PRICEDISC`, `PRICEMAT`, `RECEIVED`, `TBILLEQ`, `TBILLPRICE`, `TBILLYIELD`, `YIELDDISC`, `YIELDMAT`",
-    "fr": "Fonctions financières : `MDURATION`, `PRICE`, `YIELD`, `RATE`, `ACCRINT`, `ACCRINTM`, `AMORDEGRC`, `AMORLINC`, `COUPDAYBS`, `COUPDAYS`, `COUPDAYSNC`, `COUPNCD`, `COUPNUM`, `COUPPCD`, `CUMIPMT`, `CUMPRINC`, `DB`, `DISC`, `DOLLARDE`, `DOLLARFR`, `DURATION`, `FVSCHEDULE`, `INTRATE`, `ISPMT`, `MIRR`, `ODDFPRICE`, `ODDFYIELD`, `ODDLPRICE`, `ODDLYIELD`, `PRICEDISC`, `PRICEMAT`, `RECEIVED`, `TBILLEQ`, `TBILLPRICE`, `TBILLYIELD`, `YIELDDISC`, `YIELDMAT`"
    }
   },
   "e50d45c23cb6010c3ad2eb546a2468fd2096abd4455bfa6bc89522666a8f24bb": {
@@ -23172,6 +23186,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "ea8fb54a167e34f19f941c660774c93a5fb769e18446df0f461f209fc4e7b7e1": {
+   "drop": false,
+   "en": "JeffCrunch includes 16 information functions, including `CELL`, `ISNUMBER`, `ISTEXT`, `ISBLANK`, `ISERROR`, `ISNA`, `NA`, `TYPE`, and `ERROR.TYPE`.",
+   "es": "JeffCrunch incluye 16 funciones de información, entre ellas `CELL`, `ISNUMBER`, `ISTEXT`, `ISBLANK`, `ISERROR`, `ISNA`, `NA`, `TYPE` y `ERROR.TYPE`.",
+   "fr": "JeffCrunch inclut 16 fonctions d’information, dont `CELL`, `ISNUMBER`, `ISTEXT`, `ISBLANK`, `ISERROR`, `ISNA`, `NA`, `TYPE` et `ERROR.TYPE`.",
+   "soon": {
+    "drop": false,
+    "en": "`INFO` function",
+    "es": "Función `INFO`",
+    "fr": "Fonction `INFO`"
    }
   },
   "eb49ec326a5e52225e357f8c1b688fc2fa2a1482b12a4008c26847854f4b0e22": {
@@ -23772,18 +23798,6 @@
     "en": "Advanced display options for workbooks and sheets, including right-to-left sheets, default zoom, and standard width",
     "es": "Opciones avanzadas de visualización de libros y hojas, incluidas hojas de derecha a izquierda, zoom predeterminado y ancho estándar",
     "fr": "Options d’affichage avancées pour classeurs et feuilles, dont les feuilles de droite à gauche, le zoom par défaut et la largeur standard"
-   }
-  },
-  "f5b45a77f4fde4079b6806c1e9ab30b0917f320425d3364a5b7c27f308854072": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Dynamic-array functions: `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP`, `XMATCH`, and `LET`, with results that spill into neighboring cells",
-    "es": "Funciones de matriz dinámica: `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP`, `XMATCH` y `LET`, con resultados que se derraman en las celdas vecinas",
-    "fr": "Fonctions de tableau dynamique : `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP`, `XMATCH` et `LET`, avec des résultats qui débordent sur les cellules voisines"
    }
   },
   "f5c1d40ddcc1c823b1e0c89b31c426be81eb2e1552a6e8fbaebbb7c5c5130157": {
