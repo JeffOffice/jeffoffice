@@ -94,6 +94,11 @@ int noteStartOf(const QTextCursor &c);
 // with `c` where it was, where no note can be made (in a header, a footer, or a note, in a paragraph that stands for a kept element, or when the document has the most notes).
 bool insertEndnote(WriteDoc &doc, QTextCursor &c);
 
+// References > Convert: the footnotes become endnotes, the endnotes become footnotes, or each kind becomes the other (Swap), as one step of the history. The words of a note go with it,
+// and its styles and number mark are those of its new kind. `onlyFootnote` or `onlyEndnote` (a note's Id) limits it to that note's references. Returns how many references were converted.
+enum class NoteConversion { FootnotesToEndnotes, EndnotesToFootnotes, Swap };
+int convertNotes(WriteDoc &doc, NoteConversion mode, int onlyFootnote = 0, int onlyEndnote = 0);
+
 // ---- typing and deleting
 void insertText(WriteDoc &doc, QTextCursor &c, const QString &text);
 void insertParagraph(WriteDoc &doc, QTextCursor &c);

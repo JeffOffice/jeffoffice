@@ -5873,16 +5873,19 @@
        "heading": "07240d6fcb5a0b4699576d7cb4cd766e442f744cc98e9cb81c4d64b273e2a382",
        "items": [
         {
-         "status": "partly",
-         "text": "f9efeff3aff905a4a697fdb15b484c367b6605136920d3e3c746f6ddb7984455"
+         "hide_soon": true,
+         "status": "done",
+         "text": "29484d236f66a10a66c57203781d56b7ec5dbfa244876a3e26ec35856eb3acb1"
         },
         {
-         "status": "partly",
-         "text": "8daec94ddd2be7f109810a1e01ce94bb646264ead57e9bff3447f8b06a41fc16"
+         "hide_soon": true,
+         "status": "done",
+         "text": "d50e7f3e2f633f3c4329ce4caec8ba3ea2ebcb88298287860f0e6e07e8355d91"
         },
         {
-         "status": "todo",
-         "text": "b1e67a531625693897a8d2abbea93859fd410aa7150045e94fb3d4e274442399"
+         "hide_soon": true,
+         "status": "done",
+         "text": "c5702a9ec899a02443ec5c13d1ffd9516c2845ea3f4f568d3e0cc12b31a80063"
         }
        ]
       },
@@ -5891,19 +5894,20 @@
        "items": [
         {
          "status": "partly",
-         "text": "8f311375eedfd61aad838b39458cb72b33f3e963fdefb9be7693df9223b77830"
+         "text": "9ba1c0a9c150e5c7c99e5c7da024a712fb4aeae74b70fec78221b81e05393d75"
         },
         {
          "status": "partly",
          "text": "5f21e12fb6f641a482772dbf44fa46928eca67c5e0ba3d347316e3831a7cd5f0"
         },
         {
-         "status": "todo",
-         "text": "282e4d225f29d505aa8ccd283731ffa35eab18de0310345d8780b1bacf7cc95d"
+         "hide_soon": true,
+         "status": "done",
+         "text": "9746f54ebcd65a1554caa6dd95bc9ef20dd85f55999cf68cddfddb2a5db818d5"
         },
         {
-         "status": "todo",
-         "text": "d40dff74d9901076dee30765d5a9c7953cd3118c9c710a21678593161a217629"
+         "status": "partly",
+         "text": "ee5bc7b2ee95d1cd7a92eb6e0b8b3aee946397a718aa8770904b577ed583aac8"
         }
        ]
       },
@@ -5911,12 +5915,13 @@
        "heading": "18e54f923d597bc0beb7b8f7f77125e7ad6971b605c3ddabe724c7d2893b5e13",
        "items": [
         {
-         "status": "todo",
-         "text": "cd27aa919e9b687c3e7b89c1c748e40e105eee7a83991bf9f5423c27e4e5f4d2"
+         "status": "partly",
+         "text": "e5bff83e061796a9ff7853d18120c79bb8bd5f8b4ace4c48c8f30c6da26d2916"
         },
         {
-         "status": "todo",
-         "text": "80777a3f40c7a370061536c724e2b2bd019289c52d266b73b04b4dc68fa7586d"
+         "hide_soon": true,
+         "status": "done",
+         "text": "fdbaf331e6f7a0f3d092a7f68bb98fa540c40280d11f3d9279d5df254b086fbd"
         }
        ]
       },
@@ -5924,12 +5929,12 @@
        "heading": "b79f58e9cfb8b90e647410b608bc397a1a119f1e10a784d0e8cd878f261a5dcd",
        "items": [
         {
-         "status": "todo",
-         "text": "59efec63a1e7773b6d0760d7de16d2ee756c369077cf4aee1b3d20aa8287c1f2"
+         "status": "partly",
+         "text": "53d87204e947885d252c7bdb40398690f69606cb4d09f7da1ba0a86809510ae7"
         },
         {
-         "status": "todo",
-         "text": "13709943792a3a263e98344c92e2dd43b5e87a0129a9343e6f7746b29290e22f"
+         "status": "partly",
+         "text": "632245ed4825adec0a0f65f8921c77b004e02123517010425b8b133a2bcfda04"
         },
         {
          "hide_soon": true,
@@ -5942,12 +5947,13 @@
        "heading": "9224d47ae272373381adb22505bfa08924ca3c68251329d965f7e61840cb6b6f",
        "items": [
         {
-         "status": "todo",
-         "text": "096511379657dfa1aed23259c8d9cb2376d863c147a74beee6ae31941779bd44"
+         "hide_soon": true,
+         "status": "done",
+         "text": "67bf0af0675b746d83c04aa44845f7cd927aeaab0a1b9339f8926387611ffa2a"
         },
         {
-         "status": "todo",
-         "text": "7b2895bee85b5d254e5264fb7a03bce316dac9488576328f91939ee51e91bda6"
+         "status": "partly",
+         "text": "625ac1afbf6e1bad443feaf972dfefba07606be0295376b0cbcd9f93a20f1548"
         }
        ]
       },
@@ -5955,8 +5961,8 @@
        "heading": "aac28b576a5c9bd8d8087ff3fef12af7624eeff15bcd7bcd3d141ad56a3fefae",
        "items": [
         {
-         "status": "todo",
-         "text": "b287319888869e8791c961d5784c8f311c8f1828f4125c25f352405dc16dfdf3"
+         "status": "partly",
+         "text": "45cb468a2f224e5be5ded33e48a28eacad205dab7dec7707defc051b28068f62"
         }
        ]
       }
@@ -6515,7 +6521,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "709b0606f3c194e72134d690c788d7e93883a67b5ca5ec0b740884f8b4c1d1a9"
+         "text": "700e5144522e5c247cf389eae3b4ab120d1231052ff4b7afd82b37e8878193f2"
         },
         {
          "status": "partly",
@@ -6536,11 +6542,11 @@
         },
         {
          "status": "partly",
-         "text": "ca2122134d578c2c332d8a31ddb7a35634acfe990ac8cabd55365d88b0c7d5d4"
+         "text": "663b74d3930ea49dcfa5c33bb2b554abb7be37fc0caa574084bace51f94a9165"
         },
         {
          "status": "partly",
-         "text": "9ed47ea4384637927ebee213ed2aaddfcf2fcff4f795c87ffd08ade3a6b30313"
+         "text": "79046250c874423862f82a838eee5dc8a9975084dc220c5c79ae6e08e2617ca3"
         },
         {
          "hide_soon": true,
@@ -7685,18 +7691,6 @@
     "fr": "Styles de texte, remplissage, contour et effets de texte pour les formes, et alignement et groupement des objets"
    }
   },
-  "096511379657dfa1aed23259c8d9cb2376d863c147a74beee6ae31941779bd44": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Mark Entry and Mark All: main entries, subentries, cross-references, page ranges, and bold or italic page numbers",
-    "es": "Marcar entrada y marcar todo: entradas principales, subentradas, referencias cruzadas, intervalos de páginas y números de página en negrita o cursiva",
-    "fr": "Marquer l’entrée et tout marquer : entrées principales, sous-entrées, renvois, plages de pages et numéros de page en gras ou en italique"
-   }
-  },
   "098e9476ae23f7a76107523af9d69ef3fdafd6ba40d2c4eed8da5e2ccc16781f": {
    "drop": false,
    "en": "JeffDeck zooms from 400% to 10% from a menu, with Fit to Window, a slider and buttons on the status bar, and `Ctrl` with the mouse wheel. In the Slide Sorter, the same controls size the pictures.",
@@ -8439,18 +8433,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "13709943792a3a263e98344c92e2dd43b5e87a0129a9343e6f7746b29290e22f": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Table of Figures from a caption label or a style, with update",
-    "es": "Tabla de ilustraciones a partir de una etiqueta de leyenda o un estilo, con actualización",
-    "fr": "Table des illustrations à partir d’une étiquette de légende ou d’un style, avec mise à jour"
    }
   },
   "137e939cfa89e9168a1c39bd1d380b84ea3942a877a7cdf16d6d40591f6fa9ab": {
@@ -9965,18 +9947,6 @@
     "fr": ""
    }
   },
-  "282e4d225f29d505aa8ccd283731ffa35eab18de0310345d8780b1bacf7cc95d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Convert footnotes to endnotes and back, and swap them",
-    "es": "Convertir notas al pie en notas finales y viceversa, e intercambiarlas",
-    "fr": "Conversion des notes de bas de page en notes de fin et inversement, et échange des deux"
-   }
-  },
   "28444020004fb29f28be8d8e3629af527c1a0eb8d93e592be817aa4ba07bd0de": {
    "drop": true,
    "en": "",
@@ -10119,6 +10089,18 @@
     "en": "Charts, pictures, comments, pivot tables, macros, conditional formats, and data validation in `.ods`: read",
     "es": "Gráficos, imágenes, comentarios, tablas dinámicas, macros, formatos condicionales y validación de datos en `.ods`: lectura",
     "fr": "Graphiques, images, commentaires, tableaux croisés dynamiques, macros, mises en forme conditionnelles et validation des données dans `.ods` : lecture"
+   }
+  },
+  "29484d236f66a10a66c57203781d56b7ec5dbfa244876a3e26ec35856eb3acb1": {
+   "drop": false,
+   "en": "In JeffWrite, you can insert a table of contents from a gallery (Contents, Contents with Full Title, or Contents to Fill In) or a custom dialog. The table is built from heading styles, outline levels, or table entry fields, covers levels 1 to 9, and offers right-aligned page numbers, a tab leader, and links.",
+   "es": "En JeffWrite, usted puede insertar una tabla de contenido desde una galería (Contenido, Contenido con título completo o Contenido para rellenar) o desde un cuadro de diálogo personalizado. La tabla se genera a partir de estilos de título, niveles de esquema o campos de entrada de tabla, abarca los niveles 1 a 9 y ofrece números de página alineados a la derecha, un relleno de tabulación y vínculos.",
+   "fr": "Dans JeffWrite, vous pouvez insérer une table des matières à partir d’une galerie (Table des matières, Table des matières avec titre complet ou Table des matières à remplir) ou d’une boîte de dialogue personnalisée. La table est créée à partir des styles de titre, des niveaux de plan ou des champs d’entrée de table, couvre les niveaux 1 à 9 et propose des numéros de page alignés à droite, des points de suite de tabulation et des liens.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "2949bb3164fc338d69478a894893a468b34e67f99c5f5e95d29a3bf2847a04dd": {
@@ -11981,6 +11963,18 @@
     "fr": "Effets de thème, jeux de couleurs et de polices personnalisés, et fichiers de thème"
    }
   },
+  "45cb468a2f224e5be5ded33e48a28eacad205dab7dec7707defc051b28068f62": {
+   "drop": false,
+   "en": "In JeffWrite, you can mark citations with `Alt+Shift+I` and insert a table of authorities with 16 categories, headings, \"passim,\" and a leader. The table can be updated.",
+   "es": "En JeffWrite, usted puede marcar citas con `Alt+Shift+I` e insertar una tabla de autoridades con 16 categorías, encabezados, \"passim\" y un relleno. La tabla se puede actualizar.",
+   "fr": "Dans JeffWrite, vous pouvez marquer des citations avec `Alt+Shift+I` et insérer une table des autorités avec 16 catégories, des titres, « passim » et des points de suite. La table peut être mise à jour.",
+   "soon": {
+    "drop": false,
+    "en": "Citation formatting kept in the table of authorities",
+    "es": "Formato de las citas conservado en la tabla de autoridades",
+    "fr": "Mise en forme des citations conservée dans la table des autorités"
+   }
+  },
   "45cc8acd49a3382b1a7fe95c1e832c8c6789e585c63c5eb85caaaa2e5f97a1c2": {
    "drop": false,
    "en": "JeffPub supports tabs with leaders (left, center, right, decimal). A publication’s default tab stops, 0.5 in unless it says otherwise, are set in the Tabs dialog from 1 to 1,584 pt as one undo step, and are read from and saved to `.pub` files.",
@@ -13073,6 +13067,18 @@
     "fr": ""
    }
   },
+  "53d87204e947885d252c7bdb40398690f69606cb4d09f7da1ba0a86809510ae7": {
+   "drop": false,
+   "en": "In JeffWrite, Insert Caption adds a Caption paragraph with a `SEQ` field next to the selection or the whole table. It counts from the chapter heading and renumbers the other captions.",
+   "es": "En JeffWrite, Insertar título agrega un párrafo de título con un campo `SEQ` junto a la selección o a toda la tabla. Cuenta a partir del encabezado del capítulo y vuelve a numerar los demás títulos.",
+   "fr": "Dans JeffWrite, Insérer une légende ajoute un paragraphe de légende avec un champ `SEQ` à côté de la sélection ou du tableau entier. Elle compte à partir du titre du chapitre et renumérote les autres légendes.",
+   "soon": {
+    "drop": false,
+    "en": "Automatic captions",
+    "es": "Títulos automáticos",
+    "fr": "Légendes automatiques"
+   }
+  },
   "5469da16f7d175ce6e9ab80fffb5f763dd2ac6067c30e2addc7aa70794e93d2a": {
    "drop": true,
    "en": "",
@@ -13515,18 +13521,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "59efec63a1e7773b6d0760d7de16d2ee756c369077cf4aee1b3d20aa8287c1f2": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Insert Caption: label, position, chapter numbering, and automatic captions",
-    "es": "Insertar leyenda: etiqueta, posición, numeración con capítulo y leyendas automáticas",
-    "fr": "Insertion de légende : étiquette, position, numérotation avec chapitre et légendes automatiques"
    }
   },
   "5a549134e79c19de59d3f19bdc08245fef2ad0cdec6a77bd4d9ab103dbd2c953": {
@@ -14093,6 +14087,18 @@
     "fr": ""
    }
   },
+  "625ac1afbf6e1bad443feaf972dfefba07606be0295376b0cbcd9f93a20f1548": {
+   "drop": false,
+   "en": "In JeffWrite, Insert Index makes an indented or run-in index with letter headings, a type letter, and right-aligned page numbers with a leader. It is sorted by the language of the computer and updated with `F9`.",
+   "es": "En JeffWrite, Insertar índice crea un índice con sangría o continuo, con encabezados de letra, una letra de tipo y números de página alineados a la derecha con relleno. Se ordena según el idioma del equipo y se actualiza con `F9`.",
+   "fr": "Dans JeffWrite, Insérer un index crée un index en retrait ou continu, avec des lettres en en-tête, une lettre de type et des numéros de page alignés à droite avec points de suite. Il est trié selon la langue de l’ordinateur et mis à jour avec `F9`.",
+   "soon": {
+    "drop": false,
+    "en": "Index in columns and AutoMark from a list of words",
+    "es": "Índice en columnas y marcado automático a partir de una lista de palabras",
+    "fr": "Index en colonnes et marquage automatique à partir d’une liste de mots"
+   }
+  },
   "62ba419b7f98fe9fc1128a5aed94135380712bfb7dcd158548de223978364d60": {
    "drop": false,
    "en": "JeffDeck lines have width, dashes, caps, joins, and arrowheads.",
@@ -14151,6 +14157,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "632245ed4825adec0a0f65f8921c77b004e02123517010425b8b133a2bcfda04": {
+   "drop": false,
+   "en": "In JeffWrite, you can insert a table of figures from a caption label, with or without the label and number, in the table of figures style, and update it with `F9`. A table based on a style is read and updated from a file’s code.",
+   "es": "En JeffWrite, usted puede insertar una tabla de ilustraciones a partir de una etiqueta de título, con o sin la etiqueta y el número, en el estilo de tabla de ilustraciones, y actualizarla con `F9`. Una tabla basada en un estilo se lee y se actualiza a partir del código de un archivo.",
+   "fr": "Dans JeffWrite, vous pouvez insérer une table des illustrations à partir d’une étiquette de légende, avec ou sans l’étiquette et le numéro, dans le style de table des illustrations, et la mettre à jour avec `F9`. Une table basée sur un style est lue et mise à jour à partir du code d’un fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Table of figures from a style: create from the dialog",
+    "es": "Tabla de ilustraciones a partir de un estilo: creación desde el cuadro de diálogo",
+    "fr": "Table des illustrations à partir d’un style : création depuis la boîte de dialogue"
    }
   },
   "6347f4cde2903f3dd77fc53214b8abd86d2296123e6054003870a8cfc75d9a9e": {
@@ -14381,6 +14399,18 @@
     "fr": ""
    }
   },
+  "663b74d3930ea49dcfa5c33bb2b554abb7be37fc0caa574084bace51f94a9165": {
+   "drop": false,
+   "en": "In JeffWrite, the fields `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC`, and `SEQ` are worked out and updated, as are `CITATION` and `BIBLIOGRAPHY` from the document’s sources. `HYPERLINK` keeps the result the file has.",
+   "es": "En JeffWrite, los campos `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC` y `SEQ` se calculan y se actualizan, al igual que `CITATION` y `BIBLIOGRAPHY` a partir de las fuentes del documento. `HYPERLINK` conserva el resultado que tiene el archivo.",
+   "fr": "Dans JeffWrite, les champs `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC` et `SEQ` sont calculés et mis à jour, de même que `CITATION` et `BIBLIOGRAPHY` à partir des sources du document. `HYPERLINK` conserve le résultat du fichier.",
+   "soon": {
+    "drop": false,
+    "en": "`HYPERLINK` field: recalculate the result",
+    "es": "Campo `HYPERLINK`: recálculo del resultado",
+    "fr": "Champ `HYPERLINK` : recalcul du résultat"
+   }
+  },
   "664d7c3039fac094aedc08e0119f60a0938bdbcdb5631a8fb386ad5463202d39": {
    "drop": true,
    "en": "",
@@ -14470,6 +14500,18 @@
    "en": "Safety and limits",
    "es": "Seguridad y límites",
    "fr": "Sécurité et limites",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "67bf0af0675b746d83c04aa44845f7cd927aeaab0a1b9339f8926387611ffa2a": {
+   "drop": false,
+   "en": "In JeffWrite, you can mark index entries with `Alt+Shift+X`, and Mark All marks every place with the same words. Entries can have a main entry, subentry, cross-reference such as \"see,\" a page range from a bookmark, and a bold or italic page number.",
+   "es": "En JeffWrite, usted puede marcar entradas de índice con `Alt+Shift+X`, y Marcar todo marca cada lugar con las mismas palabras. Las entradas pueden tener una entrada principal, una subentrada, una referencia cruzada como \"véase\", un intervalo de páginas a partir de un marcador y un número de página en negrita o cursiva.",
+   "fr": "Dans JeffWrite, vous pouvez marquer des entrées d’index avec `Alt+Shift+X`, et Tout marquer marque chaque occurrence des mêmes mots. Les entrées peuvent avoir une entrée principale, une sous-entrée, un renvoi tel que « voir », une plage de pages issue d’un signet et un numéro de page en gras ou en italique.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15077,6 +15119,18 @@
     "fr": ""
    }
   },
+  "700e5144522e5c247cf389eae3b4ab120d1231052ff4b7afd82b37e8878193f2": {
+   "drop": false,
+   "en": "In JeffWrite, footnotes appear at the bottom of the page their mark lands on, under a separator. A note too long for the page continues on the next under a continuation separator and notice. Numbering runs across the document, by section, or by page, with custom marks and number formats.",
+   "es": "En JeffWrite, las notas al pie aparecen al final de la página donde cae su marca, bajo un separador. Una nota demasiado larga para la página continúa en la siguiente bajo un separador y un aviso de continuación. La numeración abarca el documento, por sección o por página, con marcas personalizadas y formatos de número.",
+   "fr": "Dans JeffWrite, les notes de bas de page apparaissent en bas de la page où se trouve leur repère, sous un séparateur. Une note trop longue pour la page continue sur la suivante sous un séparateur et un avis de continuation. La numérotation s’applique à tout le document, par section ou par page, avec des repères personnalisés et des formats de numérotation.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "7043ef0189689a0a99ccc32ab8c2db649782dff34c5ed84430a1969a81b7bcce": {
    "drop": false,
    "en": "In JeffCrunch, notes (text boxes that show on hover) can be created, edited, and deleted. You can move between notes with Previous and Next, show or hide a note, and use Show Every Note. Notes display a red mark, keep the author name, are saved with the file, and move with rows, columns, and sorting. Threaded comments are shown read-only and kept.",
@@ -15094,18 +15148,6 @@
    "en": "The grid",
    "es": "La cuadrícula",
    "fr": "La grille",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "709b0606f3c194e72134d690c788d7e93883a67b5ca5ec0b740884f8b4c1d1a9": {
-   "drop": false,
-   "en": "Footnotes appear at the bottom of the page their mark lands on, under a separator. A note too long for the page continues on the next under a continuation separator and notice. Numbering follows the file, with custom marks. Insert Footnote and Insert Endnote work, and a note can be edited where it stands.",
-   "es": "Las notas al pie aparecen al final de la página donde cae su marca, bajo un separador. Una nota demasiado larga para la página continúa en la siguiente con un separador y un aviso de continuación. La numeración sigue la del archivo, con marcas personalizadas. Insertar nota al pie e Insertar nota al final funcionan, y una nota se puede editar donde está.",
-   "fr": "Les notes de bas de page apparaissent au bas de la page où se trouve leur appel, sous un séparateur. Une note trop longue pour la page se poursuit sur la suivante avec un séparateur et un avis de continuation. La numérotation suit celle du fichier, avec des marques personnalisées. Insérer une note de bas de page et Insérer une note de fin fonctionnent, et une note peut être modifiée à son emplacement.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15725,6 +15767,18 @@
     "fr": ""
    }
   },
+  "79046250c874423862f82a838eee5dc8a9975084dc220c5c79ae6e08e2617ca3": {
+   "drop": false,
+   "en": "In JeffWrite, the fields `DATE`, `TIME`, `CREATEDATE`, `SAVEDATE`, `PRINTDATE`, `FILENAME`, `FILESIZE`, `AUTHOR`, `TITLE`, `SUBJECT`, `DOCPROPERTY`, `NUMWORDS`, `NUMCHARS`, `IF`, `QUOTE`, `INDEX`, and `TOA` are worked out, and `=` works as a formula without table cells. `TC`, `XE`, and `TA` are read, written, and made by Mark Entry and Mark Citation.",
+   "es": "En JeffWrite, los campos `DATE`, `TIME`, `CREATEDATE`, `SAVEDATE`, `PRINTDATE`, `FILENAME`, `FILESIZE`, `AUTHOR`, `TITLE`, `SUBJECT`, `DOCPROPERTY`, `NUMWORDS`, `NUMCHARS`, `IF`, `QUOTE`, `INDEX` y `TOA` se calculan, y `=` funciona como fórmula sin celdas de tabla. `TC`, `XE` y `TA` se leen, se escriben y se crean con Marcar entrada y Marcar cita.",
+   "fr": "Dans JeffWrite, les champs `DATE`, `TIME`, `CREATEDATE`, `SAVEDATE`, `PRINTDATE`, `FILENAME`, `FILESIZE`, `AUTHOR`, `TITLE`, `SUBJECT`, `DOCPROPERTY`, `NUMWORDS`, `NUMCHARS`, `IF`, `QUOTE`, `INDEX` et `TOA` sont calculés, et `=` fonctionne comme formule sans cellules de tableau. `TC`, `XE` et `TA` sont lus, écrits et créés avec Marquer l’entrée et Marquer la citation.",
+   "soon": {
+    "drop": false,
+    "en": "Fields `COMPARE`, `SET`, `ASK`, `FILLIN`, `LISTNUM`, and `SYMBOL`",
+    "es": "Campos `COMPARE`, `SET`, `ASK`, `FILLIN`, `LISTNUM` y `SYMBOL`",
+    "fr": "Champs `COMPARE`, `SET`, `ASK`, `FILLIN`, `LISTNUM` et `SYMBOL`"
+   }
+  },
   "79f9a9b38276b0824a91e9e2b520c5a67607ed23afbad698bda283714fd0ca28": {
    "drop": false,
    "en": "JeffDeck exports slides, notes pages, handouts, and the outline to PDF, with real text and fonts inside.",
@@ -15819,18 +15873,6 @@
     "en": "Function names in the language of the interface, with locale-specific argument separators",
     "es": "Nombres de funciones en el idioma de la interfaz, con separadores de argumentos según el idioma",
     "fr": "Noms de fonctions dans la langue de l’interface, avec séparateurs d’arguments selon la langue"
-   }
-  },
-  "7b2895bee85b5d254e5264fb7a03bce316dac9488576328f91939ee51e91bda6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Insert Index: formats, columns, page numbers, tab leader, sorting, update, and automatic marking from a word list",
-    "es": "Insertar índice: formatos, columnas, números de página, relleno de tabulación, ordenación, actualización y marcado automático desde una lista de palabras",
-    "fr": "Insertion d’index : formats, colonnes, numéros de page, points de suite, tri, mise à jour et marquage automatique depuis une liste de mots"
    }
   },
   "7bc9c63477a68415f084fa48769930fb919027b5dddda90484230652e1ea26ff": {
@@ -16179,18 +16221,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "80777a3f40c7a370061536c724e2b2bd019289c52d266b73b04b4dc68fa7586d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Bibliography galleries and Update Citations and Bibliography",
-    "es": "Galerías de bibliografía y actualización de citas y bibliografía",
-    "fr": "Galeries de bibliographie et mise à jour des citations et de la bibliographie"
    }
   },
   "80bdd003c47128dec4f78dc6f0f522dd0b51b13a8e127e1a033166fe0b8328e5": {
@@ -16961,18 +16991,6 @@
     "fr": ""
    }
   },
-  "8daec94ddd2be7f109810a1e01ce94bb646264ead57e9bff3447f8b06a41fc16": {
-   "drop": false,
-   "en": "In JeffWrite, `F9` or References > Update Table updates page numbers only or the entire table. Remove Table of Contents deletes the table.",
-   "es": "En JeffWrite, `F9` o Referencias > Actualizar tabla actualiza solo los números de página o la tabla completa. Quitar tabla de contenido elimina la tabla.",
-   "fr": "Dans JeffWrite, `F9` ou Références > Mettre à jour la table met à jour uniquement les numéros de page ou la table entière. Supprimer la table des matières supprime la table.",
-   "soon": {
-    "drop": false,
-    "en": "Add Text: mark a paragraph for a level",
-    "es": "Agregar texto: marcar un párrafo para un nivel",
-    "fr": "Ajouter du texte : marquer un paragraphe pour un niveau"
-   }
-  },
   "8dc8e377958dfd656ef7d675e16c547d528f752a29245823da6963cd26572e26": {
    "drop": false,
    "en": "Field Settings in JeffCrunch sets a custom name, automatic or no subtotals, the form (compact, outline, or tabular), repeated item labels, and a blank line after each item. It also sorts by labels or by a value and filters by labels, by a value, and by top or bottom items, with a check for each item.",
@@ -17103,18 +17121,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "8f311375eedfd61aad838b39458cb72b33f3e963fdefb9be7693df9223b77830": {
-   "drop": false,
-   "en": "In JeffWrite, the References tab and `Ctrl+Alt+F` and `Ctrl+Alt+D` insert a footnote or an endnote, numbered after the others. You edit a note’s text where it stands. JeffWrite also sets a file’s notes at the foot of the pages, after the text, or at a section’s end.",
-   "es": "En JeffWrite, la pestaña Referencias y `Ctrl+Alt+F` y `Ctrl+Alt+D` insertan una nota al pie o una nota final, numerada después de las demás. Usted edita el texto de una nota donde se encuentra. JeffWrite también coloca las notas de un documento al pie de las páginas, después del texto o al final de una sección.",
-   "fr": "Dans JeffWrite, l’onglet Références et `Ctrl+Alt+F` et `Ctrl+Alt+D` insèrent une note de bas de page ou une note de fin, numérotée après les autres. Vous modifiez le texte d’une note à son emplacement. JeffWrite place aussi les notes d’un fichier en bas des pages, après le texte ou à la fin d’une section.",
-   "soon": {
-    "drop": false,
-    "en": "Footnote and endnote dialog: number format, start at, restart, location, and notes in columns",
-    "es": "Cuadro de notas al pie y finales: formato de número, comenzar en, reiniciar, ubicación y notas en columnas",
-    "fr": "Boîte de dialogue des notes : format de numérotation, début, redémarrage, emplacement et notes en colonnes"
    }
   },
   "8f5c18de4307239e4435a8e4722059a4a58f9333e2763684089be36cbc8d9efc": {
@@ -17693,6 +17699,18 @@
     "fr": ""
    }
   },
+  "9746f54ebcd65a1554caa6dd95bc9ef20dd85f55999cf68cddfddb2a5db818d5": {
+   "drop": false,
+   "en": "In JeffWrite, you can convert footnotes to endnotes and back, all or one at a time, and swap them, using References > Convert Notes. The words go with each note, and the conversion is one undo step.",
+   "es": "En JeffWrite, usted puede convertir notas al pie en notas finales y viceversa, todas o una por una, e intercambiarlas, con Referencias > Convertir notas. El texto acompaña a cada nota, y la conversión es un solo paso de deshacer.",
+   "fr": "Dans JeffWrite, vous pouvez convertir des notes de bas de page en notes de fin et inversement, toutes ou une seule, et les permuter, avec Références > Convertir les notes. Le texte suit chaque note, et la conversion s’annule en une seule étape.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "9772c93e87571867b3afff80cc5b63db48476337cd1193019caac55913821b76": {
    "drop": true,
    "en": "",
@@ -17993,6 +18011,18 @@
     "fr": ""
    }
   },
+  "9ba1c0a9c150e5c7c99e5c7da024a712fb4aeae74b70fec78221b81e05393d75": {
+   "drop": false,
+   "en": "In JeffWrite, you can insert footnotes and endnotes with the References tab or `Ctrl+Alt+F` and `Ctrl+Alt+D`, and edit a note’s text where it stands. The Footnote and Endnote dialog sets the number format (1, a, A, i, I, or symbols), the first number, restarting each section (or, for footnotes, each page), and where endnotes are set (end of section or end of document).",
+   "es": "En JeffWrite, usted puede insertar notas al pie y notas finales con la pestaña Referencias o con `Ctrl+Alt+F` y `Ctrl+Alt+D`, y editar el texto de una nota donde se encuentra. El cuadro de diálogo de notas al pie y notas finales define el formato de número (1, a, A, i, I o símbolos), el primer número, el reinicio en cada sección (o, para las notas al pie, en cada página) y dónde se colocan las notas finales (final de sección o final del documento).",
+   "fr": "Dans JeffWrite, vous pouvez insérer des notes de bas de page et des notes de fin avec l’onglet Références ou `Ctrl+Alt+F` et `Ctrl+Alt+D`, et modifier le texte d’une note à son emplacement. La boîte de dialogue des notes définit le format de numérotation (1, a, A, i, I ou symboles), le premier numéro, le redémarrage à chaque section (ou, pour les notes de bas de page, à chaque page) et l’emplacement des notes de fin (fin de section ou fin de document).",
+   "soon": {
+    "drop": false,
+    "en": "Footnotes below the text, a typed mark, and notes in columns",
+    "es": "Notas al pie debajo del texto, marca escrita por usted y notas en columnas",
+    "fr": "Notes de bas de page sous le texte, repère saisi et notes en colonnes"
+   }
+  },
   "9bb8474e6fdca87bb7941bcac4ab67bcc97ca38c4e8d1de3e6fab147a83b41db": {
    "drop": false,
    "en": "In JeffPub, zoom with the zoom box, 100%, Whole Page, Page Width, Selected Objects, or `Ctrl` plus the mouse wheel.",
@@ -18231,18 +18261,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "9ed47ea4384637927ebee213ed2aaddfcf2fcff4f795c87ffd08ade3a6b30313": {
-   "drop": false,
-   "en": "The `DATE`, `TIME`, `CREATEDATE`, `SAVEDATE`, `PRINTDATE`, `FILENAME`, `FILESIZE`, `AUTHOR`, `TITLE`, `SUBJECT`, `DOCPROPERTY`, `NUMWORDS`, `NUMCHARS`, `IF`, and `QUOTE` fields are worked out, as is `=` (formula, without table cells).",
-   "es": "Los campos `DATE`, `TIME`, `CREATEDATE`, `SAVEDATE`, `PRINTDATE`, `FILENAME`, `FILESIZE`, `AUTHOR`, `TITLE`, `SUBJECT`, `DOCPROPERTY`, `NUMWORDS`, `NUMCHARS`, `IF` y `QUOTE` se calculan, al igual que `=` (fórmula, sin celdas de tabla).",
-   "fr": "Les champs `DATE`, `TIME`, `CREATEDATE`, `SAVEDATE`, `PRINTDATE`, `FILENAME`, `FILESIZE`, `AUTHOR`, `TITLE`, `SUBJECT`, `DOCPROPERTY`, `NUMWORDS`, `NUMCHARS`, `IF` et `QUOTE` sont calculés, ainsi que `=` (formule, sans cellules de tableau).",
-   "soon": {
-    "drop": false,
-    "en": "Fields: `COMPARE`, `SET`, `ASK`, `FILLIN`, `LISTNUM`, `SYMBOL`, `TC`, `XE`, `INDEX`, `TA`, and `TOA`",
-    "es": "Campos: `COMPARE`, `SET`, `ASK`, `FILLIN`, `LISTNUM`, `SYMBOL`, `TC`, `XE`, `INDEX`, `TA` y `TOA`",
-    "fr": "Champs : `COMPARE`, `SET`, `ASK`, `FILLIN`, `LISTNUM`, `SYMBOL`, `TC`, `XE`, `INDEX`, `TA` et `TOA`"
    }
   },
   "9f568d6586e797babd101963a01eb03ceb53ac98fd239f9aa707958a943f70d5": {
@@ -19229,18 +19247,6 @@
     "fr": ""
    }
   },
-  "b1e67a531625693897a8d2abbea93859fd410aa7150045e94fb3d4e274442399": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Table entry fields: mark entries by hand",
-    "es": "Campos de entrada de tabla: marcar entradas manualmente",
-    "fr": "Champs d’entrée de table : marquer des entrées manuellement"
-   }
-  },
   "b1eac767ba26a2e0227c8aec122fc8c94f0da1c1bf672a2f38c52a4b042117ff": {
    "drop": true,
    "en": "",
@@ -19311,18 +19317,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b287319888869e8791c961d5784c8f311c8f1828f4125c25f352405dc16dfdf3": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Mark Citation and Insert Table of Authorities, with categories and update",
-    "es": "Marcar cita e insertar tabla de autoridades, con categorías y actualización",
-    "fr": "Marquage de citation et insertion de table des autorités, avec catégories et mise à jour"
    }
   },
   "b3781803375c0f25c23038813a81a9e8b86f72cf5b8bae37df635d26c89a02a6": {
@@ -20429,6 +20423,18 @@
     "fr": "Polices stockées dans les fichiers `.pub` et numérotation des pages des sections après la première"
    }
   },
+  "c5702a9ec899a02443ec5c13d1ffd9516c2845ea3f4f568d3e0cc12b31a80063": {
+   "drop": false,
+   "en": "In JeffWrite, you can mark entries for a table by hand with `TC` fields, using References > Mark Entry. Each entry has its text, level, identifier, and a \"no page number\" option, and a table lists them in the order of the text.",
+   "es": "En JeffWrite, usted puede marcar entradas para una tabla manualmente con campos `TC`, mediante Referencias > Marcar entrada. Cada entrada tiene su texto, nivel, identificador y la opción \"sin número de página\", y una tabla las enumera en el orden del texto.",
+   "fr": "Dans JeffWrite, vous pouvez marquer des entrées pour une table manuellement avec des champs `TC`, via Références > Marquer l’entrée. Chaque entrée a son texte, son niveau, son identifiant et une option « sans numéro de page », et une table les liste dans l’ordre du texte.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "c5a077f672b633645b3b4f22c4c2278544438ad4c844d3ebca10102b95b788dd": {
    "drop": false,
    "en": "In JeffDeck, an embedded object in a file is kept as a frame and shows its saved picture.",
@@ -20765,18 +20771,6 @@
     "fr": ""
    }
   },
-  "ca2122134d578c2c332d8a31ddb7a35634acfe990ac8cabd55365d88b0c7d5d4": {
-   "drop": false,
-   "en": "The `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC`, and `SEQ` fields are worked out and updated. `HYPERLINK` fields keep their result.",
-   "es": "Los campos `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC` y `SEQ` se calculan y se actualizan. Los campos `HYPERLINK` conservan su resultado.",
-   "fr": "Les champs `PAGE`, `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `STYLEREF`, `REF`, `PAGEREF`, `NOTEREF`, `TOC` et `SEQ` sont calculés et mis à jour. Les champs `HYPERLINK` conservent leur résultat.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "ca3164260439315344f964206b36f2099235b1141753507909e30140953db828": {
    "drop": false,
    "en": "Number",
@@ -21003,18 +20997,6 @@
     "en": "Check Compatibility: name what an older or other format can't hold before saving",
     "es": "Comprobar compatibilidad: indicar antes de guardar lo que un formato anterior u otro no puede contener",
     "fr": "Vérification de compatibilité : indiquer avant l’enregistrement ce qu’un format ancien ou autre ne peut pas contenir"
-   }
-  },
-  "cd27aa919e9b687c3e7b89c1c748e40e105eee7a83991bf9f5423c27e4e5f4d2": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Insert Citation and Manage Sources, with source types and citation styles",
-    "es": "Insertar cita y administrar fuentes, con tipos de fuente y estilos de cita",
-    "fr": "Insertion de citations et gestion des sources, avec types de sources et styles de citation"
    }
   },
   "cd7bc1f968b84c9d8e4f326e1db02e9657ef7287da52cd3b571fd53b6956eab8": {
@@ -21485,18 +21467,6 @@
     "fr": "Fractionner : quatre volets qui défilent séparément"
    }
   },
-  "d40dff74d9901076dee30765d5a9c7953cd3118c9c710a21678593161a217629": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Edit the separator, continuation separator, and continuation notice for notes",
-    "es": "Modificar el separador, el separador de continuación y el aviso de continuación de las notas",
-    "fr": "Modification du séparateur, du séparateur de continuation et de l’avis de continuation des notes"
-   }
-  },
   "d42d1b46597c6fbb081682cd34b74df5a837f32c783588a14e92f5f9ecbfb9c4": {
    "drop": true,
    "en": "",
@@ -21610,6 +21580,18 @@
    "en": "",
    "es": "",
    "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "d50e7f3e2f633f3c4329ce4caec8ba3ea2ebcb88298287860f0e6e07e8355d91": {
+   "drop": false,
+   "en": "In JeffWrite, you can update a table of contents with `F9` or References > Update Table, choosing page numbers only or the entire table. You can also remove the table and use Add Text to set a paragraph as Heading 1, 2, or 3, or as body text.",
+   "es": "En JeffWrite, usted puede actualizar una tabla de contenido con `F9` o con Referencias > Actualizar tabla, eligiendo solo los números de página o la tabla completa. También puede quitar la tabla y usar Agregar texto para dar a un párrafo el estilo Título 1, 2 o 3, o texto normal.",
+   "fr": "Dans JeffWrite, vous pouvez mettre à jour une table des matières avec `F9` ou Références > Mettre à jour la table, en choisissant les numéros de page seuls ou la table entière. Vous pouvez aussi supprimer la table et utiliser Ajouter du texte pour appliquer à un paragraphe le style Titre 1, 2 ou 3, ou le texte normal.",
    "soon": {
     "drop": true,
     "en": "",
@@ -22733,6 +22715,18 @@
     "fr": "Plus de modèles intégrés : registre de chéquier, carnet de notes, liste d’inventaire, journal kilométrique, plan de projet et rapport de ventes"
    }
   },
+  "e5bff83e061796a9ff7853d18120c79bb8bd5f8b4ace4c48c8f30c6da26d2916": {
+   "drop": false,
+   "en": "In JeffWrite, Insert Citation adds a citation (with pages, without author, without year, or with title), and Source Manager lets you copy, create, edit, delete, and preview sources. There are 17 source types and the styles APA, MLA, Chicago, Harvard, and IEEE, changed for the whole document at once. A master list is kept in a file in the data folder.",
+   "es": "En JeffWrite, Insertar cita agrega una cita (con páginas, sin autor, sin año o con título), y el Administrador de fuentes permite copiar, crear, editar, eliminar y previsualizar fuentes. Hay 17 tipos de fuente y los estilos APA, MLA, Chicago, Harvard e IEEE, que se cambian para todo el documento a la vez. Una lista maestra se guarda en un archivo de la carpeta de datos.",
+   "fr": "Dans JeffWrite, Insérer une citation ajoute une citation (avec pages, sans auteur, sans année ou avec titre), et le Gestionnaire de sources permet de copier, créer, modifier, supprimer et prévisualiser des sources. Il existe 17 types de sources et les styles APA, MLA, Chicago, Harvard et IEEE, modifiés pour tout le document en une fois. Une liste principale est conservée dans un fichier du dossier de données.",
+   "soon": {
+    "drop": false,
+    "en": "Citation placeholders and additional styles",
+    "es": "Marcadores de posición de citas y estilos adicionales",
+    "fr": "Espaces réservés de citation et styles supplémentaires"
+   }
+  },
   "e5d24a5e8361e7f8c4d30b543af41732acc1899efb872cde2d53f6e99bb7bc53": {
    "drop": true,
    "en": "",
@@ -23295,6 +23289,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "ee5bc7b2ee95d1cd7a92eb6e0b8b3aee946397a718aa8770904b577ed583aac8": {
+   "drop": false,
+   "en": "In JeffWrite, References > Separators sets the separator and continuation separator for footnotes, and the separator for endnotes, as a line, words, or nothing. Separators that hold more than that are kept as they were.",
+   "es": "En JeffWrite, Referencias > Separadores define el separador y el separador de continuación de las notas al pie, y el separador de las notas finales, como una línea, texto o nada. Los separadores que contienen algo más se conservan tal como estaban.",
+   "fr": "Dans JeffWrite, Références > Séparateurs définit le séparateur et le séparateur de continuation des notes de bas de page, ainsi que le séparateur des notes de fin, sous forme de ligne, de texte ou de rien. Les séparateurs qui contiennent autre chose sont conservés tels quels.",
+   "soon": {
+    "drop": false,
+    "en": "Endnote continuation separator and notice: display",
+    "es": "Separador y aviso de continuación de notas finales: visualización",
+    "fr": "Séparateur et avis de continuation des notes de fin : affichage"
    }
   },
   "ee726aa6d01f9760933c82658823462c7fa6afb1007f23b43d5529ed8e9e73a4": {
@@ -23981,18 +23987,6 @@
     "fr": ""
    }
   },
-  "f9efeff3aff905a4a697fdb15b484c367b6605136920d3e3c746f6ddb7984455": {
-   "drop": false,
-   "en": "In JeffWrite, References > Table of Contents makes a table from heading styles, outline levels, or a list of entries, with levels, page numbers, a right-aligned tab and leader, and links. It also lays out a file’s existing table of contents.",
-   "es": "En JeffWrite, Referencias > Tabla de contenido crea una tabla a partir de estilos de título, niveles de esquema o una lista de entradas, con niveles, números de página, tabulación alineada a la derecha con relleno y vínculos. También presenta la tabla de contenido existente de un documento.",
-   "fr": "Dans JeffWrite, Références > Table des matières crée une table à partir des styles de titre, des niveaux de plan ou d’une liste d’entrées, avec niveaux, numéros de page, tabulation alignée à droite avec points de suite et liens. Il met aussi en page la table des matières existante d’un fichier.",
-   "soon": {
-    "drop": false,
-    "en": "Table of Contents: gallery of built-in tables and tables from table entry fields",
-    "es": "Tabla de contenido: galería de tablas integradas y tablas a partir de campos de entrada de tabla",
-    "fr": "Table des matières : galerie de tables intégrées et tables à partir de champs d’entrée de table"
-   }
-  },
   "f9fee748ef0982d92b57afe3098aa17dc1b1c7b0fe237caab6caa569e9b95b87": {
    "drop": false,
    "en": "When saving `.pub`, JeffPub reports what it leaves out. Those objects stay in the publication and are kept in `.jpub`.",
@@ -24370,6 +24364,18 @@
    "en": "In JeffPub, the Edit Text dialog for Text Art sets the text, font, size, bold, and italic.",
    "es": "En JeffPub, el cuadro de diálogo Editar texto del texto artístico permite establecer el texto, la fuente, el tamaño, la negrita y la cursiva.",
    "fr": "Dans JeffPub, la boîte de dialogue Modifier le texte du texte décoratif permet de définir le texte, la police, la taille, le gras et l’italique.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "fdbaf331e6f7a0f3d092a7f68bb98fa540c40280d11f3d9279d5df254b086fbd": {
+   "drop": false,
+   "en": "In JeffWrite, you can insert a Bibliography, Works Cited, or References list made from the sources cited, in the chosen style. Pressing `F9` or changing the style updates it.",
+   "es": "En JeffWrite, usted puede insertar una lista de Bibliografía, Obras citadas o Referencias creada a partir de las fuentes citadas, en el estilo elegido. Pulsar `F9` o cambiar el estilo la actualiza.",
+   "fr": "Dans JeffWrite, vous pouvez insérer une Bibliographie, une liste d’Ouvrages cités ou de Références créée à partir des sources citées, dans le style choisi. Appuyer sur `F9` ou changer de style la met à jour.",
    "soon": {
     "drop": true,
     "en": "",

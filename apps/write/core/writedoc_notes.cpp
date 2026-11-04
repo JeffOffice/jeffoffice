@@ -165,6 +165,9 @@ void WriteDoc::loadEndnotes()
 {
     m_endnoteBlocks.clear();
     m_endnoteSeparator.clear();
+    m_endnoteContinuation.clear();
+    m_endnoteNotice.clear();
+    m_separatorsEdited.clear();
     m_endnotePart.clear();
     m_endnoteCopyIds.clear();
     m_nextEndnoteSerial = 1;
@@ -200,6 +203,10 @@ void WriteDoc::loadEndnotes()
             }
         } else if (n.type == QLatin1String("separator")) {
             m_endnoteSeparator = std::move(n.blocks);
+        } else if (n.type == QLatin1String("continuationSeparator")) {
+            m_endnoteContinuation = std::move(n.blocks);
+        } else if (n.type == QLatin1String("continuationNotice")) {
+            m_endnoteNotice = std::move(n.blocks);
         }
     }
     if (m_endnoteSeparator.size() > kMostNoticeParagraphs) m_endnoteSeparator.resize(kMostNoticeParagraphs);
@@ -434,7 +441,10 @@ void WriteDoc::rebuildEndnoteTails()
                 m_endnoteRefs.push_back({atom.key, shown, section, atEnd.value(section)});
             }
         }
-        if (b.blockFormat().boolProperty(flow::fp::SectionBreakAfter)) ++section;
+        if (b.blockFormat().boolProperty(flow::fp::SectionBreakAfter)) {
+            ++section;
+            if (m_endnoteRestartSections) number = m_endnoteStart - 1;
+        }
     }
     for (const Renumber &r : std::as_const(renumber)) {
         QTextCursor t(d);
@@ -514,8 +524,7 @@ void WriteDoc::loadNotes()
     m_noteFields = std::make_unique<NoteFields>(this);
     m_flow->fields = m_noteFields.get();
     // The notes' numbers begin again in each section when the file's settings say so.
-    const QByteArray settings = m_wml.settingsName.isEmpty() ? QByteArray() : partData(m_wml.settingsName);
-    m_flow->restartNotesInSections = office::wml::noteNumberRestart(settings, "footnotePr") == QLatin1String("eachSect");
+    applyFootnoteSettings();
 }
 
 // The paragraph the pages set between their text and their notes (the file's own, holding the rule): its height as the file sets it, or, for a file

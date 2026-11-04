@@ -42,6 +42,9 @@ struct Code {
 
 // The code of an instruction (leading and trailing blanks do not matter). Never fails: what it cannot read is left out.
 Code parseCode(const QString &instruction);
+// How many instructions parseCode has read since the counts were reset (a bound on what a pass over hostile fields costs).
+qint64 parseCodeCallsForTest();
+void resetParseCodeCallsForTest();
 
 // ---- formats
 // The number as the general-format switches show it (roman, ROMAN, alphabetic, ALPHABETIC, arabic, Ordinal, CardText, OrdText, Hex, ArabicDash, then Upper, Lower, FirstCap, Caps
@@ -96,6 +99,7 @@ struct Env {
     qint64 *formulaBudget = nullptr;                                         // the steps the formulas of the pass have left (see evaluateFormula)
     std::function<std::optional<QString>(const QString &name, const Code &code)> noteNumber;    // NOTEREF: the number of the note the bookmark holds the reference of
     std::function<std::optional<QString>(const QString &style, const Code &code)> styleRef;     // STYLEREF
+    std::function<std::optional<QString>(const QString &tag, const Code &code)> citation;       // CITATION: the text a source's tag gives, in the style the document's sources have
     // The counters of SEQ fields, by name (upper case): the pass that walks the document keeps them and resets those that count by chapter.
     QHash<QString, qint64> *sequences = nullptr;
     // Used with a bookmark name read by a formula, and by a condition of IF.

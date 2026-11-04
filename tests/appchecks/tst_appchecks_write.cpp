@@ -16,6 +16,7 @@
 #include "core/commentops.h"
 #include "core/editops.h"
 #include "core/fieldops.h"
+#include "core/indexops.h"
 #include "core/mergeops.h"
 #include "core/tocops.h"
 #include "core/pictureops.h"
@@ -330,6 +331,36 @@ private Q_SLOTS:
                  QTextCursor c(doc->story());
                  c.setPosition(0);
                  write::insertTableOfContents(*doc, c, write::TocOptions());
+                 asWrite(w)->view()->setCursor(c);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("the caret in an index"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 write::insertIndex(*doc, c, write::IndexOptions());
+                 // (An entry marked after the index was made: its update has a change to show.)
+                 QTextCursor mark(doc->story());
+                 mark.setPosition(1);
+                 write::IndexMark im;
+                 im.main = QStringLiteral("Entry");
+                 write::markIndexEntry(*doc, mark, im);
+                 asWrite(w)->view()->setCursor(c);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("the caret in a table of authorities"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 write::insertTableOfAuthorities(*doc, c, write::AuthoritiesOptions());
+                 // (A citation marked after the table was made: its update has a change to show.)
+                 QTextCursor mark(doc->story());
+                 mark.setPosition(1);
+                 write::AuthorityMark am;
+                 am.longCitation = QStringLiteral("Smith v. Jones");
+                 write::markAuthority(*doc, mark, am);
                  asWrite(w)->view()->setCursor(c);
                  asWrite(w)->refreshNow();
              }, false},

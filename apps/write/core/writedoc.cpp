@@ -436,6 +436,7 @@ void WriteDoc::setUpEnvironment()
         if (!endnotes.format.isEmpty()) m_endnoteFormat = endnotes.format;
         if (endnotes.start > 0) m_endnoteStart = endnotes.start;
         m_endnotePosition = endnotes.position;
+        m_endnoteRestartSections = office::wml::noteNumberRestart(settingsBytes, "endnotePr") == QLatin1String("eachSect");
         f.env.wordNoHang = !compat.useFELayout || compat.doNotWrapTextWithPunct;
         f.env.wordSpaceSums = compat.doNotUseHTMLParagraphAutoSpacing;
         f.env.wordNoHangStop = compat.noTabHangInd;
@@ -915,6 +916,7 @@ bool WriteDoc::ensureStyle(const QString &id)
     if (id.isEmpty()) return false;
     if (m_wml.styles.find(id)) return true;
     Style s = builtinStyle(id);
+    if (s.id.isEmpty()) s = referenceStyle(id);   // (only what a command asks for: a document that names one without defining it shows it as Normal)
     if (s.id.isEmpty()) return false;
     // (a table style is the default of its kind only where the file has none)
     if (s.type == QLatin1String("table") && s.isDefault && !m_wml.styles.defaultId(QStringLiteral("table")).isEmpty()) s.isDefault = false;

@@ -5,12 +5,14 @@
 //                                         render the window to a PNG and quit
 //                                         (works with QT_QPA_PLATFORM=offscreen)
 //   JeffWrite --backstage <page>         open on a File page (new, open, print, ...)
+//   JeffWrite --tab <name>               open with this ribbon tab showing (Home, Insert, References, ...)
 
 #include "app/crash.h"
 #include "app/focusring.h"
 #include "app/i18n.h"
 #include "app/icons.h"
 #include "app/pageview.h"
+#include "app/ribbon.h"
 #include "app/recovery.h"
 #include "app/settings.h"
 #include "app/splash.h"
@@ -82,7 +84,8 @@ int main(int argc, char **argv)
     QCommandLineOption zoomOpt(QStringLiteral("zoom"), QCoreApplication::translate("Main", "Start at this zoom: a percent, or width, page, or pages."), QStringLiteral("zoom"));
     QCommandLineOption pageOpt(QStringLiteral("page"), QCoreApplication::translate("Main", "Start at this page."), QStringLiteral("number"));
     QCommandLineOption stageOpt(QStringLiteral("backstage"), QCoreApplication::translate("Main", "Open on a File page."), QStringLiteral("page"));
-    cli.addOptions({shotOpt, sizeOpt, zoomOpt, pageOpt, stageOpt});
+    QCommandLineOption tabOpt(QStringLiteral("tab"), QCoreApplication::translate("Main", "Show this ribbon tab."), QStringLiteral("name"));
+    cli.addOptions({shotOpt, sizeOpt, zoomOpt, pageOpt, stageOpt, tabOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Documents to open."), QStringLiteral("[files...]"));
     cli.process(app);
 
@@ -111,7 +114,9 @@ int main(int argc, char **argv)
             other->show();
         }
     }
-    auto applyView = [w, &cli, &zoomOpt, &pageOpt] {
+    auto applyView = [w, &cli, &zoomOpt, &pageOpt, &tabOpt] {
+        if (cli.isSet(tabOpt))
+            if (jp::RibbonTab *t = w->ribbon()->tab(cli.value(tabOpt))) w->ribbon()->showTab(t);
         using Mode = jp::write::PageView::ZoomMode;
         if (cli.isSet(zoomOpt)) {
             const QString z = cli.value(zoomOpt);

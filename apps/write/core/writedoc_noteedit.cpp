@@ -263,8 +263,7 @@ void WriteDoc::activateNotes()
     }
     m_noteFields = std::make_unique<NoteFields>(this);
     m_flow->fields = m_noteFields.get();
-    const QByteArray settings = m_wml.settingsName.isEmpty() ? QByteArray() : partData(m_wml.settingsName);
-    m_flow->restartNotesInSections = office::wml::noteNumberRestart(settings, "footnotePr") == QLatin1String("eachSect");
+    applyFootnoteSettings();
     measureNoteSeparator();
     if (m_pager) m_pager->invalidate();
 }
@@ -274,8 +273,8 @@ int WriteDoc::nextFootnoteId()
 {
     indexFootnoteReferences();
     QSet<int> used;
-    for (auto it = m_noteBlocks.cbegin(); it != m_noteBlocks.cend(); ++it) used.insert(it.key().mid(2).toInt());
-    for (auto it = m_footnoteRefs.cbegin(); it != m_footnoteRefs.cend(); ++it) used.insert(it.key());
+    for (auto it = m_noteBlocks.cbegin(); it != m_noteBlocks.cend(); ++it, ++s_noteWalk) used.insert(it.key().mid(2).toInt());
+    for (auto it = m_footnoteRefs.cbegin(); it != m_footnoteRefs.cend(); ++it, ++s_noteWalk) used.insert(it.key());
     {
         // (And every Id that a header, a text box, or another note cites: a new note is not to be the note that they name.)
         QSet<int> beyond, unused;
@@ -408,6 +407,69 @@ int WriteDoc::duplicateFootnote(int id)
     m_createdFootnotes.insert(fresh);
     if (!noteStory(freshKey)) {
         m_noteBlocks.remove(freshKey);
+        m_createdFootnotes.remove(fresh);
+        return 0;
+    }
+    m_footnoteIdFloor = fresh;
+    m_createdFootnoteStep[fresh] = 0;
+    m_noteStepPending.push_back({false, fresh});
+    return fresh;
+}
+
+int WriteDoc::convertedNote(int id, bool toEndnote, int lastMade)
+{
+    QVector<Block> blocks;
+    if (toEndnote) {
+        const QString key = QStringLiteral("fn%1").arg(id);
+        if (!m_noteBlocks.contains(key)) return 0;
+        if (QTextDocument *s = editableFootnote(id)) {
+            VectorSink sink(&blocks);
+            exportInto(sink, s);
+        } else {
+            blocks = m_noteBlocks.value(key);
+        }
+        if (!lastMade) reclaimDeadNotes(true, 0);
+        if (!roomForEndnote()) return 0;
+        activateEndnotes();
+    } else {
+        if (!m_endnoteBlocks.contains(QString::number(id))) return 0;
+        const QSet<int> one{id};
+        captureEndnotes(&one);   // (what was said in it so far)
+        blocks = m_endnoteBlocks.value(QString::number(id));
+        if (!lastMade) reclaimDeadNotes(false, 0);
+        if (!roomForFootnote()) return 0;
+        activateNotes();
+    }
+    const QString from = toEndnote ? QStringLiteral("Footnote") : QStringLiteral("Endnote"), to = toEndnote ? QStringLiteral("Endnote") : QStringLiteral("Footnote");
+    const qsizetype had = m_wml.styles.styles.size();
+    ensureStyle(to + QStringLiteral("Text"));
+    ensureStyle(to + QStringLiteral("Reference"));
+    for (qsizetype i = had; i < m_wml.styles.styles.size(); ++i) m_headerStyles.insert(m_wml.styles.styles[i].id);
+    for (Block &b : blocks) {
+        if (b.para.props.style == from + QStringLiteral("Text")) b.para.props.style = to + QStringLiteral("Text");
+        for (Inline &in : b.para.content) {
+            if (in.props.style == from + QStringLiteral("Reference")) in.props.style = to + QStringLiteral("Reference");
+            if (in.kind == Inline::RunAtom && in.tag == from.toLower() + QStringLiteral("Ref")) {
+                in.tag = to.toLower() + QStringLiteral("Ref");
+                in.raw = "<w:" + in.tag.toUtf8() + "/>";
+            }
+        }
+    }
+    if (toEndnote) {
+        const int fresh = lastMade > 0 && lastMade < 999'999'999 ? lastMade + 1 : nextEndnoteId();   // (the Id above the one the caller made last: nothing else has changed)
+        m_endnoteBlocks.insert(QString::number(fresh), blocks);
+        m_createdEndnotes.insert(fresh);
+        m_endnoteIdFloor = fresh;
+        m_createdEndnoteStep[fresh] = 0;
+        m_noteStepPending.push_back({true, fresh});
+        return fresh;
+    }
+    const int fresh = lastMade > 0 && lastMade < 999'999'999 ? lastMade + 1 : nextFootnoteId();
+    const QString key = QStringLiteral("fn%1").arg(fresh);
+    m_noteBlocks.insert(key, blocks);
+    m_createdFootnotes.insert(fresh);
+    if (!noteStory(key)) {
+        m_noteBlocks.remove(key);
         m_createdFootnotes.remove(fresh);
         return 0;
     }
@@ -745,8 +807,8 @@ int WriteDoc::nextEndnoteId()
     indexEndnoteReferences();
     int highest = std::max(m_endnotePartHighest, m_endnoteIdFloor);   // (above the Id of every element of the part)
     QSet<int> used;
-    for (auto it = m_endnoteBlocks.cbegin(); it != m_endnoteBlocks.cend(); ++it) used.insert(it.key().toInt());
-    for (auto it = m_endnoteRefIndex.cbegin(); it != m_endnoteRefIndex.cend(); ++it) used.insert(it.key());
+    for (auto it = m_endnoteBlocks.cbegin(); it != m_endnoteBlocks.cend(); ++it, ++s_noteWalk) used.insert(it.key().toInt());
+    for (auto it = m_endnoteRefIndex.cbegin(); it != m_endnoteRefIndex.cend(); ++it, ++s_noteWalk) used.insert(it.key());
     {
         QSet<int> unused, beyond;
         notesCitedBeyondTheText(&unused, &beyond);
@@ -1063,7 +1125,8 @@ void WriteDoc::writeNoteParts(office::wml::Document *out)
         }
         change.added.push_back({id, blocks});
     }
-    if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty()) return;
+    separatorsToWrite(false, &change);
+    if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty() && change.separators.isEmpty()) return;
     const QByteArray original = m_footnotesPartNew ? QByteArray() : partData(m_notePart);
     const QByteArray data = notesPartXml(original, false, change);
     if (data.isEmpty()) return;
@@ -1073,6 +1136,11 @@ void WriteDoc::writeNoteParts(office::wml::Document *out)
                 kept.data = data;
                 break;
             }
+        // (A separator the part lacked was added with the Id the settings name it by: the settings name them, if they did not.)
+        if (change.separators.contains(QStringLiteral("separator")) || change.separators.contains(QStringLiteral("continuationSeparator"))) {
+            KeptPart *settings = settingsPartFor(out);
+            settings->data = settingsWithNoteSeparators(settings->data, false);
+        }
         return;
     }
     // A part the document did not have: the part, the relationship to it, and the settings that name its separators.
@@ -1113,7 +1181,8 @@ void WriteDoc::writeEndnoteParts(office::wml::Document *out)
     std::sort(made.begin(), made.end());
     for (const int id : std::as_const(made))
         if (cited(id) && m_endnoteBlocks.contains(QString::number(id))) change.added.push_back({id, m_endnoteBlocks.value(QString::number(id))});
-    if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty()) return;
+    separatorsToWrite(true, &change);
+    if (change.replaced.isEmpty() && change.removed.isEmpty() && change.added.isEmpty() && change.separators.isEmpty()) return;
     const QByteArray original = m_endnotesPartNew ? QByteArray() : partData(m_endnotePart);
     const QByteArray data = notesPartXml(original, true, change);
     if (data.isEmpty()) return;
@@ -1123,6 +1192,11 @@ void WriteDoc::writeEndnoteParts(office::wml::Document *out)
                 kept.data = data;
                 break;
             }
+        // (A separator the part lacked was added with the Id the settings name it by: the settings name them, if they did not.)
+        if (change.separators.contains(QStringLiteral("separator")) || change.separators.contains(QStringLiteral("continuationSeparator"))) {
+            KeptPart *settings = settingsPartFor(out);
+            settings->data = settingsWithNoteSeparators(settings->data, true);
+        }
         return;
     }
     KeptPart kept;

@@ -1359,6 +1359,104 @@ private Q_SLOTS:
         QVERIFY(tree.parse(fresh));
     }
 
+    // A separator the part lacked is added with the Id the settings name it by (-1 and 0), and the notice with the Id above the others; none is added where another note has the Id, and none past
+    // the highest Id there is.
+    void aSeparatorAPartLackedIsAddedWithTheIdTheSettingsNameItBy()
+    {
+        auto words = [](const char *text) {
+            QVector<Block> blocks;
+            readBlocks(QByteArray("<w:ftr ") + kW + "><w:p><w:r><w:t>" + text + "</w:t></w:r></w:p></w:ftr>", &blocks);
+            return blocks;
+        };
+        auto idsOf = [](const QByteArray &part) {
+            QVector<int> ids;
+            for (qsizetype at = part.indexOf("<w:footnote "); at >= 0; at = part.indexOf("<w:footnote ", at + 1)) {
+                const qsizetype idAt = part.indexOf("w:id=\"", at);
+                ids << part.mid(idAt + 6, part.indexOf('"', idAt + 6) - idAt - 6).toInt();
+            }
+            return ids;
+        };
+        const QByteArray sep = R"(<w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>)";
+        const QByteArray original = xmlDoc(QByteArray("<w:footnotes ") + kW + ">" + sep + R"(<w:footnote w:id="2"><w:p><w:r><w:t>two</w:t></w:r></w:p></w:footnote>)" + "</w:footnotes>");
+        NotesChange change;
+        change.separators.insert(QStringLiteral("continuationSeparator"), words("* * *"));
+        change.separators.insert(QStringLiteral("continuationNotice"), words("More"));
+        const QByteArray out = notesPartXml(original, false, change);
+        QCOMPARE(idsOf(out), (QVector<int>{-1, 2, 0, 3}));
+        QVERIFY(out.contains("w:type=\"continuationSeparator\" w:id=\"0\""));
+        // An Id of the separators taken by another note: no separator is made to share it.
+        const QByteArray taken = xmlDoc(QByteArray("<w:footnotes ") + kW + R"(><w:footnote w:id="0"><w:p><w:r><w:t>zero</w:t></w:r></w:p></w:footnote></w:footnotes>)");
+        NotesChange only;
+        only.separators.insert(QStringLiteral("continuationSeparator"), words("* * *"));
+        QCOMPARE(idsOf(notesPartXml(taken, false, only)), (QVector<int>{0}));
+        // The highest Id there can be: the notice is not given one past it.
+        const QByteArray top = xmlDoc(QByteArray("<w:footnotes ") + kW + R"(><w:footnote w:id="2147483647"><w:p><w:r><w:t>last</w:t></w:r></w:p></w:footnote></w:footnotes>)");
+        NotesChange notice;
+        notice.separators.insert(QStringLiteral("continuationNotice"), words("More"));
+        const QByteArray capped = notesPartXml(top, false, notice);
+        QVERIFY(!capped.isEmpty());
+        QVERIFY2(!capped.contains("-2147483648"), capped.constData());
+        const QVector<int> ids = idsOf(capped);
+        QCOMPARE(QSet<int>(ids.begin(), ids.end()).size(), int(ids.size()));
+        // A new part whose added note has the highest Id: the notice is left out, not given that Id again.
+        NotesChange fresh;
+        fresh.added.push_back({2147483647, words("last")});
+        fresh.separators.insert(QStringLiteral("continuationNotice"), words("More"));
+        const QByteArray made = notesPartXml(QByteArray(), false, fresh);
+        const QVector<int> madeIds = idsOf(made);
+        QVERIFY2(!made.contains("continuationNotice"), made.constData());
+        QCOMPARE(QSet<int>(madeIds.begin(), madeIds.end()).size(), int(madeIds.size()));
+    }
+
+    // What the commands that make captions, indexes, authorities, and bibliographies add is not a built-in style a document may name without defining; the settings that cannot take the
+    // numbering are known.
+    void theReferenceStylesAreNotBuiltIn()
+    {
+        for (const char *id : {"Caption", "TableofFigures", "TableofAuthorities", "Index1", "Index9", "IndexHeading", "TOAHeading", "Bibliography"}) {
+            QVERIFY2(builtinStyle(QString::fromLatin1(id)).id.isEmpty(), id);
+            QCOMPARE(referenceStyle(QString::fromLatin1(id)).id, QString::fromLatin1(id));
+        }
+        QVERIFY(referenceStyle(QStringLiteral("Normal")).id.isEmpty());
+        QVERIFY(settingsAcceptNoteProperties(QByteArray()));
+        QVERIFY(settingsAcceptNoteProperties(xmlDoc(QByteArray("<w:settings ") + kW + "><w:zoom w:percent=\"100\"/></w:settings>")));
+        QVERIFY(!settingsAcceptNoteProperties(xmlDoc(QByteArray("<w:settings ") + kW + "/>")));
+    }
+
+    // The numbering of the notes is written in the group the schema has for it, in the order its elements have, with the separator notes kept, and read back.
+    void theSettingsSayHowTheNotesAreNumbered()
+    {
+        const QByteArray settings = xmlDoc(QByteArray("<w:settings ") + kW + "><w:zoom w:percent=\"100\"/><w:footnotePr><w:numFmt w:val=\"lowerRoman\"/><w:footnote w:id=\"-1\"/><w:footnote w:id=\"0\"/></w:footnotePr><w:compat/></w:settings>");
+        NoteProperties p;
+        p.format = QStringLiteral("upperLetter");
+        p.start = 3;
+        p.restart = QStringLiteral("eachSect");
+        p.position = QStringLiteral("beneathText");
+        const QByteArray out = settingsWithNoteProperties(settings, false, p);
+        QVERIFY2(out.contains("<w:footnotePr><w:pos w:val=\"beneathText\"/><w:numFmt w:val=\"upperLetter\"/><w:numStart w:val=\"3\"/><w:numRestart w:val=\"eachSect\"/><w:footnote w:id=\"-1\"/><w:footnote w:id=\"0\"/></w:footnotePr><w:compat/>"),
+                 out.constData());
+        const NoteNumbering read = readNoteNumbering(out, "footnotePr");
+        QCOMPARE(read.format, QStringLiteral("upperLetter"));
+        QCOMPARE(read.start, 3);
+        QCOMPARE(read.position, QStringLiteral("beneathText"));
+        QCOMPARE(noteNumberRestart(out, "footnotePr"), QStringLiteral("eachSect"));
+        QCOMPARE(settingsWithNoteProperties(out, false, p), out);
+        // A group that is not there is made before what the schema puts after it, the footnotes' before the endnotes'.
+        const QByteArray bare = xmlDoc(QByteArray("<w:settings ") + kW + "><w:zoom w:percent=\"100\"/><w:endnotePr><w:numFmt w:val=\"decimal\"/></w:endnotePr><w:compat/></w:settings>");
+        const QByteArray made = settingsWithNoteProperties(bare, false, p);
+        QVERIFY(made.indexOf("<w:footnotePr>") > made.indexOf("<w:zoom") && made.indexOf("<w:footnotePr>") < made.indexOf("<w:endnotePr>"));
+        NoteProperties e;
+        e.format = QStringLiteral("lowerRoman");
+        e.position = QStringLiteral("docEnd");
+        const QByteArray ends = settingsWithNoteProperties(bare, true, e);
+        QVERIFY2(ends.contains("<w:endnotePr><w:pos w:val=\"docEnd\"/><w:numFmt w:val=\"lowerRoman\"/></w:endnotePr><w:compat/>"), ends.constData());
+        QCOMPARE(ends.count("<w:endnotePr>"), 1);
+        // No settings: a part that reads back.
+        const QByteArray fresh = settingsWithNoteProperties(QByteArray(), true, e);
+        XmlTree tree;
+        QVERIFY(tree.parse(fresh));
+        QCOMPARE(readNoteNumbering(fresh, "endnotePr").position, QStringLiteral("docEnd"));
+    }
+
     // The fonts of a font table come with their alternates and kinds; a part of thousands of fonts is read in step with its size, and one that is
     // not XML (unclosed elements) is refused.
     void readsTheFontsOfAFontTable()

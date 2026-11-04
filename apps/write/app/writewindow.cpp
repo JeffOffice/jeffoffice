@@ -226,6 +226,7 @@ void WriteWindow::createActions()
     createHeaderFooterActions();
     createNoteActions();
     createFieldActions();
+    createRefsActions();
     createTableActions();
     createPictureActions();
     createStyleActions();
@@ -418,7 +419,7 @@ void WriteWindow::refreshUi()
     for (QAction *a : m_actions) {
         const QString id = a->objectName();
         if (id.startsWith(QLatin1String("fmt.")) || id.startsWith(QLatin1String("para.")) || id.startsWith(QLatin1String("ls.")) || id.startsWith(QLatin1String("layout.")) ||
-            id.startsWith(QLatin1String("insert.")) || id.startsWith(QLatin1String("style.")) || id == QLatin1String("edit.formatPainter") || id == QLatin1String("edit.copyFormat") ||
+            id.startsWith(QLatin1String("insert.")) || id.startsWith(QLatin1String("refs.")) || id.startsWith(QLatin1String("style.")) || id == QLatin1String("edit.formatPainter") || id == QLatin1String("edit.copyFormat") ||
             id == QLatin1String("edit.pasteFormat") || id == QLatin1String("edit.goTo"))
             a->setEnabled(has);
     }
@@ -514,6 +515,12 @@ void WriteWindow::refreshUi()
             act("fields.toggleCode")->setEnabled(near.any);
             act("refs.updateTable")->setEnabled(near.toc);
             act("refs.removeTable")->setEnabled(near.toc);
+            act("refs.updateIndex")->setEnabled(near.index);
+            act("refs.updateAuthorities")->setEnabled(near.authorities);
+            for (const char *id : {"refs.tocAutomatic1", "refs.tocAutomatic2", "refs.tocManual", "refs.addText.none", "refs.addText.1", "refs.addText.2", "refs.addText.3", "refs.markTocEntry", "refs.insertCaption",
+                                   "refs.tableOfFigures", "refs.insertCitation", "refs.bibliography.bibliography", "refs.bibliography.references", "refs.bibliography.worksCited", "refs.markEntry", "refs.insertIndex",
+                                   "refs.markCitation", "refs.insertAuthorities"})
+                act(QString::fromLatin1(id))->setEnabled(inText);
             act("fields.lock")->setEnabled(near.unlocked);
             act("fields.unlock")->setEnabled(near.locked);
             act("fields.toggleAllCodes")->setEnabled(inText && m_doc->mayHaveFields());
