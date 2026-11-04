@@ -139,6 +139,25 @@ void setChartTitle(Chart *chart, TitleMode mode)
     t.overlay = mode == TitleMode::Overlay;
 }
 
+void setChartTitleText(Chart *chart, const QString &text, const QString &ref)
+{
+    ChartTitle &t = chart->title;
+    t.present = true;
+    t.automatic = false;
+    t.text = text;
+    t.ref = ref;
+}
+
+void setAxisTitleText(Chart *chart, bool horizontal, const QString &text, const QString &ref, bool secondary)
+{
+    ChartAxis *a = secondary ? secondaryAxis(chart, horizontal) : primaryAxis(chart, horizontal);
+    if (!a) return;
+    a->title.present = true;
+    a->title.automatic = false;
+    a->title.text = text;
+    a->title.ref = ref;
+}
+
 void setAxisShown(Chart *chart, bool horizontal, bool shown, bool secondary)
 {
     if (ChartAxis *a = secondary ? secondaryAxis(chart, horizontal) : primaryAxis(chart, horizontal)) a->deleted = !shown;
@@ -293,6 +312,7 @@ ChartLabelParts labelPartsOf(const Chart &chart)
                 out.category = s.labels.category;
                 out.series = s.labels.series;
                 out.percent = s.labels.percent;
+                out.legendKey = s.labels.legendKey;
                 out.separator = s.labels.separator;
                 out.format = s.labels.format;
                 return out;
@@ -302,7 +322,7 @@ ChartLabelParts labelPartsOf(const Chart &chart)
 
 void setDataLabelParts(Chart *chart, const ChartLabelParts &parts)
 {
-    const bool any = parts.value || parts.category || parts.series || parts.percent;
+    const bool any = parts.value || parts.category || parts.series || parts.percent || parts.legendKey;
     for (ChartPlot &p : chart->plots)
         for (ChartSeries &s : p.series) {
             if (!any) {
@@ -313,6 +333,7 @@ void setDataLabelParts(Chart *chart, const ChartLabelParts &parts)
             s.labels.category = parts.category;
             s.labels.series = parts.series;
             s.labels.percent = parts.percent;
+            s.labels.legendKey = parts.legendKey;
             s.labels.separator = parts.separator;
             s.labels.format = parts.format;
         }

@@ -685,6 +685,7 @@ ChartDataLabels Reader::readLabels(const QDomElement &e) const
 {
     ChartDataLabels l;
     if (e.isNull() || flagOf(cChild(e, "delete"), false)) return l;
+    l.legendKey = flagOf(cChild(e, "showLegendKey"), false);
     l.value = flagOf(cChild(e, "showVal"), false);
     l.category = flagOf(cChild(e, "showCatName"), false);
     l.series = flagOf(cChild(e, "showSerName"), false);

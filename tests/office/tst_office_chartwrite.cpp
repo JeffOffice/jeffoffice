@@ -142,6 +142,26 @@ private Q_SLOTS:
         QCOMPARE(chartSvg(r, QSizeF(480, 288)), chartSvg(c, QSizeF(480, 288)));
     }
 
+    // The legend key of a data label (the small square of the series' color) is kept, written, and drawn beside the label.
+    void aLabelsLegendKeyIsKeptAndDrawn()
+    {
+        Chart c = comboChart();
+        c.plots[0].series[0].labels.value = true;
+        const QByteArray plain = chartSvg(c, QSizeF(480, 288));
+        c.plots[0].series[0].labels.legendKey = true;
+        const QByteArray xml = writeChartPart(c);
+        QVERIFY(xml.contains("<c:showLegendKey val=\"1\"/>"));
+        Chart r;
+        QVERIFY(readChart(xml, defaultTheme(), ColorMap(), &r));
+        QVERIFY(r.plots[0].series[0].labels.legendKey);
+        QVERIFY(!r.plots[0].series[1].labels.legendKey);
+        QVERIFY(chartSvg(r, QSizeF(480, 288)) != plain);
+        // a key alone is a label, too
+        c.plots[0].series[0].labels.value = false;
+        QVERIFY(c.plots[0].series[0].labels.shown());
+        QVERIFY(writeChartPart(c).contains("<c:showLegendKey val=\"1\"/>"));
+    }
+
     void everyKindOfChartIsWrittenAndReadBack()
     {
         const ChartType kinds[] = {ChartType::Bar, ChartType::Line, ChartType::Pie, ChartType::Doughnut, ChartType::Area, ChartType::Scatter};

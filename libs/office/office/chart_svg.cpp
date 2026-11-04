@@ -700,13 +700,23 @@ void ChartPainter::drawLabels(const ChartPlot &plot, const ChartSeries &s, int i
         return;
     }
     const QString text = labelText(plot, s, index, total, s.labels);
-    if (text.isEmpty()) return;
+    if (text.isEmpty() && !s.labels.legendKey) return;
     --m_labelsLeft;
     const QFont font = fontOf(s.labels.font, 10, false);
     QColor color = colorOf(s.labels.font);
     // Text on a dark fill is light, as long as the file didn't choose its color.
     if (inside && under.isValid() && !s.labels.font.color.isValid() && under.lightnessF() < 0.45) color = Qt::white;
-    drawText(text, font, color, at, ha, va);
+    if (!s.labels.legendKey) {
+        drawText(text, font, color, at, ha, va);
+        return;
+    }
+    // The key stands left of the words, 7 points wide and 2 away; alone, it is where the label would be.
+    const double keyW = 7, gap = 2;
+    const double w = text.isEmpty() ? 0 : widthOf(font, text);
+    const double left = at.x() - ha * (keyW + (text.isEmpty() ? 0 : gap + w));
+    const double h = heightOf(font);
+    m_p->fillRect(QRectF(left, at.y() - va * h + (h - keyW) / 2, keyW, keyW), pointColor(plot, s, index));
+    if (!text.isEmpty()) drawText(text, font, color, QPointF(left + keyW + gap, at.y()), 0, va);
 }
 
 // ---- pies

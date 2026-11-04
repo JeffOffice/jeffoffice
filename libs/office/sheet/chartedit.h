@@ -44,6 +44,10 @@ const ChartAxis *secondaryAxis(const Chart &chart, bool horizontal);
 
 enum class TitleMode : quint8 { None, Above, Overlay };
 void setChartTitle(Chart *chart, TitleMode mode);
+// The words of the chart title, or the cell it reads them from (`ref` such as "Sheet1!$A$1": the words follow that cell); the title is shown.
+void setChartTitleText(Chart *chart, const QString &text, const QString &ref = QString());
+// The same for the title of an axis.
+void setAxisTitleText(Chart *chart, bool horizontal, const QString &text, const QString &ref = QString(), bool secondary = false);
 void setAxisShown(Chart *chart, bool horizontal, bool shown, bool secondary = false);
 void setAxisTitle(Chart *chart, bool horizontal, bool shown, bool secondary = false);
 // Gridlines across the chart (`horizontal`) or up and down it, major or minor.
@@ -68,7 +72,7 @@ void setDataLabels(Chart *chart, bool shown, const QString &position = QString()
 // What the data labels hold: the value, the category's name, the series' name, and the percentage, with what stands between them ("" for the usual comma and space) and a number format
 // ("" for the values' own). Read from the first series that has labels; set on every series: one that has none gets labels in the usual place, and none chosen takes the labels away.
 struct ChartLabelParts {
-    bool value = false, category = false, series = false, percent = false;
+    bool value = false, category = false, series = false, percent = false, legendKey = false;
     QString separator, format;
 };
 ChartLabelParts labelPartsOf(const Chart &chart);
