@@ -49,6 +49,8 @@ bool bookmarkDialog(QWidget *parent, WriteDoc *doc, PageView *view);
 bool crossReferenceDialog(QWidget *parent, WriteDoc *doc, PageView *view);
 // Field: a field of the list and its code to be edited; OK puts it at the caret with the result worked out.
 bool fieldDialog(QWidget *parent, WriteDoc *doc, PageView *view);
+// Asks for the new code of a field (its code now is shown); the new code, empty if canceled.
+QString editFieldDialog(QWidget *parent, const QString &code);
 // Table of Contents: the levels, whether page numbers show and line up at the right, the leader, and whether lines are links; OK puts the table at the caret.
 bool tableOfContentsDialog(QWidget *parent, WriteDoc *doc, PageView *view);
 // Update Table of Contents: page numbers only, or the entire table. Returns 0 for neither (canceled), 1 for page numbers only, and 2 for the entire table.

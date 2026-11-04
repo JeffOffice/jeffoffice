@@ -122,6 +122,8 @@ public:
     void setTextFileChooser(const std::function<QString()> &chooser) { m_textFileChooser = chooser; }
     // What asks the person before a link is followed that needs it (tests stand in for the message box): the question; true to go on.
     void setLinkAsker(const std::function<bool(const QString &)> &asker) { m_linkAsker = asker; }
+    // What asks for a field's new code when it is edited (tests stand in for the box): the field's code now; the new code, empty for none.
+    void setFieldCodeAsker(const std::function<QString(const QString &)> &asker) { m_fieldCodeAsker = asker; }
     void setLinkOpener(const std::function<void(const QString &)> &opener) { m_linkOpener = opener; }
     void setPictureChooser(const std::function<QString()> &chooser) { m_pictureChooser = chooser; }
     write::Ruler *ruler() const { return m_ruler; }
@@ -341,6 +343,7 @@ private:
     QList<MeasureSpin *> m_indentFields;
     QWidget *m_styleGallery = nullptr;
     std::function<void(const QString &)> m_linkOpener;
+    std::function<QString(const QString &)> m_fieldCodeAsker;
     std::function<bool(const QString &)> m_linkAsker;
     std::function<QString()> m_textFileChooser;
     NavigationPane *m_nav = nullptr;

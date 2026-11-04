@@ -154,6 +154,14 @@ void WriteWindow::addLinkFieldNoteContextMenu(QMenu &menu)
     where.setPosition(qBound(0, at, m_doc->story()->characterCount() - 1));
     if (write::fieldsNearSelection(m_doc->story(), where).any) {
         separate();
+        local("ctx.editField", tr("Edit Field…"), [this, at] {
+            const QString now = write::fieldCodeAt(*m_doc, at);
+            const QString code = m_fieldCodeAsker ? m_fieldCodeAsker(now) : write::editFieldDialog(this, now);
+            if (!code.trimmed().isEmpty() && code.trimmed() != now && !write::replaceFieldCode(*m_doc, at, code)) statusBar()->showMessage(tr("This field can't be edited here."), 6000);
+            m_view->setFocus(Qt::OtherFocusReason);
+            m_view->viewport()->update();
+            refreshUi();
+        });
         for (const char *id : {"fields.update", "fields.toggleCode", "fields.lock", "fields.unlock", "fields.unlink"}) menu.addAction(act(QString::fromLatin1(id)));
     }
     if (const int note = write::footnoteReferenceAt(*m_doc, at); note >= 0) {

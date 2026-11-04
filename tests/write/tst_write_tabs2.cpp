@@ -348,6 +348,55 @@ private Q_SLOTS:
         dock = w.findChild<QDockWidget *>(QStringLiteral("helpDock"));
         QVERIFY(dock && dock->isVisible());
     }
+
+    void aFieldsCodeCanBeReadAndChanged()
+    {
+        auto doc = WriteDoc::blank();
+        QTextCursor c(doc->story());
+        insertText(*doc, c, QStringLiteral("before "));
+        QVERIFY(insertField(*doc, c, QStringLiteral("= 2 + 3")));
+        insertText(*doc, c, QStringLiteral(" after"));
+        const int at = 8;
+        QCOMPARE(fieldCodeAt(*doc, at).trimmed(), QStringLiteral("= 2 + 3"));
+        QCOMPARE(fieldCodeAt(*doc, 2), QString());   // (no field there)
+        QVERIFY(replaceFieldCode(*doc, at, QStringLiteral("= 4 * 5")));
+        QCOMPARE(fieldCodeAt(*doc, at).trimmed(), QStringLiteral("= 4 * 5"));
+        QCOMPARE(doc->story()->toPlainText().remove(QChar(0xFFFC)).left(7), QStringLiteral("before "));
+        QVERIFY(doc->story()->toPlainText().contains(QStringLiteral(" after")));
+        // One step undoes it.
+        doc->undo();
+        QCOMPARE(fieldCodeAt(*doc, at).trimmed(), QStringLiteral("= 2 + 3"));
+        // A locked field is left as it is.
+        QTextCursor all(doc->story());
+        all.select(QTextCursor::Document);
+        lockFields(*doc, all, true);
+        QVERIFY(!replaceFieldCode(*doc, at, QStringLiteral("= 1")));
+        QVERIFY(!replaceFieldCode(*doc, 2, QStringLiteral("= 1")));
+    }
+
+    void theMenuOnAFieldEditsItsCode()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QTextCursor c = w.view()->cursor();
+        QVERIFY(insertField(*w.document(), c, QStringLiteral("= 2 + 3")));
+        QTextCursor in(w.document()->story());
+        in.setPosition(1);
+        w.view()->setCursor(in);
+        w.refreshNow();
+        QMenu menu;
+        w.fillContextMenu(menu);
+        QVERIFY(find(menu, QStringLiteral("ctx.editField")));
+        QString shown;
+        w.setFieldCodeAsker([&](const QString &now) {
+            shown = now;
+            return QStringLiteral("= 7 * 6");
+        });
+        find(menu, QStringLiteral("ctx.editField"))->trigger();
+        QCOMPARE(shown.trimmed(), QStringLiteral("= 2 + 3"));
+        QCOMPARE(fieldCodeAt(*w.document(), 1).trimmed(), QStringLiteral("= 7 * 6"));
+    }
 };
 
 QTEST_MAIN(Tabs2Tests)
