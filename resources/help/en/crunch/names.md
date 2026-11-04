@@ -17,6 +17,8 @@ While you type, the dialog says what is wrong, and the **OK** button waits.
 1. Select the cells, and click **New Name** on the **Formulas** tab.
 2. Type the name, choose where it works, and say what it stands for. The cells you selected are filled in for you.
 
+There is a quicker way for a name of the whole workbook. Select the cells, click the **Name box** (at the left of the formula bar), type the name, and press **Enter**. If no name is spelled like that yet, it is made for the cells you selected. If there is one, **Enter** goes to its cells.
+
 **Name From Cells** makes many names at once from the labels round a block: with the headings in the top row and the numbers under them, each heading names the cells under it. Choose where the labels are (top row, left column, bottom row, or right column). A label that has spaces or marks a name can't have gets underscores in their place. A label that is empty, repeats another, or is a name the workbook has already is left out, and the status bar says how many.
 
 ## Look at all the names

@@ -632,6 +632,29 @@ void CrunchWindow::goToName()
             done = true;
         }
     }
+    // a name that stands for nothing yet is made, for the cells selected (as typing a name in the Name box does where a name is wanted)
+    if (!done && m_session && m_loaded && m_loaded->book && editingAllowed()) {
+        crunch::EditSession::NameDraft draft;
+        draft.name = text;
+        const jp::office::sheet::CellRange picked = selectedRange();
+        auto absolute = [](quint32 row, quint32 col) { return QStringLiteral("$%1$%2").arg(jp::office::sheet::columnName(col)).arg(row + 1); };
+        QString sheetName = m_loaded->book->info().sheets[size_t(m_sheet)].name;
+        quint32 asRow = 0, asCol = 0;
+        static const QRegularExpression plainName(QStringLiteral("^[A-Za-z_][A-Za-z0-9_]*$"));
+        if (!plainName.match(sheetName).hasMatch() || jp::office::sheet::parseCellRef(sheetName, &asRow, &asCol)) {
+            sheetName.replace(QLatin1Char('\''), QStringLiteral("''"));
+            sheetName = QLatin1Char('\'') + sheetName + QLatin1Char('\'');
+        }
+        draft.text = QStringLiteral("=%1!%2").arg(sheetName, absolute(picked.row1, picked.col1))
+                     + (picked.row1 == picked.row2 && picked.col1 == picked.col2 ? QString() : QLatin1Char(':') + absolute(picked.row2, picked.col2));
+        if (m_session->nameProblem(draft, -1).isEmpty()) {
+            const crunch::EditSession::Outcome o = m_session->defineName(draft);
+            if (o.ok) {
+                setStatus(tr("The name %1 now stands for the cells selected.").arg(text));
+                done = true;
+            }
+        }
+    }
     if (!done) setStatus(tr("\"%1\" is not an address JeffCrunch can go to.").arg(text));
     m_nameBox->setText(m_view->selectionName());
     m_view->setFocus(Qt::OtherFocusReason);

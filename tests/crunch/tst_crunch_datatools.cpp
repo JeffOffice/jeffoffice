@@ -246,6 +246,37 @@ private Q_SLOTS:
         QCOMPARE(t.spec().qualifier, QLatin1Char('"'));
     }
 
+    void aNameTypedInTheNameBoxStandsForTheSelection()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B2=2", "C3=3"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        const CellRange r = rangeOf(QStringLiteral("B2:C3"));
+        e.view()->selectRange(r.row1, r.col1, r.row2, r.col2);
+        w.nameBox()->setText(QStringLiteral("Block"));
+        QTest::keyClick(w.nameBox(), Qt::Key_Return);
+        QVERIFY(e.settle());
+        const int id = w.session()->names().find(-1, QStringLiteral("Block"));
+        QVERIFY(id >= 0);
+        QCOMPARE(w.session()->nameTextOf(id), QStringLiteral("=Sheet1!$B$2:$C$3"));
+        // the name now goes to those cells
+        e.select(QStringLiteral("A1"));
+        QVERIFY(w.goToReference(QStringLiteral("Block")));
+        QCOMPARE(e.view()->rangeName(), QStringLiteral("B2:C3"));
+        QCOMPARE(w.undoStack()->count(), 1);
+        // a text that is no name makes none
+        w.nameBox()->setText(QStringLiteral("not a name!"));
+        QTest::keyClick(w.nameBox(), Qt::Key_Return);
+        QCOMPARE(w.session()->names().aliveCount(), 1);
+        // one cell
+        e.select(QStringLiteral("A1"));
+        w.nameBox()->setText(QStringLiteral("Start"));
+        QTest::keyClick(w.nameBox(), Qt::Key_Return);
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->nameTextOf(w.session()->names().find(-1, QStringLiteral("Start"))), QStringLiteral("=Sheet1!$A$1"));
+    }
+
     // Pictures of the Data tab and its two dialogs, for a person to look at (written only when JP_SHOT_DIR names a folder).
     void picturesForLooking()
     {
