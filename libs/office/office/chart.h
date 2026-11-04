@@ -221,6 +221,10 @@ struct Chart {
     // The relationships of the chart part's own (xl/charts/_rels) that it names: the drawing of shapes over the chart (c:userShapes) and the workbook it was made from (c:externalData). They
     // are good only for the part they were read in: a chart put in another part has them cleared (clearPartLinks).
     QString userShapesId, externalDataId;
+    // A chart that follows a pivot table (c:pivotSource): the table's name as the file writes it ("[Book.xlsx]Sheet1!Table1", or just the table's name) and the chart's format id.
+    QString pivotName;
+    int pivotFmtId = 0;
+    int pivotTable = -1;   // (not in the file) for a chart made here: the place of its table among the workbook's, so that the name above is made again from the table's name when the file is saved
     bool externalAutoUpdate = false;
     void clearPartLinks() { userShapesId.clear(); externalDataId.clear(); }
     // The plot area's place when the file fixes it, as fractions of the chart.

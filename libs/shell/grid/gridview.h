@@ -243,6 +243,8 @@ public:
     bool cellsEnabled() const { return m_cellsEnabled; }
     // A hook asked before a click changes the selection: false, and the click is ignored (the window finishes an entry first, and does not go on when it can't).
     void setClickGuard(std::function<bool()> guard) { m_clickGuard = std::move(guard); }
+    // A double click on a cell asks this first; true says it was taken (the cell is not edited).
+    void setDoubleClickGuard(std::function<bool()> guard) { m_doubleClickGuard = std::move(guard); }
     // Asked first of a click on a cell (its row and column): true when it was used for something else (a cell pointed at while a formula is typed), and the click then does nothing more.
     void setPointGuard(std::function<bool(qint64, qint64)> guard) { m_pointGuard = std::move(guard); }
     // The cells a press, and a drag from it, point at while a formula is typed: a cell, a block, whole rows, or whole columns (a click on a header). Asked after the point guard; `first`
@@ -442,6 +444,7 @@ private:
     std::vector<FollowedEdit> m_followed, m_unfollowed;
     qint64 m_paintedPixels = 0;
     std::function<bool()> m_clickGuard;
+    std::function<bool()> m_doubleClickGuard;
     std::function<bool(qint64, qint64)> m_pointGuard;
     GridOverlay *m_overlay = nullptr;
     bool m_cellsEnabled = true;

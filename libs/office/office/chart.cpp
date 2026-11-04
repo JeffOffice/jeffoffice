@@ -978,6 +978,10 @@ bool Reader::read(const QDomElement &root, QString *error)
         if (c.style < 1 || c.style > 48) c.style = 2;
     }
     c.font = readTxPr(cChild(root, "txPr"));
+    if (const QDomElement pivot = cChild(root, "pivotSource"); !pivot.isNull()) {
+        c.pivotName = cChild(pivot, "name").text().left(512);
+        c.pivotFmtId = int(parseInt(valOf(cChild(pivot, "fmtId")), 0));
+    }
     c.userShapesId = attrNs(cChild(root, "userShapes"), ns::R, QStringLiteral("id"));
     if (const QDomElement ext = cChild(root, "externalData"); !ext.isNull()) {
         c.externalDataId = attrNs(ext, ns::R, QStringLiteral("id"));

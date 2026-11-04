@@ -4,6 +4,7 @@
 #include "app/writedialogs.h"
 
 #include "app/pageview.h"
+#include "app/plaintext.h"
 #include "core/captionops.h"
 #include "core/citeops.h"
 #include "core/editops.h"
@@ -41,7 +42,7 @@ QComboBox *leaderBox(QDialog *dlg, const char *name)
 {
     auto *leader = new QComboBox(dlg);
     leader->setObjectName(QString::fromLatin1(name));
-    leader->addItem(tr("(none)"), QStringLiteral("none"));
+    leader->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "(none)")), QStringLiteral("none"));
     leader->addItem(QStringLiteral("......."), QStringLiteral("dot"));
     leader->addItem(QStringLiteral("-------"), QStringLiteral("hyphen"));
     leader->addItem(QStringLiteral("_______"), QStringLiteral("underscore"));
@@ -64,7 +65,7 @@ bool tocEntryDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     if (!doc || !view) return false;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("tocEntryDialog"));
-    dlg.setWindowTitle(tr("Mark Table of Contents Entry"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Mark Table of Contents Entry")));
     auto *v = new QVBoxLayout(&dlg);
     auto *form = new QFormLayout;
     auto *entry = new QLineEdit(view->cursor().selectedText().simplified(), &dlg);
@@ -75,11 +76,11 @@ bool tocEntryDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     auto *type = new QLineEdit(&dlg);
     type->setObjectName(QStringLiteral("tocEntryType"));
     type->setMaxLength(1);
-    form->addRow(tr("Entry:"), entry);
-    form->addRow(tr("Level:"), level);
-    form->addRow(tr("Table identifier (a letter, or none):"), type);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Entry:")), entry);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Level:")), level);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Table identifier (a letter, or none):")), type);
     v->addLayout(form);
-    auto *noPage = new QCheckBox(tr("Leave out the page number"), &dlg);
+    auto *noPage = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Leave out the page number")), &dlg);
     noPage->setObjectName(QStringLiteral("tocEntryNoPage"));
     v->addWidget(noPage);
     v->addWidget(okCancel(&dlg));
@@ -95,7 +96,7 @@ bool captionDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     if (!doc || !view) return false;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("captionDialog"));
-    dlg.setWindowTitle(tr("Insert Caption"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Insert Caption")));
     auto *v = new QVBoxLayout(&dlg);
     auto *form = new QFormLayout;
     auto *label = new QComboBox(&dlg);
@@ -106,16 +107,16 @@ bool captionDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     text->setObjectName(QStringLiteral("captionText"));
     auto *position = new QComboBox(&dlg);
     position->setObjectName(QStringLiteral("captionPosition"));
-    position->addItem(tr("Below the selection"), false);
-    position->addItem(tr("Above the selection"), true);
-    form->addRow(tr("Label:"), label);
-    form->addRow(tr("Text after the number (such as \": Sales\"):"), text);
-    form->addRow(tr("Position:"), position);
+    position->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Below the selection")), false);
+    position->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Above the selection")), true);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Label:")), label);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Text after the number (such as \": Sales\"):")), text);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Position:")), position);
     v->addLayout(form);
-    auto *exclude = new QCheckBox(tr("Do not show the label in the caption"), &dlg);
+    auto *exclude = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Do not show the label in the caption")), &dlg);
     exclude->setObjectName(QStringLiteral("captionExclude"));
     v->addWidget(exclude);
-    auto *chapter = new QCheckBox(tr("Include the chapter number"), &dlg);
+    auto *chapter = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Include the chapter number")), &dlg);
     chapter->setObjectName(QStringLiteral("captionChapter"));
     v->addWidget(chapter);
     auto *chapterForm = new QFormLayout;
@@ -127,8 +128,8 @@ bool captionDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     separator->setObjectName(QStringLiteral("captionSeparator"));
     separator->setMaxLength(3);
     separator->setEnabled(false);
-    chapterForm->addRow(tr("Chapter starts with heading level:"), level);
-    chapterForm->addRow(tr("Separator:"), separator);
+    chapterForm->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Chapter starts with heading level:")), level);
+    chapterForm->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Separator:")), separator);
     v->addLayout(chapterForm);
     QObject::connect(chapter, &QCheckBox::toggled, level, &QWidget::setEnabled);
     QObject::connect(chapter, &QCheckBox::toggled, separator, &QWidget::setEnabled);
@@ -166,26 +167,26 @@ bool tableOfFiguresDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     if (!doc || !view) return false;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("tableOfFiguresDialog"));
-    dlg.setWindowTitle(tr("Table of Figures"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Table of Figures")));
     auto *v = new QVBoxLayout(&dlg);
     auto *form = new QFormLayout;
     auto *label = new QComboBox(&dlg);
     label->setObjectName(QStringLiteral("figuresLabel"));
     label->addItems(captionLabelChoices(*doc));
     auto *leader = leaderBox(&dlg, "figuresLeader");
-    form->addRow(tr("Caption label:"), label);
-    form->addRow(tr("Tab leader:"), leader);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Caption label:")), label);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Tab leader:")), leader);
     v->addLayout(form);
-    auto *includeLabel = new QCheckBox(tr("Include label and number"), &dlg);
+    auto *includeLabel = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Include label and number")), &dlg);
     includeLabel->setObjectName(QStringLiteral("figuresIncludeLabel"));
     includeLabel->setChecked(true);
-    auto *pages = new QCheckBox(tr("Show page numbers"), &dlg);
+    auto *pages = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Show page numbers")), &dlg);
     pages->setObjectName(QStringLiteral("figuresPages"));
     pages->setChecked(true);
-    auto *right = new QCheckBox(tr("Right align page numbers"), &dlg);
+    auto *right = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Right align page numbers")), &dlg);
     right->setObjectName(QStringLiteral("figuresRight"));
     right->setChecked(true);
-    auto *links = new QCheckBox(tr("Use hyperlinks"), &dlg);
+    auto *links = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Use hyperlinks")), &dlg);
     links->setObjectName(QStringLiteral("figuresLinks"));
     links->setChecked(true);
     for (QWidget *w : {static_cast<QWidget *>(includeLabel), static_cast<QWidget *>(pages), static_cast<QWidget *>(right), static_cast<QWidget *>(links)}) v->addWidget(w);
@@ -214,7 +215,7 @@ bool markIndexEntryDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     if (!doc || !view) return false;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("markIndexDialog"));
-    dlg.setWindowTitle(tr("Mark Index Entry"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Mark Index Entry")));
     auto *v = new QVBoxLayout(&dlg);
     auto *form = new QFormLayout;
     auto *mainEntry = new QLineEdit(view->cursor().selectedText().simplified(), &dlg);
@@ -224,22 +225,22 @@ bool markIndexEntryDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     auto *type = new QLineEdit(&dlg);
     type->setObjectName(QStringLiteral("indexType"));
     type->setMaxLength(1);
-    form->addRow(tr("Main entry:"), mainEntry);
-    form->addRow(tr("Subentry:"), sub);
-    form->addRow(tr("Index identifier (a letter, or none):"), type);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Main entry:")), mainEntry);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Subentry:")), sub);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Index identifier (a letter, or none):")), type);
     v->addLayout(form);
-    auto *current = new QRadioButton(tr("Current page"), &dlg);
+    auto *current = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Current page")), &dlg);
     current->setObjectName(QStringLiteral("indexCurrent"));
     current->setChecked(true);
-    auto *range = new QRadioButton(tr("Page range, from the bookmark:"), &dlg);
+    auto *range = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Page range, from the bookmark:")), &dlg);
     range->setObjectName(QStringLiteral("indexRange"));
     auto *bookmark = new QComboBox(&dlg);
     bookmark->setObjectName(QStringLiteral("indexBookmark"));
     for (const BookmarkItem &b : bookmarkList(*doc)) bookmark->addItem(b.name);
     bookmark->setEnabled(false);
-    auto *cross = new QRadioButton(tr("Cross-reference:"), &dlg);
+    auto *cross = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Cross-reference:")), &dlg);
     cross->setObjectName(QStringLiteral("indexCross"));
-    auto *crossText = new QLineEdit(tr("See "), &dlg);
+    auto *crossText = new QLineEdit(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "See ")), &dlg);
     crossText->setObjectName(QStringLiteral("indexCrossText"));
     crossText->setEnabled(false);
     QObject::connect(range, &QRadioButton::toggled, bookmark, &QWidget::setEnabled);
@@ -249,15 +250,15 @@ bool markIndexEntryDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     v->addWidget(bookmark);
     v->addWidget(cross);
     v->addWidget(crossText);
-    auto *bold = new QCheckBox(tr("Bold page number"), &dlg);
+    auto *bold = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Bold page number")), &dlg);
     bold->setObjectName(QStringLiteral("indexBold"));
-    auto *italic = new QCheckBox(tr("Italic page number"), &dlg);
+    auto *italic = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Italic page number")), &dlg);
     italic->setObjectName(QStringLiteral("indexItalic"));
     v->addWidget(bold);
     v->addWidget(italic);
     auto *buttons = new QDialogButtonBox(&dlg);
-    auto *mark = buttons->addButton(tr("Mark"), QDialogButtonBox::AcceptRole);
-    auto *markAll = buttons->addButton(tr("Mark All"), QDialogButtonBox::ActionRole);
+    auto *mark = buttons->addButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Mark")), QDialogButtonBox::AcceptRole);
+    auto *markAll = buttons->addButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Mark All")), QDialogButtonBox::ActionRole);
     buttons->addButton(QDialogButtonBox::Cancel);
     v->addWidget(buttons);
     int choice = 0;
@@ -294,7 +295,7 @@ bool indexDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     if (!doc || !view) return false;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("indexDialog"));
-    dlg.setWindowTitle(tr("Index"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Index")));
     auto *v = new QVBoxLayout(&dlg);
     auto *form = new QFormLayout;
     auto *columns = new QSpinBox(&dlg);
@@ -305,20 +306,20 @@ bool indexDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     auto *type = new QLineEdit(&dlg);
     type->setObjectName(QStringLiteral("indexIdentifier"));
     type->setMaxLength(1);
-    form->addRow(tr("Columns:"), columns);
-    form->addRow(tr("Tab leader:"), leader);
-    form->addRow(tr("Index identifier (a letter, or none):"), type);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Columns:")), columns);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Tab leader:")), leader);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Index identifier (a letter, or none):")), type);
     v->addLayout(form);
-    auto *right = new QCheckBox(tr("Right align page numbers"), &dlg);
+    auto *right = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Right align page numbers")), &dlg);
     right->setObjectName(QStringLiteral("indexRight"));
     right->setChecked(true);
-    auto *headings = new QCheckBox(tr("Put a letter above each group"), &dlg);
+    auto *headings = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Put a letter above each group")), &dlg);
     headings->setObjectName(QStringLiteral("indexHeadings"));
     headings->setChecked(true);
-    auto *indented = new QRadioButton(tr("Indented: each subentry on its own line"), &dlg);
+    auto *indented = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Indented: each subentry on its own line")), &dlg);
     indented->setObjectName(QStringLiteral("indexIndented"));
     indented->setChecked(true);
-    auto *runIn = new QRadioButton(tr("Run-in: subentries follow the entry on one line"), &dlg);
+    auto *runIn = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Run-in: subentries follow the entry on one line")), &dlg);
     runIn->setObjectName(QStringLiteral("indexRunIn"));
     v->addWidget(right);
     v->addWidget(headings);
@@ -346,7 +347,7 @@ bool markCitationDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     if (!doc || !view) return false;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("markCitationDialog"));
-    dlg.setWindowTitle(tr("Mark Citation"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Mark Citation")));
     auto *v = new QVBoxLayout(&dlg);
     auto *form = new QFormLayout;
     const QString selected = view->cursor().selectedText().simplified();
@@ -357,13 +358,13 @@ bool markCitationDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     auto *category = new QComboBox(&dlg);
     category->setObjectName(QStringLiteral("citationCategory"));
     for (int i = 1; i <= 16; ++i) category->addItem(authorityCategoryName(i), i);
-    form->addRow(tr("Long citation:"), longCite);
-    form->addRow(tr("Short citation:"), shortCite);
-    form->addRow(tr("Category:"), category);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Long citation:")), longCite);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Short citation:")), shortCite);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Category:")), category);
     v->addLayout(form);
-    auto *bold = new QCheckBox(tr("Bold page number"), &dlg);
+    auto *bold = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Bold page number")), &dlg);
     bold->setObjectName(QStringLiteral("citationBold"));
-    auto *italic = new QCheckBox(tr("Italic page number"), &dlg);
+    auto *italic = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Italic page number")), &dlg);
     italic->setObjectName(QStringLiteral("citationItalic"));
     v->addWidget(bold);
     v->addWidget(italic);
@@ -386,21 +387,21 @@ bool tableOfAuthoritiesDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     if (!doc || !view) return false;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("authoritiesDialog"));
-    dlg.setWindowTitle(tr("Table of Authorities"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Table of Authorities")));
     auto *v = new QVBoxLayout(&dlg);
     auto *form = new QFormLayout;
     auto *category = new QComboBox(&dlg);
     category->setObjectName(QStringLiteral("authoritiesCategory"));
-    category->addItem(tr("All"), 0);
+    category->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "All")), 0);
     for (int i = 1; i <= 16; ++i) category->addItem(authorityCategoryName(i), i);
     auto *leader = leaderBox(&dlg, "authoritiesLeader");
-    form->addRow(tr("Category:"), category);
-    form->addRow(tr("Tab leader:"), leader);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Category:")), category);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Tab leader:")), leader);
     v->addLayout(form);
-    auto *passim = new QCheckBox(tr("Use passim for five or more pages"), &dlg);
+    auto *passim = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Use passim for five or more pages")), &dlg);
     passim->setObjectName(QStringLiteral("authoritiesPassim"));
     passim->setChecked(true);
-    auto *headings = new QCheckBox(tr("Put the category's name above its citations"), &dlg);
+    auto *headings = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Put the category's name above its citations")), &dlg);
     headings->setObjectName(QStringLiteral("authoritiesHeadings"));
     headings->setChecked(true);
     v->addWidget(passim);
@@ -424,7 +425,7 @@ bool sourceDialog(QWidget *parent, Source *source, const QVector<Source> &others
 {
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("sourceDialog"));
-    dlg.setWindowTitle(tr("Source"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Source")));
     auto *v = new QVBoxLayout(&dlg);
     auto *top = new QFormLayout;
     auto *type = new QComboBox(&dlg);
@@ -439,16 +440,16 @@ bool sourceDialog(QWidget *parent, Source *source, const QVector<Source> &others
     authors->setPlainText(lines.join(QLatin1Char('\n')));
     auto *corporate = new QLineEdit(source->corporateAuthor, &dlg);
     corporate->setObjectName(QStringLiteral("sourceCorporate"));
-    top->addRow(tr("Type of source:"), type);
-    top->addRow(tr("Authors (one a line, as \"Last, First Middle\"):"), authors);
-    top->addRow(tr("Organization as the author:"), corporate);
+    top->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Type of source:")), type);
+    top->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Authors (one a line, as \"Last, First Middle\"):")), authors);
+    top->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Organization as the author:")), corporate);
     v->addLayout(top);
     auto *fieldsForm = new QFormLayout;
     v->addLayout(fieldsForm);
     auto *tag = new QLineEdit(source->tag, &dlg);
     tag->setObjectName(QStringLiteral("sourceTag"));
     auto *tagForm = new QFormLayout;
-    tagForm->addRow(tr("Tag name:"), tag);
+    tagForm->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Tag name:")), tag);
     v->addLayout(tagForm);
     QMap<QString, QLineEdit *> edits;
     QMap<QString, QString> keep = source->fields;
@@ -498,7 +499,7 @@ bool sourceDialog(QWidget *parent, Source *source, const QVector<Source> &others
         if (s.tag.isEmpty()) s.tag = newSourceTag(s, others);
         for (const Source &o : others)
             if (o.tag.compare(s.tag, Qt::CaseInsensitive) == 0) {
-                problem->setText(tr("Another source has that tag name. Give this one a different tag."));
+                problem->setText(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Another source has that tag name. Give this one a different tag.")));
                 return;
             }
         *source = s;
@@ -514,14 +515,14 @@ bool manageSourcesDialog(QWidget *parent, WriteDoc *doc)
     if (!doc) return false;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("manageSourcesDialog"));
-    dlg.setWindowTitle(tr("Source Manager"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Source Manager")));
     dlg.resize(760, 420);
     QVector<Source> master = masterSources(), current = documentSources(*doc);
     auto *v = new QVBoxLayout(&dlg);
     auto *row = new QHBoxLayout;
     auto column = [&](const QString &title, const char *name, QListWidget **list) {
         auto *col = new QVBoxLayout;
-        col->addWidget(new QLabel(title, &dlg));
+        col->addWidget(jp::plainLabel(new QLabel(title, &dlg)));
         *list = new QListWidget(&dlg);
         (*list)->setObjectName(QString::fromLatin1(name));
         (*list)->setAccessibleName(title);
@@ -529,23 +530,23 @@ bool manageSourcesDialog(QWidget *parent, WriteDoc *doc)
         return col;
     };
     QListWidget *masterList = nullptr, *currentList = nullptr;
-    row->addLayout(column(tr("Master list (shared by your documents):"), "masterSources", &masterList), 1);
+    row->addLayout(column(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Master list (shared by your documents):")), "masterSources", &masterList), 1);
     auto *mid = new QVBoxLayout;
     mid->addStretch();
-    auto *copyTo = new QPushButton(tr("Copy >>"), &dlg);
+    auto *copyTo = new QPushButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Copy >>")), &dlg);
     copyTo->setObjectName(QStringLiteral("sourcesCopyTo"));
-    auto *copyFrom = new QPushButton(tr("<< Copy"), &dlg);
+    auto *copyFrom = new QPushButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "<< Copy")), &dlg);
     copyFrom->setObjectName(QStringLiteral("sourcesCopyFrom"));
-    auto *remove = new QPushButton(tr("Delete"), &dlg);
+    auto *remove = new QPushButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Delete")), &dlg);
     remove->setObjectName(QStringLiteral("sourcesDelete"));
-    auto *edit = new QPushButton(tr("Edit..."), &dlg);
+    auto *edit = new QPushButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Edit...")), &dlg);
     edit->setObjectName(QStringLiteral("sourcesEdit"));
-    auto *add = new QPushButton(tr("New..."), &dlg);
+    auto *add = new QPushButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "New...")), &dlg);
     add->setObjectName(QStringLiteral("sourcesNew"));
     for (QPushButton *b : {copyTo, copyFrom, remove, edit, add}) mid->addWidget(b);
     mid->addStretch();
     row->addLayout(mid);
-    row->addLayout(column(tr("Current list (in this document):"), "currentSources", &currentList), 1);
+    row->addLayout(column(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Current list (in this document):")), "currentSources", &currentList), 1);
     v->addLayout(row);
     auto *preview = new QLabel(&dlg);
     preview->setWordWrap(true);
@@ -611,7 +612,7 @@ bool manageSourcesDialog(QWidget *parent, WriteDoc *doc)
         }
         QString text;
         for (const GenRun &run : bibliographyEntry((*vec)[r], documentCitationStyle(*doc), 1)) text += run.text;
-        preview->setText(tr("Preview (%1): %2").arg(documentCitationStyle(*doc), text));
+        preview->setText(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Preview (%1): %2")).arg(documentCitationStyle(*doc), text));
     };
     QObject::connect(masterList, &QListWidget::currentRowChanged, &dlg, showPreview);
     QObject::connect(currentList, &QListWidget::currentRowChanged, &dlg, showPreview);
@@ -634,28 +635,28 @@ bool insertCitationDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     if (!doc || !view) return false;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("insertCitationDialog"));
-    dlg.setWindowTitle(tr("Insert Citation"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Insert Citation")));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(new QLabel(tr("Cite which source:"), &dlg));
+    v->addWidget(new QLabel(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Cite which source:")), &dlg));
     auto *list = new QListWidget(&dlg);
     list->setObjectName(QStringLiteral("citeSources"));
-    list->setAccessibleName(tr("Sources"));
+    list->setAccessibleName(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Sources")));
     v->addWidget(list);
     auto *form = new QFormLayout;
     auto *pages = new QLineEdit(&dlg);
     pages->setObjectName(QStringLiteral("citePages"));
-    form->addRow(tr("Pages:"), pages);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Pages:")), pages);
     v->addLayout(form);
-    auto *noAuthor = new QCheckBox(tr("Leave out the author"), &dlg);
+    auto *noAuthor = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Leave out the author")), &dlg);
     noAuthor->setObjectName(QStringLiteral("citeNoAuthor"));
-    auto *noYear = new QCheckBox(tr("Leave out the year"), &dlg);
+    auto *noYear = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Leave out the year")), &dlg);
     noYear->setObjectName(QStringLiteral("citeNoYear"));
-    auto *withTitle = new QCheckBox(tr("Show the title"), &dlg);
+    auto *withTitle = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Show the title")), &dlg);
     withTitle->setObjectName(QStringLiteral("citeTitle"));
     for (QCheckBox *b : {noAuthor, noYear, withTitle}) v->addWidget(b);
     auto *buttons = new QDialogButtonBox(&dlg);
-    auto *insert = buttons->addButton(tr("Insert"), QDialogButtonBox::AcceptRole);
-    auto *newSource = buttons->addButton(tr("New Source..."), QDialogButtonBox::ActionRole);
+    auto *insert = buttons->addButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Insert")), QDialogButtonBox::AcceptRole);
+    auto *newSource = buttons->addButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "New Source...")), QDialogButtonBox::ActionRole);
     buttons->addButton(QDialogButtonBox::Cancel);
     v->addWidget(buttons);
     QVector<Source> sources = documentSources(*doc);
@@ -707,7 +708,7 @@ bool citationStyleDialog(QWidget *parent, WriteDoc *doc)
     QStringList labels;
     for (const QString &s : styles) labels << citationStyleLabel(s);
     bool ok = false;
-    const QString picked = QInputDialog::getItem(parent, tr("Citation Style"), tr("Show citations and the bibliography in the style:"), labels, std::max(0, int(styles.indexOf(documentCitationStyle(*doc)))), false, &ok);
+    const QString picked = QInputDialog::getItem(parent, tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Citation Style")), tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Show citations and the bibliography in the style:")), labels, std::max(0, int(styles.indexOf(documentCitationStyle(*doc)))), false, &ok);
     const QString chosen = styles.value(int(labels.indexOf(picked)));
     if (!ok || chosen.isEmpty() || chosen == documentCitationStyle(*doc)) return false;
     setDocumentCitationStyle(*doc, chosen);
@@ -719,24 +720,24 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
     if (!doc) return false;
     if (endnotesChanged) *endnotesChanged = false;
     if (!doc->noteSettingsCanBeSaved()) {
-        QMessageBox::warning(parent, tr("Footnote and Endnote"), tr("The settings of this file can't be read, so a change to how notes are numbered could not be saved with it. Nothing was changed."));
+        jp::plainWarning(parent, tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Footnote and Endnote")), tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "The settings of this file can't be read, so a change to how notes are numbered could not be saved with it. Nothing was changed.")));
         return false;
     }
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("notesOptionsDialog"));
-    dlg.setWindowTitle(tr("Footnote and Endnote"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Footnote and Endnote")));
     auto *v = new QVBoxLayout(&dlg);
     struct Box {
         QComboBox *position = nullptr, *format = nullptr, *restart = nullptr;
         QSpinBox *start = nullptr;
     };
     auto formats = [&](QComboBox *c) {
-        c->addItem(tr("1, 2, 3, ..."), QStringLiteral("decimal"));
-        c->addItem(tr("a, b, c, ..."), QStringLiteral("lowerLetter"));
-        c->addItem(tr("A, B, C, ..."), QStringLiteral("upperLetter"));
-        c->addItem(tr("i, ii, iii, ..."), QStringLiteral("lowerRoman"));
-        c->addItem(tr("I, II, III, ..."), QStringLiteral("upperRoman"));
-        c->addItem(tr("*, \u2020, \u2021, \u00A7, ..."), QStringLiteral("chicago"));
+        c->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "1, 2, 3, ...")), QStringLiteral("decimal"));
+        c->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "a, b, c, ...")), QStringLiteral("lowerLetter"));
+        c->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "A, B, C, ...")), QStringLiteral("upperLetter"));
+        c->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "i, ii, iii, ...")), QStringLiteral("lowerRoman"));
+        c->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "I, II, III, ...")), QStringLiteral("upperRoman"));
+        c->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "*, \u2020, \u2021, \u00A7, ...")), QStringLiteral("chicago"));
     };
     auto makeBox = [&](const QString &title, bool endnotes) {
         auto *group = new QGroupBox(title, &dlg);
@@ -746,9 +747,9 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
         if (endnotes) {
             b.position = new QComboBox(group);
             b.position->setObjectName(QStringLiteral("endnotePosition"));
-            b.position->addItem(tr("End of section"), QStringLiteral("sectEnd"));
-            b.position->addItem(tr("End of document"), QStringLiteral("docEnd"));
-            form->addRow(tr("Location:"), b.position);
+            b.position->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "End of section")), QStringLiteral("sectEnd"));
+            b.position->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "End of document")), QStringLiteral("docEnd"));
+            form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Location:")), b.position);
         }
         b.format = new QComboBox(group);
         b.format->setObjectName(endnotes ? QStringLiteral("endnoteFormat") : QStringLiteral("footnoteFormat"));
@@ -758,12 +759,12 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
         b.start->setRange(1, 32767);
         b.restart = new QComboBox(group);
         b.restart->setObjectName(endnotes ? QStringLiteral("endnoteRestart") : QStringLiteral("footnoteRestart"));
-        b.restart->addItem(tr("Continuous"), QStringLiteral("continuous"));
-        b.restart->addItem(tr("Restart each section"), QStringLiteral("eachSect"));
-        if (!endnotes) b.restart->addItem(tr("Restart each page"), QStringLiteral("eachPage"));
-        form->addRow(tr("Number format:"), b.format);
-        form->addRow(tr("Start at:"), b.start);
-        form->addRow(tr("Numbering:"), b.restart);
+        b.restart->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Continuous")), QStringLiteral("continuous"));
+        b.restart->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Restart each section")), QStringLiteral("eachSect"));
+        if (!endnotes) b.restart->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Restart each page")), QStringLiteral("eachPage"));
+        form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Number format:")), b.format);
+        form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Start at:")), b.start);
+        form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Numbering:")), b.restart);
         const WriteDoc::NoteSettings now = doc->noteSettings(endnotes);
         b.format->setCurrentIndex(std::max(0, b.format->findData(now.format)));
         b.start->setValue(now.start);
@@ -772,7 +773,7 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
         v->addWidget(group);
         return b;
     };
-    const Box foot = makeBox(tr("Footnotes"), false), end = makeBox(tr("Endnotes"), true);
+    const Box foot = makeBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Footnotes")), false), end = makeBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Endnotes")), true);
     v->addWidget(okCancel(&dlg));
     if (dlg.exec() != QDialog::Accepted) return false;
     WriteDoc::NoteSettings f = doc->noteSettings(false), e = doc->noteSettings(true);
@@ -804,15 +805,15 @@ bool convertNotesDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     }
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("convertNotesDialog"));
-    dlg.setWindowTitle(tr("Convert Notes"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Convert Notes")));
     auto *v = new QVBoxLayout(&dlg);
-    auto *toEnd = new QRadioButton(tr("Convert all footnotes to endnotes"), &dlg);
+    auto *toEnd = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Convert all footnotes to endnotes")), &dlg);
     toEnd->setObjectName(QStringLiteral("convertToEndnotes"));
-    auto *toFoot = new QRadioButton(tr("Convert all endnotes to footnotes"), &dlg);
+    auto *toFoot = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Convert all endnotes to footnotes")), &dlg);
     toFoot->setObjectName(QStringLiteral("convertToFootnotes"));
-    auto *swap = new QRadioButton(tr("Swap footnotes and endnotes"), &dlg);
+    auto *swap = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Swap footnotes and endnotes")), &dlg);
     swap->setObjectName(QStringLiteral("convertSwap"));
-    auto *one = new QRadioButton(inFootnote ? tr("Convert this footnote to an endnote") : (inEndnote ? tr("Convert this endnote to a footnote") : tr("Convert only the note the caret is in")), &dlg);
+    auto *one = new QRadioButton(inFootnote ? tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Convert this footnote to an endnote")) : (inEndnote ? tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Convert this endnote to a footnote")) : tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Convert only the note the caret is in"))), &dlg);
     one->setObjectName(QStringLiteral("convertOne"));
     one->setEnabled(inFootnote || inEndnote);
     toEnd->setChecked(!one->isEnabled());
@@ -837,12 +838,12 @@ bool noteSeparatorsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
     if (!doc) return false;
     if (endnotesChanged) *endnotesChanged = false;
     if (!doc->noteSettingsCanBeSaved()) {
-        QMessageBox::warning(parent, tr("Note Separators"), tr("The settings of this file can't be read, so a change to the separators could not be saved with it. Nothing was changed."));
+        jp::plainWarning(parent, tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Note Separators")), tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "The settings of this file can't be read, so a change to the separators could not be saved with it. Nothing was changed.")));
         return false;
     }
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("noteSeparatorsDialog"));
-    dlg.setWindowTitle(tr("Note Separators"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Note Separators")));
     auto *v = new QVBoxLayout(&dlg);
     struct Row {
         bool endnotes = false;
@@ -854,19 +855,19 @@ bool noteSeparatorsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
     QVector<Row> rows;
     bool any = false;
     for (const bool endnotes : {false, true}) {
-        auto *group = new QGroupBox(endnotes ? tr("Endnotes") : tr("Footnotes"), &dlg);
+        auto *group = new QGroupBox(endnotes ? tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Endnotes")) : tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Footnotes")), &dlg);
         group->setObjectName(endnotes ? QStringLiteral("endnoteSeparators") : QStringLiteral("footnoteSeparators"));
         auto *form = new QFormLayout(group);
         const bool has = doc->hasNotesOfKind(endnotes);
         any = any || has;
         group->setEnabled(has);
-        if (!has) form->addRow(new QLabel(endnotes ? tr("The document has no endnotes.") : tr("The document has no footnotes."), group));
+        if (!has) form->addRow(new QLabel(endnotes ? tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "The document has no endnotes.")) : tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "The document has no footnotes.")), group));
         const struct {
             const char *type;
             QString label;
-        } kinds[] = {{"separator", tr("Separator (between the text and the notes):")},
-                     {"continuationSeparator", tr("Continuation separator (above a note that goes on):")},
-                     {"continuationNotice", tr("Continuation notice (below a note that goes on):")}};
+        } kinds[] = {{"separator", tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Separator (between the text and the notes):"))},
+                     {"continuationSeparator", tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Continuation separator (above a note that goes on):"))},
+                     {"continuationNotice", tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Continuation notice (below a note that goes on):"))}};
         for (const auto &k : kinds) {
             // (Endnotes run on in the text like the paragraphs around them: no page breaks one off its notice or its continuation line, so only the separator is a choice there.)
             if (endnotes && QLatin1String(k.type) != QLatin1String("separator")) continue;
@@ -877,10 +878,10 @@ bool noteSeparatorsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
             const QString name = QLatin1String(endnotes ? "end" : "foot") + r.type;
             r.kind = new QComboBox(group);
             r.kind->setObjectName(name + QStringLiteral("Kind"));
-            if (r.type != QLatin1String("continuationNotice")) r.kind->addItem(tr("Line"), int(WriteDoc::NoteSeparator::Line));
-            r.kind->addItem(tr("Text"), int(WriteDoc::NoteSeparator::Text));
-            r.kind->addItem(tr("Nothing"), int(WriteDoc::NoteSeparator::None));
-            if (r.was.kind == WriteDoc::NoteSeparator::Kept) r.kind->addItem(tr("As in the file"), int(WriteDoc::NoteSeparator::Kept));
+            if (r.type != QLatin1String("continuationNotice")) r.kind->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Line")), int(WriteDoc::NoteSeparator::Line));
+            r.kind->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Text")), int(WriteDoc::NoteSeparator::Text));
+            r.kind->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Nothing")), int(WriteDoc::NoteSeparator::None));
+            if (r.was.kind == WriteDoc::NoteSeparator::Kept) r.kind->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "As in the file")), int(WriteDoc::NoteSeparator::Kept));
             r.kind->setCurrentIndex(std::max(0, r.kind->findData(int(r.was.kind))));
             r.text = new QLineEdit(r.was.text, group);
             r.text->setObjectName(name + QStringLiteral("Text"));
@@ -895,7 +896,7 @@ bool noteSeparatorsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
         v->addWidget(group);
     }
     if (!any) {
-        QMessageBox::information(parent, tr("Note Separators"), tr("The document has no footnotes or endnotes yet."));
+        jp::plainInformation(parent, tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Note Separators")), tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "The document has no footnotes or endnotes yet.")));
         return false;
     }
     v->addWidget(okCancel(&dlg));

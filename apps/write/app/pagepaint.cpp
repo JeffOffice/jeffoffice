@@ -118,6 +118,7 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
     ctx.opt.output = d.output;
     ctx.opt.textOutput = d.textOutput;
     ctx.opt.showSpecial = d.marks;
+    ctx.opt.shadeFields = d.shadeFields && !d.output;
     ctx.opt.grayscale = d.grayscale;
     const QString bodyId = bodyStoryId(page);
     const Story *body = bodyId.isEmpty() ? nullptr : page.doc->story(bodyId);

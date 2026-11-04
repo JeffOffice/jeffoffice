@@ -104,6 +104,8 @@ struct Env {
     QHash<QString, qint64> *sequences = nullptr;
     // Used with a bookmark name read by a formula, and by a condition of IF.
     std::function<std::optional<double>(const QString &)> number;
+    // The merge of a mail merge: asked of every field this engine has no result for (MERGEFIELD, ADDRESSBLOCK, GREETINGLINE, SET, ASK, SKIPIF...). Null where it has none either.
+    std::function<std::optional<QString>(const Code &code)> merge;
 };
 
 // The result of a field with this code, or null where the engine leaves it as it is (a field it does not know, a document that cannot say). TOC is built by the caller.

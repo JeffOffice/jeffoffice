@@ -36,15 +36,16 @@ def font(name, size):
     return ImageFont.truetype(os.path.join(FONTS, name), max(1, round(size * SS)))
 
 
-def mark(size):
-    """The JeffOffice mark: six blades on a white rounded tile."""
+def mark(size, tiled=True):
+    """The JeffOffice mark: six blades on a white rounded tile, or, untiled, the blades alone with a clear center."""
     s = round(size * SS)
     im = Image.new("RGBA", (s, s), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
-    d.rounded_rectangle((s * 0.01, s * 0.01, s * 0.99, s * 0.99), radius=s * 0.235, fill=(255, 255, 255),
-                        outline=EDGE, width=max(1, round(s * 0.012)))
+    if tiled:
+        d.rounded_rectangle((s * 0.01, s * 0.01, s * 0.99, s * 0.99), radius=s * 0.235, fill=(255, 255, 255),
+                            outline=EDGE, width=max(1, round(s * 0.012)))
     cx = cy = s / 2
-    r = s * 0.36
+    r = s * (0.36 if tiled else 0.34)
     for i, (_, color) in enumerate(APPS):
         # A blade: from the center up, then a curve out to the right (the
         # SVG's quadratic Bezier, sampled), turned 60 degrees for each app.
@@ -57,7 +58,7 @@ def mark(size):
         a = math.radians(i * 60)
         d.polygon([(cx + x * math.cos(a) - y * math.sin(a), cy + x * math.sin(a) + y * math.cos(a)) for x, y in pts], fill=color)
     hole = s * 0.04
-    d.ellipse((cx - hole, cy - hole, cx + hole, cy + hole), fill=(255, 255, 255))
+    d.ellipse((cx - hole, cy - hole, cx + hole, cy + hole), fill=(255, 255, 255) if tiled else (0, 0, 0, 0))
     return im
 
 
@@ -126,8 +127,9 @@ def welcome(w, h, name):
 
 
 def small(n, name):
-    """The mark on a transparent square, so it sits on a light or a dark page."""
-    mark(n).resize((n, n), Image.LANCZOS).save(os.path.join(OUT, name), optimize=True)
+    """The blades alone on a transparent square, with a margin, so they sit on a light or a dark page: Setup puts the
+    corner image flush against the window's right edge."""
+    mark(n, tiled=False).resize((n, n), Image.LANCZOS).save(os.path.join(OUT, name), optimize=True)
 
 
 def suite_icon():

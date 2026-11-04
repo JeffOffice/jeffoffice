@@ -6,6 +6,7 @@
 [[maybe_unused]] static const char *const kRibbonStrings[] = {
     QT_TRANSLATE_NOOP("Ribbon", "Actions"),
     QT_TRANSLATE_NOOP("Ribbon", "Alignment"),
+    QT_TRANSLATE_NOOP("Ribbon", "Blank Rows"),
     QT_TRANSLATE_NOOP("Ribbon", "Borders"),
     QT_TRANSLATE_NOOP("Ribbon", "Breaks"),
     QT_TRANSLATE_NOOP("Ribbon", "Calculate"),
@@ -57,6 +58,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Protect"),
     QT_TRANSLATE_NOOP("Ribbon", "Put In"),
     QT_TRANSLATE_NOOP("Ribbon", "Refresh"),
+    QT_TRANSLATE_NOOP("Ribbon", "Repeat Labels"),
     QT_TRANSLATE_NOOP("Ribbon", "Report Layout"),
     QT_TRANSLATE_NOOP("Ribbon", "Review"),
     QT_TRANSLATE_NOOP("Ribbon", "Scale"),
@@ -64,6 +66,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Sheet Options"),
     QT_TRANSLATE_NOOP("Ribbon", "Show"),
     QT_TRANSLATE_NOOP("Ribbon", "Size"),
+    QT_TRANSLATE_NOOP("Ribbon", "Style Options"),
     QT_TRANSLATE_NOOP("Ribbon", "Styles"),
     QT_TRANSLATE_NOOP("Ribbon", "Subtotals"),
     QT_TRANSLATE_NOOP("Ribbon", "Tab Color"),

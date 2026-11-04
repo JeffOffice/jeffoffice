@@ -35,6 +35,7 @@ struct StyleEntry {
     bool quick = false;     // shown in the gallery
 };
 
+namespace mail { struct State; }
 class WriteDoc;
 // The most the pictures of a document come to together.
 constexpr qint64 kMostMediaBytes = qint64(512) << 20;
@@ -304,6 +305,8 @@ public:
     QString mainRelatedPart(const QString &relationshipTypeEnd) const;
     // What core/commentops.cpp keeps with the document (the comment parts of the file, read once).
     std::shared_ptr<void> commentCache;
+    // The mail merge of the document (core/mergeops.h): null for a document that is not merged.
+    std::shared_ptr<mail::State> mailMerge;
 
     // The edits made while one of these lives, in any of the document's stories, are one step of the history: an Undo takes all of them back, and a Redo does all again.
     class StepGroup {
@@ -831,6 +834,8 @@ private:
     QString m_sourcesPartName;
     bool m_sourcesRead = false, m_sourcesDirty = false;
     quint64 m_sourcesRevision = 0;
+    void readMailSettings(const QByteArray &settings);
+    void writeMailSettings(office::wml::Document *out);
     void writeCommentParts(office::wml::Document *out);
     mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratch;
     QVector<office::wml::Style> m_addedTableStyles;                    // built-in table styles that tables made have (see ensureTableStyle)

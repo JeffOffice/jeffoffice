@@ -617,6 +617,7 @@ PassResult updatePass(WriteDoc &doc, const UpdateOptions &options, bool keepChan
     std::sort(chosen.begin(), chosen.end(), byEnd);
 
     Context ctx(doc, story, scan, options.now);
+    ctx.env.merge = options.merge;
     QHash<int, QString> computed;
     ctx.setComputed(&computed);
     // A part of the text counts the sequences that come before it: the earlier fields of each sequence are worked through (and left as they are).
@@ -742,7 +743,7 @@ PassResult updatePass(WriteDoc &doc, const UpdateOptions &options, bool keepChan
             }
             continue;
         }
-        if (!fields::isKnown(code.name)) {
+        if (!fields::isKnown(code.name) && !options.merge) {
             note(FieldChange::Kept, change.before);
             continue;
         }
@@ -1086,6 +1087,14 @@ int insertFieldAtEach(WriteDoc &doc, const QVector<int> &positions, const QStrin
         if (insertFieldAtom(doc, c, field)) ++count;
     }
     return count;
+}
+
+bool isMergeFieldCode(const QString &code)
+{
+    static const QSet<QString> names = {QStringLiteral("MERGEFIELD"), QStringLiteral("ADDRESSBLOCK"), QStringLiteral("GREETINGLINE"), QStringLiteral("NEXT"),   QStringLiteral("NEXTIF"),
+                                        QStringLiteral("SKIPIF"),     QStringLiteral("SET"),          QStringLiteral("ASK"),          QStringLiteral("FILLIN"), QStringLiteral("MERGEREC"),
+                                        QStringLiteral("MERGESEQ"),   QStringLiteral("IF"),           QStringLiteral("COMPARE")};
+    return names.contains(code.trimmed().section(QLatin1Char(' '), 0, 0).toUpper());
 }
 
 // ---- Show Field Codes

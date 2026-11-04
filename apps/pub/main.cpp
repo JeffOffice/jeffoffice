@@ -23,6 +23,7 @@
 #include "app/ribbon.h"
 #include "app/updater.h"
 #include "app/settings.h"
+#include "app/splash.h"
 #include "app/icons.h"
 #include "core/fonts.h"
 #include "templates/templates.h"
@@ -80,6 +81,9 @@ int main(int argc, char **argv)
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Publications to open."), QStringLiteral("[files...]"));
     cli.process(app);
 
+    // The loading card, up before the slow part of the start (not for the jobs that make a file and quit).
+    jp::StartupSplash *splash = cli.isSet(shotOpt) || cli.isSet(pdfOpt) || cli.isSet(wikiOpt) ? nullptr : jp::showStartupSplash();
+    if (splash) splash->step(QCoreApplication::translate("Splash", "Loading fonts…"), 0.3);
     jp::initCore();
     app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     jp::applyUiTheme(jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt());
@@ -87,6 +91,7 @@ int main(int argc, char **argv)
     jp::installUiPolish();
     jp::installFocusRing(&app);
 
+    if (splash) splash->step(QCoreApplication::translate("Splash", "Setting up the window…"), 0.6);
     auto *w = new jp::MainWindow();
     w->setAttribute(Qt::WA_DeleteOnClose);
 
@@ -101,6 +106,7 @@ int main(int argc, char **argv)
     jp::installFileOpenHandler(&app);
     const QStringList files = cli.positionalArguments();
     if (!files.isEmpty()) {
+        if (splash) splash->step(jp::openingStatus(files.first()), 0.8);
         w->openFile(files.first());
         for (int i = 1; i < files.size(); ++i) {
             auto *other = new jp::MainWindow();
@@ -156,5 +162,6 @@ int main(int argc, char **argv)
     if (cli.isSet(stageOpt)) w->showBackstage(cli.value(stageOpt));
     else if (files.isEmpty() && !cli.isSet(templOpt) && jp::Settings::get().value(QStringLiteral("ui/startBackstage"), true).toBool())
         w->showBackstage(QStringLiteral("new"));
+    if (splash) splash->finish(w);   // (it goes when the window is drawn)
     return app.exec();
 }

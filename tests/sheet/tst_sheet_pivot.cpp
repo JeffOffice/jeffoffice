@@ -3,9 +3,11 @@
 #include "sheethelpers.h"
 
 #include "sheet/pivot.h"
+#include "sheet/slicer.h"
 #include "../timing.h"
 #include "sheet/xlsxsave.h"
 
+#include <QDomDocument>
 #include <QElapsedTimer>
 
 namespace {
@@ -165,6 +167,514 @@ private Q_SLOTS:
         w = work(xml.toUtf8());
         QVERIFY2(w.ok, qPrintable(w.why));
         QCOMPARE(text(w.grid, w.grid.rows - 1, w.grid.cols - 1), QStringLiteral("22"));
+    }
+
+    // A value shown as a share of the whole, its line, or its column, as an index, or against another item of a field (the difference from it, a percent of it,
+    // a percent difference from it, or a running total across the items); the first item is the base for what has no item before it.
+    void aValueCanBeShownAsAShareOrAgainstAnotherItem()
+    {
+        auto grid = [&](const QString &attrs) {
+            const Worked w = work(tableDefinition(true, QString(), QString(), attrs));
+            [&] { QVERIFY2(w.ok, qPrintable(w.why)); }();
+            return w.grid;
+        };
+        QCOMPARE(rowText(grid(QStringLiteral("showDataAs=\"percentOfTotal\" baseField=\"0\" baseItem=\"0\"")), 2), (QStringList{QStringLiteral("East"), QStringLiteral("0.306122448979592"), QStringLiteral("0.408163265306122"), QStringLiteral("0.714285714285714")}));
+        QCOMPARE(rowText(grid(QStringLiteral("showDataAs=\"percentOfRow\" baseField=\"0\" baseItem=\"0\"")), 2), (QStringList{QStringLiteral("East"), QStringLiteral("0.428571428571429"), QStringLiteral("0.571428571428571"), QStringLiteral("1")}));
+        QCOMPARE(rowText(grid(QStringLiteral("showDataAs=\"percentOfCol\" baseField=\"0\" baseItem=\"0\"")), 3), (QStringList{QStringLiteral("West"), QStringLiteral("0.318181818181818"), QStringLiteral("0.259259259259259"), QStringLiteral("0.285714285714286")}));
+        QCOMPARE(text(grid(QStringLiteral("showDataAs=\"index\" baseField=\"0\" baseItem=\"0\"")), 2, 1), QStringLiteral("0.954545454545455"));
+        // against Jan: the difference (the base item itself is blank), then a percent of it, a percent difference from it, and the one before (Feb has Jan, Jan has none)
+        QCOMPARE(rowText(grid(QStringLiteral("showDataAs=\"difference\" baseField=\"1\" baseItem=\"0\"")), 2), (QStringList{QStringLiteral("East"), QString(), QStringLiteral("5"), QString()}));
+        QCOMPARE(rowText(grid(QStringLiteral("showDataAs=\"percent\" baseField=\"1\" baseItem=\"0\"")), 2), (QStringList{QStringLiteral("East"), QStringLiteral("1"), QStringLiteral("1.33333333333333"), QString()}));
+        QCOMPARE(rowText(grid(QStringLiteral("showDataAs=\"percentDiff\" baseField=\"1\" baseItem=\"1048828\"")), 3), (QStringList{QStringLiteral("West"), QString(), QStringLiteral("0"), QString()}));
+        QCOMPARE(rowText(grid(QStringLiteral("showDataAs=\"runTotal\" baseField=\"1\" baseItem=\"0\"")), 2), (QStringList{QStringLiteral("East"), QStringLiteral("15"), QStringLiteral("35"), QString()}));
+        // written and read again: the base field and item are kept
+        Worked w = work(tableDefinition(true, QString(), QString(), QStringLiteral("showDataAs=\"difference\" baseField=\"1\" baseItem=\"1048829\"")));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(w.table.dataFields[0].baseField, 1);
+        QCOMPARE(w.table.dataFields[0].baseItem, 1048829);
+        const QByteArray out = writePivotTable(tableDefinition(true), w.table, false);
+        QVERIFY(out.contains("showDataAs=\"difference\""));
+        QVERIFY(out.contains("baseField=\"1\""));
+        QVERIFY(out.contains("baseItem=\"1048829\""));
+    }
+
+    // A field's items sorted by their labels, or by a value, and left out by a filter on the labels, the values, or the first or last few items.
+    void aFieldIsSortedAndFiltered()
+    {
+        Worked w = work(tableDefinition(true));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        pivotSortField(&w.table, w.cache, 0, PivotSort::Descending);
+        PivotGrid g;
+        QVERIFY(computePivot(w.table, w.cache, &g, &w.why));
+        QCOMPARE(text(g, 2, 0), QStringLiteral("West"));
+        QCOMPARE(text(g, 3, 0), QStringLiteral("East"));
+        QVERIFY(writePivotTable(tableDefinition(true), w.table, true).contains("sortType=\"descending\""));
+        // by the value: West (14) before East (35) when ascending; the scope is written
+        w = work(tableDefinition(true));
+        QVERIFY(pivotSortFieldByValue(&w.table, 0, 0, false));
+        QVERIFY(computePivot(w.table, w.cache, &g, &w.why));
+        QCOMPARE(text(g, 2, 0), QStringLiteral("West"));
+        const QByteArray sorted = writePivotTable(tableDefinition(true), w.table, true);
+        QVERIFY2(sorted.contains("<autoSortScope>"), sorted.constData());
+        PivotTable again;
+        QVERIFY(readPivotTable(sorted, &again, &w.why));
+        QCOMPARE(again.fields[0].sortByData, 0);
+        // the filters
+        auto shown = [&](PivotFilter f) {
+            Worked x = work(tableDefinition(true));
+            PivotGrid grid;
+            if (!x.ok || !pivotFilterField(&x.table, x.cache, 0, f, &x.why) || !computePivot(x.table, x.cache, &grid, &x.why)) return QStringList{QStringLiteral("failed: ") + x.why};
+            QStringList names;
+            for (int r = 2; r < grid.rows - 1; ++r) names << text(grid, r, 0);
+            return names;
+        };
+        PivotFilter f;
+        f.kind = PivotFilter::LabelContains;
+        f.text = QStringLiteral("ES");
+        QCOMPARE(shown(f), (QStringList{QStringLiteral("West")}));
+        f.kind = PivotFilter::LabelNotEquals;
+        f.text = QStringLiteral("east");
+        QCOMPARE(shown(f), (QStringList{QStringLiteral("West")}));
+        f.kind = PivotFilter::ValueGreater;
+        f.a = 20;
+        QCOMPARE(shown(f), (QStringList{QStringLiteral("East")}));
+        f.kind = PivotFilter::ValueBetween;
+        f.a = 10;
+        f.b = 20;
+        QCOMPARE(shown(f), (QStringList{QStringLiteral("West")}));
+        f.kind = PivotFilter::TopItems;
+        f.a = 1;
+        QCOMPARE(shown(f), (QStringList{QStringLiteral("East")}));
+        f.kind = PivotFilter::BottomItems;
+        QCOMPARE(shown(f), (QStringList{QStringLiteral("West")}));
+        f.kind = PivotFilter::None;
+        QCOMPARE(shown(f), (QStringList{QStringLiteral("East"), QStringLiteral("West")}));
+    }
+
+    // The cache, records, and table of a field of dates grouped by months, as a file has them.
+    static void monthGroupParts(QByteArray *outDef, QByteArray *outRec, QByteArray *outTable)
+    {
+        const QByteArray def = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheDefinition xmlns=\"%1\" refreshedBy=\"x\" refreshedDate=\"45000\" recordCount=\"3\">"
+                                              "<cacheSource type=\"worksheet\"><worksheetSource ref=\"A1:B4\" sheet=\"Data\"/></cacheSource><cacheFields count=\"2\">"
+                                              "<cacheField name=\"Date\" numFmtId=\"14\"><sharedItems containsSemiMixedTypes=\"0\" containsNonDate=\"0\" containsDate=\"1\" containsString=\"0\" minDate=\"2020-01-15T00:00:00\" maxDate=\"2021-01-10T00:00:00\" count=\"3\">"
+                                              "<d v=\"2020-01-15T00:00:00\"/><d v=\"2020-02-20T00:00:00\"/><d v=\"2021-01-10T00:00:00\"/></sharedItems>"
+                                              "<fieldGroup base=\"0\"><rangePr groupBy=\"months\" startDate=\"2020-01-15T00:00:00\" endDate=\"2021-01-10T00:00:00\"/><groupItems count=\"14\"><s v=\"&lt;1/15/2020\"/><s v=\"Jan\"/><s v=\"Feb\"/><s v=\"Mar\"/><s v=\"Apr\"/>"
+                                              "<s v=\"May\"/><s v=\"Jun\"/><s v=\"Jul\"/><s v=\"Aug\"/><s v=\"Sep\"/><s v=\"Oct\"/><s v=\"Nov\"/><s v=\"Dec\"/><s v=\"&gt;1/10/2021\"/></groupItems></fieldGroup></cacheField>"
+                                              "<cacheField name=\"Amount\" numFmtId=\"0\"><sharedItems containsSemiMixedTypes=\"0\" containsString=\"0\" containsNumber=\"1\" containsInteger=\"1\" minValue=\"1\" maxValue=\"4\"/></cacheField>"
+                                              "</cacheFields></pivotCacheDefinition>").arg(QLatin1String(kNs)).toUtf8();
+        const QByteArray rec = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheRecords xmlns=\"%1\" count=\"4\"><r><x v=\"0\"/><n v=\"1\"/></r><r><x v=\"1\"/><n v=\"2\"/></r>"
+                                              "<r><x v=\"2\"/><n v=\"3\"/></r><r><x v=\"0\"/><n v=\"4\"/></r></pivotCacheRecords>").arg(QLatin1String(kNs)).toUtf8();
+        QString items;
+        for (int i = 0; i < 14; ++i) items += QStringLiteral("<item x=\"%1\"/>").arg(i);
+        const QByteArray table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotTableDefinition xmlns=\"%1\" name=\"t\" cacheId=\"1\" compact=\"0\" outline=\"0\" compactData=\"0\">"
+                                                "<location ref=\"A3:B6\" firstHeaderRow=\"1\" firstDataRow=\"1\" firstDataCol=\"1\"/><pivotFields count=\"2\"><pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\" showAll=\"0\">"
+                                                "<items count=\"15\">%2<item t=\"default\"/></items></pivotField><pivotField dataField=\"1\" compact=\"0\" outline=\"0\" showAll=\"0\"/></pivotFields>"
+                                                "<rowFields count=\"1\"><field x=\"0\"/></rowFields><dataFields count=\"1\"><dataField name=\"Sum of Amount\" fld=\"1\" baseField=\"0\" baseItem=\"0\"/></dataFields></pivotTableDefinition>")
+                                    .arg(QLatin1String(kNs), items).toUtf8();
+        *outDef = def;
+        *outRec = rec;
+        *outTable = table;
+    }
+
+    // A field of dates grouped by months, as a file has it: the items of the field are the groups, a record is put in its month, and the part is written back with the group.
+    void aGroupOfMonthsIsReadWorkedOutAndWritten()
+    {
+        QByteArray def, rec, table;
+        monthGroupParts(&def, &rec, &table);
+        Worked w = work(table, def, rec);
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QCOMPARE(w.cache.fields[0].items.size(), 14);
+        QVERIFY(w.cache.fields[0].hasRaw);
+        QCOMPARE(w.cache.fields[0].rawItems.size(), 3);
+        // (January 15 2020 is the first day, not before it; the 2021 date is a January too: 1 + 3 + 4)
+        QCOMPARE(text(w.grid, 1, 0), QStringLiteral("Jan"));
+        QCOMPARE(text(w.grid, 1, 1), QStringLiteral("8"));
+        QCOMPARE(text(w.grid, 2, 0), QStringLiteral("Feb"));
+        QCOMPARE(text(w.grid, 2, 1), QStringLiteral("2"));
+        // written back: the field's own dates, the group, and the records are the file's
+        const QByteArray written = writePivotCacheDefinition(def, w.cache, 4, 45000, DateSystem::Date1900);
+        QVERIFY2(written.contains("groupBy=\"months\""), written.constData());
+        QVERIFY(written.contains("<d v=\"2020-02-20T00:00:00\""));
+        QVERIFY(written.contains("1/10/2021\"/>"));
+        const QByteArray records = writePivotCacheRecords(w.cache, DateSystem::Date1900);
+        QVERIFY2(records.contains("<r><x v=\"1\"/><n v=\"2\"/></r>"), records.constData());
+        Worked again = work(table, written, records);
+        QVERIFY2(again.ok, qPrintable(again.why));
+        QCOMPARE(rowText(again.grid, 2), rowText(w.grid, 2));
+    }
+
+    // The groups of a field sort in the order of the grouping (January before February, not April first), whichever way the field is sorted.
+    void theGroupsOfAFieldSortInTheOrderOfTheGrouping()
+    {
+        QByteArray def, rec, table;
+        monthGroupParts(&def, &rec, &table);
+        Worked w = work(table, def, rec);
+        QVERIFY2(w.ok, qPrintable(w.why));
+        auto order = [&](PivotSort how) {
+            PivotTable t = w.table;
+            pivotSortField(&t, w.cache, 0, how);
+            QVector<int> xs;
+            for (const PivotTableItem &it : t.fields[0].items)
+                if (it.t.isEmpty()) xs.append(it.x);
+            return xs;
+        };
+        QVector<int> up, down;
+        for (int i = 0; i < 14; ++i) {
+            up.append(i);
+            down.prepend(i);
+        }
+        QCOMPARE(order(PivotSort::Ascending), up);
+        QCOMPARE(order(PivotSort::Descending), down);
+    }
+
+    // A bound of a group of dates that has no day in the calendar is left out of the part (an empty date would make it invalid), and the part is well formed.
+    void aDateGroupWithNoCalendarDayIsWrittenWithoutIt()
+    {
+        QByteArray def, rec, table;
+        monthGroupParts(&def, &rec, &table);
+        Worked w = work(table, def, rec);
+        QVERIFY2(w.ok, qPrintable(w.why));
+        w.cache.fields[0].group.start = -5;
+        w.cache.fields[0].group.autoStart = false;
+        const QByteArray written = writePivotCacheDefinition(def, w.cache, 4, 45000, DateSystem::Date1900);
+        QVERIFY2(!written.contains("startDate=\"\""), written.constData());
+        QVERIFY2(!written.contains("startDate"), written.constData());
+        QVERIFY(written.contains("endDate=\"2021-01-10T00:00:00\""));
+        QDomDocument doc;
+        QVERIFY(doc.setContent(written));
+    }
+
+    // The rows behind a value stop being listed past the count asked for.
+    void theRowsBehindAValueAreCountedBeforeTheyAreKept()
+    {
+        Worked w = work(tableDefinition(true));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        bool tried = false;
+        for (int r = 0; r < w.grid.rows && !tried; ++r)
+            for (int c = 0; c < w.grid.cols && !tried; ++c) {
+                QVector<qint64> all;
+                if (!pivotDetailRecords(w.table, w.cache, w.grid, r, c, &all) || all.size() < 2) continue;
+                tried = true;
+                QVector<qint64> some;
+                bool tooMany = false;
+                QVERIFY(pivotDetailRecords(w.table, w.cache, w.grid, r, c, &some, all.size() - 1, &tooMany));
+                QVERIFY(tooMany);
+                QVERIFY(some.isEmpty());
+                QVERIFY(pivotDetailRecords(w.table, w.cache, w.grid, r, c, &some, all.size(), &tooMany));
+                QVERIFY(!tooMany);
+                QCOMPARE(some, all);
+            }
+        QVERIFY(tried);
+    }
+
+    // A top-N filter with a count no int holds keeps every item and does not run past the list.
+    void aTopFilterWithAHugeCountKeepsEveryItem()
+    {
+        Worked w = work(tableDefinition(false));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        PivotFilter f;
+        f.kind = PivotFilter::TopItems;
+        f.a = 1e300;
+        f.dataField = 0;
+        QString why;
+        QVERIFY2(pivotFilterField(&w.table, w.cache, 0, f, &why), qPrintable(why));
+        for (const PivotTableItem &it : w.table.fields[0].items)
+            if (it.t.isEmpty()) QVERIFY(!it.hidden);
+    }
+
+    // A cache whose fields have many groups made from one field is held to the cache's total of record places and of group items, instead of one field's each: a hostile file would
+    // otherwise make gigabytes from a few hundred kilobytes.
+    void theGroupsOfAFileAreHeldToATotal()
+    {
+        auto parts = [&](int derived, int records, const QString &range, QByteArray *def, QByteArray *rec, const QString &items) {
+            QString fields = QStringLiteral("<cacheField name=\"N\" numFmtId=\"0\"><sharedItems containsSemiMixedTypes=\"0\" containsString=\"0\" containsNumber=\"1\" containsInteger=\"1\" count=\"2\">%1</sharedItems></cacheField>").arg(items);
+            for (int i = 0; i < derived; ++i)
+                fields += QStringLiteral("<cacheField name=\"g%1\" numFmtId=\"0\" databaseField=\"0\"><fieldGroup base=\"0\"><rangePr %2/></fieldGroup></cacheField>").arg(i).arg(range);
+            *def = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheDefinition xmlns=\"%1\" recordCount=\"%2\"><cacheSource type=\"worksheet\"><worksheetSource ref=\"A1:A3\" sheet=\"Data\"/></cacheSource>"
+                                  "<cacheFields count=\"%3\">%4</cacheFields></pivotCacheDefinition>").arg(QLatin1String(kNs)).arg(records).arg(derived + 1).arg(fields).toUtf8();
+            QString recs = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheRecords xmlns=\"%1\" count=\"%2\">").arg(QLatin1String(kNs)).arg(records);
+            recs.reserve(records * 20);
+            for (int r = 0; r < records; ++r) recs += (r & 1) ? QStringLiteral("<r><x v=\"1\"/></r>") : QStringLiteral("<r><x v=\"0\"/></r>");
+            recs += QStringLiteral("</pivotCacheRecords>");
+            *rec = recs.toUtf8();
+        };
+        auto held = [&](const PivotCache &c, qint64 *records, qint64 *items) {
+            *records = *items = 0;
+            for (const PivotCacheField &f : c.fields) {
+                *records += f.records.size() + f.rawRecords.size();
+                *items += f.items.size() + f.rawItems.size();
+            }
+        };
+        // 1,999 fields made from one of 40,000 records: 80 million places if each is made
+        {
+            QByteArray def, rec;
+            parts(1999, 40000, QStringLiteral("startNum=\"0\" endNum=\"1\" groupInterval=\"1\""), &def, &rec, QStringLiteral("<n v=\"0\"/><n v=\"1\"/>"));
+            PivotCache cache;
+            QString why;
+            QVERIFY2(readPivotCache(def, rec, DateSystem::Date1900, &cache, &why), qPrintable(why));
+            QVERIFY(!cache.unsupported.isEmpty());
+            qint64 records = 0, items = 0;
+            held(cache, &records, &items);
+            QVERIFY2(records <= kPivotMaxRecordCells, qPrintable(QString::number(records)));
+        }
+        // 30 fields of 100,000 groups each: 3 million group items
+        {
+            QByteArray def, rec;
+            parts(30, 2, QStringLiteral("startNum=\"0\" endNum=\"99999\" groupInterval=\"1\""), &def, &rec, QStringLiteral("<n v=\"0\"/><n v=\"99999\"/>"));
+            PivotCache cache;
+            QString why;
+            QVERIFY2(readPivotCache(def, rec, DateSystem::Date1900, &cache, &why), qPrintable(why));
+            QVERIFY(!cache.unsupported.isEmpty());
+            qint64 records = 0, items = 0;
+            held(cache, &records, &items);
+            QVERIFY2(items <= kPivotMaxItemsPerTable, qPrintable(QString::number(items)));
+        }
+    }
+
+    // A slicer cache says which field of which tables it filters and which items are chosen; the slicer part says how it looks; the choice hides the items it leaves out of a table.
+    void aSlicerIsReadAndFiltersATable()
+    {
+        const QByteArray cacheXml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<slicerCacheDefinition xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\" name=\"Slicer_Region\" sourceName=\"Region\">"
+                                    "<pivotTables><pivotTable tabId=\"1\" name=\"PivotTable1\"/><pivotTable tabId=\"2\" name=\"PivotTable2\"/></pivotTables>"
+                                    "<data><tabular pivotCacheId=\"7\" sortOrder=\"descending\" showMissing=\"0\"><items count=\"2\"><i x=\"0\" s=\"1\"/><i x=\"1\" nd=\"1\"/></items></tabular></data></slicerCacheDefinition>";
+        SlicerCache sc;
+        QVERIFY(readSlicerCache(cacheXml, &sc));
+        QVERIFY(!sc.timeline);
+        QCOMPARE(sc.name, QStringLiteral("Slicer_Region"));
+        QCOMPARE(sc.sourceName, QStringLiteral("Region"));
+        QCOMPARE(sc.tables.size(), 2);
+        QCOMPARE(sc.tables[1].name, QStringLiteral("PivotTable2"));
+        QCOMPARE(sc.tables[1].tabId, 2);
+        QCOMPARE(sc.pivotCacheId, 7);
+        QCOMPARE(sc.sortOrder, QStringLiteral("descending"));
+        QVERIFY(sc.hideNoData);
+        QCOMPARE(sc.items.size(), 2);
+        QVERIFY(sc.items[0].selected);
+        QVERIFY(!sc.items[1].selected);
+        QVERIFY(sc.items[1].noData);
+        QVector<SlicerView> views;
+        QVERIFY(readSlicerViews("<slicers xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><slicer name=\"Region 1\" cache=\"Slicer_Region\" caption=\"Region\" columnCount=\"2\" style=\"SlicerStyleLight1\" rowHeight=\"241300\"/></slicers>", &views));
+        QCOMPARE(views.size(), 1);
+        QCOMPARE(views[0].cache, QStringLiteral("Slicer_Region"));
+        QCOMPARE(views[0].columns, 2);
+        QCOMPARE(views[0].rowHeight, 241300);
+        SlicerCache notOne;
+        QVERIFY(!readSlicerCache("<pivotCacheDefinition/>", &notOne));
+        QVERIFY(!readSlicerViews("<slicer", &views));
+        // the choice on the table: only West shows when only West is chosen, everything when nothing is
+        Worked w = work(tableDefinition(false));
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QVERIFY(pivotApplySlicer(&w.table, w.cache, 0, sc));
+        int shown = 0;
+        for (const PivotTableItem &it : w.table.fields[0].items)
+            if (it.t.isEmpty() && !it.hidden) ++shown;
+        QCOMPARE(shown, 1);
+        for (SlicerItem &it : sc.items) it.selected = false;
+        QVERIFY(pivotApplySlicer(&w.table, w.cache, 0, sc));
+        for (const PivotTableItem &it : w.table.fields[0].items)
+            if (it.t.isEmpty()) QVERIFY(!it.hidden);
+        QVERIFY(!pivotApplySlicer(&w.table, w.cache, 99, sc));
+    }
+
+    // A timeline cache has the span it chooses and its level; a part with too many slicers is read as far as the limit.
+    void aTimelineIsRead()
+    {
+        SlicerCache tc;
+        QVERIFY(readSlicerCache("<timelineCacheDefinition xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2010/11/main\" name=\"NativeTimeline_Date\" sourceName=\"Date\">"
+                                "<pivotTables><pivotTable tabId=\"0\" name=\"PivotTable1\"/></pivotTables><state name=\"Timeline1\" pivotCacheId=\"3\" filterType=\"dateBetween\" level=\"2\">"
+                                "<selection startDate=\"2020-02-01T00:00:00\" endDate=\"2020-04-30T00:00:00\"/><bounds startDate=\"2020-01-01T00:00:00\" endDate=\"2021-12-31T00:00:00\"/></state></timelineCacheDefinition>", &tc));
+        QVERIFY(tc.timeline);
+        QCOMPARE(tc.sourceName, QStringLiteral("Date"));
+        QCOMPARE(tc.startDate, QStringLiteral("2020-02-01T00:00:00"));
+        QCOMPARE(tc.endDate, QStringLiteral("2020-04-30T00:00:00"));
+        QCOMPARE(tc.tables.size(), 1);
+        QByteArray many = "<slicers>";
+        for (int i = 0; i < kMaxSlicersPerPart + 50; ++i) many += "<slicer name=\"s\" cache=\"c\"/>";
+        many += "</slicers>";
+        QVector<SlicerView> views;
+        QVERIFY(readSlicerViews(many, &views));
+        QCOMPARE(views.size(), kMaxSlicersPerPart);
+    }
+
+    // Showing the rows behind a value and filtering a field of 100,000 items over 300,000 records take about as long as one pass over the records, not one pass for each item.
+    void manyRecordsAndManyItemsAreWorkedInBoundedTime()
+    {
+        const int items = 100000, records = 300000;
+        QString shared;
+        for (int i = 0; i < items; ++i) shared += QStringLiteral("<s v=\"k%1\"/>").arg(i);
+        const QByteArray def = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheDefinition xmlns=\"%1\" recordCount=\"%2\"><cacheSource type=\"worksheet\"><worksheetSource ref=\"A1:B3\" sheet=\"Data\"/></cacheSource>"
+                                              "<cacheFields count=\"2\"><cacheField name=\"Key\" numFmtId=\"0\"><sharedItems count=\"%3\">%4</sharedItems></cacheField>"
+                                              "<cacheField name=\"Amount\" numFmtId=\"0\"><sharedItems containsSemiMixedTypes=\"0\" containsString=\"0\" containsNumber=\"1\" containsInteger=\"1\" minValue=\"1\" maxValue=\"1\"/></cacheField>"
+                                              "</cacheFields></pivotCacheDefinition>").arg(QLatin1String(kNs)).arg(records).arg(items).arg(shared).toUtf8();
+        QString recs = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheRecords xmlns=\"%1\" count=\"%2\">").arg(QLatin1String(kNs)).arg(records);
+        for (int r = 0; r < records; ++r) recs += QStringLiteral("<r><x v=\"%1\"/><n v=\"1\"/></r>").arg(r % items);
+        recs += QStringLiteral("</pivotCacheRecords>");
+        QString listed;
+        for (int i = 0; i < items; ++i) listed += QStringLiteral("<item x=\"%1\"/>").arg(i);
+        const QByteArray table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotTableDefinition xmlns=\"%1\" name=\"t\" cacheId=\"1\" compact=\"0\" outline=\"0\" compactData=\"0\">"
+                                                "<location ref=\"A3:B6\" firstHeaderRow=\"1\" firstDataRow=\"1\" firstDataCol=\"1\"/><pivotFields count=\"2\"><pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\" showAll=\"0\">"
+                                                "<items count=\"%2\">%3<item t=\"default\"/></items></pivotField><pivotField dataField=\"1\" compact=\"0\" outline=\"0\" showAll=\"0\"/></pivotFields>"
+                                                "<rowFields count=\"1\"><field x=\"0\"/></rowFields><dataFields count=\"1\"><dataField name=\"Sum of Amount\" fld=\"1\" baseField=\"0\" baseItem=\"0\"/></dataFields></pivotTableDefinition>")
+                                    .arg(QLatin1String(kNs)).arg(items + 1).arg(listed).toUtf8();
+        Worked w = work(table, def, recs.toUtf8());
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QElapsedTimer timer;
+        timer.start();
+        QVector<qint64> rows;
+        QVERIFY(pivotDetailRecords(w.table, w.cache, w.grid, 1, 1, &rows));
+        QCOMPARE(rows.size(), 3);   // (300,000 records over 100,000 keys)
+        PivotFilter f;
+        f.kind = PivotFilter::ValueGreater;
+        f.a = 2;
+        f.dataField = 0;
+        QString why;
+        QVERIFY2(pivotFilterField(&w.table, w.cache, 0, f, &why), qPrintable(why));
+        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));   // (a scan for each item would be 3e10 steps)
+    }
+
+    // A refresh of a field with 100,000 group labels finds where each old label went in bounded time.
+    void aBigGroupIsRemappedOnRefreshInBoundedTime()
+    {
+        const QByteArray def = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheDefinition xmlns=\"%1\" recordCount=\"2\"><cacheSource type=\"worksheet\"><worksheetSource ref=\"A1:A3\" sheet=\"Data\"/></cacheSource>"
+                                              "<cacheFields count=\"1\"><cacheField name=\"N\" numFmtId=\"0\"><sharedItems containsSemiMixedTypes=\"0\" containsString=\"0\" containsNumber=\"1\" containsInteger=\"1\" count=\"2\"><n v=\"0\"/><n v=\"99999\"/></sharedItems>"
+                                              "<fieldGroup base=\"0\"><rangePr startNum=\"0\" endNum=\"99999\" groupInterval=\"1\"/></fieldGroup></cacheField></cacheFields></pivotCacheDefinition>").arg(QLatin1String(kNs)).toUtf8();
+        const QByteArray rec = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheRecords xmlns=\"%1\" count=\"2\"><r><x v=\"0\"/></r><r><x v=\"1\"/></r></pivotCacheRecords>").arg(QLatin1String(kNs)).toUtf8();
+        PivotCache prev;
+        QString why;
+        QVERIFY2(readPivotCache(def, rec, DateSystem::Date1900, &prev, &why), qPrintable(why));
+        QVERIFY(prev.unsupported.isEmpty());
+        QVERIFY(prev.fields[0].items.size() > 99000);
+        PivotSource src;
+        src.row1 = 0;
+        src.col1 = 0;
+        src.row2 = 2;
+        src.col2 = 0;
+        src.cell = [](quint32 r, quint32 c) {
+            PivotValue v;
+            Q_UNUSED(c)
+            if (r == 0) {
+                v.kind = PivotValue::Text;
+                v.text = QStringLiteral("N");
+            } else {
+                v.kind = PivotValue::Number;
+                v.number = r == 1 ? 0 : 99999;
+            }
+            return v;
+        };
+        QElapsedTimer timer;
+        timer.start();
+        PivotCache fresh;
+        QVERIFY2(buildPivotCache(src, prev, &fresh, &why), qPrintable(why));
+        QVERIFY2(timer.elapsed() < 5000, qPrintable(QString::number(timer.elapsed())));   // (a scan of the new labels for each old one is 1e10 steps)
+        QCOMPARE(fresh.fields[0].items.size(), prev.fields[0].items.size());
+    }
+
+    // Dates are grouped by years and months (a field added for the coarser part), numbers in steps; the groups are written, read back, and read again from new data; a field of text can't be grouped.
+    void datesAndNumbersAreGroupedAndUngrouped()
+    {
+        Worked w = work(tableDefinition(true), cacheDefinition(), cacheRecords());
+        QVERIFY2(w.ok, qPrintable(w.why));
+        // Amount (3, 4, 5, 7, 10, 20) in steps of 10 from 1: 1-10, 11-20; a value that is the end is in the last group
+        PivotCache numbers = w.cache;
+        QVector<int> added;
+        QVERIFY2(pivotGroupField(&numbers, 2, QStringList(), 1, 20, 10, false, false, DateSystem::Date1900, &added, &w.why), qPrintable(w.why));
+        QCOMPARE(numbers.fields[2].items.size(), 4);   // <1, 1-10, 11-20, >20
+        QCOMPARE(numbers.fields[2].items[1].text, QStringLiteral("1-10"));
+        QCOMPARE(numbers.fields[2].items[2].text, QStringLiteral("11-20"));
+        int inFirst = 0, inSecond = 0;
+        for (qint32 r : numbers.fields[2].records) {
+            inFirst += r == 1;
+            inSecond += r == 2;
+        }
+        QCOMPARE(inFirst, 5);
+        QCOMPARE(inSecond, 1);
+        // text can't be grouped
+        PivotCache text_ = w.cache;
+        QVERIFY(!pivotGroupField(&text_, 0, QStringList{QStringLiteral("months")}, 0, 0, 1, true, true, DateSystem::Date1900, &added, &w.why));
+        QVERIFY(!w.why.isEmpty());
+        // taking the group away gives the field back
+        QVector<int> removed;
+        QVERIFY(pivotUngroupField(&numbers, 2, &removed));
+        QCOMPARE(numbers.fields[2].items.size(), w.cache.fields[2].items.size());
+        QVERIFY(!numbers.fields[2].hasRaw);
+        // dates: by years and months
+        PivotCache dates;
+        PivotTable t;
+        const QByteArray def = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheDefinition xmlns=\"%1\" refreshedBy=\"x\" refreshedDate=\"45000\" recordCount=\"4\">"
+                                              "<cacheSource type=\"worksheet\"><worksheetSource ref=\"A1:B5\" sheet=\"Data\"/></cacheSource><cacheFields count=\"2\">"
+                                              "<cacheField name=\"Date\" numFmtId=\"14\"><sharedItems containsSemiMixedTypes=\"0\" containsNonDate=\"0\" containsDate=\"1\" containsString=\"0\" minDate=\"2020-01-15T00:00:00\" maxDate=\"2021-01-10T00:00:00\" count=\"3\">"
+                                              "<d v=\"2020-01-15T00:00:00\"/><d v=\"2020-02-20T00:00:00\"/><d v=\"2021-01-10T00:00:00\"/></sharedItems></cacheField>"
+                                              "<cacheField name=\"Amount\" numFmtId=\"0\"><sharedItems containsSemiMixedTypes=\"0\" containsString=\"0\" containsNumber=\"1\" containsInteger=\"1\" minValue=\"1\" maxValue=\"4\"/></cacheField>"
+                                              "</cacheFields></pivotCacheDefinition>").arg(QLatin1String(kNs)).toUtf8();
+        const QByteArray rec = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheRecords xmlns=\"%1\" count=\"4\"><r><x v=\"0\"/><n v=\"1\"/></r><r><x v=\"1\"/><n v=\"2\"/></r>"
+                                              "<r><x v=\"2\"/><n v=\"3\"/></r><r><x v=\"0\"/><n v=\"4\"/></r></pivotCacheRecords>").arg(QLatin1String(kNs)).toUtf8();
+        QVERIFY2(readPivotCache(def, rec, DateSystem::Date1900, &dates, &w.why), qPrintable(w.why));
+        const QByteArray tableXml = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotTableDefinition xmlns=\"%1\" name=\"t\" cacheId=\"1\" compact=\"0\" outline=\"0\" compactData=\"0\">"
+                                                   "<location ref=\"A3:B6\" firstHeaderRow=\"1\" firstDataRow=\"1\" firstDataCol=\"1\"/><pivotFields count=\"2\"><pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\" showAll=\"0\"/>"
+                                                   "<pivotField dataField=\"1\" compact=\"0\" outline=\"0\" showAll=\"0\"/></pivotFields><rowFields count=\"1\"><field x=\"0\"/></rowFields>"
+                                                   "<dataFields count=\"1\"><dataField name=\"Sum of Amount\" fld=\"1\" baseField=\"0\" baseItem=\"0\"/></dataFields></pivotTableDefinition>").arg(QLatin1String(kNs)).toUtf8();
+        QVERIFY2(readPivotTable(tableXml, &t, &w.why), qPrintable(w.why));
+        QVERIFY2(pivotGroupField(&dates, 0, QStringList{QStringLiteral("months"), QStringLiteral("years")}, 0, 0, 1, true, true, DateSystem::Date1900, &added, &w.why), qPrintable(w.why));
+        QCOMPARE(added, (QVector<int>{0, 2}));
+        QCOMPARE(dates.fields[2].name, QStringLiteral("Years"));
+        QVERIFY(!dates.fields[2].group.databaseField);
+        QCOMPARE(dates.fields[2].items.size(), 4);   // <1/15/2020, 2020, 2021, >1/10/2021
+        t.fields.append(PivotField());
+        t.fields[2].compact = false;
+        t.fields[2].outline = false;
+        t.fields[0].items.clear();
+        t.fields[0].hasItems = false;
+        t.rowFields = {2, 0};
+        pivotSyncRoles(&t);
+        pivotPrepareFields(&t, &dates);
+        PivotGrid g;
+        QVERIFY2(computePivot(t, dates, &g, &w.why), qPrintable(w.why));
+        // 2020: Jan (1 + 4), Feb (2); 2021: Jan (3)
+        QStringList lines;
+        for (int r = 1; r < g.rows; ++r) lines << rowText(g, r).join(QLatin1Char('|'));
+        QVERIFY2(lines.join(QLatin1Char('/')).contains(QStringLiteral("2020|Jan|5")), qPrintable(lines.join(QLatin1Char('/'))));
+        QCOMPARE(text(g, g.rows - 1, 2), QStringLiteral("10"));
+        // the written parts: the new field has no records of its own, and they read back to the same table
+        const QByteArray writtenDef = writePivotCacheDefinition(def, dates, 4, 45000, DateSystem::Date1900);
+        QVERIFY2(writtenDef.contains("databaseField=\"0\""), writtenDef.constData());
+        QVERIFY(writtenDef.contains("groupBy=\"years\""));
+        const QByteArray writtenRec = writePivotCacheRecords(dates, DateSystem::Date1900);
+        QVERIFY2(!writtenRec.contains("<x v=\"3\"/>"), writtenRec.constData());
+        const QByteArray writtenTable = writePivotTable(tableXml, t, true);
+        QString why2;
+        QVERIFY2(pivotCheckShape(writtenTable, writtenDef, writtenRec, &why2), qPrintable(why2));
+        Worked back = work(writtenTable, writtenDef, writtenRec);
+        QVERIFY2(back.ok, qPrintable(back.why));
+        QCOMPARE(back.grid.rows, g.rows);
+        QCOMPARE(text(back.grid, back.grid.rows - 1, 2), QStringLiteral("10"));
+        // read again from the cells (a new date and an amount): the groups are made again
+        PivotSource src;
+        src.row1 = 0;
+        src.col1 = 0;
+        src.row2 = 5;
+        src.col2 = 1;
+        const double days[] = {43845, 43881, 44206, 43845, 44500};
+        src.cell = [&](quint32 row, quint32 col) {
+            PivotValue v;
+            if (row == 0) {
+                v.kind = PivotValue::Text;
+                v.text = col == 0 ? QStringLiteral("Date") : QStringLiteral("Amount");
+            } else if (col == 0) {
+                v.kind = PivotValue::Date;
+                v.number = days[row - 1];
+            } else {
+                v.kind = PivotValue::Number;
+                v.number = double(row);
+            }
+            return v;
+        };
+        PivotCache fresh;
+        QVERIFY2(buildPivotCache(src, dates, &fresh, &w.why), qPrintable(w.why));
+        QCOMPARE(fresh.fields.size(), 3);
+        QCOMPARE(fresh.fields[2].name, QStringLiteral("Years"));
+        QCOMPARE(fresh.fields[2].items.size(), 4);   // <, 2020, 2021, > (44500 is October 30, 2021: the end moves out with the data)
+        QVERIFY(fresh.fields[0].hasRaw);
+        QCOMPARE(fresh.fields[0].rawItems.size(), 4);
     }
 
     // The outline form puts a field's item on a line of its own, the compact form puts every field in one column; each has a caption the file names.

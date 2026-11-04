@@ -605,6 +605,176 @@
       ]
     },
     {
+      "name": "Mailings",
+      "keytip": "M",
+      "groups": [
+        {
+          "name": "Create",
+          "keytip": "ZE",
+          "items": [
+            {
+              "large": "mail.envelopes",
+              "keytip": "E"
+            },
+            {
+              "large": "mail.labels",
+              "keytip": "L"
+            }
+          ]
+        },
+        {
+          "name": "Start Mail Merge",
+          "keytip": "ZS",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.mailStart",
+                "text": "Start Mail Merge",
+                "icon": "mail"
+              },
+              "keytip": "S",
+              "menu": [
+                "mail.type.letters",
+                "mail.type.email",
+                "mail.type.envelopes",
+                "mail.type.labels",
+                "mail.type.directory",
+                "-",
+                "mail.wizard",
+                "-",
+                "mail.type.clear"
+              ]
+            },
+            {
+              "large": {
+                "id": "ribbon.mailRecipients",
+                "text": "Select Recipients",
+                "icon": "users"
+              },
+              "keytip": "R",
+              "menu": [
+                "mail.recipients.typeNew",
+                "mail.recipients.existing",
+                "mail.recipients.contacts"
+              ]
+            },
+            {
+              "large": "mail.editList",
+              "keytip": "ER"
+            }
+          ]
+        },
+        {
+          "name": "Write & Insert Fields",
+          "keytip": "ZW",
+          "items": [
+            {
+              "large": "mail.addressBlock",
+              "keytip": "A"
+            },
+            {
+              "large": "mail.greeting",
+              "keytip": "G"
+            },
+            {
+              "large": {
+                "id": "ribbon.mailField",
+                "text": "Insert Merge Field",
+                "icon": "braces"
+              },
+              "keytip": "I",
+              "menu": "@mailFields"
+            },
+            {
+              "small": {
+                "id": "ribbon.mailRules",
+                "text": "Rules",
+                "icon": "git-branch"
+              },
+              "keytip": "RU",
+              "menu": [
+                "mail.rule.ask",
+                "mail.rule.fillin",
+                "mail.rule.if",
+                "mail.rule.mergeRec",
+                "mail.rule.mergeSeq",
+                "mail.rule.next",
+                "mail.rule.nextIf",
+                "mail.rule.set",
+                "mail.rule.skipIf"
+              ]
+            },
+            {
+              "small": "mail.highlight",
+              "keytip": "H"
+            },
+            {
+              "small": "mail.matchFields",
+              "keytip": "MF"
+            },
+            {
+              "small": "mail.updateLabels",
+              "keytip": "U"
+            }
+          ]
+        },
+        {
+          "name": "Preview Results",
+          "keytip": "ZP",
+          "items": [
+            {
+              "large": "mail.preview",
+              "keytip": "P"
+            },
+            {
+              "small": "mail.first",
+              "keytip": "F"
+            },
+            {
+              "small": "mail.prev",
+              "keytip": "V"
+            },
+            {
+              "small": "mail.next",
+              "keytip": "N"
+            },
+            {
+              "small": "mail.last",
+              "keytip": "LR"
+            },
+            {
+              "small": "mail.find",
+              "keytip": "FR"
+            },
+            {
+              "small": "mail.check",
+              "keytip": "K"
+            }
+          ]
+        },
+        {
+          "name": "Finish",
+          "keytip": "ZF",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.mailFinish",
+                "text": "Finish & Merge",
+                "icon": "files"
+              },
+              "keytip": "FM",
+              "menu": [
+                "mail.finish.edit",
+                "mail.finish.print",
+                "mail.finish.pdf",
+                "mail.finish.email"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Review",
       "keytip": "R",
       "groups": [

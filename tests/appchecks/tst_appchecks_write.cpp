@@ -17,6 +17,7 @@
 #include "core/editops.h"
 #include "core/fieldops.h"
 #include "core/indexops.h"
+#include "core/mergeops.h"
 #include "core/tocops.h"
 #include "core/pictureops.h"
 #include "core/reviewops.h"
@@ -396,6 +397,18 @@ private Q_SLOTS:
                  asWrite(w)->view()->refresh();
                  asWrite(w)->refreshNow();
              }, false},
+            {QStringLiteral("a merge with a list of recipients"), [](AppWindow *w, bool) {
+                 // (the list is put in place as Select Recipients puts it, without its file dialog)
+                 write::mail::State &state = write::mail::stateOf(*asWrite(w)->document());
+                 state.settings.type = write::mail::kindValue(write::mail::Kind::Letters);
+                 MergeSource m;
+                 m.fields = {QStringLiteral("First Name"), QStringLiteral("Last Name"), QStringLiteral("City")};
+                 m.rows << QStringList{QStringLiteral("Mara"), QStringLiteral("Fenwick"), QStringLiteral("Arlington")} << QStringList{QStringLiteral("Nora"), QStringLiteral("Pell"), QStringLiteral("Dover")};
+                 m.include << true << true;
+                 state.data = m;
+                 state.loaded = true;
+                 asWrite(w)->refreshNow();
+             }, false},
             {QStringLiteral("a merged cell"), [](AppWindow *w, bool) {
                  tableAtCursor(asWrite(w));
                  write::selectInTable(*asWrite(w)->document(), asWrite(w)->view()->cursor(), write::TableUnit::Row);
@@ -405,6 +418,8 @@ private Q_SLOTS:
              }, false},
         };
         m_app.quiet = {
+            {QStringLiteral("mail.highlight"), QStringLiteral("it chooses whether merge fields are shaded on the screen, which shows only where the document has them; the mail tests check the pixels")},
+            {QStringLiteral("mail.check"), QStringLiteral("it only reports on the merge (here: no errors are found); the mail tests check what it says")},
             {QStringLiteral("picture.lockAspect"), QStringLiteral("it is the setting the next change of a picture's width or height reads, and changes nothing by itself")},
             {QStringLiteral("edit.copyFormat"), QStringLiteral("it only holds the look of the selection for Paste Format; the paste is the change")},
             {QStringLiteral("edit.pasteFormat"), QStringLiteral("it puts the look held on the selection, which here has that look already, or nothing is held yet")},
@@ -413,7 +428,9 @@ private Q_SLOTS:
             {QStringLiteral("review.show.comments"), QStringLiteral("it chooses whether the balloons for comments are painted in the pages' margin, which no control shows; the window's tests check the painting")},
             {QStringLiteral("review.show.formatting"), QStringLiteral("it chooses whether the bars for changes of formatting are painted in the pages' margin, which no control shows; the window's tests check the painting")},
         };
-        m_app.neverRun = {};
+        m_app.neverRun = {
+            {QStringLiteral("mail.updateLabels"), QStringLiteral("it is for a sheet of labels that Mailings > Labels makes, which no place here has; the mail tests run it on one")},
+        };
     }
 
     // ---- 1. the first five minutes
