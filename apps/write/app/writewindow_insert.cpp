@@ -4,6 +4,7 @@
 #include "app/writewindow.h"
 
 #include "app/icons.h"
+#include "app/plaintext.h"
 #include "app/settings.h"
 #include "app/pageview.h"
 #include "app/ribbon.h"
@@ -15,6 +16,7 @@
 #include "app/writedialogs.h"
 
 #include <QAction>
+#include <QMessageBox>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -108,7 +110,12 @@ void WriteWindow::createInsertActions()
         write::removeHyperlink(*m_doc, m_view->cursor().position());
         m_view->setFocus(Qt::OtherFocusReason);
     });
-    connect(m_view, &write::PageView::linkFollowed, this, [this](const QString &address) {
+    connect(m_view, &write::PageView::linkFollowed, this, [this](const QString &address, const QString &shown) {
+        if (write::linkNeedsAsking(address, shown)) {
+            const QString question = tr("Open %1?").arg(address);
+            const bool yes = m_linkAsker ? m_linkAsker(question) : plainQuestion(this, tr("Open Link"), question) == QMessageBox::Yes;
+            if (!yes) return;
+        }
         if (m_linkOpener) m_linkOpener(address);
         else QDesktopServices::openUrl(QUrl(address, QUrl::TolerantMode));
     });

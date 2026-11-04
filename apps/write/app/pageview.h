@@ -206,9 +206,10 @@ Q_SIGNALS:
     void headerFooterModeChanged();         // a header or footer is edited now, or none is any more
     void noteModeChanged();                 // a footnote is edited now, or none is any more
     void notice(const QString &text);       // a sentence for the person about what a command could not do
-    void linkFollowed(const QString &address);   // Ctrl+click on a link to an address outside the document (the window opens it)
+    void linkFollowed(const QString &address, const QString &shown);   // Ctrl+click on a link to an address outside the document, with the words it shows (the window asks if need be, then opens it)
 
 protected:
+    bool viewportEvent(QEvent *e) override;   // (the tip of a link: where it goes, and its screen tip)
     void paintEvent(QPaintEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
     void scrollContentsBy(int dx, int dy) override;

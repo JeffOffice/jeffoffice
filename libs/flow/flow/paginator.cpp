@@ -75,6 +75,7 @@ struct Paginator::Run {
     bool keepsIndent = false;  // ... and its first-line indent (the file may suppress the space and not the indent)
     bool freeBreak = false;    // a section of more columns begins below the text of the first, and the empty paragraph that ends that takes no room (so that it has no box of its own)
     QVector<int> splitEnds;    // where each such section's text begins (with freeBreak): the end of the paragraph that ends the one above it
+    QVector<bool> lineAfter;   // for each column: a line is drawn between it and the next (the section it is of has a line between its columns)
     QVector<int> partOfColumn; // the part of the page each column is of (a page that sections begin on one below another has a part for each; none: one part)
     QVector<StoryLayout::NotePlace> notes;   // the footnotes as the page's layout put them
     QVector<StoryLayout::Rule> rules;        // and the rules above them
@@ -436,6 +437,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         if (st.skip > 0 && !tail) frames << frame(colW, std::max(kTall, st.skip * 5000.0));
         run.firstFrame = int(frames.size());
         run.cols.clear();
+        run.lineAfter.clear();
         run.partOfColumn.clear();
         run.splitEnds.clear();
         run.freeBreak = false;
@@ -450,12 +452,14 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                 for (int c = 0; c < partSection.columnCount(); ++c) {
                     frames << frame(partSection.columnRect(c).width(), colH);
                     run.cols << QRectF(partSection.columnRect(c).left(), 0, partSection.columnRect(c).width(), colH);
+                    run.lineAfter << (partSection.columnLine && c + 1 < partSection.columnCount());
                 }
             }
         } else {
             for (int c = 0; c < sec.columnCount(); ++c) {
                 frames << walled(frame(sec.columnRect(c).width(), colH), QRectF(sec.columnRect(c).left(), body.top(), sec.columnRect(c).width(), colH));
                 run.cols << QRectF(sec.columnRect(c).left(), 0, sec.columnRect(c).width(), colH);
+                run.lineAfter << (sec.columnLine && c + 1 < sec.columnCount());
             }
         }
         run.columns = int(run.cols.size());
@@ -503,6 +507,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                     const int parts = int(splitSections.size());
                     const int pageFrom = m_doc->story()->findBlock(st.pos).position();
                     run.cols.clear();
+                    run.lineAfter.clear();
                     run.splitEnds.clear();
                     run.partOfColumn.clear();
                     run.freeBreak = false;
@@ -594,6 +599,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                             part.pieces.insert(part.pieces.end(), p.pieces.begin(), p.pieces.end());
                             for (int c = 0; c < columns; ++c) {
                                 run.cols << QRectF(here.columnRect(c).left(), top, here.columnRect(c).width(), room);
+                                run.lineAfter << (here.columnLine && c + 1 < columns);
                                 run.partOfColumn << k;
                             }
                             break;
@@ -695,6 +701,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                         part.pieces.insert(part.pieces.end(), p1.pieces.begin(), p1.pieces.end());
                         for (int c = 0; c < columns; ++c) {
                             run.cols << QRectF(here.columnRect(c).left(), top, here.columnRect(c).width(), room);
+                            run.lineAfter << (here.columnLine && c + 1 < columns);
                             run.partOfColumn << k;
                         }
                         // (The columns of the part are as tall as the room, as the boxes of the page layer are as its lines.)
@@ -2022,7 +2029,6 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         d->pages[0]->items.push_back(fill);
     }
     addPageBorders(d.get(), sec, index <= 0 || st.firstOfSection, furniture);
-    addColumnLines(d.get(), sec, furniture);
     if (run.blank) {
         out->storyFrom = m_doc->story()->characterCount();
         addFurniture(d.get(), furniture, sec, st.section, out->number, out.get(), st.pos, st.pos);
@@ -2100,6 +2106,26 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
             boxes << t;
             d->pages[0]->items.push_back(t);
             out->boxes << t->id;
+        }
+        // The lines between columns (w:cols w:sep): in a part of the page (the columns of one section) that has text, between its columns, as tall as the text in them.
+        for (int first = 0; first < run.columns;) {
+            int last = first;
+            double most = -1;
+            while (last < run.columns && run.partOfColumn.value(last, 0) == run.partOfColumn.value(first, 0)) most = std::max(most, bottom[last++]);
+            if (most >= 0)
+                for (int c = first; c + 1 < last; ++c) {
+                    if (!run.lineAfter.value(c)) continue;
+                    const double x = (run.cols[c].right() + run.cols[c + 1].left()) / 2, y1 = furniture.body.top() + run.cols[c].top();
+                    auto item = std::make_shared<LineItem>();
+                    item->id = QStringLiteral("flow-column-line-%1-%2").arg(d->pages[0]->id).arg(c);
+                    item->p1 = QPointF(x, y1);
+                    item->p2 = QPointF(x, y1 + most);
+                    item->stroke = Stroke::line(ColorRef::fromString(QStringLiteral("#000000")), 0.5);
+                    item->wrap.mode = Wrap::None;
+                    item->syncRect();
+                    d->pages[0]->items.push_back(item);
+                }
+            first = last;
         }
         // The rooms kept clear above the paragraphs that asked for a place lower on the page: walls of their own that draw nothing, after the text.
         for (int n = 0; n < run.advanceWalls.size(); ++n) {

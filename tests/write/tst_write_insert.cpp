@@ -6,6 +6,8 @@
 #include "app/pageview.h"
 #include "app/settings.h"
 #include "app/textdialogs.h"
+#include "core/items.h"
+#include "flow/paginator.h"
 #include "app/writeinfo.h"
 #include "app/ribbon.h"
 #include "app/ruler.h"
@@ -23,6 +25,10 @@
 #include "wml/wml.h"
 
 #include <QFile>
+#include <QHelpEvent>
+#include <QToolTip>
+#include <QStatusBar>
+#include <QScrollBar>
 #include <QDialog>
 #include <QDockWidget>
 #include <QListWidget>
@@ -94,6 +100,39 @@ int itemsStartingWith(WriteWindow &w, int page, const QString &prefix)
     for (const auto &item : made->doc->pages[0]->items) n += item->id.startsWith(prefix);
     return n;
 }
+
+// A package whose body is built from the Ids of external hyperlink relationships to `targets`.
+QByteArray makeLinkDocx(const QStringList &targets, const std::function<QByteArray(const QStringList &)> &body)
+{
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    QStringList ids;
+    for (const QString &t : targets) ids << w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("hyperlink"), t, true);
+    w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + body(ids) + "</w:body></w:document>"),
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    return w.finish();
+}
+
+QByteArray linkRun(const QString &id, const char *text, const QByteArray &extra = QByteArray())
+{
+    return "<w:p><w:hyperlink r:id=\"" + id.toUtf8() + "\"" + extra + "><w:r><w:t>" + text + "</w:t></w:r></w:hyperlink></w:p>";
+}
+
+// The vertical lines between columns that a page has, as the pager draws them.
+QVector<QLineF> columnLines(WriteWindow &w, int page)
+{
+    w.view()->paginateAll();
+    QVector<QLineF> out;
+    const auto made = w.document()->pager().materialize(page);
+    if (!made) return out;
+    for (const auto &item : made->doc->pages[0]->items)
+        if (item->id.startsWith(QLatin1String("flow-column-line-")))
+            if (const auto *l = dynamic_cast<const LineItem *>(item.get())) out << QLineF(l->p1, l->p2);
+    return out;
+}
+
+const char kSect1[] = "<w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>";
 
 QByteArray para(const char *text) { return QByteArray("<w:p><w:r><w:t xml:space=\"preserve\">") + text + "</w:t></w:r></w:p>"; }
 
@@ -287,7 +326,7 @@ private Q_SLOTS:
         QVERIFY(!write::mayFollow(QStringLiteral("smb://host/share")));
         QStringList opened;
         win.w.setLinkOpener([&](const QString &a) { opened << a; });
-        Q_EMIT win.w.view()->linkFollowed(QStringLiteral("https://example.com"));
+        Q_EMIT win.w.view()->linkFollowed(QStringLiteral("https://example.com"), QString());
         QCOMPARE(opened, (QStringList{"https://example.com"}));
     }
 
@@ -616,6 +655,271 @@ private Q_SLOTS:
         QVERIFY(!win.w.focusMode());
         QVERIFY(win.w.ribbon()->isVisible());
         QVERIFY(win.w.ruler()->isVisible());
+    }
+
+    // ---------------------------------------------------------------- review round: links
+    void aLinkShowsItsRealTargetAndScreenTipWhenHoveredOver()
+    {
+        Win win({"Visit our site now"});
+        QTextCursor c(win.w.document()->story());
+        c.setPosition(6);
+        c.setPosition(14, QTextCursor::KeepAnchor);
+        QVERIFY(write::insertHyperlink(*win.w.document(), c, QStringLiteral("https://real.example/x"), QString(), QStringLiteral("Our home"), QString()));
+        QTextCursor in(win.w.document()->story());
+        in.setPosition(9);
+        win.w.view()->setCursor(in);
+        QRect r;
+        QVERIFY(win.w.view()->caretRect(&r));
+        QToolTip::hideText();
+        QHelpEvent help(QEvent::ToolTip, r.center(), win.w.view()->viewport()->mapToGlobal(r.center()));
+        QApplication::sendEvent(win.w.view()->viewport(), &help);
+        QVERIFY2(QToolTip::text().contains(QStringLiteral("https://real.example/x")) && QToolTip::text().contains(QStringLiteral("Our home")), qPrintable(QToolTip::text()));
+        QToolTip::hideText();
+    }
+
+    void ctrlClickOnALinkAsksBeforeAnAddressThatIsNotWhatItShows()
+    {
+        const QByteArray file = makeLinkDocx({"https://good.example", "https://evil.example?x=1", "mailto:a@example.com", "tel:+15555550100", "file:///etc/passwd", "https://plain.example"}, [](const QStringList &ids) {
+            return linkRun(ids[0], "Safe words") + linkRun(ids[1], "https://good.example") + linkRun(ids[2], "Mail me") + linkRun(ids[3], "Call me") + linkRun(ids[4], "Local file") +
+                   linkRun(ids[5], "Plain words");
+        });
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(file), QString());
+        QStringList opened, asked, notices;
+        bool yes = false;
+        w.setLinkOpener([&](const QString &a) { opened << a; });
+        w.setLinkAsker([&](const QString &question) {
+            asked << question;
+            return yes;
+        });
+        QObject::connect(w.view(), &write::PageView::notice, [&](const QString &t) { notices << t; });
+        auto clickIn = [&](int block) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(w.document()->story()->findBlockByNumber(block).position() + 2);
+            w.view()->setCursor(c);
+            QRect r;
+            QVERIFY(w.view()->caretRect(&r));
+            QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::ControlModifier, r.center());
+        };
+        clickIn(5);   // (plain words: no question)
+        QCOMPARE(opened, (QStringList{"https://plain.example"}));
+        QVERIFY(asked.isEmpty());
+        opened.clear();
+        clickIn(1);   // (shows one address, goes to another: asks, is told no)
+        QCOMPARE(asked.size(), 1);
+        QVERIFY2(asked[0].contains(QStringLiteral("Open https://evil.example?x=1?")), qPrintable(asked[0]));
+        QVERIFY(opened.isEmpty());
+        yes = true;
+        clickIn(1);
+        QCOMPARE(opened, (QStringList{"https://evil.example?x=1"}));
+        asked.clear();
+        opened.clear();
+        clickIn(2);   // (mail and telephone links ask first)
+        clickIn(3);
+        QCOMPARE(asked.size(), 2);
+        QCOMPARE(opened, (QStringList{"mailto:a@example.com", "tel:+15555550100"}));
+        // A link to a file is never followed, and the person is told.
+        asked.clear();
+        opened.clear();
+        clickIn(4);
+        QVERIFY(opened.isEmpty() && asked.isEmpty());
+        QVERIFY2(!notices.isEmpty(), "no notice for the refused link");
+    }
+
+    void aLinkOverSeveralParagraphsBecomesOneLinkForEachAndSurvivesASave()
+    {
+        Win win({"alpha one", "beta two"});
+        QTextCursor c(win.w.document()->story());
+        c.setPosition(2);
+        c.setPosition(win.w.document()->story()->findBlockByNumber(1).position() + 4, QTextCursor::KeepAnchor);
+        QString why;
+        QVERIFY2(write::insertHyperlink(*win.w.document(), c, QStringLiteral("https://span.example"), QString(), QString(), QString(), &why), qPrintable(why));
+        const QByteArray saved = win.w.document()->toDocx();
+        const QByteArray out = documentXml(saved);
+        QCOMPARE(out.count("<w:hyperlink"), 2);
+        QCOMPARE(out.count("</w:hyperlink>"), 2);
+        auto again = open(saved);
+        QVERIFY(again);
+        const QTextDocument *story = again->story();
+        for (int b = 0; b < 2; ++b) {
+            const write::Hyperlink l = write::hyperlinkAt(*again, story->findBlockByNumber(b).position() + 3);
+            QVERIFY2(l.valid() && l.address == QStringLiteral("https://span.example"), qPrintable(QString::number(b)));
+        }
+        QCOMPARE(again->story()->toPlainText().remove(QChar::ObjectReplacementCharacter), QStringLiteral("alpha one\nbeta two"));
+    }
+
+    void aLinkThatIsUndoneLeavesNoRelationshipInTheSavedFile()
+    {
+        Win win;
+        QTextCursor &c = win.w.view()->cursor();
+        c.setPosition(0);
+        c.setPosition(3, QTextCursor::KeepAnchor);
+        QVERIFY(write::insertHyperlink(*win.w.document(), c, QStringLiteral("https://gone.example"), QString(), QString(), QString()));
+        auto relsOf = [&](const QByteArray &saved) {
+            office::Package pkg;
+            pkg.read(saved);
+            QStringList targets;
+            for (const office::Relationship &r : pkg.relationships(QStringLiteral("/word/document.xml"))) targets << r.target;
+            return targets;
+        };
+        QVERIFY(relsOf(win.w.document()->toDocx()).contains(QStringLiteral("https://gone.example")));
+        win.w.document()->undo();
+        QVERIFY2(!relsOf(win.w.document()->toDocx()).contains(QStringLiteral("https://gone.example")), "an unused link relationship was written");
+        win.w.document()->redo();
+        QVERIFY(relsOf(win.w.document()->toDocx()).contains(QStringLiteral("https://gone.example")));
+    }
+
+    void addressesWithAPortAreWebAddressesAndAttributesAreReadProperly()
+    {
+        QCOMPARE(write::normalizedAddress(QStringLiteral("example.com:8080/x")), QStringLiteral("https://example.com:8080/x"));
+        QCOMPARE(write::normalizedAddress(QStringLiteral("localhost:3000")), QStringLiteral("https://localhost:3000"));
+        QCOMPARE(write::normalizedAddress(QStringLiteral("tel:+15555550100")), QStringLiteral("tel:+15555550100"));
+        QCOMPARE(write::normalizedAddress(QStringLiteral("mailto:a@b.example")), QStringLiteral("mailto:a@b.example"));
+        QCOMPARE(write::normalizedAddress(QStringLiteral("ftp://f.example")), QStringLiteral("ftp://f.example"));
+    }
+
+    void aLinkAddressIsReadFromTheRealIdAttributeNotFromTextInAScreenTip()
+    {
+        // A screen tip that holds text that looks like an attribute, in single quotes, is not read as the link's address.
+        const QByteArray file = makeLinkDocx({"https://wrong.example", "https://right.example"}, [](const QStringList &ids) {
+            return "<w:p><w:hyperlink w:tooltip='see r:id=\"" + ids[0].toUtf8() + "\" here' r:id='" + ids[1].toUtf8() + "'><w:r><w:t>words</w:t></w:r></w:hyperlink></w:p>";
+        });
+        auto doc = open(file);
+        QVERIFY(doc);
+        const write::Hyperlink l = write::hyperlinkAt(*doc, 2);
+        QVERIFY(l.valid());
+        QCOMPARE(l.address, QStringLiteral("https://right.example"));
+        QVERIFY(l.screenTip.contains(QStringLiteral("see r:id=")));
+    }
+
+    // ---------------------------------------------------------------- review round: Text from File
+    void textFromAFileTakesControlCharactersAsPlainTextAndIsCapped()
+    {
+        Win win;
+        QTemporaryDir dir;
+        int number = 0;
+        auto fileWith = [&](const QByteArray &bytes) {
+            QFile f(dir.filePath(QStringLiteral("t%1.txt").arg(++number)));
+            f.open(QIODevice::WriteOnly);
+            f.write(bytes);
+            return f.fileName();
+        };
+        QString path = fileWith(QByteArray("a\x0c" "b\x0e" "c\x07" "d\te"));
+        win.w.setTextFileChooser([&] { return path; });
+        win.w.act("insert.textFromFile")->trigger();
+        const QString text = win.text();
+        QVERIFY2(!text.contains(QChar(0x000C)) && !text.contains(QChar(0x000E)) && !text.contains(QChar(0x0007)), "a control character got into the text");
+        QVERIFY(text.contains(QStringLiteral("abcd\te")));
+        QCOMPARE(win.w.document()->sectionCount(), 1);
+        QVERIFY(!documentXml(win.w.document()->toDocx()).contains("w:type=\"page\""));
+    }
+
+    void aTextFileWithTooManyLinesIsRefusedWithASentence()
+    {
+        Win win;
+        QTemporaryDir dir;
+        QFile f(dir.filePath(QStringLiteral("many.txt")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        QByteArray many;
+        for (int i = 0; i < write::kMostInsertedParagraphs + 1; ++i) many += "x\n";
+        f.write(many);
+        f.close();
+        win.w.setTextFileChooser([&] { return f.fileName(); });
+        const QString before = win.text();
+        win.w.act("insert.textFromFile")->trigger();
+        QCOMPARE(win.text(), before);
+        QVERIFY(!win.w.statusBar()->currentMessage().isEmpty());
+    }
+
+    // ---------------------------------------------------------------- review round: columns
+    void moreColumnsKeepsASectionOfTwentyColumnsAsItIs()
+    {
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para("text") + "<w:sectPr>" + kSect1 + "<w:cols w:num=\"20\" w:space=\"0\"/></w:sectPr>")), QString());
+        QCOMPARE(w.document()->flow().section(0).columns, 20);
+        withDialog([&] { w.act("layout.columns.more")->trigger(); }, QStringLiteral("columnsDialog"), [&](QDialog *dlg) { QCOMPARE(dlg->findChild<QSpinBox *>(QStringLiteral("count"))->value(), 20); });
+        QCOMPARE(w.document()->flow().section(0).columns, 20);
+    }
+
+    // ---------------------------------------------------------------- review round: column lines
+    void columnLinesAreOnlyOverTheColumnsOfAMixedPage()
+    {
+        // One column of text, then (a continuous section) two columns with a line between: the line begins below the first part and ends with the text.
+        const QByteArray body = "<w:p><w:pPr><w:sectPr>" + QByteArray(kSect1) + "</w:sectPr></w:pPr><w:r><w:t>Heading of one column</w:t></w:r></w:p>" + para("left right words here and a few more words to fill") +
+                                "<w:sectPr><w:type w:val=\"continuous\"/>" + kSect1 + "<w:cols w:num=\"2\" w:space=\"720\" w:sep=\"1\"/></w:sectPr>";
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        const QVector<QLineF> lines = columnLines(w, 0);
+        QCOMPARE(lines.size(), 1);
+        QVERIFY2(lines[0].y1() > 72 + 8, qPrintable(QString::number(lines[0].y1())));   // (below the first section's line)
+        QVERIFY2(lines[0].y2() < 720 - 100, qPrintable(QString::number(lines[0].y2())));   // (ends with the text, not at the foot of the page)
+    }
+
+    void noColumnLinesAreDrawnOnABlankPageAnOddPageBreakLeaves()
+    {
+        const QByteArray body = "<w:p><w:pPr><w:sectPr>" + QByteArray(kSect1) + "<w:cols w:num=\"2\" w:space=\"720\" w:sep=\"1\"/></w:sectPr></w:pPr><w:r><w:t>first section words</w:t></w:r></w:p>" +
+                                para("second") + "<w:sectPr><w:type w:val=\"oddPage\"/>" + kSect1 + "</w:sectPr>";
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        w.view()->paginateAll();
+        QCOMPARE(w.document()->pager().pageCount(), 3);
+        QCOMPARE(columnLines(w, 0).size(), 1);
+        QCOMPARE(columnLines(w, 1).size(), 0);
+    }
+
+    // ---------------------------------------------------------------- review round: the Navigation pane
+    void typingInABigDocumentDoesNotRebuildTheHeadingsAtOnce()
+    {
+        QByteArray body;
+        for (int i = 0; i < 100000; ++i) body += "<w:p><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:r><w:t>H" + QByteArray::number(i) + "</w:t></w:r></w:p>";
+        body += para("tail");
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        w.act("view.navigationPane")->trigger();
+        NavigationPane *pane = w.navigationPane();
+        const int built = pane->rebuildCountForTest(), scans = pane->scanCountForTest();
+        QTextCursor c(w.document()->story());
+        c.movePosition(QTextCursor::End);
+        w.view()->setCursor(c);
+        for (int i = 0; i < 5; ++i) write::insertText(*w.document(), w.view()->cursor(), QStringLiteral("x"));
+        QCOMPARE(pane->rebuildCountForTest(), built);   // (not at once)
+        QCOMPARE(pane->scanCountForTest(), scans);      // (nor looked at once, for each key)
+        QTRY_VERIFY(pane->scanCountForTest() > scans);  // (after the typing pauses)
+        QCOMPARE(pane->rebuildCountForTest(), built);   // (the headings are the same: the tree stays)
+        // A heading's words changing does rebuild it.
+        QTextCursor h(w.document()->story());
+        h.setPosition(1);
+        w.view()->setCursor(h);
+        write::insertText(*w.document(), w.view()->cursor(), QStringLiteral("Z"));
+        QTRY_VERIFY(pane->rebuildCountForTest() > built);
+        QCOMPARE(pane->headings()->topLevelItem(0)->text(0), QStringLiteral("HZ0"));
+    }
+
+    void thePagesTabMakesPicturesOnlyForThePagesInView()
+    {
+        QByteArray body;
+        for (int i = 0; i < 30; ++i) body += "<w:p><w:r><w:t>page</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r></w:p>";
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        w.view()->paginateAll();
+        w.act("view.navigationPane")->trigger();
+        w.navigationPane()->tabs()->setCurrentIndex(1);
+        w.navigationPane()->refresh();
+        QVERIFY(w.navigationPane()->pages()->count() >= 30);
+        QTRY_VERIFY(w.navigationPane()->thumbnailsMadeForTest() > 0);
+        QVERIFY2(w.navigationPane()->thumbnailsMadeForTest() < w.navigationPane()->pages()->count(), "a picture was made for every page");
     }
 };
 

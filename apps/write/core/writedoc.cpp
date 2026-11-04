@@ -537,6 +537,7 @@ QString WriteDoc::addExternalLink(const QString &type, const QString &target)
     r.target = target;
     r.external = true;
     m_wml.mainRelationships.push_back(r);
+    m_madeLinks.insert(r.id);
     return r.id;
 }
 

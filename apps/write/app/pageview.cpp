@@ -4,6 +4,8 @@
 #include "app/pagepaint.h"
 #include "core/commentops.h"
 #include "core/editops.h"
+#include "core/linkops.h"
+#include "app/plaintext.h"
 #include "core/reviewops.h"
 #include "core/tableops.h"
 #include "core/writeprops.h"
@@ -12,7 +14,9 @@
 #include "text/textprops.h"
 
 #include <QApplication>
+#include <QHelpEvent>
 #include <QImage>
+#include <QToolTip>
 #include <QPaintEvent>
 #include <QPainter>
 #include <QMap>
@@ -214,6 +218,25 @@ void PageView::setCursor(const QTextCursor &c)
     if (!takeCursorOf(c)) return;
     m_cursor = c;
     caretMoved();
+}
+
+bool PageView::viewportEvent(QEvent *e)
+{
+    if (e->type() == QEvent::ToolTip && m_doc) {
+        auto *help = static_cast<QHelpEvent *>(e);
+        const Hit hit = hitAt(help->pos());
+        const int at = hit.page >= 0 && !m_hf.active && !m_note.active ? positionAt(hit) : -1;
+        const Hyperlink link = at >= 0 && m_cursor.document() == m_doc->story() ? hyperlinkAt(*m_doc, at) : Hyperlink();
+        if (link.valid()) {
+            QString tip = link.anchor.isEmpty() ? link.address : tr("Place in this document: %1").arg(link.anchor);
+            if (!link.screenTip.isEmpty()) tip = link.screenTip + QLatin1Char('\n') + tip;
+            if (link.anchor.isEmpty()) tip += QLatin1Char('\n') + tr("Ctrl+click to follow the link");
+            QToolTip::showText(help->globalPos(), jp::plainToolTip(tip), viewport());
+            return true;
+        }
+        QToolTip::hideText();
+    }
+    return QAbstractScrollArea::viewportEvent(e);
 }
 
 void PageView::showCursor(const QTextCursor &c)

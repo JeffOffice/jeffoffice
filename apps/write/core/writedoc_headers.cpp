@@ -592,7 +592,7 @@ void WriteDoc::writeHeaderParts(office::wml::Document *out)
             kept.name = QStringLiteral("/word/settings.xml");
             for (int n = 2; partExists(kept.name) || kept.name.compare(out->mainName, Qt::CaseInsensitive) == 0; ++n) kept.name = QStringLiteral("/word/settings%1.xml").arg(n);
             kept.contentType = QString(kSettingsType);
-            kept.data = edit(QByteArray(), true);
+            kept.data = edit(QByteArray(), on);
             out->parts.push_back(kept);
             Relationship r;
             r.id = nextRelationshipId(out->mainRelationships);

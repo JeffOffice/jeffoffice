@@ -103,6 +103,8 @@ public:
     // What a followed link is opened with: the system's browser or mail program, unless this stands in for it (tests): the address.
     // What Insert > Text from File asks for a file with: the file dialog, unless this stands in for it (tests): the path chosen, empty for none.
     void setTextFileChooser(const std::function<QString()> &chooser) { m_textFileChooser = chooser; }
+    // What asks the person before a link is followed that needs it (tests stand in for the message box): the question; true to go on.
+    void setLinkAsker(const std::function<bool(const QString &)> &asker) { m_linkAsker = asker; }
     void setLinkOpener(const std::function<void(const QString &)> &opener) { m_linkOpener = opener; }
     void setPictureChooser(const std::function<QString()> &chooser) { m_pictureChooser = chooser; }
     write::Ruler *ruler() const { return m_ruler; }
@@ -282,6 +284,7 @@ private:
     QList<MeasureSpin *> m_indentFields;
     QWidget *m_styleGallery = nullptr;
     std::function<void(const QString &)> m_linkOpener;
+    std::function<bool(const QString &)> m_linkAsker;
     std::function<QString()> m_textFileChooser;
     NavigationPane *m_nav = nullptr;
     QDockWidget *m_navDock = nullptr;

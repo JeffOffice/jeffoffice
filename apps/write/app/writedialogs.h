@@ -22,7 +22,7 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
 // pages, and the header and footer distances), applied to the section or to the whole document when it is accepted, as one step that undoes. Only what the person changed is applied.
 // Returns whether anything was applied.
 bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section);
-// More Columns: the number of columns (up to 12), equal widths or each column's own width and space, a line between, and presets (One, Two, Three, Left, Right); applied to the
+// More Columns: the number of columns (up to 32), equal widths or each column's own width and space, a line between, and presets (One, Two, Three, Left, Right); applied to the
 // section or the whole document as one step that undoes. Returns whether anything was changed.
 bool columnsDialog(QWidget *parent, WriteDoc *doc, int section);
 // Line Numbers: on or off, start at, count by, distance from the text, and when the numbers begin again; for the section or the whole document.

@@ -4,6 +4,7 @@
 #include "core/writedoc.h"
 
 #include <QCoreApplication>
+#include <QLocale>
 #include <QTextCursor>
 #include <memory>
 
@@ -44,6 +45,8 @@ bool insertTextFromFile(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, 
         QTextCursor all(other->story());
         all.setPosition(0);
         all.setPosition(editableEnd(other->story()), QTextCursor::KeepAnchor);
+        if (other->story()->blockCount() > kMostInsertedParagraphs)
+            return fail(QCoreApplication::translate("jp::write::InsertText", "That file has more than %1 paragraphs, which is more than can be put in at once.").arg(QLocale().toString(kMostInsertedParagraphs)));
         if (!all.hasSelection()) return fail(QCoreApplication::translate("jp::write::InsertText", "That file has no text."));
         const Clip clip = copySelection(*other, all);
         pasteClip(doc, c, clip);
@@ -54,6 +57,17 @@ bool insertTextFromFile(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, 
     QString text = QString::fromUtf8(bytes);
     text.replace(QStringLiteral("\r\n"), QStringLiteral("\n")).replace(QLatin1Char('\r'), QLatin1Char('\n'));
     if (text.endsWith(QLatin1Char('\n'))) text.chop(1);
+    // (A control character is not text: a page or column break comes from the Insert and Layout commands, never from a byte of a file.)
+    QString kept;
+    kept.reserve(text.size());
+    for (const QChar ch : std::as_const(text)) {
+        const ushort u = ch.unicode();
+        if ((u < 0x20 && u != '\t' && u != '\n') || (u >= 0x7F && u <= 0x9F) || u == 0x2028 || u == 0x2029) continue;
+        kept += ch;
+    }
+    text = kept;
+    if (text.count(QLatin1Char('\n')) + 1 > kMostInsertedParagraphs)
+        return fail(QCoreApplication::translate("jp::write::InsertText", "That file has more than %1 lines, which is more than can be put in at once.").arg(QLocale().toString(kMostInsertedParagraphs)));
     if (text.isEmpty()) return fail(QCoreApplication::translate("jp::write::InsertText", "That file has no text."));
     insertText(doc, c, text);
     return true;

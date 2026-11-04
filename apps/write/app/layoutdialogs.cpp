@@ -16,6 +16,7 @@
 #include <QGroupBox>
 #include <QLabel>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -91,7 +92,11 @@ bool columnsDialog(QWidget *parent, WriteDoc *doc, int section)
         widths << w;
         spaces << s;
     }
-    v->addWidget(rows);
+    auto *scroll = new QScrollArea(&dlg);
+    scroll->setWidgetResizable(true);
+    scroll->setWidget(rows);
+    scroll->setMinimumHeight(220);
+    v->addWidget(scroll, 1);
     auto *scope = scopeBox(&dlg);
     auto *scopeForm = new QFormLayout;
     scopeForm->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Apply to:"), scope);

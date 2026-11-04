@@ -59,11 +59,26 @@ QByteArray openTag(WriteDoc &doc, const QString &address, const QString &anchor,
     return tag + " w:history=\"1\">";
 }
 
-QString attribute(const QByteArray &raw, const char *name)
+// The value of an attribute of the tag's own (a start tag's attributes, each in single or double quotes, by its name with or without the namespace prefix `prefix`): the tag is read
+// attribute by attribute, so that text inside another attribute's value is never taken for one.
+QString attribute(const QByteArray &raw, const char *name, const char *prefix)
 {
-    const QRegularExpression re(QStringLiteral("\\s(?:w:|r:)?%1=\"([^\"]*)\"").arg(QLatin1String(name)));
-    const QRegularExpressionMatch m = re.match(QString::fromUtf8(raw.left(4000)));
-    return m.hasMatch() ? m.captured(1).replace(QStringLiteral("&amp;"), QStringLiteral("&")).replace(QStringLiteral("&quot;"), QStringLiteral("\"")).replace(QStringLiteral("&lt;"), QStringLiteral("<")) : QString();
+    const QString tag = QString::fromUtf8(raw.left(4000));
+    static const QRegularExpression head(QStringLiteral("^\\s*<[^\\s>/]+"));
+    static const QRegularExpression one(QStringLiteral("^\\s+([^\\s=/>]+)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"));
+    qsizetype at = head.match(tag).capturedLength();
+    if (at <= 0) return QString();
+    const QString wanted = QLatin1String(prefix) + QLatin1Char(':') + QLatin1String(name);
+    while (at < tag.size()) {
+        const QRegularExpressionMatch m = one.match(tag.mid(at));
+        if (!m.hasMatch()) break;
+        at += m.capturedLength();
+        if (m.captured(1) != wanted) continue;
+        QString v = m.captured(2).isNull() ? m.captured(3) : m.captured(2);
+        return v.replace(QStringLiteral("&quot;"), QStringLiteral("\"")).replace(QStringLiteral("&apos;"), QStringLiteral("'")).replace(QStringLiteral("&lt;"), QStringLiteral("<"))
+            .replace(QStringLiteral("&gt;"), QStringLiteral(">")).replace(QStringLiteral("&amp;"), QStringLiteral("&"));
+    }
+    return QString();
 }
 
 // Whether the address names a place a link may go to (a web page or a mail address; no program is started by a link).
@@ -98,12 +113,33 @@ QString normalizedAddress(const QString &typed)
     if (t.isEmpty() || t.size() > kMostAddress || t.contains(QLatin1Char(' '))) return QString();
     static const QRegularExpression scheme(QStringLiteral("^[A-Za-z][A-Za-z0-9+.-]*:"));
     static const QRegularExpression mail(QStringLiteral("^[^@\\s/:]+@[^@\\s/:]+\\.[^@\\s/:]+$"));
+    // (A host and a port, "example.com:8080/x" or "localhost:3000", looks like a scheme and is not one.)
+    static const QRegularExpression known(QStringLiteral("^(?:mailto|tel|sms|http|https|ftp|file):"), QRegularExpression::CaseInsensitiveOption);
+    if (known.match(t).hasMatch()) return t;
+    static const QRegularExpression hostPort(QStringLiteral("^[^:/\\s@]+:[0-9]{1,5}(?:[/?#].*)?$"));
+    if (hostPort.match(t).hasMatch()) return QStringLiteral("https://") + t;
     if (scheme.match(t).hasMatch()) return t;
     if (mail.match(t).hasMatch()) return QStringLiteral("mailto:") + t;
     return QStringLiteral("https://") + t;
 }
 
 bool mayFollow(const QString &address) { return address.size() <= kMostAddress && allowedAddress(address); }
+
+bool linkNeedsAsking(const QString &address, const QString &shown)
+{
+    const QString scheme = QUrl(address, QUrl::TolerantMode).scheme().toLower();
+    if (scheme == QLatin1String("mailto") || scheme == QLatin1String("tel")) return true;
+    // The words look like an address of their own, and it is not where the link goes.
+    const QString words = shown.trimmed();
+    static const QRegularExpression looksLikeAddress(QStringLiteral("^(?:[A-Za-z][A-Za-z0-9+.-]*://|www\\.)\\S+$|^[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+(?::[0-9]+)?(?:[/?#]\\S*)?$"));
+    if (!looksLikeAddress.match(words).hasMatch()) return false;
+    auto plain = [](QString a) {
+        a = a.trimmed().toLower();
+        while (a.endsWith(QLatin1Char('/'))) a.chop(1);
+        return a;
+    };
+    return plain(normalizedAddress(words)) != plain(address);
+}
 
 Hyperlink hyperlinkAt(WriteDoc &doc, int position)
 {
@@ -129,9 +165,9 @@ Hyperlink hyperlinkAt(WriteDoc &doc, int position)
                 if (position >= o.first && position <= at && (!found.valid() || o.first > found.start)) {
                     found.start = o.first;
                     found.end = at;
-                    found.anchor = attribute(o.second, "anchor");
-                    found.screenTip = attribute(o.second, "tooltip");
-                    const QString id = attribute(o.second, "id");
+                    found.anchor = attribute(o.second, "anchor", "w");
+                    found.screenTip = attribute(o.second, "tooltip", "w");
+                    const QString id = attribute(o.second, "id", "r");
                     if (!id.isEmpty()) found.address = doc.mainRelationship(id).target;
                     QTextCursor t(story);
                     t.setPosition(o.first + 1);
@@ -164,6 +200,14 @@ bool insertHyperlink(WriteDoc &doc, QTextCursor &c, const QString &address, cons
     }
     const int from = c.selectionStart(), to = c.selectionEnd();
     if (from == to) return false;
+    // A link is inside one paragraph (its two tags are in it): a selection over several becomes a link for each paragraph's part, all to the same place.
+    QVector<std::pair<int, int>> ranges;
+    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
+        if (isLocked(b)) continue;
+        const int a = std::max(from, b.position()), z = std::min(to, b.position() + b.length() - 1);
+        if (z > a) ranges.push_back({a, z});
+    }
+    if (ranges.isEmpty()) return false;
     QTextCursor edit(story);
     edit.beginEditBlock();
     {
@@ -173,10 +217,12 @@ bool insertHyperlink(WriteDoc &doc, QTextCursor &c, const QString &address, cons
         applyCharacterStyle(doc, look, QStringLiteral("Hyperlink"));
     }
     const QByteArray open = openTag(doc, address, anchor, screenTip);
-    putAtom(edit, to, linkAtom(false, "</w:hyperlink>"));
-    putAtom(edit, from, linkAtom(true, open));
+    for (qsizetype i = ranges.size() - 1; i >= 0; --i) {   // (the last first, so that the places of the earlier stay)
+        putAtom(edit, ranges[i].second, linkAtom(false, "</w:hyperlink>"));
+        putAtom(edit, ranges[i].first, linkAtom(true, open));
+    }
     edit.endEditBlock();
-    c.setPosition(to + 2);
+    c.setPosition(ranges.last().second + 2 * int(ranges.size()));
     return true;
 }
 

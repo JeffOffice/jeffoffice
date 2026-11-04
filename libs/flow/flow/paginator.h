@@ -357,8 +357,6 @@ private:
     double storyHeight(const QTextDocument *story, double width, int number, bool withSpaceAfter = false, double rightRoom = 0);
     // Puts the lines of the section's page borders on a page made for painting (the page's first items, under the text), where the section's borders say a page of it has them.
     void addPageBorders(Document *d, const Section &sec, bool firstOfSection, const Furniture &f);
-    // The lines between a section's columns (w:cols w:sep), as tall as the text area of the page.
-    void addColumnLines(Document *d, const Section &sec, const Furniture &f);
     // Puts the page's header and footer (a copy of each story, in a text box) on a page made for painting, and the counts its fields show.
     // (`from` and `to`: the story's positions the page holds, for the fields of the header and footer that show the text of the page.)
     void addFurniture(Document *d, const Furniture &f, const Section &sec, int section, int number, MaterializedPage *page = nullptr, int from = -1, int to = -1);

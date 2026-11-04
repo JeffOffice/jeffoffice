@@ -25,6 +25,9 @@ QString normalizedAddress(const QString &typed);
 // Whether a link to this address is followed (a web or email address; no link starts a program or opens a file).
 bool mayFollow(const QString &address);
 
+// Whether following a link to this address, shown as these words, is asked about first: a mail or telephone link, and one whose words look like another address than it goes to.
+bool linkNeedsAsking(const QString &address, const QString &shown);
+
 // The innermost link that has the position in it (between its tags, or at their edge), found in the paragraph; not valid where there is none.
 Hyperlink hyperlinkAt(WriteDoc &doc, int position);
 

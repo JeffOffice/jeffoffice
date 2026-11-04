@@ -597,6 +597,7 @@ private:
     QVector<int> m_objectPending;                  // the forms a command touched that have no step yet
     quint64 m_objectsSeen = 0;                     // the serial the next step had when the pending ones were last attached
     qsizetype m_collectAt = 2000;
+    QSet<QString> m_madeLinks;                     // the Ids of the relationships to addresses outside the file that the program added (a link taken back by Undo leaves its own unused)
     QHash<QString, QString> m_madeMedia;           // the pictures' parts the program added: the Id of the relationship, and the part
     quint64 m_id = 0;
     bool m_hadMacros = false, m_leftOut = false;

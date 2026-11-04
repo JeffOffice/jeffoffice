@@ -385,7 +385,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
     if ((e->modifiers() & Qt::ControlModifier) && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story()) {
         const Hyperlink link = hyperlinkAt(*m_doc, at);
         if (link.valid() && link.anchor.isEmpty() && !link.address.isEmpty()) {
-            if (mayFollow(link.address)) Q_EMIT linkFollowed(link.address);
+            if (mayFollow(link.address)) Q_EMIT linkFollowed(link.address, link.text);
             else Q_EMIT notice(tr("JeffWrite only follows links to web and email addresses."));
             return;
         }

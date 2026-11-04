@@ -23,7 +23,7 @@ A **section** is a part of the document with its own page setup, so it can have 
 
 **Layout > Columns** has **One**, **Two**, and **Three** columns of equal width. **Left** has a narrow column on the left and a wide one on the right. **Right** is the other way round.
 
-**More Columns** opens a window. Set the **number of columns** (up to 12). Turn off **Equal column width** to set the width of each column and the space after it. Turn on **Line between** to draw a thin line between the columns. Choose **This section** or **Whole document**.
+**More Columns** opens a window. Set the **number of columns** (up to 32). Turn off **Equal column width** to set the width of each column and the space after it. Turn on **Line between** to draw a thin line between the columns. Choose **This section** or **Whole document**.
 
 ## Hyphenation
 

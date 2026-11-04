@@ -19,7 +19,7 @@ struct ColumnSetup {
     bool line = false;               // a line between the columns
     bool operator==(const ColumnSetup &o) const { return count == o.count && equal == o.equal && space == o.space && widths == o.widths && spaces == o.spaces && line == o.line; }
 };
-constexpr int kMostColumnsSet = 12;   // the most columns the dialog sets (a file may have up to flow::kMostColumns)
+constexpr int kMostColumnsSet = 32;   // the most columns the dialog sets: as many as a page holds (flow::kMostColumns), so that a file's own number is never cut down
 
 ColumnSetup columnSetupOf(const office::wml::SectionProps &props);
 // The columns of the setup, held to what a page holds (1 to kMostColumns columns, spaces and widths not negative). Unequal widths are as many as columns, or equal ones.
