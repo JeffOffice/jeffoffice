@@ -470,6 +470,9 @@ private:
     qint64 m_placeComparisons = 0;
     WorkbookInfo m_info;
     mutable QSet<QString> m_slicerPartsWritten;
+    mutable bool m_slicerCachesRead = false;           // (the package changes only when a save makes a new one: they are read again then)
+    mutable QVector<SlicerCache> m_slicerCaches;
+    mutable QHash<int, QVector<SlicerView>> m_slicerViews;
     SharedStrings m_shared;
     QString m_sharedError;
     Styles m_styles;

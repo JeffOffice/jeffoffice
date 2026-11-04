@@ -569,6 +569,44 @@ private Q_SLOTS:
         QCOMPARE(fresh.fields[0].items.size(), prev.fields[0].items.size());
     }
 
+    // The slicer part is patched at the byte level: single-quoted attributes, a byte order mark, and bytes that are not UTF-8 in a comment are handled; a part in another encoding is left
+    // as it is (empty is returned); an item number past the int range is not read as the first item.
+    void aSlicerPartIsPatchedByBytesAndOnlyWhenUtf8()
+    {
+        auto chosen = [](const QByteArray &xml) {
+            SlicerCache c;
+            readSlicerCache(xml, &c);
+            QSet<qint32> out;
+            for (const SlicerItem &it : c.items)
+                if (it.selected) out.insert(it.x);
+            return out;
+        };
+        const QByteArray head = "<slicerCacheDefinition name='n' sourceName='Region'><data><tabular><items count='3'>";
+        const QByteArray tail = "</items></tabular></data></slicerCacheDefinition>";
+        // single quotes: the item chosen now is x='2'; x='1' has an s that is taken away
+        QByteArray patched = patchSlicerSelection(head + "<i x='0'/><i x='1' s='1'/><i x='2'/>" + tail, QSet<qint32>{2});
+        QVERIFY(!patched.isEmpty());
+        QCOMPARE(chosen(patched), (QSet<qint32>{2}));
+        QVERIFY2(patched.contains("<i x='1'/>"), patched.constData());
+        // a byte order mark of UTF-8 stays, and so do bytes that are not UTF-8 in a comment
+        const QByteArray bom = "\xEF\xBB\xBF";
+        patched = patchSlicerSelection(bom + head + "<!-- \xFF\xFE -->" + "<i x='0'/><i x='1' s='1'/><i x='2'/>" + tail, QSet<qint32>{0});
+        QVERIFY(patched.startsWith(bom));
+        QVERIFY(patched.contains("<!-- \xFF\xFE -->"));
+        QVERIFY2(patched.contains("<i x='0' s=\"1\"/>") && patched.contains("<i x='1'/>"), patched.constData());   // (the bytes that are not UTF-8 are not valid XML: the choice is looked for in the bytes)
+        // a declared encoding that is not UTF-8, and UTF-16, are left alone
+        QVERIFY(patchSlicerSelection("<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>" + head + "<i x='0'/>" + tail, QSet<qint32>{0}).isEmpty());
+        QVERIFY(patchSlicerSelection(QByteArray("\xFF\xFE<\0s\0", 6), QSet<qint32>{0}).isEmpty());
+        QVERIFY(!patchSlicerSelection("<?xml version='1.0' encoding='utf-8'?>" + head + "<i x='0'/>" + tail, QSet<qint32>{0}).isEmpty());
+        // an item number no int holds is not the first item: it is not read, and it is not changed
+        SlicerCache c;
+        QVERIFY(readSlicerCache(head + "<i x='99999999999' s='1'/><i x='1'/>" + tail, &c));
+        QCOMPARE(c.items.size(), 1);
+        QCOMPARE(c.items[0].x, 1);
+        patched = patchSlicerSelection(head + "<i x='99999999999' s='1'/><i x='1'/>" + tail, QSet<qint32>{0, 1});
+        QVERIFY2(patched.contains("<i x='99999999999' s='1'/>") && patched.contains("<i x='1' s=\"1\"/>"), patched.constData());
+    }
+
     // Dates are grouped by years and months (a field added for the coarser part), numbers in steps; the groups are written, read back, and read again from new data; a field of text can't be grouped.
     void datesAndNumbersAreGroupedAndUngrouped()
     {

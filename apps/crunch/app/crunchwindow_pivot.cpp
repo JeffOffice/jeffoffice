@@ -808,6 +808,8 @@ void CrunchWindow::fillSlicers()
 {
     if (!m_slicerPane || !m_session || m_slicerFilling) return;
     m_slicerFilling = true;
+    ++m_slicerFills;
+    m_slicersStamp = m_session->pivotTablesStamp();
     const struct Done { bool *flag; ~Done() { *flag = false; } } done{&m_slicerFilling};
     QVector<SlicerPane::Entry> entries;
     for (const crunch::EditSession::SlicerInfo &info : m_session->slicers()) {
@@ -821,8 +823,9 @@ void CrunchWindow::fillSlicers()
         e.columns = info.columns;
         for (int i = 0; i < e.items.size(); ++i) e.chosen.append(info.shown.contains(i));
         if (e.timeline) {
-            const auto date = [](const QString &iso) { return QDate::fromString(iso.left(10), Qt::ISODate).toString(Qt::TextDate); };
-            if (!info.cache.startDate.isEmpty()) e.span = tr("%1 to %2").arg(date(info.cache.startDate), date(info.cache.endDate));
+            // (a span is shown when both its dates are real; else the timeline shows all dates)
+            const QDate from = QDate::fromString(info.cache.startDate.left(10), Qt::ISODate), to = QDate::fromString(info.cache.endDate.left(10), Qt::ISODate);
+            if (from.isValid() && to.isValid()) e.span = tr("%1 to %2").arg(from.toString(Qt::TextDate), to.toString(Qt::TextDate));
             e.level = info.cache.level;
         }
         entries.append(e);
@@ -841,10 +844,9 @@ void CrunchWindow::showSlicers(bool show)
         addDockWidget(Qt::RightDockWidgetArea, m_slicerDock);
         resizeDocks({m_slicerDock}, {260}, Qt::Horizontal);
         connect(m_slicerPane, &SlicerPane::itemClicked, this, [this](int slicer, int item, bool extend) {
-            const auto all = m_session ? m_session->slicers() : std::vector<crunch::EditSession::SlicerInfo>();
-            if (slicer < 0 || slicer >= int(all.size())) return;
-            QSet<qint32> shown = all[size_t(slicer)].shown;
-            const qint64 count = all[size_t(slicer)].itemTexts.size();
+            QSet<qint32> shown;
+            qint64 count = 0;
+            if (!m_session || !m_session->slicerChoice(slicer, &shown, &count)) return;
             if (extend) {
                 if (shown.size() >= count) {
                     shown.clear();   // (all were chosen: Ctrl-click takes the item out of them)
@@ -936,7 +938,7 @@ void CrunchWindow::updatePivotFieldActions()
 void CrunchWindow::updatePivotTab()
 {
     updatePivotFieldActions();
-    if (m_slicerPane && m_slicerDock && m_slicerDock->isVisible() && m_session && !m_slicerFilling) fillSlicers();   // (an Undo or Redo of a table changes what a slicer shows)
+    if (m_slicerPane && m_slicerDock && m_slicerDock->isVisible() && m_session && !m_slicerFilling && m_session->pivotTablesStamp() != m_slicersStamp) fillSlicers();   // (an Undo, a Redo, or an edit of a table changes what a slicer shows: not a move of the cursor)
     const int t = selectedPivot();
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Pivot Table"), t >= 0);
     if (t >= 0 && m_session) {

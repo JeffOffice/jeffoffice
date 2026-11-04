@@ -62,10 +62,13 @@ bool pivotApplySlicer(PivotTable *table, const PivotCache &cache, int field, con
 QSet<qint32> pivotShownItems(const PivotTable &table, const PivotCache &cache, int field);
 // Whether two choices are the same to a slicer: none chosen and all chosen are the same (nothing is filtered).
 bool slicerSameChoice(const QSet<qint32> &a, const QSet<qint32> &b, qint64 itemCount);
-// The part of a slicer cache with its items chosen as `selected`: only the `s` attributes of the items change, the rest of the part is as it was.
+// The part of a slicer cache with its items chosen as `selected`: only the `s` attributes of the items change, the rest of the part is as it was (byte for byte). Empty for a part that is not
+// UTF-8 (a byte order mark of UTF-16, or another encoding declared), which is left as it is.
 QByteArray patchSlicerSelection(const QByteArray &xml, const QSet<qint32> &selected);
 
 // ---- a workbook's slicers
+// How many slicer, timeline, and slicer-list parts have been read, in all (for tests: a part is read once however many relationships name it).
+int slicerPartsParsed();
 // The tables a slicer cache filters, found by name, and the field of each that the slicer reads (by the cache field's name): pairs of (the table's place, the field's place).
 QVector<std::pair<int, int>> slicerTargets(const Workbook &book, const SlicerCache &slicer);
 // The slicer parts the tables' items change: for each slicer cache whose choice (the items its first table shows) is not the file's, the part with the choice put in, by the part's name.

@@ -290,23 +290,26 @@ void PivotBook::putSourcesBack(const std::vector<SourcePlace> &places)
 void PivotBook::markSaved(const QStringList &sheetNames)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
-    QSet<int> cachesWritten;
+    QSet<int> cachesWritten, cachesUsed;
     for (PivotTableEntry &t : m_tables) {
+        cachesUsed.insert(t.cache);
         if (t.isNew) {
             // (a table made here is in the file now, with its parts, unless its sheet was deleted and nothing of it was written: it is the file's own from here on)
             if (t.cache < 0 || t.sheet < 0 || t.sheet >= sheetNames.size() || sheetNames[t.sheet].isEmpty()) continue;
             t.isNew = false;
             cachesWritten.insert(t.cache);
         }
+        // (a table on a sheet that is deleted had nothing of it written: it is not marked as in the file)
+        if (t.sheet >= 0 && t.sheet < sheetNames.size() && sheetNames[t.sheet].isEmpty()) continue;
         t.fileTable = t.table;
         t.structureChanged = false;
+        cachesWritten.insert(t.cache);
     }
     for (size_t i = 0; i < m_caches.size(); ++i) {
         PivotCacheEntry &c = m_caches[i];
-        if (c.isNew) {
-            if (!cachesWritten.contains(int(i))) continue;
-            c.isNew = false;
-        }
+        if (c.isNew && !cachesWritten.contains(int(i))) continue;   // (not written)
+        if (cachesUsed.contains(int(i)) && !cachesWritten.contains(int(i))) continue;   // (every table of it is on a deleted sheet: nothing of it was written)
+        c.isNew = false;
         c.fileCache = c.cache;
         c.fileSource = c.source;
         if (c.sourceSheet >= 0 && c.sourceSheet < sheetNames.size() && !sheetNames[c.sourceSheet].isEmpty()) c.fileSheetName = sheetNames[c.sourceSheet];

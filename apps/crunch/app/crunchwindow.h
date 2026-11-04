@@ -241,6 +241,7 @@ public:
     // test hook: the cells or table the new pivot table is made from, whether it goes on a sheet of its own, and where on a sheet (a cell, with the sheet's name before it if it is another)
     void setPivotCreateAsker(std::function<bool(QString *, bool *, QString *)> asker) { m_pivotCreateAsker = std::move(asker); }
     SlicerPane *slicerPane() const { return m_slicerPane; }
+    int slicerFills() const { return m_slicerFills; }   // (for tests: how many times the pane was filled)
     void setPivotOptionsAsker(std::function<bool(bool *)> asker) { m_pivotOptionsAsker = std::move(asker); }   // test hook: whether a click writes GETPIVOTDATA
     void setPivotSourceAsker(std::function<bool(QString *)> asker) { m_pivotSourceAsker = std::move(asker); }
     void setValueFieldAsker(std::function<bool(QString *, QString *)> asker) { m_valueFieldAsker = std::move(asker); }
@@ -1049,6 +1050,8 @@ private:
     SlicerPane *m_slicerPane = nullptr;
     QDockWidget *m_slicerDock = nullptr;
     bool m_slicerFilling = false;
+    quintptr m_slicersStamp = 0;   // the pivot tables as the pane last showed the slicers of
+    int m_slicerFills = 0;
     QString m_saveFileName;   // the file name of the save being made (a pivot chart's name in the file has it)
     QString m_untitled;       // the name of a workbook that has no file yet ("Book1")
     bool m_blank = false;     // the workbook is a new one (made by newBlank) that has not been saved

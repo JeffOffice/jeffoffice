@@ -391,6 +391,10 @@ public:
         QSet<qint32> shown;                            // the items the first table shows (the chosen)
     };
     std::vector<SlicerInfo> slicers() const;
+    // What a click needs of a slicer, without the texts of its items: the places of the items its first table shows, and how many items its field has. False for a slicer that filters no table.
+    bool slicerChoice(int slicer, QSet<qint32> *shown, qint64 *itemCount) const;
+    // A number that changes when a pivot table changes (its version, or one is made or taken away): the slicers are looked at again then.
+    quintptr pivotTablesStamp() const;
     // Chooses the items (by place) of the slicer: every table it filters shows only them (all, when none is given), as one step of Undo.
     Outcome chooseSlicerItems(int slicer, const QSet<qint32> &chosen);
     // Makes the table from other cells ("Sheet1!A1:D100", "A1:D100" on the same sheet as the source now is, a table's name, or a defined name), then reads them.

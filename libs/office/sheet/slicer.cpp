@@ -1,10 +1,10 @@
 #include "sheet/slicer.h"
 
-#include <QRegularExpression>
 #include <QSet>
 #include <QXmlStreamReader>
 
 #include <algorithm>
+#include <limits>
 
 namespace jp::office::sheet {
 
@@ -50,7 +50,10 @@ bool readSlicerCache(const QByteArray &xml, SlicerCache *out)
             } else if (n == QLatin1String("i") && !out->timeline) {
                 if (out->items.size() >= kMaxSlicerItems) continue;
                 SlicerItem it;
-                it.x = a.value(QLatin1String("x")).toInt();
+                bool xOk = false;
+                const qint64 x = a.value(QLatin1String("x")).toLongLong(&xOk);
+                if (!xOk || x < 0 || x > std::numeric_limits<qint32>::max()) continue;   // (an item that is no place among the field's items is not read as the first)
+                it.x = qint32(x);
                 it.selected = flag(a.value(QLatin1String("s")), false);
                 it.noData = flag(a.value(QLatin1String("nd")), false);
                 out->items.append(it);
@@ -152,29 +155,88 @@ bool slicerSameChoice(const QSet<qint32> &a, const QSet<qint32> &b, qint64 itemC
 
 QByteArray patchSlicerSelection(const QByteArray &xml, const QSet<qint32> &selected)
 {
-    QString text = QString::fromUtf8(xml);
-    static const QRegularExpression item(QStringLiteral("<i\\b[^>]*>"));
-    static const QRegularExpression xAttr(QStringLiteral("\\bx=\"(\\d+)\""));
-    static const QRegularExpression sAttr(QStringLiteral("\\s+s=\"[^\"]*\""));
-    QString out;
-    out.reserve(text.size() + 64);
-    qsizetype last = 0;
-    for (auto m = item.globalMatch(text); m.hasNext();) {
-        const auto match = m.next();
-        QString tag = match.captured(0);
-        const auto xm = xAttr.match(tag);
-        if (!xm.hasMatch()) continue;
-        tag.remove(sAttr);
-        if (selected.contains(xm.captured(1).toInt())) {
-            const qsizetype at = tag.endsWith(QLatin1String("/>")) ? tag.size() - 2 : tag.size() - 1;
-            tag.insert(at, QStringLiteral(" s=\"1\""));
+    // (a part that is not UTF-8 is not touched: its bytes mean other things than the ones searched for)
+    if (xml.startsWith("\xFF\xFE") || xml.startsWith("\xFE\xFF")) return QByteArray();
+    const qsizetype declAt = xml.left(256).indexOf("<?xml");
+    if (declAt >= 0) {
+        const qsizetype declEnd = xml.indexOf("?>", declAt);
+        const QByteArray decl = declEnd < 0 ? QByteArray() : xml.mid(declAt, declEnd - declAt);
+        const qsizetype enc = decl.indexOf("encoding");
+        if (enc >= 0) {
+            qsizetype q = enc + 8;
+            while (q < decl.size() && (decl[q] == ' ' || decl[q] == '=')) ++q;
+            if (q < decl.size() && (decl[q] == '"' || decl[q] == '\'')) {
+                const char quote = decl[q];
+                const qsizetype close = decl.indexOf(quote, q + 1);
+                const QByteArray name = close < 0 ? QByteArray() : decl.mid(q + 1, close - q - 1).toLower();
+                if (name != "utf-8") return QByteArray();
+            }
         }
-        out += QStringView(text).mid(last, match.capturedStart() - last);
-        out += tag;
-        last = match.capturedEnd();
     }
-    out += QStringView(text).mid(last);
-    return out.toUtf8();
+    QByteArray out;
+    out.reserve(xml.size() + 64);
+    qsizetype last = 0, at = 0;
+    while ((at = xml.indexOf("<i", at)) >= 0) {
+        const qsizetype after = at + 2;
+        if (after >= xml.size() || !(xml[after] == ' ' || xml[after] == '\t' || xml[after] == '\n' || xml[after] == '\r' || xml[after] == '/' || xml[after] == '>')) {
+            at = after;
+            continue;
+        }
+        // the tag's attributes, by name, each with its value's quotes honored
+        qsizetype pos = after;
+        qint64 x = -1;
+        qsizetype sFrom = -1, sTo = -1, closeAt = -1;
+        bool selfClose = false;
+        while (pos < xml.size()) {
+            const qsizetype wsStart = pos;
+            while (pos < xml.size() && (xml[pos] == ' ' || xml[pos] == '\t' || xml[pos] == '\n' || xml[pos] == '\r')) ++pos;
+            if (pos >= xml.size()) break;
+            if (xml[pos] == '>') {
+                closeAt = pos;
+                break;
+            }
+            if (xml[pos] == '/' && pos + 1 < xml.size() && xml[pos + 1] == '>') {
+                closeAt = pos;
+                selfClose = true;
+                break;
+            }
+            const qsizetype nameStart = pos;
+            while (pos < xml.size() && xml[pos] != '=' && xml[pos] != ' ' && xml[pos] != '>' && xml[pos] != '/') ++pos;
+            const QByteArray name = xml.mid(nameStart, pos - nameStart);
+            while (pos < xml.size() && (xml[pos] == ' ' || xml[pos] == '=')) ++pos;
+            if (pos >= xml.size() || (xml[pos] != '"' && xml[pos] != '\'')) break;   // (not a tag this reads: left as it is)
+            const char quote = xml[pos];
+            const qsizetype close = xml.indexOf(quote, pos + 1);
+            if (close < 0) break;
+            const QByteArray value = xml.mid(pos + 1, close - pos - 1);
+            pos = close + 1;
+            if (name == "x") {
+                bool ok = false;
+                const qint64 v = value.toLongLong(&ok);
+                x = ok && v >= 0 && v <= std::numeric_limits<qint32>::max() ? v : -1;
+            } else if (name == "s") {
+                sFrom = wsStart;
+                sTo = pos;
+            }
+        }
+        if (closeAt < 0) break;
+        if (x >= 0) {
+            out += xml.mid(last, at - last);
+            const qsizetype tagEnd = closeAt;
+            if (sFrom >= 0) {
+                out += xml.mid(at, sFrom - at);
+                out += xml.mid(sTo, tagEnd - sTo);
+            } else {
+                out += xml.mid(at, tagEnd - at);
+            }
+            if (selected.contains(qint32(x))) out += " s=\"1\"";
+            last = tagEnd;
+        }
+        at = closeAt;
+        Q_UNUSED(selfClose)
+    }
+    out += xml.mid(last);
+    return out;
 }
 
 } // namespace jp::office::sheet

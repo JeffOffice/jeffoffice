@@ -2920,6 +2920,9 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
 {
     const int strings = counts.strings, numberFormats = counts.numberFormats, cellFormats = counts.cellFormats;
     m_package = package;
+    m_slicerCachesRead = false;   // (the parts are those of the file just written)
+    m_slicerCaches.clear();
+    m_slicerViews.clear();
     // (the drawings of header pictures and their images are read again from the file just written)
     {
         QMutexLocker lock(&m_headerImages->mutex);

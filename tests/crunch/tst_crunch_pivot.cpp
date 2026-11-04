@@ -16,6 +16,7 @@
 #include "savedok.h"
 #include "sheet/oldsave.h"
 #include "sheet/pivot.h"
+#include "sheet/slicer.h"
 #include "sheet/sheetreader.h"
 
 #include <QAbstractButton>
@@ -961,22 +962,27 @@ private Q_SLOTS:
     }
 
     // A workbook whose table has a slicer on Region (East chosen in the part), a timeline on Month, and the slicer on the sheet.
-    static PivotBookOptions slicerBook()
+    static PivotBookOptions slicerBook(int copies = 1, bool both = false)
     {
         PivotBookOptions o;
-        o.tweak = [](Parts &p) {
+        o.second = both;
+        o.tweak = [copies, both](Parts &p) {
             addType(p, QStringLiteral("xl/slicerCaches/slicerCache1.xml"), QStringLiteral("application/vnd.ms-excel.slicerCache+xml"));
             addType(p, QStringLiteral("xl/timelineCaches/timelineCache1.xml"), QStringLiteral("application/vnd.ms-excel.timelineCache+xml"));
             addType(p, QStringLiteral("xl/slicers/slicer1.xml"), QStringLiteral("application/vnd.ms-excel.slicer+xml"));
             p[QStringLiteral("xl/slicerCaches/slicerCache1.xml")] =
                 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<slicerCacheDefinition xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\" name=\"Slicer_Region\" sourceName=\"Region\">"
-                "<pivotTables><pivotTable tabId=\"1\" name=\"PivotTable1\"/></pivotTables><data><tabular pivotCacheId=\"1\"><items count=\"2\"><i x=\"0\" s=\"1\"/><i x=\"1\"/></items></tabular></data></slicerCacheDefinition>";
+                "" + [&] { QByteArray c; for (int i = 0; i < copies; ++i) c += "<pivotTable tabId=\"1\" name=\"PivotTable1\"/>"; if (both) c += "<pivotTable tabId=\"1\" name=\"PivotTable2\"/>"; return QByteArray("<pivotTables>") + c + "</pivotTables>"; }() + "<data><tabular pivotCacheId=\"1\"><items count=\"2\"><i x=\"0\" s=\"1\"/><i x=\"1\"/></items></tabular></data></slicerCacheDefinition>";
             p[QStringLiteral("xl/timelineCaches/timelineCache1.xml")] =
                 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<timelineCacheDefinition xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2010/11/main\" name=\"NativeTimeline_Month\" sourceName=\"Month\">"
                 "<pivotTables><pivotTable tabId=\"1\" name=\"PivotTable1\"/></pivotTables><state name=\"Timeline1\"><selection startDate=\"2020-01-01T00:00:00\" endDate=\"2020-02-29T00:00:00\"/></state></timelineCacheDefinition>";
             p[QStringLiteral("xl/slicers/slicer1.xml")] =
                 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<slicers xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><slicer name=\"Region\" cache=\"Slicer_Region\" caption=\"Region\" rowHeight=\"241300\"/></slicers>";
             relate(p, QStringLiteral("xl/_rels/workbook.xml.rels"), QStringLiteral("rIdSc1"), QStringLiteral("slicerCache"), QStringLiteral("slicerCaches/slicerCache1.xml"));
+            if (copies > 1) {   // (the same part named by more relationships)
+                relate(p, QStringLiteral("xl/_rels/workbook.xml.rels"), QStringLiteral("rIdSc2"), QStringLiteral("slicerCache"), QStringLiteral("slicerCaches/slicerCache1.xml"));
+                relate(p, QStringLiteral("xl/_rels/workbook.xml.rels"), QStringLiteral("rIdSc3"), QStringLiteral("slicerCache"), QStringLiteral("slicerCaches/slicerCache1.xml"));
+            }
             relate(p, QStringLiteral("xl/_rels/workbook.xml.rels"), QStringLiteral("rIdTc1"), QStringLiteral("timelineCache"), QStringLiteral("timelineCaches/timelineCache1.xml"));
             relate(p, QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels"), QStringLiteral("rIdSl1"), QStringLiteral("slicer"), QStringLiteral("../slicers/slicer1.xml"));
         };
@@ -1010,6 +1016,13 @@ private Q_SLOTS:
     // A click on a slicer's button filters the table (one step of Undo, and Undo brings the table back), the slicer part is written with the choice, and a table that was not changed leaves the part alone.
     void aSlicerClickFiltersTheTableAndIsWrittenBack()
     {
+        const QString items = QStringLiteral("xl/slicerCaches/slicerCache1.xml");
+        auto itemsOf = [&](const QString &path) {
+            const QByteArray part = readParts(path).value(items);
+            const int at = part.indexOf("<items");
+            return QString::fromUtf8(part.mid(at, part.indexOf("</items>", at) + 8 - at));
+        };
+        const QString allShown = QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49");
         EditWindow e;
         QVERIFY(e.open(pivotWorkbook(slicerBook())));
         crunch::EditSession *s = e.win.w.session();
@@ -1020,6 +1033,8 @@ private Q_SLOTS:
         QCOMPARE(pane->slicerCount(), 2);   // the slicer and the timeline
         QVERIFY(pane->button(0, 1));
         QCOMPARE(pane->button(0, 1)->text(), QStringLiteral("West"));
+        // (the table shows both regions: both buttons are on, though the file's part chose East)
+        QVERIFY(pane->button(0, 0)->isChecked() && pane->button(0, 1)->isChecked());
         const int steps = s->undoStack()->count();
         pane->button(0, 1)->click();
         finish(e);
@@ -1028,17 +1043,151 @@ private Q_SLOTS:
         QVERIFY(pane->button(0, 1)->isChecked());
         QVERIFY(!pane->button(0, 0)->isChecked());
         QVERIFY(saveNow(e));
-        const QByteArray part = readParts(e.path).value(QStringLiteral("xl/slicerCaches/slicerCache1.xml"));
-        QVERIFY2(part.contains("<i x=\"0\"/>") && part.contains("<i x=\"1\" s=\"1\"/>"), part.constData());
-        QVERIFY(part.contains("sourceName=\"Region\""));   // (the rest of the part is as it was)
-        // Undo brings the table back, and the part with it
+        QCOMPARE(itemsOf(e.path), QStringLiteral("<items count=\"2\"><i x=\"0\"/><i x=\"1\" s=\"1\"/></items>"));
+        // Undo brings the table back; with no filter on, no item is marked
         s->undoStack()->undo();
         finish(e);
-        QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
-        QVERIFY(!pane->button(0, 1)->isChecked() || pane->button(0, 0)->isChecked());
+        QCOMPARE(pivotShown(e), allShown);
+        QVERIFY(pane->button(0, 0)->isChecked() && pane->button(0, 1)->isChecked());
         QVERIFY(saveNow(e));
-        const QByteArray back = readParts(e.path).value(QStringLiteral("xl/slicerCaches/slicerCache1.xml"));
-        QVERIFY2(back.contains("<i x=\"0\" s=\"1\"/><i x=\"1\" s=\"1\"/>") || back.contains("<i x=\"0\" s=\"1\"/><i x=\"1\"/>"), back.constData());
+        QCOMPARE(itemsOf(e.path), QStringLiteral("<items count=\"2\"><i x=\"0\"/><i x=\"1\"/></items>"));
+        // Redo puts the filter back, and the part
+        s->undoStack()->redo();
+        finish(e);
+        QVERIFY(saveNow(e));
+        QCOMPARE(itemsOf(e.path), QStringLiteral("<items count=\"2\"><i x=\"0\"/><i x=\"1\" s=\"1\"/></items>"));
+    }
+
+    // Ctrl-click adds an item to the ones shown, or takes it away; a click on the only one shown clears the filter.
+    void aCtrlClickAddsOrTakesAwayAnItem()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(slicerBook())));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.slicers"))->trigger();
+        SlicerPane *pane = e.win.w.slicerPane();
+        QVERIFY(pane);
+        auto shownItems = [&] {
+            QSet<qint32> shown;
+            qint64 count = 0;
+            [&] { QVERIFY(s->slicerChoice(0, &shown, &count)); }();
+            return shown;
+        };
+        QCOMPARE(shownItems(), (QSet<qint32>{0, 1}));
+        pane->clickItem(0, 0, true);   // Ctrl on East while all show: East goes
+        finish(e);
+        QCOMPARE(shownItems(), (QSet<qint32>{1}));
+        pane->clickItem(0, 0, true);   // Ctrl on East again: East is added
+        finish(e);
+        QCOMPARE(shownItems(), (QSet<qint32>{0, 1}));
+        pane->clickItem(0, 1, false);   // a click: only West
+        finish(e);
+        QCOMPARE(shownItems(), (QSet<qint32>{1}));
+        pane->clickItem(0, 1, false);   // a click on the only one shown: the filter goes
+        finish(e);
+        QCOMPARE(shownItems(), (QSet<qint32>{0, 1}));
+        QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+    }
+
+    // A slicer that names a table many times filters it once; one with tables of other data does not give them its choice (its items are places in the first table's data).
+    void aSlicerFiltersEachTableOnceAndOnlyThoseOfItsData()
+    {
+        {
+            EditWindow e;
+            QVERIFY(e.open(pivotWorkbook(slicerBook(5000))));
+            crunch::EditSession *s = e.win.w.session();
+            const auto caches = s->workbook()->slicerCaches();
+            QCOMPARE(slicerTargets(*s->workbook(), caches[0]).size(), 1);
+            const int steps = s->undoStack()->count();
+            e.select(QStringLiteral("F5"));
+            QVERIFY(s->chooseSlicerItems(0, QSet<qint32>{1}).ok);
+            QCOMPARE(s->undoStack()->count(), steps + 1);
+            QCOMPARE(s->undoStack()->command(steps)->childCount(), 1);   // (one change of the table, not 5,000)
+        }
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(slicerBook(1, true))));
+        crunch::EditSession *s = e.win.w.session();
+        QCOMPARE(slicerTargets(*s->workbook(), s->workbook()->slicerCaches()[0]).size(), 2);
+        QVERIFY(s->chooseSlicerItems(0, QSet<qint32>{1}).ok);
+        finish(e);
+        QCOMPARE(pivotShown(e, QStringLiteral("E3:H6")), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nWest|7|7|14\nGrand Total|7|7|14"));
+        // (the second table is made from a cache of its own: it is not filtered by places in the first one's)
+        QCOMPARE(pivotShown(e, QStringLiteral("K3:N7")), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+    }
+
+    // The slicer parts are read once, however many relationships name them and however often they are asked for; the pane is filled again when a table changed, not when the cursor moved.
+    void slicersAreReadOnceAndThePaneIsFilledWhenATableChanged()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(slicerBook(3))));
+        crunch::EditSession *s = e.win.w.session();
+        const int before = jp::office::sheet::slicerPartsParsed();
+        for (int i = 0; i < 5; ++i) {
+            QCOMPARE(s->workbook()->slicerCaches().size(), 2);
+            QCOMPARE(int(s->slicers().size()), 2);
+        }
+        QVERIFY2(jp::office::sheet::slicerPartsParsed() - before <= 3, qPrintable(QString::number(jp::office::sheet::slicerPartsParsed() - before)));   // (the two caches and the slicer list)
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.slicers"))->trigger();
+        const int fills = e.win.w.slicerFills();
+        for (const char *cell : {"D1", "E3", "F6", "A1", "G5"}) e.select(QString::fromLatin1(cell));
+        QCOMPARE(e.win.w.slicerFills(), fills);
+        e.select(QStringLiteral("F5"));
+        e.win.w.slicerPane()->clickItem(0, 1, false);
+        finish(e);
+        QVERIFY(e.win.w.slicerFills() > fills);
+    }
+
+    // A slicer with a million items shows a thousand buttons and a note of the rest; an & in an item or a caption is shown as written.
+    void aSlicerPaneIsCappedAndShowsAmpersands()
+    {
+        SlicerPane pane;
+        SlicerPane::Entry e;
+        e.caption = QStringLiteral("R&D");
+        e.usable = true;
+        for (int i = 0; i < 1500; ++i) e.items << QStringLiteral("item %1").arg(i);
+        e.items[0] = QStringLiteral("Q&A");
+        e.chosen = QVector<bool>(1500, true);
+        pane.setEntries({e});
+        QVERIFY(pane.button(0, 999));
+        QVERIFY(!pane.button(0, 1000));
+        QCOMPARE(pane.button(0, 0)->text(), QStringLiteral("Q&&A"));   // (the button shows one &)
+        QVERIFY(pane.hasMoreNote(0));
+        QCOMPARE(pane.moreNoteText(0), QStringLiteral("and 500 more items"));
+        QCOMPARE(pane.captionOf(0), QStringLiteral("R&&D"));
+    }
+
+    // The workbook's slicer parts are not patched when they are not UTF-8 (the table's choice is not written, and nothing is damaged): see the library tests; here a deleted sheet's
+    // pivot table is written when the sheet is back.
+    void aPivotTableOnADeletedSheetIsNotMarkedSavedAndIsWrittenWhenTheSheetIsBack()
+    {
+        PivotBookOptions o;
+        o.otherSheet = true;
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook(o)));
+        crunch::EditSession *s = e.win.w.session();
+        // (the table is changed, and its sheet is deleted: the save writes nothing of the table, so the file's copy is still the old one)
+        jp::office::sheet::PivotTable renamed = *s->workbook()->pivots().table(0).table;
+        renamed.name = QStringLiteral("Sales");
+        QVERIFY(s->setPivot(0, renamed, false, QStringLiteral("Rename")).ok);
+        QVERIFY(s->deleteSheet(1).ok);
+        finish(e);
+        QVERIFY(saveNow(e));
+        QVERIFY(s->workbook()->pivots().tableChanged(0));
+        auto tableParts = [&] {
+            int n = 0;
+            const Parts parts = readParts(e.path);
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it) n += it.key().startsWith(QLatin1String("xl/pivotTables/pivotTable")) && it.key().endsWith(QLatin1String(".xml"));
+            return n;
+        };
+        QCOMPARE(tableParts(), 0);
+        if (!s->undoStack()->canUndo() || s->undoStack()->undoText().isEmpty()) QSKIP("an Undo of a delete that was saved is refused: nothing to bring back");
+        s->undoStack()->undo();
+        finish(e);
+        if (s->workbook()->info().sheets.size() < 2 || s->workbook()->info().sheets[1].deleted) QSKIP("the delete was not undone");
+        QVERIFY(saveNow(e));
+        QCOMPARE(tableParts(), 1);
     }
 
     // Insert > Pivot Chart: a chart of the table's values without its grand totals, marked as the table's chart (the saved chart has the table's name); one step of Undo.

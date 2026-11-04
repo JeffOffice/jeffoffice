@@ -66,6 +66,8 @@ void SlicerPane::setEntries(const QVector<Entry> &entries)
         delete item;
     }
     m_buttons.clear();
+    m_notes.clear();
+    m_captions.clear();
     if (entries.isEmpty()) {
         auto *none = new QLabel(tr("This workbook has no slicers or timelines."), m_body);
         none->setWordWrap(true);
@@ -73,11 +75,15 @@ void SlicerPane::setEntries(const QVector<Entry> &entries)
     }
     for (int s = 0; s < entries.size(); ++s) {
         const Entry &e = entries[s];
-        auto *box = new QGroupBox(e.caption, m_body);
+        // (an & in a caption is shown as written, not taken for a shortcut mark)
+        QString shownCaption = e.caption;
+        shownCaption.replace(QLatin1Char('&'), QStringLiteral("&&"));
+        m_captions << shownCaption;
+        auto *box = new QGroupBox(shownCaption, m_body);
         auto *inner = new QVBoxLayout(box);
         m_buttons.append(QVector<QAbstractButton *>());
         if (e.timeline) {
-            const QString span = e.span.isEmpty() ? tr("All periods") : e.span;
+            const QString span = e.span.isEmpty() ? tr("All dates") : e.span;
             auto *label = new QLabel(e.level.isEmpty() ? span : tr("%1 (by %2)").arg(span, e.level), box);
             label->setTextFormat(Qt::PlainText);
             label->setWordWrap(true);
@@ -85,18 +91,29 @@ void SlicerPane::setEntries(const QVector<Entry> &entries)
         } else {
             auto *grid = new QGridLayout();
             const QColor accent = accentOf(e.style, false);
-            for (int i = 0; i < e.items.size(); ++i) {
-                auto *b = new QPushButton(e.items[i], box);
+            const int shownItems = int(std::min<qsizetype>(e.items.size(), kMaxButtons));
+            for (int i = 0; i < shownItems; ++i) {
+                QString label = e.items[i];
+                label.replace(QLatin1Char('&'), QStringLiteral("&&"));
+                auto *b = new QPushButton(label, box);
                 b->setCheckable(true);
                 b->setChecked(i < e.chosen.size() && e.chosen[i]);
                 b->setEnabled(e.usable);
                 b->setStyleSheet(QStringLiteral("QPushButton:checked { background: %1; color: white; border: 1px solid %1; }").arg(accent.name()));
-                connect(b, &QPushButton::clicked, this, [this, s, i] { Q_EMIT itemClicked(s, i, QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)); });
+                connect(b, &QPushButton::clicked, this, [this, s, i] { clickItem(s, i, QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)); });
                 grid->addWidget(b, i / std::max(1, e.columns), i % std::max(1, e.columns));
                 m_buttons.last().append(b);
             }
             inner->addLayout(grid);
+            QLabel *more = nullptr;
+            if (e.items.size() > shownItems) {
+                more = new QLabel(tr("and %1 more items").arg(e.items.size() - shownItems), box);
+                more->setTextFormat(Qt::PlainText);
+                inner->addWidget(more);
+            }
+            m_notes.append(more);
         }
+        if (e.timeline) m_notes.append(nullptr);
         auto *connections = new QToolButton(box);
         connections->setText(tr("Report Connections…"));
         connections->setToolTip(jp::plainToolTip(e.tables.isEmpty() ? tr("No pivot table that can be read is filtered by this one.") : tr("Filters: %1").arg(e.tables.join(QStringLiteral(", ")))));
@@ -105,6 +122,11 @@ void SlicerPane::setEntries(const QVector<Entry> &entries)
         m_layout->addWidget(box);
     }
     m_layout->addStretch(1);
+}
+
+QString SlicerPane::moreNoteText(int slicer) const
+{
+    return hasMoreNote(slicer) ? m_notes[slicer]->text() : QString();
 }
 
 QAbstractButton *SlicerPane::button(int slicer, int item) const
