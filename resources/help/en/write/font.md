@@ -1,5 +1,5 @@
 # Change how text looks
-<!-- keywords: character spacing, expanded, condensed, raised, lowered, position, kerning, set as default, default font, font, font box, font dialog, typeface, size, style, bold, italic, color, underline, underline color, strikethrough, double strikethrough, superscript, subscript, small caps, all caps, hidden, hidden text, effects, preview, ctrl+d, character formatting -->
+<!-- keywords: character spacing, expanded, condensed, raised, lowered, position, kerning, set as default, default font, font, font box, font dialog, typeface, size, style, bold, italic, color, underline, underline color, strikethrough, double strikethrough, superscript, subscript, small caps, all caps, hidden, hidden text, effects, preview, ctrl+d, character formatting, character shading, shading, character border, border, box around letters -->
 
 The **Home > Font** group has buttons for the common changes: font, size, bold, italic, and so on. The **Font** box has all of them in one place, and a few more.
 
@@ -65,3 +65,12 @@ JeffWrite saves every effect in the .docx file, and other programs show them the
 
 - [Find and replace words](find-replace)
 - [Welcome to JeffWrite](start)
+
+## Shading and a border behind letters
+
+The **Home > Font** group has two buttons for marking letters without changing them.
+
+- **Character Shading** (the paint bucket) colors the space behind the selected letters. Pick a color, or **No Shading** to take it away. It is not the same as a highlight. A highlight is the marker pen, and shading is a fill that belongs to the letters. If you use both, the highlight shows.
+- **Character Border** (the box) draws a thin line round the selected letters. Click it again to take the line away.
+
+Both go in the file, so the letters look the same when someone else opens it.

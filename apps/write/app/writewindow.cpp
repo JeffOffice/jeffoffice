@@ -282,6 +282,12 @@ void WriteWindow::createFormatActions()
     mk("fmt.strike", tr("Strikethrough"), "strikethrough", QKeySequence(), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleStrike(d, c); }); }, true);
     mk("fmt.subscript", tr("Subscript"), "subscript", QKeySequence(Qt::CTRL | Qt::Key_Equal), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleSubscript(d, c); }); }, true);
     mk("fmt.superscript", tr("Superscript"), "superscript", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Equal), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleSuperscript(d, c); }); }, true);
+    mk("fmt.charBorder", tr("Character Border"), "square", QKeySequence(), [edit] {
+        edit([](write::WriteDoc &d, QTextCursor &c) {
+            const bool on = !write::allSelected(c, [](const QTextCharFormat &f) { return f.hasProperty(tp::RunBorder); });
+            write::setCharBorder(d, c, on);
+        });
+    }, true);
     mk("fmt.grow", tr("Increase Font Size"), "a-arrow-up", QKeySequence(Qt::CTRL | Qt::Key_BracketRight), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::changeFontSize(d, c, 1); }); });
     mk("fmt.shrink", tr("Decrease Font Size"), "a-arrow-down", QKeySequence(Qt::CTRL | Qt::Key_BracketLeft), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::changeFontSize(d, c, -1); }); });
     mk("fmt.clear", tr("Clear All Formatting"), "remove-formatting", QKeySequence(Qt::CTRL | Qt::Key_Space), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::clearFormatting(d, c); }); });
@@ -465,6 +471,7 @@ void WriteWindow::refreshUi()
     act("fmt.underline")->setChecked(all([](const QTextCharFormat &f) { return f.underlineStyle() != QTextCharFormat::NoUnderline; }));
     act("fmt.strike")->setChecked(all([](const QTextCharFormat &f) { return f.fontStrikeOut(); }));
     act("fmt.subscript")->setChecked(all([](const QTextCharFormat &f) { return f.verticalAlignment() == QTextCharFormat::AlignSubScript; }));
+    act("fmt.charBorder")->setChecked(all([](const QTextCharFormat &f) { return f.hasProperty(tp::RunBorder); }));
     act("fmt.superscript")->setChecked(all([](const QTextCharFormat &f) { return f.verticalAlignment() == QTextCharFormat::AlignSuperScript; }));
     const QTextBlock block = c.block();
     const Qt::Alignment al = block.blockFormat().alignment() & Qt::AlignHorizontal_Mask;
