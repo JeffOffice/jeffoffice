@@ -819,6 +819,10 @@
               "keytip": "T"
             },
             {
+              "large": "review.thesaurus",
+              "keytip": "TH"
+            },
+            {
               "large": "review.wordCount",
               "keytip": "WC"
             }
@@ -828,6 +832,10 @@
           "name": "Language",
           "keytip": "ZL",
           "items": [
+            {
+              "large": "review.translate",
+              "keytip": "TR"
+            },
             {
               "large": "review.language",
               "keytip": "LA"
@@ -914,6 +922,18 @@
             {
               "large": "review.reviewingPane",
               "keytip": "TP"
+            },
+            {
+              "large": {
+                "id": "ribbon.trackOptions",
+                "text": "Tracking Options",
+                "icon": "settings"
+              },
+              "keytip": "TO",
+              "menu": [
+                "review.trackOptions",
+                "review.lockTracking"
+              ]
             }
           ]
         },
@@ -955,6 +975,16 @@
             {
               "small": "review.nextChange",
               "keytip": "NC"
+            }
+          ]
+        },
+        {
+          "name": "Protect",
+          "keytip": "ZR",
+          "items": [
+            {
+              "large": "review.restrictEditing",
+              "keytip": "RE"
             }
           ]
         }

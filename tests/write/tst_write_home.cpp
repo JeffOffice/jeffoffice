@@ -15,6 +15,7 @@
 #include "text/textprops.h"
 
 #include <QAction>
+#include <QCryptographicHash>
 #include <QTest>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -313,6 +314,136 @@ private Q_SLOTS:
         QVERIFY(part(doc->toDocx(), QStringLiteral("/word/document.xml")).contains("<w:noProof/>"));
         setNoProof(*doc, c, false);
         QVERIFY(!part(doc->toDocx(), QStringLiteral("/word/document.xml")).contains("noProof"));
+    }
+
+    void translateOpensOnlyAWebAddressWithTheTextInIt()
+    {
+        const QString url = translateUrl(QStringLiteral("https://translate.example.org/app"), QStringLiteral("fr"), QStringLiteral("Hello & goodbye"));
+        QVERIFY2(url.startsWith(QLatin1String("https://translate.example.org/app?")), qPrintable(url));
+        QVERIFY(url.contains(QLatin1String("target=fr")));
+        QVERIFY(url.contains(QLatin1String("source=auto")));
+        QVERIFY(url.contains(QLatin1String("Hello%20%26%20goodbye")) || url.contains(QLatin1String("Hello+%26+goodbye")));
+        QVERIFY(translateUrl(QString(), QStringLiteral("de"), QStringLiteral("x")).startsWith(QLatin1String("https://libretranslate.com/")));
+        QVERIFY(translateUrl(QStringLiteral("file:///etc/passwd"), QStringLiteral("de"), QStringLiteral("x")).isEmpty());
+        QVERIFY(translateUrl(QStringLiteral("javascript:alert(1)"), QStringLiteral("de"), QStringLiteral("x")).isEmpty());
+        // A long text is cut at the service's limit.
+        const QString longUrl = translateUrl(QString(), QStringLiteral("de"), QString(9000, QLatin1Char('a')));
+        QVERIFY(longUrl.count(QLatin1Char('a')) <= 5000 + 40);
+        QVERIFY(longUrl.size() < 5300);
+    }
+
+    void protectionIsReadWrittenAndKeptAsTheFileHadIt()
+    {
+        namespace wml = jp::office::wml;
+        const QByteArray body = para(run("x"));
+        const QByteArray settings = "<w:zoom w:percent=\"100\"/><w:defaultTabStop w:val=\"720\"/>";
+        auto doc = open(makeDocx(body, settings));
+        QVERIFY(!doc->protection());
+        doc->setProtection(wml::makeDocumentProtection(QStringLiteral("trackedChanges"), QStringLiteral("secret")));
+        QVERIFY(doc->isModified());
+        const QByteArray saved = part(doc->toDocx(), QStringLiteral("/word/settings.xml"));
+        // In the schema's place: after the zoom, before the default tab stop.
+        QVERIFY2(saved.indexOf("<w:zoom") < saved.indexOf("<w:documentProtection") && saved.indexOf("<w:documentProtection") < saved.indexOf("<w:defaultTabStop"), saved.constData());
+        QVERIFY(saved.contains("w:edit=\"trackedChanges\"") && saved.contains("w:enforcement=\"1\"") && saved.contains("w:algorithmName=\"SHA-512\""));
+        QVERIFY(!saved.contains("secret"));
+        auto again = open(doc->toDocx());
+        QVERIFY(again->protection());
+        QCOMPARE(again->protection()->edit, QStringLiteral("trackedChanges"));
+        QVERIFY(again->protection()->enforced && again->protection()->hasPassword());
+        QVERIFY(wml::documentProtectionAccepts(*again->protection(), QStringLiteral("secret")));
+        QVERIFY(!wml::documentProtectionAccepts(*again->protection(), QStringLiteral("Secret")));
+        QVERIFY(!wml::documentProtectionAccepts(*again->protection(), QString()));
+        // Saved again without a change: the element is as it was (its salt and hash stay).
+        QCOMPARE(part(again->toDocx(), QStringLiteral("/word/settings.xml")).count("<w:documentProtection"), 1);
+        again->setProtection(std::nullopt);
+        QVERIFY(!part(again->toDocx(), QStringLiteral("/word/settings.xml")).contains("documentProtection"));
+    }
+
+    void aFileWithoutSettingsGetsAPartForTheProtection()
+    {
+        namespace wml = jp::office::wml;
+        auto doc = open(makeDocx(para(run("x"))));
+        doc->setProtection(wml::makeDocumentProtection(QStringLiteral("readOnly"), QString()));
+        const QByteArray saved = part(doc->toDocx(), QStringLiteral("/word/settings.xml"));
+        QVERIFY2(saved.contains("<w:documentProtection w:edit=\"readOnly\" w:enforcement=\"1\"/>"), saved.constData());
+        QVERIFY(wml::documentProtectionAccepts(*open(doc->toDocx())->protection(), QStringLiteral("anything")));
+    }
+
+    void aPasswordHashFromAnotherProgramIsCheckedByItsOwnAlgorithm()
+    {
+        namespace wml = jp::office::wml;
+        // SHA-512, salt "salt", 2 rounds, for the password "pw": made here by the algorithm of the file format (the salt and the UTF-16 password hashed, then the hash and a counter).
+        QByteArray utf16("p\0w\0", 4);
+        QByteArray h = QCryptographicHash::hash(QByteArray("salt") + utf16, QCryptographicHash::Sha512);
+        for (quint32 i = 0; i < 2; ++i) {
+            QByteArray counter;
+            for (int b = 0; b < 4; ++b) counter.append(char((i >> (8 * b)) & 0xFF));
+            h = QCryptographicHash::hash(h + counter, QCryptographicHash::Sha512);
+        }
+        wml::DocumentProtection p;
+        p.edit = QStringLiteral("readOnly");
+        p.enforced = true;
+        p.xml = "<w:documentProtection w:edit=\"readOnly\" w:enforcement=\"1\" w:algorithmName=\"SHA-512\" w:hashValue=\"" + h.toBase64() + "\" w:saltValue=\"" + QByteArray("salt").toBase64() +
+                "\" w:spinCount=\"2\"/>";
+        QVERIFY(wml::documentProtectionAccepts(p, QStringLiteral("pw")));
+        QVERIFY(!wml::documentProtectionAccepts(p, QStringLiteral("px")));
+        // An algorithm that is not known never matches (the protection can't be stopped from here).
+        p.xml.replace("SHA-512", "MD5");
+        QVERIFY(!wml::documentProtectionAccepts(p, QStringLiteral("pw")));
+    }
+
+    void aDocumentProtectedAsReadOnlyIsHeldReadOnlyUntilTheProtectionStops()
+    {
+        namespace wml = jp::office::wml;
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        auto made = open(makeDocx(para(run("hello")), "<w:documentProtection w:edit=\"readOnly\" w:enforcement=\"1\"/>"));
+        w.setDocument(std::move(made), QString());
+        QVERIFY(w.isReadOnly());
+        QVERIFY2(w.windowTitle().contains(QLatin1String("Protected")), qPrintable(w.windowTitle()));
+        QTextCursor c(w.document()->story());
+        c.setPosition(0);
+        c.setPosition(5, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        w.act(QStringLiteral("fmt.bold"))->trigger();
+        QVERIFY(w.document()->story()->toPlainText() == QStringLiteral("hello"));
+        QVERIFY(!w.document()->canUndo());   // (the command was refused)
+        w.document()->setProtection(std::nullopt);
+        QVERIFY(!w.isReadOnly());
+        QVERIFY(!w.windowTitle().contains(QLatin1String("Protected")));
+        w.act(QStringLiteral("fmt.bold"))->trigger();
+        QVERIFY(w.document()->canUndo());
+    }
+
+    void lockedTrackingKeepsTrackChangesOnAndTheChangesUnresolved()
+    {
+        namespace wml = jp::office::wml;
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("hello")), "<w:documentProtection w:edit=\"trackedChanges\" w:enforcement=\"1\"/>")), QString());
+        QVERIFY(!w.isReadOnly());
+        QVERIFY(w.document()->trackChanges());
+        QVERIFY(!w.act(QStringLiteral("review.trackChanges"))->isEnabled());
+        QVERIFY(!w.act(QStringLiteral("review.acceptAll"))->isEnabled());
+        w.document()->setProtection(std::nullopt);
+        QVERIFY(w.act(QStringLiteral("review.trackChanges"))->isEnabled());
+    }
+
+    void aDocumentProtectedForCommentsStaysReadOnlyButTakesComments()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("hello")), "<w:documentProtection w:edit=\"comments\" w:enforcement=\"1\"/>")), QString());
+        QVERIFY(w.isReadOnly());
+        QTextCursor c(w.document()->story());
+        c.setPosition(0);
+        c.setPosition(5, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        w.act(QStringLiteral("fmt.bold"))->trigger();
+        QVERIFY(!w.document()->canUndo());
     }
 };
 

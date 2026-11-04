@@ -10,7 +10,11 @@
 
 #include "text/dictionaries.h"
 
+#include "app/settings.h"
+
 #include <QAction>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QApplication>
 #include <QClipboard>
 #include <QMimeData>
@@ -111,6 +115,44 @@ void WriteWindow::createHomeActions()
         write::setNoProof(*m_doc, m_view->cursor(), act("review.noProof")->isChecked());
         m_view->setFocus(Qt::OtherFocusReason);
     }, true);
+    mk("review.thesaurus", tr("Thesaurus"), "book-a", QKeySequence(Qt::SHIFT | Qt::Key_F7), [this] {
+        if (!m_doc || refuseIfReadOnly()) return;
+        QTextCursor word = m_view->cursor();
+        if (!word.hasSelection()) word.select(QTextCursor::WordUnderCursor);
+        const QString chosen = write::thesaurusDialog(this, word.selectedText().trimmed());
+        if (!chosen.isEmpty() && word.hasSelection()) {
+            // (The word is replaced by the word chosen, in the case of the word: a capital stays a capital.)
+            QString replacement = chosen;
+            const QString was = word.selectedText().trimmed();
+            if (!was.isEmpty() && was.at(0).isUpper() && !replacement.isEmpty()) replacement[0] = replacement.at(0).toUpper();
+            write::insertText(*m_doc, word, replacement);
+            m_view->setCursor(word);
+        }
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("review.translate", tr("Translate"), "languages", QKeySequence(), [this] {
+        if (!m_doc) return;
+        const QTextCursor sel = m_view->cursor();
+        const bool whole = !sel.hasSelection();
+        QString text = whole ? m_doc->story()->toPlainText() : sel.selectedText();
+        text.replace(QChar::ParagraphSeparator, QLatin1Char('\n')).replace(QChar::LineSeparator, QLatin1Char('\n')).remove(QChar::ObjectReplacementCharacter);
+        text = text.trimmed();
+        if (text.isEmpty()) {
+            statusBar()->showMessage(tr("There is no text to translate."), 5000);
+            return;
+        }
+        QString target = Settings::get().value(QStringLiteral("translate/targetCode"), QStringLiteral("es")).toString();
+        QString server = Settings::get().value(QStringLiteral("translate/server"), QStringLiteral("https://libretranslate.com/")).toString();
+        if (!write::translateDialog(this, whole, &target, &server)) return;
+        const QString url = write::translateUrl(server, target, text);
+        if (url.isEmpty()) {
+            statusBar()->showMessage(tr("The translation service needs a web address (http or https)."), 6000);
+            return;
+        }
+        Settings::get().setValue(QStringLiteral("translate/targetCode"), target);
+        Settings::get().setValue(QStringLiteral("translate/server"), server);
+        QDesktopServices::openUrl(QUrl(url));
+    });
     mk("review.wordCount", tr("Word Count"), "hash", QKeySequence(), [this] {
         if (!m_doc) return;
         const QTextCursor sel = m_view->cursor();

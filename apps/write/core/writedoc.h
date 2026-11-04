@@ -332,6 +332,9 @@ public:
     // Whether edits are tracked as changes (Track Changes: the file's w:trackRevisions). A setting of the document that is written with it, not a step of the history.
     bool trackChanges() const { return m_trackChanges; }
     void setTrackChanges(bool on);
+    // The document's protection (w:documentProtection): what it allows and whether it is enforced. Like Track Changes, a setting written with the document, not a step of the history.
+    std::optional<office::wml::DocumentProtection> protection() const { return m_protection; }
+    void setProtection(const std::optional<office::wml::DocumentProtection> &protection);
     // How a kind of note is numbered and where it is set, as the settings say now: the format of its numbers (a w:numFmt value; "decimal" where the file says none), the number the first
     // shows, whether the numbers begin again with each section or page (continuous, eachSect, eachPage), and where they are set (the footnotes' pageBottom or beneathText, the endnotes'
     // sectEnd or docEnd; empty where the file says none).
@@ -812,6 +815,7 @@ private:
     int m_letteringShapes = 0, m_letteringLetters = 0;   // the lettering on a path the document has drawn so far, and its letters (each is outlined, and may be stroked: they are bounded)
     bool m_syncing = false;
     bool m_trackChanges = false, m_trackAtOpen = false;
+    std::optional<office::wml::DocumentProtection> m_protection, m_protectionAtOpen;
     QString m_reviewer = QStringLiteral("Author"), m_reviewerInitials;
     QStringList m_reviewers;
     QHash<QString, int> m_reviewerPlaces;   // (the place of each, to find one without looking through the list)

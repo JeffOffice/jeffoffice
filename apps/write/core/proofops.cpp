@@ -6,6 +6,8 @@
 #include "text/textprops.h"
 
 #include <QRegularExpression>
+#include <QUrl>
+#include <QUrlQuery>
 #include <QTextBlock>
 
 namespace jp::write {
@@ -134,6 +136,18 @@ void setNoProof(WriteDoc &doc, QTextCursor &c, bool noProof)
 bool noProofAt(const QTextCursor &c)
 {
     return allSelected(c, [](const QTextCharFormat &f) { return f.boolProperty(tp::NoProof); });
+}
+
+QString translateUrl(const QString &server, const QString &target, const QString &text)
+{
+    QUrl url(server.trimmed().isEmpty() ? QStringLiteral("https://libretranslate.com/") : server.trimmed(), QUrl::StrictMode);
+    if (!url.isValid() || (url.scheme() != QLatin1String("https") && url.scheme() != QLatin1String("http")) || url.host().isEmpty()) return QString();
+    QUrlQuery q;
+    q.addQueryItem(QStringLiteral("source"), QStringLiteral("auto"));
+    q.addQueryItem(QStringLiteral("target"), target);
+    q.addQueryItem(QStringLiteral("q"), text.left(5000));
+    url.setQuery(q);
+    return url.toString(QUrl::FullyEncoded);
 }
 
 } // namespace jp::write

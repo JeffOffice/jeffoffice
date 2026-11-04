@@ -14,9 +14,10 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 ## Work on your text
 
 - [Check your spelling](spelling)
-- [Count words and set the language](proofing-tools)
+- [Count words, set the language, and look up words](proofing-tools)
 - [Track changes, and accept or reject them](track-changes)
 - [Add and answer comments](comments)
+- [Protect a document and lock tracking](protect)
 
 ## Write and change text
 

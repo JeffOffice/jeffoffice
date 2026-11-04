@@ -29,6 +29,15 @@ void WriteDoc::setTrackChanges(bool on)
     Q_EMIT reviewChanged();
 }
 
+void WriteDoc::setProtection(const std::optional<office::wml::DocumentProtection> &protection)
+{
+    const bool same = m_protection.has_value() == protection.has_value() && (!protection || (m_protection->xml == protection->xml));
+    if (same) return;
+    m_protection = protection;
+    setModified(true);
+    Q_EMIT reviewChanged();
+}
+
 void WriteDoc::setReviewer(const QString &name, const QString &initials)
 {
     const QString who = name.trimmed().isEmpty() ? QStringLiteral("Author") : name.trimmed();
@@ -173,6 +182,32 @@ void WriteDoc::setFieldCodes(bool all, const QSet<int> &ids)
 // Track Changes is a setting of the document: written when it differs from the file's.
 void WriteDoc::writeReviewSettings(office::wml::Document *out)
 {
+    // The protection is written first, into the settings part, when it is not the file's.
+    const bool protectionChanged = m_protection.has_value() != m_protectionAtOpen.has_value() || (m_protection && m_protection->xml != m_protectionAtOpen->xml);
+    if (protectionChanged) {
+        bool done = false;
+        if (!out->settingsName.isEmpty()) {
+            for (KeptPart &kept : out->parts)
+                if (kept.name.compare(out->settingsName, Qt::CaseInsensitive) == 0) {
+                    kept.data = settingsWithDocumentProtection(kept.data, m_protection);
+                    done = true;
+                }
+        }
+        if (!done && m_protection) {
+            KeptPart kept;
+            kept.name = QStringLiteral("/word/settings.xml");
+            for (int n = 2; partExists(kept.name) || kept.name.compare(out->mainName, Qt::CaseInsensitive) == 0; ++n) kept.name = QStringLiteral("/word/settings%1.xml").arg(n);
+            kept.contentType = QString(kSettingsType);
+            kept.data = settingsWithDocumentProtection(QByteArray(), m_protection);
+            out->parts.push_back(kept);
+            Relationship r;
+            r.id = nextRelationshipId(out->mainRelationships);
+            r.type = QString(kSettingsRel);
+            r.target = kept.name;
+            out->mainRelationships.push_back(r);
+            out->settingsName = kept.name;
+        }
+    }
     if (m_trackChanges == m_trackAtOpen) return;
     const bool on = m_trackChanges;
     if (!out->settingsName.isEmpty()) {

@@ -154,7 +154,7 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
     a->setCheckable(checkable);
     // Each command counts by its id for the usage statistics (when they're on).
     connect(a, &QAction::triggered, this, [this, fn, id] {
-        if (isReadOnly() && !commandAllowedReadOnly(id)) {
+        if (isReadOnly() && !commandAllowedReadOnly(id) && !protectionAllows(id)) {
             refuseReadOnlyChange();
             return;
         }
@@ -196,12 +196,13 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
     if (m_doc) {
         // Who makes changes and comments here, and how the document shows them: a document with changes or comments opens showing its markup.
         m_doc->setReviewer(Settings::get().userName(), Settings::get().value(QStringLiteral("user/initials")).toString());
-        connect(m_doc.get(), &write::WriteDoc::reviewChanged, this, [this] { refreshReviewUi(); });
+        connect(m_doc.get(), &write::WriteDoc::reviewChanged, this, [this] { applyProtection(); });
         if (m_reviewView == ReviewView::NoMarkup || m_reviewView == ReviewView::Original) {
             if (write::revisionCount(m_doc->story()) > 0) setReviewView(ReviewView::AllMarkup);
         }
         applyReviewView();
         if (m_review) m_review->refresh();
+        applyProtection();
     }
     if (m_spellPane && m_spellDock->isVisible()) m_spellPane->start();
     updateTitle();
@@ -214,7 +215,7 @@ void WriteWindow::updateTitle()
     // A document that came from an old binary file shows its whole name, so its kind is plain until it is saved as a .docx.
     const QString ending = QFileInfo(m_path).suffix().toLower();
     const QString shown = ending == QLatin1String("doc") || ending == QLatin1String("dot") || ending == QLatin1String("rtf") ? QFileInfo(m_path).fileName() : displayName();
-    setWindowTitle(QStringLiteral("%1%2%4 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name, isReadOnly() ? tr(" (Read-Only)") : QString()));
+    setWindowTitle(QStringLiteral("%1%2%4 - %3").arg(shown, isModified() ? QStringLiteral("*") : QString(), appInfo().name, isReadOnly() ? (m_readOnlyByProtection ? tr(" (Protected)") : tr(" (Read-Only)")) : QString()));
 }
 
 // ---- commands
@@ -236,6 +237,7 @@ void WriteWindow::createActions()
     createPictureActions();
     createStyleActions();
     createHomeActions();
+    createProtectActions();
     createMailActions();
 }
 

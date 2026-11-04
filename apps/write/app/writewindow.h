@@ -189,6 +189,10 @@ private:
     void createPictureActions();
     void createStyleActions();
     void createHomeActions();
+    void createProtectActions();
+    void restrictEditing(bool lockTracking);
+    void applyProtection();
+    bool protectionAllows(const QString &id) const;
     void updateLanguage();
     void createMailActions();
     void mailRibbonParts(RibbonParts &parts);
@@ -278,6 +282,9 @@ private:
     QString m_untitled;
     QString m_recoveryCopy, m_recoveredFrom;
     write::SortOptions m_sortOptions;
+    QString m_protectKind;   // what the enforced protection of the document allows (readOnly, comments, trackedChanges, or forms), else empty
+    bool m_readOnlyByProtection = false;
+    QString m_titledKind;
     QTimer m_refreshTimer, m_recoverTimer, m_wordTimer;
     quint64 m_serial = 0;
     bool m_updatingFields = false;

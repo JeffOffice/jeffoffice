@@ -32,4 +32,10 @@ bool noProofAt(const QTextCursor &c);
 // The format with its language set (the run's w:lang kept with its other attributes, and put where the schema has it).
 QTextCharFormat withProofingLanguage(QTextCharFormat format, const QString &tag);
 
+
+// ---- Translate
+// The address that opens the translation service `server` (a LibreTranslate address, http or https) with `text` (at most 5,000 letters) to be translated into the language `target`; empty when the
+// address is not one of the web (nothing else is ever opened).
+QString translateUrl(const QString &server, const QString &target, const QString &text);
+
 } // namespace jp::write

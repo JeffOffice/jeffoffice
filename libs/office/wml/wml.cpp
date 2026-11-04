@@ -2,6 +2,8 @@
 
 #include "wml/xmltree.h"
 
+#include <QCryptographicHash>
+#include <QRandomGenerator>
 #include <QRegularExpression>
 #include <QXmlStreamReader>
 #include <algorithm>
@@ -300,6 +302,138 @@ QByteArray settingsWithTrackRevisions(const QByteArray &settings, bool on)
                                         "attachedSchema", "themeFontLang", "clrSchemeMapping", "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures", "forceUpgrade", "captions", "readModeInkLockDown",
                                         "smartTagType", "schemaLibrary", "shapeDefaults", "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
     return settingsWithFlag(settings, "trackRevisions", on, later);
+}
+
+static const QVector<QByteArray> &afterDocumentProtection()
+{
+    static const QVector<QByteArray> later = {"autoFormatOverride", "styleLockTheme", "styleLockQFSet", "defaultTabStop", "autoHyphenation",
+                                        "consecutiveHyphenLimit", "hyphenationZone", "doNotHyphenateCaps", "showEnvelope", "summaryLength", "clickAndTypeStyle", "defaultTableStyle", "evenAndOddHeaders",
+                                        "bookFoldRevPrinting", "bookFoldPrinting", "bookFoldPrintingSheets", "drawingGridHorizontalSpacing", "drawingGridVerticalSpacing", "displayHorizontalDrawingGridEvery",
+                                        "displayVerticalDrawingGridEvery", "doNotUseMarginsForDrawingGridOrigin", "drawingGridHorizontalOrigin", "drawingGridVerticalOrigin", "doNotShadeFormData",
+                                        "noPunctuationKerning", "characterSpacingControl", "printTwoOnOne", "strictFirstAndLastChars", "noLineBreaksAfter", "noLineBreaksBefore", "savePreviewPicture",
+                                        "doNotValidateAgainstSchema", "saveInvalidXml", "ignoreMixedContent", "alwaysShowPlaceholderText", "doNotDemarcateInvalidXml", "saveXmlDataOnly", "useXSLTWhenSaving",
+                                        "saveThroughXslt", "showXMLTags", "alwaysMergeEmptyNamespace", "updateFields", "hdrShapeDefaults", "footnotePr", "endnotePr", "compat", "docVars", "rsids", "mathPr",
+                                        "attachedSchema", "themeFontLang", "clrSchemeMapping", "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures", "forceUpgrade", "captions", "readModeInkLockDown",
+                                        "smartTagType", "schemaLibrary", "shapeDefaults", "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
+    return later;
+}
+
+// The value of the attribute `name` (without its prefix) in the start tag `tag`, or empty.
+static QString protectionAttribute(const QByteArray &tag, const QByteArray &name)
+{
+    const QString text = QString::fromUtf8(tag.left(tag.indexOf('>') < 0 ? tag.size() : tag.indexOf('>')));
+    const QRegularExpression re(QStringLiteral("[\\s:]") + QRegularExpression::escape(QString::fromLatin1(name)) + QStringLiteral("\\s*=\\s*[\"']([^\"']*)[\"']"));
+    return re.match(text).captured(1);
+}
+
+bool DocumentProtection::hasPassword() const
+{
+    return !protectionAttribute(xml, "hashValue").isEmpty() || !protectionAttribute(xml, "hash").isEmpty();
+}
+
+std::optional<DocumentProtection> settingsDocumentProtection(const QByteArray &settings)
+{
+    QVector<SettingsChild> children;
+    qsizetype rootEnd = 0;
+    QByteArray prefix;
+    if (settings.trimmed().isEmpty() || !settingsChildren(settings, &children, &rootEnd, &prefix)) return std::nullopt;
+    for (const SettingsChild &c : children) {
+        if (c.name != "documentProtection") continue;
+        DocumentProtection p;
+        p.xml = settings.mid(c.begin, c.end - c.begin);
+        p.edit = protectionAttribute(p.xml, "edit");
+        const QString on = protectionAttribute(p.xml, "enforcement").toLower();
+        p.enforced = on == QLatin1String("1") || on == QLatin1String("true") || on == QLatin1String("on");
+        return p;
+    }
+    return std::nullopt;
+}
+
+QByteArray settingsWithDocumentProtection(const QByteArray &settings, const std::optional<DocumentProtection> &protection)
+{
+    // The element is put where the schema has it, as a flag first, then given its attributes.
+    QByteArray with = settingsWithFlag(settings, "documentProtection", protection.has_value(), afterDocumentProtection());
+    if (!protection) return with;
+    QVector<SettingsChild> children;
+    qsizetype rootEnd = 0;
+    QByteArray prefix;
+    if (!settingsChildren(with, &children, &rootEnd, &prefix)) return with;
+    QByteArray element = protection->xml;
+    if (element.isEmpty()) element = "<" + prefix + "documentProtection/>";
+    for (const SettingsChild &c : children)
+        if (c.name == "documentProtection") return with.left(c.begin) + element + with.mid(c.end);
+    return with;
+}
+
+static QCryptographicHash::Algorithm protectionAlgorithm(const QByteArray &xml, bool *known)
+{
+    *known = true;
+    const QString name = protectionAttribute(xml, "algorithmName").toUpper();
+    if (name == QLatin1String("SHA-512")) return QCryptographicHash::Sha512;
+    if (name == QLatin1String("SHA-384")) return QCryptographicHash::Sha384;
+    if (name == QLatin1String("SHA-256")) return QCryptographicHash::Sha256;
+    if (name == QLatin1String("SHA-1")) return QCryptographicHash::Sha1;
+    if (name.isEmpty()) {
+        const QString sid = protectionAttribute(xml, "cryptAlgorithmSid");
+        if (sid == QLatin1String("4")) return QCryptographicHash::Sha1;
+        if (sid == QLatin1String("12")) return QCryptographicHash::Sha256;
+        if (sid == QLatin1String("13")) return QCryptographicHash::Sha384;
+        if (sid == QLatin1String("14")) return QCryptographicHash::Sha512;
+    }
+    *known = false;
+    return QCryptographicHash::Sha512;
+}
+
+static QByteArray protectionHash(QCryptographicHash::Algorithm algorithm, const QByteArray &salt, const QString &password, int spins)
+{
+    QByteArray utf16;
+    for (const QChar ch : password) {
+        utf16.append(char(ch.unicode() & 0xFF));
+        utf16.append(char(ch.unicode() >> 8));
+    }
+    QByteArray h = QCryptographicHash::hash(salt + utf16, algorithm);
+    for (quint32 i = 0; i < quint32(spins); ++i) {
+        QByteArray iterator;
+        for (int b = 0; b < 4; ++b) iterator.append(char((i >> (8 * b)) & 0xFF));
+        h = QCryptographicHash::hash(h + iterator, algorithm);
+    }
+    return h;
+}
+
+DocumentProtection makeDocumentProtection(const QString &edit, const QString &password)
+{
+    DocumentProtection p;
+    p.edit = edit;
+    p.enforced = true;
+    QByteArray x = "<w:documentProtection w:edit=\"" + edit.toUtf8() + "\" w:enforcement=\"1\"";
+    if (!password.isEmpty()) {
+        QByteArray salt(16, 0);
+        for (char &b : salt) b = char(QRandomGenerator::system()->bounded(256));
+        const int spins = 100000;
+        x += " w:algorithmName=\"SHA-512\" w:hashValue=\"" + protectionHash(QCryptographicHash::Sha512, salt, password, spins).toBase64() + "\" w:saltValue=\"" + salt.toBase64() +
+             "\" w:spinCount=\"" + QByteArray::number(spins) + "\"";
+    }
+    x += "/>";
+    p.xml = x;
+    return p;
+}
+
+bool documentProtectionAccepts(const DocumentProtection &protection, const QString &password)
+{
+    if (!protection.hasPassword()) return true;
+    bool known = false;
+    const QCryptographicHash::Algorithm algorithm = protectionAlgorithm(protection.xml, &known);
+    if (!known) return false;
+    QString hashValue = protectionAttribute(protection.xml, "hashValue"), saltValue = protectionAttribute(protection.xml, "saltValue"), spin = protectionAttribute(protection.xml, "spinCount");
+    if (hashValue.isEmpty()) {
+        hashValue = protectionAttribute(protection.xml, "hash");
+        saltValue = protectionAttribute(protection.xml, "salt");
+        spin = protectionAttribute(protection.xml, "cryptSpinCount");
+    }
+    bool ok = false;
+    const int spins = spin.toInt(&ok);
+    if (!ok || spins < 0 || spins > 10000000) return false;
+    return protectionHash(algorithm, QByteArray::fromBase64(saltValue.toLatin1()), password, spins) == QByteArray::fromBase64(hashValue.toLatin1());
 }
 
 bool settingsTrackRevisions(const QByteArray &settings)

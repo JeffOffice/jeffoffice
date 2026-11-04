@@ -489,6 +489,21 @@ QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on);
 // Whether the settings turn Track Changes on (w:trackRevisions, not turned off by a value), and the settings with it on or off, in the place the schema gives it. An empty part gives a minimal one.
 bool settingsTrackRevisions(const QByteArray &settings);
 QByteArray settingsWithTrackRevisions(const QByteArray &settings, bool on);
+// The document's protection (w:documentProtection of the settings part): what it allows (`edit`: none, readOnly, comments, trackedChanges, or forms), whether it is being enforced, and the
+// element as it is written (kept as it is when nothing changes, so a password hash from another program survives).
+struct DocumentProtection {
+    QString edit;
+    bool enforced = false;
+    QByteArray xml;
+    bool hasPassword() const;
+};
+std::optional<DocumentProtection> settingsDocumentProtection(const QByteArray &settings);
+// The settings with the protection `protection` (none: the element taken out), in the place the schema gives it. An empty part gives a minimal one.
+QByteArray settingsWithDocumentProtection(const QByteArray &settings, const std::optional<DocumentProtection> &protection);
+// A protection that allows `edit` and is enforced, with the password's hash (SHA-512, a random salt, 100,000 rounds, as the file format has it); no password, no hash.
+DocumentProtection makeDocumentProtection(const QString &edit, const QString &password);
+// Whether `password` is the protection's (true for a protection with none). A protection hashed in a way that is not known here (or by the old algorithms MD2 to MD5) is never matched.
+bool documentProtectionAccepts(const DocumentProtection &protection, const QString &password);
 // The mail merge of the settings part (w:mailMerge): what the document is merged as, and where its data comes from. The data source is a relationship of the settings part (its Id is
 // kept in `dataSourceId`); `odso` and the rest the program does not change are kept as written. `type` is empty for a document with none.
 struct MailMergeSettings {
