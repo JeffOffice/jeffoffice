@@ -1347,8 +1347,8 @@
          "text": "5b586f0b40eb033aa609fc977caa59ce5ccdd70db4bbcc43793a4ad81cef91c4"
         },
         {
-         "status": "todo",
-         "text": "2530381d0c31cbee4e1cd3605076d9f3c8d5a7abb3a96588041c6361356724a2"
+         "status": "partly",
+         "text": "52e24d7a402dc0f75b59c7a3a9fa5be4edb936fcb06792fc2b1c6895706d8bde"
         },
         {
          "hide_soon": true,
@@ -9705,18 +9705,6 @@
     "fr": "Fenêtre des options de correction automatique : liste de remplacements, exceptions, règles de majuscules et symboles mathématiques"
    }
   },
-  "2530381d0c31cbee4e1cd3605076d9f3c8d5a7abb3a96588041c6361356724a2": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Move Chart: onto its own chart sheet or into any sheet",
-    "es": "Mover gráfico: a su propia hoja de gráfico o a cualquier hoja",
-    "fr": "Déplacer le graphique : vers sa propre feuille de graphique ou vers n’importe quelle feuille"
-   }
-  },
   "253e0726467be3f8910baa7f2212a2c3788592e89cf484b0028556047ce7bcea": {
    "drop": false,
    "en": "In JeffCrunch, you can show, keep, and change chart titles, axes, axis titles, gridlines, legends, and data labels for the common chart kinds, from the + button beside the chart or from Chart Parts on the Chart tab.",
@@ -12907,6 +12895,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "52e24d7a402dc0f75b59c7a3a9fa5be4edb936fcb06792fc2b1c6895706d8bde": {
+   "drop": false,
+   "en": "Move Chart: move a chart to another worksheet in one step that `Undo` can reverse.",
+   "es": "Mover gráfico: traslade un gráfico a otra hoja en un solo paso que `Deshacer` puede revertir.",
+   "fr": "Déplacer le graphique : déplacez un graphique vers une autre feuille en une seule étape que `Annuler` peut inverser.",
+   "soon": {
+    "drop": false,
+    "en": "Chart sheets: move a chart onto its own new chart sheet, or off a chart sheet",
+    "es": "Hojas de gráfico: mover un gráfico a una hoja de gráfico nueva propia, o fuera de una hoja de gráfico",
+    "fr": "Feuilles de graphique : déplacer un graphique vers une nouvelle feuille de graphique dédiée, ou hors d’une feuille de graphique"
    }
   },
   "530e2a06ebacb4a9783fd47ab8cc50342a965550bd0455eaf0b1b85a36c1e7d2": {
