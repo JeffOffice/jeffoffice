@@ -238,6 +238,7 @@ private Q_SLOTS:
                 w->act(QStringLiteral("sheet.insertEnd"))->trigger();
                 waitFor([&] { return quiet(w); });
                 w->setActiveSheet(0);
+                drain();   // (the first sheet's objects are put in the layer between events: a chart made before that is not picked)
                 w->view()->selectRange(0, 0, 1, 1);
                 w->insertChart(jp::office::sheet::ChartKind::Column);
                 waitFor([&] { return quiet(w); });
