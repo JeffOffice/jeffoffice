@@ -46,6 +46,7 @@ Q_SIGNALS:
     void changeRequested(const jp::office::sheet::PivotTable &table, const QString &text);
     // The value at this place of the table's values was asked to be set (a double click, or the button).
     void valueSettingsRequested(int dataIndex);
+    void fieldSelectionChanged();   // a field was picked in a box, or none is picked now
     // The field at this place of the table's fields was asked to be set (a double click on a field of a box, or the button).
     void fieldSettingsRequested(int field);
 

@@ -5,6 +5,7 @@
 
 #include "core/sheetobjects.h"
 
+#include <QFileInfo>
 #include <QMetaObject>
 #include <QUuid>
 
@@ -13,6 +14,16 @@ namespace jp {
 void CrunchWindow::setupObjects()
 {
     m_objects = std::make_unique<crunch::SheetObjects>();
+    // a pivot chart made here is named from its table's name, its sheet's, and the file's, as they are when a save is made
+    m_objects->setPivotNamer([this](const jp::office::Chart &c) {
+        if (!m_session || !m_loaded || c.pivotTable < 0 || c.pivotTable >= m_session->workbook()->pivots().tableCount()) return c.pivotName;
+        const auto &pb = m_session->workbook()->pivots();
+        const int sheet = pb.sheetOfTable(c.pivotTable);
+        const auto &sheets = m_loaded->book->info().sheets;
+        if (!pb.table(c.pivotTable).table || sheet < 0 || sheet >= sheets.size()) return c.pivotName;
+        const QString file = !m_saveFileName.isEmpty() ? m_saveFileName : m_path.isEmpty() ? QStringLiteral("Book1.xlsx") : QFileInfo(m_path).fileName();
+        return QStringLiteral("[%1]%2!%3").arg(file, sheets[sheet].name, pb.table(c.pivotTable).table->name);
+    });
     m_objects->layer()->attach(&m_view->sheet().layout());
     m_view->setOverlay(m_objects->layer());
     m_objects->layer()->setDeleteHook([this](int id) { deleteObject(id); });

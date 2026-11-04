@@ -49,6 +49,7 @@ void CrunchWindow::createEditing()
     connect(u, &QUndoStack::indexChanged, this, &CrunchWindow::updateEditActions);   // (the oldest steps may be forgotten: Undo ends before them)
     connect(u, &QUndoStack::indexChanged, this, [this] { cancelCut(); });   // (any edit ends a cut)
     connect(u, &QUndoStack::indexChanged, this, [this] { updateFormatState(false); });   // (the buttons show the format the cell has now)
+    connect(u, &QUndoStack::indexChanged, this, [this] { updatePivotTab(); });   // (the fields pane shows the table as an Undo or Redo leaves it, and drops changes waiting for Update that were made on another version)
     connect(u, &QUndoStack::undoTextChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::redoTextChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::cleanChanged, this, [this](bool clean) {
@@ -85,6 +86,7 @@ void CrunchWindow::updateEditActions()
     const bool canSave = open && m_loaded && m_loaded->problem.isEmpty();
     act("file.save")->setEnabled(canSave);
     act("file.saveAs")->setEnabled(canSave);
+    updatePivotFieldActions();
     updateFormatState(false);
 }
 

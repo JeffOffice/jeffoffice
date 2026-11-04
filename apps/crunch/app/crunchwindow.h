@@ -738,6 +738,7 @@ private:
     // pivot tables (crunchwindow_pivot.cpp): the Pivot Table tab, the fields pane, and the commands that refresh and change a table
     void createPivotActions();
     void pivotRibbonParts(RibbonParts &parts);
+    void updatePivotFieldActions();                           // the commands that work on a pivot table's cell are on only with the cursor in one
     void updatePivotTab();                                     // the Pivot Table tab shows for a cell in a pivot table; the fields pane shows that table
     int selectedPivot() const;                                 // the pivot table the cursor is in, or -1
     void editPivot(const std::function<void(jp::office::sheet::PivotTable *)> &change, const QString &text, bool structureChanged);
@@ -1040,6 +1041,7 @@ private:
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
     QString m_path;
+    QString m_saveFileName;   // the file name of the save being made (a pivot chart's name in the file has it)
     QString m_untitled;       // the name of a workbook that has no file yet ("Book1")
     bool m_blank = false;     // the workbook is a new one (made by newBlank) that has not been saved
     bool m_closeIfOpenFails = false;   // the window was made only to hold one file: if the file can't be read, the window goes

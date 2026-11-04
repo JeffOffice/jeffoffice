@@ -419,6 +419,7 @@ void CrunchWindow::createPivotActions()
     auto expandAll = [this](bool open) {
         const int f = m_pivotPane ? m_pivotPane->selectedField() : -1;
         if (f < 0) {
+            showPivotFields(true);   // (the pane opens, where the field is picked)
             notice(tr("Pivot Table"), tr("Click a field in the Columns or Rows box of the Pivot Table Fields pane first."), false);
             return;
         }
@@ -815,6 +816,7 @@ void CrunchWindow::showPivotFields(bool show)
             updatePivotTab();
         });
         connect(m_pivotPane, &PivotFieldsPane::valueSettingsRequested, this, [this](int i) { askValueField(i); });
+        connect(m_pivotPane, &PivotFieldsPane::fieldSelectionChanged, this, [this] { updatePivotFieldActions(); });
         connect(m_pivotPane, &PivotFieldsPane::fieldSettingsRequested, this, [this](int f) { askFieldSettings(f); });
         connect(m_pivotDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
             if (QAction *a = act(QStringLiteral("pivot.fieldList"))) {
@@ -835,8 +837,18 @@ void CrunchWindow::showPivotFields(bool show)
     }
 }
 
+void CrunchWindow::updatePivotFieldActions()
+{
+    // (a command that works on a pivot table's cell is dimmed away from one, not left to say so when it is used)
+    const bool open = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;
+    const bool inTable = selectedPivot() >= 0;
+    for (const char *id : {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.showDetail"})
+        if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(open && inTable);
+}
+
 void CrunchWindow::updatePivotTab()
 {
+    updatePivotFieldActions();
     const int t = selectedPivot();
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Pivot Table"), t >= 0);
     if (t >= 0 && m_session) {

@@ -496,6 +496,79 @@ private Q_SLOTS:
         QCOMPARE(views.size(), kMaxSlicersPerPart);
     }
 
+    // Showing the rows behind a value and filtering a field of 100,000 items over 300,000 records take about as long as one pass over the records, not one pass for each item.
+    void manyRecordsAndManyItemsAreWorkedInBoundedTime()
+    {
+        const int items = 100000, records = 300000;
+        QString shared;
+        for (int i = 0; i < items; ++i) shared += QStringLiteral("<s v=\"k%1\"/>").arg(i);
+        const QByteArray def = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheDefinition xmlns=\"%1\" recordCount=\"%2\"><cacheSource type=\"worksheet\"><worksheetSource ref=\"A1:B3\" sheet=\"Data\"/></cacheSource>"
+                                              "<cacheFields count=\"2\"><cacheField name=\"Key\" numFmtId=\"0\"><sharedItems count=\"%3\">%4</sharedItems></cacheField>"
+                                              "<cacheField name=\"Amount\" numFmtId=\"0\"><sharedItems containsSemiMixedTypes=\"0\" containsString=\"0\" containsNumber=\"1\" containsInteger=\"1\" minValue=\"1\" maxValue=\"1\"/></cacheField>"
+                                              "</cacheFields></pivotCacheDefinition>").arg(QLatin1String(kNs)).arg(records).arg(items).arg(shared).toUtf8();
+        QString recs = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheRecords xmlns=\"%1\" count=\"%2\">").arg(QLatin1String(kNs)).arg(records);
+        for (int r = 0; r < records; ++r) recs += QStringLiteral("<r><x v=\"%1\"/><n v=\"1\"/></r>").arg(r % items);
+        recs += QStringLiteral("</pivotCacheRecords>");
+        QString listed;
+        for (int i = 0; i < items; ++i) listed += QStringLiteral("<item x=\"%1\"/>").arg(i);
+        const QByteArray table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotTableDefinition xmlns=\"%1\" name=\"t\" cacheId=\"1\" compact=\"0\" outline=\"0\" compactData=\"0\">"
+                                                "<location ref=\"A3:B6\" firstHeaderRow=\"1\" firstDataRow=\"1\" firstDataCol=\"1\"/><pivotFields count=\"2\"><pivotField axis=\"axisRow\" compact=\"0\" outline=\"0\" showAll=\"0\">"
+                                                "<items count=\"%2\">%3<item t=\"default\"/></items></pivotField><pivotField dataField=\"1\" compact=\"0\" outline=\"0\" showAll=\"0\"/></pivotFields>"
+                                                "<rowFields count=\"1\"><field x=\"0\"/></rowFields><dataFields count=\"1\"><dataField name=\"Sum of Amount\" fld=\"1\" baseField=\"0\" baseItem=\"0\"/></dataFields></pivotTableDefinition>")
+                                    .arg(QLatin1String(kNs)).arg(items + 1).arg(listed).toUtf8();
+        Worked w = work(table, def, recs.toUtf8());
+        QVERIFY2(w.ok, qPrintable(w.why));
+        QElapsedTimer timer;
+        timer.start();
+        QVector<qint64> rows;
+        QVERIFY(pivotDetailRecords(w.table, w.cache, w.grid, 1, 1, &rows));
+        QCOMPARE(rows.size(), 3);   // (300,000 records over 100,000 keys)
+        PivotFilter f;
+        f.kind = PivotFilter::ValueGreater;
+        f.a = 2;
+        f.dataField = 0;
+        QString why;
+        QVERIFY2(pivotFilterField(&w.table, w.cache, 0, f, &why), qPrintable(why));
+        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));   // (a scan for each item would be 3e10 steps)
+    }
+
+    // A refresh of a field with 100,000 group labels finds where each old label went in bounded time.
+    void aBigGroupIsRemappedOnRefreshInBoundedTime()
+    {
+        const QByteArray def = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheDefinition xmlns=\"%1\" recordCount=\"2\"><cacheSource type=\"worksheet\"><worksheetSource ref=\"A1:A3\" sheet=\"Data\"/></cacheSource>"
+                                              "<cacheFields count=\"1\"><cacheField name=\"N\" numFmtId=\"0\"><sharedItems containsSemiMixedTypes=\"0\" containsString=\"0\" containsNumber=\"1\" containsInteger=\"1\" count=\"2\"><n v=\"0\"/><n v=\"99999\"/></sharedItems>"
+                                              "<fieldGroup base=\"0\"><rangePr startNum=\"0\" endNum=\"99999\" groupInterval=\"1\"/></fieldGroup></cacheField></cacheFields></pivotCacheDefinition>").arg(QLatin1String(kNs)).toUtf8();
+        const QByteArray rec = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<pivotCacheRecords xmlns=\"%1\" count=\"2\"><r><x v=\"0\"/></r><r><x v=\"1\"/></r></pivotCacheRecords>").arg(QLatin1String(kNs)).toUtf8();
+        PivotCache prev;
+        QString why;
+        QVERIFY2(readPivotCache(def, rec, DateSystem::Date1900, &prev, &why), qPrintable(why));
+        QVERIFY(prev.unsupported.isEmpty());
+        QVERIFY(prev.fields[0].items.size() > 99000);
+        PivotSource src;
+        src.row1 = 0;
+        src.col1 = 0;
+        src.row2 = 2;
+        src.col2 = 0;
+        src.cell = [](quint32 r, quint32 c) {
+            PivotValue v;
+            Q_UNUSED(c)
+            if (r == 0) {
+                v.kind = PivotValue::Text;
+                v.text = QStringLiteral("N");
+            } else {
+                v.kind = PivotValue::Number;
+                v.number = r == 1 ? 0 : 99999;
+            }
+            return v;
+        };
+        QElapsedTimer timer;
+        timer.start();
+        PivotCache fresh;
+        QVERIFY2(buildPivotCache(src, prev, &fresh, &why), qPrintable(why));
+        QVERIFY2(timer.elapsed() < 5000, qPrintable(QString::number(timer.elapsed())));   // (a scan of the new labels for each old one is 1e10 steps)
+        QCOMPARE(fresh.fields[0].items.size(), prev.fields[0].items.size());
+    }
+
     // Dates are grouped by years and months (a field added for the coarser part), numbers in steps; the groups are written, read back, and read again from new data; a field of text can't be grouped.
     void datesAndNumbersAreGroupedAndUngrouped()
     {

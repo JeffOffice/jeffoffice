@@ -147,13 +147,18 @@ PivotFieldsPane::PivotFieldsPane(QWidget *parent) : QWidget(parent)
     });
     for (int i = 0; i < 4; ++i)
         connect(m_boxes[i], &QListWidget::itemSelectionChanged, this, [this, i] {
-            if (m_filling || m_boxes[i]->selectedItems().isEmpty()) return;
+            if (m_filling) return;
+            if (m_boxes[i]->selectedItems().isEmpty()) {
+                Q_EMIT fieldSelectionChanged();
+                return;
+            }
             for (int k = 0; k < 4; ++k)
                 if (k != i) {
                     const QSignalBlocker block(m_boxes[k]);
                     m_boxes[k]->clearSelection();
                     m_boxes[k]->setCurrentRow(-1);
                 }
+            Q_EMIT fieldSelectionChanged();
         });
     showNothing();
 }
