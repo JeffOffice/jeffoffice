@@ -20,6 +20,11 @@ jobs:
       # when its switch is "true": the owner decides when it ships.
       SHIP_WRITE: 'true'
       SHIP_CRUNCH: 'true'
+      # A Mac build for both processors (Apple and Intel) compiles everything twice. Only a run started by hand, the kind a release takes its files from,
+      # builds and packages for both; a push builds for Apple's processors alone.
+      MAC_ARCHS: ${{ github.event_name == 'workflow_dispatch' && 'arm64;x86_64' || 'arm64' }}
+      # Our own machine keeps its compiler cache in a folder of its own, kept from run to run; GitHub's machines keep it in GitHub's cache.
+      CCACHE_DIR: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && '/ccache' || format('{0}/.ccache', github.workspace) }}
     strategy:
       fail-fast: false
       matrix:
@@ -36,7 +41,8 @@ jobs:
           # universal), unsigned for now.
           - name: macos
             os: macos-15
-    runs-on: ${{ matrix.os }}
+    # Linux runs on our own machine (labels self-hosted + jo-linux), except for pull requests, which run on GitHub's: no one else's code runs there.
+    runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || matrix.os }}
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
@@ -102,10 +108,11 @@ jobs:
           exit 0
 
       - uses: actions/cache@v4
+        if: runner.environment != 'self-hosted'
         with:
           path: .ccache
-          key: ccache-${{ matrix.name }}-${{ github.sha }}
-          restore-keys: ccache-${{ matrix.name }}-
+          key: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ github.sha }}
+          restore-keys: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-
 
       # Each shared library uses only the ones below it (libs/base < draw <
       # text < office < shell < page < flow < apps), and no app reaches into another.
@@ -125,12 +132,10 @@ jobs:
 
       - name: Configure
         shell: bash
-        env:
-          CCACHE_DIR: ${{ github.workspace }}/.ccache
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then CC=gcc CXX=g++; else CC=cc CXX=c++; fi
           EXTRA=""
-          if [ "$RUNNER_OS" = "macOS" ]; then EXTRA="-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0"; fi
+          if [ "$RUNNER_OS" = "macOS" ]; then EXTRA="-DCMAKE_OSX_ARCHITECTURES=$MAC_ARCHS -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0"; fi
           LAUNCH=""
           if command -v ccache >/dev/null 2>&1; then LAUNCH="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"; else echo "ccache is missing: building without it"; fi
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX $LAUNCH $EXTRA
@@ -138,9 +143,8 @@ jobs:
       - name: Build
         shell: bash
         env:
-          CCACHE_DIR: ${{ github.workspace }}/.ccache
           CCACHE_BASEDIR: ${{ github.workspace }}
-          CCACHE_MAXSIZE: 3G   # (macOS builds for two processors, so it keeps two of everything: about 1.3 GB)
+          CCACHE_MAXSIZE: ${{ runner.environment == 'self-hosted' && '20G' || '3G' }}   # (a two-processor Mac build keeps two of everything: about 1.3 GB)
           CCACHE_COMPILERCHECK: content
         run: |
           if command -v ccache >/dev/null 2>&1; then ccache --zero-stats; fi
@@ -367,7 +371,7 @@ jobs:
           path: linux-packages
 
       - name: Package (macOS)
-        if: runner.os == 'macOS' && matrix.part == 'checks'
+        if: runner.os == 'macOS' && matrix.part == 'checks' && github.event_name == 'workflow_dispatch'
         run: |
           ver=$(sed -n 's/^project(JeffPub VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           mkdir -p dist macos-dmg
@@ -428,7 +432,7 @@ jobs:
           ls -la macos-dmg
 
       - uses: actions/upload-artifact@v4
-        if: runner.os == 'macOS' && matrix.part == 'checks'
+        if: runner.os == 'macOS' && matrix.part == 'checks' && github.event_name == 'workflow_dispatch'
         with:
           name: JeffOffice-macos-dmg
           path: macos-dmg
