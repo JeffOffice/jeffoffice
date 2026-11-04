@@ -168,6 +168,8 @@ public:
     bool goToSpecial(const jp::crunch::SpecialOptions &options);
     // What Go To asks for (a reference) and Select by Kind (the kind of cells): dialogs unless these stand in for them (tests); false gives it up.
     void setGoToAsker(const std::function<bool(QString *)> &asker) { m_goToAsker = asker; }
+    // Asks for the name of a new cell style (a test answers in place of the window); false when it is given up.
+    void setStyleNameAsker(const std::function<bool(QString *)> &asker) { m_styleNameAsker = asker; }
     void setSpecialAsker(const std::function<bool(jp::crunch::SpecialOptions *)> &asker) { m_specialAsker = asker; }
 
     // ---- Sort (crunchwindow_sort.cpp)
@@ -424,6 +426,9 @@ public:
     enum class EnterMove { Down, Right, Up, Left, Stay };
     EnterMove enterMove() const { return m_enterMove; }
     void setEnterMove(EnterMove move);
+    // The custom lists of Fill (Options > Custom Lists), one list to a line, its items between commas: kept in the settings and given to the edit session.
+    QStringList customListLines() const;
+    void setCustomListLines(const QStringList &lines);
     // For tests: a line where a page begins is dragged from a row (column) to another, as the mouse would ask.
     void moveBreakForTest(bool column, qint64 from, qint64 to) { breakLineMoved(column, from, to); }
     // For tests and the window: the view of the pages, and the strip of text being typed in a header or footer.
@@ -552,6 +557,8 @@ public:
     OutlineGutter *rowGutter() const { return m_rowGutter; }
     OutlineGutter *columnGutter() const { return m_columnGutter; }
 private:
+    void fillHandleDoubleClicked(const grid::GridRange &source);
+    void moveDragged(const grid::GridRange &source, const grid::GridRange &target, bool copy);
     void fillDragged(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
     void fillSeriesDialog();
     // inserting and deleting rows, columns, and cells (crunchwindow_cells.cpp)
@@ -835,6 +842,7 @@ private:
     std::function<bool()> m_expandAsker;
     std::function<bool(QString *)> m_goToAsker;
     std::function<bool(jp::crunch::SpecialOptions *)> m_specialAsker;
+    std::function<bool(QString *)> m_styleNameAsker;
     void showNameInBox();
     // the clipboard (crunchwindow_clip.cpp)
     void createClipboardActions();
@@ -885,10 +893,12 @@ private:
     void indentCommand(int delta);
     void orientationCommand(int degrees);
     void numberFormatCommand(int kind);
+    void accountingCommand(const QString &symbol, bool symbolFirst, int decimals);
     void decimalsCommand(int delta);
     void borderCommand(int kind);
     void mergeCommand(crunch::EditSession::MergeKind kind);
     void clearCommand(int what);
+    void newCellStyleCommand();
     void applyCellStyle(const QString &name);
     void formatPainterCommand();
     void paintFormats();

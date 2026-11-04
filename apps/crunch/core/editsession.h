@@ -283,6 +283,9 @@ public:
     }
     void setToday(const QDate &today) { m_today = today; }
     QLocale locale() const { return m_locale; }
+    // The lists a fill goes through besides the weekdays and the months (Options > Custom Lists): a cell that holds an item of one is followed by the next, round to the first.
+    void setCustomLists(const QList<QStringList> &lists) { m_customLists = lists; }
+    const QList<QStringList> &customLists() const { return m_customLists; }
 
     QUndoStack *undoStack() { return &m_undo; }
     // The workbook and its calculation, to be read (on the window's thread, and not while an edit is being made).
@@ -774,6 +777,9 @@ public:
     Outcome applyStyle(int sheet, const jp::office::sheet::CellRange &range, quint32 style, const QString &text);
     // The same by the style's name: a style the workbook has, or a built-in one it is given now. Not ok if there is no such style, or the file has no place to keep one.
     Outcome applyStyleNamed(int sheet, const jp::office::sheet::CellRange &range, const QString &name, const QString &text);
+    // New Cell Style: a style of the person's own, called `name`, with the look of the cell at `row`, `col` (its number format, font, fill, border, alignment, and protection); it is then
+    // offered with the others, and the selected cells are given it. Not ok, with the reason, if the name is empty or taken.
+    Outcome newCellStyle(int sheet, quint32 row, quint32 col, const jp::office::sheet::CellRange &range, const QString &name);
 
     // An object over the cells is taken away (Delete with it picked), put there, moved, or changed: one step, which Undo gives back. The hook (setObjectHook) is told the change when the step is
     // done, undone, and done again (`forward`: the object is to have the state after). A step that took an object away is like one that deleted rows: Undo goes back as far as the last such
@@ -1022,6 +1028,7 @@ private:
     std::shared_ptr<qint64> m_undoBytes = std::make_shared<qint64>(0);   // (shared with the steps, which count themselves off as they go, whenever that is)
     qint64 m_undoByteLimit = kUndoBytes;
     QLocale m_locale;
+    QList<QStringList> m_customLists;
     QDate m_today;
     bool m_busy = false;
     std::function<void(jp::office::sheet::Calculation *, bool)> m_holdHook;

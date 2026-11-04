@@ -787,6 +787,13 @@ QString GridSheet::storedTextOf(quint32 row, quint32 col, const Cell &cell) cons
     }
 }
 
+void GridSheet::setRightToLeft(bool on)
+{
+    if (m_rtl == on) return;
+    m_rtl = on;
+    invalidateLooks();
+}
+
 void GridSheet::invalidateLooks() const
 {
     ++m_sparkRev;

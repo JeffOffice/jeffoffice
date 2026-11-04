@@ -69,6 +69,8 @@ public:
     void setZoom(double zoom);
     bool showGridlines() const { return m_gridlines; }
     void setShowGridlines(bool on);
+    // The sheet reads from the right (column A at the right edge): the grid is laid out and drawn mirrored. (Set when a sheet is shown; the data's own view says it first.)
+    void setRightToLeft(bool on);
     bool showHeadings() const { return m_headings; }
     void setShowHeadings(bool on);
     // Shows the formulas of the cells in place of their results (or the results again). The columns with formulas are widened to show them whole, up to a limit, while they are shown; the
@@ -109,6 +111,9 @@ public:
     std::unique_ptr<TextWalk> copyWalk() const;
     // The text of the numbers of the selection for the status bar ("" when there are none to show); empty while they are being added up.
     QString statsText() const { return m_statsText; }
+    // Which numbers the status bar shows of the selection (jp::grid::StatChoice added together); the text is made again.
+    void setStatChoices(int choices);
+    int statChoices() const { return m_statChoices; }
 
     // Scrolls so that the cell is in view; true if it moved.
     bool ensureVisible(qint64 row, qint64 col);
@@ -286,6 +291,10 @@ Q_SIGNALS:
     void clearRequested();
     // The fill handle was dragged and let go: the block it began from, the block with the cells it reached, and whether Ctrl was held (a copy, not a series).
     void fillRequested(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
+    // The fill handle was double-clicked: the block it is on (to be filled down as far as the data beside it goes).
+    void fillHandleDoubleClicked(const jp::grid::GridRange &source);
+    // The selection's border was dragged and let go: the block, where it was dropped (the same size), and whether Ctrl was held (a copy, not a move).
+    void moveRequested(const jp::grid::GridRange &source, const jp::grid::GridRange &target, bool copy);
     // The button of a list was clicked, or Alt+Down was pressed on a cell that has one.
     void dropDownRequested();
     // Esc took away the dashed border of the cells that were copied or cut.
@@ -358,6 +367,8 @@ private:
     }
     QRect cellRectInLayout(qint64 row, qint64 col) const;
     QRect fillHandleRectInLayout() const;
+    // Whether the point is on the border of the selected block (a few pixels either side of its edge), where a drag moves the block.
+    bool selectionBorderAtInLayout(const QPoint &lp) const;
     QRect dropDownRectInLayout() const;
     QRect headerButtonRectInLayout(qint64 row, qint64 col) const;
     void paintMarks(QPainter *painter, const QRect &clip);
@@ -386,7 +397,7 @@ private:
     Selection m_selection;
     bool m_gridlines = true, m_headings = true;
     // the mouse
-    enum class Drag { None, Cells, Rows, Columns, Fill, Resize, BreakLine, BreakEdge, Point, MarkMove, MarkResize } m_drag = Drag::None;
+    enum class Drag { None, Cells, Rows, Columns, Fill, MoveCells, Resize, BreakLine, BreakEdge, Point, MarkMove, MarkResize } m_drag = Drag::None;
     PointSpan::Kind m_pointKind = PointSpan::Kind::Cells;
     qint64 m_pointRow = 0, m_pointCol = 0;   // where a drag that points began
     std::function<bool(const PointSpan &, bool, Qt::KeyboardModifiers)> m_pointer;
@@ -412,6 +423,8 @@ private:
     std::vector<CheckArrow> m_checkArrows;
     std::vector<HeaderButton> m_headerButtons;
     GridRange m_fillSource, m_fillExtent;
+    GridRange m_moveSource, m_moveTarget;   // a drag of the selection's border: the block, and where it would land
+    bool m_moveCopy = false;
     bool m_fillCtrl = false;
     GridRange m_copyBorder{-1, -1, -1, -1};
     int m_copyPhase = 0;
@@ -425,6 +438,9 @@ private:
     QTimer m_walkTimer;
     std::unique_ptr<StatsWalk> m_statsWalk;
     QString m_statsText;
+    Stats m_lastStats;
+    bool m_haveLastStats = false;
+    int m_statChoices = kDefaultStatChoices;
     int m_headerDigits = 0;
     bool m_syncingBars = false;
     qint64 m_lastScrollX = 0, m_lastScrollY = 0;

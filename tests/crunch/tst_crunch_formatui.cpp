@@ -246,6 +246,14 @@ private Q_SLOTS:
         QCOMPARE(box->currentIndex(), 9);
         // a single step each
         QCOMPARE(e.win.w.undoStack()->count(), 9);
+        // the Accounting Number Format takes a currency from a list: the symbol in front or after, and the decimals of that money
+        e.select(QStringLiteral("C3"));
+        run(e, "fmt.accounting.gbp");
+        QVERIFY2(e.shownAt(QStringLiteral("C3")).contains(QChar(0x00A3)) && e.shownAt(QStringLiteral("C3")).contains(QStringLiteral("9.00")), qPrintable(e.shownAt(QStringLiteral("C3"))));
+        run(e, "fmt.accounting.eur");
+        QVERIFY2(e.shownAt(QStringLiteral("C3")).trimmed().endsWith(QChar(0x20AC)), qPrintable(e.shownAt(QStringLiteral("C3"))));
+        run(e, "fmt.accounting.jpy");
+        QVERIFY2(e.shownAt(QStringLiteral("C3")).contains(QChar(0x00A5)) && !e.shownAt(QStringLiteral("C3")).contains(QLatin1Char('.')), qPrintable(e.shownAt(QStringLiteral("C3"))));
         // the currency is the language's
         e.win.w.setLocale(QLocale(QLocale::German, QLocale::Germany));
         e.select(QStringLiteral("C2"));
@@ -424,6 +432,63 @@ private Q_SLOTS:
         QVERIFY(second.open(e.copyOfFile()));
         const grid::GridSheet &g = second.w.view()->sheet();
         QCOMPARE(g.looks().look(g.cellAt(1, 1)->style).fg, QRgb(0xFFC6EFCE));
+    }
+
+    // New Cell Style keeps the look of the cell with the cursor under a name: it is in the gallery, the selected cells are given it, it is saved with the workbook under that name, and a name that
+    // is taken or empty is refused with the reason.
+    void aNewCellStyleKeepsTheLookOfACell()
+    {
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        e.select(QStringLiteral("A1"));
+        run(e, "fmt.bold");
+        run(e, "fmt.numberGeneral");
+        const int steps = e.win.w.undoStack()->count();
+        QString answer = QStringLiteral("My Total");
+        e.win.w.setStyleNameAsker([&answer](QString *name) {
+            *name = answer;
+            return true;
+        });
+        selectRange(e, QStringLiteral("A1"));
+        QVERIFY(e.win.w.act(QStringLiteral("style.new"))->isEnabled());
+        run(e, "style.new");
+        QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join('|')));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QMenu *styles = menuNamed(e, "stylesMenu");
+        QVERIFY(styles);
+        styles->aboutToShow();
+        QAction *mine = actionTextOf(styles, QStringLiteral("My Total"));
+        QVERIFY(mine);
+        // another cell is given the style from the gallery: bold, as the cell it was made from
+        selectRange(e, QStringLiteral("B2"));
+        QVERIFY(!lookAt(e, QStringLiteral("B2")).bold);
+        mine->trigger();
+        QVERIFY(lookAt(e, QStringLiteral("B2")).bold);
+        // a taken name (whatever its capitals), and an empty one, are refused
+        const int before = e.win.w.undoStack()->count();
+        answer = QStringLiteral("my total");
+        run(e, "style.new");
+        answer = QStringLiteral("Good");
+        run(e, "style.new");
+        answer = QStringLiteral("   ");
+        run(e, "style.new");
+        QCOMPARE(e.win.told.size(), 3);
+        QCOMPARE(e.win.w.undoStack()->count(), before);
+        // saved under its name, with no built-in number
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        Package p;
+        QString why;
+        QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
+        const QByteArray part = p.part(QStringLiteral("/xl/styles.xml"));
+        QVERIFY2(part.contains("name=\"My Total\""), part.constData());
+        QVERIFY(!part.contains("name=\"My Total\" builtinId"));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const grid::GridSheet &g = second.w.view()->sheet();
+        QVERIFY(g.looks().look(g.cellAt(0, 0)->style).bold);
     }
 
     // The Format Painter: a click takes the format of the cells selected and the next cells selected get it; a double click keeps it on until Esc.

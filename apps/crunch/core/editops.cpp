@@ -184,10 +184,19 @@ QStringList monthNames(const QLocale &l, QLocale::FormatType t)
 }
 
 // The name list that holds the text (without regard to capitals), with its place; empty if none does.
-NameSeries findNames(const QString &text, const QLocale &locale)
+NameSeries findNames(const QString &text, const QLocale &locale, const QList<QStringList> &custom)
 {
     static const QLocale english(QLocale::English, QLocale::UnitedStates);
     const QString t = text.trimmed();
+    // (the lists the person made come first: they are kept in Options and may repeat a name of the language's)
+    for (const QStringList &names : custom)
+        for (int i = 0; i < names.size(); ++i)
+            if (!names[i].isEmpty() && names[i].compare(t, Qt::CaseInsensitive) == 0) {
+                NameSeries s;
+                s.names = names;
+                s.index = i;
+                return s;
+            }
     for (const QLocale *l : {&locale, &english})
         for (const QLocale::FormatType type : {QLocale::LongFormat, QLocale::ShortFormat}) {
             for (const QStringList &names : {weekdayNames(*l, type), monthNames(*l, type)}) {
@@ -444,12 +453,12 @@ EditSession::Outcome EditSession::fill(int sheet, const CellRange &source, FillD
                 }
             } else if (allText && kind != FillKind::Linear && kind != FillKind::Growth && kind != FillKind::Date) {
                 // the names of weekdays and months, or a text that ends in a number
-                names = findNames(seq.back().content.value.text(), m_locale);
+                names = findNames(seq.back().content.value.text(), m_locale, m_customLists);
                 if (names.index >= 0) {
                     bool all = true;
                     std::vector<int> at;
                     for (const Src &sc : seq) {
-                        const NameSeries other = findNames(sc.content.value.text(), m_locale);
+                        const NameSeries other = findNames(sc.content.value.text(), m_locale, m_customLists);
                         if (other.index < 0 || other.names != names.names) all = false;
                         else at.push_back(other.index);
                     }

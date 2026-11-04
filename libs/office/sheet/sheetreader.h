@@ -314,6 +314,9 @@ public:
     qint64 placeComparisons() const { return m_placeComparisons; }
     // The place of the style format a named style has (by its name), made when the workbook does not have it and it is one of the built-in styles (see builtinStyleNames); -1 if there is none.
     qint32 styleNamed(const QString &name);
+    // A style of a person's own, named `name` (made from the cell format at `format`): its place among the style formats; -1 if the name is taken (a style with that name, whatever the capitals),
+    // is empty or too long, or the workbook has no place for styles or no room.
+    qint32 addNamedStyle(const QString &name, quint32 format);
     // The additions since the file was read or saved, for saving them: the strings, the number formats (id and code), and the cell formats (the one each is a copy of, and its number format).
     QStringList addedSharedStrings() const { return m_sharedAdded; }
     struct AddedNumberFormat {

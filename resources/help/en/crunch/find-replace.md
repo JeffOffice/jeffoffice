@@ -1,5 +1,5 @@
 # Find, replace, and go to
-<!-- keywords: find, replace, change, search, wildcard, star, question mark, tilde, same capitals, whole cell, go to, reference, name, select by kind, blanks, constants, formulas, errors, current region, last cell, visible cells, conditional formats, validation, Ctrl+F, Ctrl+H, F5, notes -->
+<!-- keywords: find, replace, change, search, wildcard, star, question mark, tilde, same capitals, whole cell, go to, reference, name, select by kind, blanks, constants, formulas, errors, current region, current array, row differences, column differences, last cell, visible cells, conditional formats, validation, Ctrl+F, Ctrl+H, F5, notes -->
 
 ## Find
 
@@ -35,6 +35,8 @@ Choose **Select by Kind** in the **Find** menu to select cells by what they are:
 
 - **Blank cells**, **Constants** (typed in), **Formulas**, and **Cells that show an error**. For constants and formulas you can leave out numbers, text, TRUE and FALSE, or errors.
 - **The block around the cell with the cursor**, and **The last cell that is used**.
+- **The array formula the cursor is in** selects all the cells of that array formula.
+- **Cells that differ from the cursor cell in their row** and **in their column** find the cells that are not like the cell with the cursor. Select a block first, and put the cursor on the cell the others should match. In each row (or column) of the block, a cell is picked when it holds a different number or text, or when it holds a formula that is not the same once its cell names are moved over to where that cell is. A cell that has a formula is also picked when the cursor cell has none. If you select only one cell, JeffCrunch looks at the block around it.
 - **Cells that show** (not in hidden rows or columns), **Cells with conditional formatting**, and **Cells with a rule for what may be entered** (all of them, or only those with the same rule as the cell with the cursor).
 
 The first block found is selected and any others are tinted; the tint goes away when you click a cell.

@@ -637,6 +637,33 @@ private Q_SLOTS:
         QVERIFY(!none.problem.isEmpty());
     }
 
+    // Row differences and column differences select the cells that are not like the cell with the cursor in their row (column): another number or text, a formula that is not the same once its
+    // references are moved, or a formula where the other has none. The current array is the array formula the cursor is in.
+    void goToSpecialFindsDifferencesAndTheCurrentArray()
+    {
+        using K = crunch::SpecialKind;
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1=2", "C1=1", "A2=5", "B2=5", "C2=9", "E1==A1+1", "E2==A2+1", "F1==A1+1", "F2=7"})));
+        QCOMPARE(rangesOf(special(e, K::RowDifferences, QStringLiteral("A1:C2"))), QStringLiteral("B1 C2"));
+        QCOMPARE(rangesOf(special(e, K::ColumnDifferences, QStringLiteral("A1:C2"))), QStringLiteral("A2:C2"));
+        // formulas are the same when they are alike once moved; a constant where the other is a formula differs
+        QCOMPARE(rangesOf(special(e, K::ColumnDifferences, QStringLiteral("E1:F2"), QStringLiteral("E1"))), QStringLiteral("F2"));
+        // a single cell looks at the block around it
+        QCOMPARE(rangesOf(special(e, K::RowDifferences, QString(), QStringLiteral("A1"))), QStringLiteral("B1 C2"));
+        QVERIFY(special(e, K::RowDifferences, QStringLiteral("A1:A1"), QStringLiteral("H9")).ranges.isEmpty());
+        // the current array
+        const crunch::SpecialResult noArray = special(e, K::CurrentArray, QString(), QStringLiteral("A1"));
+        QVERIFY(noArray.ranges.isEmpty());
+        QVERIFY(!noArray.problem.isEmpty());
+        EditWindow arrays;
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"G1\"><f t=\"array\" ref=\"G1:G2\">A1:A2*2</f><v>2</v></c></row>"
+                                            "<row r=\"2\"><c r=\"A2\"><v>5</v></c><c r=\"G2\"><v>10</v></c></row>");
+        QVERIFY(arrays.open(buildXlsx({worksheet(rows)})));
+        QCOMPARE(rangesOf(special(arrays, K::CurrentArray, QString(), QStringLiteral("G2"))), QStringLiteral("G1:G2"));
+        QCOMPARE(rangesOf(special(arrays, K::CurrentArray, QString(), QStringLiteral("G1"))), QStringLiteral("G1:G2"));
+        QVERIFY(special(arrays, K::CurrentArray, QString(), QStringLiteral("A2")).ranges.isEmpty());
+    }
+
     void goToSpecialFindsBlanksAndTheCurrentRegion()
     {
         using K = crunch::SpecialKind;

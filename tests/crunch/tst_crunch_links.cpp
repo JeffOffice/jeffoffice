@@ -379,6 +379,13 @@ private Q_SLOTS:
         QVERIFY(!s->anchors().linkAt(0, 0, 0));
         QCOMPARE(s->anchors().links(0).size(), size_t(4));
         QVERIFY(!e.win.w.act(QStringLiteral("link.remove"))->isEnabled());
+        // Clear > Clear Hyperlinks does the same, from the Clear menu
+        QAction *clear = e.win.w.act(QStringLiteral("edit.clear.links"));
+        QVERIFY(!clear->isEnabled());
+        e.win.w.undoStack()->undo();
+        QVERIFY(clear->isEnabled());
+        clear->trigger();
+        QVERIFY(!s->anchors().linkAt(0, 0, 0));
         e.win.w.undoStack()->undo();
         QVERIFY(s->anchors().linkAt(0, 0, 0));
     }

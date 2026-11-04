@@ -388,6 +388,19 @@ private Q_SLOTS:
         // the numbers of the selection reach the status bar
         v->selectRange(2, 1, 4, 2);
         QTRY_VERIFY(win.w.findChild<QLabel *>(QStringLiteral("selectionStats"))->text().startsWith(QLatin1String("Average: ")));
+        // the ribbon folds away and comes back; Full Screen is a switch that follows the window
+        QVERIFY(!win.w.ribbon()->isMinimized());
+        win.w.act("view.collapseRibbon")->trigger();
+        QVERIFY(win.w.ribbon()->isMinimized());
+        win.w.act("view.collapseRibbon")->trigger();
+        QVERIFY(!win.w.ribbon()->isMinimized());
+        QVERIFY(win.w.act("view.fullScreen") && win.w.act("view.fullScreen")->isCheckable() && !win.w.act("view.fullScreen")->isChecked());
+        // and a right click on them chooses which are shown
+        v->setStatChoices(grid::StatMinimum | grid::StatMaximum);
+        QVERIFY(win.w.findChild<QLabel *>(QStringLiteral("selectionStats"))->text().startsWith(QLatin1String("Minimum: ")));
+        QVERIFY(win.w.findChild<QLabel *>(QStringLiteral("selectionStats"))->text().contains(QLatin1String("Maximum: ")));
+        v->setStatChoices(grid::kDefaultStatChoices);
+        QVERIFY(win.w.findChild<QLabel *>(QStringLiteral("selectionStats"))->text().startsWith(QLatin1String("Average: ")));
     }
 
     // The File screen has its Open and About pages (Open lists the workbooks opened lately), and Esc closes it; Help opens on the topic for the page.

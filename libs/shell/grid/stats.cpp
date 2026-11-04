@@ -69,6 +69,11 @@ Stats computeStats(const GridSheet &sheet, const GridRange &range)
 
 QString statsText(const Stats &s)
 {
+    return statsText(s, kDefaultStatChoices);
+}
+
+QString statsText(const Stats &s, int choices)
+{
     // (the status line is short: a sum and an average are shown to ten significant digits, in the user's locale, grouped, and in the scientific way only when very large or very small)
     auto number = [](double v) {
         const QLocale locale;
@@ -84,11 +89,21 @@ QString statsText(const Stats &s)
         }
         return text;
     };
-    if (s.hasNumbers())
-        return QStringLiteral("%1: %2    %3: %4    %5: %6")
-            .arg(QCoreApplication::translate("jp::grid::Stats", "Average"), number(s.average()), QCoreApplication::translate("jp::grid::Stats", "Count"), QLocale().toString(s.count), QCoreApplication::translate("jp::grid::Stats", "Sum"), number(s.sum));
-    if (s.count >= 2) return QStringLiteral("%1: %2").arg(QCoreApplication::translate("jp::grid::Stats", "Count"), QLocale().toString(s.count));
-    return QString();
+    QStringList parts;
+    auto add = [&](int bit, const QString &word, const QString &value) {
+        if (choices & bit) parts << QStringLiteral("%1: %2").arg(word, value);
+    };
+    if (s.hasNumbers()) {
+        add(StatAverage, QCoreApplication::translate("jp::grid::Stats", "Average"), number(s.average()));
+        add(StatCount, QCoreApplication::translate("jp::grid::Stats", "Count"), QLocale().toString(s.count));
+        add(StatNumericalCount, QCoreApplication::translate("jp::grid::Stats", "Numerical Count"), QLocale().toString(s.numbers));
+        add(StatMinimum, QCoreApplication::translate("jp::grid::Stats", "Minimum"), number(s.min));
+        add(StatMaximum, QCoreApplication::translate("jp::grid::Stats", "Maximum"), number(s.max));
+        add(StatSum, QCoreApplication::translate("jp::grid::Stats", "Sum"), number(s.sum));
+    } else if (s.count >= 2) {
+        add(StatCount, QCoreApplication::translate("jp::grid::Stats", "Count"), QLocale().toString(s.count));
+    }
+    return parts.join(QStringLiteral("    "));
 }
 
 } // namespace jp::grid

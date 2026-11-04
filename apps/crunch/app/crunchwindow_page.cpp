@@ -146,6 +146,13 @@ void CrunchWindow::createPageActions()
     headView->setChecked(true);
     connect(act(QStringLiteral("view.gridlines")), &QAction::toggled, gridView, &QAction::setChecked);
     connect(act(QStringLiteral("view.headings")), &QAction::toggled, headView, &QAction::setChecked);
+    // Sheet Right-to-Left: the sheet reads from the right (column A at the right edge); how the person leaves it is saved with the sheet's view
+    mk(QStringLiteral("view.rightToLeft"), tr("Sheet Right-to-Left"), QStringLiteral("pilcrow-left"), QKeySequence(), [this] {
+        if (!m_session || m_sheet < 0) return;
+        m_view->setRightToLeft(act(QStringLiteral("view.rightToLeft"))->isChecked());
+        syncPanes();
+    }, true);
+    m_opsActions << QStringLiteral("view.rightToLeft");
     // File > Print: the Print screen
     mk(QStringLiteral("file.print"), tr("Print"), QStringLiteral("printer"), QKeySequence::Print, [this] { showFileScreen(QStringLiteral("print")); });
 }

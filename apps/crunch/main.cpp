@@ -1,7 +1,7 @@
 // JeffCrunch entry point.
 //
 //   JeffCrunch [file ...]                open workbooks (.xlsx, .xlsm, .xltx, .xltm, .xlam, .xls, .ods, .fods, .csv, .tsv, .txt), or start with an empty window
-//   JeffCrunch --screenshot <png> [--size WxH] [--zoom percent] [--sheet N] <file>
+//   JeffCrunch --screenshot <png> [--size WxH] [--zoom percent] [--sheet N] [--tab name] <file>
 //                                        open the workbook, wait until it is read and calculated, render the window to a PNG, and quit
 //                                        (works with QT_QPA_PLATFORM=offscreen)
 //   JeffCrunch --backstage <page>        open on a File page (open, about)
@@ -9,6 +9,7 @@
 #include "app/crash.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "app/ribbon.h"
 #include "app/focusring.h"
 #include "app/i18n.h"
 #include "app/icons.h"
@@ -86,7 +87,8 @@ int main(int argc, char **argv)
     QCommandLineOption zoomOpt(QStringLiteral("zoom"), QCoreApplication::translate("Main", "Start at this zoom, in percent."), QStringLiteral("percent"));
     QCommandLineOption sheetOpt(QStringLiteral("sheet"), QCoreApplication::translate("Main", "Start on this sheet (counting from 1)."), QStringLiteral("number"));
     QCommandLineOption stageOpt(QStringLiteral("backstage"), QCoreApplication::translate("Main", "Open on a File page."), QStringLiteral("page"));
-    cli.addOptions({shotOpt, sizeOpt, zoomOpt, sheetOpt, stageOpt});
+    QCommandLineOption tabOpt(QStringLiteral("tab"), QCoreApplication::translate("Main", "Show this ribbon tab."), QStringLiteral("name"));
+    cli.addOptions({shotOpt, sizeOpt, zoomOpt, sheetOpt, stageOpt, tabOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Workbooks to open."), QStringLiteral("[files...]"));
     cli.process(app);
 
@@ -113,7 +115,9 @@ int main(int argc, char **argv)
         else w->openFile(files.first());
         if (cli.isSet(stageOpt)) w->showFileScreen(cli.value(stageOpt));
         const QString out = cli.value(shotOpt);
-        auto shoot = [w, out, &cli, &zoomOpt, &sheetOpt] {
+        auto shoot = [w, out, &cli, &zoomOpt, &sheetOpt, &tabOpt] {
+            if (cli.isSet(tabOpt))
+                if (jp::RibbonTab *t = w->ribbon()->tab(cli.value(tabOpt))) w->ribbon()->showTab(t);
             if (cli.isSet(sheetOpt)) w->setActiveSheet(cli.value(sheetOpt).toInt() - 1);
             if (cli.isSet(zoomOpt) && cli.value(zoomOpt).toDouble() > 0) w->view()->setZoom(cli.value(zoomOpt).toDouble() / 100.0);
             QTimer::singleShot(300, w, [w, out] {

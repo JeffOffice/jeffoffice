@@ -1902,6 +1902,50 @@ private Q_SLOTS:
         QVERIFY(!pk2.part(QStringLiteral("xl/worksheets/sheet1.xml")).contains("<pane"));
     }
 
+    // Page Layout > Sheet Right-to-Left turns the grid round (column A at the right), is kept when another sheet is shown and back, is saved as the view's `rightToLeft`, and comes back when the
+    // file is opened; turned off again, the attribute is gone.
+    void sheetRightToLeftIsSavedAndComesBack()
+    {
+        QByteArray bytes;
+        {
+            EditWindow e;
+            QVERIFY(e.open(rowsWithFormulas(20, {})));
+            CrunchWindow &w = e.win.w;
+            QAction *rtl = w.act(QStringLiteral("view.rightToLeft"));
+            QVERIFY(rtl && rtl->isCheckable() && rtl->isEnabled() && !rtl->isChecked());
+            QVERIFY(!e.view()->sheet().rightToLeft());
+            e.select(QStringLiteral("B3"));
+            rtl->trigger();
+            QVERIFY(rtl->isChecked());
+            QVERIFY(e.view()->sheet().rightToLeft());
+            QCOMPARE(e.selected(), QStringLiteral("B3"));
+            QSignalSpy saved(&w, &CrunchWindow::saved);
+            QVERIFY(w.save());
+            QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+            Package pk;
+            QString why;
+            QVERIFY(pk.readLazyFile(e.path, &why));
+            const QByteArray xml = pk.part(QStringLiteral("xl/worksheets/sheet1.xml"));
+            QVERIFY2(xml.contains("rightToLeft=\"1\""), xml.left(900).constData());
+            QFile f(e.path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            bytes = f.readAll();
+        }
+        EditWindow again;
+        QVERIFY(again.open(bytes));
+        QVERIFY(again.view()->sheet().rightToLeft());
+        QVERIFY(again.win.w.act(QStringLiteral("view.rightToLeft"))->isChecked());
+        again.win.w.act(QStringLiteral("view.rightToLeft"))->trigger();
+        QVERIFY(!again.view()->sheet().rightToLeft());
+        QSignalSpy saved(&again.win.w, &CrunchWindow::saved);
+        QVERIFY(again.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(again.win.told.join(QLatin1Char('|'))));
+        Package pk;
+        QString why;
+        QVERIFY(pk.readLazyFile(again.path, &why));
+        QVERIFY(!pk.part(QStringLiteral("xl/worksheets/sheet1.xml")).contains("rightToLeft"));
+    }
+
     // With the sheet's comments set to print at the end, the notes are printed after the sheet's last page, on pages of their own that carry the next numbers: each note by the cell it is on, its
     // author, and its words; a note's lines are kept; with the setting off, or on "as displayed", no page is added.
     void notesPrintAtTheEndOfTheSheet()

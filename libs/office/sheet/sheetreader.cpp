@@ -2682,6 +2682,28 @@ qint32 Workbook::styleNamed(const QString &name)
     return qint32(n.xfId);
 }
 
+qint32 Workbook::addNamedStyle(const QString &name, quint32 format)
+{
+    const QString trimmed = name.trimmed();
+    if (trimmed.isEmpty() || trimmed.size() > 255 || format >= quint32(m_styles.formats.size())) return -1;
+    for (const CellStyleName &n : m_styles.cellStyles)
+        if (n.name.compare(trimmed, Qt::CaseInsensitive) == 0) return -1;
+    BuiltinStyle taken;
+    if (builtinStyle(trimmed, &taken)) return -1;
+    if (m_styles.styleXfs.isEmpty() || m_styles.cellStyles.isEmpty() || m_styles.styleXfs.size() >= kMaxStylesMade) return -1;
+    CellFormat f = m_styles.formats[int(format)];
+    f.xfId = 0;
+    f.quotePrefix = false;
+    m_styles.styleXfs.append(f);
+    CellStyleName n;
+    n.name = trimmed;
+    n.builtin = -1;
+    n.xfId = quint32(m_styles.styleXfs.size() - 1);
+    m_styles.cellStyles.append(n);
+    m_stylesAdded.append({f, n});
+    return qint32(n.xfId);
+}
+
 const QVector<Table> &Workbook::tables() const
 {
     if (!m_tablesRead) {

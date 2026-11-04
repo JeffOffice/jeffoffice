@@ -354,6 +354,49 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
         out.cells = r.cellCount();
         return out;
     }
+    case SpecialKind::CurrentArray: {
+        for (const CellRange &r : s.ranges)
+            if (r.valid && r.cellCount() > 1 && activeRow >= r.row1 && activeRow <= r.row2 && activeCol >= r.col1 && activeCol <= r.col2) {
+                out.ranges.append(r);
+                out.cells = r.cellCount();
+                return out;
+            }
+        out.problem = QCoreApplication::translate("jp::crunch::GoTo", "The cell with the cursor is not part of an array formula.");
+        return out;
+    }
+    case SpecialKind::RowDifferences:
+    case SpecialKind::ColumnDifferences: {
+        // The cells that differ from the cell with the cursor in their row (their column): a number or text that is not the same, a formula that is not the same once its references are moved to
+        // where the other cell is, or a formula where the other has none. A single cell selected looks at the block around it.
+        const bool byRow = options.kind == SpecialKind::RowDifferences;
+        CellRange look = region;
+        if (oneCell) look = currentRegion(session, sheet, activeRow, activeCol, &out.truncated);
+        if (activeRow < look.row1 || activeRow > look.row2 || activeCol < look.col1 || activeCol > look.col2) {
+            out.problem = QCoreApplication::translate("jp::crunch::GoTo", "The cell with the cursor is not among the cells to look at.");
+            return out;
+        }
+        RangeBuilder diff(&out);
+        qint64 looked = 0;
+        auto sameAs = [&](quint32 baseRow, quint32 baseCol, quint32 row, quint32 col) {
+            const Calculation::CellContent a = calc->content(sheet, baseRow, baseCol), b = calc->content(sheet, row, col);
+            if (a.isFormula != b.isFormula) return false;
+            if (a.isFormula) return shiftFormula(a.formula, int(row) - int(baseRow), int(col) - int(baseCol)) == b.formula;
+            return session.valueAt(sheet, baseRow, baseCol) == session.valueAt(sheet, row, col);
+        };
+        if (byRow) {
+            for (quint32 row = look.row1; row <= look.row2 && looked <= kMaxSpecialWork; ++row)
+                for (quint32 col = look.col1; col <= look.col2; ++col, ++looked)
+                    if (col != activeCol && !sameAs(row, activeCol, row, col)) diff.add(row, col);
+        } else {
+            for (quint32 row = look.row1; row <= look.row2 && looked <= kMaxSpecialWork; ++row)
+                for (quint32 col = look.col1; col <= look.col2; ++col, ++looked)
+                    if (row != activeRow && !sameAs(activeRow, col, row, col)) diff.add(row, col);
+        }
+        if (looked > kMaxSpecialWork) out.truncated = true;
+        diff.finish();
+        if (out.ranges.isEmpty()) none();
+        return out;
+    }
     case SpecialKind::ConditionalFormats:
     case SpecialKind::DataValidation: {
         const Validation *same = nullptr;

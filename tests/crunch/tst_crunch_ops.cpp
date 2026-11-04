@@ -151,6 +151,28 @@ private Q_SLOTS:
         QCOMPARE(shown(e, QStringLiteral("A3:A4")), QStringLiteral("Mittwoch|Mittwoch"));
     }
 
+    // A custom list (kept in Options) goes in turn like the weekdays: a cell that holds one of its items is followed by the next, round to the first, without regard to capitals;
+    // cells that hold items of different lists are copied.
+    void fillFollowsCustomLists()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Small", "B1=large", "C1=Small", "D1=Large", "E1=Small"})));
+        using Dir = crunch::EditSession::FillDirection;
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("A1")), Dir::Down, 2).ok);
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("Small|Small|Small"));          // (not a list yet: copied)
+        s->setCustomLists({{QStringLiteral("Small"), QStringLiteral("Medium"), QStringLiteral("Large")}});
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("C1")), Dir::Down, 4).ok);
+        QCOMPARE(shown(e, QStringLiteral("C1:C5")), QStringLiteral("Small|Medium|Large|Small|Medium"));
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("B1")), Dir::Down, 2).ok);                       // lower case: the next ones in lower case
+        QCOMPARE(shown(e, QStringLiteral("B1:B3")), QStringLiteral("large|small|medium"));
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("E1")), Dir::Left, 1).ok);
+        QCOMPARE(shown(e, QStringLiteral("D1:E1")), QStringLiteral("Large|Small"));
+        s->setCustomLists({});                                                                     // taken away: copied again
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("C1")), Dir::Down, 1).ok);
+        QCOMPARE(shown(e, QStringLiteral("C1:C2")), QStringLiteral("Small|Small"));
+    }
+
     // Ctrl+D and Ctrl+R copy the first row (column) of the selection over the rest, and a single cell takes what is above (left of) it; one step each; the keys are the platform's.
     void controlDAndControlRFillWhatIsSelected()
     {
@@ -234,6 +256,75 @@ private Q_SLOTS:
         QCOMPARE(requested.count(), count);
         e.view()->selectColumns(0, 1);
         QVERIFY(e.view()->fillHandleRect().isEmpty());
+    }
+
+    // A double click on the fill handle fills down as far as the data beside the block goes: the column to its left, else the one to its right; one step.
+    void doubleClickOnTheFillHandleFillsDownAsFarAsTheDataBeside()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "A4=4", "A5=5", "B1=10", "D1=7", "E2=x", "E3=y"})));
+        e.win.w.resize(1100, 640);
+        auto doubleClick = [&] {
+            const QRect h = e.view()->fillHandleRect();
+            QVERIFY(!h.isEmpty());
+            QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, h.center());
+            QTest::mouseDClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, h.center());
+        };
+        e.select(QStringLiteral("B1"));                                          // data to its left: A1:A5
+        doubleClick();
+        QCOMPARE(shown(e, QStringLiteral("B1:B5")), QStringLiteral("10|10|10|10|10"));
+        QCOMPARE(e.view()->rangeName(), QStringLiteral("B1:B5"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        e.select(QStringLiteral("D1"));                                          // nothing to its left (C is empty); E has data under row 1
+        doubleClick();
+        QCOMPARE(shown(e, QStringLiteral("D1:D3")), QStringLiteral("7|7|7"));
+        QCOMPARE(e.win.w.undoStack()->count(), 2);
+        e.select(QStringLiteral("G1"));                                          // data on neither side: nothing happens
+        doubleClick();
+        QCOMPARE(e.win.w.undoStack()->count(), 2);
+    }
+
+    // Dragging the border of the selection moves the block there (Ctrl copies it); the formulas that point at it follow, it is one step, and a click on the border is still a click.
+    void draggingTheSelectionBorderMovesOrCopiesTheBlock()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "C1==A1+A2"})));
+        e.win.w.resize(1100, 640);
+        auto drag = [&](const QString &toCell, Qt::KeyboardModifiers modifiers) {
+            const QRect r = e.view()->cellRect(0, 0);
+            const QPoint onBorder(r.left() + r.width() / 2, r.top());           // the top edge of A1
+            QTest::mousePress(e.view()->viewport(), Qt::LeftButton, modifiers, onBorder);
+            quint32 row = 0, col = 0;
+            parseCellRef(toCell, &row, &col);
+            const QRect target = e.view()->cellRect(row, col);
+            const QPoint at(target.center().x(), target.top() + (onBorder.y() - r.top()) + r.height() / 2);
+            QMouseEvent move(QEvent::MouseMove, QPointF(at), QPointF(e.view()->viewport()->mapToGlobal(at)), Qt::NoButton, Qt::LeftButton, modifiers);
+            QApplication::sendEvent(e.view()->viewport(), &move);
+            QTest::mouseRelease(e.view()->viewport(), Qt::LeftButton, modifiers, at);
+        };
+        e.view()->selectRange(0, 0, 1, 0);                                       // A1:A2
+        QSignalSpy moved(e.view(), &grid::GridView::moveRequested);
+        drag(QStringLiteral("E1"), Qt::NoModifier);
+        QCOMPARE(moved.count(), 1);
+        QCOMPARE(shown(e, QStringLiteral("E1:E2")), QStringLiteral("1|2"));
+        QCOMPARE(shown(e, QStringLiteral("A1:A2")), QStringLiteral("|"));
+        QCOMPARE(e.view()->rangeName(), QStringLiteral("E1:E2"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QCOMPARE(e.win.w.session()->calculation()->content(0, 0, 2).formula, QStringLiteral("E1+E2"));
+        pressUndo(&e.win.w);
+        QCOMPARE(shown(e, QStringLiteral("A1:A2")), QStringLiteral("1|2"));
+        // with Ctrl: a copy
+        e.view()->selectRange(0, 0, 1, 0);
+        drag(QStringLiteral("G1"), Qt::ControlModifier);
+        QCOMPARE(shown(e, QStringLiteral("A1:A2")), QStringLiteral("1|2"));
+        QCOMPARE(shown(e, QStringLiteral("G1:G2")), QStringLiteral("1|2"));
+        // a press and release on the border without moving is a click: it selects the cell
+        e.view()->selectRange(0, 0, 1, 0);
+        const int count = moved.count();
+        const QRect r = e.view()->cellRect(0, 0);
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(r.left() + r.width() / 2, r.top()));
+        QCOMPARE(moved.count(), count);
+        QCOMPARE(e.view()->selection().range.row1, qint64(0));
     }
 
     // Fill > Series asks how the series goes (kind, step, stop, unit) and fills the selection from its first row (column).

@@ -1,5 +1,5 @@
 # Select cells and move around
-<!-- keywords: select, selection, cell, range, row, column, click, drag, shift, ctrl, arrow, home, end, page up, page down, tab, enter, whole row, whole column, name box, go to, scroll, status bar, sum, average, count -->
+<!-- keywords: select, selection, cell, range, row, column, click, drag, shift, ctrl, arrow, home, end, page up, page down, tab, enter, whole row, whole column, name box, go to, move cells, drag border, scroll, status bar, sum, average, count -->
 
 **Selecting** cells means choosing the ones the next command applies to. The selected cells are tinted, with a green border around them. The **active cell** is the one with the cursor, and it stays white inside the selection.
 
@@ -10,6 +10,7 @@
 - **Shift+click** another cell to select from the active cell to there.
 - Click a **column letter** or a **row number** to select the whole column or row. Drag across the letters or numbers, or Shift+click, to select several.
 - Click the **corner** where the letters and numbers meet to select everything.
+- **Drag the border** of the selection to move the cells to another place. Point at the edge of the green border until the pointer shows four arrows. A dashed outline shows where the cells will land. Anything that points at the cells, such as a formula, follows them. Hold **Ctrl** while you drag to copy the cells instead. If you only click the border without moving, it selects the cell as usual.
 - Turn the **mouse wheel** to scroll three rows. Hold **Shift** to scroll sideways, or hold **Ctrl** to zoom.
 
 ## With the keyboard

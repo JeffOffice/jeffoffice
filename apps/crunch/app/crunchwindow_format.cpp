@@ -13,6 +13,7 @@
 #include "sheet/cellref.h"
 
 #include <QAction>
+#include <QInputDialog>
 #include <QActionGroup>
 #include <QApplication>
 #include <QComboBox>
@@ -97,7 +98,22 @@ void CrunchWindow::createFormatActions()
     // number
     add(QStringLiteral("fmt.currency"), tr("Currency"), "dollar-sign", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Dollar), [this] { numberFormatCommand(2); });
     add(QStringLiteral("fmt.percent"), tr("Percent Style"), "percent", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Percent), [this] { numberFormatCommand(7); });
+    add(QStringLiteral("style.new"), tr("New Cell Style…"), "palette", QKeySequence(), [this] { newCellStyleCommand(); });
     add(QStringLiteral("fmt.comma"), tr("Comma Style"), "hash", QKeySequence(), [this] { numberFormatCommand(13); });
+    // the Accounting Number Format with a currency from the list
+    struct Money {
+        const char *id;
+        const char *text;
+        const char *symbol;
+        bool first;
+        int decimals;
+    };
+    static const Money moneys[] = {{"usd", QT_TR_NOOP("$ US dollar"), "$", true, 2},       {"gbp", QT_TR_NOOP("\u00a3 British pound"), "\u00a3", true, 2},
+                                   {"eur", QT_TR_NOOP("\u20ac Euro (after the number)"), "\u20ac", false, 2}, {"jpy", QT_TR_NOOP("\u00a5 Japanese yen"), "\u00a5", true, 0},
+                                   {"cny", QT_TR_NOOP("\u00a5 Chinese yuan"), "\u00a5", true, 2},  {"chf", QT_TR_NOOP("Fr. Swiss franc"), "Fr.", true, 2}};
+    for (const Money &m : moneys)
+        add(QStringLiteral("fmt.accounting.") + QString::fromLatin1(m.id), tr(m.text), "dollar-sign", QKeySequence(),
+            [this, m] { accountingCommand(QString::fromUtf8(m.symbol), m.first, m.decimals); });
     add(QStringLiteral("fmt.decimalInc"), tr("Increase Decimal"), "arrow-up-0-1", QKeySequence(), [this] { decimalsCommand(1); });
     add(QStringLiteral("fmt.decimalDec"), tr("Decrease Decimal"), "arrow-down-1-0", QKeySequence(), [this] { decimalsCommand(-1); });
     add(QStringLiteral("fmt.numberGeneral"), tr("General"), "", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_AsciiTilde), [this] { numberFormatCommand(0); });
@@ -513,6 +529,19 @@ void CrunchWindow::numberFormatCommand(int kind)
     formatSelection(c, tr("Number Format"));
 }
 
+// The Accounting Number Format with a chosen currency symbol: in front of the number or after it, and that many decimals.
+void CrunchWindow::accountingCommand(const QString &symbol, bool symbolFirst, int decimals)
+{
+    NumberOptions o;
+    o.decimals = decimals;
+    o.thousands = true;
+    o.symbol = symbol;
+    o.symbolFirst = symbolFirst;
+    FormatChange c;
+    c.numberFormat = jp::crunch::codeFor(NumberCategory::Accounting, o);
+    formatSelection(c, tr("Number Format"));
+}
+
 void CrunchWindow::decimalsCommand(int delta)
 {
     const QString code = viewOfActiveCell().numberFormat;
@@ -652,6 +681,25 @@ void CrunchWindow::clearCommand(int what)
     updateFormatState();
 }
 
+// New Cell Style: the look of the cell with the cursor, kept under a name the person gives; the selected cells are given it.
+void CrunchWindow::newCellStyleCommand()
+{
+    if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+    if (!editingAllowed() || !m_session || m_sheet < 0) return;
+    QString name;
+    if (m_styleNameAsker) {
+        if (!m_styleNameAsker(&name)) return;
+    } else {
+        bool ok = false;
+        name = QInputDialog::getText(this, tr("New Cell Style"), tr("Style name:"), QLineEdit::Normal, QString(), &ok);
+        if (!ok) return;
+    }
+    const grid::Selection &sel = m_view->selection();
+    const crunch::EditSession::Outcome o = m_session->newCellStyle(m_sheet, quint32(std::max<qint64>(0, sel.activeRow)), quint32(std::max<qint64>(0, sel.activeCol)), selectedRange(), name);
+    if (!o.ok) notice(tr("New Cell Style"), o.problem);
+    updateFormatState();
+}
+
 void CrunchWindow::applyCellStyle(const QString &name)
 {
     if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
@@ -680,6 +728,8 @@ QMenu *CrunchWindow::buildStylesMenu(QWidget *owner)
             const QString name = s.name;
             connect(a, &QAction::triggered, this, [this, name] { applyCellStyle(name); });
         }
+        menu->addSeparator();
+        menu->addAction(act(QStringLiteral("style.new")));
     });
     return menu;
 }

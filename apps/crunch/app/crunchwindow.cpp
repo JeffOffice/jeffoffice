@@ -27,6 +27,7 @@
 
 #include <QComboBox>
 #include <QFormLayout>
+#include <QPlainTextEdit>
 #include <QPointer>
 #include <QAction>
 #include <QDockWidget>
@@ -354,6 +355,31 @@ void CrunchWindow::buildStatusBar()
     m_stats = plainLabel(new QLabel(this));
     m_stats->setObjectName(QStringLiteral("selectionStats"));
     sb->addPermanentWidget(m_stats);
+    // a right click on the numbers of the selection chooses which are shown
+    m_stats->setContextMenuPolicy(Qt::CustomContextMenu);
+    {
+        const int saved = Settings::get().value(QStringLiteral("crunch/statusStats"), grid::kDefaultStatChoices).toInt();
+        m_view->setStatChoices(saved & 63 ? saved & 63 : grid::kDefaultStatChoices);
+    }
+    connect(m_stats, &QWidget::customContextMenuRequested, this, [this](const QPoint &at) {
+        QMenu menu(this);
+        menu.setObjectName(QStringLiteral("statsChoiceMenu"));
+        const std::pair<QString, int> choices[] = {{tr("Average"), grid::StatAverage}, {tr("Count"), grid::StatCount}, {tr("Numerical Count"), grid::StatNumericalCount},
+                                                   {tr("Minimum"), grid::StatMinimum}, {tr("Maximum"), grid::StatMaximum}, {tr("Sum"), grid::StatSum}};
+        for (const auto &c : choices) {
+            QAction *a = menu.addAction(c.first);
+            a->setCheckable(true);
+            a->setChecked(m_view->statChoices() & c.second);
+            const int bit = c.second;
+            connect(a, &QAction::triggered, this, [this, bit] {
+                const int now = m_view->statChoices() ^ bit;
+                if (!now) return;   // (one at least stays)
+                m_view->setStatChoices(now);
+                Settings::get().setValue(QStringLiteral("crunch/statusStats"), now);
+            });
+        }
+        menu.exec(m_stats->mapToGlobal(at));
+    });
     auto button = [&](const char *id) {
         auto *b = new QToolButton();
         b->setDefaultAction(act(QString::fromLatin1(id)));
@@ -434,6 +460,7 @@ void CrunchWindow::createActions()
         // The shared pages (General, Proofing), then Editing: where the selection goes after Enter.
         Editor stand;
         auto choice = std::make_shared<QPointer<QComboBox>>();
+        auto lists = std::make_shared<QPointer<QPlainTextEdit>>();
         QVector<OptionsPage> pages;
         pages << OptionsPage{tr("Editing"), [this, choice] {
             auto *page = new QWidget;
@@ -449,6 +476,23 @@ void CrunchWindow::createActions()
             return static_cast<QWidget *>(page);
         }, [this, choice] {
             if (*choice) setEnterMove(EnterMove((*choice)->currentData().toInt()));
+        }};
+        pages << OptionsPage{tr("Custom Lists"), [this, lists] {
+            auto *page = new QWidget;
+            auto *layout = new QVBoxLayout(page);
+            auto *about = new QLabel(tr("A custom list is a row of words that Fill goes through, like the days of the week. Type one list on each line, with commas between the words. Type the first word in a cell and drag the fill handle to get the rest."), page);
+            about->setWordWrap(true);
+            about->setTextFormat(Qt::PlainText);
+            layout->addWidget(about);
+            auto *edit = new QPlainTextEdit(page);
+            edit->setObjectName(QStringLiteral("optionCustomLists"));
+            edit->setAccessibleName(tr("Custom lists, one on each line"));
+            edit->setPlainText(customListLines().join(QLatin1Char('\n')));
+            layout->addWidget(edit);
+            *lists = edit;
+            return static_cast<QWidget *>(page);
+        }, [this, lists] {
+            if (*lists) setCustomListLines((*lists)->toPlainText().split(QLatin1Char('\n')));
         }};
         optionsDialog(this, &stand, pages);
     });
@@ -538,6 +582,7 @@ void CrunchWindow::syncPanes()
     const grid::Selection &sel = m_view->selection();
     v.activeRow = quint32(std::max<qint64>(0, sel.activeRow));
     v.activeCol = quint32(std::max<qint64>(0, sel.activeCol));
+    v.rightToLeft = m_view->sheet().rightToLeft();
     m_session->setSheetPane(m_sheet, v);
 }
 

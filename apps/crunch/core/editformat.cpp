@@ -2,6 +2,8 @@
 // were and as they are), the formats of whole columns and rows, and the merged ranges. See EditSession::formatCells.
 #include "core/editsession.h"
 
+#include "sheet/builtinstyles.h"
+
 #include <QCoreApplication>
 
 #include <algorithm>
@@ -283,6 +285,45 @@ EditSession::Outcome EditSession::applyStyleNamed(int sheet, const CellRange &ra
         return out;
     }
     return applyStyle(sheet, range, quint32(place), text);
+}
+
+EditSession::Outcome EditSession::newCellStyle(int sheet, quint32 row, quint32 col, const CellRange &range, const QString &name)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    const QString trimmed = name.trimmed();
+    if (trimmed.isEmpty() || trimmed.size() > 255) {
+        out.ok = false;
+        out.problem = tr("Type a name for the style, up to 255 characters.");
+        return out;
+    }
+    qint32 place = -1;
+    bool taken = false;
+    {
+        // (the style is made with the worker held back: it reads the workbook's styles)
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) {
+            out.ok = false;
+            out.problem = tr("The workbook is busy. Try again in a moment.");
+            return out;
+        }
+        for (const jp::office::sheet::CellStyleName &n : m_book->book->styles().cellStyles)
+            if (n.name.compare(trimmed, Qt::CaseInsensitive) == 0) taken = true;
+        jp::office::sheet::BuiltinStyle def;
+        if (jp::office::sheet::builtinStyle(trimmed, &def)) taken = true;   // (a name of the built-in styles is theirs, whether or not the workbook has it yet)
+        if (!taken) place = m_book->book->addNamedStyle(trimmed, m_book->calc->content(sheet, row, col).style);
+    }
+    if (place < 0) {
+        out.ok = false;
+        out.problem = taken ? tr("A style called \"%1\" is already there. Pick another name.").arg(trimmed) : tr("This workbook has no place to keep a new style.");
+        return out;
+    }
+    return applyStyle(sheet, range, quint32(place), tr("New Cell Style"));
 }
 
 EditSession::Outcome EditSession::clearFormats(int sheet, const CellRange &range)

@@ -72,6 +72,8 @@ void CrunchWindow::createNoteActions()
     mk("insert.link", tr("Link"), "link", QKeySequence(Qt::CTRL | Qt::Key_K), [this] { insertLink(); }, false, false);
     mk("link.open", tr("Open Link"), "external-link", QKeySequence(), [this] { followSelectedLink(); }, false, false);
     mk("link.remove", tr("Remove Link"), "unlink", QKeySequence(), [this] { removeSelectedLinks(); }, false, false);
+    mk("edit.clear.notes", tr("Clear Comments and Notes"), "message-square-x", QKeySequence(), [this] { deleteSelectedNotes(); }, false, false);
+    mk("edit.clear.links", tr("Clear Hyperlinks"), "unlink", QKeySequence(), [this] { removeSelectedLinks(); }, false, false);
     m_hoverTimer.setSingleShot(true);
     m_hoverTimer.setInterval(350);
     connect(&m_hoverTimer, &QTimer::timeout, this, &CrunchWindow::showHoverTip);
@@ -135,6 +137,7 @@ void CrunchWindow::updateNoteActions()
         }
     }
     act("notes.delete")->setEnabled(can && anyInSelection);
+    act("edit.clear.notes")->setEnabled(can && anyInSelection);
     QAction *showHide = act("notes.showHide");
     showHide->setEnabled(can && anyInSelection);
     {
@@ -166,6 +169,7 @@ void CrunchWindow::updateNoteActions()
                 break;
             }
     act("link.remove")->setEnabled(can && anyLinks);
+    act("edit.clear.links")->setEnabled(can && anyLinks);
 }
 
 // ---- notes

@@ -4,6 +4,7 @@
 #include <QtGlobal>
 
 [[maybe_unused]] static const char *const kRibbonStrings[] = {
+    QT_TRANSLATE_NOOP("Ribbon", "Accounting Number Format"),
     QT_TRANSLATE_NOOP("Ribbon", "Actions"),
     QT_TRANSLATE_NOOP("Ribbon", "Alignment"),
     QT_TRANSLATE_NOOP("Ribbon", "Axis"),
@@ -23,6 +24,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Clipboard"),
     QT_TRANSLATE_NOOP("Ribbon", "Colors"),
     QT_TRANSLATE_NOOP("Ribbon", "Data"),
+    QT_TRANSLATE_NOOP("Ribbon", "Direction"),
     QT_TRANSLATE_NOOP("Ribbon", "Edit Data"),
     QT_TRANSLATE_NOOP("Ribbon", "Editing"),
     QT_TRANSLATE_NOOP("Ribbon", "Font"),

@@ -26,6 +26,7 @@ QUndoStack *CrunchWindow::undoStack() const { return m_session ? m_session->undo
 void CrunchWindow::createEditing()
 {
     m_session = std::make_unique<crunch::EditSession>(&m_loader, m_loaded, &m_values, nullptr);
+    setCustomListLines(customListLines());
     m_formatShown = FormatShown();   // (a workbook of its own: the buttons show its cell with the cursor)
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, &CrunchWindow::onCellsChanged);
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
@@ -196,6 +197,29 @@ void CrunchWindow::setEnterMove(EnterMove move)
 {
     m_enterMove = move;
     Settings::get().setValue(QStringLiteral("crunch/enterMove"), int(move));
+}
+
+QStringList CrunchWindow::customListLines() const
+{
+    return Settings::get().value(QStringLiteral("crunch/customLists")).toStringList();
+}
+
+void CrunchWindow::setCustomListLines(const QStringList &lines)
+{
+    QStringList kept;
+    QList<QStringList> lists;
+    for (const QString &line : lines) {
+        QStringList items;
+        for (const QString &item : line.split(QLatin1Char(','))) {
+            const QString t = item.trimmed();
+            if (!t.isEmpty()) items << t;
+        }
+        if (items.size() < 2 || lists.size() >= 50) continue;   // (a list of one item makes no series; a limit on what a file of settings can multiply)
+        kept << items.join(QStringLiteral(", "));
+        lists << items;
+    }
+    if (kept != customListLines()) Settings::get().setValue(QStringLiteral("crunch/customLists"), kept);
+    if (m_session) m_session->setCustomLists(lists);
 }
 
 bool CrunchWindow::commitEdit(CellEditor::Way way)

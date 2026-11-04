@@ -1,5 +1,5 @@
 # Change the view
-<!-- keywords: outline, group, ungroup, collapse, expand, detail, level, view, zoom, right-to-left, right to left, Arabic, Hebrew, mirrored, freeze, freeze panes, unfreeze, gridlines, headings, formula bar, show formulas, sheet tabs, hidden sheets, headers -->
+<!-- keywords: outline, group, ungroup, collapse, expand, detail, level, view, zoom, right-to-left, right to left, Arabic, Hebrew, mirrored, freeze, freeze panes, unfreeze, gridlines, headings, formula bar, collapse the ribbon, full screen, status bar, minimum, maximum, show formulas, sheet tabs, hidden sheets, headers -->
 
 The **View** tab changes how the sheet looks on your screen. It never changes the workbook.
 
@@ -14,6 +14,12 @@ Use the slider at the bottom right, the **Zoom** button on the View tab, or hold
 ## Show and hide
 
 In the **Show** group, turn the **Gridlines** (the pale lines between cells), the **Headings** (the column letters and row numbers), and the **Formula Bar** on or off. A workbook can ask for its gridlines or headings to be off; this choice is yours to change.
+
+Two more choices are in the same group. **Collapse the Ribbon** (**Ctrl+F1**) folds the ribbon up so that it shows only the tab names, which leaves more room for the cells. Click it again, or click a tab, to bring it back. **Full Screen** (**Ctrl+Shift+F1**) makes the window fill the whole screen. Click it again to go back.
+
+## The numbers in the status bar
+
+When you select two or more cells, the status bar shows numbers about them. **Right-click** the numbers to choose which are shown: **Average**, **Count** (the cells that hold anything), **Numerical Count** (only the cells that hold numbers), **Minimum** (the smallest number), **Maximum** (the largest number), and **Sum**. A check mark shows the ones that are on. At least one stays on. JeffCrunch remembers your choice.
 
 ## Freeze rows and columns
 
@@ -34,7 +40,7 @@ The tabs at the bottom are the sheets of the workbook. Click a tab to show that 
 
 ## Sheets that read from right to left
 
-A sheet made for a language such as Arabic or Hebrew reads from right to left, and JeffCrunch shows it that way: column A is at the right edge, the row numbers are at the right, and the horizontal scroll bar runs the other way. The arrow keys follow the sheet, so the Left arrow goes to the next column. Text in a cell starts from the side its language reads from. The workbook says which way a sheet reads; JeffCrunch has no command to change that yet.
+A sheet made for a language such as Arabic or Hebrew reads from right to left, and JeffCrunch shows it that way: column A is at the right edge, the row numbers are at the right, and the horizontal scroll bar runs the other way. The arrow keys follow the sheet, so the Left arrow goes to the next column. Text in a cell starts from the side its language reads from. The workbook says which way a sheet reads, and you can change it: on the **Page Layout** tab, click **Sheet Right-to-Left**. Click it again to turn it off. The choice is saved with the sheet.
 
 ## Group rows and columns (outline)
 
