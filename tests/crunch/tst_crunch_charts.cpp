@@ -626,12 +626,14 @@ private Q_SLOTS:
         });
         e.win.w.act(QStringLiteral("chartdesign.axisV"))->trigger();
         QVERIFY(!across);
-        const ChartAxis *a = primaryAxis(chartOf(e), false);
+        const Chart nowChart = chartOf(e);
+        const ChartAxis *a = primaryAxis(nowChart, false);
         QVERIFY(!a->autoMin && a->min == 5 && a->reversed);
         QCOMPARE(a->majorTick, QStringLiteral("none"));
         QVERIFY(!primaryAxis(chartOf(e), true)->reversed);
         QVERIFY(save(e));
-        const ChartAxis *saved = primaryAxis(savedCharts(e.path)[0].chart, false);
+        const QVector<SavedChart> savedList = savedCharts(e.path);
+        const ChartAxis *saved = primaryAxis(savedList[0].chart, false);
         QVERIFY(!saved->autoMin && saved->min == 5 && saved->reversed);
         pressUndo(&e.win.w);
         QVERIFY(primaryAxis(chartOf(e), false)->autoMin);

@@ -474,7 +474,8 @@ void CrunchWindow::formatAxisDialog(bool horizontal)
         notice(tr("Format Axis"), why);
         return;
     }
-    const ChartAxis *now = primaryAxis(m_objects->chartNow(m_sheet, id), horizontal);
+    const Chart chart = m_objects->chartNow(m_sheet, id);   // (kept: the axis is read from it)
+    const ChartAxis *now = primaryAxis(chart, horizontal);
     if (!now) return;
     ChartAxis made = *now;
     if (m_formatAxisAsker) {
