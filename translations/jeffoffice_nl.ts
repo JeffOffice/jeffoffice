@@ -4948,1937 +4948,6 @@ Artikel achterpagina	4</translation>
     </message>
 </context>
 <context>
-    <name>EditSession</name>
-    <message>
-        <location filename="../apps/crunch/core/editformat.cpp" line="+66"/>
-        <source>This sheet is protected, so whether its cells are locked, and whether their formulas are hidden, can&apos;t be changed. Unprotect the sheet first (Review, Unprotect Sheet).</source>
-        <translation type="unfinished">Dit blad is beveiligd. Daarom kan niet worden gewijzigd of de cellen vergrendeld zijn en of de formules verborgen zijn. Hef eerst de beveiliging van het blad op (Controleren, Beveiliging blad opheffen).</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editcond.cpp" line="+91"/>
-        <source>Conditional formatting of a workbook opened from this kind of file is kept when it is saved as an .xlsx workbook. Save it as one, and then change rules.</source>
-        <translation type="unfinished">Voorwaardelijke opmaak van een werkmap die uit dit type bestand is geopend, blijft behouden wanneer deze wordt opgeslagen als werkmap (.xlsx). Sla hem zo op en wijzig daarna de regels.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>This sheet has rules of conditional formatting in a form JeffCrunch keeps as they are (a newer kind, with extra settings, or more than it reads). It doesn&apos;t change the rules of the sheet.</source>
-        <translation type="unfinished">Dit blad heeft voorwaardelijke-opmaakregels in een vorm die JeffCrunch zoals ze zijn bewaart (een nieuwer type met extra instellingen, of meer dan het kan lezen). Het wijzigt de regels van het blad niet.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>This sheet has more rules than JeffCrunch changes (%1).</source>
-        <translation type="unfinished">Dit blad heeft meer regels dan JeffCrunch kan wijzigen (%1).</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>This sheet has data bars. JeffCrunch keeps them as they are, and doesn&apos;t change the rules of the sheet.</source>
-        <translation type="unfinished">Dit blad heeft databalken. JeffCrunch bewaart ze zoals ze zijn en wijzigt de regels van het blad niet.</translation>
-    </message>
-    <message>
-        <location line="+14"/>
-        <source>Select the cells the rule is for.</source>
-        <translation type="unfinished">Selecteer de cellen waarvoor de regel geldt.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <location filename="../apps/crunch/core/editformat.cpp" line="+11"/>
-        <location line="+200"/>
-        <location line="+38"/>
-        <location line="+284"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+801"/>
-        <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
-        <location line="+247"/>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="+227"/>
-        <location filename="../apps/crunch/core/edittables.cpp" line="+404"/>
-        <location line="+89"/>
-        <source>The workbook is busy. Try again in a moment.</source>
-        <translation type="unfinished">De werkmap is bezet. Probeer het zo meteen opnieuw.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>This workbook has no place to keep the look of a rule.</source>
-        <translation type="unfinished">Deze werkmap heeft geen plek om de opmaak van een regel te bewaren.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>Conditional Formatting</source>
-        <translation type="unfinished">Voorwaardelijke opmaak</translation>
-    </message>
-    <message>
-        <location line="+65"/>
-        <source>Clear Rules from Selected Cells</source>
-        <translation type="unfinished">Regels uit geselecteerde cellen wissen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Clear Rules from Sheet</source>
-        <translation type="unfinished">Regels uit blad wissen</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editformat.cpp" line="-477"/>
-        <source>This workbook has as many different formats as a workbook can hold (%1 cell formats). Give the cells a format the workbook already has, or clear the formats of some cells, and try again.</source>
-        <translation type="unfinished">Deze werkmap bevat het maximale aantal verschillende opmaken dat een werkmap kan bevatten (%1 celopmaken). Geef de cellen een opmaak die al in de werkmap staat, of wis de opmaak van enkele cellen, en probeer het opnieuw.</translation>
-    </message>
-    <message>
-        <location line="+22"/>
-        <location line="+213"/>
-        <location line="+148"/>
-        <source>Those are not cells of the sheet.</source>
-        <translation type="unfinished">Dat zijn geen cellen van het blad.</translation>
-    </message>
-    <message>
-        <location line="-349"/>
-        <source>That is more cells than JeffCrunch formats at once (%1). Select whole columns or rows, or fewer cells.</source>
-        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer kan opmaken (%1). Selecteer hele kolommen of rijen, of minder cellen.</translation>
-    </message>
-    <message>
-        <location line="+17"/>
-        <source>That is more cells than JeffCrunch clears the formats of at once (%1). Select fewer cells.</source>
-        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer van opmaak kan ontdoen (%1). Selecteer minder cellen.</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <source>That is more cells than JeffCrunch formats at once (%1). Select fewer columns or rows.</source>
-        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer kan opmaken (%1). Selecteer minder kolommen of rijen.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>That is more rows than JeffCrunch formats at once (%1). Select fewer rows.</source>
-        <translation type="unfinished">Dat zijn meer rijen dan JeffCrunch in één keer kan opmaken (%1). Selecteer minder rijen.</translation>
-    </message>
-    <message>
-        <location line="+56"/>
-        <source>A font&apos;s name can have up to %1 characters in a workbook, and this one has %2. Choose another font.</source>
-        <translation type="unfinished">De naam van een lettertype mag in een werkmap maximaal %1 tekens bevatten, en deze heeft er %2. Kies een ander lettertype.</translation>
-    </message>
-    <message>
-        <location line="+35"/>
-        <source>This workbook has no place to keep the style &quot;%1&quot;.</source>
-        <translation type="unfinished">Deze werkmap heeft geen ruimte om de stijl &quot;%1&quot; op te slaan.</translation>
-    </message>
-    <message>
-        <location line="+20"/>
-        <source>Type a name for the style, up to 255 characters, with no control characters.</source>
-        <translation type="unfinished">Typ een naam voor de stijl, maximaal 255 tekens, zonder besturingstekens.</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <source>A style called &quot;%1&quot; is already there. Pick another name.</source>
-        <translation type="unfinished">Er bestaat al een stijl met de naam &apos;%1&apos;. Kies een andere naam.</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>This workbook has no place to keep a new style.</source>
-        <translation type="unfinished">Deze werkmap heeft geen plek om een nieuwe stijl op te slaan.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <location line="+2"/>
-        <source>New Cell Style</source>
-        <translation type="unfinished">Nieuwe celstijl</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>Clearing formats</source>
-        <translation type="unfinished">Opmaak wissen</translation>
-    </message>
-    <message>
-        <location line="+26"/>
-        <source>That is more cells than JeffCrunch draws borders around at once (%1). Select fewer cells.</source>
-        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer van randen voorziet (%1). Selecteer minder cellen.</translation>
-    </message>
-    <message>
-        <location line="+83"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="+147"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-321"/>
-        <location line="+427"/>
-        <source>You can&apos;t change part of an array or a data table.</source>
-        <translation type="unfinished">U kunt geen deel van een matrix of een gegevenstabel wijzigen.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+15"/>
-        <source>That is more cells than JeffCrunch clears at once (%1). Select fewer cells.</source>
-        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer wist (%1). Selecteer minder cellen.</translation>
-    </message>
-    <message>
-        <location line="+38"/>
-        <source>Clearing all</source>
-        <translation type="unfinished">Alles wissen</translation>
-    </message>
-    <message>
-        <location line="+19"/>
-        <source>This sheet is protected, so cells can&apos;t be merged or unmerged on it. To do that, choose Unprotect Sheet on the Review tab.</source>
-        <translation type="unfinished">Dit werkblad is beveiligd, dus cellen kunnen er niet op worden samengevoegd of gesplitst. Kies hiervoor Beveiliging blad opheffen op het tabblad Controleren.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>This sheet has more merged cells than JeffCrunch changes. Merge and unmerge them in the program that made it.</source>
-        <translation type="unfinished">Dit werkblad heeft meer samengevoegde cellen dan JeffCrunch kan wijzigen. Voeg ze samen of splits ze in het programma waarmee het is gemaakt.</translation>
-    </message>
-    <message>
-        <location line="+20"/>
-        <source>That is more rows than JeffCrunch merges at once. Select fewer rows.</source>
-        <translation type="unfinished">Dat zijn meer rijen dan JeffCrunch in één keer samenvoegt. Selecteer minder rijen.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>That would make more merged cells than JeffCrunch makes.</source>
-        <translation type="unfinished">Dan zouden er meer samengevoegde cellen ontstaan dan JeffCrunch kan maken.</translation>
-    </message>
-    <message>
-        <location line="+38"/>
-        <source>You can&apos;t merge part of an array or a data table, or a locked cell.</source>
-        <translation type="unfinished">U kunt geen deel van een matrix of een gegevenstabel samenvoegen, en ook geen vergrendelde cel.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>When cells are joined into one, only what the cell at the top left holds is kept, and what the others hold is lost. Join them anyway?</source>
-        <translation type="unfinished">Wanneer cellen worden samengevoegd tot één cel, blijft alleen de inhoud van de cel linksboven behouden en gaat de inhoud van de andere cellen verloren. Toch samenvoegen?</translation>
-    </message>
-    <message>
-        <location line="+44"/>
-        <source>Unmerging cells</source>
-        <translation type="unfinished">Cellen splitsen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Merging across</source>
-        <translation type="unfinished">Horizontaal samenvoegen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Merging and centering</source>
-        <translation type="unfinished">Samenvoegen en centreren</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Merging cells</source>
-        <translation type="unfinished">Cellen samenvoegen</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editops.cpp" line="+137"/>
-        <location line="+174"/>
-        <location line="+334"/>
-        <location line="+114"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-220"/>
-        <source>That is more cells than JeffCrunch changes at once (%1). Select fewer cells.</source>
-        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer wijzigt (%1). Selecteer minder cellen.</translation>
-    </message>
-    <message>
-        <location line="-618"/>
-        <source>Sum</source>
-        <translation type="unfinished">Som</translation>
-    </message>
-    <message>
-        <location line="+211"/>
-        <source>A fill can&apos;t go into or out of merged cells that do not match: a merged area has to be wholly in the cells filled from, or in the cells filled and the size of the area in the same place of the cells filled from. Unmerge them first, or fill other cells.</source>
-        <translation type="unfinished">Doorvoeren kan niet in of uit samengevoegde cellen die niet overeenkomen: een samengevoegd gebied moet volledig binnen de broncellen liggen, of binnen de gevulde cellen met dezelfde grootte op dezelfde plaats als in de broncellen. Hef eerst de samenvoeging op of vul andere cellen.</translation>
-    </message>
-    <message>
-        <location line="+183"/>
-        <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over. Fill the cells below it, or type each name.</source>
-        <translation type="unfinished">De eerste rij van een tabel bevat de namen van de kolommen en kan dus niet worden doorgevoerd. Vul de cellen eronder of typ elke naam.</translation>
-    </message>
-    <message>
-        <location line="+87"/>
-        <source>Fill</source>
-        <translation type="unfinished">Doorvoeren</translation>
-    </message>
-    <message>
-        <location line="+16"/>
-        <source>Justify works on the cells of one column. Select cells in a single column.</source>
-        <translation type="unfinished">Uitvullen werkt op de cellen van één kolom. Selecteer cellen in één kolom.</translation>
-    </message>
-    <message>
-        <location line="+16"/>
-        <source>Justify works only on text. A cell in the selection holds a number or a formula.</source>
-        <translation type="unfinished">Uitvullen werkt alleen op tekst. Een cel in de selectie bevat een getal of een formule.</translation>
-    </message>
-    <message>
-        <location line="+23"/>
-        <source>The text needs %1 cells, and %2 are selected. Text will extend below the selected cells. Do you want to continue?</source>
-        <translation type="unfinished">De tekst heeft %1 cellen nodig en er zijn er %2 geselecteerd. De tekst loopt door onder de geselecteerde cellen. Wilt u doorgaan?</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>The text needs more rows than the sheet has.</source>
-        <translation type="unfinished">De tekst heeft meer rijen nodig dan het werkblad heeft.</translation>
-    </message>
-    <message>
-        <location line="+13"/>
-        <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over.</source>
-        <translation type="unfinished">De eerste rij van een tabel bevat de namen van de kolommen en kan daarom niet worden overschreven door doorvoeren.</translation>
-    </message>
-    <message>
-        <location line="+26"/>
-        <source>Justify</source>
-        <translation type="unfinished">Uitvullen</translation>
-    </message>
-    <message>
-        <location line="+19"/>
-        <source>Choose at least one other sheet to fill.</source>
-        <translation type="unfinished">Kies ten minste één ander werkblad om te vullen.</translation>
-    </message>
-    <message>
-        <location line="+27"/>
-        <source>A fill can&apos;t go into or out of merged cells that do not match: a merged area has to be wholly in the cells copied, and on the sheets copied to there may be only areas like it. Unmerge them first, or fill other cells.</source>
-        <translation type="unfinished">Doorvoeren kan niet in of uit samengevoegde cellen die niet overeenkomen: een samengevoegd gebied moet volledig binnen de gekopieerde cellen liggen, en op de doelwerkbladen mogen alleen vergelijkbare gebieden voorkomen. Hef eerst de samenvoeging op of vul andere cellen.</translation>
-    </message>
-    <message>
-        <location line="+21"/>
-        <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over. Choose cells that do not reach it.</source>
-        <translation type="unfinished">De eerste rij van een tabel bevat de namen van de kolommen en kan daarom niet worden overschreven door doorvoeren. Kies cellen die deze rij niet raken.</translation>
-    </message>
-    <message>
-        <location line="+34"/>
-        <source>Fill across sheets</source>
-        <translation type="unfinished">Doorvoeren over werkbladen</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editpage.cpp" line="+19"/>
-        <source>That sheet can&apos;t be set up for printing.</source>
-        <translation type="unfinished">Dat werkblad kan niet worden ingesteld voor afdrukken.</translation>
-    </message>
-    <message>
-        <location line="+12"/>
-        <source>A header or footer can have up to %1 characters, counting the codes in it.</source>
-        <translation type="unfinished">Een koptekst of voettekst kan maximaal %1 tekens bevatten, inclusief de codes erin.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>A sheet can have up to %1 page breaks of each kind.</source>
-        <translation type="unfinished">Een werkblad kan maximaal %1 pagina-einden van elk type bevatten.</translation>
-    </message>
-    <message>
-        <location line="+12"/>
-        <source>A page break can&apos;t be before the first row or column.</source>
-        <translation type="unfinished">Een pagina-einde kan niet vóór de eerste rij of kolom staan.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-24"/>
-        <source>That would go past the edge of the sheet. Select a cell nearer its start.</source>
-        <translation type="unfinished">Dan zou de rand van het werkblad worden overschreden. Selecteer een cel dichter bij het begin.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>That is more cells than JeffCrunch pastes at once (%1). Paste into fewer.</source>
-        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer plakt (%1). Plak in minder cellen.</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <source>The first row of a table holds the names of its columns, so cells can&apos;t be pasted over it. Paste below it, or change the names one by one.</source>
-        <translation type="unfinished">De eerste rij van een tabel bevat de namen van de kolommen, dus er kunnen geen cellen overheen worden geplakt. Plak eronder of wijzig de namen een voor een.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>That would make more merged cells than JeffCrunch makes at once. Paste into fewer cells.</source>
-        <translation type="unfinished">Dan zouden er meer samengevoegde cellen ontstaan dan JeffCrunch in één keer maakt. Plak in minder cellen.</translation>
-    </message>
-    <message>
-        <location line="+38"/>
-        <source>There is nothing to paste.</source>
-        <translation type="unfinished">Er is niets om te plakken.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <location line="+93"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-250"/>
-        <source>The workbook is still being opened. It can be changed when it is open.</source>
-        <translation type="unfinished">De werkmap wordt nog geopend. U kunt deze wijzigen zodra deze is geopend.</translation>
-    </message>
-    <message>
-        <location line="-8"/>
-        <location line="+52"/>
-        <source>Pasting</source>
-        <translation type="unfinished">Plakken</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Moving cells</source>
-        <translation type="unfinished">Cellen verplaatsen</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-51"/>
-        <source>&quot;%1&quot; could not be done again, so Undo and Redo are not available any more for what came before it.</source>
-        <translation type="unfinished">&quot;%1&quot; kon niet opnieuw worden uitgevoerd, dus Ongedaan maken en Opnieuw zijn niet meer beschikbaar voor wat eraan voorafging.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>&quot;%1&quot; could not be undone, so Undo and Redo are not available any more for what came before it.</source>
-        <translation type="unfinished">&quot;%1&quot; kon niet ongedaan worden gemaakt, dus Ongedaan maken en Opnieuw zijn niet meer beschikbaar voor wat eraan voorafging.</translation>
-    </message>
-    <message>
-        <location line="+54"/>
-        <source>Some of this workbook could not be read whole, so JeffCrunch does not change it. You can look at it, and save nothing.</source>
-        <translation type="unfinished">Een deel van deze werkmap kon niet volledig worden gelezen, dus JeffCrunch wijzigt deze niet. U kunt de werkmap bekijken, maar niet opslaan.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editops.cpp" line="-75"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+10"/>
-        <location filename="../apps/crunch/core/editsheets.cpp" line="-116"/>
-        <location line="+84"/>
-        <location line="+108"/>
-        <location line="+29"/>
-        <location line="+30"/>
-        <source>There is no such sheet.</source>
-        <translation type="unfinished">Dat werkblad bestaat niet.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1"/>
-        <source>This sheet has no cells to change.</source>
-        <translation type="unfinished">Dit werkblad heeft geen cellen om te wijzigen.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editnotes.cpp" line="+35"/>
-        <source>Notes and links of a workbook opened from this kind of file are kept when it is saved as an .xlsx workbook. Save it as one, and then add them.</source>
-        <translation type="unfinished">Notities en koppelingen van een werkmap die uit dit type bestand is geopend, blijven behouden wanneer deze wordt opgeslagen als .xlsx-werkmap. Sla de werkmap in die indeling op en voeg ze daarna toe.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>This sheet has more notes than JeffCrunch changes (%1). It shows them, and keeps them, but doesn&apos;t put notes on it or take them off.</source>
-        <translation type="unfinished">Dit werkblad heeft meer notities dan JeffCrunch kan wijzigen (%1). Ze worden weergegeven en behouden, maar er kunnen geen notities worden toegevoegd of verwijderd.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <location line="+85"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+11"/>
-        <source>That cell is outside the sheet.</source>
-        <translation type="unfinished">Die cel ligt buiten het werkblad.</translation>
-    </message>
-    <message>
-        <location line="-83"/>
-        <location line="+30"/>
-        <source>This sheet is protected, so its notes can&apos;t be changed. Take the protection off first.</source>
-        <translation type="unfinished">Dit werkblad is beveiligd, dus de notities kunnen niet worden gewijzigd. Hef eerst de beveiliging op.</translation>
-    </message>
-    <message>
-        <location line="-29"/>
-        <source>A note needs some words. To take a note away, delete it.</source>
-        <translation type="unfinished">Een notitie moet tekst bevatten. Verwijder de notitie als u deze wilt weghalen.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A note can have up to %1 characters. Shorten it, and try again.</source>
-        <translation type="unfinished">Een notitie kan maximaal %1 tekens bevatten. Maak de notitie korter en probeer het opnieuw.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <location line="+43"/>
-        <source>This note is a conversation of comments. JeffCrunch shows it, but doesn&apos;t change it.</source>
-        <translation type="unfinished">Deze notitie is een gesprek met opmerkingen. JeffCrunch geeft deze weer, maar wijzigt deze niet.</translation>
-    </message>
-    <message>
-        <location line="-42"/>
-        <source>A sheet can have up to %1 notes.</source>
-        <translation type="unfinished">Een werkblad kan maximaal %1 notities bevatten.</translation>
-    </message>
-    <message>
-        <location line="+79"/>
-        <source>A link needs an address or a place to go to.</source>
-        <translation type="unfinished">Een koppeling heeft een adres of een bestemming nodig.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>That address is longer than a link can hold (%1 characters).</source>
-        <translation type="unfinished">Dat adres is langer dan een koppeling kan bevatten (%1 tekens).</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>That address is longer than a link can hold in files other programs open (%1 characters).</source>
-        <translation type="unfinished">Dat adres is langer dan een koppeling kan bevatten in bestanden die andere programma&apos;s openen (%1 tekens).</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A screen tip can have up to %1 characters.</source>
-        <translation type="unfinished">Een scherminfo kan maximaal %1 tekens bevatten.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>That text is too long for a link (up to %1 characters).</source>
-        <translation type="unfinished">Die tekst is te lang voor een koppeling (maximaal %1 tekens).</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>That kind of address runs a script or carries a page inside itself, so it can&apos;t be made a link.</source>
-        <translation type="unfinished">Dat type adres voert een script uit of bevat zelf een pagina, dus er kan geen koppeling van worden gemaakt.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>This sheet is protected, so links can&apos;t be put on it. Take the protection off first (Review, Unprotect Sheet).</source>
-        <translation type="unfinished">Dit werkblad is beveiligd, dus er kunnen geen koppelingen op worden geplaatst. Hef eerst de beveiliging op (Controleren, Beveiliging blad opheffen).</translation>
-    </message>
-    <message>
-        <location line="+9"/>
-        <source>That is more cells (%1) than are looked at to see that none is locked. Select fewer cells.</source>
-        <translation type="unfinished">Dat zijn meer cellen (%1) dan worden gecontroleerd op vergrendeling. Selecteer minder cellen.</translation>
-    </message>
-    <message>
-        <location line="+18"/>
-        <source>A sheet can have up to %1 links.</source>
-        <translation type="unfinished">Een werkblad kan maximaal %1 koppelingen bevatten.</translation>
-    </message>
-    <message>
-        <location line="+18"/>
-        <source>This sheet is protected, so its links can&apos;t be changed. Take the protection off first (Review, Unprotect Sheet).</source>
-        <translation type="unfinished">Dit werkblad is beveiligd, dus de koppelingen kunnen niet worden gewijzigd. Hef eerst de beveiliging op (Controleren, Beveiliging blad opheffen).</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-25"/>
-        <source>The workbook is busy (it is being saved, or a password is being worked on). It can be changed when that is done.</source>
-        <translation type="unfinished">De werkmap is bezig (deze wordt opgeslagen of er wordt een wachtwoord verwerkt). U kunt de werkmap wijzigen zodra dat klaar is.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A large change is still being made to the workbook. It can be changed again when that is done.</source>
-        <translation type="unfinished">Er wordt nog een grote wijziging in de werkmap aangebracht. U kunt de werkmap weer wijzigen zodra dat klaar is.</translation>
-    </message>
-    <message>
-        <location line="+40"/>
-        <source>This sheet is protected, and the cell is locked, so it can&apos;t be changed. To change it, choose Unprotect Sheet on the Review tab.</source>
-        <translation type="unfinished">Dit werkblad is beveiligd en de cel is vergrendeld, dus deze kan niet worden gewijzigd. Kies hiervoor Beveiliging blad opheffen op het tabblad Controleren.</translation>
-    </message>
-    <message>
-        <location line="+139"/>
-        <source>JeffCrunch could not check what you typed against the rule for this cell just now, so it was not entered. Try again in a moment.</source>
-        <translation type="unfinished">JeffCrunch kon uw invoer zojuist niet controleren aan de regel voor deze cel, dus deze is niet ingevoerd. Probeer het zo meteen opnieuw.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>Invalid Entry</source>
-        <translation type="unfinished">Ongeldige invoer</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>That isn&apos;t allowed in this cell. Enter a value that fits the rule for the cell.</source>
-        <translation type="unfinished">Dat is niet toegestaan in deze cel. Voer een waarde in die voldoet aan de regel voor de cel.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>That doesn&apos;t fit the rule for this cell. Do you want to keep it anyway?</source>
-        <translation type="unfinished">Dat voldoet niet aan de regel voor deze cel. Wilt u het toch behouden?</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>That doesn&apos;t fit the rule for this cell.</source>
-        <translation type="unfinished">Dat voldoet niet aan de regel voor deze cel.</translation>
-    </message>
-    <message>
-        <location line="+34"/>
-        <location line="+65"/>
-        <location line="+111"/>
-        <source>Typing in %1</source>
-        <translation type="unfinished">Typen in %1</translation>
-    </message>
-    <message>
-        <location line="-125"/>
-        <source>The first row of a table holds the names of its columns, so the same entry can&apos;t be put in every cell there.</source>
-        <translation type="unfinished">De eerste rij van een tabel bevat de namen van de kolommen, dus daar kan niet in elke cel dezelfde invoer worden geplaatst.</translation>
-    </message>
-    <message>
-        <location line="+43"/>
-        <source>A column&apos;s name can have up to 255 characters. Shorten it, and try again.</source>
-        <translation type="unfinished">De naam van een kolom kan maximaal 255 tekens bevatten. Maak de naam korter en probeer het opnieuw.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The first row of a table holds the names of its columns, so a cell there needs a name. Type one.</source>
-        <translation type="unfinished">De eerste rij van een tabel bevat de namen van de kolommen, dus een cel daar moet een naam hebben. Typ een naam.</translation>
-    </message>
-    <message>
-        <location line="+52"/>
-        <source>More formulas than JeffCrunch changes at once (%1) use this column&apos;s name.</source>
-        <translation type="unfinished">Meer formules dan JeffCrunch in één keer wijzigt (%1) gebruiken de naam van deze kolom.</translation>
-    </message>
-    <message>
-        <location line="+91"/>
-        <source>The first row of a table holds the names of its columns, so it can&apos;t be cleared. Select the cells below it, or type another name.</source>
-        <translation type="unfinished">De eerste rij van een tabel bevat de namen van de kolommen en kan dus niet worden gewist. Selecteer de cellen eronder of typ een andere naam.</translation>
-    </message>
-    <message>
-        <location line="+9"/>
-        <source>Clearing %1</source>
-        <translation type="unfinished">%1 wissen</translation>
-    </message>
-    <message>
-        <location line="+278"/>
-        <source>the workbook</source>
-        <translation type="unfinished">de werkmap</translation>
-    </message>
-    <message>
-        <location line="+148"/>
-        <source>There is no workbook to save.</source>
-        <translation type="unfinished">Er is geen werkmap om op te slaan.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A large change is still being made to the workbook. Save when that is done.</source>
-        <translation type="unfinished">Er wordt nog een grote wijziging in de werkmap aangebracht. Sla op zodra dat klaar is.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Some of this workbook could not be read whole, so JeffCrunch does not save it.</source>
-        <translation type="unfinished">Een deel van deze werkmap kon niet volledig worden gelezen, dus JeffCrunch slaat deze niet op.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>This workbook was not opened from a file JeffCrunch can save over.</source>
-        <translation type="unfinished">Deze werkmap is niet geopend vanuit een bestand dat JeffCrunch kan overschrijven.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editsheets.cpp" line="-437"/>
-        <source>A sheet&apos;s name can&apos;t be empty.</source>
-        <translation type="unfinished">De naam van een blad mag niet leeg zijn.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A sheet&apos;s name can have up to 31 characters.</source>
-        <translation type="unfinished">De naam van een blad mag maximaal 31 tekens bevatten.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>A sheet&apos;s name can&apos;t have any of these characters: %1</source>
-        <translation type="unfinished">De naam van een blad mag geen van deze tekens bevatten: %1</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A sheet&apos;s name can&apos;t begin or end with an apostrophe.</source>
-        <translation type="unfinished">De naam van een blad mag niet beginnen of eindigen met een apostrof.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>&quot;History&quot; is a name the program keeps for itself.</source>
-        <translation type="unfinished">&quot;History&quot; is een naam die het programma voor zichzelf reserveert.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>There is a sheet named &quot;%1&quot; already. Give this one another name.</source>
-        <translation type="unfinished">Er is al een blad met de naam &quot;%1&quot;. Geef dit blad een andere naam.</translation>
-    </message>
-    <message>
-        <location line="+49"/>
-        <source>This workbook has a formula that adds up a block of sheets (such as Sheet1:Sheet3). JeffCrunch does not yet add, move, rename, or delete sheets in a workbook that has one.</source>
-        <translation type="unfinished">Deze werkmap bevat een formule die een reeks bladen optelt (zoals Blad1:Blad3). JeffCrunch kan nog geen bladen toevoegen, verplaatsen, een andere naam geven of verwijderen in een werkmap met zo&apos;n formule.</translation>
-    </message>
-    <message>
-        <location line="+39"/>
-        <source>A workbook can have up to %1 sheets, and this one has that many. Delete a sheet, and try again.</source>
-        <translation type="unfinished">Een werkmap kan maximaal %1 bladen bevatten, en deze werkmap heeft er zoveel. Verwijder een blad en probeer het opnieuw.</translation>
-    </message>
-    <message>
-        <location line="+28"/>
-        <source>pictures and charts</source>
-        <translation type="unfinished">afbeeldingen en grafieken</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <location line="+1"/>
-        <source>notes</source>
-        <translation type="unfinished">notities</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>connections to outside data</source>
-        <translation type="unfinished">verbindingen met externe gegevens</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <location line="+6"/>
-        <source>pivot tables</source>
-        <translation type="unfinished">draaitabellen</translation>
-    </message>
-    <message>
-        <location line="-5"/>
-        <source>form controls</source>
-        <translation type="unfinished">formulierbesturingselementen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>embedded objects</source>
-        <translation type="unfinished">ingesloten objecten</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>slicers</source>
-        <translation type="unfinished">slicers</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>sparklines</source>
-        <translation type="unfinished">sparklines</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>drop-down lists that read other sheets</source>
-        <translation type="unfinished">vervolgkeuzelijsten die andere bladen lezen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>rules of conditional formatting that read other sheets or use icons of their own</source>
-        <translation type="unfinished">regels voor voorwaardelijke opmaak die andere bladen lezen of eigen pictogrammen gebruiken</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>some extra features</source>
-        <translation type="unfinished">enkele extra functies</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>names that belong to the sheet alone (a print area, say)</source>
-        <translation type="unfinished">namen die alleen bij het blad horen (bijvoorbeeld een afdrukbereik)</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>The copy does not have the %1: those are not copied yet.</source>
-        <translation type="unfinished">De kopie bevat niet de %1: die worden nog niet gekopieerd.</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <source>Insert Sheet</source>
-        <translation type="unfinished">Blad invoegen</translation>
-    </message>
-    <message>
-        <location line="+49"/>
-        <location filename="../apps/crunch/core/edittables.cpp" line="-193"/>
-        <source>The workbook has as many tables as JeffCrunch works with.</source>
-        <translation type="unfinished">De werkmap bevat het maximale aantal tabellen waarmee JeffCrunch kan werken.</translation>
-    </message>
-    <message>
-        <location line="+108"/>
-        <source>More formulas than JeffCrunch changes at once (%1) use this sheet&apos;s tables.</source>
-        <translation type="unfinished">Meer formules dan JeffCrunch in één keer wijzigt (%1) gebruiken de tabellen van dit blad.</translation>
-    </message>
-    <message>
-        <location line="+163"/>
-        <source>This sheet&apos;s sparklines have parts that JeffCrunch can&apos;t keep when it changes them (for example a range of cells for one sparkline), so it leaves them as they are.</source>
-        <translation type="unfinished">De sparklines van dit blad hebben onderdelen die JeffCrunch niet kan bewaren wanneer het ze wijzigt (bijvoorbeeld een celbereik voor één sparkline), dus laat het ze zoals ze zijn.</translation>
-    </message>
-    <message>
-        <location line="+13"/>
-        <source>A sheet can have up to %1 sparklines.</source>
-        <translation type="unfinished">Een blad kan maximaal %1 sparklines hebben.</translation>
-    </message>
-    <message>
-        <location line="-251"/>
-        <source>Copy Sheet</source>
-        <translation type="unfinished">Blad kopiëren</translation>
-    </message>
-    <message>
-        <location line="+22"/>
-        <source>A workbook must have at least one sheet that is shown. Show another sheet, or add one, and then delete this one.</source>
-        <translation type="unfinished">Een werkmap moet ten minste één zichtbaar blad hebben. Maak een ander blad zichtbaar of voeg er een toe, en verwijder dan dit blad.</translation>
-    </message>
-    <message>
-        <location line="+88"/>
-        <source>Delete Sheet</source>
-        <translation type="unfinished">Blad verwijderen</translation>
-    </message>
-    <message>
-        <location line="+29"/>
-        <source>Rename Sheet</source>
-        <translation type="unfinished">Naam van blad wijzigen</translation>
-    </message>
-    <message>
-        <location line="+30"/>
-        <source>Move Sheet</source>
-        <translation type="unfinished">Blad verplaatsen</translation>
-    </message>
-    <message>
-        <location line="+22"/>
-        <source>A workbook must have at least one sheet that is shown.</source>
-        <translation type="unfinished">Een werkmap moet ten minste één zichtbaar blad hebben.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>Hide Sheet</source>
-        <translation type="unfinished">Blad verbergen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Unhide Sheet</source>
-        <translation type="unfinished">Blad zichtbaar maken</translation>
-    </message>
-    <message>
-        <location line="+19"/>
-        <source>Tab Color</source>
-        <translation type="unfinished">Tabkleur</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editsize.cpp" line="+70"/>
-        <location line="+82"/>
-        <source>Those are not columns of the sheet.</source>
-        <translation type="unfinished">Dat zijn geen kolommen van het blad.</translation>
-    </message>
-    <message>
-        <location line="-44"/>
-        <location line="+44"/>
-        <source>Those are not rows of the sheet.</source>
-        <translation type="unfinished">Dat zijn geen rijen van het blad.</translation>
-    </message>
-    <message>
-        <location line="-39"/>
-        <location line="+44"/>
-        <location line="+154"/>
-        <source>That is more rows than JeffCrunch changes at once (%1). Select fewer rows.</source>
-        <translation type="unfinished">Dat zijn meer rijen dan JeffCrunch in één keer wijzigt (%1). Selecteer minder rijen.</translation>
-    </message>
-    <message>
-        <location line="-60"/>
-        <source>A default width can be from 0 to 255 characters, and a default height from 0 to 409.5 points.</source>
-        <translation type="unfinished">Een standaardbreedte kan van 0 tot 255 tekens zijn, en een standaardhoogte van 0 tot 409,5 punten.</translation>
-    </message>
-    <message>
-        <location line="+45"/>
-        <source>Fitting a column to its contents</source>
-        <translation type="unfinished">Kolom aanpassen aan inhoud</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Fitting columns to their contents</source>
-        <translation type="unfinished">Kolommen aanpassen aan inhoud</translation>
-    </message>
-    <message>
-        <location line="+35"/>
-        <source>Fitting a row to its contents</source>
-        <translation type="unfinished">Rij aanpassen aan inhoud</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Fitting rows to their contents</source>
-        <translation type="unfinished">Rijen aanpassen aan inhoud</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="-35"/>
-        <source>That would move or change a pivot table, which JeffCrunch can&apos;t do yet. Change cells that are not part of it.</source>
-        <translation type="unfinished">Daarmee zou een draaitabel worden verplaatst of gewijzigd, wat JeffCrunch nog niet kan. Wijzig cellen die er geen deel van uitmaken.</translation>
-    </message>
-    <message>
-        <location line="+44"/>
-        <source>This can&apos;t be undone, and neither can what you did before it. Do you want to go on?</source>
-        <translation type="unfinished">Dit kan niet ongedaan worden gemaakt, en wat u daarvoor hebt gedaan ook niet. Wilt u doorgaan?</translation>
-    </message>
-    <message>
-        <location line="+18"/>
-        <source>Inserting a row</source>
-        <translation type="unfinished">Rij invoegen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Inserting rows</source>
-        <translation type="unfinished">Rijen invoegen</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>Deleting a row</source>
-        <translation type="unfinished">Rij verwijderen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Deleting rows</source>
-        <translation type="unfinished">Rijen verwijderen</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Inserting a column</source>
-        <translation type="unfinished">Kolom invoegen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Inserting columns</source>
-        <translation type="unfinished">Kolommen invoegen</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>Deleting a column</source>
-        <translation type="unfinished">Kolom verwijderen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Deleting columns</source>
-        <translation type="unfinished">Kolommen verwijderen</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Inserting cells</source>
-        <translation type="unfinished">Cellen invoegen</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Deleting cells</source>
-        <translation type="unfinished">Cellen verwijderen</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editfilter.cpp" line="+172"/>
-        <location line="+417"/>
-        <location filename="../apps/crunch/core/edittables.cpp" line="+88"/>
-        <location line="+87"/>
-        <location line="+82"/>
-        <location line="+37"/>
-        <location line="+46"/>
-        <location line="+66"/>
-        <location line="+60"/>
-        <location line="+228"/>
-        <source>There is no such table.</source>
-        <translation type="unfinished">Deze tabel bestaat niet.</translation>
-    </message>
-    <message>
-        <location line="-413"/>
-        <source>The sheet&apos;s filter is on rows this table is on. Turn it off first, since two filters on the same rows would hide each other&apos;s rows.</source>
-        <translation type="unfinished">Het filter van het blad staat op rijen waarop deze tabel staat. Schakel het eerst uit, want twee filters op dezelfde rijen zouden elkaars rijen verbergen.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>The table %1 is filtered on rows this table is on. Clear its filter first, since two filters on the same rows would hide each other&apos;s rows.</source>
-        <translation type="unfinished">De tabel %1 is gefilterd op rijen waarop deze tabel staat. Wis eerst het filter ervan, want twee filters op dezelfde rijen zouden elkaars rijen verbergen.</translation>
-    </message>
-    <message>
-        <location line="+26"/>
-        <source>The cells are in the table %1, which has its own filter buttons. Use those, or filter cells outside the table.</source>
-        <translation type="unfinished">De cellen staan in de tabel %1, die eigen filterknoppen heeft. Gebruik die, of filter cellen buiten de tabel.</translation>
-    </message>
-    <message>
-        <location line="+16"/>
-        <source>A condition of the filter is for a column that is not in its range.</source>
-        <translation type="unfinished">Een voorwaarde van het filter is voor een kolom die niet in het bereik ervan ligt.</translation>
-    </message>
-    <message>
-        <location line="+18"/>
-        <source>A custom condition needs at least one comparison.</source>
-        <translation type="unfinished">Een aangepaste voorwaarde heeft ten minste één vergelijking nodig.</translation>
-    </message>
-    <message>
-        <location line="+57"/>
-        <source>The filter has a kind of condition that JeffCrunch does not know (%1).</source>
-        <translation type="unfinished">Het filter bevat een soort voorwaarde die JeffCrunch niet kent (%1).</translation>
-    </message>
-    <message>
-        <location line="+22"/>
-        <source>That is more than JeffCrunch can work out for a filter: %1 rows with %2 conditions (at most %3 checks). Filter fewer rows, or use fewer conditions.</source>
-        <translation type="unfinished">Dat is meer dan JeffCrunch voor een filter kan berekenen: %1 rijen met %2 voorwaarden (maximaal %3 controles). Filter minder rijen of gebruik minder voorwaarden.</translation>
-    </message>
-    <message>
-        <location line="+264"/>
-        <source>The filter could not be finished. Try it again.</source>
-        <translation type="unfinished">Het filter kon niet worden voltooid. Probeer het opnieuw.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>The cells were changed while the filter was being worked out, so it was not applied. Filter again.</source>
-        <translation type="unfinished">De cellen zijn gewijzigd terwijl het filter werd berekend, dus het is niet toegepast. Filter opnieuw.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editfind.cpp" line="+93"/>
-        <source>Type the text to look for.</source>
-        <translation type="unfinished">Typ de tekst die u wilt zoeken.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>That is more cells than JeffCrunch changes at once (%1). Narrow the search, and replace again.</source>
-        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer wijzigt (%1). Verfijn de zoekopdracht en vervang opnieuw.</translation>
-    </message>
-    <message>
-        <location line="+37"/>
-        <source>%1 is part of an array or a data table, so it can&apos;t be changed one cell at a time. Nothing was replaced.</source>
-        <translation type="unfinished">%1 maakt deel uit van een matrix of een gegevenstabel en kan dus niet per cel worden gewijzigd. Er is niets vervangen.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>%1 is locked, and its sheet is protected, so it can&apos;t be changed. Nothing was replaced.</source>
-        <translation type="unfinished">%1 is vergrendeld en het blad is beveiligd, dus de cel kan niet worden gewijzigd. Er is niets vervangen.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>%1 is in the first row of a table, which holds the names of its columns. Nothing was replaced.</source>
-        <translation type="unfinished">%1 staat in de eerste rij van een tabel, die de namen van de kolommen bevat. Er is niets vervangen.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>Replacing in %1 would leave &quot;%2&quot;, which is not something a cell can hold: %3 Nothing was replaced.</source>
-        <translation type="unfinished">Vervangen in %1 zou &quot;%2&quot; opleveren, wat een cel niet kan bevatten: %3 Er is niets vervangen.</translation>
-    </message>
-    <message>
-        <location line="+27"/>
-        <source>The replace could not be finished. Try it again.</source>
-        <translation type="unfinished">Het vervangen kan niet worden voltooid. Probeer het opnieuw.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>The cells were changed while the replace was being worked out, so it was not made. Replace again.</source>
-        <translation type="unfinished">De cellen zijn gewijzigd terwijl het vervangen werd berekend, dus het is niet uitgevoerd. Vervang opnieuw.</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <location line="+4"/>
-        <source>Replacing</source>
-        <translation type="unfinished">Vervangen</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editnames.cpp" line="+86"/>
-        <source>A name that looks like an address past the last column or row, such as %1, can&apos;t be used here. Add an underscore to it.</source>
-        <translation type="unfinished">Een naam die eruitziet als een adres voorbij de laatste kolom of rij, zoals %1, kan hier niet worden gebruikt. Voeg er een onderstrepingsteken aan toe.</translation>
-    </message>
-    <message>
-        <location line="+59"/>
-        <source>New Name</source>
-        <translation type="unfinished">Nieuwe naam</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <location line="+52"/>
-        <source>There is no such name.</source>
-        <translation type="unfinished">Deze naam bestaat niet.</translation>
-    </message>
-    <message>
-        <location line="-37"/>
-        <source>A sheet has a name of its own like that. Renaming would change which name some formulas on that sheet read. Choose another name.</source>
-        <translation type="unfinished">Een werkblad heeft zelf al zo&apos;n naam. Door de naam te wijzigen, verandert welke naam sommige formules op dat werkblad lezen. Kies een andere naam.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>The workbook has a name like that. Renaming would change which name formulas on this sheet read. Choose another name.</source>
-        <translation type="unfinished">De werkmap heeft al zo&apos;n naam. Door de naam te wijzigen, verandert welke naam formules op dit werkblad lezen. Kies een andere naam.</translation>
-    </message>
-    <message>
-        <location line="+17"/>
-        <source>Change Name</source>
-        <translation type="unfinished">Naam wijzigen</translation>
-    </message>
-    <message>
-        <location line="+29"/>
-        <source>Delete Name</source>
-        <translation type="unfinished">Naam verwijderen</translation>
-    </message>
-    <message>
-        <location line="+17"/>
-        <source>That is too many cells to make names from. Select fewer.</source>
-        <translation type="unfinished">Dat zijn te veel cellen om namen van te maken. Selecteer er minder.</translation>
-    </message>
-    <message>
-        <location line="+29"/>
-        <source>Name From Cells</source>
-        <translation type="unfinished">Naam uit cellen</translation>
-    </message>
-    <message>
-        <location line="+127"/>
-        <source>How Formulas Are Worked Out</source>
-        <translation type="unfinished">Hoe formules worden berekend</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editprotect.cpp" line="+40"/>
-        <source>selecting locked cells</source>
-        <translation type="unfinished">vergrendelde cellen selecteren</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>selecting unlocked cells</source>
-        <translation type="unfinished">ontgrendelde cellen selecteren</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>formatting cells</source>
-        <translation type="unfinished">cellen opmaken</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>changing columns&apos; width or hiding them</source>
-        <translation type="unfinished">kolombreedte wijzigen of kolommen verbergen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>changing rows&apos; height or hiding them</source>
-        <translation type="unfinished">rijhoogte wijzigen of rijen verbergen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>inserting columns</source>
-        <translation type="unfinished">kolommen invoegen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>inserting rows</source>
-        <translation type="unfinished">rijen invoegen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>putting in links</source>
-        <translation type="unfinished">koppelingen invoegen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>deleting columns</source>
-        <translation type="unfinished">kolommen verwijderen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>deleting rows</source>
-        <translation type="unfinished">rijen verwijderen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>sorting</source>
-        <translation type="unfinished">sorteren</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>using filters</source>
-        <translation type="unfinished">filters gebruiken</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>using pivot tables</source>
-        <translation type="unfinished">draaitabellen gebruiken</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>changing drawing objects and notes</source>
-        <translation type="unfinished">tekenobjecten en notities wijzigen</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>This sheet is protected, and its protection doesn&apos;t allow %1. Take the protection off first (Review, Unprotect Sheet).</source>
-        <translation type="unfinished">Dit werkblad is beveiligd en de beveiliging staat %1 niet toe. Hef eerst de beveiliging op (Controleren, Beveiliging blad opheffen).</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>The workbook&apos;s sheets are locked, so a sheet can&apos;t be added, deleted, renamed, moved, hidden, or shown. Take the protection off first (Review, Unprotect Workbook).</source>
-        <translation type="unfinished">De werkbladen van de werkmap zijn vergrendeld, dus een werkblad kan niet worden toegevoegd, verwijderd, hernoemd, verplaatst, verborgen of weergegeven. Hef eerst de beveiliging op (Controleren, Beveiliging werkmap opheffen).</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <source>This sheet has no cells to protect.</source>
-        <translation type="unfinished">Dit werkblad heeft geen cellen om te beveiligen.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editslice.cpp" line="+180"/>
-        <source>A workbook opened from an older kind of file, or from a text file, has its notes in a form JeffCrunch does not search. Save it as an .xlsx workbook, and look again.</source>
-        <translation type="unfinished">In een werkmap die is geopend vanuit een ouder bestandstype of een tekstbestand, staan de notities in een vorm die JeffCrunch niet doorzoekt. Sla de werkmap op als .xlsx-werkmap en zoek opnieuw.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editsort.cpp" line="+95"/>
-        <source>Select the cells to sort.</source>
-        <translation type="unfinished">Selecteer de cellen die u wilt sorteren.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Choose what to sort by.</source>
-        <translation type="unfinished">Kies waarop u wilt sorteren.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A sort can have up to %1 levels.</source>
-        <translation type="unfinished">Een sortering kan maximaal %1 niveaus hebben.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>That is more cells than JeffCrunch sorts at once (%1). Select fewer.</source>
-        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer sorteert (%1). Selecteer er minder.</translation>
-    </message>
-    <message>
-        <location line="+9"/>
-        <source>The sort is by %1 that is not in the cells selected.</source>
-        <translation type="unfinished">Er wordt gesorteerd op %1 die niet in de geselecteerde cellen valt.</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>a row</source>
-        <translation type="unfinished">een rij</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>a column</source>
-        <translation type="unfinished">een kolom</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>There are no columns to put in order: the selection has one column, or only a header.</source>
-        <translation type="unfinished">Er zijn geen kolommen om te ordenen: de selectie heeft één kolom of alleen een koprij.</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>There are no rows to put in order: the selection has one row, or only a header.</source>
-        <translation type="unfinished">Er zijn geen rijen om te ordenen: de selectie heeft één rij of alleen een koprij.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>%1 is part of an array or a data table, so the cells can&apos;t be moved. Nothing was sorted.</source>
-        <translation type="unfinished">%1 maakt deel uit van een matrix of een gegevenstabel, dus de cellen kunnen niet worden verplaatst. Er is niets gesorteerd.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <location line="+10"/>
-        <source>%1 is locked, and its sheet is protected, so the cells can&apos;t be moved. Nothing was sorted.</source>
-        <translation type="unfinished">%1 is vergrendeld en het werkblad is beveiligd, dus de cellen kunnen niet worden verplaatst. Er is niets gesorteerd.</translation>
-    </message>
-    <message>
-        <location line="+9"/>
-        <source>%1 is in the first row of a table, which holds the names of its columns, so it can&apos;t be moved. Start the sort below it.</source>
-        <translation type="unfinished">%1 staat in de eerste rij van een tabel, die de kolomnamen bevat, dus deze cel kan niet worden verplaatst. Begin de sortering eronder.</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>Some merged cells reach past the edge of the cells to sort, so they can&apos;t be moved. Select cells that include all of them, or none.</source>
-        <translation type="unfinished">Sommige samengevoegde cellen reiken over de rand van de te sorteren cellen, dus ze kunnen niet worden verplaatst. Selecteer cellen die ze allemaal bevatten, of geen ervan.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>The merged cells are not all the same size, so they can&apos;t be put in order. Unmerge them, or sort cells that have none.</source>
-        <translation type="unfinished">De samengevoegde cellen zijn niet allemaal even groot, dus ze kunnen niet worden geordend. Hef de samenvoeging op of sorteer cellen zonder samengevoegde cellen.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Some merged cells span more than one column, so the columns can&apos;t be put in order. Unmerge them first.</source>
-        <translation type="unfinished">Sommige samengevoegde cellen beslaan meer dan één kolom, dus de kolommen kunnen niet worden geordend. Hef eerst de samenvoeging op.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Some merged cells span more than one row, so the rows can&apos;t be put in order. Unmerge them first.</source>
-        <translation type="unfinished">Sommige samengevoegde cellen beslaan meer dan één rij, dus de rijen kunnen niet worden geordend. Hef eerst de samenvoeging op.</translation>
-    </message>
-    <message>
-        <location line="+13"/>
-        <source>There is nothing to put in order: the filter shows fewer than two of these rows.</source>
-        <translation type="unfinished">Er is niets te ordenen: het filter toont minder dan twee van deze rijen.</translation>
-    </message>
-    <message>
-        <location line="+168"/>
-        <source>The sort could not be finished. Try it again.</source>
-        <translation type="unfinished">Het sorteren kan niet worden voltooid. Probeer het opnieuw.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The cells were changed while the sort was being worked out, so it was not made. Sort again.</source>
-        <translation type="unfinished">De cellen zijn gewijzigd terwijl de sortering werd berekend, dus deze is niet uitgevoerd. Sorteer opnieuw.</translation>
-    </message>
-    <message>
-        <location line="+133"/>
-        <location line="+5"/>
-        <source>Sorting</source>
-        <translation type="unfinished">Sorteren</translation>
-    </message>
-    <message>
-        <location line="+24"/>
-        <source>The cells hold too much text to sort at once. Select fewer.</source>
-        <translation type="unfinished">De cellen bevatten te veel tekst om in één keer te sorteren. Selecteer er minder.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/edittables.cpp" line="-891"/>
-        <source>Another table has that name. Pick another.</source>
-        <translation type="unfinished">Een andere tabel heeft die naam al. Kies een andere.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>A name in the workbook is called that. Pick another.</source>
-        <translation type="unfinished">Er is al een naam in de werkmap die zo heet. Kies een andere.</translation>
-    </message>
-    <message>
-        <location line="+28"/>
-        <source>Those cells are in another table already.</source>
-        <translation type="unfinished">Die cellen staan al in een andere tabel.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Those cells are in a pivot table, so they can&apos;t be a table.</source>
-        <translation type="unfinished">Die cellen staan in een draaitabel, dus ze kunnen geen tabel worden.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>The sheet&apos;s filter covers some of those cells. Turn it off first, since a table has a filter of its own.</source>
-        <translation type="unfinished">Het filter van het werkblad omvat enkele van die cellen. Schakel het eerst uit, want een tabel heeft een eigen filter.</translation>
-    </message>
-    <message>
-        <location line="+156"/>
-        <source>Pick the cells to make a table of.</source>
-        <translation type="unfinished">Kies de cellen waarvan u een tabel wilt maken.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>A table can have up to 16,384 columns.</source>
-        <translation type="unfinished">Een tabel kan maximaal 16.384 kolommen hebben.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>This sheet is protected, so a table can&apos;t be made on it.</source>
-        <translation type="unfinished">Dit werkblad is beveiligd, dus er kan geen tabel op worden gemaakt.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>A table needs a row of data under its names.</source>
-        <translation type="unfinished">Een tabel heeft een rij gegevens onder de kolomnamen nodig.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <location line="+464"/>
-        <source>Merged cells can&apos;t be in a table. Unmerge them first.</source>
-        <translation type="unfinished">Samengevoegde cellen kunnen niet in een tabel staan. Hef eerst de samenvoeging op.</translation>
-    </message>
-    <message>
-        <location line="-455"/>
-        <location line="+26"/>
-        <source>An array formula or a data table is in those cells, so they can&apos;t be a table.</source>
-        <translation type="unfinished">Die cellen bevatten een matrixformule of een gegevenstabel, dus ze kunnen geen tabel worden.</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <source>Making a table</source>
-        <translation type="unfinished">Tabel maken</translation>
-    </message>
-    <message>
-        <location line="+59"/>
-        <source>More formulas than JeffCrunch changes at once (%1) use this table.</source>
-        <translation type="unfinished">Meer formules dan JeffCrunch in één keer wijzigt (%1) gebruiken deze tabel.</translation>
-    </message>
-    <message>
-        <location line="+30"/>
-        <source>Turning a table into cells</source>
-        <translation type="unfinished">Tabel naar cellen converteren</translation>
-    </message>
-    <message>
-        <location line="+58"/>
-        <source>More formulas than JeffCrunch changes at once (%1) use this table&apos;s name.</source>
-        <translation type="unfinished">Meer formules dan JeffCrunch in één keer wijzigt (%1) gebruiken de naam van deze tabel.</translation>
-    </message>
-    <message>
-        <location line="+21"/>
-        <source>Naming a table</source>
-        <translation type="unfinished">Tabel een naam geven</translation>
-    </message>
-    <message>
-        <location line="+32"/>
-        <source>The table is filtered. Clear its filter first, so the rows it hides are shown, and then take the buttons off.</source>
-        <translation type="unfinished">De tabel is gefilterd. Wis eerst het filter, zodat de verborgen rijen worden weergegeven, en verwijder daarna de knoppen.</translation>
-    </message>
-    <message>
-        <location line="+9"/>
-        <source>Changing a table&apos;s look</source>
-        <translation type="unfinished">Uiterlijk van tabel wijzigen</translation>
-    </message>
-    <message>
-        <location line="+21"/>
-        <source>There is no row above the table to hold the names of its columns.</source>
-        <translation type="unfinished">Er is geen rij boven de tabel voor de kolomnamen.</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>The row above the table has something in it. Clear it, or make room, and try again.</source>
-        <translation type="unfinished">De rij boven de tabel bevat gegevens. Maak de rij leeg of maak ruimte en probeer het opnieuw.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>The table is filtered. Clear its filter first, so the rows it hides are shown, and then turn off its row of names.</source>
-        <translation type="unfinished">De tabel is gefilterd. Wis eerst het filter, zodat de verborgen rijen worden weergegeven, en schakel daarna de rij met namen uit.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A table needs a row of data.</source>
-        <translation type="unfinished">Een tabel moet een rij met gegevens hebben.</translation>
-    </message>
-    <message>
-        <location line="+11"/>
-        <source>Showing a table&apos;s names</source>
-        <translation type="unfinished">Namen van tabel weergeven</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Hiding a table&apos;s names</source>
-        <translation type="unfinished">Namen van tabel verbergen</translation>
-    </message>
-    <message>
-        <location line="+21"/>
-        <source>There is no row under the table.</source>
-        <translation type="unfinished">Er is geen rij onder de tabel.</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>The row under the table has something in it. Clear it, or make room, and try again.</source>
-        <translation type="unfinished">De rij onder de tabel bevat gegevens. Maak de rij leeg of maak ruimte en probeer het opnieuw.</translation>
-    </message>
-    <message>
-        <location line="+11"/>
-        <source>Total</source>
-        <translation type="unfinished">Totaal</translation>
-    </message>
-    <message>
-        <location line="+28"/>
-        <source>Showing a table&apos;s totals</source>
-        <translation type="unfinished">Totalen van tabel weergeven</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Hiding a table&apos;s totals</source>
-        <translation type="unfinished">Totalen van tabel verbergen</translation>
-    </message>
-    <message>
-        <location line="+16"/>
-        <source>The table has no row of totals.</source>
-        <translation type="unfinished">De tabel heeft geen rij met totalen.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location line="+192"/>
-        <source>There is no such column.</source>
-        <translation type="unfinished">Deze kolom bestaat niet.</translation>
-    </message>
-    <message>
-        <location line="-179"/>
-        <source>Type the formula for the total.</source>
-        <translation type="unfinished">Typ de formule voor het totaal.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>That is not a formula.</source>
-        <translation type="unfinished">Dat is geen formule.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>The formula names a column the table does not have.</source>
-        <translation type="unfinished">De formule verwijst naar een kolom die de tabel niet heeft.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>JeffCrunch does not know that kind of total.</source>
-        <translation type="unfinished">JeffCrunch kent dit soort totaal niet.</translation>
-    </message>
-    <message>
-        <location line="+11"/>
-        <source>Changing a table&apos;s total</source>
-        <translation type="unfinished">Totaal van tabel wijzigen</translation>
-    </message>
-    <message>
-        <location line="+20"/>
-        <source>The table keeps its first cell. Pick cells that begin where it does.</source>
-        <translation type="unfinished">De tabel behoudt de eerste cel. Selecteer cellen die op dezelfde plaats beginnen.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The table can&apos;t be that size.</source>
-        <translation type="unfinished">De tabel kan niet deze grootte hebben.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A table needs a row of data besides its names and its totals.</source>
-        <translation type="unfinished">Een tabel moet naast de namen en totalen een rij met gegevens hebben.</translation>
-    </message>
-    <message>
-        <location line="+107"/>
-        <source>Resizing a table</source>
-        <translation type="unfinished">Grootte van tabel wijzigen</translation>
-    </message>
-    <message>
-        <location line="+19"/>
-        <source>There are no rows to look at.</source>
-        <translation type="unfinished">Er zijn geen rijen om te bekijken.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location line="+106"/>
-        <source>Pick at least one column to compare.</source>
-        <translation type="unfinished">Kies minstens één kolom om te vergelijken.</translation>
-    </message>
-    <message>
-        <location line="-101"/>
-        <source>Select more than one row of data.</source>
-        <translation type="unfinished">Selecteer meer dan één rij met gegevens.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>The cells have more in them than JeffCrunch changes at once (%1).</source>
-        <translation type="unfinished">De cellen bevatten meer dan JeffCrunch in één keer kan wijzigen (%1).</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <location line="+8"/>
-        <source>%1 is locked, and its sheet is protected, so the cells can&apos;t be moved.</source>
-        <translation type="unfinished">%1 is vergrendeld en het blad is beveiligd, dus de cellen kunnen niet worden verplaatst.</translation>
-    </message>
-    <message>
-        <location line="+20"/>
-        <source>The repeated rows are in more than %1 separate places. Sort the rows by the columns you compare first, so the repeats are next to each other.</source>
-        <translation type="unfinished">De herhaalde rijen staan op meer dan %1 afzonderlijke plekken. Sorteer de rijen eerst op de kolommen die u vergelijkt, zodat de herhalingen naast elkaar staan.</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <source>Removing duplicate rows</source>
-        <translation type="unfinished">Dubbele rijen verwijderen</translation>
-    </message>
-    <message>
-        <location line="+47"/>
-        <source>The table is filtered. Clear its filter first, so the rows it hides are not moved.</source>
-        <translation type="unfinished">De tabel is gefilterd. Wis eerst het filter, zodat de rijen die het verbergt niet worden verplaatst.</translation>
-    </message>
-    <message>
-        <location line="+94"/>
-        <source>Growing a table by a row</source>
-        <translation type="unfinished">Rij aan tabel toevoegen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Growing a table by a column</source>
-        <translation type="unfinished">Kolom aan tabel toevoegen</translation>
-    </message>
-    <message>
-        <location line="+64"/>
-        <location line="+39"/>
-        <source>Filling a calculated column</source>
-        <translation type="unfinished">Berekende kolom vullen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Naming the new columns</source>
-        <translation type="unfinished">Nieuwe kolommen een naam geven</translation>
-    </message>
-    <message>
-        <location line="+9"/>
-        <source>There is nothing to undo.</source>
-        <translation type="unfinished">Er is niets om ongedaan te maken.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+75"/>
-        <location line="+222"/>
-        <location line="+626"/>
-        <source>JeffCrunch can&apos;t read this pivot table.</source>
-        <translation type="unfinished">JeffCrunch kan deze draaitabel niet lezen.</translation>
-    </message>
-    <message>
-        <location line="-844"/>
-        <source>This pivot table has lost the data it is made from.</source>
-        <translation type="unfinished">Deze draaitabel is de gegevens kwijt waarop hij is gebaseerd.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>JeffCrunch can&apos;t read the data this pivot table is made from (%1).</source>
-        <translation type="unfinished">JeffCrunch kan de gegevens waarop deze draaitabel is gebaseerd niet lezen (%1).</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <location line="+4"/>
-        <source>This pivot table uses %1, which JeffCrunch doesn&apos;t work out yet. It stays as it is.</source>
-        <translation type="unfinished">Deze draaitabel gebruikt %1, wat JeffCrunch nog niet kan berekenen. De draaitabel blijft ongewijzigd.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>This pivot table shows a value as a rank or as a percent of a parent, which JeffCrunch doesn&apos;t work out yet. It stays as it is.</source>
-        <translation type="unfinished">Deze draaitabel toont een waarde als rang of als percentage van een bovenliggende waarde, wat JeffCrunch nog niet berekent. Ze blijft zoals ze is.</translation>
-    </message>
-    <message>
-        <location line="+59"/>
-        <source>Type the cells the data is in, for example Sheet1!A1:D100, or the name of a table.</source>
-        <translation type="unfinished">Typ de cellen waarin de gegevens staan, bijvoorbeeld Blad1!A1:D100, of de naam van een tabel.</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <source>There is no sheet called &quot;%1&quot;.</source>
-        <translation type="unfinished">Er is geen blad met de naam &quot;%1&quot;.</translation>
-    </message>
-    <message>
-        <location line="+14"/>
-        <source>There is nothing in those columns.</source>
-        <translation type="unfinished">Die kolommen zijn leeg.</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <source>There is nothing in those rows.</source>
-        <translation type="unfinished">Die rijen zijn leeg.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <location line="+7"/>
-        <source>The data needs a row of names and at least one row of data under it. Type more than one row, for example Sheet1!A1:D100.</source>
-        <translation type="unfinished">De gegevens hebben een rij met namen nodig en daaronder ten minste één rij met gegevens. Typ meer dan één rij, bijvoorbeeld Blad1!A1:D100.</translation>
-    </message>
-    <message>
-        <location line="+12"/>
-        <source>&quot;%1&quot; is not a range of cells, a table, or a name. Type the cells the data is in, with its first row of names, for example Sheet1!A1:D100.</source>
-        <translation type="unfinished">&quot;%1&quot; is geen celbereik, tabel of naam. Typ de cellen waarin de gegevens staan, inclusief de eerste rij met namen, bijvoorbeeld Blad1!A1:D100.</translation>
-    </message>
-    <message>
-        <location line="+19"/>
-        <source>The data of this pivot table is in another workbook, which JeffCrunch does not open, so it can&apos;t be read again here. The table keeps the values the file has. To read it from this workbook, use Change Data Source.</source>
-        <translation type="unfinished">De gegevens van deze draaitabel staan in een andere werkmap, die JeffCrunch niet opent, dus ze kunnen hier niet opnieuw worden gelezen. De tabel behoudt de waarden uit het bestand. Gebruik Gegevensbron wijzigen om de gegevens uit deze werkmap te lezen.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>The sheet this pivot table is made from is not in the workbook any more.</source>
-        <translation type="unfinished">Het blad waarop deze draaitabel is gebaseerd, staat niet meer in de werkmap.</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <source>JeffCrunch can&apos;t find the data this pivot table is made from.</source>
-        <translation type="unfinished">JeffCrunch kan de gegevens waarop deze draaitabel is gebaseerd niet vinden.</translation>
-    </message>
-    <message>
-        <location line="+36"/>
-        <location line="+518"/>
-        <source>JeffCrunch can&apos;t read the data this pivot table is made from.</source>
-        <translation type="unfinished">JeffCrunch kan de gegevens waarop deze draaitabel is gebaseerd niet lezen.</translation>
-    </message>
-    <message>
-        <location line="-479"/>
-        <source>This pivot table can&apos;t be worked out: %1.</source>
-        <translation type="unfinished">Deze draaitabel kan niet worden berekend: %1.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>There is no room above the pivot table for its filters. Move the table down first.</source>
-        <translation type="unfinished">Er is boven de draaitabel geen ruimte voor de filters. Verplaats de tabel eerst omlaag.</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <location line="+814"/>
-        <location line="+21"/>
-        <source>The pivot table would go past the edge of the sheet.</source>
-        <translation type="unfinished">De draaitabel zou buiten de rand van het blad vallen.</translation>
-    </message>
-    <message>
-        <location line="-785"/>
-        <location line="+825"/>
-        <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
-        <translation type="unfinished">De draaitabel zou cellen bedekken die niet leeg zijn (%1). Wis die cellen of verplaats de draaitabel en probeer het opnieuw.</translation>
-    </message>
-    <message>
-        <location line="-809"/>
-        <source>The pivot table would be larger than JeffCrunch changes at once.</source>
-        <translation type="unfinished">De draaitabel zou groter worden dan JeffCrunch in één keer kan wijzigen.</translation>
-    </message>
-    <message>
-        <location line="+137"/>
-        <location line="+309"/>
-        <source>These pivot tables were not refreshed:
-%1</source>
-        <translation type="unfinished">Deze draaitabellen zijn niet vernieuwd:
-%1</translation>
-    </message>
-    <message>
-        <location line="-288"/>
-        <source>JeffCrunch can&apos;t find the cells &quot;%1&quot; stands for.</source>
-        <translation type="unfinished">JeffCrunch kan de cellen waarvoor &quot;%1&quot; staat niet vinden.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>The data must be on a sheet of cells.</source>
-        <translation type="unfinished">De gegevens moeten op een werkblad met cellen staan.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The data needs a row of names and at least one row of data under it.</source>
-        <translation type="unfinished">De gegevens hebben een rij met namen nodig en daaronder ten minste één rij met gegevens.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>There is too much data for a pivot table.</source>
-        <translation type="unfinished">Er zijn te veel gegevens voor een draaitabel.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>There is too much data to make a pivot table of in one step (more than %1 million cells). Use fewer rows or columns.</source>
-        <translation type="unfinished">Er zijn te veel gegevens om in één stap een draaitabel van te maken (meer dan %1 miljoen cellen). Gebruik minder rijen of kolommen.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>The data can&apos;t be read: %1.</source>
-        <translation type="unfinished">De gegevens kunnen niet worden gelezen: %1.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>Pick a sheet of cells for the pivot table.</source>
-        <translation type="unfinished">Kies een werkblad met cellen voor de draaitabel.</translation>
-    </message>
-    <message>
-        <location line="+11"/>
-        <source>There is no room for a pivot table there.</source>
-        <translation type="unfinished">Daar is geen ruimte voor een draaitabel.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>The pivot table would cover some of the data it is made from (%1). Pick a place that is clear of the data.</source>
-        <translation type="unfinished">De draaitabel zou een deel van de brongegevens bedekken (%1). Kies een plaats buiten de gegevens.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>There is a pivot table there already. Pick a cell that is clear of it.</source>
-        <translation type="unfinished">Daar staat al een draaitabel. Kies een cel buiten die draaitabel.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>There is something in the cells a pivot table would cover (%1). Pick a clear place.</source>
-        <translation type="unfinished">De cellen die een draaitabel zou bedekken, zijn niet leeg (%1). Kies een lege plaats.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <location line="+27"/>
-        <source>Pivot Table %1</source>
-        <translation type="unfinished">Draaitabel %1</translation>
-    </message>
-    <message>
-        <location line="-10"/>
-        <source>The pivot table could not be made: %1.</source>
-        <translation type="unfinished">De draaitabel kan niet worden gemaakt: %1.</translation>
-    </message>
-    <message>
-        <location line="+35"/>
-        <source>Create Pivot Table</source>
-        <translation type="unfinished">Draaitabel maken</translation>
-    </message>
-    <message>
-        <location line="+140"/>
-        <source>This pivot table uses %1, which JeffCrunch can&apos;t read again yet.</source>
-        <translation type="unfinished">Deze draaitabel gebruikt %1, wat JeffCrunch nog niet opnieuw kan lezen.</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <source>JeffCrunch can&apos;t read a pivot table made from this data.</source>
-        <translation type="unfinished">JeffCrunch kan geen draaitabel lezen die op deze gegevens is gebaseerd.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>The data can&apos;t be read again: %1.</source>
-        <translation type="unfinished">De gegevens kunnen niet opnieuw worden gelezen: %1.</translation>
-    </message>
-    <message>
-        <location line="+42"/>
-        <location line="+163"/>
-        <location line="+48"/>
-        <location line="+73"/>
-        <location line="+93"/>
-        <location line="+30"/>
-        <location line="+23"/>
-        <location line="+38"/>
-        <source>There is no pivot table here.</source>
-        <translation type="unfinished">Hier staat geen draaitabel.</translation>
-    </message>
-    <message>
-        <location line="-465"/>
-        <source>Refresh Pivot Table</source>
-        <translation type="unfinished">Draaitabel vernieuwen</translation>
-    </message>
-    <message>
-        <location line="+21"/>
-        <source>There are no pivot tables in this workbook that JeffCrunch can read again.</source>
-        <translation type="unfinished">Deze werkmap bevat geen draaitabellen die JeffCrunch opnieuw kan lezen.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Refresh All</source>
-        <translation type="unfinished">Alles vernieuwen</translation>
-    </message>
-    <message>
-        <location line="+32"/>
-        <source>Click a value of the pivot table, not a label.</source>
-        <translation type="unfinished">Klik op een waarde van de draaitabel, niet op een label.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>There are too many rows behind this value to show at once.</source>
-        <translation type="unfinished">Er zijn te veel rijen achter deze waarde om in één keer te tonen.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>There are no rows behind this value.</source>
-        <translation type="unfinished">Er zijn geen rijen achter deze waarde.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Detail %1</source>
-        <translation type="unfinished">Detail %1</translation>
-    </message>
-    <message>
-        <location line="+42"/>
-        <source>Show Details</source>
-        <translation type="unfinished">Details weergeven</translation>
-    </message>
-    <message>
-        <location line="+33"/>
-        <source>Refresh</source>
-        <translation type="unfinished">Vernieuwen</translation>
-    </message>
-    <message numerus="yes">
-        <location line="+2"/>
-        <source>%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.</source>
-        <translation type="unfinished">
-            <numerusform>%n draaitabel is niet opnieuw ingelezen toen het bestand werd geopend: er zijn te veel gegevens. Gebruik Alles vernieuwen.</numerusform>
-            <numerusform>%n draaitabellen zijn niet opnieuw ingelezen toen het bestand werd geopend: er zijn te veel gegevens. Gebruik Alles vernieuwen.</numerusform>
-        </translation>
-    </message>
-    <message>
-        <location line="+19"/>
-        <source>Another pivot table is made from the same data. A group is a part of the data, so it can&apos;t be made while two tables share it.</source>
-        <translation type="unfinished">Een andere draaitabel is gemaakt op dezelfde gegevens. Een groep is een deel van de gegevens, dus die kan niet worden gemaakt terwijl twee tabellen ze delen.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>There is no such field.</source>
-        <translation type="unfinished">Dit veld bestaat niet.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Put the field in the rows or the columns first.</source>
-        <translation type="unfinished">Zet het veld eerst in de rijen of de kolommen.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>These can&apos;t be grouped: %1.</source>
-        <translation type="unfinished">Deze kunnen niet worden gegroepeerd: %1.</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <source>Group Field</source>
-        <translation type="unfinished">Veld groeperen</translation>
-    </message>
-    <message>
-        <location line="+16"/>
-        <source>Another pivot table is made from the same data, so the group can&apos;t be taken away from this one alone.</source>
-        <translation type="unfinished">Een andere draaitabel is gemaakt op dezelfde gegevens, dus de groepering kan niet alleen bij deze tabel worden opgeheven.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location line="+4"/>
-        <source>This field is not grouped.</source>
-        <translation type="unfinished">Dit veld is niet gegroepeerd.</translation>
-    </message>
-    <message>
-        <location line="+23"/>
-        <source>Ungroup Field</source>
-        <translation type="unfinished">Groepering van veld opheffen</translation>
-    </message>
-    <message>
-        <location line="+12"/>
-        <source>Click the name of an item in a pivot table first.</source>
-        <translation type="unfinished">Klik eerst op de naam van een item in een draaitabel.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <location line="+3"/>
-        <location line="+4"/>
-        <location line="+2"/>
-        <source>Click the name of an item in the rows of a pivot table first.</source>
-        <translation type="unfinished">Klik eerst op de naam van een item in de rijen van een draaitabel.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>This item has nothing under it.</source>
-        <translation type="unfinished">Dit item heeft niets eronder.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>JeffCrunch can&apos;t find this item.</source>
-        <translation type="unfinished">JeffCrunch kan dit item niet vinden.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Drill Down</source>
-        <translation type="unfinished">Drill down</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Drill Up</source>
-        <translation type="unfinished">Drill up</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <location line="+57"/>
-        <location line="+5"/>
-        <source>Move Pivot Table</source>
-        <translation type="unfinished">Draaitabel verplaatsen</translation>
-    </message>
-    <message>
-        <location line="-26"/>
-        <source>There is a table in the way (%1).</source>
-        <translation type="unfinished">Er staat een tabel in de weg (%1).</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>There is another pivot table in the way.</source>
-        <translation type="unfinished">Er staat een andere draaitabel in de weg.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>There are merged cells in the way (%1).</source>
-        <translation type="unfinished">Er staan samengevoegde cellen in de weg (%1).</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The sheet&apos;s filter is in the way.</source>
-        <translation type="unfinished">Het filter van het blad staat in de weg.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Move the pivot table somewhere else, or clear those cells first.</source>
-        <translation type="unfinished">Verplaats de draaitabel naar een andere plek, of wis eerst die cellen.</translation>
-    </message>
-    <message>
-        <location line="+46"/>
-        <source>Pivot Table Options</source>
-        <translation type="unfinished">Draaitabelopties</translation>
-    </message>
-    <message>
-        <location line="+27"/>
-        <source>Change Pivot Table Data Source</source>
-        <translation type="unfinished">Gegevensbron van draaitabel wijzigen</translation>
-    </message>
-    <message>
-        <location line="+70"/>
-        <source>Clear Filters</source>
-        <translation type="unfinished">Filters wissen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Clear Pivot Table</source>
-        <translation type="unfinished">Draaitabel wissen</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editdatatools.cpp" line="+76"/>
-        <source>Select cells in one column to split.</source>
-        <translation type="unfinished">Selecteer cellen in één kolom om te splitsen.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>There are too many cells to split at once. Select fewer.</source>
-        <translation type="unfinished">Er zijn te veel cellen om in één keer te splitsen. Selecteer er minder.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Choose what to split the text at.</source>
-        <translation type="unfinished">Kies waarop de tekst moet worden gesplitst.</translation>
-    </message>
-    <message>
-        <location line="+13"/>
-        <location line="+8"/>
-        <source>The pieces would fill too many cells at once. Select fewer cells, or split at fewer places.</source>
-        <translation type="unfinished">De delen zouden in één keer te veel cellen vullen. Selecteer minder cellen, of splits op minder plaatsen.</translation>
-    </message>
-    <message>
-        <location line="-2"/>
-        <source>Every column was left out, so there is nothing to put in the sheet.</source>
-        <translation type="unfinished">Alle kolommen zijn overgeslagen, dus er is niets om in het blad te zetten.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The pieces would go past the last column of the sheet.</source>
-        <translation type="unfinished">De delen zouden voorbij de laatste kolom van het blad gaan.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editslicer.cpp" line="+98"/>
-        <location line="+21"/>
-        <source>This slicer can&apos;t be used.</source>
-        <translation type="unfinished">Deze slicer kan niet worden gebruikt.</translation>
-    </message>
-    <message>
-        <location line="-19"/>
-        <source>This slicer filters no pivot table that JeffCrunch can read.</source>
-        <translation type="unfinished">Deze slicer filtert geen draaitabel die JeffCrunch kan lezen.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>A pivot table this slicer filters can&apos;t be changed.</source>
-        <translation type="unfinished">Een draaitabel waarop deze slicer filtert, kan niet worden gewijzigd.</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <location line="+3"/>
-        <source>Filter by Slicer</source>
-        <translation type="unfinished">Filteren op slicer</translation>
-    </message>
-</context>
-<context>
     <name>EmbeddedFont</name>
     <message>
         <location filename="../libs/office/office/eot.cpp" line="+109"/>
@@ -12868,7 +10937,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
 <context>
     <name>Sheet</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+57"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+58"/>
         <source>Part of the file has more settings on one item than any real file has, so it can&apos;t be read.</source>
         <translation type="unfinished">Een deel van het bestand heeft meer instellingen voor één item dan een echt bestand heeft. Het kan daarom niet worden gelezen.</translation>
     </message>
@@ -12887,12 +10956,12 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <location line="+133"/>
         <location line="+226"/>
         <location line="+249"/>
-        <location line="+751"/>
+        <location line="+752"/>
         <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">Het bestand begint met instructies die dit programma niet toestaat. Het kan daarom niet worden gelezen.</translation>
     </message>
     <message>
-        <location line="-1358"/>
+        <location line="-1359"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">Het bestand is beschadigd: het is niet opgebouwd zoals een spreadsheetbestand hoort te zijn.</translation>
     </message>
@@ -12920,12 +10989,12 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <location line="+126"/>
         <location line="+226"/>
         <location line="+249"/>
-        <location line="+772"/>
+        <location line="+773"/>
         <source>The file has items inside items more deeply than any real file has.</source>
         <translation type="unfinished">Het bestand bevat items die dieper in elkaar zijn genest dan in een echt bestand.</translation>
     </message>
     <message>
-        <location line="-1245"/>
+        <location line="-1246"/>
         <location line="+84"/>
         <source>The part is not a list of shared strings.</source>
         <translation type="unfinished">Het onderdeel is geen lijst met gedeelde tekenreeksen.</translation>
@@ -12942,13 +11011,13 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="+10"/>
-        <location line="+1540"/>
+        <location line="+1541"/>
         <location line="+3"/>
         <source>A string is longer than any real file has.</source>
         <translation type="unfinished">Een tekenreeks is langer dan in een echt bestand.</translation>
     </message>
     <message>
-        <location line="-1392"/>
+        <location line="-1393"/>
         <location line="+223"/>
         <source>The part is not a list of styles.</source>
         <translation type="unfinished">Het onderdeel is geen lijst met stijlen.</translation>
@@ -13034,7 +11103,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Het blad bevat meer rijen met een eigen hoogte of opmaak dan een echt bestand.</translation>
     </message>
     <message>
-        <location line="+72"/>
+        <location line="+73"/>
         <source>The sheet has more runs of columns than any real file has.</source>
         <translation type="unfinished">Het blad bevat meer kolomreeksen dan een echt bestand.</translation>
     </message>
@@ -13220,7 +11289,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Het bestand bevat geen werkmap.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+859"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+855"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+1663"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Dit blad bestaat niet.</translation>
@@ -16072,202 +14141,6 @@ Desktop publishing</translation>
     </message>
 </context>
 <context>
-    <name>jp</name>
-    <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+45"/>
-        <source>Columns</source>
-        <translation type="unfinished">Kolommen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Stacked columns</source>
-        <translation type="unfinished">Gestapelde kolommen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Columns to 100%</source>
-        <translation type="unfinished">Kolommen tot 100%</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Bars</source>
-        <translation type="unfinished">Staven</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Stacked bars</source>
-        <translation type="unfinished">Gestapelde staven</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Bars to 100%</source>
-        <translation type="unfinished">Staven tot 100%</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location line="+21"/>
-        <source>Line</source>
-        <translation type="unfinished">Lijn</translation>
-    </message>
-    <message>
-        <location line="-20"/>
-        <source>Line with markers</source>
-        <translation type="unfinished">Lijn met markeringen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Stacked line</source>
-        <translation type="unfinished">Gestapelde lijn</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location line="+18"/>
-        <source>Pie</source>
-        <translation type="unfinished">Cirkel</translation>
-    </message>
-    <message>
-        <location line="-17"/>
-        <source>Doughnut</source>
-        <translation type="unfinished">Ring</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location line="+17"/>
-        <source>Area</source>
-        <translation type="unfinished">Vlak</translation>
-    </message>
-    <message>
-        <location line="-16"/>
-        <source>Stacked area</source>
-        <translation type="unfinished">Gestapeld vlak</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Scatter, points</source>
-        <translation type="unfinished">Spreiding, punten</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Scatter, joined points</source>
-        <translation type="unfinished">Spreiding, verbonden punten</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Scatter, smooth lines</source>
-        <translation type="unfinished">Spreiding, vloeiende lijnen</translation>
-    </message>
-    <message>
-        <location line="+11"/>
-        <source>Column</source>
-        <translation type="unfinished">Kolom</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Bar</source>
-        <translation type="unfinished">Staaf</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Scatter</source>
-        <translation type="unfinished">Spreiding</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Combo</source>
-        <translation type="unfinished">Combinatie</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+36"/>
-        <source>Light Red Fill with Dark Red Text</source>
-        <translation type="unfinished">Lichtrode vulling met donkerrode tekst</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Yellow Fill with Dark Yellow Text</source>
-        <translation type="unfinished">Gele vulling met donkergele tekst</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Green Fill with Dark Green Text</source>
-        <translation type="unfinished">Groene vulling met donkergroene tekst</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Light Red Fill</source>
-        <translation type="unfinished">Lichtrode vulling</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Red Text</source>
-        <translation type="unfinished">Rode tekst</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Bold Dark Blue Text</source>
-        <translation type="unfinished">Vette donkerblauwe tekst</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+69"/>
-        <source>Blue</source>
-        <translation type="unfinished">Blauw</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Orange</source>
-        <translation type="unfinished">Oranje</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Gray</source>
-        <translation type="unfinished">Grijs</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Gold</source>
-        <translation type="unfinished">Goud</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Green</source>
-        <translation type="unfinished">Groen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Dark Blue</source>
-        <translation type="unfinished">Donkerblauw</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Dark Red</source>
-        <translation type="unfinished">Donkerrood</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Teal</source>
-        <translation type="unfinished">Blauwgroen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Purple</source>
-        <translation type="unfinished">Paars</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Dark Gray</source>
-        <translation type="unfinished">Donkergrijs</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Black</source>
-        <translation type="unfinished">Zwart</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Red</source>
-        <translation type="unfinished">Rood</translation>
-    </message>
-</context>
-<context>
     <name>jp::AnimationOptionsDialog</name>
     <message>
         <location filename="../apps/deck/app/animationdialogs.cpp" line="+25"/>
@@ -18731,7 +16604,7 @@ Bron: %3</translation>
         <translation type="unfinished">Object een andere naam geven</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+25"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+99"/>
         <source>More Charts…</source>
         <translation type="unfinished">Meer grafieken…</translation>
     </message>
@@ -18769,53 +16642,58 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Move Chart…</source>
+        <translation type="unfinished">Grafiek verplaatsen…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Properties…</source>
         <translation type="unfinished">Eigenschappen…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+800"/>
+        <location line="+884"/>
         <source>Bring to Front</source>
         <translation type="unfinished">Naar voorgrond</translation>
     </message>
     <message>
-        <location line="-799"/>
-        <location line="+799"/>
+        <location line="-883"/>
+        <location line="+883"/>
         <source>Bring Forward</source>
         <translation type="unfinished">Naar voren</translation>
     </message>
     <message>
-        <location line="-798"/>
-        <location line="+798"/>
+        <location line="-882"/>
+        <location line="+882"/>
         <source>Send Backward</source>
         <translation type="unfinished">Naar achteren</translation>
     </message>
     <message>
-        <location line="-797"/>
-        <location line="+797"/>
+        <location line="-881"/>
+        <location line="+881"/>
         <source>Send to Back</source>
         <translation type="unfinished">Naar achtergrond</translation>
     </message>
     <message>
-        <location line="-779"/>
+        <location line="-863"/>
         <source>Layouts</source>
         <translation type="unfinished">Indelingen</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location line="+524"/>
+        <location line="+600"/>
         <location line="+3"/>
         <source>Colors</source>
         <translation type="unfinished">Kleuren</translation>
     </message>
     <message>
-        <location line="-518"/>
-        <location line="+523"/>
+        <location line="-594"/>
+        <location line="+599"/>
         <source>Chart Look</source>
         <translation type="unfinished">Grafiekweergave</translation>
     </message>
     <message>
-        <location line="-446"/>
+        <location line="-522"/>
         <location line="+4"/>
         <location line="+7"/>
         <location line="+9"/>
@@ -18879,6 +16757,26 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+10"/>
+        <location line="+12"/>
+        <location line="+8"/>
+        <location line="+21"/>
+        <location line="+18"/>
+        <location line="+3"/>
+        <source>Move Chart</source>
+        <translation type="unfinished">Grafiek verplaatsen</translation>
+    </message>
+    <message>
+        <location line="-50"/>
+        <source>There is no other worksheet to move the chart to.</source>
+        <translation type="unfinished">Er is geen ander werkblad waarnaar de grafiek kan worden verplaatst.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Move the chart to this sheet:</source>
+        <translation type="unfinished">Verplaats de grafiek naar dit blad:</translation>
+    </message>
+    <message>
+        <location line="+56"/>
         <location line="+15"/>
         <location line="+3"/>
         <source>Format Axis</source>
@@ -19155,7 +17053,7 @@ Bron: %3</translation>
         <translation type="unfinished">Uiterlijk</translation>
     </message>
     <message>
-        <location line="+40"/>
+        <location line="+48"/>
         <location line="+1"/>
         <source>Chart Elements</source>
         <translation type="unfinished">Grafiekelementen</translation>
@@ -19239,7 +17137,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-268"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-276"/>
         <location line="+2"/>
         <location line="+1"/>
         <location line="+1"/>
@@ -19346,7 +17244,7 @@ Bron: %3</translation>
         <translation type="unfinished">Knippen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+229"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+237"/>
         <location line="+17"/>
         <location line="+12"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+2"/>
@@ -19389,7 +17287,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-314"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-322"/>
         <location line="+62"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+1"/>
         <source>Right</source>
@@ -20576,9 +18474,9 @@ Bron: %3</translation>
         <location line="+119"/>
         <location line="+28"/>
         <location line="+11"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-452"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-528"/>
         <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+120"/>
-        <location line="+7"/>
+        <location line="+11"/>
         <source>Delete</source>
         <translation type="unfinished">Verwijderen</translation>
     </message>
@@ -20819,6 +18717,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-90"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-104"/>
         <source>Columns</source>
         <translation type="unfinished">Kolommen</translation>
@@ -21071,7 +18970,7 @@ Bron: %3</translation>
         <translation type="unfinished">Tabelnaam</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+708"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+882"/>
         <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="+442"/>
         <source>Picture</source>
         <translation type="unfinished">Afbeelding</translation>
@@ -21325,7 +19224,7 @@ Bron: %3</translation>
         <translation type="unfinished">Bewerking</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-264"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-272"/>
         <location line="+6"/>
         <location line="+65"/>
         <location line="+14"/>
@@ -21799,12 +19698,12 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
         <translation type="unfinished">Niet opslaan</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-36"/>
+        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-40"/>
         <source>This chart sheet&apos;s chart can&apos;t be shown here.</source>
         <translation type="unfinished">De grafiek van dit grafiekblad kan hier niet worden weergegeven.</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+39"/>
         <source>Delete Object</source>
         <translation type="unfinished">Object verwijderen</translation>
     </message>
@@ -23212,7 +21111,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="-32"/>
         <location line="+6"/>
         <location line="+3"/>
-        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+353"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+424"/>
         <source>Ungroup</source>
         <translation type="unfinished">Groep opheffen</translation>
     </message>
@@ -23452,7 +21351,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Aanwijzen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+24"/>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+62"/>
         <source>&quot;%1&quot; is not a formula JeffCrunch can read.</source>
         <translation type="unfinished">&quot;%1&quot; is geen formule die JeffCrunch kan lezen.</translation>
     </message>
@@ -23537,12 +21436,12 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+18"/>
         <location line="+41"/>
         <location line="+4"/>
-        <location line="+30"/>
+        <location line="+32"/>
         <source>Conditional Formatting</source>
         <translation type="unfinished">Voorwaardelijke opmaak</translation>
     </message>
     <message>
-        <location line="-128"/>
+        <location line="-130"/>
         <source>From:</source>
         <translation type="unfinished">Van:</translation>
     </message>
@@ -23852,17 +21751,20 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Sparklines wissen</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-689"/>
+        <location line="+21"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+13"/>
         <source>Line</source>
         <translation type="unfinished">Lijn</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-1"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+1"/>
         <source>Column</source>
         <translation type="unfinished">Kolom</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+1"/>
         <source>Win/Loss</source>
         <translation type="unfinished">Win/verlies</translation>
     </message>
@@ -24083,6 +21985,183 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+0"/>
         <source>Maximum value:</source>
         <translation type="unfinished">Maximumwaarde:</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-25"/>
+        <source>Stacked columns</source>
+        <translation type="unfinished">Gestapelde kolommen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Columns to 100%</source>
+        <translation type="unfinished">Kolommen tot 100%</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bars</source>
+        <translation type="unfinished">Staven</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stacked bars</source>
+        <translation type="unfinished">Gestapelde staven</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bars to 100%</source>
+        <translation type="unfinished">Staven tot 100%</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Line with markers</source>
+        <translation type="unfinished">Lijn met markeringen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stacked line</source>
+        <translation type="unfinished">Gestapelde lijn</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+18"/>
+        <source>Pie</source>
+        <translation type="unfinished">Cirkel</translation>
+    </message>
+    <message>
+        <location line="-17"/>
+        <source>Doughnut</source>
+        <translation type="unfinished">Ring</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+17"/>
+        <source>Area</source>
+        <translation type="unfinished">Vlak</translation>
+    </message>
+    <message>
+        <location line="-16"/>
+        <source>Stacked area</source>
+        <translation type="unfinished">Gestapeld vlak</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Scatter, points</source>
+        <translation type="unfinished">Spreiding, punten</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Scatter, joined points</source>
+        <translation type="unfinished">Spreiding, verbonden punten</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Scatter, smooth lines</source>
+        <translation type="unfinished">Spreiding, vloeiende lijnen</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Bar</source>
+        <translation type="unfinished">Staaf</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Scatter</source>
+        <translation type="unfinished">Spreiding</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Combo</source>
+        <translation type="unfinished">Combinatie</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-153"/>
+        <source>Light Red Fill with Dark Red Text</source>
+        <translation type="unfinished">Lichtrode vulling met donkerrode tekst</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Yellow Fill with Dark Yellow Text</source>
+        <translation type="unfinished">Gele vulling met donkergele tekst</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Green Fill with Dark Green Text</source>
+        <translation type="unfinished">Groene vulling met donkergroene tekst</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Light Red Fill</source>
+        <translation type="unfinished">Lichtrode vulling</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Red Text</source>
+        <translation type="unfinished">Rode tekst</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Bold Dark Blue Text</source>
+        <translation type="unfinished">Vette donkerblauwe tekst</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-604"/>
+        <source>Blue</source>
+        <translation type="unfinished">Blauw</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Orange</source>
+        <translation type="unfinished">Oranje</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Gray</source>
+        <translation type="unfinished">Grijs</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Gold</source>
+        <translation type="unfinished">Goud</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Green</source>
+        <translation type="unfinished">Groen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dark Blue</source>
+        <translation type="unfinished">Donkerblauw</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Dark Red</source>
+        <translation type="unfinished">Donkerrood</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Teal</source>
+        <translation type="unfinished">Blauwgroen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Purple</source>
+        <translation type="unfinished">Paars</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Dark Gray</source>
+        <translation type="unfinished">Donkergrijs</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Black</source>
+        <translation type="unfinished">Zwart</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Red</source>
+        <translation type="unfinished">Rood</translation>
     </message>
 </context>
 <context>
@@ -43712,7 +41791,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="-430"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+919"/>
         <source>Clearing %n cell(s)</source>
         <translation type="unfinished">
             <numerusform>%n cel wissen</numerusform>
@@ -43720,7 +41799,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         </translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnames.cpp" line="-306"/>
+        <location filename="../apps/crunch/core/editnames.cpp" line="+93"/>
         <source>There is already a name like that in this workbook. Choose another, or change that one.</source>
         <translation type="unfinished">Er bestaat al zo&apos;n naam in deze werkmap. Kies een andere naam of wijzig de bestaande.</translation>
     </message>
@@ -43830,9 +41909,1937 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">JeffCrunch kan dit nog niet berekenen (het gebruikt een andere werkmap, de kolommen van een tabel of een functie die JeffCrunch niet heeft), dus er wordt geen waarde weergegeven.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editslicer.cpp" line="-108"/>
+        <location filename="../apps/crunch/core/editslicer.cpp" line="+18"/>
         <source>(blank)</source>
         <translation type="unfinished">(leeg)</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editformat.cpp" line="+66"/>
+        <source>This sheet is protected, so whether its cells are locked, and whether their formulas are hidden, can&apos;t be changed. Unprotect the sheet first (Review, Unprotect Sheet).</source>
+        <translation type="unfinished">Dit blad is beveiligd. Daarom kan niet worden gewijzigd of de cellen vergrendeld zijn en of de formules verborgen zijn. Hef eerst de beveiliging van het blad op (Controleren, Beveiliging blad opheffen).</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editcond.cpp" line="+284"/>
+        <source>Conditional formatting of a workbook opened from this kind of file is kept when it is saved as an .xlsx workbook. Save it as one, and then change rules.</source>
+        <translation type="unfinished">Voorwaardelijke opmaak van een werkmap die uit dit type bestand is geopend, blijft behouden wanneer deze wordt opgeslagen als werkmap (.xlsx). Sla hem zo op en wijzig daarna de regels.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This sheet has more rules than JeffCrunch changes (%1).</source>
+        <translation type="unfinished">Dit blad heeft meer regels dan JeffCrunch kan wijzigen (%1).</translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>This sheet has rules of conditional formatting in a form JeffCrunch keeps as they are (more than it reads, or with a priority another rule has). It doesn&apos;t change the rules of the sheet.</source>
+        <translation type="unfinished">Dit blad bevat voorwaardelijke opmaakregels in een vorm die JeffCrunch ongewijzigd bewaart (meer dan het programma leest, of met een prioriteit die al door een andere regel wordt gebruikt). De regels van het blad worden niet gewijzigd.</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Select the cells the rule is for.</source>
+        <translation type="unfinished">Selecteer de cellen waarvoor de regel geldt.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location filename="../apps/crunch/core/editformat.cpp" line="+11"/>
+        <location line="+200"/>
+        <location line="+38"/>
+        <location line="+284"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-126"/>
+        <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
+        <location line="+247"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+227"/>
+        <location filename="../apps/crunch/core/edittables.cpp" line="+404"/>
+        <location line="+89"/>
+        <source>The workbook is busy. Try again in a moment.</source>
+        <translation type="unfinished">De werkmap is bezet. Probeer het zo meteen opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This workbook has no place to keep the look of a rule.</source>
+        <translation type="unfinished">Deze werkmap heeft geen plek om de opmaak van een regel te bewaren.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Conditional Formatting</source>
+        <translation type="unfinished">Voorwaardelijke opmaak</translation>
+    </message>
+    <message>
+        <location line="+70"/>
+        <source>Clearing there would split the rules into more than %1 blocks of cells. Clear a larger part of the sheet at once.</source>
+        <translation type="unfinished">Wissen hier zou de regels splitsen in meer dan %1 blokken cellen. Wis in één keer een groter deel van het blad.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Clear Rules from Selected Cells</source>
+        <translation type="unfinished">Regels uit geselecteerde cellen wissen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Clear Rules from Sheet</source>
+        <translation type="unfinished">Regels uit blad wissen</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editformat.cpp" line="-477"/>
+        <source>This workbook has as many different formats as a workbook can hold (%1 cell formats). Give the cells a format the workbook already has, or clear the formats of some cells, and try again.</source>
+        <translation type="unfinished">Deze werkmap bevat het maximale aantal verschillende opmaken dat een werkmap kan bevatten (%1 celopmaken). Geef de cellen een opmaak die al in de werkmap staat, of wis de opmaak van enkele cellen, en probeer het opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <location line="+213"/>
+        <location line="+148"/>
+        <source>Those are not cells of the sheet.</source>
+        <translation type="unfinished">Dat zijn geen cellen van het blad.</translation>
+    </message>
+    <message>
+        <location line="-349"/>
+        <source>That is more cells than JeffCrunch formats at once (%1). Select whole columns or rows, or fewer cells.</source>
+        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer kan opmaken (%1). Selecteer hele kolommen of rijen, of minder cellen.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>That is more cells than JeffCrunch clears the formats of at once (%1). Select fewer cells.</source>
+        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer van opmaak kan ontdoen (%1). Selecteer minder cellen.</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>That is more cells than JeffCrunch formats at once (%1). Select fewer columns or rows.</source>
+        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer kan opmaken (%1). Selecteer minder kolommen of rijen.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>That is more rows than JeffCrunch formats at once (%1). Select fewer rows.</source>
+        <translation type="unfinished">Dat zijn meer rijen dan JeffCrunch in één keer kan opmaken (%1). Selecteer minder rijen.</translation>
+    </message>
+    <message>
+        <location line="+56"/>
+        <source>A font&apos;s name can have up to %1 characters in a workbook, and this one has %2. Choose another font.</source>
+        <translation type="unfinished">De naam van een lettertype mag in een werkmap maximaal %1 tekens bevatten, en deze heeft er %2. Kies een ander lettertype.</translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>This workbook has no place to keep the style &quot;%1&quot;.</source>
+        <translation type="unfinished">Deze werkmap heeft geen ruimte om de stijl &quot;%1&quot; op te slaan.</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Type a name for the style, up to 255 characters, with no control characters.</source>
+        <translation type="unfinished">Typ een naam voor de stijl, maximaal 255 tekens, zonder besturingstekens.</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>A style called &quot;%1&quot; is already there. Pick another name.</source>
+        <translation type="unfinished">Er bestaat al een stijl met de naam &apos;%1&apos;. Kies een andere naam.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This workbook has no place to keep a new style.</source>
+        <translation type="unfinished">Deze werkmap heeft geen plek om een nieuwe stijl op te slaan.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+2"/>
+        <source>New Cell Style</source>
+        <translation type="unfinished">Nieuwe celstijl</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Clearing formats</source>
+        <translation type="unfinished">Opmaak wissen</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>That is more cells than JeffCrunch draws borders around at once (%1). Select fewer cells.</source>
+        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer van randen voorziet (%1). Selecteer minder cellen.</translation>
+    </message>
+    <message>
+        <location line="+83"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="+147"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-321"/>
+        <location line="+427"/>
+        <source>You can&apos;t change part of an array or a data table.</source>
+        <translation type="unfinished">U kunt geen deel van een matrix of een gegevenstabel wijzigen.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+15"/>
+        <source>That is more cells than JeffCrunch clears at once (%1). Select fewer cells.</source>
+        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer wist (%1). Selecteer minder cellen.</translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>Clearing all</source>
+        <translation type="unfinished">Alles wissen</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>This sheet is protected, so cells can&apos;t be merged or unmerged on it. To do that, choose Unprotect Sheet on the Review tab.</source>
+        <translation type="unfinished">Dit werkblad is beveiligd, dus cellen kunnen er niet op worden samengevoegd of gesplitst. Kies hiervoor Beveiliging blad opheffen op het tabblad Controleren.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This sheet has more merged cells than JeffCrunch changes. Merge and unmerge them in the program that made it.</source>
+        <translation type="unfinished">Dit werkblad heeft meer samengevoegde cellen dan JeffCrunch kan wijzigen. Voeg ze samen of splits ze in het programma waarmee het is gemaakt.</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>That is more rows than JeffCrunch merges at once. Select fewer rows.</source>
+        <translation type="unfinished">Dat zijn meer rijen dan JeffCrunch in één keer samenvoegt. Selecteer minder rijen.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>That would make more merged cells than JeffCrunch makes.</source>
+        <translation type="unfinished">Dan zouden er meer samengevoegde cellen ontstaan dan JeffCrunch kan maken.</translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>You can&apos;t merge part of an array or a data table, or a locked cell.</source>
+        <translation type="unfinished">U kunt geen deel van een matrix of een gegevenstabel samenvoegen, en ook geen vergrendelde cel.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>When cells are joined into one, only what the cell at the top left holds is kept, and what the others hold is lost. Join them anyway?</source>
+        <translation type="unfinished">Wanneer cellen worden samengevoegd tot één cel, blijft alleen de inhoud van de cel linksboven behouden en gaat de inhoud van de andere cellen verloren. Toch samenvoegen?</translation>
+    </message>
+    <message>
+        <location line="+44"/>
+        <source>Unmerging cells</source>
+        <translation type="unfinished">Cellen splitsen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Merging across</source>
+        <translation type="unfinished">Horizontaal samenvoegen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Merging and centering</source>
+        <translation type="unfinished">Samenvoegen en centreren</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Merging cells</source>
+        <translation type="unfinished">Cellen samenvoegen</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editops.cpp" line="+137"/>
+        <location line="+174"/>
+        <location line="+334"/>
+        <location line="+114"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-220"/>
+        <source>That is more cells than JeffCrunch changes at once (%1). Select fewer cells.</source>
+        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer wijzigt (%1). Selecteer minder cellen.</translation>
+    </message>
+    <message>
+        <location line="-618"/>
+        <source>Sum</source>
+        <translation type="unfinished">Som</translation>
+    </message>
+    <message>
+        <location line="+211"/>
+        <source>A fill can&apos;t go into or out of merged cells that do not match: a merged area has to be wholly in the cells filled from, or in the cells filled and the size of the area in the same place of the cells filled from. Unmerge them first, or fill other cells.</source>
+        <translation type="unfinished">Doorvoeren kan niet in of uit samengevoegde cellen die niet overeenkomen: een samengevoegd gebied moet volledig binnen de broncellen liggen, of binnen de gevulde cellen met dezelfde grootte op dezelfde plaats als in de broncellen. Hef eerst de samenvoeging op of vul andere cellen.</translation>
+    </message>
+    <message>
+        <location line="+183"/>
+        <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over. Fill the cells below it, or type each name.</source>
+        <translation type="unfinished">De eerste rij van een tabel bevat de namen van de kolommen en kan dus niet worden doorgevoerd. Vul de cellen eronder of typ elke naam.</translation>
+    </message>
+    <message>
+        <location line="+87"/>
+        <source>Fill</source>
+        <translation type="unfinished">Doorvoeren</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Justify works on the cells of one column. Select cells in a single column.</source>
+        <translation type="unfinished">Uitvullen werkt op de cellen van één kolom. Selecteer cellen in één kolom.</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Justify works only on text. A cell in the selection holds a number or a formula.</source>
+        <translation type="unfinished">Uitvullen werkt alleen op tekst. Een cel in de selectie bevat een getal of een formule.</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>The text needs %1 cells, and %2 are selected. Text will extend below the selected cells. Do you want to continue?</source>
+        <translation type="unfinished">De tekst heeft %1 cellen nodig en er zijn er %2 geselecteerd. De tekst loopt door onder de geselecteerde cellen. Wilt u doorgaan?</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The text needs more rows than the sheet has.</source>
+        <translation type="unfinished">De tekst heeft meer rijen nodig dan het werkblad heeft.</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over.</source>
+        <translation type="unfinished">De eerste rij van een tabel bevat de namen van de kolommen en kan daarom niet worden overschreven door doorvoeren.</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>Justify</source>
+        <translation type="unfinished">Uitvullen</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Choose at least one other sheet to fill.</source>
+        <translation type="unfinished">Kies ten minste één ander werkblad om te vullen.</translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>A fill can&apos;t go into or out of merged cells that do not match: a merged area has to be wholly in the cells copied, and on the sheets copied to there may be only areas like it. Unmerge them first, or fill other cells.</source>
+        <translation type="unfinished">Doorvoeren kan niet in of uit samengevoegde cellen die niet overeenkomen: een samengevoegd gebied moet volledig binnen de gekopieerde cellen liggen, en op de doelwerkbladen mogen alleen vergelijkbare gebieden voorkomen. Hef eerst de samenvoeging op of vul andere cellen.</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over. Choose cells that do not reach it.</source>
+        <translation type="unfinished">De eerste rij van een tabel bevat de namen van de kolommen en kan daarom niet worden overschreven door doorvoeren. Kies cellen die deze rij niet raken.</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>Fill across sheets</source>
+        <translation type="unfinished">Doorvoeren over werkbladen</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editpage.cpp" line="+19"/>
+        <source>That sheet can&apos;t be set up for printing.</source>
+        <translation type="unfinished">Dat werkblad kan niet worden ingesteld voor afdrukken.</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>A header or footer can have up to %1 characters, counting the codes in it.</source>
+        <translation type="unfinished">Een koptekst of voettekst kan maximaal %1 tekens bevatten, inclusief de codes erin.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>A sheet can have up to %1 page breaks of each kind.</source>
+        <translation type="unfinished">Een werkblad kan maximaal %1 pagina-einden van elk type bevatten.</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>A page break can&apos;t be before the first row or column.</source>
+        <translation type="unfinished">Een pagina-einde kan niet vóór de eerste rij of kolom staan.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-24"/>
+        <source>That would go past the edge of the sheet. Select a cell nearer its start.</source>
+        <translation type="unfinished">Dan zou de rand van het werkblad worden overschreden. Selecteer een cel dichter bij het begin.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That is more cells than JeffCrunch pastes at once (%1). Paste into fewer.</source>
+        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer plakt (%1). Plak in minder cellen.</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>The first row of a table holds the names of its columns, so cells can&apos;t be pasted over it. Paste below it, or change the names one by one.</source>
+        <translation type="unfinished">De eerste rij van een tabel bevat de namen van de kolommen, dus er kunnen geen cellen overheen worden geplakt. Plak eronder of wijzig de namen een voor een.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>That would make more merged cells than JeffCrunch makes at once. Paste into fewer cells.</source>
+        <translation type="unfinished">Dan zouden er meer samengevoegde cellen ontstaan dan JeffCrunch in één keer maakt. Plak in minder cellen.</translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>There is nothing to paste.</source>
+        <translation type="unfinished">Er is niets om te plakken.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location line="+93"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-250"/>
+        <source>The workbook is still being opened. It can be changed when it is open.</source>
+        <translation type="unfinished">De werkmap wordt nog geopend. U kunt deze wijzigen zodra deze is geopend.</translation>
+    </message>
+    <message>
+        <location line="-8"/>
+        <location line="+52"/>
+        <source>Pasting</source>
+        <translation type="unfinished">Plakken</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Moving cells</source>
+        <translation type="unfinished">Cellen verplaatsen</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-51"/>
+        <source>&quot;%1&quot; could not be done again, so Undo and Redo are not available any more for what came before it.</source>
+        <translation type="unfinished">&quot;%1&quot; kon niet opnieuw worden uitgevoerd, dus Ongedaan maken en Opnieuw zijn niet meer beschikbaar voor wat eraan voorafging.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>&quot;%1&quot; could not be undone, so Undo and Redo are not available any more for what came before it.</source>
+        <translation type="unfinished">&quot;%1&quot; kon niet ongedaan worden gemaakt, dus Ongedaan maken en Opnieuw zijn niet meer beschikbaar voor wat eraan voorafging.</translation>
+    </message>
+    <message>
+        <location line="+54"/>
+        <source>Some of this workbook could not be read whole, so JeffCrunch does not change it. You can look at it, and save nothing.</source>
+        <translation type="unfinished">Een deel van deze werkmap kon niet volledig worden gelezen, dus JeffCrunch wijzigt deze niet. U kunt de werkmap bekijken, maar niet opslaan.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editops.cpp" line="-75"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+10"/>
+        <location filename="../apps/crunch/core/editsheets.cpp" line="-116"/>
+        <location line="+84"/>
+        <location line="+108"/>
+        <location line="+29"/>
+        <location line="+30"/>
+        <source>There is no such sheet.</source>
+        <translation type="unfinished">Dat werkblad bestaat niet.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1"/>
+        <source>This sheet has no cells to change.</source>
+        <translation type="unfinished">Dit werkblad heeft geen cellen om te wijzigen.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editnotes.cpp" line="+35"/>
+        <source>Notes and links of a workbook opened from this kind of file are kept when it is saved as an .xlsx workbook. Save it as one, and then add them.</source>
+        <translation type="unfinished">Notities en koppelingen van een werkmap die uit dit type bestand is geopend, blijven behouden wanneer deze wordt opgeslagen als .xlsx-werkmap. Sla de werkmap in die indeling op en voeg ze daarna toe.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This sheet has more notes than JeffCrunch changes (%1). It shows them, and keeps them, but doesn&apos;t put notes on it or take them off.</source>
+        <translation type="unfinished">Dit werkblad heeft meer notities dan JeffCrunch kan wijzigen (%1). Ze worden weergegeven en behouden, maar er kunnen geen notities worden toegevoegd of verwijderd.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <location line="+85"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+11"/>
+        <source>That cell is outside the sheet.</source>
+        <translation type="unfinished">Die cel ligt buiten het werkblad.</translation>
+    </message>
+    <message>
+        <location line="-83"/>
+        <location line="+30"/>
+        <source>This sheet is protected, so its notes can&apos;t be changed. Take the protection off first.</source>
+        <translation type="unfinished">Dit werkblad is beveiligd, dus de notities kunnen niet worden gewijzigd. Hef eerst de beveiliging op.</translation>
+    </message>
+    <message>
+        <location line="-29"/>
+        <source>A note needs some words. To take a note away, delete it.</source>
+        <translation type="unfinished">Een notitie moet tekst bevatten. Verwijder de notitie als u deze wilt weghalen.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A note can have up to %1 characters. Shorten it, and try again.</source>
+        <translation type="unfinished">Een notitie kan maximaal %1 tekens bevatten. Maak de notitie korter en probeer het opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+43"/>
+        <source>This note is a conversation of comments. JeffCrunch shows it, but doesn&apos;t change it.</source>
+        <translation type="unfinished">Deze notitie is een gesprek met opmerkingen. JeffCrunch geeft deze weer, maar wijzigt deze niet.</translation>
+    </message>
+    <message>
+        <location line="-42"/>
+        <source>A sheet can have up to %1 notes.</source>
+        <translation type="unfinished">Een werkblad kan maximaal %1 notities bevatten.</translation>
+    </message>
+    <message>
+        <location line="+79"/>
+        <source>A link needs an address or a place to go to.</source>
+        <translation type="unfinished">Een koppeling heeft een adres of een bestemming nodig.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That address is longer than a link can hold (%1 characters).</source>
+        <translation type="unfinished">Dat adres is langer dan een koppeling kan bevatten (%1 tekens).</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That address is longer than a link can hold in files other programs open (%1 characters).</source>
+        <translation type="unfinished">Dat adres is langer dan een koppeling kan bevatten in bestanden die andere programma&apos;s openen (%1 tekens).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A screen tip can have up to %1 characters.</source>
+        <translation type="unfinished">Een scherminfo kan maximaal %1 tekens bevatten.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>That text is too long for a link (up to %1 characters).</source>
+        <translation type="unfinished">Die tekst is te lang voor een koppeling (maximaal %1 tekens).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>That kind of address runs a script or carries a page inside itself, so it can&apos;t be made a link.</source>
+        <translation type="unfinished">Dat type adres voert een script uit of bevat zelf een pagina, dus er kan geen koppeling van worden gemaakt.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>This sheet is protected, so links can&apos;t be put on it. Take the protection off first (Review, Unprotect Sheet).</source>
+        <translation type="unfinished">Dit werkblad is beveiligd, dus er kunnen geen koppelingen op worden geplaatst. Hef eerst de beveiliging op (Controleren, Beveiliging blad opheffen).</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>That is more cells (%1) than are looked at to see that none is locked. Select fewer cells.</source>
+        <translation type="unfinished">Dat zijn meer cellen (%1) dan worden gecontroleerd op vergrendeling. Selecteer minder cellen.</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>A sheet can have up to %1 links.</source>
+        <translation type="unfinished">Een werkblad kan maximaal %1 koppelingen bevatten.</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>This sheet is protected, so its links can&apos;t be changed. Take the protection off first (Review, Unprotect Sheet).</source>
+        <translation type="unfinished">Dit werkblad is beveiligd, dus de koppelingen kunnen niet worden gewijzigd. Hef eerst de beveiliging op (Controleren, Beveiliging blad opheffen).</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-25"/>
+        <source>The workbook is busy (it is being saved, or a password is being worked on). It can be changed when that is done.</source>
+        <translation type="unfinished">De werkmap is bezig (deze wordt opgeslagen of er wordt een wachtwoord verwerkt). U kunt de werkmap wijzigen zodra dat klaar is.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A large change is still being made to the workbook. It can be changed again when that is done.</source>
+        <translation type="unfinished">Er wordt nog een grote wijziging in de werkmap aangebracht. U kunt de werkmap weer wijzigen zodra dat klaar is.</translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>This sheet is protected, and the cell is locked, so it can&apos;t be changed. To change it, choose Unprotect Sheet on the Review tab.</source>
+        <translation type="unfinished">Dit werkblad is beveiligd en de cel is vergrendeld, dus deze kan niet worden gewijzigd. Kies hiervoor Beveiliging blad opheffen op het tabblad Controleren.</translation>
+    </message>
+    <message>
+        <location line="+139"/>
+        <source>JeffCrunch could not check what you typed against the rule for this cell just now, so it was not entered. Try again in a moment.</source>
+        <translation type="unfinished">JeffCrunch kon uw invoer zojuist niet controleren aan de regel voor deze cel, dus deze is niet ingevoerd. Probeer het zo meteen opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Invalid Entry</source>
+        <translation type="unfinished">Ongeldige invoer</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That isn&apos;t allowed in this cell. Enter a value that fits the rule for the cell.</source>
+        <translation type="unfinished">Dat is niet toegestaan in deze cel. Voer een waarde in die voldoet aan de regel voor de cel.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>That doesn&apos;t fit the rule for this cell. Do you want to keep it anyway?</source>
+        <translation type="unfinished">Dat voldoet niet aan de regel voor deze cel. Wilt u het toch behouden?</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>That doesn&apos;t fit the rule for this cell.</source>
+        <translation type="unfinished">Dat voldoet niet aan de regel voor deze cel.</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <location line="+65"/>
+        <location line="+111"/>
+        <source>Typing in %1</source>
+        <translation type="unfinished">Typen in %1</translation>
+    </message>
+    <message>
+        <location line="-125"/>
+        <source>The first row of a table holds the names of its columns, so the same entry can&apos;t be put in every cell there.</source>
+        <translation type="unfinished">De eerste rij van een tabel bevat de namen van de kolommen, dus daar kan niet in elke cel dezelfde invoer worden geplaatst.</translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>A column&apos;s name can have up to 255 characters. Shorten it, and try again.</source>
+        <translation type="unfinished">De naam van een kolom kan maximaal 255 tekens bevatten. Maak de naam korter en probeer het opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The first row of a table holds the names of its columns, so a cell there needs a name. Type one.</source>
+        <translation type="unfinished">De eerste rij van een tabel bevat de namen van de kolommen, dus een cel daar moet een naam hebben. Typ een naam.</translation>
+    </message>
+    <message>
+        <location line="+52"/>
+        <source>More formulas than JeffCrunch changes at once (%1) use this column&apos;s name.</source>
+        <translation type="unfinished">Meer formules dan JeffCrunch in één keer wijzigt (%1) gebruiken de naam van deze kolom.</translation>
+    </message>
+    <message>
+        <location line="+91"/>
+        <source>The first row of a table holds the names of its columns, so it can&apos;t be cleared. Select the cells below it, or type another name.</source>
+        <translation type="unfinished">De eerste rij van een tabel bevat de namen van de kolommen en kan dus niet worden gewist. Selecteer de cellen eronder of typ een andere naam.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Clearing %1</source>
+        <translation type="unfinished">%1 wissen</translation>
+    </message>
+    <message>
+        <location line="+278"/>
+        <source>the workbook</source>
+        <translation type="unfinished">de werkmap</translation>
+    </message>
+    <message>
+        <location line="+148"/>
+        <source>There is no workbook to save.</source>
+        <translation type="unfinished">Er is geen werkmap om op te slaan.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A large change is still being made to the workbook. Save when that is done.</source>
+        <translation type="unfinished">Er wordt nog een grote wijziging in de werkmap aangebracht. Sla op zodra dat klaar is.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Some of this workbook could not be read whole, so JeffCrunch does not save it.</source>
+        <translation type="unfinished">Een deel van deze werkmap kon niet volledig worden gelezen, dus JeffCrunch slaat deze niet op.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This workbook was not opened from a file JeffCrunch can save over.</source>
+        <translation type="unfinished">Deze werkmap is niet geopend vanuit een bestand dat JeffCrunch kan overschrijven.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editsheets.cpp" line="-437"/>
+        <source>A sheet&apos;s name can&apos;t be empty.</source>
+        <translation type="unfinished">De naam van een blad mag niet leeg zijn.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A sheet&apos;s name can have up to 31 characters.</source>
+        <translation type="unfinished">De naam van een blad mag maximaal 31 tekens bevatten.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A sheet&apos;s name can&apos;t have any of these characters: %1</source>
+        <translation type="unfinished">De naam van een blad mag geen van deze tekens bevatten: %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A sheet&apos;s name can&apos;t begin or end with an apostrophe.</source>
+        <translation type="unfinished">De naam van een blad mag niet beginnen of eindigen met een apostrof.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>&quot;History&quot; is a name the program keeps for itself.</source>
+        <translation type="unfinished">&quot;History&quot; is een naam die het programma voor zichzelf reserveert.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>There is a sheet named &quot;%1&quot; already. Give this one another name.</source>
+        <translation type="unfinished">Er is al een blad met de naam &quot;%1&quot;. Geef dit blad een andere naam.</translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <source>This workbook has a formula that adds up a block of sheets (such as Sheet1:Sheet3). JeffCrunch does not yet add, move, rename, or delete sheets in a workbook that has one.</source>
+        <translation type="unfinished">Deze werkmap bevat een formule die een reeks bladen optelt (zoals Blad1:Blad3). JeffCrunch kan nog geen bladen toevoegen, verplaatsen, een andere naam geven of verwijderen in een werkmap met zo&apos;n formule.</translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>A workbook can have up to %1 sheets, and this one has that many. Delete a sheet, and try again.</source>
+        <translation type="unfinished">Een werkmap kan maximaal %1 bladen bevatten, en deze werkmap heeft er zoveel. Verwijder een blad en probeer het opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>pictures and charts</source>
+        <translation type="unfinished">afbeeldingen en grafieken</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+1"/>
+        <source>notes</source>
+        <translation type="unfinished">notities</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>connections to outside data</source>
+        <translation type="unfinished">verbindingen met externe gegevens</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+6"/>
+        <source>pivot tables</source>
+        <translation type="unfinished">draaitabellen</translation>
+    </message>
+    <message>
+        <location line="-5"/>
+        <source>form controls</source>
+        <translation type="unfinished">formulierbesturingselementen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>embedded objects</source>
+        <translation type="unfinished">ingesloten objecten</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>slicers</source>
+        <translation type="unfinished">slicers</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>sparklines</source>
+        <translation type="unfinished">sparklines</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>drop-down lists that read other sheets</source>
+        <translation type="unfinished">vervolgkeuzelijsten die andere bladen lezen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>rules of conditional formatting that read other sheets or use icons of their own</source>
+        <translation type="unfinished">regels voor voorwaardelijke opmaak die andere bladen lezen of eigen pictogrammen gebruiken</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>some extra features</source>
+        <translation type="unfinished">enkele extra functies</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>names that belong to the sheet alone (a print area, say)</source>
+        <translation type="unfinished">namen die alleen bij het blad horen (bijvoorbeeld een afdrukbereik)</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The copy does not have the %1: those are not copied yet.</source>
+        <translation type="unfinished">De kopie bevat niet de %1: die worden nog niet gekopieerd.</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Insert Sheet</source>
+        <translation type="unfinished">Blad invoegen</translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <location filename="../apps/crunch/core/edittables.cpp" line="-193"/>
+        <source>The workbook has as many tables as JeffCrunch works with.</source>
+        <translation type="unfinished">De werkmap bevat het maximale aantal tabellen waarmee JeffCrunch kan werken.</translation>
+    </message>
+    <message>
+        <location line="+108"/>
+        <source>More formulas than JeffCrunch changes at once (%1) use this sheet&apos;s tables.</source>
+        <translation type="unfinished">Meer formules dan JeffCrunch in één keer wijzigt (%1) gebruiken de tabellen van dit blad.</translation>
+    </message>
+    <message>
+        <location line="+163"/>
+        <source>This sheet&apos;s sparklines have parts that JeffCrunch can&apos;t keep when it changes them (for example a range of cells for one sparkline), so it leaves them as they are.</source>
+        <translation type="unfinished">De sparklines van dit blad hebben onderdelen die JeffCrunch niet kan bewaren wanneer het ze wijzigt (bijvoorbeeld een celbereik voor één sparkline), dus laat het ze zoals ze zijn.</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>A sheet can have up to %1 sparklines.</source>
+        <translation type="unfinished">Een blad kan maximaal %1 sparklines hebben.</translation>
+    </message>
+    <message>
+        <location line="-251"/>
+        <source>Copy Sheet</source>
+        <translation type="unfinished">Blad kopiëren</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>A workbook must have at least one sheet that is shown. Show another sheet, or add one, and then delete this one.</source>
+        <translation type="unfinished">Een werkmap moet ten minste één zichtbaar blad hebben. Maak een ander blad zichtbaar of voeg er een toe, en verwijder dan dit blad.</translation>
+    </message>
+    <message>
+        <location line="+88"/>
+        <source>Delete Sheet</source>
+        <translation type="unfinished">Blad verwijderen</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>Rename Sheet</source>
+        <translation type="unfinished">Naam van blad wijzigen</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>Move Sheet</source>
+        <translation type="unfinished">Blad verplaatsen</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>A workbook must have at least one sheet that is shown.</source>
+        <translation type="unfinished">Een werkmap moet ten minste één zichtbaar blad hebben.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Hide Sheet</source>
+        <translation type="unfinished">Blad verbergen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Unhide Sheet</source>
+        <translation type="unfinished">Blad zichtbaar maken</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Tab Color</source>
+        <translation type="unfinished">Tabkleur</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editsize.cpp" line="+70"/>
+        <location line="+82"/>
+        <source>Those are not columns of the sheet.</source>
+        <translation type="unfinished">Dat zijn geen kolommen van het blad.</translation>
+    </message>
+    <message>
+        <location line="-44"/>
+        <location line="+44"/>
+        <source>Those are not rows of the sheet.</source>
+        <translation type="unfinished">Dat zijn geen rijen van het blad.</translation>
+    </message>
+    <message>
+        <location line="-39"/>
+        <location line="+44"/>
+        <location line="+154"/>
+        <source>That is more rows than JeffCrunch changes at once (%1). Select fewer rows.</source>
+        <translation type="unfinished">Dat zijn meer rijen dan JeffCrunch in één keer wijzigt (%1). Selecteer minder rijen.</translation>
+    </message>
+    <message>
+        <location line="-60"/>
+        <source>A default width can be from 0 to 255 characters, and a default height from 0 to 409.5 points.</source>
+        <translation type="unfinished">Een standaardbreedte kan van 0 tot 255 tekens zijn, en een standaardhoogte van 0 tot 409,5 punten.</translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>Fitting a column to its contents</source>
+        <translation type="unfinished">Kolom aanpassen aan inhoud</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Fitting columns to their contents</source>
+        <translation type="unfinished">Kolommen aanpassen aan inhoud</translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Fitting a row to its contents</source>
+        <translation type="unfinished">Rij aanpassen aan inhoud</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Fitting rows to their contents</source>
+        <translation type="unfinished">Rijen aanpassen aan inhoud</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="-35"/>
+        <source>That would move or change a pivot table, which JeffCrunch can&apos;t do yet. Change cells that are not part of it.</source>
+        <translation type="unfinished">Daarmee zou een draaitabel worden verplaatst of gewijzigd, wat JeffCrunch nog niet kan. Wijzig cellen die er geen deel van uitmaken.</translation>
+    </message>
+    <message>
+        <location line="+44"/>
+        <source>This can&apos;t be undone, and neither can what you did before it. Do you want to go on?</source>
+        <translation type="unfinished">Dit kan niet ongedaan worden gemaakt, en wat u daarvoor hebt gedaan ook niet. Wilt u doorgaan?</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Inserting a row</source>
+        <translation type="unfinished">Rij invoegen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Inserting rows</source>
+        <translation type="unfinished">Rijen invoegen</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Deleting a row</source>
+        <translation type="unfinished">Rij verwijderen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Deleting rows</source>
+        <translation type="unfinished">Rijen verwijderen</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Inserting a column</source>
+        <translation type="unfinished">Kolom invoegen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Inserting columns</source>
+        <translation type="unfinished">Kolommen invoegen</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Deleting a column</source>
+        <translation type="unfinished">Kolom verwijderen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Deleting columns</source>
+        <translation type="unfinished">Kolommen verwijderen</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Inserting cells</source>
+        <translation type="unfinished">Cellen invoegen</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Deleting cells</source>
+        <translation type="unfinished">Cellen verwijderen</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editfilter.cpp" line="+172"/>
+        <location line="+417"/>
+        <location filename="../apps/crunch/core/edittables.cpp" line="+88"/>
+        <location line="+87"/>
+        <location line="+82"/>
+        <location line="+37"/>
+        <location line="+46"/>
+        <location line="+66"/>
+        <location line="+60"/>
+        <location line="+228"/>
+        <source>There is no such table.</source>
+        <translation type="unfinished">Deze tabel bestaat niet.</translation>
+    </message>
+    <message>
+        <location line="-413"/>
+        <source>The sheet&apos;s filter is on rows this table is on. Turn it off first, since two filters on the same rows would hide each other&apos;s rows.</source>
+        <translation type="unfinished">Het filter van het blad staat op rijen waarop deze tabel staat. Schakel het eerst uit, want twee filters op dezelfde rijen zouden elkaars rijen verbergen.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The table %1 is filtered on rows this table is on. Clear its filter first, since two filters on the same rows would hide each other&apos;s rows.</source>
+        <translation type="unfinished">De tabel %1 is gefilterd op rijen waarop deze tabel staat. Wis eerst het filter ervan, want twee filters op dezelfde rijen zouden elkaars rijen verbergen.</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>The cells are in the table %1, which has its own filter buttons. Use those, or filter cells outside the table.</source>
+        <translation type="unfinished">De cellen staan in de tabel %1, die eigen filterknoppen heeft. Gebruik die, of filter cellen buiten de tabel.</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>A condition of the filter is for a column that is not in its range.</source>
+        <translation type="unfinished">Een voorwaarde van het filter is voor een kolom die niet in het bereik ervan ligt.</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>A custom condition needs at least one comparison.</source>
+        <translation type="unfinished">Een aangepaste voorwaarde heeft ten minste één vergelijking nodig.</translation>
+    </message>
+    <message>
+        <location line="+57"/>
+        <source>The filter has a kind of condition that JeffCrunch does not know (%1).</source>
+        <translation type="unfinished">Het filter bevat een soort voorwaarde die JeffCrunch niet kent (%1).</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>That is more than JeffCrunch can work out for a filter: %1 rows with %2 conditions (at most %3 checks). Filter fewer rows, or use fewer conditions.</source>
+        <translation type="unfinished">Dat is meer dan JeffCrunch voor een filter kan berekenen: %1 rijen met %2 voorwaarden (maximaal %3 controles). Filter minder rijen of gebruik minder voorwaarden.</translation>
+    </message>
+    <message>
+        <location line="+264"/>
+        <source>The filter could not be finished. Try it again.</source>
+        <translation type="unfinished">Het filter kon niet worden voltooid. Probeer het opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The cells were changed while the filter was being worked out, so it was not applied. Filter again.</source>
+        <translation type="unfinished">De cellen zijn gewijzigd terwijl het filter werd berekend, dus het is niet toegepast. Filter opnieuw.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editfind.cpp" line="+93"/>
+        <source>Type the text to look for.</source>
+        <translation type="unfinished">Typ de tekst die u wilt zoeken.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That is more cells than JeffCrunch changes at once (%1). Narrow the search, and replace again.</source>
+        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer wijzigt (%1). Verfijn de zoekopdracht en vervang opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>%1 is part of an array or a data table, so it can&apos;t be changed one cell at a time. Nothing was replaced.</source>
+        <translation type="unfinished">%1 maakt deel uit van een matrix of een gegevenstabel en kan dus niet per cel worden gewijzigd. Er is niets vervangen.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 is locked, and its sheet is protected, so it can&apos;t be changed. Nothing was replaced.</source>
+        <translation type="unfinished">%1 is vergrendeld en het blad is beveiligd, dus de cel kan niet worden gewijzigd. Er is niets vervangen.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 is in the first row of a table, which holds the names of its columns. Nothing was replaced.</source>
+        <translation type="unfinished">%1 staat in de eerste rij van een tabel, die de namen van de kolommen bevat. Er is niets vervangen.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Replacing in %1 would leave &quot;%2&quot;, which is not something a cell can hold: %3 Nothing was replaced.</source>
+        <translation type="unfinished">Vervangen in %1 zou &quot;%2&quot; opleveren, wat een cel niet kan bevatten: %3 Er is niets vervangen.</translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>The replace could not be finished. Try it again.</source>
+        <translation type="unfinished">Het vervangen kan niet worden voltooid. Probeer het opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The cells were changed while the replace was being worked out, so it was not made. Replace again.</source>
+        <translation type="unfinished">De cellen zijn gewijzigd terwijl het vervangen werd berekend, dus het is niet uitgevoerd. Vervang opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+4"/>
+        <source>Replacing</source>
+        <translation type="unfinished">Vervangen</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editnames.cpp" line="-19"/>
+        <source>A name that looks like an address past the last column or row, such as %1, can&apos;t be used here. Add an underscore to it.</source>
+        <translation type="unfinished">Een naam die eruitziet als een adres voorbij de laatste kolom of rij, zoals %1, kan hier niet worden gebruikt. Voeg er een onderstrepingsteken aan toe.</translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>New Name</source>
+        <translation type="unfinished">Nieuwe naam</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <location line="+52"/>
+        <source>There is no such name.</source>
+        <translation type="unfinished">Deze naam bestaat niet.</translation>
+    </message>
+    <message>
+        <location line="-37"/>
+        <source>A sheet has a name of its own like that. Renaming would change which name some formulas on that sheet read. Choose another name.</source>
+        <translation type="unfinished">Een werkblad heeft zelf al zo&apos;n naam. Door de naam te wijzigen, verandert welke naam sommige formules op dat werkblad lezen. Kies een andere naam.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The workbook has a name like that. Renaming would change which name formulas on this sheet read. Choose another name.</source>
+        <translation type="unfinished">De werkmap heeft al zo&apos;n naam. Door de naam te wijzigen, verandert welke naam formules op dit werkblad lezen. Kies een andere naam.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Change Name</source>
+        <translation type="unfinished">Naam wijzigen</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>Delete Name</source>
+        <translation type="unfinished">Naam verwijderen</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>That is too many cells to make names from. Select fewer.</source>
+        <translation type="unfinished">Dat zijn te veel cellen om namen van te maken. Selecteer er minder.</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>Name From Cells</source>
+        <translation type="unfinished">Naam uit cellen</translation>
+    </message>
+    <message>
+        <location line="+127"/>
+        <source>How Formulas Are Worked Out</source>
+        <translation type="unfinished">Hoe formules worden berekend</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editprotect.cpp" line="+40"/>
+        <source>selecting locked cells</source>
+        <translation type="unfinished">vergrendelde cellen selecteren</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>selecting unlocked cells</source>
+        <translation type="unfinished">ontgrendelde cellen selecteren</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>formatting cells</source>
+        <translation type="unfinished">cellen opmaken</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>changing columns&apos; width or hiding them</source>
+        <translation type="unfinished">kolombreedte wijzigen of kolommen verbergen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>changing rows&apos; height or hiding them</source>
+        <translation type="unfinished">rijhoogte wijzigen of rijen verbergen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>inserting columns</source>
+        <translation type="unfinished">kolommen invoegen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>inserting rows</source>
+        <translation type="unfinished">rijen invoegen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>putting in links</source>
+        <translation type="unfinished">koppelingen invoegen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>deleting columns</source>
+        <translation type="unfinished">kolommen verwijderen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>deleting rows</source>
+        <translation type="unfinished">rijen verwijderen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>sorting</source>
+        <translation type="unfinished">sorteren</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>using filters</source>
+        <translation type="unfinished">filters gebruiken</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>using pivot tables</source>
+        <translation type="unfinished">draaitabellen gebruiken</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>changing drawing objects and notes</source>
+        <translation type="unfinished">tekenobjecten en notities wijzigen</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This sheet is protected, and its protection doesn&apos;t allow %1. Take the protection off first (Review, Unprotect Sheet).</source>
+        <translation type="unfinished">Dit werkblad is beveiligd en de beveiliging staat %1 niet toe. Hef eerst de beveiliging op (Controleren, Beveiliging blad opheffen).</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The workbook&apos;s sheets are locked, so a sheet can&apos;t be added, deleted, renamed, moved, hidden, or shown. Take the protection off first (Review, Unprotect Workbook).</source>
+        <translation type="unfinished">De werkbladen van de werkmap zijn vergrendeld, dus een werkblad kan niet worden toegevoegd, verwijderd, hernoemd, verplaatst, verborgen of weergegeven. Hef eerst de beveiliging op (Controleren, Beveiliging werkmap opheffen).</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>This sheet has no cells to protect.</source>
+        <translation type="unfinished">Dit werkblad heeft geen cellen om te beveiligen.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editslice.cpp" line="+180"/>
+        <source>A workbook opened from an older kind of file, or from a text file, has its notes in a form JeffCrunch does not search. Save it as an .xlsx workbook, and look again.</source>
+        <translation type="unfinished">In een werkmap die is geopend vanuit een ouder bestandstype of een tekstbestand, staan de notities in een vorm die JeffCrunch niet doorzoekt. Sla de werkmap op als .xlsx-werkmap en zoek opnieuw.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editsort.cpp" line="+95"/>
+        <source>Select the cells to sort.</source>
+        <translation type="unfinished">Selecteer de cellen die u wilt sorteren.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Choose what to sort by.</source>
+        <translation type="unfinished">Kies waarop u wilt sorteren.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A sort can have up to %1 levels.</source>
+        <translation type="unfinished">Een sortering kan maximaal %1 niveaus hebben.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That is more cells than JeffCrunch sorts at once (%1). Select fewer.</source>
+        <translation type="unfinished">Dat zijn meer cellen dan JeffCrunch in één keer sorteert (%1). Selecteer er minder.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>The sort is by %1 that is not in the cells selected.</source>
+        <translation type="unfinished">Er wordt gesorteerd op %1 die niet in de geselecteerde cellen valt.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>a row</source>
+        <translation type="unfinished">een rij</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>a column</source>
+        <translation type="unfinished">een kolom</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>There are no columns to put in order: the selection has one column, or only a header.</source>
+        <translation type="unfinished">Er zijn geen kolommen om te ordenen: de selectie heeft één kolom of alleen een koprij.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>There are no rows to put in order: the selection has one row, or only a header.</source>
+        <translation type="unfinished">Er zijn geen rijen om te ordenen: de selectie heeft één rij of alleen een koprij.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>%1 is part of an array or a data table, so the cells can&apos;t be moved. Nothing was sorted.</source>
+        <translation type="unfinished">%1 maakt deel uit van een matrix of een gegevenstabel, dus de cellen kunnen niet worden verplaatst. Er is niets gesorteerd.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+10"/>
+        <source>%1 is locked, and its sheet is protected, so the cells can&apos;t be moved. Nothing was sorted.</source>
+        <translation type="unfinished">%1 is vergrendeld en het werkblad is beveiligd, dus de cellen kunnen niet worden verplaatst. Er is niets gesorteerd.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>%1 is in the first row of a table, which holds the names of its columns, so it can&apos;t be moved. Start the sort below it.</source>
+        <translation type="unfinished">%1 staat in de eerste rij van een tabel, die de kolomnamen bevat, dus deze cel kan niet worden verplaatst. Begin de sortering eronder.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Some merged cells reach past the edge of the cells to sort, so they can&apos;t be moved. Select cells that include all of them, or none.</source>
+        <translation type="unfinished">Sommige samengevoegde cellen reiken over de rand van de te sorteren cellen, dus ze kunnen niet worden verplaatst. Selecteer cellen die ze allemaal bevatten, of geen ervan.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The merged cells are not all the same size, so they can&apos;t be put in order. Unmerge them, or sort cells that have none.</source>
+        <translation type="unfinished">De samengevoegde cellen zijn niet allemaal even groot, dus ze kunnen niet worden geordend. Hef de samenvoeging op of sorteer cellen zonder samengevoegde cellen.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Some merged cells span more than one column, so the columns can&apos;t be put in order. Unmerge them first.</source>
+        <translation type="unfinished">Sommige samengevoegde cellen beslaan meer dan één kolom, dus de kolommen kunnen niet worden geordend. Hef eerst de samenvoeging op.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some merged cells span more than one row, so the rows can&apos;t be put in order. Unmerge them first.</source>
+        <translation type="unfinished">Sommige samengevoegde cellen beslaan meer dan één rij, dus de rijen kunnen niet worden geordend. Hef eerst de samenvoeging op.</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>There is nothing to put in order: the filter shows fewer than two of these rows.</source>
+        <translation type="unfinished">Er is niets te ordenen: het filter toont minder dan twee van deze rijen.</translation>
+    </message>
+    <message>
+        <location line="+168"/>
+        <source>The sort could not be finished. Try it again.</source>
+        <translation type="unfinished">Het sorteren kan niet worden voltooid. Probeer het opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The cells were changed while the sort was being worked out, so it was not made. Sort again.</source>
+        <translation type="unfinished">De cellen zijn gewijzigd terwijl de sortering werd berekend, dus deze is niet uitgevoerd. Sorteer opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+133"/>
+        <location line="+5"/>
+        <source>Sorting</source>
+        <translation type="unfinished">Sorteren</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>The cells hold too much text to sort at once. Select fewer.</source>
+        <translation type="unfinished">De cellen bevatten te veel tekst om in één keer te sorteren. Selecteer er minder.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/edittables.cpp" line="-891"/>
+        <source>Another table has that name. Pick another.</source>
+        <translation type="unfinished">Een andere tabel heeft die naam al. Kies een andere.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>A name in the workbook is called that. Pick another.</source>
+        <translation type="unfinished">Er is al een naam in de werkmap die zo heet. Kies een andere.</translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>Those cells are in another table already.</source>
+        <translation type="unfinished">Die cellen staan al in een andere tabel.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Those cells are in a pivot table, so they can&apos;t be a table.</source>
+        <translation type="unfinished">Die cellen staan in een draaitabel, dus ze kunnen geen tabel worden.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The sheet&apos;s filter covers some of those cells. Turn it off first, since a table has a filter of its own.</source>
+        <translation type="unfinished">Het filter van het werkblad omvat enkele van die cellen. Schakel het eerst uit, want een tabel heeft een eigen filter.</translation>
+    </message>
+    <message>
+        <location line="+156"/>
+        <source>Pick the cells to make a table of.</source>
+        <translation type="unfinished">Kies de cellen waarvan u een tabel wilt maken.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>A table can have up to 16,384 columns.</source>
+        <translation type="unfinished">Een tabel kan maximaal 16.384 kolommen hebben.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This sheet is protected, so a table can&apos;t be made on it.</source>
+        <translation type="unfinished">Dit werkblad is beveiligd, dus er kan geen tabel op worden gemaakt.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>A table needs a row of data under its names.</source>
+        <translation type="unfinished">Een tabel heeft een rij gegevens onder de kolomnamen nodig.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location line="+464"/>
+        <source>Merged cells can&apos;t be in a table. Unmerge them first.</source>
+        <translation type="unfinished">Samengevoegde cellen kunnen niet in een tabel staan. Hef eerst de samenvoeging op.</translation>
+    </message>
+    <message>
+        <location line="-455"/>
+        <location line="+26"/>
+        <source>An array formula or a data table is in those cells, so they can&apos;t be a table.</source>
+        <translation type="unfinished">Die cellen bevatten een matrixformule of een gegevenstabel, dus ze kunnen geen tabel worden.</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Making a table</source>
+        <translation type="unfinished">Tabel maken</translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>More formulas than JeffCrunch changes at once (%1) use this table.</source>
+        <translation type="unfinished">Meer formules dan JeffCrunch in één keer wijzigt (%1) gebruiken deze tabel.</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>Turning a table into cells</source>
+        <translation type="unfinished">Tabel naar cellen converteren</translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>More formulas than JeffCrunch changes at once (%1) use this table&apos;s name.</source>
+        <translation type="unfinished">Meer formules dan JeffCrunch in één keer wijzigt (%1) gebruiken de naam van deze tabel.</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Naming a table</source>
+        <translation type="unfinished">Tabel een naam geven</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>The table is filtered. Clear its filter first, so the rows it hides are shown, and then take the buttons off.</source>
+        <translation type="unfinished">De tabel is gefilterd. Wis eerst het filter, zodat de verborgen rijen worden weergegeven, en verwijder daarna de knoppen.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Changing a table&apos;s look</source>
+        <translation type="unfinished">Uiterlijk van tabel wijzigen</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>There is no row above the table to hold the names of its columns.</source>
+        <translation type="unfinished">Er is geen rij boven de tabel voor de kolomnamen.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The row above the table has something in it. Clear it, or make room, and try again.</source>
+        <translation type="unfinished">De rij boven de tabel bevat gegevens. Maak de rij leeg of maak ruimte en probeer het opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The table is filtered. Clear its filter first, so the rows it hides are shown, and then turn off its row of names.</source>
+        <translation type="unfinished">De tabel is gefilterd. Wis eerst het filter, zodat de verborgen rijen worden weergegeven, en schakel daarna de rij met namen uit.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A table needs a row of data.</source>
+        <translation type="unfinished">Een tabel moet een rij met gegevens hebben.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Showing a table&apos;s names</source>
+        <translation type="unfinished">Namen van tabel weergeven</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Hiding a table&apos;s names</source>
+        <translation type="unfinished">Namen van tabel verbergen</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>There is no row under the table.</source>
+        <translation type="unfinished">Er is geen rij onder de tabel.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The row under the table has something in it. Clear it, or make room, and try again.</source>
+        <translation type="unfinished">De rij onder de tabel bevat gegevens. Maak de rij leeg of maak ruimte en probeer het opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Total</source>
+        <translation type="unfinished">Totaal</translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>Showing a table&apos;s totals</source>
+        <translation type="unfinished">Totalen van tabel weergeven</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Hiding a table&apos;s totals</source>
+        <translation type="unfinished">Totalen van tabel verbergen</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>The table has no row of totals.</source>
+        <translation type="unfinished">De tabel heeft geen rij met totalen.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+192"/>
+        <source>There is no such column.</source>
+        <translation type="unfinished">Deze kolom bestaat niet.</translation>
+    </message>
+    <message>
+        <location line="-179"/>
+        <source>Type the formula for the total.</source>
+        <translation type="unfinished">Typ de formule voor het totaal.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>That is not a formula.</source>
+        <translation type="unfinished">Dat is geen formule.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The formula names a column the table does not have.</source>
+        <translation type="unfinished">De formule verwijst naar een kolom die de tabel niet heeft.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>JeffCrunch does not know that kind of total.</source>
+        <translation type="unfinished">JeffCrunch kent dit soort totaal niet.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Changing a table&apos;s total</source>
+        <translation type="unfinished">Totaal van tabel wijzigen</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>The table keeps its first cell. Pick cells that begin where it does.</source>
+        <translation type="unfinished">De tabel behoudt de eerste cel. Selecteer cellen die op dezelfde plaats beginnen.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The table can&apos;t be that size.</source>
+        <translation type="unfinished">De tabel kan niet deze grootte hebben.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A table needs a row of data besides its names and its totals.</source>
+        <translation type="unfinished">Een tabel moet naast de namen en totalen een rij met gegevens hebben.</translation>
+    </message>
+    <message>
+        <location line="+107"/>
+        <source>Resizing a table</source>
+        <translation type="unfinished">Grootte van tabel wijzigen</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>There are no rows to look at.</source>
+        <translation type="unfinished">Er zijn geen rijen om te bekijken.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+106"/>
+        <source>Pick at least one column to compare.</source>
+        <translation type="unfinished">Kies minstens één kolom om te vergelijken.</translation>
+    </message>
+    <message>
+        <location line="-101"/>
+        <source>Select more than one row of data.</source>
+        <translation type="unfinished">Selecteer meer dan één rij met gegevens.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The cells have more in them than JeffCrunch changes at once (%1).</source>
+        <translation type="unfinished">De cellen bevatten meer dan JeffCrunch in één keer kan wijzigen (%1).</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location line="+8"/>
+        <source>%1 is locked, and its sheet is protected, so the cells can&apos;t be moved.</source>
+        <translation type="unfinished">%1 is vergrendeld en het blad is beveiligd, dus de cellen kunnen niet worden verplaatst.</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>The repeated rows are in more than %1 separate places. Sort the rows by the columns you compare first, so the repeats are next to each other.</source>
+        <translation type="unfinished">De herhaalde rijen staan op meer dan %1 afzonderlijke plekken. Sorteer de rijen eerst op de kolommen die u vergelijkt, zodat de herhalingen naast elkaar staan.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Removing duplicate rows</source>
+        <translation type="unfinished">Dubbele rijen verwijderen</translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>The table is filtered. Clear its filter first, so the rows it hides are not moved.</source>
+        <translation type="unfinished">De tabel is gefilterd. Wis eerst het filter, zodat de rijen die het verbergt niet worden verplaatst.</translation>
+    </message>
+    <message>
+        <location line="+94"/>
+        <source>Growing a table by a row</source>
+        <translation type="unfinished">Rij aan tabel toevoegen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Growing a table by a column</source>
+        <translation type="unfinished">Kolom aan tabel toevoegen</translation>
+    </message>
+    <message>
+        <location line="+64"/>
+        <location line="+39"/>
+        <source>Filling a calculated column</source>
+        <translation type="unfinished">Berekende kolom vullen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Naming the new columns</source>
+        <translation type="unfinished">Nieuwe kolommen een naam geven</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>There is nothing to undo.</source>
+        <translation type="unfinished">Er is niets om ongedaan te maken.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+75"/>
+        <location line="+222"/>
+        <location line="+626"/>
+        <source>JeffCrunch can&apos;t read this pivot table.</source>
+        <translation type="unfinished">JeffCrunch kan deze draaitabel niet lezen.</translation>
+    </message>
+    <message>
+        <location line="-844"/>
+        <source>This pivot table has lost the data it is made from.</source>
+        <translation type="unfinished">Deze draaitabel is de gegevens kwijt waarop hij is gebaseerd.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>JeffCrunch can&apos;t read the data this pivot table is made from (%1).</source>
+        <translation type="unfinished">JeffCrunch kan de gegevens waarop deze draaitabel is gebaseerd niet lezen (%1).</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+4"/>
+        <source>This pivot table uses %1, which JeffCrunch doesn&apos;t work out yet. It stays as it is.</source>
+        <translation type="unfinished">Deze draaitabel gebruikt %1, wat JeffCrunch nog niet kan berekenen. De draaitabel blijft ongewijzigd.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>This pivot table shows a value as a rank or as a percent of a parent, which JeffCrunch doesn&apos;t work out yet. It stays as it is.</source>
+        <translation type="unfinished">Deze draaitabel toont een waarde als rang of als percentage van een bovenliggende waarde, wat JeffCrunch nog niet berekent. Ze blijft zoals ze is.</translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>Type the cells the data is in, for example Sheet1!A1:D100, or the name of a table.</source>
+        <translation type="unfinished">Typ de cellen waarin de gegevens staan, bijvoorbeeld Blad1!A1:D100, of de naam van een tabel.</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>There is no sheet called &quot;%1&quot;.</source>
+        <translation type="unfinished">Er is geen blad met de naam &quot;%1&quot;.</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>There is nothing in those columns.</source>
+        <translation type="unfinished">Die kolommen zijn leeg.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>There is nothing in those rows.</source>
+        <translation type="unfinished">Die rijen zijn leeg.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location line="+7"/>
+        <source>The data needs a row of names and at least one row of data under it. Type more than one row, for example Sheet1!A1:D100.</source>
+        <translation type="unfinished">De gegevens hebben een rij met namen nodig en daaronder ten minste één rij met gegevens. Typ meer dan één rij, bijvoorbeeld Blad1!A1:D100.</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>&quot;%1&quot; is not a range of cells, a table, or a name. Type the cells the data is in, with its first row of names, for example Sheet1!A1:D100.</source>
+        <translation type="unfinished">&quot;%1&quot; is geen celbereik, tabel of naam. Typ de cellen waarin de gegevens staan, inclusief de eerste rij met namen, bijvoorbeeld Blad1!A1:D100.</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>The data of this pivot table is in another workbook, which JeffCrunch does not open, so it can&apos;t be read again here. The table keeps the values the file has. To read it from this workbook, use Change Data Source.</source>
+        <translation type="unfinished">De gegevens van deze draaitabel staan in een andere werkmap, die JeffCrunch niet opent, dus ze kunnen hier niet opnieuw worden gelezen. De tabel behoudt de waarden uit het bestand. Gebruik Gegevensbron wijzigen om de gegevens uit deze werkmap te lezen.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The sheet this pivot table is made from is not in the workbook any more.</source>
+        <translation type="unfinished">Het blad waarop deze draaitabel is gebaseerd, staat niet meer in de werkmap.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>JeffCrunch can&apos;t find the data this pivot table is made from.</source>
+        <translation type="unfinished">JeffCrunch kan de gegevens waarop deze draaitabel is gebaseerd niet vinden.</translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <location line="+518"/>
+        <source>JeffCrunch can&apos;t read the data this pivot table is made from.</source>
+        <translation type="unfinished">JeffCrunch kan de gegevens waarop deze draaitabel is gebaseerd niet lezen.</translation>
+    </message>
+    <message>
+        <location line="-479"/>
+        <source>This pivot table can&apos;t be worked out: %1.</source>
+        <translation type="unfinished">Deze draaitabel kan niet worden berekend: %1.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>There is no room above the pivot table for its filters. Move the table down first.</source>
+        <translation type="unfinished">Er is boven de draaitabel geen ruimte voor de filters. Verplaats de tabel eerst omlaag.</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <location line="+814"/>
+        <location line="+21"/>
+        <source>The pivot table would go past the edge of the sheet.</source>
+        <translation type="unfinished">De draaitabel zou buiten de rand van het blad vallen.</translation>
+    </message>
+    <message>
+        <location line="-785"/>
+        <location line="+825"/>
+        <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
+        <translation type="unfinished">De draaitabel zou cellen bedekken die niet leeg zijn (%1). Wis die cellen of verplaats de draaitabel en probeer het opnieuw.</translation>
+    </message>
+    <message>
+        <location line="-809"/>
+        <source>The pivot table would be larger than JeffCrunch changes at once.</source>
+        <translation type="unfinished">De draaitabel zou groter worden dan JeffCrunch in één keer kan wijzigen.</translation>
+    </message>
+    <message>
+        <location line="+137"/>
+        <location line="+309"/>
+        <source>These pivot tables were not refreshed:
+%1</source>
+        <translation type="unfinished">Deze draaitabellen zijn niet vernieuwd:
+%1</translation>
+    </message>
+    <message>
+        <location line="-288"/>
+        <source>JeffCrunch can&apos;t find the cells &quot;%1&quot; stands for.</source>
+        <translation type="unfinished">JeffCrunch kan de cellen waarvoor &quot;%1&quot; staat niet vinden.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The data must be on a sheet of cells.</source>
+        <translation type="unfinished">De gegevens moeten op een werkblad met cellen staan.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The data needs a row of names and at least one row of data under it.</source>
+        <translation type="unfinished">De gegevens hebben een rij met namen nodig en daaronder ten minste één rij met gegevens.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>There is too much data for a pivot table.</source>
+        <translation type="unfinished">Er zijn te veel gegevens voor een draaitabel.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>There is too much data to make a pivot table of in one step (more than %1 million cells). Use fewer rows or columns.</source>
+        <translation type="unfinished">Er zijn te veel gegevens om in één stap een draaitabel van te maken (meer dan %1 miljoen cellen). Gebruik minder rijen of kolommen.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The data can&apos;t be read: %1.</source>
+        <translation type="unfinished">De gegevens kunnen niet worden gelezen: %1.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Pick a sheet of cells for the pivot table.</source>
+        <translation type="unfinished">Kies een werkblad met cellen voor de draaitabel.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>There is no room for a pivot table there.</source>
+        <translation type="unfinished">Daar is geen ruimte voor een draaitabel.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The pivot table would cover some of the data it is made from (%1). Pick a place that is clear of the data.</source>
+        <translation type="unfinished">De draaitabel zou een deel van de brongegevens bedekken (%1). Kies een plaats buiten de gegevens.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>There is a pivot table there already. Pick a cell that is clear of it.</source>
+        <translation type="unfinished">Daar staat al een draaitabel. Kies een cel buiten die draaitabel.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>There is something in the cells a pivot table would cover (%1). Pick a clear place.</source>
+        <translation type="unfinished">De cellen die een draaitabel zou bedekken, zijn niet leeg (%1). Kies een lege plaats.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <location line="+27"/>
+        <source>Pivot Table %1</source>
+        <translation type="unfinished">Draaitabel %1</translation>
+    </message>
+    <message>
+        <location line="-10"/>
+        <source>The pivot table could not be made: %1.</source>
+        <translation type="unfinished">De draaitabel kan niet worden gemaakt: %1.</translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Create Pivot Table</source>
+        <translation type="unfinished">Draaitabel maken</translation>
+    </message>
+    <message>
+        <location line="+140"/>
+        <source>This pivot table uses %1, which JeffCrunch can&apos;t read again yet.</source>
+        <translation type="unfinished">Deze draaitabel gebruikt %1, wat JeffCrunch nog niet opnieuw kan lezen.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>JeffCrunch can&apos;t read a pivot table made from this data.</source>
+        <translation type="unfinished">JeffCrunch kan geen draaitabel lezen die op deze gegevens is gebaseerd.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The data can&apos;t be read again: %1.</source>
+        <translation type="unfinished">De gegevens kunnen niet opnieuw worden gelezen: %1.</translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <location line="+163"/>
+        <location line="+48"/>
+        <location line="+73"/>
+        <location line="+93"/>
+        <location line="+30"/>
+        <location line="+23"/>
+        <location line="+38"/>
+        <source>There is no pivot table here.</source>
+        <translation type="unfinished">Hier staat geen draaitabel.</translation>
+    </message>
+    <message>
+        <location line="-465"/>
+        <source>Refresh Pivot Table</source>
+        <translation type="unfinished">Draaitabel vernieuwen</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>There are no pivot tables in this workbook that JeffCrunch can read again.</source>
+        <translation type="unfinished">Deze werkmap bevat geen draaitabellen die JeffCrunch opnieuw kan lezen.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Refresh All</source>
+        <translation type="unfinished">Alles vernieuwen</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Click a value of the pivot table, not a label.</source>
+        <translation type="unfinished">Klik op een waarde van de draaitabel, niet op een label.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>There are too many rows behind this value to show at once.</source>
+        <translation type="unfinished">Er zijn te veel rijen achter deze waarde om in één keer te tonen.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>There are no rows behind this value.</source>
+        <translation type="unfinished">Er zijn geen rijen achter deze waarde.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Detail %1</source>
+        <translation type="unfinished">Detail %1</translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <source>Show Details</source>
+        <translation type="unfinished">Details weergeven</translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>Refresh</source>
+        <translation type="unfinished">Vernieuwen</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.</source>
+        <translation type="unfinished">
+            <numerusform>%n draaitabel is niet opnieuw ingelezen toen het bestand werd geopend: er zijn te veel gegevens. Gebruik Alles vernieuwen.</numerusform>
+            <numerusform>%n draaitabellen zijn niet opnieuw ingelezen toen het bestand werd geopend: er zijn te veel gegevens. Gebruik Alles vernieuwen.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Another pivot table is made from the same data. A group is a part of the data, so it can&apos;t be made while two tables share it.</source>
+        <translation type="unfinished">Een andere draaitabel is gemaakt op dezelfde gegevens. Een groep is een deel van de gegevens, dus die kan niet worden gemaakt terwijl twee tabellen ze delen.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>There is no such field.</source>
+        <translation type="unfinished">Dit veld bestaat niet.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Put the field in the rows or the columns first.</source>
+        <translation type="unfinished">Zet het veld eerst in de rijen of de kolommen.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>These can&apos;t be grouped: %1.</source>
+        <translation type="unfinished">Deze kunnen niet worden gegroepeerd: %1.</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Group Field</source>
+        <translation type="unfinished">Veld groeperen</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Another pivot table is made from the same data, so the group can&apos;t be taken away from this one alone.</source>
+        <translation type="unfinished">Een andere draaitabel is gemaakt op dezelfde gegevens, dus de groepering kan niet alleen bij deze tabel worden opgeheven.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+4"/>
+        <source>This field is not grouped.</source>
+        <translation type="unfinished">Dit veld is niet gegroepeerd.</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Ungroup Field</source>
+        <translation type="unfinished">Groepering van veld opheffen</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Click the name of an item in a pivot table first.</source>
+        <translation type="unfinished">Klik eerst op de naam van een item in een draaitabel.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+3"/>
+        <location line="+4"/>
+        <location line="+2"/>
+        <source>Click the name of an item in the rows of a pivot table first.</source>
+        <translation type="unfinished">Klik eerst op de naam van een item in de rijen van een draaitabel.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This item has nothing under it.</source>
+        <translation type="unfinished">Dit item heeft niets eronder.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>JeffCrunch can&apos;t find this item.</source>
+        <translation type="unfinished">JeffCrunch kan dit item niet vinden.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Drill Down</source>
+        <translation type="unfinished">Drill down</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Drill Up</source>
+        <translation type="unfinished">Drill up</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <location line="+57"/>
+        <location line="+5"/>
+        <source>Move Pivot Table</source>
+        <translation type="unfinished">Draaitabel verplaatsen</translation>
+    </message>
+    <message>
+        <location line="-26"/>
+        <source>There is a table in the way (%1).</source>
+        <translation type="unfinished">Er staat een tabel in de weg (%1).</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>There is another pivot table in the way.</source>
+        <translation type="unfinished">Er staat een andere draaitabel in de weg.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>There are merged cells in the way (%1).</source>
+        <translation type="unfinished">Er staan samengevoegde cellen in de weg (%1).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The sheet&apos;s filter is in the way.</source>
+        <translation type="unfinished">Het filter van het blad staat in de weg.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Move the pivot table somewhere else, or clear those cells first.</source>
+        <translation type="unfinished">Verplaats de draaitabel naar een andere plek, of wis eerst die cellen.</translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>Pivot Table Options</source>
+        <translation type="unfinished">Draaitabelopties</translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>Change Pivot Table Data Source</source>
+        <translation type="unfinished">Gegevensbron van draaitabel wijzigen</translation>
+    </message>
+    <message>
+        <location line="+70"/>
+        <source>Clear Filters</source>
+        <translation type="unfinished">Filters wissen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Clear Pivot Table</source>
+        <translation type="unfinished">Draaitabel wissen</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editdatatools.cpp" line="+76"/>
+        <source>Select cells in one column to split.</source>
+        <translation type="unfinished">Selecteer cellen in één kolom om te splitsen.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>There are too many cells to split at once. Select fewer.</source>
+        <translation type="unfinished">Er zijn te veel cellen om in één keer te splitsen. Selecteer er minder.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Choose what to split the text at.</source>
+        <translation type="unfinished">Kies waarop de tekst moet worden gesplitst.</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <location line="+8"/>
+        <source>The pieces would fill too many cells at once. Select fewer cells, or split at fewer places.</source>
+        <translation type="unfinished">De delen zouden in één keer te veel cellen vullen. Selecteer minder cellen, of splits op minder plaatsen.</translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>Every column was left out, so there is nothing to put in the sheet.</source>
+        <translation type="unfinished">Alle kolommen zijn overgeslagen, dus er is niets om in het blad te zetten.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The pieces would go past the last column of the sheet.</source>
+        <translation type="unfinished">De delen zouden voorbij de laatste kolom van het blad gaan.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editslicer.cpp" line="+80"/>
+        <location line="+21"/>
+        <source>This slicer can&apos;t be used.</source>
+        <translation type="unfinished">Deze slicer kan niet worden gebruikt.</translation>
+    </message>
+    <message>
+        <location line="-19"/>
+        <source>This slicer filters no pivot table that JeffCrunch can read.</source>
+        <translation type="unfinished">Deze slicer filtert geen draaitabel die JeffCrunch kan lezen.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>A pivot table this slicer filters can&apos;t be changed.</source>
+        <translation type="unfinished">Een draaitabel waarop deze slicer filtert, kan niet worden gewijzigd.</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <location line="+3"/>
+        <source>Filter by Slicer</source>
+        <translation type="unfinished">Filteren op slicer</translation>
     </message>
 </context>
 <context>
@@ -47895,7 +47902,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         </translation>
     </message>
     <message>
-        <location line="+477"/>
+        <location line="+549"/>
         <source>The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.</source>
         <translation type="unfinished">De grafieken die sinds de laatste keer opslaan hier zijn gemaakt of gewijzigd, bevatten al zoveel getallen als JeffCrunch bijhoudt (%1). Sla de werkmap eerst op.</translation>
     </message>
@@ -47915,7 +47922,27 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Vorm</translation>
     </message>
     <message>
-        <location line="+113"/>
+        <location line="+196"/>
+        <source>JeffCrunch keeps no more of the objects taken away for Undo after a save.</source>
+        <translation type="unfinished">JeffCrunch bewaart na een opslag geen objecten meer die voor Ongedaan maken zijn verwijderd.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>This object can&apos;t be kept for Undo.</source>
+        <translation type="unfinished">Dit object kan niet worden bewaard voor Ongedaan maken.</translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>This object holds more than JeffCrunch keeps for Undo.</source>
+        <translation type="unfinished">Dit object bevat meer dan JeffCrunch voor Ongedaan maken bewaart.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>This chart names a part the file does not have, so it can&apos;t be kept for Undo.</source>
+        <translation type="unfinished">Deze grafiek verwijst naar een onderdeel dat het bestand niet heeft, dus hij kan niet worden bewaard voor Ongedaan maken.</translation>
+    </message>
+    <message>
+        <location line="+45"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Dit blad bestaat niet.</translation>
     </message>
@@ -47926,13 +47953,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+3"/>
-        <location line="+217"/>
+        <location line="+218"/>
         <source>%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.</source>
         <translation type="unfinished">%1 nieuwe objecten is het maximum dat JeffCrunch in één keer opslaat. Sla de werkmap op en voeg daarna meer toe.</translation>
     </message>
     <message>
-        <location line="-216"/>
-        <location line="+217"/>
+        <location line="-217"/>
+        <location line="+218"/>
         <source>The workbook has as many objects as JeffCrunch holds (%1).</source>
         <translation type="unfinished">De werkmap bevat het maximale aantal objecten dat JeffCrunch kan bevatten (%1).</translation>
     </message>
@@ -48017,7 +48044,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Het object op het klembord kan niet worden getekend.</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+48"/>
         <source>This is not a chart.</source>
         <translation type="unfinished">Dit is geen grafiek.</translation>
     </message>
@@ -48195,7 +48222,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1086"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1082"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="+5"/>
         <source>The file is larger than this program can open.</source>
         <translation type="unfinished">Het bestand is groter dan dit programma kan openen.</translation>
@@ -48845,12 +48872,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::office::sheet::Save</name>
     <message>
-        <location filename="../libs/office/sheet/sheetpatch.cpp" line="+1333"/>
+        <location filename="../libs/office/sheet/sheetpatch.cpp" line="+1757"/>
         <location line="+76"/>
         <location line="+37"/>
         <location line="+267"/>
         <location line="+34"/>
-        <location filename="../libs/office/sheet/structsave.cpp" line="+757"/>
+        <location filename="../libs/office/sheet/structsave.cpp" line="+760"/>
         <location line="+495"/>
         <source>The sheet&apos;s part is damaged.</source>
         <translation type="unfinished">Het onderdeel van het blad is beschadigd.</translation>
@@ -48871,8 +48898,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+97"/>
         <location filename="../libs/office/sheet/xlsxbase.cpp" line="+682"/>
         <location line="+9"/>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+1569"/>
-        <location line="+1021"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+1570"/>
+        <location line="+1050"/>
         <location line="+49"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Het opslaan is gestopt.</translation>
@@ -48906,7 +48933,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Het blad kan niet worden opgeslagen.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-2538"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-2567"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">Het onderdeel met gedeelde tekenreeksen heeft niet de vorm die dit programma kan wijzigen.</translation>
@@ -48919,25 +48946,25 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+242"/>
         <location line="+120"/>
-        <location line="+1863"/>
+        <location line="+1892"/>
         <location line="+5"/>
         <location line="+10"/>
         <source>The workbook part is not in the form this program changes.</source>
         <translation type="unfinished">Het werkmaponderdeel heeft niet de vorm die dit programma kan wijzigen.</translation>
     </message>
     <message>
-        <location line="-1374"/>
+        <location line="-1403"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">De werkmap is niet geopend vanuit een bestand dat dit programma kan overschrijven.</translation>
     </message>
     <message>
         <location line="+315"/>
-        <location line="+1115"/>
+        <location line="+1144"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Het bestand waaruit deze werkmap is geopend, is beschadigd.</translation>
     </message>
     <message>
-        <location line="-1420"/>
+        <location line="-1449"/>
         <location line="+148"/>
         <location line="+136"/>
         <location line="+41"/>
@@ -48950,7 +48977,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Een gewijzigd blad heeft geen onderdeel in het bestand.</translation>
     </message>
     <message>
-        <location line="+755"/>
+        <location line="+784"/>
         <source>The shared strings part is not in the file.</source>
         <translation type="unfinished">Het onderdeel met gedeelde tekenreeksen ontbreekt in het bestand.</translation>
     </message>
@@ -48965,15 +48992,15 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Een gewijzigde tabel heeft geen onderdeel in het bestand.</translation>
     </message>
     <message>
-        <location line="-736"/>
+        <location line="-765"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+1033"/>
+        <location line="+1062"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">Een blad van het bestand kan niet worden gelezen om op te slaan.</translation>
     </message>
     <message>
-        <location line="-1408"/>
+        <location line="-1437"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Er zijn objecten op een blad geplaatst waarop dit programma ze niet kan plaatsen.</translation>
     </message>
@@ -48999,7 +49026,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+214"/>
-        <location line="+102"/>
+        <location line="+131"/>
         <location line="+79"/>
         <location line="+58"/>
         <location line="+75"/>
@@ -49008,8 +49035,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">De lijst met onderdeeltypen ontbreekt in het bestand.</translation>
     </message>
     <message>
-        <location line="-399"/>
-        <location line="+99"/>
+        <location line="-428"/>
+        <location line="+128"/>
         <source>A drawing of the file is not in the form this program changes.</source>
         <translation type="unfinished">Een tekening in het bestand heeft niet de vorm die dit programma kan wijzigen.</translation>
     </message>

@@ -1707,6 +1707,7 @@
     <file alias="de/write/spelling.md">help/de/write/spelling.md</file>
     <file alias="de/write/start.md">help/de/write/start.md</file>
     <file alias="de/write/styles.md">help/de/write/styles.md</file>
+    <file alias="de/write/symbols-special-characters.md">help/de/write/symbols-special-characters.md</file>
     <file alias="de/write/table-of-authorities.md">help/de/write/table-of-authorities.md</file>
     <file alias="de/write/table-of-contents.md">help/de/write/table-of-contents.md</file>
     <file alias="de/write/tables.md">help/de/write/tables.md</file>
@@ -2337,6 +2338,7 @@
     <file alias="it/write/spelling.md">help/it/write/spelling.md</file>
     <file alias="it/write/start.md">help/it/write/start.md</file>
     <file alias="it/write/styles.md">help/it/write/styles.md</file>
+    <file alias="it/write/symbols-special-characters.md">help/it/write/symbols-special-characters.md</file>
     <file alias="it/write/table-of-authorities.md">help/it/write/table-of-authorities.md</file>
     <file alias="it/write/table-of-contents.md">help/it/write/table-of-contents.md</file>
     <file alias="it/write/tables.md">help/it/write/tables.md</file>

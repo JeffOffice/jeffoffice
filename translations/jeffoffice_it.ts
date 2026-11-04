@@ -4948,1937 +4948,6 @@ Articolo dell&apos;ultima pagina	4</translation>
     </message>
 </context>
 <context>
-    <name>EditSession</name>
-    <message>
-        <location filename="../apps/crunch/core/editformat.cpp" line="+66"/>
-        <source>This sheet is protected, so whether its cells are locked, and whether their formulas are hidden, can&apos;t be changed. Unprotect the sheet first (Review, Unprotect Sheet).</source>
-        <translation type="unfinished">Il foglio è protetto, quindi non è possibile modificare il blocco delle celle né se le formule sono nascoste. Rimuovi prima la protezione del foglio (Revisione, Rimuovi protezione foglio).</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editcond.cpp" line="+91"/>
-        <source>Conditional formatting of a workbook opened from this kind of file is kept when it is saved as an .xlsx workbook. Save it as one, and then change rules.</source>
-        <translation type="unfinished">La formattazione condizionale di una cartella di lavoro aperta da questo tipo di file viene mantenuta quando la si salva come cartella di lavoro .xlsx. Salvala in questo formato, quindi modifica le regole.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>This sheet has rules of conditional formatting in a form JeffCrunch keeps as they are (a newer kind, with extra settings, or more than it reads). It doesn&apos;t change the rules of the sheet.</source>
-        <translation type="unfinished">Questo foglio contiene regole di formattazione condizionale in un formato che JeffCrunch mantiene così come sono (un tipo più recente, con impostazioni aggiuntive, oppure più regole di quante ne legga). Non modifica le regole del foglio.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>This sheet has more rules than JeffCrunch changes (%1).</source>
-        <translation type="unfinished">Questo foglio contiene più regole di quante JeffCrunch ne modifichi (%1).</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>This sheet has data bars. JeffCrunch keeps them as they are, and doesn&apos;t change the rules of the sheet.</source>
-        <translation type="unfinished">Questo foglio contiene barre dei dati. JeffCrunch le mantiene così come sono e non modifica le regole del foglio.</translation>
-    </message>
-    <message>
-        <location line="+14"/>
-        <source>Select the cells the rule is for.</source>
-        <translation type="unfinished">Seleziona le celle a cui si applica la regola.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <location filename="../apps/crunch/core/editformat.cpp" line="+11"/>
-        <location line="+200"/>
-        <location line="+38"/>
-        <location line="+284"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+801"/>
-        <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
-        <location line="+247"/>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="+227"/>
-        <location filename="../apps/crunch/core/edittables.cpp" line="+404"/>
-        <location line="+89"/>
-        <source>The workbook is busy. Try again in a moment.</source>
-        <translation type="unfinished">La cartella di lavoro è occupata. Riprova tra qualche istante.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>This workbook has no place to keep the look of a rule.</source>
-        <translation type="unfinished">Questa cartella di lavoro non ha un punto in cui conservare l&apos;aspetto di una regola.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>Conditional Formatting</source>
-        <translation type="unfinished">Formattazione condizionale</translation>
-    </message>
-    <message>
-        <location line="+65"/>
-        <source>Clear Rules from Selected Cells</source>
-        <translation type="unfinished">Cancella regole dalle celle selezionate</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Clear Rules from Sheet</source>
-        <translation type="unfinished">Cancella regole dal foglio</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editformat.cpp" line="-477"/>
-        <source>This workbook has as many different formats as a workbook can hold (%1 cell formats). Give the cells a format the workbook already has, or clear the formats of some cells, and try again.</source>
-        <translation type="unfinished">Questa cartella di lavoro contiene il numero massimo di formati diversi consentito (%1 formati di cella). Assegna alle celle un formato già presente nella cartella di lavoro oppure cancella i formati di alcune celle e riprova.</translation>
-    </message>
-    <message>
-        <location line="+22"/>
-        <location line="+213"/>
-        <location line="+148"/>
-        <source>Those are not cells of the sheet.</source>
-        <translation type="unfinished">Queste non sono celle del foglio.</translation>
-    </message>
-    <message>
-        <location line="-349"/>
-        <source>That is more cells than JeffCrunch formats at once (%1). Select whole columns or rows, or fewer cells.</source>
-        <translation type="unfinished">Le celle sono più di quante JeffCrunch possa formattare in una sola volta (%1). Seleziona intere colonne o righe oppure meno celle.</translation>
-    </message>
-    <message>
-        <location line="+17"/>
-        <source>That is more cells than JeffCrunch clears the formats of at once (%1). Select fewer cells.</source>
-        <translation type="unfinished">Le celle sono troppe perché JeffCrunch possa cancellarne i formati in una sola volta (%1). Seleziona meno celle.</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <source>That is more cells than JeffCrunch formats at once (%1). Select fewer columns or rows.</source>
-        <translation type="unfinished">Le celle sono più di quante JeffCrunch possa formattare in una sola volta (%1). Seleziona meno colonne o righe.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>That is more rows than JeffCrunch formats at once (%1). Select fewer rows.</source>
-        <translation type="unfinished">Le righe sono più di quante JeffCrunch possa formattare in una sola volta (%1). Seleziona meno righe.</translation>
-    </message>
-    <message>
-        <location line="+56"/>
-        <source>A font&apos;s name can have up to %1 characters in a workbook, and this one has %2. Choose another font.</source>
-        <translation type="unfinished">In una cartella di lavoro il nome di un tipo di carattere può contenere al massimo %1 caratteri, e questo ne ha %2. Scegli un altro tipo di carattere.</translation>
-    </message>
-    <message>
-        <location line="+35"/>
-        <source>This workbook has no place to keep the style &quot;%1&quot;.</source>
-        <translation type="unfinished">In questa cartella di lavoro non c&apos;è spazio per lo stile &quot;%1&quot;.</translation>
-    </message>
-    <message>
-        <location line="+20"/>
-        <source>Type a name for the style, up to 255 characters, with no control characters.</source>
-        <translation type="unfinished">Digita un nome per lo stile, di massimo 255 caratteri, senza caratteri di controllo.</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <source>A style called &quot;%1&quot; is already there. Pick another name.</source>
-        <translation type="unfinished">Esiste già uno stile chiamato &quot;%1&quot;. Scegli un altro nome.</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>This workbook has no place to keep a new style.</source>
-        <translation type="unfinished">Questa cartella di lavoro non ha un punto in cui conservare un nuovo stile.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <location line="+2"/>
-        <source>New Cell Style</source>
-        <translation type="unfinished">Nuovo stile di cella</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>Clearing formats</source>
-        <translation type="unfinished">Cancellazione dei formati</translation>
-    </message>
-    <message>
-        <location line="+26"/>
-        <source>That is more cells than JeffCrunch draws borders around at once (%1). Select fewer cells.</source>
-        <translation type="unfinished">Sono più celle di quelle a cui JeffCrunch può applicare bordi contemporaneamente (%1). Selezionare meno celle.</translation>
-    </message>
-    <message>
-        <location line="+83"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="+147"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-321"/>
-        <location line="+427"/>
-        <source>You can&apos;t change part of an array or a data table.</source>
-        <translation type="unfinished">Impossibile modificare parte di una matrice o di una tabella dati.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+15"/>
-        <source>That is more cells than JeffCrunch clears at once (%1). Select fewer cells.</source>
-        <translation type="unfinished">Sono più celle di quelle che JeffCrunch può cancellare contemporaneamente (%1). Selezionare meno celle.</translation>
-    </message>
-    <message>
-        <location line="+38"/>
-        <source>Clearing all</source>
-        <translation type="unfinished">Cancellazione di tutto</translation>
-    </message>
-    <message>
-        <location line="+19"/>
-        <source>This sheet is protected, so cells can&apos;t be merged or unmerged on it. To do that, choose Unprotect Sheet on the Review tab.</source>
-        <translation type="unfinished">Il foglio è protetto, quindi non è possibile unire o dividere celle. Per farlo, scegliere Rimuovi protezione foglio nella scheda Revisione.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>This sheet has more merged cells than JeffCrunch changes. Merge and unmerge them in the program that made it.</source>
-        <translation type="unfinished">Il foglio contiene più celle unite di quante JeffCrunch ne possa modificare. Unirle o dividerle nel programma con cui è stato creato.</translation>
-    </message>
-    <message>
-        <location line="+20"/>
-        <source>That is more rows than JeffCrunch merges at once. Select fewer rows.</source>
-        <translation type="unfinished">Sono più righe di quelle che JeffCrunch può unire contemporaneamente. Selezionare meno righe.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>That would make more merged cells than JeffCrunch makes.</source>
-        <translation type="unfinished">Verrebbero create più celle unite di quante JeffCrunch ne possa gestire.</translation>
-    </message>
-    <message>
-        <location line="+38"/>
-        <source>You can&apos;t merge part of an array or a data table, or a locked cell.</source>
-        <translation type="unfinished">Impossibile unire parte di una matrice o di una tabella dati oppure una cella bloccata.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>When cells are joined into one, only what the cell at the top left holds is kept, and what the others hold is lost. Join them anyway?</source>
-        <translation type="unfinished">Quando si uniscono le celle, viene mantenuto solo il contenuto della cella in alto a sinistra e il contenuto delle altre va perso. Unire comunque?</translation>
-    </message>
-    <message>
-        <location line="+44"/>
-        <source>Unmerging cells</source>
-        <translation type="unfinished">Divisione celle</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Merging across</source>
-        <translation type="unfinished">Unione celle sulle righe</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Merging and centering</source>
-        <translation type="unfinished">Unione e allineamento al centro</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Merging cells</source>
-        <translation type="unfinished">Unione celle</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editops.cpp" line="+137"/>
-        <location line="+174"/>
-        <location line="+334"/>
-        <location line="+114"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-220"/>
-        <source>That is more cells than JeffCrunch changes at once (%1). Select fewer cells.</source>
-        <translation type="unfinished">Sono più celle di quelle che JeffCrunch può modificare contemporaneamente (%1). Selezionare meno celle.</translation>
-    </message>
-    <message>
-        <location line="-618"/>
-        <source>Sum</source>
-        <translation type="unfinished">Somma</translation>
-    </message>
-    <message>
-        <location line="+211"/>
-        <source>A fill can&apos;t go into or out of merged cells that do not match: a merged area has to be wholly in the cells filled from, or in the cells filled and the size of the area in the same place of the cells filled from. Unmerge them first, or fill other cells.</source>
-        <translation type="unfinished">Impossibile eseguire il riempimento verso o da celle unite non corrispondenti: un&apos;area unita deve trovarsi interamente nelle celle di origine, oppure nelle celle da riempire con le stesse dimensioni e nella stessa posizione delle celle di origine. Separare prima le celle o riempire altre celle.</translation>
-    </message>
-    <message>
-        <location line="+183"/>
-        <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over. Fill the cells below it, or type each name.</source>
-        <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non può essere riempita. Riempire le celle sottostanti o digitare ogni nome.</translation>
-    </message>
-    <message>
-        <location line="+87"/>
-        <source>Fill</source>
-        <translation type="unfinished">Riempimento</translation>
-    </message>
-    <message>
-        <location line="+16"/>
-        <source>Justify works on the cells of one column. Select cells in a single column.</source>
-        <translation type="unfinished">Giustifica funziona sulle celle di una sola colonna. Selezionare celle in un&apos;unica colonna.</translation>
-    </message>
-    <message>
-        <location line="+16"/>
-        <source>Justify works only on text. A cell in the selection holds a number or a formula.</source>
-        <translation type="unfinished">Giustifica funziona solo sul testo. Una cella della selezione contiene un numero o una formula.</translation>
-    </message>
-    <message>
-        <location line="+23"/>
-        <source>The text needs %1 cells, and %2 are selected. Text will extend below the selected cells. Do you want to continue?</source>
-        <translation type="unfinished">Il testo richiede %1 celle, ma ne sono selezionate %2. Il testo si estenderà sotto le celle selezionate. Continuare?</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>The text needs more rows than the sheet has.</source>
-        <translation type="unfinished">Il testo richiede più righe di quelle disponibili nel foglio.</translation>
-    </message>
-    <message>
-        <location line="+13"/>
-        <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over.</source>
-        <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non può essere sovrascritta dal riempimento.</translation>
-    </message>
-    <message>
-        <location line="+26"/>
-        <source>Justify</source>
-        <translation type="unfinished">Giustifica</translation>
-    </message>
-    <message>
-        <location line="+19"/>
-        <source>Choose at least one other sheet to fill.</source>
-        <translation type="unfinished">Scegliere almeno un altro foglio da riempire.</translation>
-    </message>
-    <message>
-        <location line="+27"/>
-        <source>A fill can&apos;t go into or out of merged cells that do not match: a merged area has to be wholly in the cells copied, and on the sheets copied to there may be only areas like it. Unmerge them first, or fill other cells.</source>
-        <translation type="unfinished">Impossibile eseguire il riempimento verso o da celle unite non corrispondenti: un&apos;area unita deve trovarsi interamente nelle celle copiate e nei fogli di destinazione possono esserci solo aree analoghe. Separare prima le celle o riempire altre celle.</translation>
-    </message>
-    <message>
-        <location line="+21"/>
-        <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over. Choose cells that do not reach it.</source>
-        <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non può essere sovrascritta dal riempimento. Scegliere celle che non la includano.</translation>
-    </message>
-    <message>
-        <location line="+34"/>
-        <source>Fill across sheets</source>
-        <translation type="unfinished">Riempi tra fogli</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editpage.cpp" line="+19"/>
-        <source>That sheet can&apos;t be set up for printing.</source>
-        <translation type="unfinished">Impossibile impostare il foglio per la stampa.</translation>
-    </message>
-    <message>
-        <location line="+12"/>
-        <source>A header or footer can have up to %1 characters, counting the codes in it.</source>
-        <translation type="unfinished">Un&apos;intestazione o un piè di pagina può contenere fino a %1 caratteri, codici inclusi.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>A sheet can have up to %1 page breaks of each kind.</source>
-        <translation type="unfinished">Un foglio può contenere fino a %1 interruzioni di pagina per ciascun tipo.</translation>
-    </message>
-    <message>
-        <location line="+12"/>
-        <source>A page break can&apos;t be before the first row or column.</source>
-        <translation type="unfinished">Non è possibile inserire un&apos;interruzione di pagina prima della prima riga o colonna.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-24"/>
-        <source>That would go past the edge of the sheet. Select a cell nearer its start.</source>
-        <translation type="unfinished">Si supererebbe il bordo del foglio. Selezionare una cella più vicina all&apos;inizio.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>That is more cells than JeffCrunch pastes at once (%1). Paste into fewer.</source>
-        <translation type="unfinished">Sono più celle di quelle che JeffCrunch può incollare contemporaneamente (%1). Incollare in meno celle.</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <source>The first row of a table holds the names of its columns, so cells can&apos;t be pasted over it. Paste below it, or change the names one by one.</source>
-        <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non è possibile incollarvi celle. Incollare sotto oppure modificare i nomi uno alla volta.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>That would make more merged cells than JeffCrunch makes at once. Paste into fewer cells.</source>
-        <translation type="unfinished">Verrebbero create più celle unite di quante JeffCrunch ne possa creare contemporaneamente. Incollare in meno celle.</translation>
-    </message>
-    <message>
-        <location line="+38"/>
-        <source>There is nothing to paste.</source>
-        <translation type="unfinished">Non c&apos;è nulla da incollare.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <location line="+93"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-250"/>
-        <source>The workbook is still being opened. It can be changed when it is open.</source>
-        <translation type="unfinished">La cartella di lavoro è ancora in apertura. Sarà possibile modificarla una volta aperta.</translation>
-    </message>
-    <message>
-        <location line="-8"/>
-        <location line="+52"/>
-        <source>Pasting</source>
-        <translation type="unfinished">Incolla</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Moving cells</source>
-        <translation type="unfinished">Spostamento celle</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-51"/>
-        <source>&quot;%1&quot; could not be done again, so Undo and Redo are not available any more for what came before it.</source>
-        <translation type="unfinished">Impossibile ripetere &quot;%1&quot;, quindi Annulla e Ripeti non sono più disponibili per le operazioni precedenti.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>&quot;%1&quot; could not be undone, so Undo and Redo are not available any more for what came before it.</source>
-        <translation type="unfinished">Impossibile annullare &quot;%1&quot;, quindi Annulla e Ripeti non sono più disponibili per le operazioni precedenti.</translation>
-    </message>
-    <message>
-        <location line="+54"/>
-        <source>Some of this workbook could not be read whole, so JeffCrunch does not change it. You can look at it, and save nothing.</source>
-        <translation type="unfinished">Non è stato possibile leggere completamente parte della cartella di lavoro, quindi JeffCrunch non la modifica. È possibile visualizzarla, ma non salvarla.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editops.cpp" line="-75"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+10"/>
-        <location filename="../apps/crunch/core/editsheets.cpp" line="-116"/>
-        <location line="+84"/>
-        <location line="+108"/>
-        <location line="+29"/>
-        <location line="+30"/>
-        <source>There is no such sheet.</source>
-        <translation type="unfinished">Il foglio non esiste.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1"/>
-        <source>This sheet has no cells to change.</source>
-        <translation type="unfinished">Il foglio non contiene celle da modificare.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editnotes.cpp" line="+35"/>
-        <source>Notes and links of a workbook opened from this kind of file are kept when it is saved as an .xlsx workbook. Save it as one, and then add them.</source>
-        <translation type="unfinished">Le note e i collegamenti di una cartella di lavoro aperta da questo tipo di file vengono mantenuti se la si salva come cartella di lavoro .xlsx. Salvarla in questo formato, quindi aggiungerli.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>This sheet has more notes than JeffCrunch changes (%1). It shows them, and keeps them, but doesn&apos;t put notes on it or take them off.</source>
-        <translation type="unfinished">Il foglio contiene più note di quante JeffCrunch ne possa modificare (%1). Le note vengono mostrate e mantenute, ma non è possibile aggiungerne o rimuoverne.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <location line="+85"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+11"/>
-        <source>That cell is outside the sheet.</source>
-        <translation type="unfinished">La cella è esterna al foglio.</translation>
-    </message>
-    <message>
-        <location line="-83"/>
-        <location line="+30"/>
-        <source>This sheet is protected, so its notes can&apos;t be changed. Take the protection off first.</source>
-        <translation type="unfinished">Il foglio è protetto, quindi non è possibile modificarne le note. Rimuovere prima la protezione.</translation>
-    </message>
-    <message>
-        <location line="-29"/>
-        <source>A note needs some words. To take a note away, delete it.</source>
-        <translation type="unfinished">Una nota deve contenere del testo. Per rimuovere una nota, eliminarla.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A note can have up to %1 characters. Shorten it, and try again.</source>
-        <translation type="unfinished">Una nota può contenere fino a %1 caratteri. Abbreviarla e riprovare.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <location line="+43"/>
-        <source>This note is a conversation of comments. JeffCrunch shows it, but doesn&apos;t change it.</source>
-        <translation type="unfinished">Questa nota è una conversazione di commenti. JeffCrunch la mostra, ma non la modifica.</translation>
-    </message>
-    <message>
-        <location line="-42"/>
-        <source>A sheet can have up to %1 notes.</source>
-        <translation type="unfinished">Un foglio può contenere fino a %1 note.</translation>
-    </message>
-    <message>
-        <location line="+79"/>
-        <source>A link needs an address or a place to go to.</source>
-        <translation type="unfinished">Un collegamento richiede un indirizzo o una destinazione.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>That address is longer than a link can hold (%1 characters).</source>
-        <translation type="unfinished">L&apos;indirizzo supera la lunghezza consentita per un collegamento (%1 caratteri).</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>That address is longer than a link can hold in files other programs open (%1 characters).</source>
-        <translation type="unfinished">L&apos;indirizzo supera la lunghezza consentita per un collegamento nei file aperti da altri programmi (%1 caratteri).</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A screen tip can have up to %1 characters.</source>
-        <translation type="unfinished">Una descrizione comando può contenere fino a %1 caratteri.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>That text is too long for a link (up to %1 characters).</source>
-        <translation type="unfinished">Il testo è troppo lungo per un collegamento (massimo %1 caratteri).</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>That kind of address runs a script or carries a page inside itself, so it can&apos;t be made a link.</source>
-        <translation type="unfinished">Questo tipo di indirizzo esegue uno script o contiene una pagina incorporata, quindi non può essere usato come collegamento.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>This sheet is protected, so links can&apos;t be put on it. Take the protection off first (Review, Unprotect Sheet).</source>
-        <translation type="unfinished">Il foglio è protetto, quindi non è possibile aggiungervi collegamenti. Rimuovere prima la protezione (Revisione, Rimuovi protezione foglio).</translation>
-    </message>
-    <message>
-        <location line="+9"/>
-        <source>That is more cells (%1) than are looked at to see that none is locked. Select fewer cells.</source>
-        <translation type="unfinished">Sono più celle (%1) di quelle che è possibile controllare per verificare che nessuna sia bloccata. Selezionare meno celle.</translation>
-    </message>
-    <message>
-        <location line="+18"/>
-        <source>A sheet can have up to %1 links.</source>
-        <translation type="unfinished">Un foglio può contenere fino a %1 collegamenti.</translation>
-    </message>
-    <message>
-        <location line="+18"/>
-        <source>This sheet is protected, so its links can&apos;t be changed. Take the protection off first (Review, Unprotect Sheet).</source>
-        <translation type="unfinished">Il foglio è protetto, quindi non è possibile modificarne i collegamenti. Rimuovere prima la protezione (Revisione, Rimuovi protezione foglio).</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-25"/>
-        <source>The workbook is busy (it is being saved, or a password is being worked on). It can be changed when that is done.</source>
-        <translation type="unfinished">La cartella di lavoro è occupata (è in corso il salvataggio o l&apos;elaborazione di una password). Sarà possibile modificarla al termine dell&apos;operazione.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A large change is still being made to the workbook. It can be changed again when that is done.</source>
-        <translation type="unfinished">È ancora in corso una modifica estesa alla cartella di lavoro. Sarà possibile modificarla di nuovo al termine.</translation>
-    </message>
-    <message>
-        <location line="+40"/>
-        <source>This sheet is protected, and the cell is locked, so it can&apos;t be changed. To change it, choose Unprotect Sheet on the Review tab.</source>
-        <translation type="unfinished">Il foglio è protetto e la cella è bloccata, quindi non è possibile modificarla. Per modificarla, scegliere Rimuovi protezione foglio nella scheda Revisione.</translation>
-    </message>
-    <message>
-        <location line="+139"/>
-        <source>JeffCrunch could not check what you typed against the rule for this cell just now, so it was not entered. Try again in a moment.</source>
-        <translation type="unfinished">JeffCrunch non è riuscito a verificare il valore digitato rispetto alla regola della cella, quindi non è stato immesso. Riprovare tra qualche istante.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>Invalid Entry</source>
-        <translation type="unfinished">Voce non valida</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>That isn&apos;t allowed in this cell. Enter a value that fits the rule for the cell.</source>
-        <translation type="unfinished">Valore non consentito in questa cella. Immettere un valore conforme alla regola della cella.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>That doesn&apos;t fit the rule for this cell. Do you want to keep it anyway?</source>
-        <translation type="unfinished">Il valore non è conforme alla regola della cella. Mantenerlo comunque?</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>That doesn&apos;t fit the rule for this cell.</source>
-        <translation type="unfinished">Il valore non è conforme alla regola della cella.</translation>
-    </message>
-    <message>
-        <location line="+34"/>
-        <location line="+65"/>
-        <location line="+111"/>
-        <source>Typing in %1</source>
-        <translation type="unfinished">Digitazione in %1</translation>
-    </message>
-    <message>
-        <location line="-125"/>
-        <source>The first row of a table holds the names of its columns, so the same entry can&apos;t be put in every cell there.</source>
-        <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non è possibile inserire lo stesso valore in tutte le celle.</translation>
-    </message>
-    <message>
-        <location line="+43"/>
-        <source>A column&apos;s name can have up to 255 characters. Shorten it, and try again.</source>
-        <translation type="unfinished">Il nome di una colonna può contenere fino a 255 caratteri. Abbreviarlo e riprovare.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The first row of a table holds the names of its columns, so a cell there needs a name. Type one.</source>
-        <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi ogni cella deve avere un nome. Digitarne uno.</translation>
-    </message>
-    <message>
-        <location line="+52"/>
-        <source>More formulas than JeffCrunch changes at once (%1) use this column&apos;s name.</source>
-        <translation type="unfinished">Il nome di questa colonna è usato da più formule di quante JeffCrunch ne possa modificare contemporaneamente (%1).</translation>
-    </message>
-    <message>
-        <location line="+91"/>
-        <source>The first row of a table holds the names of its columns, so it can&apos;t be cleared. Select the cells below it, or type another name.</source>
-        <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non può essere cancellata. Selezionare le celle sottostanti o digitare un altro nome.</translation>
-    </message>
-    <message>
-        <location line="+9"/>
-        <source>Clearing %1</source>
-        <translation type="unfinished">Cancellazione di %1</translation>
-    </message>
-    <message>
-        <location line="+278"/>
-        <source>the workbook</source>
-        <translation type="unfinished">la cartella di lavoro</translation>
-    </message>
-    <message>
-        <location line="+148"/>
-        <source>There is no workbook to save.</source>
-        <translation type="unfinished">Nessuna cartella di lavoro da salvare.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A large change is still being made to the workbook. Save when that is done.</source>
-        <translation type="unfinished">È ancora in corso una modifica estesa alla cartella di lavoro. Salvare al termine.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Some of this workbook could not be read whole, so JeffCrunch does not save it.</source>
-        <translation type="unfinished">Non è stato possibile leggere completamente parte della cartella di lavoro, quindi JeffCrunch non la salva.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>This workbook was not opened from a file JeffCrunch can save over.</source>
-        <translation type="unfinished">Questa cartella di lavoro non è stata aperta da un file che JeffCrunch può sovrascrivere.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editsheets.cpp" line="-437"/>
-        <source>A sheet&apos;s name can&apos;t be empty.</source>
-        <translation type="unfinished">Il nome di un foglio non può essere vuoto.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A sheet&apos;s name can have up to 31 characters.</source>
-        <translation type="unfinished">Il nome di un foglio può contenere al massimo 31 caratteri.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>A sheet&apos;s name can&apos;t have any of these characters: %1</source>
-        <translation type="unfinished">Il nome di un foglio non può contenere nessuno di questi caratteri: %1</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A sheet&apos;s name can&apos;t begin or end with an apostrophe.</source>
-        <translation type="unfinished">Il nome di un foglio non può iniziare o terminare con un apostrofo.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>&quot;History&quot; is a name the program keeps for itself.</source>
-        <translation type="unfinished">&quot;History&quot; è un nome riservato al programma.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>There is a sheet named &quot;%1&quot; already. Give this one another name.</source>
-        <translation type="unfinished">Esiste già un foglio denominato &quot;%1&quot;. Assegnare a questo un altro nome.</translation>
-    </message>
-    <message>
-        <location line="+49"/>
-        <source>This workbook has a formula that adds up a block of sheets (such as Sheet1:Sheet3). JeffCrunch does not yet add, move, rename, or delete sheets in a workbook that has one.</source>
-        <translation type="unfinished">Questa cartella di lavoro contiene una formula che somma un intervallo di fogli (ad esempio Foglio1:Foglio3). JeffCrunch non consente ancora di aggiungere, spostare, rinominare o eliminare fogli in una cartella di lavoro che ne contiene una.</translation>
-    </message>
-    <message>
-        <location line="+39"/>
-        <source>A workbook can have up to %1 sheets, and this one has that many. Delete a sheet, and try again.</source>
-        <translation type="unfinished">Una cartella di lavoro può contenere al massimo %1 fogli e questa li ha già tutti. Eliminare un foglio e riprovare.</translation>
-    </message>
-    <message>
-        <location line="+28"/>
-        <source>pictures and charts</source>
-        <translation type="unfinished">immagini e grafici</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <location line="+1"/>
-        <source>notes</source>
-        <translation type="unfinished">note</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>connections to outside data</source>
-        <translation type="unfinished">connessioni a dati esterni</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <location line="+6"/>
-        <source>pivot tables</source>
-        <translation type="unfinished">tabelle pivot</translation>
-    </message>
-    <message>
-        <location line="-5"/>
-        <source>form controls</source>
-        <translation type="unfinished">controlli modulo</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>embedded objects</source>
-        <translation type="unfinished">oggetti incorporati</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>slicers</source>
-        <translation type="unfinished">filtri dati</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>sparklines</source>
-        <translation type="unfinished">grafici sparkline</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>drop-down lists that read other sheets</source>
-        <translation type="unfinished">elenchi a discesa che leggono altri fogli</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>rules of conditional formatting that read other sheets or use icons of their own</source>
-        <translation type="unfinished">regole di formattazione condizionale che leggono altri fogli o usano icone proprie</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>some extra features</source>
-        <translation type="unfinished">alcune funzionalità aggiuntive</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>names that belong to the sheet alone (a print area, say)</source>
-        <translation type="unfinished">nomi che appartengono solo al foglio (ad esempio un&apos;area di stampa)</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>The copy does not have the %1: those are not copied yet.</source>
-        <translation type="unfinished">La copia non contiene %1: questi elementi non vengono ancora copiati.</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <source>Insert Sheet</source>
-        <translation type="unfinished">Inserisci foglio</translation>
-    </message>
-    <message>
-        <location line="+49"/>
-        <location filename="../apps/crunch/core/edittables.cpp" line="-193"/>
-        <source>The workbook has as many tables as JeffCrunch works with.</source>
-        <translation type="unfinished">La cartella di lavoro contiene già il numero massimo di tabelle gestite da JeffCrunch.</translation>
-    </message>
-    <message>
-        <location line="+108"/>
-        <source>More formulas than JeffCrunch changes at once (%1) use this sheet&apos;s tables.</source>
-        <translation type="unfinished">Le tabelle di questo foglio sono usate da più formule di quante JeffCrunch ne possa modificare contemporaneamente (%1).</translation>
-    </message>
-    <message>
-        <location line="+163"/>
-        <source>This sheet&apos;s sparklines have parts that JeffCrunch can&apos;t keep when it changes them (for example a range of cells for one sparkline), so it leaves them as they are.</source>
-        <translation type="unfinished">Le Sparkline di questo foglio contengono parti che JeffCrunch non può conservare quando le modifica (ad esempio un intervallo di celle per una Sparkline), quindi le lascia così come sono.</translation>
-    </message>
-    <message>
-        <location line="+13"/>
-        <source>A sheet can have up to %1 sparklines.</source>
-        <translation type="unfinished">Un foglio può contenere fino a %1 Sparkline.</translation>
-    </message>
-    <message>
-        <location line="-251"/>
-        <source>Copy Sheet</source>
-        <translation type="unfinished">Copia foglio</translation>
-    </message>
-    <message>
-        <location line="+22"/>
-        <source>A workbook must have at least one sheet that is shown. Show another sheet, or add one, and then delete this one.</source>
-        <translation type="unfinished">Una cartella di lavoro deve contenere almeno un foglio visibile. Scoprire un altro foglio o aggiungerne uno, quindi eliminare questo.</translation>
-    </message>
-    <message>
-        <location line="+88"/>
-        <source>Delete Sheet</source>
-        <translation type="unfinished">Elimina foglio</translation>
-    </message>
-    <message>
-        <location line="+29"/>
-        <source>Rename Sheet</source>
-        <translation type="unfinished">Rinomina foglio</translation>
-    </message>
-    <message>
-        <location line="+30"/>
-        <source>Move Sheet</source>
-        <translation type="unfinished">Sposta foglio</translation>
-    </message>
-    <message>
-        <location line="+22"/>
-        <source>A workbook must have at least one sheet that is shown.</source>
-        <translation type="unfinished">Una cartella di lavoro deve contenere almeno un foglio visibile.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>Hide Sheet</source>
-        <translation type="unfinished">Nascondi foglio</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Unhide Sheet</source>
-        <translation type="unfinished">Scopri foglio</translation>
-    </message>
-    <message>
-        <location line="+19"/>
-        <source>Tab Color</source>
-        <translation type="unfinished">Colore scheda</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editsize.cpp" line="+70"/>
-        <location line="+82"/>
-        <source>Those are not columns of the sheet.</source>
-        <translation type="unfinished">Queste non sono colonne del foglio.</translation>
-    </message>
-    <message>
-        <location line="-44"/>
-        <location line="+44"/>
-        <source>Those are not rows of the sheet.</source>
-        <translation type="unfinished">Queste non sono righe del foglio.</translation>
-    </message>
-    <message>
-        <location line="-39"/>
-        <location line="+44"/>
-        <location line="+154"/>
-        <source>That is more rows than JeffCrunch changes at once (%1). Select fewer rows.</source>
-        <translation type="unfinished">Sono più righe di quante JeffCrunch ne possa modificare contemporaneamente (%1). Selezionare meno righe.</translation>
-    </message>
-    <message>
-        <location line="-60"/>
-        <source>A default width can be from 0 to 255 characters, and a default height from 0 to 409.5 points.</source>
-        <translation type="unfinished">La larghezza predefinita può essere compresa tra 0 e 255 caratteri e l&apos;altezza predefinita tra 0 e 409,5 punti.</translation>
-    </message>
-    <message>
-        <location line="+45"/>
-        <source>Fitting a column to its contents</source>
-        <translation type="unfinished">Adattamento di una colonna al contenuto</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Fitting columns to their contents</source>
-        <translation type="unfinished">Adattamento delle colonne al contenuto</translation>
-    </message>
-    <message>
-        <location line="+35"/>
-        <source>Fitting a row to its contents</source>
-        <translation type="unfinished">Adattamento di una riga al contenuto</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Fitting rows to their contents</source>
-        <translation type="unfinished">Adattamento delle righe al contenuto</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="-35"/>
-        <source>That would move or change a pivot table, which JeffCrunch can&apos;t do yet. Change cells that are not part of it.</source>
-        <translation type="unfinished">L&apos;operazione sposterebbe o modificherebbe una tabella pivot, cosa che JeffCrunch non è ancora in grado di fare. Modificare celle che non ne fanno parte.</translation>
-    </message>
-    <message>
-        <location line="+44"/>
-        <source>This can&apos;t be undone, and neither can what you did before it. Do you want to go on?</source>
-        <translation type="unfinished">Questa operazione non può essere annullata, così come quelle eseguite in precedenza. Continuare?</translation>
-    </message>
-    <message>
-        <location line="+18"/>
-        <source>Inserting a row</source>
-        <translation type="unfinished">Inserimento di una riga</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Inserting rows</source>
-        <translation type="unfinished">Inserimento di righe</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>Deleting a row</source>
-        <translation type="unfinished">Eliminazione di una riga</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Deleting rows</source>
-        <translation type="unfinished">Eliminazione di righe</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Inserting a column</source>
-        <translation type="unfinished">Inserimento di una colonna</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Inserting columns</source>
-        <translation type="unfinished">Inserimento di colonne</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>Deleting a column</source>
-        <translation type="unfinished">Eliminazione di una colonna</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Deleting columns</source>
-        <translation type="unfinished">Eliminazione di colonne</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Inserting cells</source>
-        <translation type="unfinished">Inserimento di celle</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Deleting cells</source>
-        <translation type="unfinished">Eliminazione di celle</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editfilter.cpp" line="+172"/>
-        <location line="+417"/>
-        <location filename="../apps/crunch/core/edittables.cpp" line="+88"/>
-        <location line="+87"/>
-        <location line="+82"/>
-        <location line="+37"/>
-        <location line="+46"/>
-        <location line="+66"/>
-        <location line="+60"/>
-        <location line="+228"/>
-        <source>There is no such table.</source>
-        <translation type="unfinished">La tabella non esiste.</translation>
-    </message>
-    <message>
-        <location line="-413"/>
-        <source>The sheet&apos;s filter is on rows this table is on. Turn it off first, since two filters on the same rows would hide each other&apos;s rows.</source>
-        <translation type="unfinished">Il filtro del foglio si trova sulle stesse righe di questa tabella. Disattivarlo prima, perché due filtri sulle stesse righe nasconderebbero le righe l&apos;uno dell&apos;altro.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>The table %1 is filtered on rows this table is on. Clear its filter first, since two filters on the same rows would hide each other&apos;s rows.</source>
-        <translation type="unfinished">La tabella %1 è filtrata sulle stesse righe di questa tabella. Cancellarne prima il filtro, perché due filtri sulle stesse righe nasconderebbero le righe l&apos;uno dell&apos;altro.</translation>
-    </message>
-    <message>
-        <location line="+26"/>
-        <source>The cells are in the table %1, which has its own filter buttons. Use those, or filter cells outside the table.</source>
-        <translation type="unfinished">Le celle si trovano nella tabella %1, che dispone di pulsanti di filtro propri. Usare questi oppure filtrare celle esterne alla tabella.</translation>
-    </message>
-    <message>
-        <location line="+16"/>
-        <source>A condition of the filter is for a column that is not in its range.</source>
-        <translation type="unfinished">Una condizione del filtro riguarda una colonna esterna al suo intervallo.</translation>
-    </message>
-    <message>
-        <location line="+18"/>
-        <source>A custom condition needs at least one comparison.</source>
-        <translation type="unfinished">Una condizione personalizzata richiede almeno un confronto.</translation>
-    </message>
-    <message>
-        <location line="+57"/>
-        <source>The filter has a kind of condition that JeffCrunch does not know (%1).</source>
-        <translation type="unfinished">Il filtro contiene un tipo di condizione non riconosciuto da JeffCrunch (%1).</translation>
-    </message>
-    <message>
-        <location line="+22"/>
-        <source>That is more than JeffCrunch can work out for a filter: %1 rows with %2 conditions (at most %3 checks). Filter fewer rows, or use fewer conditions.</source>
-        <translation type="unfinished">Il filtro supera le capacità di calcolo di JeffCrunch: %1 righe con %2 condizioni (al massimo %3 verifiche). Filtrare meno righe o usare meno condizioni.</translation>
-    </message>
-    <message>
-        <location line="+264"/>
-        <source>The filter could not be finished. Try it again.</source>
-        <translation type="unfinished">Impossibile completare il filtro. Riprovare.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>The cells were changed while the filter was being worked out, so it was not applied. Filter again.</source>
-        <translation type="unfinished">Le celle sono state modificate durante il calcolo del filtro, che quindi non è stato applicato. Filtrare di nuovo.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editfind.cpp" line="+93"/>
-        <source>Type the text to look for.</source>
-        <translation type="unfinished">Digitare il testo da cercare.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>That is more cells than JeffCrunch changes at once (%1). Narrow the search, and replace again.</source>
-        <translation type="unfinished">Sono più celle di quante JeffCrunch ne possa modificare contemporaneamente (%1). Restringere la ricerca e sostituire di nuovo.</translation>
-    </message>
-    <message>
-        <location line="+37"/>
-        <source>%1 is part of an array or a data table, so it can&apos;t be changed one cell at a time. Nothing was replaced.</source>
-        <translation type="unfinished">%1 fa parte di una matrice o di una tabella dati e non può essere modificata una cella alla volta. Non è stato sostituito nulla.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>%1 is locked, and its sheet is protected, so it can&apos;t be changed. Nothing was replaced.</source>
-        <translation type="unfinished">%1 è bloccata e il suo foglio è protetto, quindi non può essere modificata. Non è stato sostituito nulla.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>%1 is in the first row of a table, which holds the names of its columns. Nothing was replaced.</source>
-        <translation type="unfinished">%1 si trova nella prima riga di una tabella, che contiene i nomi delle colonne. Non è stato sostituito nulla.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>Replacing in %1 would leave &quot;%2&quot;, which is not something a cell can hold: %3 Nothing was replaced.</source>
-        <translation type="unfinished">La sostituzione in %1 produrrebbe &quot;%2&quot;, che non è un contenuto valido per una cella: %3 Non è stato sostituito nulla.</translation>
-    </message>
-    <message>
-        <location line="+27"/>
-        <source>The replace could not be finished. Try it again.</source>
-        <translation type="unfinished">Impossibile completare la sostituzione. Riprovare.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>The cells were changed while the replace was being worked out, so it was not made. Replace again.</source>
-        <translation type="unfinished">Le celle sono state modificate durante l&apos;elaborazione della sostituzione, che quindi non è stata eseguita. Ripetere la sostituzione.</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <location line="+4"/>
-        <source>Replacing</source>
-        <translation type="unfinished">Sostituzione in corso</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editnames.cpp" line="+86"/>
-        <source>A name that looks like an address past the last column or row, such as %1, can&apos;t be used here. Add an underscore to it.</source>
-        <translation type="unfinished">Non è possibile usare qui un nome simile a un indirizzo oltre l&apos;ultima colonna o riga, ad esempio %1. Aggiungere un carattere di sottolineatura al nome.</translation>
-    </message>
-    <message>
-        <location line="+59"/>
-        <source>New Name</source>
-        <translation type="unfinished">Nuovo nome</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <location line="+52"/>
-        <source>There is no such name.</source>
-        <translation type="unfinished">Il nome non esiste.</translation>
-    </message>
-    <message>
-        <location line="-37"/>
-        <source>A sheet has a name of its own like that. Renaming would change which name some formulas on that sheet read. Choose another name.</source>
-        <translation type="unfinished">Un foglio ha già un proprio nome uguale. La ridenominazione cambierebbe il nome letto da alcune formule di quel foglio. Scegliere un altro nome.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>The workbook has a name like that. Renaming would change which name formulas on this sheet read. Choose another name.</source>
-        <translation type="unfinished">La cartella di lavoro ha già un nome uguale. La ridenominazione cambierebbe il nome letto dalle formule di questo foglio. Scegliere un altro nome.</translation>
-    </message>
-    <message>
-        <location line="+17"/>
-        <source>Change Name</source>
-        <translation type="unfinished">Modifica nome</translation>
-    </message>
-    <message>
-        <location line="+29"/>
-        <source>Delete Name</source>
-        <translation type="unfinished">Elimina nome</translation>
-    </message>
-    <message>
-        <location line="+17"/>
-        <source>That is too many cells to make names from. Select fewer.</source>
-        <translation type="unfinished">Troppe celle da cui creare nomi. Selezionarne meno.</translation>
-    </message>
-    <message>
-        <location line="+29"/>
-        <source>Name From Cells</source>
-        <translation type="unfinished">Nome da celle</translation>
-    </message>
-    <message>
-        <location line="+127"/>
-        <source>How Formulas Are Worked Out</source>
-        <translation type="unfinished">Modalità di calcolo delle formule</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editprotect.cpp" line="+40"/>
-        <source>selecting locked cells</source>
-        <translation type="unfinished">la selezione di celle bloccate</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>selecting unlocked cells</source>
-        <translation type="unfinished">la selezione di celle sbloccate</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>formatting cells</source>
-        <translation type="unfinished">la formattazione delle celle</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>changing columns&apos; width or hiding them</source>
-        <translation type="unfinished">la modifica della larghezza delle colonne o il loro occultamento</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>changing rows&apos; height or hiding them</source>
-        <translation type="unfinished">la modifica dell&apos;altezza delle righe o il loro occultamento</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>inserting columns</source>
-        <translation type="unfinished">l&apos;inserimento di colonne</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>inserting rows</source>
-        <translation type="unfinished">l&apos;inserimento di righe</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>putting in links</source>
-        <translation type="unfinished">l&apos;inserimento di collegamenti</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>deleting columns</source>
-        <translation type="unfinished">l&apos;eliminazione di colonne</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>deleting rows</source>
-        <translation type="unfinished">l&apos;eliminazione di righe</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>sorting</source>
-        <translation type="unfinished">l&apos;ordinamento</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>using filters</source>
-        <translation type="unfinished">l&apos;uso dei filtri</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>using pivot tables</source>
-        <translation type="unfinished">uso delle tabelle pivot</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>changing drawing objects and notes</source>
-        <translation type="unfinished">la modifica di oggetti disegno e note</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>This sheet is protected, and its protection doesn&apos;t allow %1. Take the protection off first (Review, Unprotect Sheet).</source>
-        <translation type="unfinished">Il foglio è protetto e la protezione non consente %1. Rimuovere prima la protezione (Revisione, Rimuovi protezione foglio).</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>The workbook&apos;s sheets are locked, so a sheet can&apos;t be added, deleted, renamed, moved, hidden, or shown. Take the protection off first (Review, Unprotect Workbook).</source>
-        <translation type="unfinished">I fogli della cartella di lavoro sono bloccati, quindi non è possibile aggiungere, eliminare, rinominare, spostare, nascondere o mostrare fogli. Rimuovere prima la protezione (Revisione, Rimuovi protezione cartella di lavoro).</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <source>This sheet has no cells to protect.</source>
-        <translation type="unfinished">Il foglio non contiene celle da proteggere.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editslice.cpp" line="+180"/>
-        <source>A workbook opened from an older kind of file, or from a text file, has its notes in a form JeffCrunch does not search. Save it as an .xlsx workbook, and look again.</source>
-        <translation type="unfinished">In una cartella di lavoro aperta da un tipo di file meno recente o da un file di testo, le note sono in un formato in cui JeffCrunch non esegue ricerche. Salvarla come cartella di lavoro .xlsx e cercare di nuovo.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editsort.cpp" line="+95"/>
-        <source>Select the cells to sort.</source>
-        <translation type="unfinished">Selezionare le celle da ordinare.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Choose what to sort by.</source>
-        <translation type="unfinished">Scegliere il criterio di ordinamento.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A sort can have up to %1 levels.</source>
-        <translation type="unfinished">Un ordinamento può avere fino a %1 livelli.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>That is more cells than JeffCrunch sorts at once (%1). Select fewer.</source>
-        <translation type="unfinished">Le celle superano il numero massimo che JeffCrunch ordina contemporaneamente (%1). Selezionarne meno.</translation>
-    </message>
-    <message>
-        <location line="+9"/>
-        <source>The sort is by %1 that is not in the cells selected.</source>
-        <translation type="unfinished">L&apos;ordinamento è basato su %1 non inclusa nelle celle selezionate.</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>a row</source>
-        <translation type="unfinished">una riga</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>a column</source>
-        <translation type="unfinished">una colonna</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>There are no columns to put in order: the selection has one column, or only a header.</source>
-        <translation type="unfinished">Nessuna colonna da ordinare: la selezione contiene una sola colonna o solo un&apos;intestazione.</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>There are no rows to put in order: the selection has one row, or only a header.</source>
-        <translation type="unfinished">Nessuna riga da ordinare: la selezione contiene una sola riga o solo un&apos;intestazione.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>%1 is part of an array or a data table, so the cells can&apos;t be moved. Nothing was sorted.</source>
-        <translation type="unfinished">%1 fa parte di una matrice o di una tabella dati, quindi non è possibile spostare le celle. Nessun ordinamento eseguito.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <location line="+10"/>
-        <source>%1 is locked, and its sheet is protected, so the cells can&apos;t be moved. Nothing was sorted.</source>
-        <translation type="unfinished">%1 è bloccata e il foglio è protetto, quindi non è possibile spostare le celle. Nessun ordinamento eseguito.</translation>
-    </message>
-    <message>
-        <location line="+9"/>
-        <source>%1 is in the first row of a table, which holds the names of its columns, so it can&apos;t be moved. Start the sort below it.</source>
-        <translation type="unfinished">%1 si trova nella prima riga di una tabella, che contiene i nomi delle colonne, quindi non può essere spostata. Iniziare l&apos;ordinamento sotto di essa.</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>Some merged cells reach past the edge of the cells to sort, so they can&apos;t be moved. Select cells that include all of them, or none.</source>
-        <translation type="unfinished">Alcune celle unite si estendono oltre il bordo delle celle da ordinare e non possono essere spostate. Selezionare celle che le includano tutte o nessuna.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>The merged cells are not all the same size, so they can&apos;t be put in order. Unmerge them, or sort cells that have none.</source>
-        <translation type="unfinished">Le celle unite non hanno tutte le stesse dimensioni, quindi non possono essere ordinate. Separarle oppure ordinare celle che non ne contengono.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Some merged cells span more than one column, so the columns can&apos;t be put in order. Unmerge them first.</source>
-        <translation type="unfinished">Alcune celle unite occupano più colonne, quindi non è possibile ordinare le colonne. Separarle prima.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Some merged cells span more than one row, so the rows can&apos;t be put in order. Unmerge them first.</source>
-        <translation type="unfinished">Alcune celle unite occupano più righe, quindi non è possibile ordinare le righe. Separarle prima.</translation>
-    </message>
-    <message>
-        <location line="+13"/>
-        <source>There is nothing to put in order: the filter shows fewer than two of these rows.</source>
-        <translation type="unfinished">Niente da ordinare: il filtro mostra meno di due di queste righe.</translation>
-    </message>
-    <message>
-        <location line="+168"/>
-        <source>The sort could not be finished. Try it again.</source>
-        <translation type="unfinished">Impossibile completare l&apos;ordinamento. Riprovare.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The cells were changed while the sort was being worked out, so it was not made. Sort again.</source>
-        <translation type="unfinished">Le celle sono state modificate durante l&apos;elaborazione dell&apos;ordinamento, che quindi non è stato eseguito. Ripetere l&apos;ordinamento.</translation>
-    </message>
-    <message>
-        <location line="+133"/>
-        <location line="+5"/>
-        <source>Sorting</source>
-        <translation type="unfinished">Ordinamento in corso</translation>
-    </message>
-    <message>
-        <location line="+24"/>
-        <source>The cells hold too much text to sort at once. Select fewer.</source>
-        <translation type="unfinished">Le celle contengono troppo testo da ordinare contemporaneamente. Selezionarne meno.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/edittables.cpp" line="-891"/>
-        <source>Another table has that name. Pick another.</source>
-        <translation type="unfinished">Un&apos;altra tabella ha già questo nome. Sceglierne un altro.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>A name in the workbook is called that. Pick another.</source>
-        <translation type="unfinished">Nella cartella di lavoro esiste già un nome uguale. Sceglierne un altro.</translation>
-    </message>
-    <message>
-        <location line="+28"/>
-        <source>Those cells are in another table already.</source>
-        <translation type="unfinished">Le celle fanno già parte di un&apos;altra tabella.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Those cells are in a pivot table, so they can&apos;t be a table.</source>
-        <translation type="unfinished">Le celle fanno parte di una tabella pivot, quindi non possono diventare una tabella.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>The sheet&apos;s filter covers some of those cells. Turn it off first, since a table has a filter of its own.</source>
-        <translation type="unfinished">Il filtro del foglio include alcune di queste celle. Disattivarlo prima, poiché una tabella ha un proprio filtro.</translation>
-    </message>
-    <message>
-        <location line="+156"/>
-        <source>Pick the cells to make a table of.</source>
-        <translation type="unfinished">Selezionare le celle da cui creare una tabella.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>A table can have up to 16,384 columns.</source>
-        <translation type="unfinished">Una tabella può avere fino a 16.384 colonne.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>This sheet is protected, so a table can&apos;t be made on it.</source>
-        <translation type="unfinished">Il foglio è protetto, quindi non è possibile crearvi una tabella.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>A table needs a row of data under its names.</source>
-        <translation type="unfinished">Una tabella richiede una riga di dati sotto i nomi delle colonne.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <location line="+464"/>
-        <source>Merged cells can&apos;t be in a table. Unmerge them first.</source>
-        <translation type="unfinished">Una tabella non può contenere celle unite. Separarle prima.</translation>
-    </message>
-    <message>
-        <location line="-455"/>
-        <location line="+26"/>
-        <source>An array formula or a data table is in those cells, so they can&apos;t be a table.</source>
-        <translation type="unfinished">Le celle contengono una formula di matrice o una tabella dati, quindi non possono diventare una tabella.</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <source>Making a table</source>
-        <translation type="unfinished">Creazione di una tabella</translation>
-    </message>
-    <message>
-        <location line="+59"/>
-        <source>More formulas than JeffCrunch changes at once (%1) use this table.</source>
-        <translation type="unfinished">Questa tabella è usata da più formule di quante JeffCrunch ne modifichi contemporaneamente (%1).</translation>
-    </message>
-    <message>
-        <location line="+30"/>
-        <source>Turning a table into cells</source>
-        <translation type="unfinished">Conversione di una tabella in celle</translation>
-    </message>
-    <message>
-        <location line="+58"/>
-        <source>More formulas than JeffCrunch changes at once (%1) use this table&apos;s name.</source>
-        <translation type="unfinished">Il nome di questa tabella è usato da più formule di quante JeffCrunch ne modifichi contemporaneamente (%1).</translation>
-    </message>
-    <message>
-        <location line="+21"/>
-        <source>Naming a table</source>
-        <translation type="unfinished">Assegnazione del nome a una tabella</translation>
-    </message>
-    <message>
-        <location line="+32"/>
-        <source>The table is filtered. Clear its filter first, so the rows it hides are shown, and then take the buttons off.</source>
-        <translation type="unfinished">La tabella è filtrata. Cancellare prima il filtro, in modo da mostrare le righe nascoste, quindi rimuovere i pulsanti.</translation>
-    </message>
-    <message>
-        <location line="+9"/>
-        <source>Changing a table&apos;s look</source>
-        <translation type="unfinished">Modifica dell&apos;aspetto di una tabella</translation>
-    </message>
-    <message>
-        <location line="+21"/>
-        <source>There is no row above the table to hold the names of its columns.</source>
-        <translation type="unfinished">Non esiste una riga sopra la tabella in cui inserire i nomi delle colonne.</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>The row above the table has something in it. Clear it, or make room, and try again.</source>
-        <translation type="unfinished">La riga sopra la tabella contiene dati. Cancellala o libera spazio e riprova.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>The table is filtered. Clear its filter first, so the rows it hides are shown, and then turn off its row of names.</source>
-        <translation type="unfinished">La tabella è filtrata. Cancella prima il filtro, in modo che le righe nascoste vengano mostrate, quindi disattiva la riga dei nomi.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A table needs a row of data.</source>
-        <translation type="unfinished">Una tabella deve contenere una riga di dati.</translation>
-    </message>
-    <message>
-        <location line="+11"/>
-        <source>Showing a table&apos;s names</source>
-        <translation type="unfinished">Visualizzazione dei nomi della tabella</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Hiding a table&apos;s names</source>
-        <translation type="unfinished">Occultamento dei nomi della tabella</translation>
-    </message>
-    <message>
-        <location line="+21"/>
-        <source>There is no row under the table.</source>
-        <translation type="unfinished">Non c&apos;è nessuna riga sotto la tabella.</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>The row under the table has something in it. Clear it, or make room, and try again.</source>
-        <translation type="unfinished">La riga sotto la tabella contiene dati. Cancellala o libera spazio e riprova.</translation>
-    </message>
-    <message>
-        <location line="+11"/>
-        <source>Total</source>
-        <translation type="unfinished">Totale</translation>
-    </message>
-    <message>
-        <location line="+28"/>
-        <source>Showing a table&apos;s totals</source>
-        <translation type="unfinished">Visualizzazione dei totali della tabella</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Hiding a table&apos;s totals</source>
-        <translation type="unfinished">Occultamento dei totali della tabella</translation>
-    </message>
-    <message>
-        <location line="+16"/>
-        <source>The table has no row of totals.</source>
-        <translation type="unfinished">La tabella non ha una riga dei totali.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location line="+192"/>
-        <source>There is no such column.</source>
-        <translation type="unfinished">Questa colonna non esiste.</translation>
-    </message>
-    <message>
-        <location line="-179"/>
-        <source>Type the formula for the total.</source>
-        <translation type="unfinished">Digita la formula per il totale.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>That is not a formula.</source>
-        <translation type="unfinished">Questa non è una formula.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>The formula names a column the table does not have.</source>
-        <translation type="unfinished">La formula fa riferimento a una colonna che non esiste nella tabella.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>JeffCrunch does not know that kind of total.</source>
-        <translation type="unfinished">JeffCrunch non riconosce questo tipo di totale.</translation>
-    </message>
-    <message>
-        <location line="+11"/>
-        <source>Changing a table&apos;s total</source>
-        <translation type="unfinished">Modifica del totale della tabella</translation>
-    </message>
-    <message>
-        <location line="+20"/>
-        <source>The table keeps its first cell. Pick cells that begin where it does.</source>
-        <translation type="unfinished">La tabella mantiene la prima cella. Seleziona celle che iniziano dallo stesso punto.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The table can&apos;t be that size.</source>
-        <translation type="unfinished">La tabella non può avere queste dimensioni.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A table needs a row of data besides its names and its totals.</source>
-        <translation type="unfinished">Una tabella deve contenere una riga di dati oltre ai nomi e ai totali.</translation>
-    </message>
-    <message>
-        <location line="+107"/>
-        <source>Resizing a table</source>
-        <translation type="unfinished">Ridimensionamento della tabella</translation>
-    </message>
-    <message>
-        <location line="+19"/>
-        <source>There are no rows to look at.</source>
-        <translation type="unfinished">Non ci sono righe da esaminare.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location line="+106"/>
-        <source>Pick at least one column to compare.</source>
-        <translation type="unfinished">Scegli almeno una colonna da confrontare.</translation>
-    </message>
-    <message>
-        <location line="-101"/>
-        <source>Select more than one row of data.</source>
-        <translation type="unfinished">Seleziona più di una riga di dati.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>The cells have more in them than JeffCrunch changes at once (%1).</source>
-        <translation type="unfinished">Le celle contengono più dati di quanti JeffCrunch ne modifichi in una sola volta (%1).</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <location line="+8"/>
-        <source>%1 is locked, and its sheet is protected, so the cells can&apos;t be moved.</source>
-        <translation type="unfinished">%1 è bloccata e il suo foglio è protetto, quindi le celle non possono essere spostate.</translation>
-    </message>
-    <message>
-        <location line="+20"/>
-        <source>The repeated rows are in more than %1 separate places. Sort the rows by the columns you compare first, so the repeats are next to each other.</source>
-        <translation type="unfinished">Le righe ripetute si trovano in più di %1 posizioni separate. Ordina le righe in base alle colonne da confrontare prima, in modo che le ripetizioni siano una accanto all&apos;altra.</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <source>Removing duplicate rows</source>
-        <translation type="unfinished">Rimozione di righe duplicate</translation>
-    </message>
-    <message>
-        <location line="+47"/>
-        <source>The table is filtered. Clear its filter first, so the rows it hides are not moved.</source>
-        <translation type="unfinished">La tabella è filtrata. Cancella prima il filtro, in modo che le righe nascoste non vengano spostate.</translation>
-    </message>
-    <message>
-        <location line="+94"/>
-        <source>Growing a table by a row</source>
-        <translation type="unfinished">Aggiunta di una riga alla tabella</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Growing a table by a column</source>
-        <translation type="unfinished">Aggiunta di una colonna alla tabella</translation>
-    </message>
-    <message>
-        <location line="+64"/>
-        <location line="+39"/>
-        <source>Filling a calculated column</source>
-        <translation type="unfinished">Riempimento di una colonna calcolata</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Naming the new columns</source>
-        <translation type="unfinished">Denominazione delle nuove colonne</translation>
-    </message>
-    <message>
-        <location line="+9"/>
-        <source>There is nothing to undo.</source>
-        <translation type="unfinished">Non c&apos;è nulla da annullare.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+75"/>
-        <location line="+222"/>
-        <location line="+626"/>
-        <source>JeffCrunch can&apos;t read this pivot table.</source>
-        <translation type="unfinished">JeffCrunch non riesce a leggere questa tabella pivot.</translation>
-    </message>
-    <message>
-        <location line="-844"/>
-        <source>This pivot table has lost the data it is made from.</source>
-        <translation type="unfinished">Questa tabella pivot ha perso i dati da cui è stata creata.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>JeffCrunch can&apos;t read the data this pivot table is made from (%1).</source>
-        <translation type="unfinished">JeffCrunch non riesce a leggere i dati da cui è stata creata questa tabella pivot (%1).</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <location line="+4"/>
-        <source>This pivot table uses %1, which JeffCrunch doesn&apos;t work out yet. It stays as it is.</source>
-        <translation type="unfinished">Questa tabella pivot usa %1, che JeffCrunch non è ancora in grado di calcolare. Rimane invariata.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>This pivot table shows a value as a rank or as a percent of a parent, which JeffCrunch doesn&apos;t work out yet. It stays as it is.</source>
-        <translation type="unfinished">Questa tabella pivot mostra un valore come classifica o come percentuale di un elemento padre, calcolo che JeffCrunch non esegue ancora. Rimane così com&apos;è.</translation>
-    </message>
-    <message>
-        <location line="+59"/>
-        <source>Type the cells the data is in, for example Sheet1!A1:D100, or the name of a table.</source>
-        <translation type="unfinished">Digitare le celle che contengono i dati, ad esempio Foglio1!A1:D100, oppure il nome di una tabella.</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <source>There is no sheet called &quot;%1&quot;.</source>
-        <translation type="unfinished">Non esiste un foglio denominato &quot;%1&quot;.</translation>
-    </message>
-    <message>
-        <location line="+14"/>
-        <source>There is nothing in those columns.</source>
-        <translation type="unfinished">Queste colonne sono vuote.</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <source>There is nothing in those rows.</source>
-        <translation type="unfinished">Queste righe sono vuote.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <location line="+7"/>
-        <source>The data needs a row of names and at least one row of data under it. Type more than one row, for example Sheet1!A1:D100.</source>
-        <translation type="unfinished">I dati richiedono una riga di nomi e almeno una riga di dati sottostante. Digitare più di una riga, ad esempio Foglio1!A1:D100.</translation>
-    </message>
-    <message>
-        <location line="+12"/>
-        <source>&quot;%1&quot; is not a range of cells, a table, or a name. Type the cells the data is in, with its first row of names, for example Sheet1!A1:D100.</source>
-        <translation type="unfinished">&quot;%1&quot; non è un intervallo di celle, una tabella o un nome. Digitare le celle che contengono i dati, inclusa la prima riga di nomi, ad esempio Foglio1!A1:D100.</translation>
-    </message>
-    <message>
-        <location line="+19"/>
-        <source>The data of this pivot table is in another workbook, which JeffCrunch does not open, so it can&apos;t be read again here. The table keeps the values the file has. To read it from this workbook, use Change Data Source.</source>
-        <translation type="unfinished">I dati di questa tabella pivot si trovano in un&apos;altra cartella di lavoro, che JeffCrunch non apre, quindi non possono essere riletti qui. La tabella mantiene i valori presenti nel file. Per leggerli da questa cartella di lavoro, usare Cambia origine dati.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>The sheet this pivot table is made from is not in the workbook any more.</source>
-        <translation type="unfinished">Il foglio da cui è stata creata questa tabella pivot non è più presente nella cartella di lavoro.</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <source>JeffCrunch can&apos;t find the data this pivot table is made from.</source>
-        <translation type="unfinished">JeffCrunch non trova i dati da cui è stata creata questa tabella pivot.</translation>
-    </message>
-    <message>
-        <location line="+36"/>
-        <location line="+518"/>
-        <source>JeffCrunch can&apos;t read the data this pivot table is made from.</source>
-        <translation type="unfinished">JeffCrunch non riesce a leggere i dati da cui è stata creata questa tabella pivot.</translation>
-    </message>
-    <message>
-        <location line="-479"/>
-        <source>This pivot table can&apos;t be worked out: %1.</source>
-        <translation type="unfinished">Impossibile calcolare questa tabella pivot: %1.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>There is no room above the pivot table for its filters. Move the table down first.</source>
-        <translation type="unfinished">Non c&apos;è spazio sopra la tabella pivot per i relativi filtri. Spostare prima la tabella verso il basso.</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <location line="+814"/>
-        <location line="+21"/>
-        <source>The pivot table would go past the edge of the sheet.</source>
-        <translation type="unfinished">La tabella pivot supererebbe il bordo del foglio.</translation>
-    </message>
-    <message>
-        <location line="-785"/>
-        <location line="+825"/>
-        <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
-        <translation type="unfinished">La tabella pivot coprirebbe celle non vuote (%1). Cancellare tali celle o spostare la tabella pivot e riprovare.</translation>
-    </message>
-    <message>
-        <location line="-809"/>
-        <source>The pivot table would be larger than JeffCrunch changes at once.</source>
-        <translation type="unfinished">La tabella pivot supererebbe la quantità che JeffCrunch può modificare in una sola volta.</translation>
-    </message>
-    <message>
-        <location line="+137"/>
-        <location line="+309"/>
-        <source>These pivot tables were not refreshed:
-%1</source>
-        <translation type="unfinished">Le seguenti tabelle pivot non sono state aggiornate:
-%1</translation>
-    </message>
-    <message>
-        <location line="-288"/>
-        <source>JeffCrunch can&apos;t find the cells &quot;%1&quot; stands for.</source>
-        <translation type="unfinished">JeffCrunch non trova le celle a cui fa riferimento &quot;%1&quot;.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>The data must be on a sheet of cells.</source>
-        <translation type="unfinished">I dati devono trovarsi in un foglio di celle.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The data needs a row of names and at least one row of data under it.</source>
-        <translation type="unfinished">I dati richiedono una riga di nomi e almeno una riga di dati sottostante.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>There is too much data for a pivot table.</source>
-        <translation type="unfinished">I dati sono troppi per una tabella pivot.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>There is too much data to make a pivot table of in one step (more than %1 million cells). Use fewer rows or columns.</source>
-        <translation type="unfinished">I dati sono troppi per creare una tabella pivot in un solo passaggio (più di %1 milioni di celle). Usare meno righe o colonne.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>The data can&apos;t be read: %1.</source>
-        <translation type="unfinished">Impossibile leggere i dati: %1.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>Pick a sheet of cells for the pivot table.</source>
-        <translation type="unfinished">Scegliere un foglio di celle per la tabella pivot.</translation>
-    </message>
-    <message>
-        <location line="+11"/>
-        <source>There is no room for a pivot table there.</source>
-        <translation type="unfinished">Non c&apos;è spazio per una tabella pivot in quella posizione.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>The pivot table would cover some of the data it is made from (%1). Pick a place that is clear of the data.</source>
-        <translation type="unfinished">La tabella pivot coprirebbe parte dei dati da cui è creata (%1). Scegliere una posizione libera dai dati.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>There is a pivot table there already. Pick a cell that is clear of it.</source>
-        <translation type="unfinished">In quella posizione è già presente una tabella pivot. Scegliere una cella esterna a essa.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>There is something in the cells a pivot table would cover (%1). Pick a clear place.</source>
-        <translation type="unfinished">Le celle che la tabella pivot coprirebbe non sono vuote (%1). Scegliere una posizione libera.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <location line="+27"/>
-        <source>Pivot Table %1</source>
-        <translation type="unfinished">Tabella pivot %1</translation>
-    </message>
-    <message>
-        <location line="-10"/>
-        <source>The pivot table could not be made: %1.</source>
-        <translation type="unfinished">Impossibile creare la tabella pivot: %1.</translation>
-    </message>
-    <message>
-        <location line="+35"/>
-        <source>Create Pivot Table</source>
-        <translation type="unfinished">Crea tabella pivot</translation>
-    </message>
-    <message>
-        <location line="+140"/>
-        <source>This pivot table uses %1, which JeffCrunch can&apos;t read again yet.</source>
-        <translation type="unfinished">Questa tabella pivot usa %1, che JeffCrunch non è ancora in grado di rileggere.</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <source>JeffCrunch can&apos;t read a pivot table made from this data.</source>
-        <translation type="unfinished">JeffCrunch non riesce a leggere una tabella pivot creata da questi dati.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>The data can&apos;t be read again: %1.</source>
-        <translation type="unfinished">Impossibile rileggere i dati: %1.</translation>
-    </message>
-    <message>
-        <location line="+42"/>
-        <location line="+163"/>
-        <location line="+48"/>
-        <location line="+73"/>
-        <location line="+93"/>
-        <location line="+30"/>
-        <location line="+23"/>
-        <location line="+38"/>
-        <source>There is no pivot table here.</source>
-        <translation type="unfinished">Qui non è presente alcuna tabella pivot.</translation>
-    </message>
-    <message>
-        <location line="-465"/>
-        <source>Refresh Pivot Table</source>
-        <translation type="unfinished">Aggiorna tabella pivot</translation>
-    </message>
-    <message>
-        <location line="+21"/>
-        <source>There are no pivot tables in this workbook that JeffCrunch can read again.</source>
-        <translation type="unfinished">In questa cartella di lavoro non ci sono tabelle pivot che JeffCrunch possa rileggere.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Refresh All</source>
-        <translation type="unfinished">Aggiorna tutto</translation>
-    </message>
-    <message>
-        <location line="+32"/>
-        <source>Click a value of the pivot table, not a label.</source>
-        <translation type="unfinished">Fai clic su un valore della tabella pivot, non su un&apos;etichetta.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>There are too many rows behind this value to show at once.</source>
-        <translation type="unfinished">Ci sono troppe righe dietro questo valore per mostrarle tutte insieme.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>There are no rows behind this value.</source>
-        <translation type="unfinished">Non ci sono righe dietro questo valore.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Detail %1</source>
-        <translation type="unfinished">Dettaglio %1</translation>
-    </message>
-    <message>
-        <location line="+42"/>
-        <source>Show Details</source>
-        <translation type="unfinished">Mostra dettagli</translation>
-    </message>
-    <message>
-        <location line="+33"/>
-        <source>Refresh</source>
-        <translation type="unfinished">Aggiorna</translation>
-    </message>
-    <message numerus="yes">
-        <location line="+2"/>
-        <source>%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.</source>
-        <translation type="unfinished">
-            <numerusform>%n tabella pivot non è stata riletta all&apos;apertura del file: i dati sono troppi. Usa Aggiorna tutto.</numerusform>
-            <numerusform>%n tabelle pivot non sono state rilette all&apos;apertura del file: i dati sono troppi. Usa Aggiorna tutto.</numerusform>
-        </translation>
-    </message>
-    <message>
-        <location line="+19"/>
-        <source>Another pivot table is made from the same data. A group is a part of the data, so it can&apos;t be made while two tables share it.</source>
-        <translation type="unfinished">Un&apos;altra tabella pivot è basata sugli stessi dati. Un gruppo è una parte dei dati, quindi non può essere creato mentre due tabelle li condividono.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>There is no such field.</source>
-        <translation type="unfinished">Campo inesistente.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Put the field in the rows or the columns first.</source>
-        <translation type="unfinished">Inserisci prima il campo nelle righe o nelle colonne.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>These can&apos;t be grouped: %1.</source>
-        <translation type="unfinished">Questi elementi non possono essere raggruppati: %1.</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <source>Group Field</source>
-        <translation type="unfinished">Raggruppa campo</translation>
-    </message>
-    <message>
-        <location line="+16"/>
-        <source>Another pivot table is made from the same data, so the group can&apos;t be taken away from this one alone.</source>
-        <translation type="unfinished">Un&apos;altra tabella pivot è basata sugli stessi dati, quindi il gruppo non può essere rimosso solo da questa.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location line="+4"/>
-        <source>This field is not grouped.</source>
-        <translation type="unfinished">Questo campo non è raggruppato.</translation>
-    </message>
-    <message>
-        <location line="+23"/>
-        <source>Ungroup Field</source>
-        <translation type="unfinished">Separa campo</translation>
-    </message>
-    <message>
-        <location line="+12"/>
-        <source>Click the name of an item in a pivot table first.</source>
-        <translation type="unfinished">Fai prima clic sul nome di un elemento in una tabella pivot.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <location line="+3"/>
-        <location line="+4"/>
-        <location line="+2"/>
-        <source>Click the name of an item in the rows of a pivot table first.</source>
-        <translation type="unfinished">Fai prima clic sul nome di un elemento nelle righe di una tabella pivot.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>This item has nothing under it.</source>
-        <translation type="unfinished">Questo elemento non ha dati sottostanti.</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>JeffCrunch can&apos;t find this item.</source>
-        <translation type="unfinished">JeffCrunch non riesce a trovare questo elemento.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Drill Down</source>
-        <translation type="unfinished">Approfondisci</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Drill Up</source>
-        <translation type="unfinished">Riduci livello</translation>
-    </message>
-    <message>
-        <location line="+25"/>
-        <location line="+57"/>
-        <location line="+5"/>
-        <source>Move Pivot Table</source>
-        <translation type="unfinished">Sposta tabella pivot</translation>
-    </message>
-    <message>
-        <location line="-26"/>
-        <source>There is a table in the way (%1).</source>
-        <translation type="unfinished">C&apos;è una tabella nel percorso (%1).</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>There is another pivot table in the way.</source>
-        <translation type="unfinished">C&apos;è un&apos;altra tabella pivot nel percorso.</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>There are merged cells in the way (%1).</source>
-        <translation type="unfinished">Ci sono celle unite nel percorso (%1).</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The sheet&apos;s filter is in the way.</source>
-        <translation type="unfinished">Il filtro del foglio è nel percorso.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Move the pivot table somewhere else, or clear those cells first.</source>
-        <translation type="unfinished">Sposta la tabella pivot altrove oppure cancella prima quelle celle.</translation>
-    </message>
-    <message>
-        <location line="+46"/>
-        <source>Pivot Table Options</source>
-        <translation type="unfinished">Opzioni tabella pivot</translation>
-    </message>
-    <message>
-        <location line="+27"/>
-        <source>Change Pivot Table Data Source</source>
-        <translation type="unfinished">Cambia origine dati tabella pivot</translation>
-    </message>
-    <message>
-        <location line="+70"/>
-        <source>Clear Filters</source>
-        <translation type="unfinished">Cancella filtri</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Clear Pivot Table</source>
-        <translation type="unfinished">Cancella tabella pivot</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editdatatools.cpp" line="+76"/>
-        <source>Select cells in one column to split.</source>
-        <translation type="unfinished">Seleziona celle in una colonna da dividere.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>There are too many cells to split at once. Select fewer.</source>
-        <translation type="unfinished">Ci sono troppe celle da dividere in una volta sola. Selezionane meno.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Choose what to split the text at.</source>
-        <translation type="unfinished">Scegli in corrispondenza di cosa dividere il testo.</translation>
-    </message>
-    <message>
-        <location line="+13"/>
-        <location line="+8"/>
-        <source>The pieces would fill too many cells at once. Select fewer cells, or split at fewer places.</source>
-        <translation type="unfinished">I frammenti riempirebbero troppe celle in una volta sola. Seleziona meno celle oppure dividi in meno punti.</translation>
-    </message>
-    <message>
-        <location line="-2"/>
-        <source>Every column was left out, so there is nothing to put in the sheet.</source>
-        <translation type="unfinished">Tutte le colonne sono state escluse, quindi non c&apos;è nulla da inserire nel foglio.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The pieces would go past the last column of the sheet.</source>
-        <translation type="unfinished">I frammenti andrebbero oltre l&apos;ultima colonna del foglio.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editslicer.cpp" line="+98"/>
-        <location line="+21"/>
-        <source>This slicer can&apos;t be used.</source>
-        <translation type="unfinished">Questa segmentazione dati non può essere usata.</translation>
-    </message>
-    <message>
-        <location line="-19"/>
-        <source>This slicer filters no pivot table that JeffCrunch can read.</source>
-        <translation type="unfinished">Questa segmentazione dati non filtra nessuna tabella pivot leggibile da JeffCrunch.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>A pivot table this slicer filters can&apos;t be changed.</source>
-        <translation type="unfinished">Una tabella pivot filtrata da questo slicer non può essere modificata.</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <location line="+3"/>
-        <source>Filter by Slicer</source>
-        <translation type="unfinished">Filtra per slicer</translation>
-    </message>
-</context>
-<context>
     <name>EmbeddedFont</name>
     <message>
         <location filename="../libs/office/office/eot.cpp" line="+109"/>
@@ -12868,7 +10937,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
 <context>
     <name>Sheet</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+57"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+58"/>
         <source>Part of the file has more settings on one item than any real file has, so it can&apos;t be read.</source>
         <translation type="unfinished">Una parte del file contiene in un elemento più impostazioni di qualsiasi file reale, quindi non può essere letta.</translation>
     </message>
@@ -12887,12 +10956,12 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <location line="+133"/>
         <location line="+226"/>
         <location line="+249"/>
-        <location line="+751"/>
+        <location line="+752"/>
         <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">Il file inizia con istruzioni non consentite da questo programma, quindi non può essere letto.</translation>
     </message>
     <message>
-        <location line="-1358"/>
+        <location line="-1359"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">Il file è danneggiato: non è scritto come dovrebbe esserlo un file di foglio di calcolo.</translation>
     </message>
@@ -12920,12 +10989,12 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <location line="+126"/>
         <location line="+226"/>
         <location line="+249"/>
-        <location line="+772"/>
+        <location line="+773"/>
         <source>The file has items inside items more deeply than any real file has.</source>
         <translation type="unfinished">Il file contiene elementi annidati più in profondità di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="-1245"/>
+        <location line="-1246"/>
         <location line="+84"/>
         <source>The part is not a list of shared strings.</source>
         <translation type="unfinished">La parte non è un elenco di stringhe condivise.</translation>
@@ -12942,13 +11011,13 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     </message>
     <message>
         <location line="+10"/>
-        <location line="+1540"/>
+        <location line="+1541"/>
         <location line="+3"/>
         <source>A string is longer than any real file has.</source>
         <translation type="unfinished">Una stringa è più lunga di quelle di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="-1392"/>
+        <location line="-1393"/>
         <location line="+223"/>
         <source>The part is not a list of styles.</source>
         <translation type="unfinished">La parte non è un elenco di stili.</translation>
@@ -13034,7 +11103,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">Il foglio contiene più righe con altezza o formato propri di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="+72"/>
+        <location line="+73"/>
         <source>The sheet has more runs of columns than any real file has.</source>
         <translation type="unfinished">Il foglio contiene più sequenze di colonne di qualsiasi file reale.</translation>
     </message>
@@ -13220,7 +11289,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">Il file non contiene alcuna cartella di lavoro.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+859"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+855"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+1663"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Il foglio non esiste.</translation>
@@ -16072,202 +14141,6 @@ Desktop publishing</translation>
     </message>
 </context>
 <context>
-    <name>jp</name>
-    <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+45"/>
-        <source>Columns</source>
-        <translation type="unfinished">Colonne</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Stacked columns</source>
-        <translation type="unfinished">Colonne in pila</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Columns to 100%</source>
-        <translation type="unfinished">Colonne in pila al 100%</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Bars</source>
-        <translation type="unfinished">Barre</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Stacked bars</source>
-        <translation type="unfinished">Barre in pila</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Bars to 100%</source>
-        <translation type="unfinished">Barre in pila al 100%</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location line="+21"/>
-        <source>Line</source>
-        <translation type="unfinished">Linee</translation>
-    </message>
-    <message>
-        <location line="-20"/>
-        <source>Line with markers</source>
-        <translation type="unfinished">Linee con indicatori</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Stacked line</source>
-        <translation type="unfinished">Linee in pila</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location line="+18"/>
-        <source>Pie</source>
-        <translation type="unfinished">Torta</translation>
-    </message>
-    <message>
-        <location line="-17"/>
-        <source>Doughnut</source>
-        <translation type="unfinished">Anello</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location line="+17"/>
-        <source>Area</source>
-        <translation type="unfinished">Area</translation>
-    </message>
-    <message>
-        <location line="-16"/>
-        <source>Stacked area</source>
-        <translation type="unfinished">Aree in pila</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Scatter, points</source>
-        <translation type="unfinished">Dispersione, punti</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Scatter, joined points</source>
-        <translation type="unfinished">Dispersione, punti uniti</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Scatter, smooth lines</source>
-        <translation type="unfinished">Dispersione, linee smussate</translation>
-    </message>
-    <message>
-        <location line="+11"/>
-        <source>Column</source>
-        <translation type="unfinished">Istogramma</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Bar</source>
-        <translation type="unfinished">Barre</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Scatter</source>
-        <translation type="unfinished">Dispersione</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Combo</source>
-        <translation type="unfinished">Combinato</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+36"/>
-        <source>Light Red Fill with Dark Red Text</source>
-        <translation type="unfinished">Riempimento rosso chiaro con testo rosso scuro</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Yellow Fill with Dark Yellow Text</source>
-        <translation type="unfinished">Riempimento giallo con testo giallo scuro</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Green Fill with Dark Green Text</source>
-        <translation type="unfinished">Riempimento verde con testo verde scuro</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Light Red Fill</source>
-        <translation type="unfinished">Riempimento rosso chiaro</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Red Text</source>
-        <translation type="unfinished">Testo rosso</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Bold Dark Blue Text</source>
-        <translation type="unfinished">Testo blu scuro in grassetto</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+69"/>
-        <source>Blue</source>
-        <translation type="unfinished">Blu</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Orange</source>
-        <translation type="unfinished">Arancione</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Gray</source>
-        <translation type="unfinished">Grigio</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Gold</source>
-        <translation type="unfinished">Oro</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Green</source>
-        <translation type="unfinished">Verde</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Dark Blue</source>
-        <translation type="unfinished">Blu scuro</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Dark Red</source>
-        <translation type="unfinished">Rosso scuro</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Teal</source>
-        <translation type="unfinished">Verde acqua</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Purple</source>
-        <translation type="unfinished">Viola</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Dark Gray</source>
-        <translation type="unfinished">Grigio scuro</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Black</source>
-        <translation type="unfinished">Nero</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Red</source>
-        <translation type="unfinished">Rosso</translation>
-    </message>
-</context>
-<context>
     <name>jp::AnimationOptionsDialog</name>
     <message>
         <location filename="../apps/deck/app/animationdialogs.cpp" line="+25"/>
@@ -18731,7 +16604,7 @@ Origine: %3</translation>
         <translation type="unfinished">Rinomina oggetto</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+25"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+99"/>
         <source>More Charts…</source>
         <translation type="unfinished">Altri grafici…</translation>
     </message>
@@ -18769,53 +16642,58 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Move Chart…</source>
+        <translation type="unfinished">Sposta grafico…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Properties…</source>
         <translation type="unfinished">Proprietà…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+800"/>
+        <location line="+884"/>
         <source>Bring to Front</source>
         <translation type="unfinished">Porta in primo piano</translation>
     </message>
     <message>
-        <location line="-799"/>
-        <location line="+799"/>
+        <location line="-883"/>
+        <location line="+883"/>
         <source>Bring Forward</source>
         <translation type="unfinished">Porta avanti</translation>
     </message>
     <message>
-        <location line="-798"/>
-        <location line="+798"/>
+        <location line="-882"/>
+        <location line="+882"/>
         <source>Send Backward</source>
         <translation type="unfinished">Porta indietro</translation>
     </message>
     <message>
-        <location line="-797"/>
-        <location line="+797"/>
+        <location line="-881"/>
+        <location line="+881"/>
         <source>Send to Back</source>
         <translation type="unfinished">Porta in secondo piano</translation>
     </message>
     <message>
-        <location line="-779"/>
+        <location line="-863"/>
         <source>Layouts</source>
         <translation type="unfinished">Layout</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location line="+524"/>
+        <location line="+600"/>
         <location line="+3"/>
         <source>Colors</source>
         <translation type="unfinished">Colori</translation>
     </message>
     <message>
-        <location line="-518"/>
-        <location line="+523"/>
+        <location line="-594"/>
+        <location line="+599"/>
         <source>Chart Look</source>
         <translation type="unfinished">Aspetto grafico</translation>
     </message>
     <message>
-        <location line="-446"/>
+        <location line="-522"/>
         <location line="+4"/>
         <location line="+7"/>
         <location line="+9"/>
@@ -18879,6 +16757,26 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+10"/>
+        <location line="+12"/>
+        <location line="+8"/>
+        <location line="+21"/>
+        <location line="+18"/>
+        <location line="+3"/>
+        <source>Move Chart</source>
+        <translation type="unfinished">Sposta grafico</translation>
+    </message>
+    <message>
+        <location line="-50"/>
+        <source>There is no other worksheet to move the chart to.</source>
+        <translation type="unfinished">Non c&apos;è nessun altro foglio di lavoro in cui spostare il grafico.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Move the chart to this sheet:</source>
+        <translation type="unfinished">Sposta il grafico in questo foglio:</translation>
+    </message>
+    <message>
+        <location line="+56"/>
         <location line="+15"/>
         <location line="+3"/>
         <source>Format Axis</source>
@@ -19155,7 +17053,7 @@ Origine: %3</translation>
         <translation type="unfinished">Aspetto</translation>
     </message>
     <message>
-        <location line="+40"/>
+        <location line="+48"/>
         <location line="+1"/>
         <source>Chart Elements</source>
         <translation type="unfinished">Elementi grafico</translation>
@@ -19239,7 +17137,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-268"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-276"/>
         <location line="+2"/>
         <location line="+1"/>
         <location line="+1"/>
@@ -19346,7 +17244,7 @@ Origine: %3</translation>
         <translation type="unfinished">Taglia</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+229"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+237"/>
         <location line="+17"/>
         <location line="+12"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+2"/>
@@ -19389,7 +17287,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-314"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-322"/>
         <location line="+62"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+1"/>
         <source>Right</source>
@@ -20576,9 +18474,9 @@ Origine: %3</translation>
         <location line="+119"/>
         <location line="+28"/>
         <location line="+11"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-452"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-528"/>
         <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+120"/>
-        <location line="+7"/>
+        <location line="+11"/>
         <source>Delete</source>
         <translation type="unfinished">Elimina</translation>
     </message>
@@ -20819,6 +18717,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-90"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-104"/>
         <source>Columns</source>
         <translation type="unfinished">Colonne</translation>
@@ -21071,7 +18970,7 @@ Origine: %3</translation>
         <translation type="unfinished">Nome tabella</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+708"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+882"/>
         <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="+442"/>
         <source>Picture</source>
         <translation type="unfinished">Immagine</translation>
@@ -21325,7 +19224,7 @@ Origine: %3</translation>
         <translation type="unfinished">Operazione</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-264"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-272"/>
         <location line="+6"/>
         <location line="+65"/>
         <location line="+14"/>
@@ -21799,12 +19698,12 @@ Il file esistente non è stato modificato.</translation>
         <translation type="unfinished">Non salvare</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-36"/>
+        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-40"/>
         <source>This chart sheet&apos;s chart can&apos;t be shown here.</source>
         <translation type="unfinished">Impossibile visualizzare qui il grafico di questo foglio grafico.</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+39"/>
         <source>Delete Object</source>
         <translation type="unfinished">Elimina oggetto</translation>
     </message>
@@ -23212,7 +21111,7 @@ Impossibile leggere il file.</translation>
         <location line="-32"/>
         <location line="+6"/>
         <location line="+3"/>
-        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+353"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+424"/>
         <source>Ungroup</source>
         <translation type="unfinished">Separa</translation>
     </message>
@@ -23452,7 +21351,7 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Indica</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+24"/>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+62"/>
         <source>&quot;%1&quot; is not a formula JeffCrunch can read.</source>
         <translation type="unfinished">&quot;%1&quot; non è una formula che JeffCrunch possa leggere.</translation>
     </message>
@@ -23537,12 +21436,12 @@ Impossibile leggere il file.</translation>
         <location line="+18"/>
         <location line="+41"/>
         <location line="+4"/>
-        <location line="+30"/>
+        <location line="+32"/>
         <source>Conditional Formatting</source>
         <translation type="unfinished">Formattazione condizionale</translation>
     </message>
     <message>
-        <location line="-128"/>
+        <location line="-130"/>
         <source>From:</source>
         <translation type="unfinished">Da:</translation>
     </message>
@@ -23852,17 +21751,20 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Elimina sparkline</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-689"/>
+        <location line="+21"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+13"/>
         <source>Line</source>
         <translation type="unfinished">Linea</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-1"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+1"/>
         <source>Column</source>
         <translation type="unfinished">Colonna</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+1"/>
         <source>Win/Loss</source>
         <translation type="unfinished">Vittoria/Sconfitta</translation>
     </message>
@@ -24083,6 +21985,183 @@ Impossibile leggere il file.</translation>
         <location line="+0"/>
         <source>Maximum value:</source>
         <translation type="unfinished">Valore massimo:</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-25"/>
+        <source>Stacked columns</source>
+        <translation type="unfinished">Colonne in pila</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Columns to 100%</source>
+        <translation type="unfinished">Colonne in pila al 100%</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bars</source>
+        <translation type="unfinished">Barre</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stacked bars</source>
+        <translation type="unfinished">Barre in pila</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bars to 100%</source>
+        <translation type="unfinished">Barre in pila al 100%</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Line with markers</source>
+        <translation type="unfinished">Linee con indicatori</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stacked line</source>
+        <translation type="unfinished">Linee in pila</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+18"/>
+        <source>Pie</source>
+        <translation type="unfinished">Torta</translation>
+    </message>
+    <message>
+        <location line="-17"/>
+        <source>Doughnut</source>
+        <translation type="unfinished">Anello</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+17"/>
+        <source>Area</source>
+        <translation type="unfinished">Area</translation>
+    </message>
+    <message>
+        <location line="-16"/>
+        <source>Stacked area</source>
+        <translation type="unfinished">Aree in pila</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Scatter, points</source>
+        <translation type="unfinished">Dispersione, punti</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Scatter, joined points</source>
+        <translation type="unfinished">Dispersione, punti uniti</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Scatter, smooth lines</source>
+        <translation type="unfinished">Dispersione, linee smussate</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Bar</source>
+        <translation type="unfinished">Barre</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Scatter</source>
+        <translation type="unfinished">Dispersione</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Combo</source>
+        <translation type="unfinished">Combinato</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-153"/>
+        <source>Light Red Fill with Dark Red Text</source>
+        <translation type="unfinished">Riempimento rosso chiaro con testo rosso scuro</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Yellow Fill with Dark Yellow Text</source>
+        <translation type="unfinished">Riempimento giallo con testo giallo scuro</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Green Fill with Dark Green Text</source>
+        <translation type="unfinished">Riempimento verde con testo verde scuro</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Light Red Fill</source>
+        <translation type="unfinished">Riempimento rosso chiaro</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Red Text</source>
+        <translation type="unfinished">Testo rosso</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Bold Dark Blue Text</source>
+        <translation type="unfinished">Testo blu scuro in grassetto</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-604"/>
+        <source>Blue</source>
+        <translation type="unfinished">Blu</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Orange</source>
+        <translation type="unfinished">Arancione</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Gray</source>
+        <translation type="unfinished">Grigio</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Gold</source>
+        <translation type="unfinished">Oro</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Green</source>
+        <translation type="unfinished">Verde</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dark Blue</source>
+        <translation type="unfinished">Blu scuro</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Dark Red</source>
+        <translation type="unfinished">Rosso scuro</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Teal</source>
+        <translation type="unfinished">Verde acqua</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Purple</source>
+        <translation type="unfinished">Viola</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Dark Gray</source>
+        <translation type="unfinished">Grigio scuro</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Black</source>
+        <translation type="unfinished">Nero</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Red</source>
+        <translation type="unfinished">Rosso</translation>
     </message>
 </context>
 <context>
@@ -40453,7 +38532,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+14"/>
         <source>%1 recipients are in the list.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 destinatari sono presenti nell&apos;elenco.</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -43712,7 +41791,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="-430"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+919"/>
         <source>Clearing %n cell(s)</source>
         <translation type="unfinished">
             <numerusform>Cancellazione di %n cella</numerusform>
@@ -43720,7 +41799,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         </translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnames.cpp" line="-306"/>
+        <location filename="../apps/crunch/core/editnames.cpp" line="+93"/>
         <source>There is already a name like that in this workbook. Choose another, or change that one.</source>
         <translation type="unfinished">In questa cartella di lavoro esiste già un nome simile. Sceglierne un altro o modificare quello esistente.</translation>
     </message>
@@ -43830,9 +41909,1937 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">JeffCrunch non può ancora calcolarlo (usa un&apos;altra cartella di lavoro, le colonne di una tabella o una funzione non disponibile in JeffCrunch), quindi non viene mostrato alcun valore.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editslicer.cpp" line="-108"/>
+        <location filename="../apps/crunch/core/editslicer.cpp" line="+18"/>
         <source>(blank)</source>
         <translation type="unfinished">(vuoto)</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editformat.cpp" line="+66"/>
+        <source>This sheet is protected, so whether its cells are locked, and whether their formulas are hidden, can&apos;t be changed. Unprotect the sheet first (Review, Unprotect Sheet).</source>
+        <translation type="unfinished">Il foglio è protetto, quindi non è possibile modificare il blocco delle celle né se le formule sono nascoste. Rimuovi prima la protezione del foglio (Revisione, Rimuovi protezione foglio).</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editcond.cpp" line="+284"/>
+        <source>Conditional formatting of a workbook opened from this kind of file is kept when it is saved as an .xlsx workbook. Save it as one, and then change rules.</source>
+        <translation type="unfinished">La formattazione condizionale di una cartella di lavoro aperta da questo tipo di file viene mantenuta quando la si salva come cartella di lavoro .xlsx. Salvala in questo formato, quindi modifica le regole.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This sheet has more rules than JeffCrunch changes (%1).</source>
+        <translation type="unfinished">Questo foglio contiene più regole di quante JeffCrunch ne modifichi (%1).</translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>This sheet has rules of conditional formatting in a form JeffCrunch keeps as they are (more than it reads, or with a priority another rule has). It doesn&apos;t change the rules of the sheet.</source>
+        <translation type="unfinished">Questo foglio contiene regole di formattazione condizionale in una forma che JeffCrunch mantiene così com&apos;è (più di quante ne legga, o con una priorità diversa da quella di un&apos;altra regola). Non modifica le regole del foglio.</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Select the cells the rule is for.</source>
+        <translation type="unfinished">Seleziona le celle a cui si applica la regola.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location filename="../apps/crunch/core/editformat.cpp" line="+11"/>
+        <location line="+200"/>
+        <location line="+38"/>
+        <location line="+284"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-126"/>
+        <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
+        <location line="+247"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+227"/>
+        <location filename="../apps/crunch/core/edittables.cpp" line="+404"/>
+        <location line="+89"/>
+        <source>The workbook is busy. Try again in a moment.</source>
+        <translation type="unfinished">La cartella di lavoro è occupata. Riprova tra qualche istante.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This workbook has no place to keep the look of a rule.</source>
+        <translation type="unfinished">Questa cartella di lavoro non ha un punto in cui conservare l&apos;aspetto di una regola.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Conditional Formatting</source>
+        <translation type="unfinished">Formattazione condizionale</translation>
+    </message>
+    <message>
+        <location line="+70"/>
+        <source>Clearing there would split the rules into more than %1 blocks of cells. Clear a larger part of the sheet at once.</source>
+        <translation type="unfinished">Cancellarle qui suddividerebbe le regole in più di %1 blocchi di celle. Cancella una parte più ampia del foglio in una volta sola.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Clear Rules from Selected Cells</source>
+        <translation type="unfinished">Cancella regole dalle celle selezionate</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Clear Rules from Sheet</source>
+        <translation type="unfinished">Cancella regole dal foglio</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editformat.cpp" line="-477"/>
+        <source>This workbook has as many different formats as a workbook can hold (%1 cell formats). Give the cells a format the workbook already has, or clear the formats of some cells, and try again.</source>
+        <translation type="unfinished">Questa cartella di lavoro contiene il numero massimo di formati diversi consentito (%1 formati di cella). Assegna alle celle un formato già presente nella cartella di lavoro oppure cancella i formati di alcune celle e riprova.</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <location line="+213"/>
+        <location line="+148"/>
+        <source>Those are not cells of the sheet.</source>
+        <translation type="unfinished">Queste non sono celle del foglio.</translation>
+    </message>
+    <message>
+        <location line="-349"/>
+        <source>That is more cells than JeffCrunch formats at once (%1). Select whole columns or rows, or fewer cells.</source>
+        <translation type="unfinished">Le celle sono più di quante JeffCrunch possa formattare in una sola volta (%1). Seleziona intere colonne o righe oppure meno celle.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>That is more cells than JeffCrunch clears the formats of at once (%1). Select fewer cells.</source>
+        <translation type="unfinished">Le celle sono troppe perché JeffCrunch possa cancellarne i formati in una sola volta (%1). Seleziona meno celle.</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>That is more cells than JeffCrunch formats at once (%1). Select fewer columns or rows.</source>
+        <translation type="unfinished">Le celle sono più di quante JeffCrunch possa formattare in una sola volta (%1). Seleziona meno colonne o righe.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>That is more rows than JeffCrunch formats at once (%1). Select fewer rows.</source>
+        <translation type="unfinished">Le righe sono più di quante JeffCrunch possa formattare in una sola volta (%1). Seleziona meno righe.</translation>
+    </message>
+    <message>
+        <location line="+56"/>
+        <source>A font&apos;s name can have up to %1 characters in a workbook, and this one has %2. Choose another font.</source>
+        <translation type="unfinished">In una cartella di lavoro il nome di un tipo di carattere può contenere al massimo %1 caratteri, e questo ne ha %2. Scegli un altro tipo di carattere.</translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>This workbook has no place to keep the style &quot;%1&quot;.</source>
+        <translation type="unfinished">In questa cartella di lavoro non c&apos;è spazio per lo stile &quot;%1&quot;.</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Type a name for the style, up to 255 characters, with no control characters.</source>
+        <translation type="unfinished">Digita un nome per lo stile, di massimo 255 caratteri, senza caratteri di controllo.</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>A style called &quot;%1&quot; is already there. Pick another name.</source>
+        <translation type="unfinished">Esiste già uno stile chiamato &quot;%1&quot;. Scegli un altro nome.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This workbook has no place to keep a new style.</source>
+        <translation type="unfinished">Questa cartella di lavoro non ha un punto in cui conservare un nuovo stile.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+2"/>
+        <source>New Cell Style</source>
+        <translation type="unfinished">Nuovo stile di cella</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Clearing formats</source>
+        <translation type="unfinished">Cancellazione dei formati</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>That is more cells than JeffCrunch draws borders around at once (%1). Select fewer cells.</source>
+        <translation type="unfinished">Sono più celle di quelle a cui JeffCrunch può applicare bordi contemporaneamente (%1). Selezionare meno celle.</translation>
+    </message>
+    <message>
+        <location line="+83"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="+147"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-321"/>
+        <location line="+427"/>
+        <source>You can&apos;t change part of an array or a data table.</source>
+        <translation type="unfinished">Impossibile modificare parte di una matrice o di una tabella dati.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+15"/>
+        <source>That is more cells than JeffCrunch clears at once (%1). Select fewer cells.</source>
+        <translation type="unfinished">Sono più celle di quelle che JeffCrunch può cancellare contemporaneamente (%1). Selezionare meno celle.</translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>Clearing all</source>
+        <translation type="unfinished">Cancellazione di tutto</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>This sheet is protected, so cells can&apos;t be merged or unmerged on it. To do that, choose Unprotect Sheet on the Review tab.</source>
+        <translation type="unfinished">Il foglio è protetto, quindi non è possibile unire o dividere celle. Per farlo, scegliere Rimuovi protezione foglio nella scheda Revisione.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This sheet has more merged cells than JeffCrunch changes. Merge and unmerge them in the program that made it.</source>
+        <translation type="unfinished">Il foglio contiene più celle unite di quante JeffCrunch ne possa modificare. Unirle o dividerle nel programma con cui è stato creato.</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>That is more rows than JeffCrunch merges at once. Select fewer rows.</source>
+        <translation type="unfinished">Sono più righe di quelle che JeffCrunch può unire contemporaneamente. Selezionare meno righe.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>That would make more merged cells than JeffCrunch makes.</source>
+        <translation type="unfinished">Verrebbero create più celle unite di quante JeffCrunch ne possa gestire.</translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>You can&apos;t merge part of an array or a data table, or a locked cell.</source>
+        <translation type="unfinished">Impossibile unire parte di una matrice o di una tabella dati oppure una cella bloccata.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>When cells are joined into one, only what the cell at the top left holds is kept, and what the others hold is lost. Join them anyway?</source>
+        <translation type="unfinished">Quando si uniscono le celle, viene mantenuto solo il contenuto della cella in alto a sinistra e il contenuto delle altre va perso. Unire comunque?</translation>
+    </message>
+    <message>
+        <location line="+44"/>
+        <source>Unmerging cells</source>
+        <translation type="unfinished">Divisione celle</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Merging across</source>
+        <translation type="unfinished">Unione celle sulle righe</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Merging and centering</source>
+        <translation type="unfinished">Unione e allineamento al centro</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Merging cells</source>
+        <translation type="unfinished">Unione celle</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editops.cpp" line="+137"/>
+        <location line="+174"/>
+        <location line="+334"/>
+        <location line="+114"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-220"/>
+        <source>That is more cells than JeffCrunch changes at once (%1). Select fewer cells.</source>
+        <translation type="unfinished">Sono più celle di quelle che JeffCrunch può modificare contemporaneamente (%1). Selezionare meno celle.</translation>
+    </message>
+    <message>
+        <location line="-618"/>
+        <source>Sum</source>
+        <translation type="unfinished">Somma</translation>
+    </message>
+    <message>
+        <location line="+211"/>
+        <source>A fill can&apos;t go into or out of merged cells that do not match: a merged area has to be wholly in the cells filled from, or in the cells filled and the size of the area in the same place of the cells filled from. Unmerge them first, or fill other cells.</source>
+        <translation type="unfinished">Impossibile eseguire il riempimento verso o da celle unite non corrispondenti: un&apos;area unita deve trovarsi interamente nelle celle di origine, oppure nelle celle da riempire con le stesse dimensioni e nella stessa posizione delle celle di origine. Separare prima le celle o riempire altre celle.</translation>
+    </message>
+    <message>
+        <location line="+183"/>
+        <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over. Fill the cells below it, or type each name.</source>
+        <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non può essere riempita. Riempire le celle sottostanti o digitare ogni nome.</translation>
+    </message>
+    <message>
+        <location line="+87"/>
+        <source>Fill</source>
+        <translation type="unfinished">Riempimento</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Justify works on the cells of one column. Select cells in a single column.</source>
+        <translation type="unfinished">Giustifica funziona sulle celle di una sola colonna. Selezionare celle in un&apos;unica colonna.</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Justify works only on text. A cell in the selection holds a number or a formula.</source>
+        <translation type="unfinished">Giustifica funziona solo sul testo. Una cella della selezione contiene un numero o una formula.</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>The text needs %1 cells, and %2 are selected. Text will extend below the selected cells. Do you want to continue?</source>
+        <translation type="unfinished">Il testo richiede %1 celle, ma ne sono selezionate %2. Il testo si estenderà sotto le celle selezionate. Continuare?</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The text needs more rows than the sheet has.</source>
+        <translation type="unfinished">Il testo richiede più righe di quelle disponibili nel foglio.</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over.</source>
+        <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non può essere sovrascritta dal riempimento.</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>Justify</source>
+        <translation type="unfinished">Giustifica</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Choose at least one other sheet to fill.</source>
+        <translation type="unfinished">Scegliere almeno un altro foglio da riempire.</translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>A fill can&apos;t go into or out of merged cells that do not match: a merged area has to be wholly in the cells copied, and on the sheets copied to there may be only areas like it. Unmerge them first, or fill other cells.</source>
+        <translation type="unfinished">Impossibile eseguire il riempimento verso o da celle unite non corrispondenti: un&apos;area unita deve trovarsi interamente nelle celle copiate e nei fogli di destinazione possono esserci solo aree analoghe. Separare prima le celle o riempire altre celle.</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>The first row of a table holds the names of its columns, so it can&apos;t be filled over. Choose cells that do not reach it.</source>
+        <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non può essere sovrascritta dal riempimento. Scegliere celle che non la includano.</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>Fill across sheets</source>
+        <translation type="unfinished">Riempi tra fogli</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editpage.cpp" line="+19"/>
+        <source>That sheet can&apos;t be set up for printing.</source>
+        <translation type="unfinished">Impossibile impostare il foglio per la stampa.</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>A header or footer can have up to %1 characters, counting the codes in it.</source>
+        <translation type="unfinished">Un&apos;intestazione o un piè di pagina può contenere fino a %1 caratteri, codici inclusi.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>A sheet can have up to %1 page breaks of each kind.</source>
+        <translation type="unfinished">Un foglio può contenere fino a %1 interruzioni di pagina per ciascun tipo.</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>A page break can&apos;t be before the first row or column.</source>
+        <translation type="unfinished">Non è possibile inserire un&apos;interruzione di pagina prima della prima riga o colonna.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-24"/>
+        <source>That would go past the edge of the sheet. Select a cell nearer its start.</source>
+        <translation type="unfinished">Si supererebbe il bordo del foglio. Selezionare una cella più vicina all&apos;inizio.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That is more cells than JeffCrunch pastes at once (%1). Paste into fewer.</source>
+        <translation type="unfinished">Sono più celle di quelle che JeffCrunch può incollare contemporaneamente (%1). Incollare in meno celle.</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>The first row of a table holds the names of its columns, so cells can&apos;t be pasted over it. Paste below it, or change the names one by one.</source>
+        <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non è possibile incollarvi celle. Incollare sotto oppure modificare i nomi uno alla volta.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>That would make more merged cells than JeffCrunch makes at once. Paste into fewer cells.</source>
+        <translation type="unfinished">Verrebbero create più celle unite di quante JeffCrunch ne possa creare contemporaneamente. Incollare in meno celle.</translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>There is nothing to paste.</source>
+        <translation type="unfinished">Non c&apos;è nulla da incollare.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location line="+93"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-250"/>
+        <source>The workbook is still being opened. It can be changed when it is open.</source>
+        <translation type="unfinished">La cartella di lavoro è ancora in apertura. Sarà possibile modificarla una volta aperta.</translation>
+    </message>
+    <message>
+        <location line="-8"/>
+        <location line="+52"/>
+        <source>Pasting</source>
+        <translation type="unfinished">Incolla</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Moving cells</source>
+        <translation type="unfinished">Spostamento celle</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-51"/>
+        <source>&quot;%1&quot; could not be done again, so Undo and Redo are not available any more for what came before it.</source>
+        <translation type="unfinished">Impossibile ripetere &quot;%1&quot;, quindi Annulla e Ripeti non sono più disponibili per le operazioni precedenti.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>&quot;%1&quot; could not be undone, so Undo and Redo are not available any more for what came before it.</source>
+        <translation type="unfinished">Impossibile annullare &quot;%1&quot;, quindi Annulla e Ripeti non sono più disponibili per le operazioni precedenti.</translation>
+    </message>
+    <message>
+        <location line="+54"/>
+        <source>Some of this workbook could not be read whole, so JeffCrunch does not change it. You can look at it, and save nothing.</source>
+        <translation type="unfinished">Non è stato possibile leggere completamente parte della cartella di lavoro, quindi JeffCrunch non la modifica. È possibile visualizzarla, ma non salvarla.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editops.cpp" line="-75"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+10"/>
+        <location filename="../apps/crunch/core/editsheets.cpp" line="-116"/>
+        <location line="+84"/>
+        <location line="+108"/>
+        <location line="+29"/>
+        <location line="+30"/>
+        <source>There is no such sheet.</source>
+        <translation type="unfinished">Il foglio non esiste.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1"/>
+        <source>This sheet has no cells to change.</source>
+        <translation type="unfinished">Il foglio non contiene celle da modificare.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editnotes.cpp" line="+35"/>
+        <source>Notes and links of a workbook opened from this kind of file are kept when it is saved as an .xlsx workbook. Save it as one, and then add them.</source>
+        <translation type="unfinished">Le note e i collegamenti di una cartella di lavoro aperta da questo tipo di file vengono mantenuti se la si salva come cartella di lavoro .xlsx. Salvarla in questo formato, quindi aggiungerli.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This sheet has more notes than JeffCrunch changes (%1). It shows them, and keeps them, but doesn&apos;t put notes on it or take them off.</source>
+        <translation type="unfinished">Il foglio contiene più note di quante JeffCrunch ne possa modificare (%1). Le note vengono mostrate e mantenute, ma non è possibile aggiungerne o rimuoverne.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <location line="+85"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+11"/>
+        <source>That cell is outside the sheet.</source>
+        <translation type="unfinished">La cella è esterna al foglio.</translation>
+    </message>
+    <message>
+        <location line="-83"/>
+        <location line="+30"/>
+        <source>This sheet is protected, so its notes can&apos;t be changed. Take the protection off first.</source>
+        <translation type="unfinished">Il foglio è protetto, quindi non è possibile modificarne le note. Rimuovere prima la protezione.</translation>
+    </message>
+    <message>
+        <location line="-29"/>
+        <source>A note needs some words. To take a note away, delete it.</source>
+        <translation type="unfinished">Una nota deve contenere del testo. Per rimuovere una nota, eliminarla.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A note can have up to %1 characters. Shorten it, and try again.</source>
+        <translation type="unfinished">Una nota può contenere fino a %1 caratteri. Abbreviarla e riprovare.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+43"/>
+        <source>This note is a conversation of comments. JeffCrunch shows it, but doesn&apos;t change it.</source>
+        <translation type="unfinished">Questa nota è una conversazione di commenti. JeffCrunch la mostra, ma non la modifica.</translation>
+    </message>
+    <message>
+        <location line="-42"/>
+        <source>A sheet can have up to %1 notes.</source>
+        <translation type="unfinished">Un foglio può contenere fino a %1 note.</translation>
+    </message>
+    <message>
+        <location line="+79"/>
+        <source>A link needs an address or a place to go to.</source>
+        <translation type="unfinished">Un collegamento richiede un indirizzo o una destinazione.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That address is longer than a link can hold (%1 characters).</source>
+        <translation type="unfinished">L&apos;indirizzo supera la lunghezza consentita per un collegamento (%1 caratteri).</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That address is longer than a link can hold in files other programs open (%1 characters).</source>
+        <translation type="unfinished">L&apos;indirizzo supera la lunghezza consentita per un collegamento nei file aperti da altri programmi (%1 caratteri).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A screen tip can have up to %1 characters.</source>
+        <translation type="unfinished">Una descrizione comando può contenere fino a %1 caratteri.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>That text is too long for a link (up to %1 characters).</source>
+        <translation type="unfinished">Il testo è troppo lungo per un collegamento (massimo %1 caratteri).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>That kind of address runs a script or carries a page inside itself, so it can&apos;t be made a link.</source>
+        <translation type="unfinished">Questo tipo di indirizzo esegue uno script o contiene una pagina incorporata, quindi non può essere usato come collegamento.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>This sheet is protected, so links can&apos;t be put on it. Take the protection off first (Review, Unprotect Sheet).</source>
+        <translation type="unfinished">Il foglio è protetto, quindi non è possibile aggiungervi collegamenti. Rimuovere prima la protezione (Revisione, Rimuovi protezione foglio).</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>That is more cells (%1) than are looked at to see that none is locked. Select fewer cells.</source>
+        <translation type="unfinished">Sono più celle (%1) di quelle che è possibile controllare per verificare che nessuna sia bloccata. Selezionare meno celle.</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>A sheet can have up to %1 links.</source>
+        <translation type="unfinished">Un foglio può contenere fino a %1 collegamenti.</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>This sheet is protected, so its links can&apos;t be changed. Take the protection off first (Review, Unprotect Sheet).</source>
+        <translation type="unfinished">Il foglio è protetto, quindi non è possibile modificarne i collegamenti. Rimuovere prima la protezione (Revisione, Rimuovi protezione foglio).</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-25"/>
+        <source>The workbook is busy (it is being saved, or a password is being worked on). It can be changed when that is done.</source>
+        <translation type="unfinished">La cartella di lavoro è occupata (è in corso il salvataggio o l&apos;elaborazione di una password). Sarà possibile modificarla al termine dell&apos;operazione.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A large change is still being made to the workbook. It can be changed again when that is done.</source>
+        <translation type="unfinished">È ancora in corso una modifica estesa alla cartella di lavoro. Sarà possibile modificarla di nuovo al termine.</translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>This sheet is protected, and the cell is locked, so it can&apos;t be changed. To change it, choose Unprotect Sheet on the Review tab.</source>
+        <translation type="unfinished">Il foglio è protetto e la cella è bloccata, quindi non è possibile modificarla. Per modificarla, scegliere Rimuovi protezione foglio nella scheda Revisione.</translation>
+    </message>
+    <message>
+        <location line="+139"/>
+        <source>JeffCrunch could not check what you typed against the rule for this cell just now, so it was not entered. Try again in a moment.</source>
+        <translation type="unfinished">JeffCrunch non è riuscito a verificare il valore digitato rispetto alla regola della cella, quindi non è stato immesso. Riprovare tra qualche istante.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Invalid Entry</source>
+        <translation type="unfinished">Voce non valida</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That isn&apos;t allowed in this cell. Enter a value that fits the rule for the cell.</source>
+        <translation type="unfinished">Valore non consentito in questa cella. Immettere un valore conforme alla regola della cella.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>That doesn&apos;t fit the rule for this cell. Do you want to keep it anyway?</source>
+        <translation type="unfinished">Il valore non è conforme alla regola della cella. Mantenerlo comunque?</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>That doesn&apos;t fit the rule for this cell.</source>
+        <translation type="unfinished">Il valore non è conforme alla regola della cella.</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <location line="+65"/>
+        <location line="+111"/>
+        <source>Typing in %1</source>
+        <translation type="unfinished">Digitazione in %1</translation>
+    </message>
+    <message>
+        <location line="-125"/>
+        <source>The first row of a table holds the names of its columns, so the same entry can&apos;t be put in every cell there.</source>
+        <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non è possibile inserire lo stesso valore in tutte le celle.</translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>A column&apos;s name can have up to 255 characters. Shorten it, and try again.</source>
+        <translation type="unfinished">Il nome di una colonna può contenere fino a 255 caratteri. Abbreviarlo e riprovare.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The first row of a table holds the names of its columns, so a cell there needs a name. Type one.</source>
+        <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi ogni cella deve avere un nome. Digitarne uno.</translation>
+    </message>
+    <message>
+        <location line="+52"/>
+        <source>More formulas than JeffCrunch changes at once (%1) use this column&apos;s name.</source>
+        <translation type="unfinished">Il nome di questa colonna è usato da più formule di quante JeffCrunch ne possa modificare contemporaneamente (%1).</translation>
+    </message>
+    <message>
+        <location line="+91"/>
+        <source>The first row of a table holds the names of its columns, so it can&apos;t be cleared. Select the cells below it, or type another name.</source>
+        <translation type="unfinished">La prima riga di una tabella contiene i nomi delle colonne, quindi non può essere cancellata. Selezionare le celle sottostanti o digitare un altro nome.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Clearing %1</source>
+        <translation type="unfinished">Cancellazione di %1</translation>
+    </message>
+    <message>
+        <location line="+278"/>
+        <source>the workbook</source>
+        <translation type="unfinished">la cartella di lavoro</translation>
+    </message>
+    <message>
+        <location line="+148"/>
+        <source>There is no workbook to save.</source>
+        <translation type="unfinished">Nessuna cartella di lavoro da salvare.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A large change is still being made to the workbook. Save when that is done.</source>
+        <translation type="unfinished">È ancora in corso una modifica estesa alla cartella di lavoro. Salvare al termine.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Some of this workbook could not be read whole, so JeffCrunch does not save it.</source>
+        <translation type="unfinished">Non è stato possibile leggere completamente parte della cartella di lavoro, quindi JeffCrunch non la salva.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This workbook was not opened from a file JeffCrunch can save over.</source>
+        <translation type="unfinished">Questa cartella di lavoro non è stata aperta da un file che JeffCrunch può sovrascrivere.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editsheets.cpp" line="-437"/>
+        <source>A sheet&apos;s name can&apos;t be empty.</source>
+        <translation type="unfinished">Il nome di un foglio non può essere vuoto.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A sheet&apos;s name can have up to 31 characters.</source>
+        <translation type="unfinished">Il nome di un foglio può contenere al massimo 31 caratteri.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A sheet&apos;s name can&apos;t have any of these characters: %1</source>
+        <translation type="unfinished">Il nome di un foglio non può contenere nessuno di questi caratteri: %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A sheet&apos;s name can&apos;t begin or end with an apostrophe.</source>
+        <translation type="unfinished">Il nome di un foglio non può iniziare o terminare con un apostrofo.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>&quot;History&quot; is a name the program keeps for itself.</source>
+        <translation type="unfinished">&quot;History&quot; è un nome riservato al programma.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>There is a sheet named &quot;%1&quot; already. Give this one another name.</source>
+        <translation type="unfinished">Esiste già un foglio denominato &quot;%1&quot;. Assegnare a questo un altro nome.</translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <source>This workbook has a formula that adds up a block of sheets (such as Sheet1:Sheet3). JeffCrunch does not yet add, move, rename, or delete sheets in a workbook that has one.</source>
+        <translation type="unfinished">Questa cartella di lavoro contiene una formula che somma un intervallo di fogli (ad esempio Foglio1:Foglio3). JeffCrunch non consente ancora di aggiungere, spostare, rinominare o eliminare fogli in una cartella di lavoro che ne contiene una.</translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>A workbook can have up to %1 sheets, and this one has that many. Delete a sheet, and try again.</source>
+        <translation type="unfinished">Una cartella di lavoro può contenere al massimo %1 fogli e questa li ha già tutti. Eliminare un foglio e riprovare.</translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>pictures and charts</source>
+        <translation type="unfinished">immagini e grafici</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+1"/>
+        <source>notes</source>
+        <translation type="unfinished">note</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>connections to outside data</source>
+        <translation type="unfinished">connessioni a dati esterni</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+6"/>
+        <source>pivot tables</source>
+        <translation type="unfinished">tabelle pivot</translation>
+    </message>
+    <message>
+        <location line="-5"/>
+        <source>form controls</source>
+        <translation type="unfinished">controlli modulo</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>embedded objects</source>
+        <translation type="unfinished">oggetti incorporati</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>slicers</source>
+        <translation type="unfinished">filtri dati</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>sparklines</source>
+        <translation type="unfinished">grafici sparkline</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>drop-down lists that read other sheets</source>
+        <translation type="unfinished">elenchi a discesa che leggono altri fogli</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>rules of conditional formatting that read other sheets or use icons of their own</source>
+        <translation type="unfinished">regole di formattazione condizionale che leggono altri fogli o usano icone proprie</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>some extra features</source>
+        <translation type="unfinished">alcune funzionalità aggiuntive</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>names that belong to the sheet alone (a print area, say)</source>
+        <translation type="unfinished">nomi che appartengono solo al foglio (ad esempio un&apos;area di stampa)</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The copy does not have the %1: those are not copied yet.</source>
+        <translation type="unfinished">La copia non contiene %1: questi elementi non vengono ancora copiati.</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Insert Sheet</source>
+        <translation type="unfinished">Inserisci foglio</translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <location filename="../apps/crunch/core/edittables.cpp" line="-193"/>
+        <source>The workbook has as many tables as JeffCrunch works with.</source>
+        <translation type="unfinished">La cartella di lavoro contiene già il numero massimo di tabelle gestite da JeffCrunch.</translation>
+    </message>
+    <message>
+        <location line="+108"/>
+        <source>More formulas than JeffCrunch changes at once (%1) use this sheet&apos;s tables.</source>
+        <translation type="unfinished">Le tabelle di questo foglio sono usate da più formule di quante JeffCrunch ne possa modificare contemporaneamente (%1).</translation>
+    </message>
+    <message>
+        <location line="+163"/>
+        <source>This sheet&apos;s sparklines have parts that JeffCrunch can&apos;t keep when it changes them (for example a range of cells for one sparkline), so it leaves them as they are.</source>
+        <translation type="unfinished">Le Sparkline di questo foglio contengono parti che JeffCrunch non può conservare quando le modifica (ad esempio un intervallo di celle per una Sparkline), quindi le lascia così come sono.</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>A sheet can have up to %1 sparklines.</source>
+        <translation type="unfinished">Un foglio può contenere fino a %1 Sparkline.</translation>
+    </message>
+    <message>
+        <location line="-251"/>
+        <source>Copy Sheet</source>
+        <translation type="unfinished">Copia foglio</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>A workbook must have at least one sheet that is shown. Show another sheet, or add one, and then delete this one.</source>
+        <translation type="unfinished">Una cartella di lavoro deve contenere almeno un foglio visibile. Scoprire un altro foglio o aggiungerne uno, quindi eliminare questo.</translation>
+    </message>
+    <message>
+        <location line="+88"/>
+        <source>Delete Sheet</source>
+        <translation type="unfinished">Elimina foglio</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>Rename Sheet</source>
+        <translation type="unfinished">Rinomina foglio</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>Move Sheet</source>
+        <translation type="unfinished">Sposta foglio</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>A workbook must have at least one sheet that is shown.</source>
+        <translation type="unfinished">Una cartella di lavoro deve contenere almeno un foglio visibile.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Hide Sheet</source>
+        <translation type="unfinished">Nascondi foglio</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Unhide Sheet</source>
+        <translation type="unfinished">Scopri foglio</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Tab Color</source>
+        <translation type="unfinished">Colore scheda</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editsize.cpp" line="+70"/>
+        <location line="+82"/>
+        <source>Those are not columns of the sheet.</source>
+        <translation type="unfinished">Queste non sono colonne del foglio.</translation>
+    </message>
+    <message>
+        <location line="-44"/>
+        <location line="+44"/>
+        <source>Those are not rows of the sheet.</source>
+        <translation type="unfinished">Queste non sono righe del foglio.</translation>
+    </message>
+    <message>
+        <location line="-39"/>
+        <location line="+44"/>
+        <location line="+154"/>
+        <source>That is more rows than JeffCrunch changes at once (%1). Select fewer rows.</source>
+        <translation type="unfinished">Sono più righe di quante JeffCrunch ne possa modificare contemporaneamente (%1). Selezionare meno righe.</translation>
+    </message>
+    <message>
+        <location line="-60"/>
+        <source>A default width can be from 0 to 255 characters, and a default height from 0 to 409.5 points.</source>
+        <translation type="unfinished">La larghezza predefinita può essere compresa tra 0 e 255 caratteri e l&apos;altezza predefinita tra 0 e 409,5 punti.</translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>Fitting a column to its contents</source>
+        <translation type="unfinished">Adattamento di una colonna al contenuto</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Fitting columns to their contents</source>
+        <translation type="unfinished">Adattamento delle colonne al contenuto</translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Fitting a row to its contents</source>
+        <translation type="unfinished">Adattamento di una riga al contenuto</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Fitting rows to their contents</source>
+        <translation type="unfinished">Adattamento delle righe al contenuto</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="-35"/>
+        <source>That would move or change a pivot table, which JeffCrunch can&apos;t do yet. Change cells that are not part of it.</source>
+        <translation type="unfinished">L&apos;operazione sposterebbe o modificherebbe una tabella pivot, cosa che JeffCrunch non è ancora in grado di fare. Modificare celle che non ne fanno parte.</translation>
+    </message>
+    <message>
+        <location line="+44"/>
+        <source>This can&apos;t be undone, and neither can what you did before it. Do you want to go on?</source>
+        <translation type="unfinished">Questa operazione non può essere annullata, così come quelle eseguite in precedenza. Continuare?</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Inserting a row</source>
+        <translation type="unfinished">Inserimento di una riga</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Inserting rows</source>
+        <translation type="unfinished">Inserimento di righe</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Deleting a row</source>
+        <translation type="unfinished">Eliminazione di una riga</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Deleting rows</source>
+        <translation type="unfinished">Eliminazione di righe</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Inserting a column</source>
+        <translation type="unfinished">Inserimento di una colonna</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Inserting columns</source>
+        <translation type="unfinished">Inserimento di colonne</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Deleting a column</source>
+        <translation type="unfinished">Eliminazione di una colonna</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Deleting columns</source>
+        <translation type="unfinished">Eliminazione di colonne</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Inserting cells</source>
+        <translation type="unfinished">Inserimento di celle</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Deleting cells</source>
+        <translation type="unfinished">Eliminazione di celle</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editfilter.cpp" line="+172"/>
+        <location line="+417"/>
+        <location filename="../apps/crunch/core/edittables.cpp" line="+88"/>
+        <location line="+87"/>
+        <location line="+82"/>
+        <location line="+37"/>
+        <location line="+46"/>
+        <location line="+66"/>
+        <location line="+60"/>
+        <location line="+228"/>
+        <source>There is no such table.</source>
+        <translation type="unfinished">La tabella non esiste.</translation>
+    </message>
+    <message>
+        <location line="-413"/>
+        <source>The sheet&apos;s filter is on rows this table is on. Turn it off first, since two filters on the same rows would hide each other&apos;s rows.</source>
+        <translation type="unfinished">Il filtro del foglio si trova sulle stesse righe di questa tabella. Disattivarlo prima, perché due filtri sulle stesse righe nasconderebbero le righe l&apos;uno dell&apos;altro.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The table %1 is filtered on rows this table is on. Clear its filter first, since two filters on the same rows would hide each other&apos;s rows.</source>
+        <translation type="unfinished">La tabella %1 è filtrata sulle stesse righe di questa tabella. Cancellarne prima il filtro, perché due filtri sulle stesse righe nasconderebbero le righe l&apos;uno dell&apos;altro.</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>The cells are in the table %1, which has its own filter buttons. Use those, or filter cells outside the table.</source>
+        <translation type="unfinished">Le celle si trovano nella tabella %1, che dispone di pulsanti di filtro propri. Usare questi oppure filtrare celle esterne alla tabella.</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>A condition of the filter is for a column that is not in its range.</source>
+        <translation type="unfinished">Una condizione del filtro riguarda una colonna esterna al suo intervallo.</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>A custom condition needs at least one comparison.</source>
+        <translation type="unfinished">Una condizione personalizzata richiede almeno un confronto.</translation>
+    </message>
+    <message>
+        <location line="+57"/>
+        <source>The filter has a kind of condition that JeffCrunch does not know (%1).</source>
+        <translation type="unfinished">Il filtro contiene un tipo di condizione non riconosciuto da JeffCrunch (%1).</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>That is more than JeffCrunch can work out for a filter: %1 rows with %2 conditions (at most %3 checks). Filter fewer rows, or use fewer conditions.</source>
+        <translation type="unfinished">Il filtro supera le capacità di calcolo di JeffCrunch: %1 righe con %2 condizioni (al massimo %3 verifiche). Filtrare meno righe o usare meno condizioni.</translation>
+    </message>
+    <message>
+        <location line="+264"/>
+        <source>The filter could not be finished. Try it again.</source>
+        <translation type="unfinished">Impossibile completare il filtro. Riprovare.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The cells were changed while the filter was being worked out, so it was not applied. Filter again.</source>
+        <translation type="unfinished">Le celle sono state modificate durante il calcolo del filtro, che quindi non è stato applicato. Filtrare di nuovo.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editfind.cpp" line="+93"/>
+        <source>Type the text to look for.</source>
+        <translation type="unfinished">Digitare il testo da cercare.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That is more cells than JeffCrunch changes at once (%1). Narrow the search, and replace again.</source>
+        <translation type="unfinished">Sono più celle di quante JeffCrunch ne possa modificare contemporaneamente (%1). Restringere la ricerca e sostituire di nuovo.</translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>%1 is part of an array or a data table, so it can&apos;t be changed one cell at a time. Nothing was replaced.</source>
+        <translation type="unfinished">%1 fa parte di una matrice o di una tabella dati e non può essere modificata una cella alla volta. Non è stato sostituito nulla.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 is locked, and its sheet is protected, so it can&apos;t be changed. Nothing was replaced.</source>
+        <translation type="unfinished">%1 è bloccata e il suo foglio è protetto, quindi non può essere modificata. Non è stato sostituito nulla.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 is in the first row of a table, which holds the names of its columns. Nothing was replaced.</source>
+        <translation type="unfinished">%1 si trova nella prima riga di una tabella, che contiene i nomi delle colonne. Non è stato sostituito nulla.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Replacing in %1 would leave &quot;%2&quot;, which is not something a cell can hold: %3 Nothing was replaced.</source>
+        <translation type="unfinished">La sostituzione in %1 produrrebbe &quot;%2&quot;, che non è un contenuto valido per una cella: %3 Non è stato sostituito nulla.</translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>The replace could not be finished. Try it again.</source>
+        <translation type="unfinished">Impossibile completare la sostituzione. Riprovare.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The cells were changed while the replace was being worked out, so it was not made. Replace again.</source>
+        <translation type="unfinished">Le celle sono state modificate durante l&apos;elaborazione della sostituzione, che quindi non è stata eseguita. Ripetere la sostituzione.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+4"/>
+        <source>Replacing</source>
+        <translation type="unfinished">Sostituzione in corso</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editnames.cpp" line="-19"/>
+        <source>A name that looks like an address past the last column or row, such as %1, can&apos;t be used here. Add an underscore to it.</source>
+        <translation type="unfinished">Non è possibile usare qui un nome simile a un indirizzo oltre l&apos;ultima colonna o riga, ad esempio %1. Aggiungere un carattere di sottolineatura al nome.</translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>New Name</source>
+        <translation type="unfinished">Nuovo nome</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <location line="+52"/>
+        <source>There is no such name.</source>
+        <translation type="unfinished">Il nome non esiste.</translation>
+    </message>
+    <message>
+        <location line="-37"/>
+        <source>A sheet has a name of its own like that. Renaming would change which name some formulas on that sheet read. Choose another name.</source>
+        <translation type="unfinished">Un foglio ha già un proprio nome uguale. La ridenominazione cambierebbe il nome letto da alcune formule di quel foglio. Scegliere un altro nome.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The workbook has a name like that. Renaming would change which name formulas on this sheet read. Choose another name.</source>
+        <translation type="unfinished">La cartella di lavoro ha già un nome uguale. La ridenominazione cambierebbe il nome letto dalle formule di questo foglio. Scegliere un altro nome.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Change Name</source>
+        <translation type="unfinished">Modifica nome</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>Delete Name</source>
+        <translation type="unfinished">Elimina nome</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>That is too many cells to make names from. Select fewer.</source>
+        <translation type="unfinished">Troppe celle da cui creare nomi. Selezionarne meno.</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>Name From Cells</source>
+        <translation type="unfinished">Nome da celle</translation>
+    </message>
+    <message>
+        <location line="+127"/>
+        <source>How Formulas Are Worked Out</source>
+        <translation type="unfinished">Modalità di calcolo delle formule</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editprotect.cpp" line="+40"/>
+        <source>selecting locked cells</source>
+        <translation type="unfinished">la selezione di celle bloccate</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>selecting unlocked cells</source>
+        <translation type="unfinished">la selezione di celle sbloccate</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>formatting cells</source>
+        <translation type="unfinished">la formattazione delle celle</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>changing columns&apos; width or hiding them</source>
+        <translation type="unfinished">la modifica della larghezza delle colonne o il loro occultamento</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>changing rows&apos; height or hiding them</source>
+        <translation type="unfinished">la modifica dell&apos;altezza delle righe o il loro occultamento</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>inserting columns</source>
+        <translation type="unfinished">l&apos;inserimento di colonne</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>inserting rows</source>
+        <translation type="unfinished">l&apos;inserimento di righe</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>putting in links</source>
+        <translation type="unfinished">l&apos;inserimento di collegamenti</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>deleting columns</source>
+        <translation type="unfinished">l&apos;eliminazione di colonne</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>deleting rows</source>
+        <translation type="unfinished">l&apos;eliminazione di righe</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>sorting</source>
+        <translation type="unfinished">l&apos;ordinamento</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>using filters</source>
+        <translation type="unfinished">l&apos;uso dei filtri</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>using pivot tables</source>
+        <translation type="unfinished">uso delle tabelle pivot</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>changing drawing objects and notes</source>
+        <translation type="unfinished">la modifica di oggetti disegno e note</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This sheet is protected, and its protection doesn&apos;t allow %1. Take the protection off first (Review, Unprotect Sheet).</source>
+        <translation type="unfinished">Il foglio è protetto e la protezione non consente %1. Rimuovere prima la protezione (Revisione, Rimuovi protezione foglio).</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The workbook&apos;s sheets are locked, so a sheet can&apos;t be added, deleted, renamed, moved, hidden, or shown. Take the protection off first (Review, Unprotect Workbook).</source>
+        <translation type="unfinished">I fogli della cartella di lavoro sono bloccati, quindi non è possibile aggiungere, eliminare, rinominare, spostare, nascondere o mostrare fogli. Rimuovere prima la protezione (Revisione, Rimuovi protezione cartella di lavoro).</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>This sheet has no cells to protect.</source>
+        <translation type="unfinished">Il foglio non contiene celle da proteggere.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editslice.cpp" line="+180"/>
+        <source>A workbook opened from an older kind of file, or from a text file, has its notes in a form JeffCrunch does not search. Save it as an .xlsx workbook, and look again.</source>
+        <translation type="unfinished">In una cartella di lavoro aperta da un tipo di file meno recente o da un file di testo, le note sono in un formato in cui JeffCrunch non esegue ricerche. Salvarla come cartella di lavoro .xlsx e cercare di nuovo.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editsort.cpp" line="+95"/>
+        <source>Select the cells to sort.</source>
+        <translation type="unfinished">Selezionare le celle da ordinare.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Choose what to sort by.</source>
+        <translation type="unfinished">Scegliere il criterio di ordinamento.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A sort can have up to %1 levels.</source>
+        <translation type="unfinished">Un ordinamento può avere fino a %1 livelli.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That is more cells than JeffCrunch sorts at once (%1). Select fewer.</source>
+        <translation type="unfinished">Le celle superano il numero massimo che JeffCrunch ordina contemporaneamente (%1). Selezionarne meno.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>The sort is by %1 that is not in the cells selected.</source>
+        <translation type="unfinished">L&apos;ordinamento è basato su %1 non inclusa nelle celle selezionate.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>a row</source>
+        <translation type="unfinished">una riga</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>a column</source>
+        <translation type="unfinished">una colonna</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>There are no columns to put in order: the selection has one column, or only a header.</source>
+        <translation type="unfinished">Nessuna colonna da ordinare: la selezione contiene una sola colonna o solo un&apos;intestazione.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>There are no rows to put in order: the selection has one row, or only a header.</source>
+        <translation type="unfinished">Nessuna riga da ordinare: la selezione contiene una sola riga o solo un&apos;intestazione.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>%1 is part of an array or a data table, so the cells can&apos;t be moved. Nothing was sorted.</source>
+        <translation type="unfinished">%1 fa parte di una matrice o di una tabella dati, quindi non è possibile spostare le celle. Nessun ordinamento eseguito.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+10"/>
+        <source>%1 is locked, and its sheet is protected, so the cells can&apos;t be moved. Nothing was sorted.</source>
+        <translation type="unfinished">%1 è bloccata e il foglio è protetto, quindi non è possibile spostare le celle. Nessun ordinamento eseguito.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>%1 is in the first row of a table, which holds the names of its columns, so it can&apos;t be moved. Start the sort below it.</source>
+        <translation type="unfinished">%1 si trova nella prima riga di una tabella, che contiene i nomi delle colonne, quindi non può essere spostata. Iniziare l&apos;ordinamento sotto di essa.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Some merged cells reach past the edge of the cells to sort, so they can&apos;t be moved. Select cells that include all of them, or none.</source>
+        <translation type="unfinished">Alcune celle unite si estendono oltre il bordo delle celle da ordinare e non possono essere spostate. Selezionare celle che le includano tutte o nessuna.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The merged cells are not all the same size, so they can&apos;t be put in order. Unmerge them, or sort cells that have none.</source>
+        <translation type="unfinished">Le celle unite non hanno tutte le stesse dimensioni, quindi non possono essere ordinate. Separarle oppure ordinare celle che non ne contengono.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Some merged cells span more than one column, so the columns can&apos;t be put in order. Unmerge them first.</source>
+        <translation type="unfinished">Alcune celle unite occupano più colonne, quindi non è possibile ordinare le colonne. Separarle prima.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some merged cells span more than one row, so the rows can&apos;t be put in order. Unmerge them first.</source>
+        <translation type="unfinished">Alcune celle unite occupano più righe, quindi non è possibile ordinare le righe. Separarle prima.</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>There is nothing to put in order: the filter shows fewer than two of these rows.</source>
+        <translation type="unfinished">Niente da ordinare: il filtro mostra meno di due di queste righe.</translation>
+    </message>
+    <message>
+        <location line="+168"/>
+        <source>The sort could not be finished. Try it again.</source>
+        <translation type="unfinished">Impossibile completare l&apos;ordinamento. Riprovare.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The cells were changed while the sort was being worked out, so it was not made. Sort again.</source>
+        <translation type="unfinished">Le celle sono state modificate durante l&apos;elaborazione dell&apos;ordinamento, che quindi non è stato eseguito. Ripetere l&apos;ordinamento.</translation>
+    </message>
+    <message>
+        <location line="+133"/>
+        <location line="+5"/>
+        <source>Sorting</source>
+        <translation type="unfinished">Ordinamento in corso</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>The cells hold too much text to sort at once. Select fewer.</source>
+        <translation type="unfinished">Le celle contengono troppo testo da ordinare contemporaneamente. Selezionarne meno.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/edittables.cpp" line="-891"/>
+        <source>Another table has that name. Pick another.</source>
+        <translation type="unfinished">Un&apos;altra tabella ha già questo nome. Sceglierne un altro.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>A name in the workbook is called that. Pick another.</source>
+        <translation type="unfinished">Nella cartella di lavoro esiste già un nome uguale. Sceglierne un altro.</translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>Those cells are in another table already.</source>
+        <translation type="unfinished">Le celle fanno già parte di un&apos;altra tabella.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Those cells are in a pivot table, so they can&apos;t be a table.</source>
+        <translation type="unfinished">Le celle fanno parte di una tabella pivot, quindi non possono diventare una tabella.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The sheet&apos;s filter covers some of those cells. Turn it off first, since a table has a filter of its own.</source>
+        <translation type="unfinished">Il filtro del foglio include alcune di queste celle. Disattivarlo prima, poiché una tabella ha un proprio filtro.</translation>
+    </message>
+    <message>
+        <location line="+156"/>
+        <source>Pick the cells to make a table of.</source>
+        <translation type="unfinished">Selezionare le celle da cui creare una tabella.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>A table can have up to 16,384 columns.</source>
+        <translation type="unfinished">Una tabella può avere fino a 16.384 colonne.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This sheet is protected, so a table can&apos;t be made on it.</source>
+        <translation type="unfinished">Il foglio è protetto, quindi non è possibile crearvi una tabella.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>A table needs a row of data under its names.</source>
+        <translation type="unfinished">Una tabella richiede una riga di dati sotto i nomi delle colonne.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location line="+464"/>
+        <source>Merged cells can&apos;t be in a table. Unmerge them first.</source>
+        <translation type="unfinished">Una tabella non può contenere celle unite. Separarle prima.</translation>
+    </message>
+    <message>
+        <location line="-455"/>
+        <location line="+26"/>
+        <source>An array formula or a data table is in those cells, so they can&apos;t be a table.</source>
+        <translation type="unfinished">Le celle contengono una formula di matrice o una tabella dati, quindi non possono diventare una tabella.</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Making a table</source>
+        <translation type="unfinished">Creazione di una tabella</translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>More formulas than JeffCrunch changes at once (%1) use this table.</source>
+        <translation type="unfinished">Questa tabella è usata da più formule di quante JeffCrunch ne modifichi contemporaneamente (%1).</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>Turning a table into cells</source>
+        <translation type="unfinished">Conversione di una tabella in celle</translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>More formulas than JeffCrunch changes at once (%1) use this table&apos;s name.</source>
+        <translation type="unfinished">Il nome di questa tabella è usato da più formule di quante JeffCrunch ne modifichi contemporaneamente (%1).</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Naming a table</source>
+        <translation type="unfinished">Assegnazione del nome a una tabella</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>The table is filtered. Clear its filter first, so the rows it hides are shown, and then take the buttons off.</source>
+        <translation type="unfinished">La tabella è filtrata. Cancellare prima il filtro, in modo da mostrare le righe nascoste, quindi rimuovere i pulsanti.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Changing a table&apos;s look</source>
+        <translation type="unfinished">Modifica dell&apos;aspetto di una tabella</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>There is no row above the table to hold the names of its columns.</source>
+        <translation type="unfinished">Non esiste una riga sopra la tabella in cui inserire i nomi delle colonne.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The row above the table has something in it. Clear it, or make room, and try again.</source>
+        <translation type="unfinished">La riga sopra la tabella contiene dati. Cancellala o libera spazio e riprova.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The table is filtered. Clear its filter first, so the rows it hides are shown, and then turn off its row of names.</source>
+        <translation type="unfinished">La tabella è filtrata. Cancella prima il filtro, in modo che le righe nascoste vengano mostrate, quindi disattiva la riga dei nomi.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A table needs a row of data.</source>
+        <translation type="unfinished">Una tabella deve contenere una riga di dati.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Showing a table&apos;s names</source>
+        <translation type="unfinished">Visualizzazione dei nomi della tabella</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Hiding a table&apos;s names</source>
+        <translation type="unfinished">Occultamento dei nomi della tabella</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>There is no row under the table.</source>
+        <translation type="unfinished">Non c&apos;è nessuna riga sotto la tabella.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The row under the table has something in it. Clear it, or make room, and try again.</source>
+        <translation type="unfinished">La riga sotto la tabella contiene dati. Cancellala o libera spazio e riprova.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Total</source>
+        <translation type="unfinished">Totale</translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>Showing a table&apos;s totals</source>
+        <translation type="unfinished">Visualizzazione dei totali della tabella</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Hiding a table&apos;s totals</source>
+        <translation type="unfinished">Occultamento dei totali della tabella</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>The table has no row of totals.</source>
+        <translation type="unfinished">La tabella non ha una riga dei totali.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+192"/>
+        <source>There is no such column.</source>
+        <translation type="unfinished">Questa colonna non esiste.</translation>
+    </message>
+    <message>
+        <location line="-179"/>
+        <source>Type the formula for the total.</source>
+        <translation type="unfinished">Digita la formula per il totale.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>That is not a formula.</source>
+        <translation type="unfinished">Questa non è una formula.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The formula names a column the table does not have.</source>
+        <translation type="unfinished">La formula fa riferimento a una colonna che non esiste nella tabella.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>JeffCrunch does not know that kind of total.</source>
+        <translation type="unfinished">JeffCrunch non riconosce questo tipo di totale.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Changing a table&apos;s total</source>
+        <translation type="unfinished">Modifica del totale della tabella</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>The table keeps its first cell. Pick cells that begin where it does.</source>
+        <translation type="unfinished">La tabella mantiene la prima cella. Seleziona celle che iniziano dallo stesso punto.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The table can&apos;t be that size.</source>
+        <translation type="unfinished">La tabella non può avere queste dimensioni.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A table needs a row of data besides its names and its totals.</source>
+        <translation type="unfinished">Una tabella deve contenere una riga di dati oltre ai nomi e ai totali.</translation>
+    </message>
+    <message>
+        <location line="+107"/>
+        <source>Resizing a table</source>
+        <translation type="unfinished">Ridimensionamento della tabella</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>There are no rows to look at.</source>
+        <translation type="unfinished">Non ci sono righe da esaminare.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+106"/>
+        <source>Pick at least one column to compare.</source>
+        <translation type="unfinished">Scegli almeno una colonna da confrontare.</translation>
+    </message>
+    <message>
+        <location line="-101"/>
+        <source>Select more than one row of data.</source>
+        <translation type="unfinished">Seleziona più di una riga di dati.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The cells have more in them than JeffCrunch changes at once (%1).</source>
+        <translation type="unfinished">Le celle contengono più dati di quanti JeffCrunch ne modifichi in una sola volta (%1).</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location line="+8"/>
+        <source>%1 is locked, and its sheet is protected, so the cells can&apos;t be moved.</source>
+        <translation type="unfinished">%1 è bloccata e il suo foglio è protetto, quindi le celle non possono essere spostate.</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>The repeated rows are in more than %1 separate places. Sort the rows by the columns you compare first, so the repeats are next to each other.</source>
+        <translation type="unfinished">Le righe ripetute si trovano in più di %1 posizioni separate. Ordina le righe in base alle colonne da confrontare prima, in modo che le ripetizioni siano una accanto all&apos;altra.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Removing duplicate rows</source>
+        <translation type="unfinished">Rimozione di righe duplicate</translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>The table is filtered. Clear its filter first, so the rows it hides are not moved.</source>
+        <translation type="unfinished">La tabella è filtrata. Cancella prima il filtro, in modo che le righe nascoste non vengano spostate.</translation>
+    </message>
+    <message>
+        <location line="+94"/>
+        <source>Growing a table by a row</source>
+        <translation type="unfinished">Aggiunta di una riga alla tabella</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Growing a table by a column</source>
+        <translation type="unfinished">Aggiunta di una colonna alla tabella</translation>
+    </message>
+    <message>
+        <location line="+64"/>
+        <location line="+39"/>
+        <source>Filling a calculated column</source>
+        <translation type="unfinished">Riempimento di una colonna calcolata</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Naming the new columns</source>
+        <translation type="unfinished">Denominazione delle nuove colonne</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>There is nothing to undo.</source>
+        <translation type="unfinished">Non c&apos;è nulla da annullare.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+75"/>
+        <location line="+222"/>
+        <location line="+626"/>
+        <source>JeffCrunch can&apos;t read this pivot table.</source>
+        <translation type="unfinished">JeffCrunch non riesce a leggere questa tabella pivot.</translation>
+    </message>
+    <message>
+        <location line="-844"/>
+        <source>This pivot table has lost the data it is made from.</source>
+        <translation type="unfinished">Questa tabella pivot ha perso i dati da cui è stata creata.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>JeffCrunch can&apos;t read the data this pivot table is made from (%1).</source>
+        <translation type="unfinished">JeffCrunch non riesce a leggere i dati da cui è stata creata questa tabella pivot (%1).</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+4"/>
+        <source>This pivot table uses %1, which JeffCrunch doesn&apos;t work out yet. It stays as it is.</source>
+        <translation type="unfinished">Questa tabella pivot usa %1, che JeffCrunch non è ancora in grado di calcolare. Rimane invariata.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>This pivot table shows a value as a rank or as a percent of a parent, which JeffCrunch doesn&apos;t work out yet. It stays as it is.</source>
+        <translation type="unfinished">Questa tabella pivot mostra un valore come classifica o come percentuale di un elemento padre, calcolo che JeffCrunch non esegue ancora. Rimane così com&apos;è.</translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>Type the cells the data is in, for example Sheet1!A1:D100, or the name of a table.</source>
+        <translation type="unfinished">Digitare le celle che contengono i dati, ad esempio Foglio1!A1:D100, oppure il nome di una tabella.</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>There is no sheet called &quot;%1&quot;.</source>
+        <translation type="unfinished">Non esiste un foglio denominato &quot;%1&quot;.</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>There is nothing in those columns.</source>
+        <translation type="unfinished">Queste colonne sono vuote.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>There is nothing in those rows.</source>
+        <translation type="unfinished">Queste righe sono vuote.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location line="+7"/>
+        <source>The data needs a row of names and at least one row of data under it. Type more than one row, for example Sheet1!A1:D100.</source>
+        <translation type="unfinished">I dati richiedono una riga di nomi e almeno una riga di dati sottostante. Digitare più di una riga, ad esempio Foglio1!A1:D100.</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>&quot;%1&quot; is not a range of cells, a table, or a name. Type the cells the data is in, with its first row of names, for example Sheet1!A1:D100.</source>
+        <translation type="unfinished">&quot;%1&quot; non è un intervallo di celle, una tabella o un nome. Digitare le celle che contengono i dati, inclusa la prima riga di nomi, ad esempio Foglio1!A1:D100.</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>The data of this pivot table is in another workbook, which JeffCrunch does not open, so it can&apos;t be read again here. The table keeps the values the file has. To read it from this workbook, use Change Data Source.</source>
+        <translation type="unfinished">I dati di questa tabella pivot si trovano in un&apos;altra cartella di lavoro, che JeffCrunch non apre, quindi non possono essere riletti qui. La tabella mantiene i valori presenti nel file. Per leggerli da questa cartella di lavoro, usare Cambia origine dati.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The sheet this pivot table is made from is not in the workbook any more.</source>
+        <translation type="unfinished">Il foglio da cui è stata creata questa tabella pivot non è più presente nella cartella di lavoro.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>JeffCrunch can&apos;t find the data this pivot table is made from.</source>
+        <translation type="unfinished">JeffCrunch non trova i dati da cui è stata creata questa tabella pivot.</translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <location line="+518"/>
+        <source>JeffCrunch can&apos;t read the data this pivot table is made from.</source>
+        <translation type="unfinished">JeffCrunch non riesce a leggere i dati da cui è stata creata questa tabella pivot.</translation>
+    </message>
+    <message>
+        <location line="-479"/>
+        <source>This pivot table can&apos;t be worked out: %1.</source>
+        <translation type="unfinished">Impossibile calcolare questa tabella pivot: %1.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>There is no room above the pivot table for its filters. Move the table down first.</source>
+        <translation type="unfinished">Non c&apos;è spazio sopra la tabella pivot per i relativi filtri. Spostare prima la tabella verso il basso.</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <location line="+814"/>
+        <location line="+21"/>
+        <source>The pivot table would go past the edge of the sheet.</source>
+        <translation type="unfinished">La tabella pivot supererebbe il bordo del foglio.</translation>
+    </message>
+    <message>
+        <location line="-785"/>
+        <location line="+825"/>
+        <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
+        <translation type="unfinished">La tabella pivot coprirebbe celle non vuote (%1). Cancellare tali celle o spostare la tabella pivot e riprovare.</translation>
+    </message>
+    <message>
+        <location line="-809"/>
+        <source>The pivot table would be larger than JeffCrunch changes at once.</source>
+        <translation type="unfinished">La tabella pivot supererebbe la quantità che JeffCrunch può modificare in una sola volta.</translation>
+    </message>
+    <message>
+        <location line="+137"/>
+        <location line="+309"/>
+        <source>These pivot tables were not refreshed:
+%1</source>
+        <translation type="unfinished">Le seguenti tabelle pivot non sono state aggiornate:
+%1</translation>
+    </message>
+    <message>
+        <location line="-288"/>
+        <source>JeffCrunch can&apos;t find the cells &quot;%1&quot; stands for.</source>
+        <translation type="unfinished">JeffCrunch non trova le celle a cui fa riferimento &quot;%1&quot;.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The data must be on a sheet of cells.</source>
+        <translation type="unfinished">I dati devono trovarsi in un foglio di celle.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The data needs a row of names and at least one row of data under it.</source>
+        <translation type="unfinished">I dati richiedono una riga di nomi e almeno una riga di dati sottostante.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>There is too much data for a pivot table.</source>
+        <translation type="unfinished">I dati sono troppi per una tabella pivot.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>There is too much data to make a pivot table of in one step (more than %1 million cells). Use fewer rows or columns.</source>
+        <translation type="unfinished">I dati sono troppi per creare una tabella pivot in un solo passaggio (più di %1 milioni di celle). Usare meno righe o colonne.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The data can&apos;t be read: %1.</source>
+        <translation type="unfinished">Impossibile leggere i dati: %1.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Pick a sheet of cells for the pivot table.</source>
+        <translation type="unfinished">Scegliere un foglio di celle per la tabella pivot.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>There is no room for a pivot table there.</source>
+        <translation type="unfinished">Non c&apos;è spazio per una tabella pivot in quella posizione.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The pivot table would cover some of the data it is made from (%1). Pick a place that is clear of the data.</source>
+        <translation type="unfinished">La tabella pivot coprirebbe parte dei dati da cui è creata (%1). Scegliere una posizione libera dai dati.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>There is a pivot table there already. Pick a cell that is clear of it.</source>
+        <translation type="unfinished">In quella posizione è già presente una tabella pivot. Scegliere una cella esterna a essa.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>There is something in the cells a pivot table would cover (%1). Pick a clear place.</source>
+        <translation type="unfinished">Le celle che la tabella pivot coprirebbe non sono vuote (%1). Scegliere una posizione libera.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <location line="+27"/>
+        <source>Pivot Table %1</source>
+        <translation type="unfinished">Tabella pivot %1</translation>
+    </message>
+    <message>
+        <location line="-10"/>
+        <source>The pivot table could not be made: %1.</source>
+        <translation type="unfinished">Impossibile creare la tabella pivot: %1.</translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Create Pivot Table</source>
+        <translation type="unfinished">Crea tabella pivot</translation>
+    </message>
+    <message>
+        <location line="+140"/>
+        <source>This pivot table uses %1, which JeffCrunch can&apos;t read again yet.</source>
+        <translation type="unfinished">Questa tabella pivot usa %1, che JeffCrunch non è ancora in grado di rileggere.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>JeffCrunch can&apos;t read a pivot table made from this data.</source>
+        <translation type="unfinished">JeffCrunch non riesce a leggere una tabella pivot creata da questi dati.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The data can&apos;t be read again: %1.</source>
+        <translation type="unfinished">Impossibile rileggere i dati: %1.</translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <location line="+163"/>
+        <location line="+48"/>
+        <location line="+73"/>
+        <location line="+93"/>
+        <location line="+30"/>
+        <location line="+23"/>
+        <location line="+38"/>
+        <source>There is no pivot table here.</source>
+        <translation type="unfinished">Qui non è presente alcuna tabella pivot.</translation>
+    </message>
+    <message>
+        <location line="-465"/>
+        <source>Refresh Pivot Table</source>
+        <translation type="unfinished">Aggiorna tabella pivot</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>There are no pivot tables in this workbook that JeffCrunch can read again.</source>
+        <translation type="unfinished">In questa cartella di lavoro non ci sono tabelle pivot che JeffCrunch possa rileggere.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Refresh All</source>
+        <translation type="unfinished">Aggiorna tutto</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Click a value of the pivot table, not a label.</source>
+        <translation type="unfinished">Fai clic su un valore della tabella pivot, non su un&apos;etichetta.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>There are too many rows behind this value to show at once.</source>
+        <translation type="unfinished">Ci sono troppe righe dietro questo valore per mostrarle tutte insieme.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>There are no rows behind this value.</source>
+        <translation type="unfinished">Non ci sono righe dietro questo valore.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Detail %1</source>
+        <translation type="unfinished">Dettaglio %1</translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <source>Show Details</source>
+        <translation type="unfinished">Mostra dettagli</translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>Refresh</source>
+        <translation type="unfinished">Aggiorna</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.</source>
+        <translation type="unfinished">
+            <numerusform>%n tabella pivot non è stata riletta all&apos;apertura del file: i dati sono troppi. Usa Aggiorna tutto.</numerusform>
+            <numerusform>%n tabelle pivot non sono state rilette all&apos;apertura del file: i dati sono troppi. Usa Aggiorna tutto.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Another pivot table is made from the same data. A group is a part of the data, so it can&apos;t be made while two tables share it.</source>
+        <translation type="unfinished">Un&apos;altra tabella pivot è basata sugli stessi dati. Un gruppo è una parte dei dati, quindi non può essere creato mentre due tabelle li condividono.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>There is no such field.</source>
+        <translation type="unfinished">Campo inesistente.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Put the field in the rows or the columns first.</source>
+        <translation type="unfinished">Inserisci prima il campo nelle righe o nelle colonne.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>These can&apos;t be grouped: %1.</source>
+        <translation type="unfinished">Questi elementi non possono essere raggruppati: %1.</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Group Field</source>
+        <translation type="unfinished">Raggruppa campo</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Another pivot table is made from the same data, so the group can&apos;t be taken away from this one alone.</source>
+        <translation type="unfinished">Un&apos;altra tabella pivot è basata sugli stessi dati, quindi il gruppo non può essere rimosso solo da questa.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+4"/>
+        <source>This field is not grouped.</source>
+        <translation type="unfinished">Questo campo non è raggruppato.</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Ungroup Field</source>
+        <translation type="unfinished">Separa campo</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Click the name of an item in a pivot table first.</source>
+        <translation type="unfinished">Fai prima clic sul nome di un elemento in una tabella pivot.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+3"/>
+        <location line="+4"/>
+        <location line="+2"/>
+        <source>Click the name of an item in the rows of a pivot table first.</source>
+        <translation type="unfinished">Fai prima clic sul nome di un elemento nelle righe di una tabella pivot.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This item has nothing under it.</source>
+        <translation type="unfinished">Questo elemento non ha dati sottostanti.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>JeffCrunch can&apos;t find this item.</source>
+        <translation type="unfinished">JeffCrunch non riesce a trovare questo elemento.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Drill Down</source>
+        <translation type="unfinished">Approfondisci</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Drill Up</source>
+        <translation type="unfinished">Riduci livello</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <location line="+57"/>
+        <location line="+5"/>
+        <source>Move Pivot Table</source>
+        <translation type="unfinished">Sposta tabella pivot</translation>
+    </message>
+    <message>
+        <location line="-26"/>
+        <source>There is a table in the way (%1).</source>
+        <translation type="unfinished">C&apos;è una tabella nel percorso (%1).</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>There is another pivot table in the way.</source>
+        <translation type="unfinished">C&apos;è un&apos;altra tabella pivot nel percorso.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>There are merged cells in the way (%1).</source>
+        <translation type="unfinished">Ci sono celle unite nel percorso (%1).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The sheet&apos;s filter is in the way.</source>
+        <translation type="unfinished">Il filtro del foglio è nel percorso.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Move the pivot table somewhere else, or clear those cells first.</source>
+        <translation type="unfinished">Sposta la tabella pivot altrove oppure cancella prima quelle celle.</translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>Pivot Table Options</source>
+        <translation type="unfinished">Opzioni tabella pivot</translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>Change Pivot Table Data Source</source>
+        <translation type="unfinished">Cambia origine dati tabella pivot</translation>
+    </message>
+    <message>
+        <location line="+70"/>
+        <source>Clear Filters</source>
+        <translation type="unfinished">Cancella filtri</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Clear Pivot Table</source>
+        <translation type="unfinished">Cancella tabella pivot</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editdatatools.cpp" line="+76"/>
+        <source>Select cells in one column to split.</source>
+        <translation type="unfinished">Seleziona celle in una colonna da dividere.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>There are too many cells to split at once. Select fewer.</source>
+        <translation type="unfinished">Ci sono troppe celle da dividere in una volta sola. Selezionane meno.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Choose what to split the text at.</source>
+        <translation type="unfinished">Scegli in corrispondenza di cosa dividere il testo.</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <location line="+8"/>
+        <source>The pieces would fill too many cells at once. Select fewer cells, or split at fewer places.</source>
+        <translation type="unfinished">I frammenti riempirebbero troppe celle in una volta sola. Seleziona meno celle oppure dividi in meno punti.</translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>Every column was left out, so there is nothing to put in the sheet.</source>
+        <translation type="unfinished">Tutte le colonne sono state escluse, quindi non c&apos;è nulla da inserire nel foglio.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The pieces would go past the last column of the sheet.</source>
+        <translation type="unfinished">I frammenti andrebbero oltre l&apos;ultima colonna del foglio.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editslicer.cpp" line="+80"/>
+        <location line="+21"/>
+        <source>This slicer can&apos;t be used.</source>
+        <translation type="unfinished">Questa segmentazione dati non può essere usata.</translation>
+    </message>
+    <message>
+        <location line="-19"/>
+        <source>This slicer filters no pivot table that JeffCrunch can read.</source>
+        <translation type="unfinished">Questa segmentazione dati non filtra nessuna tabella pivot leggibile da JeffCrunch.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>A pivot table this slicer filters can&apos;t be changed.</source>
+        <translation type="unfinished">Una tabella pivot filtrata da questo slicer non può essere modificata.</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <location line="+3"/>
+        <source>Filter by Slicer</source>
+        <translation type="unfinished">Filtra per slicer</translation>
     </message>
 </context>
 <context>
@@ -47895,7 +47902,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         </translation>
     </message>
     <message>
-        <location line="+477"/>
+        <location line="+549"/>
         <source>The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.</source>
         <translation type="unfinished">I grafici creati o modificati qui dall&apos;ultimo salvataggio contengono già il numero massimo di valori gestiti da JeffCrunch (%1). Salvare prima la cartella di lavoro.</translation>
     </message>
@@ -47915,7 +47922,27 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Forma</translation>
     </message>
     <message>
-        <location line="+113"/>
+        <location line="+196"/>
+        <source>JeffCrunch keeps no more of the objects taken away for Undo after a save.</source>
+        <translation type="unfinished">JeffCrunch non mantiene più degli oggetti rimossi per Annulla dopo un salvataggio.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>This object can&apos;t be kept for Undo.</source>
+        <translation type="unfinished">Questo oggetto non può essere conservato per Annulla.</translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>This object holds more than JeffCrunch keeps for Undo.</source>
+        <translation type="unfinished">Questo oggetto occupa più spazio di quanto JeffCrunch conservi per Annulla.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>This chart names a part the file does not have, so it can&apos;t be kept for Undo.</source>
+        <translation type="unfinished">Questo grafico fa riferimento a una parte che il file non contiene, quindi non può essere conservato per Annulla.</translation>
+    </message>
+    <message>
+        <location line="+45"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Il foglio non esiste.</translation>
     </message>
@@ -47926,13 +47953,13 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+3"/>
-        <location line="+217"/>
+        <location line="+218"/>
         <source>%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.</source>
         <translation type="unfinished">%1 nuovi oggetti sono il massimo che JeffCrunch può salvare in una volta. Salvare la cartella di lavoro, quindi aggiungerne altri.</translation>
     </message>
     <message>
-        <location line="-216"/>
-        <location line="+217"/>
+        <location line="-217"/>
+        <location line="+218"/>
         <source>The workbook has as many objects as JeffCrunch holds (%1).</source>
         <translation type="unfinished">La cartella di lavoro contiene il numero massimo di oggetti gestiti da JeffCrunch (%1).</translation>
     </message>
@@ -48017,7 +48044,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Impossibile disegnare l&apos;oggetto negli Appunti.</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+48"/>
         <source>This is not a chart.</source>
         <translation type="unfinished">Questo non è un grafico.</translation>
     </message>
@@ -48195,7 +48222,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1086"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1082"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="+5"/>
         <source>The file is larger than this program can open.</source>
         <translation type="unfinished">Il file è più grande di quanto questo programma possa aprire.</translation>
@@ -48845,12 +48872,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::office::sheet::Save</name>
     <message>
-        <location filename="../libs/office/sheet/sheetpatch.cpp" line="+1333"/>
+        <location filename="../libs/office/sheet/sheetpatch.cpp" line="+1757"/>
         <location line="+76"/>
         <location line="+37"/>
         <location line="+267"/>
         <location line="+34"/>
-        <location filename="../libs/office/sheet/structsave.cpp" line="+757"/>
+        <location filename="../libs/office/sheet/structsave.cpp" line="+760"/>
         <location line="+495"/>
         <source>The sheet&apos;s part is damaged.</source>
         <translation type="unfinished">La parte del foglio è danneggiata.</translation>
@@ -48871,8 +48898,8 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+97"/>
         <location filename="../libs/office/sheet/xlsxbase.cpp" line="+682"/>
         <location line="+9"/>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+1569"/>
-        <location line="+1021"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+1570"/>
+        <location line="+1050"/>
         <location line="+49"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Il salvataggio è stato interrotto.</translation>
@@ -48906,7 +48933,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Impossibile salvare il foglio.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-2538"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-2567"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">La parte delle stringhe condivise non è nel formato modificabile da questo programma.</translation>
@@ -48919,25 +48946,25 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+242"/>
         <location line="+120"/>
-        <location line="+1863"/>
+        <location line="+1892"/>
         <location line="+5"/>
         <location line="+10"/>
         <source>The workbook part is not in the form this program changes.</source>
         <translation type="unfinished">La parte della cartella di lavoro non è nel formato modificabile da questo programma.</translation>
     </message>
     <message>
-        <location line="-1374"/>
+        <location line="-1403"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">La cartella di lavoro non è stata aperta da un file che questo programma può sovrascrivere.</translation>
     </message>
     <message>
         <location line="+315"/>
-        <location line="+1115"/>
+        <location line="+1144"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Il file da cui è stata aperta questa cartella di lavoro è danneggiato.</translation>
     </message>
     <message>
-        <location line="-1420"/>
+        <location line="-1449"/>
         <location line="+148"/>
         <location line="+136"/>
         <location line="+41"/>
@@ -48950,7 +48977,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Un foglio modificato non ha una parte corrispondente nel file.</translation>
     </message>
     <message>
-        <location line="+755"/>
+        <location line="+784"/>
         <source>The shared strings part is not in the file.</source>
         <translation type="unfinished">La parte delle stringhe condivise non è presente nel file.</translation>
     </message>
@@ -48965,15 +48992,15 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Una tabella modificata non ha una parte corrispondente nel file.</translation>
     </message>
     <message>
-        <location line="-736"/>
+        <location line="-765"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+1033"/>
+        <location line="+1062"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">Impossibile leggere un foglio del file per salvarlo.</translation>
     </message>
     <message>
-        <location line="-1408"/>
+        <location line="-1437"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Sono stati inseriti oggetti in un foglio in cui questo programma non può inserirli.</translation>
     </message>
@@ -48999,7 +49026,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+214"/>
-        <location line="+102"/>
+        <location line="+131"/>
         <location line="+79"/>
         <location line="+58"/>
         <location line="+75"/>
@@ -49008,8 +49035,8 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">L&apos;elenco dei tipi di parti non è presente nel file.</translation>
     </message>
     <message>
-        <location line="-399"/>
-        <location line="+99"/>
+        <location line="-428"/>
+        <location line="+128"/>
         <source>A drawing of the file is not in the form this program changes.</source>
         <translation type="unfinished">Un disegno del file non è nel formato modificabile da questo programma.</translation>
     </message>
