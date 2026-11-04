@@ -5,6 +5,7 @@
 
 #include "app/appwindow.h"
 #include "app/filetasks.h"
+#include "app/infopage.h"
 
 #include <tuple>
 #include "app/anchordialogs.h"
@@ -34,6 +35,7 @@
 #include <QElapsedTimer>
 #include <QHash>
 #include <QKeySequence>
+#include <QLabel>
 #include <QPointer>
 #include <QSet>
 #include <QTimer>
@@ -42,6 +44,7 @@
 #include <map>
 #include <QTemporaryFile>
 #include <memory>
+#include <optional>
 #include <set>
 #include <unordered_map>
 
@@ -109,6 +112,24 @@ public:
     Ribbon *ribbon() const override { return m_ribbon; }
     grid::GridView *view() const { return m_view; }
     QString ribbonErrors() const { return m_ribbonErrors; }
+
+    // ---- the File screen's Info page: properties, protection, and Inspect (crunchwindow_info.cpp)
+    QWidget *buildInfoPage(QWidget *parent);
+    // The workbook's properties as they are now (the ones a person edited and has not saved, else the file's).
+    office::PackageProps properties() const;
+    // Applies properties a person edited: they are written when the workbook is saved.
+    void applyProperties(const office::PackageProps &props);
+    // Mark as Final: the workbook is saved, then held for reading only; off, it can be edited again.
+    void setMarkedFinal(bool on);
+    bool markedAsFinal() const { return office::isMarkedFinal(properties().custom); }
+    // The reason Mark as Final can't be done for this workbook ("" when it can): the file it is saved to must be a kind that keeps the mark.
+    QString markFinalBlocked() const;
+    int removePersonalInformation();
+    // Shows or hides the note on the status bar that says the workbook is marked as final and open for reading only.
+    void updateFinalNote();
+    // What Inspect Workbook looks for (and can take out); the box shows them.
+    QVector<InspectItem> inspectItems();
+    void inspectWorkbook();
 
     // ---- the file
     QString filePath() const { return m_path; }
@@ -1199,6 +1220,10 @@ private:
     void updateProtectActions();
     void protectSheet();
     void protectWorkbook();
+    QLabel *m_finalNote = nullptr;                       // (on the status bar while the workbook is marked as final and read-only)
+    bool m_personalInfoRemoved = false;                  // (Inspect took the personal information out: saving does not put the name of the person back)
+    std::optional<office::PackageProps> m_editedProps;   // properties a person edited, written at the next save
+    OpenHow m_openHow = OpenHow::Normal;                 // how the file being read was asked for
     QString m_filePassword, m_pendingPassword;
     bool m_fileProtected = false;      // the workbook is written protected with a password (m_filePassword; empty: the password every program knows)
     bool m_diskProtected = false;      // the file on disk is protected: what it holds is not what the package's bytes are

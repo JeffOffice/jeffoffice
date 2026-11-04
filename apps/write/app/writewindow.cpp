@@ -1,5 +1,7 @@
 #include "app/writewindow.h"
 
+#include "io/crypto.h"
+
 #include "app/icons.h"
 #include "app/keytips.h"
 #include "app/pageview.h"
@@ -138,6 +140,7 @@ WriteWindow::~WriteWindow()
 {
     // (The view lets go of the document before the document goes.)
     m_view->setDocument(nullptr);
+    crypto::wipe(m_filePassword);
 }
 
 QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn, bool checkable)

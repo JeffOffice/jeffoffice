@@ -62,15 +62,15 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 ## File (backstage)
 
 ### Info
-- [ ] **first release** Document properties: title, author, subject, keywords, categories, comments, company, and manager, with the dates and the counts of pages, words, characters, lines, and paragraphs *(shared: JeffPub's publication properties)*
-- [ ] **1.0** Custom document properties (a name, a type, and a value) that DOCPROPERTY fields can show
-- [ ] **1.0** Mark as Final (the document opens read-only with a note)
-- [ ] **1.0** Encrypt with a password: open and save password-protected `.docx` (the standard's strong encryption) and `.odt`
-- [ ] **1.0** Inspect Document: find and remove comments, tracked changes, personal information, hidden text, custom XML, and headers and footers before sharing
-- [ ] **1.0** Check Compatibility: lists what an older format (`.doc`, `.rtf`, `.odt`) can't hold before saving to it
+- [x] **first release** Document properties: title, author, subject, keywords, categories, comments, company, and manager, with the dates and the counts of pages, words, characters, lines, and paragraphs *(shared: libs/shell Info page and libs/office packageprops; File > Info edits the boxes, kept as `docProps/core.xml` and `app.xml`, with the dates and the counts of pages, words, characters, and paragraphs; the count of lines is the layout's and is not shown)*
+- [x] **1.0** Custom document properties (a name, a type, and a value) that DOCPROPERTY fields can show *(Info > Custom Properties: text, whole number, number, yes or no, and date, kept as `docProps/custom.xml`; a DOCPROPERTY field shows one by its name)*
+- [x] **1.0** Mark as Final (the document opens read-only with a note) *(Info > Mark as Final saves the document with the `_MarkAsFinal` property; it opens read-only with a note in the status bar, and Info lets it be edited again; shared: libs/shell Info page)*
+- [~] **1.0** Encrypt with a password: open and save password-protected `.docx` (the standard's strong encryption) and `.odt` *(done for `.docx`: Info > Encrypt with Password writes the agile form with AES-256, and Open asks for the password, as often as it takes; not done for `.odt`, which refuses to be saved without the password the person asked for; shared: libs/office officecrypt)*
+- [x] **1.0** Inspect Document: find and remove comments, tracked changes, personal information, hidden text, custom XML, and headers and footers before sharing *(Info > Inspect Document counts each kind and removes it with one button; tracked changes are accepted; shared: libs/shell InspectDialog)*
+- [~] **1.0** Check Compatibility: lists what an older format (`.doc`, `.rtf`, `.odt`) can't hold before saving to it *(done for `.odt`, the only older format JeffWrite writes: Info > Check Compatibility lists what a .odt file can't hold of this document; `.doc` and `.rtf` are not written)*
 - [ ] **1.0** **(alt)** Version history without a cloud service: named local copies of a document, compared and restored from Info
 - [x] **1.0** Recover unsaved documents *(shared: automatic recovery in libs/shell)* *(0.9.0: Open > Recover Unsaved Work offers the copies that automatic recovery kept)*
-- [ ] **1.0** Show a document's folder and copy its path
+- [x] **1.0** Show a document's folder and copy its path *(Info: Show in Folder and Copy Path; shared: libs/shell Info page)*
 - [ ] **later** Add a digital signature (an invisible one, and the signature line from Insert) with a certificate on your computer
 - [ ] **later** Links to Files: update or break links to other files (LINK and INCLUDETEXT fields)
 
@@ -92,7 +92,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [ ] **1.0** A warning before saving to a format that can't hold something in the document, naming what would change, with the choice to save a `.docx` as well
 - [~] **1.0** Open and Repair: recover what text and pictures can be read from a damaged `.docx` or `.doc` *(done for `.docx`: Open > More Ways to Open > Open and Repair finds the parts by their own headers, keeps a part that broke part way as far as it goes, leaves out what can't be read, makes the list of types and the links again, opens the result as a copy, and says what was cut or left out; not done for `.doc`; shared: libs/office repair)*
 - [x] **1.0** Open read-only, open as a copy, and open in a new window *(More Ways to Open on the Open page, and the right-click menu of the Recent list; a read-only document takes no typing, dropping, or dragging, refuses the commands that change it, and Save asks for a new name)*
-- [ ] **1.0** Open an encrypted document by asking for its password
+- [x] **1.0** Open an encrypted document by asking for its password *(a `.docx` protected with a password asks for it, tries again when it is wrong, and is saved protected again; a file protected only against changes by accident opens without asking)*
 - [ ] **1.0** Return to where you stopped editing when a document is reopened (Shift+F5 jumps among the last three editing places)
 - [ ] **later** Protected View: files from the Internet open for reading only until you choose to edit them
 - [ ] **later** Open from a web address (HTTP and WebDAV) and save back
@@ -101,7 +101,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 ### Print
 - [~] **first release** Print with printer choice, copies, collate, page ranges (all, current page, selection, custom, including Word's section syntax such as p2s3), one- or two-sided, orientation, paper size, margins, and printer properties *(done: the printer or a PDF file, copies, collate, all pages, the current page, and custom ranges such as 1-3, 5, 8-, and -2, with each page on the paper and the way up its section sets; missing: selection, the p2s3 syntax, one- or two-sided, margins, and printer properties)* *(shared: JeffPub's print)* **(needed for the Preview)**
 - [~] **first release** Print preview with page navigation, zoom, one or many pages, and a shrink-to-fit-one-page check *(done: each page as it will print, one at a time, with arrows; missing: zoom, many pages, and the check)* *(shared: JeffPub's print preview)* **(needed for the Preview)**
-- [ ] **1.0** Print only odd or even pages, in reverse order, and several pages on a sheet or scaled to a paper size
+- [~] **1.0** Print only odd or even pages, in reverse order, and several pages on a sheet or scaled to a paper size *(done: only the odd or the even pages of the range, and last page first, on the Print page; not done: several pages on a sheet, and scaling to a paper size)*
 - [ ] **1.0** What prints: markup (tracked changes and comments) or without it, hidden text, background colors and pictures, document properties, field codes, drawings, and a list of the markup; fields updated before printing
 - [ ] **1.0** Book fold printing: a booklet in folding order, from the page-setup choice under Layout *(shared: JeffPub's booklet printing)*
 - [ ] **1.0** Duplex printing by hand: print the odd pages, then the even ones, with a prompt to turn the stack over
@@ -109,7 +109,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 ### Share and Export
 - [~] **first release** Save as PDF: standard and minimum size, page range, fonts embedded, document properties, bookmarks from headings, and a PDF opened after saving *(shared: JeffPub's PDF export)* *(0.9.0: Export to PDF on the File screen, and a PDF file as a printer in Print; no document properties or bookmarks)*
 - [ ] **1.0** PDF/A, tagged PDF, PDF with a password, and PDF/X-1a and PDF/X-4 for printers *(shared: JeffPub's PDF export)*
-- [ ] **1.0** Save as plain text (choose the encoding and where line breaks fall) and as filtered HTML
+- [~] **1.0** Save as plain text (choose the encoding and where line breaks fall) and as filtered HTML *(done: Export > Save as Plain Text, with UTF-8, UTF-8 with mark, UTF-16, ISO 8859-1, and ASCII and the line ends of either system, hidden text left out; a line break falls at each paragraph end; not done: line breaks at each laid-out line, and filtered HTML)*
 - [ ] **1.0** Save as a single-file web page *(shared: JeffPub's web export)*
 - [ ] **1.0** **(alt)** Email: make a ready-to-send `.eml` with the document as an attachment, a PDF, or the pages as HTML, instead of sending through an online account *(shared: JeffPub's .eml export)*
 - [ ] **1.0** **(alt)** Share without a cloud account: a package with the document, the fonts, and the pictures (Pack and Go, as JeffPub has it) for another computer or a printer

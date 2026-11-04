@@ -13,6 +13,7 @@
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
 #include "office/package.h"
+#include "office/packageprops.h"
 #include "wml/wml.h"
 
 #include <QHash>
@@ -326,7 +327,8 @@ public:
         WriteDoc &m_doc;
     };
     // The stories besides the text that hold tracked changes: the headers and footers and the footnotes (each made editable if it was not), in a fixed order. The endnotes' words are in the text.
-    QVector<QTextDocument *> storiesWithChanges();
+    // With `every`, the stories that hold no change too (the headers and footers the file names, and every footnote).
+    QVector<QTextDocument *> storiesWithChanges(bool every = false);
 
     // ---- review (core/reviewops.h, core/commentops.h)
     // Whether edits are tracked as changes (Track Changes: the file's w:trackRevisions). A setting of the document that is written with it, not a step of the history.
@@ -484,6 +486,26 @@ public:
     office::Relationship mainRelationship(const QString &id) const;
     // A kept part's bytes (and its content type); empty if the document has no such part.
     QByteArray partData(const QString &absoluteName, QString *contentType = nullptr) const;
+    // ---- the file's properties (the core, extended, and custom parts of docProps)
+    office::PackageProps packageProps() const;
+    // Puts the properties in the file's parts (made where the file has none, with the relationship that names each) and counts the document as changed. What the parts hold besides stays.
+    void setPackageProps(const office::PackageProps &props);
+    // The part (and its bytes) the package's relationship of this type (the end of its type, "/core-properties") names; empty if there is none.
+    QString propsPartName(const QString &typeSuffix) const;
+    QByteArray propsPartData(const QString &typeSuffix) const;
+    bool markedAsFinal() const;
+    // Puts a part in the file (replacing the one of that name), and the relationship of the package to it of the type given (none: no relationship is made).
+    void putPackagePart(const QString &absoluteName, const QString &contentType, const QByteArray &data, const QString &relationshipType = QString());
+    // Takes a part out, and the relationships of the package and the main part that name it. True if there was one.
+    bool removePackagePart(const QString &absoluteName);
+    // The names of the parts that are there (absolute).
+    QStringList packagePartNames() const;
+    // The counts of the text now (the pages are the layout's, not counted here).
+    struct TextCounts {
+        int words = 0, characters = 0, charactersWithSpaces = 0, paragraphs = 0;
+    };
+    TextCounts textCounts() const;
+
     // The Id of a relationship of the main part to an address outside the file, made if the document has none like it.
     QString addExternalLink(const QString &type, const QString &target);
     // The Id of an image relationship to a new part with these bytes (named image1.png and on, in word/media).

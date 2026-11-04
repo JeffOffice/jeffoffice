@@ -501,4 +501,18 @@ QByteArray encryptPackageStandard(const QByteArray &zip, const QString &password
     return container(info, stream);
 }
 
+bool splitProtectedPackage(const QByteArray &bytes, QByteArray *info, QByteArray *package)
+{
+    // (the signature of a compound file, before anything is read)
+    static const char kSignature[8] = {char(0xD0), char(0xCF), char(0x11), char(0xE0), char(0xA1), char(0xB1), char(0x1A), char(0xE1)};
+    if (bytes.size() < 512 || memcmp(bytes.constData(), kSignature, 8) != 0) return false;
+    jp::cfb::File file;
+    if (!jp::cfb::read(bytes, &file)) return false;
+    const QByteArray i = file.stream(QStringLiteral("EncryptionInfo")), p = file.stream(QStringLiteral("EncryptedPackage"));
+    if (i.isEmpty() || p.isEmpty()) return false;
+    if (info) *info = i;
+    if (package) *package = p;
+    return true;
+}
+
 } // namespace jp::office

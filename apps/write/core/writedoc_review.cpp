@@ -111,8 +111,12 @@ int WriteDoc::nextRevisionId()
     return m_nextRevisionId++;
 }
 
-QVector<QTextDocument *> WriteDoc::storiesWithChanges()
+QVector<QTextDocument *> WriteDoc::storiesWithChanges(bool every)
 {
+    // (every story: the parts of headers and footers the file names are read now, if they were not)
+    if (every)
+        for (const Relationship &r : std::as_const(m_wml.mainRelationships))
+            if (!r.external && (r.type.endsWith(QLatin1String("/header")) || r.type.endsWith(QLatin1String("/footer")))) headerStory(r.id);
     auto marked = [](const QByteArray &x) {
         static const char *const names[] = {"<w:ins", "<w:del", "<w:moveFrom", "<w:moveTo", "rPrChange", "pPrChange"};
         for (const char *n : names)
@@ -127,7 +131,7 @@ QVector<QTextDocument *> WriteDoc::storiesWithChanges()
         if (part.unreadable || part.missing || part.created) {
             if (!(part.created && part.editForm && part.story)) continue;
         }
-        if (!part.editForm && !marked(partData(part.name))) continue;
+        if (!every && !part.editForm && !marked(partData(part.name))) continue;
         if (!makeEditable(part) || !part.story) continue;
         out.push_back(part.story.get());
     }
@@ -140,7 +144,7 @@ QVector<QTextDocument *> WriteDoc::storiesWithChanges()
                 has = true;
                 break;
             }
-        if (!has) continue;
+        if (!has && !every) continue;
         if (QTextDocument *n = editableFootnote(key.mid(2).toInt())) out.push_back(n);
     }
     return out;

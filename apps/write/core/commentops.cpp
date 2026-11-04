@@ -861,6 +861,17 @@ void putPart(office::wml::Document *out, const QString &name, const QByteArray &
     if (nameInOut) *nameInOut = name;
 }
 
+// Takes a part out of the file with the relationships that name it.
+void dropPart(office::wml::Document *out, const QString &name)
+{
+    if (name.isEmpty()) return;
+    for (qsizetype i = out->parts.size() - 1; i >= 0; --i)
+        if (out->parts[i].name.compare(name, Qt::CaseInsensitive) == 0) out->parts.removeAt(i);
+    for (qsizetype i = out->mainRelationships.size() - 1; i >= 0; --i)
+        if (!out->mainRelationships[i].external && out->mainRelationships[i].target.compare(name, Qt::CaseInsensitive) == 0) out->mainRelationships.removeAt(i);
+    out->partRelationships.remove(name);
+}
+
 QString freshPartName(const office::wml::Document &out, const QString &base)
 {
     QString name = QStringLiteral("/word/%1.xml").arg(base);
@@ -954,7 +965,11 @@ void WriteDoc::writeCommentParts(office::wml::Document *out)
         part.chop(int(qstrlen("</w:comments>")));
         part += closing;
     }
-    if (written.isEmpty() && src.commentsName.isEmpty()) return;
+    // No comment is left: no part of them is either, and the names of the people who wrote them (people.xml) go with the rest.
+    if (written.isEmpty()) {
+        for (const QString &name : {src.commentsName, src.extensionName, src.idsName, src.peopleName}) dropPart(out, name);
+        return;
+    }
     QString commentsName = src.commentsName.isEmpty() ? freshPartName(*out, QStringLiteral("comments")) : src.commentsName;
     putPart(out, commentsName, part, kCommentsType, kCommentsRel, nullptr);
     // commentsExtended.xml: which comments reply to which, and which are done.
