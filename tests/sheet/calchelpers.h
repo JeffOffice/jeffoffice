@@ -38,6 +38,8 @@ public:
     Grid &row(const QString &ref, const QVariantList &values, int sheet = 0);
     // Marks a cell as one that holds a SUBTOTAL formula (which SUBTOTAL leaves out of what it adds up).
     Grid &subtotal(const QString &ref, int sheet = 0);
+    // Marks a cell as one that holds a formula (as a cell of a workbook does), with its text.
+    Grid &formula(const QString &ref, const QString &text, int sheet = 0);
     // A defined name; `sheet` -1 for the workbook's.
     Grid &name(const QString &name, const QString &formula, int sheet = -1);
 
@@ -48,6 +50,7 @@ public:
     void usedExtent(int sheet, quint32 *rows, quint32 *cols) const override;
     QString definedName(int sheet, const QString &name) const override;
     bool isSubtotal(int sheet, quint32 row, quint32 col) const override;
+    bool formulaInfo(int sheet, quint32 row, quint32 col, QString *text) const override;
 
 private:
     struct Sheet {
@@ -57,6 +60,7 @@ private:
     std::vector<Sheet> m_sheets;
     QMap<QString, QString> m_names;   // "<sheet>|<NAME>" -> formula
     QSet<QString> m_subtotals;        // "<sheet>|<row>|<col>"
+    QMap<QString, QString> m_formulas;   // "<sheet>|<row>|<col>" -> text
 };
 
 struct Settings {

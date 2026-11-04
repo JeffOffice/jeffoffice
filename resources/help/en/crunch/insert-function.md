@@ -3,7 +3,7 @@
 
 Choose **Pick a Function** on the Formulas tab (**Shift+F3**), or **All Functions** in the **Sum** menu.
 
-Type in the search box a name or what you want to do ("round down", "join text") and the list shows the functions that fit, names that begin with your words first. **Kind** limits the list to financial, date and time, math and trig, statistical, lookup and reference, text, logical, information, or database functions.
+Type in the search box a name or what you want to do ("round down", "join text") and the list shows the functions that fit, names that begin with your words first. **Kind** limits the list to financial, date and time, math and trig, statistical, lookup and reference, text, logical, information, database, or engineering functions.
 
 Pick a function to see how it is written, what it does, and its arguments. An argument in brackets is optional, and "more of the same" means you can give as many as you need. Press **OK** (or double-click the function).
 

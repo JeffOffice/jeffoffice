@@ -2,6 +2,8 @@
 #include "calc/machine.h"
 #include "calc/numfmt.h"
 
+#include <QRegularExpression>
+
 #include <algorithm>
 #include <cmath>
 
@@ -385,11 +387,208 @@ Value fnDollar(Call &c)
     return textResult(out);
 }
 
+// ---- numbers from text, characters from codes, and addresses
+
+Value fnNumberValue(Call &c)
+{
+    QString t, decimal = QStringLiteral("."), group = QStringLiteral(",");
+    if (!c.text(0, &t)) return c.failure();
+    if (!c.missing(1) && !c.text(1, &decimal)) return c.failure();
+    if (!c.missing(2) && !c.text(2, &group)) return c.failure();
+    const QChar dec = decimal.isEmpty() ? QLatin1Char('.') : decimal[0], grp = group.isEmpty() ? QLatin1Char(',') : group[0];
+    if (dec == grp) return c.error(ErrorKind::Value);
+    QString clean;
+    for (const QChar ch : t)
+        if (!ch.isSpace()) clean += ch;
+    if (clean.isEmpty()) return Value::number(0);
+    int percents = 0;
+    while (clean.endsWith(QLatin1Char('%'))) {
+        clean.chop(1);
+        ++percents;
+    }
+    QString plain;
+    bool seenDecimal = false;
+    for (const QChar ch : clean) {
+        if (ch == dec) {
+            if (seenDecimal) return c.error(ErrorKind::Value);
+            seenDecimal = true;
+            plain += QLatin1Char('.');
+        } else if (ch == grp) {
+            if (seenDecimal) return c.error(ErrorKind::Value);
+        } else plain += ch;
+    }
+    static const QRegularExpression valid(QStringLiteral("^[+-]?(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d+)?$"));
+    if (!valid.match(plain).hasMatch()) return c.error(ErrorKind::Value);
+    double v = plain.toDouble();
+    for (int i = 0; i < percents; ++i) v /= 100;
+    return numberResult(v);
+}
+
+Value fnUnichar(Call &c)
+{
+    double n;
+    if (!c.number(0, &n)) return c.failure();
+    n = std::trunc(n);
+    if (n < 1 || n > 1114111) return c.error(ErrorKind::Value);
+    if (n >= 0xD800 && n <= 0xDFFF) return c.error(ErrorKind::NA);
+    const char32_t code = char32_t(n);
+    return Value::text(QString::fromUcs4(&code, 1));
+}
+
+Value fnUnicode(Call &c)
+{
+    QString s;
+    if (!c.text(0, &s)) return c.failure();
+    if (s.isEmpty()) return c.error(ErrorKind::Value);
+    return Value::number(double(s.toUcs4().first()));
+}
+
+Value fnEncodeUrl(Call &c)
+{
+    QString s;
+    if (!c.text(0, &s)) return c.failure();
+    const QByteArray bytes = s.toUtf8();
+    QString out;
+    for (const char b : bytes) {
+        const uchar u = uchar(b);
+        if ((u >= 'A' && u <= 'Z') || (u >= 'a' && u <= 'z') || (u >= '0' && u <= '9') || u == '-' || u == '_' || u == '.' || u == '~') out += QLatin1Char(char(u));
+        else out += QStringLiteral("%%1").arg(u, 2, 16, QLatin1Char('0')).toUpper();
+    }
+    return textResult(out);
+}
+
+// Full-width forms to half-width (ASC), and back (DBCS).
+Value fnAsc(Call &c)
+{
+    QString s;
+    if (!c.text(0, &s)) return c.failure();
+    for (QChar &ch : s) {
+        const ushort u = ch.unicode();
+        if (u >= 0xFF01 && u <= 0xFF5E) ch = QChar(ushort(u - 0xFEE0));
+        else if (u == 0x3000) ch = QLatin1Char(' ');
+        else if (u == 0xFFE0) ch = QChar(0x00A2);
+        else if (u == 0xFFE1) ch = QChar(0x00A3);
+        else if (u == 0xFFE2) ch = QChar(0x00AC);
+        else if (u == 0xFFE3) ch = QChar(0x00AF);
+        else if (u == 0xFFE4) ch = QChar(0x00A6);
+        else if (u == 0xFFE5) ch = QChar(0x00A5);
+    }
+    return textResult(s);
+}
+
+Value fnDbcs(Call &c)
+{
+    QString s;
+    if (!c.text(0, &s)) return c.failure();
+    QString out;
+    for (int i = 0; i < s.size(); ++i) {
+        const ushort u = s[i].unicode();
+        if (u >= 0x21 && u <= 0x7E) out += QChar(ushort(u + 0xFEE0));
+        else if (u == 0x20) out += QChar(0x3000);
+        else if (u == 0xA2) out += QChar(0xFFE0);
+        else if (u == 0xA3) out += QChar(0xFFE1);
+        else if (u == 0xAC) out += QChar(0xFFE2);
+        else if (u == 0xAF) out += QChar(0xFFE3);
+        else if (u == 0xA6) out += QChar(0xFFE4);
+        else if (u == 0xA5) out += QChar(0xFFE5);
+        else if (u >= 0xFF61 && u <= 0xFF9F) {
+            // half-width katakana, with a voiced or semi-voiced mark that follows it joined in
+            QString piece(s[i]);
+            if (i + 1 < s.size() && (s[i + 1].unicode() == 0xFF9E || s[i + 1].unicode() == 0xFF9F)) piece += s[++i];
+            out += piece.normalized(QString::NormalizationForm_KC);
+        } else out += s[i];
+    }
+    return textResult(out);
+}
+
+// PHONETIC gives the text of the reference: the readings of Japanese text are not kept here.
+Value fnPhonetic(Call &c)
+{
+    QString s;
+    if (!c.text(0, &s)) return c.failure();
+    return textResult(s);
+}
+
+// ---- BAHTTEXT: a number as Thai words
+
+QString thaiBelowMillion(qint64 n, bool hasHigher)
+{
+    static const char *const digit[] = {"", "\xE0\xB8\xAB\xE0\xB8\x99\xE0\xB8\xB6\xE0\xB9\x88\xE0\xB8\x87", "\xE0\xB8\xAA\xE0\xB8\xAD\xE0\xB8\x87", "\xE0\xB8\xAA\xE0\xB8\xB2\xE0\xB8\xA1",
+                                        "\xE0\xB8\xAA\xE0\xB8\xB5\xE0\xB9\x88", "\xE0\xB8\xAB\xE0\xB9\x89\xE0\xB8\xB2", "\xE0\xB8\xAB\xE0\xB8\x81", "\xE0\xB9\x80\xE0\xB8\x88\xE0\xB9\x87\xE0\xB8\x94",
+                                        "\xE0\xB9\x81\xE0\xB8\x9B\xE0\xB8\x94", "\xE0\xB9\x80\xE0\xB8\x81\xE0\xB9\x89\xE0\xB8\xB2"};
+    static const char *const place[] = {"", "\xE0\xB8\xAA\xE0\xB8\xB4\xE0\xB8\x9A", "\xE0\xB8\xA3\xE0\xB9\x89\xE0\xB8\xAD\xE0\xB8\xA2", "\xE0\xB8\x9E\xE0\xB8\xB1\xE0\xB8\x99",
+                                        "\xE0\xB8\xAB\xE0\xB8\xA1\xE0\xB8\xB7\xE0\xB9\x88\xE0\xB8\x99", "\xE0\xB9\x81\xE0\xB8\xAA\xE0\xB8\x99"};
+    const QString ed = QString::fromUtf8("\xE0\xB9\x80\xE0\xB8\xAD\xE0\xB9\x87\xE0\xB8\x94"), yi = QString::fromUtf8("\xE0\xB8\xA2\xE0\xB8\xB5\xE0\xB9\x88");
+    QString out;
+    const QString digits = QString::number(n);
+    const int len = int(digits.size());
+    for (int i = 0; i < len; ++i) {
+        const int d = digits[i].digitValue(), p = len - 1 - i;
+        if (d == 0) continue;
+        if (p == 0 && d == 1 && (len > 1 || hasHigher)) out += ed;
+        else if (p == 1 && d == 2) out += yi;
+        else if (p == 1 && d == 1) {
+        } else out += QString::fromUtf8(digit[d]);
+        out += QString::fromUtf8(place[p]);
+    }
+    return out;
+}
+
+QString thaiInteger(qint64 n)
+{
+    if (n == 0) return QString::fromUtf8("\xE0\xB8\xA8\xE0\xB8\xB9\xE0\xB8\x99\xE0\xB8\xA2\xE0\xB9\x8C");
+    const QString million = QString::fromUtf8("\xE0\xB8\xA5\xE0\xB9\x89\xE0\xB8\xB2\xE0\xB8\x99");
+    QString out;
+    QList<qint64> groups;
+    for (qint64 rest = n; rest > 0; rest /= 1000000) groups.prepend(rest % 1000000);
+    for (int i = 0; i < groups.size(); ++i) {
+        if (groups[i] != 0) out += thaiBelowMillion(groups[i], i > 0);
+        if (i + 1 < groups.size()) out += million;
+    }
+    return out;
+}
+
+Value fnBahtText(Call &c)
+{
+    double v;
+    if (!c.number(0, &v)) return c.failure();
+    if (std::fabs(v) >= 1e15) return c.error(ErrorKind::Value);
+    const bool negative = v < 0;
+    v = std::fabs(v);
+    qint64 baht = qint64(std::floor(v));
+    qint64 satang = qint64(std::llround((v - double(baht)) * 100));
+    if (satang == 100) {
+        ++baht;
+        satang = 0;
+    }
+    QString out;
+    if (negative && (baht > 0 || satang > 0)) out += QString::fromUtf8("\xE0\xB8\xA5\xE0\xB8\x9A");
+    out += thaiInteger(baht) + QString::fromUtf8("\xE0\xB8\x9A\xE0\xB8\xB2\xE0\xB8\x97");
+    if (satang == 0) out += QString::fromUtf8("\xE0\xB8\x96\xE0\xB9\x89\xE0\xB8\xA7\xE0\xB8\x99");
+    else out += thaiBelowMillion(satang, false) + QString::fromUtf8("\xE0\xB8\xAA\xE0\xB8\x95\xE0\xB8\xB2\xE0\xB8\x87\xE0\xB8\x84\xE0\xB9\x8C");
+    return textResult(out);
+}
+
 } // namespace
 
 void registerTextFunctions(std::vector<FunctionInfo> &r)
 {
     r.push_back({"LEN", 1, 1, "v", 0, fnLen});
+    r.push_back({"NUMBERVALUE", 1, 3, "vvv", kFnFuture, fnNumberValue});
+    r.push_back({"UNICHAR", 1, 1, "v", kFnFuture, fnUnichar});
+    r.push_back({"UNICODE", 1, 1, "v", kFnFuture, fnUnicode});
+    r.push_back({"ENCODEURL", 1, 1, "v", kFnFuture, fnEncodeUrl});
+    r.push_back({"ASC", 1, 1, "v", 0, fnAsc});
+    r.push_back({"DBCS", 1, 1, "v", kFnFuture, fnDbcs});
+    r.push_back({"PHONETIC", 1, 1, "v", 0, fnPhonetic});
+    r.push_back({"BAHTTEXT", 1, 1, "v", 0, fnBahtText});
+    r.push_back({"LENB", 1, 1, "v", 0, fnLen});
+    r.push_back({"LEFTB", 1, 2, "vv", 0, fnLeft});
+    r.push_back({"RIGHTB", 1, 2, "vv", 0, fnRight});
+    r.push_back({"MIDB", 3, 3, "vvv", 0, fnMid});
+    r.push_back({"REPLACEB", 4, 4, "vvvv", 0, fnReplace});
+    r.push_back({"FINDB", 2, 3, "vvv", 0, fnFind});
+    r.push_back({"SEARCHB", 2, 3, "vvv", 0, fnSearch});
     r.push_back({"LEFT", 1, 2, "vv", 0, fnLeft});
     r.push_back({"RIGHT", 1, 2, "vv", 0, fnRight});
     r.push_back({"MID", 3, 3, "vvv", 0, fnMid});

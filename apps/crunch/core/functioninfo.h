@@ -7,7 +7,7 @@
 
 namespace jp::crunch {
 
-enum class FunctionCategory { Financial, DateTime, MathTrig, Statistical, LookupReference, Text, Logical, Information, Database };
+enum class FunctionCategory { Financial, DateTime, MathTrig, Statistical, LookupReference, Text, Logical, Information, Database, Engineering };
 
 struct FunctionDoc {
     const char *name;           // upper case

@@ -9,7 +9,15 @@ When you open a workbook, the file holds the last value of every formula, so the
 
 ## When JeffCrunch can't work a formula out
 
-JeffCrunch has more than 200 functions, and it is still growing. A formula that uses a function JeffCrunch doesn't have yet keeps the value the file stored for it. So does one that refers to another workbook. Cells that depend on those are worked out from the stored values.
+JeffCrunch has more than 400 functions, and it is still growing. A formula that uses a function JeffCrunch doesn't have yet keeps the value the file stored for it. So does one that refers to another workbook. Cells that depend on those are worked out from the stored values.
+
+## Functions that need a few notes
+
+- **Bonds and loans.** PRICE, YIELD, DURATION, ODDFPRICE, and the other bond functions count days the way the **basis** you give says (0 is 30 days to a month in a 360-day year, 1 is the real days, and so on). YIELD, ODDFYIELD, ODDLYIELD, and RATE find their answer by trying values until the price or payment fits. They stop when the answer is right to about 15 digits, so the last digits may differ from another program's.
+- **Distributions and tests.** The functions that end in .DIST, .INV, .TEST, and the older names such as NORMDIST and TDIST, give the same answers: an older name is kept so that old files still work. The *.INV functions are found by trying values too.
+- **Lists that fill several cells.** SORT, SORTBY, FILTER, UNIQUE, SEQUENCE, RANDARRAY, XLOOKUP, MMULT, MINVERSE, and LINEST give a block of values. Enter them as an array formula (**Ctrl+Shift+Enter**) over the cells they should fill. Letting a formula spill into the cells next to it is not done yet.
+- **Texts in other scripts.** LENB, LEFTB, MIDB, RIGHTB, FINDB, SEARCHB, and REPLACEB count each character as one, as they do on a computer that is not set up for double-byte text. PHONETIC gives the text of the cell, because JeffCrunch does not keep the readings of Japanese text.
+- **CONVERT.** Units are written as text, with capital and small letters as shown in the function's list: "kg", "lbm", "mi", "F". A metric prefix can go in front of a unit that takes one, such as "km" or "mL".
 
 ## MOD: the remainder
 

@@ -77,6 +77,10 @@ bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error, b
 // the files kept the digits of the original: with these two rules 21 cells in 3.1 million of the practice workbooks, instead of 1,900, differ by more than a few units of the last place.)
 double powerOf(double x, double y);
 
+// Days between two dates counted 30 to a month, and the span as a fraction of a year by YEARFRAC's basis (fn_date.cpp); false for a date or basis that is none.
+bool daysBetween360(double a, double b, bool european, DateSystem sys, double *days);
+bool yearFractionOf(double a, double b, int basis, DateSystem sys, double *out);
+
 // A sum or difference of numbers that cancel is zero where what is left is no more than the rounding error of the terms. The limits were found by comparing with the
 // results of the files (a wider one makes a zero of differences the files keep, a narrower one keeps the rounding error of differences they make zero): the last
 // operation of a formula is zero within 2^-49 of the larger term (9450 - 9449.999999999989 is zero; 0.01 - 0.00999999999999997 is not), and SUM, at each step, within 2^-50.

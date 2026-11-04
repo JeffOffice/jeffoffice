@@ -64,6 +64,7 @@ struct CalcOptions {
 
 class Calculation : public WorkbookSource {
 public:
+    bool formulaInfo(int sheet, quint32 row, quint32 col, QString *text) const override;
     explicit Calculation(const Workbook &book, const CalcOptions &options = CalcOptions());
     ~Calculation() override;
 
