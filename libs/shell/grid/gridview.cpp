@@ -377,6 +377,20 @@ void GridView::setShowGridlines(bool on)
     viewport()->update();
 }
 
+void GridView::setRightToLeft(bool on)
+{
+    if (m_sheet.rightToLeft() == on) return;
+    m_sheet.setRightToLeft(on);
+    layoutChanged();
+}
+
+void GridView::conditionalFormatsChanged()
+{
+    m_sheet.resetConditional();
+    m_sheet.invalidateLooks();
+    viewport()->update();
+}
+
 void GridView::setShowHeadings(bool on)
 {
     m_headings = on;
@@ -632,6 +646,7 @@ void GridView::startStats()
 {
     m_statsWalk.reset();
     m_statsText.clear();
+    m_haveLastStats = false;
     const GridSheet &sheet = m_sheet;
     GridRange r = m_selection.range;
     quint32 usedRows = 0, usedCols = 0;
@@ -659,8 +674,21 @@ void GridView::stepStats()
         m_walkTimer.start(0);
         return;
     }
-    m_statsText = jp::grid::statsText(m_statsWalk->stats());
+    m_lastStats = m_statsWalk->stats();
+    m_haveLastStats = true;
+    m_statsText = jp::grid::statsText(m_lastStats, m_statChoices);
     m_statsWalk.reset();
+    Q_EMIT statsChanged(m_statsText);
+}
+
+void GridView::setStatChoices(int choices)
+{
+    if (choices == m_statChoices) return;
+    m_statChoices = choices;
+    if (m_statsWalk || !m_haveLastStats) return;   // (the walk in hand makes its text with the choices then)
+    const QString text = jp::grid::statsText(m_lastStats, m_statChoices);
+    if (text == m_statsText) return;
+    m_statsText = text;
     Q_EMIT statsChanged(m_statsText);
 }
 
@@ -755,6 +783,7 @@ PaintOptions GridView::paintOptions() const
     o.selection = m_cellsEnabled ? &m_selection : nullptr;
     o.fillHandle = m_cellsEnabled;
     o.fillPreview = m_drag == Drag::Fill && !(m_fillExtent == m_fillSource) ? &m_fillExtent : nullptr;
+    if (m_drag == Drag::MoveCells && !(m_moveTarget == m_moveSource)) o.fillPreview = &m_moveTarget;
     o.pointMarks = m_pointMarks.empty() ? nullptr : &m_pointMarks;
     o.copyRange = hasCopyBorder() ? &m_copyBorder : nullptr;
     o.copyPhase = m_copyPhase;
@@ -1086,6 +1115,15 @@ void GridView::dragTo(const QPoint &pos)
             m_fillExtent = extent;
             viewport()->update();
         }
+    } else if (m_drag == Drag::MoveCells && h.kind == Hit::Kind::Cell) {
+        constexpr qint64 kRows = jp::office::sheet::kMaxRows, kCols = jp::office::sheet::kMaxColumns;
+        const GridRange &src = m_moveSource;
+        const qint64 dRow = std::clamp(h.row - m_pressRow, -src.row1, kRows - 1 - src.row2), dCol = std::clamp(h.col - m_pressCol, -src.col1, kCols - 1 - src.col2);
+        const GridRange to{src.row1 + dRow, src.col1 + dCol, src.row2 + dRow, src.col2 + dCol};
+        if (!(to == m_moveTarget)) {
+            m_moveTarget = to;
+            viewport()->update();
+        }
     } else if ((m_drag == Drag::MarkMove || m_drag == Drag::MarkResize) && h.kind == Hit::Kind::Cell && m_pointAdjuster) {
         GridRange r = m_markFrom;
         constexpr qint64 kRows = jp::office::sheet::kMaxRows, kCols = jp::office::sheet::kMaxColumns;
@@ -1210,6 +1248,16 @@ void GridView::mousePressEvent(QMouseEvent *e)
         m_lastMouse = lp;
         return;
     }
+    if (h.kind == Hit::Kind::Cell && m_cellsEnabled && !shift && !(e->modifiers() & Qt::AltModifier) && h.row >= m_selection.range.row1 && h.row <= m_selection.range.row2
+        && h.col >= m_selection.range.col1 && h.col <= m_selection.range.col2 && selectionBorderAtInLayout(lp)) {
+        m_drag = Drag::MoveCells;
+        m_moveSource = m_moveTarget = m_selection.range;
+        m_moveCopy = e->modifiers() & Qt::ControlModifier;
+        m_pressRow = h.row;
+        m_pressCol = h.col;
+        m_lastMouse = lp;
+        return;
+    }
     switch (h.kind) {
     case Hit::Kind::Cell:
         m_drag = Drag::Cells;   // (before the selection is set: it is settled when the button is let go)
@@ -1261,7 +1309,7 @@ void GridView::mouseMoveEvent(QMouseEvent *e)
     bool markCorner = false;
     if (m_pointAdjuster && !m_pointMarks.empty() && markGrab(lp, &markIndex, &markCorner)) viewport()->setCursor(markCorner ? Qt::SizeFDiagCursor : Qt::SizeAllCursor);
     else if (borderAtInLayout(lp, &column, &index)) viewport()->setCursor(column ? Qt::SplitHCursor : Qt::SplitVCursor);
-    else viewport()->setCursor(fillHandleRectInLayout().contains(lp) ? Qt::CrossCursor : Qt::ArrowCursor);
+    else viewport()->setCursor(fillHandleRectInLayout().contains(lp) ? Qt::CrossCursor : m_cellsEnabled && selectionBorderAtInLayout(lp) ? Qt::SizeAllCursor : Qt::ArrowCursor);
     const Hit over = m_sheet.layout().hit(lp);
     const qint64 hr = over.kind == Hit::Kind::Cell ? over.row : -1, hc = over.kind == Hit::Kind::Cell ? over.col : -1;
     if (hr != m_hoverRow || hc != m_hoverCol) {
@@ -1328,6 +1376,23 @@ void GridView::mouseReleaseEvent(QMouseEvent *e)
         if (m_pointAdjuster) m_pointAdjuster(m_markId, m_markFrom, true);   // (the block it was: the window keeps what the last move wrote, and takes the focus back)
         return;
     }
+    if (m_drag == Drag::MoveCells) {
+        const GridRange source = m_moveSource, target = m_moveTarget;
+        const bool copy = m_moveCopy || (e && (e->modifiers() & Qt::ControlModifier));
+        const qint64 pressRow = m_pressRow, pressCol = m_pressCol;
+        m_drag = Drag::None;
+        m_autoScroll.stop();
+        viewport()->update();
+        if (!(target == source)) {
+            Q_EMIT moveRequested(source, target, copy);
+        } else {
+            // (not moved: a click on the border changes nothing, and a selection of several cells stays)
+            (void)pressRow;
+            (void)pressCol;
+        }
+        m_pressRow = m_pressCol = -1;
+        return;
+    }
     const bool fill = m_drag == Drag::Fill;
     const bool selecting = m_drag == Drag::Cells || m_drag == Drag::Rows || m_drag == Drag::Columns;
     const bool clicking = m_drag == Drag::Cells && e && e->button() == Qt::LeftButton && m_pressRow >= 0;
@@ -1348,6 +1413,17 @@ void GridView::mouseReleaseEvent(QMouseEvent *e)
 }
 
 QRect GridView::fillHandleRect() const { return mirror(fillHandleRectInLayout()); }
+
+bool GridView::selectionBorderAtInLayout(const QPoint &lp) const
+{
+    if (m_selection.whole != Selection::Whole::None || fillHandleRectInLayout().contains(lp)) return false;
+    const GridRange &r = m_selection.range;
+    const QRect a = cellRectInLayout(r.row1, r.col1), b = cellRectInLayout(r.row2, r.col2);
+    if (a.isEmpty() || b.isEmpty()) return false;   // (a corner of it is out of view: not grabbed)
+    const QRect rect = a.united(b);
+    // (the border line itself: the two pixels inside the edge of the block and the one the gridline takes outside it; a press a little off it selects as ever)
+    return rect.adjusted(-1, -1, 1, 1).contains(lp) && !rect.adjusted(2, 2, -2, -2).contains(lp);
+}
 
 QRect GridView::fillHandleRectInLayout() const
 {
@@ -1404,6 +1480,11 @@ void GridView::mouseDoubleClickEvent(QMouseEvent *e)
     if (borderAtInLayout(lp, &column, &index)) {
         m_drag = Drag::None;
         Q_EMIT fitRequested(column, index);
+        return;
+    }
+    if (m_selection.whole == Selection::Whole::None && fillHandleRectInLayout().contains(lp)) {
+        m_drag = Drag::None;
+        Q_EMIT fillHandleDoubleClicked(m_selection.range);
         return;
     }
     const Hit h = m_sheet.layout().hit(lp);

@@ -4,6 +4,8 @@
 
 #include "app/crunchwindow.h"
 
+#include "app/ribbon.h"
+
 #include "core/editsession.h"
 #include "core/printjob.h"
 #include "grid/gridview.h"
@@ -34,6 +36,14 @@ constexpr double kBreakViewZoom = 0.6;
 
 } // namespace
 
+// The Full Screen check follows the window (it is also left by the window system's own button or key).
+void CrunchWindow::changeEvent(QEvent *e)
+{
+    AppWindow::changeEvent(e);
+    if (e->type() == QEvent::WindowStateChange)
+        if (QAction *a = act(QStringLiteral("view.fullScreen"))) a->setChecked(isFullScreen());
+}
+
 void CrunchWindow::createViewActions()
 {
     auto *group = new QActionGroup(this);
@@ -46,6 +56,13 @@ void CrunchWindow::createViewActions()
     };
     view(QStringLiteral("view.normal"), tr("Normal"), QStringLiteral("table-2"), 0)->setChecked(true);
     view(QStringLiteral("view.pageBreakView"), tr("Page Breaks"), QStringLiteral("scissors-line-dashed"), 1);
+    // the window: the ribbon folded away (Ctrl+F1) and the whole screen
+    mk(QStringLiteral("view.collapseRibbon"), tr("Collapse the Ribbon"), "chevron-up", QKeySequence(Qt::CTRL | Qt::Key_F1), [this] { m_ribbon->setMinimized(!m_ribbon->isMinimized()); });
+    mk(QStringLiteral("view.fullScreen"), tr("Full Screen"), "maximize", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F1), [this] {
+        if (isFullScreen()) showNormal();
+        else showFullScreen();
+        act(QStringLiteral("view.fullScreen"))->setChecked(isFullScreen());
+    }, true);
 }
 
 void CrunchWindow::addViewButtons(QStatusBar *bar)

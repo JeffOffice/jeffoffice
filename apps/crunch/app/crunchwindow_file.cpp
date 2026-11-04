@@ -431,6 +431,10 @@ void CrunchWindow::showSheet(int sheetIndex, bool keepView)
 void CrunchWindow::afterSheetShown(int sheetIndex, bool inPlace)
 {
     const jp::office::sheet::Sheet *shown = m_view->sheet().data().sheet;
+    // (which way the sheet reads is what the person left it at, not the file's alone)
+    if (m_session && sheetIndex >= 0 && sheetIndex < m_session->pages().sheetCount()) m_view->setRightToLeft(m_session->pages().pane(sheetIndex).rightToLeft);
+    if (QAction *rtl = act("view.rightToLeft")) rtl->setChecked(m_view->sheet().rightToLeft());
+    updateCondActions();
     if (!inPlace) {
         m_view->setShowFormulas(act("view.formulas")->isChecked());
         // (the colors the buttons of the ribbon offer are the workbook's theme)

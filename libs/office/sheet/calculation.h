@@ -64,6 +64,7 @@ struct CalcOptions {
 
 class Calculation : public WorkbookSource {
 public:
+    bool formulaInfo(int sheet, quint32 row, quint32 col, QString *text) const override;
     explicit Calculation(const Workbook &book, const CalcOptions &options = CalcOptions());
     ~Calculation() override;
 
@@ -543,6 +544,9 @@ public:
     // Whether a formula (a cell's or a name's) reads a block of several sheets, which moving, adding, or deleting a sheet could change the meaning of.
     bool hasThreeDReferences() const;
 
+    // ---- conditional formatting: the sheet's rules (by priority) put in place of what it has; the rules it had are given back (for Undo). Nothing is calculated again: the rules are read
+    // when the cells are drawn.
+    QVector<CondRule> replaceConditionalFormats(int sheet, const QVector<CondRule> &rules);
     // ---- the defined names (a name's key is its scope, a "|", and its name in capitals). `scope` is the place of the sheet a name belongs to, -1 for the workbook's.
     // What the name stands for (the text of its formula, as a file writes it), by exactly that scope; false if there is none.
     bool nameText(int scope, const QString &name, QString *text) const;

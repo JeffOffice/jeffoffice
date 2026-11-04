@@ -14,6 +14,11 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QLabel>
+#include <QDialogButtonBox>
+#include <QPlainTextEdit>
+#include <QPushButton>
+#include <QTimer>
 #include <QClipboard>
 #include <QLineEdit>
 #include <QListWidget>
@@ -151,6 +156,112 @@ private Q_SLOTS:
         QCOMPARE(shown(e, QStringLiteral("A3:A4")), QStringLiteral("Mittwoch|Mittwoch"));
     }
 
+    // A custom list (kept in Options) goes in turn like the weekdays: a cell that holds one of its items is followed by the next, round to the first, without regard to capitals;
+    // cells that hold items of different lists are copied.
+    void fillFollowsCustomLists()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Small", "B1=large", "C1=Small", "D1=Large", "E1=Small"})));
+        using Dir = crunch::EditSession::FillDirection;
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("A1")), Dir::Down, 2).ok);
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("Small|Small|Small"));          // (not a list yet: copied)
+        s->setCustomLists({{QStringLiteral("Small"), QStringLiteral("Medium"), QStringLiteral("Large")}});
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("C1")), Dir::Down, 4).ok);
+        QCOMPARE(shown(e, QStringLiteral("C1:C5")), QStringLiteral("Small|Medium|Large|Small|Medium"));
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("B1")), Dir::Down, 2).ok);                       // lower case: the next ones in lower case
+        QCOMPARE(shown(e, QStringLiteral("B1:B3")), QStringLiteral("large|small|medium"));
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("E1")), Dir::Left, 1).ok);
+        QCOMPARE(shown(e, QStringLiteral("D1:E1")), QStringLiteral("Large|Small"));
+        s->setCustomLists({});                                                                     // taken away: copied again
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("C1")), Dir::Down, 1).ok);
+        QCOMPARE(shown(e, QStringLiteral("C1:C2")), QStringLiteral("Small|Small"));
+    }
+
+    // The Custom Lists page of Options: the lists typed there are kept in the settings (one line each, the words between commas) and are what Fill goes through at once; a workbook that is opened
+    // does not rewrite the settings; the limits of a list hold.
+    void customListsPageAndSettingsRoundTrip()
+    {
+        auto &settings = Settings::get();
+        struct Cleanup {
+            ~Cleanup() { Settings::get().setValue(QStringLiteral("crunch/customLists"), QStringList()); }   // (the person's settings are put back whether or not a check fails)
+        } cleanup;
+        settings.setValue(QStringLiteral("crunch/customLists"), QStringList{QStringLiteral(" Small ,Medium,  Large ")});   // (written by hand, not as the program writes it)
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Medium", "C1=Red"})));
+        QCOMPARE(settings.value(QStringLiteral("crunch/customLists")).toStringList(), QStringList{QStringLiteral(" Small ,Medium,  Large ")});   // (opening did not rewrite it)
+        using Dir = crunch::EditSession::FillDirection;
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("A1")), Dir::Down, 2).ok);
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("Medium|Large|Small"));
+        // the page
+        // (the window is waited for: a timer looks for it until it is there)
+        auto *watch = new QTimer(&e.win.w);
+        watch->setInterval(10);
+        connect(watch, &QTimer::timeout, watch, [watch] {
+            QWidget *dialog = QApplication::activeModalWidget();
+            if (!dialog || dialog->findChildren<QPlainTextEdit *>(QStringLiteral("optionCustomLists")).isEmpty()) return;
+            watch->stop();
+            for (QPlainTextEdit *edit : dialog->findChildren<QPlainTextEdit *>(QStringLiteral("optionCustomLists"))) {
+                QCOMPARE(edit->toPlainText(), QStringLiteral("Small, Medium, Large"));
+                edit->setPlainText(QStringLiteral("Red, Green, Blue\nlonely\n"));
+            }
+            if (auto *buttons = dialog->findChild<QDialogButtonBox *>()) buttons->button(QDialogButtonBox::Ok)->click();
+        });
+        watch->start();
+        e.win.w.act(QStringLiteral("file.options"))->trigger();
+        QCOMPARE(settings.value(QStringLiteral("crunch/customLists")).toStringList(), QStringList{QStringLiteral("Red, Green, Blue")});   // (a list of one word is no list)
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("C1")), Dir::Down, 2).ok);
+        QCOMPARE(shown(e, QStringLiteral("C1:C3")), QStringLiteral("Red|Green|Blue"));
+        // the limits: 50 lists, 1,000 words in a list, 255 characters in a word
+        QList<QStringList> many;
+        for (int i = 0; i < 60; ++i) many.append({QStringLiteral("a%1").arg(i), QStringLiteral("b%1").arg(i)});
+        s->setCustomLists(many);
+        QCOMPARE(int(s->customLists().size()), crunch::EditSession::kMaxCustomLists);
+        QStringList longList;
+        for (int i = 0; i < 1200; ++i) longList << QStringLiteral("w%1").arg(i);
+        longList << QString(300, QLatin1Char('x'));
+        s->setCustomLists({longList});
+        QCOMPARE(int(s->customLists().first().size()), crunch::EditSession::kMaxCustomListItems);
+        // a word of more than 255 characters, even the first of its list, is left out
+        s->setCustomLists({{QString(300, QLatin1Char('x')), QStringLiteral("b"), QStringLiteral("c")}});
+        QCOMPARE(s->customLists().first(), QStringList({QStringLiteral("b"), QStringLiteral("c")}));
+        // and the same limits hold for what the settings hold: they are read through the window's own parser
+        QStringList lines = {QStringLiteral("%1, p, q").arg(QString(300, QLatin1Char('y')))};
+        QString big;
+        for (int i = 0; i < 1200; ++i) big += QStringLiteral("w%1,").arg(i);
+        lines << big << QStringLiteral("only");
+        for (int i = 0; i < 60; ++i) lines << QStringLiteral("m%1, n%1").arg(i);
+        settings.setValue(QStringLiteral("crunch/customLists"), lines);
+        EditWindow again;
+        QVERIFY(again.open(sheetOf({"A1=p"})));
+        const QList<QStringList> held = again.win.w.session()->customLists();
+        QCOMPARE(int(held.size()), crunch::EditSession::kMaxCustomLists);
+        QCOMPARE(held[0], QStringList({QStringLiteral("p"), QStringLiteral("q")}));
+        QCOMPARE(int(held[1].size()), crunch::EditSession::kMaxCustomListItems);
+        QCOMPARE(settings.value(QStringLiteral("crunch/customLists")).toStringList(), lines);   // (opening wrote nothing)
+    }
+
+    // The right click on the numbers of the selection in the status bar: a menu with the six choices that are checked as they are on, one at least stays on, and the choice is kept.
+    void theStatusBarMenuChoosesWhichNumbersAreShown()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=6"})));
+        e.view()->selectRange(0, 0, 2, 0);
+        QTRY_VERIFY(e.win.w.findChild<QLabel *>(QStringLiteral("selectionStats"))->text().startsWith(QLatin1String("Average: ")));
+        QMenu *menu = e.win.w.statsChoiceMenu();
+        QVERIFY(menu);
+        QStringList names;
+        for (QAction *a : menu->actions()) names << a->text() + (a->isChecked() ? QStringLiteral("*") : QString());
+        QCOMPARE(names, QStringList({"Average*", "Count*", "Numerical Count", "Minimum", "Maximum", "Sum*"}));
+        menu->actions().at(3)->trigger();                                          // Minimum on
+        QVERIFY(e.win.w.findChild<QLabel *>(QStringLiteral("selectionStats"))->text().contains(QLatin1String("Minimum: 1")));
+        QCOMPARE(Settings::get().value(QStringLiteral("crunch/statusStats")).toInt(), grid::kDefaultStatChoices | grid::StatMinimum);
+        for (int i : {0, 1, 5, 3}) e.win.w.statsChoiceMenu()->actions().at(i)->trigger();   // Average, Count, Sum, then Minimum off: the last one stays
+        QCOMPARE(e.view()->statChoices(), int(grid::StatMinimum));
+        Settings::get().setValue(QStringLiteral("crunch/statusStats"), grid::kDefaultStatChoices);   // (the choice is the person's: the next window starts as it was)
+    }
+
     // Ctrl+D and Ctrl+R copy the first row (column) of the selection over the rest, and a single cell takes what is above (left of) it; one step each; the keys are the platform's.
     void controlDAndControlRFillWhatIsSelected()
     {
@@ -234,6 +345,157 @@ private Q_SLOTS:
         QCOMPARE(requested.count(), count);
         e.view()->selectColumns(0, 1);
         QVERIFY(e.view()->fillHandleRect().isEmpty());
+    }
+
+    // A double click on the fill handle fills down as far as the data beside the block goes: the column to its left, else the one to its right; one step.
+    void doubleClickOnTheFillHandleFillsDownAsFarAsTheDataBeside()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "A4=4", "A5=5", "B1=10", "D1=7", "E2=x", "E3=y"})));
+        e.win.w.resize(1100, 640);
+        auto doubleClick = [&] {
+            const QRect h = e.view()->fillHandleRect();
+            QVERIFY(!h.isEmpty());
+            QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, h.center());
+            QTest::mouseDClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, h.center());
+        };
+        e.select(QStringLiteral("B1"));                                          // data to its left: A1:A5
+        doubleClick();
+        QCOMPARE(shown(e, QStringLiteral("B1:B5")), QStringLiteral("10|10|10|10|10"));
+        QCOMPARE(e.view()->rangeName(), QStringLiteral("B1:B5"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        e.select(QStringLiteral("D1"));                                          // nothing to its left (C is empty); E has data under row 1
+        doubleClick();
+        QCOMPARE(shown(e, QStringLiteral("D1:D3")), QStringLiteral("7|7|7"));
+        QCOMPARE(e.win.w.undoStack()->count(), 2);
+        e.select(QStringLiteral("G1"));                                          // data on neither side: nothing happens
+        doubleClick();
+        QCOMPARE(e.win.w.undoStack()->count(), 2);
+        // one step of Undo takes the whole fill back
+        pressUndo(&e.win.w);
+        QCOMPARE(shown(e, QStringLiteral("D1:D3")), QStringLiteral("7||"));
+        QCOMPARE(e.win.w.undoStack()->index(), 1);
+    }
+
+    // The fill stops before the first cell that already holds something (it does not write over it), and a row that is hidden (or filtered out) is filled as Fill Down fills it.
+    void doubleClickOnTheFillHandleStopsAtACellThatHoldsSomething()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "A4=4", "A5=5", "B1=10", "B4=99"})));
+        e.win.w.resize(1100, 640);
+        e.select(QStringLiteral("B1"));
+        const QRect h = e.view()->fillHandleRect();
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, h.center());
+        QTest::mouseDClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, h.center());
+        QCOMPARE(shown(e, QStringLiteral("B1:B5")), QStringLiteral("10|10|10|99|"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        // a hidden row inside the run is filled too, as Fill Down does
+        EditWindow f;
+        QVERIFY(f.open(sheetOf({"A1=1", "A2=2", "A3=3", "B1=10"})));
+        f.win.w.resize(1100, 640);
+        f.view()->selectRows(1, 1);
+        f.win.w.act(QStringLiteral("format.hideRows"))->trigger();
+        f.select(QStringLiteral("B1"));
+        const QRect g = f.view()->fillHandleRect();
+        QTest::mouseClick(f.view()->viewport(), Qt::LeftButton, Qt::NoModifier, g.center());
+        QTest::mouseDClick(f.view()->viewport(), Qt::LeftButton, Qt::NoModifier, g.center());
+        QCOMPARE(shown(f, QStringLiteral("B1:B3")), QStringLiteral("10|10|10"));
+    }
+
+    // Dragging the border of the selection moves the block there (Ctrl copies it); the formulas that point at it follow, it is one step, and a click on the border is still a click.
+    void draggingTheSelectionBorderMovesOrCopiesTheBlock()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "C1==A1+A2"})));
+        e.win.w.resize(1100, 640);
+        auto drag = [&](const QString &toCell, Qt::KeyboardModifiers modifiers) {
+            const QRect r = e.view()->cellRect(0, 0);
+            const QPoint onBorder(r.left() + r.width() / 2, r.top());           // the top edge of A1
+            QTest::mousePress(e.view()->viewport(), Qt::LeftButton, modifiers, onBorder);
+            quint32 row = 0, col = 0;
+            parseCellRef(toCell, &row, &col);
+            const QRect target = e.view()->cellRect(row, col);
+            const QPoint at(target.center().x(), target.top() + (onBorder.y() - r.top()) + r.height() / 2);
+            QMouseEvent move(QEvent::MouseMove, QPointF(at), QPointF(e.view()->viewport()->mapToGlobal(at)), Qt::NoButton, Qt::LeftButton, modifiers);
+            QApplication::sendEvent(e.view()->viewport(), &move);
+            QTest::mouseRelease(e.view()->viewport(), Qt::LeftButton, modifiers, at);
+        };
+        e.view()->selectRange(0, 0, 1, 0);                                       // A1:A2
+        QSignalSpy moved(e.view(), &grid::GridView::moveRequested);
+        drag(QStringLiteral("E1"), Qt::NoModifier);
+        QCOMPARE(moved.count(), 1);
+        QCOMPARE(shown(e, QStringLiteral("E1:E2")), QStringLiteral("1|2"));
+        QCOMPARE(shown(e, QStringLiteral("A1:A2")), QStringLiteral("|"));
+        QCOMPARE(e.view()->rangeName(), QStringLiteral("E1:E2"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QCOMPARE(e.win.w.session()->calculation()->content(0, 0, 2).formula, QStringLiteral("E1+E2"));
+        pressUndo(&e.win.w);
+        QCOMPARE(shown(e, QStringLiteral("A1:A2")), QStringLiteral("1|2"));
+        // with Ctrl: a copy
+        e.view()->selectRange(0, 0, 1, 0);
+        drag(QStringLiteral("G1"), Qt::ControlModifier);
+        QCOMPARE(shown(e, QStringLiteral("A1:A2")), QStringLiteral("1|2"));
+        QCOMPARE(shown(e, QStringLiteral("G1:G2")), QStringLiteral("1|2"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        pressUndo(&e.win.w);                                                     // one step takes the copy back
+        QCOMPARE(shown(e, QStringLiteral("G1:G2")), QStringLiteral("|"));
+        QCOMPARE(shown(e, QStringLiteral("A1:A2")), QStringLiteral("1|2"));
+        e.view()->selectRange(0, 0, 1, 0);
+        // a press and release on the border without moving is a click: it selects the cell
+        e.view()->selectRange(0, 0, 1, 0);
+        const int count = moved.count();
+        const QRect r = e.view()->cellRect(0, 0);
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(r.left() + r.width() / 2, r.top()));
+        QCOMPARE(moved.count(), count);
+        QCOMPARE(e.view()->selection().range.row1, qint64(0));
+        QCOMPARE(e.view()->selection().range.row2, qint64(1));                  // (a selection of several cells is not collapsed by it)
+    }
+
+    // What points at moved cells follows them when the border is dragged: a formula on another sheet, a defined name, and a conditional format.
+    void draggingTheBorderKeepsReferencesFromElsewhereRight()
+    {
+        const QString rowsOne = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c></row>");
+        const QByteArray one = worksheet(rowsOne, QStringLiteral("<conditionalFormatting sqref=\"A1:A2\"><cfRule type=\"cellIs\" priority=\"1\" operator=\"greaterThan\"><formula>1</formula></cfRule></conditionalFormatting>"));
+        const QByteArray two = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><f>Sheet1!A1+Sheet1!A2</f><v>3</v></c></row>"));
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({one, two}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QStringLiteral("<definedName name=\"Pts\">Sheet1!$A$1:$A$2</definedName>"))));
+        e.win.w.resize(1100, 640);
+        e.view()->selectRange(0, 0, 1, 0);
+        Q_EMIT e.view()->moveRequested(grid::GridRange{0, 0, 1, 0}, grid::GridRange{0, 2, 1, 2}, false);   // A1:A2 dropped on C1:C2
+        QCOMPARE(shown(e, QStringLiteral("C1:C2")), QStringLiteral("1|2"));
+        const jp::office::sheet::Calculation *calc = e.win.w.session()->calculation();
+        QCOMPARE(calc->content(1, 0, 0).formula, QStringLiteral("Sheet1!C1+Sheet1!C2"));
+        QString pts;
+        QVERIFY(calc->nameText(-1, QStringLiteral("Pts"), &pts));
+        QCOMPARE(pts.remove(QLatin1Char('=')), QStringLiteral("Sheet1!$C$1:$C$2"));
+        const auto &rules = calc->sheet(0).conditionalFormats;
+        QVERIFY(!rules.isEmpty());
+        QCOMPARE(rangeName(rules.first().ranges.first()), QStringLiteral("C1:C2"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        pressUndo(&e.win.w);
+        QCOMPARE(calc->content(1, 0, 0).formula, QStringLiteral("Sheet1!A1+Sheet1!A2"));
+        QCOMPARE(rangeName(calc->sheet(0).conditionalFormats.first().ranges.first()), QStringLiteral("A1:A2"));
+    }
+
+    // A press just outside the selection (a couple of pixels below its border) and a drag selects as ever: nothing is moved.
+    void aDragThatBeginsJustOutsideTheSelectionBorderSelects()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"B2=1", "B3=2", "B4=3"})));
+        e.win.w.resize(1100, 640);
+        e.select(QStringLiteral("B2"));
+        QSignalSpy moved(e.view(), &grid::GridView::moveRequested);
+        const QRect below = e.view()->cellRect(2, 1);                            // B3
+        const QPoint press(below.center().x(), below.top() + 2);                  // (two pixels under the border of B2)
+        QTest::mousePress(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+        const QPoint at = e.view()->cellRect(5, 1).center();                      // B6
+        QMouseEvent move(QEvent::MouseMove, QPointF(at), QPointF(e.view()->viewport()->mapToGlobal(at)), Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(e.view()->viewport(), &move);
+        QTest::mouseRelease(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, at);
+        QCOMPARE(moved.count(), 0);
+        QCOMPARE(e.view()->rangeName(), QStringLiteral("B3:B6"));
+        QCOMPARE(shown(e, QStringLiteral("B2:B4")), QStringLiteral("1|2|3"));
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
     }
 
     // Fill > Series asks how the series goes (kind, step, stop, unit) and fills the selection from its first row (column).

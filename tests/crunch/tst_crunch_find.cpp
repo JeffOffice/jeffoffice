@@ -14,6 +14,7 @@
 #include "findbooks.h"
 
 #include <QAction>
+#include <QElapsedTimer>
 #include <QComboBox>
 #include <QLabel>
 #include <QLineEdit>
@@ -635,6 +636,60 @@ private Q_SLOTS:
         const crunch::SpecialResult none = special(e, K::Errors, QStringLiteral("A1:C5"));
         QVERIFY(none.ranges.isEmpty());
         QVERIFY(!none.problem.isEmpty());
+    }
+
+    // Row differences and column differences select the cells that are not like the cell with the cursor in their row (column): another number or text, a formula that is not the same once its
+    // references are moved, or a formula where the other has none. The current array is the array formula the cursor is in.
+    void goToSpecialFindsDifferencesAndTheCurrentArray()
+    {
+        using K = crunch::SpecialKind;
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1=2", "C1=1", "A2=5", "B2=5", "C2=9", "E1==A1+1", "E2==A2+1", "F1==A1+1", "F2=7"})));
+        QCOMPARE(rangesOf(special(e, K::RowDifferences, QStringLiteral("A1:C2"))), QStringLiteral("B1 C2"));
+        QCOMPARE(rangesOf(special(e, K::ColumnDifferences, QStringLiteral("A1:C2"))), QStringLiteral("A2:C2"));
+        // formulas are the same when they are alike once moved; a constant where the other is a formula differs
+        QCOMPARE(rangesOf(special(e, K::ColumnDifferences, QStringLiteral("E1:F2"), QStringLiteral("E1"))), QStringLiteral("F2"));
+        // a single cell looks at the block around it
+        QCOMPARE(rangesOf(special(e, K::RowDifferences, QString(), QStringLiteral("A1"))), QStringLiteral("B1 C2"));
+        QVERIFY(special(e, K::RowDifferences, QStringLiteral("A1:A1"), QStringLiteral("H9")).ranges.isEmpty());
+        // the current array
+        const crunch::SpecialResult noArray = special(e, K::CurrentArray, QString(), QStringLiteral("A1"));
+        QVERIFY(noArray.ranges.isEmpty());
+        QVERIFY(!noArray.problem.isEmpty());
+        EditWindow arrays;
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"G1\"><f t=\"array\" ref=\"G1:G2\">A1:A2*2</f><v>2</v></c></row>"
+                                            "<row r=\"2\"><c r=\"A2\"><v>5</v></c><c r=\"G2\"><v>10</v></c></row>");
+        QVERIFY(arrays.open(buildXlsx({worksheet(rows)})));
+        QCOMPARE(rangesOf(special(arrays, K::CurrentArray, QString(), QStringLiteral("G2"))), QStringLiteral("G1:G2"));
+        QCOMPARE(rangesOf(special(arrays, K::CurrentArray, QString(), QStringLiteral("G1"))), QStringLiteral("G1:G2"));
+        QVERIFY(special(arrays, K::CurrentArray, QString(), QStringLiteral("A2")).ranges.isEmpty());
+        // an array of one cell is an array; a data table is not
+        EditWindow more;
+        const QString moreRows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"C1\"><f t=\"array\" ref=\"C1\">A1*2</f><v>2</v></c></row>"
+                                                "<row r=\"2\"><c r=\"A2\"><v>5</v></c></row>"
+                                                "<row r=\"5\"><c r=\"A5\"><v>1</v></c><c r=\"B5\"><f t=\"dataTable\" ref=\"B5:B6\" dt2D=\"0\" dtr=\"0\" r1=\"A2\"/><v>0</v></c></row>"
+                                                "<row r=\"6\"><c r=\"B6\"><v>0</v></c></row>");
+        QVERIFY(more.open(buildXlsx({worksheet(moreRows)})));
+        QCOMPARE(rangesOf(special(more, K::CurrentArray, QString(), QStringLiteral("C1"))), QStringLiteral("C1"));
+        const crunch::SpecialResult table = special(more, K::CurrentArray, QString(), QStringLiteral("B5"));
+        QVERIFY(table.ranges.isEmpty() && !table.problem.isEmpty());
+        QVERIFY(special(more, K::CurrentArray, QString(), QStringLiteral("B6")).ranges.isEmpty());
+    }
+
+    // Differences over a whole sheet (select all) look only at the cells the sheet uses, so the answer comes at once and is not cut short.
+    void differencesOfASelectAllAreBoundedByTheUsedRange()
+    {
+        using K = crunch::SpecialKind;
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1=2", "C1=1", "A2=5", "B2=5", "C2=9", "Z3000=1"})));   // (3,000 rows by 26 columns are used)
+        QElapsedTimer timer;
+        timer.start();
+        const crunch::SpecialResult all = special(e, K::RowDifferences, QStringLiteral("A1:XFD1048576"));
+        QVERIFY(!all.truncated);
+        QCOMPARE(rangesOf(all), QStringLiteral("B1 D1:Z1 C2:Z2 Z3000"));   // (a cell the sheet has none in differs from a cell that holds a number)
+        const crunch::SpecialResult columns = special(e, K::ColumnDifferences, QStringLiteral("A1:XFD1048576"));
+        QVERIFY(!columns.truncated);
+        QVERIFY(!columns.ranges.isEmpty());
     }
 
     void goToSpecialFindsBlanksAndTheCurrentRegion()

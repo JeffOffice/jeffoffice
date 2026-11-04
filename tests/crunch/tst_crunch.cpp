@@ -388,6 +388,30 @@ private Q_SLOTS:
         // the numbers of the selection reach the status bar
         v->selectRange(2, 1, 4, 2);
         QTRY_VERIFY(win.w.findChild<QLabel *>(QStringLiteral("selectionStats"))->text().startsWith(QLatin1String("Average: ")));
+        // the ribbon folds away and comes back; Full Screen is a switch that follows the window
+        QVERIFY(!win.w.ribbon()->isMinimized());
+        win.w.act("view.collapseRibbon")->trigger();
+        QVERIFY(win.w.ribbon()->isMinimized());
+        win.w.act("view.collapseRibbon")->trigger();
+        QVERIFY(!win.w.ribbon()->isMinimized());
+        QVERIFY(win.w.act("view.fullScreen") && win.w.act("view.fullScreen")->isCheckable() && !win.w.act("view.fullScreen")->isChecked());
+        // the command itself turns it on and off, and the check says what the window is
+        win.w.act("view.fullScreen")->trigger();
+        QTRY_COMPARE(win.w.act("view.fullScreen")->isChecked(), win.w.isFullScreen());
+        win.w.act("view.fullScreen")->trigger();
+        QTRY_COMPARE(win.w.act("view.fullScreen")->isChecked(), win.w.isFullScreen());
+        QVERIFY(!win.w.isFullScreen());
+        // the check follows the window, whoever changed its state
+        win.w.setWindowState(win.w.windowState() | Qt::WindowFullScreen);
+        QTRY_VERIFY(win.w.act("view.fullScreen")->isChecked());
+        win.w.setWindowState(win.w.windowState() & ~Qt::WindowFullScreen);
+        QTRY_VERIFY(!win.w.act("view.fullScreen")->isChecked());
+        // and a right click on them chooses which are shown
+        v->setStatChoices(grid::StatMinimum | grid::StatMaximum);
+        QVERIFY(win.w.findChild<QLabel *>(QStringLiteral("selectionStats"))->text().startsWith(QLatin1String("Minimum: ")));
+        QVERIFY(win.w.findChild<QLabel *>(QStringLiteral("selectionStats"))->text().contains(QLatin1String("Maximum: ")));
+        v->setStatChoices(grid::kDefaultStatChoices);
+        QVERIFY(win.w.findChild<QLabel *>(QStringLiteral("selectionStats"))->text().startsWith(QLatin1String("Average: ")));
     }
 
     // The File screen has its Open and About pages (Open lists the workbooks opened lately), and Esc closes it; Help opens on the topic for the page.
@@ -872,8 +896,9 @@ private Q_SLOTS:
             for (const QString &phrase : {QStringLiteral("print preview"), QStringLiteral("insert a chart")})   // (sorting and filtering are done: the help says so)
                 QVERIFY2(!text.contains(phrase, Qt::CaseInsensitive), qPrintable(f.fileName() + QStringLiteral(" says: ") + phrase));
             if (f.fileName().endsWith(QLatin1String("conditional-formats.md"))) {
-                QVERIFY(text.contains(QStringLiteral("You can't make, change, or delete a rule yet")));
-                QVERIFY(text.contains(QStringLiteral("Rule editing comes in a later version")));
+                // (rules are made from the menu now; what is left is said)
+                QVERIFY(text.contains(QStringLiteral("Home > Conditional Formatting")));
+                QVERIFY(text.contains(QStringLiteral("can be shown but not made yet")));
             }
         }
         QVERIFY(files >= 12);

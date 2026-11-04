@@ -29,6 +29,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <memory>
 #include <set>
 #include <vector>
 
@@ -75,6 +76,15 @@ struct RowProps {
     bool collapsed = false;
 };
 
+// A rule of conditional formatting the file had, as the file had it, kept when a change takes it away so that Undo can put the same bytes back: the rule's element (its opening tag, which has the
+// cells and the table mark), the rule, and its 2010 entry (its element's opening tag, the entry, and the element of its cells).
+struct CondRaw {
+    int priority = 0;   // the rule's place among the priorities of the file as it is (kept in step by each save)
+    QByteArray open, rule;
+    QString id;
+    QByteArray x14Open, x14Rule, x14Sqref;
+};
+
 struct SheetChanges {
     std::vector<SavedCell> cells;       // sorted by row, then column
     std::vector<SavedResult> results;   // sorted the same way
@@ -117,6 +127,17 @@ struct SheetChanges {
     bool hfSet = false;
     QString hfRel;
     // The sparklines the sheet has now, when a person changed them: the extension that holds them is made from these in place of the file's (none left: it is taken out).
+    // Rules of conditional formatting a person made or cleared. The file's own elements stay as they are, byte for byte, but for their priorities (each is the one the file gave it, which names the
+    // rule, plus `condShift`), the cells of a rule that was trimmed, and the rules taken away (`condRemoved`, by priority in the file, with the 2010 entries that go with them); the rules made here
+    // (`condNew`) are written from the model, first. The 2010 block of the sheet's extension list is kept the same way.
+    bool condEdit = false;
+    // What a rule taken away was in the file (see CondRaw), filled in by the patch for every rule it takes away (by priority in the file), and the rules brought back with it (their cells now).
+    std::shared_ptr<std::map<int, CondRaw>> condRawOut;
+    std::vector<std::pair<QVector<CellRange>, CondRaw>> condRestore;
+    int condShift = 0;
+    QVector<CondRule> condNew;
+    std::set<int> condRemoved;
+    std::map<int, QVector<CellRange>> condRanges;   // by priority in the file: the cells of each rule of the file that is still there
     bool replaceSparklines = false;
     QVector<SparklineGroup> sparklines;
     // For a sheet a person added: the XML it begins as (its view, default sizes, rules, and no cells: the cells, sizes of rows and columns, and merged ranges above are put in it).
@@ -150,7 +171,7 @@ struct SheetChanges {
     QString drawingRelId;
     // The links from the sheet to its tables' parts: the ids of the relationships of tables made here (saving sets them, from SaveChanges::addedTables), and of tables taken out.
     std::vector<QString> addTableRels, removeTableRels;
-    bool empty() const { return !replaceSparklines && drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && noteOps.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    bool empty() const { return !replaceSparklines && !condEdit && drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && noteOps.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
@@ -389,5 +410,8 @@ struct FilterName {
     QString range;
 };
 bool patchFilterNames(const QByteArray &xml, const std::vector<FilterName> &names, QByteArray *out, QString *error = nullptr);
+
+// An extension list with the 2010 entries that have no cells left taken out (and the container, the extension, and the list when nothing is left in them); empty if the list goes.
+QByteArray dropEmptyExtensionRules(const QByteArray &extLst);
 
 } // namespace jp::office::sheet

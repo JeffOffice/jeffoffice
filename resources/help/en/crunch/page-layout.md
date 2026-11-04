@@ -1,5 +1,5 @@
 # Set up the pages
-<!-- keywords: page layout, margins, orientation, portrait, landscape, paper, size, print area, page break, breaks, print titles, titles, repeat rows, scale to fit, fit to page, gridlines, headings, sheet options -->
+<!-- keywords: page layout, margins, orientation, portrait, landscape, paper, size, print area, page break, breaks, print titles, titles, repeat rows, scale to fit, fit to page, gridlines, headings, sheet options, right to left, mirror -->
 
 The **Page Layout** tab decides how a sheet is cut into pages when it is printed or made into a PDF. Each sheet keeps its own choices, and they are saved in the workbook. Every change is one step you can undo.
 
@@ -54,6 +54,8 @@ Only the pages in view are drawn, so a sheet of thousands of pages opens at once
 ## Sheet options
 
 **Show Gridlines** and **Show Headings** change the screen only. **Print Gridlines** puts the lines between cells on paper, and **Print Headings** puts the row numbers and column letters on paper.
+
+**Sheet Right-to-Left** makes the sheet read from the right. Column A moves to the right edge, and the columns count toward the left. The row numbers move to the right edge too. Use it for languages that are written from right to left, such as Arabic and Hebrew. It changes how the sheet looks on the screen, and the choice is saved with the sheet, so it comes back when you open the workbook. It is not a step you can undo: click it again to turn it off.
 
 ## More choices
 

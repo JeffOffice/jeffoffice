@@ -541,6 +541,14 @@ private Q_SLOTS:
         only.sum = only.min = only.max = 3.5;
         QCOMPARE(statsText(only), QStringLiteral("Average: 3.5    Count: 1    Sum: 3.5"));
         QCOMPARE(statsText(Stats()), QString());
+        // the choices: which of the six are shown, always in the same order
+        QCOMPARE(statsText(s, StatMinimum | StatMaximum), QStringLiteral("Minimum: 1    Maximum: 3"));
+        QCOMPARE(statsText(s, StatNumericalCount | StatCount), QStringLiteral("Count: 6    Numerical Count: 3"));
+        QCOMPARE(statsText(s, kDefaultStatChoices), statsText(s));
+        QCOMPARE(statsText(s, StatSum | StatAverage | StatCount | StatNumericalCount | StatMinimum | StatMaximum),
+                 QStringLiteral("Average: 2    Count: 6    Numerical Count: 3    Minimum: 1    Maximum: 3    Sum: 6"));
+        QCOMPARE(statsText(two, StatSum | StatMinimum), QString());                // (cells but no numbers: only the count can be shown)
+        QCOMPARE(statsText(two, StatCount), QStringLiteral("Count: 2"));
     }
 
     // The sum and the average in the status line have at most ten significant digits (14.58333333333 would be a number nobody reads), in the person's language.

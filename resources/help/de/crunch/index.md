@@ -1,21 +1,22 @@
 # JeffCrunch-Hilfe
-<!-- keywords: Inhalt, Hilfe, Themen, Start, Übersicht, Inhaltsverzeichnis, Erste Schritte -->
+<!-- keywords: Inhalt, Hilfe, Themen, Start -->
 
-Geben Sie oben in das Suchfeld etwas ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur aktuellen Registerkarte des Menübands oder zur aktuellen Seite im Menü „Datei“.
+Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: die Registerkarte des Menübands oder die Seite der Backstage-Ansicht „Datei“, auf der Sie sich befinden.
 
 ## Erste Schritte
 
 - [Willkommen bei JeffCrunch](start)
 - [Arbeitsmappen öffnen und speichern](open-save)
+- [Info: Eigenschaften, Kennwörter und Arbeitsmappe prüfen](info)
 - [Kennwortgeschützte Arbeitsmappen öffnen](open-password)
 - [In Zellen eingeben](edit-cells)
 - [Regeln für den Inhalt einer Zelle](rules)
 
 ## Eine Arbeitsmappe ansehen
 
-- [Zellen markieren und sich bewegen](select-and-move)
-- [Die Ansicht ändern](view)
-- [Wie Formeln angezeigt und berechnet werden](formulas)
+- [Zellen auswählen und navigieren](select-and-move)
+- [Ansicht ändern](view)
+- [Anzeige und Berechnung von Formeln](formulas)
 - [Namen für Zellen und Werte](names)
 - [Bedingte Formatierungen](conditional-formats)
 
@@ -28,24 +29,25 @@ Geben Sie oben in das Suchfeld etwas ein, um ein Thema oder einen auszuführende
 - [Zeilen, Spalten und Zellen einfügen und löschen](insert-delete)
 - [Spaltenbreite und Zeilenhöhe ändern](sizes)
 - [Ausschneiden, Kopieren und Einfügen](clipboard)
-- [Zellen ausfüllen und addieren](fill-sum)
-- [Suchen, Ersetzen und Gehe zu](find-replace)
-- [Sortieren und Filtern](sort-filter)
+- [Zellen ausfüllen und summieren](fill-sum)
+- [Suchen, ersetzen und gehe zu](find-replace)
+- [Sortieren und filtern](sort-filter)
+- [Datentools](data-tools)
 - [Tabellen](tables)
 - [Pivot-Tabellen](pivot-tables)
-- [Eine Funktion einfügen](insert-function)
-- [Eine Funktion mit dem Dialogfeld „Funktionsargumente“ eingeben](function-arguments)
+- [Funktion einfügen](insert-function)
+- [Funktion mit dem Dialogfeld „Funktionsargumente“ eingeben](function-arguments)
 - [Diagramme, Bilder und Formen](charts)
 - [Notizen und Links](notes-links)
-- [Ein Blatt oder die Arbeitsmappe schützen](protect)
+- [Blatt oder Arbeitsmappe schützen](protect)
 
 ## Drucken
 
-- [Die Seiten einrichten](page-layout)
+- [Seiten einrichten](page-layout)
 - [Das Dialogfeld „Seite einrichten“](page-setup)
-- [Drucken und eine PDF-Datei erstellen](printing)
+- [Drucken und PDF erstellen](printing)
 
 ## Schneller arbeiten
 
-- [JeffCrunch mit der Tastatur bedienen](keyboard)
-- [Die Einstellungen von JeffCrunch ändern](options)
+- [JeffCrunch mit der Tastatur verwenden](keyboard)
+- [Einstellungen von JeffCrunch ändern](options)

@@ -314,6 +314,12 @@ public:
     qint64 placeComparisons() const { return m_placeComparisons; }
     // The place of the style format a named style has (by its name), made when the workbook does not have it and it is one of the built-in styles (see builtinStyleNames); -1 if there is none.
     qint32 styleNamed(const QString &name);
+    // A style of a person's own, named `name` (made from the cell format at `format`): its place among the style formats; -1 if the name is taken (a style with that name, whatever the capitals),
+    // is empty or too long, or the workbook has no place for styles or no room.
+    qint32 addNamedStyle(const QString &name, quint32 format);
+    // Takes a style made by addNamedStyle back out (Undo), with the cell formats made since that follow it: only while the file has not been saved with it, and only when it is the last
+    // style there is. False (and nothing changed) otherwise.
+    bool removeAddedStyle(const QString &name);
     // The additions since the file was read or saved, for saving them: the strings, the number formats (id and code), and the cell formats (the one each is a copy of, and its number format).
     QStringList addedSharedStrings() const { return m_sharedAdded; }
     struct AddedNumberFormat {
@@ -330,6 +336,14 @@ public:
     // The place of the differential format that is only a fill of this color (or, with `font`, only a font of it): one the workbook has, else one added at the end (the file's `dxfs`).
     // -1 if the workbook has no styles part to put one in, or has as many as it may.
     qint32 dxfForColor(const ColorSpec &color, bool font);
+    // The place of a differential format with a font color, a fill, bold, or italic (not a border or a number format): one the workbook has that is exactly that, else one added at the end. -1 if
+    // the workbook has no styles part to put one in, or has as many as it may.
+    qint32 dxfFor(const DifferentialFormat &format);
+    // Takes the differential format at `place` back out when it is the last, was added since the file was read or saved, and `place` is where it was put (Undo). False otherwise.
+    bool removeAddedDxf(qint32 place);
+    // Whether the rules of conditional formatting the sheet's file has are all ones this program holds whole: not a rule of a kind it does not know, one with an extension list (the 2010 forms
+    // of icon sets and data bars link to one), a table's `pivot` mark, the 2010 extension block, or more ranges or rules than are read. Only then may the rules be written anew.
+    bool conditionalFormatsAreWhole(int sheet) const;
     QVector<DifferentialFormat> addedDxfs() const { return m_dxfsAdded; }
     qint64 dxfsInFile() const { return m_dxfsInFile; }
     QVector<FillSpec> addedFills() const { return m_fillsAdded; }

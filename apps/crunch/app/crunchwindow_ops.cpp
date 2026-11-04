@@ -49,6 +49,8 @@ void CrunchWindow::createOpsActions()
     mk("edit.fill", tr("Fill"), "arrow-down-to-line", QKeySequence(), [this] { fillSelection(crunch::EditSession::FillDirection::Down); });
     m_opsActions << QStringLiteral("fill.down") << QStringLiteral("fill.right") << QStringLiteral("fill.up") << QStringLiteral("fill.left") << QStringLiteral("fill.series") << QStringLiteral("edit.fill");
     connect(m_view, &grid::GridView::fillRequested, this, [this](const grid::GridRange &source, const grid::GridRange &extent, bool ctrl) { fillDragged(source, extent, ctrl); });
+    connect(m_view, &grid::GridView::fillHandleDoubleClicked, this, [this](const grid::GridRange &source) { fillHandleDoubleClicked(source); });
+    connect(m_view, &grid::GridView::moveRequested, this, [this](const grid::GridRange &source, const grid::GridRange &target, bool copy) { moveDragged(source, target, copy); });
     m_opsActions << QStringLiteral("edit.autosum") << QStringLiteral("edit.autosum.sum") << QStringLiteral("edit.autosum.average") << QStringLiteral("edit.autosum.count")
                  << QStringLiteral("edit.autosum.max") << QStringLiteral("edit.autosum.min");
     updateEditActions();
@@ -138,6 +140,66 @@ void CrunchWindow::fillSelection(crunch::EditSession::FillDirection direction)
 
 // The fill handle was dragged: the cells it reached are filled with the series the block makes (or copies, with Ctrl held; a single number with Ctrl counts up, as in the programs
 // people know), and the selection is the block and what was filled.
+// A double click on the fill handle fills down as far as the data beside the block goes: the column to its left if that has data under the block's last row, else the one to its right.
+void CrunchWindow::fillHandleDoubleClicked(const grid::GridRange &source)
+{
+    if (!m_session || m_sheet < 0 || !m_session->calculation()) return;
+    // (the walk is bounded by the cells the sheet uses: past them there is nothing beside the block)
+    const qint64 used = m_session->calculation()->sheet(m_sheet).extentRows;
+    for (const qint64 beside : {source.col1 - 1, source.col2 + 1}) {
+        if (beside < 0 || beside >= jp::office::sheet::kMaxColumns) continue;
+        qint64 last = source.row2;
+        // (it goes down while the column beside has data, and stops before the first cell under the block that holds something already: that is not written over)
+        while (last + 1 < std::min<qint64>(used, jp::office::sheet::kMaxRows) && !m_session->valueAt(m_sheet, quint32(last + 1), quint32(beside)).isEmpty()) {
+            bool occupied = false;
+            for (qint64 col = source.col1; col <= source.col2 && !occupied; ++col) occupied = !m_session->valueAt(m_sheet, quint32(last + 1), quint32(col)).isEmpty();
+            if (occupied) break;
+            ++last;
+        }
+        if (last == source.row2) continue;
+        grid::GridRange extent = source;
+        extent.row2 = last;
+        fillDragged(source, extent, false);
+        return;
+    }
+}
+
+// The selection's border was dragged and dropped: the block moves there (what points at it follows), or with Ctrl a copy of it is pasted there. One step.
+void CrunchWindow::moveDragged(const grid::GridRange &source, const grid::GridRange &target, bool copy)
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed() || !m_session || m_sheet < 0) return;
+    auto cells = [](const grid::GridRange &g) {
+        CellRange r;
+        r.valid = true;
+        r.row1 = quint32(g.row1);
+        r.col1 = quint32(g.col1);
+        r.row2 = quint32(g.row2);
+        r.col2 = quint32(g.col2);
+        return r;
+    };
+    const CellRange from = cells(source), to = cells(target);
+    const qint64 before = m_loader.changesMade();
+    crunch::EditSession::Outcome o;
+    if (copy) {
+        const crunch::ClipData clip = m_session->copyCells(m_sheet, from, false);
+        if (!clip.valid()) {
+            notice(tr("Copy"), tr("There are too many cells to copy."));
+            return;
+        }
+        o = m_session->paste(m_sheet, to, clip, crunch::EditSession::PasteOptions());
+    } else {
+        o = doStructural([&] { return m_session->moveCells(m_sheet, from, m_sheet, to.row1, to.col1); });
+    }
+    if (!o.ok) {
+        if (!o.confirm) notice(copy ? tr("Copy") : tr("Move"), o.problem);
+        return;
+    }
+    if (m_loader.changesMade() != before) m_calculating = true;
+    widenForCells(m_sheet, to);
+    m_view->selectRange(target.row1, target.col1, target.row2, target.col2);
+}
+
 void CrunchWindow::fillDragged(const grid::GridRange &source, const grid::GridRange &extent, bool ctrl)
 {
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);

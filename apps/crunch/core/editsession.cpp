@@ -95,6 +95,39 @@ qint64 tableBytes(const jp::office::sheet::Table &t)
     return n;
 }
 
+// A style made by New Cell Style: Undo takes it back out of the workbook, Redo puts it in again (the first Redo is a no-op: it was made before the step was pushed).
+class StyleMade : public QUndoCommand {
+public:
+    StyleMade(EditSession *session, const QString &name, quint32 format) : QUndoCommand(name), m_session(session), m_name(name), m_format(format) {}
+    void redo() override
+    {
+        if (m_first) {
+            m_first = false;
+            return;
+        }
+        m_session->rememberNewStyle(m_name, m_format);
+    }
+    void undo() override { m_session->forgetNewStyle(m_name); }
+
+private:
+    EditSession *m_session;
+    QString m_name;
+    quint32 m_format;
+    bool m_first = true;
+};
+
+void EditSession::pushStyleMade(const QString &name, quint32 format) { m_undo.push(new StyleMade(this, name, format)); }
+
+void EditSession::forgetNewStyle(const QString &name)
+{
+    if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) m_book->book->removeAddedStyle(name);
+}
+
+void EditSession::rememberNewStyle(const QString &name, quint32 format)
+{
+    if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) m_book->book->addNamedStyle(name, format);
+}
+
 class ChangeCells : public QUndoCommand {
 public:
     ChangeCells(EditSession *session, Step step, const QString &text, const std::shared_ptr<qint64> &total) : QUndoCommand(text), m_session(session), m_step(std::move(step)), m_total(total)
@@ -1677,6 +1710,14 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
         QStringList names;
         for (const jp::office::sheet::SheetEntry &se : book.info().sheets) names << (se.deleted ? QString() : se.name);
         m_pages.addToSave(&changes, names, book.info().order);
+    for (const int s : m_condTouched) {
+        if (s < 0 || s >= int(names.size()) || names[s].isEmpty() || !m_book->calc) continue;
+        if (book.info().sheets[s].isNew) {
+            condForSave(s, nullptr, true);   // (a sheet made here is written from its rules whole: they are not put in again)
+            continue;
+        }
+        condForSave(s, &changes.sheets[s]);
+    }
         m_anchors.addToSave(&changes);
         // the protection of the sheets, and of the workbook, where it differs from the file's
         for (int sheet = 0; sheet < listed.sheets.size(); ++sheet) {
@@ -1796,6 +1837,8 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     });
     ++m_saveGen;
     m_pages.saved();
+    condSaved();
+    m_condWhole.clear();
     m_anchors.saved();
     m_fileProtection.clear();
     for (int i = 0; i < m_book->calc->sheetCount(); ++i) m_fileProtection.push_back(m_book->calc->sheet(i).protection);

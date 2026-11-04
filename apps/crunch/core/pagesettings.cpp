@@ -51,6 +51,7 @@ namespace {
 // The parts of a sheet's view that say how its panes are held.
 bool samePanes(const jp::office::sheet::SheetView &a, const jp::office::sheet::SheetView &b)
 {
+    if (a.rightToLeft != b.rightToLeft) return false;
     const bool fa = a.frozen && (a.frozenRows || a.frozenCols), fb = b.frozen && (b.frozenRows || b.frozenCols);
     if (fa != fb) return false;
     if (!fa) return a.topRow == b.topRow && a.leftCol == b.leftCol;   // (not held: where the view is scrolled to)

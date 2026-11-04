@@ -1,5 +1,5 @@
 # Fill cells and add them up
-<!-- keywords: fill, series, drag, handle, AutoFill, Ctrl+D, Ctrl+R, down, right, up, left, number, date, weekday, month, year, step, stop, copy, Sum, sum, average, count, max, min, Alt+equals, total -->
+<!-- keywords: fill, series, drag, handle, double-click, custom list, AutoFill, Ctrl+D, Ctrl+R, down, right, up, left, number, date, weekday, month, year, step, stop, copy, Sum, sum, average, count, max, min, Alt+equals, total -->
 
 ## Fill
 
@@ -12,7 +12,14 @@ Fill continues what you started. Select the cells you filled in, then drag the s
 | A date | The next days (use the **Fill Options** button, or **Fill > Series**, for weekdays, months, or years) |
 | Mon, or January | Tue, Wed, ... or February, March, ... in your language |
 | Item 1 | Item 2, Item 3, ... |
+| A word from a custom list, such as Small | The next word of the list, and back to the first after the last |
 | A formula | The formula copied, with its references moved as in a paste |
+
+Double-click the fill handle to fill down as far as the data next to the selection goes. JeffCrunch looks at the column to the left first, and then at the column to the right. It stops at the first empty cell in that column.
+
+## Custom lists
+
+A **custom list** is a row of words that Fill goes through, like the days of the week. To make one, click **File > Options > Custom Lists**. Type one list on each line, with commas between the words, for example `Small, Medium, Large`. Click **OK**. Now type **Small** in a cell and drag the fill handle: the cells fill with Medium, Large, Small, and so on. Capital letters do not matter when JeffCrunch looks for a word in a list, and the new cells copy the capital letters of the cell you started from. A list needs at least two words. The days of the week and the months are built in.
 
 **Fill > Down** (**Ctrl+D**) and **Fill > Right** (**Ctrl+R**) copy the first row or column of the selection over the rest. **Fill > Up** and **Fill > Left** work from the last. **Fill > Series** asks for the kind (linear, growth, date), the unit of a date, the step, and where to stop. Every filled cell takes the format of the cell it follows. A cell that can't be changed (part of an array, a locked cell, or a table's header) stops the fill, and nothing changes.
 

@@ -192,6 +192,31 @@ private Q_SLOTS:
         QVERIFY(!s->anchors().noteAt(0, 1, 1));
     }
 
+    // Clear > Clear Comments and Notes takes the notes off the selected cells and nothing else; it is dimmed where there is no note.
+    void clearCommentsAndNotesTakesOnlyTheNotes()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithNotes()));
+        crunch::EditSession *s = e.win.w.session();
+        QAction *clear = e.win.w.act(QStringLiteral("edit.clear.notes"));
+        QVERIFY(clear);
+        e.select(QStringLiteral("B1"));
+        QVERIFY(!clear->isEnabled());
+        e.view()->selectRange(0, 0, 2, 2);                   // A1:C3
+        QVERIFY(clear->isEnabled());
+        const QString before = shown(e, QStringLiteral("A1:C3"));
+        const int steps = e.win.w.undoStack()->count();
+        clear->trigger();
+        QVERIFY(!s->anchors().noteAt(0, 0, 0));
+        QVERIFY(!s->anchors().noteAt(0, 2, 2));
+        QVERIFY(s->anchors().noteAt(0, 1, 3));            // (D2 was outside the selection)
+        QCOMPARE(shown(e, QStringLiteral("A1:C3")), before);
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QVERIFY(!clear->isEnabled());
+        e.win.w.undoStack()->undo();
+        QVERIFY(s->anchors().noteAt(0, 0, 0));
+    }
+
     void aNoteOfAConversationIsShownAndNotChanged()
     {
         EditWindow e;

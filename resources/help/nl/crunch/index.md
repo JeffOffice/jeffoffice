@@ -1,19 +1,20 @@
-# Help bij JeffCrunch
-<!-- keywords: inhoud, help, onderwerpen, starten, begin, inhoudsopgave -->
+# JeffCrunch Help
+<!-- keywords: inhoud, help, onderwerpen, start -->
 
-Typ in het zoekvak hierboven om een onderwerp te vinden of een opdracht uit te voeren. Druk op elk moment op **F1** voor hulp bij waar u mee bezig bent: het tabblad van het lint waarop u zich bevindt, of de pagina van het scherm Bestand waarop u zich bevindt.
+Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u wilt uitvoeren. Druk op **F1** om op elk moment hulp te krijgen bij wat u aan het doen bent: het linttabblad waarop u staat, of de pagina van het scherm Bestand waarop u staat.
 
 ## Aan de slag
 
 - [Welkom bij JeffCrunch](start)
 - [Werkmappen openen en opslaan](open-save)
-- [Werkmappen openen die met een wachtwoord zijn beveiligd](open-password)
-- [Typen in cellen](edit-cells)
+- [Info: eigenschappen, wachtwoorden en Controleren](info)
+- [Werkmappen met wachtwoord openen](open-password)
+- [Tekst typen in cellen](edit-cells)
 - [Regels voor wat een cel mag bevatten](rules)
 
 ## Een werkmap bekijken
 
-- [Cellen selecteren en u verplaatsen](select-and-move)
+- [Cellen selecteren en je erdoor bewegen](select-and-move)
 - [De weergave wijzigen](view)
 - [Hoe formules worden weergegeven en berekend](formulas)
 - [Namen voor cellen en waarden](names)
@@ -29,8 +30,9 @@ Typ in het zoekvak hierboven om een onderwerp te vinden of een opdracht uit te v
 - [De breedte van kolommen en de hoogte van rijen wijzigen](sizes)
 - [Knippen, kopiëren en plakken](clipboard)
 - [Cellen doorvoeren en optellen](fill-sum)
-- [Zoeken, vervangen en ga naar](find-replace)
+- [Zoeken, vervangen en naar een locatie gaan](find-replace)
 - [Sorteren en filteren](sort-filter)
+- [Gegevenshulpmiddelen](data-tools)
 - [Tabellen](tables)
 - [Draaitabellen](pivot-tables)
 - [Een functie invoegen](insert-function)
@@ -47,5 +49,5 @@ Typ in het zoekvak hierboven om een onderwerp te vinden of een opdracht uit te v
 
 ## Sneller werken
 
-- [JeffCrunch gebruiken met het toetsenbord](keyboard)
+- [JeffCrunch met het toetsenbord gebruiken](keyboard)
 - [De instellingen van JeffCrunch wijzigen](options)

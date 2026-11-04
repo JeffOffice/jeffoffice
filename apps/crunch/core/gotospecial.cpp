@@ -354,6 +354,73 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
         out.cells = r.cellCount();
         return out;
     }
+    case SpecialKind::CurrentArray: {
+        for (const CellRange &r : s.ranges)
+            if (r.valid && activeRow >= r.row1 && activeRow <= r.row2 && activeCol >= r.col1 && activeCol <= r.col2) {
+                // (the ranges also hold those of data tables: the first cell of one says which it is)
+                const Cell *first = s.cells.find(r.row1, r.col1);
+                if (first && (first->flags & DataTable)) continue;
+                out.ranges.append(r);
+                out.cells = r.cellCount();
+                return out;
+            }
+        out.problem = QCoreApplication::translate("jp::crunch::GoTo", "The cell with the cursor is not part of an array formula.");
+        return out;
+    }
+    case SpecialKind::RowDifferences:
+    case SpecialKind::ColumnDifferences: {
+        // The cells that differ from the cell with the cursor in their row (their column): a number or text that is not the same, a formula that is not the same once its references are moved to
+        // where the other cell is, or a formula where the other has none. A single cell selected looks at the block around it.
+        const bool byRow = options.kind == SpecialKind::RowDifferences;
+        CellRange look = region;
+        if (oneCell) look = currentRegion(session, sheet, activeRow, activeCol, &out.truncated);
+        if (activeRow < look.row1 || activeRow > look.row2 || activeCol < look.col1 || activeCol > look.col2) {
+            out.problem = QCoreApplication::translate("jp::crunch::GoTo", "The cell with the cursor is not among the cells to look at.");
+            return out;
+        }
+        // (only the cells the sheet uses can differ from each other: a whole-sheet selection is cut to them)
+        if (s.extentRows > 0 && look.row2 >= s.extentRows) look.row2 = std::max(s.extentRows - 1, activeRow);
+        if (s.extentCols > 0 && look.col2 >= s.extentCols) look.col2 = std::max(s.extentCols - 1, activeCol);
+        RangeBuilder diff(&out);
+        qint64 looked = 0;
+        // the cell with the cursor in a row (a column) is read once for the row (the column), and the others are held up to it
+        auto differs = [&](const Calculation::CellContent &base, const Value &baseValue, quint32 baseRow, quint32 baseCol, quint32 row, quint32 col) {
+            const Calculation::CellContent b = calc->content(sheet, row, col);
+            if (base.isFormula != b.isFormula) return true;
+            if (base.isFormula) return shiftFormula(base.formula, int(row) - int(baseRow), int(col) - int(baseCol)) != b.formula;
+            return !(baseValue == session.valueAt(sheet, row, col));
+        };
+        std::vector<Calculation::CellContent> columnBase;   // (column differences: the cell with the cursor in each column, read once)
+        std::vector<Value> columnValue;
+        if (!byRow)
+            for (quint32 col = look.col1; col <= look.col2; ++col) {
+                columnBase.push_back(calc->content(sheet, activeRow, col));
+                columnValue.push_back(session.valueAt(sheet, activeRow, col));
+            }
+        bool stop = false;
+        for (quint32 row = look.row1; row <= look.row2 && !stop; ++row) {
+            Calculation::CellContent base;
+            Value baseValue;
+            if (byRow) {
+                base = calc->content(sheet, row, activeCol);   // (the cell with the cursor in this row, read once)
+                baseValue = session.valueAt(sheet, row, activeCol);
+            }
+            for (quint32 col = look.col1; col <= look.col2; ++col) {
+                if (++looked > kMaxSpecialWork) {
+                    out.truncated = true;
+                    stop = true;
+                    break;
+                }
+                if (byRow ? col == activeCol : row == activeRow) continue;
+                const bool different = byRow ? differs(base, baseValue, row, activeCol, row, col)
+                                             : differs(columnBase[col - look.col1], columnValue[col - look.col1], activeRow, col, row, col);
+                if (different) diff.add(row, col);
+            }
+        }
+        diff.finish();
+        if (out.ranges.isEmpty()) none();
+        return out;
+    }
     case SpecialKind::ConditionalFormats:
     case SpecialKind::DataValidation: {
         const Validation *same = nullptr;

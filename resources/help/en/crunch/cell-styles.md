@@ -1,5 +1,5 @@
 # Cell styles
-<!-- keywords: cell style, styles, named style, Good, Bad, Neutral, Heading, Title, Total, Accent, Input, Output, Calculation, Check Cell, Explanatory Text, Note, Warning Text, Linked Cell, Comma, Currency, Percent, Normal -->
+<!-- keywords: cell style, styles, named style, Good, Bad, Neutral, Heading, Title, Total, Accent, Input, Output, Calculation, Check Cell, Explanatory Text, Note, Warning Text, Linked Cell, Comma, Currency, Percent, Normal, new style, name -->
 
 A **cell style** is a named set of looks: a font, a fill, a border, a number format, and how the text sits. Give a cell the style "Heading 1" and it takes all of them at once. Styles keep a workbook consistent, because every cell with the style looks the same.
 
@@ -19,8 +19,16 @@ The menu has these groups:
 
 A style the workbook already has is used as it is, with the look it has there. A style the workbook lacks is made the first time you use it, from the workbook's own first font, and then it is part of the file with the others.
 
+## Make a style of your own
+
+1. Format a cell the way you want: a font, a fill, a border, a number format, and so on.
+2. Leave the cursor on that cell. Select the cells that should get the style too.
+3. Click **Home > Cell Styles > New Cell Style**, type a name, and click **OK**.
+
+The style keeps the look of the cell with the cursor, and the selected cells are given it. It is now in the **Custom** group of the menu, and it is saved in the workbook. Each style needs its own name. A name that is already used (small or capital letters do not matter) is refused, and so is an empty name.
+
 ## Notes
 
 - Applying a style is one step you can undo. It replaces the cell's font, fill, border, number format, alignment, and protection with the style's.
 - A cell remembers its style. Formatting the cell afterward, for example making it bold, changes that cell only, and the cell keeps following the rest of the style.
-- JeffCrunch does not yet have a command to change what a style is, or to make a new one. A workbook that has styles of its own shows them under **Custom** and in their group.
+- JeffCrunch does not yet have a command to change what a style is, to delete one, or to bring styles in from another workbook. A workbook that has styles of its own shows them under **Custom** and in their group.

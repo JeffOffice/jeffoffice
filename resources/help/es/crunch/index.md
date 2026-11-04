@@ -1,17 +1,18 @@
 # Ayuda de JeffCrunch
-<!-- keywords: contenido, ayuda, temas, inicio, empezar, índice -->
+<!-- keywords: contenido, ayuda, temas, inicio -->
 
-Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que ejecutar. Presione **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que está o la página de la pantalla Archivo en la que se encuentra.
 
-## Introducción
+## Primeros pasos
 
 - [Bienvenido a JeffCrunch](start)
 - [Abrir y guardar libros](open-save)
+- [Información: propiedades, contraseñas e Inspeccionar libro](info)
 - [Abrir libros protegidos con contraseña](open-password)
-- [Escribir en celdas](edit-cells)
-- [Reglas sobre lo que puede contener una celda](rules)
+- [Escribir en las celdas](edit-cells)
+- [Reglas para el contenido de una celda](rules)
 
-## Examinar un libro
+## Consultar un libro
 
 - [Seleccionar celdas y desplazarse](select-and-move)
 - [Cambiar la vista](view)
@@ -21,8 +22,8 @@ Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que
 
 ## Modificar un libro
 
-- [Aplicar formato a celdas](format-cells)
-- [Formatos de número y su idioma](number-formats)
+- [Dar formato a las celdas](format-cells)
+- [Formatos de número e idioma](number-formats)
 - [Estilos de celda](cell-styles)
 - [Trabajar con hojas](sheets)
 - [Insertar y eliminar filas, columnas y celdas](insert-delete)
@@ -31,10 +32,11 @@ Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que
 - [Rellenar celdas y sumarlas](fill-sum)
 - [Buscar, reemplazar e ir a](find-replace)
 - [Ordenar y filtrar](sort-filter)
+- [Herramientas de datos](data-tools)
 - [Tablas](tables)
 - [Tablas dinámicas](pivot-tables)
 - [Insertar una función](insert-function)
-- [Escribir una función con el cuadro de diálogo Argumentos de función](function-arguments)
+- [Introducir una función con el cuadro de diálogo Argumentos de función](function-arguments)
 - [Gráficos, imágenes y formas](charts)
 - [Notas y vínculos](notes-links)
 - [Proteger una hoja o el libro](protect)

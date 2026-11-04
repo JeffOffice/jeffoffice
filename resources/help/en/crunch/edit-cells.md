@@ -70,6 +70,8 @@ A cell holds up to 32,767 characters, and a formula up to 8,192. JeffCrunch tell
 
 Select the cells and press **Delete**. This clears what the cells hold and keeps their formats, and it is one step you can undo. JeffCrunch clears up to 100,000 cells at a time.
 
+On the **Home** tab, the **Clear** button has a menu. **Clear All** empties the cells, their formats, their notes, and their links. **Clear Formats** keeps what the cells hold and puts back the plain format. **Clear Contents** is the same as **Delete**. **Clear Comments and Notes** takes only the notes off the selected cells. **Clear Hyperlinks** takes only the links off, and the cells keep their text. A choice is dimmed when the selected cells have nothing for it to clear.
+
 ## Undo and Redo
 
 **{key:Undo}** undoes the last change, and **{key:Redo}** does it again. They are also on the quick toolbar at the top. Each cell you type in is one step, and so is each clearing. Undo puts the cell back the way it was: its value, its formula, its format, and the formulas that depend on it. JeffCrunch remembers up to 1,000 steps, fewer when they changed very many cells, so that it never takes much memory.

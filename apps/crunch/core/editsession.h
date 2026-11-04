@@ -285,6 +285,11 @@ public:
     }
     void setToday(const QDate &today) { m_today = today; }
     QLocale locale() const { return m_locale; }
+    // The lists a fill goes through besides the weekdays and the months (Options > Custom Lists): a cell that holds an item of one is followed by the next, round to the first.
+    // (at most kMaxCustomLists lists of kMaxCustomListItems items of kMaxCustomItemChars characters are kept: what a file of settings could otherwise multiply)
+    static constexpr int kMaxCustomLists = 50, kMaxCustomListItems = 1000, kMaxCustomItemChars = 255;
+    void setCustomLists(const QList<QStringList> &lists);
+    const QList<QStringList> &customLists() const { return m_customLists; }
 
     QUndoStack *undoStack() { return &m_undo; }
     // The workbook and its calculation, to be read (on the window's thread, and not while an edit is being made).
@@ -638,6 +643,21 @@ public:
     // The distinct colors of the cells (cell colors, or font colors) of a column of the range, in the order they first appear, at most `limit`; with `none` set if some cell has no color.
     std::vector<jp::office::sheet::ColorSpec> colorsIn(int sheet, const jp::office::sheet::CellRange &range, bool font, bool *none, int limit = 64) const;
 
+    // ---- Data tools (editdatatools.cpp)
+    // Text to Columns: how the text of a column is cut into several.
+    struct SplitSpec {
+        bool fixedWidth = false;
+        QString delimiters;                  // each character cuts ("\t" is a tab)
+        bool consecutiveAsOne = false;       // delimiters in a row cut once
+        QChar qualifier = QLatin1Char('"');  // text between two of these is not cut (a null character for none)
+        std::vector<int> breaks;             // fixed width: the places (counted in characters, from 1) at which a new column begins
+        std::vector<int> types;              // for each column that comes of it: 0 General (read as typed), 1 Text (kept as text), 2 not imported; General for the ones not told
+    };
+    // The pieces of each line.
+    static QVector<QStringList> splitText(const QStringList &lines, const SplitSpec &spec);
+    // The text of the cells of a column (one at a time, as a person would copy it), cut as the spec says and put at (destRow, destCol) as if typed; one step. `*covered` is the cells it filled.
+    Outcome textToColumns(int sheet, const jp::office::sheet::CellRange &source, const SplitSpec &spec, quint32 destRow, quint32 destCol, jp::office::sheet::CellRange *covered = nullptr);
+
     // ---- Filter (editfilter.cpp)
     // A filter being put on a sheet: the conditions it will have, the rows they hide (worked out a slice at a time by `prepareFilter`), and the one step it is (`applyFilter`). The rows hidden
     // by a filter are kept apart from the rows a person hid.
@@ -791,6 +811,32 @@ public:
     Outcome applyStyle(int sheet, const jp::office::sheet::CellRange &range, quint32 style, const QString &text);
     // The same by the style's name: a style the workbook has, or a built-in one it is given now. Not ok if there is no such style, or the file has no place to keep one.
     Outcome applyStyleNamed(int sheet, const jp::office::sheet::CellRange &range, const QString &name, const QString &text);
+    // New Cell Style: a style of the person's own, called `name`, with the look of the cell at `row`, `col` (its number format, font, fill, border, alignment, and protection); it is then
+    // offered with the others, and the selected cells are given it. Not ok, with the reason, if the name is empty or taken.
+    // ---- conditional formatting (editcond.cpp)
+    // The rules of a sheet now, by priority.
+    QVector<jp::office::sheet::CondRule> condRules(int sheet) const;
+    // Puts a rule on the cells of `rule.ranges` with the look `format` (a font color, a fill, bold, or italic): it goes first (it has the highest priority), as one step of Undo. Not ok, with the
+    // reason, if the sheet can't be changed, the rule has no cells, or the sheet has data bars with extensions (which are written back only as they were).
+    Outcome addCondRule(int sheet, jp::office::sheet::CondRule rule, const jp::office::sheet::DifferentialFormat &format);
+    // Takes away the rules that are on any of the cells of `range` (all the sheet's when it is not valid): one step.
+    Outcome clearCondRules(int sheet, const jp::office::sheet::CellRange &range);
+    // (what a step of the rules does, and what the save puts in the file)
+    void setCondRules(int sheet, const QVector<jp::office::sheet::CondRule> &rules);
+    void ensureCondUids(int sheet);
+    void condFixStale(int sheet);
+    void condSaved();
+    // What a save puts in the file for the sheet's rules (see editcond.cpp); `sc` gets it (null: only the rules as the save will have them are worked out).
+    void condForSave(int sheet, jp::office::sheet::SheetChanges *sc, bool writtenWhole = false);
+    void rememberDxf(const jp::office::sheet::DifferentialFormat &format);
+    void forgetDxf(qint32 place);
+    // Why the rules of the sheet are not changed (empty when they may be).
+    QString condRulesRefusal(int sheet);
+    // (the steps of New Cell Style: pushed after the style is made, and Undo and Redo take it out and put it in again)
+    void pushStyleMade(const QString &name, quint32 format);
+    void forgetNewStyle(const QString &name);
+    void rememberNewStyle(const QString &name, quint32 format);
+    Outcome newCellStyle(int sheet, quint32 row, quint32 col, const jp::office::sheet::CellRange &range, const QString &name);
 
     // An object over the cells is taken away (Delete with it picked), put there, moved, or changed: one step, which Undo gives back. The hook (setObjectHook) is told the change when the step is
     // done, undone, and done again (`forward`: the object is to have the state after). A step that took an object away is like one that deleted rows: Undo goes back as far as the last such
@@ -913,6 +959,7 @@ Q_SIGNALS:
     void sheetsChanged();
     // The sparklines of a sheet were changed by a step, undone, or redone.
     void sparklinesChanged(int sheet);
+    void conditionalFormatsChanged(int sheet);
     // How the workbook calculates was changed (by a step, or by Undo of one).
     void calcSettingsChanged();
     // Cells were changed by an edit, Undo, or Redo (the window draws them again).
@@ -1042,6 +1089,25 @@ private:
     std::shared_ptr<qint64> m_undoBytes = std::make_shared<qint64>(0);   // (shared with the steps, which count themselves off as they go, whenever that is)
     qint64 m_undoByteLimit = kUndoBytes;
     QLocale m_locale;
+    QList<QStringList> m_customLists;
+    quint32 m_condUid = 0, m_condUidMark = 0;   // (the uid the last rule made had, and the one it had when the file was last saved)
+    struct CondSnap {
+        std::map<quint32, int> fileOf;   // the priority each rule has in the file the save writes
+        QVector<jp::office::sheet::CondRule> after;
+        int shift = 0;
+        std::set<int> removed;
+        std::set<quint32> restored;
+        std::shared_ptr<std::map<int, jp::office::sheet::CondRaw>> raw;
+    };
+    std::map<int, CondSnap> m_condSnap;        // by sheet: the rules the save in hand writes
+    std::set<int> m_condChangedDuringSave;     // the sheets whose rules were changed after that
+    std::map<int, std::map<quint32, int>> m_condFileOf;   // by sheet: the priority each rule has in the file, as of the last save
+    std::map<int, std::map<int, quint32>> m_condBaseUid;  // by sheet: who each rule of the file is (by its priority in the file)
+    std::map<int, std::map<quint32, jp::office::sheet::CondRaw>> m_condRaw;   // by sheet: the bytes of the file's rules that a clear took away, by uid
+    std::map<int, std::set<int>> m_condBase;   // by sheet: the priorities of the rules of the file, as they were before the first change since it was read or saved
+    std::map<int, bool> m_condWhole;   // by sheet: whether the file's rules are all held whole (looked at once)
+    std::set<int> m_condTouched;   // the sheets whose rules differ from the file's
+    QHash<QString, QPair<int, int>> m_customIndex;   // each item (in lower case) to its list and its place in it
     QDate m_today;
     bool m_busy = false;
     std::function<void(jp::office::sheet::Calculation *, bool)> m_holdHook;

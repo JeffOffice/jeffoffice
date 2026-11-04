@@ -1817,6 +1817,26 @@ private Q_SLOTS:
         QTRY_VERIFY_WITH_TIMEOUT(!e.win.w.isCalculating(), 5000);
     }
 
+    // A step that changes a pivot table sends the worker to work the workbook out, so the window is calculating until the worker says it is done: it is not ready (and a command run at that
+    // moment does not see the worker's last pass land in the middle of it, such as the Circular References command turning dim).
+    void aPivotTableChangeKeepsTheWindowCalculatingUntilTheWorkerIsDone()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        PivotTable t = *s->workbook()->pivots().table(0).table;
+        std::swap(t.rowFields, t.colFields);
+        QVERIFY(s->setPivot(0, t, true, QStringLiteral("Move fields")).ok);
+        QVERIFY(e.win.w.isCalculating());
+        QTRY_VERIFY_WITH_TIMEOUT(!e.win.w.isCalculating(), 5000);
+        // (done: nothing comes after)
+        const bool circular = e.win.w.act(QStringLiteral("formulas.circular"))->isEnabled();
+        QTest::qWait(200);
+        QCOMPARE(e.win.w.act(QStringLiteral("formulas.circular"))->isEnabled(), circular);
+        QVERIFY(!e.win.w.isCalculating());
+    }
+
     // Insert > Pivot Table: asks for the data and the place, makes the table on a sheet of its own, and shows its fields.
     void thePivotTableCommandMakesATableOnANewSheet()
     {

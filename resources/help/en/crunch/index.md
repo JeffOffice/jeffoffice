@@ -32,6 +32,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Fill cells and add them up](fill-sum)
 - [Find, replace, and go to](find-replace)
 - [Sort and filter](sort-filter)
+- [Data tools](data-tools)
 - [Tables](tables)
 - [Pivot tables](pivot-tables)
 - [Insert a function](insert-function)

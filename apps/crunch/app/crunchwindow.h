@@ -189,6 +189,17 @@ public:
     bool goToSpecial(const jp::crunch::SpecialOptions &options);
     // What Go To asks for (a reference) and Select by Kind (the kind of cells): dialogs unless these stand in for them (tests); false gives it up.
     void setGoToAsker(const std::function<bool(QString *)> &asker) { m_goToAsker = asker; }
+    // What a conditional formatting rule is asked for (a test answers in place of the window): the kind of rule, the one or two values, and how the cells look (a place in the ready-made looks).
+    struct CondAnswer {
+        enum class Kind { Greater, Less, Between, Equal, Contains, Duplicate, Top, Bottom, TopPercent, BottomPercent, Above, Below } kind = Kind::Greater;
+        QString value1, value2;
+        int preset = 0;
+    };
+    // How many rules the last change of the selection looked at for the choices of Clear Rules.
+    qint64 condRulesScanned() const { return m_condScanned; }
+    void setCondAsker(const std::function<bool(CondAnswer *)> &asker) { m_condAsker = asker; }
+    // Asks for the name of a new cell style (a test answers in place of the window); false when it is given up.
+    void setStyleNameAsker(const std::function<bool(QString *)> &asker) { m_styleNameAsker = asker; }
     void setSpecialAsker(const std::function<bool(jp::crunch::SpecialOptions *)> &asker) { m_specialAsker = asker; }
 
     // ---- Sort (crunchwindow_sort.cpp)
@@ -452,6 +463,13 @@ public:
     enum class EnterMove { Down, Right, Up, Left, Stay };
     EnterMove enterMove() const { return m_enterMove; }
     void setEnterMove(EnterMove move);
+    // The custom lists of Fill (Options > Custom Lists), one list to a line, its items between commas: kept in the settings and given to the edit session.
+    // The menu that chooses which numbers of the selection the status bar shows; the caller owns it.
+    QMenu *statsChoiceMenu();
+    QStringList customListLines() const;
+    void setCustomListLines(const QStringList &lines);
+    void applyCustomListLines();
+    QStringList customListLinesRead() const;   // the lines as the lists read from the settings are written (spaces trimmed)
     // For tests: a line where a page begins is dragged from a row (column) to another, as the mouse would ask.
     void moveBreakForTest(bool column, qint64 from, qint64 to) { breakLineMoved(column, from, to); }
     // For tests and the window: the view of the pages, and the strip of text being typed in a header or footer.
@@ -511,6 +529,7 @@ Q_SIGNALS:
 
 protected:
     void closeEvent(QCloseEvent *e) override;
+    void changeEvent(QEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
     bool eventFilter(QObject *o, QEvent *e) override;
@@ -580,6 +599,8 @@ public:
     OutlineGutter *rowGutter() const { return m_rowGutter; }
     OutlineGutter *columnGutter() const { return m_columnGutter; }
 private:
+    void fillHandleDoubleClicked(const grid::GridRange &source);
+    void moveDragged(const grid::GridRange &source, const grid::GridRange &target, bool copy);
     void fillDragged(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
     void fillSeriesDialog();
     // inserting and deleting rows, columns, and cells (crunchwindow_cells.cpp)
@@ -833,6 +854,15 @@ private:
     std::function<bool(jp::FieldSettings *)> m_fieldSettingsAsker;
     std::function<bool(jp::GroupChoice *)> m_groupAsker;
     std::function<bool(jp::PivotOptionsChoice *)> m_pivotOptionsChoiceAsker;
+    // the data tools: Remove Duplicates and Text to Columns (crunchwindow_datatools.cpp)
+    void createDataToolsActions();
+    void removeDuplicatesDialog();
+    void textToColumnsDialog();
+public:
+    // The same, without the questions (for the tests): the columns compared (their places in the selection) and whether the first row is a header.
+    bool removeDuplicatesIn(const std::vector<int> &columns, bool hasHeader);
+    bool textToColumnsIn(const crunch::EditSession::SplitSpec &spec, const QString &destination);
+private:
     // the filter (crunchwindow_filter.cpp)
     void createFilterActions();
     void updateFilterButtons();
@@ -869,6 +899,14 @@ private:
     std::function<bool()> m_expandAsker;
     std::function<bool(QString *)> m_goToAsker;
     std::function<bool(jp::crunch::SpecialOptions *)> m_specialAsker;
+    std::function<bool(QString *)> m_styleNameAsker;
+    std::function<bool(CondAnswer *)> m_condAsker;
+    void createCondActions();
+    bool askCondRule(CondAnswer *answer);
+    void makeCondRule(CondAnswer::Kind kind);
+    void clearCondRules(bool wholeSheet);
+    void updateCondActions();
+    qint64 m_condScanned = 0;   // how many rules the last look for the choices of Clear Rules went through (a test reads it)
     void showNameInBox();
     // the clipboard (crunchwindow_clip.cpp)
     void createClipboardActions();
@@ -919,10 +957,12 @@ private:
     void indentCommand(int delta);
     void orientationCommand(int degrees);
     void numberFormatCommand(int kind);
+    void accountingCommand(const QString &symbol, bool symbolFirst, int decimals);
     void decimalsCommand(int delta);
     void borderCommand(int kind);
     void mergeCommand(crunch::EditSession::MergeKind kind);
     void clearCommand(int what);
+    void newCellStyleCommand();
     void applyCellStyle(const QString &name);
     void formatPainterCommand();
     void paintFormats();
@@ -1132,6 +1172,7 @@ private:
     crunch::WorkbookLoader m_loader;
     std::shared_ptr<crunch::LoadedBook> m_loaded;
     bool m_loading = false, m_calculating = false, m_haveFirstScreen = false, m_haveCalc = false;
+    qint64 m_changesNoted = 0;             // the changes the worker has been sent that the window has taken note of (WorkbookLoader::changesMade)
     bool m_refreshOnOpenPending = false;   // pivot tables that say so are read again once the calculation of a file that was just opened is done
     int m_sheet = -1;                            // the sheet in the grid, by its place in the workbook
     QVector<int> m_tabSheets;                    // the workbook's place of each tab

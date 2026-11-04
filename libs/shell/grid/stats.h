@@ -46,7 +46,12 @@ private:
 
 // All of it at once.
 Stats computeStats(const GridSheet &sheet, const GridRange &range);
-// "Average: 3.5    Count: 6    Sum: 21", or "Count: 2", or nothing, as the numbers call for.
+// What the status bar may show of a selection (a person chooses which): any of these added together.
+enum StatChoice { StatAverage = 1, StatCount = 2, StatNumericalCount = 4, StatMinimum = 8, StatMaximum = 16, StatSum = 32 };
+constexpr int kDefaultStatChoices = StatAverage | StatCount | StatSum;
+// "Average: 3.5    Count: 6    Sum: 21", or "Count: 2", or nothing, as the numbers call for. With `choices`, only those that are chosen are shown (in the order Average, Count, Numerical
+// Count, Minimum, Maximum, Sum); the numbers' ones need a number among the cells, and Count alone is shown for two cells or more.
+QString statsText(const Stats &stats, int choices);
 QString statsText(const Stats &stats);
 
 } // namespace jp::grid

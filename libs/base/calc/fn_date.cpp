@@ -331,6 +331,109 @@ Value fnNetworkDays(Call &c)
     return Value::number(a <= b ? double(n) : -double(n));
 }
 
+// The weekend argument of the INTL functions: a code 1 to 7 (two days) or 11 to 17 (one), or seven characters of 0 and 1 from Monday on, 1 for a day off. `off` is indexed
+// like weekdayOf, from Sunday = 0. False (with the error) for a code or text that is none, or one with every day off.
+bool weekendMask(Call &c, int i, bool off[7])
+{
+    for (int k = 0; k < 7; ++k) off[k] = false;
+    if (c.missing(i)) {
+        off[0] = off[6] = true;
+        return true;
+    }
+    const Value v = c.scalar(i);
+    if (v.isError()) {
+        c.error(v.errorKind());
+        return false;
+    }
+    if (v.isText()) {
+        const QString t = v.text();
+        if (t.size() != 7) {
+            c.error(ErrorKind::Value);
+            return false;
+        }
+        int days = 0;
+        for (int k = 0; k < 7; ++k) {
+            if (t[k] != QLatin1Char('0') && t[k] != QLatin1Char('1')) {
+                c.error(ErrorKind::Value);
+                return false;
+            }
+            if (t[k] == QLatin1Char('1')) {
+                off[(k + 1) % 7] = true;
+                ++days;
+            }
+        }
+        if (days == 7) {
+            c.error(ErrorKind::Value);
+            return false;
+        }
+        return true;
+    }
+    double code;
+    if (!c.number(i, &code)) return false;
+    code = std::trunc(code);
+    if (code >= 1 && code <= 7) {
+        // 1: Saturday and Sunday, 2: Sunday and Monday, ... 7: Friday and Saturday
+        off[(code == 1 ? 6 : int(code) - 2) % 7] = true;
+        off[(code == 1 ? 0 : int(code) - 1) % 7] = true;
+        return true;
+    }
+    if (code >= 11 && code <= 17) {
+        // 11: Sunday ... 17: Saturday
+        off[(int(code) - 11) % 7] = true;
+        return true;
+    }
+    c.error(ErrorKind::Num);
+    return false;
+}
+
+Value fnWorkdayIntl(Call &c)
+{
+    double start, days;
+    bool weekend[7];
+    std::vector<double> off;
+    if (!serialArg(c, 0, &start) || !c.number(1, &days) || !weekendMask(c, 2, weekend) || !holidays(c, 3, &off)) return c.failure();
+    const DateSystem sys = c.context().dateSystem;
+    double d = std::floor(start);
+    days = std::trunc(days);
+    if (std::fabs(days) > 1e6) return c.error(ErrorKind::Num);
+    const int step = days < 0 ? -1 : 1;
+    qint64 halvings = 0;
+    for (size_t n = off.size(); n; n >>= 1) ++halvings;
+    const qint64 perDay = 1 + halvings / 8;
+    for (qint64 left = qint64(std::fabs(days)); left > 0;) {
+        d += step;
+        if (d < 0 || d > kLastSerial) return c.error(ErrorKind::Num);
+        if (!c.machine().charge(perDay)) return c.error(ErrorKind::Value);
+        if (!weekend[weekdayOf(d, sys)] && !std::binary_search(off.begin(), off.end(), d)) --left;
+    }
+    return Value::number(d);
+}
+
+Value fnNetworkDaysIntl(Call &c)
+{
+    double a, b;
+    bool weekend[7];
+    std::vector<double> off;
+    if (!serialArg(c, 0, &a) || !serialArg(c, 1, &b) || !weekendMask(c, 2, weekend) || !holidays(c, 3, &off)) return c.failure();
+    const DateSystem sys = c.context().dateSystem;
+    a = std::floor(a);
+    b = std::floor(b);
+    const double lo = std::min(a, b), hi = std::max(a, b);
+    if (hi - lo > 1e7) return c.error(ErrorKind::Num);
+    const qint64 total = qint64(hi - lo) + 1;
+    int perWeek = 0;
+    for (int k = 0; k < 7; ++k)
+        if (!weekend[k]) ++perWeek;
+    qint64 n = total / 7 * perWeek;
+    for (qint64 k = total / 7 * 7; k < total; ++k)
+        if (!weekend[weekdayOf(lo + double(k), sys)]) ++n;
+    const auto first = std::lower_bound(off.begin(), off.end(), lo), last = std::upper_bound(off.begin(), off.end(), hi);
+    if (!c.machine().charge(2 + qint64(last - first))) return c.error(ErrorKind::Value);
+    for (auto it = first; it != last; ++it)
+        if (!weekend[weekdayOf(*it, sys)]) --n;
+    return Value::number(a <= b ? double(n) : -double(n));
+}
+
 // DATEDIF(start, end, unit): complete years ("Y"), months ("M"), or days ("D") between two dates, or the months ("YM"), days ("MD"), or days ("YD") left over once the
 // years, the years and months, or the years are taken off.
 Value fnDatedif(Call &c)
@@ -447,6 +550,48 @@ Value fnYearFrac(Call &c)
 
 } // namespace
 
+// The days between two dates counted 30 to a month (the european rule if `european`), and the span as a fraction of a year by the basis 0 to 4 of YEARFRAC; false for a
+// date or basis that is none. (The financial functions count their days so.)
+bool daysBetween360(double a, double b, bool european, DateSystem sys, double *days)
+{
+    int y1, m1, d1, y2, m2, d2;
+    if (!dateOf(std::floor(a), sys, &y1, &m1, &d1) || !dateOf(std::floor(b), sys, &y2, &m2, &d2)) return false;
+    *days = days360(y1, m1, d1, y2, m2, d2, european, sys);
+    return true;
+}
+
+bool yearFractionOf(double a, double b, int basis, DateSystem sys, double *out)
+{
+    a = std::floor(a);
+    b = std::floor(b);
+    if (a > b) std::swap(a, b);
+    int y1, m1, d1, y2, m2, d2;
+    if (!dateOf(a, sys, &y1, &m1, &d1) || !dateOf(b, sys, &y2, &m2, &d2)) return false;
+    switch (basis) {
+    case 0: *out = days360(y1, m1, d1, y2, m2, d2, false, sys, true) / 360.0; return true;
+    case 4: *out = days360(y1, m1, d1, y2, m2, d2, true, sys) / 360.0; return true;
+    case 2: *out = (b - a) / 360.0; return true;
+    case 3: *out = (b - a) / 365.0; return true;
+    case 1: {
+        double length;
+        if (y1 == y2) {
+            length = isLeap(y1) ? 366.0 : 365.0;
+        } else if (y2 == y1 + 1 && (m1 > m2 || (m1 == m2 && d1 >= d2))) {
+            const bool febFirst = isLeap(y1) && (m1 < 2 || (m1 == 2 && d1 <= 29));
+            const bool febSecond = isLeap(y2) && (m2 > 2 || (m2 == 2 && d2 == 29));
+            length = febFirst || febSecond ? 366.0 : 365.0;
+        } else {
+            double years = 0;
+            for (int y = y1; y <= y2; ++y) years += isLeap(y) ? 366 : 365;
+            length = years / double(y2 - y1 + 1);
+        }
+        *out = (b - a) / length;
+        return true;
+    }
+    default: return false;
+    }
+}
+
 void registerDateFunctions(std::vector<FunctionInfo> &r)
 {
     r.push_back({"DATE", 3, 3, "vvv", 0, fnDate});
@@ -468,6 +613,8 @@ void registerDateFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"EOMONTH", 2, 2, "vv", 0, fnEomonth});
     r.push_back({"WORKDAY", 2, 3, "vvr", 0, fnWorkday});
     r.push_back({"NETWORKDAYS", 2, 3, "vvr", 0, fnNetworkDays});
+    r.push_back({"WORKDAY.INTL", 2, 4, "vvvr", kFnFuture, fnWorkdayIntl});
+    r.push_back({"NETWORKDAYS.INTL", 2, 4, "vvvr", kFnFuture, fnNetworkDaysIntl});
     r.push_back({"DAYS", 2, 2, "vv", kFnFuture, fnDays});
     r.push_back({"DATEDIF", 3, 3, "vvv", 0, fnDatedif});
     r.push_back({"DAYS360", 2, 3, "vvv", 0, fnDays360});

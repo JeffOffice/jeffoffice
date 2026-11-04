@@ -25,7 +25,7 @@ The box in the **Number** group lists the common formats: General, Number, Curre
 
 | Button | What it does |
 | --- | --- |
-| Currency | Shows the number as money, with the currency symbol of your language (**Ctrl+Shift+4**). The arrow next to it offers General and **More Number Formats**. |
+| Currency | Shows the number as money, with the currency symbol of your language (**Ctrl+Shift+4**). The arrow next to it offers **Accounting Number Format** with a money to pick (US dollar, British pound, euro, Japanese yen, Chinese yuan, or Swiss franc), General, and **More Number Formats**. |
 | Percent Style | Multiplies by 100 and adds a percent sign, with no decimals (**Ctrl+Shift+5**). Click it again to take it away. |
 | Comma Style | Groups the digits by thousands, shows two decimals, and lines the decimal points up down a column, with no symbol. |
 | Increase Decimal, Decrease Decimal | Adds or takes away one decimal place. |

@@ -1347,6 +1347,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         QString id, target;
     };
     std::map<int, std::vector<LinkRel>> newLinkRels;   // by the sheet: the relationships made for the addresses of new links
+    std::map<int, QSet<QString>> usedLinkIds;           // by the sheet: the ids of the relationships the links put in use
     {
         QSet<QString> taken;
         bool takenFilled = false;
@@ -1423,6 +1424,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     const auto k = known.constFind(l.target);
                     if (k != known.constEnd()) {
                         l.relId = k.value();
+                        usedLinkIds[sheet].insert(l.relId);
                         continue;
                     }
                     const QString id = freeRelationshipId(used);
@@ -1430,6 +1432,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     known.insert(l.target, id);
                     l.relId = id;
                     newLinkRels[sheet].push_back({id, l.target});
+                    usedLinkIds[sheet].insert(id);
                 }
             }
         }
@@ -2194,7 +2197,9 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         if (index >= 0 && refreshChartCaches(xml, caches, &now, &changed) && changed) replaced.insert(index, now);
     }
     // ---- notes: the comments part and the drawing of the notes, changed or made, and the relationships and types that name the new ones
-    if (!noteWrites.empty() || !newLinkRels.empty()) {
+    bool anyUnlinks = false;
+    for (const auto &[sheet, sc] : requested.sheets) anyUnlinks = anyUnlinks || !sc.unlinks.empty();
+    if (!noteWrites.empty() || !newLinkRels.empty() || anyUnlinks) {
         int typesEntry = -1;
         for (int i = 0; i < directory.size(); ++i)
             if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
@@ -2272,6 +2277,35 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         for (const auto &[sheet, list] : newLinkRels)
             for (const LinkRel &l : list)
                 if (!addRel(sheet, l.id, QStringLiteral("hyperlink"), l.target, true)) return bad();
+        // links taken off: the relationships for their addresses go when no link that stays (or is put in) uses them
+        for (const auto &[sheet, sc] : requested.sheets) {
+            if (sc.unlinks.empty() || sheet < 0 || sheet >= book.info().sheets.size()) continue;
+            const SheetEntry &se = book.info().sheets[sheet];
+            if (se.isNew || se.deleted || se.part.isEmpty()) continue;
+            QSet<QString> used = usedLinkIds.count(sheet) ? usedLinkIds[sheet] : QSet<QString>();
+            QByteArray xml;
+            if (partBytes(se.part, &xml) < 0) continue;
+            Tag t;
+            qsizetype pos = 0;
+            while (xmlscan::nextTag(xml, pos, &t)) {
+                pos = t.end;
+                if (t.closing || t.local != "hyperlink") continue;
+                bool found = false;
+                const QByteArrayView tag = QByteArrayView(xml).sliced(t.start, t.end - t.start);
+                const QByteArrayView id = xmlscan::attribute(tag, "r:id", &found);
+                if (!found) continue;
+                CellRange r;
+                const QByteArrayView ref = xmlscan::attribute(tag, "ref", &found);
+                if (found && parseRangeRef(xmlscan::unescape(ref), &r) && std::find(sc.unlinks.begin(), sc.unlinks.end(), r) != sc.unlinks.end()) continue;   // (this one goes)
+                used.insert(xmlscan::unescape(id));
+            }
+            QStringList unused;
+            for (const Relationship &r : package.relationshipsOfType(se.part, QStringLiteral("/hyperlink")))
+                if (r.external && !used.contains(r.id)) unused << r.id;
+            if (unused.isEmpty()) continue;
+            QByteArray r2;
+            if (removeRelationshipsById(relsOf(sheet), unused, &r2)) relsOf(sheet) = r2;
+        }
         for (auto &[sheet, data] : sheetRels) {
             const SheetEntry &se = book.info().sheets[sheet];
             if (sheetRelsAreNew[sheet]) {

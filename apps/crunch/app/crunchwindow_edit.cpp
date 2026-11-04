@@ -26,6 +26,7 @@ QUndoStack *CrunchWindow::undoStack() const { return m_session ? m_session->undo
 void CrunchWindow::createEditing()
 {
     m_session = std::make_unique<crunch::EditSession>(&m_loader, m_loaded, &m_values, nullptr);
+    applyCustomListLines();
     m_formatShown = FormatShown();   // (a workbook of its own: the buttons show its cell with the cursor)
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, &CrunchWindow::onCellsChanged);
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
@@ -37,7 +38,20 @@ void CrunchWindow::createEditing()
         updateSparklineTab();
     });
     connect(m_session.get(), &crunch::EditSession::sheetsChanged, this, &CrunchWindow::onSheetsChanged);
+    connect(m_session.get(), &crunch::EditSession::conditionalFormatsChanged, this, [this](int sheet) {
+        if (sheet == m_sheet) m_view->conditionalFormatsChanged();
+        updateCondActions();
+    });
     connect(m_session.get(), &crunch::EditSession::tablesChanged, this, &CrunchWindow::onTablesChanged);
+    // (every step that changes the workbook sends the worker to work it out: the window is calculating from then until the worker says it is done, whichever command made the step; the
+    // pivot table commands, among others, don't say so themselves, and the window was then taken for ready while the worker still had a pass to make)
+    m_changesNoted = m_loader.changesMade();
+    connect(m_session->undoStack(), &QUndoStack::indexChanged, this, [this] {
+        const qint64 now = m_loader.changesMade();
+        if (now == m_changesNoted) return;
+        m_changesNoted = now;
+        if (m_haveCalc && !m_loading) m_calculating = true;
+    });
     connectObjects();
     connectPageSetup();
     connectAnchors();
@@ -196,6 +210,51 @@ void CrunchWindow::setEnterMove(EnterMove move)
 {
     m_enterMove = move;
     Settings::get().setValue(QStringLiteral("crunch/enterMove"), int(move));
+}
+
+QStringList CrunchWindow::customListLines() const
+{
+    return Settings::get().value(QStringLiteral("crunch/customLists")).toStringList();
+}
+
+// The lists of lines of text as the session has them: items between commas, trimmed, with the limits of what one may hold; `kept` gets the lines as they are then written.
+static QList<QStringList> parseCustomLists(const QStringList &lines, QStringList *kept)
+{
+    QList<QStringList> lists;
+    for (const QString &line : lines) {
+        QStringList items;
+        for (const QString &item : line.split(QLatin1Char(','))) {
+            const QString t = item.trimmed();
+            if (!t.isEmpty() && t.size() <= crunch::EditSession::kMaxCustomItemChars && items.size() < crunch::EditSession::kMaxCustomListItems) items << t;
+        }
+        if (items.size() < 2 || lists.size() >= crunch::EditSession::kMaxCustomLists) continue;   // (a list of one item makes no series)
+        if (kept) *kept << items.join(QStringLiteral(", "));
+        lists << items;
+    }
+    return lists;
+}
+
+QStringList CrunchWindow::customListLinesRead() const
+{
+    QStringList lines;
+    parseCustomLists(customListLines(), &lines);
+    return lines;
+}
+
+// What was typed in Options: the lists are kept in the settings (only when they differ from what is there) and given to the session.
+void CrunchWindow::setCustomListLines(const QStringList &lines)
+{
+    QStringList kept, was;
+    const QList<QStringList> lists = parseCustomLists(lines, &kept);
+    parseCustomLists(customListLines(), &was);   // (the lists as they stand are compared as they are read: only a change of the lists is written)
+    if (kept != was) Settings::get().setValue(QStringLiteral("crunch/customLists"), kept);
+    if (m_session) m_session->setCustomLists(lists);
+}
+
+// The lists the settings hold, given to a session as they are (nothing is written: a workbook opening does not change the person's settings).
+void CrunchWindow::applyCustomListLines()
+{
+    if (m_session) m_session->setCustomLists(parseCustomLists(customListLines(), nullptr));
 }
 
 bool CrunchWindow::commitEdit(CellEditor::Way way)

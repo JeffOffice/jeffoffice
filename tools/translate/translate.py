@@ -48,7 +48,7 @@ TS_DIR = os.path.join(ROOT, "translations")
 HELP_DIR = os.path.join(ROOT, "resources", "help")
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-MODEL = "claude-opus-5-5"
+MODEL = "claude-haiku-5-5"   # (a French trial, Nov 2026: as good as Opus 5.5 on this text at about a fortieth of the cost; --model to change)
 WORKERS = 4
 
 # The languages, in Qt's names (the .ts file's and Help folder's suffix).
@@ -68,6 +68,8 @@ PRICES = {
     "claude-opus-5-5": (4.0, 20.0, 0.20, 5.0),
     "claude-opus-5": (5.0, 25.0, 0.50, 6.25),
     "claude-opus-4-8": (5.0, 25.0, 0.50, 6.25),
+    "claude-sonnet-5-5": (2.0, 10.0, 0.20, 2.50),
+    "claude-haiku-5-5": (0.10, 0.50, 0.01, 0.125),
 }
 
 BANNED = re.compile(r"\b(Microsoft|Publisher|Office|Word|Excel|PowerPoint|WordArt|PivotTables?|AutoSum|AutoFit|Format Painter|AutoRecover|Quick Access Toolbar|Quick Parts)\b")
@@ -140,8 +142,8 @@ class Api:
             system=[{"type": "text", "text": part, "cache_control": {"type": "ephemeral"}} for part in ([system] if isinstance(system, str) else system)],
             messages=[{"role": "user", "content": user}],
             output_config=output,
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
+            # (Haiku has no server-side fallback)
+            **({} if MODEL.startswith("claude-haiku") else {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"}),
         ) as stream:
             r = stream.get_final_message()
         SPEND.add(r.model, r.usage)
@@ -745,12 +747,14 @@ class Report:
 
 
 def main():
+    global MODEL
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--lang", help="languages, comma-separated, or \"all\" (default: the languages already "
                     "started, each with its translations/jeffoffice_<language>.ts; start a new one by naming it)")
     ap.add_argument("--part", choices=["ui", "help", "all"], default="all")
     ap.add_argument("--dry-run", action="store_true", help="count what would be sent; call nothing")
     ap.add_argument("--effort", default="low", choices=["low", "medium", "high"])
+    ap.add_argument("--model", default=MODEL, choices=sorted(PRICES))
     ap.add_argument("--report", help="write a Markdown report here")
     args = ap.parse_args()
     if not args.lang:
@@ -764,6 +768,7 @@ def main():
             sys.exit(f"unknown language {l}; known: {', '.join(LANGUAGES)}")
     if not args.dry_run and not os.environ.get("ANTHROPIC_API_KEY"):
         sys.exit("ANTHROPIC_API_KEY is not set")
+    MODEL = args.model
     api = None if args.dry_run else Api(args.effort)
     reports = []
     for lang in langs:

@@ -83,7 +83,7 @@
               {"widget": "numberFormat", "keytip": "N"}
             ]},
             {"row": [
-              {"icon": "fmt.currency", "keytip": "AA", "split": true, "menu": ["fmt.currency", "fmt.numberGeneral", "fmt.numberDialog"]},
+              {"icon": "fmt.currency", "keytip": "AA", "split": true, "menu": ["fmt.currency", {"section": "Accounting Number Format"}, "fmt.accounting.usd", "fmt.accounting.gbp", "fmt.accounting.eur", "fmt.accounting.jpy", "fmt.accounting.cny", "fmt.accounting.chf", "-", "fmt.numberGeneral", "fmt.numberDialog"]},
               {"icon": "fmt.percent", "keytip": "P"},
               {"icon": "fmt.comma", "keytip": "K"},
               {"icon": "fmt.decimalInc", "keytip": "0"},
@@ -99,6 +99,7 @@
           "keytip": "ZY",
           "items": [
             {"large": {"id": "ribbon.tableLooks", "text": "Table Looks", "icon": "table"}, "keytip": "TL", "menu": "@tableLooks"},
+            {"large": {"id": "ribbon.condFormat", "text": "Conditional Formatting", "icon": "paintbrush"}, "keytip": "L", "menu": [{"section": "Highlight Cells Rules"}, "cond.greater", "cond.less", "cond.between", "cond.equal", "cond.contains", "cond.duplicate", {"section": "Top/Bottom Rules"}, "cond.top", "cond.bottom", "cond.topPercent", "cond.bottomPercent", "cond.above", "cond.below", "-", "cond.clearSelection", "cond.clearSheet"]},
             {"large": {"id": "ribbon.cellStyles", "text": "Cell Styles", "icon": "palette"}, "keytip": "J", "menu": "@cellStyles"}
           ]
         },
@@ -146,7 +147,7 @@
               "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min", "-", "edit.autosum.more"]
             },
             {"small": "edit.fill", "keytip": "FI", "split": true, "menu": ["fill.down", "fill.right", "fill.up", "fill.left", "-", "fill.series", "fill.across", "fill.justify"]},
-            {"small": "edit.clear", "keytip": "E", "split": true, "menu": ["edit.clear.all", "edit.clear.formats", "edit.clear.contents"]},
+            {"small": "edit.clear", "keytip": "E", "split": true, "menu": ["edit.clear.all", "edit.clear.formats", "edit.clear.contents", "edit.clear.notes", "edit.clear.links"]},
             {"large": "edit.sort", "keytip": "SS", "menu": ["sort.ascending", "sort.descending", "sort.custom", "-", "filter.toggle", "filter.clear", "filter.reapply"]},
             {"large": "edit.find", "keytip": "FD", "split": true, "menu": ["find.find", "find.replace", "-", "find.goto", "find.gotoSpecial"]}
           ]
@@ -247,6 +248,13 @@
               [{"label": "Print"}, {"check": "sheetopt.gridPrint", "keytip": "GP"}, {"check": "sheetopt.headPrint", "keytip": "HP"}]
             ]}
           ]
+        },
+        {
+          "name": "Direction",
+          "keytip": "ZD",
+          "items": [
+            {"large": "view.rightToLeft", "keytip": "RL"}
+          ]
         }
       ]
     },
@@ -307,6 +315,34 @@
       "name": "Data",
       "keytip": "A",
       "groups": [
+        {
+          "name": "Get Data",
+          "keytip": "ZG",
+          "items": [
+            {"large": "data.fromText", "keytip": "FT"}
+          ]
+        },
+        {
+          "name": "Sort & Filter",
+          "keytip": "ZS",
+          "items": [
+            {"small": "sort.ascending", "keytip": "SA"},
+            {"small": "sort.descending", "keytip": "SZ"},
+            {"small": "sort.custom", "keytip": "SC"},
+            {"column": true},
+            {"small": "filter.toggle", "keytip": "F1"},
+            {"small": "filter.clear", "keytip": "C"},
+            {"small": "filter.reapply", "keytip": "Y"}
+          ]
+        },
+        {
+          "name": "Data Tools",
+          "keytip": "ZD",
+          "items": [
+            {"large": "data.textToColumns", "keytip": "E"},
+            {"large": "data.removeDuplicates", "keytip": "M"}
+          ]
+        },
         {
           "name": "Outline",
           "keytip": "ZU",
@@ -375,7 +411,9 @@
             {"small": "view.headings", "keytip": "SH"},
             {"small": "view.formulaBar", "keytip": "SF"},
             {"small": "view.pageBreaks", "keytip": "SB"},
-            {"small": "view.outline", "keytip": "SO"}
+            {"small": "view.outline", "keytip": "SO"},
+            {"small": "view.collapseRibbon", "keytip": "SR"},
+            {"small": "view.fullScreen", "keytip": "SU"}
           ]
         },
         {

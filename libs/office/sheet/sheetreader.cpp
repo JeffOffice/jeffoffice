@@ -25,6 +25,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QSet>
+#include <set>
 #include <QXmlStreamReader>
 #include <algorithm>
 #include <cstring>
@@ -985,6 +986,7 @@ CondRule SheetReader::readCondRule(const QXmlStreamReader &r) const
     bool ok = false;
     c.priority = attribute(r, "priority").toInt(&ok);
     if (!ok) c.priority = 1 << 20;
+    c.origPriority = ok ? c.priority : 0;
     c.dxf = attribute(r, "dxfId").isEmpty() ? -1 : attribute(r, "dxfId").toInt(&ok);
     if (!ok) c.dxf = -1;
     c.stopIfTrue = parseBool(attribute(r, "stopIfTrue").toString());
@@ -2492,6 +2494,72 @@ quint32 Workbook::fontPlace(const FontSpec &font)
     return quint32(m_styles.fonts.size() - 1);
 }
 
+qint32 Workbook::dxfFor(const DifferentialFormat &f)
+{
+    if (m_stylesPart.isEmpty() || f.isEmpty() || f.hasBorder || f.numberFormat) return -1;
+    // (only a format added here is matched: one the file has may hold more than the model keeps of it)
+    for (qsizetype i = m_dxfsInFile; i < m_styles.dxfs.size(); ++i) {
+        const DifferentialFormat &d = m_styles.dxfs[i];
+        if (d.hasBorder || d.numberFormat || d.strike || d.underline) continue;
+        if (d.bold == f.bold && d.italic == f.italic && d.fontColor == f.fontColor && d.hasFill == f.hasFill && (!f.hasFill || (d.fill.pattern == f.fill.pattern && d.fill.bg == f.fill.bg && d.fill.fg == f.fill.fg)))
+            return qint32(i);
+    }
+    if (m_styles.dxfs.size() >= 100000) return -1;
+    m_styles.dxfs.append(f);
+    m_dxfsAdded.append(f);
+    return qint32(m_styles.dxfs.size() - 1);
+}
+
+bool Workbook::removeAddedDxf(qint32 place)
+{
+    if (place < 0 || m_dxfsAdded.isEmpty() || place != qint32(m_styles.dxfs.size() - 1) || place < m_dxfsInFile) return false;
+    m_styles.dxfs.removeLast();
+    m_dxfsAdded.removeLast();
+    return true;
+}
+
+bool Workbook::conditionalFormatsAreWhole(int sheet) const
+{
+    if (sheet < 0 || sheet >= m_info.sheets.size() || m_info.sheets[sheet].part.isEmpty()) return !isConverted();
+    if (isConverted()) return false;
+    const QByteArray xml = m_package.part(m_info.sheets[sheet].part);
+    // (a quick look first: a sheet that says nothing of rules is whole)
+    if (!xml.contains("onditionalFormatting")) return true;
+    xmlscan::Tag t;
+    qsizetype pos = 0;
+    qint64 rules = 0;
+    std::set<int> priorities;
+    int depth = 0, inX14 = -1;   // (how deep the element is, and the depth of the 2010 container while the scan is in it)
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth == inX14) inX14 = -1;
+            continue;
+        }
+        const QByteArrayView tag = QByteArrayView(xml).sliced(t.start, t.end - t.start);
+        if (t.local == "conditionalFormattings" && !t.selfClosing) {
+            inX14 = depth;
+        } else if (t.local == "conditionalFormatting") {
+            bool found = false;
+            const QByteArrayView sqref = xmlscan::attribute(tag, "sqref", &found);
+            if (found) {
+                // (more ranges than are read: the rule would be cut short)
+                qint64 spaces = 0;
+                for (const char c : sqref) spaces += c == ' ';
+                if (spaces + 1 >= 1000) return false;
+            }
+        } else if (t.local == "cfRule" && inX14 < 0) {
+            // (a rule of the main list is told from its element by its priority: it has one, and no other rule of the list has the same; the rules of the 2010 block are another matter)
+            if (++rules >= 50000) return false;
+            bool found = false;
+            const int priority = QByteArray(xmlscan::attribute(tag, "priority", &found)).toInt();
+            if (!found || priority <= 0 || !priorities.insert(priority).second) return false;
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    return true;
+}
+
 qint32 Workbook::dxfForColor(const ColorSpec &color, bool font)
 {
     if (m_stylesPart.isEmpty() || !color.isSet()) return -1;
@@ -2680,6 +2748,48 @@ qint32 Workbook::styleNamed(const QString &name)
     m_styles.cellStyles.append(n);
     m_stylesAdded.append({f, n});
     return qint32(n.xfId);
+}
+
+qint32 Workbook::addNamedStyle(const QString &name, quint32 format)
+{
+    const QString trimmed = name.trimmed();
+    if (trimmed.isEmpty() || trimmed.size() > 255 || format >= quint32(m_styles.formats.size())) return -1;
+    for (const CellStyleName &n : m_styles.cellStyles)
+        if (n.name.compare(trimmed, Qt::CaseInsensitive) == 0) return -1;
+    for (const QChar c : trimmed)
+        if (c.category() == QChar::Other_Control) return -1;   // (a name is a line of text)
+    BuiltinStyle taken;
+    if (builtinStyle(trimmed, &taken)) return -1;
+    if (m_styles.styleXfs.isEmpty() || m_styles.cellStyles.isEmpty() || m_styles.styleXfs.size() >= kMaxStylesMade) return -1;
+    CellFormat f = m_styles.formats[int(format)];
+    f.xfId = 0;
+    f.quotePrefix = false;
+    m_styles.styleXfs.append(f);
+    CellStyleName n;
+    n.name = trimmed;
+    n.builtin = -1;
+    n.xfId = quint32(m_styles.styleXfs.size() - 1);
+    m_styles.cellStyles.append(n);
+    m_stylesAdded.append({f, n});
+    return qint32(n.xfId);
+}
+
+bool Workbook::removeAddedStyle(const QString &name)
+{
+    if (m_stylesAdded.isEmpty() || m_stylesAdded.last().name.name != name) return false;
+    const quint32 place = m_stylesAdded.last().name.xfId;
+    if (m_styles.styleXfs.isEmpty() || place != quint32(m_styles.styleXfs.size() - 1) || m_styles.cellStyles.isEmpty() || m_styles.cellStyles.last().name != name) return false;
+    // the cell formats made for cells that had the style (they name it as theirs) go too, from the end
+    while (!m_formatsAdded.isEmpty() && !m_styles.formats.isEmpty() && m_styles.formats.last().xfId == place && m_styles.formats.size() == m_formatsInFile + m_formatsAdded.size()) {
+        m_styles.formats.removeLast();
+        if (!m_styles.cellXfs.isEmpty()) m_styles.cellXfs.removeLast();
+        m_formatsAdded.removeLast();
+    }
+    m_formatIndexMade = false;
+    m_styles.styleXfs.removeLast();
+    m_styles.cellStyles.removeLast();
+    m_stylesAdded.removeLast();
+    return true;
 }
 
 const QVector<Table> &Workbook::tables() const
