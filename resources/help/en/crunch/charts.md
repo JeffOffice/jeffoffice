@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, win/loss, tiny chart, markers -->
+<!-- keywords: chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -53,7 +53,7 @@ The sparklines you make in one step are a group, and they share one look. Click 
 - **Type** switches between line, column, and win/loss.
 - **Show** marks points: the **High Point**, the **Low Point**, **Negative Points**, the **First Point**, the **Last Point**, and, for a line, **Markers** on every point.
 - **Styles** gives the group a set of colors. **Sparkline Color** sets the color of the line or bars and the **Weight** (how thick the line is, in points). **Marker Color** sets the color of each kind of marked point.
-- **Axis** shows a line at zero, plots the numbers right to left, and sets the lowest and highest values of the vertical axis. **Automatic for Each Sparkline** fits each one to its own numbers. **Same for All Sparklines** gives the whole group one scale, so you can compare them. **Custom Value** lets you type a number.
+- **Axis** shows a line at zero, plots the numbers right to left, and sets the lowest and highest values of the vertical axis. **Automatic for Each Sparkline** fits each one to its own numbers. **Same for All Sparklines** gives the whole group one scale, so you can compare them. **Custom Value** lets you type a number. **Date Axis…** spaces the points by dates: type the cells that hold the date of each point, and a point with a later date sits farther along. Leave it empty to space the points evenly again.
 - **Group** puts the selected sparklines in one group. **Ungroup** gives each its own look. **Clear** takes away the selected sparklines, or their whole groups.
 
 A sparkline follows its cells: insert a row above the data, and it still reads the same numbers. Every change is one step you can undo. Sparklines are saved in the file in the form other spreadsheet programs read.

@@ -1,5 +1,5 @@
 # Pivot tables
-<!-- keywords: pivot table, insert pivot table, create, make, getpivotdata, generate getpivotdata, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average, show values as, percent of total, difference, running total, number format, field settings, sort, filter, top, group, ungroup, dates, months, years, expand, collapse, options, style, banded rows, blank rows, repeat labels, refresh when the file opens, pivot chart, slicer, timeline, show details, drill down, rows behind a value -->
+<!-- keywords: pivot table, insert pivot table, create, make, select, move pivot table, getpivotdata, generate getpivotdata, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average, show values as, percent of total, difference, running total, number format, field settings, sort, filter, top, group, ungroup, dates, months, years, expand, collapse, options, style, banded rows, blank rows, repeat labels, refresh when the file opens, pivot chart, slicer, timeline, show details, drill down, rows behind a value -->
 
 A pivot table is a small report made from a long list. The list has one row for each sale, say; the report adds the sales up by region and month. You do not write any formulas. You say which columns of the list go down the side, which go across the top, and which one is added up, and the report fills itself in.
 
@@ -79,6 +79,10 @@ If the report would grow over cells that have something in them, JeffCrunch does
 ## Clear
 
 **Clear** has two choices. **Clear Filters** removes every filter and shows every entry again. **Clear All** takes every field out of the report and leaves it empty, ready to build again.
+
+## Select and move
+
+**Select** on the **Pivot Table** tab selects part of the report: **Entire Pivot Table**, **Values** (the numbers), or **Labels** (the names down the side; if the report has none down the side, the names across the top). **Move Pivot Table…** asks for a cell on the same sheet and draws the report again with its first cell there. The cells it leaves are emptied. If the new place has something in it, JeffCrunch does not move the report and tells you. One **Undo** moves it back.
 
 ## The fields pane
 

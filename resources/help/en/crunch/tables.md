@@ -1,5 +1,5 @@
 # Tables
-<!-- keywords: table, tables, structured reference, header row, totals row, calculated column, banded, striped, style, table looks, filter buttons, Ctrl+T, convert, plain cells, resize, column name, [@Column], Table1[Column] -->
+<!-- keywords: table, tables, remove duplicates, duplicates, summarize, clear style, structured reference, header row, totals row, calculated column, banded, striped, style, table looks, filter buttons, Ctrl+T, convert, plain cells, resize, column name, [@Column], Table1[Column] -->
 
 A table is a block of cells with a row of names over its columns, treated as one thing: it has a name, a look, buttons to filter and sort its rows, and it grows when you add to it. Formulas can call its columns by name instead of by cell address.
 
@@ -7,7 +7,7 @@ A table is a block of cells with a row of names over its columns, treated as one
 
 Select the cells, or click a cell in the data, and choose **Table** on the **Insert** tab (**Ctrl+T**). JeffCrunch asks which cells the table covers and whether the first row holds the names of the columns. Names that are numbers, dates, or formulas become the text they show, empty names become Column1, Column2, and so on, and two columns with one name are numbered. If there are no names, the table has no row of names, and its columns are called Column1, Column2, and so on in formulas.
 
-The **Table Looks** gallery (**Home** tab, or the **Table** tab) shows the looks: light, medium, and dark, each in black and in the six colors of the workbook's theme. Choosing one for cells that are not a table makes them one. The look is drawn under what a cell has of its own: a fill, borders, a text color, or bold that you set on a cell stays.
+The **Table Looks** gallery (**Home** tab, or the **Table** tab) shows the looks (**Clear**, under the gallery on the **Table** tab, takes the look off the table): light, medium, and dark, each in black and in the six colors of the workbook's theme. Choosing one for cells that are not a table makes them one. The look is drawn under what a cell has of its own: a fill, borders, a text color, or bold that you set on a cell stays.
 
 ## The Table tab
 
@@ -16,6 +16,8 @@ The **Table** tab shows while the cursor is in a table.
 - **Name** is the name formulas call the table by. Every formula that uses the old name follows. A name has letters, digits, underscores, and periods, begins with a letter or an underscore, and is not another table's, a name in the workbook, or a cell address such as A1.
 - **Row of Names**, **Totals Row**, **Striped Rows**, **Striped Columns**, **First Column**, **Last Column**, and **Filter Buttons** are checked or unchecked for the table.
 - **Change Table Size…** asks for the cells the table covers. It keeps its first cell; rows and columns can be added at the bottom and the right, or taken off.
+- **Summarize with Pivot Table** makes a pivot table from the table's cells (see [Pivot tables](pivot-tables)). The pivot table reads the table by its name, so it follows the table when it grows.
+- **Remove Duplicates…** takes out the rows that repeat. A row repeats when it shows the same, in all the columns you check, as a row above it. Capital and small letters count as the same. The first of the rows stays, and the rows under a removed row move up. The table gets shorter, and its totals row moves up with it. One **Undo** puts them all back. JeffCrunch does not move a row that has a formula of its own in it (a formula that is not the column's formula for every row), and it does not work on a table with a filter on.
 - **Back to Plain Cells** turns the table into ordinary cells. They keep what they hold. A formula that named the table or its columns names the cells instead.
 
 ## The menu of the cells
