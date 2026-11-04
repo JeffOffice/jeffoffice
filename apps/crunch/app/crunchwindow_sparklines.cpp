@@ -66,9 +66,9 @@ QPixmap swatch(const QColor &c)
 const struct Look {
     const char *name;
     quint32 rgb;
-} kLooks[] = {{QT_TR_NOOP("Blue"), 0x376092}, {QT_TR_NOOP("Orange"), 0xD2691E}, {QT_TR_NOOP("Gray"), 0x7F7F7F}, {QT_TR_NOOP("Gold"), 0xBF9000}, {QT_TR_NOOP("Green"), 0x2E7D32},
-              {QT_TR_NOOP("Dark Blue"), 0x1F3864}, {QT_TR_NOOP("Dark Red"), 0x8B1A1A}, {QT_TR_NOOP("Teal"), 0x007C89}, {QT_TR_NOOP("Purple"), 0x6B3FA0}, {QT_TR_NOOP("Dark Gray"), 0x404040},
-              {QT_TR_NOOP("Black"), 0x000000}, {QT_TR_NOOP("Red"), 0xC0392B}};
+} kLooks[] = {{QT_TRANSLATE_NOOP("jp::CrunchWindow", "Blue"), 0x376092}, {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Orange"), 0xD2691E}, {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Gray"), 0x7F7F7F}, {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Gold"), 0xBF9000}, {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Green"), 0x2E7D32},
+              {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Dark Blue"), 0x1F3864}, {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Dark Red"), 0x8B1A1A}, {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Teal"), 0x007C89}, {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Purple"), 0x6B3FA0}, {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Dark Gray"), 0x404040},
+              {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Black"), 0x000000}, {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Red"), 0xC0392B}};
 
 } // namespace
 
@@ -387,9 +387,9 @@ void CrunchWindow::createSparklineActions()
         const char *icon;
         SparklineGroup::Type type;
     };
-    static const Kind kinds[] = {{"line", QT_TR_NOOP("Line"), "activity", SparklineGroup::Type::Line},
-                                 {"column", QT_TR_NOOP("Column"), "chart-column", SparklineGroup::Type::Column},
-                                 {"winloss", QT_TR_NOOP("Win/Loss"), "arrow-up-down", SparklineGroup::Type::WinLoss}};
+    static const Kind kinds[] = {{"line", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Line"), "activity", SparklineGroup::Type::Line},
+                                 {"column", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Column"), "chart-column", SparklineGroup::Type::Column},
+                                 {"winloss", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Win/Loss"), "arrow-up-down", SparklineGroup::Type::WinLoss}};
     for (const Kind &k : kinds) {
         const SparklineGroup::Type type = k.type;
         const QString text = QCoreApplication::translate("jp::CrunchWindow", k.text);
@@ -406,9 +406,9 @@ void CrunchWindow::createSparklineActions()
         const char *icon;
         bool SparklineGroup::*field;
     };
-    static const Show shows[] = {{"high", QT_TR_NOOP("High Point"), "arrow-up-to-line", &SparklineGroup::high},        {"low", QT_TR_NOOP("Low Point"), "arrow-down-to-line", &SparklineGroup::low},
-                                 {"negative", QT_TR_NOOP("Negative Points"), "minus", &SparklineGroup::negative},      {"first", QT_TR_NOOP("First Point"), "arrow-left-to-line", &SparklineGroup::first},
-                                 {"last", QT_TR_NOOP("Last Point"), "arrow-right-to-line", &SparklineGroup::last},     {"markers", QT_TR_NOOP("Markers"), "circle-dot", &SparklineGroup::markers}};
+    static const Show shows[] = {{"high", QT_TRANSLATE_NOOP("jp::CrunchWindow", "High Point"), "arrow-up-to-line", &SparklineGroup::high},        {"low", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Low Point"), "arrow-down-to-line", &SparklineGroup::low},
+                                 {"negative", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Negative Points"), "minus", &SparklineGroup::negative},      {"first", QT_TRANSLATE_NOOP("jp::CrunchWindow", "First Point"), "arrow-left-to-line", &SparklineGroup::first},
+                                 {"last", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Last Point"), "arrow-right-to-line", &SparklineGroup::last},     {"markers", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Markers"), "circle-dot", &SparklineGroup::markers}};
     for (const Show &s : shows) {
         auto field = s.field;
         const QString id = QStringLiteral("spark.show.") + QLatin1String(s.id);
@@ -429,9 +429,9 @@ void CrunchWindow::createSparklineActions()
         const char *text;
         SparklineGroup::Empty how;
     };
-    static const Empty empties[] = {{"gaps", QT_TR_NOOP("Show Empty Cells as Gaps"), SparklineGroup::Empty::Gap},
-                                    {"zero", QT_TR_NOOP("Show Empty Cells as Zero"), SparklineGroup::Empty::Zero},
-                                    {"span", QT_TR_NOOP("Connect Data Points with a Line"), SparklineGroup::Empty::Span}};
+    static const Empty empties[] = {{"gaps", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Show Empty Cells as Gaps"), SparklineGroup::Empty::Gap},
+                                    {"zero", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Show Empty Cells as Zero"), SparklineGroup::Empty::Zero},
+                                    {"span", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Connect Data Points with a Line"), SparklineGroup::Empty::Span}};
     for (const Empty &e : empties) {
         const SparklineGroup::Empty how = e.how;
         const QString id = QStringLiteral("spark.empty.") + QLatin1String(e.id);
@@ -593,9 +593,9 @@ void CrunchWindow::sparklineRibbonParts(RibbonParts &parts)
                 const char *text;
                 ColorSpec SparklineGroup::*field;
             };
-            static const Part items[] = {{QT_TR_NOOP("Negative Points"), &SparklineGroup::negativeColor}, {QT_TR_NOOP("Markers"), &SparklineGroup::markerColor},
-                                         {QT_TR_NOOP("High Point"), &SparklineGroup::highColor},         {QT_TR_NOOP("Low Point"), &SparklineGroup::lowColor},
-                                         {QT_TR_NOOP("First Point"), &SparklineGroup::firstColor},       {QT_TR_NOOP("Last Point"), &SparklineGroup::lastColor}};
+            static const Part items[] = {{QT_TRANSLATE_NOOP("jp::CrunchWindow", "Negative Points"), &SparklineGroup::negativeColor}, {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Markers"), &SparklineGroup::markerColor},
+                                         {QT_TRANSLATE_NOOP("jp::CrunchWindow", "High Point"), &SparklineGroup::highColor},         {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Low Point"), &SparklineGroup::lowColor},
+                                         {QT_TRANSLATE_NOOP("jp::CrunchWindow", "First Point"), &SparklineGroup::firstColor},       {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Last Point"), &SparklineGroup::lastColor}};
             for (const Part &p : items) {
                 QMenu *sub = menu->addMenu(QCoreApplication::translate("jp::CrunchWindow", p.text));
                 auto field = p.field;

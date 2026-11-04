@@ -33,9 +33,9 @@ struct Preset {
     const char *name;
     quint32 text, fill;   // 0 for none
 };
-const Preset kPresets[] = {{QT_TR_NOOP("Light Red Fill with Dark Red Text"), 0x9C0006, 0xFFC7CE}, {QT_TR_NOOP("Yellow Fill with Dark Yellow Text"), 0x9C5700, 0xFFEB9C},
-                           {QT_TR_NOOP("Green Fill with Dark Green Text"), 0x006100, 0xC6EFCE}, {QT_TR_NOOP("Light Red Fill"), 0, 0xFFC7CE},
-                           {QT_TR_NOOP("Red Text"), 0x9C0006, 0},                               {QT_TR_NOOP("Bold Dark Blue Text"), 0x1F3864, 0}};
+const Preset kPresets[] = {{QT_TRANSLATE_NOOP("jp::CrunchWindow", "Light Red Fill with Dark Red Text"), 0x9C0006, 0xFFC7CE}, {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Yellow Fill with Dark Yellow Text"), 0x9C5700, 0xFFEB9C},
+                           {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Green Fill with Dark Green Text"), 0x006100, 0xC6EFCE}, {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Light Red Fill"), 0, 0xFFC7CE},
+                           {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Red Text"), 0x9C0006, 0},                               {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Bold Dark Blue Text"), 0x1F3864, 0}};
 
 DifferentialFormat formatOf(int preset)
 {

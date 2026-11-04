@@ -9,6 +9,7 @@
 #include "app/settings.h"
 #include "app/sheettabs.h"
 #include "core/appinfo.h"
+#include "core/editsession.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
@@ -30,6 +31,7 @@
 #include <QSettings>
 #include <QSignalSpy>
 #include <QTextDocument>
+#include <QTranslator>
 
 #include "../localepin.h"
 
@@ -113,6 +115,20 @@ private Q_SLOTS:
         static const QRegularExpression re(QStringLiteral("QT_TRANSLATE_NOOP\\(\"Ribbon\", \"([^\"]*)\"\\)"));
         for (auto it = re.globalMatch(QString::fromUtf8(listed.readAll())); it.hasNext();) have.insert(it.next().captured(1));
         QCOMPARE(have, want);
+    }
+
+    // JeffCrunch's own text is found in German where the program looks for it: the context lupdate gave a class's tr() texts is the class's
+    // full name, and a table of names marked at the top of a file has the context of the window that reads it. (Both were filed under other
+    // names once, and showed in English in every language.)
+    void ownTextIsTranslatedUnderTheNamesTheProgramLooksUp()
+    {
+        QTranslator de;
+        QVERIFY(de.load(QStringLiteral(":/i18n/jeffoffice_de.qm")));
+        QCOMPARE(QString::fromLatin1(jp::crunch::EditSession::staticMetaObject.className()), QStringLiteral("jp::crunch::EditSession"));
+        QVERIFY(!de.translate(jp::crunch::EditSession::staticMetaObject.className(), "The workbook is busy. Try again in a moment.").isEmpty());
+        QVERIFY(!de.translate(CrunchWindow::staticMetaObject.className(), "Stacked columns").isEmpty());
+        QVERIFY(!de.translate(CrunchWindow::staticMetaObject.className(), "Light Red Fill with Dark Red Text").isEmpty());
+        QVERIFY(!de.translate(CrunchWindow::staticMetaObject.className(), "Dark Blue").isEmpty());
     }
 
     // A workbook opens on a worker: the first rows are on the screen while the rest is read, with the cell the file was left on selected, and then the whole workbook is in.

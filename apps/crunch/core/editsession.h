@@ -42,6 +42,9 @@
 
 namespace jp::crunch {
 
+// (No enum above the class has its own underlying type, such as "enum class Kind : quint8": Qt 6.8's lupdate misreads one and files every tr() of
+// EditSession under "EditSession", not "jp::crunch::EditSession", where the program looks for it; tools/check_translate_calls.py checks this.)
+
 // The most cells a Delete (or any one edit) changes: past it the edit is refused, with a message, so that it never holds the worker, or the window, for long.
 constexpr qint64 kMaxCellsPerEdit = 100000;
 // The most separate runs of repeated rows Remove Duplicates deletes (each is a delete of cells of its own).
@@ -83,8 +86,8 @@ struct TableRename {
 // A table made, taken out, or changed by a step: its place in the workbook's tables, and the table as it was and as it is. A table taken out or renamed has the formulas that named it written
 // again (the cells' are in the step; the defined names' are made when the step is first done).
 struct TableEdit {
-    enum class Kind : quint8 { Replace, Insert, Erase } kind = Kind::Replace;
-    enum class Rewrite : quint8 { None, Rename, ToRange, Remove } rewrite = Rewrite::None;
+    enum class Kind { Replace, Insert, Erase } kind = Kind::Replace;
+    enum class Rewrite { None, Rename, ToRange, Remove } rewrite = Rewrite::None;
     int index = 0;
     jp::office::sheet::Table before, after;
     std::vector<std::pair<QString, QString>> names;   // the defined names that named the table, as they were (made when the step is first done)
@@ -132,7 +135,7 @@ struct SizeEdit {
 // A sheet added, copied, renamed, deleted, moved, shown or hidden, or given a tab color by a step. The sheets are never renumbered (see Calculation::addSheet): `sheet` is the sheet's place for
 // good, and what a step changes of the order of the tabs is kept whole.
 struct SheetEdit {
-    enum class Kind : quint8 { Insert, Copy, Delete, Rename, Move, State, TabColor, Sparklines } kind = Kind::Insert;
+    enum class Kind { Insert, Copy, Delete, Rename, Move, State, TabColor, Sparklines } kind = Kind::Insert;
     int sheet = 0;
     QString nameBefore, nameAfter;
     QVector<int> orderBefore, orderAfter;

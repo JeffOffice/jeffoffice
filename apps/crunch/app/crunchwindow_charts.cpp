@@ -42,22 +42,22 @@ struct KindAction {
 };
 
 const KindAction kKindActions[] = {
-    {"chart.column.clustered", QT_TR_NOOP("Columns"), "chart-column", ChartKind::Column},
-    {"chart.column.stacked", QT_TR_NOOP("Stacked columns"), "chart-column-stacked", ChartKind::ColumnStacked},
-    {"chart.column.percent", QT_TR_NOOP("Columns to 100%"), "chart-column-stacked", ChartKind::ColumnPercent},
-    {"chart.bar.clustered", QT_TR_NOOP("Bars"), "chart-bar", ChartKind::Bar},
-    {"chart.bar.stacked", QT_TR_NOOP("Stacked bars"), "chart-bar-stacked", ChartKind::BarStacked},
-    {"chart.bar.percent", QT_TR_NOOP("Bars to 100%"), "chart-bar-stacked", ChartKind::BarPercent},
-    {"chart.line.plain", QT_TR_NOOP("Line"), "chart-line", ChartKind::Line},
-    {"chart.line.markers", QT_TR_NOOP("Line with markers"), "chart-spline", ChartKind::LineMarkers},
-    {"chart.line.stacked", QT_TR_NOOP("Stacked line"), "chart-line", ChartKind::LineStacked},
-    {"chart.pie.pie", QT_TR_NOOP("Pie"), "chart-pie", ChartKind::Pie},
-    {"chart.pie.doughnut", QT_TR_NOOP("Doughnut"), "donut", ChartKind::Doughnut},
-    {"chart.area.plain", QT_TR_NOOP("Area"), "chart-area", ChartKind::Area},
-    {"chart.area.stacked", QT_TR_NOOP("Stacked area"), "chart-area", ChartKind::AreaStacked},
-    {"chart.scatter.points", QT_TR_NOOP("Scatter, points"), "chart-scatter", ChartKind::Scatter},
-    {"chart.scatter.joined", QT_TR_NOOP("Scatter, joined points"), "chart-scatter", ChartKind::ScatterLines},
-    {"chart.scatter.smooth", QT_TR_NOOP("Scatter, smooth lines"), "chart-scatter", ChartKind::ScatterSmooth},
+    {"chart.column.clustered", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Columns"), "chart-column", ChartKind::Column},
+    {"chart.column.stacked", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Stacked columns"), "chart-column-stacked", ChartKind::ColumnStacked},
+    {"chart.column.percent", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Columns to 100%"), "chart-column-stacked", ChartKind::ColumnPercent},
+    {"chart.bar.clustered", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Bars"), "chart-bar", ChartKind::Bar},
+    {"chart.bar.stacked", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Stacked bars"), "chart-bar-stacked", ChartKind::BarStacked},
+    {"chart.bar.percent", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Bars to 100%"), "chart-bar-stacked", ChartKind::BarPercent},
+    {"chart.line.plain", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Line"), "chart-line", ChartKind::Line},
+    {"chart.line.markers", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Line with markers"), "chart-spline", ChartKind::LineMarkers},
+    {"chart.line.stacked", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Stacked line"), "chart-line", ChartKind::LineStacked},
+    {"chart.pie.pie", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Pie"), "chart-pie", ChartKind::Pie},
+    {"chart.pie.doughnut", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Doughnut"), "donut", ChartKind::Doughnut},
+    {"chart.area.plain", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Area"), "chart-area", ChartKind::Area},
+    {"chart.area.stacked", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Stacked area"), "chart-area", ChartKind::AreaStacked},
+    {"chart.scatter.points", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Scatter, points"), "chart-scatter", ChartKind::Scatter},
+    {"chart.scatter.joined", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Scatter, joined points"), "chart-scatter", ChartKind::ScatterLines},
+    {"chart.scatter.smooth", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Scatter, smooth lines"), "chart-scatter", ChartKind::ScatterSmooth},
 };
 
 struct GroupAction {
@@ -68,10 +68,10 @@ struct GroupAction {
 };
 
 const GroupAction kGroupActions[] = {
-    {"chart.column", QT_TR_NOOP("Column"), "chart-column", ChartKind::Column},        {"chart.bar", QT_TR_NOOP("Bar"), "chart-bar", ChartKind::Bar},
-    {"chart.line", QT_TR_NOOP("Line"), "chart-line", ChartKind::Line},                {"chart.pie", QT_TR_NOOP("Pie"), "chart-pie", ChartKind::Pie},
-    {"chart.area", QT_TR_NOOP("Area"), "chart-area", ChartKind::Area},                {"chart.scatter", QT_TR_NOOP("Scatter"), "chart-scatter", ChartKind::Scatter},
-    {"chart.combo", QT_TR_NOOP("Combo"), "chart-no-axes-combined", ChartKind::Combo},
+    {"chart.column", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Column"), "chart-column", ChartKind::Column},        {"chart.bar", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Bar"), "chart-bar", ChartKind::Bar},
+    {"chart.line", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Line"), "chart-line", ChartKind::Line},                {"chart.pie", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Pie"), "chart-pie", ChartKind::Pie},
+    {"chart.area", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Area"), "chart-area", ChartKind::Area},                {"chart.scatter", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Scatter"), "chart-scatter", ChartKind::Scatter},
+    {"chart.combo", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Combo"), "chart-no-axes-combined", ChartKind::Combo},
 };
 
 QImage renderChart(const Chart &chart, const QSize &pixels)
@@ -660,9 +660,9 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
         auto *labelGroup = new QActionGroup(labels);
         choice(labels, labelGroup, tr("None"), !e.labels, [](Chart *c) { setDataLabels(c, false); }, tr("Data Labels"));
         choice(labels, labelGroup, tr("Usual place"), e.labels && e.labelPosition.isEmpty(), [](Chart *c) { setDataLabels(c, true); }, tr("Data Labels"));
-        static const struct { const char *code; const char *name; } places[] = {{"ctr", QT_TR_NOOP("Center")}, {"inEnd", QT_TR_NOOP("Inside End")}, {"inBase", QT_TR_NOOP("Inside Base")},
-                                                                                  {"outEnd", QT_TR_NOOP("Outside End")}, {"bestFit", QT_TR_NOOP("Best Fit")}, {"l", QT_TR_NOOP("Left")},
-                                                                                  {"r", QT_TR_NOOP("Right")}, {"t", QT_TR_NOOP("Above")}, {"b", QT_TR_NOOP("Below")}};
+        static const struct { const char *code; const char *name; } places[] = {{"ctr", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Center")}, {"inEnd", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Inside End")}, {"inBase", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Inside Base")},
+                                                                                  {"outEnd", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Outside End")}, {"bestFit", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Best Fit")}, {"l", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Left")},
+                                                                                  {"r", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Right")}, {"t", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Above")}, {"b", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Below")}};
         const QStringList allowed = labelPositionsFor(chart);
         for (const auto &p : places) {
             const QString code = QString::fromLatin1(p.code);
@@ -724,7 +724,7 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
         legend->setObjectName(QStringLiteral("legendMenu"));
         auto *legendGroup = new QActionGroup(legend);
         choice(legend, legendGroup, tr("None"), !e.legend, [](Chart *c) { setLegend(c, QString()); }, tr("Legend"));
-        const struct { const char *code; const char *name; } sides[] = {{"r", QT_TR_NOOP("Right")}, {"t", QT_TR_NOOP("Top")}, {"l", QT_TR_NOOP("Left")}, {"b", QT_TR_NOOP("Bottom")}};
+        const struct { const char *code; const char *name; } sides[] = {{"r", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Right")}, {"t", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Top")}, {"l", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Left")}, {"b", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Bottom")}};
         for (const auto &s : sides) {
             const QString code = QString::fromLatin1(s.code);
             choice(legend, legendGroup, QCoreApplication::translate("jp::CrunchWindow", s.name), e.legend && e.legendPosition == code, [code, over = e.legendOverlay](Chart *c) { setLegend(c, code, over); }, tr("Legend"));
@@ -738,8 +738,8 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
             trend->setObjectName(QStringLiteral("trendlineMenu"));
             auto *trendGroup = new QActionGroup(trend);
             choice(trend, trendGroup, tr("None"), e.trendline.isEmpty(), [](Chart *c) { setTrendlines(c, QString()); }, tr("Trendline"));
-            static const struct { const char *code; const char *name; } kinds[] = {{"linear", QT_TR_NOOP("Linear")}, {"exp", QT_TR_NOOP("Exponential")}, {"log", QT_TR_NOOP("Logarithmic")},
-                                                                                  {"poly", QT_TR_NOOP("Polynomial")}, {"power", QT_TR_NOOP("Power")}, {"movingAvg", QT_TR_NOOP("Moving Average")}};
+            static const struct { const char *code; const char *name; } kinds[] = {{"linear", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Linear")}, {"exp", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Exponential")}, {"log", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Logarithmic")},
+                                                                                  {"poly", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Polynomial")}, {"power", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Power")}, {"movingAvg", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Moving Average")}};
             for (const auto &k : kinds) {
                 const QString code = QString::fromLatin1(k.code);
                 choice(trend, trendGroup, QCoreApplication::translate("jp::CrunchWindow", k.name), e.trendline == code, [code](Chart *c) { setTrendlines(c, code); }, tr("Trendline"));
