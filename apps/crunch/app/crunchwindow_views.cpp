@@ -36,6 +36,14 @@ constexpr double kBreakViewZoom = 0.6;
 
 } // namespace
 
+// The Full Screen check follows the window (it is also left by the window system's own button or key).
+void CrunchWindow::changeEvent(QEvent *e)
+{
+    AppWindow::changeEvent(e);
+    if (e->type() == QEvent::WindowStateChange)
+        if (QAction *a = act(QStringLiteral("view.fullScreen"))) a->setChecked(isFullScreen());
+}
+
 void CrunchWindow::createViewActions()
 {
     auto *group = new QActionGroup(this);

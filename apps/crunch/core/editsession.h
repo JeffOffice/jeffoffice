@@ -284,7 +284,9 @@ public:
     void setToday(const QDate &today) { m_today = today; }
     QLocale locale() const { return m_locale; }
     // The lists a fill goes through besides the weekdays and the months (Options > Custom Lists): a cell that holds an item of one is followed by the next, round to the first.
-    void setCustomLists(const QList<QStringList> &lists) { m_customLists = lists; }
+    // (at most kMaxCustomLists lists of kMaxCustomListItems items of kMaxCustomItemChars characters are kept: what a file of settings could otherwise multiply)
+    static constexpr int kMaxCustomLists = 50, kMaxCustomListItems = 1000, kMaxCustomItemChars = 255;
+    void setCustomLists(const QList<QStringList> &lists);
     const QList<QStringList> &customLists() const { return m_customLists; }
 
     QUndoStack *undoStack() { return &m_undo; }
@@ -779,6 +781,10 @@ public:
     Outcome applyStyleNamed(int sheet, const jp::office::sheet::CellRange &range, const QString &name, const QString &text);
     // New Cell Style: a style of the person's own, called `name`, with the look of the cell at `row`, `col` (its number format, font, fill, border, alignment, and protection); it is then
     // offered with the others, and the selected cells are given it. Not ok, with the reason, if the name is empty or taken.
+    // (the steps of New Cell Style: pushed after the style is made, and Undo and Redo take it out and put it in again)
+    void pushStyleMade(const QString &name, quint32 format);
+    void forgetNewStyle(const QString &name);
+    void rememberNewStyle(const QString &name, quint32 format);
     Outcome newCellStyle(int sheet, quint32 row, quint32 col, const jp::office::sheet::CellRange &range, const QString &name);
 
     // An object over the cells is taken away (Delete with it picked), put there, moved, or changed: one step, which Undo gives back. The hook (setObjectHook) is told the change when the step is
@@ -1029,6 +1035,7 @@ private:
     qint64 m_undoByteLimit = kUndoBytes;
     QLocale m_locale;
     QList<QStringList> m_customLists;
+    QHash<QString, QPair<int, int>> m_customIndex;   // each item (in lower case) to its list and its place in it
     QDate m_today;
     bool m_busy = false;
     std::function<void(jp::office::sheet::Calculation *, bool)> m_holdHook;

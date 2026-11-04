@@ -1241,7 +1241,8 @@ void GridView::mousePressEvent(QMouseEvent *e)
         m_lastMouse = lp;
         return;
     }
-    if (h.kind == Hit::Kind::Cell && m_cellsEnabled && !shift && !(e->modifiers() & Qt::AltModifier) && selectionBorderAtInLayout(lp)) {
+    if (h.kind == Hit::Kind::Cell && m_cellsEnabled && !shift && !(e->modifiers() & Qt::AltModifier) && h.row >= m_selection.range.row1 && h.row <= m_selection.range.row2
+        && h.col >= m_selection.range.col1 && h.col <= m_selection.range.col2 && selectionBorderAtInLayout(lp)) {
         m_drag = Drag::MoveCells;
         m_moveSource = m_moveTarget = m_selection.range;
         m_moveCopy = e->modifiers() & Qt::ControlModifier;
@@ -1378,11 +1379,9 @@ void GridView::mouseReleaseEvent(QMouseEvent *e)
         if (!(target == source)) {
             Q_EMIT moveRequested(source, target, copy);
         } else {
-            // (not moved: it was a click, on the cell the border is of)
-            Navigator nav(&m_sheet.layout(), m_nav.get());
-            setSelectionInternal(nav.click(pressRow, pressCol), false);
-            Q_EMIT selectionSettled();
-            Q_EMIT cellClicked(pressRow, pressCol, e ? e->modifiers() : Qt::NoModifier);
+            // (not moved: a click on the border changes nothing, and a selection of several cells stays)
+            (void)pressRow;
+            (void)pressCol;
         }
         m_pressRow = m_pressCol = -1;
         return;
@@ -1415,8 +1414,8 @@ bool GridView::selectionBorderAtInLayout(const QPoint &lp) const
     const QRect a = cellRectInLayout(r.row1, r.col1), b = cellRectInLayout(r.row2, r.col2);
     if (a.isEmpty() || b.isEmpty()) return false;   // (a corner of it is out of view: not grabbed)
     const QRect rect = a.united(b);
-    constexpr int kGrab = 3;
-    return rect.adjusted(-kGrab, -kGrab, kGrab, kGrab).contains(lp) && !rect.adjusted(kGrab + 1, kGrab + 1, -kGrab - 1, -kGrab - 1).contains(lp);
+    // (the border line itself: the two pixels inside the edge of the block and the one the gridline takes outside it; a press a little off it selects as ever)
+    return rect.adjusted(-1, -1, 1, 1).contains(lp) && !rect.adjusted(2, 2, -2, -2).contains(lp);
 }
 
 QRect GridView::fillHandleRectInLayout() const

@@ -395,6 +395,11 @@ private Q_SLOTS:
         win.w.act("view.collapseRibbon")->trigger();
         QVERIFY(!win.w.ribbon()->isMinimized());
         QVERIFY(win.w.act("view.fullScreen") && win.w.act("view.fullScreen")->isCheckable() && !win.w.act("view.fullScreen")->isChecked());
+        // the check follows the window, whoever changed its state
+        win.w.setWindowState(win.w.windowState() | Qt::WindowFullScreen);
+        QTRY_VERIFY(win.w.act("view.fullScreen")->isChecked());
+        win.w.setWindowState(win.w.windowState() & ~Qt::WindowFullScreen);
+        QTRY_VERIFY(!win.w.act("view.fullScreen")->isChecked());
         // and a right click on them chooses which are shown
         v->setStatChoices(grid::StatMinimum | grid::StatMaximum);
         QVERIFY(win.w.findChild<QLabel *>(QStringLiteral("selectionStats"))->text().startsWith(QLatin1String("Minimum: ")));

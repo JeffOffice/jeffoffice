@@ -2688,6 +2688,8 @@ qint32 Workbook::addNamedStyle(const QString &name, quint32 format)
     if (trimmed.isEmpty() || trimmed.size() > 255 || format >= quint32(m_styles.formats.size())) return -1;
     for (const CellStyleName &n : m_styles.cellStyles)
         if (n.name.compare(trimmed, Qt::CaseInsensitive) == 0) return -1;
+    for (const QChar c : trimmed)
+        if (c.category() == QChar::Other_Control) return -1;   // (a name is a line of text)
     BuiltinStyle taken;
     if (builtinStyle(trimmed, &taken)) return -1;
     if (m_styles.styleXfs.isEmpty() || m_styles.cellStyles.isEmpty() || m_styles.styleXfs.size() >= kMaxStylesMade) return -1;
@@ -2702,6 +2704,24 @@ qint32 Workbook::addNamedStyle(const QString &name, quint32 format)
     m_styles.cellStyles.append(n);
     m_stylesAdded.append({f, n});
     return qint32(n.xfId);
+}
+
+bool Workbook::removeAddedStyle(const QString &name)
+{
+    if (m_stylesAdded.isEmpty() || m_stylesAdded.last().name.name != name) return false;
+    const quint32 place = m_stylesAdded.last().name.xfId;
+    if (m_styles.styleXfs.isEmpty() || place != quint32(m_styles.styleXfs.size() - 1) || m_styles.cellStyles.isEmpty() || m_styles.cellStyles.last().name != name) return false;
+    // the cell formats made for cells that had the style (they name it as theirs) go too, from the end
+    while (!m_formatsAdded.isEmpty() && !m_styles.formats.isEmpty() && m_styles.formats.last().xfId == place && m_styles.formats.size() == m_formatsInFile + m_formatsAdded.size()) {
+        m_styles.formats.removeLast();
+        if (!m_styles.cellXfs.isEmpty()) m_styles.cellXfs.removeLast();
+        m_formatsAdded.removeLast();
+    }
+    m_formatIndexMade = false;
+    m_styles.styleXfs.removeLast();
+    m_styles.cellStyles.removeLast();
+    m_stylesAdded.removeLast();
+    return true;
 }
 
 const QVector<Table> &Workbook::tables() const

@@ -174,6 +174,23 @@ private Q_SLOTS:
         QCOMPARE(seriesOf(chartOf(e))[0].valueRef, QStringLiteral("Sheet1!$C$2:$C$4"));
     }
 
+    // The cells a chart reads, dragged by the border of the selection to other cells, take the series with them (and Undo puts the series back).
+    void aChartSeriesFollowsCellsMovedByTheSelectionBorder()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        QCOMPARE(seriesOf(chartOf(e))[0].valueRef, QStringLiteral("Sheet1!$B$2:$B$4"));
+        e.win.w.resize(1100, 640);
+        e.view()->selectRange(1, 1, 3, 1);
+        Q_EMIT e.view()->moveRequested(grid::GridRange{1, 1, 3, 1}, grid::GridRange{1, 4, 3, 4}, false);   // B2:B4 dropped on E2:E4
+        QVERIFY(e.settle());
+        QCOMPARE(seriesOf(chartOf(e))[0].valueRef, QStringLiteral("Sheet1!$E$2:$E$4"));
+        pressUndo(&e.win.w);
+        QVERIFY(e.settle());
+        QCOMPARE(seriesOf(chartOf(e))[0].valueRef, QStringLiteral("Sheet1!$B$2:$B$4"));
+    }
+
     // New Chart makes a chart from the cells selected: headers found, the chart over the cells in view, picked, one step of Undo, and Redo puts it back.
     void aChartIsMadeFromTheCellsSelected()
     {

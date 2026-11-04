@@ -427,8 +427,12 @@ public:
     EnterMove enterMove() const { return m_enterMove; }
     void setEnterMove(EnterMove move);
     // The custom lists of Fill (Options > Custom Lists), one list to a line, its items between commas: kept in the settings and given to the edit session.
+    // The menu that chooses which numbers of the selection the status bar shows; the caller owns it.
+    QMenu *statsChoiceMenu();
     QStringList customListLines() const;
     void setCustomListLines(const QStringList &lines);
+    void applyCustomListLines();
+    QStringList customListLinesRead() const;   // the lines as the lists read from the settings are written (spaces trimmed)
     // For tests: a line where a page begins is dragged from a row (column) to another, as the mouse would ask.
     void moveBreakForTest(bool column, qint64 from, qint64 to) { breakLineMoved(column, from, to); }
     // For tests and the window: the view of the pages, and the strip of text being typed in a header or footer.
@@ -488,6 +492,7 @@ Q_SIGNALS:
 
 protected:
     void closeEvent(QCloseEvent *e) override;
+    void changeEvent(QEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
     bool eventFilter(QObject *o, QEvent *e) override;

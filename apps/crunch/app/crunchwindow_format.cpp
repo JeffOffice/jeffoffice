@@ -108,9 +108,9 @@ void CrunchWindow::createFormatActions()
         bool first;
         int decimals;
     };
-    static const Money moneys[] = {{"usd", QT_TR_NOOP("$ US dollar"), "$", true, 2},       {"gbp", QT_TR_NOOP("\u00a3 British pound"), "\u00a3", true, 2},
-                                   {"eur", QT_TR_NOOP("\u20ac Euro (after the number)"), "\u20ac", false, 2}, {"jpy", QT_TR_NOOP("\u00a5 Japanese yen"), "\u00a5", true, 0},
-                                   {"cny", QT_TR_NOOP("\u00a5 Chinese yuan"), "\u00a5", true, 2},  {"chf", QT_TR_NOOP("Fr. Swiss franc"), "Fr.", true, 2}};
+    static const Money moneys[] = {{"usd", QT_TR_NOOP("US dollar"), "$", true, 2},   {"gbp", QT_TR_NOOP("British pound"), "\u00a3", true, 2},
+                                   {"eur", QT_TR_NOOP("Euro (after the number)"), "\u20ac", false, 2}, {"jpy", QT_TR_NOOP("Japanese yen"), "\u00a5", true, 0},
+                                   {"cny", QT_TR_NOOP("Chinese yuan"), "\u00a5", true, 2}, {"chf", QT_TR_NOOP("Swiss franc"), "Fr.", true, 2}};
     for (const Money &m : moneys)
         add(QStringLiteral("fmt.accounting.") + QString::fromLatin1(m.id), tr(m.text), "dollar-sign", QKeySequence(),
             [this, m] { accountingCommand(QString::fromUtf8(m.symbol), m.first, m.decimals); });

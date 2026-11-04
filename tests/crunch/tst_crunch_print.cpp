@@ -1909,7 +1909,8 @@ private Q_SLOTS:
         QByteArray bytes;
         {
             EditWindow e;
-            QVERIFY(e.open(rowsWithFormulas(20, {})));
+            QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c></row><row r=\"3\"><c r=\"B3\"><v>3</v></c></row>")),
+                                      worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>4</v></c></row>"))})));
             CrunchWindow &w = e.win.w;
             QAction *rtl = w.act(QStringLiteral("view.rightToLeft"));
             QVERIFY(rtl && rtl->isCheckable() && rtl->isEnabled() && !rtl->isChecked());
@@ -1919,6 +1920,13 @@ private Q_SLOTS:
             QVERIFY(rtl->isChecked());
             QVERIFY(e.view()->sheet().rightToLeft());
             QCOMPARE(e.selected(), QStringLiteral("B3"));
+            // another sheet reads as its file says; back on the first, it reads from the right still
+            w.setActiveSheet(1);
+            QVERIFY(!e.view()->sheet().rightToLeft());
+            QVERIFY(!rtl->isChecked());
+            w.setActiveSheet(0);
+            QVERIFY(e.view()->sheet().rightToLeft());
+            QVERIFY(rtl->isChecked());
             QSignalSpy saved(&w, &CrunchWindow::saved);
             QVERIFY(w.save());
             QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
@@ -1927,6 +1935,7 @@ private Q_SLOTS:
             QVERIFY(pk.readLazyFile(e.path, &why));
             const QByteArray xml = pk.part(QStringLiteral("xl/worksheets/sheet1.xml"));
             QVERIFY2(xml.contains("rightToLeft=\"1\""), xml.left(900).constData());
+            QVERIFY(!pk.part(QStringLiteral("xl/worksheets/sheet2.xml")).contains("rightToLeft"));
             QFile f(e.path);
             QVERIFY(f.open(QIODevice::ReadOnly));
             bytes = f.readAll();

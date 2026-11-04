@@ -491,6 +491,63 @@ private Q_SLOTS:
         QVERIFY(g.looks().look(g.cellAt(0, 0)->style).bold);
     }
 
+    // Undo takes a New Cell Style back out whole (the style, and the cell formats made for it), so the same name can be made again and nothing unused is written; a name with a control character
+    // is refused.
+    void undoOfANewCellStyleTakesTheStyleOut()
+    {
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        const jp::office::sheet::Workbook *book = e.win.w.session()->workbook();
+        const int xfs = int(book->styles().styleXfs.size()), formats = int(book->styles().formats.size()), names = int(book->styles().cellStyles.size());
+        e.select(QStringLiteral("A1"));
+        run(e, "fmt.bold");
+        const int steps = e.win.w.undoStack()->count();
+        e.win.w.setStyleNameAsker([](QString *name) {
+            *name = QStringLiteral("Mine");
+            return true;
+        });
+        const int formatsBold = int(book->styles().formats.size());
+        run(e, "style.new");
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(int(book->styles().cellStyles.size()), names + 1);
+        e.win.w.undoStack()->undo();
+        QCOMPARE(int(book->styles().styleXfs.size()), xfs);
+        QCOMPARE(int(book->styles().cellStyles.size()), names);
+        QCOMPARE(int(book->styles().formats.size()), formatsBold);
+        QVERIFY(book->addedStyles().isEmpty());
+        QMenu *styles = menuNamed(e, "stylesMenu");
+        styles->aboutToShow();
+        QVERIFY(!actionTextOf(styles, QStringLiteral("Mine")));
+        // the same name again works, and Redo after Undo brings it back
+        run(e, "style.new");
+        QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join('|')));
+        e.win.w.undoStack()->undo();
+        e.win.w.undoStack()->redo();
+        QCOMPARE(int(book->styles().cellStyles.size()), names + 1);
+        QCOMPARE(int(book->addedStyles().size()), 1);
+        e.win.w.undoStack()->undo();
+        // nothing unused is written
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        Package p;
+        QString why;
+        QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
+        QVERIFY(!p.part(QStringLiteral("/xl/styles.xml")).contains("Mine"));
+        // control characters are refused
+        e.win.told.clear();
+        e.win.w.setStyleNameAsker([](QString *name) {
+            *name = QStringLiteral("Bad\x01Name");
+            return true;
+        });
+        const int before = e.win.w.undoStack()->count();
+        run(e, "style.new");
+        QCOMPARE(e.win.told.size(), 1);
+        QCOMPARE(e.win.w.undoStack()->count(), before);
+        QCOMPARE(int(book->styles().cellStyles.size()), names);
+    }
+
     // The Format Painter: a click takes the format of the cells selected and the next cells selected get it; a double click keeps it on until Esc.
     void theFormatPainter()
     {

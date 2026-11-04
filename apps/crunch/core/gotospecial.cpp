@@ -356,7 +356,10 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
     }
     case SpecialKind::CurrentArray: {
         for (const CellRange &r : s.ranges)
-            if (r.valid && r.cellCount() > 1 && activeRow >= r.row1 && activeRow <= r.row2 && activeCol >= r.col1 && activeCol <= r.col2) {
+            if (r.valid && activeRow >= r.row1 && activeRow <= r.row2 && activeCol >= r.col1 && activeCol <= r.col2) {
+                // (the ranges also hold those of data tables: the first cell of one says which it is)
+                const Cell *first = s.cells.find(r.row1, r.col1);
+                if (first && (first->flags & DataTable)) continue;
                 out.ranges.append(r);
                 out.cells = r.cellCount();
                 return out;
@@ -375,24 +378,45 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
             out.problem = QCoreApplication::translate("jp::crunch::GoTo", "The cell with the cursor is not among the cells to look at.");
             return out;
         }
+        // (only the cells the sheet uses can differ from each other: a whole-sheet selection is cut to them)
+        if (s.extentRows > 0 && look.row2 >= s.extentRows) look.row2 = std::max(s.extentRows - 1, activeRow);
+        if (s.extentCols > 0 && look.col2 >= s.extentCols) look.col2 = std::max(s.extentCols - 1, activeCol);
         RangeBuilder diff(&out);
         qint64 looked = 0;
-        auto sameAs = [&](quint32 baseRow, quint32 baseCol, quint32 row, quint32 col) {
-            const Calculation::CellContent a = calc->content(sheet, baseRow, baseCol), b = calc->content(sheet, row, col);
-            if (a.isFormula != b.isFormula) return false;
-            if (a.isFormula) return shiftFormula(a.formula, int(row) - int(baseRow), int(col) - int(baseCol)) == b.formula;
-            return session.valueAt(sheet, baseRow, baseCol) == session.valueAt(sheet, row, col);
+        // the cell with the cursor in a row (a column) is read once for the row (the column), and the others are held up to it
+        auto differs = [&](const Calculation::CellContent &base, const Value &baseValue, quint32 baseRow, quint32 baseCol, quint32 row, quint32 col) {
+            const Calculation::CellContent b = calc->content(sheet, row, col);
+            if (base.isFormula != b.isFormula) return true;
+            if (base.isFormula) return shiftFormula(base.formula, int(row) - int(baseRow), int(col) - int(baseCol)) != b.formula;
+            return !(baseValue == session.valueAt(sheet, row, col));
         };
-        if (byRow) {
-            for (quint32 row = look.row1; row <= look.row2 && looked <= kMaxSpecialWork; ++row)
-                for (quint32 col = look.col1; col <= look.col2; ++col, ++looked)
-                    if (col != activeCol && !sameAs(row, activeCol, row, col)) diff.add(row, col);
-        } else {
-            for (quint32 row = look.row1; row <= look.row2 && looked <= kMaxSpecialWork; ++row)
-                for (quint32 col = look.col1; col <= look.col2; ++col, ++looked)
-                    if (row != activeRow && !sameAs(activeRow, col, row, col)) diff.add(row, col);
+        std::vector<Calculation::CellContent> columnBase;   // (column differences: the cell with the cursor in each column, read once)
+        std::vector<Value> columnValue;
+        if (!byRow)
+            for (quint32 col = look.col1; col <= look.col2; ++col) {
+                columnBase.push_back(calc->content(sheet, activeRow, col));
+                columnValue.push_back(session.valueAt(sheet, activeRow, col));
+            }
+        bool stop = false;
+        for (quint32 row = look.row1; row <= look.row2 && !stop; ++row) {
+            Calculation::CellContent base;
+            Value baseValue;
+            if (byRow) {
+                base = calc->content(sheet, row, activeCol);   // (the cell with the cursor in this row, read once)
+                baseValue = session.valueAt(sheet, row, activeCol);
+            }
+            for (quint32 col = look.col1; col <= look.col2; ++col) {
+                if (++looked > kMaxSpecialWork) {
+                    out.truncated = true;
+                    stop = true;
+                    break;
+                }
+                if (byRow ? col == activeCol : row == activeRow) continue;
+                const bool different = byRow ? differs(base, baseValue, row, activeCol, row, col)
+                                             : differs(columnBase[col - look.col1], columnValue[col - look.col1], activeRow, col, row, col);
+                if (different) diff.add(row, col);
+            }
         }
-        if (looked > kMaxSpecialWork) out.truncated = true;
         diff.finish();
         if (out.ranges.isEmpty()) none();
         return out;

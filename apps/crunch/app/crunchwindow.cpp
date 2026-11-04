@@ -345,6 +345,28 @@ void CrunchWindow::buildCentral()
     createFormulaHelper();
 }
 
+// The menu a right click on the numbers of the selection opens: which of them the status bar shows (the caller owns it).
+QMenu *CrunchWindow::statsChoiceMenu()
+{
+    auto *menu = new QMenu(this);
+    menu->setObjectName(QStringLiteral("statsChoiceMenu"));
+    const std::pair<QString, int> choices[] = {{tr("Average"), grid::StatAverage}, {tr("Count"), grid::StatCount}, {tr("Numerical Count"), grid::StatNumericalCount},
+                                               {tr("Minimum"), grid::StatMinimum}, {tr("Maximum"), grid::StatMaximum}, {tr("Sum"), grid::StatSum}};
+    for (const auto &c : choices) {
+        QAction *a = menu->addAction(c.first);
+        a->setCheckable(true);
+        a->setChecked(m_view->statChoices() & c.second);
+        const int bit = c.second;
+        connect(a, &QAction::triggered, this, [this, bit] {
+            const int now = m_view->statChoices() ^ bit;
+            if (!now) return;   // (one at least stays)
+            m_view->setStatChoices(now);
+            Settings::get().setValue(QStringLiteral("crunch/statusStats"), now);
+        });
+    }
+    return menu;
+}
+
 void CrunchWindow::buildStatusBar()
 {
     QStatusBar *sb = statusBar();
@@ -362,23 +384,9 @@ void CrunchWindow::buildStatusBar()
         m_view->setStatChoices(saved & 63 ? saved & 63 : grid::kDefaultStatChoices);
     }
     connect(m_stats, &QWidget::customContextMenuRequested, this, [this](const QPoint &at) {
-        QMenu menu(this);
-        menu.setObjectName(QStringLiteral("statsChoiceMenu"));
-        const std::pair<QString, int> choices[] = {{tr("Average"), grid::StatAverage}, {tr("Count"), grid::StatCount}, {tr("Numerical Count"), grid::StatNumericalCount},
-                                                   {tr("Minimum"), grid::StatMinimum}, {tr("Maximum"), grid::StatMaximum}, {tr("Sum"), grid::StatSum}};
-        for (const auto &c : choices) {
-            QAction *a = menu.addAction(c.first);
-            a->setCheckable(true);
-            a->setChecked(m_view->statChoices() & c.second);
-            const int bit = c.second;
-            connect(a, &QAction::triggered, this, [this, bit] {
-                const int now = m_view->statChoices() ^ bit;
-                if (!now) return;   // (one at least stays)
-                m_view->setStatChoices(now);
-                Settings::get().setValue(QStringLiteral("crunch/statusStats"), now);
-            });
-        }
-        menu.exec(m_stats->mapToGlobal(at));
+        QMenu *menu = statsChoiceMenu();
+        menu->exec(m_stats->mapToGlobal(at));
+        delete menu;
     });
     auto button = [&](const char *id) {
         auto *b = new QToolButton();
@@ -487,7 +495,7 @@ void CrunchWindow::createActions()
             auto *edit = new QPlainTextEdit(page);
             edit->setObjectName(QStringLiteral("optionCustomLists"));
             edit->setAccessibleName(tr("Custom lists, one on each line"));
-            edit->setPlainText(customListLines().join(QLatin1Char('\n')));
+            edit->setPlainText(customListLinesRead().join(QLatin1Char('\n')));
             layout->addWidget(edit);
             *lists = edit;
             return static_cast<QWidget *>(page);

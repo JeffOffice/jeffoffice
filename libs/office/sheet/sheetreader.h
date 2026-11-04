@@ -317,6 +317,9 @@ public:
     // A style of a person's own, named `name` (made from the cell format at `format`): its place among the style formats; -1 if the name is taken (a style with that name, whatever the capitals),
     // is empty or too long, or the workbook has no place for styles or no room.
     qint32 addNamedStyle(const QString &name, quint32 format);
+    // Takes a style made by addNamedStyle back out (Undo), with the cell formats made since that follow it: only while the file has not been saved with it, and only when it is the last
+    // style there is. False (and nothing changed) otherwise.
+    bool removeAddedStyle(const QString &name);
     // The additions since the file was read or saved, for saving them: the strings, the number formats (id and code), and the cell formats (the one each is a copy of, and its number format).
     QStringList addedSharedStrings() const { return m_sharedAdded; }
     struct AddedNumberFormat {

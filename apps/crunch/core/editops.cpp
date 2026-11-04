@@ -184,19 +184,20 @@ QStringList monthNames(const QLocale &l, QLocale::FormatType t)
 }
 
 // The name list that holds the text (without regard to capitals), with its place; empty if none does.
-NameSeries findNames(const QString &text, const QLocale &locale, const QList<QStringList> &custom)
+NameSeries findNames(const QString &text, const QLocale &locale, const QList<QStringList> &custom, const QHash<QString, QPair<int, int>> &customIndex)
 {
     static const QLocale english(QLocale::English, QLocale::UnitedStates);
     const QString t = text.trimmed();
-    // (the lists the person made come first: they are kept in Options and may repeat a name of the language's)
-    for (const QStringList &names : custom)
-        for (int i = 0; i < names.size(); ++i)
-            if (!names[i].isEmpty() && names[i].compare(t, Qt::CaseInsensitive) == 0) {
-                NameSeries s;
-                s.names = names;
-                s.index = i;
-                return s;
-            }
+    // (the lists the person made come first: they are kept in Options and may repeat a name of the language's; found by a hash of the word, not by a walk through the lists)
+    if (!customIndex.isEmpty()) {
+        const auto found = customIndex.constFind(t.toCaseFolded());
+        if (found != customIndex.constEnd()) {
+            NameSeries s;
+            s.names = custom[found->first];
+            s.index = found->second;
+            return s;
+        }
+    }
     for (const QLocale *l : {&locale, &english})
         for (const QLocale::FormatType type : {QLocale::LongFormat, QLocale::ShortFormat}) {
             for (const QStringList &names : {weekdayNames(*l, type), monthNames(*l, type)}) {
@@ -262,6 +263,27 @@ bool addWeekdays(double serial, jp::calc::DateSystem system, qint64 steps, doubl
 }
 
 } // namespace
+
+void EditSession::setCustomLists(const QList<QStringList> &lists)
+{
+    m_customLists.clear();
+    m_customIndex.clear();
+    for (const QStringList &list : lists) {
+        if (m_customLists.size() >= kMaxCustomLists) break;
+        QStringList kept;
+        for (const QString &item : list)
+            if (kept.size() < kMaxCustomListItems && !item.isEmpty() && item.size() <= kMaxCustomItemChars) kept << item;
+        if (kept.size() < 2) continue;
+        m_customLists << kept;
+    }
+    // (a word in two lists stands for the first list that has it)
+    m_customIndex.clear();
+    for (int at = 0; at < m_customLists.size(); ++at)
+        for (int i = 0; i < m_customLists[at].size(); ++i) {
+            const QString key = m_customLists[at][i].trimmed().toCaseFolded();
+            if (!m_customIndex.contains(key)) m_customIndex.insert(key, {at, i});
+        }
+}
 
 EditSession::Outcome EditSession::fill(int sheet, const CellRange &source, FillDirection dir, quint32 count) { return fill(sheet, source, dir, count, FillOptions()); }
 
@@ -453,12 +475,12 @@ EditSession::Outcome EditSession::fill(int sheet, const CellRange &source, FillD
                 }
             } else if (allText && kind != FillKind::Linear && kind != FillKind::Growth && kind != FillKind::Date) {
                 // the names of weekdays and months, or a text that ends in a number
-                names = findNames(seq.back().content.value.text(), m_locale, m_customLists);
+                names = findNames(seq.back().content.value.text(), m_locale, m_customLists, m_customIndex);
                 if (names.index >= 0) {
                     bool all = true;
                     std::vector<int> at;
                     for (const Src &sc : seq) {
-                        const NameSeries other = findNames(sc.content.value.text(), m_locale, m_customLists);
+                        const NameSeries other = findNames(sc.content.value.text(), m_locale, m_customLists, m_customIndex);
                         if (other.index < 0 || other.names != names.names) all = false;
                         else at.push_back(other.index);
                     }

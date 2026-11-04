@@ -143,12 +143,19 @@ void CrunchWindow::fillSelection(crunch::EditSession::FillDirection direction)
 // A double click on the fill handle fills down as far as the data beside the block goes: the column to its left if that has data under the block's last row, else the one to its right.
 void CrunchWindow::fillHandleDoubleClicked(const grid::GridRange &source)
 {
-    if (!m_session || m_sheet < 0) return;
-    constexpr qint64 kLook = 1000000;   // (what a column can hold; the walk is cut short at a million rows)
+    if (!m_session || m_sheet < 0 || !m_session->calculation()) return;
+    // (the walk is bounded by the cells the sheet uses: past them there is nothing beside the block)
+    const qint64 used = m_session->calculation()->sheet(m_sheet).extentRows;
     for (const qint64 beside : {source.col1 - 1, source.col2 + 1}) {
         if (beside < 0 || beside >= jp::office::sheet::kMaxColumns) continue;
         qint64 last = source.row2;
-        while (last + 1 < jp::office::sheet::kMaxRows && last - source.row2 < kLook && !m_session->valueAt(m_sheet, quint32(last + 1), quint32(beside)).isEmpty()) ++last;
+        // (it goes down while the column beside has data, and stops before the first cell under the block that holds something already: that is not written over)
+        while (last + 1 < std::min<qint64>(used, jp::office::sheet::kMaxRows) && !m_session->valueAt(m_sheet, quint32(last + 1), quint32(beside)).isEmpty()) {
+            bool occupied = false;
+            for (qint64 col = source.col1; col <= source.col2 && !occupied; ++col) occupied = !m_session->valueAt(m_sheet, quint32(last + 1), quint32(col)).isEmpty();
+            if (occupied) break;
+            ++last;
+        }
         if (last == source.row2) continue;
         grid::GridRange extent = source;
         extent.row2 = last;

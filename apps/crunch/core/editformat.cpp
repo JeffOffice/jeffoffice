@@ -297,13 +297,16 @@ EditSession::Outcome EditSession::newCellStyle(int sheet, quint32 row, quint32 c
         return out;
     }
     const QString trimmed = name.trimmed();
-    if (trimmed.isEmpty() || trimmed.size() > 255) {
+    bool control = false;
+    for (const QChar c : trimmed) control = control || c.category() == QChar::Other_Control;
+    if (trimmed.isEmpty() || trimmed.size() > 255 || control) {
         out.ok = false;
-        out.problem = tr("Type a name for the style, up to 255 characters.");
+        out.problem = tr("Type a name for the style, up to 255 characters, with no control characters.");
         return out;
     }
     qint32 place = -1;
     bool taken = false;
+    quint32 fromFormat = 0;
     {
         // (the style is made with the worker held back: it reads the workbook's styles)
         std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
@@ -316,14 +319,23 @@ EditSession::Outcome EditSession::newCellStyle(int sheet, quint32 row, quint32 c
             if (n.name.compare(trimmed, Qt::CaseInsensitive) == 0) taken = true;
         jp::office::sheet::BuiltinStyle def;
         if (jp::office::sheet::builtinStyle(trimmed, &def)) taken = true;   // (a name of the built-in styles is theirs, whether or not the workbook has it yet)
-        if (!taken) place = m_book->book->addNamedStyle(trimmed, m_book->calc->content(sheet, row, col).style);
+        if (!taken) {
+            fromFormat = m_book->calc->content(sheet, row, col).style;
+            place = m_book->book->addNamedStyle(trimmed, fromFormat);
+        }
     }
     if (place < 0) {
         out.ok = false;
         out.problem = taken ? tr("A style called \"%1\" is already there. Pick another name.").arg(trimmed) : tr("This workbook has no place to keep a new style.");
         return out;
     }
-    return applyStyle(sheet, range, quint32(place), tr("New Cell Style"));
+    // (one step: the style is made, and the cells are given it; Undo takes both back)
+    m_undo.beginMacro(tr("New Cell Style"));
+    pushStyleMade(trimmed, fromFormat);
+    out = applyStyle(sheet, range, quint32(place), tr("New Cell Style"));
+    m_undo.endMacro();
+    if (!out.ok) m_undo.undo();   // (the cells could not be given it: the style goes too)
+    return out;
 }
 
 EditSession::Outcome EditSession::clearFormats(int sheet, const CellRange &range)

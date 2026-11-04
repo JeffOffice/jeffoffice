@@ -390,6 +390,28 @@ private Q_SLOTS:
         QVERIFY(s->anchors().linkAt(0, 0, 0));
     }
 
+    // Clear Hyperlinks takes the relationship of the link's address out of the sheet's relationships when no link uses it any more; one that another link still uses stays.
+    void clearHyperlinksTakesTheUnusedRelationshipOutOfTheSavedPackage()
+    {
+        EditWindow e;
+        QVERIFY(e.open(linksBook()));
+        e.select(QStringLiteral("A1"));
+        e.win.w.act(QStringLiteral("edit.clear.links"))->trigger();                 // rId1, the web page
+        e.select(QStringLiteral("D2"));
+        e.win.w.act(QStringLiteral("edit.clear.links"))->trigger();                 // rId4, the e-mail address
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        Package p;
+        QString why;
+        QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
+        QStringList ids;
+        for (const auto &r : p.relationships(QStringLiteral("/xl/worksheets/sheet1.xml"))) ids << r.id;
+        ids.sort();
+        QCOMPARE(ids, QStringList({QStringLiteral("rId2"), QStringLiteral("rId3")}));   // (rId1, the web page, and rId4, the e-mail address, are gone; the links that stay keep theirs)
+        QCOMPARE(savedLinks(e.path), QStringList({QStringLiteral("B1=>Sheet2!C2"), QStringLiteral("C1->javascript:alert(1)"), QStringLiteral("D1->data/report.pdf")}));
+    }
+
     void linksGoWithTheirCellsAndTheFileKeepsEveryChange()
     {
         EditWindow e;
