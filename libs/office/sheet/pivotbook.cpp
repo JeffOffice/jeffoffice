@@ -290,13 +290,23 @@ void PivotBook::putSourcesBack(const std::vector<SourcePlace> &places)
 void PivotBook::markSaved(const QStringList &sheetNames)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
+    QSet<int> cachesWritten;
     for (PivotTableEntry &t : m_tables) {
-        if (t.isNew) continue;
+        if (t.isNew) {
+            // (a table made here is in the file now, with its parts, unless its sheet was deleted and nothing of it was written: it is the file's own from here on)
+            if (t.cache < 0 || t.sheet < 0 || t.sheet >= sheetNames.size() || sheetNames[t.sheet].isEmpty()) continue;
+            t.isNew = false;
+            cachesWritten.insert(t.cache);
+        }
         t.fileTable = t.table;
         t.structureChanged = false;
     }
-    for (PivotCacheEntry &c : m_caches) {
-        if (c.isNew) continue;
+    for (size_t i = 0; i < m_caches.size(); ++i) {
+        PivotCacheEntry &c = m_caches[i];
+        if (c.isNew) {
+            if (!cachesWritten.contains(int(i))) continue;
+            c.isNew = false;
+        }
         c.fileCache = c.cache;
         c.fileSource = c.source;
         if (c.sourceSheet >= 0 && c.sourceSheet < sheetNames.size() && !sheetNames[c.sourceSheet].isEmpty()) c.fileSheetName = sheetNames[c.sourceSheet];

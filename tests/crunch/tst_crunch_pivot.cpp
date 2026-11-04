@@ -1101,6 +1101,55 @@ private Q_SLOTS:
         QCOMPARE(pivotShown(again), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
     }
 
+    // A pivot table made in this session and saved is the file's own after that: changed and saved again, the file has one table part and one cache, holding the change, and the same after an Undo.
+    void aNewPivotTableSavedThenChangedIsSavedOnce()
+    {
+        const QString rows = row(1, text(QStringLiteral("A1"), QStringLiteral("Region")) + text(QStringLiteral("B1"), QStringLiteral("Amount")))
+                             + row(2, text(QStringLiteral("A2"), QStringLiteral("East")) + num(QStringLiteral("B2"), 10)) + row(3, text(QStringLiteral("A3"), QStringLiteral("West")) + num(QStringLiteral("B3"), 5));
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->createPivot(QStringLiteral("Sheet1!A1:B3"), 0, 0, 4).ok);
+        finish(e);
+        const QString was = s->workbook()->pivots().table(0).table->name;
+        QVERIFY(saveNow(e));
+        auto count = [&](const QString &prefix, const QString &suffix) {
+            int n = 0;
+            const Parts parts = readParts(e.path);
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+                if (it.key().startsWith(prefix) && it.key().endsWith(suffix)) ++n;
+            return n;
+        };
+        auto tablePart = [&] {
+            const Parts parts = readParts(e.path);
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+                if (it.key().startsWith(QLatin1String("xl/pivotTables/pivotTable")) && it.key().endsWith(QLatin1String(".xml"))) return it.value();
+            return QByteArray();
+        };
+        QCOMPARE(count(QStringLiteral("xl/pivotTables/pivotTable"), QStringLiteral(".xml")), 1);
+        QVERIFY(tablePart().contains(("name=\"" + was + "\"").toUtf8()));
+        jp::office::sheet::PivotTable renamed = *s->workbook()->pivots().table(0).table;
+        renamed.name = QStringLiteral("Sales");
+        QVERIFY(s->setPivot(0, renamed, false, QStringLiteral("Rename")).ok);
+        finish(e);
+        QVERIFY(saveNow(e));
+        QCOMPARE(count(QStringLiteral("xl/pivotTables/pivotTable"), QStringLiteral(".xml")), 1);
+        QCOMPARE(count(QStringLiteral("xl/pivotCache/pivotCacheDefinition"), QStringLiteral(".xml")), 1);
+        QVERIFY2(tablePart().contains("name=\"Sales\""), tablePart().left(300).constData());
+        s->undoStack()->undo();
+        finish(e);
+        QVERIFY(saveNow(e));
+        QCOMPARE(count(QStringLiteral("xl/pivotTables/pivotTable"), QStringLiteral(".xml")), 1);
+        QCOMPARE(count(QStringLiteral("xl/pivotCache/pivotCacheDefinition"), QStringLiteral(".xml")), 1);
+        QVERIFY2(tablePart().contains(("name=\"" + was + "\"").toUtf8()) && !tablePart().contains("name=\"Sales\""), tablePart().left(300).constData());
+        QFile saved(e.path);
+        QVERIFY(saved.open(QIODevice::ReadOnly));
+        EditWindow again;
+        QVERIFY(again.open(saved.readAll(), QStringLiteral("again.xlsx")));
+        QCOMPARE(again.win.w.session()->workbook()->pivots().tableCount(), 1);
+        QCOMPARE(again.win.w.session()->workbook()->pivots().table(0).table->name, was);
+    }
+
     // A pivot chart's name in the file is made again at each save from the table's name, the sheet's, and the file's: a rename of the table or the sheet, and a Save As, are followed.
     void aPivotChartsNameFollowsRenamesAndSaveAs()
     {
