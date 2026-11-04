@@ -632,7 +632,7 @@ bool tableStyleDialog(QWidget *parent, WriteDoc *doc, const QString &modifyId, Q
     auto *v = new QVBoxLayout(&dlg);
     auto *form = new QFormLayout;
     v->addLayout(form);
-    auto *name = new QLineEdit(start.name, &dlg);
+    auto *name = new QLineEdit(modify && !tableStyleNameIsEditable(*doc, modifyId) ? office::wml::tableStyleScreenName(existing) : start.name, &dlg);
     name->setObjectName(QStringLiteral("styleName"));
     name->setMaxLength(kMostStyleNameLength);
     name->setEnabled(!modify || tableStyleNameIsEditable(*doc, modifyId));   // (a built-in style keeps its name)
@@ -647,7 +647,7 @@ bool tableStyleDialog(QWidget *parent, WriteDoc *doc, const QString &modifyId, Q
         if (id == modifyId) continue;
         const office::wml::Style *own = doc->styleSheet().find(id);
         const office::wml::Style s = own ? *own : office::wml::builtinStyle(id);
-        basedOn->addItem(s.name.isEmpty() ? id : s.name, id);
+        basedOn->addItem(office::wml::tableStyleScreenName(s), id);
     }
     basedOn->setCurrentIndex(std::max(0, basedOn->findData(start.basedOn)));
     form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Based on:")), basedOn);

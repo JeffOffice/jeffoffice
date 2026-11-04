@@ -2929,6 +2929,30 @@ private Q_SLOTS:
         QVERIFY(big->undo());
     }
 
+    // The built-in table styles are shown by our own plain names on the screen; the names in the file (and the ids) are as they were.
+    void builtInTableStylesAreShownByOurOwnNames()
+    {
+        QSet<QString> seen;
+        for (const QString &id : QStringList{QStringLiteral("TableNormal")} + office::wml::builtinTableStyleIds()) {
+            const office::wml::Style s = office::wml::builtinStyle(id);
+            QVERIFY(!s.id.isEmpty());
+            const QString shown = office::wml::tableStyleScreenName(s);
+            QVERIFY2(!shown.isEmpty() && shown != s.name, qPrintable(id + " " + shown));
+            QVERIFY2(!shown.contains(QStringLiteral("Table")) && !shown.contains(QStringLiteral(" - ")), qPrintable(shown));
+            QVERIFY2(!seen.contains(shown), qPrintable(shown));
+            seen.insert(shown);
+        }
+        QCOMPARE(office::wml::tableStyleScreenName(office::wml::builtinStyle(QStringLiteral("GridTable4-Accent1"))), QStringLiteral("Banded Grid, Blue"));
+        QCOMPARE(office::wml::tableStyleScreenName(office::wml::builtinStyle(QStringLiteral("ListTable3-Accent2"))), QStringLiteral("Banded List, Orange"));
+        QCOMPARE(office::wml::tableStyleScreenName(office::wml::builtinStyle(QStringLiteral("GridTable1Light"))), QStringLiteral("Light Grid"));
+        // The names a file holds are not changed.
+        QCOMPARE(office::wml::builtinStyle(QStringLiteral("GridTable4-Accent1")).name, QStringLiteral("Grid Table 4 - Accent 1"));
+        // A file's own style under a name of its own is shown by it.
+        office::wml::Style own = office::wml::builtinStyle(QStringLiteral("GridTable4-Accent1"));
+        own.name = QStringLiteral("Quarter Report");
+        QCOMPARE(office::wml::tableStyleScreenName(own), QStringLiteral("Quarter Report"));
+    }
+
     // A file's own definition of a table style that has a built-in name is the one used; a style the file defines is editable (its name too) even without w:customStyle, a built-in one
     // the file lacks keeps its name.
     void aFilesOwnTableStyleWinsOverTheBuiltInOfTheSameName()

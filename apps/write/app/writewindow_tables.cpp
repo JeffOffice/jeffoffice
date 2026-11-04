@@ -371,7 +371,7 @@ void WriteWindow::tableRibbonParts(RibbonParts &parts)
             auto add = [&](const office::wml::Style &s) {
                 if (s.id == QLatin1String("TableNormal") || seen.contains(s.id)) return;
                 seen << s.id;
-                items << GalleryItem{s.id, s.name.isEmpty() ? s.id : s.name, tableStyleIcon(s.id, s, QSize(64, 48), dpr), QString()};
+                items << GalleryItem{s.id, office::wml::tableStyleScreenName(s), tableStyleIcon(s.id, s, QSize(64, 48), dpr), QString()};
             };
             for (const QString &id : office::wml::builtinTableStyleIds()) {
                 const office::wml::Style *own = m_doc->styleSheet().find(id);

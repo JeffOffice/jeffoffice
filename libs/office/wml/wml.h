@@ -661,6 +661,10 @@ Style builtinStyle(const QString &id);
 QStringList builtinStyleIds();
 // The table styles a person may apply (the gallery's, in its order); builtinStyle gives each, and TableNormal, the style a table has when none is said.
 QStringList builtinTableStyleIds();
+// The name a built-in table style is shown by on the screen (the gallery's tips, the lists of styles): our own plain words ("Light Grid", "Banded Grid, Blue"). The name the file holds
+// (style.name, written as w:name) is not changed, so files match. A style the file defines under another name than the built-in one's keeps its own name; one that has no built-in
+// name here is shown by its own.
+QString tableStyleScreenName(const Style &style);
 // What the New Table Style and Modify Table Style dialogs choose: the lines, how the header row, the total row, and the first and last columns look, and the fills of banded rows and
 // columns (colors as "RRGGBB", empty for none). tableStyleFromSpec gives the style (the id is left empty); tableStyleSpecOf reads one back (what the style and the styles under it say).
 struct TableStyleSpec {
