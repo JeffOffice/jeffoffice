@@ -148,7 +148,8 @@ jobs:
           CCACHE_COMPILERCHECK: content
         run: |
           if command -v ccache >/dev/null 2>&1; then ccache --zero-stats; fi
-          cmake --build build --parallel
+          # (our own machine caps the parallel compiles through its runner settings: a compile of every core at once runs out of memory there)
+          cmake --build build --parallel ${CMAKE_BUILD_PARALLEL_LEVEL:-}
           if command -v ccache >/dev/null 2>&1; then ccache --show-stats; fi
 
       # Programs in the build folder find the GCC runtime through PATH, which can hold another GCC's copy first (the 20261004 runner image crashed in the
