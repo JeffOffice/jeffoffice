@@ -1176,7 +1176,7 @@ private Q_SLOTS:
     // are JeffDeck's own, and JeffPub's never reach its ping.
     void deckSharesTheChoiceAndTheInstallButKeepsItsOwnCounts()
     {
-        QSettings suite(QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice")), pub(QStringLiteral("JeffOffice"), QStringLiteral("JeffPub")),
+        QSettings suite(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice")), pub(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffPub")),
             deck(QStringLiteral("JeffOffice"), QStringLiteral("JeffDeck"));
         QVERIFY(!telemetry::enabled());
         suite.setValue(QStringLiteral("telemetry/enabled"), true);
@@ -1267,7 +1267,7 @@ private Q_SLOTS:
     {
         for (const char *k : {"offered", "offeredOn", "offeredBy"}) Settings::get().setValue(QStringLiteral("updates/") + QString::fromLatin1(k), QVariant());
         Updater::noteOffered(QStringLiteral("v0.8.0"));
-        QSettings suite(QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice"));
+        QSettings suite(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice"));
         QCOMPARE(suite.value(QStringLiteral("updates/offeredBy")).toString(), QStringLiteral("jeffdeck"));
         QVERIFY(!Updater::offeredByAnotherAppToday(QStringLiteral("v0.8.0")));
         Settings::get().setValue(QStringLiteral("updates/offeredBy"), QStringLiteral("jeffpub"));   // JeffPub offered it first today

@@ -9,6 +9,10 @@
 #include <QFile>
 #include <QFileInfo>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 namespace jp::crunch {
 
 bool isCsvName(const QString &path)

@@ -73,7 +73,8 @@ Unit defaultUnit(const QLocale &region)
 }
 
 Settings::Settings()
-    : m_s(appInfo().organization, appInfo().name), m_suite(appInfo().organization, QStringLiteral("JeffOffice"))
+    // (in the system's own store: QSettings::defaultFormat() is it, except in a test run, which keeps its settings in files of its own)
+    : m_s(QSettings::defaultFormat(), QSettings::UserScope, appInfo().organization, appInfo().name), m_suite(QSettings::defaultFormat(), QSettings::UserScope, appInfo().organization, QStringLiteral("JeffOffice"))
 {
     moveToSuite(m_s, m_suite);
     m_unit = Unit(m_s.value("units", int(defaultUnit(QLocale::system()))).toInt());
