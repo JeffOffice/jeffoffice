@@ -1,5 +1,5 @@
 #pragma once
-// The questions of the Data tools: which columns to compare for Remove Duplicates, and how to cut a column of text for Text to Columns.
+// The question of Text to Columns: how to cut a column of text.
 
 #include "core/editsession.h"
 
@@ -13,22 +13,6 @@ class QListWidget;
 class QRadioButton;
 
 namespace jp {
-
-class RemoveDuplicatesDialog : public QDialog {
-    Q_OBJECT
-public:
-    // `names` are the names of the columns of the cells selected (their headers, or their letters); `hasHeader` says the first row is a header.
-    RemoveDuplicatesDialog(const QStringList &names, bool hasHeader, QWidget *parent = nullptr);
-    // The places of the columns that are checked, and whether the first row is a header.
-    std::vector<int> columns() const;
-    bool hasHeader() const;
-    // For the tests and the keyboard: checks all of the columns, or none.
-    void checkAll(bool on);
-
-private:
-    QListWidget *m_list;
-    QCheckBox *m_header;
-};
 
 class TextToColumnsDialog : public QDialog {
     Q_OBJECT

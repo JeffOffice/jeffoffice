@@ -3,6 +3,8 @@
 #include "app/pageview.h"
 
 #include "core/editops.h"
+#include "core/linkops.h"
+#include "core/homeops.h"
 #include "core/refops.h"
 #include "core/tableops.h"
 #include "core/writeprops.h"
@@ -115,6 +117,49 @@ void PageView::paste()
         pasteFragment(*m_doc, m_cursor, QTextDocumentFragment::fromHtml(mime->html()));
     else
         return;
+    caretMoved();
+}
+
+bool PageView::canPaste(PasteKind kind) const
+{
+    const QMimeData *mime = QApplication::clipboard()->mimeData();
+    if (!m_doc || !mime) return false;
+    const bool ours = mime->hasFormat(QStringLiteral("application/x-jeffwrite-fragment")) && !s_copied.isEmpty();
+    switch (kind) {
+    case PasteKind::Keep: return ours || mime->hasText() || mime->hasHtml() || mime->hasImage();
+    case PasteKind::Merge: return ours || mime->hasHtml();
+    case PasteKind::TextOnly: return ours || mime->hasText() || mime->hasHtml();
+    case PasteKind::Picture: return mime->hasImage();
+    case PasteKind::Html: return mime->hasHtml();
+    }
+    return false;
+}
+
+void PageView::pasteAs(PasteKind kind)
+{
+    if (!m_doc || !canPaste(kind)) return;
+    const QMimeData *mime = QApplication::clipboard()->mimeData();
+    const bool ours = mime->hasFormat(QStringLiteral("application/x-jeffwrite-fragment")) && QString::fromUtf8(mime->data(QStringLiteral("application/x-jeffwrite-fragment"))) == s_copiedText && !s_copied.isEmpty();
+    switch (kind) {
+    case PasteKind::Keep:
+        paste();
+        return;
+    case PasteKind::Merge:
+        pasteMerged(*m_doc, m_cursor, ours ? s_copied.fragment : QTextDocumentFragment::fromHtml(mime->html()));
+        break;
+    case PasteKind::TextOnly:
+        pasteText(*m_doc, m_cursor, ours ? plainTextOf(s_copied.fragment) : (mime->hasText() ? mime->text() : QTextDocumentFragment::fromHtml(mime->html()).toPlainText()));
+        break;
+    case PasteKind::Picture: {
+        const QVariant data = mime->imageData();
+        if (!data.canConvert<QImage>()) return;
+        insertPictureImage(data.value<QImage>());
+        return;
+    }
+    case PasteKind::Html:
+        pasteFragment(*m_doc, m_cursor, QTextDocumentFragment::fromHtml(mime->html()));
+        break;
+    }
     caretMoved();
 }
 
@@ -382,6 +427,12 @@ void PageView::mousePressEvent(QMouseEvent *e)
     if (e->button() != Qt::LeftButton) return;
     // Ctrl+click on a link inside the text (a reference or a table of contents line with its link, or a link to a bookmark) goes to what it names.
     if ((e->modifiers() & Qt::ControlModifier) && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story()) {
+        const Hyperlink link = hyperlinkAt(*m_doc, at);
+        if (link.valid() && link.anchor.isEmpty() && !link.address.isEmpty()) {
+            if (mayFollow(link.address)) Q_EMIT linkFollowed(link.address, link.text);
+            else Q_EMIT notice(tr("JeffWrite only follows links to web and email addresses."));
+            return;
+        }
         const int target = linkTargetAt(*m_doc, at);
         if (target >= 0) {
             QTextCursor c(m_doc->story());

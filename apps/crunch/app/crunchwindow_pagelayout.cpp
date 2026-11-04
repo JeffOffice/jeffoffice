@@ -134,6 +134,28 @@ void CrunchWindow::createPageLayoutActions()
     };
     connect(act(QStringLiteral("view.gridlines")), &QAction::toggled, this, marks);
     connect(act(QStringLiteral("view.headings")), &QAction::toggled, this, marks);
+    // the galleries of ready forms for the header and the footer: three parts each (left, middle, right), written as the sheet's header or footer
+    struct Form {
+        const char *key, *text, *left, *center, *right;
+    };
+    static const Form forms[] = {{"none", QT_TR_NOOP("(none)"), "", "", ""},
+                                 {"page", QT_TR_NOOP("Page 1"), "", "Page &P", ""},
+                                 {"pageOf", QT_TR_NOOP("Page 1 of ?"), "", "Page &P of &N", ""},
+                                 {"sheet", QT_TR_NOOP("Sheet Name"), "", "&A", ""},
+                                 {"file", QT_TR_NOOP("File Name"), "", "&F", ""},
+                                 {"sheetPage", QT_TR_NOOP("Sheet Name, Page 1"), "&A", "", "Page &P"},
+                                 {"filePageOf", QT_TR_NOOP("File Name, Page 1 of ?"), "&F", "", "Page &P of &N"},
+                                 {"dateSheetPage", QT_TR_NOOP("Date, Sheet Name, Page 1"), "&D", "&A", "Page &P"}};
+    for (const bool header : {true, false})
+        for (const Form &f : forms) {
+            const QString left = QString::fromLatin1(f.left), center = QString::fromLatin1(f.center), right = QString::fromLatin1(f.right);
+            const QString id = QStringLiteral("hf.") + (header ? QStringLiteral("header.") : QStringLiteral("footer.")) + QString::fromLatin1(f.key);
+            mk(id, tr(f.text), QString(), QKeySequence(), [this, header, left, center, right] { applyHeaderForm(header, jp::office::sheet::composeHeaderFooter(left, center, right)); });
+            m_opsActions << id;
+        }
+    mk(QStringLiteral("hf.goHeader"), tr("Go to Header"), QStringLiteral("panel-top"), QKeySequence(), [this] { goToHeaderOrFooter(true); });
+    mk(QStringLiteral("hf.goFooter"), tr("Go to Footer"), QStringLiteral("panel-bottom"), QKeySequence(), [this] { goToHeaderOrFooter(false); });
+    m_opsActions << QStringLiteral("hf.goHeader") << QStringLiteral("hf.goFooter");
     mk(QStringLiteral("hf.picture"), tr("Add Picture"), QStringLiteral("image"), QKeySequence(), [this] { insertHeaderPicture(); });
     auto flag = [this](const QString &id, const QString &text, const QString &undo, bool HeaderFooter::*member) {
         mk(id, text, QString(), QKeySequence(), [this, id, undo, member] {
@@ -368,6 +390,28 @@ void CrunchWindow::endZoneEdit(bool keep)
         });
     }
     if (m_viewKind == 2 && m_pageView) m_pageView->setFocus(Qt::OtherFocusReason);
+}
+
+// A ready form from a gallery is the whole header (or footer) of the version being typed in (the pages in general, the even pages, or the first page; the pages in general when none is).
+void CrunchWindow::applyHeaderForm(bool header, const QString &text)
+{
+    if (!m_session || !m_loaded || m_sheet < 0 || m_sheet >= m_session->pages().sheetCount()) return;
+    const int form = m_zoneEditor ? m_zone.form : 0;
+    endZoneEdit(false);   // (the words typed are replaced by the form: they are not a step of their own)
+    changePage(header ? tr("Header") : tr("Footer"), [&](PageSetup *s) {
+        QString *target = header ? (form == 2 ? &s->headerFooter.firstHeader : form == 1 ? &s->headerFooter.evenHeader : &s->headerFooter.oddHeader)
+                                 : (form == 2 ? &s->headerFooter.firstFooter : form == 1 ? &s->headerFooter.evenFooter : &s->headerFooter.oddFooter);
+        *target = text;
+        jp::office::sheet::dropUnusedHeaderPictures(&s->headerFooter);
+    });
+}
+
+// Go to Header and Go to Footer: the middle of that part of the page being typed in (the first page when none is) is opened.
+void CrunchWindow::goToHeaderOrFooter(bool header)
+{
+    if (!m_session || !m_loaded || m_viewKind != 2 || !m_layoutPages) return;
+    const int page = m_zoneEditor && m_zone.page >= 0 ? m_zone.page : 0;
+    zoneClicked(page, header, 1);
 }
 
 void CrunchWindow::insertHeaderCode(const QString &code)

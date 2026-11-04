@@ -15,58 +15,6 @@
 
 namespace jp {
 
-RemoveDuplicatesDialog::RemoveDuplicatesDialog(const QStringList &names, bool hasHeader, QWidget *parent) : QDialog(parent)
-{
-    setObjectName(QStringLiteral("removeDuplicatesDialog"));
-    setWindowTitle(tr("Remove Duplicates"));
-    auto *layout = new QVBoxLayout(this);
-    auto *text = new QLabel(tr("Rows that have the same values in the columns you check are repeats. The first one stays and the others go."), this);
-    text->setWordWrap(true);
-    text->setTextFormat(Qt::PlainText);
-    layout->addWidget(text);
-    m_header = new QCheckBox(tr("My data has a header row"), this);
-    m_header->setObjectName(QStringLiteral("duplicatesHeader"));
-    m_header->setChecked(hasHeader);
-    layout->addWidget(m_header);
-    m_list = new QListWidget(this);
-    m_list->setObjectName(QStringLiteral("duplicatesColumns"));
-    m_list->setAccessibleName(tr("Columns to compare"));
-    for (const QString &name : names) {
-        auto *item = new QListWidgetItem(name, m_list);
-        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
-        item->setCheckState(Qt::Checked);
-    }
-    layout->addWidget(m_list);
-    auto *row = new QHBoxLayout;
-    auto *all = new QPushButton(tr("Select All"), this);
-    auto *none = new QPushButton(tr("Unselect All"), this);
-    row->addWidget(all);
-    row->addWidget(none);
-    row->addStretch(1);
-    layout->addLayout(row);
-    connect(all, &QPushButton::clicked, this, [this] { checkAll(true); });
-    connect(none, &QPushButton::clicked, this, [this] { checkAll(false); });
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    layout->addWidget(buttons);
-    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-}
-
-std::vector<int> RemoveDuplicatesDialog::columns() const
-{
-    std::vector<int> out;
-    for (int i = 0; i < m_list->count(); ++i)
-        if (m_list->item(i)->checkState() == Qt::Checked) out.push_back(i);
-    return out;
-}
-
-bool RemoveDuplicatesDialog::hasHeader() const { return m_header->isChecked(); }
-
-void RemoveDuplicatesDialog::checkAll(bool on)
-{
-    for (int i = 0; i < m_list->count(); ++i) m_list->item(i)->setCheckState(on ? Qt::Checked : Qt::Unchecked);
-}
-
 TextToColumnsDialog::TextToColumnsDialog(const QStringList &lines, const QString &destination, QWidget *parent) : QDialog(parent), m_lines(lines)
 {
     setObjectName(QStringLiteral("textToColumnsDialog"));

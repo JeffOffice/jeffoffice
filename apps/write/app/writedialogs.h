@@ -16,12 +16,27 @@ struct Source;
 // The font, style, size, color, underline (its style and color), and effects of the characters the cursor selects (of the text typed next, with none
 // selected). What the person changed is given to the characters as one step that undoes; what they left alone stays as it was in each of them.
 void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
+// Tabs: the tab stops of the paragraph the cursor is in (position, alignment, and leader; Set, Clear, and Clear All), given to the paragraphs the cursor selects when OK is clicked.
+void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
 // Alignment, indents, spacing, and line spacing of the paragraphs the cursor selects (those it changes, and only those the person changed).
 void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
 // The Page Setup dialog for the section `section`: margins and gutter, orientation, paper size, and layout (how the section starts, a different first page, different odd and even
 // pages, and the header and footer distances), applied to the section or to the whole document when it is accepted, as one step that undoes. Only what the person changed is applied.
 // Returns whether anything was applied.
 bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section);
+// More Columns: the number of columns (up to 32), equal widths or each column's own width and space, a line between, and presets (One, Two, Three, Left, Right); applied to the
+// section or the whole document as one step that undoes. Returns whether anything was changed.
+bool columnsDialog(QWidget *parent, WriteDoc *doc, int section);
+// Line Numbers: on or off, start at, count by, distance from the text, and when the numbers begin again; for the section or the whole document.
+bool lineNumbersDialog(QWidget *parent, WriteDoc *doc, int section);
+// Page Borders: which sides, the line (style, width, color), its distance, where it is measured from, and the pages that have it; for the section or the whole document.
+bool pageBordersDialog(QWidget *parent, WriteDoc *doc, int section);
+// Date and Time: a list of ways to write today's date and the time, put in as the text of the moment or as a field that updates (F9, and when the document is opened). Returns whether the
+// text was changed.
+bool dateTimeDialog(QWidget *parent, WriteDoc *doc, PageView *view);
+// Hyperlink: the address (a web or email address) or the bookmark a link goes to, the words it shows, and a screen tip; for a link the caret is in it edits, and Remove Link takes it off.
+// OK stays open, saying why, until the link can be made. Returns whether the text was changed.
+bool linkDialog(QWidget *parent, WriteDoc *doc, PageView *view);
 // Create New Style from Formatting (`modifyId` empty: it begins with the look of the selection, and the style made is given to the selection) and Modify Style (the style `modifyId`):
 // name, kind, what it is based on, the style that follows it, font, paragraph look, whether it is in the gallery, and whether it updates itself. OK makes or changes the style as one
 // step that undoes; a name or a base that is refused keeps the dialog open and says why. Returns whether a style was made or changed.

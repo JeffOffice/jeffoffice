@@ -1,5 +1,5 @@
 # Print
-<!-- keywords: print, printer, printing, copies, collate, collated, page range, pages, current page, preview, paper, orientation, landscape, portrait, pdf, save as pdf, ctrl+p, sheet, section -->
+<!-- keywords: odd pages, even pages, reverse, last page first, both sides, print, printer, printing, copies, collate, collated, page range, pages, current page, preview, paper, orientation, landscape, portrait, pdf, save as pdf, ctrl+p, sheet, section -->
 
 Press **Ctrl+P**, or click **File > Print**, to open the Print page. The choices are on the left. On the right is a picture of each page as it will print. Use the arrows under it to look at the other pages.
 
@@ -9,6 +9,8 @@ Press **Ctrl+P**, or click **File > Print**, to open the Print page. The choices
 - **Copies** is how many copies to print.
 - **Collated** matters when you print more than one copy. With it on, the pages come out as 1, 2, 3, then 1, 2, 3 again. With it off, they come out as 1, 1, 2, 2, 3, 3.
 - **All pages**, **Current page**, or **Pages** chooses what to print. For **Pages**, type page numbers and ranges, separated by commas, such as 1-3, 5. A range can go the other way (5-3). A range with an open end goes to the last page (8-) or starts at the first (-2).
+- The list under the page numbers can limit the printing to **Only odd pages** or **Only even pages**. It counts the pages in order, from the first page of the document: the first page is page 1 (odd), the second is page 2 (even), and so on. It does not use the numbers printed on the pages, so a document whose numbers start over, or start at 5, still has its first page counted as odd. The limit works on the pages the range chose.
+- **Last page first** prints the pages in reverse order, so a stack comes out in order. Together with the odd and even choices, it prints the two sides of a sheet by hand: print the odd pages, turn the stack over, then print the even pages with **Last page first** turned on or off to match your printer.
 - **Paper** says what paper the page in the preview is printed on.
 
 Pages print in the order you type them, once each. A number that is not a page of the document is passed by. If none of the numbers you typed is a page, the box gets a red edge and the **Print** button waits.

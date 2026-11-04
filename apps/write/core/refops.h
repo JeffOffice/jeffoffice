@@ -20,7 +20,7 @@ QVector<BookmarkItem> bookmarkList(WriteDoc &doc, bool hidden = false, bool byLo
 // program.)
 QString bookmarkNameProblem(const QString &name);
 // Puts the bookmark at the selection (or the caret: an empty place); one of the name that is already there moves. One step of the history. False, with the reason, where it can't be.
-bool addBookmark(WriteDoc &doc, const QTextCursor &c, const QString &name, QString *problem = nullptr);
+bool addBookmark(WriteDoc &doc, const QTextCursor &c, const QString &name, QString *problem = nullptr, bool hidden = false);   // (`hidden`: the program's own, a name that begins with an underscore)
 // Takes the bookmark away (its marks, not the text); false if there is none of the name.
 bool deleteBookmark(WriteDoc &doc, const QString &name);
 // Where a bookmark begins (-1 for none).

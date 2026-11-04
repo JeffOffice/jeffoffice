@@ -2,6 +2,7 @@
 #include "app/crunchwindow.h"
 
 #include "app/datatoolsdialogs.h"
+#include "app/removeduplicatesdialog.h"
 #include "sheet/cellref.h"
 
 #include <QAction>
@@ -40,33 +41,37 @@ void CrunchWindow::removeDuplicatesDialog()
         const QString top = m_session->valueAt(m_sheet, range.row1, col).isText() ? m_session->valueAt(m_sheet, range.row1, col).text() : QString();
         names << (header && !top.isEmpty() ? top : tr("Column %1").arg(jp::office::sheet::columnName(col)));
     }
-    RemoveDuplicatesDialog dialog(names, header, this);
-    if (dialog.exec() != QDialog::Accepted) return;
-    if (dialog.columns().empty()) {
+    QList<int> chosen;
+    if (m_removeDuplicatesAsker) {
+        if (!m_removeDuplicatesAsker(names, &chosen)) return;
+    } else {
+        RemoveDuplicatesDialog dialog(names, this);
+        if (dialog.exec() != QDialog::Accepted) return;
+        chosen = dialog.chosen();
+    }
+    if (chosen.isEmpty()) {
         notice(tr("Remove Duplicates"), tr("Check at least one column to compare."));
         return;
     }
-    // (the dialog worked on the range it was shown for: the selection is put back to it so that the work below is on the same cells)
-    qint64 removed = 0;
+    int removed = 0;
     const qint64 before = m_loader.changesMade();
-    const crunch::EditSession::Outcome o = m_session->removeDuplicates(m_sheet, range, dialog.columns(), dialog.hasHeader(), &removed);
+    const crunch::EditSession::Outcome o = m_session->removeDuplicates(m_sheet, range, header, chosen, &removed);
     if (!o.ok) {
         notice(tr("Remove Duplicates"), o.problem);
         return;
     }
     if (m_loader.changesMade() != before) m_calculating = true;
-    const qint64 remaining = qint64(range.row2 - range.row1 + 1) - (dialog.hasHeader() ? 1 : 0) - removed;
-    notice(tr("Remove Duplicates"),
-           removed == 0 ? tr("No repeated rows were found, so nothing was removed.")
-                        : tr("Repeated rows removed: %1. Unique rows left: %2.").arg(removed).arg(remaining),
-           false);
+    const qint64 remaining = qint64(range.row2 - range.row1 + 1) - (header ? 1 : 0) - removed;
+    notice(tr("Remove Duplicates"), removed == 0 ? tr("No row repeats an earlier one.") : tr("Repeated rows removed: %1. Unique rows left: %2.").arg(removed).arg(remaining), false);
 }
 
 bool CrunchWindow::removeDuplicatesIn(const std::vector<int> &columns, bool hasHeader)
 {
     if (!m_session || !editingAllowed()) return false;
     const qint64 before = m_loader.changesMade();
-    const crunch::EditSession::Outcome o = m_session->removeDuplicates(m_sheet, selectedRange(), columns, hasHeader);
+    QList<int> chosen;
+    for (const int c : columns) chosen << c;
+    const crunch::EditSession::Outcome o = m_session->removeDuplicates(m_sheet, selectedRange(), hasHeader, chosen);
     if (!o.ok) return false;
     if (m_loader.changesMade() != before) m_calculating = true;
     return true;

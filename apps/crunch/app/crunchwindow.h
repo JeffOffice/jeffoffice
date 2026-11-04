@@ -5,6 +5,7 @@
 
 #include "app/appwindow.h"
 #include "app/filetasks.h"
+#include "app/infopage.h"
 
 #include <tuple>
 #include "app/anchordialogs.h"
@@ -34,6 +35,7 @@
 #include <QElapsedTimer>
 #include <QHash>
 #include <QKeySequence>
+#include <QLabel>
 #include <QPointer>
 #include <QSet>
 #include <QTimer>
@@ -42,6 +44,7 @@
 #include <map>
 #include <QTemporaryFile>
 #include <memory>
+#include <optional>
 #include <set>
 #include <unordered_map>
 
@@ -109,6 +112,24 @@ public:
     Ribbon *ribbon() const override { return m_ribbon; }
     grid::GridView *view() const { return m_view; }
     QString ribbonErrors() const { return m_ribbonErrors; }
+
+    // ---- the File screen's Info page: properties, protection, and Inspect (crunchwindow_info.cpp)
+    QWidget *buildInfoPage(QWidget *parent);
+    // The workbook's properties as they are now (the ones a person edited and has not saved, else the file's).
+    office::PackageProps properties() const;
+    // Applies properties a person edited: they are written when the workbook is saved.
+    void applyProperties(const office::PackageProps &props);
+    // Mark as Final: the workbook is saved, then held for reading only; off, it can be edited again.
+    void setMarkedFinal(bool on);
+    bool markedAsFinal() const { return office::isMarkedFinal(properties().custom); }
+    // The reason Mark as Final can't be done for this workbook ("" when it can): the file it is saved to must be a kind that keeps the mark.
+    QString markFinalBlocked() const;
+    int removePersonalInformation();
+    // Shows or hides the note on the status bar that says the workbook is marked as final and open for reading only.
+    void updateFinalNote();
+    // What Inspect Workbook looks for (and can take out); the box shows them.
+    QVector<InspectItem> inspectItems();
+    void inspectWorkbook();
 
     // ---- the file
     QString filePath() const { return m_path; }
@@ -244,10 +265,15 @@ public:
     void tableGalleryChosen(const QString &style);
     bool showTotalsMenu(qint64 row, qint64 col);
     void setSparklineAsker(std::function<bool(QString *, QString *)> asker) { m_sparklineAsker = std::move(asker); }
+    void setChartTextAsker(std::function<bool(const QString &, QString *)> asker) { m_chartTextAsker = std::move(asker); }
+    void setFormatAxisAsker(std::function<bool(bool, jp::office::ChartAxis *)> asker) { m_formatAxisAsker = std::move(asker); }
+    void setDateAxisAsker(std::function<bool(QString *)> asker) { m_dateAxisAsker = std::move(asker); }
     void setAxisValueAsker(std::function<bool(bool, double *)> asker) { m_axisValueAsker = std::move(asker); }
     void setTableMakeAsker(std::function<bool(QString *, bool *)> asker) { m_tableMakeAsker = std::move(asker); }
     void setTableSizeAsker(std::function<bool(jp::office::sheet::CellRange *)> asker) { m_tableSizeAsker = std::move(asker); }
     // test hook: the cells or table the new pivot table is made from, whether it goes on a sheet of its own, and where on a sheet (a cell, with the sheet's name before it if it is another)
+    void setRemoveDuplicatesAsker(std::function<bool(const QStringList &, QList<int> *)> asker) { m_removeDuplicatesAsker = std::move(asker); }
+    void setPivotMoveAsker(std::function<bool(QString *)> asker) { m_pivotMoveAsker = std::move(asker); }
     void setPivotCreateAsker(std::function<bool(QString *, bool *, QString *)> asker) { m_pivotCreateAsker = std::move(asker); }
     SlicerPane *slicerPane() const { return m_slicerPane; }
     int slicerFills() const { return m_slicerFills; }   // (for tests: how many times the pane was filled)
@@ -734,6 +760,9 @@ private:
     void changeSparklineGroups(const std::function<void(jp::office::sheet::SparklineGroup *)> &change, const QString &text);
     bool makeSparklines(const QString &data, const QString &where, QVector<jp::office::sheet::Sparkline> *out, QString *why) const;
     std::function<bool(QString *, QString *)> m_sparklineAsker;   // test hook: the data and the cells of sparklines being made or edited
+    std::function<bool(const QString &, QString *)> m_chartTextAsker;   // test hook: a short text asked for a chart (the title says what)
+    std::function<bool(bool, jp::office::ChartAxis *)> m_formatAxisAsker;   // test hook: the axis (across: true) as the format pane left it
+    std::function<bool(QString *)> m_dateAxisAsker;                // test hook: the cells of dates for a sparkline's date axis (empty: a general axis)
     std::function<bool(bool, double *)> m_axisValueAsker;          // test hook: the custom minimum (true) or maximum of a sparkline axis
     // pointing at cells while a formula is typed (crunchwindow_point.cpp): a click or a drag writes the cells' address (a header, whole rows or columns), the arrow keys move a pointer,
     // F4 changes which parts of the reference are fixed, another sheet can be pointed at, and the cells the formula names are outlined, each in the color it has in the text
@@ -792,6 +821,8 @@ private:
     std::shared_ptr<const jp::office::sheet::PivotTable> m_pivotShown;   // the table the pane shows (held, so that what is compared is never another one at a freed one's address)
     int m_pivotShownIndex = -1;
     std::function<bool(QString *, bool *, QString *)> m_pivotCreateAsker;
+    std::function<bool(QString *)> m_pivotMoveAsker;
+    std::function<bool(const QStringList &, QList<int> *)> m_removeDuplicatesAsker;
     std::function<bool(bool *)> m_pivotOptionsAsker;
     std::function<bool(QString *)> m_pivotSourceAsker;         // test hook: the cells the data is in
     std::function<bool(QString *, QString *)> m_valueFieldAsker;   // test hook: the name and function of a value
@@ -954,7 +985,6 @@ private:
     void takeLayoutJob(std::unique_ptr<crunch::PrintJob> job);
     void dropLayoutJob();
     void syncPageViewSelection();
-    void zoneClicked(int page, bool header, int zone);
     void openHeaderToType();
     bool m_headerWanted = false;
     void endZoneEdit(bool keep);
@@ -980,6 +1010,7 @@ private:
     qint64 m_pressRow = 0, m_pressCol = 0;
 
     // the page commands and the Page Layout tab (crunchwindow_page.cpp)
+    void formatAxisDialog(bool horizontal);
     void createPageActions();
     void pageRibbonParts(RibbonParts &parts);
     void connectPageSetup();
@@ -1016,6 +1047,10 @@ private:
 
     // ---- the charts: making and changing them (crunchwindow_charts.cpp)
 public:
+    // The header and footer on the Page Layout view: a part of a page opened to type in; a ready form from the galleries (the whole header or footer, as the three parts' codes); Go to Header and Go to Footer.
+    void zoneClicked(int page, bool header, int zone);
+    void applyHeaderForm(bool header, const QString &text);
+    void goToHeaderOrFooter(bool header);
     // What New Chart asks (a dialog unless this stands in for it: tests): the kind, and how to read the cells (-1 as their shape says, 2 the other way); false gives it up.
     struct InsertChartChoice {
         jp::office::sheet::ChartKind kind = jp::office::sheet::ChartKind::Column;
@@ -1208,6 +1243,10 @@ private:
     void updateProtectActions();
     void protectSheet();
     void protectWorkbook();
+    QLabel *m_finalNote = nullptr;                       // (on the status bar while the workbook is marked as final and read-only)
+    bool m_personalInfoRemoved = false;                  // (Inspect took the personal information out: saving does not put the name of the person back)
+    std::optional<office::PackageProps> m_editedProps;   // properties a person edited, written at the next save
+    OpenHow m_openHow = OpenHow::Normal;                 // how the file being read was asked for
     QString m_filePassword, m_pendingPassword;
     bool m_fileProtected = false;      // the workbook is written protected with a password (m_filePassword; empty: the password every program knows)
     bool m_diskProtected = false;      // the file on disk is protected: what it holds is not what the package's bytes are

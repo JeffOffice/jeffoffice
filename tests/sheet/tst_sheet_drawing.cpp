@@ -622,6 +622,40 @@ private Q_SLOTS:
         QCOMPARE(parts.value(QStringLiteral("[Content_Types].xml")), original.value(QStringLiteral("[Content_Types].xml")));
     }
 
+    // Whether an object prints is the client data's fPrintsWithSheet: turned off it is written as "0", turned on again the attribute goes; the objects not asked for, and every other byte, stay.
+    void thePrintFlagIsWrittenAgain()
+    {
+        const QByteArray drawing = drawingPart(twoCell(0, 0, 1, 1, shapeElement(2, QStringLiteral("First"))) + twoCell(1, 1, 2, 2, shapeElement(3, QStringLiteral("Second"))));
+        QString why;
+        Opened o;
+        QVERIFY2(open(&o, bookWithDrawing({dataSheet()}, drawing, {}), &why), qPrintable(why));
+        QByteArray out;
+        bool changed = false;
+        QVERIFY(setDrawingObjectPrints(o.package.part(o.drawingPart), {{1, false}, {7, false}}, &out, &changed));
+        QVERIFY(changed);
+        Opened off;
+        QVERIFY2(open(&off, bookWithDrawing({dataSheet()}, out, {}), &why), qPrintable(why));
+        SheetDrawing was, now;
+        QVERIFY(readDrawing(o.package, o.drawingPart, &was, &why));
+        QVERIFY(readDrawing(off.package, off.drawingPart, &now, &why));
+        QVERIFY(was.objects[0].prints && was.objects[1].prints);
+        QVERIFY(now.objects[0].prints);
+        QVERIFY(!now.objects[1].prints);
+        QCOMPARE(now.objects[1].name, was.objects[1].name);
+        // on again
+        QByteArray again;
+        QVERIFY(setDrawingObjectPrints(out, {{1, true}}, &again, &changed));
+        QVERIFY(changed);
+        QCOMPARE(again, o.package.part(o.drawingPart));
+        // nothing to say, or already so: nothing changed
+        QVERIFY(setDrawingObjectPrints(out, {{1, false}}, &again, &changed));
+        QVERIFY(!changed);
+        // an element on its own (an object put in from a copy)
+        const QByteArray element = twoCell(0, 0, 1, 1, shapeElement(2, QStringLiteral("One"))).toUtf8();
+        QVERIFY(withFirstObjectPrints(element, false).contains("fPrintsWithSheet=\"0\""));
+        QCOMPARE(withFirstObjectPrints(withFirstObjectPrints(element, false), true), element);
+    }
+
     // The anchors an object that keeps its size has are written again where they differ: the first two-cell anchor of the element at the place (a wrapped one too), nothing else.
     void anchorsAreWrittenAgain()
     {

@@ -7,6 +7,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 
 - [Welcome to JeffCrunch](start)
 - [Open and save workbooks](open-save)
+- [Info: properties, passwords, and Inspect](info)
 - [Open password-protected workbooks](open-password)
 - [Type in cells](edit-cells)
 - [Rules for what a cell may hold](rules)

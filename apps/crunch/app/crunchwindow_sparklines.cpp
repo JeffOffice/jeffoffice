@@ -452,8 +452,55 @@ void CrunchWindow::createSparklineActions()
         const bool on = act("spark.axis.rtl")->isChecked();
         changeSparklineGroups([on](SparklineGroup *g) { g->rightToLeft = on; }, tr("Sparkline Axis"));
     }, true);
+    mk("spark.axis.date", tr("Date Axis…"), QString(), QKeySequence(), [this] {
+        const QVector<int> sel = selectedSparklineGroups();
+        if (sel.isEmpty() || !m_session) return;
+        const SparklineGroup &now = m_session->sparklinesOf(m_sheet)[sel.first()];
+        QString text = now.dateRange;
+        text.remove(QLatin1Char('$'));
+        if (const qsizetype bang = text.lastIndexOf(QLatin1Char('!')); bang >= 0) text = text.mid(bang + 1);
+        bool ok = false;
+        if (m_dateAxisAsker) ok = m_dateAxisAsker(&text);
+        else text = QInputDialog::getText(this, tr("Sparkline Date Axis"), tr("Cells with the dates of the points (leave empty for an axis that spaces the points evenly):"), QLineEdit::Normal, text, &ok);
+        if (!ok) return;
+        QString sheetName;
+        CellRange range;
+        QString written;
+        if (!text.trimmed().isEmpty()) {
+            if (!parseData(text, &sheetName, &range)) {
+                notice(tr("Sparkline Date Axis"), tr("Type the cells that hold the dates, for example A1:F1."));
+                return;
+            }
+            // (one row or one column, as long as the data of every sparkline in the group: a date for each point)
+            const qint64 count = std::max<qint64>(range.row2 - range.row1 + 1, range.col2 - range.col1 + 1);
+            if (range.row2 != range.row1 && range.col2 != range.col1) {
+                notice(tr("Sparkline Date Axis"), tr("The dates have to be in one row or one column of cells."));
+                return;
+            }
+            for (const Sparkline &sp : now.sparklines) {
+                QString dataSheet;
+                CellRange dataRange;
+                if (!parseData(sp.source, &dataSheet, &dataRange)) continue;
+                const qint64 points = std::max<qint64>(dataRange.row2 - dataRange.row1 + 1, dataRange.col2 - dataRange.col1 + 1);
+                if (points != count) {
+                    notice(tr("Sparkline Date Axis"), tr("There has to be a date for every point: the data has %1 and these cells have %2.").arg(points).arg(count));
+                    return;
+                }
+            }
+            if (sheetName.isEmpty()) sheetName = m_loaded->book->info().sheets[m_sheet].name;
+            const bool plain = !sheetName.isEmpty() && sheetName.at(0).isLetter() && std::all_of(sheetName.cbegin(), sheetName.cend(), [](QChar c) { return c.isLetterOrNumber() || c == QLatin1Char('_'); });
+            const QString q = plain ? sheetName : QLatin1Char('\'') + QString(sheetName).replace(QLatin1Char('\''), QLatin1String("''")) + QLatin1Char('\'');
+            written = q + QLatin1Char('!') + QLatin1Char('$') + jp::office::sheet::columnName(range.col1) + QLatin1Char('$') + QString::number(range.row1 + 1);
+            if (range.row2 != range.row1 || range.col2 != range.col1)
+                written += QLatin1String(":$") + jp::office::sheet::columnName(range.col2) + QLatin1Char('$') + QString::number(range.row2 + 1);
+        }
+        changeSparklineGroups([written](SparklineGroup *g) {
+            g->dateAxis = !written.isEmpty();
+            g->dateRange = written;
+        }, tr("Sparkline Axis"));
+    });
     m_sparklineActions << QStringLiteral("spark.editGroup") << QStringLiteral("spark.editOne") << QStringLiteral("spark.group") << QStringLiteral("spark.ungroup") << QStringLiteral("spark.clearSelected")
-                 << QStringLiteral("spark.clearGroups") << QStringLiteral("spark.hidden") << QStringLiteral("spark.axis.show") << QStringLiteral("spark.axis.rtl");
+                 << QStringLiteral("spark.clearGroups") << QStringLiteral("spark.hidden") << QStringLiteral("spark.axis.show") << QStringLiteral("spark.axis.rtl") << QStringLiteral("spark.axis.date");
 }
 
 void CrunchWindow::updateSparklineTab()
@@ -594,6 +641,7 @@ void CrunchWindow::sparklineRibbonParts(RibbonParts &parts)
             menu->clear();
             menu->addAction(act(QStringLiteral("spark.axis.show")));
             menu->addAction(act(QStringLiteral("spark.axis.rtl")));
+            menu->addAction(act(QStringLiteral("spark.axis.date")));
             const QVector<int> picked = selectedSparklineGroups();
             if (picked.isEmpty()) return;
             const SparklineGroup &g = m_session->sparklinesOf(m_sheet)[picked.first()];

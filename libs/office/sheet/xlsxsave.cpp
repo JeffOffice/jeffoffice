@@ -1648,6 +1648,12 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         const int index = partBytes(part, &xml);
         if (index >= 0 && setDrawingObjectNames(xml, names, &now, &changed) && changed) replaced.insert(index, now);
     }
+    for (const auto &[part, prints] : changes.objectPrints) {
+        QByteArray xml, now;
+        bool changed = false;
+        const int index = partBytes(part, &xml);
+        if (index >= 0 && setDrawingObjectPrints(xml, prints, &now, &changed) && changed) replaced.insert(index, now);
+    }
     // (what the objects taken away relate to: the links of the drawing they alone used, and the parts nothing else relates to)
     std::vector<std::pair<QString, QStringList>> released;
     for (const auto &[part, ordinals] : changes.removedObjects) {
@@ -1988,6 +1994,80 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             }
         }
         replaced.insert(typesEntry, types);
+    }
+    // ---- the properties of the workbook: the core, extended, and custom parts, made where the file has none
+    if (changes.setProperties) {
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        QByteArray types;
+        if (typesEntry < 0 || !(replaced.contains(typesEntry) ? (types = replaced.value(typesEntry), true) : inflate(typesEntry, &types)))
+            return fail(QCoreApplication::translate("jp::office::sheet::Save", "The file's list of part types is not in it."));
+        const int rootRelsEntry = entryAt.value(plain(QStringLiteral("_rels/.rels")), -1);
+        QByteArray rootRels;
+        if (rootRelsEntry >= 0 && !(replaced.contains(rootRelsEntry) ? (rootRels = replaced.value(rootRelsEntry), true) : inflate(rootRelsEntry, &rootRels)))
+            return fail(QCoreApplication::translate("jp::office::sheet::Save", "The file's relationships are not in it."));
+        auto bad = [&] { return fail(QCoreApplication::translate("jp::office::sheet::Save", "The properties could not be put in the file's list of parts.")); };
+        struct Prop {
+            const char *suffix, *defaultName, *contentType, *relationship;
+            std::function<QByteArray(const QByteArray &)> make;   // the part's bytes from the old (empty when there is none); empty: the part goes
+        };
+        const PackageProps &props = changes.properties;
+        const Prop parts[] = {
+            {"/core-properties", "/docProps/core.xml", kCorePartType, kCoreRelationship, [&](const QByteArray &old) { return writeCoreProps(old, props); }},
+            {"/extended-properties", "/docProps/app.xml", kAppPartType, kAppRelationship, [&](const QByteArray &old) { return writeAppProps(old, props); }},
+            {"/custom-properties", "/docProps/custom.xml", kCustomPartType, kCustomRelationship, [&](const QByteArray &old) {
+                 // (a part whose properties did not change is left as it is, byte for byte)
+                 if (!old.isEmpty() && readPackageProps({}, {}, old).custom == props.custom) return old;
+                 return props.custom.isEmpty() ? QByteArray() : writeCustomProps(old, props);
+             }},
+        };
+        QStringList used = relationshipIds(rootRels);
+        for (const Prop &part : parts) {
+            QString name;
+            for (const Relationship &r : package.relationshipsOfType(QStringLiteral("/"), QString::fromLatin1(part.suffix)))
+                if (!r.external && package.hasPart(r.target)) {
+                    name = r.target;
+                    break;
+                }
+            if (!name.isEmpty()) {
+                const int entry = entryOfPart(name);
+                QByteArray old;
+                if (entry >= 0 && !(replaced.contains(entry) ? (old = replaced.value(entry), true) : inflate(entry, &old))) return bad();
+                const QByteArray now = part.make(old);
+                if (now.isEmpty()) {
+                    // the custom part goes, with its type and the package's relationship to it
+                    if (entry >= 0) dropped.insert(entry);
+                    QByteArray t2, r2;
+                    if (removeContentTypeOverride(types, name, &t2)) types = t2;
+                    QStringList ids;
+                    for (const Relationship &r : package.relationshipsOfType(QStringLiteral("/"), QString::fromLatin1(part.suffix))) ids << r.id;
+                    if (removeRelationshipsById(rootRels, ids, &r2)) rootRels = r2;
+                } else if (entry >= 0) {
+                    if (now != old) replaced.insert(entry, now);
+                } else {
+                    return bad();
+                }
+                continue;
+            }
+            const QByteArray made = part.make(QByteArray());
+            if (made.isEmpty()) continue;
+            const QString newName = QString::fromLatin1(part.defaultName);
+            if (package.hasPart(newName) || rootRelsEntry < 0) return bad();
+            newEntries.emplace_back(newName.mid(1), made);
+            QByteArray t2, r2;
+            if (!addContentOverride(types, newName, QString::fromLatin1(part.contentType), &t2)) return bad();
+            types = t2;
+            const QString id = freeRelationshipId(used);
+            used << id;
+            if (!addRelationship(rootRels, id, QString::fromLatin1(part.relationship), newName.mid(1), &r2)) return bad();
+            rootRels = r2;
+        }
+        replaced.insert(typesEntry, types);
+        if (rootRelsEntry >= 0) replaced.insert(rootRelsEntry, rootRels);
     }
     // ---- the pivot tables that were made: their parts and types, the sheet's link to each table, and the workbook's link to each new cache
     std::vector<std::pair<int, QString>> newPivotCaches;   // the id of each new cache and the relationship the workbook names it by

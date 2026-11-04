@@ -3,6 +3,7 @@
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/datatoolsdialogs.h"
+#include "app/removeduplicatesdialog.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
@@ -51,11 +52,11 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(sheetOf({"A1=a", "B1=1", "A2=b", "B2=2", "A3=a", "B3=1", "A4=c", "B4=3", "A5=b", "B5=2", "A6=d", "B6=4", "A8=keep", "B8=me"})));
         QVERIFY(e.settle());
-        qint64 removed = 0;
-        const EditSession::Outcome o = e.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:B6")), {0, 1}, false, &removed);
+        int removed = 0;
+        const EditSession::Outcome o = e.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:B6")), false, QList<int>{0, 1}, &removed);
         QVERIFY2(o.ok, qPrintable(o.problem));
         QVERIFY(e.settle());
-        QCOMPARE(removed, qint64(2));
+        QCOMPARE(removed, int(2));
         QCOMPARE(shown(e, QStringLiteral("A1:B6")), QStringLiteral("a|1|b|2|c|3|d|4||||"));
         QCOMPARE(shown(e, QStringLiteral("A8:B8")), QStringLiteral("keep|me"));   // (what is under the range stays where it is)
         QCOMPARE(e.win.w.undoStack()->count(), 1);
@@ -69,18 +70,18 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(sheetOf({"A1=Apple", "B1=1", "A2=apple", "B2=2", "A3=Pear", "B3=3", "A4=APPLE", "B4=4"})));
         QVERIFY(e.settle());
-        qint64 removed = 0;
-        QVERIFY(e.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:B4")), {0}, false, &removed).ok);
+        int removed = 0;
+        QVERIFY(e.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:B4")), false, QList<int>{0}, &removed).ok);
         QVERIFY(e.settle());
-        QCOMPARE(removed, qint64(2));
+        QCOMPARE(removed, int(2));
         QCOMPARE(shown(e, QStringLiteral("A1:B4")), QStringLiteral("Apple|1|Pear|3||||"));
         // both columns: a row repeats only when every checked column does
         EditWindow f;
         QVERIFY(f.open(sheetOf({"A1=x", "B1=1", "A2=x", "B2=2", "A3=x", "B3=1"})));
         QVERIFY(f.settle());
-        QVERIFY(f.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:B3")), {0, 1}, false, &removed).ok);
+        QVERIFY(f.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:B3")), false, QList<int>{0, 1}, &removed).ok);
         QVERIFY(f.settle());
-        QCOMPARE(removed, qint64(1));
+        QCOMPARE(removed, int(1));
         QCOMPARE(shown(f, QStringLiteral("A1:B3")), QStringLiteral("x|1|x|2||"));
     }
 
@@ -89,14 +90,14 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(sheetOf({"A1=Name", "A2=Name", "A3=bob", "A4=Bob"})));
         QVERIFY(e.settle());
-        qint64 removed = 0;
-        QVERIFY(e.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:A4")), {0}, true, &removed).ok);
+        int removed = 0;
+        QVERIFY(e.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:A4")), true, QList<int>{0}, &removed).ok);
         QVERIFY(e.settle());
-        QCOMPARE(removed, qint64(1));
+        QCOMPARE(removed, int(1));
         QCOMPARE(shown(e, QStringLiteral("A1:A4")), QStringLiteral("Name|Name|bob|"));
         const int steps = e.win.w.undoStack()->count();
-        QVERIFY(e.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:A3")), {0}, true, &removed).ok);
-        QCOMPARE(removed, qint64(0));
+        QVERIFY(e.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:A3")), true, QList<int>{0}, &removed).ok);
+        QCOMPARE(removed, int(0));
         QCOMPARE(e.win.w.undoStack()->count(), steps);   // (no step when nothing goes)
     }
 
@@ -105,10 +106,10 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(sheetOf({"A1=1", "A2=1", "A3=text", "A4=1", "A5==1+0", "A6==2-1", "B1=a", "B2=a", "B3=a", "B4=a", "B5=a", "B6=a"})));
         QVERIFY(e.settle());
-        qint64 removed = 0;
-        QVERIFY(e.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:B6")), {0}, false, &removed).ok);
+        int removed = 0;
+        QVERIFY(e.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:B6")), false, QList<int>{0}, &removed).ok);
         QVERIFY(e.settle());
-        QCOMPARE(removed, qint64(4));   // (1 repeated four times: the formulas give 1 as well)
+        QCOMPARE(removed, int(4));   // (1 repeated four times: the formulas give 1 as well)
         QCOMPARE(shown(e, QStringLiteral("A1:A6")), QStringLiteral("1|text||||"));
     }
 
@@ -117,8 +118,8 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(sheetOf({"A1=1", "B1==A1*10", "A2=1", "B2==A2*10", "A3=2", "B3==A3*10"})));
         QVERIFY(e.settle());
-        qint64 removed = 0;
-        QVERIFY(e.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:B3")), {0}, false, &removed).ok);
+        int removed = 0;
+        QVERIFY(e.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:B3")), false, QList<int>{0}, &removed).ok);
         QVERIFY(e.settle());
         QCOMPARE(shown(e, QStringLiteral("A1:B3")), QStringLiteral("1|10|2|20||"));
         QCOMPARE(e.win.w.session()->editText(0, 1, 1), QStringLiteral("=A2*10"));
@@ -130,10 +131,10 @@ private Q_SLOTS:
         QVERIFY(e.open(sheetOf({"A1=1", "A2=1"})));
         QVERIFY(e.settle());
         EditSession *s = e.win.w.session();
-        QVERIFY(!s->removeDuplicates(0, rangeOf(QStringLiteral("A1:A2")), {}, false).ok);
-        QVERIFY(!s->removeDuplicates(0, rangeOf(QStringLiteral("A1:A2")), {3}, false).ok);
-        QVERIFY(!s->removeDuplicates(0, rangeOf(QStringLiteral("A1:A200000")), {0}, false).ok);
-        QVERIFY(!s->removeDuplicates(0, rangeOf(QStringLiteral("A1:A1")), {0}, true).ok);
+        QVERIFY(!s->removeDuplicates(0, rangeOf(QStringLiteral("A1:A2")), false, QList<int>{}).ok);
+        QVERIFY(!s->removeDuplicates(0, rangeOf(QStringLiteral("A1:A2")), false, QList<int>{3}).ok);
+        QVERIFY(!s->removeDuplicates(0, rangeOf(QStringLiteral("A1:A200000")), false, QList<int>{0}).ok);
+        QVERIFY(!s->removeDuplicates(0, rangeOf(QStringLiteral("A1:A1")), true, QList<int>{0}).ok);
     }
 
     void theWindowCommandWorksOnTheSelection()
@@ -270,13 +271,6 @@ private Q_SLOTS:
 
     void theDialogsGiveWhatWasChosen()
     {
-        RemoveDuplicatesDialog d(QStringList{"Name", "Age", "City"}, true);
-        QCOMPARE(d.columns(), (std::vector<int>{0, 1, 2}));
-        QVERIFY(d.hasHeader());
-        d.checkAll(false);
-        QVERIFY(d.columns().empty());
-        d.checkAll(true);
-        QCOMPARE(d.columns().size(), size_t(3));
         TextToColumnsDialog t({QStringLiteral("a;b c")}, QStringLiteral("B2"));
         QCOMPARE(t.destination(), QStringLiteral("B2"));
         QCOMPARE(t.spec().delimiters, QStringLiteral(","));
@@ -331,7 +325,7 @@ private Q_SLOTS:
             if (ribbon->tabName(i) == QLatin1String("Data")) ribbon->showTab(ribbon->tabPage(i));
         QTest::qWait(300);
         QVERIFY(e.win.w.grab().save(dir + QStringLiteral("/data-tab.png")));
-        RemoveDuplicatesDialog d(QStringList{"Name", "City", "Age"}, true);
+        RemoveDuplicatesDialog d(QStringList{"Name", "City", "Age"}, nullptr);
         d.show();
         QTest::qWait(100);
         QVERIFY(d.grab().save(dir + QStringLiteral("/remove-duplicates.png")));

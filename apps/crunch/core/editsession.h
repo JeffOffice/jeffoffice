@@ -44,6 +44,8 @@ namespace jp::crunch {
 
 // The most cells a Delete (or any one edit) changes: past it the edit is refused, with a message, so that it never holds the worker, or the window, for long.
 constexpr qint64 kMaxCellsPerEdit = 100000;
+// The most separate runs of repeated rows Remove Duplicates deletes (each is a delete of cells of its own).
+constexpr int kMaxDuplicateRuns = 500;
 // The most cells a formatting command changes the format of at once (a whole column of a sheet that is full of cells, or a block), a step of them being 20 bytes each.
 constexpr qint64 kMaxStyledCells = 2000000;
 // The most cells looked at one by one for a lock (a link put on, or taken off, a protected sheet).
@@ -366,6 +368,11 @@ public:
     // when `sheet` is -1 (the sheet is made first: a step of Undo of its own). The cells the empty table covers must be empty. `*made` is the new table's place.
     Outcome createPivot(const QString &source, int sheet, quint32 row, quint32 col, int *made = nullptr);
     Outcome refreshAllPivots();
+    // Drill Down and Drill Up: the item named by the label cell at (row, col) is opened (the lines of the next field under it are shown) or shut (only its total). Not ok if the cell is not the
+    // name of an item of the rows that has another field under it.
+    Outcome drillPivotItem(int sheet, quint32 row, quint32 col, bool open);
+    // Move pivot table: the table drawn again with its first cell at (row, col) of its own sheet, the cells it left emptied; one step of Undo. Not ok, and nothing changed, if what is there is in the way.
+    Outcome movePivot(int table, quint32 row, quint32 col);
     // The pivot tables whose cache says to refresh when the file opens are refreshed, as one step (nothing is done when there are none, or when the calculation has not finished).
     Outcome refreshPivotsOnOpen();
     // The most cells of source data that are read again when a file opens, all the tables together (0: the usual); for tests.
@@ -465,6 +472,16 @@ public:
     // Turns the table back into plain cells: the cells keep what they hold and how they look (the style is drawn no more), and the formulas that named the table's columns name the cells.
     Outcome tableToRange(int table);
     Outcome renameTable(int table, const QString &name);
+    // Remove Duplicates: the rows of the table's data that repeat an earlier row in the columns given (by place in the table; the texts compared in any case, as they show) are taken out and the rows
+    // under them move up; the table gets shorter and its row of totals moves up with it. `removed` is how many rows went. Not ok, and nothing changed, if no column is given or a row to be moved
+    // holds a formula that is not its column's own.
+    Outcome removeTableDuplicates(int table, const QList<int> &columns, int *removed = nullptr);
+    // The engine under it (and the Data tab's command): the rows of `data` (its first and last data row and its columns; compared columns by place from its first column) that repeat an earlier row,
+    // as the cells show in any case, are deleted as cells shifted up and as many empty cells put in under the end of the rows that move (`data` and `carried` rows under it); one step. Not ok,
+    // and nothing changed, for no column, locked cells on a protected sheet, a sheet that can't be edited, or more than kMaxDuplicateRuns separate runs of repeats.
+    Outcome removeDuplicateRows(int sheet, const jp::office::sheet::CellRange &data, const QList<int> &columns, int *removed = nullptr, quint32 carried = 0);
+    // The same for a plain range as selected (the first row its names, when `hasHeader`).
+    Outcome removeDuplicates(int sheet, const jp::office::sheet::CellRange &range, bool hasHeader, const QList<int> &columns, int *removed = nullptr);
     // The marks of a table's look and the filter buttons.
     struct TableMarks {
         QString style;
@@ -622,10 +639,6 @@ public:
     std::vector<jp::office::sheet::ColorSpec> colorsIn(int sheet, const jp::office::sheet::CellRange &range, bool font, bool *none, int limit = 64) const;
 
     // ---- Data tools (editdatatools.cpp)
-    // Remove Duplicates: the rows of the range whose cells in `columns` (their places in the range, from 0) repeat those of an earlier row go, and the rows under them in the range move up
-    // (what is under the range stays); one step. A header row (the first of the range) is kept and not compared. `*removed` is how many rows went. Not ok, and nothing changed, for a range that
-    // is too large or cells that cannot be moved.
-    Outcome removeDuplicates(int sheet, const jp::office::sheet::CellRange &range, const std::vector<int> &columns, bool hasHeader, qint64 *removed = nullptr);
     // Text to Columns: how the text of a column is cut into several.
     struct SplitSpec {
         bool fixedWidth = false;
@@ -998,6 +1011,8 @@ private:
         jp::office::sheet::CellRange source;
         int sourceSheet = -1;
         QString sourceName;
+        qint64 moveRow = -1, moveCol = -1;   // the table's first cell, when it is moved
+        bool cellsMoved = false;             // its cells are at the new place already
     };
     Outcome pivotStep(std::vector<PivotChange> changes, const QString &text, QStringList *skipped = nullptr);
     // Where a cache's data is now: the sheet and the cells (a table or a name resolved). `over`, if given, is where the person has just said it is.
@@ -1037,6 +1052,7 @@ private:
     WorkbookLoader *m_loader;
     std::shared_ptr<LoadedBook> m_book;
     jp::grid::ValueStore *m_values;
+    bool m_movingPivot = false;   // Move Pivot Table is moving the cells of a pivot table
     QUndoStack m_undo;
     std::shared_ptr<qint64> m_undoBytes = std::make_shared<qint64>(0);   // (shared with the steps, which count themselves off as they go, whenever that is)
     qint64 m_undoByteLimit = kUndoBytes;

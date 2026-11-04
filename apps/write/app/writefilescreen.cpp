@@ -117,6 +117,7 @@ WriteFileScreen::WriteFileScreen(WriteWindow *win) : FileScreen(win), m_win(win)
     addPage(QStringLiteral("new"), QStringLiteral("file-plus"), tr("New"));
     addPage(QStringLiteral("open"), QStringLiteral("folder-open"), tr("Open"));
     addSection(tr("This document"));
+    addPage(QStringLiteral("info"), QStringLiteral("file-text"), tr("Info"));
     addCommand(QStringLiteral("save"), QStringLiteral("save"), tr("Save"), [this] { if (m_win->save()) Q_EMIT closeRequested(); });
     addCommand(QStringLiteral("saveas"), QStringLiteral("copy"), tr("Save As"), [this] { if (m_win->saveAs()) Q_EMIT closeRequested(); });
     addCommand(QStringLiteral("savecopy"), QStringLiteral("files"), tr("Save a Copy"), [this] { if (m_win->saveCopy()) Q_EMIT closeRequested(); });
@@ -132,6 +133,7 @@ WriteFileScreen::WriteFileScreen(WriteWindow *win) : FileScreen(win), m_win(win)
 // The pages are built when they are shown, so they show what is now.
 QWidget *WriteFileScreen::buildPage(const QString &key)
 {
+    if (key == "info") return m_win->buildInfoPage(nullptr);
     if (key == "new") return buildNew();
     if (key == "open") return buildOpen();
     if (key == "print") return buildPrint();
@@ -336,6 +338,19 @@ QWidget *WriteFileScreen::buildPrint()
         left->addWidget(r);
     }
     left->addWidget(text);
+    // Only the odd or the even pages, and last page first: for printing a sheet's two sides by hand, turning the stack over between.
+    auto *sides = new QComboBox(w);
+    sides->setObjectName(QStringLiteral("printSides"));
+    sides->setAccessibleName(tr("Pages to print"));
+    sides->addItem(tr("All pages in the range"), int(WriteOutputOptions::Sides::All));
+    sides->addItem(tr("Only odd pages"), int(WriteOutputOptions::Sides::Odd));
+    sides->addItem(tr("Only even pages"), int(WriteOutputOptions::Sides::Even));
+    left->addSpacing(6);
+    left->addWidget(sides);
+    auto *reverse = new QCheckBox(tr("Last page first"), w);
+    reverse->setObjectName(QStringLiteral("printReverse"));
+    reverse->setToolTip(tr("Print the pages in reverse order, so the stack comes out in order."));
+    left->addWidget(reverse);
     left->addStretch(1);
     h->addLayout(left, 1);
 
@@ -380,6 +395,8 @@ QWidget *WriteFileScreen::buildPrint()
         o.printer = choice.printer;
         o.copies = copies->value();
         o.collate = collate->isChecked();
+        o.sides = static_cast<WriteOutputOptions::Sides>(sides->currentData().toInt());
+        o.reverse = reverse->isChecked();
         return o;
     };
     auto page = std::make_shared<int>(0);
@@ -436,6 +453,8 @@ QWidget *WriteFileScreen::buildPrint()
         restart();
     });
     connect(copies, &QSpinBox::valueChanged, w, [=] { covered(); });
+    connect(sides, &QComboBox::currentIndexChanged, w, [=] { restart(); });
+    connect(reverse, &QCheckBox::toggled, w, [=] { restart(); });
     connect(previous, &QToolButton::clicked, w, [=] { --*page; paint(); });
     connect(next, &QToolButton::clicked, w, [=] { ++*page; paint(); });
     connect(printBtn, &QPushButton::clicked, this, [=] {
@@ -465,6 +484,12 @@ QWidget *WriteFileScreen::buildExport()
         if (m_win->exportPdf()) Q_EMIT closeRequested();
     });
     v->addWidget(b);
+    auto *t = new ActionCard(QStringLiteral("file-text"), tr("Save as Plain Text"), tr("Only the words, in a .txt file. You choose how the characters and line ends are written."), w);
+    t->setObjectName(QStringLiteral("exportText"));
+    connect(t, &QAbstractButton::clicked, this, [this] {
+        if (m_win->exportTextAsk()) Q_EMIT closeRequested();
+    });
+    v->addWidget(t);
     v->addStretch(1);
     return w;
 }

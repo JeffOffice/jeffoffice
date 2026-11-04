@@ -211,6 +211,11 @@ bool CrunchWindow::startSave(const QString &path)
         if (ending != saveKind() && crunch::workbookKindsSavedAs(saveKind()).contains(ending)) snapshot->changes.targetKind = ending;
     }
     if (m_objects) m_objects->addToSave(&snapshot->changes);
+    // the properties a person edited on the Info page
+    if (m_editedProps) {
+        snapshot->changes.setProperties = true;
+        snapshot->changes.properties = *m_editedProps;
+    }
     if (!backupBeforeSave(this, path)) {
         m_closeAfterSave = false;
         return false;
@@ -281,6 +286,7 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
         m_diskProtected = m_fileProtected;
         m_diskDigest = m_fileProtected && m_savedDigest ? *m_savedDigest : QByteArray();
         m_protectionChanged = false;
+        m_editedProps.reset();   // (the file has them now)
         setWindowModified(m_session->isModified());
         Settings::get().addRecentFile(path);
         telemetry::count(QStringLiteral("file.save.") + crunch::fileKind(path));

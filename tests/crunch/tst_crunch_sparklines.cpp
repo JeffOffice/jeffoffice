@@ -210,6 +210,33 @@ private Q_SLOTS:
         QCOMPARE(int(group().empty), int(SparklineGroup::Empty::Span));
         w.act(QStringLiteral("spark.axis.show"))->trigger();
         QVERIFY(group().showAxis);
+        // a date axis: the points are spaced by the dates in the cells given (as an absolute reference with the sheet), and none given turns it off; each is one step
+        QString dates = QStringLiteral("A1:B1");
+        w.setDateAxisAsker([&](QString *range) {
+            *range = dates;
+            return true;
+        });
+        w.act(QStringLiteral("spark.axis.date"))->trigger();
+        QVERIFY(group().dateAxis);
+        QCOMPARE(group().dateRange, QStringLiteral("Sheet1!$A$1:$B$1"));
+        dates = QStringLiteral("not a range");
+        w.act(QStringLiteral("spark.axis.date"))->trigger();
+        QCOMPARE(group().dateRange, QStringLiteral("Sheet1!$A$1:$B$1"));   // (refused: nothing changed)
+        for (const char *bad : {"A1:B2", "A1:C1", "A1:A1", "A1:A5"}) {   // (two rows and columns; too many dates; too few; a column of another length)
+            dates = QString::fromLatin1(bad);
+            w.act(QStringLiteral("spark.axis.date"))->trigger();
+            QCOMPARE(group().dateRange, QStringLiteral("Sheet1!$A$1:$B$1"));
+        }
+        dates = QStringLiteral("A3:B3");   // (a row of the right length is fine)
+        w.act(QStringLiteral("spark.axis.date"))->trigger();
+        QCOMPARE(group().dateRange, QStringLiteral("Sheet1!$A$3:$B$3"));
+        dates.clear();
+        w.act(QStringLiteral("spark.axis.date"))->trigger();
+        QVERIFY(!group().dateAxis);
+        QVERIFY(group().dateRange.isEmpty());
+        w.undoStack()->undo();
+        QVERIFY(group().dateAxis);
+        QCOMPARE(group().dateRange, QStringLiteral("Sheet1!$A$3:$B$3"));
         // the data of the group is edited: another place and other data
         where = QStringLiteral("F1:F3");
         w.setSparklineAsker([&](QString *data, QString *loc) {

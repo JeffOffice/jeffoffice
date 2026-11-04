@@ -201,7 +201,7 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose, QTextBlock firs
 // the history that can bring a picture back, and only the file leaves them out.
 void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
 {
-    if (m_madeMedia.isEmpty()) return;
+    if (m_madeMedia.isEmpty() && m_madeLinks.isEmpty()) return;
     QSet<QString> named;
     auto collect = [&named](const QByteArray &bytes) {
         for (qsizetype at = bytes.indexOf("rId"); at >= 0; at = bytes.indexOf("rId", at + 3)) {
@@ -221,6 +221,15 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
     }
     for (const office::wml::KeptPart &part : std::as_const(out->parts))
         if (part.contentType.contains(QLatin1String("xml"))) collect(part.data);
+    // (An address a link was made to and then taken back, or never used, is no relationship of the file.)
+    for (const QString &id : std::as_const(m_madeLinks)) {
+        if (named.contains(id)) continue;
+        for (qsizetype i = 0; i < out->mainRelationships.size(); ++i)
+            if (out->mainRelationships[i].id == id && out->mainRelationships[i].external) {
+                out->mainRelationships.removeAt(i);
+                break;
+            }
+    }
     for (auto it = m_madeMedia.cbegin(); it != m_madeMedia.cend(); ++it) {
         if (named.contains(it.key())) continue;
         const QString target = it.value();

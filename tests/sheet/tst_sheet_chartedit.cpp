@@ -102,6 +102,116 @@ private Q_SLOTS:
         QVERIFY(roundTrip(pie).plots[0].series[0].labels.percent);
     }
 
+    // What a data label holds (the value, the category's name, the series' name, the percentage), what stands between them, and the number format: set for every series, kept by a save and a read.
+    void dataLabelsHoldWhatIsChosen()
+    {
+        Chart c = columns();
+        QVERIFY(!labelPartsOf(c).value);
+        ChartLabelParts parts;
+        parts.value = true;
+        parts.category = true;
+        parts.separator = QStringLiteral("; ");
+        parts.format = QStringLiteral("0.0");
+        setDataLabelParts(&c, parts);   // (none were shown: the labels come on, in the usual place)
+        for (const Chart &x : {c, roundTrip(c)}) {
+            const ChartLabelParts got = labelPartsOf(x);
+            QVERIFY(got.value && got.category && !got.series && !got.percent);
+            QCOMPARE(got.separator, QStringLiteral("; "));
+            QCOMPARE(got.format, QStringLiteral("0.0"));
+            for (const ChartPlot &p : x.plots)
+                for (const ChartSeries &s : p.series) QVERIFY(s.labels.shown());
+        }
+        QVERIFY(elementsOf(c).labels);
+        // the position is kept when the contents change
+        setDataLabels(&c, true, QStringLiteral("outEnd"));
+        parts.series = true;
+        parts.value = false;
+        setDataLabelParts(&c, parts);
+        QCOMPARE(elementsOf(c).labelPosition, QStringLiteral("outEnd"));
+        QVERIFY(labelPartsOf(roundTrip(c)).series && !labelPartsOf(roundTrip(c)).value);
+        // everything off takes the labels away
+        setDataLabelParts(&c, ChartLabelParts());
+        QVERIFY(!elementsOf(c).labels);
+    }
+
+    // An axis formatted as a person does in its pane: bounds, units, order, where the other axis crosses, number format, tick marks, label place and turn; only those parts change, the rest of
+    // the axis is as it was, and the file holds them.
+    void anAxisIsFormatted()
+    {
+        Chart c = columns();
+        const ChartAxis before = *primaryAxis(c, false);
+        ChartAxis edit = before;
+        edit.autoMin = false;
+        edit.min = 5;
+        edit.autoMax = false;
+        edit.max = 50;
+        edit.majorUnit = 10;
+        edit.minorUnit = 2;
+        edit.reversed = true;
+        edit.crosses = QStringLiteral("max");
+        edit.format = QStringLiteral("0.0");
+        edit.formatLinked = false;
+        edit.majorTick = QStringLiteral("in");
+        edit.minorTick = QStringLiteral("cross");
+        edit.labelPosition = QStringLiteral("low");
+        edit.hasRotation = true;
+        edit.labelRotation = -45;
+        edit.title.text = QStringLiteral("not changed by this");
+        setAxisFormat(&c, false, false, edit);
+        for (const Chart &x : {c, roundTrip(c)}) {
+            const ChartAxis *a = primaryAxis(x, false);
+            QVERIFY(!a->autoMin && !a->autoMax);
+            QCOMPARE(a->min, 5.0);
+            QCOMPARE(a->max, 50.0);
+            QCOMPARE(a->majorUnit, 10.0);
+            QCOMPARE(a->minorUnit, 2.0);
+            QVERIFY(a->reversed);
+            QCOMPARE(a->crosses, QStringLiteral("max"));
+            QCOMPARE(a->format, QStringLiteral("0.0"));
+            QVERIFY(!a->formatLinked);
+            QCOMPARE(a->majorTick, QStringLiteral("in"));
+            QCOMPARE(a->minorTick, QStringLiteral("cross"));
+            QCOMPARE(a->labelPosition, QStringLiteral("low"));
+            QVERIFY(a->hasRotation);
+            QCOMPARE(a->labelRotation, -45.0);
+            QCOMPARE(a->title.text, before.title.text);   // (the title is not part of what the pane sets)
+            QCOMPARE(a->id, before.id);
+        }
+        // the other axis is not touched
+        QCOMPARE(primaryAxis(c, true)->reversed, false);
+        // back to automatic
+        setAxisFormat(&c, false, false, before);
+        QVERIFY(primaryAxis(roundTrip(c), false)->autoMin);
+        QVERIFY(!primaryAxis(roundTrip(c), false)->reversed);
+        // an axis the chart does not have: nothing happens (a pie)
+        Chart pie = columns(ChartKind::Pie);
+        setAxisFormat(&pie, false, false, edit);
+        QVERIFY(!primaryAxis(pie, false));
+    }
+
+    // An axis a pane made is refused when its lowest value is not under its highest (both set) or a unit is negative; automatic values are not compared.
+    void anAxisThatCannotBeUsedIsFound()
+    {
+        Chart c = columns();
+        ChartAxis a = *primaryAxis(c, false);
+        QVERIFY(axisFormatProblem(a).isEmpty());
+        a.autoMin = false;
+        a.min = 10;
+        QVERIFY(axisFormatProblem(a).isEmpty());   // (the highest is automatic)
+        a.autoMax = false;
+        a.max = 10;
+        QVERIFY(!axisFormatProblem(a).isEmpty());
+        a.max = 5;
+        QVERIFY(!axisFormatProblem(a).isEmpty());
+        a.max = 20;
+        QVERIFY(axisFormatProblem(a).isEmpty());
+        a.majorUnit = -1;
+        QVERIFY(!axisFormatProblem(a).isEmpty());
+        a.majorUnit = 0;
+        a.minorUnit = -0.5;
+        QVERIFY(!axisFormatProblem(a).isEmpty());
+    }
+
     void aSingleSeriesTitleIsItsName()
     {
         Chart c = makeChart(ChartKind::Column, planOf(QStringLiteral("A1:B4"), ChartKind::Column), defaultTheme());

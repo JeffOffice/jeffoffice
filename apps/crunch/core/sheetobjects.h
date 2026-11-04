@@ -146,6 +146,9 @@ public:
     // The state with a changed chart (its references as they are now), for the step that changes it; and with the object put in another place.
     ObjectState stateWithChart(int sheet, int id, const jp::office::Chart &chart);
     ObjectState stateMoved(int sheet, int id, const jp::office::sheet::DrawingAnchor &anchor);
+    // The state with the object on the printed pages or off them; and whether it is on them now.
+    ObjectState stateWithPrints(int sheet, int id, bool prints);
+    bool printsOf(int sheet, int id);
     // Whether the object's chart can be changed (it is a chart, the file stores it by itself, and it holds nothing a chart saved from the model would lose); if not, why.
     bool canEditChart(int sheet, int id, QString *why = nullptr);
     // An object's place now, as the layer has it (the grid's units), and the sheet's object under that name; false if there is none.
@@ -221,6 +224,7 @@ private:
         QList<jp::crunch::ClipMedia> pasteMedia;
         QString savedPivotName;                        // the name the chart's pivot source has in the file being written
         QString fileName, savedName;                   // its name as the file has it, and as the save in flight writes it
+        bool filePrints = true, savedPrints = true;    // whether the file has it printing, and whether the save in flight writes it so
         int savedOrdinal = -1;                         // where it will be among the children of the drawing's root when what addToSave gave is saved
         int editable = -1;                             // whether the chart can be changed (-1 not looked at, 0 no, 1 yes), and why not: found once, for a part of the file is read to say
         QString editWhy;
