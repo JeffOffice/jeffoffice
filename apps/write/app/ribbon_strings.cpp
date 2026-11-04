@@ -21,6 +21,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Close"),
     QT_TRANSLATE_NOOP("Ribbon", "Columns"),
     QT_TRANSLATE_NOOP("Ribbon", "Comments"),
+    QT_TRANSLATE_NOOP("Ribbon", "Compare"),
     QT_TRANSLATE_NOOP("Ribbon", "Create"),
     QT_TRANSLATE_NOOP("Ribbon", "Data"),
     QT_TRANSLATE_NOOP("Ribbon", "Delete"),

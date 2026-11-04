@@ -1,6 +1,7 @@
 #pragma once
 // The dialog boxes of the Home and Review tabs that are not Font or Paragraph: Sort, Word Count.
 
+#include "core/compareops.h"
 #include "core/homeops.h"
 #include "core/proofops.h"
 
@@ -32,5 +33,8 @@ bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, Q
 int restrictEditingDialog(QWidget *parent, bool enforced, const QString &currentEdit, bool hasPassword, bool lockTracking, QString *edit, QString *password);
 // Track Changes Options: the name and initials that changes and comments are signed with.
 bool trackOptionsDialog(QWidget *parent, QString *name, QString *initials);
+
+// Compare: the file of the revised version (the open document is the original), who the changes are signed with, and the choices. False if canceled.
+bool compareDialog(QWidget *parent, QString *revisedPath, CompareOptions *options);
 
 } // namespace jp::write

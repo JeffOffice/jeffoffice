@@ -10,7 +10,9 @@
 #include <QCoreApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QFileDialog>
 #include <QGridLayout>
+#include <QHBoxLayout>
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
@@ -385,6 +387,54 @@ bool trackOptionsDialog(QWidget *parent, QString *name, QString *initials)
     if (dlg.exec() != QDialog::Accepted) return false;
     *name = nameBox->text().trimmed();
     *initials = initialsBox->text().trimmed();
+    return true;
+}
+
+bool compareDialog(QWidget *parent, QString *revisedPath, CompareOptions *options)
+{
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("compareDialog"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::HomeDialogs", "Compare"));
+    auto *v = new QVBoxLayout(&dlg);
+    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "This document is the original. Choose the revised version:"), &dlg)));
+    auto *row = new QHBoxLayout;
+    auto *path = new QLineEdit(*revisedPath, &dlg);
+    path->setObjectName(QStringLiteral("revisedPath"));
+    auto *browse = new QPushButton(QCoreApplication::translate("jp::write::HomeDialogs", "Browse…"), &dlg);
+    row->addWidget(path, 1);
+    row->addWidget(browse);
+    v->addLayout(row);
+    QObject::connect(browse, &QPushButton::clicked, &dlg, [&] {
+        const QString p = QFileDialog::getOpenFileName(&dlg, QCoreApplication::translate("jp::write::HomeDialogs", "Revised document"), QString(),
+                                                       QCoreApplication::translate("jp::write::HomeDialogs", "Documents (*.docx *.docm *.doc *.rtf *.odt *.fodt)") + QStringLiteral(";;") + QCoreApplication::translate("jp::write::HomeDialogs", "All Files (*)"));
+        if (!p.isEmpty()) path->setText(p);
+    });
+    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Label the changes with this name:"), &dlg)));
+    auto *author = new QLineEdit(options->author, &dlg);
+    author->setObjectName(QStringLiteral("compareAuthor"));
+    v->addWidget(author);
+    auto *byCharacter = new QCheckBox(QCoreApplication::translate("jp::write::HomeDialogs", "Compare letter by letter, not word by word"), &dlg);
+    auto *ignoreCase = new QCheckBox(QCoreApplication::translate("jp::write::HomeDialogs", "Ignore differences in capital letters"), &dlg);
+    auto *ignoreSpace = new QCheckBox(QCoreApplication::translate("jp::write::HomeDialogs", "Ignore differences in white space"), &dlg);
+    byCharacter->setObjectName(QStringLiteral("compareByCharacter"));
+    ignoreCase->setObjectName(QStringLiteral("compareIgnoreCase"));
+    ignoreSpace->setObjectName(QStringLiteral("compareIgnoreSpace"));
+    byCharacter->setChecked(options->byCharacter);
+    ignoreCase->setChecked(options->ignoreCase);
+    ignoreSpace->setChecked(options->ignoreWhiteSpace);
+    v->addWidget(byCharacter);
+    v->addWidget(ignoreCase);
+    v->addWidget(ignoreSpace);
+    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    v->addWidget(bb);
+    if (dlg.exec() != QDialog::Accepted || path->text().trimmed().isEmpty()) return false;
+    *revisedPath = path->text().trimmed();
+    options->author = author->text().trimmed();
+    options->byCharacter = byCharacter->isChecked();
+    options->ignoreCase = ignoreCase->isChecked();
+    options->ignoreWhiteSpace = ignoreSpace->isChecked();
     return true;
 }
 

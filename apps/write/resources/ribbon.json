@@ -979,6 +979,16 @@
           ]
         },
         {
+          "name": "Compare",
+          "keytip": "ZO",
+          "items": [
+            {
+              "large": "review.compare",
+              "keytip": "CO"
+            }
+          ]
+        },
+        {
           "name": "Protect",
           "keytip": "ZR",
           "items": [

@@ -5,7 +5,9 @@
 #include "app/writewindow.h"
 #include "app/pageview.h"
 #include "core/appinfo.h"
+#include "core/compareops.h"
 #include "core/editops.h"
+#include "core/reviewops.h"
 #include "core/fonts.h"
 #include "core/homeops.h"
 #include "core/proofops.h"
@@ -15,6 +17,9 @@
 #include "text/textprops.h"
 
 #include <QAction>
+#include <QApplication>
+#include <QTemporaryDir>
+#include <QFile>
 #include <QCryptographicHash>
 #include <QTest>
 #include <QTextBlock>
@@ -444,6 +449,110 @@ private Q_SLOTS:
         w.view()->setCursor(c);
         w.act(QStringLiteral("fmt.bold"))->trigger();
         QVERIFY(!w.document()->canUndo());
+    }
+
+    void diffTextTellsWordsApartAndRebuildsTheNewText()
+    {
+        CompareOptions o;
+        const QString from = QStringLiteral("The quick brown fox jumps over the lazy dog."), to = QStringLiteral("The quick red fox leaps over the very lazy dog.");
+        const QVector<TextEdit> edits = diffText(from, to, o);
+        QVERIFY(edits.size() >= 2);
+        // Applying the edits from the end gives the new text.
+        QString rebuilt = from;
+        for (int i = int(edits.size()) - 1; i >= 0; --i) rebuilt.replace(edits.at(i).deleteFrom, edits.at(i).deleteTo - edits.at(i).deleteFrom, edits.at(i).insertText);
+        QCOMPARE(rebuilt, to);
+        QVERIFY(diffText(from, from, o).isEmpty());
+        o.ignoreCase = true;
+        QVERIFY(diffText(QStringLiteral("Hello World"), QStringLiteral("hello world"), o).isEmpty());
+    }
+
+    void compareMakesTrackedChangesThatAcceptToTheRevisedAndRejectToTheOriginal()
+    {
+        const QByteArray one = para(run("Title")) + para(run("The quick brown fox.")) + para(run("Removed paragraph.")) + para(run("Same ending."));
+        const QByteArray two = para(run("Title")) + para(run("The quick red fox.")) + para(run("New paragraph here.")) + para(run("Another new one.")) + para(run("Same ending.")) + para(run("Added last."));
+        auto original = open(makeDocx(one)), revised = open(makeDocx(two));
+        CompareOptions o;
+        o.author = QStringLiteral("Reviewer");
+        int changes = 0;
+        auto result = compareDocuments(*original, *revised, o, &changes);
+        QVERIFY(result);
+        QVERIFY(changes >= 4);
+        QVERIFY(revisionCount(result->story()) > 0);
+        // The result is a document of tracked changes, signed with the author.
+        const QByteArray out = part(result->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY(out.contains("w:author=\"Reviewer\""));
+        QVERIFY(out.contains("<w:ins ") && out.contains("<w:del "));
+        // The original is as it was.
+        QCOMPARE(texts(*original), (QStringList{"Title", "The quick brown fox.", "Removed paragraph.", "Same ending."}));
+        auto reject = open(result->toDocx());
+        rejectAll(*reject);
+        QCOMPARE(texts(*reject), texts(*original));
+        auto accept = open(result->toDocx());
+        acceptAll(*accept);
+        QCOMPARE(texts(*accept), texts(*revised));
+    }
+
+    void compareOfEqualDocumentsHasNoChangesAndOfALastParagraphDeletedLeavesNoEmptyOne()
+    {
+        auto a = open(makeDocx(para(run("One")) + para(run("Two")))), b = open(makeDocx(para(run("One")) + para(run("Two"))));
+        int changes = -1;
+        auto same = compareDocuments(*a, *b, CompareOptions(), &changes);
+        QVERIFY(same);
+        QCOMPARE(changes, 0);
+        QCOMPARE(revisionCount(same->story()), 0);
+        auto shorter = open(makeDocx(para(run("One"))));
+        auto cut = compareDocuments(*a, *shorter, CompareOptions(), &changes);
+        QVERIFY(cut);
+        acceptAll(*cut);
+        QCOMPARE(texts(*cut), (QStringList{"One"}));
+    }
+
+    void compareHandlesDocumentsWithManyParagraphsAndEmptyOnes()
+    {
+        QByteArray one, two;
+        for (int i = 0; i < 300; ++i) {
+            one += para(run(QByteArray("Paragraph number ") + QByteArray::number(i)));
+            two += para(run(QByteArray("Paragraph number ") + QByteArray::number(i % 7 == 0 ? i + 1000 : i)));
+        }
+        auto a = open(makeDocx(one)), b = open(makeDocx(two));
+        auto r = compareDocuments(*a, *b, CompareOptions(), nullptr);
+        QVERIFY(r);
+        auto accept = open(r->toDocx());
+        acceptAll(*accept);
+        QCOMPARE(texts(*accept), texts(*b));
+        auto empty = open(makeDocx(para(QByteArray())));
+        auto r2 = compareDocuments(*empty, *b, CompareOptions(), nullptr);
+        QVERIFY(r2);
+        acceptAll(*r2);
+        QVERIFY(r2->story()->toPlainText().contains(QStringLiteral("Paragraph number 1000")));
+    }
+
+    void theCompareCommandOpensTheResultInAWindowOfItsOwn()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile f(dir.filePath(QStringLiteral("revised.docx")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(makeDocx(para(run("Alpha")) + para(run("Beta changed"))));
+        f.close();
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("Alpha")) + para(run("Beta")))), QString());
+        const int before = QApplication::topLevelWidgets().size();
+        CompareOptions o;
+        o.author = QStringLiteral("Me");
+        QVERIFY(w.compareWith(dir.filePath(QStringLiteral("revised.docx")), o) > 0);
+        WriteWindow *made = nullptr;
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (auto *ww = qobject_cast<WriteWindow *>(top); ww && ww != &w) made = ww;
+        QVERIFY(made);
+        QVERIFY(QApplication::topLevelWidgets().size() > before);
+        QVERIFY(revisionCount(made->document()->story()) > 0);
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("Alpha\nBeta"));   // (the original is as it was)
+        QVERIFY(w.compareWith(dir.filePath(QStringLiteral("missing.docx")), o) < 0);
+        made->document()->setModified(false);
+        made->close();
     }
 };
 

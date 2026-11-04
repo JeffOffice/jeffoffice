@@ -7,6 +7,7 @@
 #include "core/styleops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
+#include "core/compareops.h"
 #include "core/homeops.h"
 
 #include <QHash>
@@ -73,6 +74,9 @@ public:
     // Brings the commands up to date with the selection at once (the window does it a moment after a change; a test does not wait for the moment).
     void refreshNow() { refreshUi(); }
     write::WriteDoc *document() const { return m_doc.get(); }
+    // Review > Compare: this document and the file at `revisedPath` made into a new document of tracked changes (this one is the original), shown in a window of its own. How many changes it
+    // holds; -1 when a file can't be read or compared (the reason is told).
+    int compareWith(const QString &revisedPath, const write::CompareOptions &options);
     QString ribbonErrors() const { return m_ribbonErrors; }
 
     // ---- the file

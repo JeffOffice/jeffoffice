@@ -7,7 +7,12 @@
 #include "app/settings.h"
 #include "core/reviewops.h"
 
+#include "core/appinfo.h"
+#include "office/package.h"
+
 #include <QAction>
+#include <QApplication>
+#include <QFileInfo>
 #include <QStatusBar>
 
 namespace jp {
@@ -39,8 +44,42 @@ void WriteWindow::createProtectActions()
         if (m_doc) m_doc->setReviewer(Settings::get().userName(), initials);
         m_view->setFocus(Qt::OtherFocusReason);
     });
+    mk("review.compare", tr("Compare…"), "git-compare-arrows", QKeySequence(), [this] {
+        if (!m_doc) return;
+        QString path;
+        write::CompareOptions options;
+        options.author = Settings::get().userName();
+        if (!write::compareDialog(this, &path, &options)) return;
+        compareWith(path, options);
+    });
     mk("review.lockTracking", tr("Lock Tracking…"), "lock", QKeySequence(), [this] { restrictEditing(true); });
     mk("review.restrictEditing", tr("Restrict Editing…"), "shield", QKeySequence(), [this] { restrictEditing(false); });
+}
+
+int WriteWindow::compareWith(const QString &revisedPath, const write::CompareOptions &options)
+{
+    if (!m_doc) return -1;
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    QByteArray bytes;
+    QString err;
+    std::unique_ptr<write::WriteDoc> revised;
+    if (office::readWholeFile(revisedPath, &bytes, &err) && !bytes.isEmpty()) revised = write::WriteDoc::fromFile(bytes, &err, nullptr);
+    std::unique_ptr<write::WriteDoc> result;
+    int changes = 0;
+    if (revised) result = write::compareDocuments(*m_doc, *revised, options, &changes, &err);
+    QApplication::restoreOverrideCursor();
+    if (!result) {
+        notice(tr("Compare"), tr("\"%1\" can't be compared.\n%2").arg(QFileInfo(revisedPath).fileName(), err), true);
+        return -1;
+    }
+    auto *target = new WriteWindow();
+    target->setAttribute(Qt::WA_DeleteOnClose);
+    target->show();
+    target->m_untitled = tr("Compare of %1 and %2").arg(displayName(), QFileInfo(revisedPath).completeBaseName());
+    target->setDocument(std::move(result), QString());
+    target->m_doc->setModified(true);
+    target->statusBar()->showMessage(changes == 1 ? tr("1 change found.") : tr("%1 changes found.").arg(changes), 8000);
+    return changes;
 }
 
 void WriteWindow::restrictEditing(bool lockTracking)
