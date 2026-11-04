@@ -1,5 +1,5 @@
 # Open, save, print, and export
-<!-- keywords: open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ott, repair, open and repair, damaged -->
+<!-- keywords: email, eml, bookmarks, pdf bookmarks, shift+f5, last edit, where you stopped, built-in templates, gallery, letter, report, brief, manuscript, newsletter, open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ott, repair, open and repair, damaged -->
 
 Click **File** at the top left to see the File screen. It has pages for New, Open, Print, and Export, and commands for Save and Save As. Press **Esc** to go back to your document.
 
@@ -59,13 +59,27 @@ The repaired document opens as a copy with a name like "Repaired letter". A mess
 
 JeffWrite saves a spare copy of unsaved work every few minutes, as a file in its own folder. If the program closes unexpectedly, it offers those copies the next time you start it. Click **File > Open > Recover Unsaved Work** to see them later. You can choose which to open, and you can save each one where you like.
 
-## Print
+## Start from a template
 
-Press **Ctrl+P**, or click **File > Print**. Choose a printer, the copies, and the pages, look at each page in the preview, and click **Print**. See [Print](print).
+**File > New** shows the **Blank Document** and a set of templates that come with JeffWrite, grouped by kind: a letter, a report, a brief, a manuscript, and a newsletter. Each picture is the first page of the document you get. A **template** is a document that is already set up, with its styles, margins, and sample words. Click one, and replace the sample words with your own. Templates you saved yourself are listed under **My Templates**.
+
+## Pick up where you stopped
+
+JeffWrite remembers where the cursor was when you saved or closed a file. The next time you open the file, the cursor is there. Press **Shift+F5** to jump to the places you edited last. Each press goes to the one before: the last three places, then back to the first.
+
+## Save as .odt
+
+An .odt file can't hold everything a .docx file can. When you save as .odt, JeffWrite lists what would be lost first, and lets you save a .docx file instead. See [Info](info).
+
+## Print **Ctrl+P**, or click **File > Print**. Choose a printer, the copies, and the pages, look at each page in the preview, and click **Print**. See [Print](print).
 
 ## Make a PDF
 
-Click **File > Export > Export to PDF**. Choose a name. The PDF looks the same on every computer, because the fonts go inside it.
+Click **File > Export > Export to PDF**. Choose a name. The PDF looks the same on every computer, because the fonts go inside it. The document's title, author, subject, and keywords go into the PDF. Each heading becomes a **bookmark**, an entry in the list that a PDF reader shows beside the pages. Click a bookmark to jump to its page.
+
+## Make an email
+
+Click **File > Export > Make an Email** to make a message file (.eml). Nothing is sent. You choose what goes in the message: the document, the document as a PDF, or the pages shown as pictures in the message (the first 30 pages). Open the file in your email program, add who it is for, and send it.
 
 ## Related
 

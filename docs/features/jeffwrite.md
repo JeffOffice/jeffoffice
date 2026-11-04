@@ -68,7 +68,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [~] **1.0** Encrypt with a password: open and save password-protected `.docx` (the standard's strong encryption) and `.odt` *(done for `.docx`: Info > Encrypt with Password writes the agile form with AES-256, and Open asks for the password, as often as it takes; not done for `.odt`, which refuses to be saved without the password the person asked for; shared: libs/office officecrypt)*
 - [x] **1.0** Inspect Document: find and remove comments, tracked changes, personal information, hidden text, custom XML, and headers and footers before sharing *(Info > Inspect Document counts each kind and removes it with one button; tracked changes are accepted; shared: libs/shell InspectDialog)*
 - [~] **1.0** Check Compatibility: lists what an older format (`.doc`, `.rtf`, `.odt`) can't hold before saving to it *(done for `.odt`, the only older format JeffWrite writes: Info > Check Compatibility lists what a .odt file can't hold of this document; `.doc` and `.rtf` are not written)*
-- [ ] **1.0** **(alt)** Version history without a cloud service: named local copies of a document, compared and restored from Info
+- [x] **1.0** **(alt)** Version history without a cloud service: named local copies of a document, compared and restored from Info *(Info > Version History: Keep a Version names a copy of the saved file's document in the program's own data folder; Open a Copy, Compare (as Review > Compare, with the changes tracked), Go Back to It (the document as it was is kept first), and Delete; at most 50 for a file)*
 - [x] **1.0** Recover unsaved documents *(shared: automatic recovery in libs/shell)* *(0.9.0: Open > Recover Unsaved Work offers the copies that automatic recovery kept)*
 - [x] **1.0** Show a document's folder and copy its path *(Info: Show in Folder and Copy Path; shared: libs/shell Info page)*
 - [ ] **later** Add a digital signature (an invisible one, and the signature line from Insert) with a certificate on your computer
@@ -76,7 +76,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 
 ### New
 - [x] **first release** Blank document, using the defaults of the Normal template
-- [ ] **first release** Template gallery with live previews and categories, starting with a few built-in templates (letter, report, brief, manuscript, newsletter) written by JeffOffice and open-licensed *(shared: JeffPub's New page)*
+- [x] **first release** Template gallery with live previews and categories, starting with a few built-in templates (letter, report, brief, manuscript, newsletter) written by JeffOffice and open-licensed *(shared: JeffPub's New page)* *(File > New: Blank Document and five templates written for JeffOffice, made in code as ordinary documents with styles of their own, each tile showing the first page it makes, under the heading of its kind; My Templates stays below)*
 - [ ] **1.0** More built-in templates: resumes, cover letters, invoices, flyers, brochures, meeting notes, legal pleadings, and book interiors
 - [x] **1.0** Save as a template (`.dotx`, `.ott`) and reuse your own under My Templates *(File > Save as Template puts a `.dotx` in My Templates, with a picture of its first page, and the New page lists them; Save As also writes `.dotx` and `.ott`; shared: libs/shell filetasks)*
 - [ ] **1.0** The Normal template: the default styles, margins, and page size that every new blank document starts from, changed with Set as Default in the Font, Paragraph, and Page Setup dialogs
@@ -89,11 +89,11 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [x] **first release** automatic recovery (unsaved work offered again after a crash, cleaned up once saved) *(shared: libs/shell recovery)*
 - [x] **1.0** Backup copy kept on every save *(shared: JeffPub's option, now in libs/shell and the shared Options, General page)*
 - [x] **1.0** Save a Copy (keeps working in the original) and Save as Template
-- [ ] **1.0** A warning before saving to a format that can't hold something in the document, naming what would change, with the choice to save a `.docx` as well
+- [x] **1.0** A warning before saving to a format that can't hold something in the document, naming what would change, with the choice to save a `.docx` as well *(saving as `.odt` lists what it can't hold before anything is written: Save as .odt Anyway, Save as .docx Instead (beside it), or Cancel; asked once for each thing; `.doc` and `.rtf` are not written)*
 - [~] **1.0** Open and Repair: recover what text and pictures can be read from a damaged `.docx` or `.doc` *(done for `.docx`: Open > More Ways to Open > Open and Repair finds the parts by their own headers, keeps a part that broke part way as far as it goes, leaves out what can't be read, makes the list of types and the links again, opens the result as a copy, and says what was cut or left out; not done for `.doc`; shared: libs/office repair)*
 - [x] **1.0** Open read-only, open as a copy, and open in a new window *(More Ways to Open on the Open page, and the right-click menu of the Recent list; a read-only document takes no typing, dropping, or dragging, refuses the commands that change it, and Save asks for a new name)*
 - [x] **1.0** Open an encrypted document by asking for its password *(a `.docx` protected with a password asks for it, tries again when it is wrong, and is saved protected again; a file protected only against changes by accident opens without asking)*
-- [ ] **1.0** Return to where you stopped editing when a document is reopened (Shift+F5 jumps among the last three editing places)
+- [x] **1.0** Return to where you stopped editing when a document is reopened (Shift+F5 jumps among the last three editing places) *(the caret's place is kept per file name when the window closes and when the file is saved, and the file opens there; Shift+F5 goes to the last three places the text was edited, one after another)*
 - [ ] **later** Protected View: files from the Internet open for reading only until you choose to edit them
 - [ ] **later** Open from a web address (HTTP and WebDAV) and save back
 - [ ] **later** Recover Text from Any File: open an unknown file and keep its readable text
@@ -104,23 +104,23 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [~] **1.0** Print only odd or even pages, in reverse order, and several pages on a sheet or scaled to a paper size *(done: only the odd or the even pages of the range, and last page first, on the Print page; not done: several pages on a sheet, and scaling to a paper size)*
 - [ ] **1.0** What prints: markup (tracked changes and comments) or without it, hidden text, background colors and pictures, document properties, field codes, drawings, and a list of the markup; fields updated before printing
 - [ ] **1.0** Book fold printing: a booklet in folding order, from the page-setup choice under Layout *(shared: JeffPub's booklet printing)*
-- [ ] **1.0** Duplex printing by hand: print the odd pages, then the even ones, with a prompt to turn the stack over
+- [x] **1.0** Duplex printing by hand: print the odd pages, then the even ones, with a prompt to turn the stack over *(Print > Both sides by hand: the odd pages, the message, then the even pages last first; not for a PDF file)*
 
 ### Share and Export
-- [~] **first release** Save as PDF: standard and minimum size, page range, fonts embedded, document properties, bookmarks from headings, and a PDF opened after saving *(shared: JeffPub's PDF export)* *(0.9.0: Export to PDF on the File screen, and a PDF file as a printer in Print; no document properties or bookmarks)*
+- [~] **first release** Save as PDF: standard and minimum size, page range, fonts embedded, document properties, bookmarks from headings, and a PDF opened after saving *(shared: JeffPub's PDF export)* *(0.9.0: Export to PDF on the File screen, and a PDF file as a printer in Print; Round 10: Export to PDF carries the title, author, subject, and keywords as the PDF's metadata, and a bookmark for each heading, nested by level; not yet: the standard and minimum sizes, a page range, and the same in the PDF a printer choice makes)*
 - [ ] **1.0** PDF/A, tagged PDF, PDF with a password, and PDF/X-1a and PDF/X-4 for printers *(shared: JeffPub's PDF export)*
 - [~] **1.0** Save as plain text (choose the encoding and where line breaks fall) and as filtered HTML *(done: Export > Save as Plain Text, with UTF-8, UTF-8 with mark, UTF-16, ISO 8859-1, and ASCII and the line ends of either system, hidden text left out; a line break falls at each paragraph end; not done: line breaks at each laid-out line, and filtered HTML)*
 - [ ] **1.0** Save as a single-file web page *(shared: JeffPub's web export)*
-- [ ] **1.0** **(alt)** Email: make a ready-to-send `.eml` with the document as an attachment, a PDF, or the pages as HTML, instead of sending through an online account *(shared: JeffPub's .eml export)*
+- [x] **1.0** **(alt)** Email: make a ready-to-send `.eml` with the document as an attachment, a PDF, or the pages as HTML, instead of sending through an online account *(shared: JeffPub's .eml export)* *(Export > Make an Email: the document (a password-protected one stays protected), a PDF, or the first 30 pages as pictures inside the message; a message file, nothing is sent)*
 - [ ] **1.0** **(alt)** Share without a cloud account: a package with the document, the fonts, and the pictures (Pack and Go, as JeffPub has it) for another computer or a printer
 - [ ] **later** Save as `.docm` and `.dotm`, keeping macros untouched and never running them
 
 ### Options
 - [~] **first release** General: user name and initials, light or dark interface, display language, usage statistics (opt in), and update checks *(shared: libs/shell settings)* *(0.9.0: Options has the General and Proofing pages)*
-- [ ] **first release** Display: show white space between pages, formatting marks, hidden text, object anchors, optional hyphens, and gridlines; print options *(shared: JeffPub's display options)*
+- [~] **first release** Display: show white space between pages, formatting marks, hidden text, object anchors, optional hyphens, and gridlines; print options *(shared: JeffPub's display options)* *(Options > Display: formatting marks and table gridlines as a window opens; not yet: white space between pages, hidden text, object anchors, optional hyphens, and print options)*
 - [~] **first release** Proofing: AutoCorrect (replacement list, capitalization rules, smart quotes), AutoFormat as you type, spelling as you type, ignoring words in capitals or with numbers, and custom dictionaries *(in JeffWrite the choices for spelling as you type and for skipping capitals and numbers work; those for AutoCorrect and AutoFormat do nothing yet)* *(shared: JeffPub's Proofing options)*
 - [ ] **1.0** Proofing exceptions (words AutoCorrect must leave alone), grammar settings, and the main dictionary for each language
-- [ ] **first release** Save: default format, automatic recovery interval, default folder, and Embed fonts in the file *(shared: JeffPub's Save options)*
+- [~] **first release** Save: default format, automatic recovery interval, default folder, and Embed fonts in the file *(shared: JeffPub's Save options)* *(Options > Save: the kind Save As offers first for a new document (`.docx` or `.odt`), the recovery interval, and the folder the Open and Save As boxes start in; not yet: Embed fonts in the file)*
 - [ ] **1.0** Language: editing languages and the display language, with the default language for new text
 - [ ] **1.0** Advanced editing: typing replaces the selection, drag-and-drop text, Ctrl+click to follow a link, smart paragraph selection, select the whole word, overtype mode, and smart cut and paste
 - [ ] **1.0** Advanced cut, copy, and paste: the default for each way of pasting (within and between documents, from other programs, and from lists and tables)
