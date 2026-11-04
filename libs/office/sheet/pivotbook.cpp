@@ -287,6 +287,22 @@ void PivotBook::putSourcesBack(const std::vector<SourcePlace> &places)
     for (const SourcePlace &p : places) m_caches[size_t(p.cache)].source = p.was;
 }
 
+void PivotBook::markSaved(const QStringList &sheetNames)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
+    for (PivotTableEntry &t : m_tables) {
+        if (t.isNew) continue;
+        t.fileTable = t.table;
+        t.structureChanged = false;
+    }
+    for (PivotCacheEntry &c : m_caches) {
+        if (c.isNew) continue;
+        c.fileCache = c.cache;
+        c.fileSource = c.source;
+        if (c.sourceSheet >= 0 && c.sourceSheet < sheetNames.size() && !sheetNames[c.sourceSheet].isEmpty()) c.fileSheetName = sheetNames[c.sourceSheet];
+    }
+}
+
 bool PivotBook::changed() const
 {
     for (const PivotTableEntry &t : m_tables)

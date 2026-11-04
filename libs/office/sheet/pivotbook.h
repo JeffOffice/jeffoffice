@@ -75,6 +75,9 @@ public:
     CellRange locationOf(int i) const;
     bool unreadable(int i) const;
     // The table was changed (and so was read), and the sheet it is on.
+    // The file has the tables and caches as they are now (a save was made): what was written is what later changes are measured from, so that an Undo back to the file's old state is a change again.
+    // Those made in this session keep their own handling.
+    void markSaved(const QStringList &sheetNames);
     bool tableChanged(int i) const { return m_tables[size_t(i)].table != m_tables[size_t(i)].fileTable; }
     int sheetOfTable(int i) const { return m_tables[size_t(i)].sheet; }
 

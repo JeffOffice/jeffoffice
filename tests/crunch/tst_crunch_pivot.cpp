@@ -1070,6 +1070,37 @@ private Q_SLOTS:
         QVERIFY(!any);
     }
 
+    // The file's copy of a pivot table is the one just saved: save, change the table, save, undo the change, and save again leaves the file with the table as it is on screen (the second
+    // file is read again to see it).
+    void aPivotTableSavedChangedAndUndoneIsSavedAsItIs()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("D1"));
+        e.enter(QStringLiteral("5"));   // (something to save the first time)
+        QVERIFY(saveNow(e));
+        jp::office::sheet::PivotTable renamed = *s->workbook()->pivots().table(0).table;
+        renamed.name = QStringLiteral("Sales");
+        QVERIFY(s->setPivot(0, renamed, false, QStringLiteral("Rename")).ok);
+        finish(e);
+        QVERIFY(saveNow(e));
+        QVERIFY(readParts(e.path).value(QStringLiteral("xl/pivotTables/pivotTable1.xml")).contains("name=\"Sales\""));
+        s->undoStack()->undo();   // the table is as it was before the rename
+        finish(e);
+        QCOMPARE(s->workbook()->pivots().table(0).table->name, QStringLiteral("PivotTable1"));
+        QVERIFY(saveNow(e));
+        const QByteArray part = readParts(e.path).value(QStringLiteral("xl/pivotTables/pivotTable1.xml"));
+        QVERIFY2(part.contains("name=\"PivotTable1\"") && !part.contains("name=\"Sales\""), part.left(300).constData());
+        // read again, the table is the one on screen
+        QFile saved(e.path);
+        QVERIFY(saved.open(QIODevice::ReadOnly));
+        EditWindow again;
+        QVERIFY(again.open(saved.readAll(), QStringLiteral("again.xlsx")));
+        QCOMPARE(again.win.w.session()->workbook()->pivots().table(0).table->name, QStringLiteral("PivotTable1"));
+        QCOMPARE(pivotShown(again), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+    }
+
     // A pivot chart's name in the file is made again at each save from the table's name, the sheet's, and the file's: a rename of the table or the sheet, and a Save As, are followed.
     void aPivotChartsNameFollowsRenamesAndSaveAs()
     {

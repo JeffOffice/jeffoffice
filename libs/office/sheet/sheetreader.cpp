@@ -2944,6 +2944,12 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
             t.fileTotalsRows = t.totalsRows;
         }
     }
+    if (m_pivotBook) {
+        // (the pivot tables and caches the file has are those just written)
+        QStringList names;
+        for (const SheetEntry &e : m_info.sheets) names.append(e.deleted ? QString() : e.name);
+        m_pivotBook->markSaved(names);
+    }
     m_sharedInFile += strings;
     m_formatsInFile += cellFormats;
     m_fontsInFile += counts.fonts;
