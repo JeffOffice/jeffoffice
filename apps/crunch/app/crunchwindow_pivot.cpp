@@ -379,6 +379,59 @@ void CrunchWindow::createPivotActions()
         showPivotDetailAtCursor(false);
     });
     m_opsActions << QStringLiteral("pivot.showDetail");
+    // Select: the whole table, its values, or its labels (the lines of the rows; the heads of the columns when the rows have none)
+    auto selectPart = [this](int part) {
+        const int t = selectedPivot();
+        if (t < 0 || !m_session) return;
+        const PivotTableEntry &entry = m_session->workbook()->pivots().table(t);
+        const CellRange at = m_session->workbook()->pivots().locationOf(t);
+        if (!entry.table || !at.valid) return;
+        quint32 r1 = at.row1, c1 = at.col1, r2 = at.row2, c2 = at.col2;
+        const quint32 dataRow = std::min<quint32>(at.row1 + quint32(std::max(0, entry.table->firstDataRow)), at.row2);
+        const quint32 dataCol = std::min<quint32>(at.col1 + quint32(std::max(0, entry.table->firstDataCol)), at.col2);
+        if (part == 1) {
+            r1 = dataRow;
+            c1 = dataCol;
+        } else if (part == 2) {
+            if (dataCol > at.col1 && dataRow <= at.row2) {
+                r1 = dataRow;
+                c2 = dataCol - 1;
+            } else {
+                r2 = dataRow > at.row1 ? dataRow - 1 : at.row1;
+                c1 = dataCol;
+            }
+        }
+        m_view->selectRange(r1, c1, r2, c2);
+        m_view->ensureVisible(r1, c1);
+    };
+    mk("pivot.selectAll", tr("Entire Pivot Table"), "", QKeySequence(), [selectPart] { selectPart(0); });
+    mk("pivot.selectValues", tr("Values"), "", QKeySequence(), [selectPart] { selectPart(1); });
+    mk("pivot.selectLabels", tr("Labels"), "", QKeySequence(), [selectPart] { selectPart(2); });
+    mk("pivot.move", tr("Move Pivot Table…"), "move", QKeySequence(), [this] {
+        const int t = selectedPivot();
+        if (t < 0 || !editingAllowed()) return;
+        if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+        const CellRange at = m_session->workbook()->pivots().locationOf(t);
+        QString cell = at.valid ? columnName(at.col1) + QString::number(at.row1 + 1) : QString();
+        if (m_pivotMoveAsker) {
+            if (!m_pivotMoveAsker(&cell)) return;
+        } else {
+            bool ok = false;
+            cell = QInputDialog::getText(this, tr("Move Pivot Table"), tr("Move the pivot table so that its first cell is in this cell of the same sheet:"), QLineEdit::Normal, cell, &ok);
+            if (!ok) return;
+        }
+        quint32 row = 0, col = 0;
+        QString ref = cell.trimmed();
+        ref.remove(QLatin1Char('$'));
+        if (!parseCellRef(ref, &row, &col)) {
+            notice(tr("Move Pivot Table"), tr("Type a cell, for example J10."));
+            return;
+        }
+        pivotProblem(tr("Move Pivot Table"), m_session->movePivot(t, row, col));
+        m_pivotShown = nullptr;
+        updatePivotTab();
+    });
+    m_opsActions << QStringLiteral("pivot.selectAll") << QStringLiteral("pivot.selectValues") << QStringLiteral("pivot.selectLabels") << QStringLiteral("pivot.move");
     mk("pivot.group", tr("Group Field…"), "group", QKeySequence(), [this] {
         const int f = m_pivotPane ? m_pivotPane->selectedField() : -1;
         if (selectedPivot() < 0) {
@@ -931,7 +984,7 @@ void CrunchWindow::updatePivotFieldActions()
     // (a command that works on a pivot table's cell is dimmed away from one, not left to say so when it is used)
     const bool open = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;
     const bool inTable = selectedPivot() >= 0;
-    for (const char *id : {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.showDetail"})
+    for (const char *id : {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.showDetail", "pivot.selectAll", "pivot.selectValues", "pivot.selectLabels", "pivot.move"})
         if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(open && inTable);
 }
 

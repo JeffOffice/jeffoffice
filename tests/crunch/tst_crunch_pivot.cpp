@@ -915,6 +915,31 @@ private Q_SLOTS:
         QVERIFY(jp::office::sheet::featuresNotInCopy(*s->workbook(), jp::office::sheet::CopyKind::Xls).join(QLatin1Char('|')).contains(QStringLiteral("pivot tables")));
     }
 
+    // Move pivot table: the table is drawn again at the cell given on its sheet, the cells it left are empty, one step of Undo; a place that has something in it is refused.
+    void aPivotTableIsMovedToAnotherPlaceOnItsSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        const QString before = pivotShown(e);
+        QCOMPARE(before, QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+        const int steps = s->undoStack()->count();
+        QVERIFY(!s->movePivot(0, 0, 0).ok);   // (the source data is there)
+        const auto o = s->movePivot(0, 19, 9);   // J20
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(int(s->workbook()->pivots().locationOf(0).row1), 19);
+        QCOMPARE(int(s->workbook()->pivots().locationOf(0).col1), 9);
+        QCOMPARE(pivotShown(e, QStringLiteral("J20:M24")), before);
+        QCOMPARE(pivotShown(e), QStringLiteral("|||\n|||\n|||\n|||\n|||"));
+        s->undoStack()->undo();
+        finish(e);
+        QCOMPARE(pivotShown(e), before);
+        QCOMPARE(pivotShown(e, QStringLiteral("J20:M24")), QStringLiteral("|||\n|||\n|||\n|||\n|||"));
+        QCOMPARE(int(s->workbook()->pivots().locationOf(0).row1), 2);
+    }
+
     // Changes waiting for Update are dropped too when the SAME table is changed under them (an Undo, say): Update then writes nothing.
     void deferredChangesAreDroppedWhenTheSameTableChangesByUndo()
     {

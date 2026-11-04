@@ -121,6 +121,43 @@ public:
     }
 };
 
+
+// Remove Duplicates: a box for each column of the table, all on; the rows that repeat in the ones on are taken out.
+class RemoveDuplicatesDialog : public QDialog {
+public:
+    RemoveDuplicatesDialog(const QStringList &columns, QWidget *parent)
+        : QDialog(parent)
+    {
+        setWindowTitle(QCoreApplication::translate("jp::RemoveDuplicatesDialog", "Remove Duplicates"));
+        auto *layout = new QVBoxLayout(this);
+        auto *label = new QLabel(QCoreApplication::translate("jp::RemoveDuplicatesDialog", "A row is a repeat when it shows the same as an earlier row in all of these columns. The first of the rows stays."), this);
+        label->setTextFormat(Qt::PlainText);
+        label->setWordWrap(true);
+        layout->addWidget(label);
+        for (int i = 0; i < columns.size(); ++i) {
+            auto *box = new QCheckBox(this);
+            box->setText(columns[i]);
+            box->setChecked(true);
+            m_boxes << box;
+            layout->addWidget(box);
+        }
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+        QObject::connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+        QObject::connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+        layout->addWidget(buttons);
+    }
+    QList<int> chosen() const
+    {
+        QList<int> out;
+        for (int i = 0; i < m_boxes.size(); ++i)
+            if (m_boxes[i]->isChecked()) out << i;
+        return out;
+    }
+
+private:
+    QList<QCheckBox *> m_boxes;
+};
+
 } // namespace
 
 // ---------------------------------------------------------------- the table the cursor is in
@@ -287,7 +324,30 @@ void CrunchWindow::createTableActions()
             updateTableTab();
         }
     }, true);
-    for (const char *id : {"insert.table", "table.resize", "table.toRange", "table.stripeRows", "table.stripeCols", "table.firstCol", "table.lastCol", "table.buttons", "table.header", "table.totals"})
+    mk("table.summarize", tr("Summarize with Pivot Table"), "table-properties", QKeySequence(), [this] { insertPivotCommand(); });
+    mk("table.removeDuplicates", tr("Remove Duplicates…"), "table-2", QKeySequence(), [this] {
+        const int t = selectedTable();
+        if (t < 0 || !editingAllowed()) return;
+        if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+        const QStringList columns = m_session->workbook()->tables()[t].columns;
+        QList<int> chosen;
+        if (m_removeDuplicatesAsker) {
+            if (!m_removeDuplicatesAsker(columns, &chosen)) return;
+        } else {
+            RemoveDuplicatesDialog dialog(columns, this);
+            if (dialog.exec() != QDialog::Accepted) return;
+            chosen = dialog.chosen();
+        }
+        int removed = 0;
+        const auto o = m_session->removeTableDuplicates(t, chosen, &removed);
+        if (!o.ok) {
+            notice(tr("Remove Duplicates"), o.problem);
+            return;
+        }
+        notice(tr("Remove Duplicates"), removed == 0 ? tr("No row repeats an earlier one.") : tr("Rows removed: %1.").arg(removed));
+    });
+    mk("table.clearStyle", tr("Clear"), "", QKeySequence(), [this] { tableGalleryChosen(QString()); });
+    for (const char *id : {"insert.table", "table.resize", "table.toRange", "table.stripeRows", "table.stripeCols", "table.firstCol", "table.lastCol", "table.buttons", "table.header", "table.totals", "table.summarize", "table.removeDuplicates", "table.clearStyle"})
         m_opsActions << QString::fromLatin1(id);
 }
 
@@ -625,6 +685,10 @@ void CrunchWindow::tableRibbonParts(RibbonParts &parts)
             auto *wa = new QWidgetAction(menu);
             wa->setDefaultWidget(makeTableLooksPicker(menu));
             menu->addAction(wa);
+            if (selectedTable() >= 0) {
+                menu->addSeparator();
+                if (QAction *clear = act(QStringLiteral("table.clearStyle"))) menu->addAction(clear);
+            }
         });
         return menu;
     };

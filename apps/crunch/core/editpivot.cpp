@@ -295,6 +295,7 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
         if (!cache) return tr("JeffCrunch can't read the data this pivot table is made from.");
         const CellRange oldLoc = pb.locationOf(ch.table);
         if (!oldLoc.valid) return tr("JeffCrunch can't read this pivot table.");
+        const quint32 originRow = ch.moveRow >= 0 ? quint32(ch.moveRow) : oldLoc.row1, originCol = ch.moveCol >= 0 ? quint32(ch.moveCol) : oldLoc.col1;
         const PivotTable &old = *entry.table;
         const CellRange oldPage = pageArea(old, oldLoc);
         PivotOptions options;
@@ -332,7 +333,7 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
         QString problem;
         if (!computePivot(*ch.now, *cache, &grid, &problem, options)) return tr("This pivot table can't be worked out: %1.").arg(problem);
         const int pages = int(ch.now->pageFields.size());
-        if (pages > 0 && oldLoc.row1 < quint32(pages) + 1) return tr("There is no room above the pivot table for its filters. Move the table down first.");
+        if (pages > 0 && originRow < quint32(pages) + 1) return tr("There is no room above the pivot table for its filters. Move the table down first.");
         // (a table with nothing in it claims no more than it had, or its frame below)
         const bool emptyTable = ch.now->rowFields.isEmpty() && ch.now->colFields.isEmpty() && ch.now->dataFields.isEmpty();
         if (emptyTable) {
@@ -344,7 +345,7 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
         }
         ch.now->rowPageCount = pages;
         ch.now->colPageCount = pages > 0 ? 1 : 0;
-        pivotApplyGrid(ch.now.get(), grid, oldLoc.row1, oldLoc.col1);
+        pivotApplyGrid(ch.now.get(), grid, originRow, originCol);
         CellRange newLoc;
         parseRangeRef(ch.now->ref, &newLoc);
         if (!newLoc.valid || newLoc.row2 >= 1048576 || newLoc.col2 >= 16384) return tr("The pivot table would go past the edge of the sheet.");
@@ -407,7 +408,7 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
                 grid.cols = 7;
                 grid.cells.resize(98);
                 grid.cells.fill(PivotCell());
-                pivotApplyGrid(ch.now.get(), grid, oldLoc.row1, oldLoc.col1);
+                pivotApplyGrid(ch.now.get(), grid, originRow, originCol);
                 parseRangeRef(ch.now->ref, &newLoc);
             }
         }
@@ -1112,6 +1113,31 @@ EditSession::Outcome EditSession::ungroupPivotField(int table, int field)
     ch.sourceSheet = ce.sourceSheet;
     ch.sourceName = ce.sourceName;
     return pivotStep({ch}, tr("Ungroup Field"));
+}
+
+EditSession::Outcome EditSession::movePivot(int table, quint32 row, quint32 col)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) {
+        out.ok = false;
+        out.problem = why.isEmpty() ? tr("There is no pivot table here.") : why;
+        return out;
+    }
+    PivotBook &pb = m_book->book->pivots();
+    const CellRange at = pb.locationOf(table);
+    if (at.valid && at.row1 == row && at.col1 == col) return out;
+    if (row >= 1048576 || col >= 16384) {
+        out.ok = false;
+        out.problem = tr("The pivot table would go past the edge of the sheet.");
+        return out;
+    }
+    PivotChange ch;
+    ch.table = table;
+    ch.now = std::make_shared<PivotTable>(*pb.table(table).table);
+    ch.moveRow = row;
+    ch.moveCol = col;
+    return pivotStep({ch}, tr("Move Pivot Table"));
 }
 
 EditSession::Outcome EditSession::setPivotRefreshOnOpen(int table, bool on)

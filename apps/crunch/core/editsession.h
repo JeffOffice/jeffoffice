@@ -366,6 +366,8 @@ public:
     // when `sheet` is -1 (the sheet is made first: a step of Undo of its own). The cells the empty table covers must be empty. `*made` is the new table's place.
     Outcome createPivot(const QString &source, int sheet, quint32 row, quint32 col, int *made = nullptr);
     Outcome refreshAllPivots();
+    // Move pivot table: the table drawn again with its first cell at (row, col) of its own sheet, the cells it left emptied; one step of Undo. Not ok, and nothing changed, if what is there is in the way.
+    Outcome movePivot(int table, quint32 row, quint32 col);
     // The pivot tables whose cache says to refresh when the file opens are refreshed, as one step (nothing is done when there are none, or when the calculation has not finished).
     Outcome refreshPivotsOnOpen();
     // The most cells of source data that are read again when a file opens, all the tables together (0: the usual); for tests.
@@ -465,6 +467,10 @@ public:
     // Turns the table back into plain cells: the cells keep what they hold and how they look (the style is drawn no more), and the formulas that named the table's columns name the cells.
     Outcome tableToRange(int table);
     Outcome renameTable(int table, const QString &name);
+    // Remove Duplicates: the rows of the table's data that repeat an earlier row in the columns given (by place in the table; the texts compared in any case, as they show) are taken out and the rows
+    // under them move up; the table gets shorter and its row of totals moves up with it. `removed` is how many rows went. Not ok, and nothing changed, if no column is given or a row to be moved
+    // holds a formula that is not its column's own.
+    Outcome removeTableDuplicates(int table, const QList<int> &columns, int *removed = nullptr);
     // The marks of a table's look and the filter buttons.
     struct TableMarks {
         QString style;
@@ -979,6 +985,7 @@ private:
         jp::office::sheet::CellRange source;
         int sourceSheet = -1;
         QString sourceName;
+        qint64 moveRow = -1, moveCol = -1;   // the table's first cell, when it is moved
     };
     Outcome pivotStep(std::vector<PivotChange> changes, const QString &text, QStringList *skipped = nullptr);
     // Where a cache's data is now: the sheet and the cells (a table or a name resolved). `over`, if given, is where the person has just said it is.

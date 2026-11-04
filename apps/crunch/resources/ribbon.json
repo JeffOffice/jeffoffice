@@ -410,6 +410,14 @@
       "color": "headerFooter",
       "groups": [
         {
+          "name": "Header and Footer",
+          "keytip": "ZH",
+          "items": [
+            {"large": {"id": "ribbon.hfHeader", "text": "Header", "icon": "panel-top"}, "keytip": "HH", "menu": ["hf.header.none","hf.header.page","hf.header.pageOf","hf.header.sheet","hf.header.file","hf.header.sheetPage","hf.header.filePageOf","hf.header.dateSheetPage"]},
+            {"large": {"id": "ribbon.hfFooter", "text": "Footer", "icon": "panel-bottom"}, "keytip": "HF", "menu": ["hf.footer.none","hf.footer.page","hf.footer.pageOf","hf.footer.sheet","hf.footer.file","hf.footer.sheetPage","hf.footer.filePageOf","hf.footer.dateSheetPage"]}
+          ]
+        },
+        {
           "name": "Put In",
           "keytip": "ZI",
           "items": [
@@ -431,6 +439,14 @@
             {"small": "hf.differentOddEven", "keytip": "DO"},
             {"small": "hf.scaleWithDoc", "keytip": "SD"},
             {"small": "hf.alignWithMargins", "keytip": "AM"}
+          ]
+        },
+        {
+          "name": "Go To",
+          "keytip": "ZG",
+          "items": [
+            {"small": "hf.goHeader", "keytip": "GH"},
+            {"small": "hf.goFooter", "keytip": "GF"}
           ]
         }
       ]
@@ -496,6 +512,14 @@
             {"row": [{"label": "Name"}, {"widget": "tableName", "keytip": "TN"}]},
             {"small": "table.resize", "keytip": "TR"},
             {"small": "table.toRange", "keytip": "TP"}
+          ]
+        },
+        {
+          "name": "Tools",
+          "keytip": "ZU",
+          "items": [
+            {"small": "table.summarize", "keytip": "TZ"},
+            {"small": "table.removeDuplicates", "keytip": "TD"}
           ]
         },
         {
@@ -596,7 +620,9 @@
           "name": "Actions",
           "keytip": "ZA",
           "items": [
-            {"large": {"id": "ribbon.pivotClear", "text": "Clear", "icon": "eraser"}, "keytip": "PC", "menu": ["pivot.clearAll", "pivot.clearFilters"]}
+            {"large": {"id": "ribbon.pivotClear", "text": "Clear", "icon": "eraser"}, "keytip": "PC", "menu": ["pivot.clearAll", "pivot.clearFilters"]},
+            {"large": {"id": "ribbon.pivotSelect", "text": "Select", "icon": "square-dashed-mouse-pointer"}, "keytip": "PI", "menu": ["pivot.selectAll", "pivot.selectValues", "pivot.selectLabels"]},
+            {"large": "pivot.move", "keytip": "PM"}
           ]
         },
         {

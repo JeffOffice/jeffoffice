@@ -879,6 +879,115 @@ EditSession::Outcome EditSession::resizeTable(int table, const CellRange &range)
     return out;
 }
 
+EditSession::Outcome EditSession::removeTableDuplicates(int table, const QList<int> &columns, int *removed)
+{
+    Outcome out;
+    if (removed) *removed = 0;
+    auto refuse = [&](const QString &why) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    };
+    QString why;
+    if (!canEdit(&why)) return refuse(why);
+    Workbook &book = *m_book->book;
+    if (table < 0 || table >= book.tables().size()) return refuse(tr("There is no such table."));
+    const Table t = book.tables()[table];
+    if (m_book->calc->sheet(t.sheet).isProtected) return refuse(lockedMessage());
+    if (columns.isEmpty()) return refuse(tr("Pick at least one column to compare."));
+    for (int c : columns)
+        if (c < 0 || c >= t.columns.size()) return refuse(tr("There is no such column."));
+    if (!t.hasData()) return out;
+    if (tableFilter(table).active()) return refuse(tr("The table is filtered. Clear its filter first, so the rows it hides are not moved."));
+    const qint64 rowCount = t.dataLast() - qint64(t.dataFirst()) + 1;
+    if (rowCount * t.columns.size() > kMaxCellsPerEdit) return refuse(tr("The table has more cells than JeffCrunch changes at once (%1).").arg(QLocale().toString(kMaxCellsPerEdit)));
+    // the rows that stay: a row that shows the same in the chosen columns as an earlier one goes
+    std::vector<quint32> kept;
+    QSet<QString> seen;
+    for (quint32 r = t.dataFirst(); qint64(r) <= t.dataLast(); ++r) {
+        QString key;
+        for (int c : columns) key += displayText(t.sheet, r, t.col1 + quint32(c)).toLower() + QLatin1Char('\x1f');
+        if (seen.contains(key)) continue;
+        seen.insert(key);
+        kept.push_back(r);
+    }
+    const int gone = int(rowCount - qint64(kept.size()));
+    if (gone == 0) return out;
+    std::map<quint64, CellChange> changes;
+    auto put = [&](quint32 row, quint32 col, const Calculation::CellContent &after) {
+        const quint64 key = (quint64(row) << 16) | col;
+        auto it = changes.find(key);
+        if (it == changes.end()) {
+            CellChange ch;
+            ch.sheet = t.sheet;
+            ch.row = row;
+            ch.col = quint16(col);
+            ch.before = m_book->calc->content(t.sheet, row, col);
+            it = changes.emplace(key, std::move(ch)).first;
+        }
+        it->second.after = after;
+        it->second.after.hasStored = false;
+        it->second.textToShare = false;
+    };
+    // a formula moves only when it is its column's own (the same text in the row it goes to)
+    auto movable = [&](quint32 from, quint32 to, int column) {
+        const quint32 col = t.col1 + quint32(column);
+        const Calculation::CellContent a = m_book->calc->content(t.sheet, from, col), b = m_book->calc->content(t.sheet, to, col);
+        if (!a.isFormula && !b.isFormula) return true;
+        const QString own = calculatedFormulaFor(t, column, from);
+        return a.isFormula && b.isFormula && !own.isEmpty() && a.formula == own && b.formula == calculatedFormulaFor(t, column, to);
+    };
+    for (size_t i = 0; i < kept.size(); ++i) {
+        const quint32 to = t.dataFirst() + quint32(i), from = kept[i];
+        if (from == to) continue;
+        for (int c = 0; c < t.columns.size(); ++c) {
+            if (!movable(from, to, c)) return refuse(tr("A row has a formula of its own, which can't be moved. Remove the duplicates by hand."));
+            const quint32 col = t.col1 + quint32(c);
+            const Calculation::CellContent src = m_book->calc->content(t.sheet, from, col);
+            if (src.isFormula) continue;   // (the column's own formula is already there)
+            put(to, col, src);
+        }
+    }
+    const quint32 newDataLast = t.dataFirst() + quint32(kept.size()) - 1;
+    for (quint32 r = newDataLast + 1; qint64(r) <= t.dataLast(); ++r)
+        for (int c = 0; c < t.columns.size(); ++c) {
+            Calculation::CellContent blank = m_book->calc->content(t.sheet, r, t.col1 + quint32(c));
+            blank.isFormula = false;
+            blank.formula.clear();
+            blank.value = Value();
+            blank.sharedString = -1;
+            blank.style = 0;
+            blank.exists = false;
+            put(r, t.col1 + quint32(c), blank);
+        }
+    Table after = t;
+    after.row2 = newDataLast + quint32(t.totalsRows);
+    if (t.totalsRows > 0)
+        for (int c = 0; c < t.columns.size(); ++c) {
+            const quint32 col = t.col1 + quint32(c);
+            const Calculation::CellContent total = m_book->calc->content(t.sheet, t.row2, col);
+            put(after.row2, col, total);
+            Calculation::CellContent blank = total;
+            blank.isFormula = false;
+            blank.formula.clear();
+            blank.value = Value();
+            blank.sharedString = -1;
+            blank.style = 0;
+            blank.exists = false;
+            put(t.row2, col, blank);
+        }
+    Step step;
+    for (auto &kv : changes) step.cells.push_back(std::move(kv.second));
+    TableEdit e;
+    e.index = table;
+    e.before = t;
+    e.after = after;
+    step.tables.push_back(std::move(e));
+    startFill(std::move(step), tr("Removing duplicate rows"));
+    if (removed) *removed = gone;
+    return out;
+}
+
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 // growing by itself
 

@@ -294,6 +294,58 @@ private Q_SLOTS:
         QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:60"));
     }
 
+    // Remove Duplicates in a table: a row that repeats an earlier one (in the columns chosen, in any case) is taken out, the rows under it move up, the table gets shorter, and the totals row goes
+    // with its last row. One step of Undo; a table with rows of formulas of its own is refused.
+    void duplicateRowsAreRemovedFromATable()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(s->type(0, 4, 0, QStringLiteral("east")).ok);
+        QVERIFY(s->type(0, 4, 1, QStringLiteral("1")).ok);
+        QVERIFY(s->type(0, 4, 2, QStringLiteral("10")).ok);
+        QVERIFY(s->type(0, 5, 0, QStringLiteral("West")).ok);
+        QVERIFY(s->type(0, 5, 1, QStringLiteral("9")).ok);
+        QVERIFY(s->type(0, 5, 2, QStringLiteral("90")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(int(s->workbook()->tables().first().row2), 5);
+        QUndoStack *u = e.win.w.undoStack();
+        const int before = u->count();
+        int removed = -1;
+        // on the first column alone: the second "East" and the second "West" are repeats
+        auto o = s->removeTableDuplicates(0, {0}, &removed);
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        QCOMPARE(removed, 2);
+        QVERIFY(e.settle());
+        QCOMPARE(u->count(), before + 1);
+        QCOMPARE(int(s->workbook()->tables().first().row2), 3);
+        QCOMPARE(valueOf(e, QStringLiteral("A4")), QStringLiteral("s:North"));
+        QCOMPARE(valueOf(e, QStringLiteral("A5")), QStringLiteral("-"));
+        QCOMPARE(valueOf(e, QStringLiteral("B6")), QStringLiteral("-"));
+        u->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(int(s->workbook()->tables().first().row2), 5);
+        QCOMPARE(valueOf(e, QStringLiteral("A6")), QStringLiteral("s:West"));
+        QCOMPARE(valueOf(e, QStringLiteral("B6")), QStringLiteral("n:9"));
+        // on all the columns: only the row that repeats whole goes
+        o = s->removeTableDuplicates(0, {0, 1, 2}, &removed);
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        QCOMPARE(removed, 1);
+        QVERIFY(e.settle());
+        QCOMPARE(int(s->workbook()->tables().first().row2), 4);
+        QCOMPARE(valueOf(e, QStringLiteral("A5")), QStringLiteral("s:West"));
+        QCOMPARE(valueOf(e, QStringLiteral("B5")), QStringLiteral("n:9"));
+        // nothing repeats now
+        o = s->removeTableDuplicates(0, {0, 1, 2}, &removed);
+        QVERIFY(o.ok);
+        QCOMPARE(removed, 0);
+        // no column chosen: refused
+        QVERIFY(!s->removeTableDuplicates(0, {}, &removed).ok);
+    }
+
     // The row of totals: on puts a label and a sum, a function chosen for a column is written as the subtotal of its column, a custom formula is kept, off clears the row; and the numbers
     // are right.
     void theTotalsRowShowsTheFunctionOfEachColumn()
