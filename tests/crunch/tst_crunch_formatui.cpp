@@ -1025,6 +1025,145 @@ private Q_SLOTS:
         QCOMPARE(int(second.w.view()->sheet().data().sheet->conditionalFormats.size()), before + 1);
     }
 
+    // ---- Undo and Redo of rule changes made before a save keep working
+
+    static QString plainRulesTail()
+    {
+        return QStringLiteral("<conditionalFormatting sqref=\"A1:A3\"><cfRule type=\"cellIs\" priority=\"1\" operator=\"greaterThan\"><formula>1</formula></cfRule></conditionalFormatting>"
+                              "<conditionalFormatting sqref=\"B1:B3\"><cfRule type=\"cellIs\" priority=\"2\" operator=\"lessThan\"><formula>9</formula></cfRule></conditionalFormatting>"
+                              "<pageMargins left=\"0.7\" right=\"0.7\" top=\"0.75\" bottom=\"0.75\" header=\"0.3\" footer=\"0.3\"/>");
+    }
+    static bool saveNow(EditWindow &e)
+    {
+        if (!e.settle()) return false;
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        return e.win.w.save() && savedOk(saved, 20000);
+    }
+    // The part of the saved sheet after its cells, with the priorities made alike (the file's rules keep them but for the shift the rules made here give).
+    static QString tailOfSaved(EditWindow &e)
+    {
+        Package p;
+        QString why;
+        if (!p.readLazyFile(e.path, &why)) return why;
+        QString out = QString::fromUtf8(p.part(QStringLiteral("/xl/worksheets/sheet1.xml")));
+        out = out.mid(out.indexOf(QLatin1String("</sheetData>")) + 12);
+        if (out.endsWith(QLatin1String("</worksheet>"))) out.chop(12);
+        out.replace(QRegularExpression(QStringLiteral("priority=\"\\d+\"")), QStringLiteral("priority=\"P\""));
+        return out;
+    }
+    static QString plainWithPriorities(QString tail)
+    {
+        tail.replace(QRegularExpression(QStringLiteral("priority=\"\\d+\"")), QStringLiteral("priority=\"P\""));
+        return tail;
+    }
+    static QByteArray bookWith(const QString &tail)
+    {
+        return buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c><c r=\"C1\"><v>3</v></c><c r=\"D1\"><v>4</v></c></row>"), tail)}, QByteArray(), QString(), QString(), uiStyles());
+    }
+
+    // Add a rule, save, Undo, save, open: the rule is gone and everything else is as it was; Redo after the Undo brings it back and it is saved.
+    void undoAndRedoOfAnAddedRuleWorkAcrossASave()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWith(plainRulesTail())));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        selectRange(e, QStringLiteral("D1:D1"));
+        ask(e, CrunchWindow::CondAnswer::Kind::Greater, QStringLiteral("3"));
+        run(e, "cond.greater");
+        QCOMPARE(int(s->condRules(0).size()), 3);
+        QVERIFY(saveNow(e));
+        e.win.w.undoStack()->undo();
+        QCOMPARE(int(s->condRules(0).size()), 2);
+        QVERIFY(saveNow(e));
+        QCOMPARE(tailOfSaved(e), plainWithPriorities(plainRulesTail()));
+        Window again;
+        QVERIFY(again.open(e.copyOfFile()));
+        QCOMPARE(int(again.w.view()->sheet().data().sheet->conditionalFormats.size()), 2);
+        // Redo: the rule is there again, and is saved
+        e.win.w.undoStack()->redo();
+        QCOMPARE(int(s->condRules(0).size()), 3);
+        QVERIFY(saveNow(e));
+        QCOMPARE(e.win.told.size(), 0);
+        Window third;
+        QVERIFY(third.open(e.copyOfFile()));
+        QCOMPARE(int(third.w.view()->sheet().data().sheet->conditionalFormats.size()), 3);
+        // and Undo once more takes it out of the file again
+        e.win.w.undoStack()->undo();
+        QVERIFY(saveNow(e));
+        QCOMPARE(tailOfSaved(e), plainWithPriorities(plainRulesTail()));
+    }
+
+    // Clear rules, save, Undo, save: the rules are back; Redo clears them again.
+    void undoAndRedoOfClearedRulesWorkAcrossASave()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWith(plainRulesTail())));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->clearCondRules(0, jp::office::sheet::CellRange()).ok);
+        QVERIFY(saveNow(e));
+        QVERIFY(!tailOfSaved(e).contains(QLatin1String("conditionalFormatting")));
+        e.win.w.undoStack()->undo();
+        QCOMPARE(int(s->condRules(0).size()), 2);
+        QVERIFY(saveNow(e));
+        QCOMPARE(e.win.told.size(), 0);
+        Window again;
+        QVERIFY(again.open(e.copyOfFile()));
+        const auto rules = again.w.view()->sheet().data().sheet->conditionalFormats;
+        QCOMPARE(int(rules.size()), 2);
+        QStringList where;
+        for (const auto &r : rules) where << rangeName(r.ranges.first());
+        where.sort();
+        QCOMPARE(where, QStringList({"A1:A3", "B1:B3"}));
+        // Redo: cleared again
+        e.win.w.undoStack()->redo();
+        QCOMPARE(int(s->condRules(0).size()), 0);
+        QVERIFY(saveNow(e));
+        QVERIFY(!tailOfSaved(e).contains(QLatin1String("conditionalFormatting")));
+    }
+
+    // The same on a sheet with data bars and the 2010 block: an added rule goes and comes back across saves with everything else byte for byte as it was; a cleared rule with no extra settings is
+    // back after Undo; a cleared one that has a 2010 entry can't be made again from what is kept, and Undo says so (it is not silent) and changes nothing.
+    void undoAcrossASaveOnASheetWithExtensionRules()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWith(extensionRulesTail())));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        const QString original = plainWithPriorities(extensionRulesTail());
+        selectRange(e, QStringLiteral("D1:D1"));
+        ask(e, CrunchWindow::CondAnswer::Kind::Greater, QStringLiteral("3"));
+        run(e, "cond.greater");
+        QVERIFY(saveNow(e));
+        e.win.w.undoStack()->undo();
+        QVERIFY(saveNow(e));
+        QCOMPARE(tailOfSaved(e), original);
+        e.win.w.undoStack()->redo();
+        QCOMPARE(int(s->condRules(0).size()), 4);
+        QVERIFY(saveNow(e));
+        e.win.w.undoStack()->undo();
+        QVERIFY(saveNow(e));
+        QCOMPARE(tailOfSaved(e), original);
+        // the table's rule (no extra settings) cleared, saved, and brought back
+        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("C1:C3"))).ok);
+        QVERIFY(saveNow(e));
+        QVERIFY(!tailOfSaved(e).contains(QLatin1String("colorScale")));
+        e.win.w.undoStack()->undo();
+        QCOMPARE(int(s->condRules(0).size()), 3);
+        QVERIFY(saveNow(e));
+        QVERIFY(tailOfSaved(e).contains(QLatin1String("colorScale")));
+        QVERIFY(tailOfSaved(e).contains(QLatin1String("000000000001")));   // (the data bar and its 2010 entry are still there)
+        // the data bar cleared, saved, and Undo: it can't be made again, and says so
+        QSignalSpy refused(s, &crunch::EditSession::conditionalUndoRefused);
+        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("A1:A3"))).ok);
+        QVERIFY(saveNow(e));
+        const int rules = int(s->condRules(0).size());
+        e.win.w.undoStack()->undo();
+        QCOMPARE(refused.count(), 1);
+        QCOMPARE(int(s->condRules(0).size()), rules);
+    }
+
     // Clearing the cells of a rule that has a 2010 entry (and one that has none): the entry follows the rule's cells, a rule cleared whole takes its entry with it, and everything else is as it was.
     void clearingRulesWithExtensionEntriesTrimsOrRemovesTheirEntriesToo()
     {

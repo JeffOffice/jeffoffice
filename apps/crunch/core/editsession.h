@@ -791,9 +791,11 @@ public:
     Outcome clearCondRules(int sheet, const jp::office::sheet::CellRange &range);
     // (what a step of the rules does, and what the save puts in the file)
     void setCondRules(int sheet, const QVector<jp::office::sheet::CondRule> &rules);
-    // How many times the file was saved with rules of conditional formatting (a step of the rules made before that has nothing it may put back).
-    int condEpoch() const { return m_condEpoch; }
-    void condBook(int sheet, int shift, const std::set<int> &removed, bool on);
+    void condStepRefused(const QString &why);
+    void ensureCondUids(int sheet);
+    void condSaved();
+    // What a save puts in the file for the sheet's rules (see editcond.cpp); `fileOf` and `after` get the priority each rule has in the file and the rules as they are then.
+    void condForSave(int sheet, jp::office::sheet::SheetChanges *sc, std::map<quint32, int> *fileOf, QVector<jp::office::sheet::CondRule> *after) const;
     void rememberDxf(const jp::office::sheet::DifferentialFormat &format);
     void forgetDxf(qint32 place);
     // Why the rules of the sheet are not changed (empty when they may be).
@@ -926,6 +928,8 @@ Q_SIGNALS:
     // The sparklines of a sheet were changed by a step, undone, or redone.
     void sparklinesChanged(int sheet);
     void conditionalFormatsChanged(int sheet);
+    // A step of conditional formatting that can't be undone or redone was asked for (the reason).
+    void conditionalUndoRefused(const QString &why);
     // How the workbook calculates was changed (by a step, or by Undo of one).
     void calcSettingsChanged();
     // Cells were changed by an edit, Undo, or Redo (the window draws them again).
@@ -1053,9 +1057,8 @@ private:
     qint64 m_undoByteLimit = kUndoBytes;
     QLocale m_locale;
     QList<QStringList> m_customLists;
-    int m_condEpoch = 0;
-    std::map<int, int> m_condShift;               // by sheet: the rules made since the file was read or saved (the file's priorities are that much more)
-    std::map<int, std::set<int>> m_condRemoved;   // by sheet: the file's rules taken away, by their priority in the file
+    quint32 m_condUid = 0;
+    std::map<int, std::set<int>> m_condBase;   // by sheet: the priorities of the rules of the file, as they were before the first change since it was read or saved
     std::map<int, bool> m_condWhole;   // by sheet: whether the file's rules are all held whole (looked at once)
     std::set<int> m_condTouched;   // the sheets whose rules differ from the file's
     QHash<QString, QPair<int, int>> m_customIndex;   // each item (in lower case) to its list and its place in it

@@ -38,6 +38,7 @@ void CrunchWindow::createEditing()
         updateSparklineTab();
     });
     connect(m_session.get(), &crunch::EditSession::sheetsChanged, this, &CrunchWindow::onSheetsChanged);
+    connect(m_session.get(), &crunch::EditSession::conditionalUndoRefused, this, [this](const QString &why) { notice(tr("Conditional Formatting"), why); });
     connect(m_session.get(), &crunch::EditSession::conditionalFormatsChanged, this, [this](int sheet) {
         if (sheet == m_sheet) m_view->conditionalFormatsChanged();
         updateCondActions();
