@@ -2,8 +2,11 @@
 
 #include "core/editops.h"
 #include "core/wordformat.h"
+#include "core/styleops.h"
 #include "core/writeprops.h"
+#include "text/textprops.h"
 
+#include <QCoreApplication>
 #include <QDate>
 #include <QLocale>
 #include <QRegularExpression>
@@ -305,6 +308,70 @@ void pasteMerged(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fra
         }
     }
     edit.endEditBlock();
+}
+
+bool insertHorizontalLine(WriteDoc &doc, QTextCursor &c)
+{
+    QTextCursor at = c;
+    const NoteScopeGuard scopeGuard(doc, at);
+    if (!intoBody(at) || isLocked(at.block())) return false;
+    QTextCursor group = at;
+    group.beginEditBlock();
+    at.clearSelection();
+    at.movePosition(QTextCursor::EndOfBlock);
+    insertParagraph(doc, at);   // the line's paragraph
+    tp::ParaBox box;
+    box.bottom.style = QStringLiteral("single");
+    box.bottom.eighths = 6;
+    box.bottom.space = 1;
+    changeBlockFormat(doc, at, [&](QTextBlockFormat &bf) { bf.setProperty(tp::Borders, box.spec()); });
+    insertParagraph(doc, at);   // the plain paragraph below it
+    changeBlockFormat(doc, at, [&](QTextBlockFormat &bf) { bf.clearProperty(tp::Borders); });
+    group.endEditBlock();
+    c = at;
+    return true;
+}
+
+QVector<QPair<QString, QString>> describeFormatting(WriteDoc &doc, const QTextCursor &c)
+{
+    QVector<QPair<QString, QString>> out;
+    QTextCursor at = c;
+    if (at.hasSelection()) at.setPosition(at.selectionStart());
+    const QTextBlock block = at.block();
+    const QTextBlockFormat bf = block.blockFormat();
+    QTextCharFormat cf = at.charFormat();
+    if (isAtom(cf) || cf.fontPointSize() <= 0) cf = markFormat(block);
+    const QString style = bf.stringProperty(tp::StyleName);
+    const FontScheme &fonts = doc.flow().env.fonts;
+    const QString paragraphStyle = style.isEmpty() ? doc.defaultParagraphStyle() : style;
+    const std::optional<office::wml::Style> s = styleOfDocument(doc, paragraphStyle);
+    out.push_back({QCoreApplication::translate("jp::write::Inspector", "Paragraph style"), s ? s->name : paragraphStyle});
+    const QString charStyle = cf.stringProperty(tp::CharStyle);
+    const std::optional<office::wml::Style> cs = charStyle.isEmpty() ? std::nullopt : styleOfDocument(doc, charStyle);
+    out.push_back({QCoreApplication::translate("jp::write::Inspector", "Character style"), charStyle.isEmpty() ? QCoreApplication::translate("jp::write::Inspector", "(none)") : (cs ? cs->name : charStyle)});
+    QString family = cf.hasProperty(QTextFormat::FontFamilies) && !cf.fontFamilies().toStringList().isEmpty() ? cf.fontFamilies().toStringList().first()
+                     : cf.stringProperty(tp::ThemeFont) == QLatin1String("major") ? fonts.heading : fonts.body;
+    out.push_back({QCoreApplication::translate("jp::write::Inspector", "Font"), family});
+    out.push_back({QCoreApplication::translate("jp::write::Inspector", "Size"), QCoreApplication::translate("jp::write::Inspector", "%1 pt").arg(cf.fontPointSize() > 0 ? cf.fontPointSize() : 11.0)});
+    QStringList look;
+    if (cf.fontWeight() >= QFont::DemiBold) look << QCoreApplication::translate("jp::write::Inspector", "bold");
+    if (cf.fontItalic()) look << QCoreApplication::translate("jp::write::Inspector", "italic");
+    if (cf.underlineStyle() != QTextCharFormat::NoUnderline) look << QCoreApplication::translate("jp::write::Inspector", "underline");
+    if (cf.fontStrikeOut()) look << QCoreApplication::translate("jp::write::Inspector", "strikethrough");
+    if (cf.fontCapitalization() == QFont::SmallCaps) look << QCoreApplication::translate("jp::write::Inspector", "small caps");
+    if (cf.fontCapitalization() == QFont::AllUppercase) look << QCoreApplication::translate("jp::write::Inspector", "all caps");
+    if (cf.verticalAlignment() == QTextCharFormat::AlignSuperScript) look << QCoreApplication::translate("jp::write::Inspector", "superscript");
+    if (cf.verticalAlignment() == QTextCharFormat::AlignSubScript) look << QCoreApplication::translate("jp::write::Inspector", "subscript");
+    out.push_back({QCoreApplication::translate("jp::write::Inspector", "Look"), look.isEmpty() ? QCoreApplication::translate("jp::write::Inspector", "(plain)") : look.join(QStringLiteral(", "))});
+    out.push_back({QCoreApplication::translate("jp::write::Inspector", "Color"), cf.hasProperty(QTextFormat::ForegroundBrush) && cf.foreground().style() != Qt::NoBrush ? cf.foreground().color().name().toUpper() : QCoreApplication::translate("jp::write::Inspector", "Automatic")});
+    const Qt::Alignment al = bf.alignment() & Qt::AlignHorizontal_Mask;
+    out.push_back({QCoreApplication::translate("jp::write::Inspector", "Alignment"), al == Qt::AlignHCenter ? QCoreApplication::translate("jp::write::Inspector", "Centered") : (al == Qt::AlignRight || al == Qt::AlignTrailing) ? QCoreApplication::translate("jp::write::Inspector", "Right")
+                                                                                          : al == Qt::AlignJustify ? QCoreApplication::translate("jp::write::Inspector", "Justified") : QCoreApplication::translate("jp::write::Inspector", "Left")});
+    out.push_back({QCoreApplication::translate("jp::write::Inspector", "Indents (left, right, first line)"), QCoreApplication::translate("jp::write::Inspector", "%1 pt, %2 pt, %3 pt").arg(bf.leftMargin()).arg(bf.rightMargin()).arg(bf.textIndent())});
+    out.push_back({QCoreApplication::translate("jp::write::Inspector", "Spacing (before, after)"), QCoreApplication::translate("jp::write::Inspector", "%1 pt, %2 pt").arg(bf.topMargin()).arg(bf.bottomMargin())});
+    const QString language = cf.stringProperty(tp::Language);
+    out.push_back({QCoreApplication::translate("jp::write::Inspector", "Language"), language.isEmpty() ? doc.proofingLanguage() : language});
+    return out;
 }
 
 } // namespace jp::write

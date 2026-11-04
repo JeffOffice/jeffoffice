@@ -187,6 +187,10 @@
                   "keytip": "SO"
                 },
                 {
+                  "icon": "para.horizontalLine",
+                  "keytip": "HL"
+                },
+                {
                   "icon": "view.marks",
                   "keytip": "8"
                 }

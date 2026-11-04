@@ -1166,6 +1166,39 @@ private Q_SLOTS:
         QVERIFY(!r);
         QVERIFY(err.isEmpty());
     }
+
+    void aHorizontalLineIsAParagraphWithABorderUnderItAndTheCaretGoesBelow()
+    {
+        auto doc = open(makeDocx(para(run("above"))));
+        QTextCursor c(doc->story());
+        c.setPosition(2);
+        QVERIFY(insertHorizontalLine(*doc, c));
+        QCOMPARE(texts(*doc), (QStringList{"above", "", ""}));
+        QCOMPARE(doc->story()->findBlock(c.position()).blockNumber(), 2);
+        const QByteArray out = part(doc->toDocx(), QStringLiteral("/word/document.xml"));
+        QCOMPARE(out.count("<w:pBdr>"), 1);
+        QVERIFY2(out.contains("<w:bottom w:val=\"single\""), out.constData());
+        auto again = open(doc->toDocx());
+        QVERIFY(again->story()->findBlockByNumber(1).blockFormat().hasProperty(tp::Borders));
+        QVERIFY(!again->story()->findBlockByNumber(2).blockFormat().hasProperty(tp::Borders));
+        doc->story()->undo();
+        QCOMPARE(texts(*doc), (QStringList{"above"}));
+    }
+
+    void revealFormattingTellsWhatIsSetAtTheCaret()
+    {
+        auto doc = open(makeDocx(para(run("bold words", "<w:b/><w:sz w:val=\"28\"/><w:color w:val=\"FF0000\"/>"), "<w:jc w:val=\"center\"/><w:ind w:left=\"720\"/>")));
+        QTextCursor c(doc->story());
+        c.setPosition(3);
+        QMap<QString, QString> facts;
+        for (const auto &f : describeFormatting(*doc, c)) facts.insert(f.first, f.second);
+        QCOMPARE(facts.value(QStringLiteral("Look")), QStringLiteral("bold"));
+        QCOMPARE(facts.value(QStringLiteral("Size")), QStringLiteral("14 pt"));
+        QCOMPARE(facts.value(QStringLiteral("Color")), QStringLiteral("#FF0000"));
+        QCOMPARE(facts.value(QStringLiteral("Alignment")), QStringLiteral("Centered"));
+        QVERIFY(facts.value(QStringLiteral("Indents (left, right, first line)")).startsWith(QLatin1String("36 pt")));
+        QVERIFY(!facts.value(QStringLiteral("Paragraph style")).isEmpty());
+    }
 };
 
 QTEST_MAIN(HomeTests)

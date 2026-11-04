@@ -494,4 +494,30 @@ void AccessPane::check()
                                         : QCoreApplication::translate("jp::write::HomeDialogs", "%n problem(s) found. Click one to go to it.", nullptr, int(issues.size())));
 }
 
+void formattingDialog(QWidget *parent, const QVector<QPair<QString, QString>> &facts)
+{
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("formattingDialog"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::HomeDialogs", "Reveal Formatting"));
+    auto *v = new QVBoxLayout(&dlg);
+    auto *grid = new QGridLayout;
+    int row = 0;
+    for (const auto &f : facts) {
+        auto *name = plainLabel(new QLabel(f.first + QLatin1Char(':'), &dlg));
+        QFont bold = name->font();
+        bold.setBold(true);
+        name->setFont(bold);
+        auto *value = plainLabel(new QLabel(f.second, &dlg));
+        value->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        grid->addWidget(name, row, 0, Qt::AlignTop);
+        grid->addWidget(value, row, 1);
+        ++row;
+    }
+    v->addLayout(grid);
+    auto *bb = new QDialogButtonBox(QDialogButtonBox::Close, &dlg);
+    QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::accept);
+    v->addWidget(bb);
+    dlg.exec();
+}
+
 } // namespace jp::write

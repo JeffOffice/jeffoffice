@@ -168,7 +168,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [~] **first release** Line and Page Breaks in the Paragraph dialog: widow and orphan control, keep with next, keep lines together, page break before, suppress line numbers, and don't hyphenate; outline level (body text or 1 to 9) *(Round 9: the Paragraph box has widow and orphan control, keep with next, keep lines together, page break before, don't hyphenate, don't add space between paragraphs of the same style, and the outline level, each saved to the file and read back; not yet: suppress line numbers)*
 - [~] **first release** Right-to-left paragraphs and text, with the Left-to-Right and Right-to-Left buttons and mixed-direction runs *(ours 4%, public 10%; shared: Qt shaping in libs/text)*
 - [x] **1.0** Sort paragraphs, list items, or table rows by text, number, or date, on up to three keys *(Round 9: Home > Paragraph > Sort: up to three keys, each a field, a type (text, number, or date) and an order; the fields are cut at tabs, commas, or another letter; the first paragraph can be a header; in a table the keys are columns and the rows move; one step of Undo; not done while Track Changes is on)*
-- [ ] **1.0** Horizontal line from the Borders menu
+- [x] **1.0** Horizontal line from the Borders menu *(Round 9: Home > Paragraph > Horizontal Line adds a paragraph with a thin line under it and moves the caret below; saved as `w:pBdr`; there is no Borders menu yet)*
 - [ ] **later** Distributed and Thai justification, and East Asian typography: vertical in horizontal, combine characters, two lines in one, fit text, character scaling, and the line-breaking rules for Chinese, Japanese, and Korean *(vertical text direction: ours 1% of his `.docx`, POI 7%)*
 
 ### Styles
@@ -177,7 +177,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [~] **first release** Create a style from a selection and Modify Style: name, type (paragraph, character, linked, table, list), based on, style for the following paragraph, formatting, add to the gallery, update automatically, and this document or new documents *(a typical `.docx` of our defines 16 styles and one in ten more than 33; a typical government file 30)* *(beta wave D: paragraph and character styles; name, based on, next style, font, paragraph look, in the gallery, and update automatically in one dialog; the paragraphs and runs that have the style follow it and keep what they say themselves, in one step; a name over 255 letters, a taken name, and a base that would make a loop are refused; OK with nothing changed leaves styles.xml byte for byte; not yet: linked, table, and list styles, new documents, and the paragraphs of headers, footers, and notes follow only when next opened)*
 - [~] **first release** Update a style to match the selection, Select Text with Similar Formatting, and Clear Formatting
 - [ ] **1.0** Manage Styles: edit, recommend, restrict, set defaults, and import or export styles with the Organizer
-- [ ] **1.0** Style Inspector and Reveal Formatting (Shift+F1)
+- [~] **1.0** Style Inspector and Reveal Formatting (Shift+F1) *(Round 9: Shift+F1 opens Reveal Formatting: the styles, font, size, look, color, alignment, indents, spacing, and language at the caret, shown only; not yet: the Style Inspector pane that changes them)*
 - [ ] **later** Style separator (end a paragraph's visible text and start another style in the same paragraph, for run-in heads)
 
 ### Editing

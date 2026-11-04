@@ -56,4 +56,7 @@ private:
     QLabel *m_summary;
 };
 
+// Reveal Formatting: what is set where the caret is (the pairs of describeFormatting), in a box that only shows.
+void formattingDialog(QWidget *parent, const QVector<QPair<QString, QString>> &facts);
+
 } // namespace jp::write

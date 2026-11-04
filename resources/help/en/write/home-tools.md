@@ -1,5 +1,5 @@
 # Change case, sort, and paste in other ways
-<!-- keywords: tabs, tab stops, leader, keep with next, keep lines together, page break before, widow, orphan, outline level, line and page breaks, change case, uppercase, lowercase, sentence case, capitalize, toggle case, shift+f3, sort, sort paragraphs, alphabetical, order, paste, paste special, keep text only, merge formatting, unformatted text, picture, clipboard -->
+<!-- keywords: horizontal line, rule, reveal formatting, style inspector, shift+f1, tabs, tab stops, leader, keep with next, keep lines together, page break before, widow, orphan, outline level, line and page breaks, change case, uppercase, lowercase, sentence case, capitalize, toggle case, shift+f3, sort, sort paragraphs, alphabetical, order, paste, paste special, keep text only, merge formatting, unformatted text, picture, clipboard -->
 
 These tools are on the **Home** tab. They work on the text you select.
 
@@ -60,3 +60,11 @@ Click the small button in the corner of the **Paragraph** group to open the **Pa
 - **Outline level** says where the paragraph is in the outline of the document: **Body text**, or a level from 1 to 9.
 
 Click **Tabs** in the box to set tab stops. A tab stop is a place the text jumps to when you press **Tab**. Type its position, choose how the text lines up there (left, center, right, or decimal), and choose a leader. A leader is the row of dots, dashes, or a line that fills the space before the stop. Click **Set** to add it. To remove one, pick it in the list and click **Clear**. **Clear All** removes them all.
+
+## Draw a horizontal line
+
+Click **Horizontal Line** in the **Paragraph** group. JeffWrite adds a paragraph of its own with a thin line under it, after the paragraph the cursor is in. The cursor moves to a plain paragraph below the line. To take the line away, select its paragraph and delete it.
+
+## See what is set where the cursor is
+
+Press **Shift+F1**, or use **Reveal Formatting**. A box lists the styles, the font, the size, the look of the letters, the color, and the paragraph's alignment, indents, and spacing at the cursor. It only shows them. To change them, use the **Font** and **Paragraph** boxes.

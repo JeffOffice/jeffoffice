@@ -42,4 +42,13 @@ int sortParagraphs(WriteDoc &doc, QTextCursor &c, const SortOptions &options);
 // The fragment pasted as text in the look of the place it goes to; only its emphasis (bold, italic, underline, strikethrough) stays. One step.
 void pasteMerged(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment);
 
+// ---- Horizontal line
+// A horizontal line (a paragraph of its own with a border under it) after the paragraph the caret is in, as one step; the caret goes to a plain paragraph below it. False where no paragraph can be
+// made (in a paragraph kept as XML).
+bool insertHorizontalLine(WriteDoc &doc, QTextCursor &c);
+
+// ---- Reveal Formatting
+// What is set where the caret is, as pairs of a name and its value: the styles, the font, the look of the letters, and the paragraph's alignment, indents, and spacing (Style Inspector, Shift+F1).
+QVector<QPair<QString, QString>> describeFormatting(WriteDoc &doc, const QTextCursor &c);
+
 } // namespace jp::write

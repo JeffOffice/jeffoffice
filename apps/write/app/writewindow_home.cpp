@@ -100,6 +100,17 @@ void WriteWindow::createHomeActions()
         if (!write::sortDialog(this, &m_sortOptions, table)) return;
         sortSelection(m_sortOptions);
     });
+    mk("para.horizontalLine", tr("Horizontal Line"), "minus", QKeySequence(), [this] {
+        if (!m_doc || refuseIfReadOnly()) return;
+        QTextCursor c = m_view->cursor();
+        if (write::insertHorizontalLine(*m_doc, c)) m_view->setCursor(c);
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("style.inspector", tr("Reveal Formatting"), "search", QKeySequence(Qt::SHIFT | Qt::Key_F1), [this] {
+        if (!m_doc) return;
+        write::formattingDialog(this, write::describeFormatting(*m_doc, m_view->cursor()));
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
     mk("review.language", tr("Set Proofing Language…"), "languages", QKeySequence(), [this] {
         if (!m_doc || refuseIfReadOnly()) return;
         QString tag;
