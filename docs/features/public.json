@@ -5974,40 +5974,46 @@
        "text": "66728dae6e735e6a9fca1a0ad301b80ee5c5fd7d3b3ccae06e7fca954c34441f"
       },
       {
-       "status": "todo",
-       "text": "78b85dd864498fcbaff917880788bcca03b9d3889d5cf9225fabd508ef174e0a"
+       "hide_soon": true,
+       "status": "done",
+       "text": "ff508b2c6b1ec140a92dd9d68c324f4a0c4b6daaf020dc772d5e33f7cd013b28"
       },
       {
-       "status": "todo",
-       "text": "29187c54d30dd5a862a03e5668bf0da8127de016f668697cd5b2fa83db7be718"
+       "hide_soon": true,
+       "status": "done",
+       "text": "c8b2b1d40de6032758187a87d64881e4d97623f520336e3ba97d218369ffca77"
       },
       {
-       "status": "todo",
-       "text": "088b5098e06235aa4de2b15a04e7fe0c3d0f88943ea93bc5962ce692fb77cda6"
+       "status": "partly",
+       "text": "ec60e3febf580f312cf977138016fd69b19186eee8d24e2b98281056928e9d88"
       },
       {
-       "status": "todo",
-       "text": "d8196d749ef2f41bcfad766e1e7069c2e83c99de1beb600021ff3d60722229b3"
+       "status": "partly",
+       "text": "b3781803375c0f25c23038813a81a9e8b86f72cf5b8bae37df635d26c89a02a6"
       },
       {
-       "status": "todo",
-       "text": "ed390214fe614170955440990971aeaa871bb070f193acb3ee91e4bf0642b157"
+       "hide_soon": true,
+       "status": "done",
+       "text": "c87ea0e2cc9714e2000dac0883eeef0e6e141104a3b7c24a113490092e47bce3"
       },
       {
-       "status": "todo",
-       "text": "e1d69230658aa22537229745c8d56fca045e5aea0a558011a03548ed0fa1729b"
+       "hide_soon": true,
+       "status": "done",
+       "text": "12d03a46ce610d75a71badd21861a814b6dce8f11f49ad542fcf0b38b06d9d40"
       },
       {
-       "status": "todo",
-       "text": "228828bed4ce9ad0b38df9df29205cc4af7c3cc0493ea4991a64cc64b89571e6"
+       "hide_soon": true,
+       "status": "done",
+       "text": "1e3be64860c7664da0b12049f1f9b56683b1d1db3ff7cc7a4eae2d1dfcc53dfd"
       },
       {
-       "status": "todo",
-       "text": "9d24f8b145c9099a96cb3bac99abb52d7c158a1d2892052693dabbf70cda3512"
+       "status": "partly",
+       "text": "22891dd828a0adad3818639eb2ae0551c31f7ca3d9e72ace7f1c5155b7c1bb8b"
       },
       {
-       "status": "todo",
-       "text": "ee70b406e91a525b36f238910e4c20681d4af4d894b70ebd4ff63ca56245801b"
+       "hide_soon": true,
+       "status": "done",
+       "text": "8ee4fd000fb6d2e4b1770bffa6575cd8dd58f6a29f459072bd9f560b19179ee9"
       }
      ]
     },
@@ -7595,18 +7601,6 @@
     "fr": ""
    }
   },
-  "088b5098e06235aa4de2b15a04e7fe0c3d0f88943ea93bc5962ce692fb77cda6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Edit recipient list: sort, filter, find duplicates, validate addresses, and include or exclude records",
-    "es": "Edición de la lista de destinatarios: ordenar, filtrar, buscar duplicados, validar direcciones e incluir o excluir registros",
-    "fr": "Modification de la liste des destinataires : trier, filtrer, trouver les doublons, valider les adresses et inclure ou exclure des enregistrements"
-   }
-  },
   "08c0910f694c1639b64b9fae76aefb11f7b8f3424fc79c650101d900d380479e": {
    "drop": true,
    "en": "",
@@ -8375,6 +8369,18 @@
     "fr": ""
    }
   },
+  "12d03a46ce610d75a71badd21861a814b6dce8f11f49ad542fcf0b38b06d9d40": {
+   "drop": false,
+   "en": "Preview merge results in JeffWrite with first, previous, next, and last recipient buttons and a number box, find a recipient, and check for errors. The document itself is not changed.",
+   "es": "Obtenga una vista previa de los resultados de la combinación en JeffWrite con botones de primer, anterior, siguiente y último destinatario y un cuadro numérico, busque un destinatario y compruebe errores. El documento no se modifica.",
+   "fr": "Affichez un aperçu des résultats de la fusion dans JeffWrite avec des boutons premier, précédent, suivant et dernier destinataire et une zone numérique, recherchez un destinataire et vérifiez les erreurs. Le document lui-même n’est pas modifié.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "12e0e497b3d34c2220bd2bb45bd99fa318046e8b023aabe32a4d3125f2dad4c6": {
    "drop": false,
    "en": "JeffCrunch calculates 46 classic math and trigonometry functions, including `SUM`, `ROUND`, `SUBTOTAL`, `SUMIF`, `SUMIFS`, `SUMPRODUCT`, `SQRT`, `MOD`, `POWER`, `RAND`, `RANDBETWEEN`, `GCD`, and `LCM`.",
@@ -9095,6 +9101,18 @@
     "fr": "Titre du mode de compatibilité et commande Convertir"
    }
   },
+  "1e3be64860c7664da0b12049f1f9b56683b1d1db3ff7cc7a4eae2d1dfcc53dfd": {
+   "drop": false,
+   "en": "Finish a merge in JeffWrite by editing individual documents in a new document, printing, saving as PDF, or making one `.eml` file for each recipient who has an address. No messages are sent. Letter copies each begin a page, and a directory runs on.",
+   "es": "Finalice una combinación en JeffWrite editando documentos individuales en un documento nuevo, imprimiendo, guardando como PDF o creando un archivo `.eml` por cada destinatario que tenga dirección. No se envía ningún mensaje. Cada copia de una carta empieza en una página nueva y un directorio continúa seguido.",
+   "fr": "Terminez une fusion dans JeffWrite en modifiant les documents individuels dans un nouveau document, en imprimant, en enregistrant en PDF ou en créant un fichier `.eml` pour chaque destinataire ayant une adresse. Aucun message n’est envoyé. Chaque copie de lettre commence une page et un répertoire se poursuit à la suite.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "1e5a2018f18177c9bb96edc78c515dab4976a1bb141c6d4a70baae4508b449fa": {
    "drop": false,
    "en": "View and print gridlines and headings, each separately.",
@@ -9491,18 +9509,6 @@
     "fr": ""
    }
   },
-  "228828bed4ce9ad0b38df9df29205cc4af7c3cc0493ea4991a64cc64b89571e6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Finish and merge: edit individual documents (a new document), print documents, and send email messages (one `.eml` file per recipient)",
-    "es": "Finalizar y combinar: editar documentos individuales (un documento nuevo), imprimir documentos y enviar mensajes de correo (un archivo `.eml` por destinatario)",
-    "fr": "Terminer et fusionner : modifier les documents individuels (un nouveau document), imprimer les documents et envoyer des e-mails (un fichier `.eml` par destinataire)"
-   }
-  },
   "228866671ffd3ba78890aac32980e7f442469fcfb811ee699d992d4eea3514cb": {
    "drop": false,
    "en": "Review tab",
@@ -9513,6 +9519,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "22891dd828a0adad3818639eb2ae0551c31f7ca3d9e72ace7f1c5155b7c1bb8b": {
+   "drop": false,
+   "en": "Make envelopes with delivery and return addresses, ten common sizes named by width and height, and print or add to the document as its own first-page section.",
+   "es": "Cree sobres con direcciones de destinatario y remitente, diez tamaños comunes indicados por ancho y alto, e imprima o agregue al documento como sección propia en la primera página.",
+   "fr": "Créez des enveloppes avec adresses du destinataire et de l’expéditeur, dix formats courants nommés par largeur et hauteur, et imprimez ou ajoutez au document en tant que section distincte en première page.",
+   "soon": {
+    "drop": false,
+    "en": "Envelope feed direction: choose",
+    "es": "Dirección de alimentación del sobre: elegir",
+    "fr": "Sens d’alimentation de l’enveloppe : choix"
    }
   },
   "232243cf614798d24ce11f3e0aa17d5b66a73dd5813ecf73dd7b3ab5e6b2c511": {
@@ -10101,18 +10119,6 @@
     "en": "Charts, pictures, comments, pivot tables, macros, conditional formats, and data validation in `.ods`: read",
     "es": "Gráficos, imágenes, comentarios, tablas dinámicas, macros, formatos condicionales y validación de datos en `.ods`: lectura",
     "fr": "Graphiques, images, commentaires, tableaux croisés dynamiques, macros, mises en forme conditionnelles et validation des données dans `.ods` : lecture"
-   }
-  },
-  "29187c54d30dd5a862a03e5668bf0da8127de016f668697cd5b2fa83db7be718": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Select recipients: type a new list, use an existing one (CSV, tab-delimited, `.xlsx`, `.ods`, vCard contacts), or choose contacts from any address book saved as `.vcf`",
-    "es": "Selección de destinatarios: escribir una lista nueva, usar una existente (CSV, delimitada por tabulaciones, `.xlsx`, `.ods`, contactos vCard) o elegir contactos de cualquier libreta de direcciones guardada como `.vcf`",
-    "fr": "Sélection des destinataires : saisir une nouvelle liste, en utiliser une existante (CSV, séparée par des tabulations, `.xlsx`, `.ods`, contacts vCard) ou choisir des contacts dans un carnet d’adresses enregistré au format `.vcf`"
    }
   },
   "2949bb3164fc338d69478a894893a468b34e67f99c5f5e95d29a3bf2847a04dd": {
@@ -15683,18 +15689,6 @@
     "fr": ""
    }
   },
-  "78b85dd864498fcbaff917880788bcca03b9d3889d5cf9225fabd508ef174e0a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Start mail merge: letters, email messages, envelopes, labels, directory, step-by-step wizard, and clear merge type",
-    "es": "Iniciar combinación de correspondencia: cartas, mensajes de correo, sobres, etiquetas, directorio, asistente paso a paso y borrado del tipo de combinación",
-    "fr": "Démarrer un publipostage : lettres, e-mails, enveloppes, étiquettes, répertoire, assistant pas à pas et effacement du type de fusion"
-   }
-  },
   "78be05f22ff08d256ae672131e3678bcae31bd5e062f5ede808ca5e465a01d2b": {
    "drop": false,
    "en": "In JeffDeck, Monitors offers Use Presenter View, and Presenter View (`Alt+F5`) to rehearse on one screen with the show in a small window.",
@@ -17075,6 +17069,18 @@
     "fr": "Menu d’objet : options de collage, enregistrer comme image, taille et position, format et texte de remplacement"
    }
   },
+  "8ee4fd000fb6d2e4b1770bffa6575cd8dd58f6a29f459072bd9f560b19179ee9": {
+   "drop": false,
+   "en": "Make labels in JeffWrite for a full page of one label or a single label, with twelve sheet sizes (letter and A4) named by label count and size, or your own. Print or save as a document; a merge fills each label with the next recipient.",
+   "es": "Cree etiquetas en JeffWrite para una página completa de una misma etiqueta o una sola etiqueta, con doce tamaños de hoja (carta y A4) indicados por cantidad y tamaño de etiquetas, o los suyos. Imprima o guarde como documento; una combinación llena cada etiqueta con el siguiente destinatario.",
+   "fr": "Créez des étiquettes dans JeffWrite pour une page entière d’une même étiquette ou une seule étiquette, avec douze formats de planche (lettre et A4) nommés selon le nombre et la taille des étiquettes, ou les vôtres. Imprimez ou enregistrez comme document ; une fusion remplit chaque étiquette avec le destinataire suivant.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "8ee7229f15276667148da220fbdac0c3b6b731d61ad484f1de4f841889ae8809": {
    "drop": false,
    "en": "Clipboard",
@@ -18105,18 +18111,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "9d24f8b145c9099a96cb3bac99abb52d7c158a1d2892052693dabbf70cda3512": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Envelopes: delivery and return addresses, common envelope sizes, feed direction, and print or add to the document",
-    "es": "Sobres: direcciones de destinatario y remitente, tamaños de sobre comunes, dirección de alimentación e impresión o adición al documento",
-    "fr": "Enveloppes : adresses du destinataire et de l’expéditeur, formats d’enveloppe courants, sens d’alimentation, impression ou ajout au document"
    }
   },
   "9d416e99195406ba2533427775b4cea62de2a00ac4d2b704af0dbdb013df7b65": {
@@ -19329,6 +19323,18 @@
     "en": "Mark Citation and Insert Table of Authorities, with categories and update",
     "es": "Marcar cita e insertar tabla de autoridades, con categorías y actualización",
     "fr": "Marquage de citation et insertion de table des autorités, avec catégories et mise à jour"
+   }
+  },
+  "b3781803375c0f25c23038813a81a9e8b86f72cf5b8bae37df635d26c89a02a6": {
+   "drop": false,
+   "en": "Insert an Address Block with a choice of formats or your own lines, a country to leave out, and a preview. Insert a Greeting Line with formats, a line for recipients with no name, and a preview. Insert merge fields from the list's columns, use Match Fields, Highlight Merge Fields on screen, and Update Labels.",
+   "es": "Inserte un bloque de direcciones con una selección de formatos o sus propias líneas, un país que omitir y una vista previa. Inserte una línea de saludo con formatos, una línea para destinatarios sin nombre y una vista previa. Inserte campos de combinación de las columnas de la lista, use Coincidir campos, resalte los campos de combinación en pantalla y actualice las etiquetas.",
+   "fr": "Insérez un bloc d’adresse avec un choix de formats ou vos propres lignes, un pays à omettre et un aperçu. Insérez une formule d’appel avec des formats, une ligne pour les destinataires sans nom et un aperçu. Insérez des champs de fusion à partir des colonnes de la liste, utilisez la correspondance des champs, surlignez les champs de fusion à l’écran et mettez à jour les étiquettes.",
+   "soon": {
+    "drop": false,
+    "en": "Match Fields choices: save in the file",
+    "es": "Opciones de Coincidir campos: guardar en el archivo",
+    "fr": "Choix de correspondance des champs : enregistrement dans le fichier"
    }
   },
   "b38e10cc09add33946f35e7dc00c015f7fa19da66b2cfb10c6cbdb36b5670831": {
@@ -20651,11 +20657,35 @@
     "fr": ""
    }
   },
+  "c87ea0e2cc9714e2000dac0883eeef0e6e141104a3b7c24a113490092e47bce3": {
+   "drop": false,
+   "en": "Add merge rules to a JeffWrite document: If...Then...Else, Ask, Fill-in, Merge Record #, Merge Sequence #, Next Record, Next Record If, Set Bookmark, and Skip Record If. Ask and Fill-in prompt once for each question during the merge.",
+   "es": "Agregue reglas de combinación a un documento de JeffWrite: Si...Entonces...Si no, Preguntar, Rellenar, Nº de registro de combinación, Nº de secuencia de combinación, Registro siguiente, Registro siguiente si, Establecer marcador y Omitir registro si. Preguntar y Rellenar piden una vez cada pregunta durante la combinación.",
+   "fr": "Ajoutez des règles de fusion à un document JeffWrite : Si...Alors...Sinon, Demander, Remplir, N° d’enregistrement de fusion, N° de séquence de fusion, Enregistrement suivant, Enregistrement suivant si, Définir un signet et Ignorer l’enregistrement si. Demander et Remplir posent une fois chaque question pendant la fusion.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "c87fbb4fd5a78799233161ee9107c9ed7680e77db9e40301e9892e87e3c7e0e7": {
    "drop": false,
    "en": "JeffDeck keeps movies and sounds inside `.pptx` and `.odp` files, along with the calls that play them. Linked movies and sounds keep their address and poster.",
    "es": "JeffDeck conserva las películas y los sonidos dentro de los archivos `.pptx` y `.odp`, junto con las llamadas que los reproducen. Los vinculados conservan su dirección y su imagen de póster.",
    "fr": "JeffDeck conserve les films et les sons dans les fichiers `.pptx` et `.odp`, avec les appels qui les lisent. Ceux qui sont liés conservent leur adresse et leur affiche.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "c8b2b1d40de6032758187a87d64881e4d97623f520336e3ba97d218369ffca77": {
+   "drop": false,
+   "en": "In JeffWrite, select recipients by typing a new list, using an existing list (CSV, tab-delimited, `.xlsx`, `.ods`, or vCard contacts), or choosing contacts from any address book saved as `.vcf`.",
+   "es": "En JeffWrite, seleccione destinatarios escribiendo una lista nueva, usando una lista existente (CSV, texto delimitado por tabuladores, `.xlsx`, `.ods` o contactos vCard) o eligiendo contactos de cualquier libreta de direcciones guardada como `.vcf`.",
+   "fr": "Dans JeffWrite, sélectionnez les destinataires en saisissant une nouvelle liste, en utilisant une liste existante (CSV, texte délimité par des tabulations, `.xlsx`, `.ods` ou contacts vCard) ou en choisissant des contacts dans n’importe quel carnet d’adresses enregistré en `.vcf`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21719,18 +21749,6 @@
     "fr": ""
    }
   },
-  "d8196d749ef2f41bcfad766e1e7069c2e83c99de1beb600021ff3d60722229b3": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Insert fields: address block and greeting line (formats, country rules, preview), any merge field, match fields, highlight merge fields, and update labels",
-    "es": "Inserción de campos: bloque de direcciones y línea de saludo (formatos, reglas por país, vista previa), cualquier campo de combinación, coincidencia de campos, resaltado de campos de combinación y actualización de etiquetas",
-    "fr": "Insertion de champs : bloc d’adresse et formule de salutation (formats, règles par pays, aperçu), tout champ de fusion, correspondance des champs, mise en évidence des champs de fusion et mise à jour des étiquettes"
-   }
-  },
   "d841a4f3a2f4257ae9730886ef93cc1fb32d2ac63ab2afa3363fc139d3619342": {
    "drop": true,
    "en": "",
@@ -22389,18 +22407,6 @@
     "en": "Numbers with 15 significant digits kept and shown, including near-zero results and large numbers",
     "es": "Números con 15 cifras significativas conservadas y mostradas, incluidos los resultados casi nulos y los números grandes",
     "fr": "Nombres avec 15 chiffres significatifs conservés et affichés, y compris les résultats proches de zéro et les grands nombres"
-   }
-  },
-  "e1d69230658aa22537229745c8d56fca045e5aea0a558011a03548ed0fa1729b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Preview results with record navigation, find recipient, and check for errors",
-    "es": "Vista previa de resultados con navegación por registros, búsqueda de destinatarios y comprobación de errores",
-    "fr": "Aperçu des résultats avec navigation entre les enregistrements, recherche de destinataire et vérification des erreurs"
    }
   },
   "e1ee40744347eed67251c6647ae9b2c51a0c88fb4ecd109b253a4ced4fda3adf": {
@@ -23159,6 +23165,18 @@
     "fr": ""
    }
   },
+  "ec60e3febf580f312cf977138016fd69b19186eee8d24e2b98281056928e9d88": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Edit Recipient List: sort, filter, find duplicates, validate addresses, and include or exclude records",
+    "es": "Editar lista de destinatarios: ordenar, filtrar, buscar duplicados, validar direcciones e incluir o excluir registros",
+    "fr": "Modification de la liste de destinataires : trier, filtrer, trouver les doublons, valider les adresses et inclure ou exclure des enregistrements"
+   }
+  },
   "eca3f6af7c24d5ad068714876ae3af6e0a606ee21d84daadaa5010189ccc1acd": {
    "drop": false,
    "en": "Insert tab",
@@ -23243,18 +23261,6 @@
     "fr": "Défilement des pages : vertical ou horizontal"
    }
   },
-  "ed390214fe614170955440990971aeaa871bb070f193acb3ee91e4bf0642b157": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Rules: If...Then...Else, Ask, Fill-in, Merge Record #, Merge Sequence #, Next Record, Next Record If, Set Bookmark, and Skip Record If",
-    "es": "Reglas: Si...Entonces...Si no, Preguntar, Rellenar, N.º de registro combinado, N.º de secuencia combinada, Registro siguiente, Registro siguiente si, Establecer marcador y Omitir registro si",
-    "fr": "Règles : Si...Alors...Sinon, Demander, Remplir, N° d’enregistrement fusionné, N° de séquence fusionnée, Enregistrement suivant, Enregistrement suivant si, Définir un signet et Ignorer l’enregistrement si"
-   }
-  },
   "ed39bbebae54f348b0ccf0bac3a8dd7c80546a615d83bb4a0d21aca64adc982f": {
    "drop": false,
    "en": "In a JeffDeck show, a click on a link opens a web page or an email address.",
@@ -23289,18 +23295,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ee70b406e91a525b36f238910e4c20681d4af4d894b70ebd4ff63ca56245801b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Labels: a full page of one label or a single label, common sheet sizes and custom sizes, and print or save as a document",
-    "es": "Etiquetas: una página completa de la misma etiqueta o una sola etiqueta, tamaños de hoja comunes y personalizados, e impresión o guardado como documento",
-    "fr": "Étiquettes : une page entière d’une même étiquette ou une seule étiquette, formats de planche courants et personnalisés, impression ou enregistrement comme document"
    }
   },
   "ee726aa6d01f9760933c82658823462c7fa6afb1007f23b43d5529ed8e9e73a4": {
@@ -24513,6 +24507,18 @@
     "en": "Ordering by value type and a stable sort",
     "es": "Ordenación por tipo de valor y ordenación estable",
     "fr": "Tri par type de valeur et tri stable"
+   }
+  },
+  "ff508b2c6b1ec140a92dd9d68c324f4a0c4b6daaf020dc772d5e33f7cd013b28": {
+   "drop": false,
+   "en": "Start a mail merge in JeffWrite for letters, email messages, envelopes, labels, or a directory, use the step-by-step pane, and clear the merge type.",
+   "es": "Inicie una combinación de correspondencia en JeffWrite para cartas, mensajes de correo electrónico, sobres, etiquetas o un directorio, use el panel paso a paso y borre el tipo de combinación.",
+   "fr": "Lancez un publipostage dans JeffWrite pour des lettres, des courriels, des enveloppes, des étiquettes ou un répertoire, utilisez le volet pas à pas et effacez le type de fusion.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "ffa7025ae37d2c11b1d1710ab560ef052fc8dfc16c11cc15cc8fcec4a0be0d0d": {
