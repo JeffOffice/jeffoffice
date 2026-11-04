@@ -71,6 +71,8 @@ public:
     void setShowGridlines(bool on);
     // The sheet reads from the right (column A at the right edge): the grid is laid out and drawn mirrored. (Set when a sheet is shown; the data's own view says it first.)
     void setRightToLeft(bool on);
+    // The sheet's rules of conditional formatting were changed: they are read again and the cells drawn.
+    void conditionalFormatsChanged();
     bool showHeadings() const { return m_headings; }
     void setShowHeadings(bool on);
     // Shows the formulas of the cells in place of their results (or the results again). The columns with formulas are widened to show them whole, up to a limit, while they are shown; the

@@ -12,6 +12,14 @@ QString keyOf(int scope, const QString &name) { return QString::number(scope) + 
 
 } // namespace
 
+QVector<CondRule> Calculation::replaceConditionalFormats(int sheet, const QVector<CondRule> &rules)
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return {};
+    QVector<CondRule> was = std::move(m_sheets[size_t(sheet)].conditionalFormats);
+    m_sheets[size_t(sheet)].conditionalFormats = rules;
+    return was;
+}
+
 bool Calculation::nameText(int scope, const QString &name, QString *text) const
 {
     const auto at = m_names.constFind(keyOf(scope, name));

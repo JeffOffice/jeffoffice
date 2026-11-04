@@ -901,6 +901,55 @@ QByteArray tailWithLegacyDrawing(const QByteArray &after, const QByteArray &relI
     return after.left(e.insertAt) + element + after.mid(e.insertAt);
 }
 
+// The tail with its `conditionalFormatting` elements (there may be many) taken out and `generated` put where the first was (else where the format has them).
+QByteArray tailWithCondFormats(const QByteArray &after, const QByteArray &generated)
+{
+    static const QList<QByteArray> later = {"dataValidations", "hyperlinks", "printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks", "customProperties", "cellWatches",
+                                            "ignoredErrors", "smartTags", "drawing", "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
+    QByteArray out;
+    qsizetype copied = 0, firstAt = -1, insertAt = -1;
+    Tag t;
+    qsizetype pos = 0;
+    int depth = 0;
+    qsizetype openAt = -1;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                if (insertAt < 0) insertAt = t.start;
+                break;
+            }
+            if (depth == 0 && openAt >= 0) {
+                out += after.mid(copied, openAt - copied);
+                if (firstAt < 0) firstAt = out.size();
+                copied = t.end;
+                openAt = -1;
+            }
+            continue;
+        }
+        if (depth == 0) {
+            if (t.local == "conditionalFormatting") {
+                if (t.selfClosing) {
+                    out += after.mid(copied, t.start - copied);
+                    if (firstAt < 0) firstAt = out.size();
+                    copied = t.end;
+                } else {
+                    openAt = t.start;
+                }
+            } else if (insertAt < 0 && later.contains(QByteArray(t.local))) {
+                insertAt = t.start;
+            }
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    if (firstAt >= 0) {
+        out += after.mid(copied);
+        return out.left(firstAt) + generated + out.mid(firstAt);
+    }
+    if (generated.isEmpty() || insertAt < 0) return after;
+    return after.left(insertAt) + generated + after.mid(insertAt);
+}
+
 // The links of the tail: those with the ranges in `unlinks` taken out, `links` put in at the end of the container (made, where the format has it, if the file has none, and taken out when
 // nothing is left in it).
 QByteArray tailWithLinks(const QByteArray &after, const std::vector<CellRange> &unlinks, const std::vector<LinkSpec> &links, const QByteArray &prefix)
@@ -1135,6 +1184,7 @@ public:
         m_hfSet = changes.hfSet;
         m_hfRel = changes.hfRel.toLatin1();
         if (changes.replaceSparklines) m_sparklines = &changes.sparklines;
+        if (changes.replaceCondFormats) m_cond = &changes.condFormats;
         m_legacyId = changes.legacyRelId.toLatin1();
         if (!changes.unlinks.empty() || !changes.links.empty()) {
             m_unlinks = &changes.unlinks;
@@ -1647,7 +1697,7 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || !m_addTables->empty() || !m_removeTables->empty()) {
+        if (m_merges || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || m_cond || !m_addTables->empty() || !m_removeTables->empty()) {
             // (what follows the cells is held whole to change its merged ranges, its filter, its page setup, and its drawing)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -1667,6 +1717,7 @@ private:
                 if (m_links) tail = tailWithLinks(tail, *m_unlinks, *m_links, m_prefix);
                 if (m_hfSet) tail = tailWithHeaderDrawing(tail, m_hfRel, m_prefix);
                 if (!m_addTables->empty() || !m_removeTables->empty()) tail = tailWithTableParts(tail, *m_addTables, *m_removeTables, m_prefix);
+                if (m_cond && m_prefix.isEmpty()) tail = tailWithCondFormats(tail, conditionalFormatsXml(*m_cond, nullptr));
                 if (m_sparklines) tail = tailWithSparklines(tail, *m_sparklines, m_prefix);
                 return tail;
             };
@@ -1709,6 +1760,7 @@ private:
     const PageSetup *m_page = nullptr;
     QByteArray m_drawingId;
     const QVector<SparklineGroup> *m_sparklines = nullptr;
+    const QVector<CondRule> *m_cond = nullptr;
     const std::vector<QString> *m_addTables = nullptr;
     const std::vector<QString> *m_removeTables = nullptr;
     const SheetFormat *m_format = nullptr;

@@ -2492,6 +2492,21 @@ quint32 Workbook::fontPlace(const FontSpec &font)
     return quint32(m_styles.fonts.size() - 1);
 }
 
+qint32 Workbook::dxfFor(const DifferentialFormat &f)
+{
+    if (m_stylesPart.isEmpty() || f.isEmpty() || f.hasBorder || f.numberFormat) return -1;
+    for (qsizetype i = 0; i < m_styles.dxfs.size(); ++i) {
+        const DifferentialFormat &d = m_styles.dxfs[i];
+        if (d.hasBorder || d.numberFormat || d.strike || d.underline) continue;
+        if (d.bold == f.bold && d.italic == f.italic && d.fontColor == f.fontColor && d.hasFill == f.hasFill && (!f.hasFill || (d.fill.pattern == f.fill.pattern && d.fill.bg == f.fill.bg && d.fill.fg == f.fill.fg)))
+            return qint32(i);
+    }
+    if (m_styles.dxfs.size() >= 100000) return -1;
+    m_styles.dxfs.append(f);
+    m_dxfsAdded.append(f);
+    return qint32(m_styles.dxfs.size() - 1);
+}
+
 qint32 Workbook::dxfForColor(const ColorSpec &color, bool font)
 {
     if (m_stylesPart.isEmpty() || !color.isSet()) return -1;

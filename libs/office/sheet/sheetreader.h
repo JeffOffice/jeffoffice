@@ -336,6 +336,9 @@ public:
     // The place of the differential format that is only a fill of this color (or, with `font`, only a font of it): one the workbook has, else one added at the end (the file's `dxfs`).
     // -1 if the workbook has no styles part to put one in, or has as many as it may.
     qint32 dxfForColor(const ColorSpec &color, bool font);
+    // The place of a differential format with a font color, a fill, bold, or italic (not a border or a number format): one the workbook has that is exactly that, else one added at the end. -1 if
+    // the workbook has no styles part to put one in, or has as many as it may.
+    qint32 dxfFor(const DifferentialFormat &format);
     QVector<DifferentialFormat> addedDxfs() const { return m_dxfsAdded; }
     qint64 dxfsInFile() const { return m_dxfsInFile; }
     QVector<FillSpec> addedFills() const { return m_fillsAdded; }

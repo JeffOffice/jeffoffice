@@ -498,7 +498,7 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(uiBook()));
         const jp::office::sheet::Workbook *book = e.win.w.session()->workbook();
-        const int xfs = int(book->styles().styleXfs.size()), formats = int(book->styles().formats.size()), names = int(book->styles().cellStyles.size());
+        const int xfs = int(book->styles().styleXfs.size()), names = int(book->styles().cellStyles.size());
         e.select(QStringLiteral("A1"));
         run(e, "fmt.bold");
         const int steps = e.win.w.undoStack()->count();
@@ -546,6 +546,111 @@ private Q_SLOTS:
         QCOMPARE(e.win.told.size(), 1);
         QCOMPARE(e.win.w.undoStack()->count(), before);
         QCOMPARE(int(book->styles().cellStyles.size()), names);
+    }
+
+    // Conditional formatting from the Home tab: a rule asked for is on the selected cells and drawn at once, goes first, is one step of Undo, is saved as `conditionalFormatting` with its
+    // differential format in the styles part, and comes back when the file is opened; Clear Rules takes rules off.
+    void conditionalFormattingRulesAreMadeDrawnSavedAndCleared()
+    {
+        using Kind = CrunchWindow::CondAnswer::Kind;
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));                                                  // A1:C3 hold 1 to 9
+        CrunchWindow::CondAnswer answered;
+        e.win.w.setCondAsker([&answered](CrunchWindow::CondAnswer *a) {
+            *a = answered;
+            return true;
+        });
+        auto fillOf = [&](const QString &ref) {
+            quint32 r = 0, c = 0;
+            parseCellRef(ref, &r, &c);
+            const grid::GridSheet &g = e.view()->sheet();
+            return g.lookOf(r, c, g.cellAt(r, c) ? g.cellAt(r, c)->style : 0).fg;
+        };
+        selectRange(e, QStringLiteral("A1:C3"));
+        answered.kind = Kind::Greater;
+        answered.value1 = QStringLiteral("5");
+        answered.preset = 2;                                                        // green
+        run(e, "cond.greater");
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 1);
+        QCOMPARE(fillOf(QStringLiteral("C3")), QRgb(0xFFC6EFCE));                   // 9 is over 5
+        QVERIFY(fillOf(QStringLiteral("A1")) != QRgb(0xFFC6EFCE));                  // 1 is not
+        // a second rule goes first
+        answered.kind = Kind::Between;
+        answered.value1 = QStringLiteral("2");
+        answered.value2 = QStringLiteral("3");
+        answered.preset = 1;                                                        // yellow
+        run(e, "cond.between");
+        const QVector<jp::office::sheet::CondRule> rules = e.win.w.session()->condRules(0);
+        QCOMPARE(int(rules.size()), 2);
+        QCOMPARE(rules[0].priority, 1);
+        QVERIFY(rules[0].op == jp::office::sheet::CondRule::Operator::Between && rules[1].op == jp::office::sheet::CondRule::Operator::GreaterThan);
+        QCOMPARE(fillOf(QStringLiteral("B1")), QRgb(0xFFFFEB9C));                   // 2 is between 2 and 3
+        // text that contains, duplicates, top and bottom, above average
+        answered.kind = Kind::Top;
+        answered.value1 = QStringLiteral("2");
+        answered.preset = 0;
+        run(e, "cond.top");
+        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 3);
+        QVERIFY(e.win.w.session()->condRules(0)[0].type == jp::office::sheet::CondRule::Type::Top10 && e.win.w.session()->condRules(0)[0].rank == 2);
+        answered.kind = Kind::Contains;
+        answered.value1 = QStringLiteral("x");
+        run(e, "cond.contains");
+        answered.kind = Kind::Duplicate;
+        run(e, "cond.duplicate");
+        answered.kind = Kind::Below;
+        run(e, "cond.below");
+        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 6);
+        // undo takes one rule off
+        pressUndo(&e.win.w);
+        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 5);
+        e.win.w.undoStack()->redo();
+        // a rule with no value, and one with a text that is a number or not
+        e.win.told.clear();
+        answered.kind = Kind::Greater;
+        answered.value1 = QString();
+        run(e, "cond.greater");
+        QCOMPARE(e.win.told.size(), 1);
+        // saved and opened again
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        Package p;
+        QString why;
+        QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
+        const QByteArray sheet = p.part(QStringLiteral("/xl/worksheets/sheet1.xml"));
+        QCOMPARE(sheet.count("<conditionalFormatting"), 6);
+        QVERIFY(sheet.contains("type=\"cellIs\"") && sheet.contains("operator=\"between\""));
+        QVERIFY(sheet.contains("type=\"top10\"") && sheet.contains("rank=\"2\"") && sheet.contains("type=\"duplicateValues\"") && sheet.contains("type=\"aboveAverage\""));
+        QVERIFY(sheet.indexOf("<conditionalFormatting") > sheet.indexOf("</sheetData>"));
+        QVERIFY(p.part(QStringLiteral("/xl/styles.xml")).contains("<dxfs count=\"3\">"));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const grid::GridSheet &g = second.w.view()->sheet();
+        QCOMPARE(int(g.data().sheet->conditionalFormats.size()), 6);
+        QCOMPARE(g.lookOf(2, 2, g.cellAt(2, 2)->style).fg, QRgb(0xFFFFC7CE));   // (9 is in the top two, whose rule has the highest priority: red, not green)
+        // clear rules from selected cells (a rule on cells none of which are selected stays), then from the sheet
+        selectRange(e, QStringLiteral("A1:A1"));
+        run(e, "cond.clearSelection");
+        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 0);                  // (every rule is on A1:C3, which A1 is in)
+        e.win.w.undoStack()->undo();
+        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 6);
+        selectRange(e, QStringLiteral("E5"));
+        QVERIFY(!e.win.w.act(QStringLiteral("cond.clearSelection"))->isEnabled());      // (dimmed: no rule is on E5)
+        QVERIFY(e.win.w.act(QStringLiteral("cond.clearSheet"))->isEnabled());
+        e.win.w.act(QStringLiteral("cond.clearSelection"))->trigger();                   // (dimmed: it does nothing)
+        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 6);                  // (none on E5: nothing changes)
+        run(e, "cond.clearSheet");
+        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 0);
+        QVERIFY(e.settle());
+        QSignalSpy savedAgain(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(savedAgain, 20000), qPrintable(e.win.told.join('|')));
+        Package q;
+        QVERIFY2(q.readLazyFile(e.path, &why), qPrintable(why));
+        QVERIFY(!q.part(QStringLiteral("/xl/worksheets/sheet1.xml")).contains("conditionalFormatting"));
+        QVERIFY(!e.win.w.act(QStringLiteral("cond.clearSheet"))->isEnabled());           // (nothing left to clear)
     }
 
     // The Format Painter: a click takes the format of the cells selected and the next cells selected get it; a double click keeps it on until Esc.

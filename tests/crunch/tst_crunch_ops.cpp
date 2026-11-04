@@ -235,6 +235,7 @@ private Q_SLOTS:
         QCOMPARE(Settings::get().value(QStringLiteral("crunch/statusStats")).toInt(), grid::kDefaultStatChoices | grid::StatMinimum);
         for (int i : {0, 1, 5, 3}) e.win.w.statsChoiceMenu()->actions().at(i)->trigger();   // Average, Count, Sum, then Minimum off: the last one stays
         QCOMPARE(e.view()->statChoices(), int(grid::StatMinimum));
+        Settings::get().setValue(QStringLiteral("crunch/statusStats"), grid::kDefaultStatChoices);   // (the choice is the person's: the next window starts as it was)
     }
 
     // Ctrl+D and Ctrl+R copy the first row (column) of the selection over the rest, and a single cell takes what is above (left of) it; one step each; the keys are the platform's.

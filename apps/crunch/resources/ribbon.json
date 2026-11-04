@@ -99,6 +99,7 @@
           "keytip": "ZY",
           "items": [
             {"large": {"id": "ribbon.tableLooks", "text": "Table Looks", "icon": "table"}, "keytip": "TL", "menu": "@tableLooks"},
+            {"large": {"id": "ribbon.condFormat", "text": "Conditional Formatting", "icon": "paintbrush"}, "keytip": "L", "menu": [{"section": "Highlight Cells Rules"}, "cond.greater", "cond.less", "cond.between", "cond.equal", "cond.contains", "cond.duplicate", {"section": "Top/Bottom Rules"}, "cond.top", "cond.bottom", "cond.topPercent", "cond.bottomPercent", "cond.above", "cond.below", "-", "cond.clearSelection", "cond.clearSheet"]},
             {"large": {"id": "ribbon.cellStyles", "text": "Cell Styles", "icon": "palette"}, "keytip": "J", "menu": "@cellStyles"}
           ]
         },

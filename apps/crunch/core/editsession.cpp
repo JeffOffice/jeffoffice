@@ -1718,6 +1718,12 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
         QStringList names;
         for (const jp::office::sheet::SheetEntry &se : book.info().sheets) names << (se.deleted ? QString() : se.name);
         m_pages.addToSave(&changes, names, book.info().order);
+    for (const int s : m_condTouched) {
+        if (s < 0 || s >= int(names.size()) || names[s].isEmpty() || !m_book->calc) continue;
+        SheetChanges &sc = changes.sheets[s];
+        sc.replaceCondFormats = true;
+        sc.condFormats = m_book->calc->sheet(s).conditionalFormats;
+    }
         m_anchors.addToSave(&changes);
         // the protection of the sheets, and of the workbook, where it differs from the file's
         for (int sheet = 0; sheet < listed.sheets.size(); ++sheet) {
@@ -1837,6 +1843,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     });
     ++m_saveGen;
     m_pages.saved();
+    m_condTouched.clear();
     m_anchors.saved();
     m_fileProtection.clear();
     for (int i = 0; i < m_book->calc->sheetCount(); ++i) m_fileProtection.push_back(m_book->calc->sheet(i).protection);

@@ -38,6 +38,10 @@ void CrunchWindow::createEditing()
         updateSparklineTab();
     });
     connect(m_session.get(), &crunch::EditSession::sheetsChanged, this, &CrunchWindow::onSheetsChanged);
+    connect(m_session.get(), &crunch::EditSession::conditionalFormatsChanged, this, [this](int sheet) {
+        if (sheet == m_sheet) m_view->conditionalFormatsChanged();
+        updateCondActions();
+    });
     connect(m_session.get(), &crunch::EditSession::tablesChanged, this, &CrunchWindow::onTablesChanged);
     connectObjects();
     connectPageSetup();

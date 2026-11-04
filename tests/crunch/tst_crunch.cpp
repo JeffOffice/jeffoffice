@@ -890,8 +890,9 @@ private Q_SLOTS:
             for (const QString &phrase : {QStringLiteral("print preview"), QStringLiteral("insert a chart")})   // (sorting and filtering are done: the help says so)
                 QVERIFY2(!text.contains(phrase, Qt::CaseInsensitive), qPrintable(f.fileName() + QStringLiteral(" says: ") + phrase));
             if (f.fileName().endsWith(QLatin1String("conditional-formats.md"))) {
-                QVERIFY(text.contains(QStringLiteral("You can't make, change, or delete a rule yet")));
-                QVERIFY(text.contains(QStringLiteral("Rule editing comes in a later version")));
+                // (rules are made from the menu now; what is left is said)
+                QVERIFY(text.contains(QStringLiteral("Home > Conditional Formatting")));
+                QVERIFY(text.contains(QStringLiteral("can be shown but not made yet")));
             }
         }
         QVERIFY(files >= 12);

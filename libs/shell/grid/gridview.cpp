@@ -384,6 +384,13 @@ void GridView::setRightToLeft(bool on)
     layoutChanged();
 }
 
+void GridView::conditionalFormatsChanged()
+{
+    m_sheet.resetConditional();
+    m_sheet.invalidateLooks();
+    viewport()->update();
+}
+
 void GridView::setShowHeadings(bool on)
 {
     m_headings = on;

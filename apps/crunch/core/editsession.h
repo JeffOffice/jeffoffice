@@ -781,6 +781,16 @@ public:
     Outcome applyStyleNamed(int sheet, const jp::office::sheet::CellRange &range, const QString &name, const QString &text);
     // New Cell Style: a style of the person's own, called `name`, with the look of the cell at `row`, `col` (its number format, font, fill, border, alignment, and protection); it is then
     // offered with the others, and the selected cells are given it. Not ok, with the reason, if the name is empty or taken.
+    // ---- conditional formatting (editcond.cpp)
+    // The rules of a sheet now, by priority.
+    QVector<jp::office::sheet::CondRule> condRules(int sheet) const;
+    // Puts a rule on the cells of `rule.ranges` with the look `format` (a font color, a fill, bold, or italic): it goes first (it has the highest priority), as one step of Undo. Not ok, with the
+    // reason, if the sheet can't be changed, the rule has no cells, or the sheet has data bars with extensions (which are written back only as they were).
+    Outcome addCondRule(int sheet, jp::office::sheet::CondRule rule, const jp::office::sheet::DifferentialFormat &format);
+    // Takes away the rules that are on any of the cells of `range` (all the sheet's when it is not valid): one step.
+    Outcome clearCondRules(int sheet, const jp::office::sheet::CellRange &range);
+    // (what a step of the rules does, and what the save puts in the file)
+    void setCondRules(int sheet, const QVector<jp::office::sheet::CondRule> &rules);
     // (the steps of New Cell Style: pushed after the style is made, and Undo and Redo take it out and put it in again)
     void pushStyleMade(const QString &name, quint32 format);
     void forgetNewStyle(const QString &name);
@@ -908,6 +918,7 @@ Q_SIGNALS:
     void sheetsChanged();
     // The sparklines of a sheet were changed by a step, undone, or redone.
     void sparklinesChanged(int sheet);
+    void conditionalFormatsChanged(int sheet);
     // How the workbook calculates was changed (by a step, or by Undo of one).
     void calcSettingsChanged();
     // Cells were changed by an edit, Undo, or Redo (the window draws them again).
@@ -1035,6 +1046,7 @@ private:
     qint64 m_undoByteLimit = kUndoBytes;
     QLocale m_locale;
     QList<QStringList> m_customLists;
+    std::set<int> m_condTouched;   // the sheets whose rules differ from the file's
     QHash<QString, QPair<int, int>> m_customIndex;   // each item (in lower case) to its list and its place in it
     QDate m_today;
     bool m_busy = false;

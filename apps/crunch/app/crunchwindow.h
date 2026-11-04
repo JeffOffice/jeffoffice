@@ -168,6 +168,13 @@ public:
     bool goToSpecial(const jp::crunch::SpecialOptions &options);
     // What Go To asks for (a reference) and Select by Kind (the kind of cells): dialogs unless these stand in for them (tests); false gives it up.
     void setGoToAsker(const std::function<bool(QString *)> &asker) { m_goToAsker = asker; }
+    // What a conditional formatting rule is asked for (a test answers in place of the window): the kind of rule, the one or two values, and how the cells look (a place in the ready-made looks).
+    struct CondAnswer {
+        enum class Kind { Greater, Less, Between, Equal, Contains, Duplicate, Top, Bottom, TopPercent, BottomPercent, Above, Below } kind = Kind::Greater;
+        QString value1, value2;
+        int preset = 0;
+    };
+    void setCondAsker(const std::function<bool(CondAnswer *)> &asker) { m_condAsker = asker; }
     // Asks for the name of a new cell style (a test answers in place of the window); false when it is given up.
     void setStyleNameAsker(const std::function<bool(QString *)> &asker) { m_styleNameAsker = asker; }
     void setSpecialAsker(const std::function<bool(jp::crunch::SpecialOptions *)> &asker) { m_specialAsker = asker; }
@@ -848,6 +855,12 @@ private:
     std::function<bool(QString *)> m_goToAsker;
     std::function<bool(jp::crunch::SpecialOptions *)> m_specialAsker;
     std::function<bool(QString *)> m_styleNameAsker;
+    std::function<bool(CondAnswer *)> m_condAsker;
+    void createCondActions();
+    bool askCondRule(CondAnswer *answer);
+    void makeCondRule(CondAnswer::Kind kind);
+    void clearCondRules(bool wholeSheet);
+    void updateCondActions();
     void showNameInBox();
     // the clipboard (crunchwindow_clip.cpp)
     void createClipboardActions();

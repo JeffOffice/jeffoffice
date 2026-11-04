@@ -405,7 +405,10 @@ private Q_SLOTS:
             {QStringLiteral("sheet.tabColor"), menu},
             {QStringLiteral("sheet.unhide"), menu},
         };
-        m_app.neverRun = {};
+        m_app.neverRun = {
+            {QStringLiteral("cond.clearSelection"), QStringLiteral("it is on only when a rule of conditional formatting covers the selected cells, and no place here has a rule; the conditional formatting tests run it")},
+            {QStringLiteral("cond.clearSheet"), QStringLiteral("it is on only when the sheet has a rule of conditional formatting, and no place here has one; the conditional formatting tests run it")},
+        };
     }
 
     // ---- 1. the first five minutes

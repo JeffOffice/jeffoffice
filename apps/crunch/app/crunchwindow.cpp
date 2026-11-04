@@ -550,6 +550,7 @@ void CrunchWindow::createActions()
     createCalcActions();
     createAuditActions();
     createFormatActions();
+    createCondActions();
     createSheetActions();
     createPageActions();
     createViewActions();
