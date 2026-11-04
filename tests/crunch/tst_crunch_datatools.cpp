@@ -125,6 +125,45 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.session()->editText(0, 1, 1), QStringLiteral("=A2*10"));
     }
 
+    void withoutAHeaderTheFirstRowIsComparedLikeTheRest()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Name", "A2=Name", "A3=bob"})));
+        QVERIFY(e.settle());
+        int removed = 0;
+        QVERIFY(e.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:A3")), true, QList<int>{0}, &removed).ok);
+        QCOMPARE(removed, 0);   // (the first row is a header: left out)
+        QVERIFY(e.win.w.session()->removeDuplicates(0, rangeOf(QStringLiteral("A1:A3")), false, QList<int>{0}, &removed).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(removed, 1);   // (no header: row 2 repeats row 1)
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("Name|bob|"));
+    }
+
+    void theDialogsHeaderBoxChoosesTheNamesOfTheColumns()
+    {
+        RemoveDuplicatesDialog d(QStringList{"Name", "Age"}, QStringList{"Column A", "Column B"}, true, nullptr);
+        QVERIFY(d.headerBox());
+        QVERIFY(d.hasHeader());
+        QCOMPARE(d.columnNames(), (QStringList{"Name", "Age"}));
+        QCOMPARE(d.chosen(), (QList<int>{0, 1}));
+        d.checkAll(false);
+        QVERIFY(d.chosen().isEmpty());
+        d.headerBox()->setChecked(false);
+        QVERIFY(!d.hasHeader());
+        QCOMPARE(d.columnNames(), (QStringList{"Column A", "Column B"}));
+        QVERIFY(d.chosen().isEmpty());   // (what was checked stays as it was)
+        d.checkAll(true);
+        QCOMPARE(d.chosen(), (QList<int>{0, 1}));
+        RemoveDuplicatesDialog without(QStringList{"Name", "Age"}, QStringList{"Column A", "Column B"}, false, nullptr);
+        QVERIFY(!without.hasHeader());
+        QCOMPARE(without.columnNames(), (QStringList{"Column A", "Column B"}));
+        // a table's dialog has no header box and the header is the table's
+        RemoveDuplicatesDialog table(QStringList{"X", "Y"}, nullptr);
+        QVERIFY(!table.headerBox());
+        QVERIFY(table.hasHeader());
+        QCOMPARE(table.columnNames(), (QStringList{"X", "Y"}));
+    }
+
     void tooManyCellsAndBadColumnsAreRefused()
     {
         EditWindow e;

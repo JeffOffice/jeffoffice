@@ -35,19 +35,22 @@ void CrunchWindow::removeDuplicatesDialog()
         }
         range = region;
     }
-    const bool header = m_session->looksLikeHeader(m_sheet, range);
-    QStringList names;
+    const bool looksLikeHeader = m_session->looksLikeHeader(m_sheet, range);
+    QStringList headerNames, plainNames;
     for (quint32 col = range.col1; col <= range.col2; ++col) {
-        const QString top = m_session->valueAt(m_sheet, range.row1, col).isText() ? m_session->valueAt(m_sheet, range.row1, col).text() : QString();
-        names << (header && !top.isEmpty() ? top : tr("Column %1").arg(jp::office::sheet::columnName(col)));
+        const jp::calc::Value top = m_session->valueAt(m_sheet, range.row1, col);
+        plainNames << tr("Column %1").arg(jp::office::sheet::columnName(col));
+        headerNames << (top.isText() && !top.text().isEmpty() ? top.text() : plainNames.last());
     }
     QList<int> chosen;
+    bool header = looksLikeHeader;
     if (m_removeDuplicatesAsker) {
-        if (!m_removeDuplicatesAsker(names, &chosen)) return;
+        if (!m_removeDuplicatesAsker(looksLikeHeader ? headerNames : plainNames, &chosen)) return;
     } else {
-        RemoveDuplicatesDialog dialog(names, this);
+        RemoveDuplicatesDialog dialog(headerNames, plainNames, looksLikeHeader, this);
         if (dialog.exec() != QDialog::Accepted) return;
         chosen = dialog.chosen();
+        header = dialog.hasHeader();
     }
     if (chosen.isEmpty()) {
         notice(tr("Remove Duplicates"), tr("Check at least one column to compare."));
