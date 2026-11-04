@@ -1166,6 +1166,7 @@ private:
     crunch::WorkbookLoader m_loader;
     std::shared_ptr<crunch::LoadedBook> m_loaded;
     bool m_loading = false, m_calculating = false, m_haveFirstScreen = false, m_haveCalc = false;
+    qint64 m_changesNoted = 0;             // the changes the worker has been sent that the window has taken note of (WorkbookLoader::changesMade)
     bool m_refreshOnOpenPending = false;   // pivot tables that say so are read again once the calculation of a file that was just opened is done
     int m_sheet = -1;                            // the sheet in the grid, by its place in the workbook
     QVector<int> m_tabSheets;                    // the workbook's place of each tab

@@ -43,6 +43,15 @@ void CrunchWindow::createEditing()
         updateCondActions();
     });
     connect(m_session.get(), &crunch::EditSession::tablesChanged, this, &CrunchWindow::onTablesChanged);
+    // (every step that changes the workbook sends the worker to work it out: the window is calculating from then until the worker says it is done, whichever command made the step; the
+    // pivot table commands, among others, don't say so themselves, and the window was then taken for ready while the worker still had a pass to make)
+    m_changesNoted = m_loader.changesMade();
+    connect(m_session->undoStack(), &QUndoStack::indexChanged, this, [this] {
+        const qint64 now = m_loader.changesMade();
+        if (now == m_changesNoted) return;
+        m_changesNoted = now;
+        if (m_haveCalc && !m_loading) m_calculating = true;
+    });
     connectObjects();
     connectPageSetup();
     connectAnchors();
