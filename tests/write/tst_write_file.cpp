@@ -11,6 +11,7 @@
 #include "core/fonts.h"
 #include "core/emailops.h"
 #include "core/pdfbookmarks.h"
+#include "core/versionstore.h"
 #include "core/templates.h"
 #include "render/pdfpage.h"
 #include "office/package.h"
@@ -516,6 +517,72 @@ private Q_SLOTS:
             if (what == WriteWindow::EmailWhat::Pdf) QVERIFY(eml.contains("application/pdf"));
             if (what == WriteWindow::EmailWhat::Pages) QVERIFY(eml.contains("image/png") && eml.contains("Content-ID: <page1>"));
         }
+    }
+
+    void versionsAreKeptListedReadAndRemoved()
+    {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("a.docx"));
+        VersionStore store(path);
+        store.removeAll();
+        QVERIFY(store.list().isEmpty());
+        QVERIFY(store.add(QStringLiteral("First draft"), QByteArray("one")));
+        QVERIFY(store.add(QStringLiteral("  Second   draft "), QByteArray("two two")));
+        QVector<DocVersion> all = store.list();
+        QCOMPARE(all.size(), 2);
+        QCOMPARE(all[0].name, QStringLiteral("Second draft"));   // newest first, the name tidied
+        QCOMPARE(all[1].name, QStringLiteral("First draft"));
+        QCOMPARE(all[0].size, qint64(7));
+        QCOMPARE(store.read(all[1].file), QByteArray("one"));
+        // the list is kept: another store for the same file has it; another file has none
+        QCOMPARE(VersionStore(path).list().size(), 2);
+        QVERIFY(VersionStore(dir.filePath(QStringLiteral("b.docx"))).list().isEmpty());
+        // a name that is a path is no version
+        QVERIFY(store.read(QStringLiteral("../versions.json")).isEmpty());
+        QVERIFY(store.read(QStringLiteral("nothing.docx")).isEmpty());
+        QVERIFY(!store.remove(QStringLiteral("../x.docx")));
+        // an empty copy is refused
+        QVERIFY(!store.add(QStringLiteral("empty"), QByteArray()));
+        QVERIFY(store.remove(all[1].file));
+        QCOMPARE(store.list().size(), 1);
+        QVERIFY(store.read(all[1].file).isEmpty());
+        // only the most recent are kept
+        for (int i = 0; i < kMostVersions + 5; ++i) QVERIFY(store.add(QStringLiteral("v%1").arg(i), QByteArray::number(i)));
+        all = store.list();
+        QCOMPARE(all.size(), kMostVersions);
+        QCOMPARE(all.first().name, QStringLiteral("v%1").arg(kMostVersions + 4));
+        store.removeAll();
+        QVERIFY(store.list().isEmpty());
+    }
+
+    void aWindowKeepsComparesAndRestoresVersions()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("first words"));
+        // an untitled document has no file to keep versions of
+        QVERIFY(!w.saveVersion(QStringLiteral("early")));
+        QVERIFY(!quiet.said.isEmpty());
+        QVERIFY(saveInto(w, dir, QStringLiteral("v.docx")));
+        VersionStore(w.filePath()).removeAll();
+        QVERIFY(w.saveVersion(QStringLiteral("Draft one")));
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral(" and more words"));
+        QVERIFY(w.saveVersion(QStringLiteral("Draft two")));
+        QVector<DocVersion> all = w.versions();
+        QCOMPARE(all.size(), 2);
+        // restore the first: the words go back, the document is changed (to save), and what it was is kept first
+        QVERIFY(w.restoreVersion(all[1].file));
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("first words"));
+        QVERIFY(w.isModified());
+        all = w.versions();
+        QCOMPARE(all.size(), 3);
+        QVERIFY(all.first().name.contains(QLatin1String("restor")));
+        QCOMPARE(VersionStore(w.filePath()).read(all.first().file).isEmpty(), false);
+        // compare the document with the second draft: the words that differ are found as changes
+        QVERIFY(w.compareWithVersion(all[1].file) >= 1);
+        QVERIFY(!w.restoreVersion(QStringLiteral("nothing.docx")));
+        VersionStore(w.filePath()).removeAll();
     }
 
     void aWindowStartsAnUntitledDocumentFromABuiltInTemplate()

@@ -11,6 +11,7 @@
 #include "core/writedoc.h"
 #include "core/compareops.h"
 #include "core/homeops.h"
+#include "core/versionstore.h"
 #include "app/optionsdialog.h"
 
 #include <QHash>
@@ -151,6 +152,15 @@ public:
     bool exportEmail(EmailWhat what);
     // The pages (by index) as a PDF, in memory; empty, with the reason, when they can't be made.
     QByteArray pdfBytes(const QVector<int> &pages, QString *error);
+    // Version history: named copies of the document kept on this computer (see core/versionstore.h). Each needs a file the document has been saved as.
+    QVector<write::DocVersion> versions() const;
+    bool saveVersion(const QString &name);
+    // The document becomes the version (what it was is kept first, as a version, so that nothing is lost); it is then changed, to be saved.
+    bool restoreVersion(const QString &file);
+    // The version and the document compared, in a new window (as Review > Compare makes it); the changes found, -1 when it can't be done.
+    int compareWithVersion(const QString &file);
+    // Version History on the Info page: the list with its buttons.
+    void versionHistory();
     // Where editing stopped: the place is kept with the file's name when the window closes and when the file is saved, and the file opens there again.
     void rememberPlace();
     // The last three places the text was edited, the latest first (Shift+F5 goes to each in turn).
