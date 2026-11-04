@@ -734,6 +734,48 @@ private Q_SLOTS:
         QVERIFY(primaryAxis(now, false)->autoMin);
     }
 
+    // Move Chart puts the chart on another worksheet as one step of Undo (it still reads the cells it read); the saved file has it there and no longer on the first sheet, and reopened it is there.
+    void aChartIsMovedToAnotherSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet(), dataSheet()}, drawingPart(twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Sales")))),
+                                       {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}}))})));
+        QTRY_VERIFY(objectsShown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->select(0);
+        QVERIFY(e.win.w.act(QStringLiteral("chartdesign.moveChart"))->isEnabled());
+        QStringList offered;
+        e.win.w.setMoveChartAsker([&](const QStringList &sheets, int *chosen) {
+            offered = sheets;
+            *chosen = 0;
+            return true;
+        });
+        const int steps = e.win.w.session()->undoStack()->index();
+        e.win.w.act(QStringLiteral("chartdesign.moveChart"))->trigger();
+        QCOMPARE(offered, QStringList{QStringLiteral("Sheet2")});
+        QCOMPARE(e.win.w.session()->undoStack()->index(), steps + 1);
+        QCOMPARE(e.win.w.activeSheet(), 1);
+        QTRY_VERIFY(objectsShown(e, 1));
+        // Undo takes it back to the first sheet (saved so, it is there and not on the second), Redo moves it again
+        e.win.w.session()->undoStack()->undo();
+        QVERIFY(!e.win.w.isModified());
+        e.win.w.setActiveSheet(0);
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.session()->undoStack()->redo();
+        e.win.w.setActiveSheet(1);
+        QTRY_VERIFY(objectsShown(e, 1));
+        QVERIFY(save(e));
+        QCOMPARE(savedCharts(e.path, 0).size(), 0);
+        const QVector<SavedChart> moved = savedCharts(e.path, 1);
+        QCOMPARE(moved.size(), 1);
+        QCOMPARE(seriesOf(moved[0].chart)[0].valueRef, QStringLiteral("Sheet1!$B$2:$B$4"));
+        QCOMPARE(seriesOf(moved[0].chart)[0].values, (QVector<double>{10, 20, 30}));
+        Window again;
+        QVERIFY(again.open(e.copyOfFile()));
+        again.w.setActiveSheet(1);
+        QTRY_VERIFY(again.w.objects()->shownSheet() == 1 && again.w.objects()->layer()->count() == 1);
+    }
+
     void theChartDesignTabAppearsWithAChart()
     {
         EditWindow e;

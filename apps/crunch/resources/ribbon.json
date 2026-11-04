@@ -493,7 +493,8 @@
           "keytip": "ZF",
           "items": [
             {"small": "chartdesign.axisH", "keytip": "AH"},
-            {"small": "chartdesign.axisV", "keytip": "AV"}
+            {"small": "chartdesign.axisV", "keytip": "AV"},
+            {"small": "chartdesign.moveChart", "keytip": "MC"}
           ]
         },
         {

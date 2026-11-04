@@ -126,6 +126,7 @@ void CrunchWindow::createChartActions()
     }, false, false);
     mk("chartdesign.axisH", tr("Format Horizontal Axis…"), "ruler", QKeySequence(), [this] { formatAxisDialog(true); }, false, false);
     mk("chartdesign.axisV", tr("Format Vertical Axis…"), "ruler", QKeySequence(), [this] { formatAxisDialog(false); }, false, false);
+    mk("chartdesign.moveChart", tr("Move Chart…"), "move", QKeySequence(), [this] { moveChartDialog(); }, false, false);
     mk("object.properties", tr("Properties…"), "sliders-horizontal", QKeySequence(), [this] { propertiesDialog(); }, false, false);
     mk("object.front", tr("Bring to Front"), "bring-to-front", QKeySequence(), [this] { reorderObject(2); }, false, false);
     mk("object.forward", tr("Bring Forward"), "arrow-up", QKeySequence(), [this] { reorderObject(1); }, false, false);
@@ -466,6 +467,67 @@ void CrunchWindow::selectDataDialog()
     changePickedChart(tr("Chart Data"), [result](Chart *c) { *c = result; });
 }
 
+// Move Chart: the chart goes to another worksheet (where its cells put it there too): taken off this sheet and put on that one as one step. It still reads the cells it read.
+void CrunchWindow::moveChartDialog()
+{
+    const int id = pickedObject();
+    if (id < 0 || !m_session || !m_objects || !m_loaded || !m_loaded->book) return;
+    QString why;
+    if (!m_objects->canEditChart(m_sheet, id, &why)) {
+        notice(tr("Move Chart"), why);
+        return;
+    }
+    QStringList names;
+    QVector<int> places;
+    const auto &sheets = m_loaded->book->info().sheets;
+    for (int i = 0; i < sheets.size(); ++i)
+        if (i != m_sheet && !sheets[i].deleted && sheets[i].kind == jp::office::sheet::SheetKind::Worksheet) {
+            names << sheets[i].name;
+            places << i;
+        }
+    if (names.isEmpty()) {
+        notice(tr("Move Chart"), tr("There is no other worksheet to move the chart to."));
+        return;
+    }
+    int chosen = 0;
+    if (m_moveChartAsker) {
+        if (!m_moveChartAsker(names, &chosen)) return;
+    } else {
+        bool ok = false;
+        const QString name = QInputDialog::getItem(this, tr("Move Chart"), tr("Move the chart to this sheet:"), names, 0, false, &ok);
+        if (!ok) return;
+        chosen = int(names.indexOf(name));
+    }
+    if (chosen < 0 || chosen >= places.size()) return;
+    const int target = places[chosen];
+    const Chart chart = m_objects->chartNow(m_sheet, id);
+    const DrawingAnchor anchor = m_objects->anchorOf(m_sheet, id);
+    const int newId = m_objects->makeChart(target, chart, anchor, &why);
+    if (newId < 0) {
+        notice(tr("Move Chart"), why);
+        return;
+    }
+    crunch::ObjectEdit away, here;
+    away.sheet = m_sheet;
+    away.id = id;
+    away.before = m_objects->stateOf(m_sheet, id);
+    away.after = away.before;
+    away.after.deleted = true;
+    here.sheet = target;
+    here.id = newId;
+    here.before = m_objects->stateOf(target, newId);
+    here.after = here.before;
+    here.after.deleted = false;
+    const crunch::EditSession::Outcome o = m_session->changeObjects({away, here}, tr("Move Chart"));
+    if (!o.ok) {
+        m_objects->discardMade(target, newId);
+        notice(tr("Move Chart"), o.problem);
+        return;
+    }
+    setActiveSheet(target);
+    m_objects->layer()->select(newId);
+}
+
 // Format Axis: the axis across the chart (or up it), asked about and set as one step.
 void CrunchWindow::formatAxisDialog(bool horizontal)
 {
@@ -703,7 +765,7 @@ void CrunchWindow::updateChartState()
     const bool chart = picked && m_objects->kindOf(m_sheet, id) == ObjectKind::Chart;
     bool editable = false;
     if (chart) editable = m_objects->canEditChart(m_sheet, id);
-    for (const char *name : {"chartdesign.selectData", "chartdesign.changeType", "chartdesign.switch"}) act(QString::fromLatin1(name))->setEnabled(editable);
+    for (const char *name : {"chartdesign.selectData", "chartdesign.changeType", "chartdesign.switch", "chartdesign.moveChart"}) act(QString::fromLatin1(name))->setEnabled(editable);
     {
         const ChartElements e = editable && id >= 0 ? elementsOf(m_objects->chartNow(m_sheet, id)) : ChartElements();
         act(QStringLiteral("chartdesign.axisH"))->setEnabled(e.hasHorizontal);
