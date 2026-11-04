@@ -365,7 +365,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [~] **first release** Navigation pane: Headings (an outline you can click, drag to reorder, promote, demote, and collapse), Pages (thumbnails), and Results *(round 9: View > Navigation Pane has Headings (click to go, collapse, promote, and demote, one step), Pages (the first 60 pages as small pictures), and Results (a word's places with the words round them); headings cannot be dragged to reorder yet)*
 - [ ] **1.0** Collapse and expand headings in the document itself
 - [x] **first release** Zoom: a dialog (percent, page width, text width, whole page, many pages), 100%, One Page, Multiple Pages, Page Width, a slider in the status bar, and Ctrl+wheel *(shared: JeffPub's zoom)*
-- [ ] **1.0** Page movement: vertical or side to side
+- [x] **1.0** Page movement: vertical or side to side *(round 10: View > Page Movement has Vertical and Side to Side; side to side puts all the pages in one row, the mouse wheel turns them past, and Go To Page and the caret scroll across to a page)*
 - [~] **first release** Status bar: page x of y, word count, language, proofing errors, tracking, section, line, and column, with the view buttons and the zoom slider *(shared: JeffPub's and JeffDeck's status bars)* *(0.9.0: the page, the word count, and the zoom slider)*
 
 ### Window

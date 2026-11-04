@@ -254,6 +254,7 @@ void PageView::showCursor(const QTextCursor &c)
     m_cursor = c;
     QRect r;
     if (caretRect(&r) && (r.top() < 0 || r.bottom() > viewport()->height())) verticalScrollBar()->setValue(verticalScrollBar()->value() + r.center().y() - viewport()->height() / 2);
+    if (m_sideToSide && caretRect(&r) && (r.left() < 0 || r.right() > viewport()->width())) horizontalScrollBar()->setValue(horizontalScrollBar()->value() + r.center().x() - viewport()->width() / 2);
     caretMoved();
 }
 
@@ -271,6 +272,15 @@ int PageView::currentPage() const
 
 int PageView::topPage() const
 {
+    if (m_sideToSide) {
+        const double x = horizontalScrollBar()->value() + viewport()->width() / 3.0;
+        int best = 0;
+        for (int i = 0; i < m_rects.size(); ++i) {
+            if (m_rects[i].left() <= x) best = i;
+            else break;
+        }
+        return best;
+    }
     const double y = verticalScrollBar()->value() + viewport()->height() / 3.0;
     int best = 0;
     for (int i = 0; i < m_rects.size(); ++i) {
@@ -285,6 +295,18 @@ void PageView::goToPage(int index)
     if (!m_doc || m_rects.isEmpty()) return;
     index = std::clamp(index, 0, int(m_rects.size()) - 1);
     verticalScrollBar()->setValue(int(m_rects[index].top() - kMargin));
+    if (m_sideToSide) horizontalScrollBar()->setValue(int(m_rects[index].left() - kMargin));
+}
+
+void PageView::setSideToSide(bool on)
+{
+    if (m_sideToSide == on) return;
+    m_sideToSide = on;
+    relayout();
+    if (on) verticalScrollBar()->setValue(0);
+    else horizontalScrollBar()->setValue(0);
+    if (m_doc) goToPage(currentPage());
+    viewport()->update();
 }
 
 QRect PageView::pageRect(int index) const
@@ -354,7 +376,7 @@ void PageView::relayout()
     const int known = pg.pagesKnown();
     m_complete = pg.complete();
     const double s = scale();
-    const int cols = std::max(1, m_across);
+    const int cols = m_sideToSide ? std::max(1, known) : std::max(1, m_across);
     // The sizes of the pages: while edits wait to be laid out, those of pages not made yet are as they were.
     QVector<QSizeF> sizes(known);
     const QVector<QRectF> before = m_rects;
@@ -572,7 +594,7 @@ void PageView::paintEvent(QPaintEvent *e)
     const QRectF visible(sx + e->rect().left(), sy + e->rect().top(), e->rect().width(), e->rect().height());
     const double s = scale();
     flow::Paginator &pg = m_doc->pager();
-    const int cols = std::max(1, m_across);
+    const int cols = m_sideToSide ? std::max(1, m_knownPages) : std::max(1, m_across);
     // (The misspelled words of the pages are found within a few milliseconds; what is left waits for idle time.)
     SpellCheck::Pass spellingTime(*m_spell, 6);
     std::unique_ptr<SpellCheck::Pass> headerSpellingTime;

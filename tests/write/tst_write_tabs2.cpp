@@ -10,6 +10,7 @@
 #include "core/editops.h"
 #include "core/fieldops.h"
 #include "core/fonts.h"
+#include "core/insertops.h"
 #include "core/linkops.h"
 #include "core/outlineops.h"
 #include "core/writedoc.h"
@@ -17,6 +18,7 @@
 #include <QAction>
 #include <QMenu>
 #include <QPair>
+#include <QScrollBar>
 #include <QTest>
 #include <QTextCursor>
 #include <QTreeWidget>
@@ -286,6 +288,38 @@ private Q_SLOTS:
         QVERIFY(w.view()->isVisible() && !w.outlineView()->isVisible());
         QVERIFY(!w.act("outline.promote")->isEnabled());
         QCOMPARE(w.view()->cursor().position(), outlineRows(*w.document()).at(2).position);
+    }
+
+    // ---------------------------------------------------------------- View
+    void pagesCanBeSetSideToSideInOneRow()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        QVERIFY(w.act("view.pageMovement.vertical")->isChecked() && !w.act("view.pageMovement.sideToSide")->isChecked());
+        QTextCursor c = w.view()->cursor();
+        insertBlankPage(*w.document(), c);
+        insertBlankPage(*w.document(), c);
+        w.view()->paginateAll();
+        QVERIFY(w.view()->pageCount() >= 3);
+        w.view()->setZoom(0.5);
+        // In a column, each page is below the one before.
+        QVERIFY(w.view()->pageRect(1).top() > w.view()->pageRect(0).bottom() - 1);
+        w.act(QStringLiteral("view.pageMovement.sideToSide"))->trigger();
+        QVERIFY(w.view()->sideToSide());
+        QCOMPARE(w.view()->pageRect(1).top(), w.view()->pageRect(0).top());
+        QCOMPARE(w.view()->pageRect(2).top(), w.view()->pageRect(0).top());
+        QVERIFY(w.view()->pageRect(1).left() > w.view()->pageRect(0).right());
+        QVERIFY(w.view()->pageRect(2).left() > w.view()->pageRect(1).right());
+        // Going to a page scrolls across to it.
+        w.view()->goToPage(2);
+        QVERIFY(w.view()->horizontalScrollBar()->value() > 0);
+        QCOMPARE(w.view()->topPage(), 2);
+        w.act(QStringLiteral("view.pageMovement.vertical"))->trigger();
+        QVERIFY(!w.view()->sideToSide());
+        QVERIFY(w.view()->pageRect(1).top() > w.view()->pageRect(0).bottom() - 1);
+        QCOMPARE(w.view()->horizontalScrollBar()->value(), 0);
     }
 };
 

@@ -645,6 +645,13 @@ void PageView::wheelEvent(QWheelEvent *e)
         e->accept();
         return;
     }
+    if (m_sideToSide && e->angleDelta().x() == 0 && e->angleDelta().y() != 0) {
+        // (Pages side by side: the wheel turns them past.)
+        horizontalScrollBar()->setValue(horizontalScrollBar()->value() - e->angleDelta().y());
+        if (!pagesComplete() && horizontalScrollBar()->value() >= horizontalScrollBar()->maximum() - 2) startPagination();
+        e->accept();
+        return;
+    }
     QAbstractScrollArea::wheelEvent(e);
     if (!pagesComplete() && verticalScrollBar()->value() >= verticalScrollBar()->maximum() - 2) startPagination();
 }

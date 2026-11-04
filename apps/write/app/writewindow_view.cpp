@@ -8,6 +8,7 @@
 #include "app/ruler.h"
 
 #include <QAction>
+#include <QActionGroup>
 #include <QDockWidget>
 #include <QStatusBar>
 #include <QTreeWidget>
@@ -17,6 +18,11 @@ namespace jp {
 void WriteWindow::createViewExtraActions()
 {
     mk("view.navigationPane", tr("Navigation Pane"), "panel-left", QKeySequence(), [this] { showNavigationPane(act("view.navigationPane")->isChecked()); }, true);
+    // Page movement: the pages in a column, or side by side in one row.
+    auto *movement = new QActionGroup(this);
+    movement->addAction(mk("view.pageMovement.vertical", tr("Vertical"), "arrow-up-down", QKeySequence(), [this] { m_view->setSideToSide(false); }, true));
+    movement->addAction(mk("view.pageMovement.sideToSide", tr("Side to Side"), "arrow-left-right", QKeySequence(), [this] { m_view->setSideToSide(true); }, true));
+    act("view.pageMovement.vertical")->setChecked(true);
     mk("view.focus", tr("Focus"), "focus", QKeySequence(Qt::Key_F11), [this] { setFocusMode(!m_focusMode); });
 }
 

@@ -70,6 +70,9 @@ public:
     // Page Width fits the page to the width of the window, One Page the whole page in the window, Many Pages `across` pages by `down`.
     void setZoomMode(ZoomMode mode, int across = 2, int down = 1);
     int pagesAcross() const { return m_across; }
+    // Page movement: the pages in a column (the usual), or all in one row that the window scrolls side to side.
+    void setSideToSide(bool on);
+    bool sideToSide() const { return m_sideToSide; }
 
     // ---- pages
     // The number of pages a page made for the view shows (NUMPAGES), -1 where the page isn't made or shows none: what the page says, for the tests.
@@ -415,6 +418,7 @@ private:
     double m_zoom = 1.0;
     ZoomMode m_mode = ZoomMode::Percent;
     int m_across = 1, m_down = 1;
+    bool m_sideToSide = false;
     bool m_marks = false;
     bool m_gridlines = false;
     bool m_shadeFields = false;

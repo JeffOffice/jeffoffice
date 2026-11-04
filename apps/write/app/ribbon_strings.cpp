@@ -61,6 +61,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Page Background"),
     QT_TRANSLATE_NOOP("Ribbon", "Page Breaks"),
     QT_TRANSLATE_NOOP("Ribbon", "Page Color:"),
+    QT_TRANSLATE_NOOP("Ribbon", "Page Movement"),
     QT_TRANSLATE_NOOP("Ribbon", "Page Setup"),
     QT_TRANSLATE_NOOP("Ribbon", "Pages"),
     QT_TRANSLATE_NOOP("Ribbon", "Paragraph"),

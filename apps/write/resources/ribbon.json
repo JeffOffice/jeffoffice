@@ -1199,6 +1199,20 @@
           ]
         },
         {
+          "name": "Page Movement",
+          "keytip": "ZM",
+          "items": [
+            {
+              "large": "view.pageMovement.vertical",
+              "keytip": "MV"
+            },
+            {
+              "large": "view.pageMovement.sideToSide",
+              "keytip": "MS"
+            }
+          ]
+        },
+        {
           "name": "Focus",
           "keytip": "FO",
           "items": [
