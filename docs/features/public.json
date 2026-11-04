@@ -666,8 +666,8 @@
        "heading": "d4c7bac5b475fee65512621f3327448cb4510158cc1cbc6a4ab3e8906c2713d7",
        "items": [
         {
-         "status": "todo",
-         "text": "83b04c95bec9953d2e1991c6e12cff59bd5bdb4e4b0ca6e4d129b534507e6c0d"
+         "status": "partly",
+         "text": "bc0a968f1f7b7d1dcffd7df0ca1d6423b44b2fa17b02efa3ffd17947ba49b745"
         }
        ]
       },
@@ -1318,8 +1318,8 @@
          "text": "253e0726467be3f8910baa7f2212a2c3788592e89cf484b0028556047ce7bcea"
         },
         {
-         "status": "todo",
-         "text": "817af2aa805f9449beea0d02fd99060b621e4b01cdee94640974ffc8ee1c2176"
+         "status": "partly",
+         "text": "9b5351148cb0b808e967776f136b87e5a5fd309a0b43575a4ded97c5b1d632b5"
         },
         {
          "hide_soon": true,
@@ -1349,8 +1349,8 @@
          "text": "2a71a531faa305dbb049198cff8986388c7e3077aa1bf9ef15d2229f535e1b15"
         },
         {
-         "status": "todo",
-         "text": "49964b4432e098a890cf862804e58c9dc0c56894feff258189f4c6b720898f3d"
+         "status": "partly",
+         "text": "e3671097c867a9909c5e44ca165b913aafc4723823247e76009bc8550cdb6515"
         },
         {
          "status": "partly",
@@ -1382,12 +1382,14 @@
        "heading": "39cdc953e4801895244ddd7a2bc4e680311704928f62ff33a62749f00522ce07",
        "items": [
         {
-         "status": "todo",
-         "text": "c45014a5a6a9c665e2b82b4db6fef0c81007e6a40469636fe3852c22427438bd"
+         "hide_soon": true,
+         "status": "done",
+         "text": "81a4d0877d78680d5c96e0e1aa04fc44d14bd9627c829868f8cb5eca73c62d30"
         },
         {
-         "status": "todo",
-         "text": "357e1e0bfbe2772982792bd2203ac7fbadf03b4271481f254f90d318d7a14ba4"
+         "hide_soon": true,
+         "status": "done",
+         "text": "e5a077d0419b7ffc41d667ed222064be7e236e044ee37acea97eda1284630e16"
         },
         {
          "status": "todo",
@@ -10967,18 +10969,6 @@
     "fr": "Graphiques dans `.xls` : lecture et écriture dans `.xlsx` comme graphiques"
    }
   },
-  "357e1e0bfbe2772982792bd2203ac7fbadf03b4271481f254f90d318d7a14ba4": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Sparkline style, colors, marker colors, and line weight",
-    "es": "Estilo, colores, colores de marcadores y grosor de línea de minigráficos",
-    "fr": "Style, couleurs, couleurs des marqueurs et épaisseur de ligne des sparklines"
-   }
-  },
   "3595dd737a0f17bc1dd5c72fa87ea8a86b6c14573b3ca9000edb30ff1f215630": {
    "drop": true,
    "en": "",
@@ -12345,18 +12335,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "49964b4432e098a890cf862804e58c9dc0c56894feff258189f4c6b720898f3d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Trendlines, error bars, data table, drop lines, high-low lines, series lines, and up/down bars",
-    "es": "Líneas de tendencia, barras de error, tabla de datos, líneas de caída, líneas de máximos y mínimos, líneas de series y barras ascendentes y descendentes",
-    "fr": "Courbes de tendance, barres d’erreur, tableau de données, lignes de projection, lignes haut-bas, lignes de séries et barres haussières et baissières"
    }
   },
   "49d56ec53ccb1f74bb4a9a70c5eeae8bb3b363215b3bcf101ed76d47871076ca": {
@@ -16271,18 +16249,6 @@
     "fr": "Options de vérification : correction automatique, orthographe, mots ignorés et dictionnaires personnalisés"
    }
   },
-  "817af2aa805f9449beea0d02fd99060b621e4b01cdee94640974ffc8ee1c2176": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Chart Filters button",
-    "es": "Botón de filtros de gráfico",
-    "fr": "Bouton de filtres de graphique"
-   }
-  },
   "819b7a42f84d10870048a82a7c06c2118ce84f9641bc90b7af451b61b36d9356": {
    "drop": true,
    "en": "",
@@ -16293,6 +16259,18 @@
     "en": "Language options: editing languages, display language, and default language for new text",
     "es": "Opciones de idioma: idiomas de edición, idioma de la interfaz e idioma predeterminado para texto nuevo",
     "fr": "Options de langue : langues d’édition, langue d’affichage et langue par défaut du nouveau texte"
+   }
+  },
+  "81a4d0877d78680d5c96e0e1aa04fc44d14bd9627c829868f8cb5eca73c62d30": {
+   "drop": false,
+   "en": "In JeffCrunch, the Sparkline tab edits the location and source range of one sparkline or a group, sets the type to line, column, or win/loss, and shows the high, low, negative, first, and last points and markers.",
+   "es": "En JeffCrunch, la pestaña Minigráfico edita la ubicación y el rango de origen de un minigráfico o de un grupo, define el tipo como línea, columna o ganancia/pérdida, y muestra los puntos más alto, más bajo, negativos, primero y último, y los marcadores.",
+   "fr": "Dans JeffCrunch, l’onglet Sparkline modifie l’emplacement et la plage source d’une sparkline ou d’un groupe, définit le type en courbe, colonne ou gain/perte, et affiche les points le plus haut, le plus bas, négatifs, premier et dernier, ainsi que les marqueurs.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "81b75c2be2e44a4d112899d99329512c5dabb54798f6e610e25f367b6bc2f5fc": {
@@ -16425,18 +16403,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "83b04c95bec9953d2e1991c6e12cff59bd5bdb4e4b0ca6e4d129b534507e6c0d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Sparklines: Line, Column, and Win/Loss in a cell",
-    "es": "Minigráficos: de líneas, de columnas y de ganancias y pérdidas en una celda",
-    "fr": "Graphiques sparkline : courbe, colonnes et gain/perte dans une cellule"
    }
   },
   "844070ff3f18a60b9e50e79b9036f4bd880ecd6a2e8a15ea7d76c3bd92902b2e": {
@@ -17985,6 +17951,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "9b5351148cb0b808e967776f136b87e5a5fd309a0b43575a4ded97c5b1d632b5": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Chart Filters button",
+    "es": "Botón de filtros de gráfico",
+    "fr": "Bouton de filtres de graphique"
    }
   },
   "9b6859161de8113f907684721c72da6c12ac9f2d38467316ed33f8169d1e152d": {
@@ -19847,6 +19825,18 @@
     "fr": "Options d’axe des sparklines, cellules masquées et vides, et groupement, dissociation et effacement"
    }
   },
+  "bc0a968f1f7b7d1dcffd7df0ca1d6423b44b2fa17b02efa3ffd17947ba49b745": {
+   "drop": false,
+   "en": "In JeffCrunch, Insert > Sparklines makes line, column, and win/loss sparklines from a row or column of values, into one cell or a group of cells. They are drawn inside their cells, can color the high, low, first, last, and negative points, and are saved with the sheet.",
+   "es": "En JeffCrunch, Insertar > Minigráficos crea minigráficos de línea, de columna y de ganancia/pérdida a partir de una fila o columna de valores, en una celda o en un grupo de celdas. Se dibujan dentro de sus celdas, pueden colorear los puntos más alto, más bajo, primero, último y negativos, y se guardan con la hoja.",
+   "fr": "Dans JeffCrunch, Insertion > Graphiques sparkline crée des sparklines en courbe, en colonne et gain/perte à partir d’une ligne ou d’une colonne de valeurs, dans une cellule ou un groupe de cellules. Elles sont dessinées dans leurs cellules, peuvent colorer les points le plus haut, le plus bas, le premier, le dernier et les points négatifs, et sont enregistrées avec la feuille.",
+   "soon": {
+    "drop": false,
+    "en": "Sparklines: date axis with proportional spacing, and hidden rows and columns left out of the drawing",
+    "es": "Minigráficos: eje de fechas con espaciado proporcional y exclusión de filas y columnas ocultas en el dibujo",
+    "fr": "Sparklines : axe de dates avec espacement proportionnel et exclusion des lignes et colonnes masquées du dessin"
+   }
+  },
   "bc0b94d1aa27281b181db57d0ea0767d2855fd17ad5588a2cc50e0460c6e8108": {
    "drop": true,
    "en": "",
@@ -20289,18 +20279,6 @@
     "en": "Hyphenation: set from a menu",
     "es": "Separación de palabras: definir desde un menú",
     "fr": "Césure : définir depuis un menu"
-   }
-  },
-  "c45014a5a6a9c665e2b82b4db6fef0c81007e6a40469636fe3852c22427438bd": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Sparkline data editing, type (line, column, or win/loss), and point display options",
-    "es": "Edición de datos de minigráficos, tipo (línea, columna o ganancia/pérdida) y opciones de visualización de puntos",
-    "fr": "Modification des données des sparklines, type (ligne, colonne ou gain/perte) et options d’affichage des points"
    }
   },
   "c45acd284a8704f7477ea67a11612b4d09349462ddef91768ca0309c9afe7b54": {
@@ -22499,6 +22477,18 @@
     "fr": ""
    }
   },
+  "e3671097c867a9909c5e44ca165b913aafc4723823247e76009bc8550cdb6515": {
+   "drop": false,
+   "en": "In JeffCrunch, trendlines of every kind can be drawn over a chart with a legend entry, and the Trendline menu of Chart Parts sets the kind, the equation, and R-squared.",
+   "es": "En JeffCrunch, las líneas de tendencia de todos los tipos se dibujan sobre el gráfico con una entrada en la leyenda, y el menú Línea de tendencia de Elementos del gráfico permite definir el tipo, la ecuación y R cuadrado.",
+   "fr": "Dans JeffCrunch, les courbes de tendance de tous types sont tracées sur le graphique avec une entrée de légende, et le menu Courbe de tendance des éléments de graphique permet de définir le type, l’équation et le R carré.",
+   "soon": {
+    "drop": false,
+    "en": "Error bars, data table, drop lines, high-low lines, series lines, and up/down bars",
+    "es": "Barras de error, tabla de datos, líneas de caída, líneas de máximos y mínimos, líneas de series y barras ascendentes/descendentes",
+    "fr": "Barres d’erreur, tableau de données, lignes de projection, lignes haut-bas, lignes de séries et barres haussières/baissières"
+   }
+  },
   "e39f7d3d0ce51c1ceab13b26f14e1594f5a759bc6c8ca4af9d158fa808f0f588": {
    "drop": false,
    "en": "Saving an old `.ppt`, `.pps`, or `.pot` file asks for a new name and saves a `.pptx` (a `.ppsx` for a `.pps`), never writing over the old file.",
@@ -22672,6 +22662,18 @@
    "en": "JeffPub has frames for text boxes, pictures, shapes, lines, arrows, tables, Text Art, groups, and embedded objects.",
    "es": "JeffPub tiene marcos para cuadros de texto, imágenes, formas, líneas, flechas, tablas, Text Art, grupos y objetos incrustados.",
    "fr": "JeffPub propose des cadres pour les zones de texte, images, formes, lignes, flèches, tableaux, Text Art, groupes et objets incorporés.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e5a077d0419b7ffc41d667ed222064be7e236e044ee37acea97eda1284630e16": {
+   "drop": false,
+   "en": "In JeffCrunch, a sparkline can take one of twelve styles, a color for the line or bars, a color for each kind of point, and one of nine line weights.",
+   "es": "En JeffCrunch, un minigráfico puede tener uno de doce estilos, un color para la línea o las barras, un color para cada tipo de punto y uno de nueve grosores de línea.",
+   "fr": "Dans JeffCrunch, une sparkline peut avoir l’un des douze styles, une couleur pour la ligne ou les barres, une couleur pour chaque type de point et l’une des neuf épaisseurs de ligne.",
    "soon": {
     "drop": true,
     "en": "",
