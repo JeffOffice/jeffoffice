@@ -234,6 +234,14 @@ private Q_SLOTS:
                 w->insertChart(jp::office::sheet::ChartKind::Column);
                 waitFor([&] { return quiet(w); });
             }),
+            in(QStringLiteral("a chart selected, and a second sheet"), [](CrunchWindow *w) {
+                w->act(QStringLiteral("sheet.insertEnd"))->trigger();
+                waitFor([&] { return quiet(w); });
+                w->setActiveSheet(0);
+                w->view()->selectRange(0, 0, 1, 1);
+                w->insertChart(jp::office::sheet::ChartKind::Column);
+                waitFor([&] { return quiet(w); });
+            }),
             in(QStringLiteral("two charts, the later one selected"), [](CrunchWindow *w) {
                 w->view()->selectRange(0, 0, 1, 1);
                 w->insertChart(jp::office::sheet::ChartKind::Column);
@@ -383,6 +391,7 @@ private Q_SLOTS:
             {QStringLiteral("notes."), {QStringLiteral("a note in two cells, the later one selected"), QStringLiteral("a note in two cells, the earlier one selected"), QStringLiteral("a cell with a note")}},
             {QStringLiteral("object."), {QStringLiteral("two charts, the later one selected")}},
             {QStringLiteral("chartdesign."), {QStringLiteral("a chart selected")}},
+            {QStringLiteral("chartdesign.moveChart"), {QStringLiteral("a chart selected, and a second sheet")}},
             {QStringLiteral("link."), {QStringLiteral("a cell with a link")}},
             {QStringLiteral("filter."), {QStringLiteral("a filter on"), QStringLiteral("a filter on, and a value changed after")}},
             {QStringLiteral("printarea."), {QStringLiteral("a print area set")}},

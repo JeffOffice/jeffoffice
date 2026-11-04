@@ -776,6 +776,17 @@ private Q_SLOTS:
         QTRY_VERIFY(again.w.objects()->shownSheet() == 1 && again.w.objects()->layer()->count() == 1);
     }
 
+    // Move Chart is dimmed when the workbook has no other worksheet to move the chart to.
+    void moveChartNeedsAnotherWorksheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.axisV"))->isEnabled());
+        QVERIFY(!e.win.w.act(QStringLiteral("chartdesign.moveChart"))->isEnabled());
+    }
+
     void theChartDesignTabAppearsWithAChart()
     {
         EditWindow e;

@@ -765,7 +765,15 @@ void CrunchWindow::updateChartState()
     const bool chart = picked && m_objects->kindOf(m_sheet, id) == ObjectKind::Chart;
     bool editable = false;
     if (chart) editable = m_objects->canEditChart(m_sheet, id);
-    for (const char *name : {"chartdesign.selectData", "chartdesign.changeType", "chartdesign.switch", "chartdesign.moveChart"}) act(QString::fromLatin1(name))->setEnabled(editable);
+    for (const char *name : {"chartdesign.selectData", "chartdesign.changeType", "chartdesign.switch"}) act(QString::fromLatin1(name))->setEnabled(editable);
+    {
+        // (Move Chart needs another worksheet to go to)
+        bool other = false;
+        if (editable && m_loaded && m_loaded->book)
+            for (int i = 0; i < m_loaded->book->info().sheets.size(); ++i)
+                if (i != m_sheet && !m_loaded->book->info().sheets[i].deleted && m_loaded->book->info().sheets[i].kind == jp::office::sheet::SheetKind::Worksheet) other = true;
+        act(QStringLiteral("chartdesign.moveChart"))->setEnabled(other);
+    }
     {
         const ChartElements e = editable && id >= 0 ? elementsOf(m_objects->chartNow(m_sheet, id)) : ChartElements();
         act(QStringLiteral("chartdesign.axisH"))->setEnabled(e.hasHorizontal);
