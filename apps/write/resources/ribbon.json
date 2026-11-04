@@ -261,6 +261,10 @@
           "keytip": "ZG",
           "items": [
             {
+              "large": "insert.blankPage",
+              "keytip": "BL"
+            },
+            {
               "large": "insert.pageBreak",
               "keytip": "BR"
             }
@@ -285,6 +289,14 @@
           "keytip": "ZK",
           "items": [
             {
+              "large": "insert.hyperlink",
+              "keytip": "HL"
+            },
+            {
+              "large": "insert.removeHyperlink",
+              "keytip": "RL"
+            },
+            {
               "large": "insert.bookmark",
               "keytip": "BM"
             },
@@ -295,6 +307,85 @@
             {
               "large": "insert.field",
               "keytip": "FD"
+            }
+          ]
+        },
+        {
+          "name": "Text",
+          "keytip": "ZX",
+          "items": [
+            {
+              "large": "insert.textFromFile",
+              "keytip": "TF"
+            }
+          ]
+        },
+        {
+          "name": "Symbols",
+          "keytip": "ZS",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.symbol",
+                "text": "Symbol",
+                "icon": "omega"
+              },
+              "keytip": "U",
+              "menu": "@symbolMenu"
+            },
+            {
+              "large": {
+                "id": "ribbon.special",
+                "text": "Special Characters",
+                "icon": "pilcrow"
+              },
+              "keytip": "SC",
+              "menu": [
+                "insert.special.nbsp",
+                "insert.special.nbHyphen",
+                "insert.special.optHyphen",
+                "-",
+                "insert.special.enDash",
+                "insert.special.emDash",
+                "insert.special.enSpace",
+                "insert.special.emSpace",
+                "-",
+                "insert.special.openDouble",
+                "insert.special.closeDouble",
+                "insert.special.openSingle",
+                "insert.special.closeSingle",
+                "-",
+                "insert.special.lineBreak",
+                "insert.special.noWidthBreak",
+                "insert.special.noWidthNoBreak"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Design",
+      "keytip": "G",
+      "groups": [
+        {
+          "name": "Page Background",
+          "keytip": "PB",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Page Color:"
+                },
+                {
+                  "widget": "pageColor",
+                  "keytip": "PC"
+                }
+              ]
+            },
+            {
+              "large": "design.pageBorders",
+              "keytip": "PG"
             }
           ]
         }
@@ -323,8 +414,10 @@
                 "layout.margins.narrow",
                 "layout.margins.moderate",
                 "layout.margins.wide",
+                "layout.margins.mirrored",
                 "-",
-                "layout.pageSetup"
+                "layout.mirrorMargins",
+                "layout.customMargins"
               ]
             },
             {
@@ -358,7 +451,11 @@
               "menu": [
                 "layout.columns.1",
                 "layout.columns.2",
-                "layout.columns.3"
+                "layout.columns.3",
+                "layout.columns.left",
+                "layout.columns.right",
+                "-",
+                "layout.columns.more"
               ]
             },
             {
@@ -369,8 +466,46 @@
               },
               "keytip": "B",
               "menu": [
+                {
+                  "section": "Page Breaks"
+                },
                 "insert.pageBreak",
-                "layout.sectionBreak"
+                "layout.columnBreak",
+                {
+                  "section": "Section Breaks"
+                },
+                "layout.sectionBreak",
+                "layout.sectionBreak.continuous",
+                "layout.sectionBreak.evenPage",
+                "layout.sectionBreak.oddPage"
+              ]
+            },
+            {
+              "large": {
+                "id": "ribbon.lineNumbers",
+                "text": "Line Numbers",
+                "icon": "list-ordered"
+              },
+              "keytip": "LN",
+              "menu": [
+                "layout.lineNumbers.none",
+                "layout.lineNumbers.continuous",
+                "layout.lineNumbers.eachPage",
+                "layout.lineNumbers.eachSection",
+                "-",
+                "layout.lineNumbers.options"
+              ]
+            },
+            {
+              "large": {
+                "id": "ribbon.hyphenation",
+                "text": "Hyphenation",
+                "icon": "whole-word"
+              },
+              "keytip": "HY",
+              "menu": [
+                "layout.hyphenation.none",
+                "layout.hyphenation.auto"
               ]
             }
           ]
@@ -939,6 +1074,24 @@
             {
               "large": "view.ruler",
               "keytip": "SR"
+            },
+            {
+              "large": "table.gridlines",
+              "keytip": "SG"
+            },
+            {
+              "large": "view.navigationPane",
+              "keytip": "SN"
+            }
+          ]
+        },
+        {
+          "name": "Focus",
+          "keytip": "FO",
+          "items": [
+            {
+              "large": "view.focus",
+              "keytip": "FM"
             }
           ]
         },

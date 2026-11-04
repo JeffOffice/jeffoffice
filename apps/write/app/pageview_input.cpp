@@ -3,6 +3,7 @@
 #include "app/pageview.h"
 
 #include "core/editops.h"
+#include "core/linkops.h"
 #include "core/refops.h"
 #include "core/tableops.h"
 #include "core/writeprops.h"
@@ -382,6 +383,12 @@ void PageView::mousePressEvent(QMouseEvent *e)
     if (e->button() != Qt::LeftButton) return;
     // Ctrl+click on a link inside the text (a reference or a table of contents line with its link, or a link to a bookmark) goes to what it names.
     if ((e->modifiers() & Qt::ControlModifier) && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story()) {
+        const Hyperlink link = hyperlinkAt(*m_doc, at);
+        if (link.valid() && link.anchor.isEmpty() && !link.address.isEmpty()) {
+            if (mayFollow(link.address)) Q_EMIT linkFollowed(link.address);
+            else Q_EMIT notice(tr("JeffWrite only follows links to web and email addresses."));
+            return;
+        }
         const int target = linkTargetAt(*m_doc, at);
         if (target >= 0) {
             QTextCursor c(m_doc->story());

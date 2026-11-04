@@ -9,6 +9,7 @@
 #include "core/writedoc.h"
 
 #include <QHash>
+#include <QPointer>
 #include <QKeySequence>
 #include <QSet>
 #include <QTimer>
@@ -34,6 +35,7 @@ class Ribbon;
 struct RibbonParts;
 class SizeCombo;
 class StylesPane;
+class NavigationPane;
 class WriteFileScreen;
 class WriteFindPane;
 struct MailUi;
@@ -98,6 +100,10 @@ public:
     // Writes the file; the document is saved and takes the file's name (not for a copy, which is only written). On failure says why and leaves it unsaved.
     bool saveTo(const QString &path, bool asCopy = false);
     // What Insert > Picture asks for a file with: the file dialog, unless this stands in for it (tests): the path chosen, empty for none.
+    // What a followed link is opened with: the system's browser or mail program, unless this stands in for it (tests): the address.
+    // What Insert > Text from File asks for a file with: the file dialog, unless this stands in for it (tests): the path chosen, empty for none.
+    void setTextFileChooser(const std::function<QString()> &chooser) { m_textFileChooser = chooser; }
+    void setLinkOpener(const std::function<void(const QString &)> &opener) { m_linkOpener = opener; }
     void setPictureChooser(const std::function<QString()> &chooser) { m_pictureChooser = chooser; }
     write::Ruler *ruler() const { return m_ruler; }
     // What Save As asks for a name with: the file dialog, unless this stands in for it (tests): the name to suggest and the filter to
@@ -126,6 +132,13 @@ public:
     void showSpelling();
     void showHelp(const QString &topic = QString());
     HelpView *helpView() const { return m_help; }
+
+    // The Navigation pane on the left (made when first shown, so null before): View > Navigation Pane.
+    void showNavigationPane(bool show = true);
+    NavigationPane *navigationPane() const { return m_nav; }
+    // Focus mode: the ribbon, ruler, status bar, and panes hidden and the window full screen (View > Focus, F11; Esc leaves it).
+    void setFocusMode(bool on);
+    bool focusMode() const { return m_focusMode; }
 
     // The Styles pane on the right (made when first asked for, so null before).
     void showStylesPane();
@@ -186,6 +199,14 @@ private:
     void updateFieldsNow();
     void createTableActions();
     void createPictureActions();
+    void createInsertActions();
+    void createLayoutExtraActions();
+    void createViewExtraActions();
+    void refreshViewUi();
+    void layoutRibbonParts(RibbonParts &parts);
+    void refreshLayoutUi();
+    void insertRibbonParts(RibbonParts &parts);
+    void refreshInsertUi();
     void createStyleActions();
     void createMailActions();
     void mailRibbonParts(RibbonParts &parts);
@@ -257,8 +278,18 @@ private:
     QList<FontCombo *> m_fontCombos;
     QList<SizeCombo *> m_sizeCombos;
     QList<ColorButton *> m_colorButtons;
+    QList<ColorButton *> m_pageColorButtons;   // (Design > Page Color)
     QList<MeasureSpin *> m_indentFields;
     QWidget *m_styleGallery = nullptr;
+    std::function<void(const QString &)> m_linkOpener;
+    std::function<QString()> m_textFileChooser;
+    NavigationPane *m_nav = nullptr;
+    QDockWidget *m_navDock = nullptr;
+    bool m_focusMode = false;
+    struct FocusWas {
+        bool fullScreen = false, ribbon = true, ruler = true, status = true;
+        QList<QPointer<QDockWidget>> docks;
+    } m_focusWas;
     StylesPane *m_styles = nullptr;
     QDockWidget *m_stylesDock = nullptr;
     PainterMode m_painter = PainterMode::Off;

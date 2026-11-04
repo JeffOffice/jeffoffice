@@ -135,6 +135,8 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
 
 WriteWindow::~WriteWindow()
 {
+    // (The pane's dock is taken down with the window's other children, after this: it must not reach the window's commands then.)
+    if (m_navDock) m_navDock->disconnect(this);
     // (The view lets go of the document before the document goes.)
     m_view->setDocument(nullptr);
 }
@@ -233,6 +235,9 @@ void WriteWindow::createActions()
     createRefsActions();
     createTableActions();
     createPictureActions();
+    createInsertActions();
+    createLayoutExtraActions();
+    createViewExtraActions();
     createStyleActions();
     createMailActions();
 }
@@ -345,6 +350,8 @@ void WriteWindow::createLayoutActions()
             changeSection([n](flow::Section &s) {
                 s.columns = n;
                 s.columnGap = 36;
+                s.columnWidths.clear();
+                s.columnSpaces.clear();
             });
         }, true);
     struct Paper { const char *id; const char *text; double w, h; };
@@ -432,6 +439,9 @@ void WriteWindow::refreshUi()
         refreshTableUi();
         refreshPictureUi();
         refreshMailUi();
+        refreshInsertUi();
+        refreshLayoutUi();
+        refreshViewUi();
         return;
     }
     QTextCursor &c = m_view->cursor();
@@ -556,6 +566,9 @@ void WriteWindow::refreshUi()
     refreshTableUi();
     refreshPictureUi();
     refreshMailUi();
+    refreshInsertUi();
+    refreshLayoutUi();
+    refreshViewUi();
 }
 
 void WriteWindow::updateStatus()
@@ -634,6 +647,14 @@ bool WriteWindow::eventFilter(QObject *o, QEvent *e)
         auto *w = qobject_cast<QWidget *>(o);
         if (w && w->window() == this) {
             setPainterMode(PainterMode::Off);
+            return true;
+        }
+    }
+    // Escape leaves Focus mode.
+    if (e->type() == QEvent::KeyPress && static_cast<QKeyEvent *>(e)->key() == Qt::Key_Escape && m_focusMode) {
+        auto *w = qobject_cast<QWidget *>(o);
+        if (w && w->window() == this) {
+            setFocusMode(false);
             return true;
         }
     }

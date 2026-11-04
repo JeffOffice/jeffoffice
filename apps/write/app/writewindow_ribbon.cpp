@@ -104,6 +104,8 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
 {
     tableRibbonParts(parts);
     pictureRibbonParts(parts);
+    insertRibbonParts(parts);
+    layoutRibbonParts(parts);
     mailRibbonParts(parts);
     parts.widgets[QStringLiteral("fontCombo")] = [this]() -> QWidget * {
         auto *font = new FontCombo();
@@ -158,7 +160,7 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         auto *m = new QMenu(owner);
         for (const char *id : {"letter", "legal", "executive", "a3", "a4", "a5", "b5"}) m->addAction(act(QStringLiteral("layout.size.") + QLatin1String(id)));
         m->addSeparator();
-        m->addAction(act("layout.pageSetup"));
+        m->addAction(act("layout.moreSizes"));
         return m;
     };
     parts.widgets[QStringLiteral("styleGallery")] = [this]() -> QWidget * {
