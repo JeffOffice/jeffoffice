@@ -515,6 +515,68 @@ private Q_SLOTS:
         QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 4);
     }
 
+    // An object taken away and saved is not in the file, so Undo is not offered for the step that took it away (it could not be written back): nothing is silently lost, the saved file keeps what it
+    // was, and a save with nothing else done does not change it. (Undo goes back as far as the last delete saved, no further: see EditSession::forgetDeletesInFile.)
+    void anObjectDeletedAndSavedIsNotOfferedBackByUndo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(drawingBook()));
+        QTRY_VERIFY(shown(e, 5));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        for (const int id : {1, 0}) {
+            o->layer()->select(id);
+            QTest::keyClick(e.view(), Qt::Key_Delete);
+            QVERIFY(o->isDeleted(0, id));
+        }
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        const QMap<QString, QByteArray> parts = savedParts(e.path);
+        QVERIFY(!parts.contains(QStringLiteral("xl/media/image1.png")));
+        QVERIFY(!parts.contains(QStringLiteral("xl/charts/chart1.xml")));
+        QVERIFY2(!e.win.w.session()->canUndo(), "Undo is not offered for a delete that is in the saved file");
+        QVERIFY(!e.win.w.isModified());
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 3);
+    }
+
+    // An object put in, saved, and taken away by Undo leaves nothing of itself in the next save: no part, no relationship, no entry of the content types.
+    void anObjectAddedSavedAndUndoneLeavesNothingBehind()
+    {
+        EditWindow e;
+        QVERIFY(e.open(drawingBook()));
+        QTRY_VERIFY(shown(e, 5));
+        crunch::SheetObjects *o = e.win.w.objects();
+        e.view()->selectRange(0, 0, 3, 2);
+        e.win.w.insertChart(jp::office::sheet::ChartKind::Line);
+        QVERIFY(e.settle());
+        QCOMPARE(int(o->idsOf(0).size()), 6);
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY(savedParts(e.path).contains(QStringLiteral("xl/charts/chart2.xml")));
+        QVERIFY(e.win.w.session()->canUndo());
+        pressUndo(e.view());
+        saved.clear();
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        const QMap<QString, QByteArray> parts = savedParts(e.path);
+        QVERIFY2(!parts.contains(QStringLiteral("xl/charts/chart2.xml")), "the chart's part is gone");
+        QVERIFY(parts.contains(QStringLiteral("xl/charts/chart1.xml")));
+        QVERIFY2(!hasOverride(parts, QStringLiteral("/xl/charts/chart2.xml")), "its entry of the content types is gone");
+        QVERIFY2(!parts.value(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels")).contains("chart2"), "its relationship is gone");
+        office::Package after;
+        QString why;
+        QVERIFY(after.readLazyFile(e.path, &why));
+        for (const office::Relationship &r : after.relationships(QStringLiteral("/xl/drawings/drawing1.xml")))
+            QVERIFY2(r.external || after.hasPart(r.target), qPrintable(r.target));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 5);
+    }
+
     // Hostile drawings: more anchors than may be read, groups nested past the limit, a picture that says it has ten billion pixels, a chart of many series that read whole columns, and
     // objects at the far corner of the sheet. The window opens each, makes what it can, and the work of a paint stays what the layer bounds it to.
     void hostileDrawingsAreBounded()
