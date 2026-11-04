@@ -22,6 +22,7 @@
 #include "odt/odttemplate.h"
 
 #include <QAction>
+#include <QCryptographicHash>
 #include <QApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -135,6 +136,8 @@ void WriteWindow::createFileActions()
     mk("file.saveAs", tr("Save As"), "save-all", QKeySequence(Qt::Key_F12), [this] { saveAs(); });
     mk("file.print", tr("Print…"), "printer", QKeySequence::Print, [this] { showFileScreen(QStringLiteral("print")); });
     mk("file.exportPdf", tr("Export to PDF…"), "file-output", QKeySequence(), [this] { exportPdf(); });
+    mk("edit.lastPlace", tr("Go to Last Edit"), "", QKeySequence(Qt::SHIFT | Qt::Key_F5), [this] { goToLastPlace(); });
+    act("edit.lastPlace")->setEnabled(false);
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] {
         // The shared pages (General, Proofing); JeffWrite has no pages of its own yet.
         Editor stand;
@@ -236,6 +239,8 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
         target->setReadOnly(true);
         target->statusBar()->showMessage(tr("Marked as final: this document is open for reading only. Open File > Info and choose Marked as Final to edit it."), 12000);
     }
+    // The file opens where editing stopped (a template or a copy is a new document, and starts at the top).
+    if (!tmpl && !copy) target->returnToPlace(path);
     target->m_odtNoted.clear();
     target->m_protectedPath = leftOut && !tmpl && !copy && !isOldBinary(path) ? path : QString();
     if (tmpl || copy) target->m_doc->setModified(true);
@@ -367,10 +372,29 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
             m_doc->setPackageProps(unmarked);
         }
     }
-    if (!backupBeforeSave(this, path)) return false;
     QStringList notKept;
     QApplication::setOverrideCursor(Qt::WaitCursor);
     QByteArray bytes = odt ? m_doc->toOdt(&err, &notKept) : m_doc->toDocx(&err, tmpl);
+    QApplication::restoreOverrideCursor();
+    // What the format would lose is said before anything is written, with the choice of a .docx beside it.
+    if (odt && !bytes.isEmpty() && (m_formatAsker || !m_notifier)) {
+        QStringList fresh;
+        for (const QString &what : std::as_const(notKept))
+            if (!m_odtNoted.contains(what)) fresh << what;
+        if (!fresh.isEmpty()) {
+            const FormatChoice choice = askFormatChoice(fresh);
+            if (choice == FormatChoice::Cancel) return false;
+            if (choice == FormatChoice::Docx) {
+                QString beside = QFileInfo(path).absolutePath() + QLatin1Char('/') + QFileInfo(path).completeBaseName();
+                QString target = beside + QStringLiteral(".docx");
+                for (int n = 2; QFileInfo::exists(target); ++n) target = beside + QStringLiteral(" (%1).docx").arg(n);
+                return saveTo(target, asCopy);
+            }
+            for (const QString &what : fresh) m_odtNoted.insert(what);   // (said now: not said again afterward)
+        }
+    }
+    if (!backupBeforeSave(this, path)) return false;
+    QApplication::setOverrideCursor(Qt::WaitCursor);
     if (ott && !bytes.isEmpty()) bytes = office::odt::odfAsTemplate(bytes);
     if (m_fileProtected && !bytes.isEmpty()) bytes = office::encryptPackage(bytes, m_filePassword);
     bool ok = !bytes.isEmpty();
@@ -402,6 +426,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     }
     m_doc->setModified(false);
     m_path = path;
+    rememberPlace();
     m_doc->filePath = path;
     if (isReadOnly() && !m_readOnlyByProtection) setReadOnly(false);   // (a protected document is saved as it is: the protection stays)
     m_recoveredFrom.clear();
@@ -411,6 +436,79 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     updateTitle();
     statusBar()->showMessage(tr("Saved %1").arg(QFileInfo(path).fileName()), 4000);
     return true;
+}
+
+WriteWindow::FormatChoice WriteWindow::askFormatChoice(const QStringList &lost)
+{
+    if (m_formatAsker) return m_formatAsker(lost);
+    QMessageBox box(QMessageBox::Warning, tr("Save"), tr("An OpenDocument text file (.odt) can't hold some of what this document has. If you save it here, these parts are saved as they stand now or left out:\n\n%1").arg(lost.join(QLatin1Char('\n'))), QMessageBox::NoButton, this);
+    box.setTextFormat(Qt::PlainText);
+    QPushButton *keep = box.addButton(tr("Save as .odt Anyway"), QMessageBox::AcceptRole);
+    QPushButton *docx = box.addButton(tr("Save as .docx Instead"), QMessageBox::ActionRole);
+    box.addButton(QMessageBox::Cancel);
+    box.setDefaultButton(docx);
+    box.exec();
+    if (box.clickedButton() == keep) return FormatChoice::Keep;
+    if (box.clickedButton() == docx) return FormatChoice::Docx;
+    return FormatChoice::Cancel;
+}
+
+// ---- Where editing stopped
+
+QString WriteWindow::placeKey(const QString &path)
+{
+    const QString canonical = QFileInfo(path).canonicalFilePath();
+    const QByteArray id = QCryptographicHash::hash((canonical.isEmpty() ? QFileInfo(path).absoluteFilePath() : canonical).toUtf8(), QCryptographicHash::Sha1).toHex();
+    return QStringLiteral("places/") + QString::fromLatin1(id);
+}
+
+void WriteWindow::rememberPlace()
+{
+    if (!m_doc || m_path.isEmpty()) return;
+    const QTextCursor &c = m_view->cursor();
+    // (the place in the text, not in a header or a note being edited)
+    if (c.document() != m_doc->story()) return;
+    Settings::get().setValue(placeKey(m_path), c.position());
+}
+
+void WriteWindow::returnToPlace(const QString &path)
+{
+    if (!m_doc) return;
+    bool ok = false;
+    const int at = Settings::get().value(placeKey(path)).toInt(&ok);
+    if (!ok || at <= 0) return;
+    QTextCursor c(m_doc->story());
+    c.setPosition(std::clamp(at, 0, std::max(0, m_doc->story()->characterCount() - 1)));
+    m_view->showCursor(c);
+}
+
+void WriteWindow::recordPlace(int position)
+{
+    m_placeStep = 0;
+    // (an edit near the last one is the same place)
+    if (!m_editPlaces.isEmpty() && qAbs(m_editPlaces.first() - position) <= 100) m_editPlaces[0] = position;
+    else {
+        m_editPlaces.prepend(position);
+        while (m_editPlaces.size() > 3) m_editPlaces.removeLast();
+    }
+    act("edit.lastPlace")->setEnabled(true);
+}
+
+void WriteWindow::resetEditPlaces()
+{
+    m_editPlaces.clear();
+    m_placeStep = 0;
+    act("edit.lastPlace")->setEnabled(false);
+}
+
+void WriteWindow::goToLastPlace()
+{
+    if (!m_doc || m_editPlaces.isEmpty()) return;
+    const int at = m_editPlaces.at(m_placeStep % m_editPlaces.size());
+    ++m_placeStep;
+    QTextCursor c(m_doc->story());
+    c.setPosition(std::clamp(at, 0, std::max(0, m_doc->story()->characterCount() - 1)));
+    m_view->showCursor(c);
 }
 
 // ---- Automatic recovery

@@ -128,6 +128,17 @@ public:
     // What a short message to the person (a sentence said at Save, or on a refusal to write over a file) is shown with: a message box, unless this stands in for it
     // (tests): the title and the sentence.
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
+    // What asks the person before a save to a format that holds less than the document (the parts it would lose, listed): Keep saves it there anyway, Docx
+    // saves a .docx beside it instead, Cancel saves nothing. A message box, unless this stands in for it (tests). Without it, and with a notifier standing in
+    // for the messages, the save goes ahead and says afterward what was left out.
+    enum class FormatChoice { Keep, Docx, Cancel };
+    void setFormatAsker(const std::function<FormatChoice(const QStringList &)> &asker) { m_formatAsker = asker; }
+    // Where editing stopped: the place is kept with the file's name when the window closes and when the file is saved, and the file opens there again.
+    void rememberPlace();
+    // The last three places the text was edited, the latest first (Shift+F5 goes to each in turn).
+    QList<int> editPlaces() const { return m_editPlaces; }
+    void resetEditPlaces();
+    void goToLastPlace();
     // What a printer is made ready with after the window has set it up (tests: a printer that writes to a file stands in for a real one).
     void setPrinterPreparer(const std::function<void(QPrinter &)> &preparer) { m_printerPreparer = preparer; }
     // Automatic recovery: a copy of unsaved work (the timer writes it at the interval Options sets), and the copies a run that crashed left.
@@ -366,6 +377,13 @@ private:
     std::function<bool(const QUrl &)> m_urlOpener;
     std::function<void(const QString &, const QString &)> m_notifier;
     std::function<void(QPrinter &)> m_printerPreparer;
+    std::function<FormatChoice(const QStringList &)> m_formatAsker;
+    QList<int> m_editPlaces;
+    int m_placeStep = 0;
+    void recordPlace(int position);
+    void returnToPlace(const QString &path);
+    static QString placeKey(const QString &path);
+    FormatChoice askFormatChoice(const QStringList &lost);
     QSet<QString> m_odtNoted;       // (what the person was told an .odt file can't hold: told again only of what is new)
     bool m_macrosNoted = false;     // (the person was told that the macros are not saved)
     QString m_filePassword;         // the password the file opened with or was given: the file is written protected with it (never shown, wiped when the window goes)
