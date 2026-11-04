@@ -93,6 +93,7 @@ void CrunchWindow::updateEditActions()
     act("file.save")->setEnabled(canSave);
     act("file.saveAs")->setEnabled(canSave);
     updatePivotFieldActions();
+    updateSparklineTab();
     updateFormatState(false);
 }
 

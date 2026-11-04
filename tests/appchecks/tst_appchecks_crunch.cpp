@@ -195,6 +195,24 @@ private Q_SLOTS:
                 waitFor([&] { return quiet(w); });
                 w->view()->selectRange(0, 0, 1, 1);
             }),
+            in(QStringLiteral("a cell with a sparkline selected"), [](CrunchWindow *w) {
+                // two groups, the first of two sparklines, and the cells of all of them selected (so that Group and Ungroup have something to do)
+                auto group = [](const QVector<quint32> &rows) {
+                    jp::office::sheet::SparklineGroup g;
+                    g.series = jp::office::sheet::ColorSpec::fromRgb(0x376092);
+                    for (const quint32 r : rows) {
+                        jp::office::sheet::Sparkline sp;
+                        sp.row = r;
+                        sp.col = 6;
+                        sp.source = QStringLiteral("Sheet1!$A$1:$C$1");
+                        g.sparklines.append(sp);
+                    }
+                    return g;
+                };
+                w->session()->setSparklines(0, {group({4, 5}), group({6})}, QStringLiteral("Create Sparklines"));
+                waitFor([&] { return quiet(w); });
+                w->view()->selectRange(4, 6, 6, 6);
+            }),
             in(QStringLiteral("a change to undo"), [](CrunchWindow *w) { enter(w, 4, 4, QStringLiteral("9")); }),
             in(QStringLiteral("a change undone"), [](CrunchWindow *w) {
                 enter(w, 4, 4, QStringLiteral("9"));
@@ -375,6 +393,7 @@ private Q_SLOTS:
             {QStringLiteral("format.unhide"), {QStringLiteral("a hidden row and column, around them selected")}},
             {QStringLiteral("fmt.merge"), {QStringLiteral("a merged block"), QStringLiteral("a block of cells selected")}},
             {QStringLiteral("table."), {QStringLiteral("the cursor in a table")}},
+            {QStringLiteral("spark."), {QStringLiteral("a cell with a sparkline selected")}},
             {QStringLiteral("view.pageBreaks"), {QStringLiteral("a sheet that runs over a page")}},
         };
         m_app.skipped = {};

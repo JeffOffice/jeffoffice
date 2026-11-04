@@ -709,6 +709,7 @@ private:
     void editSparklineData(bool wholeGroup);
     void groupSparklines(bool together);
     void clearSparklines(bool wholeGroups);
+    QStringList m_sparklineActions;                            // the commands of the Sparkline tab (on while the selection holds a sparkline)
     QVector<int> selectedSparklineGroups() const;              // the groups of the sparklines in the selected cells
     void changeSparklineGroups(const std::function<void(jp::office::sheet::SparklineGroup *)> &change, const QString &text);
     bool makeSparklines(const QString &data, const QString &where, QVector<jp::office::sheet::Sparkline> *out, QString *why) const;

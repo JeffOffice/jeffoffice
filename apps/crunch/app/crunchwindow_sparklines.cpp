@@ -397,7 +397,8 @@ void CrunchWindow::createSparklineActions()
         mk(QStringLiteral("spark.type.") + QLatin1String(k.id), text, k.icon, QKeySequence(), [this, type] {
             changeSparklineGroups([type](SparklineGroup *g) { g->type = type; }, tr("Sparkline Type"));
         }, true);
-        m_opsActions << QStringLiteral("spark.insert.") + QLatin1String(k.id) << QStringLiteral("spark.type.") + QLatin1String(k.id);
+        m_opsActions << QStringLiteral("spark.insert.") + QLatin1String(k.id);
+        m_sparklineActions << QStringLiteral("spark.type.") + QLatin1String(k.id);
     }
     struct Show {
         const char *id;
@@ -415,7 +416,7 @@ void CrunchWindow::createSparklineActions()
             const bool on = act(id)->isChecked();
             changeSparklineGroups([field, on](SparklineGroup *g) { g->*field = on; }, tr("Show Sparkline Points"));
         }, true);
-        m_opsActions << id;
+        m_sparklineActions << id;
     }
     mk("spark.editGroup", tr("Edit Group Location and Data…"), "square-pen", QKeySequence(), [this] { editSparklineData(true); });
     mk("spark.editOne", tr("Edit Single Sparkline's Data…"), "pencil", QKeySequence(), [this] { editSparklineData(false); });
@@ -437,7 +438,7 @@ void CrunchWindow::createSparklineActions()
         mk(id, QCoreApplication::translate("jp::CrunchWindow", e.text), QString(), QKeySequence(), [this, how] {
             changeSparklineGroups([how](SparklineGroup *g) { g->empty = how; }, tr("Empty Cells in Sparklines"));
         }, true);
-        m_opsActions << id;
+        m_sparklineActions << id;
     }
     mk("spark.hidden", tr("Show Data in Hidden Rows and Columns"), QString(), QKeySequence(), [this] {
         const bool on = act("spark.hidden")->isChecked();
@@ -451,16 +452,27 @@ void CrunchWindow::createSparklineActions()
         const bool on = act("spark.axis.rtl")->isChecked();
         changeSparklineGroups([on](SparklineGroup *g) { g->rightToLeft = on; }, tr("Sparkline Axis"));
     }, true);
-    m_opsActions << QStringLiteral("spark.editGroup") << QStringLiteral("spark.editOne") << QStringLiteral("spark.group") << QStringLiteral("spark.ungroup") << QStringLiteral("spark.clearSelected")
+    m_sparklineActions << QStringLiteral("spark.editGroup") << QStringLiteral("spark.editOne") << QStringLiteral("spark.group") << QStringLiteral("spark.ungroup") << QStringLiteral("spark.clearSelected")
                  << QStringLiteral("spark.clearGroups") << QStringLiteral("spark.hidden") << QStringLiteral("spark.axis.show") << QStringLiteral("spark.axis.rtl");
 }
 
 void CrunchWindow::updateSparklineTab()
 {
-    const QVector<int> which = selectedSparklineGroups();
+    const QVector<int> which = m_session ? selectedSparklineGroups() : QVector<int>();
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Sparkline"), !which.isEmpty());
+    // (the commands of the tab work on the sparklines in the selection: they are dimmed when there are none, and while the workbook can't be changed)
+    const bool open = !which.isEmpty() && m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;
+    for (const QString &id : std::as_const(m_sparklineActions))
+        if (QAction *a = act(id)) a->setEnabled(open);
     if (which.isEmpty()) return;
-    const SparklineGroup &g = m_session->sparklinesOf(m_sheet)[which.first()];
+    // (Group joins sparklines of more than one group; Ungroup splits a group of more than one: with nothing to join or split they do nothing, and are dimmed)
+    const QVector<SparklineGroup> &all = m_session->sparklinesOf(m_sheet);
+    bool canUngroup = false;
+    for (const int gi : which)
+        if (all[gi].sparklines.size() > 1) canUngroup = true;
+    if (QAction *a = act(QStringLiteral("spark.group"))) a->setEnabled(open && which.size() > 1);
+    if (QAction *a = act(QStringLiteral("spark.ungroup"))) a->setEnabled(open && canUngroup);
+    const SparklineGroup &g = all[which.first()];
     auto set = [this](const QString &id, bool on) {
         if (QAction *a = act(id)) {
             const QSignalBlocker block(a);
@@ -483,7 +495,7 @@ void CrunchWindow::updateSparklineTab()
     set(QStringLiteral("spark.axis.show"), g.showAxis);
     set(QStringLiteral("spark.axis.rtl"), g.rightToLeft);
     // (markers apply to a line only)
-    if (QAction *a = act(QStringLiteral("spark.show.markers"))) a->setEnabled(g.type == SparklineGroup::Type::Line && editingAllowed());
+    if (QAction *a = act(QStringLiteral("spark.show.markers"))) a->setEnabled(g.type == SparklineGroup::Type::Line && open);
 }
 
 void CrunchWindow::sparklineRibbonParts(RibbonParts &parts)
