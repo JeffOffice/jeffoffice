@@ -901,6 +901,14 @@ QByteArray tailWithLegacyDrawing(const QByteArray &after, const QByteArray &relI
     return after.left(e.insertAt) + element + after.mid(e.insertAt);
 }
 
+// Generated elements (written with no prefix) in the sheet's own: "<cfRule" becomes "<x:cfRule" when the sheet's elements have the prefix "x:".
+QByteArray withPrefix(const QByteArray &xml, const QByteArray &prefix)
+{
+    if (prefix.isEmpty()) return xml;
+    static const QRegularExpression name(QStringLiteral("<(/?)([A-Za-z_][A-Za-z0-9_]*)(?=[\\s/>])"));
+    return QString::fromUtf8(xml).replace(name, QStringLiteral("<\\1") + QString::fromUtf8(prefix) + QStringLiteral("\\2")).toUtf8();
+}
+
 // The tail with its `conditionalFormatting` elements (there may be many) taken out and `generated` put where the first was (else where the format has them).
 QByteArray tailWithCondFormats(const QByteArray &after, const QByteArray &generated)
 {
@@ -1717,7 +1725,7 @@ private:
                 if (m_links) tail = tailWithLinks(tail, *m_unlinks, *m_links, m_prefix);
                 if (m_hfSet) tail = tailWithHeaderDrawing(tail, m_hfRel, m_prefix);
                 if (!m_addTables->empty() || !m_removeTables->empty()) tail = tailWithTableParts(tail, *m_addTables, *m_removeTables, m_prefix);
-                if (m_cond && m_prefix.isEmpty()) tail = tailWithCondFormats(tail, conditionalFormatsXml(*m_cond, nullptr));
+                if (m_cond) tail = tailWithCondFormats(tail, withPrefix(conditionalFormatsXml(*m_cond, nullptr), m_prefix));
                 if (m_sparklines) tail = tailWithSparklines(tail, *m_sparklines, m_prefix);
                 return tail;
             };

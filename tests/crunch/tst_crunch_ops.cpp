@@ -183,6 +183,9 @@ private Q_SLOTS:
     void customListsPageAndSettingsRoundTrip()
     {
         auto &settings = Settings::get();
+        struct Cleanup {
+            ~Cleanup() { Settings::get().setValue(QStringLiteral("crunch/customLists"), QStringList()); }   // (the person's settings are put back whether or not a check fails)
+        } cleanup;
         settings.setValue(QStringLiteral("crunch/customLists"), QStringList{QStringLiteral(" Small ,Medium,  Large ")});   // (written by hand, not as the program writes it)
         EditWindow e;
         QVERIFY(e.open(sheetOf({"A1=Medium", "C1=Red"})));
@@ -192,15 +195,20 @@ private Q_SLOTS:
         QVERIFY(s->fill(0, rangeOf(QStringLiteral("A1")), Dir::Down, 2).ok);
         QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("Medium|Large|Small"));
         // the page
-        QTimer::singleShot(200, [] {
+        // (the window is waited for: a timer looks for it until it is there)
+        auto *watch = new QTimer(&e.win.w);
+        watch->setInterval(10);
+        connect(watch, &QTimer::timeout, watch, [watch] {
             QWidget *dialog = QApplication::activeModalWidget();
-            if (!dialog) return;
+            if (!dialog || dialog->findChildren<QPlainTextEdit *>(QStringLiteral("optionCustomLists")).isEmpty()) return;
+            watch->stop();
             for (QPlainTextEdit *edit : dialog->findChildren<QPlainTextEdit *>(QStringLiteral("optionCustomLists"))) {
                 QCOMPARE(edit->toPlainText(), QStringLiteral("Small, Medium, Large"));
                 edit->setPlainText(QStringLiteral("Red, Green, Blue\nlonely\n"));
             }
             if (auto *buttons = dialog->findChild<QDialogButtonBox *>()) buttons->button(QDialogButtonBox::Ok)->click();
         });
+        watch->start();
         e.win.w.act(QStringLiteral("file.options"))->trigger();
         QCOMPARE(settings.value(QStringLiteral("crunch/customLists")).toStringList(), QStringList{QStringLiteral("Red, Green, Blue")});   // (a list of one word is no list)
         QVERIFY(s->fill(0, rangeOf(QStringLiteral("C1")), Dir::Down, 2).ok);
@@ -215,7 +223,23 @@ private Q_SLOTS:
         longList << QString(300, QLatin1Char('x'));
         s->setCustomLists({longList});
         QCOMPARE(int(s->customLists().first().size()), crunch::EditSession::kMaxCustomListItems);
-        settings.setValue(QStringLiteral("crunch/customLists"), QStringList());
+        // a word of more than 255 characters, even the first of its list, is left out
+        s->setCustomLists({{QString(300, QLatin1Char('x')), QStringLiteral("b"), QStringLiteral("c")}});
+        QCOMPARE(s->customLists().first(), QStringList({QStringLiteral("b"), QStringLiteral("c")}));
+        // and the same limits hold for what the settings hold: they are read through the window's own parser
+        QStringList lines = {QStringLiteral("%1, p, q").arg(QString(300, QLatin1Char('y')))};
+        QString big;
+        for (int i = 0; i < 1200; ++i) big += QStringLiteral("w%1,").arg(i);
+        lines << big << QStringLiteral("only");
+        for (int i = 0; i < 60; ++i) lines << QStringLiteral("m%1, n%1").arg(i);
+        settings.setValue(QStringLiteral("crunch/customLists"), lines);
+        EditWindow again;
+        QVERIFY(again.open(sheetOf({"A1=p"})));
+        const QList<QStringList> held = again.win.w.session()->customLists();
+        QCOMPARE(int(held.size()), crunch::EditSession::kMaxCustomLists);
+        QCOMPARE(held[0], QStringList({QStringLiteral("p"), QStringLiteral("q")}));
+        QCOMPARE(int(held[1].size()), crunch::EditSession::kMaxCustomListItems);
+        QCOMPARE(settings.value(QStringLiteral("crunch/customLists")).toStringList(), lines);   // (opening wrote nothing)
     }
 
     // The right click on the numbers of the selection in the status bar: a menu with the six choices that are checked as they are on, one at least stays on, and the choice is kept.

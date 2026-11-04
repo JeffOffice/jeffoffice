@@ -395,6 +395,12 @@ private Q_SLOTS:
         win.w.act("view.collapseRibbon")->trigger();
         QVERIFY(!win.w.ribbon()->isMinimized());
         QVERIFY(win.w.act("view.fullScreen") && win.w.act("view.fullScreen")->isCheckable() && !win.w.act("view.fullScreen")->isChecked());
+        // the command itself turns it on and off, and the check says what the window is
+        win.w.act("view.fullScreen")->trigger();
+        QTRY_COMPARE(win.w.act("view.fullScreen")->isChecked(), win.w.isFullScreen());
+        win.w.act("view.fullScreen")->trigger();
+        QTRY_COMPARE(win.w.act("view.fullScreen")->isChecked(), win.w.isFullScreen());
+        QVERIFY(!win.w.isFullScreen());
         // the check follows the window, whoever changed its state
         win.w.setWindowState(win.w.windowState() | Qt::WindowFullScreen);
         QTRY_VERIFY(win.w.act("view.fullScreen")->isChecked());

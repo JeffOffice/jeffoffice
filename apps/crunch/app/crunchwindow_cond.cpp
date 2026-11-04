@@ -5,6 +5,8 @@
 
 #include "core/editsession.h"
 #include "grid/gridview.h"
+#include "calc/dates.h"
+#include "calc/formula.h"
 #include "sheet/cellref.h"
 
 #include <QAction>
@@ -13,8 +15,11 @@
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QLineEdit>
+#include <QDate>
 #include <QLocale>
 #include <QVBoxLayout>
+
+#include <cmath>
 
 namespace jp {
 
@@ -46,16 +51,43 @@ DifferentialFormat formatOf(int preset)
     return d;
 }
 
-// A value as a rule's formula: a number as it is, anything else as a text in quotes.
-QString valueFormula(const QString &typed)
+// A value as a rule's formula, or empty with the reason in `why`: a number as it is (not infinity or "not a number"), a date as its day number, TRUE and FALSE as they are, "=..." as a formula that
+// must be one (its cells are the ones typed for the cell with the cursor: `dRow` and `dCol` move them to the first cell of the rule's cells), anything else as a text in quotes.
+QString valueFormula(const QString &typed, int dRow, int dCol, QString *why)
 {
+    const QString t = typed.trimmed();
+    if (t.startsWith(QLatin1Char('='))) {
+        const QString body = t.mid(1).trimmed();
+        if (body.isEmpty() || !jp::calc::parseFormula(body).ok()) {
+            *why = CrunchWindow::tr("\"%1\" is not a formula JeffCrunch can read.").arg(t);
+            return QString();
+        }
+        return jp::office::sheet::shiftFormula(body, dRow, dCol);
+    }
     bool ok = false;
-    const double n = QLocale().toDouble(typed.trimmed(), &ok);
-    if (ok) return QString::number(n, 'g', 15);
-    QString t = typed.trimmed();
-    if (t.startsWith(QLatin1Char('='))) return t.mid(1);
-    t.replace(QLatin1Char('"'), QStringLiteral("\"\""));
-    return QLatin1Char('"') + t + QLatin1Char('"');
+    const double n = QLocale().toDouble(t, &ok);
+    if (ok) {
+        if (!std::isfinite(n)) {
+            *why = CrunchWindow::tr("\"%1\" is not a number the rule can use.").arg(t);
+            return QString();
+        }
+        return QString::number(n, 'g', 15);
+    }
+    if (t.compare(QLatin1String("TRUE"), Qt::CaseInsensitive) == 0) return QStringLiteral("TRUE");
+    if (t.compare(QLatin1String("FALSE"), Qt::CaseInsensitive) == 0) return QStringLiteral("FALSE");
+    // (a date as the language writes it short, with a four-digit year too, or long, or as year-month-day)
+    QString shortWithYear = QLocale().dateFormat(QLocale::ShortFormat);
+    if (!shortWithYear.contains(QLatin1String("yyyy"))) shortWithYear.replace(QLatin1String("yy"), QLatin1String("yyyy"));
+    QDate date;
+    for (const QString &format : {QStringLiteral("yyyy-MM-dd"), shortWithYear, QLocale().dateFormat(QLocale::ShortFormat), QLocale().dateFormat(QLocale::LongFormat)}) {
+        date = QLocale().toDate(t, format);
+        if (date.isValid()) break;
+    }
+    double serial = 0;
+    if (date.isValid() && jp::calc::dateToSerial(date.year(), date.month(), date.day(), jp::calc::DateSystem::Date1900, &serial)) return QString::number(serial, 'g', 15);
+    QString q = typed.trimmed();
+    q.replace(QLatin1Char('"'), QStringLiteral("\"\""));
+    return QLatin1Char('"') + q + QLatin1Char('"');
 }
 
 } // namespace
@@ -139,24 +171,34 @@ void CrunchWindow::makeCondRule(CondAnswer::Kind kind)
         notice(tr("Conditional Formatting"), tr("Type a value for the rule."));
         return;
     }
+    // (cells a typed formula names are as seen from the cell with the cursor; a rule holds them as seen from the first of its cells)
+    const grid::Selection &sel = m_view->selection();
+    const int dRow = int(range.row1) - int(std::max<qint64>(0, sel.activeRow)), dCol = int(range.col1) - int(std::max<qint64>(0, sel.activeCol));
+    QString why;
+    auto formula = [&](const QString &typed) { return valueFormula(typed, dRow, dCol, &why); };
     switch (kind) {
     case Kind::Greater:
     case Kind::Less:
     case Kind::Equal:
         rule.type = CondRule::Type::CellIs;
         rule.op = kind == Kind::Greater ? CondRule::Operator::GreaterThan : kind == Kind::Less ? CondRule::Operator::LessThan : CondRule::Operator::Equal;
-        rule.formula1 = valueFormula(answer.value1);
+        rule.formula1 = formula(answer.value1);
         break;
-    case Kind::Between:
+    case Kind::Between: {
         if (answer.value2.trimmed().isEmpty()) {
             notice(tr("Conditional Formatting"), tr("Type the two values the cells are between."));
             return;
         }
         rule.type = CondRule::Type::CellIs;
         rule.op = CondRule::Operator::Between;
-        rule.formula1 = valueFormula(answer.value1);
-        rule.formula2 = valueFormula(answer.value2);
+        QString from = formula(answer.value1), to = formula(answer.value2);
+        bool a = false, b = false;
+        const double x = from.toDouble(&a), y = to.toDouble(&b);
+        if (a && b && x > y) std::swap(from, to);   // (from the larger to the smaller: the other way round)
+        rule.formula1 = from;
+        rule.formula2 = to;
         break;
+    }
     case Kind::Contains: {
         rule.type = CondRule::Type::ContainsText;
         rule.text = answer.value1;
@@ -184,6 +226,10 @@ void CrunchWindow::makeCondRule(CondAnswer::Kind kind)
         rule.above = kind == Kind::Above;
         break;
     }
+    if (!why.isEmpty()) {
+        notice(tr("Conditional Formatting"), why);
+        return;
+    }
     const crunch::EditSession::Outcome o = m_session->addCondRule(m_sheet, rule, formatOf(answer.preset));
     if (!o.ok) notice(tr("Conditional Formatting"), o.problem);
 }
@@ -196,8 +242,12 @@ void CrunchWindow::updateCondActions()
     bool any = false, onSelection = false;
     if (m_session && m_sheet >= 0 && !isReadOnly()) {
         const jp::office::sheet::CellRange selected = selectedRange();
-        for (const CondRule &r : m_session->condRules(m_sheet)) {
-            any = true;
+        const QVector<CondRule> rules = m_session->condRules(m_sheet);
+        any = !rules.isEmpty();
+        constexpr int kLook = 2000;   // (a sheet with more rules than that: the choice is on, and Clear looks for itself)
+        if (rules.size() > kLook) onSelection = true;
+        for (qsizetype at = 0; at < std::min<qsizetype>(rules.size(), kLook) && !onSelection; ++at) {
+            const CondRule &r = rules[at];
             for (const jp::office::sheet::CellRange &c : r.ranges)
                 onSelection = onSelection || (c.valid && selected.valid && c.row1 <= selected.row2 && c.row2 >= selected.row1 && c.col1 <= selected.col2 && c.col2 >= selected.col1);
         }

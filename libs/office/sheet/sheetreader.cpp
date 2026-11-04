@@ -2495,7 +2495,8 @@ quint32 Workbook::fontPlace(const FontSpec &font)
 qint32 Workbook::dxfFor(const DifferentialFormat &f)
 {
     if (m_stylesPart.isEmpty() || f.isEmpty() || f.hasBorder || f.numberFormat) return -1;
-    for (qsizetype i = 0; i < m_styles.dxfs.size(); ++i) {
+    // (only a format added here is matched: one the file has may hold more than the model keeps of it)
+    for (qsizetype i = m_dxfsInFile; i < m_styles.dxfs.size(); ++i) {
         const DifferentialFormat &d = m_styles.dxfs[i];
         if (d.hasBorder || d.numberFormat || d.strike || d.underline) continue;
         if (d.bold == f.bold && d.italic == f.italic && d.fontColor == f.fontColor && d.hasFill == f.hasFill && (!f.hasFill || (d.fill.pattern == f.fill.pattern && d.fill.bg == f.fill.bg && d.fill.fg == f.fill.fg)))
@@ -2505,6 +2506,60 @@ qint32 Workbook::dxfFor(const DifferentialFormat &f)
     m_styles.dxfs.append(f);
     m_dxfsAdded.append(f);
     return qint32(m_styles.dxfs.size() - 1);
+}
+
+bool Workbook::removeAddedDxf(qint32 place)
+{
+    if (place < 0 || m_dxfsAdded.isEmpty() || place != qint32(m_styles.dxfs.size() - 1) || place < m_dxfsInFile) return false;
+    m_styles.dxfs.removeLast();
+    m_dxfsAdded.removeLast();
+    return true;
+}
+
+bool Workbook::conditionalFormatsAreWhole(int sheet) const
+{
+    if (sheet < 0 || sheet >= m_info.sheets.size() || m_info.sheets[sheet].part.isEmpty()) return !isConverted();
+    if (isConverted()) return false;
+    static const QSet<QByteArray> known = {"cellIs", "expression", "colorScale", "dataBar", "iconSet", "top10", "uniqueValues", "duplicateValues", "containsText", "notContainsText", "beginsWith",
+                                           "endsWith", "containsBlanks", "notContainsBlanks", "containsErrors", "notContainsErrors", "timePeriod", "aboveAverage"};
+    const QByteArray xml = m_package.part(m_info.sheets[sheet].part);
+    // (a quick look first: a sheet that says nothing of rules is whole)
+    if (!xml.contains("onditionalFormatting")) return true;
+    xmlscan::Tag t;
+    qsizetype pos = 0;
+    qint64 rules = 0;
+    int ruleDepth = 0, depth = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            --depth;
+            if (ruleDepth > 0 && depth < ruleDepth) ruleDepth = 0;
+            continue;
+        }
+        const QByteArrayView tag = QByteArrayView(xml).sliced(t.start, t.end - t.start);
+        if (t.local == "conditionalFormattings") return false;   // (the 2010 block: x14:conditionalFormattings)
+        if (t.local == "conditionalFormatting") {
+            bool found = false;
+            xmlscan::attribute(tag, "pivot", &found);
+            if (found) return false;
+            const QByteArrayView sqref = xmlscan::attribute(tag, "sqref", &found);
+            if (found) {
+                qint64 spaces = 0;
+                for (const char c : sqref) spaces += c == ' ';
+                if (spaces + 1 >= 1000) return false;
+            }
+        } else if (t.local == "cfRule") {
+            if (++rules >= 50000) return false;
+            bool found = false;
+            const QByteArrayView type = xmlscan::attribute(tag, "type", &found);
+            if (!found || !known.contains(QByteArray(type))) return false;
+            if (!t.selfClosing) ruleDepth = depth + 1;
+        } else if (t.local == "extLst" && ruleDepth > 0) {
+            return false;
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    return true;
 }
 
 qint32 Workbook::dxfForColor(const ColorSpec &color, bool font)

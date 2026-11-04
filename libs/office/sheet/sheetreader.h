@@ -339,6 +339,11 @@ public:
     // The place of a differential format with a font color, a fill, bold, or italic (not a border or a number format): one the workbook has that is exactly that, else one added at the end. -1 if
     // the workbook has no styles part to put one in, or has as many as it may.
     qint32 dxfFor(const DifferentialFormat &format);
+    // Takes the differential format at `place` back out when it is the last, was added since the file was read or saved, and `place` is where it was put (Undo). False otherwise.
+    bool removeAddedDxf(qint32 place);
+    // Whether the rules of conditional formatting the sheet's file has are all ones this program holds whole: not a rule of a kind it does not know, one with an extension list (the 2010 forms
+    // of icon sets and data bars link to one), a table's `pivot` mark, the 2010 extension block, or more ranges or rules than are read. Only then may the rules be written anew.
+    bool conditionalFormatsAreWhole(int sheet) const;
     QVector<DifferentialFormat> addedDxfs() const { return m_dxfsAdded; }
     qint64 dxfsInFile() const { return m_dxfsInFile; }
     QVector<FillSpec> addedFills() const { return m_fillsAdded; }

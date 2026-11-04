@@ -791,6 +791,10 @@ public:
     Outcome clearCondRules(int sheet, const jp::office::sheet::CellRange &range);
     // (what a step of the rules does, and what the save puts in the file)
     void setCondRules(int sheet, const QVector<jp::office::sheet::CondRule> &rules);
+    void rememberDxf(const jp::office::sheet::DifferentialFormat &format);
+    void forgetDxf(qint32 place);
+    // Why the rules of the sheet are not changed (empty when they may be).
+    QString condRulesRefusal(int sheet);
     // (the steps of New Cell Style: pushed after the style is made, and Undo and Redo take it out and put it in again)
     void pushStyleMade(const QString &name, quint32 format);
     void forgetNewStyle(const QString &name);
@@ -1046,6 +1050,7 @@ private:
     qint64 m_undoByteLimit = kUndoBytes;
     QLocale m_locale;
     QList<QStringList> m_customLists;
+    std::map<int, bool> m_condWhole;   // by sheet: whether the file's rules are all held whole (looked at once)
     std::set<int> m_condTouched;   // the sheets whose rules differ from the file's
     QHash<QString, QPair<int, int>> m_customIndex;   // each item (in lower case) to its list and its place in it
     QDate m_today;

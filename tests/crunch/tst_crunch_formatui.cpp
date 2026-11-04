@@ -8,10 +8,12 @@
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
 #include "grid/gridview.h"
+#include "io/zip.h"
 
 #include <QAction>
 #include <QComboBox>
 #include <QMenu>
+#include <QRegularExpression>
 #include <QSignalSpy>
 #include <QUndoStack>
 
@@ -27,6 +29,16 @@ namespace {
 //   1     1   2   3
 //   2     4   5   6
 //   3     7   8   9
+// The styles part of uiBook (a workbook with none has no place to keep the look of a rule).
+QByteArray uiStyles()
+{
+    const QString lists = QStringLiteral("<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/><family val=\"2\"/><scheme val=\"minor\"/></font></fonts>"
+                                         "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
+                                         "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"
+                                         "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>");
+    return stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>"), lists);
+}
+
 QByteArray uiBook()
 {
     const QString lists = QStringLiteral("<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/><family val=\"2\"/><scheme val=\"minor\"/></font></fonts>"
@@ -633,9 +645,10 @@ private Q_SLOTS:
         // clear rules from selected cells (a rule on cells none of which are selected stays), then from the sheet
         selectRange(e, QStringLiteral("A1:A1"));
         run(e, "cond.clearSelection");
-        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 0);                  // (every rule is on A1:C3, which A1 is in)
+        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 6);                  // (A1 is cut out of each rule's cells: the rules stay on the others)
+        QVERIFY(e.win.w.session()->condRules(0)[0].ranges.size() > 1);
         e.win.w.undoStack()->undo();
-        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 6);
+        QCOMPARE(rangeName(e.win.w.session()->condRules(0)[0].ranges[0]), QStringLiteral("A1:C3"));
         selectRange(e, QStringLiteral("E5"));
         QVERIFY(!e.win.w.act(QStringLiteral("cond.clearSelection"))->isEnabled());      // (dimmed: no rule is on E5)
         QVERIFY(e.win.w.act(QStringLiteral("cond.clearSheet"))->isEnabled());
@@ -651,6 +664,277 @@ private Q_SLOTS:
         QVERIFY2(q.readLazyFile(e.path, &why), qPrintable(why));
         QVERIFY(!q.part(QStringLiteral("/xl/worksheets/sheet1.xml")).contains("conditionalFormatting"));
         QVERIFY(!e.win.w.act(QStringLiteral("cond.clearSheet"))->isEnabled());           // (nothing left to clear)
+    }
+
+    // ---- conditional formatting: what a typed value may be, how each kind of rule evaluates, clearing by ranges, and what is refused
+
+    // A rule of the sheet that is on one cell with the look of a preset: the cell's fill.
+    static QRgb fillAt(EditWindow &e, const QString &ref)
+    {
+        quint32 r = 0, c = 0;
+        parseCellRef(ref, &r, &c);
+        const grid::GridSheet &g = e.view()->sheet();
+        return g.lookOf(r, c, g.cellAt(r, c) ? g.cellAt(r, c)->style : 0).fg;
+    }
+    static void ask(EditWindow &e, CrunchWindow::CondAnswer::Kind kind, const QString &v1 = QString(), const QString &v2 = QString(), int preset = 2)
+    {
+        CrunchWindow::CondAnswer a;
+        a.kind = kind;
+        a.value1 = v1;
+        a.value2 = v2;
+        a.preset = preset;
+        e.win.w.setCondAsker([a](CrunchWindow::CondAnswer *out) {
+            *out = a;
+            return true;
+        });
+    }
+
+    // Values that cannot be a rule's are refused with the reason (a formula that does not parse, infinity, "not a number"), From and To of Between go in order, TRUE and a date are values and not
+    // texts, and the cells a typed formula names are as seen from the cell with the cursor.
+    void typedValuesOfARuleAreCheckedAndRead()
+    {
+        using Kind = CrunchWindow::CondAnswer::Kind;
+        const QLocale was = QLocale();
+        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        struct Restore {
+            QLocale was;
+            ~Restore() { QLocale::setDefault(was); }
+        } restore{was};
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        selectRange(e, QStringLiteral("A1:C3"));
+        for (const QString &bad : {QStringLiteral("=SUM("), QStringLiteral("inf"), QStringLiteral("nan"), QStringLiteral("=")}) {
+            e.win.told.clear();
+            ask(e, Kind::Greater, bad);
+            run(e, "cond.greater");
+            QVERIFY2(e.win.told.size() == 1 && e.win.w.session()->condRules(0).isEmpty(), qPrintable(bad));
+        }
+        ask(e, Kind::Between, QStringLiteral("9"), QStringLiteral("2"));
+        run(e, "cond.between");
+        QCOMPARE(e.win.w.session()->condRules(0)[0].formula1, QStringLiteral("2"));
+        QCOMPARE(e.win.w.session()->condRules(0)[0].formula2, QStringLiteral("9"));
+        ask(e, Kind::Equal, QStringLiteral("TRUE"));
+        run(e, "cond.equal");
+        QCOMPARE(e.win.w.session()->condRules(0)[0].formula1, QStringLiteral("TRUE"));
+        ask(e, Kind::Equal, QStringLiteral("1/5/2026"));
+        run(e, "cond.equal");
+        QCOMPARE(e.win.w.session()->condRules(0)[0].formula1, QStringLiteral("46027"));   // (a day number: January 5, 2026)
+        ask(e, Kind::Equal, QStringLiteral("hello"));
+        run(e, "cond.equal");
+        QCOMPARE(e.win.w.session()->condRules(0)[0].formula1, QStringLiteral("\"hello\""));
+        // the cursor is on C3 and the cells are B2:C3: "=D5" is the cell one up and one left of D5 for the first cell
+        e.view()->selectRange(2, 2, 1, 1);
+        QCOMPARE(e.view()->selection().activeRow, qint64(2));
+        ask(e, Kind::Greater, QStringLiteral("=D5"));
+        run(e, "cond.greater");
+        QCOMPARE(e.win.w.session()->condRules(0)[0].formula1, QStringLiteral("C4"));
+    }
+
+    // Every kind of rule is true for the cells it should be and no others (checked by what is drawn).
+    void everyKindOfRuleEvaluatesPerCell()
+    {
+        using Kind = CrunchWindow::CondAnswer::Kind;
+        const QRgb green = 0xFFC6EFCE;
+        auto marked = [&](EditWindow &e, const QStringList &refs) {
+            QStringList on;
+            for (const QString &r : refs)
+                if (fillAt(e, r) == green) on << r;
+            return on.join(QLatin1Char(' '));
+        };
+        const QStringList cells = {"A1", "A2", "A3", "A4", "B1", "B2", "B3"};
+        auto book = [] { return sheetOf({"A1=1", "A2=2", "A3=2", "A4=9", "B1=apple", "B2=banana", "B3=pineapple"}); };
+        {
+            EditWindow e;
+            QVERIFY(e.open(book()));
+            selectRange(e, QStringLiteral("A1:A4"));
+            ask(e, Kind::Top, QStringLiteral("1"));
+            run(e, "cond.top");
+            QCOMPARE(marked(e, cells), QStringLiteral("A4"));
+        }
+        {
+            EditWindow e;
+            QVERIFY(e.open(book()));
+            selectRange(e, QStringLiteral("A1:A4"));
+            ask(e, Kind::Duplicate);
+            run(e, "cond.duplicate");
+            QCOMPARE(marked(e, cells), QStringLiteral("A2 A3"));
+        }
+        {
+            EditWindow e;
+            QVERIFY(e.open(book()));
+            selectRange(e, QStringLiteral("A1:A4"));
+            ask(e, Kind::Below);
+            run(e, "cond.below");
+            QCOMPARE(marked(e, cells), QStringLiteral("A1 A2 A3"));
+        }
+        {
+            EditWindow e;
+            QVERIFY(e.open(book()));
+            selectRange(e, QStringLiteral("B1:B3"));
+            ask(e, Kind::Contains, QStringLiteral("apple"));
+            run(e, "cond.contains");
+            QCOMPARE(marked(e, cells), QStringLiteral("B1 B3"));
+        }
+    }
+
+    // Clear Rules of the selected cells takes the cells out of a rule's ranges (splitting them), and drops a rule only when no cells are left; no overlap changes nothing. Undo and Redo go back and
+    // forth, and the look a rule made goes with it on Undo.
+    void clearingRulesTrimsTheirRangesAndUndoTakesTheLookOut()
+    {
+        using Kind = CrunchWindow::CondAnswer::Kind;
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        crunch::EditSession *s = e.win.w.session();
+        const jp::office::sheet::Workbook *book = s->workbook();
+        const int dxfsAtStart = int(book->styles().dxfs.size());
+        selectRange(e, QStringLiteral("A1:C3"));
+        ask(e, Kind::Greater, QStringLiteral("0"));
+        run(e, "cond.greater");
+        QCOMPARE(int(book->styles().dxfs.size()), dxfsAtStart + 1);
+        // the middle cell cleared: the rule keeps the four blocks around it
+        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("B2"))).ok);
+        QVector<jp::office::sheet::CondRule> rules = s->condRules(0);
+        QCOMPARE(int(rules.size()), 1);
+        QStringList where;
+        for (const auto &r : rules[0].ranges) where << rangeName(r);
+        where.sort();
+        QCOMPARE(where, QStringList({"A1:C1", "A2", "A3:C3", "C2"}));
+        QCOMPARE(fillAt(e, QStringLiteral("B2")) == fillAt(e, QStringLiteral("A1")), false);
+        // cells that are not under the rule: nothing is changed, and no step is made
+        const int steps = e.win.w.undoStack()->count();
+        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("E5:F6"))).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        // undo and redo of the clear
+        e.win.w.undoStack()->undo();
+        QCOMPARE(rangeName(s->condRules(0)[0].ranges[0]), QStringLiteral("A1:C3"));
+        e.win.w.undoStack()->redo();
+        QCOMPARE(int(s->condRules(0)[0].ranges.size()), 4);
+        // every cell cleared: the rule is dropped; Undo of the rule takes its look out of the styles
+        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("A1:C3"))).ok);
+        QVERIFY(s->condRules(0).isEmpty());
+        e.win.w.undoStack()->undo();
+        e.win.w.undoStack()->undo();
+        e.win.w.undoStack()->undo();
+        QVERIFY(s->condRules(0).isEmpty());
+        QCOMPARE(int(book->styles().dxfs.size()), dxfsAtStart);
+        QVERIFY(book->addedDxfs().isEmpty());
+        e.win.w.undoStack()->redo();                                              // (the rule again, and its look)
+        QCOMPARE(int(s->condRules(0).size()), 1);
+        QCOMPARE(int(book->styles().dxfs.size()), dxfsAtStart + 1);
+        QCOMPARE(s->condRules(0)[0].dxf, qint32(dxfsAtStart));
+    }
+
+    // Rules the file has that JeffCrunch does not hold whole are not rewritten: an extension list, the 2010 block, a table's mark, a kind it does not know, more ranges than it reads, a workbook
+    // opened from another kind of file, and a sheet with more rules than it changes. Nothing changes and the reason is told.
+    void sheetsWhoseRulesAreNotHeldWholeAreLeftAlone()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c></row>");
+        const QString plain = QStringLiteral("<conditionalFormatting sqref=\"A1\"><cfRule type=\"cellIs\" priority=\"3\" operator=\"equal\"><formula>1</formula></cfRule></conditionalFormatting>");
+        QString many = QStringLiteral("<conditionalFormatting sqref=\"A1");
+        for (int i = 0; i < 1100; ++i) many += QStringLiteral(" B%1").arg(i + 1);
+        many += QStringLiteral("\"><cfRule type=\"cellIs\" priority=\"1\" operator=\"equal\"><formula>1</formula></cfRule></conditionalFormatting>");
+        QString thousands;
+        for (int i = 0; i < 5200; ++i) thousands += QStringLiteral("<conditionalFormatting sqref=\"A%1\"><cfRule type=\"cellIs\" priority=\"%1\" operator=\"equal\"><formula>1</formula></cfRule></conditionalFormatting>").arg(i + 1);
+        const QString x14 = QStringLiteral("<extLst><ext uri=\"{78C0D931-6437-407d-A8EE-F0AAD7539E65}\" xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><x14:conditionalFormattings>"
+                                           "<x14:conditionalFormatting><x14:cfRule type=\"iconSet\" priority=\"2\" id=\"{1}\"/></x14:conditionalFormatting></x14:conditionalFormattings></ext></extLst>");
+        const QStringList books = {
+            plain + QStringLiteral("<conditionalFormatting sqref=\"B1\"><cfRule type=\"iconSet\" priority=\"1\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/><cfvo type=\"percent\" val=\"33\"/>"
+                                   "<cfvo type=\"percent\" val=\"67\"/></iconSet><extLst><ext uri=\"{B025F937-C7B1-47D3-B67F-A62EFF666E3E}\"><x14:id xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\">{1}</x14:id></ext></extLst></cfRule></conditionalFormatting>"),
+            plain + x14,
+            QStringLiteral("<conditionalFormatting sqref=\"A1\" pivot=\"1\"><cfRule type=\"cellIs\" priority=\"1\" operator=\"equal\"><formula>1</formula></cfRule></conditionalFormatting>"),
+            plain + QStringLiteral("<conditionalFormatting sqref=\"B1\"><cfRule type=\"somethingNew\" priority=\"1\"/></conditionalFormatting>"),
+            many,
+            thousands};
+        for (int at = 0; at < books.size(); ++at) {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(rows, books[at])}, QByteArray(), QString(), QString(), uiStyles())));
+            QVERIFY(e.settle());
+            crunch::EditSession *s = e.win.w.session();
+            const QVector<jp::office::sheet::CondRule> before = s->condRules(0);
+            selectRange(e, QStringLiteral("A1:B1"));
+            ask(e, CrunchWindow::CondAnswer::Kind::Greater, QStringLiteral("0"));
+            e.win.told.clear();
+            run(e, "cond.greater");
+            QVERIFY2(e.win.told.size() == 1, qPrintable(QStringLiteral("book %1 was changed").arg(at)));
+            QVERIFY(!s->clearCondRules(0, jp::office::sheet::CellRange()).ok);
+            QCOMPARE(s->condRules(0).size(), before.size());
+            for (qsizetype i = 0; i < before.size(); ++i) QCOMPARE(s->condRules(0)[i].priority, before[i].priority);
+            QCOMPARE(e.win.w.undoStack()->count(), 0);
+            QVERIFY(s->workbook()->addedDxfs().isEmpty());
+        }
+        // a workbook opened from a text file keeps its rules for the .xlsx it is saved as: no change now
+        EditWindow csv;
+        QVERIFY(csv.open(QByteArray("a,b\n1,2\n"), QStringLiteral("data.csv")));
+        QVERIFY(!csv.win.w.session()->clearCondRules(0, jp::office::sheet::CellRange()).ok);
+        CrunchWindow::CondAnswer::Kind greater = CrunchWindow::CondAnswer::Kind::Greater;
+        selectRange(csv, QStringLiteral("A1:B2"));
+        ask(csv, greater, QStringLiteral("0"));
+        csv.win.told.clear();
+        run(csv, "cond.greater");
+        QCOMPARE(csv.win.told.size(), 1);
+    }
+
+    // A sheet whose file has rules of several kinds that JeffCrunch holds whole (a color scale and an icon set, no extension) takes a new rule, and the others come out of the save as they were.
+    void aRuleAddedToASheetWithOtherKindsOfRulesKeepsThem()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c><c r=\"C1\"><v>3</v></c></row>");
+        const QString after = QStringLiteral("<conditionalFormatting sqref=\"A1:A1\"><cfRule type=\"colorScale\" priority=\"2\"><colorScale><cfvo type=\"min\"/><cfvo type=\"max\"/><color rgb=\"FFF8696B\"/><color rgb=\"FF63BE7B\"/></colorScale></cfRule></conditionalFormatting>"
+                                             "<conditionalFormatting sqref=\"B1:B1\"><cfRule type=\"iconSet\" priority=\"1\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/><cfvo type=\"percent\" val=\"33\"/><cfvo type=\"percent\" val=\"67\"/></iconSet></cfRule></conditionalFormatting>"
+                                             "<pageMargins left=\"0.7\" right=\"0.7\" top=\"0.75\" bottom=\"0.75\" header=\"0.3\" footer=\"0.3\"/>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, after)}, QByteArray(), QString(), QString(), uiStyles())));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("C1:C1"));
+        ask(e, CrunchWindow::CondAnswer::Kind::Greater, QStringLiteral("1"));
+        run(e, "cond.greater");
+        QVERIFY2(e.win.w.session()->condRules(0).size() == 3, qPrintable(e.win.told.join('|')));
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        Package p;
+        QString why;
+        QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
+        const QByteArray xml = p.part(QStringLiteral("/xl/worksheets/sheet1.xml"));
+        QCOMPARE(xml.count("<conditionalFormatting"), 3);
+        QVERIFY(xml.contains("<colorScale>") && xml.contains("FFF8696B") && xml.contains("<iconSet iconSet=\"3Arrows\">"));
+        QVERIFY(xml.contains("priority=\"3\"") && xml.contains("priority=\"2\"") && xml.contains("priority=\"1\""));
+        QVERIFY(xml.indexOf("<pageMargins") > xml.lastIndexOf("</conditionalFormatting>"));   // (the schema's order holds)
+        QVERIFY(xml.indexOf("<conditionalFormatting") > xml.indexOf("</sheetData>"));
+    }
+
+    // A sheet whose elements have a prefix (<x:worksheet>) is written with the rules in the same prefix, and they come back.
+    void rulesAreWrittenInThePrefixOfASheetThatHasOne()
+    {
+        QByteArray book = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>5</v></c></row>"))}, QByteArray(), QString(), QString(), uiStyles());
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(book, parts));
+        QString xml = QString::fromUtf8(parts[QStringLiteral("xl/worksheets/sheet1.xml")]);
+        xml.replace(QRegularExpression(QStringLiteral("<(/?)([A-Za-z])")), QStringLiteral("<\\1x:\\2"));
+        xml.replace(QStringLiteral("<x:?xml"), QStringLiteral("<?xml"));
+        xml.replace(QStringLiteral("xmlns=\""), QStringLiteral("xmlns:x=\""));
+        parts[QStringLiteral("xl/worksheets/sheet1.xml")] = xml.toUtf8();
+        jp::ZipWriter z;
+        for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+        EditWindow e;
+        QVERIFY(e.open(z.finish()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:A1"));
+        ask(e, CrunchWindow::CondAnswer::Kind::Greater, QStringLiteral("1"));
+        run(e, "cond.greater");
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        Package p;
+        QString why;
+        QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
+        const QByteArray out = p.part(QStringLiteral("/xl/worksheets/sheet1.xml"));
+        QVERIFY2(out.contains("<x:conditionalFormatting") && out.contains("<x:cfRule") && out.contains("<x:formula>1</x:formula>"), out.constData());
+        QVERIFY(!out.contains("<cfRule"));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QCOMPARE(int(second.w.view()->sheet().data().sheet->conditionalFormats.size()), 1);
     }
 
     // The Format Painter: a click takes the format of the cells selected and the next cells selected get it; a double click keeps it on until Esc.
