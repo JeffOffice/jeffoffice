@@ -366,6 +366,9 @@ public:
     // when `sheet` is -1 (the sheet is made first: a step of Undo of its own). The cells the empty table covers must be empty. `*made` is the new table's place.
     Outcome createPivot(const QString &source, int sheet, quint32 row, quint32 col, int *made = nullptr);
     Outcome refreshAllPivots();
+    // Drill Down and Drill Up: the item named by the label cell at (row, col) is opened (the lines of the next field under it are shown) or shut (only its total). Not ok if the cell is not the
+    // name of an item of the rows that has another field under it.
+    Outcome drillPivotItem(int sheet, quint32 row, quint32 col, bool open);
     // Move pivot table: the table drawn again with its first cell at (row, col) of its own sheet, the cells it left emptied; one step of Undo. Not ok, and nothing changed, if what is there is in the way.
     Outcome movePivot(int table, quint32 row, quint32 col);
     // The pivot tables whose cache says to refresh when the file opens are refreshed, as one step (nothing is done when there are none, or when the calculation has not finished).

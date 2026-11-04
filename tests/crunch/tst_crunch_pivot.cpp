@@ -940,6 +940,54 @@ private Q_SLOTS:
         QCOMPARE(int(s->workbook()->pivots().locationOf(0).row1), 2);
     }
 
+    // Drill Up shuts the item the cell names (the lines under it are not shown, its total stays) and Drill Down opens it again; each is one step of Undo; the last field's items have nothing under them.
+    void anItemIsShutAndOpenedFromItsLabel()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        jp::office::sheet::PivotTable two = *s->workbook()->pivots().table(0).table;
+        two.colFields.clear();
+        two.rowFields = {0, 1};
+        QVERIFY(s->setPivot(0, two, true, QStringLiteral("Two rows")).ok);
+        finish(e);
+        auto labels = [&] {
+            QStringList out;
+            for (quint32 r = 2; r < 16; ++r) {
+                for (quint32 c = 4; c < 6; ++c) {
+                    const jp::calc::Value v = s->valueAt(0, r, c);
+                    if (!v.isEmpty()) out << (v.isNumber() ? QString::number(v.number()) : v.text());
+                }
+            }
+            return out.join(QLatin1Char('|'));
+        };
+        const QString open = labels();
+        QVERIFY2(open.contains(QStringLiteral("East|Jan|Feb|East Total|West|Jan|Feb")), qPrintable(open + QStringLiteral("\n") + pivotShown(e, QStringLiteral("E3:I14"))));
+        const int steps = s->undoStack()->index();
+        // the cell of "East" (the first line under the head)
+        quint32 east = 0;
+        for (quint32 r = 2; r < 16; ++r)
+            if (s->valueAt(0, r, 4).isText() && s->valueAt(0, r, 4).text() == QLatin1String("East")) east = r;
+        QVERIFY(east > 0);
+        QVERIFY2(s->drillPivotItem(0, east, 4, false).ok, "drill up");
+        finish(e);
+        QCOMPARE(s->undoStack()->index(), steps + 1);
+        QVERIFY2(labels().contains(QStringLiteral("East|West|Jan|Feb|West Total")), qPrintable(labels()));
+        QVERIFY(s->drillPivotItem(0, east, 4, true).ok);
+        finish(e);
+        QCOMPARE(labels(), open);
+        // an item of the last field has nothing under it
+        quint32 jan = 0;
+        for (quint32 r = 2; r < 16; ++r)
+            if (s->valueAt(0, r, 5).isText() && s->valueAt(0, r, 5).text() == QLatin1String("Jan")) jan = r;
+        QVERIFY(!s->drillPivotItem(0, jan, 5, false).ok);
+        // a cell that is not a label
+        QVERIFY(!s->drillPivotItem(0, east, 6, false).ok);
+        s->undoStack()->undo();
+        finish(e);
+        QVERIFY2(labels().contains(QStringLiteral("East|West|Jan|Feb|West Total")), qPrintable(labels()));
+    }
+
     // A formula that points at a cell of the pivot table follows it when the table is moved, as it follows cells that are cut and pasted; one that points elsewhere stays, and Undo is one step.
     void formulasPointingAtAMovedPivotTableFollowIt()
     {

@@ -490,6 +490,18 @@ void CrunchWindow::createPivotActions()
     };
     mk("pivot.expandField", tr("Expand Entire Field"), "plus", QKeySequence(), [expandAll] { expandAll(true); });
     mk("pivot.collapseField", tr("Collapse Entire Field"), "minus", QKeySequence(), [expandAll] { expandAll(false); });
+    auto drill = [this](bool open) {
+        const int t = selectedPivot();
+        if (t < 0 || !editingAllowed()) return;
+        if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+        const grid::Selection &sel = m_view->selection();
+        pivotProblem(open ? tr("Drill Down") : tr("Drill Up"), m_session->drillPivotItem(m_sheet, quint32(std::max<qint64>(0, sel.activeRow)), quint32(std::max<qint64>(0, sel.activeCol)), open));
+        m_pivotShown = nullptr;
+        updatePivotTab();
+    };
+    mk("pivot.drillDown", tr("Drill Down"), "arrow-down-to-line", QKeySequence(), [drill] { drill(true); });
+    mk("pivot.drillUp", tr("Drill Up"), "arrow-up-to-line", QKeySequence(), [drill] { drill(false); });
+    m_opsActions << QStringLiteral("pivot.drillDown") << QStringLiteral("pivot.drillUp");
     auto blankRows = [this](bool on) {
         editPivot([on](PivotTable *t) {
             for (int f : t->rowFields)
@@ -986,7 +998,7 @@ void CrunchWindow::updatePivotFieldActions()
     // (a command that works on a pivot table's cell is dimmed away from one, not left to say so when it is used)
     const bool open = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;
     const bool inTable = selectedPivot() >= 0;
-    for (const char *id : {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.showDetail", "pivot.selectAll", "pivot.selectValues", "pivot.selectLabels", "pivot.move"})
+    for (const char *id : {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.showDetail", "pivot.selectAll", "pivot.selectValues", "pivot.selectLabels", "pivot.move", "pivot.drillDown", "pivot.drillUp"})
         if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(open && inTable);
 }
 

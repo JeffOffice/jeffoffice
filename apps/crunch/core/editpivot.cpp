@@ -1116,6 +1116,38 @@ EditSession::Outcome EditSession::ungroupPivotField(int table, int field)
     return pivotStep({ch}, tr("Ungroup Field"));
 }
 
+EditSession::Outcome EditSession::drillPivotItem(int sheet, quint32 row, quint32 col, bool open)
+{
+    Outcome out;
+    auto refuse = [&](const QString &why) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    };
+    PivotBook::View view;
+    if (!m_book || !m_book->book || !m_book->book->pivots().viewAt(sheet, row, col, &view) || !view.where.valid || !view.grid || !view.table) return refuse(tr("Click the name of an item in a pivot table first."));
+    const PivotGrid &g = *view.grid;
+    const int gridRow = int(qint64(row) - view.where.row1), gridCol = int(qint64(col) - view.where.col1);
+    const int ri = gridRow - g.firstDataRow;
+    if (gridCol < 0 || gridCol >= g.firstDataCol || ri < 0 || ri >= g.rowItems.size()) return refuse(tr("Click the name of an item in the rows of a pivot table first."));
+    const PivotAxisItem &line = g.rowItems[ri];
+    const PivotTable &t = *view.table;
+    if (!line.t.isEmpty() || line.labelOnly || line.x.isEmpty()) return refuse(tr("Click the name of an item in the rows of a pivot table first."));
+    // (in the compact form every level is in the first column, the line's last item; otherwise the column says which level the cell names, if the line holds it)
+    const bool oneColumn = t.compact && !t.outline;
+    const int level = oneColumn ? line.r + int(line.x.size()) - 1 : gridCol;
+    if (!oneColumn && (level < line.r || level >= line.r + int(line.x.size()))) return refuse(tr("Click the name of an item in the rows of a pivot table first."));
+    const int place = oneColumn ? line.x.back() : line.x[level - line.r];
+    if (level < 0 || level >= t.rowFields.size()) return refuse(tr("Click the name of an item in the rows of a pivot table first."));
+    if (level + 1 >= t.rowFields.size()) return refuse(tr("This item has nothing under it."));
+    const int field = t.rowFields[level];
+    if (field < 0 || field >= t.fields.size() || place < 0 || place >= t.fields[field].items.size() || !t.fields[field].items[place].t.isEmpty()) return refuse(tr("JeffCrunch can't find this item."));
+    if (t.fields[field].items[place].showDetails == open) return out;
+    PivotTable changed = t;
+    changed.fields[field].items[place].showDetails = open;
+    return setPivot(view.index, changed, true, open ? tr("Drill Down") : tr("Drill Up"));
+}
+
 EditSession::Outcome EditSession::movePivot(int table, quint32 row, quint32 col)
 {
     Outcome out;
