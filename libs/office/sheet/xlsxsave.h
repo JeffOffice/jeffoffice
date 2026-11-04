@@ -12,6 +12,7 @@
 #include "office/package.h"
 
 #include <map>
+#include <memory>
 #include <set>
 #include "sheet/drawingadd.h"
 #include "sheet/drawingsave.h"
@@ -77,6 +78,15 @@ struct RowProps {
     bool collapsed = false;
 };
 
+// A rule of conditional formatting the file had, as the file had it, kept when a change takes it away so that Undo can put the same bytes back: the rule's element (its opening tag, which has the
+// cells and the table mark), the rule, and its 2010 entry (its element's opening tag, the entry, and the element of its cells).
+struct CondRaw {
+    int priority = 0;   // the rule's place among the priorities of the file as it is (kept in step by each save)
+    QByteArray open, rule;
+    QString id;
+    QByteArray x14Open, x14Rule, x14Sqref;
+};
+
 struct SheetChanges {
     std::vector<SavedCell> cells;       // sorted by row, then column
     std::vector<SavedResult> results;   // sorted the same way
@@ -123,6 +133,9 @@ struct SheetChanges {
     // rule, plus `condShift`), the cells of a rule that was trimmed, and the rules taken away (`condRemoved`, by priority in the file, with the 2010 entries that go with them); the rules made here
     // (`condNew`) are written from the model, first. The 2010 block of the sheet's extension list is kept the same way.
     bool condEdit = false;
+    // What a rule taken away was in the file (see CondRaw), filled in by the patch for every rule it takes away (by priority in the file), and the rules brought back with it (their cells now).
+    std::shared_ptr<std::map<int, CondRaw>> condRawOut;
+    std::vector<std::pair<QVector<CellRange>, CondRaw>> condRestore;
     int condShift = 0;
     QVector<CondRule> condNew;
     std::set<int> condRemoved;
@@ -391,5 +404,8 @@ struct FilterName {
     QString range;
 };
 bool patchFilterNames(const QByteArray &xml, const std::vector<FilterName> &names, QByteArray *out, QString *error = nullptr);
+
+// An extension list with the 2010 entries that have no cells left taken out (and the container, the extension, and the list when nothing is left in them); empty if the list goes.
+QByteArray dropEmptyExtensionRules(const QByteArray &extLst);
 
 } // namespace jp::office::sheet

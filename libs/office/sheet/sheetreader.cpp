@@ -2529,11 +2529,17 @@ bool Workbook::conditionalFormatsAreWhole(int sheet) const
     qsizetype pos = 0;
     qint64 rules = 0;
     std::set<int> priorities;
+    int depth = 0, inX14 = -1;   // (how deep the element is, and the depth of the 2010 container while the scan is in it)
     while (xmlscan::nextTag(xml, pos, &t)) {
         pos = t.end;
-        if (t.closing) continue;
+        if (t.closing) {
+            if (--depth == inX14) inX14 = -1;
+            continue;
+        }
         const QByteArrayView tag = QByteArrayView(xml).sliced(t.start, t.end - t.start);
-        if (t.local == "conditionalFormatting") {
+        if (t.local == "conditionalFormattings" && !t.selfClosing) {
+            inX14 = depth;
+        } else if (t.local == "conditionalFormatting") {
             bool found = false;
             const QByteArrayView sqref = xmlscan::attribute(tag, "sqref", &found);
             if (found) {
@@ -2542,15 +2548,14 @@ bool Workbook::conditionalFormatsAreWhole(int sheet) const
                 for (const char c : sqref) spaces += c == ' ';
                 if (spaces + 1 >= 1000) return false;
             }
-        } else if (t.local == "cfRule") {
-            // (a rule of the file is told from its element by its priority: it has one, and no other rule of the main list has the same)
+        } else if (t.local == "cfRule" && inX14 < 0) {
+            // (a rule of the main list is told from its element by its priority: it has one, and no other rule of the list has the same; the rules of the 2010 block are another matter)
             if (++rules >= 50000) return false;
             bool found = false;
-            xmlscan::attribute(tag, "id", &found);
-            if (found) continue;   // (a 2010 entry has an id, and the priority of the rule of the main list it belongs to)
             const int priority = QByteArray(xmlscan::attribute(tag, "priority", &found)).toInt();
             if (!found || priority <= 0 || !priorities.insert(priority).second) return false;
         }
+        if (!t.selfClosing) ++depth;
     }
     return true;
 }

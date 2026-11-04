@@ -791,11 +791,11 @@ public:
     Outcome clearCondRules(int sheet, const jp::office::sheet::CellRange &range);
     // (what a step of the rules does, and what the save puts in the file)
     void setCondRules(int sheet, const QVector<jp::office::sheet::CondRule> &rules);
-    void condStepRefused(const QString &why);
     void ensureCondUids(int sheet);
+    void condFixStale(int sheet);
     void condSaved();
-    // What a save puts in the file for the sheet's rules (see editcond.cpp); `fileOf` and `after` get the priority each rule has in the file and the rules as they are then.
-    void condForSave(int sheet, jp::office::sheet::SheetChanges *sc, std::map<quint32, int> *fileOf, QVector<jp::office::sheet::CondRule> *after) const;
+    // What a save puts in the file for the sheet's rules (see editcond.cpp); `sc` gets it (null: only the rules as the save will have them are worked out).
+    void condForSave(int sheet, jp::office::sheet::SheetChanges *sc, bool writtenWhole = false);
     void rememberDxf(const jp::office::sheet::DifferentialFormat &format);
     void forgetDxf(qint32 place);
     // Why the rules of the sheet are not changed (empty when they may be).
@@ -928,8 +928,6 @@ Q_SIGNALS:
     // The sparklines of a sheet were changed by a step, undone, or redone.
     void sparklinesChanged(int sheet);
     void conditionalFormatsChanged(int sheet);
-    // A step of conditional formatting that can't be undone or redone was asked for (the reason).
-    void conditionalUndoRefused(const QString &why);
     // How the workbook calculates was changed (by a step, or by Undo of one).
     void calcSettingsChanged();
     // Cells were changed by an edit, Undo, or Redo (the window draws them again).
@@ -1057,7 +1055,20 @@ private:
     qint64 m_undoByteLimit = kUndoBytes;
     QLocale m_locale;
     QList<QStringList> m_customLists;
-    quint32 m_condUid = 0;
+    quint32 m_condUid = 0, m_condUidMark = 0;   // (the uid the last rule made had, and the one it had when the file was last saved)
+    struct CondSnap {
+        std::map<quint32, int> fileOf;   // the priority each rule has in the file the save writes
+        QVector<jp::office::sheet::CondRule> after;
+        int shift = 0;
+        std::set<int> removed;
+        std::set<quint32> restored;
+        std::shared_ptr<std::map<int, jp::office::sheet::CondRaw>> raw;
+    };
+    std::map<int, CondSnap> m_condSnap;        // by sheet: the rules the save in hand writes
+    std::set<int> m_condChangedDuringSave;     // the sheets whose rules were changed after that
+    std::map<int, std::map<quint32, int>> m_condFileOf;   // by sheet: the priority each rule has in the file, as of the last save
+    std::map<int, std::map<int, quint32>> m_condBaseUid;  // by sheet: who each rule of the file is (by its priority in the file)
+    std::map<int, std::map<quint32, jp::office::sheet::CondRaw>> m_condRaw;   // by sheet: the bytes of the file's rules that a clear took away, by uid
     std::map<int, std::set<int>> m_condBase;   // by sheet: the priorities of the rules of the file, as they were before the first change since it was read or saved
     std::map<int, bool> m_condWhole;   // by sheet: whether the file's rules are all held whole (looked at once)
     std::set<int> m_condTouched;   // the sheets whose rules differ from the file's

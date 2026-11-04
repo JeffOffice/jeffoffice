@@ -2,9 +2,9 @@
 // priority); each change is one step of Undo; the file gets the sheet's rules written anew (core of the sheet's patch: sheetpatch.cpp) when the sheet is saved.
 #include "core/editsession.h"
 
-#include <QCoreApplication>
 #include <QUndoCommand>
 
+#include <functional>
 #include <memory>
 #include <set>
 
@@ -20,6 +20,8 @@ namespace {
 
 // The most rules a sheet may hold before one more is refused (a file's own are kept whatever their number).
 constexpr int kMaxRulesOnASheet = 5000;
+// The most blocks of cells all the rules of a sheet may have after a clear splits them (what the save would write is bounded by it).
+constexpr qint64 kMaxRangesAfterAClear = 200000;
 
 class CondChange : public QUndoCommand {
 public:
@@ -35,14 +37,12 @@ public:
     ~CondChange() override { *m_total -= m_bytes; }
     void redo() override
     {
-        if (m_dead) return m_session->condStepRefused(m_why);
         if (m_dxfAdded && !m_first) m_session->rememberDxf(m_format);   // (put back where it was: the rules name it by its place)
         m_first = false;
         m_session->setCondRules(m_sheet, m_after);
     }
     void undo() override
     {
-        if (m_dead) return m_session->condStepRefused(m_why);
         m_session->setCondRules(m_sheet, m_before);
         if (m_dxfAdded) m_session->forgetDxf(m_dxf);   // (a look made for the rule goes with it)
     }
@@ -56,15 +56,8 @@ public:
         for (QVector<CondRule> *list : {&m_before, &m_after})
             for (CondRule &r : *list) {
                 const auto in = fileOf.find(r.uid);
-                if (in != fileOf.end()) {
-                    r.origPriority = r.priority = in->second;
-                } else {
-                    r.origPriority = 0;
-                    if (!r.extId.trimmed().isEmpty() && !m_dead) {
-                        m_dead = true;
-                        m_why = QCoreApplication::translate("jp::crunch::EditSession", "This change to conditional formatting can't be undone or redone now: it was made before the file was saved, and it brings back a rule with extra settings that the saved file no longer has.");
-                    }
-                }
+                if (in != fileOf.end()) r.origPriority = r.priority = in->second;
+                else r.origPriority = 0;   // (not in the file: brought back as the bytes kept of it, or made again)
             }
     }
 
@@ -75,8 +68,7 @@ private:
     std::shared_ptr<qint64> m_total;
     DifferentialFormat m_format;
     qint32 m_dxf;
-    bool m_dxfAdded, m_first = true, m_dead = false;
-    QString m_why;
+    bool m_dxfAdded, m_first = true;
     qint64 m_bytes = 0;
 };
 
@@ -98,16 +90,20 @@ void EditSession::setCondRules(int sheet, const QVector<CondRule> &rules)
     if (!m_condBase.count(sheet)) {
         // (the rules the file has, as they are before the first change since it was read or saved)
         std::set<int> base;
+        std::map<int, quint32> baseUid;
         for (const CondRule &r : condRules(sheet))
-            if (r.origPriority > 0) base.insert(r.origPriority);
+            if (r.origPriority > 0) {
+                base.insert(r.origPriority);
+                baseUid[r.origPriority] = r.uid;
+            }
         m_condBase[sheet] = base;
+        m_condBaseUid[sheet] = baseUid;
     }
+    if (m_condSnap.count(sheet)) m_condChangedDuringSave.insert(sheet);
     if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) hold->calculation()->replaceConditionalFormats(sheet, rules);
     m_condTouched.insert(sheet);
     Q_EMIT conditionalFormatsChanged(sheet);
 }
-
-void EditSession::condStepRefused(const QString &why) { Q_EMIT conditionalUndoRefused(why); }
 
 // The sheet's rules get names for the steps of Undo to tell them by (kept by copies, so every copy has them).
 void EditSession::ensureCondUids(int sheet)
@@ -123,63 +119,152 @@ void EditSession::ensureCondUids(int sheet)
         if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) hold->calculation()->replaceConditionalFormats(sheet, rules);
 }
 
-// What the save puts in the file for a sheet's rules, worked out from the rules as they are: the rules made here are numbered from 1 in the order they have, those the file has keep their priority
-// plus that many, and the file's rules that are not there any more are the ones taken away. (`fileOf` gets the priority every rule will have in the file, by uid.)
-void EditSession::condForSave(int sheet, jp::office::sheet::SheetChanges *sc, std::map<quint32, int> *fileOf, QVector<CondRule> *after) const
+// Rules a step of structure (rows put in, cells deleted) brought back carry the priorities they had before the file was last saved. A rule the last save wrote is given its priority in the file;
+// one that was made before that and is not in the file has none (it is brought back from the bytes kept of it, or made again).
+void EditSession::condFixStale(int sheet)
 {
     QVector<CondRule> rules = condRules(sheet);
+    const auto file = m_condFileOf.find(sheet);
+    bool any = false;
+    for (CondRule &r : rules) {
+        if (!r.uid) continue;
+        if (file != m_condFileOf.end() && file->second.count(r.uid)) {
+            const int p = file->second.at(r.uid);
+            if (r.origPriority != p) {
+                r.origPriority = p;
+                any = true;
+            }
+        } else if (r.uid <= m_condUidMark && r.origPriority > 0) {
+            r.origPriority = 0;
+            any = true;
+        }
+    }
+    if (any)
+        if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) hold->calculation()->replaceConditionalFormats(sheet, rules);
+}
+
+namespace {
+qint64 rawBytes(const jp::office::sheet::CondRaw &r) { return qint64(r.open.size() + r.rule.size() + r.x14Open.size() + r.x14Rule.size() + r.x14Sqref.size()); }
+} // namespace
+
+// What a save puts in the file for a sheet's rules, worked out from the rules as they are: the rules made here are numbered from 1 in the order they have, those the file has keep their priority plus
+// that many, the file's rules that are not there any more are taken away (their bytes are kept, for Undo), and the rules brought back from those bytes go in with the priority they had. The rules as the
+// save will have them are kept (`m_condSnap`) for when it is done.
+void EditSession::condForSave(int sheet, jp::office::sheet::SheetChanges *sc, bool writtenWhole)
+{
+    CondSnap snap;
+    if (writtenWhole) {
+        // (a sheet made here is written from its rules as they are, with nothing of the file's to match)
+        for (const CondRule &r : condRules(sheet)) snap.fileOf[r.uid] = r.priority;
+        snap.after = condRules(sheet);
+        m_condSnap[sheet] = snap;
+        m_condChangedDuringSave.erase(sheet);
+        return;
+    }
+    condFixStale(sheet);
+    QVector<CondRule> rules = condRules(sheet);
+    auto &stored = m_condRaw[sheet];
     QVector<CondRule> made;
     std::set<int> present;
     for (const CondRule &r : rules) {
         if (r.origPriority > 0) {
             present.insert(r.origPriority);
             if (sc) sc->condRanges[r.origPriority] = r.ranges;
+        } else if (stored.count(r.uid)) {
+            snap.restored.insert(r.uid);
+            if (sc) sc->condRestore.push_back({r.ranges, stored.at(r.uid)});
         } else {
             made.append(r);
         }
     }
     std::stable_sort(made.begin(), made.end(), [](const CondRule &a, const CondRule &b) { return a.priority < b.priority; });
     for (int i = 0; i < made.size(); ++i) made[i].priority = i + 1;
-    const int shift = int(made.size());
+    snap.shift = int(made.size());
+    std::map<quint32, int> rank;
+    for (const CondRule &m : made) rank[m.uid] = m.priority;
+    for (CondRule &r : rules) {
+        const int p = r.origPriority > 0 ? r.origPriority + snap.shift : snap.restored.count(r.uid) ? stored.at(r.uid).priority + snap.shift : rank[r.uid];
+        snap.fileOf[r.uid] = p;
+        r.origPriority = r.priority = p;
+    }
+    snap.after = rules;
+    const auto base = m_condBase.find(sheet);
+    if (base != m_condBase.end())
+        for (const int p : base->second)
+            if (!present.count(p)) snap.removed.insert(p);
     if (sc) {
         sc->condEdit = true;
-        sc->condShift = shift;
+        sc->condShift = snap.shift;
         sc->condNew = made;
-        const auto base = m_condBase.find(sheet);
-        if (base != m_condBase.end())
-            for (const int p : base->second)
-                if (!present.count(p)) sc->condRemoved.insert(p);
+        sc->condRemoved = snap.removed;
+        snap.raw = std::make_shared<std::map<int, jp::office::sheet::CondRaw>>();
+        sc->condRawOut = snap.raw;
     }
-    if (fileOf || after) {
-        // (a rule made here is told by its uid)
-        std::map<quint32, int> rank;
-        for (const CondRule &m : made) rank[m.uid] = m.priority;
-        for (CondRule &r : rules) {
-            const int p = r.origPriority > 0 ? r.origPriority + shift : rank[r.uid];
-            if (fileOf) (*fileOf)[r.uid] = p;
-            r.origPriority = r.priority = p;
-        }
-        if (after) *after = rules;
-    }
+    m_condSnap[sheet] = snap;
+    m_condChangedDuringSave.erase(sheet);
 }
 
-// The file was saved with these rules: they are the file's own from here on, and the steps of Undo are put in step with it.
+// The file was saved with the rules the save was made from (not the ones as they are now: a change made while it was written is not in the file): they are the file's own from here on, the rules
+// it took away are kept as the bytes the file had, and the steps of Undo are put in step with it.
 void EditSession::condSaved()
 {
     std::map<int, std::map<quint32, int>> files;
-    for (const int sheet : m_condTouched) {
-        std::map<quint32, int> fileOf;
-        QVector<CondRule> after;
-        condForSave(sheet, nullptr, &fileOf, &after);
-        if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) hold->calculation()->replaceConditionalFormats(sheet, after);
-        files[sheet] = fileOf;
-        m_condBase.erase(sheet);
+    for (auto &entry : m_condSnap) {
+        const int sheet = entry.first;
+        CondSnap &snap = entry.second;
+        QVector<CondRule> rules = condRules(sheet);
+        for (CondRule &r : rules) {
+            const auto in = snap.fileOf.find(r.uid);
+            if (in != snap.fileOf.end()) r.origPriority = r.priority = in->second;
+        }
+        if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) hold->calculation()->replaceConditionalFormats(sheet, rules);
+        // the bytes of what was taken away (by the uid the rule had), the others kept in step with the priorities
+        auto &stored = m_condRaw[sheet];
+        for (auto it = stored.begin(); it != stored.end();) {
+            if (snap.restored.count(it->first)) {
+                *m_undoBytes -= rawBytes(it->second);
+                it = stored.erase(it);
+            } else {
+                it->second.priority += snap.shift;
+                ++it;
+            }
+        }
+        const auto uids = m_condBaseUid.find(sheet);
+        if (snap.raw && uids != m_condBaseUid.end())
+            for (const int p : snap.removed) {
+                const auto raw = snap.raw->find(p);
+                const auto who = uids->second.find(p);
+                if (raw == snap.raw->end() || who == uids->second.end()) continue;
+                jp::office::sheet::CondRaw kept = raw->second;
+                kept.priority = p + snap.shift;
+                *m_undoBytes += rawBytes(kept);
+                stored[who->second] = kept;
+            }
+        // (the file's rules from here on, by priority, and who they are)
+        std::set<int> base;
+        std::map<int, quint32> baseUid;
+        for (const CondRule &r : snap.after) {
+            base.insert(r.origPriority);
+            baseUid[r.origPriority] = r.uid;
+        }
+        m_condBase[sheet] = base;
+        m_condBaseUid[sheet] = baseUid;
+        m_condFileOf[sheet] = snap.fileOf;
+        files[sheet] = snap.fileOf;
+        if (!m_condChangedDuringSave.count(sheet)) m_condTouched.erase(sheet);
     }
-    for (int i = 0; i < m_undo.count(); ++i)
-        if (auto *step = const_cast<CondChange *>(dynamic_cast<const CondChange *>(m_undo.command(i)))) {
+    m_condSnap.clear();
+    m_condChangedDuringSave.clear();
+    m_condUidMark = m_condUid;
+    // the steps, those inside a macro too
+    std::function<void(const QUndoCommand *)> visit = [&](const QUndoCommand *c) {
+        if (auto *step = const_cast<CondChange *>(dynamic_cast<const CondChange *>(c))) {
             const auto file = files.find(step->sheet());
             if (file != files.end()) step->rebase(file->second);
         }
+        for (int i = 0; i < c->childCount(); ++i) visit(c->child(i));
+    };
+    for (int i = 0; i < m_undo.count(); ++i) visit(m_undo.command(i));
 }
 
 void EditSession::rememberDxf(const DifferentialFormat &format)
@@ -302,6 +387,13 @@ EditSession::Outcome EditSession::clearCondRules(int sheet, const CellRange &ran
         after.append(kept);
     }
     if (!changed) return out;   // (nothing to clear)
+    qint64 cells = 0;
+    for (const CondRule &r : after) cells += r.ranges.size();
+    if (cells > kMaxRangesAfterAClear) {
+        out.ok = false;
+        out.problem = tr("Clearing there would split the rules into more than %1 blocks of cells. Clear a larger part of the sheet at once.").arg(kMaxRangesAfterAClear);
+        return out;
+    }
     m_undo.push(new CondChange(this, sheet, before, after, range.valid ? tr("Clear Rules from Selected Cells") : tr("Clear Rules from Sheet"), m_undoBytes));
     return out;
 }

@@ -1051,6 +1051,45 @@ private Q_SLOTS:
         out.replace(QRegularExpression(QStringLiteral("priority=\"\\d+\"")), QStringLiteral("priority=\"P\""));
         return out;
     }
+    static bool saveWithoutWaiting(EditWindow &e)
+    {
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        const bool started = e.win.w.save();
+        const bool done = started && saved.wait(30000);
+        return done && saved.last().value(1).toBool();
+    }
+    // The elements of rules of a saved sheet, parsed out and sorted, with the priorities made alike: the elements of the main list, then those of the 2010 block.
+    static QStringList ruleElements(EditWindow &e, const QString &which = QStringLiteral("conditionalFormatting"))
+    {
+        Package p;
+        QString why;
+        if (!p.readLazyFile(e.path, &why)) return {why};
+        const QString xml = QString::fromUtf8(p.part(QStringLiteral("/xl/worksheets/sheet1.xml")));
+        QStringList out;
+        QRegularExpression element(QStringLiteral("<%1[ >].*?</%1>").arg(which), QRegularExpression::DotMatchesEverythingOption);
+        for (auto it = element.globalMatch(xml); it.hasNext();) out << it.next().captured().replace(QRegularExpression(QStringLiteral("priority=\"\\d+\"")), QStringLiteral("priority=\"P\""));
+        out.sort();
+        return out;
+    }
+    static QStringList ruleElementsOf(const QString &tail, const QString &which = QStringLiteral("conditionalFormatting"))
+    {
+        QStringList out;
+        QRegularExpression element(QStringLiteral("<%1[ >].*?</%1>").arg(which), QRegularExpression::DotMatchesEverythingOption);
+        for (auto it = element.globalMatch(tail); it.hasNext();) out << it.next().captured().replace(QRegularExpression(QStringLiteral("priority=\"\\d+\"")), QStringLiteral("priority=\"P\""));
+        out.sort();
+        return out;
+    }
+    // The priorities of the rules of a saved sheet, in the order the file has them (the main list, then the 2010 block).
+    static QList<int> prioritiesOfSaved(EditWindow &e)
+    {
+        Package p;
+        QString why;
+        QList<int> out;
+        if (!p.readLazyFile(e.path, &why)) return out;
+        const QString xml = QString::fromUtf8(p.part(QStringLiteral("/xl/worksheets/sheet1.xml")));
+        for (auto it = QRegularExpression(QStringLiteral("priority=\"(\\d+)\"")).globalMatch(xml); it.hasNext();) out << it.next().captured(1).toInt();
+        return out;
+    }
     static QString plainWithPriorities(QString tail)
     {
         tail.replace(QRegularExpression(QStringLiteral("priority=\"\\d+\"")), QStringLiteral("priority=\"P\""));
@@ -1076,7 +1115,7 @@ private Q_SLOTS:
         e.win.w.undoStack()->undo();
         QCOMPARE(int(s->condRules(0).size()), 2);
         QVERIFY(saveNow(e));
-        QCOMPARE(tailOfSaved(e), plainWithPriorities(plainRulesTail()));
+        QCOMPARE(ruleElements(e), ruleElementsOf(plainRulesTail()));
         Window again;
         QVERIFY(again.open(e.copyOfFile()));
         QCOMPARE(int(again.w.view()->sheet().data().sheet->conditionalFormats.size()), 2);
@@ -1091,7 +1130,8 @@ private Q_SLOTS:
         // and Undo once more takes it out of the file again
         e.win.w.undoStack()->undo();
         QVERIFY(saveNow(e));
-        QCOMPARE(tailOfSaved(e), plainWithPriorities(plainRulesTail()));
+        QCOMPARE(ruleElements(e), ruleElementsOf(plainRulesTail()));
+        QVERIFY(e.win.w.undoStack()->canRedo());
     }
 
     // Clear rules, save, Undo, save: the rules are back; Redo clears them again.
@@ -1123,45 +1163,262 @@ private Q_SLOTS:
         QVERIFY(!tailOfSaved(e).contains(QLatin1String("conditionalFormatting")));
     }
 
-    // The same on a sheet with data bars and the 2010 block: an added rule goes and comes back across saves with everything else byte for byte as it was; a cleared rule with no extra settings is
-    // back after Undo; a cleared one that has a 2010 entry can't be made again from what is kept, and Undo says so (it is not silent) and changes nothing.
+    // The same on a sheet with data bars and the 2010 block: an added rule goes and comes back across saves with everything else byte for byte as it was; a rule cleared before a save is brought back
+    // by Undo as the bytes the file had (its element with the table's mark, a data bar with its 2010 entry), where it was among the priorities.
     void undoAcrossASaveOnASheetWithExtensionRules()
     {
         EditWindow e;
         QVERIFY(e.open(bookWith(extensionRulesTail())));
         QVERIFY(e.settle());
         crunch::EditSession *s = e.win.w.session();
-        const QString original = plainWithPriorities(extensionRulesTail());
+        const QStringList mainWas = ruleElementsOf(extensionRulesTail()), x14Was = ruleElementsOf(extensionRulesTail(), QStringLiteral("x14:conditionalFormatting"));
+        QCOMPARE(int(mainWas.size()), 3);
         selectRange(e, QStringLiteral("D1:D1"));
         ask(e, CrunchWindow::CondAnswer::Kind::Greater, QStringLiteral("3"));
         run(e, "cond.greater");
         QVERIFY(saveNow(e));
         e.win.w.undoStack()->undo();
         QVERIFY(saveNow(e));
-        QCOMPARE(tailOfSaved(e), original);
+        QCOMPARE(ruleElements(e), mainWas);
+        QCOMPARE(ruleElements(e, QStringLiteral("x14:conditionalFormatting")), x14Was);
         e.win.w.undoStack()->redo();
         QCOMPARE(int(s->condRules(0).size()), 4);
         QVERIFY(saveNow(e));
         e.win.w.undoStack()->undo();
         QVERIFY(saveNow(e));
-        QCOMPARE(tailOfSaved(e), original);
-        // the table's rule (no extra settings) cleared, saved, and brought back
+        QCOMPARE(ruleElements(e), mainWas);
+        // the table's rule cleared, saved, and brought back: its element is the same bytes, its mark too, and it is among the priorities where it was
         QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("C1:C3"))).ok);
         QVERIFY(saveNow(e));
-        QVERIFY(!tailOfSaved(e).contains(QLatin1String("colorScale")));
+        QCOMPARE(int(ruleElements(e).size()), 2);
+        e.win.w.undoStack()->undo();
+        QVERIFY(saveNow(e));
+        QCOMPARE(ruleElements(e), mainWas);
+        QVERIFY(ruleElements(e).join(QString()).contains(QLatin1String("pivot=\"1\"")));
+        // the data bar cleared, saved, and brought back with its 2010 entry
+        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("A1:A3"))).ok);
+        QVERIFY(saveNow(e));
+        QCOMPARE(int(ruleElements(e).size()), 2);
+        QCOMPARE(int(ruleElements(e, QStringLiteral("x14:conditionalFormatting")).size()), 1);
         e.win.w.undoStack()->undo();
         QCOMPARE(int(s->condRules(0).size()), 3);
         QVERIFY(saveNow(e));
-        QVERIFY(tailOfSaved(e).contains(QLatin1String("colorScale")));
-        QVERIFY(tailOfSaved(e).contains(QLatin1String("000000000001")));   // (the data bar and its 2010 entry are still there)
-        // the data bar cleared, saved, and Undo: it can't be made again, and says so
-        QSignalSpy refused(s, &crunch::EditSession::conditionalUndoRefused);
-        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("A1:A3"))).ok);
+        QCOMPARE(ruleElements(e), mainWas);
+        QCOMPARE(ruleElements(e, QStringLiteral("x14:conditionalFormatting")), x14Was);
+        // and Redo clears it again, taking the entry with it (and the block, when the last one goes)
+        e.win.w.undoStack()->redo();
         QVERIFY(saveNow(e));
-        const int rules = int(s->condRules(0).size());
+        QCOMPARE(int(ruleElements(e).size()), 2);
+        QCOMPARE(int(ruleElements(e, QStringLiteral("x14:conditionalFormatting")).size()), 1);
+        // the undo stack is where the steps left it
+        QVERIFY(e.win.w.undoStack()->canUndo());
+        QVERIFY(!e.win.w.undoStack()->canRedo());
+    }
+
+    // A rule cleared before a save comes back where it was among the priorities (not on top), with its stop mark.
+    void aClearedRuleComesBackWhereItWasAmongThePriorities()
+    {
+        const QString tail = QStringLiteral("<conditionalFormatting sqref=\"A1\"><cfRule type=\"cellIs\" priority=\"1\" operator=\"equal\"><formula>1</formula></cfRule></conditionalFormatting>"
+                                            "<conditionalFormatting sqref=\"B1\"><cfRule type=\"cellIs\" priority=\"2\" stopIfTrue=\"1\" operator=\"equal\"><formula>2</formula></cfRule></conditionalFormatting>"
+                                            "<conditionalFormatting sqref=\"C1\"><cfRule type=\"cellIs\" priority=\"3\" operator=\"equal\"><formula>3</formula></cfRule></conditionalFormatting>");
+        EditWindow e;
+        QVERIFY(e.open(bookWith(tail)));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("B1"))).ok);
+        QVERIFY(saveNow(e));
+        // another rule is made in between (the file's priorities go up), then the cleared one is brought back
+        selectRange(e, QStringLiteral("D1:D1"));
+        ask(e, CrunchWindow::CondAnswer::Kind::Greater, QStringLiteral("3"));
+        run(e, "cond.greater");
+        QVERIFY(saveNow(e));
+        e.win.w.undoStack()->undo();   // (the rule made)
+        e.win.w.undoStack()->undo();   // (the clear)
+        QVERIFY(saveNow(e));
+        QCOMPARE(ruleElements(e), ruleElementsOf(tail));
+        const QList<int> priorities = prioritiesOfSaved(e);
+        QCOMPARE(int(priorities.size()), 3);
+        QStringList order;   // the formulas, from the rule that is first to the last
+        Package p;
+        QString why;
+        QVERIFY(p.readLazyFile(e.path, &why));
+        const QString xml = QString::fromUtf8(p.part(QStringLiteral("/xl/worksheets/sheet1.xml")));
+        QMap<int, QString> byPriority;
+        for (auto it = QRegularExpression(QStringLiteral("priority=\"(\\d+)\"[^>]*>(?:<formula>(\\d)</formula>)")).globalMatch(xml); it.hasNext();) {
+            const auto m = it.next();
+            byPriority[m.captured(1).toInt()] = m.captured(2);
+        }
+        QCOMPARE(QStringList(byPriority.values()), QStringList({"1", "2", "3"}));   // (the one with the stop mark is between the others)
+        QVERIFY(xml.contains(QLatin1String("stopIfTrue=\"1\"")));
+    }
+
+    // Rows put in or taken out of a touched sheet: the main list's cells and the 2010 entry's stay in step, and a delete that takes every cell of a rule takes its entry with it.
+    void rowsPutInAndDeletedKeepTheMainListAndTheExtensionBlockInStep()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWith(extensionRulesTail())));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        selectRange(e, QStringLiteral("D1:D1"));
+        ask(e, CrunchWindow::CondAnswer::Kind::Greater, QStringLiteral("3"));
+        run(e, "cond.greater");                         // (the sheet is touched)
+        QVERIFY(s->insertRows(0, 0, 2).ok);
+        QVERIFY(saveNow(e));
+        Package p;
+        QString why;
+        QVERIFY(p.readLazyFile(e.path, &why));
+        QString xml = QString::fromUtf8(p.part(QStringLiteral("/xl/worksheets/sheet1.xml")));
+        QCOMPARE(xml.count(QLatin1String("sqref=\"A3:A5\"")), 1);
+        QCOMPARE(xml.count(QLatin1String("<xm:sqref>A3:A5</xm:sqref>")), 1);
+        QCOMPARE(xml.count(QLatin1String("sqref=\"B3:B5\"")), 1);
+        QCOMPARE(xml.count(QLatin1String("<xm:sqref>B3:B5</xm:sqref>")), 1);
+        QCOMPARE(xml.count(QLatin1String("sqref=\"D3\"")), 1);   // (the rule made)
+        // the rows the three rules were on are deleted: the rules, their entries, the block, and the list go
+        QVERIFY(s->deleteRows(0, 2, 3).ok);
+        QVERIFY(saveNow(e));
+        Package q;
+        QVERIFY(q.readLazyFile(e.path, &why));
+        xml = QString::fromUtf8(q.part(QStringLiteral("/xl/worksheets/sheet1.xml")));
+        QVERIFY2(!xml.contains(QLatin1String("dataBar")) && !xml.contains(QLatin1String("3Arrows")) && !xml.contains(QLatin1String("x14:cfRule")), qPrintable(xml));
+        QVERIFY(!xml.contains(QLatin1String("colorScale")));   // (every cell of the three rules was deleted: no rule is left)
+        QVERIFY2(!xml.contains(QLatin1String("<extLst>")) && !xml.contains(QLatin1String("conditionalFormattings")), qPrintable(xml));   // (nothing in the block: it is gone, and the list too)
+    }
+
+    // The same without a change of rules: a delete that takes every cell of a rule takes its 2010 entry with it (the main element goes in the same pass).
+    void aDeleteOfEveryCellOfARuleTakesItsExtensionEntryToo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWith(extensionRulesTail())));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.session()->deleteRows(0, 0, 3).ok);
+        QVERIFY(saveNow(e));
+        Package p;
+        QString why;
+        QVERIFY(p.readLazyFile(e.path, &why));
+        const QString xml = QString::fromUtf8(p.part(QStringLiteral("/xl/worksheets/sheet1.xml")));
+        QVERIFY2(!xml.contains(QLatin1String("x14:cfRule")) && !xml.contains(QLatin1String("conditionalFormattings")) && !xml.contains(QLatin1String("<extLst>")), qPrintable(xml));
+        QVERIFY(!xml.contains(QLatin1String("dataBar")));
+    }
+
+    // Two 2010 rules in one element, and a 2010 rule that has no rule of the main list: a clear takes out only the rule asked for, an added rule moves every priority by one, and the rule with no
+    // priority stays without one.
+    void twoExtensionRulesInOneElementAndOneWithNoMainRule()
+    {
+        const QString x14ns = QStringLiteral("xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"");
+        const QString tail = QStringLiteral(
+                                 "<conditionalFormatting sqref=\"A1:A3\"><cfRule type=\"dataBar\" priority=\"1\"><dataBar><cfvo type=\"min\"/><cfvo type=\"max\"/><color rgb=\"FF638EC6\"/></dataBar>"
+                                 "<extLst><ext uri=\"{B025F937-C7B1-47D3-B67F-A62EFF666E3E}\" %1><x14:id>{BBBBBBBB-0000-0000-0000-000000000001}</x14:id></ext></extLst></cfRule></conditionalFormatting>"
+                                 "<conditionalFormatting sqref=\"A1:A3\"><cfRule type=\"iconSet\" priority=\"2\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/><cfvo type=\"percent\" val=\"33\"/><cfvo type=\"percent\" val=\"67\"/></iconSet>"
+                                 "<extLst><ext uri=\"{B025F937-C7B1-47D3-B67F-A62EFF666E3E}\" %1><x14:id>{BBBBBBBB-0000-0000-0000-000000000002}</x14:id></ext></extLst></cfRule></conditionalFormatting>"
+                                 "<extLst><ext uri=\"{78C0D931-6437-407d-A8EE-F0AAD7539E65}\" %1><x14:conditionalFormattings>"
+                                 "<x14:conditionalFormatting xmlns:xm=\"http://schemas.microsoft.com/office/excel/2006/main\">"
+                                 "<x14:cfRule type=\"dataBar\" priority=\"1\" id=\"{BBBBBBBB-0000-0000-0000-000000000001}\"><x14:dataBar minLength=\"0\" maxLength=\"100\"><x14:cfvo type=\"autoMin\"/><x14:cfvo type=\"autoMax\"/></x14:dataBar></x14:cfRule>"
+                                 "<x14:cfRule type=\"iconSet\" priority=\"2\" id=\"{BBBBBBBB-0000-0000-0000-000000000002}\"><x14:iconSet iconSet=\"3Arrows\" custom=\"1\"><x14:cfvo type=\"percent\"><xm:f>0</xm:f></x14:cfvo></x14:iconSet></x14:cfRule>"
+                                 "<xm:sqref>A1:A3</xm:sqref></x14:conditionalFormatting>"
+                                 "<x14:conditionalFormatting xmlns:xm=\"http://schemas.microsoft.com/office/excel/2006/main\">"
+                                 "<x14:cfRule type=\"expression\" priority=\"9\" id=\"{BBBBBBBB-0000-0000-0000-000000000009}\"><xm:f>Other!A1&gt;1</xm:f></x14:cfRule><xm:sqref>C1:C3</xm:sqref></x14:conditionalFormatting>"
+                                 "</x14:conditionalFormattings></ext></extLst>")
+                                 .arg(x14ns);
+        EditWindow e;
+        QVERIFY(e.open(bookWith(tail)));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        selectRange(e, QStringLiteral("D1:D1"));
+        ask(e, CrunchWindow::CondAnswer::Kind::Greater, QStringLiteral("3"));
+        run(e, "cond.greater");
+        QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join('|')));
+        QVERIFY(saveNow(e));
+        QCOMPARE(prioritiesOfSaved(e), (QList<int>{1, 2, 3, 2, 3, 10}));   // (the new rule 1; the main list 2 and 3; the 2010 entries 2, 3, and the one with no main rule 10)
+        // the data bar is cleared: its entry goes out of the element that has another, whose cells and rule stay
+        QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("A1:A3"))).ok);   // (both rules of A1:A3 are cleared)
+        QVERIFY(saveNow(e));
+        Package p;
+        QString why;
+        QVERIFY(p.readLazyFile(e.path, &why));
+        const QString xml = QString::fromUtf8(p.part(QStringLiteral("/xl/worksheets/sheet1.xml")));
+        QCOMPARE(xml.count(QLatin1String("x14:cfRule")) / 2, 1);   // (only the rule that has no main rule is left)
+        QVERIFY(xml.contains(QLatin1String("<xm:sqref>C1:C3</xm:sqref>")));
+        QVERIFY(!xml.contains(QLatin1String("dataBar")));
+    }
+
+    // A sheet made here that has a rule written is written once.
+    void aSheetMadeHereWithARuleHasItWrittenOnce()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(e.settle());
+        int made = -1;
+        QVERIFY(e.win.w.session()->insertSheet(1, QStringLiteral("Second"), &made).ok);
+        jp::office::sheet::CondRule rule;
+        rule.type = jp::office::sheet::CondRule::Type::CellIs;
+        rule.op = jp::office::sheet::CondRule::Operator::GreaterThan;
+        rule.formula1 = QStringLiteral("0");
+        rule.ranges.append(rangeOf(QStringLiteral("A1:B2")));
+        QVERIFY2(e.win.w.session()->addCondRule(made, rule, jp::office::sheet::DifferentialFormat()).ok, "a rule on the new sheet");
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(savedOk(saved, 20000));
+        Package p;
+        QString why;
+        QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
+        const QString xml = QString::fromUtf8(p.part(QStringLiteral("/xl/worksheets/sheet2.xml")));
+        QCOMPARE(xml.count(QLatin1String("<conditionalFormatting")), 1);
+        QCOMPARE(xml.count(QLatin1String("<cfRule")), 1);
+    }
+
+    // Rules of two sheets changed, then one save: each sheet has its own.
+    void rulesOfSeveralSheetsAreSavedTogether()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), plainRulesTail()), worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), plainRulesTail())},
+                                 QByteArray(), QString(), QString(), uiStyles())));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->clearCondRules(0, jp::office::sheet::CellRange()).ok);
+        e.win.w.setActiveSheet(1);
+        selectRange(e, QStringLiteral("C1:C1"));
+        ask(e, CrunchWindow::CondAnswer::Kind::Greater, QStringLiteral("3"));
+        run(e, "cond.greater");
+        QVERIFY(saveNow(e));
+        Package p;
+        QString why;
+        QVERIFY(p.readLazyFile(e.path, &why));
+        QCOMPARE(QString::fromUtf8(p.part(QStringLiteral("/xl/worksheets/sheet1.xml"))).count(QLatin1String("<conditionalFormatting")), 0);
+        const QString second = QString::fromUtf8(p.part(QStringLiteral("/xl/worksheets/sheet2.xml")));
+        QCOMPARE(second.count(QLatin1String("<conditionalFormatting")), 3);
+        // each undone: both sheets are as they were
         e.win.w.undoStack()->undo();
-        QCOMPARE(refused.count(), 1);
-        QCOMPARE(int(s->condRules(0).size()), rules);
+        e.win.w.undoStack()->undo();
+        QVERIFY(saveNow(e));
+        Package q;
+        QVERIFY(q.readLazyFile(e.path, &why));
+        QCOMPARE(QString::fromUtf8(q.part(QStringLiteral("/xl/worksheets/sheet1.xml"))).count(QLatin1String("<conditionalFormatting")), 2);
+        QCOMPARE(QString::fromUtf8(q.part(QStringLiteral("/xl/worksheets/sheet2.xml"))).count(QLatin1String("<conditionalFormatting")), 2);
+    }
+
+    // A step of structure (a row put in) undone after a save: the rules it brings back are matched with the file again, and nothing is written twice or lost.
+    void aStructureStepUndoneAfterASaveMatchesTheFileAgain()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWith(plainRulesTail())));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        selectRange(e, QStringLiteral("D1:D1"));
+        ask(e, CrunchWindow::CondAnswer::Kind::Greater, QStringLiteral("3"));
+        run(e, "cond.greater");
+        QVERIFY(s->insertRows(0, 0, 1).ok);
+        QVERIFY(saveNow(e));
+        e.win.w.undoStack()->undo();   // the rows
+        QVERIFY(saveNow(e));
+        QCOMPARE(int(ruleElements(e).size()), 3);
+        QVERIFY(e.settle());
+        Package p;
+        QString why;
+        QVERIFY(p.readLazyFile(e.path, &why));
+        QVERIFY(QString::fromUtf8(p.part(QStringLiteral("/xl/worksheets/sheet1.xml"))).contains(QLatin1String("sqref=\"A1:A3\"")));
+        e.win.w.undoStack()->undo();   // the rule
+        QVERIFY(saveNow(e));
+        QCOMPARE(int(ruleElements(e).size()), 2);
     }
 
     // Clearing the cells of a rule that has a 2010 entry (and one that has none): the entry follows the rule's cells, a rule cleared whole takes its entry with it, and everything else is as it was.

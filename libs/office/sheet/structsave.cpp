@@ -1,5 +1,6 @@
 // The parts of a file as rows, columns, and cells are inserted and deleted: see structsave.h.
 #include "sheet/structsave.h"
+#include "sheet/xlsxsave.h"
 #include "sheet/structref.h"
 #include "sheet/namerefs.h"
 
@@ -640,6 +641,8 @@ QByteArray movedTop(const QByteArray &xml, const Elem &e, const MoveContext &c, 
     if (name == "extLst") {
         QByteArray out = rewriteElementText(whole, "sqref", [&](const QString &s) { return adjustSqrefAll(s, sheet, c); });
         out = rewriteElementText(out, "f", [&](const QString &f) { return adjustAll(f, sheet, c); });
+        // (a 2010 entry whose cells are all gone goes, as the element of the main list does, and what that leaves empty)
+        if (out != whole) return dropEmptyExtensionRules(out);
         return out;
     }
     return whole;

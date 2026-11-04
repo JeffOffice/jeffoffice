@@ -1720,7 +1720,11 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
         m_pages.addToSave(&changes, names, book.info().order);
     for (const int s : m_condTouched) {
         if (s < 0 || s >= int(names.size()) || names[s].isEmpty() || !m_book->calc) continue;
-        condForSave(s, &changes.sheets[s], nullptr, nullptr);
+        if (book.info().sheets[s].isNew) {
+            condForSave(s, nullptr, true);   // (a sheet made here is written from its rules whole: they are not put in again)
+            continue;
+        }
+        condForSave(s, &changes.sheets[s]);
     }
         m_anchors.addToSave(&changes);
         // the protection of the sheets, and of the workbook, where it differs from the file's
@@ -1843,7 +1847,6 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_pages.saved();
     condSaved();
     m_condWhole.clear();
-    m_condTouched.clear();
     m_anchors.saved();
     m_fileProtection.clear();
     for (int i = 0; i < m_book->calc->sheetCount(); ++i) m_fileProtection.push_back(m_book->calc->sheet(i).protection);
