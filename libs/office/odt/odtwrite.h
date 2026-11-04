@@ -172,6 +172,7 @@ private:
     QByteArray m_pendingBookmarks, m_changeRegions;
     int m_changeCount = 0;
     qint64 m_cellsMade = 0;
+    QByteArray m_cellText;                             // the text attributes the style of the table gives the words of the cell being written (a span's own come over them)
     int m_tocDepth = 0;
     bool m_inToc = false;
     int m_innerSections = 0;

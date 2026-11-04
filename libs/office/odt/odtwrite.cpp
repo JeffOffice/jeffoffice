@@ -26,7 +26,7 @@ const char kOdfNamespaces[] =
     " xmlns:chart=\"urn:oasis:names:tc:opendocument:xmlns:chart:1.0\" xmlns:dr3d=\"urn:oasis:names:tc:opendocument:xmlns:dr3d:1.0\""
     " xmlns:math=\"http://www.w3.org/1998/Math/MathML\" xmlns:form=\"urn:oasis:names:tc:opendocument:xmlns:form:1.0\""
     " xmlns:script=\"urn:oasis:names:tc:opendocument:xmlns:script:1.0\" xmlns:of=\"urn:oasis:names:tc:opendocument:xmlns:of:1.2\""
-    " xmlns:loext=\"urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0\"";
+    " xmlns:loext=\"urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0\" xmlns:jo=\"urn:jeffoffice:odf-extension\"";
 
 const char kXml[] = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 

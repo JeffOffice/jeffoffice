@@ -306,7 +306,8 @@ private Q_SLOTS:
         QVERIFY2(x.contains("SUM(ABOVE)") && x.contains(">12.00<"), x.right(1500).constData());
         // (and it can be updated again)
         updateFields(*back);
-        QVERIFY2(docxText(*back).contains("SUM(ABOVE)") && docxText(*back).contains(">12<"), docxText(*back).right(1500).constData());
+        QVERIFY2(docxText(*back).contains("SUM(ABOVE)") && docxText(*back).contains(">12.00<"), docxText(*back).right(1500).constData());   // (the number format came back too)
+        QVERIFY(docxText(*back).contains("0.00"));
     }
 
     // What a table style gives the cells (the header row's fill, the bands) is written on the cells, so the table looks the same when the file is opened again.
@@ -337,6 +338,42 @@ private Q_SLOTS:
         office::Package p;
         QVERIFY(p.read(back->toDocx()));
         QCOMPARE(int(p.part(QStringLiteral("/word/document.xml")).toUpper().count("W:FILL=\"FF0000\"")), 2);
+    }
+
+    // The text looks a table style gives the header row (bold, a color) are written on its cells' words, and the other rows' words have none.
+    void aTableStylesTextLooksAreKeptOnTheWordsWhenSavingAsOdt()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QByteArray ns = " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+        auto cell = [](const char *word) { return QByteArray("<w:tc><w:tcPr><w:tcW w:w=\"2400\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>") + word + "</w:t></w:r></w:p></w:tc>"; };
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"),
+                  "<?xml version=\"1.0\"?><w:document" + ns + "><w:body><w:tbl><w:tblPr><w:tblStyle w:val=\"BoldHead\"/><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2400\"/><w:gridCol w:w=\"2400\"/></w:tblGrid>"
+                  "<w:tr>" + cell("h1") + cell("h2") + "</w:tr><w:tr>" + cell("x") + cell("y") + "</w:tr></w:tbl><w:p><w:r><w:t>after</w:t></w:r></w:p></w:body></w:document>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addPart(QStringLiteral("/word/styles.xml"),
+                  "<?xml version=\"1.0\"?><w:styles" + ns + "><w:style w:type=\"table\" w:styleId=\"BoldHead\"><w:name w:val=\"Bold Head\"/><w:tblPr/>"
+                  "<w:tblStylePr w:type=\"firstRow\"><w:rPr><w:b/><w:color w:val=\"0000FF\"/></w:rPr></w:tblStylePr></w:style></w:styles>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+        auto doc = WriteDoc::fromFile(w.finish());
+        QVERIFY(doc);
+        auto back = WriteDoc::fromFile(doc->toOdt());
+        QVERIFY(back);
+        office::Package p;
+        QVERIFY(p.read(back->toDocx()));
+        const QByteArray x = p.part(QStringLiteral("/word/document.xml"));
+        auto runOf = [&](const char *word) {
+            const qsizetype at = x.indexOf(QByteArray(">") + word + "<");
+            const qsizetype start = std::max(x.lastIndexOf("<w:r>", at), x.lastIndexOf("<w:r ", at));
+            return x.mid(int(start), int(at - start));
+        };
+        for (const char *head : {"h1", "h2"}) {
+            QVERIFY2(runOf(head).contains("<w:b/>") || runOf(head).contains("<w:b "), runOf(head).constData());
+            QVERIFY2(runOf(head).contains("0000FF"), runOf(head).constData());
+        }
+        for (const char *body : {"x", "y"}) QVERIFY2(!runOf(body).contains("<w:b/>") && !runOf(body).contains("0000FF"), runOf(body).constData());
     }
 
     // Not a test of its own: the work of a process that the next function starts.

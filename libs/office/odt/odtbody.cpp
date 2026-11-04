@@ -505,8 +505,9 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
             }
         formula.remove(QLatin1String("[.")).remove(QLatin1String(":.")).remove(QLatin1Char('[')).remove(QLatin1Char(']')).remove(QLatin1Char('<')).remove(QLatin1Char('>'));
         formula = formula.trimmed();
+        const QString picture = t.attrAny(n, "number-picture");
         if (formula.isEmpty()) addText(pc, t.text(n), fmt);
-        else addField(pc, QStringLiteral("= ") + formula, t.text(n), fmt);
+        else addField(pc, QStringLiteral("= ") + formula + (picture.isEmpty() ? QString() : QStringLiteral(" \\# \"") + picture + QLatin1Char('"')), t.text(n), fmt);
     }
     else if (o.is(n, "text:word-count")) addField(pc, QStringLiteral("NUMWORDS"), t.text(n), fmt);
     else if (o.is(n, "text:character-count")) addField(pc, QStringLiteral("NUMCHARS"), t.text(n), fmt);

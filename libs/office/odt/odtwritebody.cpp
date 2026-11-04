@@ -6,7 +6,9 @@
 
 #include <QCoreApplication>
 #include <QFileInfo>
+#include <QMap>
 #include <QRegularExpression>
+#include <QSet>
 #include <algorithm>
 #include <cmath>
 
@@ -595,7 +597,19 @@ QString Writer::spanFor(const T &t, int rPr, ParaCtx *pc)
     }
     QString parent;
     if (!rStyle.isEmpty() && m_dstyles.contains(rStyle) && rStyle != m_defaultCharStyle) parent = m_dstyles[rStyle].odfName;
-    const QByteArray attrs = textAttrs(t, rPr);
+    QByteArray attrs = textAttrs(t, rPr);
+    if (!m_cellText.isEmpty()) {
+        // (the looks the cell's table style gives the words come under the run's own)
+        static const QRegularExpression attribute(QStringLiteral(" ([A-Za-z:-]+)="));
+        QSet<QString> own;
+        for (auto it = attribute.globalMatch(QString::fromUtf8(attrs)); it.hasNext();) own.insert(it.next().captured(1));
+        for (auto it = attribute.globalMatch(QString::fromUtf8(m_cellText)); it.hasNext();) {
+            const QRegularExpressionMatch m = it.next();
+            if (own.contains(m.captured(1))) continue;
+            const qsizetype from = m.capturedStart(0), to = m_cellText.indexOf('"', m.capturedEnd(0) + 1);
+            if (to > from) attrs += m_cellText.mid(int(from), int(to - from) + 1);
+        }
+    }
     if (attrs.isEmpty()) return parent;
     return m_sink->make("T", "text", parent.isEmpty() ? QByteArray() : " style:parent-style-name=\"" + esc(parent) + "\"", "<style:text-properties" + attrs + "/>");
 }
@@ -631,10 +645,15 @@ QByteArray Writer::fieldXml(const QString &instrRaw, const QString &resultText, 
         return false;
     };
     if (instr.startsWith(QLatin1Char('='))) {
-        // A formula: kept as the expression of the field (the number picture, \\# "...", is not kept in this format; the result shows as the field had it).
+        // A formula: kept as the expression of the field; the number picture, \\# "...", goes in an attribute of ours.
         QString formula = instr.mid(1);
         const int picture = int(formula.indexOf(QLatin1String("\\#")));
-        if (picture >= 0) formula.truncate(picture);
+        QString numberPicture;
+        if (picture >= 0) {
+            numberPicture = formula.mid(picture + 2).trimmed();
+            if (numberPicture.size() >= 2 && numberPicture.startsWith(QLatin1Char('"')) && numberPicture.endsWith(QLatin1Char('"'))) numberPicture = numberPicture.mid(1, numberPicture.size() - 2);
+            formula.truncate(picture);
+        }
         formula = formula.trimmed();
         if (formula.isEmpty()) {
             *known = false;
@@ -645,7 +664,7 @@ QByteArray Writer::fieldXml(const QString &instrRaw, const QString &resultText, 
         plain.remove(QLatin1Char(',')).remove(QLatin1Char('$')).remove(QLatin1Char(' '));
         const double value = plain.toDouble(&numeric);
         const QByteArray typed = numeric && std::isfinite(value) ? "office:value-type=\"float\" office:value=\"" + QByteArray::number(value, 'g', 15) + "\"" : QByteArray("office:value-type=\"string\" office:string-value=\"") + esc(resultText) + "\"";
-        return "<text:expression text:formula=\"of:=" + esc(formula) + "\" text:display=\"value\" " + typed + ">" + text + "</text:expression>";
+        return "<text:expression text:formula=\"of:=" + esc(formula) + "\" text:display=\"value\" " + typed + (numberPicture.isEmpty() ? QByteArray() : " jo:number-picture=\"" + esc(numberPicture) + "\"") + ">" + text + "</text:expression>";
     }
     if (name == QLatin1String("PAGE")) return "<text:page-number text:select-page=\"current\">" + text + "</text:page-number>";
     if (name == QLatin1String("NUMPAGES")) return "<text:page-count>" + text + "</text:page-count>";
@@ -1400,11 +1419,11 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
         return 1;
     };
     const int rowBand = styleChain.isEmpty() ? 1 : bandSize("tblStyleRowBandSize"), columnBand = styleChain.isEmpty() ? 1 : bandSize("tblStyleColBandSize");
-    auto styleFill = [&](int r, int rowCount, int col, int colSpan, int columnCount) -> QString {
-        if (styleChain.isEmpty()) return QString();
+    auto stylePartsOf = [&](int r, int rowCount, int col, int colSpan, int columnCount) -> QStringList {
+        QStringList parts;   // from the least to the most specific
+        if (styleChain.isEmpty()) return parts;
         const bool firstRow = (look & 0x20) && r == 0, lastRow = (look & 0x40) && r == rowCount - 1 && !firstRow;
         const bool firstCol = (look & 0x80) && col == 0, lastCol = (look & 0x100) && col + colSpan >= columnCount;
-        QStringList parts;   // from the least to the most specific
         if (!(look & 0x400)) parts << ((col - ((look & 0x80) ? 1 : 0)) / columnBand % 2 == 0 ? "band1Vert" : "band2Vert");
         if (!(look & 0x200) && !firstRow && !lastRow) parts << ((r - ((look & 0x20) ? 1 : 0)) / rowBand % 2 == 0 ? "band1Horz" : "band2Horz");
         if (lastCol) parts << "lastCol";
@@ -1415,6 +1434,10 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
         if (firstRow && lastCol) parts << "neCell";
         if (lastRow && firstCol) parts << "swCell";
         if (lastRow && lastCol) parts << "seCell";
+        return parts;
+    };
+    auto styleFill = [&](int r, int rowCount, int col, int colSpan, int columnCount) -> QString {
+        const QStringList parts = stylePartsOf(r, rowCount, col, colSpan, columnCount);
         QString fill;
         for (const QString &part : std::as_const(parts))
             for (const QString &id : std::as_const(styleChain)) {   // (the style itself before the styles it is based on)
@@ -1433,6 +1456,31 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
                 if (done) break;
             }
         return fill;
+    };
+    // The text looks the style gives a cell by its place (bold, italic, a color...), as the attributes of a span: the parts from the least to the most specific, each over the styles it is based on.
+    auto styleText = [&](int r, int rowCount, int col, int colSpan, int columnCount) -> QByteArray {
+        const QStringList parts = stylePartsOf(r, rowCount, col, colSpan, columnCount);
+        QMap<QByteArray, QByteArray> attrs;
+        static const QRegularExpression attribute(QStringLiteral(" ([A-Za-z:-]+)=\"([^\"]*)\""));
+        for (const QString &part : parts)
+            for (const QString &id : std::as_const(styleChain)) {
+                bool done = false;
+                for (int sp = m_styles->firstChild(m_dstyles[id].node); sp >= 0 && !done; sp = m_styles->next(sp)) {
+                    if (!m_styles->is(sp, "tblStylePr") || m_styles->attr(sp, "type") != part) continue;
+                    const int rp = m_styles->child(sp, "rPr");
+                    if (rp < 0) continue;
+                    const QString made = QString::fromUtf8(textAttrs(*m_styles, rp));
+                    for (auto it = attribute.globalMatch(made); it.hasNext();) {
+                        const QRegularExpressionMatch m = it.next();
+                        attrs[m.captured(1).toUtf8()] = m.captured(2).toUtf8();
+                    }
+                    done = !made.isEmpty();
+                }
+                if (done) break;
+            }
+        QByteArray out;
+        for (auto it = attrs.cbegin(); it != attrs.cend(); ++it) out += " " + it.key() + "=\"" + it.value() + "\"";
+        return out;
     };
     auto tableBorder = [&](const char *side) -> QString {
         if (borders < 0) return QString();
@@ -1614,7 +1662,10 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
             if (cell.rowspan > 1) x += " table:number-rows-spanned=\"" + num(cell.rowspan) + "\"";
             x += ">";
             QByteArray inner;
+            const QByteArray outerCellText = m_cellText;
+            m_cellText = styleText(r, int(rows.size()), cell.col, cell.span, ncols);   // (what the table's style gives the words of the cell)
             emitBlocks(ct, cell.node, &inner, depth + 1, false);
+            m_cellText = outerCellText;
             if (inner.isEmpty()) inner = "<text:p text:style-name=\"Standard\"/>";
             x += inner + "</table:table-cell>";
             m_cellsMade += cell.span;
