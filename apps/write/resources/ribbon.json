@@ -1270,6 +1270,36 @@
             {
               "large": "hf.pageNumber",
               "keytip": "PN"
+            },
+            {
+              "small": "hf.pageNumberFormat",
+              "keytip": "PF"
+            },
+            {
+              "small": "hf.dateTime",
+              "keytip": "DT"
+            }
+          ]
+        },
+        {
+          "name": "Navigation",
+          "keytip": "ZN",
+          "items": [
+            {
+              "small": "hf.goToHeader",
+              "keytip": "GH"
+            },
+            {
+              "small": "hf.goToFooter",
+              "keytip": "GF"
+            },
+            {
+              "small": "hf.previousSection",
+              "keytip": "PS"
+            },
+            {
+              "small": "hf.nextSection",
+              "keytip": "NS"
             }
           ]
         },
@@ -1583,6 +1613,10 @@
             {
               "large": "picture.altText",
               "keytip": "AT"
+            },
+            {
+              "large": "picture.decorative",
+              "keytip": "MD"
             }
           ]
         },

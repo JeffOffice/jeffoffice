@@ -5,6 +5,7 @@
 
 #include "app/pageview.h"
 #include "app/ribbon.h"
+#include "app/writedialogs.h"
 #include "core/editops.h"
 
 #include <QAction>
@@ -30,6 +31,31 @@ void WriteWindow::createHeaderFooterActions()
         if (m_doc && m_view->inHeaderFooter()) write::insertPageNumber(*m_doc, m_view->cursor());
         m_view->setFocus(Qt::OtherFocusReason);
         m_view->viewport()->update();
+    });
+    mk("hf.pageNumberFormat", tr("Page Number Format…"), "list-ordered", QKeySequence(), [this] {
+        if (!m_doc || !m_view->inHeaderFooter()) return;
+        write::pageNumberFormatDialog(this, m_doc.get(), m_view->headerFooterEdit().section);
+        m_view->refreshHeaderFooter(false);
+        m_view->setFocus(Qt::OtherFocusReason);
+        m_view->viewport()->update();
+    });
+    mk("hf.dateTime", tr("Date & Time…"), "calendar-clock", QKeySequence(), [this] {
+        if (!m_doc || !m_view->inHeaderFooter()) return;
+        write::dateTimeDialog(this, m_doc.get(), m_view);
+        m_view->setFocus(Qt::OtherFocusReason);
+        m_view->viewport()->update();
+    });
+    mk("hf.previousSection", tr("Previous Section"), "chevron-up", QKeySequence(), [this] {
+        if (m_doc && m_view->enterNeighborSection(-1)) m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("hf.nextSection", tr("Next Section"), "chevron-down", QKeySequence(), [this] {
+        if (m_doc && m_view->enterNeighborSection(1)) m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("hf.goToHeader", tr("Go to Header"), "panel-top", QKeySequence(), [this] {
+        if (m_doc && m_view->enterOtherHeaderFooter(false)) m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("hf.goToFooter", tr("Go to Footer"), "panel-bottom", QKeySequence(), [this] {
+        if (m_doc && m_view->enterOtherHeaderFooter(true)) m_view->setFocus(Qt::OtherFocusReason);
     });
     mk("hf.differentFirst", tr("Different First Page"), "file-digit", QKeySequence(), [this] {
         if (!m_doc || !m_view->inHeaderFooter()) return;

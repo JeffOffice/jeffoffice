@@ -54,6 +54,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Mailings"),
     QT_TRANSLATE_NOOP("Ribbon", "Margins"),
     QT_TRANSLATE_NOOP("Ribbon", "Merge"),
+    QT_TRANSLATE_NOOP("Ribbon", "Navigation"),
     QT_TRANSLATE_NOOP("Ribbon", "Options"),
     QT_TRANSLATE_NOOP("Ribbon", "Orientation"),
     QT_TRANSLATE_NOOP("Ribbon", "Page Background"),

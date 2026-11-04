@@ -6,6 +6,7 @@
 #include "core/editops.h"
 #include "core/fieldops.h"
 #include "core/layoutops.h"
+#include "core/pagenumbering.h"
 #include "app/pageview.h"
 
 #include <QCheckBox>
@@ -21,6 +22,7 @@
 #include <QGroupBox>
 #include <QLabel>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QScrollArea>
 #include <QSignalBlocker>
 #include <QSpinBox>
@@ -320,6 +322,86 @@ bool pageBordersDialog(QWidget *parent, WriteDoc *doc, int section)
     after.fromPage = from->currentIndex() == 1;
     after.display = show->currentData().toString();
     return applyToSections(*doc, section, scope->currentIndex() == 1, [after](office::wml::SectionProps *p) { setPageBorders(p, after); }) > 0;
+}
+
+bool pageNumberFormatDialog(QWidget *parent, WriteDoc *doc, int section)
+{
+    if (!doc) return false;
+    section = std::clamp(section, 0, doc->sectionCount() - 1);
+    const PageNumbering before = pageNumberingOf(doc->sectionProps(section));
+    auto tr = [](const char *s) { return QCoreApplication::translate("jp::write::LayoutDialogs", s); };
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("pageNumberFormatDialog"));
+    dlg.setWindowTitle(tr("Page Number Format"));
+    auto *v = new QVBoxLayout(&dlg);
+    auto *form = new QFormLayout;
+    auto *format = new QComboBox(&dlg);
+    format->setObjectName(QStringLiteral("numberFormat"));
+    format->setAccessibleName(tr("Number format"));
+    for (const auto &f : pageNumberFormats()) format->addItem(f.second, f.first);
+    format->setCurrentIndex(std::max(0, format->findData(before.format)));
+    form->addRow(tr("Number format:"), format);
+    v->addLayout(form);
+    auto *chapter = new QGroupBox(tr("Include chapter number"), &dlg);
+    chapter->setObjectName(QStringLiteral("chapter"));
+    chapter->setCheckable(true);
+    chapter->setChecked(before.chapterStyle > 0);
+    auto *chapterForm = new QFormLayout(chapter);
+    auto *style = new QComboBox(chapter);
+    style->setObjectName(QStringLiteral("chapterStyle"));
+    style->setAccessibleName(tr("Chapter starts with style"));
+    for (int level = 1; level <= 9; ++level) style->addItem(tr("Heading %1").arg(level), level);
+    style->setCurrentIndex(std::max(0, std::max(1, before.chapterStyle) - 1));
+    auto *separator = new QComboBox(chapter);
+    separator->setObjectName(QStringLiteral("chapterSeparator"));
+    separator->setAccessibleName(tr("Separator"));
+    separator->addItem(tr("- (hyphen)"), QStringLiteral("hyphen"));
+    separator->addItem(tr(". (period)"), QStringLiteral("period"));
+    separator->addItem(tr(": (colon)"), QStringLiteral("colon"));
+    separator->addItem(QString(QChar(0x2014)) + tr(" (em dash)"), QStringLiteral("emDash"));
+    separator->addItem(QString(QChar(0x2013)) + tr(" (en dash)"), QStringLiteral("enDash"));
+    separator->setCurrentIndex(std::max(0, separator->findData(before.chapterSeparator)));
+    chapterForm->addRow(tr("Chapter starts with style:"), style);
+    chapterForm->addRow(tr("Use separator:"), separator);
+    v->addWidget(chapter);
+    auto *numbering = new QGroupBox(tr("Page numbering"), &dlg);
+    auto *numberingLayout = new QVBoxLayout(numbering);
+    auto *carry = new QRadioButton(tr("Continue from previous section"), numbering);
+    carry->setObjectName(QStringLiteral("continue"));
+    auto *startAt = new QRadioButton(tr("Start at:"), numbering);
+    startAt->setObjectName(QStringLiteral("startAt"));
+    auto *start = new QSpinBox(numbering);
+    start->setObjectName(QStringLiteral("start"));
+    start->setAccessibleName(tr("Start at"));
+    start->setRange(0, 100000);
+    start->setValue(before.startAt);
+    auto *startRow = new QHBoxLayout;
+    startRow->addWidget(startAt);
+    startRow->addWidget(start);
+    startRow->addStretch();
+    numberingLayout->addWidget(carry);
+    numberingLayout->addLayout(startRow);
+    carry->setChecked(before.continueFromPrevious);
+    startAt->setChecked(!before.continueFromPrevious);
+    start->setEnabled(!before.continueFromPrevious);
+    QObject::connect(startAt, &QRadioButton::toggled, start, &QSpinBox::setEnabled);
+    v->addWidget(numbering);
+    auto *scopeRow = new QFormLayout;
+    auto *scope = scopeBox(&dlg);
+    scopeRow->addRow(tr("Apply to:"), scope);
+    v->addLayout(scopeRow);
+    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    v->addWidget(bb);
+    QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    if (dlg.exec() != QDialog::Accepted) return false;
+    PageNumbering after;
+    after.format = format->currentData().toString();
+    after.chapterStyle = chapter->isChecked() ? style->currentData().toInt() : 0;
+    after.chapterSeparator = separator->currentData().toString();
+    after.continueFromPrevious = carry->isChecked();
+    after.startAt = start->value();
+    return applyPageNumbering(*doc, section, scope->currentIndex() == 1, after) > 0;
 }
 
 bool dateTimeDialog(QWidget *parent, WriteDoc *doc, PageView *view)
