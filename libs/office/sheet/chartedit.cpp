@@ -238,6 +238,36 @@ QStringList labelPositionsFor(const Chart &chart)
     return {};
 }
 
+QString axisFormatProblem(const ChartAxis &axis)
+{
+    if (axis.kind == ChartAxis::Value && !axis.autoMin && !axis.autoMax && axis.min >= axis.max) return QCoreApplication::translate("Chart", "The lowest value has to be less than the highest.");
+    if (axis.majorUnit < 0 || axis.minorUnit < 0) return QCoreApplication::translate("Chart", "A unit can't be negative.");
+    return QString();
+}
+
+void setAxisFormat(Chart *chart, bool horizontal, bool secondary, const ChartAxis &from)
+{
+    ChartAxis *a = secondary ? secondaryAxis(chart, horizontal) : primaryAxis(chart, horizontal);
+    if (!a) return;
+    a->autoMin = from.autoMin;
+    a->autoMax = from.autoMax;
+    a->min = from.min;
+    a->max = from.max;
+    a->majorUnit = from.majorUnit;
+    a->minorUnit = from.minorUnit;
+    a->reversed = from.reversed;
+    a->crosses = from.crosses;
+    a->hasCrossesAt = from.hasCrossesAt;
+    a->crossesAt = from.crossesAt;
+    a->format = from.format;
+    a->formatLinked = from.formatLinked;
+    a->majorTick = from.majorTick;
+    a->minorTick = from.minorTick;
+    a->labelPosition = from.labelPosition;
+    a->hasRotation = from.hasRotation;
+    a->labelRotation = from.labelRotation;
+}
+
 void setDataLabels(Chart *chart, bool shown, const QString &position)
 {
     const bool pie = isPie(*chart);
@@ -250,6 +280,41 @@ void setDataLabels(Chart *chart, bool shown, const QString &position)
             s.labels.value = !pie;
             s.labels.percent = pie;
             s.labels.position = position;
+        }
+}
+
+ChartLabelParts labelPartsOf(const Chart &chart)
+{
+    ChartLabelParts out;
+    for (const ChartPlot &p : chart.plots)
+        for (const ChartSeries &s : p.series)
+            if (s.labels.shown()) {
+                out.value = s.labels.value;
+                out.category = s.labels.category;
+                out.series = s.labels.series;
+                out.percent = s.labels.percent;
+                out.separator = s.labels.separator;
+                out.format = s.labels.format;
+                return out;
+            }
+    return out;
+}
+
+void setDataLabelParts(Chart *chart, const ChartLabelParts &parts)
+{
+    const bool any = parts.value || parts.category || parts.series || parts.percent;
+    for (ChartPlot &p : chart->plots)
+        for (ChartSeries &s : p.series) {
+            if (!any) {
+                s.labels = ChartDataLabels();
+                continue;
+            }
+            s.labels.value = parts.value;
+            s.labels.category = parts.category;
+            s.labels.series = parts.series;
+            s.labels.percent = parts.percent;
+            s.labels.separator = parts.separator;
+            s.labels.format = parts.format;
         }
 }
 

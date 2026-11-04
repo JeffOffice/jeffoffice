@@ -34,12 +34,12 @@ bool AppWindow::commandAllowedReadOnly(const QString &id)
                  "show.fromCurrent", "show.fromStart", "show.presenterView",
                  "view.baselines", "view.boundaries", "view.collapseRibbon", "view.fields", "view.fit", "view.formulaBar", "view.formulas", "view.graphics", "view.gridlines", "view.guides",
                  "view.headings", "view.marks", "view.master", "view.measurement", "view.normal", "view.notes", "view.outline", "view.pageBreakView", "view.pageBreaks", "view.pageLayout",
-                 "view.pageNav", "view.printLayout", "view.ruler", "view.rulers", "view.scratch", "view.single", "view.slideShow", "view.sorter", "view.spread",
+                 "view.navigationPane", "view.focus", "view.pageNav", "view.printLayout", "view.ruler", "view.rulers", "view.scratch", "view.single", "view.slideShow", "view.sorter", "view.spread",
                  "win.arrange", "win.cascade", "win.new",
                  "zoom.10", "zoom.100", "zoom.150", "zoom.200", "zoom.25", "zoom.300", "zoom.33", "zoom.400", "zoom.50", "zoom.66", "zoom.75", "zoom.dialog", "zoom.in", "zoom.multiplePages",
                  "zoom.onePage", "zoom.out", "zoom.page", "zoom.pageWidth", "zoom.selection", "zoom.width",
                  "edit.copy", "edit.selectAll", "edit.find", "edit.goTo", "edit.selectObjects",
-                 "review.nextChange", "review.previousChange", "review.nextComment", "review.previousComment", "review.reviewingPane", "review.wordCount"})
+                 "review.nextChange", "review.previousChange", "review.nextComment", "review.previousComment", "review.reviewingPane", "review.wordCount", "review.accessibility", "review.translate", "review.compare"})
             ids.insert(QLatin1String(id));
         return ids;
     }();

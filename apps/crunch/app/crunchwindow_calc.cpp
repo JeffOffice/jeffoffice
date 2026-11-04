@@ -91,8 +91,12 @@ void CrunchWindow::createCalcActions()
         m_calculating = true;
         setStatus(tr("Calculating…"));
     }, false, false);
+    // (Recalculate All works everything out again, so these two keys do the same: the dependency list is built again with the workbook's own formulas each time)
+    mk("formulas.calculateEverything", tr("Recalculate Everything"), "calculator", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_F9), [this] { act("formulas.calculate")->trigger(); }, false, false);
+    mk("formulas.rebuildAndCalculate", tr("Rebuild Dependencies and Recalculate"), "calculator", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::ALT | Qt::Key_F9),
+       [this] { act("formulas.calculate")->trigger(); }, false, false);
     mk("formulas.circular", tr("Circular References…"), "triangle-alert", QKeySequence(), [this] { showCircularReferences(); }, false, false);
-    for (const char *id : {"formulas.iteration", "formulas.options", "formulas.calculateSheet", "formulas.circular"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"formulas.iteration", "formulas.options", "formulas.calculateSheet", "formulas.circular", "formulas.calculateEverything", "formulas.rebuildAndCalculate"}) m_opsActions << QString::fromLatin1(id);
     updateEditActions();
 }
 

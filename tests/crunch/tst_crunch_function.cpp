@@ -104,7 +104,7 @@ private Q_SLOTS:
         QVERIFY(d.list()->count() == jp::calc::functionCount());
         // by kind
         QComboBox *kind = d.categoryBox();
-        QVERIFY(kind->count() == 10);
+        QVERIFY(kind->count() == 11);
         kind->setCurrentIndex(kind->findText(QStringLiteral("Text")));
         QVERIFY(d.list()->count() < jp::calc::functionCount() && d.list()->count() > 10);
         for (int i = 0; i < d.list()->count(); ++i) QCOMPARE(int(crunch::docOf(d.list()->item(i)->text())->category), int(crunch::FunctionCategory::Text));

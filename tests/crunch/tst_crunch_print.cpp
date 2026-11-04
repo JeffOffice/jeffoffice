@@ -2556,6 +2556,38 @@ private Q_SLOTS:
         QCOMPARE(again.win.w.session()->pages().sheet(0).headerFooter.oddHeader, QStringLiteral("&CBudget &P"));
     }
 
+    // The Header and Footer galleries write a ready form into the header or the footer (the version being typed in, when one is), and Go to Header and Go to Footer open that part to type in.
+    void theGalleriesWriteReadyFormsAndGoToOpensThePart()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        w.setViewKind(2);
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.pageView()->drawPagesNow();
+        w.zoneClicked(0, true, 1);
+        QVERIFY(w.zoneEditor());
+        w.zoneEditor()->insertPlainText(QStringLiteral("typed first"));
+        const int steps = w.session()->undoStack()->count();
+        w.applyHeaderForm(true, QStringLiteral("&CPage &P of &N"));   // (the form replaces the header as a whole: what was typed in the part is not a step of its own)
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddHeader, QStringLiteral("&CPage &P of &N"));
+        QVERIFY(!w.zoneEditor());
+        QCOMPARE(w.session()->undoStack()->count(), steps + 1);
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.act(QStringLiteral("hf.footer.sheetPage"))->trigger();
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddFooter, QStringLiteral("&L&A&RPage &P"));
+        w.act(QStringLiteral("hf.footer.none"))->trigger();
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddFooter, QString());
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.pageView()->drawPagesNow();
+        w.goToHeaderOrFooter(false);
+        QVERIFY(w.zoneEditor());
+        w.zoneEditor()->hide();
+        w.goToHeaderOrFooter(true);
+        QVERIFY(w.zoneEditor());
+        QCOMPARE(w.zoneEditor()->toPlainText(), QStringLiteral("Page &P of &N"));
+    }
+
     // The first page has a header of its own once Different First Page is chosen on the tab, and a click on the first page's header types that one.
     void theFirstPageHeaderIsTypedInPlace()
     {

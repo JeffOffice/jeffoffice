@@ -133,7 +133,8 @@ private Q_SLOTS:
             {"_xlfn.IFNA(A1,0)", "A1 trynajump 3 0"},
             {"CHOOSE(A1,1,2)", "A1 choose 8 jump 4 jump 6 1 jump 8 2 jump 8"},
             // the prefixes newer files write are not part of the name
-            {"_xlfn.STDEV.S(A1:A3)", "A1:A3 STDEV.S/1"}, {"_xlfn._xlws.SORT(A1)", "A1 SORT/1?"}, {"_xlws.FILTER(A1:A3,B1:B3)", "A1:A3 B1:B3 FILTER/2?"},
+            {"_xlfn.STDEV.S(A1:A3)", "A1:A3 STDEV.S/1"}, {"_xlfn._xlws.SORT(A1)", "A1 SORT/1"}, {"_xlfn._xlws.FILTER(A1:A3,B1:B3)", "A1:A3 B1:B3 FILTER/2"}, {"_xlws.FILTER(A1:A3,B1:B3)", "A1:A3 B1:B3 FILTER/2?"},
+            {"_xlfn._xlws.TAKE(A1)", "A1 TAKE/1?"}, {"_xlws.DROP(A1:A3,B1:B3)", "A1:A3 B1:B3 DROP/2?"},
             {"_XLFN.IFNA(A1,0)", "A1 trynajump 3 0"},
             // (a function newer than the first release, written without the prefix, is some other function)
             {"IFNA(A1,0)", "A1 0 IFNA/2?"},
@@ -254,7 +255,8 @@ private Q_SLOTS:
     {
         QVERIFY(findFunction("sum") != nullptr);
         QVERIFY(findFunction("_xlfn.IFNA") != nullptr);
-        QVERIFY(findFunction("_xlws.FILTER") == nullptr);
+        QVERIFY(findFunction("_xlws.FILTER") != nullptr);
+        QVERIFY(findFunction("_xlws.DROP") == nullptr);
         QVERIFY(findFunction("NoSuchFunction") == nullptr);
         QCOMPARE(functionIndex("NoSuchFunction"), -1);
         const FunctionInfo *sum = findFunction("SUM");

@@ -25,6 +25,9 @@ void insertTableDialog(QWidget *p, Editor *ed);
 bool insertSymbol(QWidget *p, Editor *ed, const QString &ch, const QString &font);
 QStringList recentSymbols();
 void symbolDialog(QWidget *p, Editor *ed);
+// The same dialog for a program whose text is not an Editor's: `insertOne` puts the symbol in (true when it did), and calls rememberSymbol.
+void rememberSymbol(const QString &ch, const QString &font);
+void symbolDialog(QWidget *p, const std::function<bool(QWidget *, const QString &, const QString &)> &insertOne);
 void dateTimeDialog(QWidget *p, Editor *ed);
 void hyperlinkDialog(QWidget *p, Editor *ed);
 QImage proceduralTexture(const QString &name, int size);   // built-in texture fills

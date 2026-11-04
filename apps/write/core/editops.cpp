@@ -2843,4 +2843,20 @@ void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
     c.endEditBlock();
 }
 
+void clearCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (!intoBody(c)) return;
+    const QString paraStyle = paragraphStyleAt(doc, c);
+    const QTextCharFormat base = doc.styleCharFormat(paraStyle);
+    const QTextCharFormat with = doc.styleCharFormat(paraStyle, styleId);
+    c.beginEditBlock();
+    changeCharFormat(doc, c, [&](QTextCharFormat &f) {
+        if (f.stringProperty(tp::CharStyle) != styleId) return;
+        f = restyled(f, with, base);
+        f.clearProperty(tp::CharStyle);
+    });
+    c.endEditBlock();
+}
+
 } // namespace jp::write

@@ -331,6 +331,31 @@ void WriteDoc::setDifferentFirstPage(int section, bool on)
     setSectionProps(section, props);
 }
 
+void WriteDoc::setMirrorMargins(bool on)
+{
+    if (m_flow->mirrorMargins == on) return;
+    SectionProps last = m_last;
+    last.mirrorMargins = on;
+    setSectionProps(sectionCount() - 1, last);
+}
+
+void WriteDoc::setPageColor(const QColor &color)
+{
+    const QString hex = color.isValid() ? color.name().mid(1).toUpper() : QString();
+    if (m_last.pageColor.toUpper() == hex) return;
+    SectionProps last = m_last;
+    last.pageColor = hex;
+    setSectionProps(sectionCount() - 1, last);
+}
+
+void WriteDoc::setAutoHyphenation(bool on)
+{
+    if (m_flow->hyphenate == on) return;
+    SectionProps last = m_last;
+    last.autoHyphenation = on;
+    setSectionProps(sectionCount() - 1, last);
+}
+
 void WriteDoc::setDifferentOddEven(bool on)
 {
     if (m_wml.evenAndOddHeaders == on) return;
@@ -552,14 +577,13 @@ void WriteDoc::writeHeaderParts(office::wml::Document *out)
                 }
         }
     }
-    // Different headers on odd and even pages is a setting of the document.
-    if (m_wml.evenAndOddHeaders != m_oddEvenAtOpen) {
-        const bool on = m_wml.evenAndOddHeaders;
+    // Different headers on odd and even pages, facing pages with mirrored margins, and automatic hyphenation are settings of the document.
+    auto changeSetting = [&](const std::function<QByteArray(const QByteArray &, bool)> &edit, bool on) {
         bool done = false;
         if (!out->settingsName.isEmpty())
             for (KeptPart &kept : out->parts)
                 if (kept.name.compare(out->settingsName, Qt::CaseInsensitive) == 0) {
-                    kept.data = settingsWithEvenAndOddHeaders(kept.data, on);
+                    kept.data = edit(kept.data, on);
                     done = true;
                     break;
                 }
@@ -568,7 +592,7 @@ void WriteDoc::writeHeaderParts(office::wml::Document *out)
             kept.name = QStringLiteral("/word/settings.xml");
             for (int n = 2; partExists(kept.name) || kept.name.compare(out->mainName, Qt::CaseInsensitive) == 0; ++n) kept.name = QStringLiteral("/word/settings%1.xml").arg(n);
             kept.contentType = QString(kSettingsType);
-            kept.data = settingsWithEvenAndOddHeaders(QByteArray(), true);
+            kept.data = edit(QByteArray(), on);
             out->parts.push_back(kept);
             Relationship r;
             r.id = nextRelationshipId(out->mainRelationships);
@@ -577,6 +601,20 @@ void WriteDoc::writeHeaderParts(office::wml::Document *out)
             out->mainRelationships.push_back(r);
             out->settingsName = kept.name;
         }
+    };
+    if (m_wml.evenAndOddHeaders != m_oddEvenAtOpen) changeSetting(settingsWithEvenAndOddHeaders, m_wml.evenAndOddHeaders);
+    if (m_flow->mirrorMargins != m_mirrorAtOpen) changeSetting(settingsWithMirrorMargins, m_flow->mirrorMargins);
+    if (m_flow->hyphenate != m_hyphenAtOpen) changeSetting(settingsWithAutoHyphenation, m_flow->hyphenate);
+    // The page color is the document's w:background (the first thing in the file besides the body), shown by a setting of the document.
+    if (m_last.pageColor.toUpper() != m_pageColorAtOpen.toUpper()) {
+        static const QRegularExpression background(QStringLiteral("<(?:[\\w.-]+:)?background\\b[^>]*?/>|<(?:[\\w.-]+:)?background\\b[^>]*?>.*?</(?:[\\w.-]+:)?background>"), QRegularExpression::DotMatchesEverythingOption);
+        QString before = QString::fromUtf8(out->beforeBody);
+        const QString element = m_last.pageColor.isEmpty() ? QString() : QStringLiteral("<w:background w:color=\"%1\"/>").arg(m_last.pageColor.toUpper());
+        const QRegularExpressionMatch found = background.match(before);
+        if (found.hasMatch()) before.replace(found.capturedStart(), found.capturedLength(), element);
+        else before.prepend(element);
+        out->beforeBody = before.toUtf8();
+        changeSetting(settingsWithDisplayBackgroundShape, !m_last.pageColor.isEmpty());
     }
 }
 

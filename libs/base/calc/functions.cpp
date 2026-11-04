@@ -16,6 +16,11 @@ void registerTextFunctions(std::vector<FunctionInfo> &r);
 void registerDateFunctions(std::vector<FunctionInfo> &r);
 void registerLookupFunctions(std::vector<FunctionInfo> &r);
 void registerFinanceFunctions(std::vector<FunctionInfo> &r);
+void registerMoreMathFunctions(std::vector<FunctionInfo> &r);
+void registerMoreStatFunctions(std::vector<FunctionInfo> &r);
+void registerMoreFinanceFunctions(std::vector<FunctionInfo> &r);
+void registerEngineeringFunctions(std::vector<FunctionInfo> &r);
+void registerArrayFunctions(std::vector<FunctionInfo> &r);
 
 namespace {
 
@@ -32,6 +37,11 @@ struct Registry {
         registerDateFunctions(functions);
         registerLookupFunctions(functions);
         registerFinanceFunctions(functions);
+        registerMoreMathFunctions(functions);
+        registerMoreStatFunctions(functions);
+        registerMoreFinanceFunctions(functions);
+        registerEngineeringFunctions(functions);
+        registerArrayFunctions(functions);
         for (size_t i = 0; i < functions.size(); ++i) byName.insert(QString::fromLatin1(functions[i].name), int(i));
     }
 };

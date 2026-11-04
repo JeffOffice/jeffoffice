@@ -215,6 +215,40 @@ private Q_SLOTS:
         QVERIFY(c.xlsReport.notKept.join(QLatin1Char(' ')).contains(QLatin1String("formula")));
     }
 
+    // Functions added for the first release and 1.0 are saved with the prefix a file gives them (_xlfn.) and come back the same from the .xlsx, the .xls copy, and the .ods copy.
+    void theNewerFunctionsAreSavedAndReadBackInEveryForm()
+    {
+        const QStringList formulas = {QStringLiteral("_xlfn.NORM.DIST(1,0,1,TRUE)"),     QStringLiteral("_xlfn.T.DIST.2T(1.5,10)"),       QStringLiteral("_xlfn.BINOM.DIST(3,10,0.5,FALSE)"),
+                                      QStringLiteral("CONVERT(1,\"mi\",\"m\")"),          QStringLiteral("BESSELJ(1.9,2)"),                 QStringLiteral("IMSUM(\"3+4i\",\"5-3i\")"),
+                                      QStringLiteral("ROMAN(499)"),                       QStringLiteral("_xlfn.CEILING.PRECISE(4.3)"),    QStringLiteral("_xlfn.BITAND(13,25)"),
+                                      QStringLiteral("_xlfn.NUMBERVALUE(\"1.5\")"),        QStringLiteral("_xlfn.WORKDAY.INTL(40909,5,11)"), QStringLiteral("COUPNUM(40909,41640,2,1)"),
+                                      QStringLiteral("DB(1000,100,6,1,7)"),               QStringLiteral("_xlfn.SEQUENCE(2)"),             QStringLiteral("_xlfn.XLOOKUP(1,A1:A2,A1:A2)"),
+                                      QStringLiteral("_xlfn.SORT(A1:A2)"),                QStringLiteral("_xlfn.SHEET(A1)"),               QStringLiteral("SUMX2MY2(A1:A2,A1:A2)")};
+        Copies c;
+        QString rows;
+        for (int i = 0; i < formulas.size(); ++i) rows += row(i + 1, num(QStringLiteral("A%1").arg(i + 1), 1) + fnum(QStringLiteral("B%1").arg(i + 1), formulas[i], 7.5));
+        QVERIFY2(c.make(simple(rows), true), qPrintable(c.why));
+        const Sheet a = c.sheet(c.original, 0), b = c.sheet(c.xls, 0), o = c.sheet(c.ods, 0);
+        qint64 keptInXls = 0;
+        for (int i = 0; i < formulas.size(); ++i) {
+            const QString ref = QStringLiteral("B%1").arg(i + 1);
+            QVERIFY2(formula(a, ref) == formulas[i], qPrintable(ref + QLatin1Char(' ') + formula(a, ref)));
+            // (the .ods form writes TRUE as TRUE() and reads a newer function's prefix in capitals)
+            const QString back = formula(o, ref).toUpper().replace(QLatin1String("TRUE()"), QLatin1String("TRUE")).replace(QLatin1String("FALSE()"), QLatin1String("FALSE"));
+            QVERIFY2(back == formulas[i].toUpper(), qPrintable(QStringLiteral("ods %1: %2").arg(ref, formula(o, ref))));
+            // the old form holds the functions it has a number for; the others keep the value they came to (and are counted)
+            const Cell *cell = b.cells.find(quint32(i), 1);
+            if (cell && cell->hasFormula()) {
+                ++keptInXls;
+                QVERIFY2(formula(b, ref) == formulas[i], qPrintable(QStringLiteral("xls %1: %2").arg(ref, formula(b, ref))));
+            } else {
+                QCOMPARE(val(c.xls, b, ref), QStringLiteral("n:7.5"));
+            }
+        }
+        QVERIFY2(keptInXls >= 6, qPrintable(QString::number(keptInXls)));
+        QCOMPARE(c.xlsReport.formulasAsValues, qint64(formulas.size()) - keptInXls);
+    }
+
     void anXlsCopyHoldsArrayFormulas()
     {
         Copies c;

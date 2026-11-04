@@ -57,7 +57,7 @@ QByteArray packSection(const SectionProps &s)
     d << s.type << qint32(s.pageW) << qint32(s.pageH) << s.orient << qint32(s.top) << qint32(s.right) << qint32(s.bottom) << qint32(s.left) << qint32(s.header)
       << qint32(s.footer) << qint32(s.gutter) << qint32(s.cols) << qint32(s.colSpace) << s.colSep << s.colEqual << qint32(s.colDefs.size());
     for (const ColumnDef &c : s.colDefs) d << qint32(c.width) << qint32(c.space);
-    d << qint32(s.pageStart.value_or(-1)) << s.pageFormat << s.titlePg << s.hasPgSz << s.hasPgMar << s.hasCols << s.attrs << packRaw(s.extra) << s.pgSzAttrs << s.pgMarAttrs << s.pgNumAttrs << s.colsAttrs << s.oddEvenHeaders;
+    d << qint32(s.pageStart.value_or(-1)) << s.pageFormat << s.titlePg << s.hasPgSz << s.hasPgMar << s.hasCols << s.attrs << packRaw(s.extra) << s.pgSzAttrs << s.pgMarAttrs << s.pgNumAttrs << s.colsAttrs << s.oddEvenHeaders << s.mirrorMargins << s.autoHyphenation << s.pageColor;
     return out;
 }
 
@@ -91,6 +91,13 @@ SectionProps unpackSection(const QByteArray &packed)
     bool oddEven = false;
     d >> oddEven;
     s.oddEvenHeaders = d.status() == QDataStream::Ok && oddEven;
+    bool mirror = false, hyphenate = false;
+    d >> mirror >> hyphenate;
+    s.mirrorMargins = d.status() == QDataStream::Ok && mirror;
+    s.autoHyphenation = d.status() == QDataStream::Ok && hyphenate;
+    QString pageColor;
+    d >> pageColor;
+    if (d.status() == QDataStream::Ok) s.pageColor = pageColor;
     return s;
 }
 
@@ -184,6 +191,7 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
     s.margins = QMarginsF(std::max(0, p.left + p.gutter) / 20.0, std::abs(p.top) / 20.0, std::max(0, p.right) / 20.0, std::abs(p.bottom) / 20.0);
     s.columns = std::max(1, p.cols);
     s.columnGap = p.colSpace / 20.0;
+    s.columnLine = p.colSep && s.columns > 1;
     if (!p.colEqual && s.columns > 1 && int(p.colDefs.size()) == s.columns)
         for (const ColumnDef &c : p.colDefs) {
             s.columnWidths << std::max(1, c.width) / 20.0;
@@ -234,11 +242,16 @@ void updateSectionProps(SectionProps *p, const flow::Section &s)
         p->bottom = int(std::lround(s.margins.bottom() * 20));
         p->hasPgMar = true;
     }
-    if (s.columns != was.columns || s.columnGap != was.columnGap || s.columnWidths != was.columnWidths) {
+    if (s.columns != was.columns || s.columnGap != was.columnGap || s.columnWidths != was.columnWidths || s.columnSpaces != was.columnSpaces || s.columnLine != was.columnLine) {
         p->cols = std::max(1, s.columns);
         p->colSpace = int(std::lround(s.columnGap * 20));
+        p->colSep = s.columnLine && s.columns > 1;
         p->colDefs.clear();
         p->colEqual = true;
+        if (!s.columnWidths.isEmpty() && s.columnWidths.size() == s.columns && s.columns > 1) {
+            p->colEqual = false;
+            for (int i = 0; i < s.columns; ++i) p->colDefs.push_back({std::max(1, int(std::lround(s.columnWidths[i] * 20))), i < s.columnSpaces.size() ? int(std::lround(s.columnSpaces[i] * 20)) : 0});
+        }
         p->hasCols = true;
     }
     if (s.headerDistance != was.headerDistance) p->header = int(std::lround(s.headerDistance * 20));
@@ -417,6 +430,7 @@ void WriteDoc::setUpEnvironment()
         static const QRegularExpression background(QStringLiteral("<(?:[\\w.-]+:)?background\\b[^>]*?\\bcolor=\"([0-9A-Fa-f]{6})\""));
         const QRegularExpressionMatch m = background.match(QString::fromUtf8(m_wml.beforeBody));
         f.pageColor = m.hasMatch() ? QColor(QLatin1Char('#') + m.captured(1)) : QColor();
+        m_last.pageColor = m_pageColorAtOpen = m.hasMatch() ? m.captured(1).toUpper() : QString();
     }
     f.env.wordLines = true;
     // Punctuation hangs past the margin only where the file has the East Asian layout on (and not its own option against it).
@@ -425,12 +439,15 @@ void WriteDoc::setUpEnvironment()
         // (One reading of the part for all of them.)
         const QByteArray settingsBytes = partData(m_wml.settingsName);
         m_trackChanges = m_trackAtOpen = office::wml::settingsTrackRevisions(settingsBytes);
+        m_protection = m_protectionAtOpen = office::wml::settingsDocumentProtection(settingsBytes);
         readMailSettings(settingsBytes);
         const office::wml::CompatOptions compat = office::wml::readCompatOptions(settingsBytes);
         // Words are hyphenated where the file asks (w:autoHyphenation), but for the zone that it sets.
         f.hyphenate = compat.autoHyphenation;
         f.hyphenZone = compat.hyphenationZone / 20.0;
         f.mirrorMargins = compat.mirrorMargins;
+        m_last.autoHyphenation = m_hyphenAtOpen = compat.autoHyphenation;
+        m_last.mirrorMargins = m_mirrorAtOpen = compat.mirrorMargins;
         // (And how the endnotes are numbered, read here once, not at each story's making.)
         const office::wml::NoteNumbering endnotes = office::wml::readNoteNumbering(partData(m_wml.settingsName), "endnotePr");
         if (!endnotes.format.isEmpty()) m_endnoteFormat = endnotes.format;
@@ -521,6 +538,7 @@ QString WriteDoc::addExternalLink(const QString &type, const QString &target)
     r.target = target;
     r.external = true;
     m_wml.mainRelationships.push_back(r);
+    m_madeLinks.insert(r.id);
     return r.id;
 }
 
@@ -584,6 +602,19 @@ void WriteDoc::syncSections()
         if (m_last.oddEvenHeaders != m_wml.evenAndOddHeaders) {
             m_wml.evenAndOddHeaders = m_last.oddEvenHeaders;
             for (flow::Section &section : m_flow->sections) section.differentOddEven = m_wml.evenAndOddHeaders;
+            oddEvenChanged = true;
+        }
+        // (So are facing pages with mirrored margins, and automatic hyphenation.)
+        if (m_last.mirrorMargins != m_flow->mirrorMargins) {
+            m_flow->mirrorMargins = m_last.mirrorMargins;
+            oddEvenChanged = true;
+        }
+        if (m_last.pageColor.toLower() != (m_flow->pageColor.isValid() ? m_flow->pageColor.name().mid(1) : QString())) {
+            m_flow->pageColor = m_last.pageColor.isEmpty() ? QColor() : QColor(QLatin1Char('#') + m_last.pageColor);
+            oddEvenChanged = true;
+        }
+        if (m_last.autoHyphenation != m_flow->hyphenate) {
+            m_flow->hyphenate = m_last.autoHyphenation;
             oddEvenChanged = true;
         }
     }

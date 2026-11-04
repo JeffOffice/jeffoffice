@@ -11,6 +11,7 @@
 #include "app/focusring.h"
 #include "app/i18n.h"
 #include "app/icons.h"
+#include "app/navpane.h"
 #include "app/pageview.h"
 #include "app/ribbon.h"
 #include "app/recovery.h"
@@ -25,6 +26,7 @@
 #include "core/fonts.h"
 
 #include <QApplication>
+#include <QTabWidget>
 #include <QCommandLineParser>
 #include <QFileOpenEvent>
 #include <QStyleFactory>
@@ -143,6 +145,12 @@ int main(int argc, char **argv)
             if (!tab.isEmpty())
                 for (int i = 0; i < w->ribbon()->tabCount(); ++i)
                     if (w->ribbon()->tabName(i) == tab) w->ribbon()->showTab(w->ribbon()->tabPage(i));
+            // (And the Navigation pane, open on its tab: JW_SCREENSHOT_NAVIGATION=0 for Headings, 1 for Pages, 2 for Results.)
+            if (qEnvironmentVariableIsSet("JW_SCREENSHOT_NAVIGATION")) {
+                w->showNavigationPane(true);
+                w->navigationPane()->tabs()->setCurrentIndex(qEnvironmentVariableIntValue("JW_SCREENSHOT_NAVIGATION"));
+                w->navigationPane()->refresh();
+            }
             QTimer::singleShot(300, w, [w, out] {
                 w->grab().save(out);
                 QApplication::exit(0);

@@ -316,6 +316,34 @@
       "keytip": "A",
       "groups": [
         {
+          "name": "Get Data",
+          "keytip": "ZG",
+          "items": [
+            {"large": "data.fromText", "keytip": "FT"}
+          ]
+        },
+        {
+          "name": "Sort & Filter",
+          "keytip": "ZS",
+          "items": [
+            {"small": "sort.ascending", "keytip": "SA"},
+            {"small": "sort.descending", "keytip": "SZ"},
+            {"small": "sort.custom", "keytip": "SC"},
+            {"column": true},
+            {"small": "filter.toggle", "keytip": "F1"},
+            {"small": "filter.clear", "keytip": "C"},
+            {"small": "filter.reapply", "keytip": "Y"}
+          ]
+        },
+        {
+          "name": "Data Tools",
+          "keytip": "ZD",
+          "items": [
+            {"large": "data.textToColumns", "keytip": "E"},
+            {"large": "data.removeDuplicates", "keytip": "M"}
+          ]
+        },
+        {
           "name": "Outline",
           "keytip": "ZU",
           "items": [
@@ -420,6 +448,14 @@
       "color": "headerFooter",
       "groups": [
         {
+          "name": "Header and Footer",
+          "keytip": "ZH",
+          "items": [
+            {"large": {"id": "ribbon.hfHeader", "text": "Header", "icon": "panel-top"}, "keytip": "HH", "menu": ["hf.header.none","hf.header.page","hf.header.pageOf","hf.header.sheet","hf.header.file","hf.header.sheetPage","hf.header.filePageOf","hf.header.dateSheetPage"]},
+            {"large": {"id": "ribbon.hfFooter", "text": "Footer", "icon": "panel-bottom"}, "keytip": "HF", "menu": ["hf.footer.none","hf.footer.page","hf.footer.pageOf","hf.footer.sheet","hf.footer.file","hf.footer.sheetPage","hf.footer.filePageOf","hf.footer.dateSheetPage"]}
+          ]
+        },
+        {
           "name": "Put In",
           "keytip": "ZI",
           "items": [
@@ -441,6 +477,14 @@
             {"small": "hf.differentOddEven", "keytip": "DO"},
             {"small": "hf.scaleWithDoc", "keytip": "SD"},
             {"small": "hf.alignWithMargins", "keytip": "AM"}
+          ]
+        },
+        {
+          "name": "Go To",
+          "keytip": "ZG",
+          "items": [
+            {"small": "hf.goHeader", "keytip": "GH"},
+            {"small": "hf.goFooter", "keytip": "GF"}
           ]
         }
       ]
@@ -483,6 +527,14 @@
           ]
         },
         {
+          "name": "Format",
+          "keytip": "ZF",
+          "items": [
+            {"small": "chartdesign.axisH", "keytip": "AH"},
+            {"small": "chartdesign.axisV", "keytip": "AV"}
+          ]
+        },
+        {
           "name": "Object",
           "keytip": "ZO",
           "items": [
@@ -506,6 +558,14 @@
             {"row": [{"label": "Name"}, {"widget": "tableName", "keytip": "TN"}]},
             {"small": "table.resize", "keytip": "TR"},
             {"small": "table.toRange", "keytip": "TP"}
+          ]
+        },
+        {
+          "name": "Tools",
+          "keytip": "ZU",
+          "items": [
+            {"small": "table.summarize", "keytip": "TZ"},
+            {"small": "table.removeDuplicates", "keytip": "TD"}
           ]
         },
         {
@@ -606,7 +666,9 @@
           "name": "Actions",
           "keytip": "ZA",
           "items": [
-            {"large": {"id": "ribbon.pivotClear", "text": "Clear", "icon": "eraser"}, "keytip": "PC", "menu": ["pivot.clearAll", "pivot.clearFilters"]}
+            {"large": {"id": "ribbon.pivotClear", "text": "Clear", "icon": "eraser"}, "keytip": "PC", "menu": ["pivot.clearAll", "pivot.clearFilters"]},
+            {"large": {"id": "ribbon.pivotSelect", "text": "Select", "icon": "square-dashed-mouse-pointer"}, "keytip": "PI", "menu": ["pivot.selectAll", "pivot.selectValues", "pivot.selectLabels"]},
+            {"large": "pivot.move", "keytip": "PM"}
           ]
         },
         {
@@ -622,6 +684,8 @@
             {"column": true},
             {"small": "pivot.expandField", "keytip": "PE"},
             {"small": "pivot.collapseField", "keytip": "PK"},
+            {"small": "pivot.drillDown", "keytip": "DD"},
+            {"small": "pivot.drillUp", "keytip": "DU"},
             {"small": "pivot.slicers", "keytip": "PN"}
           ]
         },

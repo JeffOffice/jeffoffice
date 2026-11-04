@@ -309,6 +309,7 @@ void SheetObjects::list(int sheet, Sheet &s)
         o->meta = d;
         o->fileAnchor = o->base = o->anchor = d.anchor;
         o->fileName = d.name;
+        o->filePrints = d.prints;
         replay(sheet, *o);
         s.objects.push_back(std::move(o));
     }
@@ -879,7 +880,9 @@ void SheetObjects::addToSave(SaveChanges *changes)
                     o->savedAnchor = want;
                     AddedObject obj;
                     obj.xml = objectAnchorXml(want, o->pasteNamespaces, withFirstObjectName(o->pasteXml, o->meta.name));
+                    if (!o->meta.prints) obj.xml = withFirstObjectPrints(obj.xml, false);
                     o->savedName = o->meta.name;
+                    o->savedPrints = o->meta.prints;
                     for (const jp::crunch::ClipMedia &m : std::as_const(o->pasteMedia)) {
                         AddedPart part;
                         part.part = freePartName(QStringLiteral("/xl/media/image"), QLatin1Char('.') + m.extension, takenNames());
@@ -910,7 +913,9 @@ void SheetObjects::addToSave(SaveChanges *changes)
                 const QString token = QStringLiteral("@@chart%1@@").arg(add.objects.size());
                 AddedObject obj;
                 obj.xml = chartAnchorXml(want, int(o->meta.id), o->meta.name, token);
+                if (!o->meta.prints) obj.xml = withFirstObjectPrints(obj.xml, false);
                 o->savedName = o->meta.name;
+                o->savedPrints = o->meta.prints;
                 // (the part is written by the thread that writes the file: it is made from the model, which is a copy)
                 AddedPart part;
                 part.part = o->savedPart;
@@ -926,6 +931,8 @@ void SheetObjects::addToSave(SaveChanges *changes)
             // what the file will have for the object: the anchor as the cells' edits leave it, or, for one a person moved or that keeps its size, as its size and place now give it
             o->savedName = o->meta.name;
             if (o->meta.name != o->fileName && !s.drawingPart.isEmpty() && o->meta.ordinal >= 0) changes->objectNames[s.drawingPart][o->meta.ordinal] = o->meta.name;
+            o->savedPrints = o->meta.prints;
+            if (o->meta.prints != o->filePrints && !s.drawingPart.isEmpty() && o->meta.ordinal >= 0) changes->objectPrints[s.drawingPart][o->meta.ordinal] = o->meta.prints;
             const DrawingAnchor inFile = movedAnchor(o->fileAnchor, int(i), edits);
             o->savedAnchor = inFile;
             if (o->frozen && m_source) {
@@ -1035,6 +1042,7 @@ void SheetObjects::saved()
             }
             o->fileChart = o->chart;
             o->fileName = o->savedName;
+            o->filePrints = o->savedPrints;
         }
         s.drawing.rootChildren = std::max(0, s.drawing.rootChildren - removedNow) + addedNow;
         QVector<DrawingObject> kept;
@@ -1194,6 +1202,7 @@ ObjectState SheetObjects::stateOf(int sheet, int id)
     st.placements = o->placements;
     st.chart = o->chart;
     st.name = o->meta.name;
+    st.prints = o->meta.prints ? 1 : 0;
     st.refs = o->refPlacements;
     st.deleted = o->deleted;
     st.epoch = m_epoch;
@@ -1213,6 +1222,19 @@ ObjectState SheetObjects::stateWithChart(int sheet, int id, const Chart &chart)
     for (QString &ref : p.refs) ref = unfollowSheetOps(ref);
     st.refs.push_back(p);
     return st;
+}
+
+ObjectState SheetObjects::stateWithPrints(int sheet, int id, bool prints)
+{
+    ObjectState st = stateOf(sheet, id);
+    st.prints = prints ? 1 : 0;
+    return st;
+}
+
+bool SheetObjects::printsOf(int sheet, int id)
+{
+    const Object *o = find(sheet, id);
+    return !o || o->meta.prints;
 }
 
 ObjectState SheetObjects::stateMoved(int sheet, int id, const DrawingAnchor &anchor)
@@ -1239,6 +1261,7 @@ void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
         }
     }
     if (!st.name.isEmpty()) o->meta.name = st.name;
+    if (st.prints >= 0) o->meta.prints = st.prints != 0;
     replay(sheet, *o);
     o->frozen = o->anchor.kind != AnchorKind::TwoCell;
     o->meta.anchor.editAs = o->anchor.editAs;

@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, win/loss, tiny chart, markers -->
+<!-- keywords: chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -24,7 +24,7 @@ Click a chart, picture, or shape to pick it. Drag it to move it, or drag one of 
 - The arrow keys move it a few pixels at a time. **Ctrl** with an arrow moves it one pixel, **Shift** with an arrow makes it larger or smaller, and **Alt** with an arrow goes to the next edge of a cell.
 - **Esc** while you drag puts it back.
 
-Each move or size is one step you can undo. Right-click the object and choose **Properties** to type its size, and to choose what it does when you insert, delete, or resize cells: move and size with the cells, move with them but keep its size, or stay where it is. The choice is saved in the file.
+Each move or size is one step you can undo. Right-click the object and choose **Properties** to type its size, and to choose what it does when you insert, delete, or resize cells: move and size with the cells, move with them but keep its size, or stay where it is. The choice is saved in the file. **Print this object**, in the same box, turns off the object on the printed pages (it still shows on the screen); the file keeps that choice too.
 
 ## Change what a chart shows
 
@@ -35,6 +35,8 @@ When a chart is picked, two buttons appear beside it and a **Chart** tab appears
 - **Chart Data** lists the chart's series. You can add, edit, remove, and reorder them, change the cells each one reads, set the cells with the labels, switch the rows and columns, and choose how empty cells and hidden rows and columns are charted.
 - **Trendline** (in the **+** menu) draws a line fitted to the numbers of each series, so you can see where they are heading. Pick **Linear** for a straight line, **Exponential** for numbers that grow by a steady percent, **Logarithmic** for numbers that rise fast and then level off, **Polynomial** for a curve with bends, **Power**, or **Moving Average**, which draws the average of the last few numbers. **Show Equation** writes the line's formula on the chart, and **Show R-squared** writes how well the line fits (1 is a perfect fit; 0 is no fit at all). The trendline gets its own entry in the legend.
 - When a series is drawn against a second vertical axis, the **Axes** and **Axis Titles** menus have **Second Horizontal** and **Second Vertical** entries for it. The **Legend** menu has **Over the Chart**, which lays the legend on the plot instead of beside it.
+- **Data Labels** also has **Label Contains** (the value, the category's name, the series' name, and the percentage, in any mix), **Separator** (what stands between them: a comma, semicolon, period, new line, or space), and **Number Format…** (a format code such as 0.0 for the numbers in the labels; leave it empty to show the numbers as they are). Turn off every one of the contents and the labels go away.
+- **Format Horizontal Axis…** and **Format Vertical Axis…** on the **Chart** tab open a box for one axis. It sets the lowest and highest values and the major and minor units (each automatic or a number you type), whether the values run in reverse order, where the other axis crosses it, the number format of its labels, its tick marks, where its labels sit, and how far the labels are turned. Only a number axis has bounds and units.
 - **Chart Kind** changes the kind for the whole chart, or for each series: columns with a line over them, or a series against a second vertical axis.
 
 A reference to cells is written like **Sheet1!$B$2:$B$9**, with the sheet's name in single quotes when it has spaces.
@@ -53,7 +55,7 @@ The sparklines you make in one step are a group, and they share one look. Click 
 - **Type** switches between line, column, and win/loss.
 - **Show** marks points: the **High Point**, the **Low Point**, **Negative Points**, the **First Point**, the **Last Point**, and, for a line, **Markers** on every point.
 - **Styles** gives the group a set of colors. **Sparkline Color** sets the color of the line or bars and the **Weight** (how thick the line is, in points). **Marker Color** sets the color of each kind of marked point.
-- **Axis** shows a line at zero, plots the numbers right to left, and sets the lowest and highest values of the vertical axis. **Automatic for Each Sparkline** fits each one to its own numbers. **Same for All Sparklines** gives the whole group one scale, so you can compare them. **Custom Value** lets you type a number.
+- **Axis** shows a line at zero, plots the numbers right to left, and sets the lowest and highest values of the vertical axis. **Automatic for Each Sparkline** fits each one to its own numbers. **Same for All Sparklines** gives the whole group one scale, so you can compare them. **Custom Value** lets you type a number. **Date Axis…** spaces the points by dates: type the cells that hold the date of each point, and a point with a later date sits farther along. Leave it empty to space the points evenly again.
 - **Group** puts the selected sparklines in one group. **Ungroup** gives each its own look. **Clear** takes away the selected sparklines, or their whole groups.
 
 A sparkline follows its cells: insert a row above the data, and it still reads the same numbers. Every change is one step you can undo. Sparklines are saved in the file in the form other spreadsheet programs read.

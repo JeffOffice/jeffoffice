@@ -576,18 +576,29 @@ bool insertSymbol(QWidget *p, Editor *ed, const QString &ch, const QString &font
     } else {
         ed->insertTextBlock(ch, QCoreApplication::translate("Dialogs", "Insert Symbol"));
     }
+    rememberSymbol(ch, font);
+    return true;
+}
+
+void symbolDialog(QWidget *p, Editor *ed)
+{
+    symbolDialog(p, [ed](QWidget *w, const QString &ch, const QString &font) { return insertSymbol(w, ed, ch, font); });
+}
+
+void rememberSymbol(const QString &ch, const QString &font)
+{
     QStringList recents = recentSymbols();
     const QString entry = font.isEmpty() ? ch : ch + QLatin1Char('\t') + font;
     recents.removeAll(entry);
     recents.prepend(entry);
     while (recents.size() > 20) recents.removeLast();
     Settings::get().setValue(QStringLiteral("symbols/recent"), recents);
-    return true;
 }
 
-void symbolDialog(QWidget *p, Editor *ed)
+void symbolDialog(QWidget *p, const std::function<bool(QWidget *, const QString &, const QString &)> &insertOne)
 {
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Symbol"), QDialogButtonBox::Close);
+    dlg.d.setObjectName(QStringLiteral("symbolDialog"));
     auto *font = new QComboBox(&dlg.d);
     font->addItem(QCoreApplication::translate("Dialogs", "(normal text)"));
     font->addItems(visibleFontFamilies());
@@ -667,7 +678,7 @@ void symbolDialog(QWidget *p, Editor *ed)
     QObject::connect(recent, &QTableWidget::currentItemChanged, &dlg.d, [&, showCode](QTableWidgetItem *it) { chosenFrom = recent; showCode(it); });
     auto insert = [&, fillRecent](QTableWidgetItem *it) {
         if (!it || it->text().isEmpty()) return;
-        if (insertSymbol(&dlg.d, ed, it->text(), it->data(Qt::UserRole + 1).toString())) fillRecent();
+        if (insertOne(&dlg.d, it->text(), it->data(Qt::UserRole + 1).toString())) fillRecent();
     };
     QObject::connect(grid, &QTableWidget::itemDoubleClicked, &dlg.d, insert);
     QObject::connect(recent, &QTableWidget::itemDoubleClicked, &dlg.d, insert);

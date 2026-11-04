@@ -1,5 +1,6 @@
 // Conditional sums and counts, SUMPRODUCT, SUBTOTAL, and the statistics the workbooks use.
 #include "calc/machine.h"
+#include "calc/special.h"
 
 #include <algorithm>
 #include <cmath>
@@ -927,6 +928,8 @@ Value fnNormInv(Call &c)
 
 } // namespace
 
+bool inverseStandardNormal(double p, double *out) { return normalInverse(p, out); }
+
 // The numbers of arguments from `first` on: in a reference or array the numbers; typed, a text read as a number, a boolean as 1 or 0. An error stops it. With
 // `skipSubtotals` the cells of references that hold a SUBTOTAL are left out.
 bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error, bool skipSubtotals, int hiddenRows)
@@ -1020,6 +1023,15 @@ void registerStatFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"NORMSINV", 1, 1, "v", 0, fnNormSInv});
     r.push_back({"NORMDIST", 4, 4, "vvvv", 0, fnNormDist});
     r.push_back({"NORMINV", 3, 3, "vvv", 0, fnNormInv});
+    r.push_back({"RANK.EQ", 2, 3, "vrv", kFnFuture, fnRank});
+    r.push_back({"PERCENTILE.INC", 2, 2, "rv", kFnFuture, fnPercentile});
+    r.push_back({"QUARTILE.INC", 2, 2, "rv", kFnFuture, fnQuartile});
+    r.push_back({"MODE.SNGL", 1, 255, "r", kFnFuture, fnMode});
+    r.push_back({"COVARIANCE.P", 2, 2, "rr", kFnFuture, fnCovar});
+    r.push_back({"FORECAST.LINEAR", 3, 3, "vrr", kFnFuture, fnForecast});
+    r.push_back({"NORM.DIST", 4, 4, "vvvv", kFnFuture, fnNormDist});
+    r.push_back({"NORM.INV", 3, 3, "vvv", kFnFuture, fnNormInv});
+    r.push_back({"NORM.S.INV", 1, 1, "v", kFnFuture, fnNormSInv});
 }
 
 } // namespace jp::calc

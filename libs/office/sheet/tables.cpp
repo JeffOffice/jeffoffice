@@ -460,6 +460,11 @@ TableFate tableAfter(const StructEdit &e, const Table &t, CellRange *out, QStrin
             out->row2 -= n;
             return TableFate::Moved;
         }
+        // rows of data taken out of all the table's columns: the table is shorter (it keeps a row of data, and its names and totals)
+        if (t.col1 >= e.col1 && t.col2 <= e.col2 && e.row1 >= t.dataFirst() && qint64(e.row2) <= t.dataLast() && t.dataLast() - qint64(t.dataFirst()) + 1 - n >= 1) {
+            out->row2 -= n;
+            return TableFate::Moved;
+        }
         return refuse(inside);
     }
     case K::InsertCellsRight:
