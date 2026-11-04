@@ -162,7 +162,8 @@ bool runWithCancel(QWidget *parent, const QString &text, const std::function<voi
     });
     later.start(300);
     thread->start();
-    loop.exec(QEventLoop::ExcludeUserInputEvents);
+    // (the note is modal once it shows, so the window takes no input from then on, and its Cancel button takes the click)
+    loop.exec();
     thread->wait();
     delete thread;
     if (note) delete note.data();

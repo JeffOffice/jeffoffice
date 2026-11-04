@@ -173,6 +173,15 @@ private Q_SLOTS:
         QVERIFY(!t.win.w.isReadOnly());
         QVERIFY(!t.win.w.markedAsFinal());
         QVERIFY(t.win.told.last().contains(QLatin1String("can't hold the mark")));
+        // an .xls and an .ods hold no mark either (named so, whatever they hold)
+        for (const char *name : {"old.xls", "sheet.ods"}) {
+            EditWindow o;
+            QVERIFY(o.open(editBook(), QString::fromLatin1(name)));
+            QVERIFY2(!o.win.w.markFinalBlocked().isEmpty(), name);
+            o.win.w.setMarkedFinal(true);
+            QVERIFY(!o.win.w.isReadOnly());
+            QVERIFY(!o.win.w.markedAsFinal());
+        }
         // a workbook marked as final shows its note on the status bar for as long as it is read-only, whatever else the bar says
         EditWindow e;
         QVERIFY(e.open(editBook()));

@@ -423,6 +423,8 @@ void WriteWindow::autoRecover()
     if (!m_doc || !isModified()) return;
     // A document protected with a password is never written out as plain text: no copy is kept for it, and the person is told.
     if (m_fileProtected) {
+        // (a copy written before the document was protected holds its text in the clear: it goes)
+        dropRecoveryCopy();
         if (!m_recoveryNoted) {
             m_recoveryNoted = true;
             statusBar()->showMessage(tr("This document is protected with a password, so no recovery copy is kept of it. Save it to keep your work."), 10000);

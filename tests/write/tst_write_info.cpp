@@ -25,7 +25,9 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QStatusBar>
+#include <QApplication>
 #include <QElapsedTimer>
+#include <QFileInfo>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QThread>
@@ -612,6 +614,17 @@ private Q_SLOTS:
         w.autoRecover();
         QVERIFY(w.recoveryCopy().isEmpty());
         QVERIFY(w.statusBar()->currentMessage().contains(QLatin1String("recovery copy")));
+        // (a copy written before the document was protected is taken away, not left with its text in the clear)
+        WriteWindow early;
+        typeText(*early.document(), early.view()->cursor(), QStringLiteral("before the password"));
+        early.autoRecover();
+        const QString clear = early.recoveryCopy();
+        QVERIFY(!clear.isEmpty());
+        QVERIFY(QFileInfo::exists(clear));
+        early.encryptWithPassword();
+        early.autoRecover();
+        QVERIFY(early.recoveryCopy().isEmpty());
+        QVERIFY(!QFileInfo::exists(clear));
         // (an unprotected one is kept, as it was)
         WriteWindow v;
         typeText(*v.document(), v.view()->cursor(), QStringLiteral("plain words"));
@@ -688,6 +701,39 @@ private Q_SLOTS:
         QVERIFY(!finished);
         QVERIFY2(ticks > 5, "the window's events were not handled while the work ran");
         QVERIFY(runWithCancel(nullptr, QStringLiteral("working"), [](const std::atomic<bool> *) {}));
+    }
+
+    // A real key with many rounds of hashing, and a click on the Cancel button of the note that shows while it is made.
+    void theCancelButtonOfTheNoteStopsALongKey()
+    {
+        const QByteArray zip = makeDocx("<w:p><w:r><w:t>x</w:t></w:r></w:p>");
+        office::EncryptOptions options;
+        options.spinCount = 2000000;
+        const QByteArray file = office::encryptPackage(zip, QStringLiteral("right"), options);
+        QByteArray info, package;
+        QVERIFY(office::splitProtectedPackage(file, &info, &package));
+        QTimer press;
+        bool pressed = false;
+        QObject::connect(&press, &QTimer::timeout, [&] {
+            for (QWidget *w : QApplication::topLevelWidgets()) {
+                if (w->objectName() != QLatin1String("workNote")) continue;
+                if (auto *button = w->findChild<QPushButton *>()) {
+                    pressed = true;
+                    QTest::mouseClick(button, Qt::LeftButton);
+                }
+            }
+        });
+        press.start(50);
+        QByteArray out;
+        office::CryptResult result = office::CryptResult::Ok;
+        QElapsedTimer t;
+        t.start();
+        const bool finished = runWithCancel(nullptr, QStringLiteral("Checking"), [&](const std::atomic<bool> *cancel) {
+            result = office::decryptPackage(info, package, QStringLiteral("wrong"), office::kMaxOpenFileBytes, false, &out, [cancel] { return cancel->load(); });
+        });
+        QVERIFY2(pressed, "the note with a Cancel button did not show");
+        QVERIFY(!finished);
+        QCOMPARE(result, office::CryptResult::Cancelled);
     }
 
     void aWrongPartIsRemadeNotTrusted()
