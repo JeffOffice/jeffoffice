@@ -823,6 +823,10 @@
               "keytip": "TH"
             },
             {
+              "large": "review.accessibility",
+              "keytip": "AC"
+            },
+            {
               "large": "review.wordCount",
               "keytip": "WC"
             }

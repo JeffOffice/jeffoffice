@@ -1,5 +1,5 @@
-# Count words, set the language, and look up words
-<!-- keywords: thesaurus, synonym, synonyms, translate, translation, libretranslate, word count, count words, characters, paragraphs, pages, selection, footnotes, endnotes, language, proofing language, set language, do not check spelling, spelling language, status bar -->
+# Count words, check, and look up words
+<!-- keywords: accessibility, check accessibility, alt text, header row, screen reader, contrast, thesaurus, synonym, synonyms, translate, translation, libretranslate, word count, count words, characters, paragraphs, pages, selection, footnotes, endnotes, language, proofing language, set language, do not check spelling, spelling language, status bar -->
 
 These tools are on the **Review** tab.
 
@@ -44,3 +44,22 @@ The list comes from a file on your computer. No internet connection is used.
 4. Click **OK**.
 
 Your web browser then opens a translation service called LibreTranslate, with your text in it. Nothing is sent until you click **OK**. You can change the address of the service in the box, for example to one that you run yourself. Only web addresses (http or https) are used. At most 5,000 letters are sent.
+
+## Check accessibility
+
+Some people read with a screen reader, which speaks the document aloud. Some have trouble seeing pale text. The accessibility check finds what makes a document hard for them.
+
+1. Click **Check Accessibility** in the **Proofing** group.
+2. A list opens at the right. Each line says what is wrong. Click a line to go to the place.
+3. Fix the problem. Click **Check Again**.
+
+It looks for these:
+
+- **A picture with no alt text.** Alt text is a short description of a picture. To add it, right-click the picture and choose its alt text.
+- **A table with no header row.** The header row holds the names of the columns.
+- **A blank table cell.**
+- **A heading that skips a level**, such as Heading 3 right after Heading 1.
+- **Text that is hard to read**, because its color is too close to the color behind it.
+- **A picture that floats on the page** instead of sitting in line with the text.
+
+It does not check the text of links yet.

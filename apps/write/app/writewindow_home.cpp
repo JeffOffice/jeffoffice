@@ -4,7 +4,11 @@
 
 #include "app/homedialogs.h"
 #include "app/pageview.h"
+#include "app/writefilescreen.h"
+#include "app/pageview.h"
+#include "app/writefilescreen.h"
 #include "core/editops.h"
+#include "core/tableops.h"
 #include "core/homeops.h"
 #include "core/proofops.h"
 
@@ -13,6 +17,7 @@
 #include "app/settings.h"
 
 #include <QAction>
+#include <QDockWidget>
 #include <QDesktopServices>
 #include <QUrl>
 #include <QApplication>
@@ -87,15 +92,13 @@ void WriteWindow::createHomeActions()
             statusBar()->showMessage(tr("Turn off Track Changes to sort: a sort is not recorded as a change."), 6000);
             return;
         }
-        if (!m_view->cursor().hasSelection() || write::selectedBlocks(m_view->cursor()).size() < 2) {
+        const bool table = cursorInTable();
+        if (!table && (!m_view->cursor().hasSelection() || write::selectedBlocks(m_view->cursor()).size() < 2)) {
             statusBar()->showMessage(tr("Select two or more paragraphs to sort."), 5000);
             return;
         }
-        if (!write::sortDialog(this, &m_sortOptions)) return;
-        const int n = write::sortParagraphs(*m_doc, m_view->cursor(), m_sortOptions);
-        statusBar()->showMessage(n > 0 ? tr("%n paragraph(s) sorted.", nullptr, n) : tr("Nothing was sorted."), 5000);
-        m_view->setFocus(Qt::OtherFocusReason);
-        m_view->viewport()->update();
+        if (!write::sortDialog(this, &m_sortOptions, table)) return;
+        sortSelection(m_sortOptions);
     });
     mk("review.language", tr("Set Proofing Language…"), "languages", QKeySequence(), [this] {
         if (!m_doc || refuseIfReadOnly()) return;
@@ -153,12 +156,51 @@ void WriteWindow::createHomeActions()
         Settings::get().setValue(QStringLiteral("translate/server"), server);
         QDesktopServices::openUrl(QUrl(url));
     });
+    mk("review.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] {
+        if (!m_doc) return;
+        m_view->leaveHeaderFooter();
+        m_view->leaveNote();
+        if (m_fileScreen->isVisible()) hideFileScreen();
+        if (!m_accessDock) {
+            m_accessDock = new QDockWidget(tr("Accessibility"), this);
+            m_accessDock->setObjectName(QStringLiteral("accessDock"));
+            m_accessDock->setFeatures(QDockWidget::DockWidgetClosable);
+            m_accessPane = new write::AccessPane(m_view, m_accessDock);
+            m_accessDock->setWidget(m_accessPane);
+            addDockWidget(Qt::RightDockWidgetArea, m_accessDock);
+            resizeDocks({m_accessDock}, {340}, Qt::Horizontal);
+        }
+        m_accessDock->show();
+        m_accessDock->raise();
+        m_accessPane->check();
+    });
     mk("review.wordCount", tr("Word Count"), "hash", QKeySequence(), [this] {
         if (!m_doc) return;
         const QTextCursor sel = m_view->cursor();
         write::wordCountDialog(this, m_view->pageCount(), sel.hasSelection(), [this, sel](bool notes) { return write::countWords(*m_doc, sel, notes); });
         m_view->setFocus(Qt::OtherFocusReason);
     });
+}
+
+// Sorts the paragraphs selected, or the rows of the table the caret is in; how many were sorted.
+int WriteWindow::sortSelection(const write::SortOptions &options)
+{
+    if (!m_doc) return 0;
+    int n = 0;
+    if (cursorInTable()) {
+        QVector<write::TableSortKey> keys;
+        for (const write::SortKey &k : options.keys)
+            keys.push_back({k.type == write::SortKey::Number ? write::TableSortKey::Kind::Number : k.type == write::SortKey::Date ? write::TableSortKey::Kind::Date : write::TableSortKey::Kind::Text, std::max(0, k.field - 1), !k.descending});
+        QTextCursor c = m_view->cursor();
+        n = write::sortTableRows(*m_doc, c, keys, options.header) ? 1 : 0;
+        statusBar()->showMessage(n > 0 ? tr("The rows are sorted.") : tr("Nothing was sorted."), 5000);
+    } else {
+        n = write::sortParagraphs(*m_doc, m_view->cursor(), options);
+        statusBar()->showMessage(n > 0 ? tr("%n paragraph(s) sorted.", nullptr, n) : tr("Nothing was sorted."), 5000);
+    }
+    m_view->setFocus(Qt::OtherFocusReason);
+    m_view->viewport()->update();
+    return n;
 }
 
 // The language at the caret in the status bar, and the check mark of "Do Not Check Spelling".

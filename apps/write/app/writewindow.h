@@ -44,6 +44,7 @@ namespace write {
 class PageView;
 class Ruler;
 class SpellPane;
+class AccessPane;
 }
 namespace recovery {
 struct Recovered;
@@ -76,6 +77,7 @@ public:
     write::WriteDoc *document() const { return m_doc.get(); }
     // Review > Compare: this document and the file at `revisedPath` made into a new document of tracked changes (this one is the original), shown in a window of its own. How many changes it
     // holds; -1 when a file can't be read or compared (the reason is told).
+    int sortSelection(const write::SortOptions &options);
     int compareWith(const QString &revisedPath, const write::CompareOptions &options);
     QString ribbonErrors() const { return m_ribbonErrors; }
 
@@ -259,6 +261,8 @@ private:
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
     QDockWidget *m_spellDock = nullptr;
+    QDockWidget *m_accessDock = nullptr;
+    write::AccessPane *m_accessPane = nullptr;
     write::SpellPane *m_spellPane = nullptr;
     WriteFindPane *m_find = nullptr;
     QDockWidget *m_findDock = nullptr;

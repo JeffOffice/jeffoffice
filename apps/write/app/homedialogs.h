@@ -6,14 +6,19 @@
 #include "core/proofops.h"
 
 #include <QStringList>
+#include <QWidget>
 #include <functional>
 
 class QWidget;
+class QLabel;
+class QListWidget;
 
 namespace jp::write {
 
-// Sort: up to three keys (the field, its type, ascending or descending), what separates the fields, and whether the first paragraph is a header. False if canceled; `options` is then as it was.
-bool sortDialog(QWidget *parent, SortOptions *options);
+class PageView;
+
+// Sort: (in a table the keys are columns, and there are no separators) up to three keys (the field, its type, ascending or descending), what separates the fields, and whether the first paragraph is a header. False if canceled; `options` is then as it was.
+bool sortDialog(QWidget *parent, SortOptions *options, bool inTable = false);
 // Word Count: the numbers of `stats` (for the selection or the whole document), with the pages, and a box for the notes that asks for the count again through `recount`.
 void wordCountDialog(QWidget *parent, int pages, bool selection, const std::function<WordStats(bool notes)> &recount);
 
@@ -36,5 +41,19 @@ bool trackOptionsDialog(QWidget *parent, QString *name, QString *initials);
 
 // Compare: the file of the revised version (the open document is the original), who the changes are signed with, and the choices. False if canceled.
 bool compareDialog(QWidget *parent, QString *revisedPath, CompareOptions *options);
+
+// The Accessibility pane: the problems of a document in a list (the place of one goes with a click), and a button to check again.
+class AccessPane : public QWidget {
+    Q_OBJECT
+public:
+    AccessPane(PageView *view, QWidget *parent = nullptr);
+    void check();
+    int issueCount() const;
+
+private:
+    PageView *m_view;
+    QListWidget *m_list;
+    QLabel *m_summary;
+};
 
 } // namespace jp::write

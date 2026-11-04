@@ -1,6 +1,8 @@
 #include "app/homedialogs.h"
 
+#include "app/pageview.h"
 #include "app/plaintext.h"
+#include "core/accessops.h"
 
 #include "app/proofingdialogs.h"
 #include "text/dictionaries.h"
@@ -23,7 +25,7 @@
 
 namespace jp::write {
 
-bool sortDialog(QWidget *parent, SortOptions *options)
+bool sortDialog(QWidget *parent, SortOptions *options, bool inTable)
 {
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("sortDialog"));
@@ -31,7 +33,7 @@ bool sortDialog(QWidget *parent, SortOptions *options)
     auto *v = new QVBoxLayout(&dlg);
     auto *grid = new QGridLayout;
     v->addLayout(grid);
-    grid->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Field:"), &dlg)), 0, 1);
+    grid->addWidget(plainLabel(new QLabel(inTable ? QCoreApplication::translate("jp::write::HomeDialogs", "Column:") : QCoreApplication::translate("jp::write::HomeDialogs", "Field:"), &dlg)), 0, 1);
     grid->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Type:"), &dlg)), 0, 2);
     grid->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Order:"), &dlg)), 0, 3);
     const char *const names[] = {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Sort by"), QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Then by"), QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Then by")};
@@ -77,6 +79,8 @@ bool sortDialog(QWidget *parent, SortOptions *options)
     fieldsRow->addWidget(separator, 1);
     fieldsRow->addWidget(other);
     v->addLayout(fieldsRow);
+    separator->setVisible(!inTable);
+    other->setVisible(!inTable);
     auto *header = new QCheckBox(QCoreApplication::translate("jp::write::HomeDialogs", "The first paragraph is a header (leave it where it is)"), &dlg);
     header->setObjectName(QStringLiteral("sortHeader"));
     header->setChecked(options->header);
@@ -436,6 +440,52 @@ bool compareDialog(QWidget *parent, QString *revisedPath, CompareOptions *option
     options->ignoreCase = ignoreCase->isChecked();
     options->ignoreWhiteSpace = ignoreSpace->isChecked();
     return true;
+}
+
+AccessPane::AccessPane(PageView *view, QWidget *parent) : QWidget(parent), m_view(view)
+{
+    setObjectName(QStringLiteral("accessPane"));
+    auto *v = new QVBoxLayout(this);
+    m_summary = plainLabel(new QLabel(this));
+    m_summary->setObjectName(QStringLiteral("accessSummary"));
+    m_summary->setWordWrap(true);
+    v->addWidget(m_summary);
+    m_list = new QListWidget(this);
+    m_list->setObjectName(QStringLiteral("accessList"));
+    m_list->setWordWrap(true);
+    v->addWidget(m_list, 1);
+    auto *again = new QPushButton(QCoreApplication::translate("jp::write::HomeDialogs", "Check Again"), this);
+    again->setObjectName(QStringLiteral("accessAgain"));
+    v->addWidget(again);
+    connect(again, &QPushButton::clicked, this, &AccessPane::check);
+    connect(m_list, &QListWidget::itemActivated, this, [this](QListWidgetItem *item) {
+        const int at = item->data(Qt::UserRole).toInt();
+        if (!m_view || !m_view->document()) return;
+        QTextCursor c(m_view->document()->story());
+        c.setPosition(std::min(at, m_view->document()->story()->characterCount() - 1));
+        m_view->setCursor(c);
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    connect(m_list, &QListWidget::itemClicked, m_list, [this](QListWidgetItem *item) { Q_EMIT m_list->itemActivated(item); });
+}
+
+int AccessPane::issueCount() const { return m_list->count(); }
+
+void AccessPane::check()
+{
+    m_list->clear();
+    if (!m_view || !m_view->document()) {
+        m_summary->setText(QString());
+        return;
+    }
+    const QVector<AccessIssue> issues = checkAccessibility(*m_view->document());
+    for (const AccessIssue &i : issues) {
+        const QString level = i.level == AccessIssue::Error ? QCoreApplication::translate("jp::write::HomeDialogs", "Error") : i.level == AccessIssue::Warning ? QCoreApplication::translate("jp::write::HomeDialogs", "Warning") : QCoreApplication::translate("jp::write::HomeDialogs", "Tip");
+        auto *item = new QListWidgetItem(level + QStringLiteral(": ") + i.message, m_list);
+        item->setData(Qt::UserRole, i.position);
+    }
+    m_summary->setText(issues.isEmpty() ? QCoreApplication::translate("jp::write::HomeDialogs", "No accessibility problems were found.")
+                                        : QCoreApplication::translate("jp::write::HomeDialogs", "%n problem(s) found. Click one to go to it.", nullptr, int(issues.size())));
 }
 
 } // namespace jp::write

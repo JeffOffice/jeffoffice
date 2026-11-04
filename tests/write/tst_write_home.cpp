@@ -5,9 +5,12 @@
 #include "app/writewindow.h"
 #include "app/pageview.h"
 #include "core/appinfo.h"
+#include "core/accessops.h"
 #include "core/compareops.h"
 #include "core/editops.h"
+#include "core/pictureops.h"
 #include "core/reviewops.h"
+#include "core/tableops.h"
 #include "core/fonts.h"
 #include "core/homeops.h"
 #include "core/proofops.h"
@@ -17,6 +20,8 @@
 #include "text/textprops.h"
 
 #include <QAction>
+#include <QBuffer>
+#include <QImage>
 #include <QApplication>
 #include <QTemporaryDir>
 #include <QFile>
@@ -553,6 +558,115 @@ private Q_SLOTS:
         QVERIFY(w.compareWith(dir.filePath(QStringLiteral("missing.docx")), o) < 0);
         made->document()->setModified(false);
         made->close();
+    }
+
+    void sortInATableSortsItsRows()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("x")))), QString());
+        NewTable t;
+        t.rows = 3;
+        t.columns = 2;
+        QTextCursor c(w.document()->story());
+        c.setPosition(0);
+        insertTable(*w.document(), c, t);
+        w.view()->refresh();
+        QStringList cells;
+        for (QTextBlock b = w.document()->story()->begin(); b.isValid(); b = b.next())
+            if (inTable(b)) cells << b.text();
+        QCOMPARE(cells.size(), 6);
+        // Fill the cells: b 2 / a 1 / c 3.
+        const QStringList words = {"b", "2", "a", "1", "c", "3"};
+        int i = 0;
+        for (QTextBlock b = w.document()->story()->begin(); b.isValid() && i < 6; b = b.next()) {
+            if (!inTable(b)) continue;
+            QTextCursor t2(w.document()->story());
+            t2.setPosition(b.position());
+            insertText(*w.document(), t2, words.at(i++));
+        }
+        QTextCursor in(w.document()->story());
+        for (QTextBlock b = w.document()->story()->begin(); b.isValid(); b = b.next())
+            if (inTable(b)) {
+                in.setPosition(b.position());
+                break;
+            }
+        w.view()->setCursor(in);
+        SortOptions o;
+        o.keys = {SortKey{}};
+        QCOMPARE(w.sortSelection(o), 1);
+        QStringList after;
+        for (QTextBlock b = w.document()->story()->begin(); b.isValid(); b = b.next())
+            if (inTable(b)) after << b.text();
+        QCOMPARE(after, (QStringList{"a", "1", "b", "2", "c", "3"}));
+    }
+
+    void contrastIsWorkedOutAsTheGuidelinesDo()
+    {
+        QVERIFY(qAbs(contrastRatio(Qt::black, Qt::white) - 21.0) < 0.01);
+        QVERIFY(qAbs(contrastRatio(Qt::white, Qt::white) - 1.0) < 0.001);
+        QVERIFY(contrastRatio(QColor(0x77, 0x77, 0x77), Qt::white) > 4.4 && contrastRatio(QColor(0x77, 0x77, 0x77), Qt::white) < 4.6);
+    }
+
+    void theAccessibilityCheckFindsAPictureWithoutAltTextAndStopsFindingItOnceDescribed()
+    {
+        auto doc = open(makeDocx(para(run("Before after"))));
+        QImage image(40, 20, QImage::Format_ARGB32);
+        image.fill(Qt::blue);
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertPicture(*doc, c, png, QStringLiteral("blue")), PictureResult::Ok);
+        QVector<AccessIssue> issues = checkAccessibility(*doc);
+        QCOMPARE(issues.size(), 1);
+        QCOMPARE(int(issues.first().kind), int(AccessIssue::MissingAltText));
+        QCOMPARE(issues.first().position, 7);
+        QVERIFY(setPictureAltText(*doc, 7, QStringLiteral("A blue box")));
+        QVERIFY(checkAccessibility(*doc).isEmpty());
+        QVERIFY(setPictureWrap(*doc, 7, PictureWrap::Square));
+        issues = checkAccessibility(*doc);
+        QCOMPARE(issues.size(), 1);
+        QCOMPARE(int(issues.first().kind), int(AccessIssue::FloatingPicture));
+    }
+
+    void theAccessibilityCheckFindsHeadingsOutOfOrderAndTextThatIsHardToRead()
+    {
+        const QByteArray styles = "<w:styles xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/></w:style>"
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"Heading3\"><w:name w:val=\"heading 3\"/></w:style></w:styles>";
+        Q_UNUSED(styles);
+        auto doc = open(makeDocx(para(run("One"), "<w:pStyle w:val=\"Heading1\"/>") + para(run("Three"), "<w:pStyle w:val=\"Heading3\"/>") + para(run("pale yellow words", "<w:color w:val=\"FFFF99\"/>")) +
+                                 para(run("dark words", "<w:color w:val=\"000000\"/>"))));
+        const QVector<AccessIssue> issues = checkAccessibility(*doc);
+        int order = 0, contrast = 0;
+        for (const AccessIssue &i : issues) {
+            order += i.kind == AccessIssue::HeadingOrder;
+            contrast += i.kind == AccessIssue::LowContrast;
+        }
+        QCOMPARE(order, 1);
+        QCOMPARE(contrast, 1);
+    }
+
+    void theAccessibilityCheckFindsATableWithoutAHeaderRowAndBlankCells()
+    {
+        auto doc = open(makeDocx(para(run("x"))));
+        NewTable t;
+        t.rows = 2;
+        t.columns = 2;
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        insertTable(*doc, c, t);
+        QVector<AccessIssue> issues = checkAccessibility(*doc);
+        int header = 0, blank = 0;
+        for (const AccessIssue &i : issues) {
+            header += i.kind == AccessIssue::TableWithoutHeader;
+            blank += i.kind == AccessIssue::BlankTableCell;
+        }
+        QCOMPARE(header, 1);
+        QCOMPARE(blank, 4);
     }
 };
 
