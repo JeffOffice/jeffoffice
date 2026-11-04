@@ -14723,6 +14723,7 @@ private Q_SLOTS:
         auto doc = open(tableDocx(3, 2));
         const QString before = tablesSignature(*doc);
         QTextCursor in = cursorAt(*doc, QStringLiteral("r1c1"));
+        QVERIFY(canSplitTable(*doc, in));
         QVERIFY(splitTable(*doc, in));
         QCOMPARE(plain(*doc), QStringLiteral("before\nr0c0\nr0c1\n\nr1c0\nr1c1\nr2c0\nr2c1\nafter"));
         const QByteArray x = documentXml(doc->toDocx());
@@ -14730,6 +14731,7 @@ private Q_SLOTS:
         QCOMPARE(int(x.count("<w:tr>")), 3);
         checkTablesReopenTheSame(*doc);
         QTextCursor top = cursorAt(*doc, QStringLiteral("r0c0"));
+        QVERIFY(!canSplitTable(*doc, top));
         QVERIFY(!splitTable(*doc, top));
         doc->story()->undo();
         QCOMPARE(tablesSignature(*doc), before);

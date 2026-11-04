@@ -120,4 +120,6 @@ Click **Table Properties** on **Table Layout**, or on the right-click menu. It h
 
 A table you make or change is saved in the file with its widths, lines, fills, merges, and options, and opens the same in JeffWrite and in other word processors. Parts of a table that the file had and JeffWrite doesn't show are kept as they were.
 
+In an `.odt` file, a table keeps its lines, fills, and widths, and the fills that its style gives the header row and the bands are written on the cells. A formula is kept, but not its number format, and a style is not kept as a style: the table looks the same when you open it again, but it no longer has a style name.
+
 [Back to the contents](index)

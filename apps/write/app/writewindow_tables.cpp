@@ -280,6 +280,7 @@ void WriteWindow::createTableActions()
         m_view->setFocus(Qt::OtherFocusReason);
     });
     mk("table.gridlines", tr("View Gridlines"), "grid-3x3", QKeySequence(), [this] { m_view->setShowGridlines(act("table.gridlines")->isChecked()); }, true);
+    act("table.gridlines")->setEnabled(false);   // (until the caret is in a table)
     cmd(QStringLiteral("table.style.clear"), tr("Clear"), "eraser", [](write::WriteDoc &d, QTextCursor &c) { write::setTableStyle(d, c, QStringLiteral("TableNormal")); });
 }
 
@@ -410,7 +411,8 @@ void WriteWindow::refreshTableUi()
     const bool inBody = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
     act("insert.table")->setEnabled(inBody);
     act("insert.convertTextToTable")->setEnabled(inBody && !in);
-    act("table.gridlines")->setEnabled(true);
+    act("table.splitTable")->setEnabled(in && write::canSplitTable(*m_doc, m_view->cursor()));   // (a table is cut above the caret's row: not the first, and not through a cell joined down)
+    act("table.gridlines")->setEnabled(in || act("table.gridlines")->isChecked());   // (it shows the edges of the cells of tables: nothing to show elsewhere, except to turn it off)
     m_ribbon->setContextVisible(QStringLiteral("Table Tools"), in, false);
     if (!in) return;
     // The fields and options are read only while a tab that shows them is the one in front (the table is looked at from its start, which a long document makes dear).

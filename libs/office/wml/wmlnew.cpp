@@ -231,16 +231,16 @@ QString tableStyleScreenName(const Style &style)
                  {"GridTable1Light", QT_TRANSLATE_NOOP("jp::office::TableStyles", "Light Grid")}};
     static const char *const colors[] = {QT_TRANSLATE_NOOP("jp::office::TableStyles", "Blue"), QT_TRANSLATE_NOOP("jp::office::TableStyles", "Orange"), QT_TRANSLATE_NOOP("jp::office::TableStyles", "Gray"),
                                          QT_TRANSLATE_NOOP("jp::office::TableStyles", "Gold"), QT_TRANSLATE_NOOP("jp::office::TableStyles", "Sky"), QT_TRANSLATE_NOOP("jp::office::TableStyles", "Green")};
-    auto tr = [](const char *text) { return QCoreApplication::translate("jp::office::TableStyles", text); };
     const Style built = builtinTableStyle(style.id);
     // (a file's own style of the same id with a name of its own is shown by that name)
     if (built.id.isEmpty() || (!style.name.isEmpty() && style.name != built.name)) return style.name.isEmpty() ? style.id : style.name;
     for (const auto &f : fixed)
-        if (style.id == QLatin1String(f.id)) return tr(f.name);
+        if (style.id == QLatin1String(f.id)) return QCoreApplication::translate("jp::office::TableStyles", f.name);
     static const QRegularExpression accent(QStringLiteral("^(GridTable4|ListTable3)-?Accent([1-6])$"));
     const QRegularExpressionMatch m = accent.match(style.id);
     if (m.hasMatch())
-        return (m.captured(1) == QLatin1String("GridTable4") ? tr("Banded Grid") : tr("Banded List")) + QStringLiteral(", ") + tr(colors[m.captured(2).toInt() - 1]);
+        return (m.captured(1) == QLatin1String("GridTable4") ? QCoreApplication::translate("jp::office::TableStyles", "Banded Grid") : QCoreApplication::translate("jp::office::TableStyles", "Banded List")) + QStringLiteral(", ") +
+               QCoreApplication::translate("jp::office::TableStyles", colors[m.captured(2).toInt() - 1]);
     return style.name.isEmpty() ? style.id : style.name;
 }
 

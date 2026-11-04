@@ -354,6 +354,11 @@ private Q_SLOTS:
                  asWrite(w)->refreshNow();
              }, false},
             {QStringLiteral("the cursor in a table"), [](AppWindow *w, bool) { tableAtCursor(asWrite(w)); }, false},
+            {QStringLiteral("the cursor in the second row of a table"), [](AppWindow *w, bool) {
+                 tableAtCursor(asWrite(w));
+                 for (int i = 0; i < 8 && !write::canSplitTable(*asWrite(w)->document(), asWrite(w)->view()->cursor()); ++i) write::tabThroughCells(*asWrite(w)->document(), asWrite(w)->view()->cursor(), false);
+                 asWrite(w)->refreshNow();
+             }, false},
             {QStringLiteral("the whole table selected"), [](AppWindow *w, bool) {
                  tableAtCursor(asWrite(w));
                  write::selectInTable(*asWrite(w)->document(), asWrite(w)->view()->cursor(), write::TableUnit::Table);
@@ -380,6 +385,7 @@ private Q_SLOTS:
             {QStringLiteral("edit.formatPainter"), QStringLiteral("it picks up the look of the selection and waits for the next selection; the paint is the change, and the window's tests check it")},
             {QStringLiteral("view.printLayout"), QStringLiteral("the print layout is the only layout JeffWrite has, and the window begins in it")},
             {QStringLiteral("review.show.comments"), QStringLiteral("it chooses whether the balloons for comments are painted in the pages' margin, which no control shows; the window's tests check the painting")},
+            {QStringLiteral("table.gridlines"), QStringLiteral("it draws the edges of the cells that have no line, and the tables the checks make have lines; the window's tests check the drawing")},
             {QStringLiteral("review.show.formatting"), QStringLiteral("it chooses whether the bars for changes of formatting are painted in the pages' margin, which no control shows; the window's tests check the painting")},
         };
         m_app.neverRun = {};

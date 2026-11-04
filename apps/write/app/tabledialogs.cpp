@@ -1,5 +1,6 @@
 #include "app/tabledialogs.h"
 
+#include "app/plaintext.h"
 #include "app/settings.h"
 #include "app/widgets.h"
 #include "core/styleops.h"
@@ -730,7 +731,7 @@ bool tableStyleDialog(QWidget *parent, WriteDoc *doc, const QString &modifyId, Q
         const bool done = modify ? modifyTableStyle(*doc, modifyId, now, &problem) : !made.isEmpty();
         if (done && madeId) *madeId = made;
         if (done) return true;
-        QMessageBox::warning(&dlg, dlg.windowTitle(), problem);
+        jp::plainWarning(&dlg, dlg.windowTitle(), problem);
     }
     return false;
 }

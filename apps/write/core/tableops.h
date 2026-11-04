@@ -155,6 +155,8 @@ bool convertTextToTable(WriteDoc &doc, QTextCursor &c, TextSeparator separator, 
 // paragraph of the cells stays one).
 bool convertTableToText(WriteDoc &doc, QTextCursor &c, TextSeparator separator, QChar other);
 // The table is cut in two above the row the cursor is in, with an empty paragraph between them. False for the first row, and where a cell that is joined down goes across the cut.
+// Whether splitTable would cut the table the cursor is in (not at its first row, and not through a cell that is joined down).
+bool canSplitTable(WriteDoc &doc, const QTextCursor &c);
 bool splitTable(WriteDoc &doc, QTextCursor &c);
 // Sort the rows by up to three columns. The selected rows are sorted when the selection takes more than one row, else the whole table (but the first row, with `header`). The
 // text of the cells moves; what belongs to a cell (its shading and borders) stays where it is.

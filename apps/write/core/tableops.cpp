@@ -1959,18 +1959,18 @@ bool insertReadyTable(WriteDoc &doc, QTextCursor &c, ReadyTable kind, const QDat
         break;
     }
     case ReadyTable::Matrix:
-        rows << QStringList{QString(), word("Column 1"), word("Column 2"), word("Column 3")};
-        for (int r = 1; r <= 3; ++r) rows << QStringList{word("Row %1").arg(r), QString(), QString(), QString()};
+        rows << QStringList{QString(), word(QT_TRANSLATE_NOOP("jp::write::ReadyTables", "Column 1")), word(QT_TRANSLATE_NOOP("jp::write::ReadyTables", "Column 2")), word(QT_TRANSLATE_NOOP("jp::write::ReadyTables", "Column 3"))};
+        for (int r = 1; r <= 3; ++r) rows << QStringList{word(QT_TRANSLATE_NOOP("jp::write::ReadyTables", "Row %1")).arg(r), QString(), QString(), QString()};
         table.style = QStringLiteral("GridTable4-Accent1");
         break;
     case ReadyTable::List:
-        rows << QStringList{word("Item"), word("Description"), word("Quantity"), word("Price")};
+        rows << QStringList{word(QT_TRANSLATE_NOOP("jp::write::ReadyTables", "Item")), word(QT_TRANSLATE_NOOP("jp::write::ReadyTables", "Description")), word(QT_TRANSLATE_NOOP("jp::write::ReadyTables", "Quantity")), word(QT_TRANSLATE_NOOP("jp::write::ReadyTables", "Price"))};
         for (int r = 0; r < 4; ++r) rows << QStringList{QString(), QString(), QString(), QString()};
         table.style = QStringLiteral("ListTable3-Accent1");
         break;
     case ReadyTable::Schedule:
-        rows << QStringList{QString(), word("Monday"), word("Tuesday"), word("Wednesday"), word("Thursday"), word("Friday")};
-        for (const char *time : {"9:00", "10:00", "11:00", "1:00", "2:00"}) rows << QStringList{word(time), QString(), QString(), QString(), QString(), QString()};
+        rows << QStringList{QString(), word(QT_TRANSLATE_NOOP("jp::write::ReadyTables", "Monday")), word(QT_TRANSLATE_NOOP("jp::write::ReadyTables", "Tuesday")), word(QT_TRANSLATE_NOOP("jp::write::ReadyTables", "Wednesday")), word(QT_TRANSLATE_NOOP("jp::write::ReadyTables", "Thursday")), word(QT_TRANSLATE_NOOP("jp::write::ReadyTables", "Friday"))};
+        for (const char *time : {QT_TRANSLATE_NOOP("jp::write::ReadyTables", "9:00"), QT_TRANSLATE_NOOP("jp::write::ReadyTables", "10:00"), QT_TRANSLATE_NOOP("jp::write::ReadyTables", "11:00"), QT_TRANSLATE_NOOP("jp::write::ReadyTables", "1:00"), QT_TRANSLATE_NOOP("jp::write::ReadyTables", "2:00")}) rows << QStringList{word(time), QString(), QString(), QString(), QString(), QString()};
         table.style = QStringLiteral("GridTable4-Accent1");
         break;
     }
@@ -2812,6 +2812,20 @@ bool convertTableToText(WriteDoc &doc, QTextCursor &c, TextSeparator separator, 
     }
     c.setPosition(std::clamp(at, 0, std::max(0, d->characterCount() - 1)));
     c.endEditBlock();
+    return true;
+}
+
+bool canSplitTable(WriteDoc &doc, const QTextCursor &c)
+{
+    const auto v = viewAt(doc, c.selectionStart());
+    if (!v) return false;
+    const flow::TableLayout &t = *v->layout;
+    const int li = t.cellOfPosition(c.selectionStart());
+    if (li < 0) return false;
+    const int r = t.cell(li).row;
+    if (r <= 0) return false;
+    for (int i = 0; i < t.cellCount(); ++i)
+        if (t.cell(i).row < r && t.cell(i).row + t.cell(i).rows > r) return false;
     return true;
 }
 
