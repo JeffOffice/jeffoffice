@@ -95,20 +95,22 @@
        "heading": "6beabdbde9ec8510142f0fc2f6a3b99d630a920199b88e3595f94258df8a6721",
        "items": [
         {
+         "hide_soon": true,
+         "status": "done",
+         "text": "ffdf10addc3860bc2ec9d658f9b8142f4f7d5a5601f0bc05c7c9b7702b9b1a4c"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "f92a5c11ac5a4f1518376076ebcdd0c713f2a7c91243d795022ed69c5a0be3e3"
+        },
+        {
          "status": "partly",
-         "text": "212118eb1db2b3c521706a37e18bc12992a035619442e96ad99753fdfa855446"
-        },
-        {
-         "status": "todo",
-         "text": "de13334c9c9504503066c62eb8c7c97f5a6906c624c36c683e067c1d1cfb5cc0"
+         "text": "575d91a50d974309c53819a42b870ed6072934d8138725a856664137e4ecc76d"
         },
         {
          "status": "partly",
-         "text": "61b6cf28b6f150572369dc587c3802f51e4de99b7b7512c1327d37117c52544d"
-        },
-        {
-         "status": "todo",
-         "text": "f5c275e356f937ebe4b261962d91b2e708896c15be30716d570dbc48d0fcd8d6"
+         "text": "778b90f8ed0c25eb9578af462bb2d0ea6a2ce0afec499505a7e13c49e06d7ab3"
         },
         {
          "status": "partly",
@@ -127,8 +129,9 @@
          "text": "a066d857ed93ffc2963175f7e3e98e1b22a2c0ad667bdd1a9cd4b989a05e89d3"
         },
         {
-         "status": "todo",
-         "text": "1a1749d1a294674cc6edff3c02aec6511e1d4a7b50e1c51a480a3fa564742284"
+         "hide_soon": true,
+         "status": "done",
+         "text": "ad77e134da74bc3088f9f45186b3e74597bd7c3f93a98ffc7e1f5f5386101014"
         }
        ]
       },
@@ -5208,28 +5211,32 @@
        "heading": "608aa4b2dce0f0199edf91087535b0aceda1d44bc13d26eee18e9bf6da03f4ee",
        "items": [
         {
-         "status": "todo",
-         "text": "1fc8d14edc436be4d71c2962bbbfe2f7db981bb0f6766bd8c670b0b2470c820f"
+         "hide_soon": true,
+         "status": "done",
+         "text": "99215605e76bd1171eb7c80437e7cb4cc0a4370a94d0c31e48a5c8ae4debdf3f"
         },
         {
-         "status": "todo",
-         "text": "c68b3285e6d01590b2c61f74d239900c63d93dbd873ca38071aac35290371834"
+         "hide_soon": true,
+         "status": "done",
+         "text": "096197924eca80bdb00cf2614bea0eff7a51c49c71b55ebcf8df56414af11f8d"
         },
         {
-         "status": "todo",
-         "text": "28b2ed74d4576ba7447abfb77d5196af9f3341b181a2afc5647dcb654eb72c3c"
+         "hide_soon": true,
+         "status": "done",
+         "text": "010a351f4927ce9cc27ea5140c123a728285c6ee044ca6fcc24b9b42babadcc5"
         },
         {
-         "status": "todo",
-         "text": "28444020004fb29f28be8d8e3629af527c1a0eb8d93e592be817aa4ba07bd0de"
+         "status": "partly",
+         "text": "bdb2848bf272dd1a2bd219d6305ee58a2b4a739eaeadd3f54b723734b5664e71"
         },
         {
-         "status": "todo",
-         "text": "f7772ccae9caea53b9783e64bc5ba915bc48ab832fd5d8d0b69a85010bcd0ff1"
+         "hide_soon": true,
+         "status": "done",
+         "text": "46030e52feb48b10d3fd55b6acb1380f379ad3221392baa5dfe81df565c6c61d"
         },
         {
-         "status": "todo",
-         "text": "c50658e963d1aaf1982e6d267ad5497974f3aeacd1251a6910348411845a6eb4"
+         "status": "partly",
+         "text": "29f980f4d1b7ce0eee0d54e07e54a832877a47fcf65a265792dfb5cb66dc2f6b"
         },
         {
          "status": "todo",
@@ -5241,8 +5248,9 @@
          "text": "e7162a3335eaf9290e2f989781113e56f3b5ea584570a50fc1149a37b06a630a"
         },
         {
-         "status": "todo",
-         "text": "315962ae1e1a5a4a0b09dc75ee62b1490193354e1ad958cd1228a1111a85097d"
+         "hide_soon": true,
+         "status": "done",
+         "text": "8477fb4be85d82df44dcddb8448bbb5583842addf7ccc57455a6ac39ae5a4e50"
         }
        ]
       },
@@ -5317,8 +5325,9 @@
          "text": "702bb448a6ac626c8cdb8f574837567007a8c993bc49313e88402a183657e57f"
         },
         {
-         "status": "todo",
-         "text": "2e1579aa45f6e226bb6d9d9153a26ef496129a7359121abec0379730c2babc26"
+         "hide_soon": true,
+         "status": "done",
+         "text": "e2c62332d243b139dd243fd80afd0355dcb5862fa27d068dfb55e6978fc534d1"
         },
         {
          "status": "todo",
@@ -5338,8 +5347,8 @@
          "text": "5bb9b78111e456b8881feecd9407056d467fdab9085fd8838bd5eebfa941eda2"
         },
         {
-         "status": "todo",
-         "text": "a5e7b8797207c9969d01d0d7d99081bff764120a6ea40206e4eefe1a3afedc0f"
+         "status": "partly",
+         "text": "a18fedcbe8e39626ac0564b464053a4fbb5cd935433204611874aa6867af5da1"
         },
         {
          "status": "todo",
@@ -5367,8 +5376,8 @@
          "text": "910d37703421a6f4a98b6d6bc3ee6b674f559be260d7ecc3017abf7e4609c9ba"
         },
         {
-         "status": "todo",
-         "text": "42dfd8fa92adead109c6b8319c35d73eb912e4ed5b3970d5abd746916ad75ef2"
+         "status": "partly",
+         "text": "814ae926896e0abf05e93aca83ab74ff59c746dfc7181e4dbaa9fe49e9ee9935"
         },
         {
          "status": "todo",
@@ -6998,6 +7007,18 @@
     "fr": "Options de correction automatique et de mise en forme automatique pendant la frappe"
    }
   },
+  "010a351f4927ce9cc27ea5140c123a728285c6ee044ca6fcc24b9b42babadcc5": {
+   "drop": false,
+   "en": "In JeffWrite, Mark as Final saves the document so that it opens read-only with a note in the status bar. You can make it editable again from the Info page.",
+   "es": "En JeffWrite, Marcar como final guarda el documento de modo que se abre como solo lectura con una nota en la barra de estado. Usted puede volver a hacerlo editable desde la página Información.",
+   "fr": "Dans JeffWrite, Marquer comme final enregistre le document de sorte qu’il s’ouvre en lecture seule avec une note dans la barre d’état. Vous pouvez le rendre de nouveau modifiable depuis la page Informations.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "01136780d9775e68b3f603500b22d8a78d9f36a8ac80a5cd23b7b0dc934d725b": {
    "drop": true,
    "en": "",
@@ -7716,6 +7737,18 @@
     "en": "Text styles, text fill, text outline, and text effects for shapes, and align and group for objects",
     "es": "Estilos de texto, relleno de texto, contorno de texto y efectos de texto para formas, y alinear y agrupar objetos",
     "fr": "Styles de texte, remplissage, contour et effets de texte pour les formes, et alignement et groupement des objets"
+   }
+  },
+  "096197924eca80bdb00cf2614bea0eff7a51c49c71b55ebcf8df56414af11f8d": {
+   "drop": false,
+   "en": "In JeffWrite, you can add custom document properties of type text, whole number, number, yes or no, and date. A `DOCPROPERTY` field shows a property by its name.",
+   "es": "En JeffWrite, usted puede agregar propiedades personalizadas del documento de tipo texto, número entero, número, sí o no, y fecha. Un campo `DOCPROPERTY` muestra una propiedad por su nombre.",
+   "fr": "Dans JeffWrite, vous pouvez ajouter des propriétés personnalisées au document de type texte, nombre entier, nombre, oui ou non, et date. Un champ `DOCPROPERTY` affiche une propriété par son nom.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "098e9476ae23f7a76107523af9d69ef3fdafd6ba40d2c4eed8da5e2ccc16781f": {
@@ -8870,18 +8903,6 @@
     "fr": ""
    }
   },
-  "1a1749d1a294674cc6edff3c02aec6511e1d4a7b50e1c51a480a3fa564742284": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Show a workbook's folder and copy its path",
-    "es": "Mostrar la carpeta de un libro y copiar su ruta",
-    "fr": "Afficher le dossier d’un classeur et copier son chemin"
-   }
-  },
   "1ab4d6efd74f9ffbed3fc715e09f99c872de85444bcc971aaf950782aaf688f5": {
    "drop": false,
    "en": "In JeffCrunch, New Chart creates column and bar (clustered, stacked, and 100%), line (plain, with markers, and stacked), pie, doughnut, area (plain and stacked), scatter (points, joined points, and smooth lines), and combo charts from the selected cells. The series run down columns or along rows by the shape of the data, or you can switch them.",
@@ -9242,18 +9263,6 @@
     "fr": ""
    }
   },
-  "1fc8d14edc436be4d71c2962bbbfe2f7db981bb0f6766bd8c670b0b2470c820f": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Document properties: title, author, subject, keywords, categories, comments, company, manager, dates, and counts of pages, words, characters, lines, and paragraphs",
-    "es": "Propiedades del documento: título, autor, asunto, palabras clave, categorías, comentarios, empresa, responsable, fechas y recuentos de páginas, palabras, caracteres, líneas y párrafos",
-    "fr": "Propriétés du document : titre, auteur, sujet, mots-clés, catégories, commentaires, société, responsable, dates et nombres de pages, mots, caractères, lignes et paragraphes"
-   }
-  },
   "1fe163669ebcae7b2ff8e375fdc841ba4ce3ce6d39f7ae9c2792a918e66c7501": {
    "drop": false,
    "en": "Columns can have equal or unequal widths and a line between them. A continuous section break balances them, a column break moves text to the next column, and columns work inside text boxes and table cells.",
@@ -9360,18 +9369,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "212118eb1db2b3c521706a37e18bc12992a035619442e96ad99753fdfa855446": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Workbook properties: title, author, subject, keywords, categories, comments, company, manager, and dates",
-    "es": "Propiedades del libro: título, autor, asunto, palabras clave, categorías, comentarios, empresa, responsable y fechas",
-    "fr": "Propriétés du classeur : titre, auteur, sujet, mots-clés, catégories, commentaires, société, responsable et dates"
    }
   },
   "2132c27d243179890c5da6a94d8a84c76bdd5ef1780e76d050843ec343146d56": {
@@ -9962,18 +9959,6 @@
     "fr": ""
    }
   },
-  "28444020004fb29f28be8d8e3629af527c1a0eb8d93e592be817aa4ba07bd0de": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Password encryption: open and save password-protected `.docx` and `.odt` files",
-    "es": "Cifrado con contraseña: abrir y guardar archivos `.docx` y `.odt` protegidos con contraseña",
-    "fr": "Chiffrement par mot de passe : ouvrir et enregistrer des fichiers `.docx` et `.odt` protégés par mot de passe"
-   }
-  },
   "285c92fcf360beca4ee8b0a7060062952f64afda0a84b6a33d76836bb8b79fb8": {
    "drop": true,
    "en": "",
@@ -10008,18 +9993,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "28b2ed74d4576ba7447abfb77d5196af9f3341b181a2afc5647dcb654eb72c3c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Mark as Final: the document opens read-only with a note",
-    "es": "Marcar como final: el documento se abre en solo lectura con una nota",
-    "fr": "Marquer comme final : le document s’ouvre en lecture seule avec une note"
    }
   },
   "28b5340afefb18d342acc59fa5b8259caa7c93d080f0fd9a5b8ff6d2b12bdc47": {
@@ -10140,6 +10113,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "29f980f4d1b7ce0eee0d54e07e54a832877a47fcf65a265792dfb5cb66dc2f6b": {
+   "drop": false,
+   "en": "In JeffWrite, Check Compatibility lists what a `.odt` file can't hold of your document before you save to it.",
+   "es": "En JeffWrite, Comprobar compatibilidad enumera lo que un archivo `.odt` no puede contener de su documento antes de guardarlo en ese formato.",
+   "fr": "Dans JeffWrite, Vérifier la compatibilité indique ce qu’un fichier `.odt` ne peut pas contenir de votre document avant l’enregistrement dans ce format.",
+   "soon": {
+    "drop": false,
+    "en": "Compatibility check for `.doc` and `.rtf`",
+    "es": "Comprobación de compatibilidad para `.doc` y `.rtf`",
+    "fr": "Vérification de compatibilité pour `.doc` et `.rtf`"
    }
   },
   "2a097396755e8aae084fca274d81bda98dad9330c96f49672ba9a3d57815c46e": {
@@ -10430,18 +10415,6 @@
     "fr": ""
    }
   },
-  "2e1579aa45f6e226bb6d9d9153a26ef496129a7359121abec0379730c2babc26": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Open an encrypted document with its password",
-    "es": "Abrir un documento cifrado con su contraseña",
-    "fr": "Ouverture d’un document chiffré avec son mot de passe"
-   }
-  },
   "2e2b7978a86933ebaec447bbe9a9cb181013f0af9f77f1f945ea4307bb791bad": {
    "drop": false,
    "en": "`CELL` works.",
@@ -10656,18 +10629,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "315962ae1e1a5a4a0b09dc75ee62b1490193354e1ad958cd1228a1111a85097d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Show a document’s folder and copy its path",
-    "es": "Mostrar la carpeta de un documento y copiar su ruta",
-    "fr": "Afficher le dossier d’un document et copier son chemin"
    }
   },
   "318fa5c16a52608bb54a05ff57a3a80cf5c845ae963b355ba7fbd0dcebdc561d": {
@@ -11762,18 +11723,6 @@
     "fr": ""
    }
   },
-  "42dfd8fa92adead109c6b8319c35d73eb912e4ed5b3970d5abd746916ad75ef2": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Save as plain text with a choice of encoding and line breaks, and as filtered HTML",
-    "es": "Guardar como texto sin formato con elección de codificación y saltos de línea, y como HTML filtrado",
-    "fr": "Enregistrement en texte brut avec choix de l’encodage et des sauts de ligne, et en HTML filtré"
-   }
-  },
   "433250fa0899b16175636b7806777a192bbe71cbf9934ddd978b81c78786aa81": {
    "drop": true,
    "en": "",
@@ -11952,6 +11901,18 @@
     "en": "Normal template: default styles, margins, and page size, changed with Set as Default in the Font, Paragraph, and Page Setup dialogs",
     "es": "Plantilla Normal: estilos, márgenes y tamaño de página predeterminados, modificados con Establecer como predeterminado en los cuadros Fuente, Párrafo y Configurar página",
     "fr": "Modèle Normal : styles, marges et taille de page par défaut, modifiés avec Définir par défaut dans les boîtes Police, Paragraphe et Mise en page"
+   }
+  },
+  "46030e52feb48b10d3fd55b6acb1380f379ad3221392baa5dfe81df565c6c61d": {
+   "drop": false,
+   "en": "In JeffWrite, Inspect Document counts comments, tracked changes, personal information, hidden text, custom XML, and headers and footers, and removes each kind with one button before you share. Tracked changes are accepted.",
+   "es": "En JeffWrite, Inspeccionar documento cuenta los comentarios, los cambios con control, la información personal, el texto oculto, el XML personalizado y los encabezados y pies de página, y elimina cada tipo con un botón antes de compartir. Los cambios con control se aceptan.",
+   "fr": "Dans JeffWrite, Inspecter le document compte les commentaires, les modifications suivies, les informations personnelles, le texte masqué, le XML personnalisé et les en-têtes et pieds de page, et supprime chaque type d’un seul bouton avant le partage. Les modifications suivies sont acceptées.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "4627c99ec9cc49efaf636dd1a8f3e5bf13e59a0a27cce9ac0f7a4596b0625bd0": {
@@ -13286,6 +13247,18 @@
     "fr": ""
    }
   },
+  "575d91a50d974309c53819a42b870ed6072934d8138725a856664137e4ecc76d": {
+   "drop": false,
+   "en": "Protect with Password encrypts `.xlsx` files when they are saved.",
+   "es": "Proteger con contraseña cifra los archivos `.xlsx` al guardarlos.",
+   "fr": "Protéger avec un mot de passe chiffre les fichiers `.xlsx` lors de leur enregistrement.",
+   "soon": {
+    "drop": false,
+    "en": "Mark as Final",
+    "es": "Marcar como final",
+    "fr": "Marquer comme final"
+   }
+  },
   "57a97100cd61826e7a17a18d6c3b64d697e478e2840d91322683fc40ca4cab51": {
    "drop": false,
    "en": "Other formats and parts",
@@ -14004,18 +13977,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "61b6cf28b6f150572369dc587c3802f51e4de99b7b7512c1327d37117c52544d": {
-   "drop": false,
-   "en": "Protect with Password encrypts `.xlsx` files when they are saved.",
-   "es": "Proteger con contraseña cifra los archivos `.xlsx` al guardarlos.",
-   "fr": "Protéger par mot de passe chiffre les fichiers `.xlsx` lors de leur enregistrement.",
-   "soon": {
-    "drop": false,
-    "en": "Mark as Final",
-    "es": "Marcar como final",
-    "fr": "Marquer comme final"
    }
   },
   "61c0fd6fbff8afaefbe19f1ff8f56c93490a05cc2aece8e316815f82af79d096": {
@@ -15614,6 +15575,18 @@
     "fr": ""
    }
   },
+  "778b90f8ed0c25eb9578af462bb2d0ea6a2ce0afec499505a7e13c49e06d7ab3": {
+   "drop": false,
+   "en": "In JeffCrunch, Inspect Workbook counts notes, personal information, hidden sheets, external links, and custom XML. It removes the notes and the personal information, and shows the hidden sheets.",
+   "es": "En JeffCrunch, Inspeccionar libro cuenta las notas, la información personal, las hojas ocultas, los vínculos externos y el XML personalizado. Elimina las notas y la información personal, y muestra las hojas ocultas.",
+   "fr": "Dans JeffCrunch, Inspecter le classeur compte les notes, les informations personnelles, les feuilles masquées, les liens externes et le XML personnalisé. Il supprime les notes et les informations personnelles, et affiche les feuilles masquées.",
+   "soon": {
+    "drop": false,
+    "en": "Inspection of hidden rows and columns, headers and footers, and invisible objects, and removal of external links and custom XML",
+    "es": "Inspección de filas y columnas ocultas, encabezados y pies de página, y objetos invisibles, y eliminación de vínculos externos y XML personalizado",
+    "fr": "Inspection des lignes et colonnes masquées, des en-têtes et pieds de page et des objets invisibles, et suppression des liens externes et du XML personnalisé"
+   }
+  },
   "77955c901de7997c684a748147e4d5bdb35af0ca8481adbfb17101ae84c3bf0a": {
    "drop": true,
    "en": "",
@@ -16262,6 +16235,18 @@
     "fr": "Options de vérification : correction automatique, orthographe, mots ignorés et dictionnaires personnalisés"
    }
   },
+  "814ae926896e0abf05e93aca83ab74ff59c746dfc7181e4dbaa9fe49e9ee9935": {
+   "drop": false,
+   "en": "In JeffWrite, Export > Save as Plain Text offers UTF-8, UTF-8 with mark, UTF-16, ISO 8859-1, and ASCII encodings and the line endings of either system. Hidden text is left out, and a line break falls at the end of each paragraph.",
+   "es": "En JeffWrite, Exportar > Guardar como texto sin formato ofrece las codificaciones UTF-8, UTF-8 con marca, UTF-16, ISO 8859-1 y ASCII, y los finales de línea de cualquiera de los dos sistemas. El texto oculto se omite y se inserta un salto de línea al final de cada párrafo.",
+   "fr": "Dans JeffWrite, Exporter > Enregistrer en texte brut propose les encodages UTF-8, UTF-8 avec marque, UTF-16, ISO 8859-1 et ASCII, et les fins de ligne de l’un ou l’autre système. Le texte masqué est omis, et un saut de ligne tombe à la fin de chaque paragraphe.",
+   "soon": {
+    "drop": false,
+    "en": "Line breaks at each laid-out line and filtered HTML export",
+    "es": "Saltos de línea en cada línea de la maquetación y exportación a HTML filtrado",
+    "fr": "Sauts de ligne à chaque ligne mise en page et export en HTML filtré"
+   }
+  },
   "819b7a42f84d10870048a82a7c06c2118ce84f9641bc90b7af451b61b36d9356": {
    "drop": true,
    "en": "",
@@ -16464,6 +16449,18 @@
     "en": "Paste text through an import wizard that splits it into columns, and a default paste setting",
     "es": "Pegado de texto mediante un asistente de importación que lo divide en columnas, y un ajuste de pegado predeterminado",
     "fr": "Collage de texte via un assistant d’importation qui le répartit en colonnes, et un réglage de collage par défaut"
+   }
+  },
+  "8477fb4be85d82df44dcddb8448bbb5583842addf7ccc57455a6ac39ae5a4e50": {
+   "drop": false,
+   "en": "In JeffWrite, you can show a document's folder and copy its path from the Info page.",
+   "es": "En JeffWrite, usted puede mostrar la carpeta de un documento y copiar su ruta desde la página Información.",
+   "fr": "Dans JeffWrite, vous pouvez afficher le dossier d’un document et copier son chemin depuis la page Informations.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "847f27758ccaf1a032f7a4333b5ba1869f39e428c680fc615ea871c8bc2989d4": {
@@ -17822,6 +17819,18 @@
     "fr": ""
    }
   },
+  "99215605e76bd1171eb7c80437e7cb4cc0a4370a94d0c31e48a5c8ae4debdf3f": {
+   "drop": false,
+   "en": "In JeffWrite, you can edit a document's title, author, subject, keywords, categories, comments, company, and manager. The dates and the counts of pages, words, characters, and paragraphs are shown too.",
+   "es": "En JeffWrite, usted puede editar el título, el autor, el asunto, las palabras clave, las categorías, los comentarios, la empresa y el responsable de un documento. También se muestran las fechas y los recuentos de páginas, palabras, caracteres y párrafos.",
+   "fr": "Dans JeffWrite, vous pouvez modifier le titre, l’auteur, le sujet, les mots-clés, les catégories, les commentaires, la société et le responsable d’un document. Les dates et le nombre de pages, de mots, de caractères et de paragraphes sont aussi affichés.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "99410560d56184c44045964abee9e7d87b6afb41b13a9e4d6578ed4c1ef93284": {
    "drop": false,
    "en": "In JeffDeck options you can set a user name and initials (used on comments), the interface theme (system, light, or dark), the display language, update checks and beta builds, and usage statistics (opt in). These choices apply to every JeffOffice app.",
@@ -18398,6 +18407,18 @@
     "fr": ""
    }
   },
+  "a18fedcbe8e39626ac0564b464053a4fbb5cd935433204611874aa6867af5da1": {
+   "drop": false,
+   "en": "In JeffWrite, the Print page can print only the odd or only the even pages of the range, and print the last page first.",
+   "es": "En JeffWrite, la página Imprimir puede imprimir solo las páginas impares o solo las pares del intervalo, e imprimir primero la última página.",
+   "fr": "Dans JeffWrite, la page Imprimer peut imprimer uniquement les pages impaires ou paires de la plage, et imprimer la dernière page en premier.",
+   "soon": {
+    "drop": false,
+    "en": "Several pages on a sheet and scaling to a paper size",
+    "es": "Varias páginas por hoja y ajuste a un tamaño de papel",
+    "fr": "Plusieurs pages par feuille et mise à l’échelle selon un format de papier"
+   }
+  },
   "a29fab786be6ae254dffc39fb5b00576c6453857b3d938a6f0f8201db0e7af54": {
    "drop": false,
    "en": "Clipboard",
@@ -18540,18 +18561,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "a5e7b8797207c9969d01d0d7d99081bff764120a6ea40206e4eefe1a3afedc0f": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Print odd or even pages, reverse order, several pages per sheet, and scaling to a paper size",
-    "es": "Impresión de páginas impares o pares, orden inverso, varias páginas por hoja y escala al tamaño del papel",
-    "fr": "Impression des pages impaires ou paires, ordre inverse, plusieurs pages par feuille et mise à l’échelle du format de papier"
    }
   },
   "a623cfdf2713065ededd839aa09b7f34be3ac460b6d96411c9f233af25047e60": {
@@ -19056,6 +19065,18 @@
     "en": "Book fold printing: a booklet in folding order",
     "es": "Impresión de libro plegado: un folleto en orden de plegado",
     "fr": "Impression en livret plié : un livret dans l’ordre de pliage"
+   }
+  },
+  "ad77e134da74bc3088f9f45186b3e74597bd7c3f93a98ffc7e1f5f5386101014": {
+   "drop": false,
+   "en": "In JeffCrunch, you can show a workbook's folder and copy its path from the Info page.",
+   "es": "En JeffCrunch, usted puede mostrar la carpeta de un libro y copiar su ruta desde la página Información.",
+   "fr": "Dans JeffCrunch, vous pouvez afficher le dossier d’un classeur et copier son chemin depuis la page Informations.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "ade972496fa63926f3b3f29511adfd6bded3848194146a0d8ee1cfa3658277cc": {
@@ -19922,6 +19943,18 @@
     "fr": ""
    }
   },
+  "bdb2848bf272dd1a2bd219d6305ee58a2b4a739eaeadd3f54b723734b5664e71": {
+   "drop": false,
+   "en": "In JeffWrite, Encrypt with Password saves a `.docx` file with strong AES-256 encryption, and Open asks for the password.",
+   "es": "En JeffWrite, Cifrar con contraseña guarda un archivo `.docx` con cifrado fuerte AES-256, y Abrir solicita la contraseña.",
+   "fr": "Dans JeffWrite, Chiffrer avec un mot de passe enregistre un fichier `.docx` avec un chiffrement fort AES-256, et Ouvrir demande le mot de passe.",
+   "soon": {
+    "drop": false,
+    "en": "Password-protected `.odt` files: open and save",
+    "es": "Archivos `.odt` protegidos con contraseña: abrir y guardar",
+    "fr": "Fichiers `.odt` protégés par mot de passe : ouverture et enregistrement"
+   }
+  },
   "be30d142205f2e36d2b506a204ae14cd53476a580b8b3931211addd76ed0cf08": {
    "drop": false,
    "en": "In JeffPub, every type of object has a right-click menu.",
@@ -20414,18 +20447,6 @@
     "fr": ""
    }
   },
-  "c50658e963d1aaf1982e6d267ad5497974f3aeacd1251a6910348411845a6eb4": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Check Compatibility: lists what an older format (`.doc`, `.rtf`, `.odt`) can’t hold before saving",
-    "es": "Comprobar compatibilidad: enumera lo que un formato anterior (`.doc`, `.rtf`, `.odt`) no puede contener antes de guardar",
-    "fr": "Vérifier la compatibilité : liste ce qu’un format plus ancien (`.doc`, `.rtf`, `.odt`) ne peut pas contenir avant l’enregistrement"
-   }
-  },
   "c516f6df65aa674c0250b1b02367e3b6a74bdc893ec8f9f12a773dd6f77c018c": {
    "drop": false,
    "en": "The JeffDeck transition engine draws the ten effects as frames between two whole slides, Morph included, with the click and timing rules of the show.",
@@ -20580,18 +20601,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c68b3285e6d01590b2c61f74d239900c63d93dbd873ca38071aac35290371834": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Custom document properties (name, type, and value) that `DOCPROPERTY` fields can show",
-    "es": "Propiedades personalizadas del documento (nombre, tipo y valor) que los campos `DOCPROPERTY` pueden mostrar",
-    "fr": "Propriétés personnalisées du document (nom, type et valeur) que les champs `DOCPROPERTY` peuvent afficher"
    }
   },
   "c7437921dbdc40420c31baa74b990e0b5a9b32eda5943bb892cfae3bf08ced7d": {
@@ -22130,18 +22139,6 @@
     "fr": "`LINEST` et `FREQUENCY`"
    }
   },
-  "de13334c9c9504503066c62eb8c7c97f5a6906c624c36c683e067c1d1cfb5cc0": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Custom properties: name, type, and value",
-    "es": "Propiedades personalizadas: nombre, tipo y valor",
-    "fr": "Propriétés personnalisées : nom, type et valeur"
-   }
-  },
   "de3a22c9368c5a43d3868b4404dc3e290ffd9f4344f2169e33b21f2839de8dfa": {
    "drop": false,
    "en": "Compare",
@@ -22483,6 +22480,18 @@
    "en": "Table Design tab (while a table is selected)",
    "es": "Pestaña Diseño de tabla (con una tabla seleccionada)",
    "fr": "Onglet Création de tableau (tableau sélectionné)",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e2c62332d243b139dd243fd80afd0355dcb5862fa27d068dfb55e6978fc534d1": {
+   "drop": false,
+   "en": "JeffWrite asks for the password of a password-protected `.docx` file, asks again when it is wrong, and saves the file protected again. A file protected only against accidental changes opens without asking.",
+   "es": "JeffWrite solicita la contraseña de un archivo `.docx` protegido con contraseña, la solicita de nuevo si es incorrecta y guarda el archivo otra vez protegido. Un archivo protegido solo contra cambios accidentales se abre sin preguntar.",
+   "fr": "JeffWrite demande le mot de passe d’un fichier `.docx` protégé par mot de passe, le redemande s’il est incorrect et enregistre de nouveau le fichier protégé. Un fichier protégé seulement contre les modifications accidentelles s’ouvre sans rien demander.",
    "soon": {
     "drop": true,
     "en": "",
@@ -23762,18 +23771,6 @@
     "fr": ""
    }
   },
-  "f5c275e356f937ebe4b261962d91b2e708896c15be30716d570dbc48d0fcd8d6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Inspect Workbook: find and remove comments, personal information, hidden content, and external links before sharing",
-    "es": "Inspeccionar libro: buscar y quitar comentarios, información personal, contenido oculto y vínculos externos antes de compartir",
-    "fr": "Inspecter le classeur : trouver et supprimer commentaires, informations personnelles, contenu masqué et liens externes avant le partage"
-   }
-  },
   "f5db565cb2f968cc7e82188b07dfb112e0c4de1dbf5b318f84613b111dbba9bd": {
    "drop": false,
    "en": "JeffCrunch has `OFFSET`, `INDIRECT`, `CHOOSE`, `ROW`, `COLUMN`, `ADDRESS`, and `TRANSPOSE`.",
@@ -23918,18 +23915,6 @@
     "fr": "Fichiers chiffrés : ouverture et enregistrement avec mot de passe"
    }
   },
-  "f7772ccae9caea53b9783e64bc5ba915bc48ab832fd5d8d0b69a85010bcd0ff1": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Inspect Document: find and remove comments, tracked changes, personal information, hidden text, custom XML, and headers and footers before sharing",
-    "es": "Inspeccionar documento: buscar y quitar comentarios, cambios con seguimiento, información personal, texto oculto, XML personalizado, y encabezados y pies de página antes de compartir",
-    "fr": "Inspecter le document : rechercher et supprimer commentaires, modifications suivies, informations personnelles, texte masqué, XML personnalisé, et en-têtes et pieds de page avant le partage"
-   }
-  },
   "f7b5ca003c1fe6389956641a205f0c187c11f4b3baf2fb756e9ae0c0921dbf20": {
    "drop": false,
    "en": "In JeffDeck, Decrease and Increase List Level apply the bullet, indent, and size that the layout gives the new level.",
@@ -24024,6 +24009,18 @@
     "en": "Field dialog: categories and option pages",
     "es": "Cuadro de diálogo Campo: categorías y páginas de opciones",
     "fr": "Boîte de dialogue Champ : catégories et pages d’options"
+   }
+  },
+  "f92a5c11ac5a4f1518376076ebcdd0c713f2a7c91243d795022ed69c5a0be3e3": {
+   "drop": false,
+   "en": "In JeffCrunch, you can add, change, and remove custom properties, each with a name, a type, and a value. They are kept when the workbook is saved.",
+   "es": "En JeffCrunch, usted puede agregar, cambiar y quitar propiedades personalizadas, cada una con un nombre, un tipo y un valor. Se conservan al guardar el libro.",
+   "fr": "Dans JeffCrunch, vous pouvez ajouter, modifier et supprimer des propriétés personnalisées, chacune avec un nom, un type et une valeur. Elles sont conservées à l’enregistrement du classeur.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "f9ad9a471b6b39f3a1f8a3ea3eb317777ad32df412e5487e1a89397052840862": {
@@ -24619,6 +24616,18 @@
    "en": "JeffCrunch reads A1 and R1C1 references (relative, absolute, and mixed), whole-row and whole-column references, 3-D references across sheets (`Sheet1:Sheet9!B2`), and names, including sheet names with spaces and quotes.",
    "es": "JeffCrunch lee referencias A1 y R1C1 (relativas, absolutas y mixtas), referencias de fila y columna completas, referencias 3D entre hojas (`Sheet1:Sheet9!B2`) y nombres, incluidos nombres de hoja con espacios y comillas.",
    "fr": "JeffCrunch lit les références A1 et R1C1 (relatives, absolues et mixtes), les références de ligne et de colonne entières, les références 3D entre feuilles (`Sheet1:Sheet9!B2`) et les noms, y compris les noms de feuille avec espaces et guillemets.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "ffdf10addc3860bc2ec9d658f9b8142f4f7d5a5601f0bc05c7c9b7702b9b1a4c": {
+   "drop": false,
+   "en": "In JeffCrunch, you can edit a workbook's title, author, subject, keywords, categories, comments, company, and manager. The dates created, modified, and printed are shown too.",
+   "es": "En JeffCrunch, usted puede editar el título, el autor, el asunto, las palabras clave, las categorías, los comentarios, la empresa y el responsable de un libro. También se muestran las fechas de creación, modificación e impresión.",
+   "fr": "Dans JeffCrunch, vous pouvez modifier le titre, l’auteur, le sujet, les mots-clés, les catégories, les commentaires, la société et le responsable d’un classeur. Les dates de création, de modification et d’impression sont aussi affichées.",
    "soon": {
     "drop": true,
     "en": "",
