@@ -257,6 +257,13 @@ void PageView::keyPressEvent(QKeyEvent *e)
         e->ignore();
         return;
     }
+    if (e->key() == Qt::Key_Escape && m_columnDrag.active) {
+        // (a pull of a border or of the table's handle is let go: nothing is changed)
+        m_columnDrag.active = false;
+        viewport()->update();
+        e->accept();
+        return;
+    }
     switch (e->key()) {
     case Qt::Key_Left: case Qt::Key_Right: case Qt::Key_Up: case Qt::Key_Down: case Qt::Key_Home: case Qt::Key_End: case Qt::Key_PageUp: case Qt::Key_PageDown:
     case Qt::Key_Backspace: case Qt::Key_Delete: case Qt::Key_Return: case Qt::Key_Enter: case Qt::Key_Tab: case Qt::Key_Backtab: case Qt::Key_Escape:
@@ -311,11 +318,21 @@ void PageView::mousePressEvent(QMouseEvent *e)
         e->accept();
         return;
     }
-    if (e->button() == Qt::LeftButton && e->type() != QEvent::MouseButtonDblClick && !m_hf.active && !m_note.active && (tableHandleAt(e->position().toPoint(), &m_columnDrag) || columnBorderAt(e->position().toPoint(), &m_columnDrag))) {
-        m_columnDrag.active = true;
-        viewport()->update();
-        e->accept();
-        return;
+    m_columnDrag.pending = false;
+    if (e->button() == Qt::LeftButton && e->type() != QEvent::MouseButtonDblClick && !m_hf.active && !m_note.active) {
+        if (tableHandleAt(e->position().toPoint(), &m_columnDrag)) {
+            m_columnDrag.active = true;
+            viewport()->update();
+            e->accept();
+            return;
+        }
+        // A press on a border is a click (the caret goes there) until the pointer has moved a few pixels; then it is the pull of the border.
+        ColumnDrag border;
+        if (columnBorderAt(e->position().toPoint(), &border)) {
+            m_columnDrag = border;
+            m_columnDrag.pending = true;
+            m_columnDrag.startPx = e->position().toPoint();
+        }
     }
     const Hit hit = hitAt(e->position().toPoint());
     if (m_hf.active) {
@@ -393,6 +410,15 @@ void PageView::mousePressEvent(QMouseEvent *e)
 
 void PageView::mouseMoveEvent(QMouseEvent *e)
 {
+    if (m_columnDrag.pending) {
+        if (!(e->buttons() & Qt::LeftButton)) m_columnDrag.pending = false;
+        else if ((e->position().toPoint() - m_columnDrag.startPx).manhattanLength() >= QApplication::startDragDistance()) {
+            m_columnDrag.pending = false;
+            m_columnDrag.active = true;
+            m_dragging = false;
+            m_autoscroll.stop();
+        }
+    }
     if (m_columnDrag.active) {
         const Hit hit = hitAt(e->position().toPoint());
         m_columnDrag.nowX = hit.point.x();
@@ -463,6 +489,7 @@ void PageView::mouseReleaseEvent(QMouseEvent *e)
         }
         return;
     }
+    m_columnDrag.pending = false;
     if (m_pictureDrag.active) {
         endPictureDrag(e->position().toPoint());
         return;

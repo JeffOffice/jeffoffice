@@ -2683,32 +2683,47 @@ private Q_SLOTS:
         QVERIFY(img.pixelColor(2, 300).lightness() < 240);   // (the ground is not white)
     }
 
-    // View Gridlines draws the edges of the cells of a table that has no lines, on the screen: the page has more gray pixels with it on, and none of them without.
+    // View Gridlines draws the edges of the cells of a table that has no lines, on the screen: along the line between the two columns the page has marks with it on, and none without. (The
+    // strip that is looked at is the line's own, a little way from any text, so how the text's edges are drawn does not matter.)
     void viewGridlinesDrawsTheEdgesOfCellsThatHaveNoLines()
     {
-        auto doc = open(makeDocx(tableX(rowX(cellX(cellP("aa")) + cellX(cellP("bb"))) + rowX(cellX(cellP("cc")) + cellX(cellP("dd"))), 2), kStyles));
+        auto doc = open(makeDocx(tableX(rowX(cellX(cellP("aa")) + cellX(cellP("bb"))) + rowX(cellX(cellP("cc")) + cellX(cellP("dd"))), 2) + cellP("after"), kStyles));
         PageView view;
         view.resize(1000, 700);
         view.setDocument(doc.get());
         view.show();
-        auto grays = [&] {
+        view.paginateAll();
+        view.grab();
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page && !page->tables.isEmpty());
+        QRectF firstCell;
+        for (const auto &cell : page->tables[0]->cellBoxes()) {
+            firstCell = cell.box;
+            break;
+        }
+        QVERIFY(firstCell.isValid());
+        const QRect pr = view.pageRect(0);
+        const double scale = pr.width() / page->size.width();
+        const int x = int(std::lround(pr.left() + firstCell.right() * scale));
+        const int y0 = int(std::lround(pr.top() + firstCell.top() * scale)) + 2, y1 = int(std::lround(pr.top() + firstCell.bottom() * scale)) - 2;
+        QVERIFY(y1 - y0 > 6);
+        auto marks = [&] {
             const QImage img = view.grab().toImage();
-            const QRect page = view.pageRect(0);
             int n = 0;
-            for (int y = page.top(); y < std::min(page.bottom(), img.height()); ++y)
-                for (int x = page.left(); x < page.right(); ++x) {
-                    const QColor c = img.pixelColor(x, y);
-                    if (c.lightness() > 150 && c.lightness() < 235 && std::abs(c.red() - c.blue()) < 8) ++n;
+            for (int y = y0; y <= y1; ++y)
+                for (int dx = -1; dx <= 1; ++dx) {
+                    const QColor c = img.pixelColor(x + dx, y);
+                    if (c.lightness() < 250) ++n;
                 }
             return n;
         };
-        const int without = grays();
+        QCOMPARE(marks(), 0);
         QVERIFY(!view.showGridlines());
         view.setShowGridlines(true);
         QVERIFY(view.showGridlines());
-        QTRY_VERIFY2(grays() > without + 20, qPrintable(QString::number(without)));
+        QTRY_VERIFY2(marks() >= (y1 - y0) / 4, qPrintable(QString::number(marks())));
         view.setShowGridlines(false);
-        QTRY_COMPARE(grays(), without);
+        QTRY_COMPARE(marks(), 0);
     }
 
     // Pulling the border at the right of a column with the mouse sets that column's width (one step that undoes), and the pointer shows a split cursor over the border.
@@ -2729,7 +2744,7 @@ private Q_SLOTS:
         });
         QVERIFY(firstCell.isValid());
         const QRect pr = view.pageRect(0);
-        const double scale = pr.width() / 612.0;
+        const double scale = pr.width() / page->size.width();
         const QPoint border(int(std::lround(pr.left() + firstCell.right() * scale)), int(std::lround(pr.top() + firstCell.center().y() * scale)));
         const QString before = tablesSignature(*doc);
         QVERIFY(before.contains(QStringLiteral("cols=120.0,120.0")));
@@ -2763,7 +2778,7 @@ private Q_SLOTS:
         });
         QVERIFY(firstCell.isValid());
         const QRect pr = view.pageRect(0);
-        const double scale = pr.width() / 612.0;
+        const double scale = pr.width() / page->size.width();
         const QPoint border(int(std::lround(pr.left() + firstCell.center().x() * scale)), int(std::lround(pr.top() + firstCell.bottom() * scale)));
         const QString before = tablesSignature(*doc);
         QVERIFY(before.contains(QStringLiteral("ROW height=0 exact=0")));
@@ -2782,6 +2797,63 @@ private Q_SLOTS:
         QCOMPARE(tablesSignature(*doc), before);
     }
 
+    // A press on a border that does not move is a click (the caret goes where it was pressed); the pull starts once the pointer has moved, and Escape lets it go.
+    void aPressOnABorderIsAClickUntilItMovesAndEscapeLetsGo()
+    {
+        auto doc = open(makeDocx(tableX(rowX(cellX(cellP("aa")) + cellX(cellP("bb"))) + rowX(cellX(cellP("cc")) + cellX(cellP("dd"))), 2) + cellP("after"), kStyles));
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        view.paginateAll();
+        view.grab();
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page && !page->tables.isEmpty());
+        QRectF firstCell;
+        for (const auto &cell : page->tables[0]->cellBoxes()) {
+            firstCell = cell.box;
+            break;
+        }
+        const QRect pr = view.pageRect(0);
+        const double scale = pr.width() / page->size.width();
+        const QPoint border(int(std::lround(pr.left() + firstCell.right() * scale)), int(std::lround(pr.top() + firstCell.center().y() * scale)));
+        const QString before = tablesSignature(*doc);
+        // A click on the border: no change, and the caret is in a cell of the table.
+        QTest::mouseClick(view.viewport(), Qt::LeftButton, Qt::NoModifier, border);
+        QCOMPARE(tablesSignature(*doc), before);
+        QVERIFY(cellKeyOf(view.cursor().block()) != 0);
+        // A pull that is let go with Escape changes nothing.
+        const QPoint to = border + QPoint(int(std::lround(40 * scale)), 0);
+        QTest::mousePress(view.viewport(), Qt::LeftButton, Qt::NoModifier, border);
+        QTest::mouseMove(view.viewport(), border + QPoint(QApplication::startDragDistance() + 2, 0));
+        QTest::mouseMove(view.viewport(), to);
+        QTest::keyClick(&view, Qt::Key_Escape);
+        QTest::mouseRelease(view.viewport(), Qt::LeftButton, Qt::NoModifier, to);
+        QCOMPARE(tablesSignature(*doc), before);
+        // The same pull without Escape does change it.
+        QTest::mousePress(view.viewport(), Qt::LeftButton, Qt::NoModifier, border);
+        QTest::mouseMove(view.viewport(), border + QPoint(QApplication::startDragDistance() + 2, 0));
+        QTest::mouseMove(view.viewport(), to);
+        QTest::mouseRelease(view.viewport(), Qt::LeftButton, Qt::NoModifier, to);
+        QVERIFY(tablesSignature(*doc) != before);
+    }
+
+    // The pointer moving over a table asks for the cells' boxes of each fragment once, not at every move.
+    void movingThePointerOverATableMakesItsCellBoxesOnce()
+    {
+        auto doc = open(makeDocx(tableX(rowX(cellX(cellP("aa")) + cellX(cellP("bb"))) + rowX(cellX(cellP("cc")) + cellX(cellP("dd"))), 2) + cellP("after"), kStyles));
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        view.paginateAll();
+        view.grab();
+        const QRect pr = view.pageRect(0);
+        const qint64 before = flow::TableFragment::cellBoxListsMadeForTest();
+        for (int i = 0; i < 200; ++i) QTest::mouseMove(view.viewport(), QPoint(pr.left() + 60 + i, pr.top() + 70 + i % 40));
+        QVERIFY2(flow::TableFragment::cellBoxListsMadeForTest() - before <= 2, qPrintable(QString::number(flow::TableFragment::cellBoxListsMadeForTest() - before)));
+    }
+
     // The handle at the table's lower right corner: pulling it sets the table's width, each column in the same proportion (one step that undoes).
     void draggingTheTableHandleSetsTheTablesWidth()
     {
@@ -2798,7 +2870,7 @@ private Q_SLOTS:
         QVERIFY(page && !page->tables.isEmpty());
         const QRectF table = page->tables[0]->rect();
         const QRect pr = view.pageRect(0);
-        const double scale = pr.width() / 612.0;
+        const double scale = pr.width() / page->size.width();
         const QPoint corner(int(std::lround(pr.left() + (table.right() + 4) * scale)), int(std::lround(pr.top() + (table.bottom() + 4) * scale)));
         const QString before = tablesSignature(*doc);
         QVERIFY(before.contains(QStringLiteral("cols=120.0,120.0")));
@@ -2910,7 +2982,7 @@ private Q_SLOTS:
         const QString id = createTableStyle(*doc, spec, &problem);
         QVERIFY2(!id.isEmpty(), qPrintable(problem));
         QCOMPARE(id, QStringLiteral("ReportGrid"));
-        QVERIFY(!createTableStyle(*doc, spec, &problem).isEmpty() == false);   // (the name is taken)
+        QVERIFY(createTableStyle(*doc, spec, &problem).isEmpty());   // (the name is taken)
         QVERIFY(!problem.isEmpty());
         setTableStyle(*doc, c, id);
         QByteArray styles = styleXml(doc->toDocx());
@@ -14646,6 +14718,35 @@ private Q_SLOTS:
         QTextCursor low = cursorAt(*joined, QStringLiteral("r1c1"));
         QVERIFY(!splitTable(*joined, low));
         QVERIFY(!joined->tableNotice.isEmpty());
+    }
+
+    // A table with a header row and rows that have a cell across two columns is written so that it opens the same after Split Table and after Sort.
+    void splitAndSortKeepHeaderRowsAndSpannedCells()
+    {
+        auto wide = [&](const char *a, const char *b) { return rowX(cellX(cellP(a), "<w:gridSpan w:val=\"2\"/>", 4800) + cellX(cellP(b))); };
+        const QByteArray body = cellP("top") + tableX(rowX(cellX(cellP("H1")) + cellX(cellP("H2")) + cellX(cellP("H3")), "<w:tblHeader/>") + wide("pear", "3") + wide("apple", "2") + wide("fig", "1"), 3) + cellP("tail");
+        auto doc = open(makeDocx(body, kStyles));
+        const QString before = tablesSignature(*doc);
+        checkTablesReopenTheSame(*doc);
+        QTextCursor in = cursorAt(*doc, QStringLiteral("apple"));
+        TableSortKey text;
+        QVERIFY(sortTableRows(*doc, in, {text}, true));
+        QVERIFY2(plain(*doc).contains(QStringLiteral("apple")), qPrintable(plain(*doc)));
+        QByteArray x = documentXml(doc->toDocx());
+        QCOMPARE(int(x.count("<w:tblHeader/>")), 1);
+        QCOMPARE(int(x.count("<w:gridSpan w:val=\"2\"/>")), 3);
+        QVERIFY(x.indexOf("<w:tblHeader/>") < x.indexOf("apple"));   // (the header row stays first)
+        checkTablesReopenTheSame(*doc);
+        QTextCursor low = cursorAt(*doc, QStringLiteral("pear"));
+        QVERIFY(splitTable(*doc, low));
+        x = documentXml(doc->toDocx());
+        QCOMPARE(int(x.count("<w:tbl>")), 2);
+        QCOMPARE(int(x.count("<w:tblHeader/>")), 1);
+        QCOMPARE(int(x.count("<w:gridSpan w:val=\"2\"/>")), 3);
+        checkTablesReopenTheSame(*doc);
+        doc->story()->undo();
+        doc->story()->undo();
+        QCOMPARE(tablesSignature(*doc), before);
     }
 
     // Sort puts the rows in order of a column (text, numbers, or dates, either way, up to three keys), keeping the header row where it is; the words of a row move together, one step

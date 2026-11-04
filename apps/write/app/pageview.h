@@ -343,6 +343,8 @@ private:
     struct ColumnDrag {
         bool active = false;
         int position = 0, page = 0;
+        bool pending = false;                     // pressed on a border, not pulled yet (it is a click until the pointer has moved a few pixels)
+        QPoint startPx;                           // (where the press was, in the view)
         bool whole = false;                       // the resize handle at the table's corner: the whole table's width
         bool row = false;                         // the bottom border of a row, not the right one of a column
         double width = 0, startX = 0, nowX = 0;   // (points on the page; for a row, the height and the pointer's y)

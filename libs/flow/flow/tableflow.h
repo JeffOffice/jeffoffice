@@ -336,6 +336,13 @@ struct TableFragment {
     QRectF cellRect(int pos) const;
     // The page rectangle of each cell the fragment shows (those that continue a cell above are not among them), for drawing the cells' edges where they have no line.
     void forCellBoxes(const std::function<void(const QRectF &box, int from, int span, int rows)> &visit) const;
+    // The same, as a list that is made once for the fragment (the pointer's hit tests and the drawing of the edges ask for it again and again).
+    struct CellBox {
+        QRectF box;
+        int from = 0, span = 1, rows = 1;
+    };
+    const std::vector<CellBox> &cellBoxes() const;
+    static qint64 cellBoxListsMadeForTest();
 
 private:
     struct Placed {
@@ -348,6 +355,8 @@ private:
         double from = -1e18;                // the page height above which it is not drawn (a part of a row that goes on from the one before begins its text there)
     };
     std::vector<Placed> place() const;
+    mutable std::vector<CellBox> m_boxes;
+    mutable bool m_boxesMade = false;
 };
 
 class TableFlow {

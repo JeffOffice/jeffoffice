@@ -1385,12 +1385,25 @@ QRectF TableFragment::cellRect(int pos) const
     return QRectF();
 }
 
+namespace { qint64 g_boxLists = 0; }
+qint64 TableFragment::cellBoxListsMadeForTest() { return g_boxLists; }
+
+const std::vector<TableFragment::CellBox> &TableFragment::cellBoxes() const
+{
+    if (!m_boxesMade) {
+        ++g_boxLists;
+        for (const Placed &pl : place()) {
+            const TableLayout::Cell &c = layout->cell(items[size_t(pl.item)].cell);
+            if (!c.covered) m_boxes.push_back({pl.clip, c.from, c.span, c.rows});
+        }
+        m_boxesMade = true;
+    }
+    return m_boxes;
+}
+
 void TableFragment::forCellBoxes(const std::function<void(const QRectF &box, int from, int span, int rows)> &visit) const
 {
-    for (const Placed &pl : place()) {
-        const TableLayout::Cell &c = layout->cell(items[size_t(pl.item)].cell);
-        if (!c.covered) visit(pl.clip, c.from, c.span, c.rows);
-    }
+    for (const CellBox &b : cellBoxes()) visit(b.box, b.from, b.span, b.rows);
 }
 
 bool TableFragment::caretLine(int pos, QLineF *line) const

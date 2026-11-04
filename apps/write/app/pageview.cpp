@@ -918,15 +918,15 @@ bool PageView::columnBorderAt(const QPoint &vp, ColumnDrag *found)
         if (fragment->floating) continue;
         const QRectF rect = fragment->rect();
         if (hit.point.y() < rect.top() || hit.point.y() > rect.bottom()) continue;
-        bool hitBorder = false;
-        fragment->forCellBoxes([&](const QRectF &box, int from, int span, int rows) {
-            if (hitBorder) return;
-            const bool column = span == 1 && std::abs(hit.point.x() - box.right()) <= tolerance && hit.point.y() >= box.top() && hit.point.y() <= box.bottom();
-            const bool row = !column && rows == 1 && std::abs(hit.point.y() - box.bottom()) <= tolerance && hit.point.x() >= box.left() && hit.point.x() <= box.right();
-            if (!column && !row) return;
-            hitBorder = true;
+        if (hit.point.x() < rect.left() - tolerance || hit.point.x() > rect.right() + tolerance) continue;
+        // (a cell that spans more than one column or row has no border to pull: which of its columns or rows the pull would be for is not clear)
+        for (const flow::TableFragment::CellBox &cb : fragment->cellBoxes()) {
+            const QRectF &box = cb.box;
+            const bool column = cb.span == 1 && std::abs(hit.point.x() - box.right()) <= tolerance && hit.point.y() >= box.top() && hit.point.y() <= box.bottom();
+            const bool row = !column && cb.rows == 1 && std::abs(hit.point.y() - box.bottom()) <= tolerance && hit.point.x() >= box.left() && hit.point.x() <= box.right();
+            if (!column && !row) continue;
             ColumnDrag d;
-            d.position = from;
+            d.position = cb.from;
             d.page = hit.page;
             d.row = row;
             d.width = row ? box.height() : box.width();
@@ -937,8 +937,8 @@ bool PageView::columnBorderAt(const QPoint &vp, ColumnDrag *found)
             d.left = rect.left();
             d.right = rect.right();
             *found = d;
-        });
-        if (hitBorder) return true;
+            return true;
+        }
     }
     return false;
 }
@@ -1179,6 +1179,7 @@ void PageView::focusInEvent(QFocusEvent *e)
 void PageView::focusOutEvent(QFocusEvent *e)
 {
     QAbstractScrollArea::focusOutEvent(e);
+    m_columnDrag.active = m_columnDrag.pending = false;   // (a pull that was going on is let go)
     m_blink.stop();
     viewport()->update();
 }
