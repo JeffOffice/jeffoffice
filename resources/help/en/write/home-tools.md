@@ -1,5 +1,5 @@
 # Change case, sort, and paste in other ways
-<!-- keywords: change case, uppercase, lowercase, sentence case, capitalize, toggle case, shift+f3, sort, sort paragraphs, alphabetical, order, paste, paste special, keep text only, merge formatting, unformatted text, picture, clipboard -->
+<!-- keywords: tabs, tab stops, leader, keep with next, keep lines together, page break before, widow, orphan, outline level, line and page breaks, change case, uppercase, lowercase, sentence case, capitalize, toggle case, shift+f3, sort, sort paragraphs, alphabetical, order, paste, paste special, keep text only, merge formatting, unformatted text, picture, clipboard -->
 
 These tools are on the **Home** tab. They work on the text you select.
 
@@ -46,3 +46,17 @@ Click the small arrow under **Paste** for more choices:
 - **Paste Special** (**Ctrl+Alt+V**) lists every way the clipboard can be pasted now, and lets you pick one.
 
 A choice is dimmed when the clipboard has nothing it can use.
+
+## Line and page breaks, and tabs
+
+Click the small button in the corner of the **Paragraph** group to open the **Paragraph** box. Under the spacing choices are these:
+
+- **Widow and orphan control** keeps one lone line of a paragraph from sitting by itself at the top or the bottom of a page.
+- **Keep with next** keeps the paragraph on the same page as the one after it. Use it for a heading.
+- **Keep lines together** keeps all the lines of the paragraph on one page.
+- **Page break before** starts the paragraph on a new page.
+- **Don't hyphenate** stops the paragraph's words from being split with a hyphen at the end of a line.
+- **Don't add space between paragraphs of the same style** removes the space between two paragraphs that have the same style.
+- **Outline level** says where the paragraph is in the outline of the document: **Body text**, or a level from 1 to 9.
+
+Click **Tabs** in the box to set tab stops. A tab stop is a place the text jumps to when you press **Tab**. Type its position, choose how the text lines up there (left, center, right, or decimal), and choose a leader. A leader is the row of dots, dashes, or a line that fills the space before the stop. Click **Set** to add it. To remove one, pick it in the list and click **Clear**. **Clear All** removes them all.

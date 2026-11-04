@@ -2,6 +2,7 @@
 // Each document is built here from a few lines of XML.
 
 #include "../isolatesettings.h"
+#include "app/writedialogs.h"
 #include "app/writewindow.h"
 #include "app/pageview.h"
 #include "core/appinfo.h"
@@ -20,6 +21,14 @@
 #include "text/textprops.h"
 
 #include <QAction>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QDialog>
+#include <QDoubleSpinBox>
+#include <QTimer>
+#include <QListWidget>
 #include <QBuffer>
 #include <QImage>
 #include <QApplication>
@@ -90,6 +99,33 @@ QTextCursor selectBlocks(QTextDocument *d, int firstBlock, int lastBlock)
     QTextBlock last = d->findBlockByNumber(lastBlock);
     c.setPosition(last.position() + last.length() - 1, QTextCursor::KeepAnchor);
     return c;
+}
+
+// Runs `open` (which opens a modal dialog named `objectName`), fills the dialog in, and accepts it (or rejects it).
+void withDialog(const std::function<void()> &open, const QString &objectName, const std::function<void(QDialog *)> &fill, bool accept = true)
+{
+    QString opened;
+    QTimer once, watchdog;
+    once.setSingleShot(true);
+    watchdog.setSingleShot(true);
+    auto closeAll = [](bool ok) {
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (auto *d = qobject_cast<QDialog *>(top); d && d->isVisible()) {
+                if (ok) d->accept();
+                else d->reject();
+            }
+    };
+    QObject::connect(&once, &QTimer::timeout, [&] {
+        auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (dlg) opened = dlg->objectName();
+        if (dlg && opened == objectName) fill(dlg);
+        closeAll(accept && opened == objectName);
+    });
+    QObject::connect(&watchdog, &QTimer::timeout, [&] { closeAll(false); });
+    once.start(0);
+    watchdog.start(10000);
+    open();
+    QCOMPARE(opened, objectName);
 }
 
 } // namespace
@@ -667,6 +703,124 @@ private Q_SLOTS:
         }
         QCOMPARE(header, 1);
         QCOMPARE(blank, 4);
+    }
+
+    void theFontBoxLeftAloneChangesNothing()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("plain words")))), QString());
+        w.view()->selectAll();
+        withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *) {});
+        QVERIFY(!w.document()->canUndo());
+    }
+
+    void theFontBoxSetsCharacterSpacingPositionAndKerningAndTheFileKeepsThem()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("spaced out")))), QString());
+        w.view()->selectAll();
+        withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *d) {
+            d->findChild<QComboBox *>(QStringLiteral("spacingKind"))->setCurrentIndex(1);   // expanded
+            d->findChild<QDoubleSpinBox *>(QStringLiteral("spacingBy"))->setValue(1.5);
+            d->findChild<QComboBox *>(QStringLiteral("positionKind"))->setCurrentIndex(2);   // lowered
+            d->findChild<QDoubleSpinBox *>(QStringLiteral("positionBy"))->setValue(3);
+            d->findChild<QCheckBox *>(QStringLiteral("kerning"))->setChecked(true);
+            d->findChild<QDoubleSpinBox *>(QStringLiteral("kerningFrom"))->setValue(14);
+        });
+        const QByteArray out = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY2(out.contains("<w:spacing w:val=\"30\"/>") && out.contains("<w:position w:val=\"-6\"/>") && out.contains("<w:kern w:val=\"28\"/>"), out.constData());
+        // The box reads them back, and leaving them alone changes nothing.
+        withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *d) {
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("spacingKind"))->currentIndex(), 1);
+            QCOMPARE(d->findChild<QDoubleSpinBox *>(QStringLiteral("spacingBy"))->value(), 1.5);
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("positionKind"))->currentIndex(), 2);
+            QVERIFY(d->findChild<QCheckBox *>(QStringLiteral("kerning"))->isChecked());
+        });
+        QCOMPARE(part(w.document()->toDocx(), QStringLiteral("/word/document.xml")), out);   // (left alone: the file is as it was)
+        // Normal again.
+        withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *d) {
+            d->findChild<QComboBox *>(QStringLiteral("spacingKind"))->setCurrentIndex(0);
+            d->findChild<QComboBox *>(QStringLiteral("positionKind"))->setCurrentIndex(0);
+            d->findChild<QCheckBox *>(QStringLiteral("kerning"))->setChecked(false);
+        });
+        const QByteArray plain = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY2(!plain.contains("w:spacing w:val") && !plain.contains("w:position") && !plain.contains("w:kern"), plain.constData());
+    }
+
+    void theTabsBoxSetsTabStopsWithTheirLeaders()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a\tb")))), QString());
+        w.view()->selectAll();
+        QTextCursor cursor = w.view()->cursor();
+        withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [](QDialog *d) {
+            auto *position = d->findChild<QDoubleSpinBox *>(QStringLiteral("tabPosition"));
+            position->setValue(72.0);
+            d->findChild<QComboBox *>(QStringLiteral("tabType"))->setCurrentIndex(1);
+            d->findChild<QComboBox *>(QStringLiteral("tabLeader"))->setCurrentIndex(1);
+            d->findChild<QPushButton *>(QStringLiteral("tabSet"))->click();
+            QCOMPARE(d->findChild<QListWidget *>(QStringLiteral("tabList"))->count(), 1);
+        });
+        const QByteArray out = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY2(out.contains("w:val=\"center\"") && out.contains("w:leader=\"dot\"") && out.contains("<w:tabs>"), out.constData());
+        withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [](QDialog *d) {
+            QCOMPARE(d->findChild<QListWidget *>(QStringLiteral("tabList"))->count(), 1);
+            d->findChild<QPushButton *>(QStringLiteral("tabClearAll"))->click();
+        });
+        QVERIFY(!part(w.document()->toDocx(), QStringLiteral("/word/document.xml")).contains("<w:tab w:val"));
+    }
+
+    void setAsDefaultGivesTheNormalStyleTheFontChosen()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("some words")))), QString());
+        w.view()->selectAll();
+        withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *d) {
+            d->findChild<QDoubleSpinBox *>(QStringLiteral("fontSize"))->setValue(15);
+            QTimer::singleShot(100, [] {
+                for (QWidget *top : QApplication::topLevelWidgets())
+                    if (auto *box = qobject_cast<QMessageBox *>(top); box && box->isVisible()) box->button(QMessageBox::Yes)->click();
+            });
+            d->findChild<QPushButton *>(QStringLiteral("setAsDefault"))->click();
+        }, false);
+        const QByteArray styles = part(w.document()->toDocx(), QStringLiteral("/word/styles.xml"));
+        QVERIFY2(styles.contains("<w:sz w:val=\"30\"/>"), styles.constData());
+    }
+
+    void theParagraphBoxSetsLineAndPageBreakChoicesAndTheOutlineLevel()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a paragraph")))), QString());
+        w.view()->selectAll();
+        withDialog([&w] { w.act(QStringLiteral("para.dialog"))->trigger(); }, QStringLiteral("paragraphDialog"), [](QDialog *d) {
+            d->findChild<QCheckBox *>(QStringLiteral("keepWithNext"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("keepLinesTogether"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("pageBreakBefore"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("dontHyphenate"))->setChecked(true);
+            d->findChild<QComboBox *>(QStringLiteral("outlineLevel"))->setCurrentIndex(2);   // level 2
+        });
+        const QByteArray out = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        for (const char *tag : {"<w:keepNext/>", "<w:keepLines/>", "<w:pageBreakBefore/>", "<w:suppressAutoHyphens/>", "<w:outlineLvl w:val=\"1\"/>"}) QVERIFY2(out.contains(tag), tag);
+        // Back off.
+        withDialog([&w] { w.act(QStringLiteral("para.dialog"))->trigger(); }, QStringLiteral("paragraphDialog"), [](QDialog *d) {
+            QVERIFY(d->findChild<QCheckBox *>(QStringLiteral("keepWithNext"))->isChecked());
+            d->findChild<QCheckBox *>(QStringLiteral("keepWithNext"))->setChecked(false);
+            d->findChild<QCheckBox *>(QStringLiteral("pageBreakBefore"))->setChecked(false);
+            d->findChild<QComboBox *>(QStringLiteral("outlineLevel"))->setCurrentIndex(0);
+        });
+        const QByteArray back = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY2(!back.contains("<w:keepNext/>") && !back.contains("<w:pageBreakBefore/>") && !back.contains("outlineLvl"), back.constData());
+        QVERIFY(back.contains("<w:keepLines/>"));
     }
 };
 
