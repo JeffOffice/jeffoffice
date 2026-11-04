@@ -246,7 +246,7 @@ QByteArray repairXml(const QByteArray &xml, bool *trimmed, QString *stoppedBecau
     }
     for (qsizetype i = open.size() - 1; i >= 0; --i) kept += "</" + open[i].toUtf8() + ">";
     if (trimmed) *trimmed = true;
-    if (stoppedBecause && (tooDeep || tooLongName)) *stoppedBecause = tr("it has items inside items more deeply than any real file has");
+    if (stoppedBecause && (tooDeep || tooLongName)) *stoppedBecause = tr(QT_TRANSLATE_NOOP("jp::office::Repair", "it has items inside items more deeply than any real file has"));
     return kept;
 }
 
@@ -266,22 +266,22 @@ Prepared prepare(const ZipScanEntry &e, const RepairLimits &limits)
     Prepared p;
     p.name = plainName(e.name);
     if (!usableName(p.name)) {
-        p.drop = tr("%1 (the name is not usable)").arg(e.name);
+        p.drop = tr(QT_TRANSLATE_NOOP("jp::office::Repair", "%1 (the name is not usable)")).arg(e.name);
         return p;
     }
     if (e.problem == QLatin1String("too large")) {
-        p.drop = tr("%1 (too large to repair)").arg(p.name);
+        p.drop = tr(QT_TRANSLATE_NOOP("jp::office::Repair", "%1 (too large to repair)")).arg(p.name);
         return p;
     }
     if (isXmlName(p.name)) {
         if (!readAsStream(p.name) && e.data.size() > limits.maxXmlPartBytes) {
-            p.drop = tr("%1 (larger than this program opens)").arg(p.name);
+            p.drop = tr(QT_TRANSLATE_NOOP("jp::office::Repair", "%1 (larger than this program opens)")).arg(p.name);
             return p;
         }
         bool cut = false;
         p.data = repairXml(e.data, &cut, &p.stopped);
         if (p.data.isEmpty()) {
-            p.drop = tr("%1 (could not be read)").arg(p.name);
+            p.drop = tr(QT_TRANSLATE_NOOP("jp::office::Repair", "%1 (could not be read)")).arg(p.name);
             return p;
         }
         p.whole = e.whole && !cut;
@@ -289,7 +289,7 @@ Prepared prepare(const ZipScanEntry &e, const RepairLimits &limits)
         p.data = e.data;
         p.whole = true;
     } else {
-        p.drop = tr("%1 (%2)").arg(p.name, e.problem.isEmpty() ? tr("could not be read") : e.problem);
+        p.drop = tr(QT_TRANSLATE_NOOP("jp::office::Repair", "%1 (%2)")).arg(p.name, e.problem.isEmpty() ? tr(QT_TRANSLATE_NOOP("jp::office::Repair", "could not be read")) : e.problem);
     }
     return p;
 }
@@ -298,8 +298,8 @@ constexpr qsizetype kMaxTypesBytes = 16 << 20;   // the list of types, kept to p
 
 void noteLimits(const ZipScanStats &stats, RepairReport &rep, const RepairLimits &limits)
 {
-    if (stats.entriesLeftOut) rep.notes << tr("The file has more than %1 entries. The ones after them were not looked at.").arg(limits.maxEntries);
-    if (stats.sizeLeftOut) rep.notes << tr("The file holds more than can be read at once. The entries after that point were not looked at.");
+    if (stats.entriesLeftOut) rep.notes << tr(QT_TRANSLATE_NOOP("jp::office::Repair", "The file has more than %1 entries. The ones after them were not looked at.")).arg(limits.maxEntries);
+    if (stats.sizeLeftOut) rep.notes << tr(QT_TRANSLATE_NOOP("jp::office::Repair", "The file holds more than can be read at once. The entries after that point were not looked at."));
 }
 
 } // namespace
@@ -332,11 +332,11 @@ QByteArray repairPackage(const QByteArray &zip, QString *error, RepairReport *re
         }
         const qint64 replaced = chosen.contains(p.name) ? chosen.value(p.name).size : 0;
         if (keptBytes - replaced + p.data.size() > limits.maxKeptBytes) {
-            rep.dropped << tr("%1 (more than can be repaired at once)").arg(p.name);
+            rep.dropped << tr(QT_TRANSLATE_NOOP("jp::office::Repair", "%1 (more than can be repaired at once)")).arg(p.name);
             return;
         }
         if (p.name == typesName && p.data.size() > kMaxTypesBytes) {
-            rep.dropped << tr("%1 (too large to repair)").arg(p.name);
+            rep.dropped << tr(QT_TRANSLATE_NOOP("jp::office::Repair", "%1 (too large to repair)")).arg(p.name);
             return;
         }
         keptBytes += p.data.size() - replaced;
@@ -344,13 +344,13 @@ QByteArray repairPackage(const QByteArray &zip, QString *error, RepairReport *re
         chosen.insert(p.name, c);
         if (p.whole) rep.kept << p.name;
         else rep.trimmed << p.name;
-        if (!p.stopped.isEmpty()) rep.notes << tr("%1 was cut short: %2.").arg(p.name, p.stopped);
+        if (!p.stopped.isEmpty()) rep.notes << tr(QT_TRANSLATE_NOOP("jp::office::Repair", "%1 was cut short: %2.")).arg(p.name, p.stopped);
     }, limits.maxEntries, limits.maxPartBytes, limits.maxWorkBytes, &stats);
     noteLimits(stats, rep, limits);
     const QStringList names = chosen.keys();
     const QString main = mainPartOf(QSet<QString>(names.cbegin(), names.cend()));
     if (main.isEmpty()) {
-        if (error) *error = tr("No document could be found in this file: its main part is gone or can't be read.");
+        if (error) *error = tr(QT_TRANSLATE_NOOP("jp::office::Repair", "No document could be found in this file: its main part is gone or can't be read."));
         return QByteArray();
     }
     ZipWriter z;
@@ -401,16 +401,16 @@ QByteArray repairZip(const QByteArray &zip, QString *error, RepairReport *report
     scanZipEach(zip, [&](ZipScanEntry &e) {
         const QString name = plainName(e.name);
         if (!usableName(name)) {
-            rep.dropped << tr("%1 (the name is not usable)").arg(e.name);
+            rep.dropped << tr(QT_TRANSLATE_NOOP("jp::office::Repair", "%1 (the name is not usable)")).arg(e.name);
             return;
         }
         if (seen.contains(name)) return;
         if (!e.whole) {
-            rep.dropped << tr("%1 (%2)").arg(name, e.problem.isEmpty() ? tr("could not be read") : e.problem);
+            rep.dropped << tr(QT_TRANSLATE_NOOP("jp::office::Repair", "%1 (%2)")).arg(name, e.problem.isEmpty() ? tr(QT_TRANSLATE_NOOP("jp::office::Repair", "could not be read")) : e.problem);
             return;
         }
         if (keptBytes + e.data.size() > limits.maxKeptBytes) {
-            rep.dropped << tr("%1 (more than can be repaired at once)").arg(name);
+            rep.dropped << tr(QT_TRANSLATE_NOOP("jp::office::Repair", "%1 (more than can be repaired at once)")).arg(name);
             return;
         }
         keptBytes += e.data.size();
@@ -420,7 +420,7 @@ QByteArray repairZip(const QByteArray &zip, QString *error, RepairReport *report
     }, limits.maxEntries, limits.maxPartBytes, limits.maxWorkBytes, &stats);
     noteLimits(stats, rep, limits);
     if (rep.kept.isEmpty()) {
-        if (error) *error = tr("Nothing in this file could be read.");
+        if (error) *error = tr(QT_TRANSLATE_NOOP("jp::office::Repair", "Nothing in this file could be read."));
         return QByteArray();
     }
     return z.finish();
@@ -429,12 +429,12 @@ QByteArray repairZip(const QByteArray &zip, QString *error, RepairReport *report
 QString repairSummary(const RepairReport &r)
 {
     QStringList lines;
-    if (!r.trimmed.isEmpty()) lines << tr("Cut short, kept as far as it could be read: %1").arg(r.trimmed.join(QStringLiteral(", ")));
-    if (!r.dropped.isEmpty()) lines << tr("Left out, because it could not be read: %1").arg(r.dropped.join(QStringLiteral(", ")));
+    if (!r.trimmed.isEmpty()) lines << tr(QT_TRANSLATE_NOOP("jp::office::Repair", "Cut short, kept as far as it could be read: %1")).arg(r.trimmed.join(QStringLiteral(", ")));
+    if (!r.dropped.isEmpty()) lines << tr(QT_TRANSLATE_NOOP("jp::office::Repair", "Left out, because it could not be read: %1")).arg(r.dropped.join(QStringLiteral(", ")));
     for (const QString &note : r.notes) lines << note;
-    if (r.typesMade) lines << tr("The list of what each part is was gone, and was made again.");
-    if (r.linksMade) lines << tr("The links between the parts were gone, and were made again, so what depends on them (such as pictures) may be missing.");
-    if (lines.isEmpty()) lines << tr("Every part could be read. Nothing was left out.");
+    if (r.typesMade) lines << tr(QT_TRANSLATE_NOOP("jp::office::Repair", "The list of what each part is was gone, and was made again."));
+    if (r.linksMade) lines << tr(QT_TRANSLATE_NOOP("jp::office::Repair", "The links between the parts were gone, and were made again, so what depends on them (such as pictures) may be missing."));
+    if (lines.isEmpty()) lines << tr(QT_TRANSLATE_NOOP("jp::office::Repair", "Every part could be read. Nothing was left out."));
     return lines.join(QLatin1Char('\n'));
 }
 
