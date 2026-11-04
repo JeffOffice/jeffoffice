@@ -4,6 +4,7 @@
 
 #include "app/icons.h"
 #include "app/keytips.h"
+#include "app/outlineview.h"
 #include "app/pageview.h"
 #include "app/reviewpane.h"
 #include "app/ribbon.h"
@@ -89,6 +90,9 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     m_ruler = new write::Ruler(m_view, central);
     column->addWidget(m_ruler);
     column->addWidget(m_view, 1);
+    m_outline = new OutlineView(central);
+    m_outline->hide();
+    column->addWidget(m_outline, 1);
     setCentralWidget(central);
 
     createActions();
@@ -187,13 +191,17 @@ bool WriteWindow::isModified() const { return m_doc && m_doc->isModified(); }
 
 void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QString &path)
 {
+    if (m_outlineOn) setOutlineMode(false);
     m_view->setDocument(nullptr);
     m_doc = std::move(doc);
     m_path = path;
     if (m_doc) {
         m_doc->filePath = path;
         connect(m_doc.get(), &write::WriteDoc::modifiedChanged, this, [this] { updateTitle(); });
-        connect(m_doc.get(), &write::WriteDoc::historyChanged, this, [this] { m_refreshTimer.start(); });
+        connect(m_doc.get(), &write::WriteDoc::historyChanged, this, [this] {
+            m_refreshTimer.start();
+            if (m_outlineOn) m_outline->rebuild();
+        });
     }
     m_view->setDocument(m_doc.get());
     m_view->setZoomMode(write::PageView::ZoomMode::Percent);
@@ -243,6 +251,7 @@ void WriteWindow::createActions()
     createInsertActions();
     createLayoutExtraActions();
     createViewExtraActions();
+    createOutlineActions();
     createStyleActions();
     createHomeActions();
     createProtectActions();
@@ -412,18 +421,30 @@ void WriteWindow::showZoomDialog()
 void WriteWindow::showContextMenu(const QPoint &globalPos)
 {
     QMenu menu(this);
+    fillContextMenu(menu);
+    menu.exec(globalPos);
+}
+
+void WriteWindow::fillContextMenu(QMenu &menu)
+{
     write::addSpellingSuggestions(menu, m_view);
     for (const char *id : {"edit.cut", "edit.copy", "edit.paste"}) menu.addAction(act(QString::fromLatin1(id)));
+    // The ways to paste: with the source's formatting, merged into the text round it, or as text only.
+    QMenu *paste = menu.addMenu(tr("Paste Options"));
+    for (const char *id : {"edit.paste", "edit.pasteMerge", "edit.pasteText"}) paste->addAction(act(QString::fromLatin1(id)));
     menu.addSeparator();
     menu.addAction(act("fmt.fontDialog"));
     menu.addAction(act("para.dialog"));
+    QMenu *lists = menu.addMenu(tr("Bullets and Numbering"));
+    lists->addAction(act("para.bullets"));
+    lists->addAction(act("para.numbers"));
     menu.addAction(act("edit.selectAll"));
+    addLinkFieldNoteContextMenu(menu);
     // On a picture: how the text goes round it, and its alt text.
     if (m_view->selectedPicture() >= 0) addPictureContextMenu(menu);
     // In a table: its rows and columns, merging, lines, size, and properties.
     if (cursorInTable()) addTableContextMenu(menu);
     addReviewContextMenu(menu);
-    menu.exec(globalPos);
 }
 
 // ---- keeping the controls in step with the text

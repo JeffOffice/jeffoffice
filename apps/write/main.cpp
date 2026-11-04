@@ -151,6 +151,11 @@ int main(int argc, char **argv)
                 w->navigationPane()->tabs()->setCurrentIndex(qEnvironmentVariableIntValue("JW_SCREENSHOT_NAVIGATION"));
                 w->navigationPane()->refresh();
             }
+            // (And Outline view: JW_SCREENSHOT_OUTLINE=1, with JW_SCREENSHOT_OUTLINE_LEVEL=n to show down to a level.)
+            if (qEnvironmentVariableIsSet("JW_SCREENSHOT_OUTLINE")) {
+                w->setOutlineMode(true);
+                if (qEnvironmentVariableIsSet("JW_SCREENSHOT_OUTLINE_LEVEL")) w->act(QStringLiteral("outline.level.%1").arg(qEnvironmentVariableIntValue("JW_SCREENSHOT_OUTLINE_LEVEL")))->trigger();
+            }
             QTimer::singleShot(300, w, [w, out] {
                 w->grab().save(out);
                 QApplication::exit(0);

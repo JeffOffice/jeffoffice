@@ -60,5 +60,7 @@ int linkTargetAt(WriteDoc &doc, int position);
 // ---- notes
 // The next (or previous) footnote or endnote reference after (before) the position; -1 for none.
 int nextNoteReference(WriteDoc &doc, int from, bool forward, bool endnote);
+// The Id of the footnote whose reference is at the position (or just before it); -1 where there is none.
+int footnoteReferenceAt(WriteDoc &doc, int position);
 
 } // namespace jp::write

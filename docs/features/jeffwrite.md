@@ -285,7 +285,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 
 ### Footnotes
 - [~] **first release** Insert Footnote and Insert Endnote (Ctrl+Alt+F and Ctrl+Alt+D) with their dialog: number format (1, a, i, symbols, or a mark you type), start at, restart each section or page, location (bottom of page, below text, end of section, end of document), and notes in columns *(footnote references: ours 2% (.docx 3%, .doc and .rtf 0%), public 17%; endnote references: ours <1%, public <1%; shared: libs/text footnotes)* *(0.9.0: a file's footnotes and endnotes are set at the foot of the pages that cite them (or after the text, or at a section's end, as the file says), with its numbering, marks, separators, and continuation notices; none could be inserted, and their text could not be edited)* *(after 0.9.1: References tab and Ctrl+Alt+F and Ctrl+Alt+D insert a footnote or an endnote, numbered after the others; the text of a note is edited where it stands, and saved with the file's other notes untouched; not yet the dialog's number format, start, restart, or location, or notes in columns)* *(round 8: References > Footnote and Endnote sets the number format (1, a, A, i, I, or symbols), the number the first note shows, restart each section (or, for footnotes, each page), and where the endnotes are set (end of section or of document), saved in the settings part; not footnotes below the text, a mark you type in the dialog, or notes in columns)*
-- [~] **first release** Next and Previous Footnote or Endnote, Show Notes, double-click a mark to jump to its note, and the notes pane in Draft view *(beta wave F: Next and Previous Footnote and Endnote on the References tab; not Show Notes, double-click a mark, or the notes pane)*
+- [~] **first release** Next and Previous Footnote or Endnote, Show Notes, double-click a mark to jump to its note, and the notes pane in Draft view *(beta wave F: Next and Previous Footnote and Endnote on the References tab; not Show Notes, double-click a mark, or the notes pane)* *(round 10: a double click on a footnote's mark, or Go to Footnote on its right-click menu, edits the note where it stands; not Show Notes or the notes pane)*
 - [x] **1.0** Convert footnotes to endnotes and back (all, or one), and swap them *(round 8: References > Convert Notes; the words go with each note, one undo step)*
 - [~] **1.0** Edit the separator, the continuation separator, and the continuation notice for footnotes and endnotes *(round 8: References > Separators sets each for footnotes, and the separator for endnotes, as a line, words, or nothing and writes it into the notes part in place; one that holds more than that is kept as it was; an endnote's continuation separator and notice are kept as the file has them but not drawn, since endnotes are not split at the foot of a page)*
 
@@ -355,7 +355,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 ## View tab
 
 ### Views
-- [~] **first release** Print Layout (pages as they print), Draft (one continuous column, with a style area), and Outline *(shared: JeffPub's page view)* *(beta: Print Layout only)*
+- [~] **first release** Print Layout (pages as they print), Draft (one continuous column, with a style area), and Outline *(shared: JeffPub's page view)* *(beta: Print Layout only)* *(round 10: Outline is a view of its own, with the Outlining tab; Draft and Web Layout are not there)*
 - [ ] **1.0** Web Layout and Read Mode (the page fitted to the window, side to side, with column width, page color, and layout choices)
 - [x] **1.0** Focus mode: the ribbon and window parts out of the way *(round 9: View > Focus, F11, hides the ribbon, ruler, status bar, and panes and fills the screen; Esc or F11 brings them back)*
 - [ ] **later** Immersive Reader tools: column width, page color (none, sepia, inverse), text spacing, syllables, Read Aloud, and Line Focus (one, three, or five lines lit at a time)
@@ -389,7 +389,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 
 ## Outline view and master documents
 
-- [ ] **1.0** Outline view: promote, demote, promote to heading, demote to body text, move up and down, expand and collapse, show a level (1 to 9 or all), show text formatting, show first line only, and drag a heading's symbol to move its section
+- [~] **1.0** Outline view: promote, demote, promote to heading, demote to body text, move up and down, expand and collapse, show a level (1 to 9 or all), show text formatting, show first line only, and drag a heading's symbol to move its section *(round 10: View > Outline, with the Outlining tab: the paragraphs as a tree with the headings under each heading; Promote and Demote (Alt+Shift+Left and Right) take the headings under a heading along, Promote to Heading 1, Demote to Body Text, Move Up and Move Down (Alt+Shift+Up and Down) move a heading with all that is under it, Expand and Collapse, Show Level 1 to 9 or all, Show Text Formatting, Show First Line Only, and a double click on text opens it on the pages, each change one step that undoes; missing: typing and editing the words in the outline, and dragging a heading's symbol to move its section)*
 - [ ] **later** Master Document: show subdocuments, create, insert, unlink, merge, split, lock, and expand or collapse them; a file that has them opens as a single document with its parts kept
 
 ## Contextual tabs
@@ -456,11 +456,11 @@ The tabs that appear only while something is selected or being edited: a table, 
 
 What a right-click offers depends on what is under the pointer. The commands are the ones the ribbon already holds, put where the original puts them.
 
-- [~] **first release** On text: Cut, Copy, and Paste Options (keep the source formatting, merge formatting, or keep text only), Font, Paragraph, Bullets and Numbering, Hyperlink, and New Comment *(Cut, Copy, Paste, Font, Paragraph, Select All, and New Comment (beta wave E); the paste choices, lists, and link are not there yet)*
+- [x] **first release** On text: Cut, Copy, and Paste Options (keep the source formatting, merge formatting, or keep text only), Font, Paragraph, Bullets and Numbering, Hyperlink, and New Comment *(Cut, Copy, Paste, Font, Paragraph, Select All, and New Comment (beta wave E); the paste choices, lists, and link are not there yet)* *(round 10: Paste Options (the paste, merge formatting, and keep text only commands), Bullets and Numbering, and Link on the right-click menu)*
 - [~] **first release** On a word the spelling check flags: suggestions, Ignore All, Add to Dictionary, and the AutoCorrect options *(done: suggestions, Ignore All, and Add to Dictionary; missing: the AutoCorrect options)* **(needed for the Preview)**
 - [x] **first release** In a table: Insert and Delete for rows, columns, and the table, Select, Merge Cells, Split Cells, Borders and Shading, Fit, Distribute, Cell Alignment, and Table Properties *(beta wave B: the right-click menu in a cell)*
 - [~] **1.0** On a picture, shape, or text box: Cut, Copy, Paste, Wrap Text, Bring to Front and Send to Back, Group, Edit Alt Text, Size and Position, and Format *(beta wave C: for a picture, Wrap Text and Alt Text on the right-click menu)*
-- [ ] **1.0** On a field, a link, a footnote, or a tracked change: Update Field, Edit Field, and Toggle Field Codes; Open, Edit, and Remove Hyperlink; Go to a note; and Accept or Reject a change
+- [~] **1.0** On a field, a link, a footnote, or a tracked change: Update Field, Edit Field, and Toggle Field Codes; Open, Edit, and Remove Hyperlink; Go to a note; and Accept or Reject a change *(round 10: on a link, Open Link, Edit Link, and Remove Link; on a field, Update Field, Toggle Field Code, Lock, Unlock, and Unlink Field; on a footnote's mark, Go to Footnote; Accept and Reject on a tracked change were there; missing: Edit Field, and a way back from a note to its mark)*
 - [x] **1.0** On a comment: Reply, Resolve, and Delete *(beta wave E: the right-click menu on commented words)*
 
 ## Under the ribbon: the text and page engine

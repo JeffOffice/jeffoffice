@@ -101,6 +101,10 @@ public:
     SpellCheck *editedSpelling() const { return (m_hf.active || m_note.active) && m_hfSpell ? m_hfSpell.get() : m_spell.get(); }
     SpellCheck *spelling() const { return m_spell.get(); }
     bool spellingEnabled() const { return m_spellOn; }
+    // Follows the link at a position of the text as a Ctrl+click does (a web or email address is handed on, a link to a bookmark or a reference moves the caret); false where there is none.
+    bool followLinkAt(int position);
+    // Edits the footnote whose mark is at the position (a double click on a mark), at the foot of its page; false where there is no mark.
+    bool openNoteAt(int position);
     // The place a menu is for: where the last right click was (a click inside a selection leaves the selection and the caret as they were), else the caret.
     int contextPosition() const { return m_contextAt >= 0 ? m_contextAt : m_cursor.position(); }
     void setSpellingEnabled(bool on);

@@ -40,6 +40,7 @@ struct RibbonParts;
 class SizeCombo;
 class StylesPane;
 class NavigationPane;
+class OutlineView;
 class WriteFileScreen;
 class WriteFindPane;
 struct MailUi;
@@ -79,6 +80,8 @@ public:
     QStringList actionIds() const override;
     Ribbon *ribbon() const override { return m_ribbon; }
     write::PageView *view() const { return m_view; }
+    // Fills a menu with what a right click offers where the pointer was (or the caret): the commands for text, and for a link, a field, a note, a picture, a table, or a change under it.
+    void fillContextMenu(QMenu &menu);
     // Brings the commands up to date with the selection at once (the window does it a moment after a change; a test does not wait for the moment).
     void refreshNow() { refreshUi(); }
     write::WriteDoc *document() const { return m_doc.get(); }
@@ -179,6 +182,10 @@ public:
     // Focus mode: the ribbon, ruler, status bar, and panes hidden and the window full screen (View > Focus, F11; Esc leaves it).
     void setFocusMode(bool on);
     bool focusMode() const { return m_focusMode; }
+    // Outline view (View > Outline): the paragraphs as a tree to promote, demote, and move, in place of the pages; the Outlining tab is there while it is.
+    bool outlineMode() const { return m_outlineOn; }
+    void setOutlineMode(bool on);
+    OutlineView *outlineView() const { return m_outline; }
 
     // The Styles pane on the right (made when first asked for, so null before).
     void showStylesPane();
@@ -230,6 +237,7 @@ private:
     int resolveShown(bool accept);
     QVector<write::Revision> shownRevisions() const;
     void addReviewContextMenu(QMenu &menu);
+    void addLinkFieldNoteContextMenu(QMenu &menu);
     void createEditingActions();
     void createHeaderFooterActions();
     void createNoteActions();
@@ -242,6 +250,8 @@ private:
     void createInsertActions();
     void createLayoutExtraActions();
     void createViewExtraActions();
+    void createOutlineActions();
+    void outlineEdited();
     void refreshViewUi();
     void layoutRibbonParts(RibbonParts &parts);
     void refreshLayoutUi();
@@ -336,6 +346,8 @@ private:
     NavigationPane *m_nav = nullptr;
     QDockWidget *m_navDock = nullptr;
     bool m_focusMode = false;
+    OutlineView *m_outline = nullptr;
+    bool m_outlineOn = false;
     struct FocusWas {
         bool fullScreen = false, ribbon = true, ruler = true, status = true;
         QList<QPointer<QDockWidget>> docks;
