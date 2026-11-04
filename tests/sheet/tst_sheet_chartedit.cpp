@@ -102,6 +102,38 @@ private Q_SLOTS:
         QVERIFY(roundTrip(pie).plots[0].series[0].labels.percent);
     }
 
+    // What a data label holds (the value, the category's name, the series' name, the percentage), what stands between them, and the number format: set for every series, kept by a save and a read.
+    void dataLabelsHoldWhatIsChosen()
+    {
+        Chart c = columns();
+        QVERIFY(!labelPartsOf(c).value);
+        ChartLabelParts parts;
+        parts.value = true;
+        parts.category = true;
+        parts.separator = QStringLiteral("; ");
+        parts.format = QStringLiteral("0.0");
+        setDataLabelParts(&c, parts);   // (none were shown: the labels come on, in the usual place)
+        for (const Chart &x : {c, roundTrip(c)}) {
+            const ChartLabelParts got = labelPartsOf(x);
+            QVERIFY(got.value && got.category && !got.series && !got.percent);
+            QCOMPARE(got.separator, QStringLiteral("; "));
+            QCOMPARE(got.format, QStringLiteral("0.0"));
+            for (const ChartPlot &p : x.plots)
+                for (const ChartSeries &s : p.series) QVERIFY(s.labels.shown());
+        }
+        QVERIFY(elementsOf(c).labels);
+        // the position is kept when the contents change
+        setDataLabels(&c, true, QStringLiteral("outEnd"));
+        parts.series = true;
+        parts.value = false;
+        setDataLabelParts(&c, parts);
+        QCOMPARE(elementsOf(c).labelPosition, QStringLiteral("outEnd"));
+        QVERIFY(labelPartsOf(roundTrip(c)).series && !labelPartsOf(roundTrip(c)).value);
+        // everything off takes the labels away
+        setDataLabelParts(&c, ChartLabelParts());
+        QVERIFY(!elementsOf(c).labels);
+    }
+
     void aSingleSeriesTitleIsItsName()
     {
         Chart c = makeChart(ChartKind::Column, planOf(QStringLiteral("A1:B4"), ChartKind::Column), defaultTheme());

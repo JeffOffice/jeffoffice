@@ -519,6 +519,57 @@ private Q_SLOTS:
         QCOMPARE(savedCharts(e.path)[0].chart.background.name(), QStringLiteral("#262626"));
     }
 
+    // What the data labels hold, what stands between, and their number format are chosen in the Data Labels list; each a step of Undo, and the file holds them.
+    void dataLabelContentsAreChosenInTheElementsList()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.chartElementsButton() && e.win.w.chartElementsButton()->isVisible());
+        QMenu *menu = e.win.w.chartElementsButton()->menu();
+        auto fire = [&](const QStringList &path) {
+            QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+            QMenu *m = menu;
+            QAction *found = nullptr;
+            for (int i = 0; i < path.size(); ++i) {
+                found = nullptr;
+                for (QAction *a : m->actions())
+                    if (a->text() == path[i]) found = a;
+                if (!found) return false;
+                if (i + 1 < path.size()) m = found->menu();
+            }
+            found->trigger();
+            return true;
+        };
+        QVERIFY(fire({"Data Labels", "Label Contains", "Category Name"}));
+        ChartLabelParts p = labelPartsOf(chartOf(e));
+        QVERIFY(p.category && !p.value);
+        QVERIFY(fire({"Data Labels", "Label Contains", "Value"}));
+        QVERIFY(fire({"Data Labels", "Separator", "New Line"}));
+        e.win.w.setChartTextAsker([](const QString &, QString *text) {
+            *text = QStringLiteral("0.00");
+            return true;
+        });
+        QVERIFY(fire({"Data Labels", "Number Format…"}));
+        p = labelPartsOf(chartOf(e));
+        QVERIFY(p.category && p.value && !p.series);
+        QCOMPARE(p.separator, QStringLiteral("\n"));
+        QCOMPARE(p.format, QStringLiteral("0.00"));
+        QVERIFY(save(e));
+        const ChartLabelParts saved = labelPartsOf(savedCharts(e.path)[0].chart);
+        QVERIFY(saved.category && saved.value);
+        QCOMPARE(saved.format, QStringLiteral("0.00"));
+        pressUndo(&e.win.w);
+        QVERIFY(labelPartsOf(chartOf(e)).format.isEmpty());
+        QVERIFY(labelPartsOf(chartOf(e)).category);
+        // the last content turned off takes the labels away
+        pressRedo(&e.win.w);
+        QVERIFY(fire({"Data Labels", "Label Contains", "Category Name"}));
+        QVERIFY(fire({"Data Labels", "Label Contains", "Value"}));
+        QVERIFY(!elementsOf(chartOf(e)).labels);
+    }
+
     void theChartDesignTabAppearsWithAChart()
     {
         EditWindow e;

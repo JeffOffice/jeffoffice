@@ -427,7 +427,9 @@ void CrunchWindow::createPivotActions()
             notice(tr("Move Pivot Table"), tr("Type a cell, for example J10."));
             return;
         }
-        pivotProblem(tr("Move Pivot Table"), m_session->movePivot(t, row, col));
+        const auto moved = m_session->movePivot(t, row, col);
+        pivotProblem(tr("Move Pivot Table"), moved);
+        if (moved.ok) goToFound(m_sheet, row, col);
         m_pivotShown = nullptr;
         updatePivotTab();
     });

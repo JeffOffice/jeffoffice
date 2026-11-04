@@ -16,6 +16,8 @@
 #include <QActionGroup>
 #include <QApplication>
 #include <QClipboard>
+#include <QInputDialog>
+#include <QLineEdit>
 #include <QMenu>
 #include <QMimeData>
 #include <QPainter>
@@ -546,6 +548,49 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
             const QString code = QString::fromLatin1(p.code);
             if (!allowed.contains(code)) continue;
             choice(labels, labelGroup, QCoreApplication::translate("jp::CrunchWindow", p.name), e.labels && e.labelPosition == code, [code](Chart *c) { setDataLabels(c, true, code); }, tr("Data Labels"));
+        }
+        {
+            labels->addSeparator();
+            const ChartLabelParts parts = labelPartsOf(chart);
+            QMenu *contains = labels->addMenu(tr("Label Contains"));
+            contains->setObjectName(QStringLiteral("labelContainsMenu"));
+            struct Part {
+                QString text;
+                bool on;
+                bool ChartLabelParts::*member;
+            };
+            const Part list[] = {{tr("Value"), parts.value, &ChartLabelParts::value}, {tr("Category Name"), parts.category, &ChartLabelParts::category},
+                                 {tr("Series Name"), parts.series, &ChartLabelParts::series}, {tr("Percentage"), parts.percent, &ChartLabelParts::percent}};
+            for (const Part &part : list)
+                check(contains, part.text, part.on, [parts, member = part.member, on = !part.on](Chart *c) {
+                    ChartLabelParts now = parts;
+                    now.*member = on;
+                    setDataLabelParts(c, now);
+                }, tr("Data Labels"));
+            QMenu *separator = labels->addMenu(tr("Separator"));
+            separator->setObjectName(QStringLiteral("labelSeparatorMenu"));
+            auto *separatorGroup = new QActionGroup(separator);
+            const struct { QString text, code; } separators[] = {{tr("Comma"), QString()}, {tr("Semicolon"), QStringLiteral("; ")}, {tr("Period"), QStringLiteral(". ")},
+                                                                  {tr("New Line"), QStringLiteral("\n")}, {tr("Space"), QStringLiteral(" ")}};
+            for (const auto &sep : separators)
+                choice(separator, separatorGroup, sep.text, parts.separator == sep.code, [parts, code = sep.code](Chart *c) {
+                    ChartLabelParts now = parts;
+                    now.separator = code;
+                    setDataLabelParts(c, now);
+                }, tr("Data Labels"));
+            QAction *format = labels->addAction(tr("Number Format…"));
+            connect(format, &QAction::triggered, this, [this, parts] {
+                QString code = parts.format;
+                bool ok = false;
+                if (m_chartTextAsker) ok = m_chartTextAsker(tr("Number Format"), &code);
+                else code = QInputDialog::getText(this, tr("Number Format"), tr("Format code for the numbers in the labels (leave empty to show the numbers as they are):"), QLineEdit::Normal, code, &ok);
+                if (!ok) return;
+                changePickedChart(tr("Data Labels"), [parts, code](Chart *c) {
+                    ChartLabelParts now = parts;
+                    now.format = code.trimmed();
+                    setDataLabelParts(c, now);
+                });
+            });
         }
         if (e.hasHorizontal || e.hasVertical) {
             QMenu *grid = menu->addMenu(tr("Gridlines"));

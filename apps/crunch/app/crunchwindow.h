@@ -244,6 +244,7 @@ public:
     void tableGalleryChosen(const QString &style);
     bool showTotalsMenu(qint64 row, qint64 col);
     void setSparklineAsker(std::function<bool(QString *, QString *)> asker) { m_sparklineAsker = std::move(asker); }
+    void setChartTextAsker(std::function<bool(const QString &, QString *)> asker) { m_chartTextAsker = std::move(asker); }
     void setDateAxisAsker(std::function<bool(QString *)> asker) { m_dateAxisAsker = std::move(asker); }
     void setAxisValueAsker(std::function<bool(bool, double *)> asker) { m_axisValueAsker = std::move(asker); }
     void setTableMakeAsker(std::function<bool(QString *, bool *)> asker) { m_tableMakeAsker = std::move(asker); }
@@ -737,6 +738,7 @@ private:
     void changeSparklineGroups(const std::function<void(jp::office::sheet::SparklineGroup *)> &change, const QString &text);
     bool makeSparklines(const QString &data, const QString &where, QVector<jp::office::sheet::Sparkline> *out, QString *why) const;
     std::function<bool(QString *, QString *)> m_sparklineAsker;   // test hook: the data and the cells of sparklines being made or edited
+    std::function<bool(const QString &, QString *)> m_chartTextAsker;   // test hook: a short text asked for a chart (the title says what)
     std::function<bool(QString *)> m_dateAxisAsker;                // test hook: the cells of dates for a sparkline's date axis (empty: a general axis)
     std::function<bool(bool, double *)> m_axisValueAsker;          // test hook: the custom minimum (true) or maximum of a sparkline axis
     // pointing at cells while a formula is typed (crunchwindow_point.cpp): a click or a drag writes the cells' address (a header, whole rows or columns), the arrow keys move a pointer,

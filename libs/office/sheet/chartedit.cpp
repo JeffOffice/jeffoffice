@@ -253,6 +253,41 @@ void setDataLabels(Chart *chart, bool shown, const QString &position)
         }
 }
 
+ChartLabelParts labelPartsOf(const Chart &chart)
+{
+    ChartLabelParts out;
+    for (const ChartPlot &p : chart.plots)
+        for (const ChartSeries &s : p.series)
+            if (s.labels.shown()) {
+                out.value = s.labels.value;
+                out.category = s.labels.category;
+                out.series = s.labels.series;
+                out.percent = s.labels.percent;
+                out.separator = s.labels.separator;
+                out.format = s.labels.format;
+                return out;
+            }
+    return out;
+}
+
+void setDataLabelParts(Chart *chart, const ChartLabelParts &parts)
+{
+    const bool any = parts.value || parts.category || parts.series || parts.percent;
+    for (ChartPlot &p : chart->plots)
+        for (ChartSeries &s : p.series) {
+            if (!any) {
+                s.labels = ChartDataLabels();
+                continue;
+            }
+            s.labels.value = parts.value;
+            s.labels.category = parts.category;
+            s.labels.series = parts.series;
+            s.labels.percent = parts.percent;
+            s.labels.separator = parts.separator;
+            s.labels.format = parts.format;
+        }
+}
+
 // ---- colors and looks
 
 namespace {

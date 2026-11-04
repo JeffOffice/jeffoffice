@@ -60,6 +60,15 @@ QStringList labelPositionsFor(const Chart &chart);
 // Labels of the values on every series (`position` empty: the usual), or none.
 void setDataLabels(Chart *chart, bool shown, const QString &position = QString());
 
+// What the data labels hold: the value, the category's name, the series' name, and the percentage, with what stands between them ("" for the usual comma and space) and a number format
+// ("" for the values' own). Read from the first series that has labels; set on every series: one that has none gets labels in the usual place, and none chosen takes the labels away.
+struct ChartLabelParts {
+    bool value = false, category = false, series = false, percent = false;
+    QString separator, format;
+};
+ChartLabelParts labelPartsOf(const Chart &chart);
+void setDataLabelParts(Chart *chart, const ChartLabelParts &parts);
+
 // ---- colors and looks of our own
 int chartColorSchemeCount();
 QString chartColorSchemeName(int index);
