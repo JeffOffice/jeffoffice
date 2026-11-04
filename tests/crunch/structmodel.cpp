@@ -515,6 +515,13 @@ struct Live {
         if (!loader.result()) return true;
         QElapsedTimer waited;
         waited.start();
+        // (a step that let go of what Undo held gave the window a purge to do on a timer: it is done now, and not between the worker's last pass and the reading of the cells, where it makes the worker go on)
+        while (session()->purgeSome(qint64(1) << 40)) {}
+        // (a change the window made is a pass the worker has yet to begin, though it is idle and nothing is dirty: it is begun, and ended, before the cells are read; a pass that begins while they are read shows cells half worked out)
+        if (!waitFor([&] { return lastEpoch >= loader.changesMade(); }, 60000)) {
+            problem = QStringLiteral("the worker had not told of the last change after 60 s");
+            return false;
+        }
         for (;;) {
             QCoreApplication::processEvents(QEventLoop::AllEvents, 2);
             QThread::usleep(500);
