@@ -12,3 +12,9 @@ After **OK** the **Function Arguments** dialog opens for the function, to fill i
 ## Messages on cells
 
 A cell that has a rule for what may be entered can also have a message (a title and a sentence). It shows beside the cell while the cell is the one selected. Lists that read cells of another sheet work too.
+
+## Functions by kind
+
+The **Function Library** group of the Formulas tab also has a button for each kind of function: **Financial**, **Logical**, **Text**, **Date & Time**, **Lookup & Reference**, **Math & Trig**, and **More Functions** (statistical, engineering, information, and database). Each opens a list of its functions. Rest the pointer on a name to read what it does. Choose one, and the **Function Arguments** dialog opens for it.
+
+**Recently Used** lists the last ten functions you picked, newest first.

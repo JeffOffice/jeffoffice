@@ -1,5 +1,5 @@
 # Notes and links
-<!-- keywords: note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation -->
+<!-- keywords: note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables -->
 
 ## Notes
 
@@ -29,3 +29,7 @@ Rest the pointer on a cell with a link to see where it goes. To follow it, hold 
 JeffCrunch never opens anything by itself. A web page or an e-mail address opens in your usual program when you follow its link. A link to a file, or to another kind of address, asks you first. A link that would run a script is never opened.
 
 A link goes with its cell when rows or columns are inserted or deleted, and when cells are sorted, and it is saved with the workbook.
+
+## Workbook Statistics
+
+**Workbook Statistics** (**Review** tab) counts what the workbook holds: how many **Sheets** it has, how many **Cells with data** (cells that hold a number, text, or a formula), how many **Formulas**, how many **Charts**, and how many **Pivot tables**. Sheets you deleted are not counted. The same numbers are on the **Info** page of the File tab.
