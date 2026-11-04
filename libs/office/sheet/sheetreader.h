@@ -386,6 +386,8 @@ public:
     // The slicers' and timelines' caches the workbook names (as the file has them), and the slicers or timelines a sheet has (by the sheet's relationships), each part read once.
     QVector<SlicerCache> slicerCaches() const;
     QVector<SlicerView> slicerViews(int sheet) const;
+    // The slicer parts this session has written with a choice of their own: they are looked at again at each save (Undo may bring the table back to what the file had before).
+    QSet<QString> &slicerPartsWritten() const { return m_slicerPartsWritten; }
     // The parts of the pivot tables and caches that are not as the file has them, as they would be written, by the part's name.
     std::map<QString, QByteArray> changedPivotParts() const;
     std::map<QString, std::function<QByteArray()>> changedPivotPartProducers() const;
@@ -470,6 +472,10 @@ private:
     bool m_formatLimitHit = false;
     qint64 m_placeComparisons = 0;
     WorkbookInfo m_info;
+    mutable QSet<QString> m_slicerPartsWritten;
+    mutable bool m_slicerCachesRead = false;           // (the package changes only when a save makes a new one: they are read again then)
+    mutable QVector<SlicerCache> m_slicerCaches;
+    mutable QHash<int, QVector<SlicerView>> m_slicerViews;
     SharedStrings m_shared;
     QString m_sharedError;
     Styles m_styles;

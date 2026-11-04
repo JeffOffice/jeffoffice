@@ -4,11 +4,16 @@
 
 #include "sheet/pivot.h"
 
+#include <map>
+
 #include <QByteArray>
+#include <QSet>
 #include <QString>
 #include <QVector>
 
 namespace jp::office::sheet {
+
+class Workbook;
 
 constexpr qint64 kMaxSlicerItems = kPivotMaxItemsPerField;   // the items of one slicer (it has at most one for each item of its field)
 constexpr int kMaxSlicerTables = 5000;                       // the tables one slicer filters
@@ -22,6 +27,7 @@ struct SlicerItem {
 
 struct SlicerCache {
     bool timeline = false;
+    QString part;                                    // (set by the workbook) the part it was read from
     QString name, sourceName;                        // the cache's name, and the field it filters
     struct Connection {
         int tabId = -1;                              // the sheet the table is on (as the file numbers sheets)
@@ -51,5 +57,21 @@ bool readSlicerViews(const QByteArray &xml, QVector<SlicerView> *out);
 
 // Puts a slicer's choice on a table's field: the items it does not choose are hidden, as the checks of the items are (nothing chosen is everything chosen). False if the field is not the slicer's.
 bool pivotApplySlicer(PivotTable *table, const PivotCache &cache, int field, const SlicerCache &slicer);
+
+// The items of a table's field that show now, by their place among the cache field's shared items (all of them when the table lists no items of the field): a slicer's choice is the table's.
+QSet<qint32> pivotShownItems(const PivotTable &table, const PivotCache &cache, int field);
+// Whether two choices are the same to a slicer: none chosen and all chosen are the same (nothing is filtered).
+bool slicerSameChoice(const QSet<qint32> &a, const QSet<qint32> &b, qint64 itemCount);
+// The part of a slicer cache with its items chosen as `selected`: only the `s` attributes of the items change, the rest of the part is as it was (byte for byte). Empty for a part that is not
+// UTF-8 (a byte order mark of UTF-16, or another encoding declared), which is left as it is.
+QByteArray patchSlicerSelection(const QByteArray &xml, const QSet<qint32> &selected);
+
+// ---- a workbook's slicers
+// How many slicer, timeline, and slicer-list parts have been read, in all (for tests: a part is read once however many relationships name it).
+int slicerPartsParsed();
+// The tables a slicer cache filters, found by name, and the field of each that the slicer reads (by the cache field's name): pairs of (the table's place, the field's place).
+QVector<std::pair<int, int>> slicerTargets(const Workbook &book, const SlicerCache &slicer);
+// The slicer parts the tables' items change: for each slicer cache whose choice (the items its first table shows) is not the file's, the part with the choice put in, by the part's name.
+std::map<QString, QByteArray> slicerPartPatches(const Workbook &book);
 
 } // namespace jp::office::sheet

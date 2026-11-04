@@ -60,6 +60,8 @@ class QSlider;
 class QVBoxLayout;
 class QToolButton;
 namespace jp {
+
+class SlicerPane;
 class OutlineGutter;
 }
 class QUrl;
@@ -247,6 +249,8 @@ public:
     void setTableSizeAsker(std::function<bool(jp::office::sheet::CellRange *)> asker) { m_tableSizeAsker = std::move(asker); }
     // test hook: the cells or table the new pivot table is made from, whether it goes on a sheet of its own, and where on a sheet (a cell, with the sheet's name before it if it is another)
     void setPivotCreateAsker(std::function<bool(QString *, bool *, QString *)> asker) { m_pivotCreateAsker = std::move(asker); }
+    SlicerPane *slicerPane() const { return m_slicerPane; }
+    int slicerFills() const { return m_slicerFills; }   // (for tests: how many times the pane was filled)
     void setPivotOptionsAsker(std::function<bool(bool *)> asker) { m_pivotOptionsAsker = std::move(asker); }   // test hook: whether a click writes GETPIVOTDATA
     void setPivotSourceAsker(std::function<bool(QString *)> asker) { m_pivotSourceAsker = std::move(asker); }
     void setValueFieldAsker(std::function<bool(QString *, QString *)> asker) { m_valueFieldAsker = std::move(asker); }
@@ -770,6 +774,8 @@ private:
     // pivot tables (crunchwindow_pivot.cpp): the Pivot Table tab, the fields pane, and the commands that refresh and change a table
     void createPivotActions();
     void pivotRibbonParts(RibbonParts &parts);
+    void showSlicers(bool show);                               // the Slicers pane
+    void fillSlicers();
     void updatePivotFieldActions();                           // the commands that work on a pivot table's cell are on only with the cursor in one
     void updatePivotTab();                                     // the Pivot Table tab shows for a cell in a pivot table; the fields pane shows that table
     int selectedPivot() const;                                 // the pivot table the cursor is in, or -1
@@ -1073,6 +1079,11 @@ private:
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
     QString m_path;
+    SlicerPane *m_slicerPane = nullptr;
+    QDockWidget *m_slicerDock = nullptr;
+    bool m_slicerFilling = false;
+    quintptr m_slicersStamp = 0;   // the pivot tables as the pane last showed the slicers of
+    int m_slicerFills = 0;
     QString m_saveFileName;   // the file name of the save being made (a pivot chart's name in the file has it)
     QString m_untitled;       // the name of a workbook that has no file yet ("Book1")
     bool m_blank = false;     // the workbook is a new one (made by newBlank) that has not been saved

@@ -165,7 +165,13 @@ Click a cell in a pivot table and choose **Insert**, then **Pivot Chart**. JeffC
 
 ## Slicers and timelines
 
-A slicer is a set of buttons that filters a pivot table, and a timeline is a slider that does the same for dates. JeffCrunch keeps both in the file as they were saved, but does not show or change them yet.
+A slicer is a set of buttons that filters a pivot table, and a timeline is a slider that does the same for dates.
+
+Click a cell in a pivot table, then click **Slicers** on the Pivot Table tab. The Slicers pane opens and lists the slicers and timelines in the workbook. A slicer has one button for each item of its field. The buttons that are blue are the items the table shows.
+
+Click a button to show only that item. Click it again to show all the items. Hold **Ctrl** and click to add an item to the ones shown, or to take one away. Each click is one step of Undo, and Undo puts the table back. When you save, the file keeps the slicer's choice.
+
+**Report Connections** says which pivot tables a slicer filters. A timeline shows the span of dates it chose. JeffCrunch shows the slicers in this pane, not over the cells, and it does not change a timeline yet. Both are kept in the file as they were saved.
 
 ## Limits
 

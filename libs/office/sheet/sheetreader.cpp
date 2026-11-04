@@ -2948,6 +2948,9 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
 {
     const int strings = counts.strings, numberFormats = counts.numberFormats, cellFormats = counts.cellFormats;
     m_package = package;
+    m_slicerCachesRead = false;   // (the parts are those of the file just written)
+    m_slicerCaches.clear();
+    m_slicerViews.clear();
     // (the drawings of header pictures and their images are read again from the file just written)
     {
         QMutexLocker lock(&m_headerImages->mutex);
@@ -2971,6 +2974,12 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
             t.fileCol2 = t.col2;
             t.fileTotalsRows = t.totalsRows;
         }
+    }
+    if (m_pivotBook) {
+        // (the pivot tables and caches the file has are those just written)
+        QStringList names;
+        for (const SheetEntry &e : m_info.sheets) names.append(e.deleted ? QString() : e.name);
+        m_pivotBook->markSaved(names);
     }
     m_sharedInFile += strings;
     m_formatsInFile += cellFormats;
