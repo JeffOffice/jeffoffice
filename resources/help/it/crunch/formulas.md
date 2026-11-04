@@ -1,66 +1,74 @@
-# Come vengono visualizzate e calcolate le formule
-<!-- keywords: formula, formule, calcolo, calcolare, ricalcolare, ricalcolo, funzione, funzioni, valore, risultato, memorizzato, F9, circolare, riferimento circolare, mostra formule, barra della formula, errore, indicare, puntare, fare clic su una cella, riferimento, F4, riferimento assoluto -->
+# Come vengono mostrate e calcolate le formule
+<!-- keywords: formula, formule, calcolo, calcolare, ricalcolare, funzione, funzioni, valore, risultato, memorizzato, F9, circolare, mostra formule, barra della formula, errore, punto, puntamento, clic su una cella, riferimento, F4, calcolo, somma -->
 
-Una **formula** è una cella che calcola il proprio valore a partire da altre celle, ad esempio =SOMMA(B3:B8). La cella mostra il valore, mentre la **barra della formula** mostra la formula.
+Una **formula** è una cella che ricava il proprio valore da altre celle, come =SOMMA(B3:B8). La cella mostra il valore e la **barra della formula** mostra la formula.
 
-## Come JeffCrunch gestisce le formule
+## Che cosa fa JeffCrunch con le formule
 
-Quando apri una cartella di lavoro, il file contiene l'ultimo valore di ogni formula, quindi il foglio può essere visualizzato subito. Poi JeffCrunch ricalcola tutte le formule, poche alla volta, in modo che la finestra resti reattiva. Durante l'operazione la barra di stato mostra **Calcolo in corso** con una percentuale. Al termine, le celle contengono i risultati calcolati da JeffCrunch. Per ricalcolare tutto, fai clic su **Ricalcola tutto** nella scheda **Formule** oppure premi **F9**.
+Quando apri una cartella di lavoro, il file contiene l'ultimo valore di ogni formula, così il foglio può essere mostrato subito. Poi JeffCrunch calcola di nuovo ogni formula, qualche formula alla volta, in modo che la finestra resti rapida. La barra di stato indica **Calcolo in corso** con una percentuale mentre lavora. Al termine, le celle contengono i risultati di JeffCrunch. Per calcolare di nuovo tutto, fai clic su **Ricalcola tutto** nella scheda **Formule**, oppure premi **F9**.
 
 ## Quando JeffCrunch non riesce a calcolare una formula
 
-JeffCrunch dispone di oltre 200 funzioni e il loro numero continua a crescere. Una formula che usa una funzione non ancora disponibile in JeffCrunch mantiene il valore memorizzato nel file. Lo stesso vale per una formula che fa riferimento a un'altra cartella di lavoro. Le celle che dipendono da queste formule vengono calcolate a partire dai valori memorizzati.
+JeffCrunch dispone di più di 400 funzioni, e il loro numero è in crescita. Una formula che usa una funzione non ancora disponibile in JeffCrunch conserva il valore memorizzato nel file. Lo stesso vale per una formula che fa riferimento a un'altra cartella di lavoro. Le celle che dipendono da queste formule vengono calcolate a partire dai valori memorizzati.
 
-## RESTO: il resto della divisione
+## Funzioni che richiedono alcune note
 
-**RESTO(n; d)** restituisce ciò che resta di **n** dopo averne sottratto il maggior numero possibile di multipli interi di **d**: equivale a n - d * INT(n / d). Esempio: **=RESTO(10; 3)** dà 1, e **=RESTO(-10; 3)** dà 2, perché INT(-10 / 3) è -4 e -10 - 3 * -4 è 2. Il risultato ha lo stesso segno di **d**. Se **d** è 0, il risultato è #DIV/0!.
+- **Obbligazioni e prestiti.** PREZZO, REND, DURATA, PREZZO.PRIMO.DIS e le altre funzioni sulle obbligazioni contano i giorni secondo la **base** indicata (0 significa 30 giorni al mese in un anno di 360 giorni, 1 significa giorni effettivi, e così via). REND, REND.PRIMO.IRR, REND.ULTIMO.IRR e TASSO trovano il risultato provando dei valori finché il prezzo o la rata coincidono. Si fermano quando la risposta è corretta fino a circa 15 cifre, quindi le ultime cifre possono differire da quelle di un altro programma.
+- **Distribuzioni e test.** Le funzioni che terminano in .DIST, .INV, .TEST, e i nomi più vecchi come DISTRIB.NORM e DISTRIB.T, danno gli stessi risultati: un nome precedente viene mantenuto affinché i file vecchi continuino a funzionare. Anche le funzioni *.INV si trovano provando dei valori.
+- **Elenchi che riempiono più celle.** ORDINA, ORDINA.PER, FILTRA, UNICI, SEQUENZA, MATR.CASUALE, CERCA.X, MMULT, MATR.INVERSA e REGR.LIN restituiscono un blocco di valori. Inseriscili come formula matriciale (**Ctrl+Maiusc+Invio**) sulle celle che devono riempire. Non è ancora possibile far riempire alle formule le celle vicine in modo automatico.
+- **Testi in altri alfabeti.** LUNGHEZZAB, SINISTRAB, STRINGA.ESTRAI.B, DESTRAB, TROVAB, RICERCAB e SOSTITUISCIB contano ogni carattere come uno, come avviene su un computer non configurato per il testo a doppio byte. FONETICO restituisce il testo della cella, perché JeffCrunch non conserva le letture del testo giapponese.
+- **CONVERTI.** Le unità si scrivono come testo, con lettere maiuscole e minuscole come indicato nell'elenco della funzione: "kg", "lbm", "mi", "F". Un prefisso metrico può precedere un'unità che lo accetta, come "km" o "mL".
+
+## MOD: il resto
+
+**MOD(n; d)** restituisce ciò che resta di **n** dopo aver tolto il maggior numero intero di volte di **d**: è n - d * INT(n / d). Esempio: **=MOD(10; 3)** dà 1, e **=MOD(-10; 3)** dà 2, perché INT(-10 / 3) è -4 e -10 - 3 * -4 è 2. Il risultato ha il segno di **d**. Se **d** è 0, il risultato è #DIV/0!.
 
 ## Mostrare le formule
 
-Fai clic su **Mostra formule** nella scheda **Formule** oppure premi **Ctrl+`** (su Mac, il tasto Ctrl, non il tasto Comando) per vedere in ogni cella la formula al posto del valore. Le colonne che contengono formule vengono allargate, entro un certo limite, in modo che le formule siano visibili per intero; quando disattivi l'opzione tornano alla larghezza originale, e le larghezze salvate nel file non vengono modificate.
+Fai clic su **Mostra formule** nella scheda **Formule**, oppure premi **Ctrl+'** (su Mac, il tasto Control e non il tasto Command), per vedere la formula di ogni cella al posto del suo valore. Le colonne che contengono formule vengono allargate, fino a un certo limite, in modo che le formule si vedano per intero; tornano alla larghezza originale quando disattivi l'opzione, e le larghezze del file non vengono modificate.
 
 ## Modificare le formule
 
-Per modificare una formula, seleziona la cella, premi **F2**, modifica la formula e premi **Invio**. Puoi anche modificarla nella barra della formula. Quando modifichi una cella, le formule che dipendono da essa vengono ricalcolate in background. Vedi [Digitare nelle celle](edit-cells).
+Per modificare una formula, seleziona la sua cella, premi **F2**, modificala e premi **Invio**. Puoi anche modificarla nella barra della formula. Quando cambi una cella, le formule che ne dipendono vengono ricalcolate in background. Vedi [Digitare nelle celle](edit-cells).
 
 ## Scrivere una formula
 
-Digita **=** e le prime lettere di una funzione: compare un breve elenco con le funzioni e i [nomi](names) che iniziano in quel modo, ciascuno con una breve descrizione. Premi **Tab** per inserire l'elemento evidenziato. Usa i tasti **Freccia giù** e **Freccia su** per evidenziarne un altro, quindi premi **Tab** o **Invio**. **Esc** chiude l'elenco. Quando il cursore si trova tra le parentesi di una funzione, sotto la cella vengono mostrati i suoi argomenti, con quello che stai digitando in grassetto. L'elenco e gli argomenti sono gli stessi mostrati da **Scegli una funzione**. Gli argomenti sono separati da virgole oppure, nelle lingue che usano la virgola come separatore decimale, come l'italiano, da punti e virgola.
+Digita **=** e le prime lettere di una funzione: compare un breve elenco delle funzioni e dei [nomi](names) che iniziano in quel modo, con una frase per ciascuno. Premi **Tab** per scegliere quella evidenziata. Usa le frecce **Giù** e **Su** per evidenziarne un'altra, poi **Tab** o **Invio**. **Esc** chiude l'elenco. Quando sei dentro le parentesi di una funzione, i suoi argomenti compaiono sotto la cella, con quello che stai digitando in grassetto. L'elenco e gli argomenti sono gli stessi mostrati da **Scegli una funzione**. Gli argomenti sono separati da virgole, o da punti e virgola dove la tua lingua usa la virgola come separatore decimale.
 
-## Indicare le celle
+## Puntare alle celle
 
-Invece di digitare l'indirizzo di una cella, puoi indicarla. Mentre digiti una formula, posiziona il cursore in un punto in cui può essere inserita una cella (subito dopo **=**, un operatore come **+**, una parentesi aperta o un separatore di argomenti) e fai clic sulla cella. Il suo indirizzo viene inserito automaticamente. Trascina su più celle per inserire un intervallo come B2:D5. Se fai di nuovo clic prima di digitare altro, la nuova cella sostituisce quella appena inserita. Tieni premuto **Ctrl** e fai clic per aggiungere un altro indirizzo dopo un separatore. Fai clic sulla lettera di una colonna per inserire un'intera colonna, ad esempio A:A, oppure sul numero di una riga per inserire un'intera riga, ad esempio 3:3; trascina lungo le lettere o i numeri per ottenere B:D o 2:5.
+Invece di digitare l'indirizzo di una cella, puoi indicarla. Mentre digiti una formula, posiziona il cursore dove può andare una cella (subito dopo **=**, dopo un operatore come **+**, una parentesi aperta o una virgola) e fai clic sulla cella. Il suo indirizzo viene scritto al posto tuo. Trascina sulle celle per scrivere un intervallo come B2:D5. Fai di nuovo clic prima di digitare altro, e la nuova cella sostituisce quella appena scritta. Tieni premuto **Ctrl** e fai clic per aggiungere un altro indirizzo dopo una virgola. Fai clic su una lettera di colonna per scrivere un'intera colonna come A:A, oppure su un numero di riga per scrivere un'intera riga come 3:3, e trascina lungo le lettere o i numeri per B:D o 2:5.
 
-Funzionano anche i tasti di direzione. Premi una freccia: un puntatore si sposta dalla cella in cui stai digitando e il suo indirizzo viene inserito; premi altre frecce per spostarlo ancora, oppure tieni premuto **Maiusc** per estendere il puntatore su un intervallo. La barra di stato mostra **Indica** quando i tasti di direzione indicano le celle, **Invio** mentre digiti e **Modifica** quando i tasti di direzione spostano il cursore nel testo. Premi **F2** per passare dall'indicazione delle celle alla modifica del testo e viceversa.
+Anche i tasti freccia funzionano. Premi una freccia e un puntatore si sposta lontano dalla cella in cui stai scrivendo, e il suo indirizzo viene scritto; premi altre frecce per continuare, oppure tieni premuto **Maiusc** per estendere il puntatore su un intervallo. La barra di stato indica **Punta** mentre i tasti freccia puntano, **Invio** mentre digiti, e **Modifica** mentre i tasti freccia spostano il cursore nel testo. Premi **F2** per passare dalla modalità di puntamento a quella di modifica del testo.
 
-Per indicare una cella in un altro foglio, fai clic sulla scheda di quel foglio mentre il cursore si trova in un punto in cui può essere inserita una cella, quindi fai clic sulla cella. Insieme all'indirizzo viene inserito anche il nome del foglio, tra virgolette se necessario, come in 'Il mio foglio'!B3. **Invio** ti riporta al foglio di partenza e inserisce la formula nella sua cella. **Esc** annulla tutto, compreso il cambio di foglio.
+Per puntare a una cella di un altro foglio, fai clic sulla scheda di quel foglio mentre il cursore è dove può andare una cella, e poi fai clic sulla cella. Il nome del foglio viene scritto insieme all'indirizzo, tra apici quando serve, come in 'Il mio foglio'!B3. **Invio** ti riporta al foglio da cui sei partito e inserisce la formula nella sua cella. **Esc** annulla tutto, compreso il cambio di foglio.
 
-Puoi anche trascinare il bordo di un intervallo evidenziato nel foglio per spostare il relativo indirizzo, oppure trascinarne il quadratino d'angolo per estenderlo; la formula si aggiorna durante il trascinamento.
+Puoi anche trascinare il bordo di un blocco evidenziato sul foglio per spostare quell'indirizzo, oppure trascinare il suo quadratino d'angolo per allargarlo: la formula cambia mentre trascini.
 
-Premi **F4** con il cursore all'interno o subito dopo un indirizzo per bloccarne alcune parti con il simbolo del dollaro: A1 diventa $A$1, poi A$1, poi $A1 e infine di nuovo A1.
+Premi **F4** con il cursore dentro o subito dopo un indirizzo per bloccarne parti con il segno del dollaro: A1 diventa $A$1, poi A$1, poi $A1, e poi di nuovo A1.
 
-Ogni indirizzo della formula è colorato nel testo e le celle a cui fa riferimento sono evidenziate nel foglio con lo stesso colore, così puoi vedere a colpo d'occhio quali celle legge la formula. Un clic dopo un indirizzo completo, ad esempio =A1, conclude l'immissione e seleziona la cella su cui hai fatto clic, come avviene per qualsiasi altro testo.
+Ogni indirizzo nella formula è colorato nel testo, e le celle che nomina sono contornate sul foglio con lo stesso colore, così puoi vedere a colpo d'occhio che cosa legge la formula. Un clic dopo un indirizzo completo, come =A1, termina l'inserimento e seleziona la cella su cui hai fatto clic, come avviene per qualsiasi altro testo.
 
 ## Tabelle dati
 
-Una tabella dati (tabella di simulazione) mostra il risultato di una formula per diversi valori di una o due celle. Quando apri una cartella di lavoro che ne contiene una, JeffCrunch ne calcola le celle: in una tabella con due input, la formula si trova nella cella nell'angolo superiore sinistro della tabella, i valori da provare in orizzontale vengono inseriti nella cella di input riga e quelli in verticale nella cella di input colonna. In una tabella con un solo input, i valori sono disposti in verticale nella colonna a sinistra (e le formule si trovano nella riga sopra) oppure in orizzontale nella riga sopra (e le formule si trovano nella colonna a sinistra). Ogni cella della tabella contiene il risultato della formula, e di tutte le formule che dipendono dalla cella di input, con l'input impostato su quel valore; il resto della cartella di lavoro non viene modificato. In modalità **Automatico** le tabelle vengono calcolate insieme alle formule, e le formule che leggono le celle di una tabella vengono aggiornate di conseguenza. Non è ancora possibile creare nuove tabelle dati. Una tabella che non può essere calcolata (perché una formula che dipende dall'input usa una funzione non disponibile in JeffCrunch, oppure cambia da sola, come CASUALE o ADESSO) mantiene i valori memorizzati nel file.
+Una tabella dati (tabella di simulazione) mostra il risultato di una formula per molti valori di una o due celle. Apri una cartella di lavoro che ne contiene una, e JeffCrunch ne calcola le celle: per una tabella con due variabili, la formula si trova nella cella in alto a sinistra della tabella, i valori da provare in orizzontale vanno nella cella di input di riga e quelli in verticale nella cella di input di colonna. Per una tabella con una sola variabile, i valori vanno nella colonna a sinistra (e le formule si trovano nella riga sopra) oppure nella riga sopra (e le formule si trovano nella colonna a sinistra). Ogni cella della tabella è il risultato della formula, e di ogni formula che dipende dalla cella di input, con l'input impostato a quel valore; nient'altro nella cartella di lavoro viene modificato. In modalità **Automatica** le tabelle vengono calcolate insieme alle formule, e le formule che leggono le celle di una tabella ne seguono i valori. La creazione di nuove tabelle dati non è ancora disponibile. Una tabella che non può essere calcolata (una formula che dipende dall'input usa una funzione non disponibile in JeffCrunch, oppure cambia da sola, come CASUALE o ADESSO) mantiene i valori contenuti nel file.
 
 ## Calcolo manuale
 
 Fai clic su **Modalità di calcolo** nella scheda **Formule** per scegliere come la cartella di lavoro calcola le formule:
 
-- **Automatico** calcola le formule mentre modifichi le celle.
-- **Automatico, tabelle manualmente** funziona allo stesso modo, ma lascia invariate le celle delle tabelle dati finché non premi **F9**.
-- **Manuale** non calcola nulla, tabelle dati comprese, finché non lo richiedi. Dopo una modifica, la barra di stato mostra **Non aggiornato**. Premi **F9** (**Ricalcola tutto**) per calcolare tutto, oppure **Maiusc+F9** (**Ricalcola questo foglio**) per calcolare le formule del foglio corrente e tutto ciò che era in attesa. Una cartella di lavoro impostata su Manuale si apre con i risultati memorizzati nel file.
+- **Automatica** calcola le formule man mano che cambi le celle.
+- **Automatica, tabelle manuali** fa lo stesso, ma lascia invariate le celle delle tabelle dati finché non premi **F9**.
+- **Manuale** non calcola nulla, nemmeno le tabelle dati, finché non lo richiedi. La barra di stato indica **Non aggiornato** dopo una modifica. Premi **F9** (**Ricalcola tutto**) per calcolare tutto, oppure **Maiusc+F9** (**Ricalcola questo foglio**) per calcolare le formule del foglio in cui ti trovi, insieme a tutto ciò che era in attesa. Una cartella di lavoro impostata su Manuale si apre con i risultati contenuti nel file.
 
-L'impostazione viene salvata con la cartella di lavoro e può essere annullata come un'unica operazione.
+La scelta viene salvata con la cartella di lavoro e può essere annullata come qualsiasi altra operazione.
 
-## Formule che fanno riferimento a se stesse
+## Formule che leggono se stesse
 
-Una formula che legge il proprio risultato, direttamente o tramite altre celle, non può essere calcolata nel modo consueto. JeffCrunch lo segnala una sola volta, indica le celle coinvolte e le evidenzia nel foglio; le celle mantengono i valori che avevano. Fai clic su **Riferimenti circolari** nella scheda **Formule** per visualizzarne l'elenco, quindi fai doppio clic su una cella dell'elenco per raggiungerla.
+Una formula che legge il proprio risultato, direttamente o tramite altre celle, non può essere calcolata nel modo consueto. JeffCrunch lo segnala una sola volta, indica le celle e le contorna sul foglio; esse mantengono i valori che avevano. Fai clic su **Riferimenti circolari** nella scheda **Formule** per visualizzarne l'elenco, e fai doppio clic su una cella dell'elenco per andarci.
 
-Alcuni modelli richiedono intenzionalmente un riferimento circolare. Scegli **Calcolo iterativo delle formule circolari** nel menu **Modalità di calcolo**: le formule vengono ricalcolate ripetutamente, ciascuna leggendo i valori più recenti delle altre, finché nessun valore cambia più della quantità specificata oppure finché non viene raggiunto il numero massimo di iterazioni consentito.
+Alcuni modelli richiedono intenzionalmente un ciclo di questo tipo. Scegli **Calcolo iterativo delle formule circolari** nel menu **Modalità di calcolo**: le formule vengono calcolate più volte, ciascuna leggendo gli ultimi valori delle altre, finché nessun valore cambia più della quantità che indichi oppure non viene raggiunto il numero massimo di iterazioni impostato.
 
-## Vedere quali celle legge una formula
+## Vedere che cosa legge una formula
 
-Seleziona una cella e fai clic su **Mostra celle che alimentano questa cella** per disegnare frecce dalle celle lette dalla sua formula. Fai di nuovo clic per risalire di un altro livello. **Mostra celle che usano questa cella** disegna frecce verso le formule che leggono la cella, e ogni clic avanza di un livello. Una piccola icona a forma di pagina rappresenta una cella in un altro foglio. Vengono disegnate al massimo 2.000 frecce; se ce ne sono di più, la barra di stato lo segnala. **Rimuovi frecce** cancella le frecce, così come qualsiasi modifica alla cartella di lavoro.
+Seleziona una cella e fai clic su **Mostra celle che alimentano questa cella** per tracciare frecce dalle celle che la sua formula legge. Fai di nuovo clic per risalire di un passo. **Mostra celle che usano questa cella** traccia frecce verso le formule che leggono la cella, e ogni clic va avanti di un passo. Una piccola pagina rappresenta una cella di un altro foglio. Vengono tracciate al massimo 2.000 frecce, e la barra di stato lo segnala quando ce ne sarebbero di più. **Rimuovi frecce** le cancella, e le cancella anche qualsiasi modifica alla cartella di lavoro.

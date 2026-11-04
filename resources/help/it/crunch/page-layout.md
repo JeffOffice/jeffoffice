@@ -1,59 +1,61 @@
-# Impostare le pagine
-<!-- keywords: layout di pagina, impostazione pagina, margini, orientamento, verticale, orizzontale, carta, foglio, dimensioni, formato, area di stampa, interruzione di pagina, interruzioni, stampa titoli, titoli, ripetere righe, adatta alla pagina, adattare, griglia, intestazioni, opzioni del foglio -->
+# Imposta le pagine
+<!-- keywords: layout di pagina, margini, orientamento, verticale, orizzontale, carta, formato, dimensioni, area di stampa, interruzione di pagina, interruzioni, titoli di stampa, titoli, ripeti righe, adatta alla pagina, adatta, griglia, intestazioni, opzioni foglio, da destra a sinistra, speculare, imposta pagina, stampa, pagina, margine -->
 
-La scheda **Layout di pagina** stabilisce come un foglio viene suddiviso in pagine quando viene stampato o convertito in PDF. Ogni foglio mantiene le proprie impostazioni, che vengono salvate nella cartella di lavoro. Ogni modifica corrisponde a un passaggio che è possibile annullare.
+La scheda **Layout di pagina** stabilisce come un foglio viene suddiviso in pagine quando viene stampato o convertito in PDF. Ogni foglio conserva le proprie scelte, salvate nella cartella di lavoro. Ogni modifica è un'unica operazione che si può annullare.
 
 ## Margini, orientamento e dimensioni
 
-- **Margini** imposta lo spazio vuoto intorno alle celle. **Standard**, **Larghi** e **Stretti** sono impostazioni predefinite. **Margini personalizzati** apre la finestra di dialogo Imposta pagina, in cui è possibile digitare ciascun margine e indicare la distanza dell'intestazione e del piè di pagina dal bordo del foglio.
-- **Orientamento** può essere **Verticale** (il foglio è più alto che largo) o **Orizzontale** (più largo che alto).
-- **Dimensioni** indica il formato della carta: A4, Letter, Legal e altri. **Altre dimensioni foglio** li elenca tutti.
+- **Margini** imposta lo spazio vuoto attorno alle celle. **Standard**, **Ampi** e **Stretti** sono insiemi predefiniti. **Margini personalizzati** apre la finestra di dialogo Imposta pagina, dove è possibile digitare ciascun valore e indicare la distanza dell'intestazione e del piè di pagina dal bordo della carta.
+- **Orientamento** può essere **Verticale** (la carta è più alta che larga) oppure **Orizzontale** (più larga che alta).
+- **Dimensioni** indica il formato della carta: Letter, Legal, A4 e altri. **Altre dimensioni carta** elenca tutti i formati disponibili.
 
 ## Area di stampa
 
-Per impostazione predefinita, un foglio stampa tutto ciò che contiene qualcosa: valori, formule, celle con un bordo o un riempimento visibile e qualsiasi grafico, immagine o forma. Per stampare solo una parte:
+Per impostazione predefinita un foglio stampa tutto ciò che contiene: valori, formule, celle con bordo o riempimento visibile e qualsiasi grafico, immagine o forma. Per stampare solo una parte:
 
-1. Selezionare le celle desiderate.
-2. Scegliere **Area di stampa > Imposta area di stampa**.
+1. Seleziona le celle che ti interessano.
+2. Scegli **Area di stampa > Imposta area di stampa**.
 
-**Aggiungi selezione all'area di stampa** aggiunge un secondo blocco di celle all'area di stampa. Ogni blocco viene stampato su pagine separate. **Cancella area di stampa** torna a stampare tutto. Le righe o le colonne inserite o eliminate all'interno dell'area di stampa la modificano insieme alle celle.
+**Aggiungi selezione all'area di stampa** inserisce un secondo blocco di celle nell'area di stampa. Ogni blocco viene stampato su pagine proprie. **Cancella area di stampa** ripristina la stampa di tutto il contenuto. Le righe o le colonne inserite o eliminate all'interno dell'area di stampa la modificano insieme alle celle.
 
 ## Interruzioni di pagina
 
-Il punto in cui una pagina finisce e inizia la successiva viene calcolato in base alla carta, ai margini e alle dimensioni delle righe e delle colonne: una riga o una colonna non viene mai tagliata a metà. Per terminare una pagina prima, selezionare la cella sotto e a destra del punto in cui deve trovarsi l'interruzione e scegliere **Interruzioni > Inserisci interruzione di pagina**. Se è selezionata un'intera riga, l'interruzione viene inserita sopra di essa; se è selezionata un'intera colonna, viene inserita alla sua sinistra. **Rimuovi interruzione di pagina** elimina l'interruzione sopra o a sinistra della cella selezionata, mentre **Reimposta tutte le interruzioni di pagina** elimina tutte le interruzioni impostate. Le interruzioni di pagina impostate vengono ignorate quando un foglio viene ridotto per adattarlo alla pagina.
+Il punto in cui una pagina termina e ne inizia un'altra è calcolato in base alla carta, ai margini e alle dimensioni di righe e colonne: una riga o una colonna non viene mai tagliata a metà. Per terminare una pagina prima, seleziona la cella sotto e a destra del punto in cui deve trovarsi l'interruzione, e scegli **Interruzioni > Inserisci interruzione di pagina**. Con una riga intera selezionata, l'interruzione va sopra di essa; con una colonna intera selezionata, va a sinistra. **Rimuovi interruzione di pagina** elimina l'interruzione sopra o a sinistra della cella selezionata, e **Reimposta tutte le interruzioni di pagina** elimina tutte quelle impostate manualmente. Le interruzioni di pagina impostate vengono ignorate mentre un foglio viene adattato alla pagina.
 
 ## La visualizzazione Interruzioni di pagina
 
-**Visualizza > Interruzioni di pagina** (o il pulsante in basso a destra nella finestra) mostra il foglio suddiviso nelle pagine su cui viene stampato. Le celle stampate restano invariate, tutto il resto è ombreggiato e ogni pagina mostra il proprio numero sopra le celle. Una linea tratteggiata indica un'interruzione calcolata da JeffCrunch, mentre una linea continua indica un'interruzione impostata dall'utente.
+**Visualizza > Interruzioni di pagina** (oppure il pulsante in basso a destra della finestra) mostra il foglio suddiviso nelle pagine su cui viene stampato. Le celle che vengono stampate restano com'erano, tutto il resto è ombreggiato, e ogni pagina ha il suo numero sopra le proprie celle. Una linea tratteggiata indica un'interruzione calcolata da JeffCrunch, una linea continua un'interruzione impostata da te.
 
-- **Spostare un'interruzione.** Trascinare una linea su un'altra riga o colonna. Diventa un'interruzione impostata in quel punto e le pagine successive vengono suddivise di nuovo.
-- **Rimuovere un'interruzione.** Trascinare una linea fuori dalle celle stampate, sui numeri di riga o sulle lettere di colonna.
-- **Modificare l'area di stampa.** Trascinare il bordo blu delle celle stampate. Se non è stata impostata un'area di stampa, le celle stampate automaticamente diventano l'area di stampa, con il bordo spostato.
+- **Spostare un'interruzione.** Trascina una linea verso un'altra riga o colonna. Diventa un'interruzione impostata in quella posizione e le pagine successive vengono ricalcolate.
+- **Rimuovere un'interruzione.** Trascina una linea fuori dalle celle stampate, sui numeri di riga o sulle lettere di colonna.
+- **Modificare l'area di stampa.** Trascina il bordo blu delle celle stampate. Se non hai impostato un'area di stampa, le celle che vengono stampate da sole diventano un'area di stampa, con il bordo spostato.
 
-Ogni trascinamento corrisponde a un passaggio di Annulla. Quando un foglio viene ridotto per adattarlo alla pagina, le interruzioni vengono ignorate e quindi le linee non possono essere trascinate. **Normale** ripristina la visualizzazione normale delle celle. La visualizzazione in cui è stato lasciato ogni foglio viene salvata con la cartella di lavoro.
+Ogni trascinamento è un'operazione annullabile. Mentre un foglio viene adattato alla pagina, le sue interruzioni vengono ignorate, quindi le linee non possono essere trascinate. **Normale** riporta le celle com'erano. La visualizzazione in cui ogni foglio è stato lasciato viene salvata con la cartella di lavoro.
 
 ## La visualizzazione Layout di pagina
 
-**Visualizza > Layout di pagina** (o il pulsante centrale in basso a destra nella finestra) mostra il foglio come le pagine su cui viene stampato, una sotto l'altra, ciascuna come un foglio di carta con i propri margini e uno spazio tra le pagine. I righelli si trovano lungo il bordo superiore e il bordo sinistro. L'intestazione e il piè di pagina vengono disegnati nella posizione in cui vengono stampati, comprese le immagini che contengono.
+**Visualizza > Layout di pagina** (oppure il pulsante centrale in basso a destra della finestra) mostra il foglio come le pagine su cui viene stampato, una sotto l'altra, ciascuna come un foglio di carta con i suoi margini e uno spazio tra le pagine. Lungo il bordo superiore e lungo quello sinistro sono presenti i righelli. Intestazione e piè di pagina sono disegnati nel punto in cui verranno stampati, così come le immagini che contengono.
 
-- **Lavorare nelle celle.** Fare clic su una cella per selezionarla, trascinare per selezionarne più di una e usare i tasti di direzione, la digitazione, F2 e il doppio clic come nella Visualizzazione Normale. Il testo digitato compare in una striscia sopra la cella nella relativa pagina.
-- **Iniziare dalla scheda Inserisci.** **Inserisci > Intestazione e piè di pagina** mostra le pagine (se non sono già visualizzate) e apre la parte centrale dell'intestazione della prima pagina, pronta per la digitazione. Per digitare altrove, fare clic su un'altra parte dell'intestazione o del piè di pagina.
-- **Digitare un'intestazione o un piè di pagina.** Spostare il puntatore sul margine superiore o inferiore di una pagina: le parti sinistra, centrale e destra si evidenziano. Fare clic su una di esse e digitare. Viene visualizzata la scheda **Intestazione e piè di pagina**, con pulsanti che inseriscono il numero di pagina, il numero di pagine, la data, l'ora, la cartella e il nome del file, il nome del foglio e un'immagine; le sue opzioni consentono di assegnare intestazioni e piè di pagina distinti alla prima pagina e alle pagine pari e dispari, e di stabilire se l'intestazione si ridimensiona con le celle e si allinea ai margini. Premere **CTRL+INVIO** o fare clic in un altro punto per terminare; **ESC** annulla l'operazione. Ogni intestazione o piè di pagina completato corrisponde a un passaggio di Annulla.
-- **Zoom**: usare il dispositivo di scorrimento oppure tenere premuto **CTRL** e ruotare la rotellina del mouse.
+- **Lavorare nelle celle.** Fai clic su una cella per selezionarla, trascina per selezionarne più d'una, e usa i tasti freccia, la digitazione, F2 e il doppio clic come nella visualizzazione Normale. Ciò che digiti viene inserito in una barra sopra la cella, sulla sua pagina.
+- **Iniziare dalla scheda Inserisci.** **Inserisci > Intestazione e piè di pagina** mostra le pagine (se non sono già visibili) e apre la parte centrale dell'intestazione della prima pagina, pronta per la digitazione. Fai clic su un'altra parte dell'intestazione o del piè di pagina per digitare lì.
+- **Digitare un'intestazione o un piè di pagina.** Passa il puntatore sul margine superiore o inferiore di una pagina: le sue parti sinistra, centrale e destra si evidenziano. Fai clic su una di esse e digita. Compare la scheda **Intestazione e piè di pagina**, con pulsanti che inseriscono il numero di pagina, il numero totale di pagine, la data, l'ora, la cartella e il nome del file, il nome del foglio e un'immagine. Le sue opzioni permettono di impostare una prima pagina diversa, intestazioni e piè di pagina propri per le pagine pari e dispari, e stabiliscono se l'intestazione si adatta al contenuto delle celle e si allinea ai margini. **Intestazione** e **Piè di pagina** nella scheda sono raccolte di formati pronti, come **Pagina 1**, **Pagina 1 di ?**, il nome del foglio, il nome del file e la data. Scegliendone uno, si sostituisce l'intera intestazione o piè di pagina delle pagine in cui stai scrivendo (il testo che stavi ancora digitando non viene conservato). **(nessuna)** la svuota. **Vai a intestazione** e **Vai a piè di pagina** aprono la parte centrale di quel margine per la digitazione. Premi **Ctrl+Invio**, oppure fai clic altrove, per terminare; **Esc** annulla la modifica. Ogni intestazione o piè di pagina completata è un'operazione annullabile.
+- **Ingrandire.** Usa il cursore di zoom oppure tieni premuto **Ctrl** e ruota la rotellina del mouse.
 
-Vengono disegnate solo le pagine visibili, quindi anche un foglio di migliaia di pagine si apre immediatamente. La visualizzazione in cui è stato lasciato ogni foglio viene salvata con la cartella di lavoro.
+Vengono disegnate solo le pagine visibili, quindi un foglio di migliaia di pagine si apre subito. La visualizzazione in cui ogni foglio è stato lasciato viene salvata con la cartella di lavoro.
 
-## Stampa titoli
+## Titoli di stampa
 
-**Stampa titoli** ripete righe in alto e colonne a sinistra in ogni pagina successiva a quella in cui si trovano, in modo che una riga di intestazione compaia in ogni pagina. Digitare le righe (ad esempio **1:3**) e le colonne (ad esempio **A:B**) nella scheda Foglio della finestra di dialogo Imposta pagina.
+**Titoli di stampa** ripete le righe in alto e le colonne a sinistra su ogni pagina successiva a quella in cui si trovano, in modo che una riga di intestazione compaia su tutte le pagine. Digita le righe (ad esempio **1:3**) e le colonne (ad esempio **A:B**) nella scheda Foglio della finestra di dialogo Imposta pagina.
 
 ## Adatta alla pagina
 
-**Larghezza** e **Altezza** riducono le celle finché il foglio non supera in larghezza, o in altezza, il numero di pagine indicato. **Automatico** consente a quella direzione di occupare tutte le pagine necessarie. **Proporzioni** stampa a una percentuale delle dimensioni reali, da 10 a 400, e funziona quando Larghezza e Altezza sono entrambe impostate su **Automatico**. Se la riduzione per adattare il foglio rende il testo molto piccolo, la schermata Stampa lo segnala.
+**Larghezza** e **Altezza** riducono le celle finché il foglio non è più largo, o più alto, di quel numero di pagine. **Automatica** lascia che quella direzione usi tutte le pagine necessarie. **Scala** stampa in percentuale delle dimensioni reali, da 10 a 400, e funziona quando Larghezza e Altezza sono entrambe impostate su **Automatica**. Se la riduzione necessaria per adattare il foglio rende i caratteri molto piccoli, la schermata Stampa lo segnala.
 
-## Opzioni del foglio
+## Opzioni foglio
 
-**Mostra griglia** e **Mostra intestazioni** modificano solo la visualizzazione sullo schermo. **Stampa griglia** stampa le linee tra le celle e **Stampa intestazioni** stampa i numeri di riga e le lettere di colonna.
+**Mostra griglia** e **Mostra intestazioni** modificano solo lo schermo. **Stampa griglia** riporta sulla carta le linee tra le celle, mentre **Stampa intestazioni** riporta i numeri di riga e le lettere di colonna.
+
+**Foglio da destra a sinistra** fa leggere il foglio da destra. La colonna A passa sul bordo destro, e le colonne si contano verso sinistra. Anche i numeri di riga passano sul bordo destro. Usalo per lingue che si scrivono da destra a sinistra, come arabo ed ebraico. Cambia l'aspetto del foglio sullo schermo, e la scelta viene salvata con il foglio, quindi resta attiva quando apri di nuovo la cartella di lavoro. Non è un'operazione annullabile: per disattivarla, fai clic di nuovo sul comando.
 
 ## Altre opzioni
 

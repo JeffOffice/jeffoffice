@@ -1,14 +1,14 @@
 # Funktion auswählen
-<!-- keywords: Funktion, Funktion auswählen, Funktion einfügen, fx, Formel, Argument, Kategorie, Suche, suchen, alle Funktionen, Summe, Umschalt+F3 -->
+<!-- keywords: Funktion, Funktion auswählen, fx, Formel, Argument, Kategorie, suchen, alle Funktionen, Summe, Umschalt+F3 -->
 
-Wählen Sie auf der Registerkarte „Formeln“ **Funktion auswählen** (**Umschalt+F3**) oder im Menü **Summe** den Befehl **Alle Funktionen**.
+Wählen Sie **Funktion auswählen** auf der Registerkarte **Formeln** (**Umschalt+F3**) oder **Alle Funktionen** im Menü **Summe**.
 
-Geben Sie in das Suchfeld einen Namen ein oder beschreiben Sie, was Sie tun möchten („abrunden“, „Text verbinden“). Die Liste zeigt dann die passenden Funktionen an, wobei Namen, die mit Ihren Wörtern beginnen, zuerst stehen. Mit **Art** beschränken Sie die Liste auf Funktionen aus den Bereichen Finanzmathematik, Datum und Uhrzeit, Mathematik und Trigonometrie, Statistik, Nachschlagen und Verweisen, Text, Logik, Information oder Datenbank.
+Geben Sie in das Suchfeld einen Namen oder beschreiben Sie, was Sie tun möchten („abrunden“, „Text verbinden“). Die Liste zeigt die passenden Funktionen; Namen, die mit Ihren Wörtern beginnen, stehen zuerst. Mit **Kategorie** beschränken Sie die Liste auf Finanz-, Datums- und Uhrzeitfunktionen, Mathematik- und Trigonometriefunktionen, statistische Funktionen, Funktionen für Suchen und Verweisen, Textfunktionen, logische Funktionen, Informationsfunktionen, Datenbankfunktionen oder technische Funktionen.
 
-Wählen Sie eine Funktion aus, um zu sehen, wie sie geschrieben wird, was sie tut und welche Argumente sie hat. Ein Argument in eckigen Klammern ist optional, und „weitere gleichartige“ bedeutet, dass Sie beliebig viele davon angeben können. Klicken Sie auf **OK** (oder doppelklicken Sie auf die Funktion).
+Wählen Sie eine Funktion aus, um zu sehen, wie sie geschrieben wird, was sie bewirkt und welche Argumente sie hat. Ein Argument in eckigen Klammern ist optional. „Weitere gleichartige Argumente“ bedeutet, dass Sie so viele angeben können, wie Sie benötigen. Klicken Sie auf **OK** (oder doppelklicken Sie auf die Funktion).
 
-Nach **OK** wird das Dialogfeld **Funktionsargumente** für die Funktion geöffnet. Dort geben Sie ihre Argumente ein, und das Ergebnis wird schon während der Eingabe angezeigt (siehe [Funktion mit dem Dialogfeld „Funktionsargumente“ eingeben](function-arguments)). Mit **OK** wird die Formel dann in die Zelle geschrieben, zum Beispiel **=SUMME(A1:A3)**. Wenn Sie gerade eine Formel eingeben, wird die Funktion an der Cursorposition eingefügt. Es werden nur die Funktionen aufgelistet, die JeffCrunch berechnen kann.
+Nach **OK** öffnet sich das Dialogfeld **Funktionsargumente** für die Funktion. Dort füllen Sie die Argumente aus; das Ergebnis wird angezeigt, während Sie tippen (siehe [Funktion mit dem Dialogfeld Funktionsargumente eingeben](function-arguments)). Ein Klick auf **OK** schreibt die Formel in die Zelle, zum Beispiel **=SUMME(A1:A3)**. Wenn Sie bereits eine Formel eingeben, wird die Funktion an der Einfügemarke eingefügt. In der Liste stehen nur Funktionen, die JeffCrunch berechnen kann.
 
-## Meldungen für Zellen
+## Meldungen zu Zellen
 
-Eine Zelle, für die eine Regel festlegt, was eingegeben werden darf, kann auch eine Meldung haben (einen Titel und einen Satz). Die Meldung wird neben der Zelle angezeigt, solange diese Zelle markiert ist. Listen, die Zellen eines anderen Blatts lesen, funktionieren ebenfalls.
+Eine Zelle, für die eine Regel gilt, welche Eingaben erlaubt sind, kann zusätzlich eine Meldung (einen Titel und einen Satz) haben. Sie wird neben der Zelle angezeigt, solange die Zelle ausgewählt ist. Listen, die Zellen eines anderen Blatts auslesen, funktionieren ebenfalls.

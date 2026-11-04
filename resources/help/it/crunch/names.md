@@ -1,30 +1,32 @@
 # Nomi per celle e valori
-<!-- keywords: nome, nomi, nome definito, nuovo nome, intervallo denominato, intervallo con nome, ambito, commento, nome da celle, inserisci nome, Ctrl+F3, riferito a, riferimento -->
+<!-- keywords: nome, nomi, nome definito, nuovo nome, intervallo denominato, ambito, commento, nome da celle, inserisci nome, Ctrl+F3, si riferisce a -->
 
-Un **nome** è una parola che rappresenta una cella, un blocco di celle, un numero o una formula, in modo da poter scrivere =Prezzo*Quantità al posto di =B2*C2. Un nome appartiene all'intera cartella di lavoro oppure a un solo foglio. Su quel foglio, un nome del foglio nasconde un nome della cartella di lavoro scritto allo stesso modo.
+Un **nome** è una parola che rappresenta una cella, un intervallo di celle, un numero o una formula, in modo da poter scrivere =Prezzo*Quantità al posto di =B2*C2. Un nome appartiene all'intera cartella di lavoro oppure a un singolo foglio. Un nome presente in un foglio nasconde, su quel foglio, un nome della cartella di lavoro scritto allo stesso modo.
 
 ## Le regole per un nome
 
-- Inizia con una lettera, un carattere di sottolineatura o una barra rovesciata, e prosegue solo con lettere, cifre, caratteri di sottolineatura e punti. Non contiene spazi.
-- Contiene al massimo 255 caratteri.
+- Inizia con una lettera, un carattere di sottolineatura o una barra rovesciata, e dopo di essi contiene solo lettere, cifre, caratteri di sottolineatura e punti. Non contiene spazi.
+- Può essere lungo al massimo 255 caratteri.
 - Non è l'indirizzo di una cella, come **A1** o **R2C3**.
-- Nessun altro nome dello stesso foglio (o della cartella di lavoro) è scritto allo stesso modo, indipendentemente da maiuscole e minuscole.
+- Nello stesso foglio (o nella cartella di lavoro) non esiste già un altro nome scritto allo stesso modo, con o senza maiuscole.
 
-Durante la digitazione, la finestra di dialogo indica cosa non va e il pulsante **OK** resta disattivato.
+Mentre digiti, la finestra di dialogo indica cosa non va, e il pulsante **OK** resta disattivato.
 
 ## Creare un nome
 
-1. Selezionare le celle e fare clic su **Nuovo nome** nella scheda **Formule**.
-2. Digitare il nome, scegliere l'ambito di validità e indicare a cosa si riferisce. Le celle selezionate vengono inserite automaticamente.
+1. Seleziona le celle e fai clic su **Nuovo nome** nella scheda **Formule**.
+2. Digita il nome, scegli dove funziona e indica a cosa si riferisce. Le celle selezionate vengono inserite automaticamente.
 
-**Nome da celle** crea più nomi contemporaneamente dalle etichette intorno a un blocco: con le intestazioni nella riga superiore e i numeri sotto, ogni intestazione assegna il nome alle celle sottostanti. Scegliere dove si trovano le etichette (riga superiore, colonna sinistra, riga inferiore o colonna destra). Gli spazi e i segni che un nome non può contenere vengono sostituiti da caratteri di sottolineatura. Le etichette vuote, ripetute o corrispondenti a un nome già presente nella cartella di lavoro vengono escluse e la barra di stato ne indica il numero.
+Esiste un modo più rapido per un nome dell'intera cartella di lavoro. Seleziona le celle, fai clic sulla **Casella Nome** (a sinistra della barra della formula), digita il nome e premi **Invio**. Se non esiste ancora un nome scritto in quel modo, viene creato per le celle selezionate. Se esiste, **Invio** porta alle sue celle.
+
+**Crea da celle** crea più nomi in una sola volta a partire dalle etichette di un blocco: con le intestazioni nella riga superiore e i numeri sotto di esse, ogni intestazione dà un nome alle celle sottostanti. Scegli dove si trovano le etichette (riga superiore, colonna sinistra, riga inferiore o colonna destra). Un'etichetta che contiene spazi o caratteri non ammessi nei nomi viene modificata sostituendo tali caratteri con caratteri di sottolineatura. Un'etichetta vuota, duplicata o che corrisponde a un nome già presente nella cartella di lavoro viene ignorata, e la barra di stato indica quante ne sono state ignorate.
 
 ## Visualizzare tutti i nomi
 
-Fare clic su **Nomi** nella scheda **Formule** oppure premere **Ctrl+F3**. L'elenco mostra per ogni nome il valore attuale, l'elemento a cui fa riferimento, l'ambito di validità e il commento. Digitare nel filtro per mostrare solo i nomi corrispondenti. **Nuovo**, **Modifica** ed **Elimina** consentono di creare, modificare ed eliminare un nome. Per una cartella di lavoro con più di 20.000 nomi vengono elencati i primi 20.000.
+Fai clic su **Nomi** nella scheda **Formule**, oppure premi **Ctrl+F3**. L'elenco mostra ogni nome, il valore che ha attualmente, a cosa si riferisce, dove funziona e il suo commento. Digita nel filtro per visualizzare solo i nomi corrispondenti. **Nuovo**, **Modifica** ed **Elimina** creano, modificano o rimuovono un nome. Una cartella di lavoro con più di 20.000 nomi mostra solo i primi 20.000.
 
-Se si cambia un nome, il nome viene aggiornato in un unico passaggio in tutte le formule che lo usano, in tutti i fogli. Se si elimina un nome, le formule che lo usavano mostrano **#NOME?**. Ogni modifica può essere annullata.
+Modificare il nome di un nome lo cambia in ogni formula che lo usa, in tutti i fogli, con un unico passaggio. Eliminare un nome fa sì che le formule che lo usavano mostrino **#NOME?**. Ogni modifica può essere annullata.
 
 ## Inserire un nome in una formula
 
-Durante la digitazione di una formula, i nomi corrispondenti vengono visualizzati nell'elenco sotto la cella. **Inserisci nome** nella scheda **Formule** elenca i nomi tra cui scegliere.
+Mentre digiti una formula, i nomi corrispondenti vengono visualizzati nell'elenco sotto la cella. **Inserisci nome** nella scheda **Formule** mostra l'elenco dei nomi tra cui scegliere.

@@ -1,45 +1,47 @@
-# Guida di JeffCrunch
-<!-- keywords: sommario, guida, aiuto, argomenti, inizio, introduzione -->
+# JeffCrunch Guida
+<!-- keywords: sommario, guida, argomenti, inizio -->
 
-Digitare nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premere **F1** in qualsiasi momento per visualizzare la Guida relativa all'operazione in corso: la scheda della barra multifunzione o la pagina del menu File in cui ci si trova.
+Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione in uso o la pagina della schermata File in uso.
 
-## Introduzione
+## Per iniziare
 
-- [Benvenuti in JeffCrunch](start)
+- [Benvenuto in JeffCrunch](start)
 - [Aprire e salvare cartelle di lavoro](open-save)
+- [Info: proprietà, password e Ispeziona](info)
 - [Aprire cartelle di lavoro protette da password](open-password)
 - [Digitare nelle celle](edit-cells)
-- [Regole per il contenuto delle celle](rules)
+- [Regole per il contenuto di una cella](rules)
 
-## Esaminare una cartella di lavoro
+## Visualizzare una cartella di lavoro
 
 - [Selezionare celle e spostarsi](select-and-move)
 - [Cambiare la visualizzazione](view)
 - [Come vengono visualizzate e calcolate le formule](formulas)
 - [Nomi per celle e valori](names)
-- [Formati condizionali](conditional-formats)
+- [Formattazione condizionale](conditional-formats)
 
 ## Modificare una cartella di lavoro
 
 - [Formattare le celle](format-cells)
-- [Formati numero e lingua](number-formats)
-- [Stili cella](cell-styles)
+- [Formati numerici e lingua](number-formats)
+- [Stili di cella](cell-styles)
 - [Lavorare con i fogli](sheets)
 - [Inserire ed eliminare righe, colonne e celle](insert-delete)
-- [Modificare la larghezza delle colonne e l'altezza delle righe](sizes)
-- [Tagliare, copiare e incollare](clipboard)
-- [Riempire le celle e sommarle](fill-sum)
-- [Trovare, sostituire e andare a](find-replace)
+- [Cambiare la larghezza delle colonne e l'altezza delle righe](sizes)
+- [Taglia, copia e incolla](clipboard)
+- [Riempire celle e sommarle](fill-sum)
+- [Trova, sostituisci e vai a](find-replace)
 - [Ordinare e filtrare](sort-filter)
+- [Strumenti dati](data-tools)
 - [Tabelle](tables)
 - [Tabelle pivot](pivot-tables)
 - [Inserire una funzione](insert-function)
-- [Immettere una funzione con la finestra di dialogo Argomenti funzione](function-arguments)
+- [Inserire una funzione con la finestra Argomenti funzione](function-arguments)
 - [Grafici, immagini e forme](charts)
 - [Note e collegamenti](notes-links)
 - [Proteggere un foglio o la cartella di lavoro](protect)
 
-## Stampa
+## Stampare
 
 - [Impostare le pagine](page-layout)
 - [La finestra di dialogo Imposta pagina](page-setup)

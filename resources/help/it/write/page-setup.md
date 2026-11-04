@@ -1,29 +1,29 @@
-# Impostare la pagina
-<!-- keywords: imposta pagina, impostazione pagina, margini, margine, orientamento, verticale, orizzontale, dimensioni pagina, formato carta, carta, foglio, letter, a4, legal, rilegatura, layout, inizio sezione, nuova pagina, continua, pagina dispari, pagina pari, prima pagina diversa, pagine pari e dispari diverse, distanza intestazione, distanza piè di pagina, intero documento, questa sezione, margini personalizzati -->
+# Imposta la pagina
+<!-- keywords: imposta pagina, margini, margine, orientamento, verticale, orizzontale, formato carta, carta, letter, a4, legal, rilegatura, layout, inizio sezione, nuova pagina, continua, pagina dispari, pagina pari, prima pagina diversa, diverse pagine pari e dispari, distanza intestazione, distanza piè di pagina, intero documento, questa sezione, margini personalizzati, dimensioni pagina -->
 
-**Imposta pagina** definisce la carta, i margini e il modo in cui iniziano le pagine di una **sezione**. Un documento ha una sola sezione finché non si aggiunge un'interruzione di sezione (**Layout > Interruzioni**); ogni sezione può avere carta, margini e layout propri.
+**Imposta pagina** definisce la carta, i margini e il modo in cui iniziano le pagine di una **sezione**. Un documento ha una sola sezione finché non inserisci un'interruzione di sezione (**Layout > Interruzioni**); ogni sezione può avere una propria carta, propri margini e un proprio layout.
 
-Per aprire la finestra, in **Layout > Imposta pagina** fare clic sulla piccola freccia nell'angolo del gruppo, oppure scegliere **Margini > Imposta pagina** o **Dimensioni > Imposta pagina**. La finestra ha tre schede.
+Per aprirla, da **Layout > Imposta pagina** fai clic sulla piccola freccia nell'angolo del gruppo, oppure scegli **Margini > Imposta pagina** o **Dimensioni > Imposta pagina**. La finestra ha tre schede.
 
 ## Margini
 
-Digitare lo spazio tra il bordo della carta e il testo per i margini **Superiore**, **Inferiore**, **Sinistro** e **Destro**. La **Rilegatura** è uno spazio aggiuntivo, sommato al margine sinistro, per rilegare il documento. **Orientamento** ruota la pagina: larghezza e altezza si scambiano e i margini ruotano insieme alla pagina.
+Digita lo spazio tra il bordo del foglio e il testo per **Superiore**, **Inferiore**, **Sinistro** e **Destro**. Il **Margine di rilegatura** è spazio extra aggiunto al margine sinistro per la rilegatura. **Orientamento** ruota la pagina: larghezza e altezza si scambiano e i margini ruotano con la pagina.
 
 ## Carta
 
-Scegliere un **formato carta** (Letter, Legal, Executive, A3, A4, A5 o B5) oppure digitare una **larghezza** e un'**altezza** personalizzate. Ogni lato del foglio può misurare da 1,27 cm a 55,88 cm (da 36 a 1.584 punti). Se si digita una larghezza maggiore dell'altezza, la pagina diventa orizzontale.
+Scegli un **formato carta** (Letter, Legal, Executive, A3, A4, A5 o B5), oppure digita una **larghezza** e un'**altezza** personalizzate. La carta può avere un lato compreso tra 1,3 cm e 56 cm (da 36 a 1.584 punti). Se la larghezza digitata è maggiore dell'altezza, la pagina è orizzontale.
 
 ## Layout
 
-- **Inizio sezione** indica dove inizia la sezione: in una nuova pagina, nella stessa pagina (**Continua**) oppure nella successiva pagina pari o dispari. L'inizio della prima sezione viene mantenuto, ma non ha alcun effetto.
+- **Inizio sezione** indica dove inizia la sezione: su una nuova pagina, nella stessa pagina (**Continua**), oppure sulla pagina pari o dispari successiva. L'inizio della prima sezione viene mantenuto ma non ha effetto.
 - **Prima pagina diversa** assegna alla prima pagina della sezione un'intestazione e un piè di pagina propri.
-- **Pagine pari e dispari diverse** assegna alle pagine dispari e alle pagine pari intestazioni e piè di pagina propri. L'opzione vale per l'intero documento.
-- **Intestazione** e **Piè di pagina** indicano a quale distanza dal bordo della carta iniziano.
+- **Pagine pari e dispari diverse** assegna alle pagine dispari e pari intestazioni e piè di pagina propri. Si applica all'intero documento.
+- **Intestazione** e **Piè di pagina** indicano a quale distanza dal bordo del foglio iniziano.
 
 ## Applica a
 
-Scegliere **Questa sezione** (la sezione in cui si trova il cursore) oppure **Intero documento**. Vengono applicate solo le modifiche effettuate: se si cambiano i margini dell'intero documento, la carta e l'orientamento di ogni sezione restano invariati. I margini che lascerebbero in una pagina meno di 1,3 cm di spazio per il testo vengono ridotti di conseguenza.
+Scegli **Questa sezione** (la sezione in cui si trova il cursore) oppure **Intero documento**. Vengono applicate solo le modifiche effettuate, quindi cambiare i margini dell'intero documento lascia invariati la carta e l'orientamento di ogni sezione. I margini che lascerebbero meno di 1,3 cm di testo su una pagina vengono ridotti per adattarsi.
 
-Tutte le modifiche effettuate nella finestra si annullano con un solo passaggio, qualunque sia il numero delle sezioni.
+Tutto ciò che si modifica nella finestra si annulla con un solo passaggio, indipendentemente dal numero di sezioni.
 
-I comandi rapidi sulla barra multifunzione (**Margini**, **Orientamento**, **Dimensioni** e **Colonne**) modificano la sezione in cui si trova il cursore.
+I comandi rapidi della barra multifunzione (**Margini**, **Orientamento**, **Dimensioni** e **Colonne**) modificano la sezione in cui si trova il cursore. **Margini > Margini personalizzati** e **Dimensioni > Altri formati carta…** aprono questa finestra. Per interruzioni, colonne, sillabazione e numerazione delle righe, vedi [Interruzioni, colonne, sillabazione e numerazione delle righe](breaks-columns).
