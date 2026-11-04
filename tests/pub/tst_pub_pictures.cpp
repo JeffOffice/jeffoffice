@@ -1,5 +1,6 @@
 // JeffPub's tests of pictures: linked, online, dropped, and the building blocks.
 #include "pubhelpers.h"
+#include "../isolatesettings.h"
 
 class PubPictureTests : public QObject {
     Q_OBJECT
@@ -504,7 +505,7 @@ private Q_SLOTS:
     // gallery looked).
     void savedBuildingBlocksInsert()
     {
-        QStandardPaths::setTestModeEnabled(true);   // a test folder, not the real one
+        jptest::TestModeGuard testMode;   // a test folder, not the real one
         QDir(jp::userBlocksDir()).removeRecursively();
         jp::MainWindow w;
         jp::Editor *ed = w.editor();
@@ -533,7 +534,6 @@ private Q_SLOTS:
         QVERIFY(made && made->id != box->id);
         QCOMPARE(ed->doc()->storyDoc(made->storyId)->toPlainText(), QStringLiteral("Block text"));
         QDir(jp::userBlocksDir()).removeRecursively();
-        QStandardPaths::setTestModeEnabled(false);
     }
 
     // A picture field shows each record's picture in the preview, printing,

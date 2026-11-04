@@ -152,6 +152,14 @@ void scanZipEach(const QByteArray &zip, const std::function<void(ZipScanEntry &)
                 if (qint64(n) > allowed) e.problem = QStringLiteral("too large");
                 else e.data = zip.mid(dataAt, n);
                 e.whole = e.problem.isEmpty() && n == qsizetype(csize) && (crc == 0 || !sizesKnown || jp::crc32(e.data) == crc);
+                // A size that stays inside the file but is not the entry's (its bytes do not match) may run over the entries after it: it ends at the next entry's header, and the scan goes on.
+                if (!e.whole && e.problem.isEmpty() && n > 0) {
+                    const qsizetype nextHeader = zip.indexOf(QByteArrayView(sig, 4), dataAt);
+                    if (nextHeader >= 0 && nextHeader - dataAt < n) {
+                        n = nextHeader - dataAt;
+                        e.data = zip.mid(dataAt, n);
+                    }
+                }
                 if (e.problem.isEmpty() && !e.whole) e.problem = n < qsizetype(csize) ? QStringLiteral("cut short") : QStringLiteral("damaged");
                 next = dataAt + n;
             }

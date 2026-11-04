@@ -387,6 +387,23 @@ private Q_SLOTS:
         QVERIFY(report.dropped.first().contains(QLatin1String("junk.bin")));
     }
 
+    // A stored entry whose size stays inside the file but runs over the entries after it ends at the next entry's header: those entries are found whole.
+    void aLyingSizeInsideTheFileDoesNotSwallowTheEntriesAfterIt()
+    {
+        QByteArray zip = zipOf({{QStringLiteral("first.bin"), QByteArray(40, 'f')}, {QStringLiteral("second.txt"), "second entry"}, {QStringLiteral("third.txt"), "third entry"}}, false);
+        const quint32 truth = qFromLittleEndian<quint32>(zip.constData() + 18);
+        QCOMPARE(truth, quint32(40));
+        // (the size says 150 bytes: that is inside the file, and covers the second and the third entries' headers)
+        qToLittleEndian<quint32>(150u, zip.data() + 18);
+        qToLittleEndian<quint32>(150u, zip.data() + 22);
+        QVERIFY(150 < zip.size() - 30);
+        const QVector<jp::ZipScanEntry> found = jp::scanZip(zip);
+        QCOMPARE(found.size(), 3);
+        QVERIFY(!found[0].whole);
+        QVERIFY(found[1].whole && found[1].data == "second entry");
+        QVERIFY(found[2].whole && found[2].data == "third entry");
+    }
+
     // Two entries of one name: the first whole one stands; a later one replaces one that was cut; none is kept twice.
     void entriesOfOneNameKeepTheFirstWholeOne()
     {

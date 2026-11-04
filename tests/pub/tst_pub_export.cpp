@@ -2,6 +2,7 @@
 #include "pubhelpers.h"
 #include "app/filedialogs.h"
 #include "app/filetasks.h"
+#include "../settingguard.h"
 #include "app/optionsdialog.h"
 #include <QCheckBox>
 
@@ -300,10 +301,11 @@ private Q_SLOTS:
         QVERIFY(f.open(QIODevice::ReadOnly));
         const QByteArray first = f.readAll();
         f.close();
-        jp::Settings::get().setValue("save/backup", true);
-        w.editor()->doc()->props.title = QStringLiteral("changed");
-        QVERIFY(w.saveTo(path));
-        jp::Settings::get().setValue("save/backup", false);
+        {
+            jptest::SettingGuard keep(QStringLiteral("save/backup"), true, false);
+            w.editor()->doc()->props.title = QStringLiteral("changed");
+            QVERIFY(w.saveTo(path));
+        }
         QFile b(dir.filePath(QStringLiteral("Backup of letter.jpub")));
         QVERIFY(b.open(QIODevice::ReadOnly));
         QCOMPARE(b.readAll(), first);
@@ -427,13 +429,9 @@ private Q_SLOTS:
         QVERIFY(f.open(QIODevice::ReadOnly));
         const QByteArray original = f.readAll();
         f.close();
-        jp::Settings::get().setValue(QStringLiteral("save/backup"), true);
+        jptest::SettingGuard keep(QStringLiteral("save/backup"), true, false);
         struct Reset {
-            ~Reset()
-            {
-                jp::Settings::get().setValue(QStringLiteral("save/backup"), false);
-                jp::setBackupFailureStandIn({});
-            }
+            ~Reset() { jp::setBackupFailureStandIn({}); }
         } reset;
         QVERIFY(QDir().mkpath(jp::backupPathFor(path)));
         QStringList asked;

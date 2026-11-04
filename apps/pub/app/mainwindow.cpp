@@ -69,6 +69,7 @@
 #include <QPrintDialog>
 #include "app/filedialogs.h"
 #include "app/filetasks.h"
+#include "office/package.h"
 #include "office/repair.h"
 #include <QPrinter>
 #include <QSlider>
@@ -452,13 +453,14 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
         hideBackstage();
         return true;
     }
-    QFile f(path);
-    if (!f.open(QIODevice::ReadOnly)) {
-        jp::plainWarning(this, tr("Open"), tr("JeffPub can't open \"%1\".\n%2").arg(QFileInfo(path).fileName(), f.errorString()));
+    // (a file larger than the apps open is refused before it is read: it would all be held at once)
+    QByteArray bytes;
+    QString err;
+    if (!office::readWholeFile(path, &bytes, &err)) {
+        jp::plainWarning(this, tr("Open"), tr("JeffPub can't open \"%1\".\n%2").arg(QFileInfo(path).fileName(), err));
         return false;
     }
-    QByteArray bytes = f.readAll();
-    QString err;
+    err.clear();
     std::unique_ptr<Document> doc;
     bool fromPub = false;
     // Open and Repair: what can be read of a damaged .jpub (its entries that are whole) is made into a file that opens, and what was left out is said.

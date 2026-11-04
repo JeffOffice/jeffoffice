@@ -84,6 +84,8 @@
 #include <QStandardPaths>
 #include <QSpinBox>
 #include <QTimer>
+#include <QMessageBox>
+#include <QPushButton>
 #include <QTranslator>
 #include <QElapsedTimer>
 #include <QDir>
@@ -1049,8 +1051,21 @@ private Q_SLOTS:
         QTextCursor &c = w.view()->cursor();
         c.setPosition(w.document()->story()->toPlainText().indexOf(QLatin1String("adress")) + 2);
         w.view()->setCursor(c);
+        // (not vacuous: spell checking is on, the word is flagged, and the same text in an ordinary window is offered corrections)
+        w.view()->spelling()->setEnabled(true);
+        QVERIFY(w.view()->spelling()->enabled());
+        WriteWindow ordinary;
+        QVERIFY(ordinary.openFile(path));
+        ordinary.view()->spelling()->setEnabled(true);
+        QTextCursor &oc = ordinary.view()->cursor();
+        oc.setPosition(ordinary.document()->story()->toPlainText().indexOf(QLatin1String("adress")) + 2);
+        ordinary.view()->setCursor(oc);
+        QMenu offered;
+        QVERIFY(addSpellingSuggestions(offered, ordinary.view()));
+        QVERIFY(offered.actions().size() > 2);
         QMenu menu;
         QVERIFY(!addSpellingSuggestions(menu, w.view()));
+        QVERIFY(menu.isEmpty());
         QCOMPARE(w.document()->story()->toHtml(), before);
         QCOMPARE(w.document()->toDocx(&err), fileBefore);
         QVERIFY(!w.isModified());
@@ -1192,6 +1207,45 @@ private Q_SLOTS:
         left.removeAll(QStringLiteral("letter.docx"));
         left.removeAll(QStringLiteral("Backup of letter.docx"));
         QVERIFY2(left.isEmpty(), qPrintable(left.join(QLatin1Char(','))));
+    }
+
+    // The real question (no stand-in): its default button is No, and pressing Enter leaves the file as it was.
+    void theBackupQuestionDefaultsToNo()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("letter.docx"));
+        WriteWindow w;
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("First."));
+        QVERIFY(w.saveTo(path));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray first = f.readAll();
+        f.close();
+        SettingGuard keep(QStringLiteral("save/backup"), true, false);
+        QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("Backup of letter.docx"))));
+        setBackupFailureStandIn({});
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral(" Second."));
+        QString defaultText;
+        bool asked = false;
+        QTimer press;
+        press.setInterval(20);
+        QObject::connect(&press, &QTimer::timeout, &press, [&] {
+            for (QWidget *top : QApplication::topLevelWidgets())
+                if (auto *box = qobject_cast<QMessageBox *>(top); box && box->isVisible()) {
+                    asked = true;
+                    if (box->defaultButton()) defaultText = box->defaultButton()->text();
+                    QTest::keyClick(box, Qt::Key_Return);
+                    press.stop();
+                    return;
+                }
+        });
+        press.start();
+        QVERIFY(!w.saveTo(path));
+        QVERIFY(asked);
+        QVERIFY2(defaultText.remove(QLatin1Char('&')) == QLatin1String("No"), qPrintable(defaultText));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(f.readAll(), first);
     }
 
     // Open as Copy: the file's contents as a new document that has no file yet, so Save asks where, and the file is never written.
@@ -3490,10 +3544,11 @@ private Q_SLOTS:
         spellingIgnore(QStringLiteral("zorbifyx"));
         QCOMPARE(flaggedWords(sc, *doc), (QStringList{"quixzotl", "vlorpish"}));
         // (Added words go in a file of the test's own.)
-        QStandardPaths::setTestModeEnabled(true);
-        spellingAdd(QStringLiteral("quixzotl"));
-        QFile::remove(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/custom.dic"));
-        QStandardPaths::setTestModeEnabled(false);
+        {
+            jptest::TestModeGuard testMode;
+            spellingAdd(QStringLiteral("quixzotl"));
+            QFile::remove(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/custom.dic"));
+        }
         QCOMPARE(flaggedWords(sc, *doc), (QStringList{"vlorpish"}));
     }
 
@@ -3739,10 +3794,11 @@ private Q_SLOTS:
         QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("plus %1 and then").arg(fix)));
         QCOMPARE(pane->word(), QStringLiteral("bluh"));
         // Ignore All, and Add to Dictionary, take the word out for good; when none is left the check is complete.
-        QStandardPaths::setTestModeEnabled(true);
-        button("spellAdd")->click();
-        QFile::remove(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/custom.dic"));
-        QStandardPaths::setTestModeEnabled(false);
+        {
+            jptest::TestModeGuard testMode;
+            button("spellAdd")->click();
+            QFile::remove(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/custom.dic"));
+        }
         QCOMPARE(pane->word(), QString());
         QVERIFY(pane->findChild<QLabel *>(QStringLiteral("spellStatus"))->text().contains(QStringLiteral("complete")));
         QVERIFY(!button("spellChange")->isEnabled() && !button("spellIgnore")->isEnabled());

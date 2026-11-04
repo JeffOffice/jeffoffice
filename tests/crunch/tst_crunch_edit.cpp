@@ -1,7 +1,7 @@
 // Tests of editing in JeffCrunch's window: typing over a cell, in it (F2, a double click), and in the formula bar; the keys that finish or give up an entry; what typed numbers,
 // percents, money, dates, and times are given as values and formats; a formula that is not one; Delete; what depends on a cell worked out again by the worker; Undo and Redo; and saving
 // (Save, Save As, a save that fails, the question when a window with changes is closed). Every workbook is built here, in a temporary folder.
-#include "../isolatesettings.h"
+#include "../settingguard.h"
 #include "app/crunchinfo.h"
 #include "app/crunchfilescreen.h"
 #include "app/crunchwindow.h"
@@ -11,6 +11,7 @@
 #include "app/settings.h"
 #include "app/filetasks.h"
 #include "app/finddialog.h"
+#include "office/package.h"
 #include <QLineEdit>
 #include <QPushButton>
 #include "app/otherformats.h"
@@ -577,9 +578,10 @@ private Q_SLOTS:
         };
         saveWith(QStringLiteral("2"));
         QVERIFY(!QFileInfo::exists(backup));   // (the option is off)
-        Settings::get().setValue(QStringLiteral("save/backup"), true);
-        saveWith(QStringLiteral("3"));
-        Settings::get().setValue(QStringLiteral("save/backup"), false);
+        {
+            jptest::SettingGuard keep(QStringLiteral("save/backup"), true, false);
+            saveWith(QStringLiteral("3"));
+        }
         QVERIFY(QFileInfo::exists(backup));
         QCOMPARE(savedCell(backup, QStringLiteral("A1")), QStringLiteral("n:2"));
         QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:3"));
@@ -663,34 +665,81 @@ private Q_SLOTS:
         const QString made = e.win.w.lastRepairFileForTest();
         QVERIFY(!made.isEmpty());
         QVERIFY(!QFileInfo::exists(made));
-        // (2) the window closes while the file is being read: the file goes with it
+        // (2) the window closes while the read is still running: the file exists until then, and goes with the window
         QString second;
         {
             CrunchWindow w;
             w.setNotifier([](const QString &, const QString &) {});
             QVERIFY(w.openFile(path, OpenHow::Repair));
+            QVERIFY(w.isLoading());   // (no event has run since: the read has not ended)
             second = w.lastRepairFileForTest();
             QVERIFY(!second.isEmpty() && second != made);
-            QVERIFY(QFileInfo::exists(second) || !w.isLoading());   // (the read may be over already on a fast machine)
+            QVERIFY(QFileInfo::exists(second));
         }
         QVERIFY(!QFileInfo::exists(second));
-        // (3) the read fails: no file is left
-        QString third;
+        // (3) the read fails: the file goes (the package has a workbook with no sheet in it)
         {
             CrunchWindow w;
             w.setNotifier([](const QString &, const QString &) {});
             QSignalSpy loaded(&w, &CrunchWindow::loadFinished);
-            QMap<QString, QByteArray> bad;
-            bad.insert(QStringLiteral("xl/workbook.xml"), "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheets><sheet name=\"A\" sheetId=\"1\" r:id=\"rId9\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"/></sheets></workbook>");
             jp::ZipWriter bz;
-            for (auto it = bad.cbegin(); it != bad.cend(); ++it) bz.add(it.key(), it.value(), true);
+            bz.add(QStringLiteral("xl/workbook.xml"), "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheets/></workbook>", true);
             const QString badPath = e.folder.write(QStringLiteral("bad.xlsx"), bz.finish());
-            if (w.openFile(badPath, OpenHow::Repair)) {
-                third = w.lastRepairFileForTest();
-                QVERIFY(loaded.count() > 0 || loaded.wait(20000));
-            }
+            QVERIFY(w.openFile(badPath, OpenHow::Repair));
+            const QString third = w.lastRepairFileForTest();
+            QVERIFY(!third.isEmpty());
+            QVERIFY(QFileInfo::exists(third));
+            QVERIFY(loaded.count() > 0 || loaded.wait(20000));
+            QVERIFY2(!loaded.last().first().toBool(), "the read was expected to fail");
+            QVERIFY(!QFileInfo::exists(third));
         }
-        if (!third.isEmpty()) QVERIFY(!QFileInfo::exists(third));
+        // (4) another open while the read goes on (it opens in a window of its own, as a window that is reading keeps its workbook): the first window's file stays until its read ends, then goes
+        {
+            CrunchWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            QSignalSpy loaded(&w, &CrunchWindow::loadFinished);
+            QVERIFY(w.openFile(path, OpenHow::Repair));
+            const QString one = w.lastRepairFileForTest();
+            QVERIFY(QFileInfo::exists(one));
+            QFile cutFile(path);
+            QVERIFY(cutFile.open(QIODevice::ReadOnly));
+            const QString otherPath = e.folder.write(QStringLiteral("cut2.xlsx"), cutFile.readAll());
+            const int windows = AppWindow::windows().size();
+            QVERIFY(w.openFile(otherPath, OpenHow::Repair));
+            QCOMPARE(AppWindow::windows().size(), windows + 1);
+            QCOMPARE(w.lastRepairFileForTest(), one);
+            QVERIFY(QFileInfo::exists(one));
+            QString two;
+            for (AppWindow *other : AppWindow::windows())
+                if (auto *c = qobject_cast<CrunchWindow *>(other); c && c != &w && !c->lastRepairFileForTest().isEmpty()) two = c->lastRepairFileForTest();
+            QVERIFY(!two.isEmpty() && two != one);
+            QVERIFY(loaded.count() > 0 || loaded.wait(20000));
+            QVERIFY(!QFileInfo::exists(one));
+            QTRY_VERIFY_WITH_TIMEOUT(!QFileInfo::exists(two), 20000);
+            for (AppWindow *other : AppWindow::windows())
+                if (auto *c = qobject_cast<CrunchWindow *>(other); c && c != &w && c != &e.win.w) {
+                    c->setAttribute(Qt::WA_DeleteOnClose, false);
+                    delete c;
+                }
+        }
+    }
+
+    // Open and Repair reads the file whole, so a file larger than the apps open is refused before anything is read, and the person is told.
+    void aRepairOfAFileLargerThanTheMostIsRefused()
+    {
+        EditWindow e;
+        const QString path = e.folder.dir.filePath(QStringLiteral("huge.xlsx"));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            QVERIFY(f.resize(jp::office::kMaxOpenFileBytes + 1));   // (a sparse file: nothing is stored)
+        }
+        QStringList told;
+        e.win.w.setNotifier([&](const QString &t, const QString &x) { told << t + QStringLiteral(": ") + x; });
+        QVERIFY(!e.win.w.openFile(path, OpenHow::Repair));
+        QVERIFY(!told.isEmpty());
+        QVERIFY2(told.last().contains(QLatin1String("larger")), qPrintable(told.last()));
+        QVERIFY(e.win.w.lastRepairFileForTest().isEmpty());
     }
 
     // A template made from a workbook with macros is a plain template: no macro project, the plain template type, and the person is told first, as Save As tells.
@@ -747,13 +796,9 @@ private Q_SLOTS:
         QVERIFY(before.open(QIODevice::ReadOnly));
         const QByteArray original = before.readAll();
         before.close();
-        Settings::get().setValue(QStringLiteral("save/backup"), true);
+        jptest::SettingGuard keep(QStringLiteral("save/backup"), true, false);
         struct Reset {
-            ~Reset()
-            {
-                Settings::get().setValue(QStringLiteral("save/backup"), false);
-                setBackupFailureStandIn({});
-            }
+            ~Reset() { setBackupFailureStandIn({}); }
         } reset;
         QVERIFY(QDir().mkpath(backupPathFor(e.path)));   // (a folder where the backup would go)
         QStringList asked;

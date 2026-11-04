@@ -1,5 +1,5 @@
 // JeffDeck's tests of the file screen, saving from the window, and reusing slides.
-#include "../isolatesettings.h"
+#include "../settingguard.h"
 #include "deckhelpers.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
@@ -256,10 +256,12 @@ private Q_SLOTS:
         w.newSlide();
         QVERIFY(w.saveTo(path));
         QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("Backup of talk.pptx"))));   // (the option is off)
-        Settings::get().setValue("save/backup", true);
-        w.newSlide();
-        const bool saved = w.saveTo(path);
-        Settings::get().setValue("save/backup", false);
+        bool saved = false;
+        {
+            jptest::SettingGuard keep(QStringLiteral("save/backup"), true, false);
+            w.newSlide();
+            saved = w.saveTo(path);
+        }
         QVERIFY(saved);
         QString notes;
         QCOMPARE(deck::importAnyPresentationFile(dir.filePath(QStringLiteral("Backup of talk.pptx")), &notes)->pages.size(), slides + 1);
@@ -391,13 +393,9 @@ private Q_SLOTS:
         QVERIFY(f.open(QIODevice::ReadOnly));
         const QByteArray original = f.readAll();
         f.close();
-        Settings::get().setValue(QStringLiteral("save/backup"), true);
+        jptest::SettingGuard keep(QStringLiteral("save/backup"), true, false);
         struct Reset {
-            ~Reset()
-            {
-                Settings::get().setValue(QStringLiteral("save/backup"), false);
-                setBackupFailureStandIn({});
-            }
+            ~Reset() { setBackupFailureStandIn({}); }
         } reset;
         QVERIFY(QDir().mkpath(backupPathFor(path)));
         QStringList asked;
