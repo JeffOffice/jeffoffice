@@ -1607,7 +1607,7 @@ private Q_SLOTS:
         QVERIFY(WriteDoc::fromFile(rtf));
     }
 
-    void savingAnRtfFileAsksForADocxName()
+    void savingAnRtfFileWritesAnRtfFileThatReadsBackTheSame()
     {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
@@ -1615,23 +1615,18 @@ private Q_SLOTS:
         const QString path = writeFile(dir, QStringLiteral("old.rtf"), rtf);
         WriteWindow w;
         QStringList notices;
-        QString suggested;
         w.setNotifier([&](const QString &, const QString &text) { notices << text; });
-        w.setSavePathChooser([&](const QString &name, const QString &) {
-            suggested = name;
-            return dir.filePath(QStringLiteral("new.docx"));
-        });
         QVERIFY(w.openFile(path));
         typeText(*w.document(), w.view()->cursor(), QStringLiteral("!"));
         QVERIFY(w.save());
-        QCOMPARE(notices.size(), 1);
-        QVERIFY2(notices[0].contains(QLatin1String(".docx")) && notices[0].contains(QLatin1String(".rtf")), qPrintable(notices[0]));
-        QVERIFY2(suggested.endsWith(QLatin1String("old.docx")), qPrintable(suggested));
+        QVERIFY(notices.isEmpty());   // (nothing in it that the format can't hold)
+        QCOMPARE(w.filePath(), path);
         QFile again(path);
         QVERIFY(again.open(QIODevice::ReadOnly));
-        QCOMPARE(again.readAll(), rtf);
+        const QByteArray saved = again.readAll();
+        QVERIFY2(saved.startsWith("{\\rtf1\\ansi") && saved != rtf, saved.constData());
         WriteWindow b;
-        QVERIFY(b.openFile(w.filePath()));
+        QVERIFY(b.openFile(path));
         QCOMPARE(b.document()->story()->toPlainText().left(9), QStringLiteral("!Old text"));
     }
 

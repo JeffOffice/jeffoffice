@@ -2,6 +2,7 @@
 // the pieces kept as XML go back where they were.
 
 #include "core/writedoc.h"
+#include "rtf/rtfwrite.h"
 #include "odt/odt.h"
 
 #include "core/editops.h"
@@ -261,7 +262,7 @@ QByteArray WriteDoc::toOdt(QString *error, QStringList *notes)
     return office::odt::fromDocxPackage(docx, error, notes);
 }
 
-QByteArray WriteDoc::toDocx(QString *error, bool template_, bool macros)
+bool WriteDoc::exportDocument(office::wml::Document *result, bool template_, bool macros)
 {
     syncSections();
     office::wml::Document out = m_wml;
@@ -332,7 +333,22 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_, bool macros)
     out.mainContentType = macros ? template_ ? QStringLiteral("application/vnd.ms-word.template.macroEnabledTemplate.main+xml") : QStringLiteral("application/vnd.ms-word.document.macroEnabled.main+xml")
                           : template_ ? QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml")
                                       : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml");
+    *result = std::move(out);
+    return true;
+}
+
+QByteArray WriteDoc::toDocx(QString *error, bool template_, bool macros)
+{
+    office::wml::Document out;
+    if (!exportDocument(&out, template_, macros)) return QByteArray();
     return writeDocx(out, error);
+}
+
+QByteArray WriteDoc::toRtf(QString *error, QStringList *notes)
+{
+    office::wml::Document out;
+    if (!exportDocument(&out, false, false)) return QByteArray();
+    return office::rtf::writeRtf(out, notes, error);
 }
 
 } // namespace jp::write

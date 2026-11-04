@@ -13,10 +13,11 @@ Press **Ctrl+O**, or click **File > Open**. Click **Browse** to pick a file. Jef
 
 - **.docx** is a document.
 - **.dotx** is a template. A template opens as a new document made from it, so the template stays as it is.
-- **.docm** and **.dotm** open too. JeffWrite does not keep their macros. It tells you so the first time you save such a document, and it saves a .docx file.
+- **.docm** and **.dotm** are a document and a template that can hold **macros**, small programs that come with a file. JeffWrite never runs them. It keeps them as they were when you save as .docm or .dotm. If you save as .docx or .odt, the macros are left out, and JeffWrite tells you so.
+- **.txt** is plain text, only the words. When you open one, JeffWrite asks which encoding to read it in and shows the first lines, so you can see that the letters look right. An **encoding** is the way a file stores letters, such as UTF-8 or Windows 1252. When you save as .txt, you choose the encoding and the line ends, and the file keeps only the words: no fonts, pictures, or table lines.
 - **.doc** and **.dot** are the older kinds of document and template. JeffWrite reads them, and it saves what you do with them as a new .docx file.
 - **.odt**, **.ott**, and **.fodt** are OpenDocument files. JeffWrite reads all three. It saves .odt files, and it saves what you do with a .ott or .fodt file as a new .odt file. See [Open and save OpenDocument files](open-odt).
-- **.rtf** is Rich Text Format. JeffWrite reads it, and it saves what you do with it as a new .docx file. See [Open RTF files](open-rtf).
+- **.rtf** is Rich Text Format. JeffWrite reads it and saves it. See [Open RTF files](open-rtf).
 
 The **Open** page also lists the documents you opened or saved lately. Click one to open it. Right-click one to pin it to the top of the list, or take it off the list.
 
@@ -24,7 +25,7 @@ If a file has parts that JeffWrite can't edit yet, such as a table's layout or a
 
 ## Save a document
 
-Press **Ctrl+S** to save. The first time, JeffWrite asks for a name. **Save As** (F12) saves a copy under a new name. Choose **Template (*.dotx)** to save a template. A file that came from an older kind of file is always saved under a new name, so the old file is never written over.
+Press **Ctrl+S** to save. The first time, JeffWrite asks for a name. **Save As** (F12) saves a copy under a new name. Choose **Template (*.dotx)** to save a template, **Macro-Enabled Document (*.docm)** to keep macros, **Plain Text (*.txt)** for only the words, or **Rich Text Format (*.rtf)** for a file other programs can read. A file that came from an older kind of file is always saved under a new name, so the old file is never written over.
 
 ## Save a copy
 

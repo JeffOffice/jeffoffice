@@ -34,9 +34,8 @@ PageNumbering pageNumberingOf(const SectionProps &p)
 
 QVector<QPair<QString, QString>> pageNumberFormats()
 {
-    auto t = [](const char *s) { return QCoreApplication::translate("jp::write::PageNumbering", s); };
-    return {{QStringLiteral("decimal"), t("1, 2, 3, …")},     {QStringLiteral("lowerLetter"), t("a, b, c, …")}, {QStringLiteral("upperLetter"), t("A, B, C, …")},
-            {QStringLiteral("lowerRoman"), t("i, ii, iii, …")}, {QStringLiteral("upperRoman"), t("I, II, III, …")}, {QStringLiteral("numberInDash"), t("- 1 -, - 2 -, - 3 -, …")}};
+    return {{QStringLiteral("decimal"), QCoreApplication::translate("jp::write::PageNumbering", "1, 2, 3, …")},     {QStringLiteral("lowerLetter"), QCoreApplication::translate("jp::write::PageNumbering", "a, b, c, …")}, {QStringLiteral("upperLetter"), QCoreApplication::translate("jp::write::PageNumbering", "A, B, C, …")},
+            {QStringLiteral("lowerRoman"), QCoreApplication::translate("jp::write::PageNumbering", "i, ii, iii, …")}, {QStringLiteral("upperRoman"), QCoreApplication::translate("jp::write::PageNumbering", "I, II, III, …")}, {QStringLiteral("numberInDash"), QCoreApplication::translate("jp::write::PageNumbering", "- 1 -, - 2 -, - 3 -, …")}};
 }
 
 int applyPageNumbering(WriteDoc &doc, int section, bool wholeDocument, const PageNumbering &numbering)
