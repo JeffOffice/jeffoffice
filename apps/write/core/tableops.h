@@ -73,6 +73,7 @@ double textWidthAt(WriteDoc &doc, int position);
 qint64 tableViewsBuiltForTest();
 qint64 textToTableFragmentsMadeForTest();
 qint64 formulaRangeCellsScannedForTest();
+qint64 tableIndexRebuildsForTest();
 // How many cell records the story and the history of the document can reach (the records held beyond them are let go by the next table command).
 int tableRecordsReachableForTest(WriteDoc &doc);
 qint64 tableCellsScannedForTest();

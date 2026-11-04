@@ -47,7 +47,7 @@ struct ViewCache {
     std::shared_ptr<void> last;     // the View made last, for the table it is of
 };
 
-qint64 g_viewsBuilt = 0, g_cellsScanned = 0, g_fontMeasures = 0, g_fragmentsMade = 0, g_rangeCellsScanned = 0;
+qint64 g_viewsBuilt = 0, g_cellsScanned = 0, g_fontMeasures = 0, g_fragmentsMade = 0, g_rangeCellsScanned = 0, g_indexRebuilds = 0;
 
 struct View {
     std::shared_ptr<flow::TableIndex> own;
@@ -72,6 +72,7 @@ std::shared_ptr<View> viewAt(WriteDoc &doc, int position)
         cache.records = doc.flow().tables.count();
         cache.index = std::make_shared<flow::TableIndex>();
         cache.index->rebuild(story, doc.flow().tables);
+        ++g_indexRebuilds;
     }
     // (the table made last, when the place is in it)
     if (auto last = std::static_pointer_cast<View>(cache.last)) {
@@ -1877,21 +1878,34 @@ void restyleTablesOfStyles(WriteDoc &doc, const QSet<QString> &styleIds)
 {
     TableCommand command(doc);
     QTextDocument *d = doc.story();
-    for (int pos = 0; pos < d->characterCount() - 1;) {
-        const QTextBlock b = d->findBlock(pos);
-        if (!b.isValid()) break;
-        if (!cellKeyOf(b)) {
-            pos = b.position() + b.length();
-            continue;
-        }
+    const flow::TableStore &store = doc.flow().tables;
+    // The tables that have one of the styles are found in one pass over the paragraphs (each with a paragraph that is directly in it, the nested ones too, the outer ones first).
+    QVector<int> found;
+    QSet<const flow::TableData *> seen;
+    const QString normal = doc.styleSheet().defaultId(QStringLiteral("table"));
+    for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
+        const flow::CellRecord *rec = store.get(cellKeyOf(b));
+        if (!rec || !rec->table || seen.contains(rec->table.get())) continue;
+        seen.insert(rec->table.get());
+        const TablePart *part = static_cast<const TablePart *>(rec->table->app.get());
+        const QString style = part && part->mark ? (part->mark->style.isEmpty() ? normal : part->mark->style) : normal;
+        if (styleIds.contains(style)) found.push_back(b.position());
+    }
+    for (int pos : std::as_const(found)) {
         QTextCursor c(d);
-        c.setPosition(b.position());
-        const QString style = tablePropsAt(doc, c).style;
-        QTextCursor whole(c);
-        selectInTable(doc, whole, TableUnit::Table);
-        const int end = std::max(whole.selectionEnd(), b.position() + b.length() - 1);
-        if (styleIds.contains(style)) restyleTable(doc, c);
-        pos = end + 1;
+        c.setPosition(pos);
+        const auto v = viewAt(doc, pos);
+        if (!v) continue;
+        const int from = v->index.refs()[size_t(v->first)].pos, to = v->index.refs()[size_t(v->last - 1)].end;
+        restyleTable(doc, c);
+        // (the table is made again in the same places: the index of the tables is brought up to date for it, not made again for every table)
+        auto &cache = *std::static_pointer_cast<ViewCache>(doc.tableViewCache);
+        if (cache.story == d && cache.index && cache.index->refresh(d, from, to)) {
+            cache.revision = d->revision();
+            cache.characters = d->characterCount();
+            cache.records = store.count();
+            cache.last.reset();
+        }
     }
 }
 
@@ -2467,6 +2481,7 @@ bool splitCells(WriteDoc &doc, QTextCursor &c, int columns, int rows)
 qint64 tableViewsBuiltForTest() { return g_viewsBuilt; }
 qint64 textToTableFragmentsMadeForTest() { return g_fragmentsMade; }
 qint64 formulaRangeCellsScannedForTest() { return g_rangeCellsScanned; }
+qint64 tableIndexRebuildsForTest() { return g_indexRebuilds; }
 int tableRecordsReachableForTest(WriteDoc &doc) { return int(reachableKeys(doc).size()); }
 qint64 tableCellsScannedForTest() { return g_cellsScanned; }
 qint64 tableFontMeasuresMadeForTest() { return g_fontMeasures; }

@@ -104,6 +104,24 @@ bool TableIndex::shift(int position, int removed, int added)
     return true;
 }
 
+bool TableIndex::refresh(const QTextDocument *story, int from, int to)
+{
+    if (!m_store) return false;
+    const auto first = std::lower_bound(m_refs.begin(), m_refs.end(), from, [](const BlockRef &r, int p) { return r.pos < p; });
+    if (first == m_refs.end() || first->pos != from) return false;
+    size_t i = size_t(first - m_refs.begin());
+    const size_t begin = i;
+    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() < to; b = b.next(), ++i) {
+        const int key = b.blockFormat().intProperty(fp::Cell);
+        if (i >= m_refs.size() || m_refs[i].pos != b.position() || m_refs[i].end != b.position() + b.length() || !m_store->get(key)) return false;
+        m_refs[i].key = key;
+    }
+    if (i < m_refs.size() && m_refs[i].pos < to) return false;
+    for (Span &s : m_spans)
+        if (s.last > int(begin) && s.first < int(i)) s.table = chain(m_refs[size_t(s.first)].key).first()->table;
+    return true;
+}
+
 int TableIndex::spanAt(int pos) const
 {
     const auto it = std::upper_bound(m_spans.begin(), m_spans.end(), pos, [](int p, const Span &s) { return p < s.from; });

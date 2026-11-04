@@ -62,6 +62,9 @@ public:
     // An edit in the story at `position` that took out `removed` characters and put in `added`, where it is not in a table or beside one: the tables' places move
     // with the text. False (nothing done) when it touches a table, which is to be found again.
     bool shift(int position, int removed, int added);
+    // The paragraphs from `from` to `to` (positions) are the same paragraphs in the same places but hold other cells (a table made again in place): their keys and the tables of the
+    // spans that cover them are read again. False (nothing to rely on: build the index again) when a paragraph is not where it was.
+    bool refresh(const QTextDocument *story, int from, int to);
 
 private:
     std::vector<Span> m_spans;

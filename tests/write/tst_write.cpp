@@ -2827,6 +2827,36 @@ private Q_SLOTS:
         checkTablesReopenTheSame(*doc);
     }
 
+    // A modified table style reaches the tables inside cells, and a thousand tables of the style are made again in bounded work.
+    void modifyingATableStyleRestylesNestedAndManyTables()
+    {
+        office::wml::TableStyleSpec spec;
+        spec.name = QStringLiteral("Nest Style");
+        spec.lineColor = QStringLiteral("FF0000");
+        const QByteArray inner = tableX(rowX(cellX(cellP("n0")) + cellX(cellP("n1"))), 2).replace("<w:tblPr>", "<w:tblPr><w:tblStyle w:val=\"NestStyle\"/>");
+        auto doc = open(makeDocx(tableX(rowX(cellX(cellP("A") + inner + cellP("Z")) + cellX(cellP("B"))), 2) + cellP("after"), kStyles));
+        QString problem;
+        QCOMPARE(createTableStyle(*doc, spec, &problem), QStringLiteral("NestStyle"));
+        spec.lineColor = QStringLiteral("00FF00");
+        QVERIFY(modifyTableStyle(*doc, QStringLiteral("NestStyle"), spec, &problem));
+        QVERIFY2(tablesSignature(*doc).contains(QStringLiteral("#00ff00")), qPrintable(tablesSignature(*doc)));
+        checkTablesReopenTheSame(*doc);
+        QByteArray body;
+        for (int i = 0; i < 1000; ++i) body += tableX(rowX(cellX(cellP(("h" + QByteArray::number(i))))), 1).replace("<w:tblPr>", "<w:tblPr><w:tblStyle w:val=\"NestStyle\"/>") + cellP("gap");
+        auto big = open(makeDocx(body, kStyles));
+        spec.lineColor = QStringLiteral("112233");
+        QVERIFY(createTableStyle(*big, spec, &problem) == QStringLiteral("NestStyle"));
+        spec.lineColor = QStringLiteral("445566");
+        const qint64 before = tableIndexRebuildsForTest();
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(modifyTableStyle(*big, QStringLiteral("NestStyle"), spec, &problem));
+        qWarning("restyle 1000 tables: %lld index rebuilds, %lld ms", tableIndexRebuildsForTest() - before, timer.elapsed());
+        QVERIFY2(tableIndexRebuildsForTest() - before <= 5, qPrintable(QString::number(tableIndexRebuildsForTest() - before)));
+        QCOMPARE(tablesSignature(*big).count(QStringLiteral("#445566")), 1000 * 6);   // (six lines of the table)
+        QVERIFY(big->undo());
+    }
+
     // New Table Style makes a style from the choices (one step that undoes), a table can take it, and the file keeps it; Modify Table Style changes it in place.
     void aTableStyleIsMadeAndModifiedFromChoices()
     {
@@ -14652,6 +14682,21 @@ private Q_SLOTS:
         const qint64 scanned = formulaRangeCellsScannedForTest() - before;
         QVERIFY2(scanned <= 200000 + 2000, qPrintable(QString::number(scanned)));
         QVERIFY(scanned > 0);
+    }
+
+    // Updating many formula fields makes the table's index once for the pass, not once for each field.
+    void updatingManyFormulaFieldsBuildsTheIndexOnce()
+    {
+        QByteArray rows;
+        for (int r = 0; r < 500; ++r) rows += rowX(cellX(cellP("1")) + cellX(QByteArray("<w:p><w:fldSimple w:instr=\" =SUM(LEFT)*100 \"><w:r><w:t>0</w:t></w:r></w:fldSimple></w:p>")));
+        auto doc = open(makeDocx(paragraphs(300) + tableX(rows, 2) + cellP("after"), kStyles));
+        const qint64 before = tableIndexRebuildsForTest();
+        QElapsedTimer timer;
+        timer.start();
+        updateFields(*doc);
+        qWarning("index rebuilds %lld, %lld ms", tableIndexRebuildsForTest() - before, timer.elapsed());
+        QVERIFY2(tableIndexRebuildsForTest() - before <= 5, qPrintable(QString::number(tableIndexRebuildsForTest() - before)));
+        QVERIFY(doc->story()->toPlainText().remove(QChar(0xFFFC)).contains(QStringLiteral("\n1\n100\n1\n100\n")));
     }
 
     void tableCellValuesAreFoundByNameAndDirection()
