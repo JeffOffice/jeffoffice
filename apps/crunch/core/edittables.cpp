@@ -879,6 +879,106 @@ EditSession::Outcome EditSession::resizeTable(int table, const CellRange &range)
     return out;
 }
 
+// The one engine of Remove Duplicates, for a table's data and for a plain range: the rows of `data` that repeat an earlier row in the compared columns (by place from the first column of `data`;
+// as the cells show, in any case) are deleted from the columns of `data` as cells shifted up, run by run from the bottom, and as many empty cells are put in under the end of the rows that move
+// (`data` and the `carried` rows under it, a table's row of totals) as were taken out, so the cells under them are where they were. Everything that points at the cells follows as in any
+// delete. One step of Undo, and nothing changed when it is not ok.
+EditSession::Outcome EditSession::removeDuplicateRows(int sheet, const CellRange &data, const QList<int> &columns, int *removed, quint32 carried)
+{
+    Outcome out;
+    if (removed) *removed = 0;
+    auto refuse = [&](const QString &why) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    };
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why)) return refuse(why);
+    if (!data.valid || data.row2 < data.row1 || data.col2 < data.col1) return refuse(tr("There are no rows to look at."));
+    if (columns.isEmpty()) return refuse(tr("Pick at least one column to compare."));
+    const qint64 width = qint64(data.col2) - data.col1 + 1;
+    for (int c : columns)
+        if (c < 0 || c >= width) return refuse(tr("There is no such column."));
+    const qint64 rowCount = qint64(data.row2) - data.row1 + 1;
+    if (rowCount < 2) return refuse(tr("Select more than one row of data."));
+    const quint32 lastMoving = data.row2 + carried;
+    if ((qint64(lastMoving) - data.row1 + 1) * width > kMaxCellsPerEdit) return refuse(tr("The cells have more in them than JeffCrunch changes at once (%1).").arg(QLocale().toString(kMaxCellsPerEdit)));
+    // a locked cell on a protected sheet is not moved
+    const Sheet &sh = m_book->calc->sheet(sheet);
+    if (sh.isProtected) {
+        QString bad;
+        sh.cells.forEachInRange(data.row1, data.col1, lastMoving, data.col2, [&](quint32 r, quint32 c, const Cell &cell) {
+            if (m_book->book->styles().format(cell.style).locked) {
+                bad = tr("%1 is locked, and its sheet is protected, so the cells can't be moved.").arg(cellName(r, c));
+                return false;
+            }
+            return true;
+        });
+        for (quint32 r = data.row1; r <= lastMoving && bad.isEmpty(); ++r)
+            for (quint32 c = data.col1; c <= data.col2; ++c)
+                if (!sh.cells.find(r, c) && isLocked(sheet, implicitStyle(sheet, r, c))) {
+                    bad = tr("%1 is locked, and its sheet is protected, so the cells can't be moved.").arg(cellName(r, c));
+                    break;
+                }
+        if (!bad.isEmpty()) return refuse(bad);
+    }
+    // the rows that go, in runs of rows next to each other
+    std::vector<std::pair<quint32, quint32>> runs;
+    QSet<QString> seen;
+    qint64 gone = 0;
+    for (quint32 r = data.row1; r <= data.row2; ++r) {
+        QString key;
+        for (int c : columns) key += displayText(sheet, r, data.col1 + quint32(c)).toLower() + QLatin1Char('\x1f');
+        if (!seen.contains(key)) {
+            seen.insert(key);
+            continue;
+        }
+        ++gone;
+        if (!runs.empty() && runs.back().second + 1 == r) runs.back().second = r;
+        else {
+            // (each run is a delete of its own: so many separate runs would take minutes)
+            if (qint64(runs.size()) >= kMaxDuplicateRuns) return refuse(tr("The repeated rows are in more than %1 separate places. Sort the rows by the columns you compare first, so the repeats are next to each other.").arg(kMaxDuplicateRuns));
+            runs.push_back({r, r});
+        }
+    }
+    if (gone == 0) return out;
+    const int startIndex = m_undo.index();
+    CellRange columnsOf;
+    columnsOf.valid = true;
+    columnsOf.col1 = data.col1;
+    columnsOf.col2 = data.col2;
+    m_undo.beginMacro(tr("Removing duplicate rows"));
+    Outcome step;
+    for (size_t k = runs.size(); k-- > 0;) {
+        CellRange block = columnsOf;
+        block.row1 = runs[k].first;
+        block.row2 = runs[k].second;
+        step = deleteCells(sheet, block, true);
+        if (!step.ok) break;
+    }
+    if (step.ok) {
+        CellRange room = columnsOf;
+        room.row1 = quint32(qint64(lastMoving) - gone + 1);
+        room.row2 = lastMoving;
+        step = insertCells(sheet, room, true);
+    }
+    m_undo.endMacro();
+    if (!step.ok) {
+        while (m_undo.index() > startIndex) m_undo.undo();   // (what was done is taken back)
+        return refuse(step.problem);
+    }
+    if (removed) *removed = int(gone);
+    return out;
+}
+
+EditSession::Outcome EditSession::removeDuplicates(int sheet, const CellRange &range, bool hasHeader, const QList<int> &columns, int *removed)
+{
+    if (removed) *removed = 0;
+    CellRange data = range;
+    if (data.valid && hasHeader) ++data.row1;
+    return removeDuplicateRows(sheet, data, columns, removed, 0);
+}
+
 EditSession::Outcome EditSession::removeTableDuplicates(int table, const QList<int> &columns, int *removed)
 {
     Outcome out;
@@ -893,68 +993,17 @@ EditSession::Outcome EditSession::removeTableDuplicates(int table, const QList<i
     Workbook &book = *m_book->book;
     if (table < 0 || table >= book.tables().size()) return refuse(tr("There is no such table."));
     const Table t = book.tables()[table];
-    if (m_book->calc->sheet(t.sheet).isProtected) return refuse(lockedMessage());
-    if (columns.isEmpty()) return refuse(tr("Pick at least one column to compare."));
-    for (int c : columns)
-        if (c < 0 || c >= t.columns.size()) return refuse(tr("There is no such column."));
     if (!t.hasData()) return out;
     if (tableFilter(table).active()) return refuse(tr("The table is filtered. Clear its filter first, so the rows it hides are not moved."));
-    const int startIndex = m_undo.index();
-    const qint64 rowCount = t.dataLast() - qint64(t.dataFirst()) + 1;
-    if (rowCount * t.columns.size() > kMaxCellsPerEdit) return refuse(tr("The table has more cells than JeffCrunch changes at once (%1).").arg(QLocale().toString(kMaxCellsPerEdit)));
-    // the rows that stay: a row that shows the same in the chosen columns as an earlier one goes
-    std::vector<quint32> kept;
-    QSet<QString> seen;
-    for (quint32 r = t.dataFirst(); qint64(r) <= t.dataLast(); ++r) {
-        QString key;
-        for (int c : columns) key += displayText(t.sheet, r, t.col1 + quint32(c)).toLower() + QLatin1Char('\x1f');
-        if (seen.contains(key)) continue;
-        seen.insert(key);
-        kept.push_back(r);
-    }
-    const int gone = int(rowCount - qint64(kept.size()));
-    if (gone == 0) return out;
-    // the removed rows, in runs of rows next to each other
-    std::vector<std::pair<quint32, quint32>> runs;
-    {
-        size_t next = 0;
-        for (quint32 r = t.dataFirst(); qint64(r) <= t.dataLast(); ++r) {
-            if (next < kept.size() && kept[next] == r) {
-                ++next;
-                continue;
-            }
-            if (!runs.empty() && runs.back().second + 1 == r) runs.back().second = r;
-            else runs.push_back({r, r});
-        }
-    }
-    // Each run is deleted from the table's columns, the cells under it moving up (everything that points at the cells follows, as in any delete, and a reference to a removed row is #REF!);
-    // then as many empty cells are put in under the table's end as were taken out, so the cells under the table are where they were. One step of Undo.
-    CellRange columnsOf;
-    columnsOf.valid = true;
-    columnsOf.col1 = t.col1;
-    columnsOf.col2 = t.col2;
-    m_undo.beginMacro(tr("Removing duplicate rows"));
-    Outcome step;
-    for (size_t k = runs.size(); k-- > 0;) {
-        CellRange block = columnsOf;
-        block.row1 = runs[k].first;
-        block.row2 = runs[k].second;
-        step = deleteCells(t.sheet, block, true);
-        if (!step.ok) break;
-    }
-    if (step.ok) {
-        CellRange room = columnsOf;
-        room.row1 = quint32(qint64(t.row2) - gone + 1);
-        room.row2 = t.row2;
-        step = insertCells(t.sheet, room, true);
-    }
-    m_undo.endMacro();
-    if (!step.ok) {
-        while (m_undo.index() > startIndex) m_undo.undo();   // (what was done is taken back)
-        return refuse(step.problem);
-    }
-    if (removed) *removed = gone;
-    return out;
+    CellRange data;
+    data.valid = true;
+    data.row1 = t.dataFirst();
+    data.row2 = quint32(t.dataLast());
+    data.col1 = t.col1;
+    data.col2 = t.col2;
+    if (columns.isEmpty()) return refuse(tr("Pick at least one column to compare."));
+    if (data.row2 == data.row1) return out;   // (one row of data has nothing to repeat)
+    return removeDuplicateRows(t.sheet, data, columns, removed, quint32(t.totalsRows));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------

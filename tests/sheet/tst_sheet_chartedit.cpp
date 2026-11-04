@@ -189,6 +189,29 @@ private Q_SLOTS:
         QVERIFY(!primaryAxis(pie, false));
     }
 
+    // An axis a pane made is refused when its lowest value is not under its highest (both set) or a unit is negative; automatic values are not compared.
+    void anAxisThatCannotBeUsedIsFound()
+    {
+        Chart c = columns();
+        ChartAxis a = *primaryAxis(c, false);
+        QVERIFY(axisFormatProblem(a).isEmpty());
+        a.autoMin = false;
+        a.min = 10;
+        QVERIFY(axisFormatProblem(a).isEmpty());   // (the highest is automatic)
+        a.autoMax = false;
+        a.max = 10;
+        QVERIFY(!axisFormatProblem(a).isEmpty());
+        a.max = 5;
+        QVERIFY(!axisFormatProblem(a).isEmpty());
+        a.max = 20;
+        QVERIFY(axisFormatProblem(a).isEmpty());
+        a.majorUnit = -1;
+        QVERIFY(!axisFormatProblem(a).isEmpty());
+        a.majorUnit = 0;
+        a.minorUnit = -0.5;
+        QVERIFY(!axisFormatProblem(a).isEmpty());
+    }
+
     void aSingleSeriesTitleIsItsName()
     {
         Chart c = makeChart(ChartKind::Column, planOf(QStringLiteral("A1:B4"), ChartKind::Column), defaultTheme());

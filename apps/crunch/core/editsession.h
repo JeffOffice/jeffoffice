@@ -44,6 +44,8 @@ namespace jp::crunch {
 
 // The most cells a Delete (or any one edit) changes: past it the edit is refused, with a message, so that it never holds the worker, or the window, for long.
 constexpr qint64 kMaxCellsPerEdit = 100000;
+// The most separate runs of repeated rows Remove Duplicates deletes (each is a delete of cells of its own).
+constexpr int kMaxDuplicateRuns = 500;
 // The most cells a formatting command changes the format of at once (a whole column of a sheet that is full of cells, or a block), a step of them being 20 bytes each.
 constexpr qint64 kMaxStyledCells = 2000000;
 // The most cells looked at one by one for a lock (a link put on, or taken off, a protected sheet).
@@ -474,6 +476,12 @@ public:
     // under them move up; the table gets shorter and its row of totals moves up with it. `removed` is how many rows went. Not ok, and nothing changed, if no column is given or a row to be moved
     // holds a formula that is not its column's own.
     Outcome removeTableDuplicates(int table, const QList<int> &columns, int *removed = nullptr);
+    // The engine under it (and the Data tab's command): the rows of `data` (its first and last data row and its columns; compared columns by place from its first column) that repeat an earlier row,
+    // as the cells show in any case, are deleted as cells shifted up and as many empty cells put in under the end of the rows that move (`data` and `carried` rows under it); one step. Not ok,
+    // and nothing changed, for no column, locked cells on a protected sheet, a sheet that can't be edited, or more than kMaxDuplicateRuns separate runs of repeats.
+    Outcome removeDuplicateRows(int sheet, const jp::office::sheet::CellRange &data, const QList<int> &columns, int *removed = nullptr, quint32 carried = 0);
+    // The same for a plain range as selected (the first row its names, when `hasHeader`).
+    Outcome removeDuplicates(int sheet, const jp::office::sheet::CellRange &range, bool hasHeader, const QList<int> &columns, int *removed = nullptr);
     // The marks of a table's look and the filter buttons.
     struct TableMarks {
         QString style;

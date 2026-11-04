@@ -12,10 +12,17 @@
 #include "sheet/structref.h"
 #include "sheet/tablestyle.h"
 #include "app/ribbon.h"
+#include "app/removeduplicatesdialog.h"
 #include "app/filterpopup.h"
 #include "app/formulahelper.h"
 #include "core/formulaspot.h"
+#include <QElapsedTimer>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
+#include <QScrollArea>
 #include <QListWidget>
 #include <QPainter>
 #include <QPushButton>
@@ -135,6 +142,13 @@ bool tabShown(CrunchWindow &w)
     for (int i = 0; i < r->tabCount(); ++i)
         if (r->tabName(i) == QLatin1String("Table")) return r->tabVisible(i);
     return false;
+}
+
+QByteArray repeatedRows(int pairs)
+{
+    QString rows = row(1, text(QStringLiteral("A1"), QStringLiteral("K")) + text(QStringLiteral("B1"), QStringLiteral("V")));
+    for (int i = 0; i < pairs * 2; ++i) rows += row(i + 2, num(QStringLiteral("A%1").arg(i + 2), i / 2) + num(QStringLiteral("B%1").arg(i + 2), i));
+    return worksheet(rows);
 }
 
 } // namespace
@@ -388,6 +402,140 @@ private Q_SLOTS:
         QCOMPARE(editOf(e, QStringLiteral("A8")), QStringLiteral("=B5"));
         QCOMPARE(editOf(e, QStringLiteral("A1"), 1), QStringLiteral("=Sheet1!B5"));
         QCOMPARE(editOf(e, QStringLiteral("D1"), 1), QStringLiteral("=SUM(Sheet1!B2:B5)"));
+    }
+
+    // Remove Duplicates for a plain range (the selection less its header row): the same engine as a table's, so the cells under the range stay, what points at them follows, and Undo is one step.
+    void duplicateRowsAreRemovedFromAPlainRange()
+    {
+        EditWindow e;
+        const QByteArray sheet = worksheet(row(1, text(QStringLiteral("A1"), QStringLiteral("K")) + text(QStringLiteral("B1"), QStringLiteral("V")))
+                                           + row(2, text(QStringLiteral("A2"), QStringLiteral("a")) + num(QStringLiteral("B2"), 1)) + row(3, text(QStringLiteral("A3"), QStringLiteral("b")) + num(QStringLiteral("B3"), 2))
+                                           + row(4, text(QStringLiteral("A4"), QStringLiteral("A")) + num(QStringLiteral("B4"), 3)) + row(5, text(QStringLiteral("A5"), QStringLiteral("c")) + num(QStringLiteral("B5"), 4))
+                                           + row(6, text(QStringLiteral("A6"), QStringLiteral("b")) + num(QStringLiteral("B6"), 5))
+                                           + row(7, text(QStringLiteral("A7"), QStringLiteral("under")) + formula(QStringLiteral("B7"), QStringLiteral("SUM(B2:B6)"))) + row(8, formula(QStringLiteral("B8"), QStringLiteral("B6"))));
+        QVERIFY(e.open(buildXlsx({sheet})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QUndoStack *u = e.win.w.undoStack();
+        const int before = u->count();
+        int removed = -1;
+        // the first column says what repeats ("A" repeats "a" in any case; the second "b" repeats the first)
+        const auto o = s->removeDuplicates(0, rangeText(QStringLiteral("A1:B6")), true, {0}, &removed);
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        QCOMPARE(removed, 2);
+        QVERIFY(e.settle());
+        QCOMPARE(u->count(), before + 1);
+        QCOMPARE(valueOf(e, QStringLiteral("A1")), QStringLiteral("s:K"));
+        QCOMPARE(valueOf(e, QStringLiteral("A2")), QStringLiteral("s:a"));
+        QCOMPARE(valueOf(e, QStringLiteral("A3")), QStringLiteral("s:b"));
+        QCOMPARE(valueOf(e, QStringLiteral("A4")), QStringLiteral("s:c"));
+        QCOMPARE(valueOf(e, QStringLiteral("B4")), QStringLiteral("n:4"));
+        QCOMPARE(valueOf(e, QStringLiteral("A5")), QStringLiteral("-"));
+        QCOMPARE(valueOf(e, QStringLiteral("A6")), QStringLiteral("-"));
+        QCOMPARE(valueOf(e, QStringLiteral("A7")), QStringLiteral("s:under"));   // (under the range: where it was)
+        QCOMPARE(editOf(e, QStringLiteral("B7")), QStringLiteral("=SUM(B2:B4)"));
+        QCOMPARE(editOf(e, QStringLiteral("B8")), QStringLiteral("=#REF!"));
+        u->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A4")), QStringLiteral("s:A"));
+        QCOMPARE(editOf(e, QStringLiteral("B7")), QStringLiteral("=SUM(B2:B6)"));
+        // no header: the first row is data too; a range of one row, or no column chosen, is refused
+        QVERIFY(!s->removeDuplicates(0, rangeText(QStringLiteral("A2:B2")), false, {0}, &removed).ok);
+        QVERIFY(!s->removeDuplicates(0, rangeText(QStringLiteral("A1:B6")), true, {}, &removed).ok);
+        QVERIFY(!s->removeDuplicates(0, rangeText(QStringLiteral("A1:B6")), true, {5}, &removed).ok);
+    }
+
+    // No two keytips on a tab of the ribbon are the same (a tab's, its groups', and its commands' are pressed one after the other), and no two tabs have the same: the keys of Table, Pivot Table,
+    // and the other new commands do not clash.
+    void theKeytipsOfEveryTabAreUnique()
+    {
+        QFile file(QStringLiteral(JC_SOURCE_DIR "/apps/crunch/resources/ribbon.json"));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
+        std::function<void(const QJsonValue &, QStringList *)> walk = [&](const QJsonValue &v, QStringList *out) {
+            if (v.isObject()) {
+                const QJsonObject o = v.toObject();
+                if (o.contains(QStringLiteral("keytip"))) *out << o.value(QStringLiteral("keytip")).toString();
+                for (auto it = o.begin(); it != o.end(); ++it) walk(it.value(), out);
+            } else if (v.isArray()) {
+                for (const QJsonValue &x : v.toArray()) walk(x, out);
+            }
+        };
+        QStringList tabKeys;
+        const QJsonArray tabs = root.value(QStringLiteral("tabs")).toArray();
+        QVERIFY(tabs.size() > 8);
+        QStringList seenNew;
+        for (const QJsonValue &t : tabs) {
+            const QJsonObject tab = t.toObject();
+            tabKeys << tab.value(QStringLiteral("keytip")).toString();
+            QStringList keys;
+            walk(tab.value(QStringLiteral("groups")), &keys);
+            QStringList seen;
+            for (const QString &k : keys) {
+                QVERIFY2(!seen.contains(k), qPrintable(tab.value(QStringLiteral("name")).toString() + QStringLiteral(": ") + k));
+                seen << k;
+            }
+            for (const QString &k : {QStringLiteral("ZU"), QStringLiteral("TZ"), QStringLiteral("TD"), QStringLiteral("PM"), QStringLiteral("DD"), QStringLiteral("DU")})
+                if (seen.contains(k)) seenNew << k;
+        }
+        QCOMPARE(int(seenNew.size()), 6);   // (all six are on a tab)
+        QStringList uniqueTabs = tabKeys;
+        uniqueTabs.removeDuplicates();
+        QCOMPARE(int(uniqueTabs.size()), int(tabKeys.size()));
+    }
+
+    // The Remove Duplicates box has a scroll area for many columns, and an & in a column's name is shown as an & (not a shortcut).
+    void theRemoveDuplicatesBoxScrollsAndShowsAmpersands()
+    {
+        QStringList names{QStringLiteral("Q&A"), QStringLiteral("B")};
+        for (int i = 0; i < 60; ++i) names << QStringLiteral("Column%1").arg(i);
+        RemoveDuplicatesDialog d(names, nullptr);
+        QVERIFY(d.findChild<QScrollArea *>());
+        const QList<QCheckBox *> boxes = d.findChildren<QCheckBox *>();
+        QCOMPARE(int(boxes.size()), int(names.size()));
+        QCOMPARE(boxes.first()->text(), QStringLiteral("Q&&A"));
+        QVERIFY(QKeySequence::mnemonic(boxes.first()->text()).isEmpty());
+        QCOMPARE(int(d.chosen().size()), int(names.size()));
+    }
+
+    // So many separate repeats that deleting them one run at a time would take minutes are refused, with nothing changed.
+    void aVeryBrokenUpSetOfRepeatsIsRefused()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({repeatedRows(crunch::kMaxDuplicateRuns + 20)})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        const int before = e.win.w.undoStack()->count();
+        int removed = -1;
+        QElapsedTimer clock;
+        clock.start();
+        const auto o = s->removeDuplicates(0, rangeText(QStringLiteral("A1:B%1").arg((crunch::kMaxDuplicateRuns + 20) * 2 + 1)), true, {0}, &removed);
+        QVERIFY(!o.ok);
+        QVERIFY(clock.elapsed() < 5000);
+        QCOMPARE(e.win.w.undoStack()->count(), before);
+        QCOMPARE(valueOf(e, QStringLiteral("A3")), QStringLiteral("n:0"));
+        // fewer runs go through
+        QVERIFY(s->removeDuplicates(0, rangeText(QStringLiteral("A1:B21")), true, {0}, &removed).ok);
+        QCOMPARE(removed, 10);
+    }
+
+    // A protected sheet refuses the removal when a cell it would move is locked; with the cells unlocked it goes through. A sheet that can't be edited is refused too.
+    void removingDuplicatesRespectsProtection()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({repeatedRows(5)})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        jp::office::sheet::SheetProtection p;
+        p.enabled = true;
+        QVERIFY(s->setSheetProtection(0, p, QStringLiteral("Protect Sheet")).ok);
+        int removed = -1;
+        const int before = e.win.w.undoStack()->count();
+        const auto o = s->removeDuplicates(0, rangeText(QStringLiteral("A1:B11")), true, {0}, &removed);
+        QVERIFY(!o.ok);
+        QVERIFY(!o.problem.isEmpty());
+        QCOMPARE(e.win.w.undoStack()->count(), before);
     }
 
     // The row of totals: on puts a label and a sum, a function chosen for a column is written as the subtotal of its column, a custom formula is kept, off clears the row; and the numbers

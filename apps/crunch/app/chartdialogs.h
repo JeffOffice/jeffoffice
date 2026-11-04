@@ -132,6 +132,9 @@ class FormatAxisDialog : public QDialog {
 public:
     FormatAxisDialog(const jp::office::ChartAxis &axis, const QString &title, QWidget *parent = nullptr);
     jp::office::ChartAxis result() const;
+    // Why what is set can't be used (a sentence), or empty: the lowest value not under the highest, a unit that is not more than 0 when it is not automatic.
+    QString problem() const;
+    void accept() override;
 
 private:
     jp::office::ChartAxis m_axis;

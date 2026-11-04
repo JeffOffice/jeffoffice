@@ -4,6 +4,7 @@
 #include "app/crunchwindow.h"
 
 #include "app/crunchinfo.h"
+#include "app/removeduplicatesdialog.h"
 #include "core/formulaspot.h"
 #include "app/icons.h"
 #include "app/ribbon.h"
@@ -25,6 +26,7 @@
 #include <QGuiApplication>
 #include <QMenu>
 #include <QPainter>
+#include <QScrollArea>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QWidgetAction>
@@ -121,42 +123,6 @@ public:
     }
 };
 
-
-// Remove Duplicates: a box for each column of the table, all on; the rows that repeat in the ones on are taken out.
-class RemoveDuplicatesDialog : public QDialog {
-public:
-    RemoveDuplicatesDialog(const QStringList &columns, QWidget *parent)
-        : QDialog(parent)
-    {
-        setWindowTitle(QCoreApplication::translate("jp::RemoveDuplicatesDialog", "Remove Duplicates"));
-        auto *layout = new QVBoxLayout(this);
-        auto *label = new QLabel(QCoreApplication::translate("jp::RemoveDuplicatesDialog", "A row is a repeat when it shows the same as an earlier row in all of these columns. The first of the rows stays."), this);
-        label->setTextFormat(Qt::PlainText);
-        label->setWordWrap(true);
-        layout->addWidget(label);
-        for (int i = 0; i < columns.size(); ++i) {
-            auto *box = new QCheckBox(this);
-            box->setText(columns[i]);
-            box->setChecked(true);
-            m_boxes << box;
-            layout->addWidget(box);
-        }
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-        QObject::connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-        QObject::connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-        layout->addWidget(buttons);
-    }
-    QList<int> chosen() const
-    {
-        QList<int> out;
-        for (int i = 0; i < m_boxes.size(); ++i)
-            if (m_boxes[i]->isChecked()) out << i;
-        return out;
-    }
-
-private:
-    QList<QCheckBox *> m_boxes;
-};
 
 } // namespace
 

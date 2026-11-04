@@ -1202,6 +1202,25 @@ EditSession::Outcome EditSession::movePivot(int table, quint32 row, quint32 col)
         }
         return true;
     });
+    // (and anything else that sits there: a table, another pivot table, merged cells, the sheet's filter; none of it is moved or covered, so it is found before the cells are touched)
+    QString inTheWay;
+    auto meets = [&](const CellRange &r) { return r.valid && !(r.row2 < target.row1 || r.row1 > target.row2 || r.col2 < target.col1 || r.col1 > target.col2); };
+    for (const Table &tb : m_book->book->tables())
+        if (tb.sheet == sheet && !(tb.row2 < target.row1 || tb.row1 > target.row2 || tb.col2 < target.col1 || tb.col1 > target.col2)) inTheWay = tr("There is a table in the way (%1).").arg(tb.name);
+    for (int other = 0; other < pb.tableCount() && inTheWay.isEmpty(); ++other) {
+        if (other == table || pb.table(other).sheet != sheet) continue;
+        const CellRange ol = pb.locationOf(other);
+        if (meets(ol) || (pb.table(other).table && meets(pageArea(*pb.table(other).table, ol)))) inTheWay = tr("There is another pivot table in the way.");
+    }
+    if (inTheWay.isEmpty())
+        for (const CellRange &m : m_book->calc->mergesOf(sheet))
+            if (meets(m) && !box.contains(m.row1, m.col1)) inTheWay = tr("There are merged cells in the way (%1).").arg(rangeName(m));
+    if (inTheWay.isEmpty() && meets(m_book->calc->autoFilterOf(sheet).ref)) inTheWay = tr("The sheet's filter is in the way.");
+    if (!inTheWay.isEmpty()) {
+        out.ok = false;
+        out.problem = inTheWay + QLatin1Char(' ') + tr("Move the pivot table somewhere else, or clear those cells first.");
+        return out;
+    }
     if (!free) {
         out.ok = false;
         out.problem = tr("The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.").arg(rangeName(target));

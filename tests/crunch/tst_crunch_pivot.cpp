@@ -988,6 +988,58 @@ private Q_SLOTS:
         QVERIFY2(labels().contains(QStringLiteral("East|West|Jan|Feb|West Total")), qPrintable(labels()));
     }
 
+    // A pivot table with a filter above it moves with it: the old area, filter included, is empty, and a formula that pointed at the filter's cell follows.
+    void aPivotTableIsMovedWithItsFilters()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        jp::office::sheet::PivotTable t = *s->workbook()->pivots().table(0).table;
+        t.colFields.clear();
+        jp::office::sheet::PivotPageField page;
+        page.fld = 1;
+        t.pageFields.append(page);
+        QVERIFY2(s->setPivot(0, t, true, QStringLiteral("Filter")).ok, "filter");
+        finish(e);
+        quint32 pageRow = 99;
+        for (quint32 r = 0; r < 3; ++r)
+            if (s->valueAt(0, r, 4).isText() && s->valueAt(0, r, 4).text() == QLatin1String("Month")) pageRow = r;
+        QVERIFY(pageRow < 3);
+        QVERIFY(s->type(0, 11, 0, QStringLiteral("=F%1").arg(pageRow + 1)).ok);
+        finish(e);
+        const auto o = s->movePivot(0, 19, 9);
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        finish(e);
+        // the old area is empty (the page filter's cells and the table's)
+        for (quint32 r = 0; r < 10; ++r)
+            for (quint32 c = 4; c < 9; ++c) QVERIFY2(s->valueAt(0, r, c).isEmpty(), qPrintable(QStringLiteral("%1,%2").arg(r).arg(c)));
+        QCOMPARE(s->valueAt(0, pageRow + 17, 9).text(), QStringLiteral("Month"));
+        QCOMPARE(s->editText(0, 11, 0), QStringLiteral("=K%1").arg(pageRow + 17 + 1));
+        QCOMPARE(int(s->workbook()->pivots().locationOf(0).row1), 19);
+        s->undoStack()->undo();
+        finish(e);
+        QCOMPARE(s->valueAt(0, pageRow, 4).text(), QStringLiteral("Month"));
+        QCOMPARE(s->editText(0, 11, 0), QStringLiteral("=F%1").arg(pageRow + 1));
+    }
+
+    // What sits where the pivot table would go (merged cells that are empty, here) is found before anything is moved: nothing changes, and the reason is told.
+    void aPivotTableIsNotMovedOverMergedCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        CellRange merged;
+        parseRangeRef(QStringLiteral("K21:L22"), &merged);
+        QVERIFY(s->mergeCells(0, merged, crunch::EditSession::MergeKind::Merge).ok);
+        finish(e);
+        const int steps = s->undoStack()->index();
+        const auto o = s->movePivot(0, 19, 9);   // J20:M24 covers them
+        QVERIFY(!o.ok);
+        QVERIFY(o.problem.contains(QStringLiteral("merged")));
+        QCOMPARE(s->undoStack()->index(), steps);
+        QCOMPARE(int(s->workbook()->pivots().locationOf(0).row1), 2);
+    }
+
     // A formula that points at a cell of the pivot table follows it when the table is moved, as it follows cells that are cut and pasted; one that points elsewhere stays, and Undo is one step.
     void formulasPointingAtAMovedPivotTableFollowIt()
     {

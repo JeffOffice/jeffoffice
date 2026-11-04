@@ -646,8 +646,8 @@
             {"column": true},
             {"small": "pivot.expandField", "keytip": "PE"},
             {"small": "pivot.collapseField", "keytip": "PK"},
-            {"small": "pivot.drillDown", "keytip": "PO"},
-            {"small": "pivot.drillUp", "keytip": "PP"},
+            {"small": "pivot.drillDown", "keytip": "DD"},
+            {"small": "pivot.drillUp", "keytip": "DU"},
             {"small": "pivot.slicers", "keytip": "PN"}
           ]
         },

@@ -222,6 +222,14 @@ private Q_SLOTS:
         dates = QStringLiteral("not a range");
         w.act(QStringLiteral("spark.axis.date"))->trigger();
         QCOMPARE(group().dateRange, QStringLiteral("Sheet1!$A$1:$B$1"));   // (refused: nothing changed)
+        for (const char *bad : {"A1:B2", "A1:C1", "A1:A1", "A1:A5"}) {   // (two rows and columns; too many dates; too few; a column of another length)
+            dates = QString::fromLatin1(bad);
+            w.act(QStringLiteral("spark.axis.date"))->trigger();
+            QCOMPARE(group().dateRange, QStringLiteral("Sheet1!$A$1:$B$1"));
+        }
+        dates = QStringLiteral("A3:B3");   // (a row of the right length is fine)
+        w.act(QStringLiteral("spark.axis.date"))->trigger();
+        QCOMPARE(group().dateRange, QStringLiteral("Sheet1!$A$3:$B$3"));
         dates.clear();
         w.act(QStringLiteral("spark.axis.date"))->trigger();
         QVERIFY(!group().dateAxis);

@@ -238,6 +238,13 @@ QStringList labelPositionsFor(const Chart &chart)
     return {};
 }
 
+QString axisFormatProblem(const ChartAxis &axis)
+{
+    if (axis.kind == ChartAxis::Value && !axis.autoMin && !axis.autoMax && axis.min >= axis.max) return QCoreApplication::translate("Chart", "The lowest value has to be less than the highest.");
+    if (axis.majorUnit < 0 || axis.minorUnit < 0) return QCoreApplication::translate("Chart", "A unit can't be negative.");
+    return QString();
+}
+
 void setAxisFormat(Chart *chart, bool horizontal, bool secondary, const ChartAxis &from)
 {
     ChartAxis *a = secondary ? secondaryAxis(chart, horizontal) : primaryAxis(chart, horizontal);

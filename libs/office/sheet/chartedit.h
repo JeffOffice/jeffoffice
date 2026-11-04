@@ -58,6 +58,8 @@ void setTrendlineDisplay(Chart *chart, bool equation, bool rSquared);
 // The parts of an axis a format pane sets: its bounds and units, its order, where the other axis crosses it, the labels' number format, turn, and place, and its tick marks, taken from `from`
 // (the axis as the pane made it); the rest of the axis (its title, line, gridlines, and fonts) is left as it is. Nothing for an axis the chart does not have.
 void setAxisFormat(Chart *chart, bool horizontal, bool secondary, const ChartAxis &from);
+// Why the axis a format pane made can't be used, in a sentence (the lowest value is not under the highest, a unit is negative); empty when it can.
+QString axisFormatProblem(const ChartAxis &axis);
 // The positions data labels may be given for this chart (empty means the usual only).
 QStringList labelPositionsFor(const Chart &chart);
 // Labels of the values on every series (`position` empty: the usual), or none.

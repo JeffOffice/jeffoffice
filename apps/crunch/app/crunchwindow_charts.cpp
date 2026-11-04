@@ -16,6 +16,7 @@
 #include <QActionGroup>
 #include <QApplication>
 #include <QClipboard>
+#include <cmath>
 #include <QInputDialog>
 #include <QLineEdit>
 #include <QMenu>
@@ -381,7 +382,8 @@ void CrunchWindow::propertiesDialog()
         const crunch::EditSession::Outcome o = m_session->changeObjects({e}, out.prints ? tr("Print Object") : tr("Do Not Print Object"));
         if (!o.ok) notice(tr("Properties"), o.problem);
     }
-    if (out.widthPoints == p.widthPoints && out.heightPoints == p.heightPoints && out.follows == p.follows) return;   // (only what it prints with changed: done above)
+    // (the box shows sizes to a tenth of a point: a size within that of the one it started with is not a change)
+    if (std::abs(out.widthPoints - p.widthPoints) < 0.06 && std::abs(out.heightPoints - p.heightPoints) < 0.06 && out.follows == p.follows) return;   // (only what it prints with changed: done above)
     grid::ObjectBox nb = box;
     nb.w = out.widthPoints / 0.75;
     nb.h = out.heightPoints / 0.75;
@@ -484,6 +486,10 @@ void CrunchWindow::formatAxisDialog(bool horizontal)
         FormatAxisDialog dialog(*now, horizontal ? tr("Format Horizontal Axis") : tr("Format Vertical Axis"), this);
         if (dialog.exec() != QDialog::Accepted) return;
         made = dialog.result();
+    }
+    if (const QString problem = axisFormatProblem(made); !problem.isEmpty()) {
+        notice(tr("Format Axis"), problem);
+        return;
     }
     changePickedChart(tr("Format Axis"), [horizontal, made](Chart *c) { setAxisFormat(c, horizontal, false, made); });
 }

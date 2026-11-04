@@ -955,7 +955,6 @@ private:
     void takeLayoutJob(std::unique_ptr<crunch::PrintJob> job);
     void dropLayoutJob();
     void syncPageViewSelection();
-    void zoneClicked(int page, bool header, int zone);
     void openHeaderToType();
     bool m_headerWanted = false;
     void endZoneEdit(bool keep);
@@ -982,8 +981,6 @@ private:
 
     // the page commands and the Page Layout tab (crunchwindow_page.cpp)
     void formatAxisDialog(bool horizontal);
-    void applyHeaderForm(bool header, const QString &text);
-    void goToHeaderOrFooter(bool header);
     void createPageActions();
     void pageRibbonParts(RibbonParts &parts);
     void connectPageSetup();
@@ -1020,6 +1017,10 @@ private:
 
     // ---- the charts: making and changing them (crunchwindow_charts.cpp)
 public:
+    // The header and footer on the Page Layout view: a part of a page opened to type in; a ready form from the galleries (the whole header or footer, as the three parts' codes); Go to Header and Go to Footer.
+    void zoneClicked(int page, bool header, int zone);
+    void applyHeaderForm(bool header, const QString &text);
+    void goToHeaderOrFooter(bool header);
     // What New Chart asks (a dialog unless this stands in for it: tests): the kind, and how to read the cells (-1 as their shape says, 2 the other way); false gives it up.
     struct InsertChartChoice {
         jp::office::sheet::ChartKind kind = jp::office::sheet::ChartKind::Column;

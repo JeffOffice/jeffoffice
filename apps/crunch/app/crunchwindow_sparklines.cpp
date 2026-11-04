@@ -471,6 +471,22 @@ void CrunchWindow::createSparklineActions()
                 notice(tr("Sparkline Date Axis"), tr("Type the cells that hold the dates, for example A1:F1."));
                 return;
             }
+            // (one row or one column, as long as the data of every sparkline in the group: a date for each point)
+            const qint64 count = std::max<qint64>(range.row2 - range.row1 + 1, range.col2 - range.col1 + 1);
+            if (range.row2 != range.row1 && range.col2 != range.col1) {
+                notice(tr("Sparkline Date Axis"), tr("The dates have to be in one row or one column of cells."));
+                return;
+            }
+            for (const Sparkline &sp : now.sparklines) {
+                QString dataSheet;
+                CellRange dataRange;
+                if (!parseData(sp.source, &dataSheet, &dataRange)) continue;
+                const qint64 points = std::max<qint64>(dataRange.row2 - dataRange.row1 + 1, dataRange.col2 - dataRange.col1 + 1);
+                if (points != count) {
+                    notice(tr("Sparkline Date Axis"), tr("There has to be a date for every point: the data has %1 and these cells have %2.").arg(points).arg(count));
+                    return;
+                }
+            }
             if (sheetName.isEmpty()) sheetName = m_loaded->book->info().sheets[m_sheet].name;
             const bool plain = !sheetName.isEmpty() && sheetName.at(0).isLetter() && std::all_of(sheetName.cbegin(), sheetName.cend(), [](QChar c) { return c.isLetterOrNumber() || c == QLatin1Char('_'); });
             const QString q = plain ? sheetName : QLatin1Char('\'') + QString(sheetName).replace(QLatin1Char('\''), QLatin1String("''")) + QLatin1Char('\'');

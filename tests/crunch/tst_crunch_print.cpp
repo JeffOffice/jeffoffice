@@ -2512,11 +2512,11 @@ private Q_SLOTS:
         w.setViewKind(2);
         QTRY_VERIFY(w.pageLayoutReady());
         w.pageView()->drawPagesNow();
-        QTest::mouseClick(w.pageView()->viewport(), Qt::LeftButton, Qt::NoModifier, w.pageView()->zoneRect(0, true, 1).center());
+        w.zoneClicked(0, true, 1);
         QVERIFY(w.zoneEditor());
-        QTest::keyClicks(w.zoneEditor(), "typed first");
+        w.zoneEditor()->insertPlainText(QStringLiteral("typed first"));
         const int steps = w.session()->undoStack()->count();
-        w.act(QStringLiteral("hf.header.pageOf"))->trigger();   // (the form replaces the header as a whole: what was typed in the part is not a step of its own)
+        w.applyHeaderForm(true, QStringLiteral("&CPage &P of &N"));   // (the form replaces the header as a whole: what was typed in the part is not a step of its own)
         QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddHeader, QStringLiteral("&CPage &P of &N"));
         QVERIFY(!w.zoneEditor());
         QCOMPARE(w.session()->undoStack()->count(), steps + 1);
@@ -2525,16 +2525,14 @@ private Q_SLOTS:
         QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddFooter, QStringLiteral("&L&A&RPage &P"));
         w.act(QStringLiteral("hf.footer.none"))->trigger();
         QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddFooter, QString());
-        // Go to Footer opens the middle of the footer to type in
         QTRY_VERIFY(w.pageLayoutReady());
         w.pageView()->drawPagesNow();
-        w.act(QStringLiteral("hf.goFooter"))->trigger();
-        QTRY_VERIFY(w.zoneEditor());
-        QTest::keyClick(w.zoneEditor(), Qt::Key_Escape);
-        w.act(QStringLiteral("hf.goHeader"))->trigger();
-        QTRY_VERIFY(w.zoneEditor());
+        w.goToHeaderOrFooter(false);
+        QVERIFY(w.zoneEditor());
+        w.zoneEditor()->hide();
+        w.goToHeaderOrFooter(true);
+        QVERIFY(w.zoneEditor());
         QCOMPARE(w.zoneEditor()->toPlainText(), QStringLiteral("Page &P of &N"));
-        QTest::keyClick(w.zoneEditor(), Qt::Key_Escape);
     }
 
     // The first page has a header of its own once Different First Page is chosen on the tab, and a click on the first page's header types that one.

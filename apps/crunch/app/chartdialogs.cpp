@@ -642,13 +642,15 @@ FormatAxisDialog::FormatAxisDialog(const jp::office::ChartAxis &axis, const QStr
         return box;
     };
     // a number that is automatic or set: a box to turn the automatic on, and the number beside it
-    auto row = [&](const QString &label, bool automatic, double value, QCheckBox **autoBox, QDoubleSpinBox **number) {
+    auto row = [&](const QString &label, const QString &objectName, bool automatic, double value, QCheckBox **autoBox, QDoubleSpinBox **number) {
         auto *line = new QWidget(this);
         auto *h = new QHBoxLayout(line);
         h->setContentsMargins(0, 0, 0, 0);
         *autoBox = new QCheckBox(tr("Automatic"), line);
+        (*autoBox)->setObjectName(objectName + QStringLiteral("Auto"));
         (*autoBox)->setChecked(automatic);
         *number = spin(value);
+        (*number)->setObjectName(objectName);
         (*number)->setEnabled(!automatic);
         connect(*autoBox, &QCheckBox::toggled, *number, [n = *number](bool on) { n->setEnabled(!on); });
         h->addWidget(*autoBox);
@@ -656,10 +658,10 @@ FormatAxisDialog::FormatAxisDialog(const jp::office::ChartAxis &axis, const QStr
         form->addRow(label, line);
         line->setEnabled(numbers);
     };
-    row(tr("Lowest value:"), axis.autoMin, axis.min, &m_autoMin, &m_min);
-    row(tr("Highest value:"), axis.autoMax, axis.max, &m_autoMax, &m_max);
-    row(tr("Major unit:"), axis.majorUnit == 0, axis.majorUnit, &m_autoMajor, &m_major);
-    row(tr("Minor unit:"), axis.minorUnit == 0, axis.minorUnit, &m_autoMinor, &m_minor);
+    row(tr("Lowest value:"), QStringLiteral("axisMin"), axis.autoMin, axis.min, &m_autoMin, &m_min);
+    row(tr("Highest value:"), QStringLiteral("axisMax"), axis.autoMax, axis.max, &m_autoMax, &m_max);
+    row(tr("Major unit:"), QStringLiteral("axisMajor"), axis.majorUnit == 0, axis.majorUnit, &m_autoMajor, &m_major);
+    row(tr("Minor unit:"), QStringLiteral("axisMinor"), axis.minorUnit == 0, axis.minorUnit, &m_autoMinor, &m_minor);
     m_reversed = new QCheckBox(tr("Values in reverse order"), this);
     m_reversed->setChecked(axis.reversed);
     form->addRow(m_reversed);
@@ -713,6 +715,24 @@ FormatAxisDialog::FormatAxisDialog(const jp::office::ChartAxis &axis, const QStr
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     form->addRow(buttons);
+}
+
+QString FormatAxisDialog::problem() const
+{
+    if (m_axis.kind == jp::office::ChartAxis::Value) {
+        if (!m_autoMajor->isChecked() && m_major->value() <= 0) return tr("The major unit has to be more than 0, or Automatic.");
+        if (!m_autoMinor->isChecked() && m_minor->value() <= 0) return tr("The minor unit has to be more than 0, or Automatic.");
+    }
+    return jp::office::sheet::axisFormatProblem(result());
+}
+
+void FormatAxisDialog::accept()
+{
+    if (const QString why = problem(); !why.isEmpty()) {
+        jp::plainWarning(this, windowTitle(), why);
+        return;
+    }
+    QDialog::accept();
 }
 
 jp::office::ChartAxis FormatAxisDialog::result() const
