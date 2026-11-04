@@ -419,6 +419,41 @@ private Q_SLOTS:
         QCOMPARE(e.selected(), QStringLiteral("A1"));
     }
 
+    // Properties: "Print this object" off keeps the object off the printed pages, is one step of Undo, and is saved as the client data's fPrintsWithSheet and kept.
+    void anObjectThatDoesNotPrintIsLeftOffThePages()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->select(0);
+        QCOMPARE(int(o->printObjects(0).size()), 1);
+        bool printedBefore = false;
+        e.win.w.setPropertiesAsker([&](const ObjectProperties &now, ObjectProperties *out) {
+            printedBefore = now.prints;
+            *out = now;
+            out->prints = false;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("object.properties"))->trigger();
+        QVERIFY(printedBefore);
+        QCOMPARE(int(o->printObjects(0).size()), 0);
+        QVERIFY(save(e));
+        Package p;
+        QString why;
+        QVERIFY(p.readLazyFile(e.path, &why));
+        QVERIFY(p.part(QStringLiteral("/xl/drawings/drawing1.xml")).contains("fPrintsWithSheet=\"0\""));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 1);
+        QCOMPARE(int(second.w.objects()->printObjects(0).size()), 0);
+        e.win.w.session()->undoStack()->undo();
+        QCOMPARE(int(o->printObjects(0).size()), 1);
+        QVERIFY(save(e));
+        QVERIFY(p.readLazyFile(e.path, &why));
+        QVERIFY(!p.part(QStringLiteral("/xl/drawings/drawing1.xml")).contains("fPrintsWithSheet"));
+    }
+
     // Properties: the size and what the object does when cells change; it is saved as the anchor's editAs (a two-cell anchor that moves and does not size), and kept.
     void whatAnObjectDoesWhenCellsChangeIsSaved()
     {

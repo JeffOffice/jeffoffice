@@ -147,6 +147,7 @@ struct ObjectProperties {
     jp::office::sheet::AnchorKind follows = jp::office::sheet::AnchorKind::TwoCell;   // two cells: moves and sizes with them; one: moves; absolute: neither
     QString name;
     bool keepProportions = false;
+    bool prints = true;   // on the printed pages
 };
 
 class ObjectPropertiesDialog : public QDialog {
@@ -158,7 +159,7 @@ public:
 private:
     QDoubleSpinBox *m_width = nullptr, *m_height = nullptr;
     QRadioButton *m_sizes = nullptr, *m_moves = nullptr, *m_stays = nullptr;
-    QCheckBox *m_ratio = nullptr;
+    QCheckBox *m_ratio = nullptr, *m_prints = nullptr;
     double m_ratioOf = 1;
     ObjectProperties m_now;
 };

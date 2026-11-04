@@ -34,6 +34,7 @@ struct ObjectState {
     std::shared_ptr<const jp::office::Chart> chart;   // a chart's model (null: whatever the object has; for a picture or shape)
     std::vector<RefPlacement> refs;                   // what the chart reads, as given by a person
     QString name;                                     // its name (empty: whatever it has)
+    int prints = -1;                                  // whether it is on the printed pages (-1: whatever it has)
     bool deleted = false;                             // taken away (or not made yet)
     int order = 0;                                    // its place among the sheet's objects, from the back
     int epoch = 0;                                    // which stretch between saves the places are of: after a save that followed edits to rows and columns, what was kept of the one before is no use

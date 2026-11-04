@@ -363,6 +363,7 @@ void CrunchWindow::propertiesDialog()
     p.follows = now.editAs;
     p.name = m_objects->nameOf(m_sheet, id);
     p.keepProportions = m_objects->kindOf(m_sheet, id) == ObjectKind::Picture;
+    p.prints = m_objects->printsOf(m_sheet, id);
     ObjectProperties out = p;
     if (m_propertiesAsker) {
         if (!m_propertiesAsker(p, &out)) return;
@@ -371,6 +372,16 @@ void CrunchWindow::propertiesDialog()
         if (d.exec() != QDialog::Accepted) return;
         out = d.result();
     }
+    if (out.prints != p.prints) {
+        crunch::ObjectEdit e;
+        e.sheet = m_sheet;
+        e.id = id;
+        e.before = m_objects->stateOf(m_sheet, id);
+        e.after = m_objects->stateWithPrints(m_sheet, id, out.prints);
+        const crunch::EditSession::Outcome o = m_session->changeObjects({e}, out.prints ? tr("Print Object") : tr("Do Not Print Object"));
+        if (!o.ok) notice(tr("Properties"), o.problem);
+    }
+    if (out.widthPoints == p.widthPoints && out.heightPoints == p.heightPoints && out.follows == p.follows) return;   // (only what it prints with changed: done above)
     grid::ObjectBox nb = box;
     nb.w = out.widthPoints / 0.75;
     nb.h = out.heightPoints / 0.75;

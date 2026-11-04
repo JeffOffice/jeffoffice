@@ -600,6 +600,10 @@ ObjectPropertiesDialog::ObjectPropertiesDialog(const ObjectProperties &now, QWid
     g->addWidget(m_stays);
     (now.follows == AnchorKind::OneCell ? m_moves : now.follows == AnchorKind::Absolute ? m_stays : m_sizes)->setChecked(true);
     outer->addWidget(group);
+    m_prints = new QCheckBox(tr("Print this object"), this);
+    m_prints->setObjectName(QStringLiteral("objectPrints"));
+    m_prints->setChecked(now.prints);
+    outer->addWidget(m_prints);
     connect(m_width, &QDoubleSpinBox::valueChanged, this, [this](double v) {
         if (m_ratio->isChecked() && m_ratioOf > 0 && !m_height->hasFocus()) m_height->setValue(v / m_ratioOf);
     });
@@ -619,6 +623,7 @@ ObjectProperties ObjectPropertiesDialog::result() const
     p.heightPoints = m_height->value();
     p.follows = m_moves->isChecked() ? AnchorKind::OneCell : m_stays->isChecked() ? AnchorKind::Absolute : AnchorKind::TwoCell;
     p.keepProportions = m_ratio->isChecked();
+    p.prints = m_prints->isChecked();
     return p;
 }
 

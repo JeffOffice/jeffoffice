@@ -303,6 +303,8 @@ struct SaveChanges {
     std::map<QString, std::map<int, DrawingAnchor>> anchors;
     // Objects a person named: for each drawing part (by its name), the new name of the object at a place (DrawingObject::ordinal). Applied with the anchors, before objects are taken away.
     std::map<QString, std::map<int, QString>> objectNames;
+    // Objects a person took off the printed pages or put back on them: for each drawing part, whether the object at a place prints. Applied with the names.
+    std::map<QString, std::map<int, bool>> objectPrints;
     // Objects a person put on sheets (a chart, a picture, a shape): by the sheet's place, what the drawing part gets and the parts it relates to (drawingadd.h). A sheet with no drawing is given one.
     std::map<int, AddedDrawing> addedObjects;
     // Drawings whose objects are drawn in another order: for each drawing part (by its name), the order of all the children of its root as they are after what is above is done (the objects taken
