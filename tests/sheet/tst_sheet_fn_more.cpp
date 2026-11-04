@@ -2,6 +2,7 @@
 // the one the published definition of the function gives (the examples of its documentation, or worked out by hand from the formula).
 #include "calchelpers.h"
 
+#include <QElapsedTimer>
 #include <QRegularExpression>
 
 using namespace jp::calc;
@@ -534,17 +535,19 @@ private Q_SLOTS:
             {"IMARGUMENT(\"3+4i\")", "~0.927295"},           {"IMARGUMENT(0)", "e:#DIV/0!"},                {"IMCONJUGATE(\"3+4i\")", "s:3-4i"},           {"IMSUM(\"3+4i\",\"5-3i\")", "s:8+i"},
             {"IMSUM(\"3+4i\",\"5-3j\")", "e:#VALUE!"},       {"IMSUB(\"13+4i\",\"5+3i\")", "s:8+i"},        {"IMPRODUCT(\"3+4i\",\"5-3i\")", "s:27+11i"},  {"IMDIV(\"-238+240i\",\"10+24i\")", "s:5+12i"},
             {"IMDIV(\"1\",0)", "e:#NUM!"},                   {"IMEXP(\"1+i\")", "s:1.46869393991589+2.28735528717884i"}, {"IMSQRT(\"1+i\")", "s:1.09868411346781+0.455089860562227i"},
-            {"IMPOWER(\"2+3i\",3)", "~0"},                   {"IMLN(\"3+4i\")", "s:1.6094379124341+0.927295218001612i"}, {"IMLN(0)", "e:#NUM!"},
+            {"IMPOWER(\"2+3i\",3)", "s:x"},                   {"IMLN(\"3+4i\")", "s:1.6094379124341+0.927295218001612i"}, {"IMLN(0)", "e:#NUM!"},
             {"IMLOG10(\"3+4i\")", "s:0.698970004336019+0.402719196273373i"}, {"IMLOG2(\"3+4i\")", "s:2.32192809488736+1.33780421245098i"},
             {"IMSIN(\"3+4i\")", "s:3.85373803791938-27.0168132580039i"}, {"IMCOS(\"1+i\")", "s:0.833730025131149-0.988897705762865i"},
             {"IMSUM(A1:A2)", "s:0"},
         };
         for (const auto &c : cases) {
-            // (IMPOWER is compared apart: its rounding noise is not the same on every machine)
+            // (IMPOWER is compared by its two parts: the rounding noise is not the same on every machine)
             if (QByteArray(c.formula).startsWith("IMPOWER")) {
-                const QString got = ev(QString::fromUtf8(c.formula), Grid(), Settings());
-                QVERIFY2(got.startsWith(QLatin1String("s:-46+9i")) || got.startsWith(QLatin1String("s:-46.0000000000001+9i")) || got.startsWith(QLatin1String("s:-46+9.0000000000001i"))
-                             || got.startsWith(QLatin1String("s:-46.0000000000001+9.00000000000001i")) || got.startsWith(QLatin1String("s:-46")), qPrintable(got));
+                const E parts[] = {{"IMREAL(IMPOWER(\"2+3i\",3))", "~-46.000000"}, {"IMAGINARY(IMPOWER(\"2+3i\",3))", "~9.000000"}};
+                for (const auto &part : parts) {
+                    const QString problem = check(part, Grid(), Settings());
+                    QVERIFY2(problem.isEmpty(), qPrintable(problem));
+                }
                 continue;
             }
             const QString problem = check(c, Grid(), Settings());
@@ -623,6 +626,53 @@ private Q_SLOTS:
             {"FORMULATEXT(E1)", "s:=SUM(B1:B2)"},              {"FORMULATEXT(B1)", "e:#N/A"},                       {"FORMULATEXT(\"x\")", "e:#VALUE!"},
         };
         g.formula("E1", "SUM(B1:B2)");
+        CHECK_ALL(cases, g, array)
+    }
+
+    // A formula whose numbers are huge or whose counts are unbounded ends at once, with a result or an error (each of these ran for minutes before).
+    void budget()
+    {
+        static const char *const formulas[] = {
+            "DB(1,0.5,1E300,1E300)", "AMORDEGRC(1,DATE(2020,1,1),DATE(2020,12,31),0,1E300,0.1)", "CUMIPMT(0.1,1E300,1,1,1E300,0)", "BINOM.DIST.RANGE(1E300,0.5,0,1E300)",
+            "BINOM.DIST.RANGE(1E300,0.5,1E300,1E300)", "HYPGEOM.DIST(1E300,1E300,1E300,1E300,TRUE)", "COMBINA(1E15,1E15)", "COMBINA(1E300,1E300)", "BINOM.INV(1E17,0.5,0.3)",
+            "BINOM.INV(1E300,0.5,0.3)", "CUMIPMT(0.1,1E15,1,1E15,1E15,0)", "MODE.MULT(SEQUENCE(20000,1,1,0))", "YIELD(DATE(2020,1,1),DATE(9999,12,31),0.05,90,100,4,1)",
+            "PRICE(DATE(2020,1,1),DATE(9999,12,31),0.05,0.04,100,4,1)", "DURATION(DATE(2020,1,1),DATE(9999,12,31),0.05,0.04,4,1)",
+            "ODDFYIELD(DATE(2020,1,1),DATE(9999,12,31),DATE(1900,1,2),DATE(2021,1,1),0.05,90,100,4,1)", "ODDLYIELD(DATE(9998,6,1),DATE(9999,12,31),DATE(1900,1,2),0.05,90,100,4,1)",
+            "ACCRINT(DATE(1900,1,2),DATE(9999,12,31),DATE(9999,12,30),0.05,100,4,1)", "CHISQ.INV.RT(1E-300,1E9)", "GAMMA.INV(0.5,1E9,1E9)", "BETA.INV(0.5,1E8,1E-8)",
+            "T.INV(1E-300,1E9)", "F.INV.RT(1E-300,1E9,1E9)", "CHISQ.DIST(1E9,1E9,TRUE)", "UNIQUE(SEQUENCE(100000,3,1,0.001))", "SORT(SEQUENCE(100000,2,1,0.001),{1,2})",
+            "BESSELJ(1E300,1)", "BESSELY(1E300,1)", "BESSELK(1E-300,1000)", "FREQUENCY(SEQUENCE(1000000),SEQUENCE(1000))", "LINEST(SEQUENCE(1000),SEQUENCE(1000,10),TRUE,TRUE)",
+        };
+        Settings array;
+        array.array = true;
+        const Grid g = sample();
+        for (const char *f : formulas) {
+            QElapsedTimer timer;
+            timer.start();
+            const QString got = ev(withPrefixes(QString::fromUtf8(f)), g, array);
+            QVERIFY2(!got.startsWith(QLatin1String("!")), qPrintable(QString::fromUtf8(f) + QStringLiteral(" -> ") + got.left(100)));
+            QVERIFY2(timer.elapsed() < 8000, qPrintable(QStringLiteral("%1 took %2 ms").arg(QString::fromUtf8(f)).arg(timer.elapsed())));
+        }
+    }
+
+    void resultsThatAreNotNumbersAreErrorsAndTheOddCasesAreRight()
+    {
+        Settings array;
+        array.array = true;
+        Grid g = sample();
+        g.column("F1", {1, 2, 3, 4});
+        const E cases[] = {
+            {"ISERROR(INDEX(SEQUENCE(1,2,1E308,1E308),1,2))", "b:1"},   {"ISERROR(INDEX(RANDARRAY(1,1,-1E308,1E308),1,1))", "b:1"},
+            {"ISERROR(INDEX(GROWTH({1,2,3},{1,2,3},1E300),1,1))", "b:1"}, {"BESSELJ(1E6,0)", "e:#NUM!"},       {"BESSELY(1E6,0)", "e:#NUM!"},
+            {"AGGREGATE(1E300,6,A1)", "e:#VALUE!"},                      {"AGGREGATE(3,6,C1:C5)", "n:3"},     {"AGGREGATE(3,4,C1:C5)", "n:4"},        {"AGGREGATE(2,6,C1:C5)", "n:1"},
+            {"SORT({1,2;1,1;0,5},{1,2},{1,-1})", "a:3x2[n:0,n:5;n:1,n:2;n:1,n:1]"}, {"SORT({1,2;1,1;0,5},{2,1})", "a:3x2[n:1,n:1;n:1,n:2;n:0,n:5]"},
+            {"SORT(F1:F4,{1,2})", "e:#VALUE!"},                          {"SORT(F1:F4,{1,2},{1,2,3})", "e:#VALUE!"},
+            {"ROUND(INDEX(LINEST({3;5;7;9},{1,2;2,4;3,6;4,8}),1,1),8)", "n:0"}, {"ROUND(INDEX(LINEST({3;5;7;9},{1,2;2,4;3,6;4,8}),1,2),8)", "n:2"},
+            {"ROUND(INDEX(LINEST({3;5;7;9},{1,2;2,4;3,6;4,8}),1,3),8)", "n:1"},
+            {"CONVERT(1,\"m^2\",\"ft^2\")", "~10.7639104"},                {"CONVERT(1,\"yd^3\",\"ft^3\")", "~27"}, {"CONVERT(1E20,\"ang^2\",\"m^2\")", "~1"}, {"CONVERT(1,\"ft^3\",\"in^3\")", "~1728"},
+            {"CONVERT(1,\"in^2\",\"ft^2\")", "~0.00694444444"},           {"CONVERT(1,\"km^2\",\"m^2\")", "~1000000"},
+            {"ABS(T.DIST(T.INV(1E-12,5),5,TRUE)/1E-12-1)<1E-9", "b:1"},  {"ABS(CHISQ.DIST.RT(CHISQ.INV.RT(1E-12,3),3)/1E-12-1)<1E-9", "b:1"},
+            {"ABS(F.DIST.RT(F.INV.RT(1E-12,4,6),4,6)/1E-12-1)<1E-9", "b:1"}, {"ABS(T.DIST.2T(T.INV.2T(1E-12,7),7)/1E-12-1)<1E-9", "b:1"},
+        };
         CHECK_ALL(cases, g, array)
     }
 };

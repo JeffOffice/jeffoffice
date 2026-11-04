@@ -209,6 +209,7 @@ Value fnCombinA(Call &c)
     if (n == 0) return c.error(ErrorKind::Num);
     const double m = n + k - 1;
     const double j = std::min(k, n - 1);
+    if (!c.machine().chargeCount(j)) return c.error(ErrorKind::Value);
     double r = 1;
     for (double i = 1; i <= j; ++i) r = r * (m - j + i) / i;
     return numberResult(std::round(r));
@@ -420,7 +421,7 @@ Value fnSequence(Call &c)
     if (!out.isArray()) return out;
     double v = start;
     for (int i = 0; i < int(rows); ++i)
-        for (int j = 0; j < int(cols); ++j, v += step) out.set(i, j, Value::number(v));
+        for (int j = 0; j < int(cols); ++j, v += step) out.set(i, j, numberResult(v));
     return out;
 }
 
@@ -444,7 +445,7 @@ Value fnRandArray(Call &c)
         for (int j = 0; j < int(cols); ++j) {
             std::uniform_real_distribution<double> d(0.0, 1.0);
             const double u = d(c.machine().random());
-            out.set(i, j, Value::number(whole ? low + std::floor(u * (high - low + 1)) : low + u * (high - low)));
+            out.set(i, j, numberResult(whole ? low + std::floor(u * (high - low + 1)) : low + u * (high - low)));
         }
     return out;
 }
@@ -455,12 +456,14 @@ Value fnAggregate(Call &c)
 {
     double f, options;
     if (!c.number(0, &f) || !c.number(1, &options)) return c.failure();
+    if (!(std::fabs(f) < 100) || !(std::fabs(options) < 100)) return c.error(ErrorKind::Value);
     const int fn = int(std::trunc(f)), opt = int(std::trunc(options));
     if (fn < 1 || fn > 19 || opt < 0 || opt > 7) return c.error(ErrorKind::Value);
     if (c.argc() < 3 || (fn >= 14 && c.argc() != 4) || (fn < 14 && c.argc() < 3)) return c.error(ErrorKind::Value);
     const bool skipHidden = opt == 1 || opt == 3 || opt == 5 || opt == 7, skipErrors = opt >= 2 && opt != 4 && opt != 5, skipNested = opt <= 3;
     const int last = fn >= 14 ? 3 : c.argc();
     std::vector<double> x;
+    qint64 nonEmpty = 0;
     for (int i = 2; i < last; ++i) {
         bool failed = false;
         Value problem;
@@ -470,13 +473,18 @@ Value fnAggregate(Call &c)
             if (sheet >= 0 && skipHidden && c.machine().source().rowHiddenKind(sheet, row) >= 1) return true;
             if (v.isError()) {
                 if (skipErrors) return true;
+                if (fn == 3) {
+                    ++nonEmpty;
+                    return true;
+                }
                 problem = v;
                 failed = true;
                 return false;
             }
+            if (!v.isEmpty()) ++nonEmpty;
             if (v.isNumber()) x.push_back(v.number());
             else if (typedArgument && v.isBool()) x.push_back(v.number());
-            else if (typedArgument && v.isText()) {
+            else if (typedArgument && v.isText() && fn != 3) {
                 double d;
                 if (!textToNumber(v.text(), c.context().dateSystem, &d)) {
                     problem = Value::error(ErrorKind::Value);
@@ -518,8 +526,8 @@ Value fnAggregate(Call &c)
     };
     switch (fn) {
     case 1: return n ? numberResult(sum / double(n)) : c.error(ErrorKind::Div0);
-    case 2:
-    case 3: return Value::number(double(n));
+    case 2: return Value::number(double(n));
+    case 3: return Value::number(double(nonEmpty));
     case 4: return n ? Value::number(*std::max_element(x.begin(), x.end())) : Value::number(0);
     case 5: return n ? Value::number(*std::min_element(x.begin(), x.end())) : Value::number(0);
     case 6: {

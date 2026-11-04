@@ -144,6 +144,7 @@ QVector<QStringList> EditSession::splitText(const QStringList &lines, const Spli
                 }
                 if (!quoted && spec.delimiters.contains(ch)) {
                     if (!(spec.consecutiveAsOne && lastWasDelimiter)) pieces << piece;
+                    if (pieces.size() > jp::calc::kGridCols) break;   // (more pieces than the sheet has columns: the caller says so)
                     piece.clear();
                     lastWasDelimiter = true;
                     continue;
@@ -177,9 +178,21 @@ EditSession::Outcome EditSession::textToColumns(int sheet, const CellRange &sour
         // (what the cell shows as text: a number as it is edited, a formula's result by its value)
         lines << (v.isEmpty() ? QString() : v.isText() ? v.text() : editText(sheet, row, source.col1).startsWith(QLatin1Char('=')) ? jp::calc::numberToText(v.number()) : editText(sheet, row, source.col1));
     }
-    QVector<QStringList> pieces = splitText(lines, spec);
+    // (line by line, so that a line of very many pieces is met before the next ones are cut: none may make a block past what a step may hold many times over)
+    QVector<QStringList> pieces;
     int columns = 0;
-    for (const QStringList &p : pieces) columns = std::max<int>(columns, int(p.size()));
+    for (const QString &line : lines) {
+        pieces.append(splitText({line}, spec).value(0));
+        columns = std::max<int>(columns, int(pieces.last().size()));
+        if (qint64(columns) * lines.size() > 16 * kMaxCellsPerEdit) return refuse(tr("The pieces would fill too many cells at once. Select fewer cells, or split at fewer places."));
+    }
+    // how many columns are kept, before any row is made as wide as that
+    int kept = 0;
+    for (int c = 0; c < columns; ++c)
+        if (!(c < int(spec.types.size()) && spec.types[size_t(c)] == 2)) ++kept;
+    if (kept == 0) return refuse(tr("Every column was left out, so there is nothing to put in the sheet."));
+    if (qint64(destCol) + kept > jp::calc::kGridCols) return refuse(tr("The pieces would go past the last column of the sheet."));
+    if (qint64(kept) * pieces.size() > kMaxCellsPerEdit) return refuse(tr("The pieces would fill too many cells at once. Select fewer cells, or split at fewer places."));
     // the columns that are not imported are left out, and a column of text is marked as text
     QVector<QStringList> table;
     table.reserve(pieces.size());
@@ -194,11 +207,6 @@ EditSession::Outcome EditSession::textToColumns(int sheet, const CellRange &sour
         }
         table.append(row);
     }
-    int kept = 0;
-    for (int c = 0; c < columns; ++c)
-        if (!(c < int(spec.types.size()) && spec.types[size_t(c)] == 2)) ++kept;
-    if (kept == 0) return refuse(tr("Every column was left out, so there is nothing to put in the sheet."));
-    if (qint64(destCol) + kept > jp::calc::kGridCols) return refuse(tr("The pieces would go past the last column of the sheet."));
     CellRange target;
     target.valid = true;
     target.row1 = destRow;

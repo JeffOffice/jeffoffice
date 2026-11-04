@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <set>
 
 namespace jp::calc {
 
@@ -128,6 +129,7 @@ double sumSquares(const std::vector<double> &x, double mean)
 }
 
 bool charged(Call &c, qint64 n) { return c.machine().charge(n); }
+bool chargedCount(Call &c, double n) { return c.machine().chargeCount(n); }
 
 // ---- the shape of a set of numbers
 
@@ -423,18 +425,16 @@ Value fnModeMult(Call &c)
     std::vector<double> x;
     Value error;
     if (!gatherNumbers(c, 0, &x, &error)) return error;
+    if (!charged(c, qint64(x.size()) * 4)) return c.error(ErrorKind::Value);
     std::map<double, size_t> counts;
     for (const double v : x) ++counts[v];
     size_t best = 1;
     for (const auto &kv : counts) best = std::max(best, kv.second);
     if (best < 2) return c.error(ErrorKind::NA);
     std::vector<double> modes;
-    std::vector<double> seen;
+    std::set<double> seen;
     for (const double v : x)
-        if (counts[v] == best && std::find(seen.begin(), seen.end(), v) == seen.end()) {
-            seen.push_back(v);
-            modes.push_back(v);
-        }
+        if (counts[v] == best && seen.insert(v).second) modes.push_back(v);
     Value out = c.machine().newArray(int(modes.size()), 1);
     if (!out.isArray()) return out;
     for (size_t i = 0; i < modes.size(); ++i) out.set(int(i), 0, Value::number(modes[i]));
@@ -753,7 +753,7 @@ Value fnChiInvRt(Call &c)
     if (!c.number(0, &p) || !degrees(c, 1, &df)) return c.failure();
     if (p <= 0 || p > 1 || df < 1 || df > 1e10) return c.error(ErrorKind::Num);
     if (p == 1) return Value::number(0);
-    if (!inverseRising([&](double t) { return gammaP(df / 2, t / 2); }, 1 - p, 0, INFINITY, &x)) return c.error(ErrorKind::Num);
+    if (!inverseRising([&](double t) { return -gammaQ(df / 2, t / 2); }, -p, 0, INFINITY, &x)) return c.error(ErrorKind::Num);
     return numberResult(x);
 }
 
@@ -802,10 +802,10 @@ Value fInverse(Call &c, bool rightTail)
     double p, d1, d2, x;
     if (!c.number(0, &p) || !degrees(c, 1, &d1) || !degrees(c, 2, &d2)) return c.failure();
     if (p < 0 || p > 1 || d1 < 1 || d2 < 1 || d1 > 1e10 || d2 > 1e10) return c.error(ErrorKind::Num);
-    if (rightTail) p = 1 - p;
-    if (p == 0) return Value::number(0);
-    if (p == 1) return c.error(ErrorKind::Num);
-    if (!inverseRising([&](double t) { return fCdf(t, d1, d2); }, p, 0, INFINITY, &x)) return c.error(ErrorKind::Num);
+    if (rightTail ? p == 1 : p == 0) return Value::number(0);
+    if (rightTail ? p == 0 : p == 1) return c.error(ErrorKind::Num);
+    const bool ok = rightTail ? inverseRising([&](double t) { return -fTail(t, d1, d2); }, -p, 0, INFINITY, &x) : inverseRising([&](double t) { return fCdf(t, d1, d2); }, p, 0, INFINITY, &x);
+    if (!ok) return c.error(ErrorKind::Num);
     return numberResult(x);
 }
 Value fnFInv(Call &c) { return fInverse(c, false); }
@@ -871,8 +871,8 @@ bool studentInverse(double p, double df, double *t)
     double x;
     const bool below = p < 0.5;
     const double q = below ? p : 1 - p;
-    // the two-tailed probability 2q falls as t rises: find the t with studentTwoTail(t) = 2q
-    if (!inverseRising([&](double u) { return 1 - studentTwoTail(u, df); }, 1 - 2 * q, 0, INFINITY, &x)) return false;
+    // the two-tailed probability 2q falls as t rises: find the t with studentTwoTail(t) = 2q, from the tail itself
+    if (!inverseRising([&](double u) { return -studentTwoTail(u, df); }, -2 * q, 0, INFINITY, &x)) return false;
     *t = below ? -x : x;
     return true;
 }
@@ -892,7 +892,8 @@ Value fnTInv2T(Call &c)
     if (!c.number(0, &p) || !degrees(c, 1, &df)) return c.failure();
     if (!(p > 0 && p <= 1) || df < 1) return c.error(ErrorKind::Num);
     if (p == 1) return Value::number(0);
-    if (!studentInverse(1 - p / 2, df, &t)) return c.error(ErrorKind::Num);
+    // from the tail itself: 1 - p / 2 would lose the digits of a small p
+    if (!inverseRising([&](double u) { return -studentTwoTail(u, df); }, -p, 0, INFINITY, &t)) return c.error(ErrorKind::Num);
     return numberResult(t);
 }
 
@@ -903,7 +904,7 @@ Value fnConfidenceT(Call &c)
     v[2] = std::trunc(v[2]);
     if (!(v[0] > 0 && v[0] < 1) || v[1] <= 0 || v[2] < 1) return c.error(ErrorKind::Num);
     if (v[2] == 1) return c.error(ErrorKind::Div0);
-    if (!studentInverse(1 - v[0] / 2, v[2] - 1, &t)) return c.error(ErrorKind::Num);
+    if (!inverseRising([&](double u) { return -studentTwoTail(u, v[2] - 1); }, -v[0], 0, INFINITY, &t)) return c.error(ErrorKind::Num);
     return numberResult(t * v[1] / std::sqrt(v[2]));
 }
 
@@ -968,8 +969,8 @@ Value fnBinomRange(Call &c)
     v[0] = std::trunc(v[0]);
     v[2] = std::trunc(v[2]);
     upper = c.missing(3) ? v[2] : std::trunc(upper);
-    if (v[0] < 0 || v[1] < 0 || v[1] > 1 || v[2] < 0 || v[2] > v[0] || upper < v[2] || upper > v[0]) return c.error(ErrorKind::Num);
-    if (!charged(c, qint64(upper - v[2]) + 1)) return c.error(ErrorKind::Value);
+    if (v[0] < 0 || v[0] > 1e15 || v[1] < 0 || v[1] > 1 || v[2] < 0 || v[2] > v[0] || upper < v[2] || upper > v[0]) return c.error(ErrorKind::Num);
+    if (!chargedCount(c, upper - v[2] + 1)) return c.error(ErrorKind::Value);
     double s = 0;
     for (double k = v[2]; k <= upper; ++k) s += binomialPmf(k, v[0], v[1]);
     return numberResult(std::min(1.0, s));
@@ -980,7 +981,7 @@ Value fnBinomInv(Call &c)
     double v[3];
     if (!args(c, v, 3)) return c.failure();
     v[0] = std::trunc(v[0]);
-    if (v[0] < 0 || v[1] < 0 || v[1] > 1 || v[2] < 0 || v[2] > 1) return c.error(ErrorKind::Num);
+    if (v[0] < 0 || v[0] > 1e15 || v[1] < 0 || v[1] > 1 || v[2] < 0 || v[2] > 1) return c.error(ErrorKind::Num);
     // the least k whose cumulative probability reaches alpha (a bisection on k)
     double lo = 0, hi = v[0];
     if (v[2] == 0) return Value::number(0);
@@ -1014,10 +1015,10 @@ Value fnHypgeom(Call &c)
     if (c.argc() > 4 && !c.boolean(4, &cumulative)) return c.failure();
     for (double &d : v) d = std::trunc(d);
     const double x = v[0], n = v[1], m = v[2], total = v[3];
-    if (total <= 0 || n < 0 || n > total || m < 0 || m > total || x < 0 || x > std::min(n, m) || x < std::max(0.0, n - total + m)) return c.error(ErrorKind::Num);
+    if (total <= 0 || total > 1e15 || n < 0 || n > total || m < 0 || m > total || x < 0 || x > std::min(n, m) || x < std::max(0.0, n - total + m)) return c.error(ErrorKind::Num);
     auto pmf = [&](double k) { return std::exp(logChoose(m, k) + logChoose(total - m, n - k) - logChoose(total, n)); };
     if (!cumulative) return numberResult(pmf(x));
-    if (!charged(c, qint64(x) + 1)) return c.error(ErrorKind::Value);
+    if (!chargedCount(c, x - std::max(0.0, n - total + m) + 1)) return c.error(ErrorKind::Value);
     double s = 0;
     for (double k = std::max(0.0, n - total + m); k <= x; ++k) s += pmf(k);
     return numberResult(std::min(1.0, s));
@@ -1046,22 +1047,28 @@ struct Regression {
     bool constant = true;
 };
 
-// Gaussian elimination with partial pivoting on a symmetric system; the inverse is returned too.
-bool invert(std::vector<double> m, int n, std::vector<double> *inverse)
+// The inverse of a symmetric non-negative matrix by elimination in the order of its columns. A column that depends on the ones before it (its pivot is nothing next to its own
+// size) is left out: it gets a zero row and column, and `active[k]` is false.
+void invertActive(std::vector<double> m, int n, std::vector<double> *inverse, std::vector<char> *active)
 {
     inverse->assign(size_t(n) * n, 0);
-    for (int i = 0; i < n; ++i) (*inverse)[size_t(i) * n + i] = 1;
+    active->assign(size_t(n), 1);
+    std::vector<double> own(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) {
+        (*inverse)[size_t(i) * n + i] = 1;
+        own[size_t(i)] = std::fabs(m[size_t(i) * n + i]);
+    }
     for (int k = 0; k < n; ++k) {
-        int p = k;
-        for (int i = k + 1; i < n; ++i)
-            if (std::fabs(m[size_t(i) * n + k]) > std::fabs(m[size_t(p) * n + k])) p = i;
-        if (std::fabs(m[size_t(p) * n + k]) < 1e-300) return false;
-        if (p != k)
-            for (int j = 0; j < n; ++j) {
-                std::swap(m[size_t(p) * n + j], m[size_t(k) * n + j]);
-                std::swap((*inverse)[size_t(p) * n + j], (*inverse)[size_t(k) * n + j]);
-            }
         const double d = m[size_t(k) * n + k];
+        if (!(std::fabs(d) > own[size_t(k)] * 1e-10) || own[size_t(k)] == 0) {
+            (*active)[size_t(k)] = 0;
+            for (int j = 0; j < n; ++j) {
+                m[size_t(k) * n + j] = m[size_t(j) * n + k] = 0;
+                (*inverse)[size_t(k) * n + j] = (*inverse)[size_t(j) * n + k] = 0;
+            }
+            m[size_t(k) * n + k] = 1;
+            continue;
+        }
         for (int j = 0; j < n; ++j) {
             m[size_t(k) * n + j] /= d;
             (*inverse)[size_t(k) * n + j] /= d;
@@ -1076,7 +1083,6 @@ bool invert(std::vector<double> m, int n, std::vector<double> *inverse)
             }
         }
     }
-    return true;
 }
 
 // y (n values) against the columns of x (n rows of `k` values, by row); with `constant` an intercept is fitted. False when there are too few points or the columns are
@@ -1105,7 +1111,12 @@ bool regress(const std::vector<double> &y, const std::vector<double> &x, int k, 
             for (int b = 0; b < k; ++b) xtx[size_t(a) * k + b] += xa * (x[size_t(i) * k + b] - mean[size_t(b)]);
         }
     std::vector<double> inv;
-    if (!invert(xtx, k, &inv)) return false;
+    std::vector<char> active;
+    invertActive(xtx, k, &inv, &active);
+    int used = 0;
+    for (const char a : active) used += a ? 1 : 0;
+    for (int a = 0; a < k; ++a)
+        if (!active[size_t(a)]) xty[size_t(a)] = 0;
     std::vector<double> beta(size_t(k), 0);
     for (int a = 0; a < k; ++a)
         for (int b = 0; b < k; ++b) beta[size_t(a)] += inv[size_t(a) * k + b] * xty[size_t(b)];
@@ -1123,15 +1134,15 @@ bool regress(const std::vector<double> &y, const std::vector<double> &x, int k, 
     }
     r->columns = k;
     r->constant = constant;
-    r->df = n - p;
+    r->df = n - used - (constant ? 1 : 0);
     r->ssResid = ssResid;
     r->ssReg = ssTotal - ssResid;
     r->r2 = ssTotal == 0 ? 1 : r->ssReg / ssTotal;
     r->seY = r->df > 0 ? std::sqrt(ssResid / r->df) : 0;
-    r->f = r->df > 0 && ssResid > 0 ? (r->ssReg / k) / (ssResid / r->df) : 0;
+    r->f = r->df > 0 && ssResid > 0 && used > 0 ? (r->ssReg / used) / (ssResid / r->df) : 0;
     r->coef = beta;
     r->error.assign(size_t(k), 0);
-    for (int a = 0; a < k; ++a) r->error[size_t(a)] = r->df > 0 ? std::sqrt(std::max(0.0, ssResid / r->df * inv[size_t(a) * k + a])) : 0;
+    for (int a = 0; a < k; ++a) r->error[size_t(a)] = !active[size_t(a)] ? 0 : r->df > 0 ? std::sqrt(std::max(0.0, ssResid / r->df * inv[size_t(a) * k + a])) : 0;
     if (constant) {
         r->coef.push_back(intercept);
         // the variance of the intercept: s^2 (1/n + mean' (X'X)^-1 mean)
@@ -1234,7 +1245,7 @@ Value linest(Call &c, bool logarithmic)
     const int cols = k + 1;
     Value out = c.machine().newArray(stats ? 5 : 1, cols);
     if (!out.isArray()) return out;
-    auto put = [&](int row, int col, double v) { out.set(row, col, Value::number(v)); };
+    auto put = [&](int row, int col, double v) { out.set(row, col, std::isnan(v) ? Value::error(ErrorKind::NA) : numberResult(v)); };
     auto unlog = [&](double v, bool coefficient) { return logarithmic && coefficient ? std::exp(v) : v; };
     for (int j = 0; j < k; ++j) put(0, j, unlog(r.coef[size_t(k - 1 - j)], true));
     put(0, k, constant ? unlog(r.coef[size_t(k)], true) : (logarithmic ? 1 : 0));
@@ -1308,8 +1319,8 @@ Value trend(Call &c, bool exponential)
         double fit = constant ? r.coef[size_t(k)] : 0;
         for (int a = 0; a < k; ++a) fit += r.coef[size_t(a)] * nx[size_t(i) * k + a];
         const double v = exponential ? std::exp(fit) : fit;
-        if (pointsAreRows) out.set(i, 0, Value::number(v));
-        else out.set(0, i, Value::number(v));
+        if (pointsAreRows) out.set(i, 0, numberResult(v));
+        else out.set(0, i, numberResult(v));
     }
     return out;
 }

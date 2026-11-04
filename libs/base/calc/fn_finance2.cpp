@@ -122,7 +122,7 @@ bool couponsOf(Call &c, double settle, double maturity, int frequency, int basis
     while (date > settle) {
         before = date;
         ++k;
-        if (k > 20000 || !addMonths(maturity, -k * step, end, sys, &date)) {
+        if (k > 20000 || !c.machine().charge(16) || !addMonths(maturity, -k * step, end, sys, &date)) {
             c.error(ErrorKind::Num);
             return false;
         }
@@ -244,6 +244,7 @@ Value fnPrice(Call &c)
     if (rate < 0 || yld < 0 || redemption <= 0) return c.error(ErrorKind::Num);
     Coupons k;
     if (!couponsOf(c, s, m, f, b, &k)) return c.failure();
+    if (!c.machine().chargeCount(double(k.count) * 4)) return c.error(ErrorKind::Value);
     return numberResult(bondPrice(k, rate, yld, redemption, f));
 }
 
@@ -255,6 +256,7 @@ Value fnYield(Call &c)
     if (rate < 0 || pr <= 0 || redemption <= 0) return c.error(ErrorKind::Num);
     Coupons k;
     if (!couponsOf(c, s, m, f, b, &k)) return c.failure();
+    if (!c.machine().chargeCount(double(k.count) * 600)) return c.error(ErrorKind::Value);
     if (!bondYield(k, rate, pr, redemption, f, &y)) return c.error(ErrorKind::Num);
     return numberResult(y);
 }
@@ -267,6 +269,7 @@ Value durationOf(Call &c, bool modified)
     if (rate < 0 || yld < 0) return c.error(ErrorKind::Num);
     Coupons k;
     if (!couponsOf(c, s, m, f, b, &k)) return c.failure();
+    if (!c.machine().chargeCount(double(k.count) * 8)) return c.error(ErrorKind::Value);
     const double coupon = 100 * rate / f, y = yld / f, dscE = k.snc / k.e;
     double weighted = 0, total = 0;
     for (int i = 1; i <= k.count; ++i) {
@@ -468,7 +471,7 @@ Value fnAccrInt(Call &c)
     dates.push_back(d);
     while (d > begin) {
         ++k;
-        if (k > 20000 || !addMonths(first, -k * step, end, sys, &d)) return c.error(ErrorKind::Num);
+        if (k > 20000 || !c.machine().charge(16) || !addMonths(first, -k * step, end, sys, &d)) return c.error(ErrorKind::Num);
         dates.push_back(d);
     }
     double sum = 0;
@@ -481,7 +484,7 @@ Value fnAccrInt(Call &c)
     double previous = first;
     for (k = 1; previous < s && k < 20000; ++k) {
         double next;
-        if (!addMonths(first, k * step, end, sys, &next)) return c.error(ErrorKind::Num);
+        if (!c.machine().charge(16) || !addMonths(first, k * step, end, sys, &next)) return c.error(ErrorKind::Num);
         const double from = std::max(previous, begin), to = std::min(next, s);
         if (to > from) sum += (to - from) / (next - previous);
         previous = next;
@@ -504,7 +507,7 @@ bool quasiBack(Call &c, double anchor, double reach, int f, Quasi *q)
     std::vector<double> dates{anchor};
     double d = anchor;
     for (int k = 1; d > reach; ++k) {
-        if (k > 20000 || !addMonths(anchor, -k * (12 / f), end, sys, &d)) return false;
+        if (k > 20000 || !c.machine().charge(16) || !addMonths(anchor, -k * (12 / f), end, sys, &d)) return false;
         dates.push_back(d);
     }
     std::reverse(dates.begin(), dates.end());
@@ -519,7 +522,7 @@ bool quasiForward(Call &c, double anchor, double reach, int f, Quasi *q)
     std::vector<double> dates{anchor};
     double d = anchor;
     for (int k = 1; d < reach; ++k) {
-        if (k > 20000 || !addMonths(anchor, k * (12 / f), end, sys, &d)) return false;
+        if (k > 20000 || !c.machine().charge(16) || !addMonths(anchor, k * (12 / f), end, sys, &d)) return false;
         dates.push_back(d);
     }
     q->edges = dates;
@@ -560,6 +563,10 @@ bool oddFirstPrice(Call &c, double s, double m, double issue, double first, doub
     Coupons k;
     if (!couponsOf(c, first, m, f, b, &k)) return false;
     const int n = k.count + 1;
+    if (!c.machine().chargeCount(double(n) * 4 + double(q.edges.size()) * 4)) {
+        c.error(ErrorKind::Value);
+        return false;
+    }
     const double t0 = dsc / e;
     double price = redemption / std::pow(1 + y, n - 1 + t0) + coupon * sumDc / std::pow(1 + y, t0);
     for (int i = 2; i <= n; ++i) price += coupon / std::pow(1 + y, i - 1 + t0);
@@ -576,6 +583,10 @@ bool oddLastPrice(Call &c, double s, double m, double last, double rate, double 
     Quasi q;
     if (!quasiForward(c, last, m, f, &q)) {
         c.error(ErrorKind::Num);
+        return false;
+    }
+    if (!c.machine().chargeCount(double(q.edges.size()) * 8)) {
+        c.error(ErrorKind::Value);
         return false;
     }
     const double coupon = 100 * rate / f, y = yld / f;
@@ -705,8 +716,8 @@ Value cumulative(Call &c, bool principal)
     if (!c.number(0, &rate) || !c.number(1, &n) || !c.number(2, &pv) || !c.number(3, &start) || !c.number(4, &end) || !c.number(5, &type)) return c.failure();
     start = std::trunc(start);
     end = std::trunc(end);
-    if (rate <= 0 || n <= 0 || pv <= 0 || start < 1 || end < start || end > n || (type != 0 && type != 1)) return c.error(ErrorKind::Num);
-    if (!c.machine().charge(qint64(end - start) + 1)) return c.error(ErrorKind::Value);
+    if (rate <= 0 || n <= 0 || n > 1e15 || pv <= 0 || start < 1 || end < start || end > n || (type != 0 && type != 1)) return c.error(ErrorKind::Num);
+    if (!c.machine().chargeCount(end - start + 1)) return c.error(ErrorKind::Value);
     const real pmt = paymentOf(rate, n, pv, 0, type);
     real sum = 0;
     for (double per = start; per <= end; ++per) {
@@ -786,7 +797,7 @@ Value fnDb(Call &c)
     life = std::trunc(life);
     if (cost < 0 || salvage < 0 || life <= 0 || period <= 0 || month < 1 || month > 12 || period > life + (month < 12 ? 1 : 0) || (month == 12 && period > life)) return c.error(ErrorKind::Num);
     if (cost == 0) return Value::number(0);
-    if (!c.machine().charge(qint64(period))) return c.error(ErrorKind::Value);
+    if (!c.machine().chargeCount(period)) return c.error(ErrorKind::Value);
     double rate = 1 - std::pow(salvage / cost, 1 / life);
     rate = std::round(rate * 1000) / 1000;
     double total = 0, depreciation = 0;
@@ -820,7 +831,7 @@ Value amortization(Call &c, bool declining)
         if (period == fullPeriods + 1) return numberResult(cost - salvage - one * fullPeriods - firstAmount);
         return Value::number(0);
     }
-    if (!c.machine().charge(qint64(period) + 1)) return c.error(ErrorKind::Value);
+    if (!c.machine().chargeCount(period + 1)) return c.error(ErrorKind::Value);
     const double life = 1 / rate;
     const double coefficient = life < 3 ? 1 : life < 5 ? 1.5 : life <= 6 ? 2 : 2.5;
     rate *= coefficient;

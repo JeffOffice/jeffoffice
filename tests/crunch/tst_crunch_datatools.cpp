@@ -11,6 +11,7 @@
 #include "app/ribbon.h"
 
 #include <QAction>
+#include <QElapsedTimer>
 #include <QTest>
 #include <QSettings>
 #include <QUndoStack>
@@ -57,7 +58,7 @@ private Q_SLOTS:
         QCOMPARE(removed, qint64(2));
         QCOMPARE(shown(e, QStringLiteral("A1:B6")), QStringLiteral("a|1|b|2|c|3|d|4||||"));
         QCOMPARE(shown(e, QStringLiteral("A8:B8")), QStringLiteral("keep|me"));   // (what is under the range stays where it is)
-        QCOMPARE(e.win.w.undoStack()->count(), 1 + 0 * removed);
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
         pressUndo(&e.win.w);
         QVERIFY(e.settle());
         QCOMPARE(shown(e, QStringLiteral("A1:B6")), QStringLiteral("a|1|b|2|a|1|c|3|b|2|d|4"));
@@ -214,6 +215,43 @@ private Q_SLOTS:
         EditSession::SplitSpec empty;
         QVERIFY(!e.win.w.session()->textToColumns(0, rangeOf(QStringLiteral("A1:A2")), empty, 0, 1).ok);
         QVERIFY(!e.win.w.session()->textToColumns(0, rangeOf(QStringLiteral("A1:B2")), spec, 0, 4).ok);   // (more than one column)
+    }
+
+    void aLineOfVeryManyPiecesIsRefusedAtOnce()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=x"})));
+        QVERIFY(e.settle());
+        EditSession::SplitSpec spec;
+        spec.delimiters = QStringLiteral(",");
+        // one cell of 30,000 separators: more pieces than the sheet has columns
+        EditSession *s = e.win.w.session();
+        QVERIFY(s->textToColumns(0, rangeOf(QStringLiteral("A1")), spec, 0, 1).ok);   // (a plain cell is fine)
+        QVERIFY(e.win.w.session()->type(0, 0, 0, QString(30000, QLatin1Char(',')).prepend(QLatin1Char('\'')) ).ok);
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(!s->textToColumns(0, rangeOf(QStringLiteral("A1")), spec, 0, 1).ok);
+        QVERIFY2(timer.elapsed() < 5000, qPrintable(QString::number(timer.elapsed())));
+        // many lines of a few hundred pieces would fill more cells than a step may hold
+        const QString line = QString(300, QLatin1Char(',')).prepend(QLatin1Char('x'));
+        QStringList specs;
+        for (int i = 1; i <= 400; ++i) specs << QStringLiteral("A%1=%2").arg(i).arg(line);
+        EditWindow f;
+        QVERIFY(f.open(sheetOf(specs)));
+        QVERIFY(f.settle());
+        timer.restart();
+        QVERIFY(!f.win.w.session()->textToColumns(0, rangeOf(QStringLiteral("A1:A400")), spec, 0, 1).ok);
+        QVERIFY2(timer.elapsed() < 5000, qPrintable(QString::number(timer.elapsed())));
+        // one long line among thousands of short ones: the short ones are not made as wide as it is
+        QStringList many;
+        many << QStringLiteral("A1=%1").arg(QString(16000, QLatin1Char(',')).prepend(QLatin1Char('x')));
+        for (int i = 2; i <= 6000; ++i) many << QStringLiteral("A%1=y").arg(i);
+        EditWindow g;
+        QVERIFY(g.open(sheetOf(many)));
+        QVERIFY(g.settle());
+        timer.restart();
+        QVERIFY(!g.win.w.session()->textToColumns(0, rangeOf(QStringLiteral("A1:A6000")), spec, 0, 0).ok);
+        QVERIFY2(timer.elapsed() < 2000, qPrintable(QString::number(timer.elapsed())));
     }
 
     void theWindowCommandCutsTheSelectionAtTheDestinationNamed()

@@ -205,6 +205,10 @@ public:
     // Counts n steps; false when the evaluation has gone past its limit (then stopped() is true).
     bool charge(qint64 n)
     {
+        if (n < 0) {
+            tooLarge();   // (a count that went negative is a count that overflowed)
+            return false;
+        }
         work += n + budget::takeWork();
         if (work > limit && !over) {
             over = true;
@@ -220,6 +224,12 @@ public:
         }
         if (!over && budget::refused()) tooLarge();   // an array was refused for the cells alive at once
         return !over;
+    }
+    // The same for a count that is a double (a number a formula gave): one that is not a number, is below 0, or is past 10^12 is more than any evaluation may do.
+    bool chargeCount(double n)
+    {
+        if (!(n >= 0)) n = 0;
+        return charge(qint64(std::min(n, 1e12)));
     }
     bool stopped() const { return over; }
     void tooLarge()

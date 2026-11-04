@@ -216,22 +216,48 @@ int compareForSort(const Value &a, const Value &b)
 Value fnSort(Call &c)
 {
     Lines in;
-    double index = 1, order = 1;
+    Value indexes, orders;
     bool byCol = false;
-    if (!c.array(0, &in.array) || !c.numberOr(1, 1, &index) || !c.numberOr(2, 1, &order) || !c.booleanOr(3, false, &byCol)) return c.failure();
+    if (!c.array(0, &in.array) || !c.booleanOr(3, false, &byCol)) return c.failure();
     in.byCol = byCol;
-    index = std::trunc(index);
-    if (index < 1 || index > in.length() || (order != 1 && order != -1)) return c.error(ErrorKind::Value);
-    std::vector<int> rows(size_t(in.count()));
+    // the number of the column (or row) to sort by, and the order, each one number or a list of them (one key for each)
+    if (c.missing(1)) indexes = Value::number(1);
+    else if (!c.array(1, &indexes)) return c.failure();
+    if (c.missing(2)) orders = Value::number(1);
+    else if (!c.array(2, &orders)) return c.failure();
+    const int keyCount = indexes.rows() * indexes.cols();
+    const int orderCount = orders.rows() * orders.cols();
+    if (orderCount != 1 && orderCount != keyCount) return c.error(ErrorKind::Value);
+    struct Key {
+        int column;
+        double order;
+    };
+    std::vector<Key> keys;
+    for (int i = 0; i < keyCount; ++i) {
+        const Value &x = indexes.at(i / indexes.cols(), i % indexes.cols());
+        const Value &o = orders.at(orderCount == 1 ? 0 : i / orders.cols(), orderCount == 1 ? 0 : i % orders.cols());
+        if (x.isError()) return x;
+        if (o.isError()) return o;
+        if (!x.isNumber() || !o.isNumber()) return c.error(ErrorKind::Value);
+        const double index = std::trunc(x.number());
+        if (index < 1 || index > in.length() || (o.number() != 1 && o.number() != -1)) return c.error(ErrorKind::Value);
+        keys.push_back({int(index) - 1, o.number()});
+    }
+    std::vector<int> rows(static_cast<size_t>(in.count()));
     for (size_t i = 0; i < rows.size(); ++i) rows[i] = int(i);
-    if (!c.machine().charge(qint64(rows.size()) * 8)) return c.error(ErrorKind::Value);
-    const int key = int(index) - 1;
+    if (!c.machine().chargeCount(double(rows.size()) * (std::log2(double(rows.size()) + 1) + 1) * double(keys.size()) * 2)) return c.error(ErrorKind::Value);
     std::stable_sort(rows.begin(), rows.end(), [&](int a, int b) {
-        const Value &x = in.at(a, key), &y = in.at(b, key);
-        // (empty cells stay last whatever the order)
-        if (x.isEmpty() || y.isEmpty()) return !x.isEmpty() && y.isEmpty();
-        const int r = compareForSort(x, y);
-        return order > 0 ? r < 0 : r > 0;
+        for (const Key &k : keys) {
+            const Value &x = in.at(a, k.column), &y = in.at(b, k.column);
+            // (empty cells stay last whatever the order)
+            if (x.isEmpty() || y.isEmpty()) {
+                if (x.isEmpty() && y.isEmpty()) continue;
+                return !x.isEmpty();
+            }
+            const int r = compareForSort(x, y);
+            if (r != 0) return k.order > 0 ? r < 0 : r > 0;
+        }
+        return false;
     });
     return assemble(c, in, rows);
 }
@@ -262,7 +288,7 @@ Value fnSortBy(Call &c)
     }
     std::vector<int> rows(size_t(in.count()));
     for (size_t i = 0; i < rows.size(); ++i) rows[i] = int(i);
-    if (!c.machine().charge(qint64(rows.size()) * 8 * qint64(keys.size()))) return c.error(ErrorKind::Value);
+    if (!c.machine().chargeCount(double(rows.size()) * (std::log2(double(rows.size()) + 1) + 1) * double(keys.size()) * 2)) return c.error(ErrorKind::Value);
     std::stable_sort(rows.begin(), rows.end(), [&](int a, int b) {
         for (const By &k : keys) {
             const Value &x = down ? k.values.at(a, 0) : k.values.at(0, a), &y = down ? k.values.at(b, 0) : k.values.at(0, b);
@@ -285,7 +311,7 @@ Value fnUnique(Call &c)
     if (!c.array(0, &in.array) || !c.booleanOr(1, false, &byCol) || !c.booleanOr(2, false, &once)) return c.failure();
     in.byCol = byCol;
     const int n = in.count();
-    if (!c.machine().charge(qint64(n) * in.length() / 2 + n)) return c.error(ErrorKind::Value);
+    if (!c.machine().chargeCount(double(n) * (std::log2(double(n) + 1) + 1) * (double(in.length()) + 1))) return c.error(ErrorKind::Value);
     auto same = [&](int a, int b) {
         for (int k = 0; k < in.length(); ++k) {
             const Value &x = in.at(a, k), &y = in.at(b, k);
@@ -390,7 +416,7 @@ void registerArrayFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"XMATCH", 2, 4, "vavv", kFnFuture, fnXMatch});
     r.push_back({"XLOOKUP", 3, 6, "vaavvv", kFnFuture, fnXLookup});
     r.push_back({"FILTER", 2, 3, "aav", kFnFuture, fnFilter});
-    r.push_back({"SORT", 1, 4, "avvv", kFnFuture, fnSort});
+    r.push_back({"SORT", 1, 4, "arrv", kFnFuture, fnSort});
     r.push_back({"SORTBY", 2, 255, "aar", kFnFuture, fnSortBy});
     r.push_back({"UNIQUE", 1, 3, "avv", kFnFuture, fnUnique});
     r.push_back({"AREAS", 1, 1, "x", 0, fnAreas});

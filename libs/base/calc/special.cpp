@@ -1,5 +1,7 @@
 #include "calc/special.h"
 
+#include "calc/budget.h"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -19,7 +21,11 @@ double gammaSeries(double a, double x)
         ap += 1;
         del *= x / ap;
         sum += del;
-        if (std::fabs(del) < std::fabs(sum) * kEps) break;
+        if (std::fabs(del) < std::fabs(sum) * kEps) {
+            budget::addWork(n + 1);
+            break;
+        }
+        if (n + 1 == kMaxIterations) budget::addWork(n + 1);
     }
     return sum * std::exp(-x + a * std::log(x) - std::lgamma(a));
 }
@@ -39,7 +45,10 @@ double gammaFraction(double a, double x)
         d = 1 / d;
         const double del = d * c;
         h *= del;
-        if (std::fabs(del - 1) < kEps) break;
+        if (std::fabs(del - 1) < kEps || i + 1 == kMaxIterations) {
+            budget::addWork(i);
+            break;
+        }
     }
     return std::exp(-x + a * std::log(x) - std::lgamma(a)) * h;
 }
@@ -69,7 +78,10 @@ double betaFraction(double a, double b, double x)
         d = 1 / d;
         const double del = d * c;
         h *= del;
-        if (std::fabs(del - 1) < kEps) break;
+        if (std::fabs(del - 1) < kEps || m + 1 == kMaxIterations) {
+            budget::addWork(m);
+            break;
+        }
     }
     return h;
 }
@@ -104,7 +116,7 @@ bool inverseRising(const std::function<double(double)> &f, double p, double lo, 
     if (std::isinf(hi)) {
         double step = std::max(1.0, std::fabs(lo) + 1);
         hi = lo + step;
-        for (int i = 0; i < 2000 && f(hi) < p; ++i) {
+        for (int i = 0; i < 200 && f(hi) < p; ++i) {
             step *= 2;
             hi = lo + step;
         }

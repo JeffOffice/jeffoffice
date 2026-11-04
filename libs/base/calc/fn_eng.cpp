@@ -564,6 +564,7 @@ Value fnBesselJ(Call &c)
     double x;
     int n;
     if (!c.number(0, &x) || !orderArg(c, 1, &n)) return c.failure();
+    if (!(std::fabs(x) <= 1e5)) return c.error(ErrorKind::Num);
     const int points = int(std::min(200000.0, 64 + std::fabs(x) * 2 + n * 2));
     if (!c.machine().charge(points)) return c.error(ErrorKind::Value);
     return numberResult(circleMean(points, [&](double t) { return std::cos(n * t - x * std::sin(t)); }));
@@ -599,7 +600,7 @@ Value fnBesselY(Call &c)
     double x;
     int n;
     if (!c.number(0, &x) || !orderArg(c, 1, &n)) return c.failure();
-    if (x <= 0) return c.error(ErrorKind::Num);
+    if (x <= 0 || x > 1e5) return c.error(ErrorKind::Num);
     if (!c.machine().charge(10000)) return c.error(ErrorKind::Value);
     const int pieces1 = int(std::min(2000.0, 4 + std::fabs(x) / 2 + n));
     const double first = integrate(0, kPi, pieces1, [&](double t) { return std::sin(x * std::sin(t) - n * t); }) / kPi;
@@ -654,14 +655,14 @@ const Unit kUnits[] = {
     {"cup", "volume", 2.365882365e-4, false}, {"pt", "volume", 4.73176473e-4, false}, {"us_pt", "volume", 4.73176473e-4, false}, {"uk_pt", "volume", 5.6826125e-4, false},
     {"qt", "volume", 9.46352946e-4, false}, {"uk_qt", "volume", 1.1365225e-3, false}, {"gal", "volume", 3.785411784e-3, false}, {"uk_gal", "volume", 4.54609e-3, false},
     {"l", "volume", 1e-3, true}, {"L", "volume", 1e-3, true}, {"lt", "volume", 1e-3, true}, {"m3", "volume", 1, true}, {"ang3", "volume", 1e-30, true}, 
-    {"barrel", "volume", 0.158987294928, false}, {"bushel", "volume", 0.03523907016688, false}, {"regton", "volume", 2.8316846592, false}, {"GRT", "volume", 2.8316846592, false},
+    {"mi3", "volume", 1609.344 * 1609.344 * 1609.344, false}, {"Nmi3", "volume", 1852.0 * 1852.0 * 1852.0, false}, {"ly3", "volume", 9460730472580800.0 * 9460730472580800.0 * 9460730472580800.0, false}, {"Pica3", "volume", (0.0254 / 72) * (0.0254 / 72) * (0.0254 / 72), false}, {"barrel", "volume", 0.158987294928, false}, {"bushel", "volume", 0.03523907016688, false}, {"regton", "volume", 2.8316846592, false}, {"GRT", "volume", 2.8316846592, false},
     {"Schooner", "volume", 4.25e-4, false}, {"Middy", "volume", 2.85e-4, false}, {"Glass", "volume", 2.5e-4, false}, {"Sixpack", "volume", 2.1e-3, false}, {"Humpen", "volume", 5e-4, false},
     {"tspm", "volume", 5e-6, false}, {"in3", "volume", 1.6387064e-5, false}, {"ft3", "volume", 0.028316846592, false},
     {"yd3", "volume", 0.764554857984, false}, {"uk_pt", "volume", 5.6826125e-4, false},
     // area: square meters
     {"uk_acre", "area", 4046.8564224, false}, {"us_acre", "area", 4046.872609874252, false}, {"ang2", "area", 1e-20, true}, {"ar", "area", 100, true}, {"ft2", "area", 0.09290304, false},
     {"ha", "area", 10000, true}, {"in2", "area", 6.4516e-4, false}, {"m2", "area", 1, true}, {"Morgen", "area", 2500, false},
-    {"mi2", "area", 2589988.110336, false}, {"Nmi2", "area", 3429904, false}, {"yd2", "area", 0.83612736, false},
+    {"mi2", "area", 2589988.110336, false}, {"Nmi2", "area", 3429904, false}, {"yd2", "area", 0.83612736, false}, {"ly2", "area", 9460730472580800.0 * 9460730472580800.0, false}, {"Pica2", "area", (0.0254 / 72) * (0.0254 / 72), false},
     // information: bits
     {"bit", "information", 1, true}, {"byte", "information", 8, true},
     // speed: meters per second
@@ -686,7 +687,8 @@ const Prefix kBinaryPrefixes[] = {
 // The unit a name stands for, with the prefix's factor folded in.
 bool findUnit(const QString &name, const Unit **unit, double *prefix)
 {
-    const QByteArray key = name.toUtf8();
+    QByteArray key = name.toUtf8();
+    key.replace("^2", "2").replace("^3", "3");
     for (const Unit &u : kUnits)
         if (key == u.name) {
             *unit = &u;
