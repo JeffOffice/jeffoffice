@@ -167,7 +167,7 @@ jobs:
         run: |
           # The programs run side by side, longest first, each with its own results file (Windows runners drop their console output)
           # (tools/ci_tests.sh): one after another they took 12 to 17 minutes.
-          bash tools/ci_tests.sh flowtests crunchtests jdtests writetests writereviewtests sheettests jptests officetests wmltests
+          bash tools/ci_tests.sh flowtests crunchtests jdtests writetests writereviewtests writeinfotests sheettests jptests officetests wmltests
         env:
           QT_QPA_PLATFORM: offscreen
           JP_TEST_TRACE: '1'
