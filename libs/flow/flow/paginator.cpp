@@ -1651,6 +1651,12 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
                 continue;
             }
             m_charsCopied += text.size();
+            if (frag.charFormat().boolProperty(tp::RaisedRef)) {
+                QTextCharFormat raised = frag.charFormat();
+                raised.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
+                dst.insertText(text, raised);
+                continue;
+            }
             dst.insertText(text, frag.charFormat());
         }
         if (list) {

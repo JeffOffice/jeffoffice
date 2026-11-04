@@ -1278,6 +1278,12 @@ private Q_SLOTS:
         QCOMPARE(raisedMarks(*plain, 0).value(0), true);
         const QByteArray savedXml = documentXml(plain->toDocx());
         QVERIFY2(savedXml.contains("<w:r><w:footnoteReference w:id=\"2\"/></w:r>"), savedXml.mid(savedXml.indexOf("<w:body>"), 500).constData());
+        // An endnote's reference is raised the same way, and saved as it was.
+        const QByteArray endBody = para(run("Text") + "<w:r><w:endnoteReference w:id=\"2\"/></w:r>");
+        auto endPlain = open(makeDocxNotes(endBody, QByteArray(), noteXml("endnote", 2, "End")));
+        QVERIFY(endPlain);
+        QCOMPARE(raisedMarks(*endPlain, 0).value(0), true);
+        QVERIFY(documentXml(endPlain->toDocx()).contains("<w:r><w:endnoteReference w:id=\"2\"/></w:r>"));
         // From our command, in a document whose file has no such style.
         auto made = open(makeDocx(para(run("Text"))));
         QVERIFY(made);

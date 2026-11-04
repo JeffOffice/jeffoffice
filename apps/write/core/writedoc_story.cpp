@@ -1380,6 +1380,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 if (!header && !deleted && m_endnoteRefs.size() < kMostEndnotes) m_endnoteRefs.push_back({in.key, shown, sectionNo, endnotesAtSectionEnd.value(blockNumber)});
                 if (!header && !append && !deleted && m_endnoteBlocks.contains(in.key)) m_endnotesCitedAtOpen.insert(in.key.toInt());
             }
+            // (An endnote's reference whose run names no style and says nothing of raising is shown raised on the page, as a note's mark is; the run is written as the file has it.)
+            if (in.tag == QLatin1String("endnoteReference") && af.verticalAlignment() == QTextCharFormat::AlignNormal && af.stringProperty(tp::CharStyle).isEmpty()) af.setProperty(tp::RaisedRef, true);
             af.setProperty(tp::Field, field);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
         }

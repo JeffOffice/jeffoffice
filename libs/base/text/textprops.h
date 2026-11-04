@@ -116,6 +116,7 @@ enum : int {
     RevisionAuthor,                              // int (char format): who made the change the run is in, a place in the document's list of people (the color it is marked with)
     RevisionInserted,                            // bool (char format): a run that a change deleted (tp::Revision 2 or 3) was inserted by a change too: it was never in the document as it was (LayoutEnv::revisionView)
     RevisionFormat,                              // bool (char format): the run's properties were changed by a tracked change (a change bar beside its line)
+    RaisedRef,                                   // bool (char format): layout only, a note's reference whose run names no style and says nothing of raising is shown raised on the page: never written to a file
 };
 
 // How tracked changes are shown in the lines (LayoutEnv::revisionView, and the same number as the story's property kRevisionViewProperty, which the places that have no environment
