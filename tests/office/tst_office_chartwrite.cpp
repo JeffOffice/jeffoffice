@@ -486,9 +486,9 @@ private Q_SLOTS:
         QVERIFY(gradient != ours);
         QVERIFY2(chartIsFullyModeled(gradient, &why), qPrintable(why));   // (a gradient is kept: see whatTheModelKeepsIsWrittenBack)
         QByteArray trend = ours;
-        trend.replace("<c:cat>", "<c:errBars><c:errBarType val=\"both\"/><c:errValType val=\"fixedVal\"/><c:val val=\"1\"/></c:errBars><c:cat>");
+        trend.replace("<c:cat>", "<c:pictureOptions><c:pictureFormat val=\"stack\"/></c:pictureOptions><c:cat>");
         QVERIFY(!chartIsFullyModeled(trend, &why));
-        QCOMPARE(why, QStringLiteral("errBarType"));
+        QCOMPARE(why, QStringLiteral("pictureFormat"));
         QByteArray threeD = ours;
         threeD.replace("<c:barChart>", "<c:bar3DChart>").replace("</c:barChart>", "</c:bar3DChart>");
         QVERIFY(!chartIsFullyModeled(threeD, &why));
@@ -813,7 +813,7 @@ private Q_SLOTS:
         QByteArray doing = ours;
         doing.replace("</c:ser>", "<c:extLst><c:ext uri=\"{02D57815-91ED-43cb-92C2-25804820EDAC}\" xmlns:c15=\"http://schemas.microsoft.com/office/drawing/2012/chart\"><c15:datalabelsRange><c15:f>Sheet1!$A$1</c15:f></c15:datalabelsRange></c:ext></c:extLst></c:ser>");
         QVERIFY(!chartIsFullyModeled(doing, &why));
-        QVERIFY2(why.startsWith(QLatin1String("extLst")), qPrintable(why));
+        QVERIFY2(why.startsWith(QLatin1String("extLst")) || why == QLatin1String("what the series read"), qPrintable(why));   // (the cells the labels read are modeled now: a range with no flag that shows them is a loss all the same)
         // labels over the largest value shown
         QByteArray over = ours;
         over.replace("<c:showDLblsOverMax val=\"0\"/>", "<c:showDLblsOverMax val=\"1\"/>");

@@ -1519,7 +1519,7 @@ private Q_SLOTS:
     void aChartThatCannotBeRewrittenIsKeptAsItIs()
     {
         QByteArray part = chartPart(QStringLiteral("barChart"), {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}});
-        part.replace("<c:cat>", "<c:errBars><c:errBarType val=\"both\"/><c:errValType val=\"stdErr\"/></c:errBars><c:cat>");
+        part.replace("<c:cat>", "<c:pictureOptions><c:pictureFormat val=\"stack\"/></c:pictureOptions><c:cat>");
         EditWindow e;
         QVERIFY(e.open(bookWithAChart(QString(), part)));
         QTRY_VERIFY(objectsShown(e, 1));
@@ -1527,11 +1527,11 @@ private Q_SLOTS:
         o->layer()->select(0);
         QString why;
         QVERIFY(!o->canEditChart(0, 0, &why));
-        QVERIFY2(why.contains(QLatin1String("errBarType")), qPrintable(why));
+        QVERIFY2(why.contains(QLatin1String("pictureFormat")), qPrintable(why));
         QVERIFY(!e.win.w.act(QStringLiteral("chartdesign.selectData"))->isEnabled());
         QTRY_VERIFY(!e.win.w.chartElementsButton() || !e.win.w.chartElementsButton()->isVisible());
         QVERIFY(!e.win.w.changePickedChart(QStringLiteral("Test"), [](Chart *c) { c->title.present = true; }));
-        QVERIFY(e.win.told.last().contains(QLatin1String("errBarType")));
+        QVERIFY(e.win.told.last().contains(QLatin1String("pictureFormat")));
         // it can be moved
         o->layer()->nudge(1, 0, false, false);
         QVERIFY(e.win.w.isModified());
