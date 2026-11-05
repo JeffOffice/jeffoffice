@@ -91,6 +91,8 @@ private:
     QVector<QTextDocument *> sideStories();
     int replaceInStory(QTextDocument *story, QString *problem);
     bool selectionIsMatch();
+    static bool holdsMark(const QString &plain, int from, int to);
+    static bool holdsMark(const QString &plain, const QTextCursor &match);
     WriteWindow *m_win;
     std::unique_ptr<StoryWords> m_text;
     QLineEdit *m_find, *m_replace;

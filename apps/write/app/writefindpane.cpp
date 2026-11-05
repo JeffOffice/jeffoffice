@@ -3,9 +3,11 @@
 #include "app/pageview.h"
 #include "app/writewindow.h"
 #include "core/editops.h"
+#include "core/fieldops.h"
 #include "core/findops.h"
 #include "core/styleops.h"
 #include "core/writeprops.h"
+#include "flow/flowdocument.h"
 #include "text/textprops.h"
 
 #include <QAction>
@@ -55,13 +57,35 @@ public:
         };
         // (The endnotes the pages set are not searched: they are paragraphs marked as theirs, the last ones, or those at the end of a section; the paragraphs round them are the text.)
         auto note = [](const QTextBlock &b) { return b.blockFormat().hasProperty(write::prop::EndnoteBlock); };
+        // (Where fields start, for the search code ^d: only when it asks, since the field's start is no part of the words that show.)
+        QSet<int> fieldStarts;
+        if (fields)
+            for (const write::FieldPlace &f : write::scanStory(m_story, false).fields)
+                if (f.begin >= 0) fieldStarts.insert(f.begin);
         for (QTextBlock b = m_story->begin(); b.isValid(); b = b.next()) {
             if (note(b)) continue;
-            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
-                if (!write::isInvisibleAtom(it.fragment().charFormat()) && !it.fragment().charFormat().hasProperty(write::prop::TrackedDeleted)) extend(it.fragment().position(), it.fragment().text());   // (what a change deleted is no part of the words)
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment frag = it.fragment();
+                const QTextCharFormat cf = frag.charFormat();
+                if (cf.hasProperty(write::prop::TrackedDeleted)) continue;   // (what a change deleted is no part of the words)
+                QString text = frag.text();
+                // A footnote's or an endnote's mark, and the start of a field, are one character of their own, which the codes ^f, ^e, and ^d find.
+                const QString code = cf.stringProperty(tp::Field);
+                if (code.startsWith(QLatin1String("footnote:"))) text.replace(QChar(0xFFFC), QChar(write::kFindFootnoteMark));
+                else if (code.startsWith(QLatin1String("endnote:"))) text.replace(QChar(0xFFFC), QChar(write::kFindEndnoteMark));
+                else if (cf.hasProperty(write::prop::Atom) && text == QString(QChar(0xFFFC)) && write::unpackAtom(write::storedBytes(cf, write::prop::Atom)).tag == QLatin1String("endnoteReference")) text = QString(QChar(write::kFindEndnoteMark));
+                if (!fieldStarts.isEmpty())
+                    for (int i = 0; i < text.size(); ++i)
+                        if (fieldStarts.contains(frag.position() + i)) text[i] = QChar(write::kFindField);
+                if (write::isInvisibleAtom(cf)) {
+                    if (text.size() == 1 && text[0] == QChar(write::kFindField)) extend(frag.position(), text);
+                    continue;
+                }
+                extend(frag.position(), text);
+            }
             QTextBlock after = b.next();
             while (after.isValid() && note(after)) after = after.next();
-            if (after.isValid()) extend(b.position() + b.length() - 1, QStringLiteral("\n"));
+            if (after.isValid()) extend(b.position() + b.length() - 1, b.blockFormat().boolProperty(flow::fp::SectionBreakAfter) ? QString(QChar(write::kFindSectionBreak)) : QStringLiteral("\n"));
         }
         m_words.setUndoRedoEnabled(false);
         m_words.setPlainText(text);
@@ -107,6 +131,14 @@ public:
         return out;
     }
     bool dirty = false;
+    // Whether the words have the start of each field (for the search code ^d); changing it makes them again.
+    bool fields = false;
+    void wantFields(bool on)
+    {
+        if (on == fields) return;
+        fields = on;
+        dirty = true;
+    }
 
 private:
     struct Run {
@@ -173,11 +205,12 @@ WriteFindPane::WriteFindPane(WriteWindow *win, QWidget *parent) : QWidget(parent
     m_special->setObjectName(QStringLiteral("findSpecial"));
     m_special->setText(tr("Special"));
     m_special->setPopupMode(QToolButton::InstantPopup);
-    m_special->setToolTip(tr("Puts a code in Find what for a paragraph mark, a tab, a digit, a letter, or white space."));
+    m_special->setToolTip(tr("Puts a code in Find what for a paragraph mark, a tab, a digit, a letter, white space, a section break, a field, or a footnote or endnote mark."));
     auto *specials = new QMenu(m_special);
     struct Code { const char *name, *code; };
     static const Code codes[] = {{QT_TR_NOOP("Paragraph Mark"), "^p"}, {QT_TR_NOOP("Tab Character"), "^t"}, {QT_TR_NOOP("Any Digit"), "^#"}, {QT_TR_NOOP("Any Letter"), "^$"},
-                                 {QT_TR_NOOP("White Space"), "^w"}, {QT_TR_NOOP("Caret Character"), "^^"}};
+                                 {QT_TR_NOOP("White Space"), "^w"}, {QT_TR_NOOP("Section Break"), "^b"}, {QT_TR_NOOP("Field"), "^d"}, {QT_TR_NOOP("Footnote Mark"), "^f"},
+                                 {QT_TR_NOOP("Endnote Mark"), "^e"}, {QT_TR_NOOP("Caret Character"), "^^"}};
     for (const Code &c : codes) {
         QAction *a = specials->addAction(tr(c.name));
         a->setData(QString::fromLatin1(c.code));
@@ -330,13 +363,13 @@ write::AdvancedFind WriteFindPane::advancedOptions() const
     return o;
 }
 
-// Special codes typed in the box (^p, ^t, ^#, ^$, ^w, ^^) work without "Use wildcards": the other characters then are themselves.
+// Special codes typed in the box (^p, ^t, ^#, ^$, ^w, ^b, ^d, ^f, ^e, ^^) work without "Use wildcards": the other characters then are themselves.
 bool WriteFindPane::codesTyped() const
 {
     if (m_wild->isChecked() || advancedOptions().active()) return false;
     const QString q = m_find->text();
     for (int i = 0; i + 1 < q.size(); ++i)
-        if (q[i] == QLatin1Char('^') && QStringLiteral("pt#$w^").contains(q[i + 1])) return true;
+        if (q[i] == QLatin1Char('^') && QStringLiteral("pt#$w^bdfe").contains(q[i + 1])) return true;
     return false;
 }
 
@@ -369,7 +402,11 @@ StoryWords *WriteFindPane::sideWords(const QTextDocument *story)
         side.words = std::make_shared<StoryWords>(const_cast<QTextDocument *>(story));
         side.revision = -1;
     }
-    if (side.words->dirty) side.words->rebuild();
+    side.words->wantFields(m_find->text().contains(QLatin1String("^d")));
+    if (side.words->dirty) {
+        side.words->rebuild();
+        side.revision = -1;   // (the places found were of the words as they were)
+    }
     return side.words.get();
 }
 
@@ -551,8 +588,14 @@ StoryWords *WriteFindPane::storyWords()
 {
     QTextDocument *story = m_win->document() ? m_win->document()->story() : nullptr;
     if (!story) return nullptr;
-    if (!m_text || m_text->story() != story) m_text = std::make_unique<StoryWords>(story);
-    else if (m_text->dirty) m_text->rebuild();
+    const bool fields = m_find->text().contains(QLatin1String("^d"));
+    if (!m_text || m_text->story() != story) {
+        m_text = std::make_unique<StoryWords>(story);
+        m_text->wantFields(fields);
+    } else {
+        m_text->wantFields(fields);
+        if (m_text->dirty) m_text->rebuild();
+    }
     return m_text.get();
 }
 
@@ -722,6 +765,11 @@ void WriteFindPane::replaceOne()
         const QTextCursor &sel = m_win->view()->cursor();
         QTextDocument *story = sel.document();
         StoryWords *text = wordsOfStory(story);
+        const int from = text->toWords(sel.selectionStart()), to = text->toWords(sel.selectionEnd());
+        if (holdsMark(text->plain(), from, to)) {
+            m_status->setText(tr("A section break, a field, or a note mark can be found but not replaced."));
+            return;
+        }
         QTextCursor match(text->words());
         match.setPosition(text->toWords(sel.selectionStart()));
         match.setPosition(text->toWords(sel.selectionEnd()), QTextCursor::KeepAnchor);
@@ -735,6 +783,16 @@ void WriteFindPane::replaceOne()
     }
     findNext();
 }
+
+// Whether the words from `from` to `to` have a section break, the start of a field, or a note's mark.
+bool WriteFindPane::holdsMark(const QString &plain, int from, int to)
+{
+    for (int i = std::max(0, from); i < to && i < plain.size(); ++i)
+        if (write::isFindMark(plain[i])) return true;
+    return false;
+}
+
+bool WriteFindPane::holdsMark(const QString &plain, const QTextCursor &match) { return holdsMark(plain, match.selectionStart(), match.selectionEnd()); }
 
 // Swaps every match in one story (the text, or a header, a footer, or a note), as one edit of that story; how many.
 int WriteFindPane::replaceInStory(QTextDocument *story, QString *problem)
@@ -755,7 +813,7 @@ int WriteFindPane::replaceInStory(QTextDocument *story, QString *problem)
         const QTextCursor m = matchIn(text, at, problem);
         if (m.isNull()) break;
         at = std::max(m.selectionEnd(), at + 1);
-        if (!(w.skip && w.skip(m))) found.push_back(m);
+        if (!(w.skip && w.skip(m)) && !holdsMark(plain, m)) found.push_back(m);   // (a section break, a field's start, or a note's mark is found, not swapped: it would lose what it stands for)
     }
     QTextCursor block(story);
     block.beginEditBlock();

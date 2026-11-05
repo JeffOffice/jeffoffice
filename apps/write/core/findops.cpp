@@ -43,6 +43,10 @@ FindPattern wildcardPattern(const QString &pattern, bool matchCase)
             case '#': re += QStringLiteral("\\d"); break;
             case '$': re += QStringLiteral("[A-Za-z]"); break;
             case 'w': re += QStringLiteral("[ \\t]+"); break;
+            case 'b': re += QChar(kFindSectionBreak); break;
+            case 'd': re += QChar(kFindField); break;
+            case 'e': re += QChar(kFindEndnoteMark); break;
+            case 'f': re += QChar(kFindFootnoteMark); break;
             case '^': re += QStringLiteral("\\^"); break;
             default: re += QRegularExpression::escape(QString(c) + next); break;
             }

@@ -46,7 +46,7 @@ Only one of **Sounds like**, **Find all word forms**, and **Use wildcards** can 
 
 ### Special
 
-Click **Special** to put a code in **Find what**: **Paragraph Mark** (^p), **Tab Character** (^t), **Any Digit** (^#), **Any Letter** (^$), **White Space** (^w), or **Caret Character** (^^). The codes work without **Use wildcards**. The other marks in the box, such as **?** and **\***, are then just those characters.
+Click **Special** to put a code in **Find what**: **Paragraph Mark** (^p), **Tab Character** (^t), **Any Digit** (^#), **Any Letter** (^$), **White Space** (^w), **Section Break** (^b), **Field** (^d), **Footnote Mark** (^f), **Endnote Mark** (^e), or **Caret Character** (^^). The codes work without **Use wildcards**. A **section break** is the mark that ends a section. A **field** is a piece of text that the program works out, such as a page number or a date, and **^d** finds where each one starts. The note marks are the small numbers in the text that point to a footnote or an endnote. These four are found, but **Replace** and **Replace All** leave them alone, because changing one would lose what it stands for. The other marks in the box, such as **?** and **\***, are then just those characters.
 
 ### Format
 
