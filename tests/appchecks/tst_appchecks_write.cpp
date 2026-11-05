@@ -15,6 +15,7 @@
 #include "core/pagesetup.h"
 #include "core/commentops.h"
 #include "core/dropcapops.h"
+#include "core/pictureops.h"
 #include "core/watermarkops.h"
 #include "core/editops.h"
 #include "core/fieldops.h"
@@ -471,6 +472,66 @@ private Q_SLOTS:
             {QStringLiteral("a cover page"), [typed](AppWindow *w, bool f) {
                  typed(w, f);
                  write::insertCoverPage(*asWrite(w)->document(), write::CoverDesign::Classic);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a shape selected"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 write::insertShape(*doc, c, QStringLiteral("star5"));
+                 asWrite(w)->view()->selectPicture(0);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a picture selected"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QImage image(160, 160, QImage::Format_RGB32);
+                 image.fill(QColor(200, 30, 30));
+                 QByteArray bytes;
+                 QBuffer buffer(&bytes);
+                 buffer.open(QIODevice::WriteOnly);
+                 image.save(&buffer, "PNG");
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 write::insertPicture(*doc, c, bytes);
+                 asWrite(w)->view()->selectPicture(0);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a picture with changes selected"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QImage image(160, 160, QImage::Format_RGB32);
+                 image.fill(QColor(30, 30, 200));
+                 QByteArray bytes;
+                 QBuffer buffer(&bytes);
+                 buffer.open(QIODevice::WriteOnly);
+                 image.save(&buffer, "PNG");
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 write::insertPicture(*doc, c, bytes);
+                 write::setPictureCorrections(*doc, 0, 0.3, 0.2);
+                 write::setPictureCrop(*doc, 0, 0.1, 0.1, 0, 0);
+                 write::setShapeLine(*doc, 0, QStringLiteral("202020"), 2, QStringLiteral("solid"));
+                 asWrite(w)->view()->selectPicture(0);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a chart selected"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 write::insertChart(*doc, c, write::ChartForm::Column);
+                 asWrite(w)->view()->selectPicture(0);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a text box selected"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 write::insertTextBox(*doc, c, write::textBoxDesigns().first());
+                 asWrite(w)->view()->selectPicture(0);
                  asWrite(w)->refreshNow();
              }, false},
             {QStringLiteral("a watermark"), [typed](AppWindow *w, bool f) {

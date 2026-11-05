@@ -294,6 +294,7 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
         if (held) continue;
         for (qsizetype i = 0; i < out->parts.size(); ++i)
             if (out->parts[i].name.compare(target, Qt::CaseInsensitive) == 0) {
+                out->partRelationships.remove(out->parts[i].name);   // (a part made from another has the relationships of its own)
                 out->parts.removeAt(i);
                 break;
             }

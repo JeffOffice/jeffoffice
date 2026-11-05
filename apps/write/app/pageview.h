@@ -197,6 +197,10 @@ public:
     // A picture from the bytes of a file, or an image (the clipboard's), at the caret in place of a selection; the picture is then the selection. The reason is told (notice) when it fails.
     bool insertPictureBytes(const QByteArray &bytes, const QString &name, PictureWrap wrap = PictureWrap::Inline);
     bool insertPictureImage(const QImage &image, PictureWrap wrap = PictureWrap::Inline);
+    // A shape of the gallery, or a text box of a design, at the cursor; it is selected when it is in.
+    bool insertShapeObject(const QString &preset);
+    bool insertTextBoxObject(const TextBoxDesign &design);
+    bool insertChartObject(ChartForm form);
     // The picture's size, wrap, and alt text, with the notice told when the change cannot be made.
     bool changeSelectedPicture(const std::function<bool(WriteDoc &, int)> &change);
 

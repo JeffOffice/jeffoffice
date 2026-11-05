@@ -543,9 +543,15 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
         keepBehindOnlyWithoutAWall(&s);
         // The picture's data and a text box's text: found anywhere inside.
         std::vector<int> stack{c};
-        while (!stack.empty() && s.embed.isEmpty() && s.textBox.isEmpty()) {
+        int shapeNode = -1;
+        while (!stack.empty() && s.embed.isEmpty() && s.textBox.isEmpty() && s.chartEmbed.isEmpty()) {
             const int n = stack.back();
             stack.pop_back();
+            // (A shape that is a member of a group is not read as the whole of it: only one that is the drawing's own.)
+            if (t.localName(n) == "wsp" && s.wsp.isEmpty() && t.parent(n) >= 0 && t.localName(t.parent(n)) == "graphicData") {
+                s.wsp = "<x " + declarations() + ">" + t.raw(n) + "</x>";
+                shapeNode = n;
+            }
             if (t.localName(n) == "blip" && s.embed.isEmpty()) {
                 s.embed = t.attr(n, "embed", NsR);
                 // The cut edges are beside the blip, in its fill (thousandths of a percent).
@@ -561,7 +567,47 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                         s.cropB = share("b");
                         if (s.cropL + s.cropR >= 0.98 || s.cropT + s.cropB >= 0.98) s.cropL = s.cropT = s.cropR = s.cropB = 0;
                     }
+                // The colors it is changed to (the children of the blip), and the border of the picture (the line in its shape properties).
+                for (int k = t.firstChild(n); k >= 0; k = t.next(k)) {
+                    const QByteArray effect = t.localName(k);
+                    auto share = [&](const char *name, double standard) {
+                        if (!t.has(k, name)) return standard;
+                        const double v = t.attr(k, name).toDouble() / 100000.0;
+                        return std::isfinite(v) ? std::clamp(v, -1.0, 1.0) : standard;
+                    };
+                    if (effect == "lum") {
+                        s.bright = share("bright", 0);
+                        s.contrast = share("contrast", 0);
+                    } else if (effect == "grayscl") {
+                        s.gray = true;
+                    } else if (effect == "biLevel") {
+                        s.biLevel = true;
+                        s.biLevelThreshold = std::clamp(share("thresh", 0.5), 0.0, 1.0);
+                    }
+                }
+                const int picNode = t.parent(t.parent(n));
+                for (int k = picNode >= 0 ? t.firstChild(picNode) : -1; k >= 0; k = t.next(k)) {
+                    if (t.localName(k) != "spPr") continue;
+                    for (int ln = t.firstChild(k); ln >= 0; ln = t.next(ln)) {
+                        if (t.localName(ln) != "ln") continue;
+                        QString color;
+                        bool solid = false;
+                        for (int f = t.firstChild(ln); f >= 0; f = t.next(f)) {
+                            if (t.localName(f) != "solidFill") continue;
+                            solid = true;
+                            for (int c = t.firstChild(f); c >= 0; c = t.next(c))
+                                if (t.localName(c) == "srgbClr") color = t.attr(c, "val").toUpper();
+                        }
+                        const double weight = t.has(ln, "w") ? std::clamp(emu(t.attr(ln, "w")), 0.0, 1000.0) : 0.75;
+                        if (solid && weight > 0) {
+                            s.borderWeight = weight;
+                            s.borderColor = color;
+                            for (double &side : s.borderSides) side = weight;
+                        }
+                    }
+                }
             }
+            if (t.localName(n) == "chart" && t.parent(n) >= 0 && t.localName(t.parent(n)) == "graphicData" && s.chartEmbed.isEmpty()) s.chartEmbed = t.attr(n, "id", NsR);
             if (t.localName(n) == "txbxContent" && s.textBox.isEmpty()) {
                 s.textBox = textBoxXml(t, n);
                 s.kind = Shape::TextBox;
@@ -569,7 +615,17 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
             for (int k = t.firstChild(n); k >= 0; k = t.next(k)) stack.push_back(k);
             if (stack.size() > 4000) break;
         }
-        if (s.kind == Shape::Picture && s.embed.isEmpty()) continue;   // (a chart or other graphic: no picture of it)
+        if (shapeNode >= 0) {
+            if (s.kind == Shape::Picture) s.kind = Shape::Rect;
+            // The text's room in the shape (its insets, in EMU).
+            for (int k = t.firstChild(shapeNode); k >= 0; k = t.next(k))
+                if (t.localName(k) == "bodyPr") {
+                    const char *names[4] = {"lIns", "tIns", "rIns", "bIns"};
+                    for (int i = 0; i < 4; ++i)
+                        if (t.has(k, names[i])) s.inset[i] = std::clamp(emu(t.attr(k, names[i])), 0.0, 1000.0);
+                }
+        }
+        if (s.kind == Shape::Picture && s.embed.isEmpty() && s.chartEmbed.isEmpty()) continue;   // (a graphic that is neither a picture nor a chart: no picture of it)
         out->push_back(s);
         if (out->size() >= kMostShapes) return;
     }

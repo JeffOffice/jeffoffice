@@ -1,6 +1,12 @@
 #include "core/pictureops.h"
 
+#include "core/drawnitems.h"
 #include "core/editops.h"
+#include "office/chart.h"
+#include "office/chart_write.h"
+#include "office/drawingml_color.h"
+#include "office/theme.h"
+#include "sheet/chartmake.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 #include "wml/wml.h"
@@ -16,6 +22,7 @@
 #include <QTextDocument>
 #include <QTextFragment>
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace jp::write {
@@ -296,7 +303,10 @@ bool parseDrawing(const QByteArray &raw, Model *m)
             out.between += t.raw(k);
         }
     }
-    if (out.graphic.isEmpty() || !out.graphic.contains("blip") || out.cx <= 0 || out.cy <= 0) return false;
+    const bool isChart = out.graphic.contains("drawingml/2006/chart") && out.graphic.contains("<c:chart");
+    const bool isShape = out.graphic.contains("wsp") && !out.graphic.contains("blip");
+    // (A line may have no height or no width, but not neither.)
+    if (out.graphic.isEmpty() || !(out.graphic.contains("blip") || isShape || isChart) || (isShape ? out.cx < 0 || out.cy < 0 || out.cx + out.cy <= 0 : out.cx <= 0 || out.cy <= 0)) return false;
     if (out.docPr.isEmpty()) out.docPr = {{"id", "\"1\""}, {"name", "\"Picture\""}};
     if (!out.floating) {
         out.wrap = PictureWrap::Inline;
@@ -348,7 +358,17 @@ QTextCharFormat formatAfter(const QTextDocument *story, int position)
     return QTextCharFormat();
 }
 
-bool isPictureShape(const QVector<Shape> &shapes) { return !shapes.isEmpty() && shapes.first().kind == Shape::Picture; }
+bool isPictureShape(const QVector<Shape> &shapes) { return !shapes.isEmpty() && shapes.first().kind == Shape::Picture && shapes.first().chartEmbed.isEmpty(); }
+
+// A drawn object's kind: a shape of the drawing format that is a line is a line, one with text is a text box.
+DrawnKind kindOfShape(const Shape &s)
+{
+    if (!s.chartEmbed.isEmpty()) return DrawnKind::Chart;
+    if (s.kind == Shape::Picture) return DrawnKind::Picture;
+    if (s.kind == Shape::TextBox) return DrawnKind::TextBox;
+    if (s.kind == Shape::Line) return DrawnKind::Line;
+    return s.wsp.contains("prst=\"line\"") || s.wsp.contains("prst=\"straightConnector1\"") ? DrawnKind::Line : DrawnKind::Shape;
+}
 
 PictureWrap wrapOfShape(const Shape &s)
 {
@@ -604,14 +624,14 @@ bool isDecorativeInner(const QByteArray &inner) { return inner.contains(kDecorat
 
 PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int position)
 {
-    Q_UNUSED(doc);
     PictureInfo info;
     if (!story || position < 0 || position + 1 > story->characterCount() - 1) return info;
     Inline atom;
     if (!drawingAtomOf(formatAfter(story, position), &atom)) return info;
     const QVector<Shape> shapes = readShapes(atom.raw);
-    if (!isPictureShape(shapes)) return info;
+    if (shapes.isEmpty()) return info;
     const Shape &s = shapes.first();
+    info.kind = kindOfShape(s);
     info.valid = true;
     info.floating = s.floating;
     info.wrap = wrapOfShape(s);
@@ -624,7 +644,48 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
     Model m;
     info.editable = parseDrawing(atom.raw, &m);
     info.decorative = isDecorativeInner(m.docPrInner);
+    if (info.kind == DrawnKind::Picture) {
+        info.cropLeft = s.cropL;
+        info.cropTop = s.cropT;
+        info.cropRight = s.cropR;
+        info.cropBottom = s.cropB;
+        info.lineColor = s.borderWeight > 0 ? s.borderColor : QString();
+        info.lineWeight = s.borderWeight;
+        info.grayscale = m.graphic.contains("<a:grayscl");
+        info.blackWhite = m.graphic.contains("<a:biLevel");
+        static const QRegularExpression lum(QStringLiteral("<a:lum\\b([^>]*)/?>"));
+        const QRegularExpressionMatch found = lum.match(QString::fromUtf8(m.graphic));
+        if (found.hasMatch()) {
+            auto share = [&](const char *name) {
+                const QRegularExpressionMatch v = QRegularExpression(QStringLiteral("\\b%1=\"(-?[0-9]+)\"").arg(QLatin1String(name))).match(found.captured(1));
+                return v.hasMatch() ? std::clamp(v.captured(1).toDouble() / 100000.0, -1.0, 1.0) : 0.0;
+            };
+            info.brightness = share("bright");
+            info.contrast = share("contrast");
+        }
+        return info;
+    }
+    if (const ItemPtr look = wspItem(s, doc.theme())) {
+        if (const auto *shape = look->type() == ItemType::Shape ? static_cast<const ShapeItem *>(look.get()) : nullptr) info.preset = shape->shape;
+        auto rgb = [](const ColorRef &c) { return c.rgbValue().isValid() ? c.rgbValue().name(QColor::HexRgb).mid(1).toUpper() : QString(); };
+        if (!look->fill.isNone() && look->fill.type == Fill::Solid) info.fillColor = rgb(look->fill.color);
+        if (!look->stroke.isNone()) {
+            info.lineColor = rgb(look->stroke.color);
+            info.lineWeight = look->stroke.width;
+            static const char *names[] = {"solid", "dot", "sysDot", "dash", "dashDot", "lgDash", "lgDashDot", "lgDashDotDot"};
+            info.lineDash = QString::fromLatin1(names[std::clamp(int(look->stroke.dash), 0, 7)]);
+        }
+        info.rotation = look->rotation;
+    }
     return info;
+}
+
+bool isDrawnObjectAt(const QTextDocument *story, int position)
+{
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return false;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return false;
+    return !readShapes(atom.raw).isEmpty();
 }
 
 PictureResult insertPicture(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, const QString &name, PictureWrap wrap, const QString &alt)
@@ -754,6 +815,1125 @@ bool movePictureInText(WriteDoc &doc, int position, int to)
     edit.insertText(QString(QChar::ObjectReplacementCharacter), cf);
     edit.endEditBlock();
     return true;
+}
+
+// ---- Shapes and text boxes
+
+namespace {
+
+constexpr double kMostBoxTextLength = 50000;
+constexpr int kMostBoxParagraphs = 2000;
+
+// The children of a drawing's shape properties (its spPr), in the order the standard gives them.
+enum Slot { SlotXfrm, SlotGeometry, SlotFill, SlotLine, SlotEffects, SlotScene, SlotSolid3d, SlotExt, SlotOther };
+
+int slotOf(const QByteArray &local)
+{
+    if (local == "xfrm") return SlotXfrm;
+    if (local == "custGeom" || local == "prstGeom") return SlotGeometry;
+    if (local == "noFill" || local == "solidFill" || local == "gradFill" || local == "blipFill" || local == "pattFill" || local == "grpFill") return SlotFill;
+    if (local == "ln") return SlotLine;
+    if (local == "effectLst" || local == "effectDag") return SlotEffects;
+    if (local == "scene3d") return SlotScene;
+    if (local == "sp3d") return SlotSolid3d;
+    if (local == "extLst") return SlotExt;
+    return SlotOther;
+}
+
+struct SpPr {
+    qsizetype begin = -1, end = -1;   // in the graphic: from the start tag to just after the end tag
+    QByteArray prefix;                // with its colon ("wps:", "pic:")
+    QByteArray startTag;
+    bool selfClosing = false;
+    struct Child {
+        int slot = SlotOther;
+        QByteArray local, raw;
+    };
+    QVector<Child> children;
+};
+
+// The first spPr of a graphic (a shape's or a picture's), split into its children.
+bool splitSpPr(const QByteArray &graphic, SpPr *out)
+{
+    for (qsizetype i = graphic.indexOf("spPr"); i >= 0; i = graphic.indexOf("spPr", i + 4)) {
+        const qsizetype lt = graphic.lastIndexOf('<', i);
+        if (lt < 0) return false;
+        const QByteArray between = graphic.mid(lt + 1, i - lt - 1);
+        if (!(between.isEmpty() || (between.endsWith(':') && between.size() < 12 && !between.contains(' ') && !between.contains('>') && !between.contains('<')))) continue;
+        if (i + 4 >= graphic.size() || !(graphic[i + 4] == ' ' || graphic[i + 4] == '>' || graphic[i + 4] == '/')) continue;
+        const qsizetype gt = graphic.indexOf('>', i);
+        if (gt < 0) return false;
+        SpPr sp;
+        sp.begin = lt;
+        sp.prefix = between;
+        sp.startTag = graphic.mid(lt, gt + 1 - lt);
+        sp.selfClosing = graphic[gt - 1] == '/';
+        if (sp.selfClosing) {
+            sp.end = gt + 1;
+        } else {
+            const QByteArray close = "</" + between + "spPr>";
+            const qsizetype ce = graphic.indexOf(close, gt);
+            if (ce < 0) return false;
+            sp.end = ce + close.size();
+            XmlTree t;
+            if (!t.parse("<x " + declarations() + ">" + graphic.mid(gt + 1, ce - gt - 1) + "</x>", nullptr)) return false;
+            for (int c = t.firstChild(t.root()); c >= 0; c = t.next(c)) {
+                SpPr::Child child;
+                child.local = t.localName(c);
+                child.slot = slotOf(child.local);
+                child.raw = t.raw(c);
+                sp.children.push_back(child);
+            }
+        }
+        *out = sp;
+        return true;
+    }
+    return false;
+}
+
+QByteArray joinSpPr(const QByteArray &graphic, const SpPr &sp)
+{
+    QByteArray inner;
+    for (const SpPr::Child &c : sp.children) inner += c.raw;
+    if (inner.isEmpty() && sp.selfClosing) return graphic;
+    const QByteArray start = sp.selfClosing ? sp.startTag.left(sp.startTag.size() - 2) + ">" : sp.startTag;
+    return graphic.left(sp.begin) + start + inner + "</" + sp.prefix + "spPr>" + graphic.mid(sp.end);
+}
+
+// Puts `raw` in the place of the children of `slot` (nothing for an empty `raw`).
+void setSlot(SpPr *sp, int slot, const QByteArray &local, const QByteArray &raw)
+{
+    for (qsizetype i = sp->children.size() - 1; i >= 0; --i)
+        if (sp->children[i].slot == slot) sp->children.removeAt(i);
+    if (raw.isEmpty()) return;
+    qsizetype at = 0;
+    while (at < sp->children.size() && sp->children[at].slot <= slot) ++at;
+    sp->children.insert(at, {slot, local, raw});
+}
+
+// A child as written, without the declarations of prefixes that reading it made whole with (so that two that say the same are equal).
+QByteArray childRaw(const SpPr &sp, int slot)
+{
+    static const QRegularExpression declared(QStringLiteral(" xmlns(:[A-Za-z0-9]+)?=\"[^\"]*\""));
+    for (const SpPr::Child &c : sp.children)
+        if (c.slot == slot) return QString::fromUtf8(c.raw).remove(declared).toUtf8();
+    return {};
+}
+
+// A color as it is kept: six hex digits, upper case; empty for anything else.
+QByteArray cleanRgb(const QString &rgb)
+{
+    static const QRegularExpression hex(QStringLiteral("^[0-9A-Fa-f]{6}$"));
+    return hex.match(rgb).hasMatch() ? rgb.toUpper().toLatin1() : QByteArray();
+}
+
+QByteArray solidFill(const QByteArray &rgb) { return "<a:solidFill><a:srgbClr val=\"" + rgb + "\"/></a:solidFill>"; }
+
+const QStringList &dashNames()
+{
+    static const QStringList names = {QStringLiteral("solid"), QStringLiteral("dot"), QStringLiteral("sysDot"), QStringLiteral("dash"), QStringLiteral("dashDot"), QStringLiteral("lgDash"),
+                                      QStringLiteral("lgDashDot"), QStringLiteral("lgDashDotDot")};
+    return names;
+}
+
+// The line of a shape as it is kept: a:ln with the weight in EMU, the fill, and the dash; what the old line had besides those (its joins, its arrowheads) stays.
+QByteArray lineElement(const QByteArray &old, const QByteArray &rgb, double weight, const QString &dash)
+{
+    if (rgb.isEmpty() || weight <= 0) return "<a:ln><a:noFill/></a:ln>";
+    Attributes attrs;
+    QByteArray tail;
+    if (!old.isEmpty()) {
+        attrs = attributesOf(old.left(old.indexOf('>') + 1));
+        XmlTree t;
+        if (t.parse("<x " + declarations() + ">" + old + "</x>", nullptr)) {
+            const int ln = t.firstChild(t.root());
+            for (int c = ln >= 0 ? t.firstChild(ln) : -1; c >= 0; c = t.next(c)) {
+                const QByteArray name = t.localName(c);
+                if (name != "noFill" && name != "solidFill" && name != "gradFill" && name != "pattFill" && name != "prstDash" && name != "custDash") tail += t.raw(c);
+            }
+        }
+    }
+    setAttribute(&attrs, "w", quote(QByteArray::number(qint64(std::llround(std::clamp(weight, 0.25, 100.0) * kEmuPerPoint)))));
+    QByteArray dashed;
+    const QString d = dashNames().contains(dash) && dash != QLatin1String("solid") ? dash : QString();
+    if (!d.isEmpty()) dashed = "<a:prstDash val=\"" + d.toLatin1() + "\"/>";
+    return "<a:ln" + written(attrs) + ">" + solidFill(rgb) + dashed + tail + "</a:ln>";
+}
+
+QByteArray geometryElement(const QString &preset) { return "<a:prstGeom prst=\"" + attribute(preset, 64) + "\"><a:avLst/></a:prstGeom>"; }
+
+bool changeSpPrOf(WriteDoc &doc, int position, bool shapesOnly, const std::function<bool(SpPr *, const Model &)> &edit)
+{
+    return changePicture(doc, position, [&](Model &m) {
+        const bool shape = m.graphic.contains("wsp") && !m.graphic.contains("blip");
+        if (shapesOnly && !shape) return false;
+        SpPr sp;
+        if (!splitSpPr(m.graphic, &sp)) return false;
+        if (!edit(&sp, m)) return false;
+        m.graphic = joinSpPr(m.graphic, sp);
+        return true;
+    });
+}
+
+// The room inside a new shape, and its words.
+QByteArray boxParagraphs(const QVector<TextBoxDesign::Paragraph> &paragraphs)
+{
+    QByteArray out;
+    auto one = [&](const TextBoxDesign::Paragraph &p) {
+        QByteArray x = "<w:p><w:pPr><w:spacing w:after=\"0\"/>";
+        if (p.align == QLatin1String("center")) x += "<w:jc w:val=\"center\"/>";
+        else if (p.align == QLatin1String("right")) x += "<w:jc w:val=\"right\"/>";
+        x += "</w:pPr>";
+        if (!p.text.isEmpty()) {
+            x += "<w:r><w:rPr>";
+            if (p.bold) x += "<w:b/>";
+            if (p.italic) x += "<w:i/>";
+            if (const QByteArray rgb = cleanRgb(p.color); !rgb.isEmpty()) x += "<w:color w:val=\"" + rgb + "\"/>";
+            x += "<w:sz w:val=\"" + QByteArray::number(int(std::lround(std::clamp(p.size, 1.0, 400.0) * 2))) + "\"/></w:rPr><w:t xml:space=\"preserve\">" + attribute(p.text, 2000) + "</w:t></w:r>";
+        }
+        return x + "</w:p>";
+    };
+    for (const auto &p : paragraphs) out += one(p);
+    if (out.isEmpty()) out = one({});
+    return out;
+}
+
+QByteArray shapeGraphic(const QString &preset, qint64 cx, qint64 cy, const ShapeLook &look, const QByteArray &lineEnds, const TextBoxDesign *box)
+{
+    auto n = [](qint64 v) { return QByteArray::number(v); };
+    QByteArray g = "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp>";
+    g += box ? "<wps:cNvSpPr txBox=\"1\"/>" : "<wps:cNvSpPr/>";
+    g += "<wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + n(cx) + "\" cy=\"" + n(cy) + "\"/></a:xfrm>" + geometryElement(preset);
+    const QByteArray fill = cleanRgb(look.fill), line = cleanRgb(look.line);
+    g += fill.isEmpty() ? QByteArray("<a:noFill/>") : solidFill(fill);
+    QByteArray ln = lineElement({}, line, look.weight, look.dash);
+    if (!lineEnds.isEmpty() && ln.endsWith("</a:ln>")) ln = ln.left(ln.size() - 7) + lineEnds + "</a:ln>";
+    g += ln + "</wps:spPr>";
+    if (box) g += "<wps:txbx><w:txbxContent>" + boxParagraphs(box->paragraphs) + "</w:txbxContent></wps:txbx>";
+    if (box) {
+        auto emuIn = [&](double v) { return n(emuOf(std::clamp(v, 0.0, 500.0))); };
+        g += "<wps:bodyPr rot=\"0\" vert=\"" + QByteArray(box->vertical ? "vert" : "horz") + "\" wrap=\"square\" lIns=\"" + emuIn(box->insets.left()) + "\" tIns=\"" + emuIn(box->insets.top()) + "\" rIns=\"" +
+             emuIn(box->insets.right()) + "\" bIns=\"" + emuIn(box->insets.bottom()) + "\" anchor=\"" + (box->anchor == QLatin1String("ctr") || box->anchor == QLatin1String("b") ? box->anchor.toLatin1() : QByteArray("t")) +
+             "\" anchorCtr=\"0\"><a:noAutofit/></wps:bodyPr>";
+    } else {
+        g += "<wps:bodyPr rot=\"0\" vert=\"horz\" wrap=\"square\" anchor=\"ctr\" anchorCtr=\"0\"><a:noAutofit/></wps:bodyPr>";
+    }
+    return g + "</wps:wsp></a:graphicData></a:graphic>";
+}
+
+// A shape or text box at the cursor from its graphic.
+PictureResult insertShapeGraphic(WriteDoc &doc, QTextCursor &c, const QByteArray &graphic, double width, double height, PictureWrap wrap, const QString &namePrefix)
+{
+    if (c.document() != doc.story()) {
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put in a header, a footer, or a note yet.");
+        return PictureResult::Refused;
+    }
+    Model m;
+    m.floating = true;
+    m.wrap = wrap == PictureWrap::Inline ? PictureWrap::Square : wrap;
+    m.wrapRawOf = m.wrap;
+    m.cx = emuOf(width);
+    m.cy = emuOf(height);
+    const int id = doc.nextDrawingId(doc.story());
+    m.docPr = {{"id", quote(QByteArray::number(id))}, {"name", quote(attribute(namePrefix + QStringLiteral(" %1").arg(id), 255))}};
+    m.distL = m.distR = 114300;
+    if (m.wrap == PictureWrap::BehindText) m.relativeHeight = 251658240 - 1;
+    m.frameProps = "<wp:cNvGraphicFramePr/>";
+    m.declarations = {{"xmlns:wps", quote("http://schemas.microsoft.com/office/word/2010/wordprocessingShape")}, {"xmlns:w", quote("http://schemas.openxmlformats.org/wordprocessingml/2006/main")}};
+    m.graphic = graphic;
+    Inline atom;
+    atom.kind = Inline::RunAtom;
+    atom.tag = QStringLiteral("drawing");
+    atom.raw = drawingXml(m);
+    if (!insertDrawnAtom(doc, c, atom)) {
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.");
+        return PictureResult::Refused;
+    }
+    return PictureResult::Ok;
+}
+
+// The words of a text box's content: its paragraphs, when it holds nothing but words.
+struct BoxContent {
+    qsizetype begin = -1, end = -1;   // the element's whole text in the graphic
+    QByteArray inner;
+    QStringList paragraphs;
+    QByteArray pPr, rPr;              // the first paragraph's properties and the first run's, as written
+    bool simple = false;
+};
+
+BoxContent boxContentOf(const QByteArray &graphic)
+{
+    BoxContent b;
+    const qsizetype open = graphic.indexOf("<w:txbxContent");
+    if (open < 0) return b;
+    const qsizetype gt = graphic.indexOf('>', open);
+    if (gt < 0) return b;
+    if (graphic[gt - 1] == '/') {
+        b.begin = open;
+        b.end = gt + 1;
+        b.simple = true;
+        return b;
+    }
+    const qsizetype close = graphic.indexOf("</w:txbxContent>", gt);
+    if (close < 0) return b;
+    b.begin = open;
+    b.end = close + 16;
+    b.inner = graphic.mid(gt + 1, close - gt - 1);
+    XmlTree t;
+    if (!t.parse("<x " + declarations() + ">" + b.inner + "</x>", nullptr)) return b;
+    b.simple = true;
+    int count = 0;
+    for (int p = t.firstChild(t.root()); p >= 0 && b.simple; p = t.next(p)) {
+        if (!t.is(p, "p") || ++count > kMostBoxParagraphs) {
+            b.simple = false;
+            break;
+        }
+        QString text;
+        bool firstPara = b.paragraphs.isEmpty();
+        for (int r = t.firstChild(p); r >= 0 && b.simple; r = t.next(r)) {
+            if (t.is(r, "pPr")) {
+                // (A paragraph in a list or with a numbering is more than words.)
+                if (t.child(r, "numPr") >= 0 || t.child(r, "sectPr") >= 0) b.simple = false;
+                if (firstPara) b.pPr = t.raw(r);
+            } else if (t.is(r, "r")) {
+                for (int k = t.firstChild(r); k >= 0 && b.simple; k = t.next(k)) {
+                    if (t.is(k, "rPr")) {
+                        if (b.rPr.isEmpty()) b.rPr = t.raw(k);
+                    } else if (t.is(k, "t")) {
+                        text += t.text(k);
+                    } else if (t.is(k, "tab")) {
+                        text += QLatin1Char('\t');
+                    } else if (t.is(k, "br")) {
+                        text += QLatin1Char('\n');
+                    } else {
+                        b.simple = false;
+                    }
+                }
+            } else {
+                b.simple = false;
+            }
+        }
+        b.paragraphs << text;
+    }
+    return b;
+}
+
+} // namespace
+
+const QVector<ShapeGroup> &shapeGallery()
+{
+    static const QVector<ShapeGroup> groups = {
+        {QStringLiteral("Lines"), {QStringLiteral("line"), QStringLiteral("straightConnector1")}},
+        {QStringLiteral("Rectangles"), {QStringLiteral("rect"), QStringLiteral("roundRect"), QStringLiteral("snip1Rect"), QStringLiteral("snip2SameRect"), QStringLiteral("round1Rect"),
+                                         QStringLiteral("round2SameRect")}},
+        {QStringLiteral("Basic Shapes"), {QStringLiteral("ellipse"), QStringLiteral("triangle"), QStringLiteral("rtTriangle"), QStringLiteral("diamond"), QStringLiteral("parallelogram"),
+                                          QStringLiteral("trapezoid"), QStringLiteral("pentagon"), QStringLiteral("hexagon"), QStringLiteral("octagon"), QStringLiteral("plus"),
+                                          QStringLiteral("heart"), QStringLiteral("cloud"), QStringLiteral("moon"), QStringLiteral("sun"), QStringLiteral("smileyFace"),
+                                          QStringLiteral("lightningBolt"), QStringLiteral("donut"), QStringLiteral("frame"), QStringLiteral("can"), QStringLiteral("cube"),
+                                          QStringLiteral("bevel"), QStringLiteral("foldedCorner")}},
+        {QStringLiteral("Block Arrows"), {QStringLiteral("rightArrow"), QStringLiteral("leftArrow"), QStringLiteral("upArrow"), QStringLiteral("downArrow"), QStringLiteral("leftRightArrow"),
+                                          QStringLiteral("upDownArrow"), QStringLiteral("bentArrow"), QStringLiteral("uturnArrow"), QStringLiteral("chevron"), QStringLiteral("homePlate"),
+                                          QStringLiteral("notchedRightArrow"), QStringLiteral("stripedRightArrow")}},
+        {QStringLiteral("Equation Shapes"), {QStringLiteral("mathPlus"), QStringLiteral("mathMinus"), QStringLiteral("mathMultiply"), QStringLiteral("mathDivide"), QStringLiteral("mathEqual"),
+                                             QStringLiteral("mathNotEqual")}},
+        {QStringLiteral("Flowchart"), {QStringLiteral("flowChartProcess"), QStringLiteral("flowChartDecision"), QStringLiteral("flowChartTerminator"), QStringLiteral("flowChartDocument"),
+                                       QStringLiteral("flowChartInputOutput"), QStringLiteral("flowChartPredefinedProcess"), QStringLiteral("flowChartConnector"),
+                                       QStringLiteral("flowChartPreparation"), QStringLiteral("flowChartManualInput")}},
+        {QStringLiteral("Stars and Banners"), {QStringLiteral("star4"), QStringLiteral("star5"), QStringLiteral("star6"), QStringLiteral("star8"), QStringLiteral("star10"),
+                                               QStringLiteral("star12"), QStringLiteral("star16"), QStringLiteral("star24"), QStringLiteral("star32"), QStringLiteral("irregularSeal1"),
+                                               QStringLiteral("irregularSeal2"), QStringLiteral("ribbon2"), QStringLiteral("ribbon"), QStringLiteral("wave"), QStringLiteral("doubleWave"),
+                                               QStringLiteral("horizontalScroll"), QStringLiteral("verticalScroll")}},
+        {QStringLiteral("Callouts"), {QStringLiteral("wedgeRectCallout"), QStringLiteral("wedgeRoundRectCallout"), QStringLiteral("wedgeEllipseCallout"), QStringLiteral("cloudCallout"),
+                                      QStringLiteral("borderCallout1"), QStringLiteral("accentCallout1"), QStringLiteral("callout1")}}};
+    return groups;
+}
+
+PictureResult insertShape(WriteDoc &doc, QTextCursor &c, const QString &preset, const QSizeF &size, const ShapeLook &look, PictureWrap wrap)
+{
+    bool known = false;
+    for (const ShapeGroup &g : shapeGallery()) known = known || g.presets.contains(preset);
+    if (!known) return PictureResult::Unreadable;
+    const bool isLine = preset == QLatin1String("line") || preset == QLatin1String("straightConnector1");
+    const bool square = QStringList{QStringLiteral("ellipse"), QStringLiteral("sun"), QStringLiteral("moon"), QStringLiteral("heart"), QStringLiteral("smileyFace"), QStringLiteral("donut"),
+                                    QStringLiteral("plus"), QStringLiteral("mathPlus"), QStringLiteral("mathMinus"), QStringLiteral("mathMultiply"), QStringLiteral("mathDivide"),
+                                    QStringLiteral("mathEqual"), QStringLiteral("mathNotEqual"), QStringLiteral("flowChartConnector"), QStringLiteral("cube"), QStringLiteral("frame")}
+                            .contains(preset) || preset.startsWith(QLatin1String("star")) || preset.startsWith(QLatin1String("irregularSeal"));
+    const QSizeF usual = isLine ? QSizeF(108, 0) : square ? QSizeF(86, 86) : QSizeF(108, 72);
+    QSizeF made = size.width() <= 0 && size.height() <= 0 ? usual : size;
+    // (Only a line may be flat; any other shape is as large as a picture's least.)
+    made = QSizeF(std::clamp(made.width(), isLine ? 0.0 : kLeastPictureSize, kMostPictureSize), std::clamp(made.height(), isLine ? 0.0 : kLeastPictureSize, kMostPictureSize));
+    if (isLine && made.width() <= 0 && made.height() <= 0) made = usual;
+    // (A line is not filled; an arrow has its head at the end.)
+    ShapeLook shown = look;
+    if (isLine) shown.fill.clear();
+    const QByteArray ends = preset == QLatin1String("straightConnector1") ? QByteArray("<a:tailEnd type=\"triangle\"/>") : QByteArray();
+    const QByteArray graphic = shapeGraphic(preset, emuOf(made.width()), emuOf(made.height()), shown, ends, nullptr);
+    return insertShapeGraphic(doc, c, graphic, made.width(), made.height(), wrap, isLine ? QStringLiteral("Line") : QStringLiteral("Shape"));
+}
+
+const QVector<TextBoxDesign> &textBoxDesigns()
+{
+    static const QVector<TextBoxDesign> designs = [] {
+        QVector<TextBoxDesign> out;
+        TextBoxDesign simple;
+        simple.id = QStringLiteral("simple");
+        simple.name = QStringLiteral("Simple Text Box");
+        simple.size = QSizeF(216, 72);
+        simple.look = {QStringLiteral("FFFFFF"), QStringLiteral("404040"), QStringLiteral("solid"), 0.75};
+        simple.paragraphs = {{QString(), 11, false, false, QString(), QStringLiteral("left")}};
+        out << simple;
+        TextBoxDesign plain = simple;
+        plain.id = QStringLiteral("plain");
+        plain.name = QStringLiteral("Plain Text Box");
+        plain.look = {QString(), QString(), QStringLiteral("solid"), 0};
+        out << plain;
+        TextBoxDesign sidebar;
+        sidebar.id = QStringLiteral("sidebar");
+        sidebar.name = QStringLiteral("Sidebar");
+        sidebar.size = QSizeF(144, 504);
+        sidebar.look = {QStringLiteral("E8EEF6"), QStringLiteral("3B78B8"), QStringLiteral("solid"), 1.5};
+        sidebar.insets = QMarginsF(10, 10, 10, 10);
+        sidebar.paragraphs = {{QStringLiteral("Sidebar title"), 14, true, false, QStringLiteral("27547F"), QStringLiteral("left")}, {QStringLiteral("Put a short note or a list of facts here."), 10.5, false, false, QString(), QStringLiteral("left")}};
+        out << sidebar;
+        TextBoxDesign quote;
+        quote.id = QStringLiteral("quote");
+        quote.name = QStringLiteral("Pull Quote");
+        quote.size = QSizeF(216, 108);
+        quote.look = {QString(), QString(), QStringLiteral("solid"), 0};
+        quote.insets = QMarginsF(14, 10, 14, 10);
+        quote.anchor = QStringLiteral("ctr");
+        quote.paragraphs = {{QStringLiteral("A sentence from the text, set large so the eye finds it."), 16, false, true, QStringLiteral("27547F"), QStringLiteral("center")}};
+        out << quote;
+        TextBoxDesign band;
+        band.id = QStringLiteral("band");
+        band.name = QStringLiteral("Banner");
+        band.size = QSizeF(432, 54);
+        band.look = {QStringLiteral("27547F"), QString(), QStringLiteral("solid"), 0};
+        band.insets = QMarginsF(14, 6, 14, 6);
+        band.anchor = QStringLiteral("ctr");
+        band.wrap = PictureWrap::TopAndBottom;
+        band.paragraphs = {{QStringLiteral("A heading across the page"), 22, true, false, QStringLiteral("FFFFFF"), QStringLiteral("center")}};
+        out << band;
+        TextBoxDesign note;
+        note.id = QStringLiteral("note");
+        note.name = QStringLiteral("Note");
+        note.size = QSizeF(180, 90);
+        note.look = {QStringLiteral("FFF4C2"), QStringLiteral("C9A227"), QStringLiteral("solid"), 1};
+        note.insets = QMarginsF(9, 7, 9, 7);
+        note.paragraphs = {{QStringLiteral("Note"), 11, true, false, QString(), QStringLiteral("left")}, {QString(), 10.5, false, false, QString(), QStringLiteral("left")}};
+        out << note;
+        return out;
+    }();
+    return designs;
+}
+
+PictureResult insertTextBox(WriteDoc &doc, QTextCursor &c, const TextBoxDesign &design)
+{
+    const QSizeF size(std::clamp(design.size.width(), kLeastPictureSize, kMostPictureSize), std::clamp(design.size.height(), kLeastPictureSize, kMostPictureSize));
+    const QByteArray graphic = shapeGraphic(QStringLiteral("rect"), emuOf(size.width()), emuOf(size.height()), design.look, {}, &design);
+    return insertShapeGraphic(doc, c, graphic, size.width(), size.height(), design.wrap, QStringLiteral("Text Box"));
+}
+
+
+std::optional<QStringList> textBoxText(const WriteDoc &doc, int position)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return std::nullopt;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return std::nullopt;
+    Model m;
+    if (!parseDrawing(atom.raw, &m)) return std::nullopt;
+    const BoxContent box = boxContentOf(m.graphic);
+    if (box.begin < 0 || !box.simple) return std::nullopt;
+    return box.paragraphs.isEmpty() ? QStringList{QString()} : box.paragraphs;
+}
+
+bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs)
+{
+    if (paragraphs.size() > kMostBoxParagraphs) return false;
+    qsizetype total = 0;
+    for (const QString &p : paragraphs) total += p.size();
+    if (total > kMostBoxTextLength) return false;
+    return changePicture(doc, position, [&](Model &m) {
+        const BoxContent box = boxContentOf(m.graphic);
+        if (box.begin < 0 || !box.simple) return false;
+        QStringList clean;
+        for (const QString &p : paragraphs) clean << cleanText(p, int(kMostBoxTextLength));
+        if (clean.isEmpty()) clean << QString();
+        if (clean == (box.paragraphs.isEmpty() ? QStringList{QString()} : box.paragraphs)) return false;
+        QByteArray content = "<w:txbxContent>";
+        for (const QString &p : clean) {
+            content += "<w:p>" + box.pPr;
+            // (Tabs are tab characters of the run; the words between them are runs of the same look.)
+            const QStringList parts = p.split(QLatin1Char('\t'));
+            for (qsizetype i = 0; i < parts.size(); ++i) {
+                QByteArray run = "<w:r>" + box.rPr;
+                if (i > 0) run += "<w:tab/>";
+                if (!parts[i].isEmpty()) {
+                    QStringList lines = parts[i].split(QLatin1Char('\n'));
+                    for (qsizetype k = 0; k < lines.size(); ++k) {
+                        if (k > 0) run += "<w:br/>";
+                        if (!lines[k].isEmpty()) run += "<w:t xml:space=\"preserve\">" + lines[k].toHtmlEscaped().toUtf8() + "</w:t>";
+                    }
+                }
+                if (run != "<w:r>" + box.rPr) content += run + "</w:r>";
+            }
+            content += "</w:p>";
+        }
+        content += "</w:txbxContent>";
+        m.graphic = m.graphic.left(box.begin) + content + m.graphic.mid(box.end);
+        return true;
+    });
+}
+
+bool setShapeFill(WriteDoc &doc, int position, const QString &rgb)
+{
+    const QByteArray color = cleanRgb(rgb);
+    if (!rgb.isEmpty() && color.isEmpty()) return false;
+    return changeSpPrOf(doc, position, true, [&](SpPr *sp, const Model &) {
+        const QByteArray now = color.isEmpty() ? QByteArray("<a:noFill/>") : solidFill(color), before = childRaw(*sp, SlotFill);
+        // (A shape that has no fill of its own and takes it from its style is a different thing from one that says it has none.)
+        if (before == now) return false;
+        setSlot(sp, SlotFill, color.isEmpty() ? "noFill" : "solidFill", now);
+        return true;
+    });
+}
+
+bool setShapeLine(WriteDoc &doc, int position, const QString &rgb, double weight, const QString &dash)
+{
+    if (!std::isfinite(weight)) return false;
+    const QByteArray color = cleanRgb(rgb);
+    if (!rgb.isEmpty() && color.isEmpty()) return false;
+    return changeSpPrOf(doc, position, false, [&](SpPr *sp, const Model &) {
+        const QByteArray before = childRaw(*sp, SlotLine);
+        const QByteArray now = lineElement(before, color, weight, dash);
+        if (before == now) return false;
+        setSlot(sp, SlotLine, "ln", now);
+        return true;
+    });
+}
+
+bool setShapeRotation(WriteDoc &doc, int position, double degrees)
+{
+    if (!std::isfinite(degrees)) return false;
+    double turn = std::fmod(degrees, 360.0);
+    if (turn < 0) turn += 360;
+    const qint64 rot = qint64(std::llround(turn * 60000.0)) % 21600000;
+    return changeSpPrOf(doc, position, true, [&](SpPr *sp, const Model &) {
+        for (SpPr::Child &child : sp->children) {
+            if (child.slot != SlotXfrm) continue;
+            const qsizetype gt = child.raw.indexOf('>');
+            if (gt < 0) return false;
+            Attributes decls;
+            Attributes attrs = attributesOf(child.raw.left(gt + 1), &decls);
+            if (attributeValue(attrs, "rot").toLongLong() == rot) return false;
+            if (rot == 0) removeAttribute(&attrs, "rot");
+            else setAttribute(&attrs, "rot", quote(QByteArray::number(rot)));
+            // The start tag again, with its name as it was written and the namespaces it declares itself.
+            qsizetype nameEnd = 1;
+            while (nameEnd < child.raw.size() && child.raw[nameEnd] != ' ' && child.raw[nameEnd] != '>' && child.raw[nameEnd] != '/') ++nameEnd;
+            QByteArray start = "<" + child.raw.mid(1, nameEnd - 1);
+            for (const auto &d : decls) start += " " + d.first + "=" + d.second;
+            start += written(attrs) + (child.raw[gt - 1] == '/' ? "/>" : ">");
+            child.raw = start + child.raw.mid(gt + 1);
+            return true;
+        }
+        return false;
+    });
+}
+
+bool setShapePreset(WriteDoc &doc, int position, const QString &preset)
+{
+    bool known = false;
+    for (const ShapeGroup &g : shapeGallery()) known = known || (g.presets.contains(preset) && g.name != QLatin1String("Lines"));
+    if (!known) return false;
+    return changeSpPrOf(doc, position, true, [&](SpPr *sp, const Model &) {
+        const QByteArray now = geometryElement(preset), before = childRaw(*sp, SlotGeometry);
+        if (before == now) return false;
+        setSlot(sp, SlotGeometry, "prstGeom", now);
+        return true;
+    });
+}
+
+
+// ---- Picture adjustments
+
+namespace {
+
+// The start tag and the inside of the first a:blip of a graphic.
+struct BlipSpot {
+    qsizetype begin = -1, end = -1;   // the whole element, in the graphic
+    QByteArray startTag, inner;
+    bool selfClosing = false;
+};
+
+bool findBlip(const QByteArray &graphic, BlipSpot *out)
+{
+    for (qsizetype i = graphic.indexOf("<a:blip"); i >= 0; i = graphic.indexOf("<a:blip", i + 7)) {
+        const char next = i + 7 < graphic.size() ? graphic[i + 7] : 0;
+        if (next != ' ' && next != '>' && next != '/') continue;
+        const qsizetype gt = graphic.indexOf('>', i);
+        if (gt < 0) return false;
+        BlipSpot b;
+        b.begin = i;
+        b.startTag = graphic.mid(i, gt + 1 - i);
+        b.selfClosing = graphic[gt - 1] == '/';
+        if (b.selfClosing) {
+            b.end = gt + 1;
+        } else {
+            const qsizetype close = graphic.indexOf("</a:blip>", gt);
+            if (close < 0) return false;
+            b.inner = graphic.mid(gt + 1, close - gt - 1);
+            b.end = close + 9;
+        }
+        *out = b;
+        return true;
+    }
+    return false;
+}
+
+QByteArray withBlip(const QByteArray &graphic, const BlipSpot &b)
+{
+    const QByteArray start = b.selfClosing ? b.startTag.left(b.startTag.size() - 2) + ">" : b.startTag;
+    if (b.inner.isEmpty()) return graphic.left(b.begin) + (b.selfClosing ? b.startTag : start + "</a:blip>") + graphic.mid(b.end);
+    return graphic.left(b.begin) + start + b.inner + "</a:blip>" + graphic.mid(b.end);
+}
+
+const QRegularExpression &effectsPattern()
+{
+    static const QRegularExpression re(QStringLiteral("<a:(lum|grayscl|biLevel)\\b[^>]*/>|<a:(lum|grayscl|biLevel)\\b[^>]*></a:(lum|grayscl|biLevel)>"));
+    return re;
+}
+
+QByteArray shareText(double v) { return QByteArray::number(qint64(std::llround(v * 100000.0))); }
+
+// The cut a graphic has: its a:srcRect's shares (0 for an edge it leaves out).
+void cutOf(const QByteArray &graphic, double cut[4])
+{
+    cut[0] = cut[1] = cut[2] = cut[3] = 0;
+    static const QRegularExpression rect(QStringLiteral("<a:srcRect\\b([^>]*)/?>"));
+    const QRegularExpressionMatch found = rect.match(QString::fromUtf8(graphic));
+    if (!found.hasMatch()) return;
+    static const char *names[4] = {"l", "t", "r", "b"};
+    for (int i = 0; i < 4; ++i) {
+        const QRegularExpressionMatch v = QRegularExpression(QStringLiteral("\\b%1=\"(-?[0-9]+)\"").arg(QLatin1String(names[i]))).match(found.captured(1));
+        if (v.hasMatch()) cut[i] = std::clamp(v.captured(1).toDouble() / 100000.0, -1.0, 1.0);
+    }
+}
+
+// Writes the cut into the graphic and sets the frame so that the picture keeps its scale.
+bool applyCut(Model &m, const double now[4])
+{
+    double was[4];
+    cutOf(m.graphic, was);
+    const double keepWas[2] = {1 - was[0] - was[2], 1 - was[1] - was[3]}, keepNow[2] = {1 - now[0] - now[2], 1 - now[1] - now[3]};
+    if (keepWas[0] < 0.02 || keepWas[1] < 0.02 || keepNow[0] < 0.02 || keepNow[1] < 0.02) return false;
+    bool same = true;
+    for (int i = 0; i < 4; ++i) same = same && std::abs(now[i] - was[i]) < 0.000005;
+    if (same) return false;
+    QByteArray rect;
+    static const char *names[4] = {"l", "t", "r", "b"};
+    bool any = false;
+    for (int i = 0; i < 4; ++i)
+        if (std::abs(now[i]) >= 0.000005) {
+            rect += QByteArray(" ") + names[i] + "=\"" + shareText(now[i]) + "\"";
+            any = true;
+        }
+    const QByteArray element = any ? "<a:srcRect" + rect + "/>" : QByteArray();
+    static const QRegularExpression existing(QStringLiteral("<a:srcRect\\b[^>]*/>|<a:srcRect\\b[^>]*></a:srcRect>"));
+    QString text = QString::fromUtf8(m.graphic);
+    const QRegularExpressionMatch found = existing.match(text);
+    if (found.hasMatch()) {
+        text.replace(found.capturedStart(), found.capturedLength(), QString::fromUtf8(element));
+        m.graphic = text.toUtf8();
+    } else if (any) {
+        BlipSpot b;
+        if (!findBlip(m.graphic, &b)) return false;
+        m.graphic = m.graphic.left(b.end) + element + m.graphic.mid(b.end);
+    }
+    const double cx = double(m.cx) * keepNow[0] / keepWas[0], cy = double(m.cy) * keepNow[1] / keepWas[1];
+    const qint64 w = std::clamp<qint64>(qint64(std::llround(cx)), qint64(kLeastPictureSize * kEmuPerPoint), qint64(kMostPictureSize * kEmuPerPoint));
+    const qint64 h = std::clamp<qint64>(qint64(std::llround(cy)), qint64(kLeastPictureSize * kEmuPerPoint), qint64(kMostPictureSize * kEmuPerPoint));
+    m.graphic = graphicWithSize(m.graphic, w, h);
+    m.cx = w;
+    m.cy = h;
+    return true;
+}
+
+// The color changes of the blip: brightness and contrast (as a:lum, nothing when both are 0), then gray or black and white.
+bool applyColors(Model &m, double brightness, double contrast, PictureRecolor recolor)
+{
+    BlipSpot b;
+    if (!findBlip(m.graphic, &b)) return false;
+    QByteArray effects;
+    if (std::abs(brightness) >= 0.000005 || std::abs(contrast) >= 0.000005) {
+        effects += "<a:lum";
+        if (std::abs(brightness) >= 0.000005) effects += " bright=\"" + shareText(brightness) + "\"";
+        if (std::abs(contrast) >= 0.000005) effects += " contrast=\"" + shareText(contrast) + "\"";
+        effects += "/>";
+    }
+    if (recolor == PictureRecolor::Grayscale) effects += "<a:grayscl/>";
+    else if (recolor == PictureRecolor::BlackAndWhite) effects += "<a:biLevel thresh=\"50000\"/>";
+    QString inner = QString::fromUtf8(b.inner);
+    inner.remove(effectsPattern());
+    const QByteArray without = inner.toUtf8();
+    // (The effects come first: an extension list, if the blip has one, is last.)
+    const QByteArray made = effects + without;
+    if (made == b.inner) return false;
+    b.inner = made;
+    if (b.inner.isEmpty() && !b.selfClosing) b.selfClosing = true, b.startTag = b.startTag.left(b.startTag.size() - 1) + "/>";
+    else if (!b.inner.isEmpty() && b.selfClosing) b.selfClosing = false, b.startTag = b.startTag.left(b.startTag.size() - 2) + ">";
+    m.graphic = withBlip(m.graphic, b);
+    return true;
+}
+
+// What a picture's graphic says of its colors now.
+struct ColorsNow {
+    double brightness = 0, contrast = 0;
+    PictureRecolor recolor = PictureRecolor::None;
+};
+
+ColorsNow colorsOf(const QByteArray &graphic)
+{
+    ColorsNow now;
+    static const QRegularExpression lum(QStringLiteral("<a:lum\\b([^>]*)/?>"));
+    const QRegularExpressionMatch found = lum.match(QString::fromUtf8(graphic));
+    if (found.hasMatch()) {
+        for (const char *name : {"bright", "contrast"}) {
+            const QRegularExpressionMatch v = QRegularExpression(QStringLiteral("\\b%1=\"(-?[0-9]+)\"").arg(QLatin1String(name))).match(found.captured(1));
+            if (v.hasMatch()) (QLatin1String(name) == QLatin1String("bright") ? now.brightness : now.contrast) = std::clamp(v.captured(1).toDouble() / 100000.0, -1.0, 1.0);
+        }
+    }
+    if (graphic.contains("<a:grayscl")) now.recolor = PictureRecolor::Grayscale;
+    else if (graphic.contains("<a:biLevel")) now.recolor = PictureRecolor::BlackAndWhite;
+    return now;
+}
+
+} // namespace
+
+bool setPictureCrop(WriteDoc &doc, int position, double left, double top, double right, double bottom)
+{
+    const double now[4] = {left, top, right, bottom};
+    for (double v : now)
+        if (!std::isfinite(v) || v < -1 || v > 0.98) return false;
+    if (left + right > 0.98 || top + bottom > 0.98) return false;
+    return changePicture(doc, position, [&](Model &m) {
+        if (!m.graphic.contains("blip")) return false;
+        return applyCut(m, now);
+    });
+}
+
+bool setPictureCorrections(WriteDoc &doc, int position, double brightness, double contrast)
+{
+    if (!std::isfinite(brightness) || !std::isfinite(contrast)) return false;
+    brightness = std::clamp(brightness, -1.0, 1.0);
+    contrast = std::clamp(contrast, -1.0, 1.0);
+    return changePicture(doc, position, [&](Model &m) { return applyColors(m, brightness, contrast, colorsOf(m.graphic).recolor); });
+}
+
+bool setPictureRecolor(WriteDoc &doc, int position, PictureRecolor recolor)
+{
+    return changePicture(doc, position, [&](Model &m) {
+        const ColorsNow now = colorsOf(m.graphic);
+        return applyColors(m, now.brightness, now.contrast, recolor);
+    });
+}
+
+bool resetPicture(WriteDoc &doc, int position)
+{
+    return changePicture(doc, position, [&](Model &m) {
+        if (!m.graphic.contains("blip")) return false;
+        bool changed = applyCut(m, std::array<double, 4>{0, 0, 0, 0}.data());
+        changed = applyColors(m, 0, 0, PictureRecolor::None) || changed;
+        SpPr sp;
+        if (splitSpPr(m.graphic, &sp) && !childRaw(sp, SlotLine).isEmpty()) {
+            setSlot(&sp, SlotLine, "ln", QByteArray());
+            m.graphic = joinSpPr(m.graphic, sp);
+            changed = true;
+        }
+        return changed;
+    });
+}
+
+PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &bytes)
+{
+    Prepared p;
+    if (const PictureResult r = prepare(bytes, &p); r != PictureResult::Ok) return r;
+    QTextDocument *story = doc.story();
+    if (!isPictureAt(story, position) || position + 1 > story->characterCount() - 1) return PictureResult::Refused;
+    bool added = false;
+    const QString rid = doc.addMedia(p.bytes, p.extension, p.contentType, &added);
+    if (added && doc.mediaBytes() > doc.mediaLimit) {
+        doc.removeMedia(rid);
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.");
+        return PictureResult::TooLarge;
+    }
+    const bool changed = changePicture(doc, position, [&](Model &m) {
+        BlipSpot b;
+        if (!findBlip(m.graphic, &b)) return false;
+        double none[4] = {0, 0, 0, 0};
+        applyCut(m, none);
+        if (!findBlip(m.graphic, &b)) return false;
+        Attributes attrs = attributesOf(b.startTag);
+        setAttribute(&attrs, "r:embed", quote(rid.toUtf8()));
+        const qsizetype nameEnd = b.startTag.indexOf(' ') > 0 ? b.startTag.indexOf(' ') : b.startTag.size() - 1;
+        QByteArray start = b.startTag.left(nameEnd);
+        Attributes declared;
+        attributesOf(b.startTag, &declared);
+        for (const auto &d : declared) start += " " + d.first + "=" + d.second;
+        b.startTag = start + written(attrs) + (b.selfClosing ? "/>" : ">");
+        m.graphic = withBlip(m.graphic, b);
+        // The colors of the old picture are not the new one's. The frame keeps its width and takes the new picture's proportions.
+        applyColors(m, 0, 0, PictureRecolor::None);
+        const qint64 h = std::clamp<qint64>(qint64(std::llround(double(m.cx) * p.size.height() / std::max(1.0, p.size.width()))), qint64(kLeastPictureSize * kEmuPerPoint), qint64(kMostPictureSize * kEmuPerPoint));
+        m.graphic = graphicWithSize(m.graphic, m.cx, h);
+        m.cy = h;
+        return true;
+    });
+    if (!changed) {
+        if (added) doc.removeMedia(rid);
+        return PictureResult::Refused;
+    }
+    return PictureResult::Ok;
+}
+
+// ---- Charts
+
+namespace {
+
+using office::Chart;
+using office::ChartSeries;
+
+const char kChartContentType[] = "application/vnd.openxmlformats-officedocument.drawingml.chart+xml";
+const char kChartRelationship[] = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart";
+
+office::sheet::ChartKind kindOfForm(ChartForm form)
+{
+    using K = office::sheet::ChartKind;
+    switch (form) {
+    case ChartForm::Column: return K::Column;
+    case ChartForm::ColumnStacked: return K::ColumnStacked;
+    case ChartForm::ColumnPercent: return K::ColumnPercent;
+    case ChartForm::Bar: return K::Bar;
+    case ChartForm::BarStacked: return K::BarStacked;
+    case ChartForm::Line: return K::Line;
+    case ChartForm::LineMarkers: return K::LineMarkers;
+    case ChartForm::Pie: return K::Pie;
+    case ChartForm::Doughnut: return K::Doughnut;
+    case ChartForm::Area: return K::Area;
+    case ChartForm::AreaStacked: return K::AreaStacked;
+    case ChartForm::Scatter: return K::Scatter;
+    }
+    return K::Column;
+}
+
+ChartForm formOfKind(office::sheet::ChartKind kind)
+{
+    using K = office::sheet::ChartKind;
+    switch (kind) {
+    case K::ColumnStacked: return ChartForm::ColumnStacked;
+    case K::ColumnPercent: return ChartForm::ColumnPercent;
+    case K::Bar:
+    case K::BarPercent: return ChartForm::Bar;
+    case K::BarStacked: return ChartForm::BarStacked;
+    case K::Line:
+    case K::LineStacked: return ChartForm::Line;
+    case K::LineMarkers: return ChartForm::LineMarkers;
+    case K::Pie: return ChartForm::Pie;
+    case K::Doughnut: return ChartForm::Doughnut;
+    case K::Area: return ChartForm::Area;
+    case K::AreaStacked: return ChartForm::AreaStacked;
+    case K::Scatter:
+    case K::ScatterLines:
+    case K::ScatterSmooth: return ChartForm::Scatter;
+    default: return ChartForm::Column;
+    }
+}
+
+// The series of a chart from the data: each its name, the categories, and its numbers. A scatter's categories are its x numbers (or 1, 2, 3 for words).
+QVector<ChartSeries> seriesOfData(const ChartData &data, bool scatter)
+{
+    QVector<ChartSeries> out;
+    QVector<double> xs;
+    if (scatter) {
+        for (int i = 0; i < data.categories.size(); ++i) {
+            bool ok = false;
+            const double v = data.categories[i].toDouble(&ok);
+            xs << (ok && std::isfinite(v) ? v : double(i + 1));
+        }
+    }
+    for (int s = 0; s < data.values.size(); ++s) {
+        ChartSeries series;
+        series.name = data.seriesNames.value(s, QCoreApplication::translate("jp::write::Pictures", "Series %1").arg(s + 1));
+        series.categories = data.categories;
+        series.values = data.values[s];
+        series.xValues = xs;
+        out << series;
+    }
+    return out;
+}
+
+bool dataIsUsable(const ChartData &data)
+{
+    if (data.categories.isEmpty() || data.values.isEmpty() || data.categories.size() > kMostChartCategories || data.values.size() > kMostChartSeries) return false;
+    for (const QVector<double> &v : data.values) {
+        if (v.size() != data.categories.size()) return false;
+        for (double x : v)
+            if (!std::isfinite(x) || std::abs(x) > 1e15) return false;
+    }
+    return true;
+}
+
+const office::Theme &chartTheme(const WriteDoc &doc)
+{
+    static const office::Theme standard = office::defaultTheme();
+    return doc.theme() ? *doc.theme() : standard;
+}
+
+// Every series of the chart, plot by plot.
+QVector<ChartSeries> allSeries(const Chart &chart)
+{
+    QVector<ChartSeries> out;
+    for (const office::ChartPlot &p : chart.plots) out << p.series;
+    return out;
+}
+
+// The part a chart drawing names: the Id in its c:chart, and the bytes.
+bool chartPartOf(const WriteDoc &doc, const QByteArray &graphic, QString *id, QByteArray *bytes)
+{
+    const qsizetype at = graphic.indexOf("<c:chart");
+    if (at < 0) return false;
+    static const QRegularExpression rid(QStringLiteral("r:id=\"([^\"]+)\""));
+    const QRegularExpressionMatch m = rid.match(QString::fromUtf8(graphic.mid(at, 600)));
+    if (!m.hasMatch()) return false;
+    *id = m.captured(1);
+    *bytes = doc.relatedPartData(*id);
+    return !bytes->isEmpty();
+}
+
+// Changes the chart the drawing at `position` names: the part is read, `edit` changes the model, and the part is written again as a new one (so that Undo has the old one).
+bool editChart(WriteDoc &doc, int position, const std::function<bool(Chart &)> &edit)
+{
+    return changePicture(doc, position, [&](Model &m) {
+        QString id;
+        QByteArray old;
+        if (!chartPartOf(doc, m.graphic, &id, &old)) return false;
+        Chart chart;
+        if (!office::readChart(old, chartTheme(doc), office::ColorMap(), &chart)) return false;
+        if (!office::chartIsFullyModeled(old)) {
+            doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "This chart has parts that JeffWrite does not change, so it is kept as it is.");
+            return false;
+        }
+        if (!edit(chart)) return false;
+        const QByteArray now = office::writeChartPart(chart);
+        if (now.isEmpty() || now == old) return false;
+        QString oldTarget;
+        for (const office::Relationship &r : doc.mainRelationshipsForTest())
+            if (r.id == id) oldTarget = r.target;
+        const QString made = doc.addRelatedPart(QStringLiteral("/word/charts"), QStringLiteral("chart"), QStringLiteral("xml"), now, QString::fromLatin1(kChartContentType), QString::fromLatin1(kChartRelationship), oldTarget);
+        m.graphic.replace("r:id=\"" + id.toUtf8() + "\"", "r:id=\"" + made.toUtf8() + "\"");
+        return true;
+    });
+}
+
+} // namespace
+
+const QVector<ChartForm> &chartForms()
+{
+    static const QVector<ChartForm> forms = {ChartForm::Column, ChartForm::ColumnStacked, ChartForm::ColumnPercent, ChartForm::Bar, ChartForm::BarStacked, ChartForm::Line, ChartForm::LineMarkers,
+                                             ChartForm::Pie, ChartForm::Doughnut, ChartForm::Area, ChartForm::AreaStacked, ChartForm::Scatter};
+    return forms;
+}
+
+ChartData sampleChartData()
+{
+    ChartData d;
+    d.categories = {QCoreApplication::translate("jp::write::Pictures", "Category 1"), QCoreApplication::translate("jp::write::Pictures", "Category 2"),
+                    QCoreApplication::translate("jp::write::Pictures", "Category 3")};
+    d.seriesNames = {QCoreApplication::translate("jp::write::Pictures", "Series 1"), QCoreApplication::translate("jp::write::Pictures", "Series 2")};
+    d.values = {{4.3, 2.5, 3.5}, {2.4, 4.4, 1.8}};
+    return d;
+}
+
+ChartInfo chartAt(const WriteDoc &doc, int position)
+{
+    ChartInfo info;
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return info;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return info;
+    Model m;
+    if (!parseDrawing(atom.raw, &m)) return info;
+    QString id;
+    QByteArray bytes;
+    if (!chartPartOf(doc, m.graphic, &id, &bytes)) return info;
+    Chart chart;
+    if (!office::readChart(bytes, chartTheme(doc), office::ColorMap(), &chart)) return info;
+    info.valid = true;
+    info.form = formOfKind(office::sheet::kindOfChart(chart));
+    info.titleShown = chart.title.present;
+    info.title = chart.title.text;
+    info.legendShown = chart.legend.shown;
+    info.legendPosition = chart.legend.position;
+    const QVector<ChartSeries> series = allSeries(chart);
+    info.dataEditable = !series.isEmpty() && office::chartIsFullyModeled(bytes);
+    for (const ChartSeries &s : series) {
+        info.dataLabels = info.dataLabels || s.labels.shown();
+        if (!s.valueRef.isEmpty() || !s.categoryRef.isEmpty() || !s.nameRef.isEmpty()) info.dataEditable = false;
+    }
+    if (!series.isEmpty()) {
+        info.data.categories = series.first().categories;
+        // (A scatter's x numbers are its categories.)
+        if (info.data.categories.isEmpty())
+            for (double x : series.first().xValues) info.data.categories << QString::number(x, 'g', 15);
+    }
+    for (const ChartSeries &s : series) {
+        info.data.seriesNames << s.name;
+        info.data.values << s.values;
+    }
+    return info;
+}
+
+PictureResult insertChart(WriteDoc &doc, QTextCursor &c, ChartForm form, const ChartData &data, const QSizeF &size)
+{
+    if (c.document() != doc.story()) {
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put in a header, a footer, or a note yet.");
+        return PictureResult::Refused;
+    }
+    if (!dataIsUsable(data)) return PictureResult::Unreadable;
+    const office::sheet::ChartKind kind = kindOfForm(form);
+    const QVector<ChartSeries> series = seriesOfData(data, form == ChartForm::Scatter);
+    const QVector<office::sheet::SeriesKind> kinds(series.size(), office::sheet::SeriesKind{kind, false});
+    Chart chart = office::sheet::chartFromSeries(series, kinds, chartTheme(doc));
+    const QByteArray part = office::writeChartPart(chart);
+    if (part.isEmpty()) return PictureResult::Refused;
+    const QSizeF made = size.isEmpty() ? QSizeF(360, 216) : QSizeF(std::clamp(size.width(), kLeastPictureSize, kMostPictureSize), std::clamp(size.height(), kLeastPictureSize, kMostPictureSize));
+    const QString rid = doc.addRelatedPart(QStringLiteral("/word/charts"), QStringLiteral("chart"), QStringLiteral("xml"), part, QString::fromLatin1(kChartContentType), QString::fromLatin1(kChartRelationship));
+    Model m;
+    m.floating = false;
+    m.wrap = PictureWrap::Inline;
+    m.cx = emuOf(made.width());
+    m.cy = emuOf(made.height());
+    const int id = doc.nextDrawingId(doc.story());
+    m.docPr = {{"id", quote(QByteArray::number(id))}, {"name", quote(QByteArray("Chart ") + QByteArray::number(id))}};
+    m.frameProps = "<wp:cNvGraphicFramePr/>";
+    m.graphic = "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" r:id=\"" + rid.toUtf8() +
+                "\"/></a:graphicData></a:graphic>";
+    Inline atom;
+    atom.kind = Inline::RunAtom;
+    atom.tag = QStringLiteral("drawing");
+    atom.raw = drawingXml(m);
+    if (!insertDrawnAtom(doc, c, atom)) {
+        doc.removeMedia(rid);
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.");
+        return PictureResult::Refused;
+    }
+    return PictureResult::Ok;
+}
+
+bool setChartForm(WriteDoc &doc, int position, ChartForm form)
+{
+    return editChart(doc, position, [&](Chart &chart) {
+        if (formOfKind(office::sheet::kindOfChart(chart)) == form && chart.plots.size() == 1) return false;
+        QVector<ChartSeries> series = allSeries(chart);
+        if (series.isEmpty()) return false;
+        // (A scatter's x numbers are the categories of a chart of another kind.)
+        for (ChartSeries &s : series)
+            if (s.categories.isEmpty())
+                for (double x : s.xValues) s.categories << QString::number(x, 'g', 15);
+        // (A scatter's points are placed by x numbers: the categories, read as numbers, or 1, 2, 3.)
+        if (form == ChartForm::Scatter)
+            for (ChartSeries &s : series)
+                if (s.xValues.isEmpty())
+                    for (int i = 0; i < s.values.size(); ++i) {
+                        bool ok = false;
+                        const double v = s.categories.value(i).toDouble(&ok);
+                        s.xValues << (ok && std::isfinite(v) ? v : double(i + 1));
+                    }
+        const QVector<office::sheet::SeriesKind> kinds(series.size(), office::sheet::SeriesKind{kindOfForm(form), false});
+        const Chart like = chart;
+        chart = office::sheet::chartFromSeries(series, kinds, chartTheme(doc), &like);
+        return true;
+    });
+}
+
+bool setChartTitle(WriteDoc &doc, int position, bool shown, const QString &text)
+{
+    const QString clean = cleanText(text, 500);
+    return editChart(doc, position, [&](Chart &chart) {
+        const bool same = chart.title.present == shown && (!shown || (chart.title.text == clean && !chart.title.automatic));
+        if (same) return false;
+        chart.title.present = shown;
+        if (shown) {
+            chart.title.text = clean.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "Chart Title") : clean;
+            chart.title.automatic = false;
+            chart.title.ref.clear();
+        }
+        return true;
+    });
+}
+
+bool setChartLegend(WriteDoc &doc, int position, const QString &legendPosition)
+{
+    if (!legendPosition.isEmpty() && !QStringList{QStringLiteral("r"), QStringLiteral("l"), QStringLiteral("t"), QStringLiteral("b")}.contains(legendPosition)) return false;
+    return editChart(doc, position, [&](Chart &chart) {
+        const bool shown = !legendPosition.isEmpty();
+        if (chart.legend.shown == shown && (!shown || chart.legend.position == legendPosition)) return false;
+        chart.legend.shown = shown;
+        if (shown) {
+            chart.legend.position = legendPosition;
+            chart.legend.manual = false;
+        }
+        return true;
+    });
+}
+
+bool setChartDataLabels(WriteDoc &doc, int position, bool shown)
+{
+    return editChart(doc, position, [&](Chart &chart) {
+        bool now = false;
+        for (const office::ChartPlot &p : chart.plots)
+            for (const ChartSeries &s : p.series) now = now || s.labels.shown();
+        if (now == shown) return false;
+        for (office::ChartPlot &p : chart.plots)
+            for (ChartSeries &s : p.series) {
+                s.labels.value = shown;
+                if (!shown) s.labels.category = s.labels.series = s.labels.percent = s.labels.legendKey = false;
+            }
+        return true;
+    });
+}
+
+bool setChartData(WriteDoc &doc, int position, const ChartData &data)
+{
+    if (!dataIsUsable(data)) return false;
+    return editChart(doc, position, [&](Chart &chart) {
+        const QVector<ChartSeries> old = allSeries(chart);
+        if (old.isEmpty()) return false;
+        for (const ChartSeries &s : old)
+            if (!s.valueRef.isEmpty() || !s.categoryRef.isEmpty() || !s.nameRef.isEmpty()) return false;
+        const office::sheet::ChartKind kind = office::sheet::kindOfChart(chart);
+        QVector<ChartSeries> series = seriesOfData(data, kind == office::sheet::ChartKind::Scatter || kind == office::sheet::ChartKind::ScatterLines || kind == office::sheet::ChartKind::ScatterSmooth);
+        // The look of the series that were there stays with them (their colors, lines, and markers).
+        for (int i = 0; i < series.size() && i < old.size(); ++i) {
+            ChartSeries made = old[i];
+            made.name = series[i].name;
+            made.categories = series[i].categories;
+            made.values = series[i].values;
+            made.xValues = series[i].xValues;
+            made.categoryNumbers.clear();
+            made.categoryRefNumeric = false;
+            series[i] = made;
+        }
+        QVector<office::sheet::SeriesKind> kinds;
+        for (const office::ChartPlot &p : chart.plots)
+            for (int i = 0; i < p.series.size(); ++i) kinds << office::sheet::SeriesKind{office::sheet::kindOfPlot(p), false};
+        while (kinds.size() < series.size()) kinds << office::sheet::SeriesKind{kinds.isEmpty() ? office::sheet::ChartKind::Column : kinds.last().kind, false};
+        kinds.resize(series.size());
+        const Chart like = chart;
+        chart = office::sheet::chartFromSeries(series, kinds, chartTheme(doc), &like);
+        return true;
+    });
 }
 
 PictureResult readPictureFile(const QString &path, QByteArray *bytes)

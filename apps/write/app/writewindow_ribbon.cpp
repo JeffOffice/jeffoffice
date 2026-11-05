@@ -104,6 +104,7 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
 {
     tableRibbonParts(parts);
     pictureRibbonParts(parts);
+    shapeRibbonParts(parts);
     headerRibbonParts(parts);
     insertRibbonParts(parts);
     layoutRibbonParts(parts);

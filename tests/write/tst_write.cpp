@@ -839,7 +839,7 @@ private Q_SLOTS:
         QCOMPARE(w.ribbonErrors(), QString());
         QStringList tabs;
         for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
-        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Design", "Layout", "References", "Mailings", "Review", "View", "Help", "Header & Footer", "Outlining", "Table Design", "Table Layout", "Picture Format"}));   // (the last five are there while a header or footer is edited, Outline view is open, and the caret is in a table)
+        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Design", "Layout", "References", "Mailings", "Review", "View", "Help", "Header & Footer", "Outlining", "Table Design", "Table Layout", "Picture Format", "Shape Format", "Chart Format"}));   // (the last five are there while a header or footer is edited, Outline view is open, and the caret is in a table)
         QCOMPARE(w.ribbon()->fileKeytip(), QStringLiteral("F"));
         QVERIFY(w.windowTitle().contains(QLatin1String("JeffWrite")));
         QVERIFY(w.windowTitle().startsWith(QLatin1String("Document")));
