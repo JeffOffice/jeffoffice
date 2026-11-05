@@ -1,15 +1,16 @@
 # Change JeffWrite's settings
-<!-- keywords: advanced, units, measurements, inches, centimeters, options, settings, preferences, save, default format, default folder, default file location, recovery, formatting marks, gridlines, display, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about -->
+<!-- keywords: ctrl+click, follow link, drag and drop, personal information, remove personal information, advanced, units, measurements, inches, centimeters, options, settings, preferences, save, default format, default folder, default file location, recovery, formatting marks, gridlines, display, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about -->
 
 Your settings are in the **JeffWrite Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
 ## Save
 
-The **Save** page of the Options window has three choices.
+The **Save** page of the Options window has four choices.
 
 - **Save new documents as** picks the kind of file that **Save As** offers first for a document that has no file yet: a .docx file or an .odt file.
 - **Save automatic recovery information every** is how many minutes pass between the spare copies JeffWrite keeps of unsaved work. See [Open, save, print, and export](open-save).
 - **Default file location** is the folder the **Open** and **Save As** boxes start in. Click **Browse** to pick it. Leave it empty to start in your Documents folder.
+- **Remove personal information from the file's properties when saving** takes your name out of the file each time you save. The file's properties hold the author, the person who saved it last, the company, and the manager. The title and other properties stay. The names are also taken out of the open document, so they stay out until you close it. To do this just once, use **Inspect Document** in [Info](info).
 
 ## Display
 
@@ -23,6 +24,12 @@ A change on this page applies to the window you are in at once, and to each wind
 ## Advanced
 
 **Show measurements in** picks the unit for the ruler and the dialogs: inches, centimeters, millimeters, points, or picas. A point is 1/72 of an inch. A pica is 12 points.
+
+**Use Ctrl+click to follow a link** is on at first: you hold **Ctrl** and click a link to go to it, and a plain click only puts the cursor in the link's words. Turn it off to follow a link with a plain click. Holding **Shift** while you click still selects text.
+
+**Allow text to be dragged and dropped** lets you select words and drag them to a new place. Hold **Ctrl** while you drop to copy them instead of moving them. Turn it off if you drag by accident.
+
+These two choices apply to the window you are in at once, and to each window you open after it.
 
 ## Usage statistics
 

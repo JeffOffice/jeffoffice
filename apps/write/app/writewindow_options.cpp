@@ -88,11 +88,16 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         rowLayout->addWidget(f->folder, 1);
         rowLayout->addWidget(browse);
         form->addRow(QCoreApplication::translate("Dialogs", "Default file location:"), row);
+        f->privacy = new QCheckBox(QCoreApplication::translate("Dialogs", "Remove personal information from the file's properties when saving"), page);
+        f->privacy->setObjectName(QStringLiteral("removePersonalOnSave"));
+        f->privacy->setChecked(st.value(QStringLiteral("privacy/removeOnSave"), false).toBool());
+        form->addRow(f->privacy);
         return page;
     }, [f] {
         Settings &st = Settings::get();
         st.setValue(QStringLiteral("save/format"), f->format->currentData().toString());
         st.setValue(QStringLiteral("save/autoRecoverMinutes"), f->minutes->value());
+        st.setValue(QStringLiteral("privacy/removeOnSave"), f->privacy->isChecked());
         const QString folder = f->folder->text().trimmed();
         st.setValue(QStringLiteral("dirs/default"), folder.isEmpty() || QDir(folder).exists() ? folder : st.value(QStringLiteral("dirs/default")).toString());
     }};

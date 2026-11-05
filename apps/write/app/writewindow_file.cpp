@@ -386,6 +386,8 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
         notice(tr("Save"), tr("Part of this file couldn't be opened, so saving it here would lose that part: choose a new name for the copy."));
         return false;
     }
+    // Options > Save > Privacy: the names in the properties (the author, who saved last, the company, and the manager) are taken out as the file is written.
+    if (Settings::get().value(QStringLiteral("privacy/removeOnSave"), false).toBool()) removePersonalInformation();
     const QString ending = QFileInfo(path).suffix().toLower();
     const bool macroFile = ending == QLatin1String("docm") || ending == QLatin1String("dotm");
     if (m_doc->hadMacros() && !m_macrosNoted && !macroFile) {

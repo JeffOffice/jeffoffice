@@ -140,6 +140,47 @@ private Q_SLOTS:
         setOpenPasswordStandIn(nullptr);
     }
 
+    // Options > Save > "Remove personal information from the file's properties when saving": the names are in the window's properties until a file is written, and not in it.
+    void thePrivacyOptionTakesTheNamesOutOfTheFileAsItIsSaved()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow a;
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("words"));
+        office::PackageProps p = a.document()->packageProps();
+        p.creator = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        p.title = QStringLiteral("Kept");
+        a.applyProperties(p);
+        QVERIFY(saveInto(a, dir, QStringLiteral("named.docx")));
+        WriteWindow named;
+        QVERIFY(named.openFile(dir.filePath(QStringLiteral("named.docx"))));
+        QCOMPARE(named.document()->packageProps().creator, QStringLiteral("Ann Lee"));
+        QVector<OptionsPage> pages = a.optionsPages();
+        QList<QWidget *> built;
+        for (const OptionsPage &page : pages) built << page.build();
+        QCheckBox *box = nullptr;
+        for (QWidget *page : built)
+            if (!box) box = page->findChild<QCheckBox *>(QStringLiteral("removePersonalOnSave"));
+        QVERIFY(box);
+        QVERIFY(!box->isChecked());
+        box->setChecked(true);
+        for (const OptionsPage &page : pages)
+            if (page.apply) page.apply();
+        qDeleteAll(built);
+        QVERIFY(Settings::get().value(QStringLiteral("privacy/removeOnSave")).toBool());
+        a.document()->story()->setModified(true);
+        QVERIFY(saveInto(a, dir, QStringLiteral("clean.docx")));
+        WriteWindow clean;
+        QVERIFY(clean.openFile(dir.filePath(QStringLiteral("clean.docx"))));
+        const office::PackageProps back = clean.document()->packageProps();
+        QVERIFY(back.creator.isEmpty());
+        QVERIFY(back.company.isEmpty());
+        QCOMPARE(back.title, QStringLiteral("Kept"));   // (only the names go)
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+    }
+
     void propertiesSurviveASaveAndReopen()
     {
         QTemporaryDir dir;
