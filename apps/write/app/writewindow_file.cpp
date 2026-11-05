@@ -434,14 +434,13 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     int lostChars = 0;
     QByteArray bytes = text ? write::plainTextFile(*m_doc, textForm.encoding, textForm.ends, &lostChars, textForm.codePage) : rtf ? m_doc->toRtf(&err, &notKept) : odt ? m_doc->toOdt(&err, &notKept) : m_doc->toDocx(&err, tmpl, macroFile);
     QApplication::restoreOverrideCursor();
-    if (text && !m_textNoted && !m_textFormKnown) notKept << tr("Fonts, pictures, tables, and all other formatting (only the words are saved)");
     // What the format would lose is said before anything is written, with the choice of a .docx beside it.
-    if ((odt || rtf || text) && !bytes.isEmpty() && (m_formatAsker || !m_notifier)) {
+    if ((odt || rtf) && !bytes.isEmpty() && (m_formatAsker || !m_notifier)) {
         QStringList fresh;
         for (const QString &what : std::as_const(notKept))
             if (!m_odtNoted.contains(what)) fresh << what;
         if (!fresh.isEmpty()) {
-            const FormatChoice choice = askFormatChoice(fresh, text ? QStringLiteral(".txt") : rtf ? QStringLiteral(".rtf") : QStringLiteral(".odt"));
+            const FormatChoice choice = askFormatChoice(fresh, rtf ? QStringLiteral(".rtf") : QStringLiteral(".odt"));
             if (choice == FormatChoice::Cancel) return false;
             if (choice == FormatChoice::Docx) {
                 QString beside = QFileInfo(path).absolutePath() + QLatin1Char('/') + QFileInfo(path).completeBaseName();
@@ -450,7 +449,6 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
                 return saveTo(target, asCopy);
             }
             for (const QString &what : fresh) m_odtNoted.insert(what);   // (said now: not said again afterward)
-            if (text) m_textNoted = true;
         }
     }
     if (!backupBeforeSave(this, path)) return false;

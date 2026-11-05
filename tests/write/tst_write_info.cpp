@@ -546,6 +546,42 @@ private Q_SLOTS:
         QVERIFY(!v.openFile(path));
     }
 
+    void saveAsTextAsksOnlyForTheEncodingAndRtfStillAsksAboutWhatItLoses()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("some words"));
+        int askedForm = 0, askedFormat = 0;
+        w.setTextFormChooser([&](TextForm *, const QByteArray *) {
+            ++askedForm;
+            return true;
+        });
+        w.setFormatAsker([&](const QStringList &) {
+            ++askedFormat;
+            return WriteWindow::FormatChoice::Keep;
+        });
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("out.txt"))));
+        QCOMPARE(askedForm, 1);
+        QCOMPARE(askedFormat, 0);
+        // a Rich Text Format file holds less than the document too: that one asks, and Cancel writes nothing
+        w.setFormatAsker([&](const QStringList &lost) {
+            ++askedFormat;
+            if (lost.isEmpty()) QTest::qFail("nothing named as lost", __FILE__, __LINE__);
+            return WriteWindow::FormatChoice::Cancel;
+        });
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("!"));
+        QTextCursor c(w.document()->story());
+        c.select(QTextCursor::Document);
+        const QString rtf = dir.filePath(QStringLiteral("out.rtf"));
+        // (something the format can't hold: a comment)
+        QVERIFY(addComment(*w.document(), c, QStringLiteral("a note")) >= 0);
+        QVERIFY(!w.saveTo(rtf));
+        QCOMPARE(askedFormat, 1);
+        QVERIFY(!QFileInfo::exists(rtf));
+    }
+
     void aDocumentSavedAsTextAsksOnceThenKeepsTheForm()
     {
         QTemporaryDir dir;
