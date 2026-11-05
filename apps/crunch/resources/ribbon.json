@@ -20,7 +20,7 @@
               "large": "edit.paste",
               "keytip": "V",
               "split": true,
-              "menu": ["edit.paste", "paste.formulas", "paste.values", "paste.formats", "paste.transpose", "-", "paste.exceptBorders", "paste.formulaFormats", "paste.valueFormats", "paste.widths", "paste.notes", "-", "paste.link", "paste.hyperlink", "paste.textImport", "-", "paste.special"]
+              "menu": ["edit.paste", "paste.formulas", "paste.values", "paste.formats", "paste.transpose", "-", "paste.exceptBorders", "paste.formulaFormats", "paste.valueFormats", "paste.widths", "paste.notes", "-", "paste.link", "paste.hyperlink", "paste.textImport", "-", "paste.special", "paste.setDefault"]
             },
             {"small": "edit.cut", "keytip": "X"},
             {"small": "edit.copy", "keytip": "C", "split": true, "menu": ["edit.copy", "edit.copyPicture", "edit.copyBitmap", "edit.copyPicturePrinted"]},
@@ -173,6 +173,7 @@
           "keytip": "ZI",
           "items": [
             {"large": "insert.picture", "keytip": "P"},
+            {"large": "insert.icons", "keytip": "IC"},
             {"large": {"id": "ribbon.shapes", "text": "Shapes", "icon": "shapes"}, "keytip": "SH", "menu": ["insert.shape.rect", "insert.shape.roundRect", "insert.shape.ellipse", "insert.shape.triangle", "insert.shape.diamond", "insert.shape.pentagon", "insert.shape.hexagon", "insert.shape.rightArrow", "insert.shape.leftArrow", "insert.shape.upArrow", "insert.shape.downArrow", "insert.shape.star", "insert.shape.heart", "insert.shape.cloud", "insert.shape.callout", "insert.shape.line"]}
           ]
         },
@@ -345,7 +346,8 @@
           "name": "Get Data",
           "keytip": "ZG",
           "items": [
-            {"large": "data.fromText", "keytip": "FT"}
+            {"large": "data.fromText", "keytip": "FT"},
+            {"large": "data.editLinks", "keytip": "EL"}
           ]
         },
         {

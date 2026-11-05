@@ -2,10 +2,12 @@
 #include "app/crunchwindow.h"
 
 #include "app/datatoolsdialogs.h"
+#include "app/editlinksdialog.h"
 #include "app/removeduplicatesdialog.h"
 #include "sheet/cellref.h"
 
 #include <QAction>
+#include <QFileInfo>
 
 namespace jp {
 
@@ -13,11 +15,31 @@ using jp::office::sheet::CellRange;
 
 void CrunchWindow::createDataToolsActions()
 {
+    mk("data.editLinks", tr("Edit Links…"), "link", QKeySequence(), [this] { editLinksCommand(); }, false, false);
+    m_opsActions << QStringLiteral("data.editLinks");
     mk("data.fromText", tr("From Text/CSV"), "file-text", QKeySequence(), [this] { act("file.openText")->trigger(); });
     mk("data.removeDuplicates", tr("Remove Duplicates"), "list-x", QKeySequence(), [this] { removeDuplicatesDialog(); });
     mk("data.textToColumns", tr("Text to Columns"), "table-columns-split", QKeySequence(), [this] { textToColumnsDialog(); });
     for (const char *id : {"data.removeDuplicates", "data.textToColumns"}) m_opsActions << QString::fromLatin1(id);
     updateEditActions();
+}
+
+// Data > Edit Links: the workbooks this one reads.
+void CrunchWindow::editLinksCommand()
+{
+    if (!m_session || !m_loaded || !commitEdit()) return;
+    if (m_session->externalLinkSources().empty()) {
+        notice(tr("Edit Links"), tr("This workbook does not read values from other workbooks."));
+        return;
+    }
+    EditLinksDialog dialog(m_session.get(), m_path.isEmpty() ? QString() : QFileInfo(m_path).absolutePath(), this);
+    connect(&dialog, &EditLinksDialog::openRequested, this, [this](const QString &path) { openLinkSource(path); });
+    connect(&dialog, &EditLinksDialog::linksBroken, this, [this] {
+        m_protectionChanged = true;
+        setWindowModified(true);
+        updateEditActions();
+    });
+    dialog.exec();
 }
 
 void CrunchWindow::removeDuplicatesDialog()

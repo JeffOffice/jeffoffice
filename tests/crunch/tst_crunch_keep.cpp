@@ -2,6 +2,7 @@
 // keeps all that is not a cell. Each kind of part is tried in a workbook made here, with a cell edited elsewhere; a macro project is kept as a macro project is.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "app/editlinksdialog.h"
 #include "app/infopage.h"
 #include "app/otherformats.h"
 #include "core/loader.h"
@@ -17,6 +18,8 @@
 #include "testrunner.h"
 
 #include <QBuffer>
+#include <QDir>
+#include <QTableWidget>
 #include <QElapsedTimer>
 #include <QtEndian>
 #include <QImage>
@@ -325,6 +328,73 @@ private Q_SLOTS:
         const QVector<InspectItem> items2 = again.win.w.inspectItems();
         for (const InspectItem &i : items2)
             if (i.title == QLatin1String("External links")) QCOMPARE(i.count(), 0);
+    }
+
+    // Edit Links lists the workbooks this one reads, in the order of the numbers in its formulas, as the file writes them and as a person reads them; Break Link on one makes the cells that read
+    // it its values, and when none is left the saver leaves the link parts out.
+    void editLinksListsTheSourcesAndBreaksOne()
+    {
+        const QByteArray book = repack(externalLinkBook(), [](Parts &p) {
+            addType(p, QStringLiteral("xl/externalLinks/externalLink2.xml"), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml"));
+            p[QStringLiteral("xl/externalLinks/externalLink2.xml")] = "<externalLink xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><externalBook r:id=\"rId1\"><sheetNames><sheetName val=\"S\"/></sheetNames></externalBook></externalLink>";
+            relate(p, QStringLiteral("xl/externalLinks/_rels/externalLink2.xml.rels"), QStringLiteral("rId1"), QStringLiteral("externalLinkPath"), QStringLiteral("https://example.org/My%20Costs.xlsx"), true);
+            relate(p, kBookRels, QStringLiteral("rIdEy"), QStringLiteral("externalLink"), QStringLiteral("externalLinks/externalLink2.xml"));
+            p[QStringLiteral("xl/workbook.xml")].replace("<externalReference r:id=\"rIdEx\"/>", "<externalReference r:id=\"rIdEx\"/><externalReference r:id=\"rIdEy\"/>");
+            p[kSheet].replace("</row></sheetData>", "</row><row r=\"6\"><c r=\"A6\"><f>[2]S!A1+1</f><v>8</v></c></row></sheetData>");
+        });
+        EditWindow e;
+        QVERIFY(e.open(book, QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        const std::vector<crunch::EditSession::ExternalSource> sources = s->externalLinkSources();
+        QCOMPARE(int(sources.size()), 2);
+        QCOMPARE(sources[0].index, 1);
+        QCOMPARE(sources[0].target, QStringLiteral("file:///C:/data/prices.xlsx"));
+        QCOMPARE(sources[0].shown, QStringLiteral("C:/data/prices.xlsx"));
+        QVERIFY(sources[0].local);
+        QCOMPARE(sources[1].index, 2);
+        QCOMPARE(sources[1].shown, QStringLiteral("https://example.org/My Costs.xlsx"));
+        QVERIFY(!sources[1].local);
+        QVERIFY(e.win.w.act(QStringLiteral("data.editLinks")));
+        // break the second: its cell is a value, the first stays a link and the parts stay
+        QVERIFY(s->breakExternalLinks(nullptr, nullptr, 2).ok);
+        QCOMPARE(s->editText(0, 5, 0), QStringLiteral("8"));
+        QCOMPARE(s->editText(0, 4, 0), QStringLiteral("=[1]Prices!A1*2"));
+        QVERIFY(!s->externalLinksDropped());
+        QCOMPARE(int(s->externalLinkSources().size()), 2);
+        // break the rest
+        QVERIFY(s->breakExternalLinks(nullptr, nullptr, 1).ok);
+        QCOMPARE(s->editText(0, 4, 0), QStringLiteral("84"));
+        QVERIFY(s->externalLinksDropped());
+        QCOMPARE(int(s->externalLinkSources().size()), 0);
+    }
+
+    // The Edit Links window lists the sources, checks whether each is a file that is there, opens one that is, and breaks the links to the one chosen.
+    void theEditLinksWindowShowsTheStatusOfEachSource()
+    {
+        EditWindow e;
+        QVERIFY(e.open(externalLinkBook(), QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        EditLinksDialog d(e.win.w.session(), dir.path());
+        QCOMPARE(d.table()->rowCount(), 1);
+        QCOMPARE(d.table()->item(0, 0)->text(), QStringLiteral("C:/data/prices.xlsx"));
+        QCOMPARE(d.table()->item(0, 2)->text(), QStringLiteral("Not checked"));
+        d.checkStatus();
+        QVERIFY(d.table()->item(0, 2)->text().startsWith(QLatin1String("Not found")));
+        // a source with no folder is looked for beside this workbook
+        crunch::EditSession::ExternalSource s;
+        s.shown = QStringLiteral("prices.xlsx");
+        s.local = true;
+        QCOMPARE(EditLinksDialog::localPath(s, dir.path()), QDir(dir.path()).absoluteFilePath(QStringLiteral("prices.xlsx")));
+        s.local = false;
+        QVERIFY(EditLinksDialog::localPath(s, dir.path()).isEmpty());
+        QSignalSpy broken(&d, &EditLinksDialog::linksBroken);
+        QVERIFY(d.breakRow(0, false));
+        QCOMPARE(broken.count(), 1);
+        QCOMPARE(d.table()->rowCount(), 0);
+        QCOMPARE(e.win.w.session()->editText(0, 4, 0), QStringLiteral("84"));
     }
 
     // Inspect Workbook leaves the custom XML out: the parts, what they relate to, the workbook's link to them, and their types; nothing else of the file changes.

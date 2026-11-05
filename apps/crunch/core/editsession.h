@@ -915,7 +915,17 @@ public:
     // ---- links to other workbooks (Inspect Workbook): every cell that reads one keeps the value it shows (each is a step of Undo, which is forgotten after, since the links are gone), a defined
     // name that stands for one becomes #REF!, and the next save leaves the link parts out. `cells` and `names` count what was changed; not ok, with a sentence, when a cell can't be (locked, or in an array).
     int externalLinkCells() const;
-    Outcome breakExternalLinks(int *cells = nullptr, int *names = nullptr);
+    // Edit Links: the workbooks this one reads, in the order of the numbers in its formulas ("[1]Prices!A1" is the first): where each is, as the file says and as a person reads it.
+    struct ExternalSource {
+        int index = 0;        // from 1, the number in the formulas
+        QString target;       // as the file writes it ("file:///C:/data/prices.xlsx", "prices.xlsx", "https://example.org/prices.xlsx")
+        QString shown;        // the same as a path or address a person reads (the file: marks and the percent escapes taken off)
+        bool local = false;   // a file on this computer, not an address on the web
+    };
+    std::vector<ExternalSource> externalLinkSources() const;
+    // Breaks the links to one of them (`only`, from 1), or to all (0): each cell that reads it keeps the value it shows, and each name that stands for a place in it is #REF!. When no
+    // link is left the saver leaves the link parts out.
+    Outcome breakExternalLinks(int *cells = nullptr, int *names = nullptr, int only = 0);
     bool externalLinksDropped() const { return m_dropExternalLinks; }
     // The custom XML data (what other programs added to the file) is left out at the next save.
     void dropCustomXml() { m_dropCustomXml = true; }

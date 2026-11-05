@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, insert shape, text box, shapes, arrow, oval, rectangle, star -->
+<!-- keywords: chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, insert shape, text box, shapes, arrow, oval, rectangle, star -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -72,7 +72,9 @@ A sparkline follows its cells: insert a row above the data, and it still reads t
 
 ## Put in a picture, a shape, or a text box
 
-On the **Insert** tab, in **Illustrations**, **Picture** opens a file chooser. Pick a picture file (PNG, JPEG, GIF, BMP, TIFF, or SVG) and it lands on the sheet at the selected cell. A picture wider than 480 dots is made smaller to fit, and keeps its shape. The workbook keeps the picture itself. A picture of a kind the workbook can't hold as it is (an SVG, for example) is kept as a PNG, a plain picture made of dots. A file that is not a picture, or is larger than 16 MB, is turned down with a message.
+On the **Insert** tab, in **Illustrations**, **Picture** opens a file chooser. Pick a picture file (PNG, JPEG, GIF, BMP, TIFF, or SVG) and it lands on the sheet at the selected cell. A picture wider than 480 dots is made smaller to fit, and keeps its shape. The workbook keeps the picture itself. A picture of a kind the workbook can't hold as it is (an SVG, for example) is kept as a PNG, a plain picture made of dots. A file that is not a picture, or is larger than 16 MB, is turned down with a message. A WMF or EMF file (the picture kinds some older programs make from lines and shapes) is drawn and kept as a PNG too.
+
+**Icons** shows the same window of small line pictures that JeffPub and JeffDeck have, with a box to search them by name. Choose one or more, and each lands on the sheet as a picture, 48 points wide and tall. It is drawn in dark gray at a size that stays sharp when you make it larger. Each one is a single step you can undo.
 
 **Shapes** opens a list: rectangle, rounded rectangle, oval, triangle, diamond, arrows, a star, a heart, a cloud, a speech callout, and a line. Pick one and it lands on the sheet in light blue with a darker edge. **Text Box**, in the **Text** group, puts in an empty box with no fill and no edge.
 

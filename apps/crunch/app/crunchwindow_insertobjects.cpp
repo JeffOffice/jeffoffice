@@ -4,6 +4,8 @@
 
 #include "core/objectclip.h"
 #include "core/sheetobjects.h"
+#include "app/iconpicker.h"
+#include "render/metafile.h"
 
 #include <QAction>
 #include <QBuffer>
@@ -71,7 +73,8 @@ QByteArray shapeXml(const QString &preset, double w, double h, bool textBox)
 void CrunchWindow::createInsertObjectActions()
 {
     mk("insert.picture", tr("Picture…"), "image", QKeySequence(), [this] { insertPicture(); });
-    m_opsActions << QStringLiteral("insert.picture");
+    mk("insert.icons", tr("Icons…"), "smile-plus", QKeySequence(), [this] { insertIcons(); });
+    m_opsActions << QStringLiteral("insert.picture") << QStringLiteral("insert.icons");
     for (const ShapeKind &k : kShapes) {
         const QString preset = QString::fromLatin1(k.preset);
         mk(QString::fromLatin1(k.id), QCoreApplication::translate("jp::CrunchWindow", k.text), k.icon, QKeySequence(), [this, preset] { insertShape(preset); });
@@ -136,14 +139,41 @@ bool CrunchWindow::insertPictureFile(const QString &path)
     }
     QByteArray bytes = f.readAll();
     f.close();
+    return insertPictureData(bytes, QFileInfo(path).fileName());
+}
+
+// The bytes of a picture, as insertPictureFile keeps them. A metafile (WMF or EMF) is drawn and kept as a PNG of it; `rasterSide` (not 0) is the side a vector picture is drawn at, in pixels,
+// and `sheetSide` the side it has on the sheet.
+bool CrunchWindow::insertPictureData(QByteArray bytes, const QString &name, int rasterSide, double sheetSide)
+{
+    const QString title = tr("Insert Picture");
+    if (jp::Metafile::looksLikeMetafile(bytes)) {
+        jp::Metafile metafile;
+        if (!metafile.load(bytes)) {
+            notice(title, tr("\"%1\" is not a picture JeffCrunch can read, or it is too large.").arg(name));
+            return false;
+        }
+        const QImage metafileImage = metafile.toImage(1600);
+        bytes.clear();
+        QBuffer png(&bytes);
+        png.open(QIODevice::WriteOnly);
+        if (metafileImage.isNull() || !metafileImage.save(&png, "PNG")) {
+            notice(title, tr("\"%1\" is not a picture JeffCrunch can read, or it is too large.").arg(name));
+            return false;
+        }
+    }
     QBuffer in(&bytes);
     in.open(QIODevice::ReadOnly);
     QImageReader reader(&in);
     const QByteArray format = reader.format().toLower();
-    const QSize size = reader.size();
+    QSize size = reader.size();
+    if (rasterSide > 0 && format == "svg" && size.isValid() && !size.isEmpty()) {
+        size.scale(rasterSide, rasterSide, Qt::KeepAspectRatio);
+        reader.setScaledSize(size);
+    }
     constexpr qint64 kMaxPixels = qint64(100) * 1000 * 1000;
     if (format.isEmpty() || !size.isValid() || size.isEmpty() || size.width() > 30000 || size.height() > 30000 || qint64(size.width()) * size.height() > kMaxPixels) {
-        notice(title, tr("\"%1\" is not a picture JeffCrunch can read, or it is too large.").arg(QFileInfo(path).fileName()));
+        notice(title, tr("\"%1\" is not a picture JeffCrunch can read, or it is too large.").arg(name));
         return false;
     }
     crunch::ClipMedia media;
@@ -163,7 +193,7 @@ bool CrunchWindow::insertPictureFile(const QString &path)
     } else {
         const QImage image = reader.read();
         if (image.isNull()) {
-            notice(title, tr("\"%1\" is not a picture JeffCrunch can read, or it is too large.").arg(QFileInfo(path).fileName()));
+            notice(title, tr("\"%1\" is not a picture JeffCrunch can read, or it is too large.").arg(name));
             return false;
         }
         QBuffer out(&media.bytes);
@@ -174,7 +204,7 @@ bool CrunchWindow::insertPictureFile(const QString &path)
     }
     // the size on the sheet: the picture's own, at most 480 wide and 360 tall, with its proportions
     double w = size.width(), h = size.height();
-    const double scale = std::min({1.0, 480.0 / w, 360.0 / h});
+    const double scale = sheetSide > 0 ? sheetSide / std::max(w, h) : std::min({1.0, 480.0 / w, 360.0 / h});
     w = std::max(8.0, std::round(w * scale));
     h = std::max(8.0, std::round(h * scale));
     crunch::ObjectClip clip;
@@ -187,6 +217,22 @@ bool CrunchWindow::insertPictureFile(const QString &path)
                      + "\" cy=\"" + QByteArray::number(qint64(h * kEmuPerUnit)) + "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>";
     if (!placeObjectClip(clip, title)) return false;
     setStatus(tr("Picture inserted"));
+    return true;
+}
+
+// Insert > Icons: the picker of the shared icons (the ones JeffPub and JeffDeck have) asks which, and each is put on the sheet as a picture, drawn at 256 pixels and 48 points square on the sheet.
+bool CrunchWindow::insertIcons()
+{
+    if (!m_session || m_chartSheetShown || !editingAllowed()) return false;
+    const QStringList names = m_iconsPicker ? m_iconsPicker() : pickIcons(this);
+    int done = 0;
+    for (const QString &name : names.mid(0, 50)) {
+        const QByteArray svg = iconSvg(name, QColor(0x26, 0x26, 0x26));
+        if (svg.isEmpty() || !insertPictureData(svg, name, 256, 48)) continue;
+        ++done;
+    }
+    if (done == 0) return false;
+    setStatus(tr("%n icon(s) inserted", nullptr, done));
     return true;
 }
 

@@ -445,6 +445,74 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("A8")), QStringLiteral("-"));
     }
 
+    // Paste Text Import cuts text of fixed width at the places chosen (spaces at the ends of a piece are dropped), the first row chosen on.
+    void pastedTextCanBeCutIntoColumnsOfFixedWidth()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1"})));
+        auto *md = new QMimeData;
+        md->setText(QStringLiteral("Name   Qty Price\r\nApple   12  1.5\nPear     3  0.25\n"));
+        QApplication::clipboard()->setMimeData(md);
+        e.win.w.anchorHooks().textImportAsker = [](TextImportRequest *r) {
+            r->choices.fixedWidth = true;
+            r->choices.breaks = {7, 11};
+            return true;
+        };
+        e.select(QStringLiteral("B2"));
+        e.win.w.act(QStringLiteral("paste.textImport"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("s:Name"));
+        QCOMPARE(e.valueAt(QStringLiteral("C2")), QStringLiteral("s:Qty"));
+        QCOMPARE(e.valueAt(QStringLiteral("D2")), QStringLiteral("s:Price"));
+        QCOMPARE(e.valueAt(QStringLiteral("B3")), QStringLiteral("s:Apple"));
+        QCOMPARE(e.valueAt(QStringLiteral("C3")), QStringLiteral("n:12"));
+        QCOMPARE(e.valueAt(QStringLiteral("D4")), QStringLiteral("n:0.25"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+    }
+
+    // Set Default Paste: what Paste (and Ctrl+V) puts in when cells are on the clipboard is the choice kept in the settings; Paste Special and the menu's own choices are not changed by it.
+    void thePasteButtonPutsInTheDefaultChoice()
+    {
+        using What = crunch::EditSession::PasteOptions::What;
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=5", "B1==A1*2"})));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.act(QStringLiteral("paste.setDefault")));
+        int offered = -1;
+        e.win.w.setDefaultPasteAsker([&offered](int *what) {
+            offered = *what;
+            *what = int(What::Values);
+            return true;
+        });
+        QVERIFY(e.win.w.setDefaultPaste());
+        QCOMPARE(offered, int(What::All));
+        copyRange(e, QStringLiteral("B1"));
+        paste(e, QStringLiteral("D2"), "edit.paste");
+        QCOMPARE(e.win.w.session()->editText(0, 1, 3), QStringLiteral("10"));
+        // the menu's own choice still does what it says
+        paste(e, QStringLiteral("D3"), "paste.formulas");
+        QCOMPARE(e.win.w.session()->editText(0, 2, 3), QStringLiteral("=C3*2"));
+        // text from another program is pasted as it is whatever the default is
+        auto *md = new QMimeData;
+        md->setText(QStringLiteral("x\ty"));
+        QApplication::clipboard()->setMimeData(md);
+        paste(e, QStringLiteral("F1"), "edit.paste");
+        QCOMPARE(e.valueAt(QStringLiteral("G1")), QStringLiteral("s:y"));
+        // declined: the default stays; put back to all
+        e.win.w.setDefaultPasteAsker([](int *) { return false; });
+        QVERIFY(!e.win.w.setDefaultPaste());
+        e.win.w.setDefaultPasteAsker([&offered](int *what) {
+            offered = *what;
+            *what = int(What::All);
+            return true;
+        });
+        QVERIFY(e.win.w.setDefaultPaste());
+        QCOMPARE(offered, int(What::Values));
+        copyRange(e, QStringLiteral("B1"));
+        paste(e, QStringLiteral("D5"), "edit.paste");
+        QCOMPARE(e.win.w.session()->editText(0, 4, 3), QStringLiteral("=C5*2"));
+    }
+
     // Paste Link makes each pasted cell a formula that points at the copied cell, so it follows it; Paste as Hyperlink makes each a link to the copied cell.
     void pasteLinkAndPasteAsHyperlinkPointAtTheCopiedCells()
     {

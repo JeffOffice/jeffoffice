@@ -250,6 +250,15 @@ public:
     bool defineNameCommand();
     bool nameFromCellsCommand();
     bool applyNamesCommand();
+    // Data > Edit Links: the workbooks this one reads, with Open Source, Check Status, and Break Link.
+    void editLinksCommand();
+    void openLinkSource(const QString &path) { openFile(path); }
+    // Paste > Set Default Paste: what the Paste button and Ctrl+V put in (all, or values, formulas, and so on) when cells are on the clipboard; asked as the number of the choice.
+    bool setDefaultPaste();
+    void setDefaultPasteAsker(const std::function<bool(int *)> &asker) { m_defaultPasteAsker = asker; }
+    // Insert > Icons: the icons the picker gave, each put on the sheet as a picture.
+    bool insertIcons();
+    void setIconsPicker(const std::function<QStringList()> &picker) { m_iconsPicker = picker; }
     void setApplyNamesAsker(const std::function<bool(const QStringList &, QStringList *)> &asker) { m_applyNamesAsker = asker; }
     bool insertName(const QString &name);
     QMenu *namesMenu();
@@ -802,6 +811,8 @@ private:
     int m_completionsSheet = -2;
     std::function<bool(crunch::EditSession::NameDraft *)> m_nameAsker;
     std::function<bool(int *)> m_edgesAsker;
+    std::function<bool(int *)> m_defaultPasteAsker;
+    std::function<QStringList()> m_iconsPicker;
     std::function<bool(const QStringList &, QStringList *)> m_applyNamesAsker;   // the names to choose from, the names chosen
     std::function<bool(crunch::CalcSettings *)> m_iterationAsker;
     bool m_calcDue = false, m_manualNow = false;
@@ -1246,6 +1257,7 @@ public:
     // cell the cursor is in, picked, as one step.
     void setPicturePicker(const std::function<QString()> &picker) { m_picturePicker = picker; }
     bool insertPictureFile(const QString &path);
+    bool insertPictureData(QByteArray bytes, const QString &name, int rasterSide = 0, double sheetSide = 0);
     bool insertShape(const QString &preset);
     bool insertTextBox();
     // Format of the picked picture, shape, or text box (each is one step: the object is made again with the change). The words in a shape: the box that asks stands in for the dialog (tests).

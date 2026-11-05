@@ -2,17 +2,20 @@
 // the saver is told to leave the link parts out (libs/office/sheet/xlsxsave.h, dropExternalLinks).
 #include "core/editsession.h"
 #include "core/gotospecial.h"
+#include "office/package.h"
 
 #include <QRegularExpression>
+#include <QUrl>
+#include <QXmlStreamReader>
 
 namespace jp::crunch {
 
 namespace {
 
 // Whether a formula (as `editText` gives it, with its "=") reads another workbook: a number in square brackets, outside the quotes of a text or of a sheet's name.
-bool readsAnotherWorkbook(const QString &formula)
+bool readsAnotherWorkbook(const QString &formula, int only = 0)
 {
-    static const QRegularExpression link(QStringLiteral("\\[[0-9]+\\]"));
+    static const QRegularExpression link(QStringLiteral("\\[([0-9]+)\\]"));
     bool quoted = false;
     QChar quote;
     for (int i = 0; i < formula.size(); ++i) {
@@ -25,7 +28,8 @@ bool readsAnotherWorkbook(const QString &formula)
             quoted = true;
             quote = c;
         } else if (c == QLatin1Char('[')) {
-            if (link.matchView(QStringView(formula).mid(i), 0, QRegularExpression::NormalMatch, QRegularExpression::AnchoredMatchOption).hasMatch()) return true;
+            const QRegularExpressionMatch m = link.matchView(QStringView(formula).mid(i), 0, QRegularExpression::NormalMatch, QRegularExpression::AnchoredMatchOption);
+            if (m.hasMatch() && (only == 0 || m.captured(1).toInt() == only)) return true;
         }
     }
     return false;
@@ -44,7 +48,41 @@ int EditSession::externalLinkCells() const
     return n;
 }
 
-EditSession::Outcome EditSession::breakExternalLinks(int *cells, int *names)
+std::vector<EditSession::ExternalSource> EditSession::externalLinkSources() const
+{
+    std::vector<ExternalSource> out;
+    if (m_dropExternalLinks || !m_book || !m_book->book) return out;
+    const jp::office::Package &package = m_book->book->package();
+    const QString main = m_book->book->mainPart();
+    const QByteArray xml = package.part(main);
+    QXmlStreamReader reader(xml);
+    constexpr int kMostSources = 1000;
+    while (!reader.atEnd() && int(out.size()) < kMostSources) {
+        if (reader.readNext() != QXmlStreamReader::StartElement || reader.name() != QLatin1String("externalReference")) continue;
+        QString id;
+        for (const QXmlStreamAttribute &a : reader.attributes())
+            if (a.name() == QLatin1String("id")) id = a.value().toString();
+        ExternalSource s;
+        s.index = int(out.size()) + 1;
+        const jp::office::Relationship rel = package.relationship(main, id);
+        if (!rel.id.isEmpty()) {
+            const QVector<jp::office::Relationship> paths = package.relationshipsOfType(rel.target, QStringLiteral("/externalLinkPath"));
+            if (!paths.isEmpty()) s.target = paths.first().target.left(8192);
+        }
+        QString shown = s.target;
+        const bool web = shown.startsWith(QLatin1String("http://"), Qt::CaseInsensitive) || shown.startsWith(QLatin1String("https://"), Qt::CaseInsensitive) || shown.startsWith(QLatin1String("ftp://"), Qt::CaseInsensitive);
+        if (shown.startsWith(QLatin1String("file:///"), Qt::CaseInsensitive)) {
+            shown.remove(0, 8);
+            if (!(shown.size() > 1 && shown[1] == QLatin1Char(':'))) shown.prepend(QLatin1Char('/'));
+        }
+        s.shown = QUrl::fromPercentEncoding(shown.toUtf8());
+        s.local = !web && !s.shown.isEmpty();
+        out.push_back(s);
+    }
+    return out;
+}
+
+EditSession::Outcome EditSession::breakExternalLinks(int *cells, int *names, int only)
 {
     Outcome out;
     if (cells) *cells = 0;
@@ -61,7 +99,7 @@ EditSession::Outcome EditSession::breakExternalLinks(int *cells, int *names)
     };
     std::vector<Place> places;
     m_book->calc->forEachFormulaText([&](int sheet, quint32 row, quint32 col, const QString &formula) {
-        if (readsAnotherWorkbook(formula)) places.push_back({sheet, row, col});
+        if (readsAnotherWorkbook(formula, only)) places.push_back({sheet, row, col});
     });
     int done = 0, left = 0;
     for (const Place &p : places) {
@@ -77,7 +115,7 @@ EditSession::Outcome EditSession::breakExternalLinks(int *cells, int *names)
     }
     int renamed = 0;
     for (int id = 0; id < m_nameTable.slots(); ++id) {
-        if (!nameListed(id) || !readsAnotherWorkbook(nameTextOf(id))) continue;
+        if (!nameListed(id) || !readsAnotherWorkbook(nameTextOf(id), only)) continue;
         const NameEntry &e = m_nameTable.at(id);
         NameDraft d;
         d.name = e.name;
@@ -96,7 +134,7 @@ EditSession::Outcome EditSession::breakExternalLinks(int *cells, int *names)
     }
     // (the steps that held the formulas are let go of: the links are gone from the file, and a formula brought back would read one)
     forgetStepsDone();
-    m_dropExternalLinks = true;
+    if (only == 0 || externalLinkCells() == 0) m_dropExternalLinks = true;
     return out;
 }
 
