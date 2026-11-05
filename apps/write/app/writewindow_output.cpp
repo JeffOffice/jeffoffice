@@ -25,6 +25,7 @@
 #include <QPainter>
 #include <QPrinter>
 #include <QSaveFile>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -40,6 +41,22 @@
 #include "app/plaintext.h"
 
 namespace jp {
+
+namespace {
+// Hidden text shown on the screen is laid out without for the paper and the file, and shown again after.
+struct HiddenTextOff {
+    explicit HiddenTextOff(write::WriteDoc *doc) : m_doc(doc), m_was(doc && doc->showsHiddenText())
+    {
+        if (m_was) m_doc->setShowHiddenText(false);
+    }
+    ~HiddenTextOff()
+    {
+        if (m_was) m_doc->setShowHiddenText(true);
+    }
+    write::WriteDoc *m_doc;
+    bool m_was;
+};
+} // namespace
 
 namespace {
 // What a printer or a PDF shows of a header that is being edited is what the pages have: its fields that show a heading's text are worked out for each page, as they are for any header.
@@ -141,12 +158,13 @@ QString WriteWindow::pdfPathToWrite(const QString &title)
     return path;
 }
 
-QByteArray WriteWindow::pdfBytes(const QVector<int> &pages, QString *error)
+QByteArray WriteWindow::pdfBytes(const QVector<int> &pages, QString *error, bool archive)
 {
     if (!m_doc || pages.isEmpty()) {
         if (error) *error = tr("The pages can't be made.");
         return {};
     }
+    HiddenTextOff noHidden(m_doc.get());
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     // The pages are made in memory: the bookmarks from the headings are added to the finished file.
     QBuffer made;
@@ -155,10 +173,11 @@ QByteArray WriteWindow::pdfBytes(const QVector<int> &pages, QString *error)
     {
         QPdfWriter pdf(&made);
         pdf.setCreator(appInfo().name);
+        if (archive) pdf.setPdfVersion(QPdfWriter::PdfVersion_A1b);
         const office::PackageProps props = m_doc->packageProps();
         const QString title = props.title.isEmpty() ? displayName() : props.title;
         pdf.setTitle(title);
-        pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved ? QString() : props.creator, props.subject, props.keywords, appInfo().name));
+        pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved ? QString() : props.creator, props.subject, props.keywords, appInfo().name, archive));
         pdf.setResolution(1200);
         pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
         ok = write::paintSheets(*m_doc, &pdf, pages, m_view->pageCount());
@@ -199,12 +218,17 @@ bool WriteWindow::exportPdfAsk()
     auto *note = new QLabel(tr("Type page numbers and ranges, separated by commas. p2s3 is the second page of section 3, and s3 is all of section 3."), &dialog);
     note->setWordWrap(true);
     layout->addWidget(note);
+    auto *archive = new QCheckBox(tr("PDF/A, for keeping for a long time"), &dialog);
+    archive->setObjectName(QStringLiteral("pdfArchive"));
+    archive->setToolTip(tr("Makes a PDF/A-1b file: every font is in the file, so it looks the same in years. It is not tagged for screen readers."));
+    layout->addWidget(archive);
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
     if (dialog.exec() != QDialog::Accepted) return false;
     WriteOutputOptions o;
+    o.pdfArchive = archive->isChecked();
     o.range = static_cast<WriteOutputOptions::Range>(which->currentData().toInt());
     o.pages = text->text();
     if (o.range == WriteOutputOptions::Range::Pages && outputPages(o).isEmpty()) {
@@ -217,6 +241,7 @@ bool WriteWindow::exportPdfAsk()
 bool WriteWindow::exportPdfPages(const WriteOutputOptions &options)
 {
     if (!m_doc) return false;
+    HiddenTextOff noHidden(m_doc.get());
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     const QVector<int> pages = outputPages(options);
     if (pages.isEmpty()) return false;
@@ -224,7 +249,7 @@ bool WriteWindow::exportPdfPages(const WriteOutputOptions &options)
     if (path.isEmpty()) return false;
     QString err;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    const QByteArray bytes = pdfBytes(pages, &err);
+    const QByteArray bytes = pdfBytes(pages, &err, options.pdfArchive);
     bool ok = !bytes.isEmpty();
     if (ok) {
         QSaveFile file(path);
@@ -321,6 +346,37 @@ bool WriteWindow::exportText(const QString &path, write::TextEncoding encoding, 
     if (lost > 0) notice(tr("Save as Plain Text"), tr("Some characters couldn't be saved in this encoding (%1 in all). They were saved as question marks.").arg(lost), true);
     statusBar()->showMessage(tr("Exported %1").arg(QFileInfo(path).fileName()), 5000);
     return true;
+}
+
+bool WriteWindow::exportWeb(const QString &path, bool singleFile)
+{
+    if (!m_doc || path.isEmpty()) return false;
+    const QString what = singleFile ? tr("Save as Web Page") : tr("Save as Filtered Web Page");
+    const office::PackageProps props = m_doc->packageProps();
+    const QByteArray bytes = m_doc->toHtml(singleFile, props.title.isEmpty() ? displayName() : props.title, QLocale().bcp47Name());
+    QSaveFile file(path);
+    QString err;
+    const bool ok = !bytes.isEmpty() && file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
+    if (!ok) {
+        err = bytes.isEmpty() ? tr("The document could not be made into a page.") : file.errorString();
+        jp::plainWarning(this, what, tr("%1 couldn't export \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
+        return false;
+    }
+    statusBar()->showMessage(tr("Exported %1").arg(QFileInfo(path).fileName()), 5000);
+    return true;
+}
+
+bool WriteWindow::exportWebAsk(bool singleFile)
+{
+    if (!m_doc) return false;
+    const QString dir = m_path.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(m_path).absolutePath();
+    const QString filter = tr("Web Page (*.html *.htm)");
+    const QString title = singleFile ? tr("Save as Web Page") : tr("Save as Filtered Web Page");
+    const QString suggested = dir + QLatin1Char('/') + displayName() + QStringLiteral(".html");
+    QString path = m_pathChooser ? m_pathChooser(suggested, filter) : askSavePath(this, title, suggested, filter);
+    if (path.isEmpty()) return false;
+    if (QFileInfo(path).suffix().isEmpty()) path += QStringLiteral(".html");
+    return exportWeb(path, singleFile);
 }
 
 bool WriteWindow::exportEmailAsk()
@@ -472,6 +528,7 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
         }
         return go && printOutput(runs[1]);
     }
+    HiddenTextOff noHidden(m_doc.get());
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     const QVector<int> pages = outputPages(options);
     if (pages.isEmpty()) return false;
@@ -505,7 +562,10 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     const bool again = !options.toFile && !printer.supportsMultipleCopies();
     const QVector<int> sheets = again ? write::sheetOrder(pages, options.copies, options.collate) : pages;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    bool ok = write::paintSheets(*source, &printer, sheets, sourcePages, printer.colorMode() == QPrinter::GrayScale);
+    write::SheetLayout layout;
+    layout.perSheet = options.perSheet;
+    layout.paper = options.scaleTo;
+    bool ok = write::paintSheets(*source, &printer, sheets, sourcePages, printer.colorMode() == QPrinter::GrayScale, layout);
     QString err;
     if (ok && made) {
         QFile whole(made->fileName());

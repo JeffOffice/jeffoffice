@@ -176,6 +176,20 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         });
         return m;
     };
+    parts.menus[QStringLiteral("switchWindowsMenu")] = [](QWidget *owner) {
+        auto *switchMenu = new QMenu(owner);
+        QObject::connect(switchMenu, &QMenu::aboutToShow, switchMenu, [switchMenu] {
+            switchMenu->clear();
+            for (WriteWindow *w : WriteWindow::writeWindows()) {
+                QAction *a = switchMenu->addAction(w->windowTitle());
+                QObject::connect(a, &QAction::triggered, w, [w] {
+                    w->raise();
+                    w->activateWindow();
+                });
+            }
+        });
+        return switchMenu;
+    };
     parts.menus[QStringLiteral("paperSizes")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
         for (const char *id : {"letter", "legal", "executive", "a3", "a4", "a5", "b5"}) m->addAction(act(QStringLiteral("layout.size.") + QLatin1String(id)));

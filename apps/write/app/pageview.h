@@ -221,6 +221,14 @@ public:
     QMimeData *prepareTextDrag();
     // Whether a press inside the selection begins a drag of it (Copy Formatting turns it off: a press there is the start of a new selection).
     void setTextDragAllowed(bool allowed) { m_textDragAllowed = allowed; }
+    // Options > Advanced: whether a link is followed by Ctrl+click (true, the default) or by a plain click, and whether selected text can be dragged to move or copy it.
+    void setLinkNeedsCtrl(bool on) { m_linkNeedsCtrl = on; }
+    bool linkNeedsCtrl() const { return m_linkNeedsCtrl; }
+    void setDragTextOption(bool on) { m_dragTextOption = on; }
+    // Options > Advanced: typing over a selection replaces it (true, the default) or puts the new letters after it; the Insert key turns overtype mode (each letter typed replaces the one after the caret) on and off when it is let to.
+    void setTypingReplaces(bool on) { m_typingReplaces = on; }
+    void setInsertKeyOvertype(bool on) { m_insertKeyOvertype = on; if (!on) m_overtype = false; }
+    bool overtype() const { return m_overtype; }
 
     // Lays out every page now (for the count).
     void paginateAll();
@@ -379,6 +387,8 @@ private:
     bool wantsTextDrop(const QMimeData *mime) const;
     TextDrag m_textDrag;
     bool m_textDragAllowed = true;
+    bool m_linkNeedsCtrl = true, m_dragTextOption = true;
+    bool m_typingReplaces = true, m_insertKeyOvertype = false, m_overtype = false;
     PictureDrag m_pictureDrag;
     // Dragging the border at the right of a table's column, or at the foot of a row: the position of a cell of the column, its width when the drag began, and where the pointer began.
     struct ColumnDrag {

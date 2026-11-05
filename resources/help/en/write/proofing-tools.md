@@ -1,5 +1,5 @@
 # Count words, check, and look up words
-<!-- keywords: count words, accessibility, check accessibility, alt text, header row, screen reader, contrast, thesaurus, synonym, synonyms, translate, translation, libretranslate, word count, count words, characters, paragraphs, pages, selection, footnotes, endnotes, language, proofing language, set language, do not check spelling, spelling language, status bar -->
+<!-- keywords: merged cells, link text, count words, accessibility, check accessibility, alt text, header row, screen reader, contrast, thesaurus, synonym, synonyms, translate, translation, libretranslate, word count, count words, characters, paragraphs, pages, selection, footnotes, endnotes, language, proofing language, set language, do not check spelling, spelling language, status bar -->
 
 These tools are on the **Review** tab.
 
@@ -61,5 +61,7 @@ It looks for these:
 - **A heading that skips a level**, such as Heading 3 right after Heading 1.
 - **Text that is hard to read**, because its color is too close to the color behind it.
 - **A picture that floats on the page** instead of sitting in line with the text.
+- **A table with merged cells.** A merged cell is one cell that covers two or more columns or rows. A screen reader can lose its place in such a table. This is said once for each table.
+- **A link whose words say nothing about where it goes**, such as "click here" or "read more", or a web address shown as it is. A person who listens to the list of links on a page needs words that name the page.
 
-It does not check the text of links yet.
+You can also start the check from **File > Info**: click **Check Accessibility**.

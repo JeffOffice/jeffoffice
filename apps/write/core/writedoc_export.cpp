@@ -4,6 +4,7 @@
 #include "core/writedoc.h"
 #include "rtf/rtfwrite.h"
 #include "odt/odt.h"
+#include "wml/wmlhtml.h"
 
 #include "core/editops.h"
 #include "core/reviewops.h"
@@ -316,6 +317,17 @@ QByteArray WriteDoc::toOdt(QString *error, QStringList *notes)
             }
     }
     return odt;
+}
+
+QByteArray WriteDoc::toHtml(bool singleFile, const QString &title, const QString &language)
+{
+    office::wml::Document out;
+    if (!exportDocument(&out, false, false)) return QByteArray();
+    office::wml::HtmlOptions options;
+    options.singleFile = singleFile;
+    options.title = title;
+    options.language = language;
+    return office::wml::documentToHtml(out, options);
 }
 
 bool WriteDoc::exportDocument(office::wml::Document *result, bool template_, bool macros)

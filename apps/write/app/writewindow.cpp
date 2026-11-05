@@ -147,6 +147,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
 
     setDocument(write::WriteDoc::blank(), QString());
     applyDisplayDefaults();
+    applyEditingDefaults();
     resize(1280, 800);
     updateTitle();
     refreshUi();

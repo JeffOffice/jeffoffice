@@ -38,6 +38,7 @@ struct InfoHost {
     std::function<void()> protectStructure;   // none: no card
     std::function<void()> checkCompatibility;   // none: no card
     std::function<void()> versionHistory;       // none: no card
+    std::function<void()> checkAccessibility;   // none: no card
     // The page the person is shown the file on, drawn small; none: no picture.
     std::function<QImage()> thumbnail;
 };

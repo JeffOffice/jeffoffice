@@ -40,6 +40,14 @@ void WriteWindow::applyDisplayDefaults()
     m_view->setShowGridlines(grid);
 }
 
+void WriteWindow::applyEditingDefaults()
+{
+    m_view->setLinkNeedsCtrl(Settings::get().value(QStringLiteral("edit/ctrlClickLinks"), true).toBool());
+    m_view->setDragTextOption(Settings::get().value(QStringLiteral("edit/dragText"), true).toBool());
+    m_view->setTypingReplaces(Settings::get().value(QStringLiteral("edit/typingReplaces"), true).toBool());
+    m_view->setInsertKeyOvertype(Settings::get().value(QStringLiteral("edit/insertKey"), false).toBool());
+}
+
 QVector<OptionsPage> WriteWindow::optionsPages()
 {
     struct Fields {
@@ -48,7 +56,7 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         QLineEdit *folder = nullptr;
         QCheckBox *marks = nullptr, *grid = nullptr;
         QComboBox *units = nullptr;
-        QCheckBox *smart = nullptr;
+        QCheckBox *ctrlLinks = nullptr, *dragText = nullptr, *replaces = nullptr, *insertKey = nullptr, *privacy = nullptr, *smart = nullptr;
     };
     auto f = std::make_shared<Fields>();
     QVector<OptionsPage> pages;
@@ -82,11 +90,16 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         rowLayout->addWidget(f->folder, 1);
         rowLayout->addWidget(browse);
         form->addRow(QCoreApplication::translate("Dialogs", "Default file location:"), row);
+        f->privacy = new QCheckBox(QCoreApplication::translate("Dialogs", "Remove personal information from the file's properties when saving"), page);
+        f->privacy->setObjectName(QStringLiteral("removePersonalOnSave"));
+        f->privacy->setChecked(st.value(QStringLiteral("privacy/removeOnSave"), false).toBool());
+        form->addRow(f->privacy);
         return page;
     }, [f] {
         Settings &st = Settings::get();
         st.setValue(QStringLiteral("save/format"), f->format->currentData().toString());
         st.setValue(QStringLiteral("save/autoRecoverMinutes"), f->minutes->value());
+        st.setValue(QStringLiteral("privacy/removeOnSave"), f->privacy->isChecked());
         const QString folder = f->folder->text().trimmed();
         st.setValue(QStringLiteral("dirs/default"), folder.isEmpty() || QDir(folder).exists() ? folder : st.value(QStringLiteral("dirs/default")).toString());
     }};
@@ -120,6 +133,22 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         f->units->addItem(QCoreApplication::translate("Dialogs", "Picas"), int(Unit::Pica));
         f->units->setCurrentIndex(std::max(0, f->units->findData(int(Settings::get().unit()))));
         form->addRow(QCoreApplication::translate("Dialogs", "Show measurements in:"), f->units);
+        f->ctrlLinks = new QCheckBox(QCoreApplication::translate("Dialogs", "Use Ctrl+click to follow a link"), page);
+        f->ctrlLinks->setObjectName(QStringLiteral("ctrlClickLinks"));
+        f->ctrlLinks->setChecked(Settings::get().value(QStringLiteral("edit/ctrlClickLinks"), true).toBool());
+        form->addRow(f->ctrlLinks);
+        f->dragText = new QCheckBox(QCoreApplication::translate("Dialogs", "Allow text to be dragged and dropped"), page);
+        f->dragText->setObjectName(QStringLiteral("dragText"));
+        f->dragText->setChecked(Settings::get().value(QStringLiteral("edit/dragText"), true).toBool());
+        form->addRow(f->dragText);
+        f->replaces = new QCheckBox(QCoreApplication::translate("Dialogs", "Typing replaces the selected text"), page);
+        f->replaces->setObjectName(QStringLiteral("typingReplaces"));
+        f->replaces->setChecked(Settings::get().value(QStringLiteral("edit/typingReplaces"), true).toBool());
+        form->addRow(f->replaces);
+        f->insertKey = new QCheckBox(QCoreApplication::translate("Dialogs", "Use the Insert key to turn overtype mode on and off"), page);
+        f->insertKey->setObjectName(QStringLiteral("insertKeyOvertype"));
+        f->insertKey->setChecked(Settings::get().value(QStringLiteral("edit/insertKey"), false).toBool());
+        form->addRow(f->insertKey);
         f->smart = new QCheckBox(QCoreApplication::translate("Dialogs", "Smart cut and paste (fix the spaces round words that are moved)"), page);
         f->smart->setObjectName(QStringLiteral("smartCutPaste"));
         f->smart->setChecked(Settings::get().value(QStringLiteral("edit/smartCutPaste"), true).toBool());
@@ -129,6 +158,11 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         Settings::get().setUnit(static_cast<Unit>(f->units->currentData().toInt()));
         Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), f->smart->isChecked());
         m_ruler->update();   // (the ruler's marks are in the unit chosen)
+        Settings::get().setValue(QStringLiteral("edit/ctrlClickLinks"), f->ctrlLinks->isChecked());
+        Settings::get().setValue(QStringLiteral("edit/dragText"), f->dragText->isChecked());
+        Settings::get().setValue(QStringLiteral("edit/typingReplaces"), f->replaces->isChecked());
+        Settings::get().setValue(QStringLiteral("edit/insertKey"), f->insertKey->isChecked());
+        applyEditingDefaults();
     }};
     return pages;
 }

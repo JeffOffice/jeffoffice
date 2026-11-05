@@ -165,6 +165,8 @@ public:
     QByteArray toRtf(QString *error = nullptr, QStringList *notes = nullptr);
     // The story written back as an OpenDocument text (empty, with the reason, if it can't be made). `notes` get what the format has no place for.
     QByteArray toOdt(QString *error = nullptr, QStringList *notes = nullptr);
+    // The document as a web page (libs/office/wml/wmlhtml.h): one file with the looks and pictures, or the filtered form with the structure alone; empty if it can't be made.
+    QByteArray toHtml(bool singleFile, const QString &title, const QString &language);
 private:
     // The document as the file would hold it, before it is written as a package.
     bool exportDocument(office::wml::Document *out, bool template_, bool macros);

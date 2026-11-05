@@ -14,6 +14,7 @@
 #include "core/fieldops.h"
 #include "core/fonts.h"
 #include "core/inspectops.h"
+#include "core/linkops.h"
 #include "core/textexport.h"
 #include "core/writedoc.h"
 #include "office/officecrypt.h"
@@ -21,6 +22,7 @@
 #include "office/packageprops.h"
 #include "text/textprops.h"
 
+#include <QCheckBox>
 #include <QFile>
 #include <QLineEdit>
 #include <QPushButton>
@@ -136,6 +138,47 @@ private Q_SLOTS:
     {
         setNewPasswordStandIn(nullptr);
         setOpenPasswordStandIn(nullptr);
+    }
+
+    // Options > Save > "Remove personal information from the file's properties when saving": the names are in the window's properties until a file is written, and not in it.
+    void thePrivacyOptionTakesTheNamesOutOfTheFileAsItIsSaved()
+    {
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow a;
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("words"));
+        office::PackageProps p = a.document()->packageProps();
+        p.creator = QStringLiteral("Ann Lee");
+        p.company = QStringLiteral("Acme");
+        p.title = QStringLiteral("Kept");
+        a.applyProperties(p);
+        QVERIFY(saveInto(a, dir, QStringLiteral("named.docx")));
+        WriteWindow named;
+        QVERIFY(named.openFile(dir.filePath(QStringLiteral("named.docx"))));
+        QCOMPARE(named.document()->packageProps().creator, QStringLiteral("Ann Lee"));
+        QVector<OptionsPage> pages = a.optionsPages();
+        QList<QWidget *> built;
+        for (const OptionsPage &page : pages) built << page.build();
+        QCheckBox *box = nullptr;
+        for (QWidget *page : built)
+            if (!box) box = page->findChild<QCheckBox *>(QStringLiteral("removePersonalOnSave"));
+        QVERIFY(box);
+        QVERIFY(!box->isChecked());
+        box->setChecked(true);
+        for (const OptionsPage &page : pages)
+            if (page.apply) page.apply();
+        qDeleteAll(built);
+        QVERIFY(Settings::get().value(QStringLiteral("privacy/removeOnSave")).toBool());
+        a.document()->story()->setModified(true);
+        QVERIFY(saveInto(a, dir, QStringLiteral("clean.docx")));
+        WriteWindow clean;
+        QVERIFY(clean.openFile(dir.filePath(QStringLiteral("clean.docx"))));
+        const office::PackageProps back = clean.document()->packageProps();
+        QVERIFY(back.creator.isEmpty());
+        QVERIFY(back.company.isEmpty());
+        QCOMPARE(back.title, QStringLiteral("Kept"));   // (only the names go)
+        Settings::get().setValue(QStringLiteral("privacy/removeOnSave"), false);
     }
 
     void propertiesSurviveASaveAndReopen()
@@ -365,7 +408,7 @@ private Q_SLOTS:
         QCOMPARE(screen->currentPage(), QStringLiteral("info"));
         QWidget *page = screen->findChild<QWidget *>(QStringLiteral("infoPage"));
         QVERIFY(page);
-        for (const char *name : {"infoMarkFinal", "infoEncrypt", "infoInspect", "infoCompatibility", "infoCustom", "infoShowFolder", "infoCopyPath"})
+        for (const char *name : {"infoMarkFinal", "infoEncrypt", "infoInspect", "infoCompatibility", "infoAccessibility", "infoCustom", "infoShowFolder", "infoCopyPath"})
             QVERIFY2(page->findChild<QWidget *>(QString::fromLatin1(name)), name);
         QVERIFY(!page->findChild<QPushButton *>(QStringLiteral("infoCopyPath"))->isEnabled());   // (nothing saved yet)
         auto *title = page->findChild<QLineEdit *>(QStringLiteral("infoTitle"));
@@ -375,6 +418,116 @@ private Q_SLOTS:
         QCOMPARE(w.document()->packageProps().title, QStringLiteral("From the page"));
         QVERIFY(w.isModified());
         w.hideFileScreen();
+    }
+
+    // Options > Advanced: a link is followed by Ctrl+click until the person asks for a plain click; the choice is kept and a new window starts with it.
+    void theAdvancedPageLetsALinkFollowOnAPlainClick()
+    {
+        Settings::get().setValue(QStringLiteral("edit/ctrlClickLinks"), true);
+        Settings::get().setValue(QStringLiteral("edit/dragText"), true);
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("see link here"));
+        QTextCursor sel(w.document()->story());
+        sel.setPosition(4);
+        sel.setPosition(8, QTextCursor::KeepAnchor);
+        QString problem;
+        QVERIFY2(insertHyperlink(*w.document(), sel, QStringLiteral("https://example.com"), QString(), QString(), QString(), &problem), qPrintable(problem));
+        QStringList opened;
+        w.setLinkOpener([&](const QString &a) { opened << a; });
+        auto click = [&](Qt::KeyboardModifiers keys) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(6);
+            w.view()->setCursor(c);
+            QRect r;
+            QVERIFY(w.view()->caretRect(&r));
+            QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, keys, r.center());
+        };
+        click(Qt::NoModifier);
+        QVERIFY(opened.isEmpty());
+        click(Qt::ControlModifier);
+        QCOMPARE(opened, (QStringList{"https://example.com"}));
+        opened.clear();
+        QVector<OptionsPage> pages = w.optionsPages();
+        QList<QWidget *> built;
+        for (const OptionsPage &p : pages) built << p.build();
+        auto box = [&](const char *name) {
+            for (QWidget *page : built)
+                if (auto *f = page->findChild<QCheckBox *>(QString::fromLatin1(name))) return f;
+            return static_cast<QCheckBox *>(nullptr);
+        };
+        QCheckBox *ctrl = box("ctrlClickLinks"), *drag = box("dragText");
+        QVERIFY(ctrl && drag);
+        QVERIFY(ctrl->isChecked() && drag->isChecked());
+        ctrl->setChecked(false);
+        drag->setChecked(false);
+        for (const OptionsPage &p : pages)
+            if (p.apply) p.apply();
+        qDeleteAll(built);
+        QVERIFY(!w.view()->linkNeedsCtrl());
+        click(Qt::NoModifier);
+        QCOMPARE(opened, (QStringList{"https://example.com"}));
+        // (A click with Shift is a selection, not a link.)
+        opened.clear();
+        click(Qt::ShiftModifier);
+        QVERIFY(opened.isEmpty());
+        WriteWindow v;
+        QVERIFY(!v.view()->linkNeedsCtrl());
+        Settings::get().setValue(QStringLiteral("edit/ctrlClickLinks"), true);
+        Settings::get().setValue(QStringLiteral("edit/dragText"), true);
+    }
+
+    // Options > Advanced: typing replaces the selected text unless asked not to, and the Insert key turns on overtype when it is let to.
+    void theAdvancedPageSetsWhetherTypingReplacesTheSelectionAndOvertype()
+    {
+        Settings::get().setValue(QStringLiteral("edit/typingReplaces"), true);
+        Settings::get().setValue(QStringLiteral("edit/insertKey"), false);
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("abcdef"));
+        auto select = [&](int from, int to) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            w.view()->setCursor(c);
+        };
+        auto text = [&] { return w.document()->story()->toPlainText(); };
+        select(1, 3);
+        QTest::keyClicks(w.view(), QStringLiteral("X"));
+        QCOMPARE(text(), QStringLiteral("aXdef"));
+        // Overtype does nothing until the Insert key is let to.
+        select(1, 1);
+        QTest::keyClick(w.view(), Qt::Key_Insert);
+        QVERIFY(!w.view()->overtype());
+        auto set = [&](const char *name, bool on) {
+            QVector<OptionsPage> pages = w.optionsPages();
+            QList<QWidget *> built;
+            for (const OptionsPage &p : pages) built << p.build();
+            for (QWidget *page : built)
+                if (auto *b = page->findChild<QCheckBox *>(QString::fromLatin1(name))) b->setChecked(on);
+            for (const OptionsPage &p : pages)
+                if (p.apply) p.apply();
+            qDeleteAll(built);
+        };
+        set("typingReplaces", false);
+        select(1, 3);
+        QTest::keyClicks(w.view(), QStringLiteral("Y"));
+        QCOMPARE(text(), QStringLiteral("aXdYef"));
+        set("typingReplaces", true);
+        set("insertKeyOvertype", true);
+        select(0, 0);
+        QTest::keyClick(w.view(), Qt::Key_Insert);
+        QVERIFY(w.view()->overtype());
+        QTest::keyClicks(w.view(), QStringLiteral("12"));
+        QCOMPARE(text(), QStringLiteral("12dYef"));
+        QTest::keyClick(w.view(), Qt::Key_Insert);
+        QVERIFY(!w.view()->overtype());
+        QTest::keyClicks(w.view(), QStringLiteral("Z"));
+        QCOMPARE(text(), QStringLiteral("12Zd" "Yef"));
+        Settings::get().setValue(QStringLiteral("edit/typingReplaces"), true);
+        Settings::get().setValue(QStringLiteral("edit/insertKey"), false);
     }
 
     void printingOnlyOddOrEvenPagesAndInReverse()
@@ -438,6 +591,74 @@ private Q_SLOTS:
         QTemporaryDir dir;
         QVERIFY(w.exportText(dir.filePath(QStringLiteral("out.txt")), TextEncoding::Utf8, LineEnds::Unix));
         QVERIFY(fileBytes(dir.filePath(QStringLiteral("out.txt"))).endsWith("second"));
+    }
+
+    // Save as Web Page writes the document's words as one page with its looks, Save as Filtered Web Page the structure alone; a path of nothing writes nothing.
+    void webPagesAreWrittenFromTheDocumentInBothForms()
+    {
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("caf\u00e9 <b> & more\nsecond"));
+        QTextCursor c(w.document()->story());
+        c.setPosition(0);
+        c.setPosition(4, QTextCursor::KeepAnchor);
+        QTextCharFormat bold;
+        bold.setFontWeight(QFont::Bold);
+        c.mergeCharFormat(bold);
+        QTemporaryDir dir;
+        QVERIFY(!w.exportWeb(QString(), true));
+        QVERIFY(w.exportWeb(dir.filePath(QStringLiteral("page.html")), true));
+        QVERIFY(w.exportWeb(dir.filePath(QStringLiteral("small.html")), false));
+        const QString page = QString::fromUtf8(fileBytes(dir.filePath(QStringLiteral("page.html"))));
+        const QString small = QString::fromUtf8(fileBytes(dir.filePath(QStringLiteral("small.html"))));
+        QVERIFY2(page.startsWith(QLatin1String("<!DOCTYPE html>")), qPrintable(page));
+        QVERIFY2(page.contains(QStringLiteral("<b>caf\u00e9</b> &lt;b&gt; &amp; more")), qPrintable(page));
+        QVERIFY(page.contains(QLatin1String(">second</p>")));
+        QVERIFY(small.contains(QLatin1String("<p>second</p>")));
+        QVERIFY(page.contains(QLatin1String("<style>")));
+        QVERIFY(small.contains(QStringLiteral("<b>caf\u00e9</b> &lt;b&gt; &amp; more")));
+        QVERIFY(!small.contains(QLatin1String("<style>")));
+    }
+
+    // A web page opens as a document (what Save as Web Page wrote comes back with its words), and Save does not write over it.
+    void aWebPageOpensAsADocumentAndIsNotWrittenOver()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("caf\u00e9 & more\nsecond"));
+        const QString path = dir.filePath(QStringLiteral("page.html"));
+        QVERIFY(w.exportWeb(path, true));
+        WriteWindow b;
+        Quiet quietB(b);
+        QVERIFY(b.openFile(path));
+        QCOMPARE(b.document()->story()->toPlainText().trimmed(), QStringLiteral("caf\u00e9 & more\nsecond"));
+        const QByteArray before = fileBytes(path);
+        b.setSavePathChooser([](const QString &, const QString &) { return QString(); });
+        QVERIFY(!b.save());   // (it asks for a name, and none is given)
+        QCOMPARE(fileBytes(path), before);
+    }
+
+    // Export to PDF can make a PDF/A-1b file: the standard's mark is in its metadata, and an ordinary export has none.
+    void aPdfCanBeExportedAsPdfA()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("keep this"));
+        QString target;
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        target = dir.filePath(QStringLiteral("plain.pdf"));
+        QVERIFY(w.exportPdfPages(WriteOutputOptions()));
+        WriteOutputOptions o;
+        o.pdfArchive = true;
+        target = dir.filePath(QStringLiteral("archive.pdf"));
+        QVERIFY(w.exportPdfPages(o));
+        const QByteArray plain = fileBytes(dir.filePath(QStringLiteral("plain.pdf"))), kept = fileBytes(target);
+        QVERIFY(plain.startsWith("%PDF") && kept.startsWith("%PDF"));
+        QVERIFY(!plain.contains("pdfaid:part"));
+        QVERIFY2(kept.contains("pdfaid:part") || kept.contains("<pdfaid:part>1</pdfaid:part>"), "no PDF/A mark");
+        QVERIFY(kept.contains("GTS_PDFA1") || kept.contains("OutputIntent"));
     }
 
     void textFilesAreReadAndWrittenInTheEncodingAndLineEndsChosen()

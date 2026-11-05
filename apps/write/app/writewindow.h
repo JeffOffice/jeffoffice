@@ -74,6 +74,9 @@ struct WriteOutputOptions {
     Sides sides = Sides::All;   // only the pages whose numbers are odd or even, of the pages the range covers
     bool reverse = false;       // last page first
     bool byHand = false;        // both sides of the paper with a printer that has no duplex: the odd pages, a prompt to turn the stack over, then the even pages last first
+    bool pdfArchive = false;    // Export to PDF: a PDF/A-1b file, for keeping (fonts embedded, no transparency, and the standard's mark in its metadata)
+    int perSheet = 1;           // pages on a sheet: 1, 2, 4, 6, 9, or 16 (each scaled to fit its place)
+    QSizeF scaleTo;             // points, upright: each page is scaled to fit this paper (empty: the page's own)
 };
 
 class WriteWindow : public AppWindow {
@@ -165,7 +168,7 @@ public:
     enum class EmailWhat { Document, Pdf, Pages };
     bool exportEmail(EmailWhat what);
     // The pages (by index) as a PDF, in memory; empty, with the reason, when they can't be made.
-    QByteArray pdfBytes(const QVector<int> &pages, QString *error);
+    QByteArray pdfBytes(const QVector<int> &pages, QString *error, bool archive = false);
     // Version history: named copies of the document kept on this computer (see app/versionstore.h). Each needs a file the document has been saved as.
     QVector<write::DocVersion> versions() const;
     bool saveVersion(const QString &name);
@@ -227,6 +230,9 @@ public:
     // Save as Plain Text: asks for the encoding, the line ends, and the file; and the writing itself (an empty path asks nothing and writes nothing).
     bool exportTextAsk();
     bool exportText(const QString &path, write::TextEncoding encoding, write::LineEnds ends, int codePage = 1252);
+    // Save as Web Page (the page with its looks and pictures in one file) or as Filtered Web Page (the structure alone): asks for the file, and the writing itself.
+    bool exportWebAsk(bool singleFile);
+    bool exportWeb(const QString &path, bool singleFile);
     // Asks how a text file is read or written (the encoding and line ends, with a preview of `sample`, the file's bytes, if given); false if cancelled. Tests stand in for the dialog.
     bool askTextForm(const QString &title, const QString &intro, write::TextForm *form, const QByteArray *sample = nullptr);
     // Asks what the message holds (the document, a PDF, or the pages), then makes it as exportEmail does.
@@ -257,6 +263,12 @@ public:
     // View > Split: a second pane under the pages shows the same document, scrolled and zoomed on its own, for looking at one place while writing in another. It does not take typing.
     write::PageView *splitView() const { return m_split; }
     void setSplit(bool on);
+    // View > Window: windows of JeffWrite placed side by side with their scrolling tied together (the other window is `sideBySidePartner()`), and the windows placed in rows or a stack.
+    void setSideBySide(bool on);
+    WriteWindow *sideBySidePartner() const { return m_sidePartner; }
+    static QList<WriteWindow *> writeWindows();
+    static void arrangeAllWindows();
+    static void cascadeWindows();
 
     // The Styles pane on the right (made when first asked for, so null before).
     void showStylesPane();
@@ -446,6 +458,8 @@ private:
         QList<QPointer<QDockWidget>> docks;
     } m_focusWas;
     bool m_readMode = false;
+    QPointer<WriteWindow> m_sidePartner;   // View > View Side by Side: the window this one's scrolling follows, and follows this one's
+    QMetaObject::Connection m_sideScroll[2];
     struct {
         bool readOnly = false, sideToSide = false;
         int zoomMode = 0;
@@ -486,6 +500,7 @@ private:
     int m_placeStep = 0;
     void recordPlace(int position);
     void applyDisplayDefaults();
+    void applyEditingDefaults();   // Options > Advanced: how a link is followed, and dragging text
     void returnToPlace(const QString &path);
     static QString placeKey(const QString &path);
     FormatChoice askFormatChoice(const QStringList &lost, const QString &kind = QStringLiteral(".odt"));

@@ -26,6 +26,6 @@ QByteArray addPdfBookmarks(const QByteArray &pdf, const QVector<PdfBookmark> &ma
 QVector<PdfBookmark> headingBookmarks(WriteDoc &doc, const QVector<int> &pages);
 
 // The document's properties as the metadata a PDF reader shows (title, author, subject, keywords, and the program that made it).
-QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const QString &subject, const QString &keywords, const QString &program);
+QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const QString &subject, const QString &keywords, const QString &program, bool archive = false);
 
 } // namespace jp::write

@@ -111,6 +111,13 @@ bool isOldBinary(const QString &path)
 }
 
 
+// A web page, which is read and never written over (Export > Save as Web Page makes one): it is saved as a new .docx.
+bool isWebPage(const QString &path)
+{
+    const QString ending = QFileInfo(path).suffix().toLower();
+    return ending == QLatin1String("html") || ending == QLatin1String("htm");
+}
+
 // A flat OpenDocument text (one XML file), which is read and never written over: it is saved as a packed .odt.
 bool isFlatOdt(const QString &path) { return QFileInfo(path).suffix().compare(QLatin1String("fodt"), Qt::CaseInsensitive) == 0; }
 
@@ -161,7 +168,7 @@ void WriteWindow::createFileActions()
 void WriteWindow::browseAndOpen(OpenHow how)
 {
     const QString p = QFileDialog::getOpenFileName(this, openHowText(how), Settings::get().value("dirs/open", defaultFolder()).toString(),
-                                                   tr("Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt)") + QStringLiteral(";;") + tr("Rich Text Format (*.rtf)") + QStringLiteral(";;") + tr("OpenDocument Text (*.odt *.fodt *.ott)") + QStringLiteral(";;") + tr("All Files (*)"));
+                                                   tr("Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)") + QStringLiteral(";;") + tr("Rich Text Format (*.rtf)") + QStringLiteral(";;") + tr("OpenDocument Text (*.odt *.fodt *.ott)") + QStringLiteral(";;") + tr("All Files (*)"));
     if (p.isEmpty()) return;
     Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
     openFile(p, how);
@@ -299,6 +306,7 @@ bool WriteWindow::save()
         return saveAs();
     }
     if (isOldBinary(m_path)) notice(tr("Save"), tr("This document came from an older .doc file, which %1 doesn't write, so it is saved as a new .docx file.").arg(appInfo().name));
+    else if (isWebPage(m_path)) notice(tr("Save"), tr("This document came from a web page, which %1 doesn't write over, so it is saved as a new .docx file.").arg(appInfo().name));
     else if (isFlatOdt(m_path)) notice(tr("Save"), tr("This document came from a flat .fodt file, which %1 doesn't write, so it is saved as a new .odt file.").arg(appInfo().name));
     if (m_path.isEmpty() || !isWrittenEnding(m_path)) return saveAs();
     return saveTo(m_path);
@@ -386,6 +394,8 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
         notice(tr("Save"), tr("Part of this file couldn't be opened, so saving it here would lose that part: choose a new name for the copy."));
         return false;
     }
+    // Options > Save > Privacy: the names in the properties (the author, who saved last, the company, and the manager) are taken out as the file is written.
+    if (Settings::get().value(QStringLiteral("privacy/removeOnSave"), false).toBool()) removePersonalInformation();
     const QString ending = QFileInfo(path).suffix().toLower();
     const bool macroFile = ending == QLatin1String("docm") || ending == QLatin1String("dotm");
     if (m_doc->hadMacros() && !m_macrosNoted && !macroFile) {
