@@ -137,7 +137,7 @@ QWidget *CrunchFileScreen::buildPrint()
     perSheet->setAccessibleName(tr("Pages on each sheet of paper"));
     for (const int n : {1, 2, 4, 6, 9, 16}) perSheet->addItem(n == 1 ? tr("1 page on a sheet") : tr("%1 pages on a sheet").arg(n), n);
     perSheet->setCurrentIndex(std::max(0, perSheet->findData(choices.pagesPerSheet)));
-    perSheet->setToolTip(tr("Print several pages, made smaller, on each sheet of paper. The preview shows one page at full size."));
+    perSheet->setToolTip(tr("Print several pages, made smaller, on each sheet of paper. The preview shows the sheet of paper."));
     form->addRow(tr("Pages on a sheet:"), perSheet);
     auto *collate = new QCheckBox(tr("Collated"), w);
     collate->setObjectName(QStringLiteral("printCollate"));
@@ -159,6 +159,14 @@ QWidget *CrunchFileScreen::buildPrint()
     for (const int id : jp::office::sheet::commonPaperSizes()) paper->addItem(jp::office::sheet::paperSizeName(id), id);
     paper->setCurrentIndex(choices.job.setPaper ? std::max(0, paper->findData(choices.job.paperSize)) : 0);
     form->addRow(tr("Paper:"), paper);
+    auto *scaleToPaper = new QComboBox(w);
+    scaleToPaper->setObjectName(QStringLiteral("printScaleToPaper"));
+    scaleToPaper->setAccessibleName(tr("Scale to paper size"));
+    scaleToPaper->addItem(tr("No scaling"), 0);
+    for (const int id : jp::office::sheet::commonPaperSizes()) scaleToPaper->addItem(jp::office::sheet::paperSizeName(id), id);
+    scaleToPaper->setCurrentIndex(std::max(0, scaleToPaper->findData(choices.job.scaleToPaper)));
+    scaleToPaper->setToolTip(tr("Make each page smaller or larger to fit the paper you choose, keeping its shape. Use it to print for a paper size your printer does not have, such as A4 on letter paper."));
+    form->addRow(tr("Scale to paper:"), scaleToPaper);
     auto *margins = new QComboBox(w);
     margins->setObjectName(QStringLiteral("printMargins"));
     margins->setAccessibleName(tr("Margins"));
@@ -275,6 +283,7 @@ QWidget *CrunchFileScreen::buildPrint()
                                                                   : jp::office::sheet::PageMargins{0.25, 0.25, 0.75, 0.75, 0.3, 0.3};
         }
         c.job.scaling = crunch::PrintScaling(scaling->currentData().toInt());
+        c.job.scaleToPaper = scaleToPaper->currentData().toInt();
         c.pageRange = range->text();
         c.sides = crunch::PrintSides(sides->currentData().toInt());
         c.pagesPerSheet = perSheet->currentData().toInt();
@@ -294,6 +303,15 @@ QWidget *CrunchFileScreen::buildPrint()
         }
         return crunch::pagesOfSide(crunch::parsePageRange(range->text(), state->job->pageCount()), side);
     };
+    // The preview shows a sheet of paper (a group of pages) when several pages share one or the pages are scaled to another paper; else a page.
+    auto sheetMode = [=]() { return perSheet->currentData().toInt() > 1 || scaleToPaper->currentData().toInt() > 0; };
+    auto groupsToPrint = [=]() {
+        QVector<QVector<int>> groups;
+        const QVector<int> pages = pagesToPrint();
+        const int per = std::max(1, perSheet->currentData().toInt());
+        for (int i = 0; i < pages.size(); i += per) groups.push_back(pages.mid(i, per));
+        return groups;
+    };
     // (pictures in the header are made on a worker: the page is drawn at once without them, and again when they are ready)
     auto paintSelf = std::make_shared<std::function<void()>>();
     gPaintClosure = paintSelf;
@@ -306,15 +324,17 @@ QWidget *CrunchFileScreen::buildPrint()
             preview->resize(scroll->viewport()->size());
             return;
         }
-        state->page = std::clamp(state->page, 0, int(pages.size()) - 1);
-        const int index = pages[state->page];
-        const QSizeF paperSize = state->job->pageSize(index);
+        const bool sheets = sheetMode();
+        const QVector<QVector<int>> groups = sheets ? groupsToPrint() : QVector<QVector<int>>();
+        state->page = std::clamp(state->page, 0, int(sheets ? groups.size() : pages.size()) - 1);
+        const int index = pages[sheets ? state->page * std::max(1, perSheet->currentData().toInt()) : state->page];
+        const QSizeF paperSize = sheets ? state->job->sheetFor(groups[state->page], std::max(1, perSheet->currentData().toInt())) : state->job->pageSize(index);
         const qreal dpr = preview->devicePixelRatioF();
         const QSize room = scroll->viewport()->size() - QSize(24, 24);
         const double fitScale = std::min(double(std::max(80, room.width())) / paperSize.width(), double(std::max(80, room.height())) / paperSize.height());
         const double scale = fitScale * state->zoom;
         const int widthPx = std::max(1, int(std::lround(paperSize.width() * scale * dpr)));
-        QImage img = state->job->preview(index, widthPx);
+        QImage img = sheets ? state->job->previewSheet(groups[state->page], std::max(1, perSheet->currentData().toInt()), widthPx) : state->job->preview(index, widthPx);
         img.setDevicePixelRatio(img.isNull() ? dpr : double(img.width()) / (paperSize.width() * scale));   // (fewer pixels than asked for, past the budget: the same size on the screen)
         const QSize box(int(std::ceil(paperSize.width() * scale)) + 16, int(std::ceil(paperSize.height() * scale)) + 18);
         preview->setPixmap(paperPixmap(img, box, dpr));
@@ -334,16 +354,22 @@ QWidget *CrunchFileScreen::buildPrint()
         } else if (bad) {
             pageLabel->setText(tr("Enter page numbers, such as 1-3, 5."));
         } else {
-            pageLabel->setText(tr("Page %1 of %2").arg(pages[state->page] + 1).arg(state->job->pageCount()));
+            if (sheetMode()) {
+                const QVector<QVector<int>> groups = groupsToPrint();
+                const int at = std::clamp(state->page, 0, int(groups.size()) - 1);
+                pageLabel->setText(tr("Sheet %1 of %2").arg(at + 1).arg(groups.size()));
+            } else {
+                pageLabel->setText(tr("Page %1 of %2").arg(pages[state->page] + 1).arg(state->job->pageCount()));
+            }
             lines << state->job->messages();
-            const int sheet = state->job->sheetOf(pages[state->page]);
+            const int sheet = state->job->sheetOf(pages[sheetMode() ? std::min<int>(state->page * std::max(1, perSheet->currentData().toInt()), pages.size() - 1) : state->page]);
             if (const jp::grid::SheetPrint *p = state->job->printOf(sheet)) {
                 if (p->scalePercent < 50) lines << tr("The cells are printed at %1% of full size, so the letters are small.").arg(p->scalePercent);
             }
         }
         notes->setText(lines.join(QLatin1Char('\n')));
         previous->setEnabled(state->job && state->page > 0);
-        next->setEnabled(state->job && state->page + 1 < pages.size());
+        next->setEnabled(state->job && state->page + 1 < (sheetMode() ? groupsToPrint().size() : pages.size()));
         printBtn->setEnabled(state->job && !pages.isEmpty());
         collate->setEnabled(copies->value() > 1);
         zoomOut->setEnabled(state->job && state->zoom > 1.01);
@@ -366,7 +392,7 @@ QWidget *CrunchFileScreen::buildPrint()
         win->printChoices() = read();
         rebuild();
     };
-    for (QComboBox *box : {what, orientation, paper, margins, scaling}) connect(box, &QComboBox::currentIndexChanged, w, [=] { choose(); });
+    for (QComboBox *box : {what, orientation, paper, margins, scaling, scaleToPaper}) connect(box, &QComboBox::currentIndexChanged, w, [=] { choose(); });
     connect(ignore, &QCheckBox::toggled, w, [=] { choose(); });
     connect(range, &QLineEdit::textChanged, w, [=] {
         win->printChoices() = read();
@@ -385,7 +411,12 @@ QWidget *CrunchFileScreen::buildPrint()
         words();
     });
     connect(collate, &QCheckBox::toggled, w, [=] { win->printChoices() = read(); });
-    connect(perSheet, &QComboBox::currentIndexChanged, w, [=] { win->printChoices() = read(); });
+    connect(perSheet, &QComboBox::currentIndexChanged, w, [=] {
+        win->printChoices() = read();
+        state->page = 0;
+        words();
+        paint();
+    });
     connect(printer, &QComboBox::currentIndexChanged, w, [=] { win->printChoices() = read(); });
     connect(previous, &QToolButton::clicked, w, [=] {
         --state->page;
