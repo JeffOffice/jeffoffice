@@ -266,6 +266,8 @@ private:
     MailUi *m_mail = nullptr;
     void showStyleDialog(bool create);
     void pictureRibbonParts(RibbonParts &parts);
+    void headerRibbonParts(RibbonParts &parts);
+    void removeEdited(bool footer);
     void insertPictureFromFile();
     void insertPictureFromClipboard();
     void showPageSetupDialog();

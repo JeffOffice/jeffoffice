@@ -26,6 +26,10 @@ Press **Esc**, double-click in the text of the page, or click **Close Header and
 
 Click **Header & Footer > Insert > Page Number Format**. Pick a look: 1, 2, 3, or a, b, c, or A, B, C, or i, ii, iii, or I, II, III. You can put the **chapter number** first, such as 2-5 for page 5 of chapter 2; choose the heading style that starts a chapter and the mark between the numbers. Then choose to **continue from the previous section** or to **start at** a number you pick. A **section** is a part of the document with its own page setup. Choose whether the change is for this section or the whole document.
 
+## Start from a design, add information, or take one away
+
+**Header & Footer > Design > Designs** gives the header or footer you are editing a ready look, such as a page number at the right, the title and the page number, or three columns. It replaces what was there, and **Undo** brings it back. **Document Info** puts in the author, the title, the file name, or the file's path. These are fields, so they change when the file does. **Remove Header** and **Remove Footer** take away the one in this part of the document. If a later section was sharing it, that section gets an empty one of its own.
+
 ## Move between headers and footers
 
 On the **Header & Footer** tab, **Go to Footer** and **Go to Header** switch between the two on the same page. **Previous Section** and **Next Section** go to the same kind of header or footer in the section before or after. **Date & Time** puts in today's date or the time, and it can update itself.

@@ -224,6 +224,9 @@ public:
     // Link to Previous: on, the section has the section before's (its own is let go); off, it has a copy of the one it had, of its own to edit. False where that cannot be done
     // (the first section, which has none before it; or a slot that has no header to copy). One step of the history.
     bool setLinkedToPrevious(int section, bool footer, int slot, bool linked);
+    // Remove Header (Remove Footer): the section's own headers (footers) of every kind are let go; a section after the first, which would then show the section before's, is given blank ones
+    // of its own where that has text. One step of the history. False where the section has none to remove, or one the program can't show.
+    bool removeHeaderFooter(int section, bool footer);
     // Different first page (a section's) and different odd and even pages (the document's), as one step of the history each.
     bool differentFirstPage(int section) const;
     void setDifferentFirstPage(int section, bool on);

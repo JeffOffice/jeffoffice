@@ -1278,6 +1278,38 @@
             {
               "small": "hf.dateTime",
               "keytip": "DT"
+            },
+            {
+              "small": {
+                "id": "ribbon.headerInfo",
+                "text": "Document Info",
+                "icon": "info"
+              },
+              "keytip": "DI",
+              "menu": "@headerInfo"
+            }
+          ]
+        },
+        {
+          "name": "Design",
+          "keytip": "ZD",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.headerDesigns",
+                "text": "Designs",
+                "icon": "layout-template"
+              },
+              "keytip": "DS",
+              "menu": "@headerDesigns"
+            },
+            {
+              "small": "hf.removeHeader",
+              "keytip": "RH"
+            },
+            {
+              "small": "hf.removeFooter",
+              "keytip": "RF"
             }
           ]
         },

@@ -27,6 +27,7 @@
 #include "core/fieldops.h"
 #include "core/commentops.h"
 #include "core/editops.h"
+#include "core/headerops.h"
 #include "core/pagenumbering.h"
 #include "core/pagesetup.h"
 #include "core/pictureops.h"
@@ -194,6 +195,12 @@ QVector<ItemPtr> inlineObjectsOf(const WriteDoc &doc)
             if (!json.isEmpty()) out << Item::fromJsonAny(QJsonDocument::fromJson(json.toUtf8()).object());
         }
     return out;
+}
+
+QByteArray documentXmlOfPart(const QByteArray &zip, const QString &part)
+{
+    office::Package p;
+    return p.read(zip) ? p.part(part) : QByteArray();
 }
 
 QByteArray documentXml(const QByteArray &zip)
@@ -6388,6 +6395,87 @@ private Q_SLOTS:
         w.act("hf.pageNumberFormat")->trigger();
         QCOMPARE(pageNumberingOf(doc->sectionProps(0)).format, QStringLiteral("upperRoman"));
         QCOMPARE(pageNumberingOf(doc->sectionProps(1)).format, QStringLiteral("decimal"));
+    }
+
+    void removeHeaderAndFooterLetGoOfTheSectionsOwnAndBlankWhatItWouldShare()
+    {
+        const QByteArray one = sectionNaming({{"default", "rIdheader1"}});
+        const QByteArray body = paragraphs(30, 50) + "<w:p><w:pPr>" + one + "</w:pPr><w:r><w:t>end of one</w:t></w:r></w:p>" + paragraphs(30, 50);
+        auto make = [&] { return open(makeDocxWithParts(body, sectionNaming({}), {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>SHARED</w:t></w:r>"})}})); };
+        auto doc = make();
+        QVERIFY(doc);
+        doc->pager().paginate(-1);
+        int second = -1;
+        for (int k = 0; k < doc->pager().pagesKnown() && second < 0; ++k)
+            if (doc->pager().page(k).start.section == 1) second = k;
+        QVERIFY(second > 0);
+        QCOMPARE(headerOfPage(*doc, second), QStringLiteral("SHARED"));
+        QVERIFY(!doc->removeHeaderFooter(0, true));   // (no footer to remove)
+        // Section 0's own header goes, and the second section, which took it, shows none.
+        QVERIFY(doc->removeHeaderFooter(0, false));
+        QVERIFY(!doc->hasOwnHeaderFooter(0, false, 0));
+        QCOMPARE(headerOfPage(*doc, 0), QString());
+        QCOMPARE(headerOfPage(*doc, second), QString());
+        QVERIFY(!doc->removeHeaderFooter(0, false));   // (nothing left)
+        QVERIFY(!documentXml(doc->toDocx()).contains("headerReference"));
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->canUndo() || headerOfPage(*doc, 0) == QStringLiteral("SHARED"));
+        QCOMPARE(headerOfPage(*doc, 0), QStringLiteral("SHARED"));
+        // The second section alone: it gets a blank header of its own and the first keeps its.
+        auto again = make();
+        again->pager().paginate(-1);
+        QVERIFY(again->removeHeaderFooter(1, false));
+        QVERIFY(again->hasOwnHeaderFooter(1, false, 0));
+        QCOMPARE(headerOfPage(*again, 0), QStringLiteral("SHARED"));
+        QCOMPARE(headerOfPage(*again, second), QString());
+    }
+
+    void headerDesignsFillAHeaderWithFieldsAndTabsInOneStep()
+    {
+        const QVector<HeaderDesign> designs = headerFooterDesigns();
+        QStringList ids;
+        for (const HeaderDesign &d : designs) ids << d.id;
+        QVERIFY2(designs.size() >= 6 && ids.contains(QStringLiteral("blank")) && ids.contains(QStringLiteral("threeColumns")) && ids.contains(QStringLiteral("pageRight")), qPrintable(ids.join(QLatin1Char(' '))));
+        auto doc = WriteDoc::blank();
+        QVERIFY(!applyHeaderFooterDesign(*doc, 0, false, 0, QStringLiteral("nonsense")));
+        QVERIFY(applyHeaderFooterDesign(*doc, 0, false, 0, QStringLiteral("pageRight")));
+        QTextDocument *header = doc->headerFooterStory(0, false, 0);
+        QVERIFY(header);
+        QCOMPARE(header->toPlainText().count(QChar::ObjectReplacementCharacter), 1);   // (the page number)
+        QCOMPARE(header->firstBlock().blockFormat().alignment() & Qt::AlignRight, Qt::AlignRight);
+        QVERIFY(documentXmlOfPart(doc->toDocx(), QStringLiteral("/word/header1.xml")).contains("PAGE"));
+        // Another design replaces it, in one step; three columns have two tab stops.
+        QVERIFY(applyHeaderFooterDesign(*doc, 0, false, 0, QStringLiteral("threeColumns")));
+        header = doc->headerFooterStory(0, false, 0);
+        QCOMPARE(header->toPlainText().count(QLatin1Char('\t')), 2);
+        QCOMPARE(int(header->firstBlock().blockFormat().tabPositions().size()), 2);
+        QCOMPARE(header->blockCount(), 1);
+        QVERIFY(doc->undo());
+        header = doc->headerFooterStory(0, false, 0);
+        QCOMPARE(header->toPlainText().count(QChar::ObjectReplacementCharacter), 1);
+        QCOMPARE(header->toPlainText().count(QLatin1Char('\t')), 0);
+        // Blank empties it.
+        QVERIFY(applyHeaderFooterDesign(*doc, 0, false, 0, QStringLiteral("blank")));
+        QCOMPARE(doc->headerFooterStory(0, false, 0)->toPlainText(), QString());
+        // A footer too.
+        QVERIFY(applyHeaderFooterDesign(*doc, 0, true, 0, QStringLiteral("pageCenter")));
+        QVERIFY(doc->headerFooterStory(0, true, 0)->toPlainText().count(QChar::ObjectReplacementCharacter) == 1);
+    }
+
+    void documentInformationIsPutInAsFields()
+    {
+        auto doc = WriteDoc::blank();
+        office::PackageProps props = doc->packageProps();
+        props.title = QStringLiteral("Annual Report");
+        props.creator = QStringLiteral("A. Writer");
+        doc->setPackageProps(props);
+        QVERIFY(doc->createHeaderFooter(0, false, 0));
+        QTextDocument *header = doc->editableHeaderFooter(0, false, 0);
+        QTextCursor c(header);
+        QVERIFY(!insertDocumentInfo(*doc, c, QStringLiteral("nonsense")));
+        for (const char *kind : {"title", "author", "fileName", "filePath"}) QVERIFY(insertDocumentInfo(*doc, c, QString::fromLatin1(kind)));
+        const QByteArray xml = documentXmlOfPart(doc->toDocx(), QStringLiteral("/word/header1.xml"));
+        for (const char *word : {"TITLE", "AUTHOR", "FILENAME", "\\p", "Annual Report", "A. Writer"}) QVERIFY2(xml.contains(word), word);
     }
 
     // The tab's options: Different First Page (a section's), Different Odd & Even Pages (the document's), Link to Previous (a section's, for what is being edited), and Insert Page Number.

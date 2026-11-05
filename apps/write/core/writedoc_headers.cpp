@@ -318,6 +318,42 @@ bool WriteDoc::setLinkedToPrevious(int section, bool footer, int slot, bool link
     return true;
 }
 
+bool WriteDoc::removeHeaderFooter(int section, bool footer)
+{
+    if (section < 0 || section >= sectionCount()) return false;
+    discardPendingHeaderFooter();
+    bool any = false;
+    const StepGroup group(*this);
+    for (int slot = 0; slot < 3; ++slot) {
+        SectionProps props = sectionProps(section);
+        const HeaderRefs refs = headerRefsOf(props);
+        const QString own = footer ? refs.footer[slot] : refs.header[slot];
+        if (own.isEmpty()) continue;
+        const Relationship rel = mainRelationship(own);
+        // (A part that is in the file and that the program could not show is not let go: it would be lost.)
+        const HeaderPart *part = rel.id.isEmpty() || m_headerParts.constFind(rel.target) == m_headerParts.cend() ? nullptr : &m_headerParts.constFind(rel.target).value();
+        if (!rel.id.isEmpty() && !rel.external && partExists(rel.target) && (!part || part->unreadable)) continue;
+        if (!rel.id.isEmpty() && !rel.external) m_released.insert(rel.target);
+        setHeaderReference(&props, footer, slot, QString());
+        setSectionProps(section, props);
+        any = true;
+    }
+    // A section after the first would now show the section before's: where that has anything, it gets a blank one of its own.
+    if (section > 0)
+        for (int slot = 0; slot < 3; ++slot) {
+            const QTextDocument *shown = headerFooterStory(section, footer, slot);
+            if (!shown || shown->toPlainText().trimmed().isEmpty() || !setLinkedToPrevious(section, footer, slot, false)) continue;
+            // (its own copy, emptied)
+            if (QTextDocument *own = editableHeaderFooter(section, footer, slot)) {
+                QTextCursor all(own);
+                all.select(QTextCursor::Document);
+                all.removeSelectedText();
+                any = true;
+            }
+        }
+    return any;
+}
+
 bool WriteDoc::differentFirstPage(int section) const
 {
     return section >= 0 && section < int(m_sections.size()) && m_sections[section].titlePg;
