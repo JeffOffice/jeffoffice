@@ -145,6 +145,7 @@ void PageView::setDocument(WriteDoc *doc)
     m_rendered.clear();
     m_recent.clear();
     m_doc = doc;
+    if (m_doc) m_doc->setShowHiddenText(m_marks);
     m_rects.clear();
     m_rowTops.clear();
     m_knownPages = 0;
@@ -521,6 +522,7 @@ void PageView::setZoomMode(ZoomMode mode, int across, int down)
 void PageView::setShowMarks(bool on)
 {
     m_marks = on;
+    if (m_doc) m_doc->setShowHiddenText(on);
     viewport()->update();
 }
 

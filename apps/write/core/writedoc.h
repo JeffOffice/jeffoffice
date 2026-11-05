@@ -9,6 +9,7 @@
 // which block). Styles are the file's: a paragraph or run's format is the whole of what it looks like (the style's with what it says
 // itself on top), and what the writer calls "direct formatting" is what differs from the style's.
 
+#include "text/textprops.h"
 #include "core/tablemodel.h"
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
@@ -416,6 +417,9 @@ public:
     bool mayHaveFields() const { return m_mayHaveFields; }
     void setMayHaveFields(bool yes) { m_mayHaveFields = yes; }
     void setRevisionView(int view);
+    // Shows the text that is hidden in the file, as the formatting marks do (a view of the text, not a change to it).
+    void setShowHiddenText(bool on);
+    bool showsHiddenText() const { return m_showHidden; }
 
     // ---- tables
     // What the last table command that did nothing said of why (empty when it did what it was asked): a limit of the file, or a shape it can't take.
@@ -878,6 +882,8 @@ private:
     QSet<int> m_fieldCodeIds;
     int m_fieldCodesCount = 0;
     int m_fieldCodeView = 0;
+    bool m_showHidden = false;
+    int hiddenBit() const { return m_showHidden ? tp::kRevisionShowHidden : 0; }
     void writeReviewSettings(office::wml::Document *out);
     void writeSourcesPart(office::wml::Document *out);
     void writeNoteSettings(office::wml::Document *out);

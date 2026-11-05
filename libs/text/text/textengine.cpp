@@ -1360,6 +1360,8 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
         const bool shaded = own.style() == Qt::SolidPattern && own.color().alpha() > 0;
         if (tp::isDarkFill(shaded ? own.color() : behind)) r.setForeground(Qt::white);
     }
+    // Hidden text shown (with the formatting marks) is underlined with dots.
+    if (env.wordLines && (env.revisionView & tp::kRevisionShowHidden) && f.boolProperty(tp::HiddenText) && !f.hasProperty(tp::Revision)) r.setUnderlineStyle(QTextCharFormat::DotLine);
     // Tracked changes marked in their authors' colors: inserted text underlined, deleted and moved-away text struck through.
     if (env.wordLines && (env.revisionView & tp::kRevisionMark)) {
         const int kind = f.intProperty(tp::Revision);

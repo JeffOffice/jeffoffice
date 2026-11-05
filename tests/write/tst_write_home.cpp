@@ -974,6 +974,24 @@ private Q_SLOTS:
         QVERIFY(!open(w.document()->toDocx())->story()->begin().blockFormat().boolProperty(flow::fp::SuppressLineNumbers));
     }
 
+    void hiddenTextShowsWhileTheFormattingMarksAreOnAndSavesTheSame()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        const QByteArray secret = QByteArray("secret words ").repeated(60);
+        w.setDocument(open(makeDocx(para(run("shown ") + run(secret, "<w:vanish/>") + run("end")))), QString());
+        const QByteArray before = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        QCOMPARE(w.document()->pager().lines(0).size(), 1);
+        w.act(QStringLiteral("view.marks"))->trigger();
+        QVERIFY(w.view()->showMarks());
+        QVERIFY2(w.document()->pager().lines(0).size() > 3, "hidden text is not shown with the marks on");
+        QCOMPARE(part(w.document()->toDocx(), QStringLiteral("/word/document.xml")), before);
+        w.act(QStringLiteral("view.marks"))->trigger();
+        QVERIFY(!w.view()->showMarks());
+        QCOMPARE(w.document()->pager().lines(0).size(), 1);
+    }
+
     // ---- the review's fixes
     void saveAsOfAProtectedDocumentDoesNotLiftTheProtection()
     {

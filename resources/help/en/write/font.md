@@ -30,6 +30,7 @@ The **Preview** at the bottom shows how the letters will look.
 - **Superscript** raises small letters above the line, as in the 2 of m². **Subscript** lowers them, as in the 2 of H₂O.
 - **Small caps** shows lowercase letters as small capital letters. **All caps** shows every letter as a capital. The text you typed does not change, so you can turn these off again.
 - **Hidden** keeps the text in the document but does not show it or print it. To show hidden text again, select the text around it (press **Ctrl+A** to select everything), open the **Font** box, and click **Hidden** until its box is clear.
+  To only look at hidden text for a while, turn on **Show/Hide ¶** (Ctrl+Shift+8). The hidden words then show with a dotted line under them. Turn it off, and they hide again. Nothing in the file changes.
 
 Some effects cannot go together: both kinds of strikethrough, superscript with subscript, and small caps with all caps. Choosing one clears the other.
 
