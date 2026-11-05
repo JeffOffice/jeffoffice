@@ -240,7 +240,14 @@ public:
     // The pages the window is set to show, laid out and drawn once more.
     void refresh();
 
+    // The pen and the eraser of Draw Table: with the pen, a drag outside a table draws one cell of that size, and a drag across a cell draws a line that divides it (across or down, by the
+    // way the drag goes); with the eraser, a drag from one cell to the next joins them. Esc, or setting None, lets the tool go.
+    enum class TableTool { None, Draw, Erase };
+    void setTableTool(TableTool tool);
+    TableTool tableTool() const { return m_tableTool; }
+
 Q_SIGNALS:
+    void tableToolChanged();
     // Document files dropped on the pages (the window opens them).
     void documentsDropped(const QStringList &paths);
     void zoomChanged(double zoom);
@@ -409,6 +416,14 @@ private:
         double top = 0, bottom = 0;               // the table's top and bottom on the page, for the line that shows where the border would go
     };
     ColumnDrag m_columnDrag;
+    TableTool m_tableTool = TableTool::None;
+    struct ToolDrag {
+        bool active = false;
+        int page = -1, position = -1;       // where it began: the page, and the place in the text
+        QPointF from, to;                   // on that page, in points
+    };
+    ToolDrag m_toolDrag;
+    void finishTableTool(const QPoint &viewportPos);
     // The border of a column or a row of a table on the page under the pointer (within a few pixels of a cell's right or bottom edge, one column or row wide), or false.
     bool columnBorderAt(const QPoint &viewportPos, ColumnDrag *found);
     // The resize handle at the lower right corner of the table the caret is in: its box on the page and where the table is (or false). The handle is drawn there, and pulling it sets the table's width.
