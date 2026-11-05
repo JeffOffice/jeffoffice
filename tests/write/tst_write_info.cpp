@@ -30,6 +30,7 @@
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QFileInfo>
+#include <QImage>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QThread>
@@ -637,6 +638,37 @@ private Q_SLOTS:
         b.setSavePathChooser([](const QString &, const QString &) { return QString(); });
         QVERIFY(!b.save());   // (it asks for a name, and none is given)
         QCOMPARE(fileBytes(path), before);
+    }
+
+    // Opening a web page reads its links, its lists, and the pictures that are in files beside it or in the page itself; nothing is fetched.
+    void aWebPageOpensWithItsPicturesLinksAndLists()
+    {
+        QTemporaryDir dir;
+        QImage pic(30, 20, QImage::Format_RGB32);
+        pic.fill(Qt::blue);
+        QVERIFY(pic.save(dir.filePath(QStringLiteral("beside.png")), "PNG"));
+        const QString path = dir.filePath(QStringLiteral("page.html"));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("<html><body><p>See <a href=\"https://example.com/a\">the site</a> <img src=\"beside.png\"> <img src=\"http://example.invalid/no.png\"></p>"
+                    "<ul><li>first</li><li>second</li></ul><ol><li>one</li></ol></body></html>");
+        }
+        WriteWindow b;
+        Quiet quiet(b);
+        QVERIFY(b.openFile(path));
+        const QByteArray docx = b.document()->toDocx();
+        office::Package p;
+        QVERIFY(p.read(docx));
+        QVERIFY2(p.part(QStringLiteral("/word/document.xml")).contains("<w:drawing"), "no picture");
+        int media = 0;
+        for (const QString &name : p.partNames()) media += name.startsWith(QLatin1String("/word/media/"));
+        QCOMPARE(media, 1);
+        const QByteArray body = p.part(QStringLiteral("/word/document.xml"));
+        QVERIFY(body.contains("<w:hyperlink"));
+        QVERIFY(body.contains("<w:numPr>"));
+        QVERIFY(!body.contains("\xE2\x80\xA2"));   // (no bullet characters as text)
+        QCOMPARE(b.document()->story()->toPlainText().trimmed().section(QLatin1Char('\n'), 1, 1), QStringLiteral("first"));
     }
 
     // Export to PDF can make a PDF/A-1b file: the standard's mark is in its metadata, and an ordinary export has none.

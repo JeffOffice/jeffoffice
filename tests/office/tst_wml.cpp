@@ -10,10 +10,14 @@
 
 #include "core/fonts.h"
 
+#include <QBuffer>
 #include <QCoreApplication>
 #include <QFile>
 #include <QFileInfo>
 #include <QFontDatabase>
+#include <QImage>
+#include <QTemporaryDir>
+#include <QUrl>
 #include <QElapsedTimer>
 #include <QRegularExpression>
 #include <QTest>
@@ -1882,8 +1886,8 @@ private Q_SLOTS:
         QVERIFY2(texts.contains(QStringLiteral("Big & bold")), qPrintable(texts.join('|')));
         QCOMPARE(styles[texts.indexOf(QStringLiteral("Big & bold"))], QStringLiteral("Heading1"));
         QVERIFY(texts.contains(QStringLiteral("Some strong and slanted words2")));
-        QVERIFY(texts.contains(QString(QChar(0x2022)) + QStringLiteral("\tone")));
-        QVERIFY(texts.contains(QStringLiteral("1.\tfirst")));
+        QVERIFY(texts.contains(QStringLiteral("one")));   // (a list is a real list: the marker is the list's, not text)
+        QVERIFY(texts.contains(QStringLiteral("first")));
         QVERIFY(!texts.join(QLatin1Char('|')).contains(QLatin1String("alert")));
         QVERIFY(!texts.join(QLatin1Char('|')).contains(QLatin1String("color:red")));
         bool bold = false, italic = false, sup = false;
@@ -1912,6 +1916,102 @@ private Q_SLOTS:
         Document big;
         QVERIFY(!readHtml(QByteArray(int(kMostHtmlBytes) + 1, 'a'), &big, &err));
         QVERIFY(!err.isEmpty());
+    }
+
+    void aWebPageKeepsItsLinksItsListsAndItsPicturesFromTheFolderOrTheAddressItself()
+    {
+        QTemporaryDir dir;
+        QImage pic(40, 20, QImage::Format_RGB32);
+        pic.fill(Qt::red);
+        QByteArray png;
+        {
+            QBuffer b(&png);
+            b.open(QIODevice::WriteOnly);
+            pic.save(&b, "PNG");
+        }
+        {
+            QFile f(dir.filePath(QStringLiteral("beside.png")));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(png);
+        }
+        QTemporaryDir outside;
+        {
+            QFile f(outside.filePath(QStringLiteral("secret.png")));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(png);
+        }
+        const QByteArray page =
+            "<html><body><p>Go <a href=\"https://example.com/x?a=1&amp;b=2\">to the site</a>, <a href=\"mailto:a@example.com\">mail</a>, <a href=\"javascript:alert(1)\">no</a>.</p>"
+            "<p>A <img src=\"data:image/png;base64," + png.toBase64() + "\" width=\"80\" height=\"40\"> and <img src=\"beside.png\"> and <img src=\"http://example.invalid/x.png\">"
+            " and <img src=\"" + QUrl::fromLocalFile(outside.filePath(QStringLiteral("secret.png"))).toEncoded() + "\"> and <img src=\"../secret.png\"> end.</p>"
+            "<ul><li>one<ul><li>nested</li></ul></li><li>two</li></ul><ol><li>first</li><li>second</li></ol><ol><li>again</li></ol></body></html>";
+        Document d;
+        QString err;
+        QVERIFY2(readHtml(page, &d, &err, dir.path()), qPrintable(err));
+        // Links: an external relationship each for https and mailto, none for a script address.
+        int links = 0;
+        QStringList targets;
+        for (const Relationship &r : d.mainRelationships)
+            if (r.external && r.type.endsWith(QLatin1String("/hyperlink"))) targets << r.target;
+        QCOMPARE(targets, (QStringList{"https://example.com/x?a=1&b=2", "mailto:a@example.com"}));
+        for (const Block &b : d.body)
+            if (!b.isRaw)
+                for (const Inline &in : b.para.content) links += in.kind == Inline::ParaAtom && in.tag == QLatin1String("hyperlink") && in.role == Inline::Open;
+        QCOMPARE(links, 2);
+        // Pictures: the one in the page and the one beside it; not the one from the network, a file elsewhere, or a path that climbs out.
+        int drawings = 0;
+        for (const Block &b : d.body)
+            if (!b.isRaw)
+                for (const Inline &in : b.para.content) drawings += in.kind == Inline::RunAtom && in.tag == QLatin1String("drawing");
+        QCOMPARE(drawings, 2);
+        int media = 0;
+        for (const KeptPart &p : d.parts) media += p.name.startsWith(QLatin1String("/word/media/")) && p.contentType == QLatin1String("image/png") && p.data == png;
+        QCOMPARE(media, 2);
+        // Lists are lists: each item has a list and a level, and the second ordered list is numbered from one again.
+        QVector<std::pair<int, int>> numbered;   // (numId, ilvl) of each list item
+        QStringList itemTexts;
+        for (const Block &b : d.body)
+            if (!b.isRaw && b.para.props.numId) {
+                numbered.push_back({*b.para.props.numId, b.para.props.ilvl.value_or(0)});
+                QString t;
+                for (const Inline &in : b.para.content) t += in.text;
+                itemTexts << t;
+            }
+        QCOMPARE(itemTexts, (QStringList{"one", "nested", "two", "first", "second", "again"}));
+        QCOMPARE(numbered[0].first, numbered[2].first);   // (one and two are the one list)
+        QCOMPARE(numbered[1].second, 1);                   // (nested is a level down)
+        QCOMPARE(numbered[3].first, numbered[4].first);
+        QVERIFY(numbered[3].first != numbered[0].first);   // (numbers, not bullets)
+        QVERIFY(numbered[5].first != numbered[3].first);   // (a new list begins again at 1)
+        const Num *again = d.numbering.num(numbered[5].first);
+        QVERIFY(again && again->startOverrides.value(0, 0) == 1);
+        // It saves as a package that reads back with the same pictures, links, and lists.
+        const QByteArray docx = writeDocx(d);
+        Document back;
+        QVERIFY2(!docx.isEmpty() && readDocx(docx, &back, &err), qPrintable(err));
+        int backMedia = 0, backLinks = 0;
+        for (const KeptPart &p : back.parts) backMedia += p.name.startsWith(QLatin1String("/word/media/"));
+        for (const Relationship &r : back.mainRelationships) backLinks += r.external && r.type.endsWith(QLatin1String("/hyperlink"));
+        QCOMPARE(backMedia, 2);
+        QCOMPARE(backLinks, 2);
+        // Without a folder no file is read; a page of many pictures is cut off at the limit.
+        Document noFolder;
+        QVERIFY(readHtml(page, &noFolder, &err));
+        int drawn = 0;
+        for (const Block &b : noFolder.body)
+            if (!b.isRaw)
+                for (const Inline &in : b.para.content) drawn += in.kind == Inline::RunAtom;
+        QCOMPARE(drawn, 1);   // (the picture in the page itself)
+        QByteArray many = "<html><body><p>";
+        for (int i = 0; i < kMostHtmlImages + 50; ++i) many += "<img src=\"data:image/png;base64," + png.toBase64() + "\">";
+        many += "</p></body></html>";
+        Document crowded;
+        QVERIFY(readHtml(many, &crowded, &err));
+        int crowd = 0;
+        for (const Block &b : crowded.body)
+            if (!b.isRaw)
+                for (const Inline &in : b.para.content) crowd += in.kind == Inline::RunAtom;
+        QCOMPARE(crowd, kMostHtmlImages);
     }
 
     void roundTripKeepsPartsAndTheirRelationshipsAsTheyWere()

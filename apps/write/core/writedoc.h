@@ -157,7 +157,8 @@ public:
     // A document of plain text: a paragraph for each line, in the default style (the text of a .txt file once its characters are read).
     static std::unique_ptr<WriteDoc> fromText(const QString &text);
     // A document from the bytes of a file of any kind: an OpenDocument text, a Rich Text Format file (it begins "{\\rtf"), and an old binary file (a compound file) are read as such, anything else as a .docx.
-    static std::unique_ptr<WriteDoc> fromFile(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr);
+    // `baseDir` is the folder of the file the bytes came from: the pictures of a web page that sit in files beside it are read from there (nothing else is opened, and no address of the network).
+    static std::unique_ptr<WriteDoc> fromFile(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr, const QString &baseDir = QString());
     // The story written back into a package (empty, with the reason, if it can't be made). `template_` saves it as a template.
     // `macros`: the macro project, its signature, and its data are kept as they were (for a .docm or .dotm); otherwise they are left out.
     QByteArray toDocx(QString *error = nullptr, bool template_ = false, bool macros = false);
