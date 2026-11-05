@@ -2,7 +2,7 @@
 
 JeffBase is the desktop database app of JeffOffice, for contact lists, inventories, and small-business records. JeffOffice is an independent project: JeffBase aims to work with Access databases and the people who use them (compatibility and interoperability), and then to do more, and do it better. It keeps its own data in a **SQLite** file by default, opens Access's `.accdb` and `.mdb` files, and saves `.accdb` for people who still use Access. It is not built yet: nothing exists except what the suite already does for every app, so `[x]` and `[~]` count only that. This list is the whole job, a checklist of features: everything people rely on so their Access databases open, give the right answers, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
 
-Last reviewed October 16, 2026.
+Last reviewed November 5, 2026.
 
 Legend: `[x]` done · `[~]` partly there (the note says what's missing, or which shared JeffOffice part it builds on) · `[ ]` not yet · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
@@ -48,6 +48,9 @@ What JeffBase offers that Access doesn't, then the plans that go past Access.
 - [ ] **later** Work in a transaction: gather several edits, then commit them together or roll them all back
 - [ ] **later** A JSON field type with path lookups, and JSON import and export, using SQLite's own JSON functions
 - [ ] **later** Full outer joins in queries (Access has none; SQLite does)
+- [ ] **later** Data sources from an address book or a directory server (LDAP), read as tables, so a letter or a mail merge can use them without importing
+- [ ] **later** Send an SQL statement straight to the engine without parsing it, for statements the query designer doesn't know
+- [ ] **later** Drag a table, a query, or a field from the list of data sources into a document or a sheet to make a table, fields, or a merge letter there
 
 ## File (backstage)
 
