@@ -502,6 +502,32 @@ void CrunchWindow::createPivotActions()
     mk("pivot.drillDown", tr("Drill Down"), "arrow-down-to-line", QKeySequence(), [drill] { drill(true); });
     mk("pivot.drillUp", tr("Drill Up"), "arrow-up-to-line", QKeySequence(), [drill] { drill(false); });
     m_opsActions << QStringLiteral("pivot.drillDown") << QStringLiteral("pivot.drillUp");
+    // Report Filter Pages: a sheet with a copy of the table for each item of one of its filters
+    mk("pivot.reportPages", tr("Show Report Filter Pages…"), "copy", QKeySequence(), [this] {
+        const int t = selectedPivot();
+        if (t < 0 || !editingAllowed()) return;
+        if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+        const PivotTableEntry &entry = m_session->workbook()->pivots().table(t);
+        if (!entry.table || entry.table->pageFields.isEmpty()) return;
+        int which = 0;
+        if (entry.table->pageFields.size() > 1) {
+            const PivotCache *cache = entry.cache >= 0 ? m_session->workbook()->pivots().cache(entry.cache).cache.get() : nullptr;
+            QStringList names;
+            for (const PivotPageField &p : entry.table->pageFields) {
+                const PivotField &pf = entry.table->fields[p.fld];
+                names << (!pf.name.isEmpty() ? pf.name : cache && p.fld < cache->fields.size() ? cache->fields[p.fld].name : QString());
+            }
+            bool ok = false;
+            const QString picked = m_pageFieldAsker ? m_pageFieldAsker(names, &ok) : QInputDialog::getItem(this, tr("Show Report Filter Pages"), tr("Make a page for each item of this filter:"), names, 0, false, &ok);
+            if (!ok) return;
+            which = std::max(0, int(names.indexOf(picked)));
+        }
+        int first = -1;
+        pivotProblem(tr("Show Report Filter Pages"), m_session->showReportFilterPages(t, which, &first));
+        m_pivotShown = nullptr;
+        updatePivotTab();
+    });
+    m_opsActions << QStringLiteral("pivot.reportPages");
     auto blankRows = [this](bool on) {
         editPivot([on](PivotTable *t) {
             for (int f : t->rowFields)
@@ -1001,6 +1027,14 @@ void CrunchWindow::updatePivotFieldActions()
     const bool inTable = selectedPivot() >= 0;
     for (const char *id : {"pivot.fieldSettings", "pivot.expandField", "pivot.collapseField", "pivot.group", "pivot.ungroup", "pivot.showDetail", "pivot.selectAll", "pivot.selectValues", "pivot.selectLabels", "pivot.move", "pivot.drillDown", "pivot.drillUp"})
         if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(open && inTable);
+    {
+        bool filtered = false;
+        if (open && inTable) {
+            const PivotTableEntry &entry = m_session->workbook()->pivots().table(selectedPivot());
+            filtered = entry.table && !entry.table->pageFields.isEmpty();
+        }
+        if (QAction *a = act(QStringLiteral("pivot.reportPages"))) a->setEnabled(filtered);
+    }
 }
 
 void CrunchWindow::updatePivotTab()

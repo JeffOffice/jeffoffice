@@ -392,6 +392,9 @@ public:
     // The rows behind a value of a pivot table (the cell at `row`, `col` of `sheet`), put on a new sheet with the names of the fields above them: one step of Undo for the sheet, one for the rows.
     // `made` is the sheet's place. A cell that is no value, or a table that can't be read, is refused.
     Outcome showPivotDetail(int sheet, quint32 row, quint32 col, int *made = nullptr);
+    // Report Filter Pages: a copy of the table on a new sheet for each item of one of its filters (the number of the filter among the table's), the filter set to that item and the sheet named
+    // for it, all as one step of Undo. `firstSheet` gets the place of the first new sheet.
+    Outcome showReportFilterPages(int table, int pageField, int *firstSheet = nullptr);
     // Whether the cell is a value of a pivot table (a double click on it shows its rows instead of editing it).
     bool isPivotValue(int sheet, quint32 row, quint32 col) const;
     // Whether the table's data is read again when the file opens (the cache's mark).

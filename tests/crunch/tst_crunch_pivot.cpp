@@ -1023,6 +1023,84 @@ private Q_SLOTS:
         QCOMPARE(s->editText(0, 11, 0), QStringLiteral("=F%1").arg(pageRow + 1));
     }
 
+    // Report Filter Pages: a copy of the table on a new sheet for each item of a filter, the sheet named for the item, the filter set to it; one step of Undo.
+    void reportFilterPagesMakeASheetForEachItem()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        jp::office::sheet::PivotTable t = *s->workbook()->pivots().table(0).table;
+        t.colFields.clear();
+        jp::office::sheet::PivotPageField page;
+        page.fld = 1;
+        t.pageFields.append(page);
+        QVERIFY2(s->setPivot(0, t, true, QStringLiteral("Filter")).ok, "filter");
+        finish(e);
+        auto live = [&] {
+            QStringList names;
+            for (const auto &se : s->workbook()->info().sheets)
+                if (!se.deleted) names << se.name;
+            return names;
+        };
+        QCOMPARE(live().size(), 1);
+        const int steps = s->undoStack()->count();
+        int first = -1;
+        const auto o = s->showReportFilterPages(0, 0, &first);
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QStringList names = live();
+        names.sort();
+        QCOMPARE(names, (QStringList{QStringLiteral("Feb"), QStringLiteral("Jan"), QStringLiteral("Sheet1")}));
+        QCOMPARE(int(s->workbook()->pivots().tableCount()), 3);
+        auto holds = [&](int sheet, double number) {
+            for (quint32 r = 0; r < 30; ++r)
+                for (quint32 c = 0; c < 12; ++c) {
+                    const auto v = s->valueAt(sheet, r, c);
+                    if (v.isNumber() && v.number() == number) return true;
+                }
+            return false;
+        };
+        int jan = -1, feb = -1;
+        for (int i = 0; i < s->workbook()->info().sheets.size(); ++i) {
+            if (s->workbook()->info().sheets[i].name == QLatin1String("Jan")) jan = i;
+            if (s->workbook()->info().sheets[i].name == QLatin1String("Feb")) feb = i;
+        }
+        QVERIFY(jan >= 0 && feb >= 0 && first >= 0);
+        QVERIFY(holds(jan, 22) && !holds(jan, 27));   // (Jan: East 15 and West 7)
+        QVERIFY(holds(feb, 20) && !holds(feb, 22));
+        s->undoStack()->undo();
+        finish(e);
+        QCOMPARE(live(), (QStringList{QStringLiteral("Sheet1")}));
+        QCOMPARE(int(s->workbook()->pivots().tableCount()), 1);
+        // a table with no filter has none to show pages for
+        QVERIFY(!s->showReportFilterPages(0, 5).ok);
+    }
+
+    // The command is on only in a table that has a filter, and then it makes the pages.
+    void theReportFilterPagesCommandNeedsAFilter()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        QVERIFY(!e.win.w.act(QStringLiteral("pivot.reportPages"))->isEnabled());
+        jp::office::sheet::PivotTable t = *s->workbook()->pivots().table(0).table;
+        t.colFields.clear();
+        jp::office::sheet::PivotPageField page;
+        page.fld = 1;
+        t.pageFields.append(page);
+        QVERIFY2(s->setPivot(0, t, true, QStringLiteral("Filter")).ok, "filter");
+        finish(e);
+        const jp::office::sheet::CellRange where = s->workbook()->pivots().locationOf(0);
+        e.view()->selectRange(where.row1 + 1, where.col1 + 1, where.row1 + 1, where.col1 + 1);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("pivot.reportPages"))->isEnabled());
+        e.win.w.act(QStringLiteral("pivot.reportPages"))->trigger();
+        finish(e);
+        QCOMPARE(int(s->workbook()->pivots().tableCount()), 3);
+    }
+
     // What sits where the pivot table would go (merged cells that are empty, here) is found before anything is moved: nothing changes, and the reason is told.
     void aPivotTableIsNotMovedOverMergedCells()
     {
