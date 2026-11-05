@@ -10,7 +10,7 @@ A **shape** is a drawn figure, such as a rectangle, an arrow, a star, or a speec
 
 The shape appears with its handles, and the **Shape Format** tab opens. It is blue, with a darker blue line round it. The words go round it, a square wrap.
 
-A **line** is as long as a shape of its own and has no fill. The **Arrow** is a line with a head at the end.
+A **line** is as long as a shape of its own and has no fill. The **Arrow** is a line with a head at the end. **Elbow Arrow** bends once at a right angle, and **Curved Arrow** bends in a smooth curve. Both have a head at the end. They are not joined to the shapes at their ends: move them by hand.
 
 ## Put a text box in
 

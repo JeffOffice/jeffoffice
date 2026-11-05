@@ -67,6 +67,8 @@ QString presetTitle(const QString &preset)
 {
     if (preset == QLatin1String("line")) return QCoreApplication::translate("jp::WriteWindow", "Line");
     if (preset == QLatin1String("straightConnector1")) return QCoreApplication::translate("jp::WriteWindow", "Arrow");
+    if (preset == QLatin1String("bentConnector3")) return QCoreApplication::translate("jp::WriteWindow", "Elbow Arrow");
+    if (preset == QLatin1String("curvedConnector3")) return QCoreApplication::translate("jp::WriteWindow", "Curved Arrow");
     const QString library = office::shapeForPreset(preset);
     if (!library.isEmpty())
         if (const ShapeDef *def = shapeDef(library)) return def->name;

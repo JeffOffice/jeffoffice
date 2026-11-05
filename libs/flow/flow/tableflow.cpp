@@ -526,8 +526,13 @@ double TableLayout::turnedLength(const Cell &c) const
                 int frame = 0;
                 QRectF caret;
                 // (Where the line's last character ends: its caret after the character.)
-                if (part.text->caretRect(std::max(l.pos, l.end - 1), &frame, &caret)) widest = std::max(widest, caret.right() + 4);
-                else widest = std::max(widest, l.rect.right());
+                bool any = false;
+                for (const int at : {l.end, std::max(l.pos, l.end - 1)})
+                    if (part.text->caretRect(at, &frame, &caret)) {
+                        widest = std::max(widest, caret.right() + 6);
+                        any = true;
+                    }
+                if (!any) widest = std::max(widest, l.rect.right());
             }
         } else if (part.table) {
             widest = std::max(widest, part.table->layout->width());

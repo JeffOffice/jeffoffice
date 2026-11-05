@@ -367,7 +367,7 @@ DrawnKind kindOfShape(const Shape &s)
     if (s.kind == Shape::Picture) return DrawnKind::Picture;
     if (s.kind == Shape::TextBox) return DrawnKind::TextBox;
     if (s.kind == Shape::Line) return DrawnKind::Line;
-    return s.wsp.contains("prst=\"line\"") || s.wsp.contains("prst=\"straightConnector1\"") ? DrawnKind::Line : DrawnKind::Shape;
+    return s.wsp.contains("prst=\"line\"") || s.wsp.contains("prst=\"straightConnector1\"") || s.wsp.contains("prst=\"bentConnector") || s.wsp.contains("prst=\"curvedConnector") ? DrawnKind::Line : DrawnKind::Shape;
 }
 
 PictureWrap wrapOfShape(const Shape &s)
@@ -1281,7 +1281,7 @@ BoxContent boxContentOf(const QByteArray &graphic)
 const QVector<ShapeGroup> &shapeGallery()
 {
     static const QVector<ShapeGroup> groups = {
-        {QStringLiteral("Lines"), {QStringLiteral("line"), QStringLiteral("straightConnector1")}},
+        {QStringLiteral("Lines"), {QStringLiteral("line"), QStringLiteral("straightConnector1"), QStringLiteral("bentConnector3"), QStringLiteral("curvedConnector3")}},
         {QStringLiteral("Rectangles"), {QStringLiteral("rect"), QStringLiteral("roundRect"), QStringLiteral("snip1Rect"), QStringLiteral("snip2SameRect"), QStringLiteral("round1Rect"),
                                          QStringLiteral("round2SameRect")}},
         {QStringLiteral("Basic Shapes"), {QStringLiteral("ellipse"), QStringLiteral("triangle"), QStringLiteral("rtTriangle"), QStringLiteral("diamond"), QStringLiteral("parallelogram"),
@@ -1312,21 +1312,23 @@ PictureResult insertShape(WriteDoc &doc, QTextCursor &c, const QString &preset, 
     for (const ShapeGroup &g : shapeGallery()) known = known || g.presets.contains(preset);
     if (!known) return PictureResult::Unreadable;
     const bool isLine = preset == QLatin1String("line") || preset == QLatin1String("straightConnector1");
+    // (The elbow and the curved connector are shapes of their own geometry that are not filled, with an arrowhead at the end, as the straight one has.)
+    const bool isConnector = preset == QLatin1String("bentConnector3") || preset == QLatin1String("curvedConnector3");
     const bool square = QStringList{QStringLiteral("ellipse"), QStringLiteral("sun"), QStringLiteral("moon"), QStringLiteral("heart"), QStringLiteral("smileyFace"), QStringLiteral("donut"),
                                     QStringLiteral("plus"), QStringLiteral("mathPlus"), QStringLiteral("mathMinus"), QStringLiteral("mathMultiply"), QStringLiteral("mathDivide"),
                                     QStringLiteral("mathEqual"), QStringLiteral("mathNotEqual"), QStringLiteral("flowChartConnector"), QStringLiteral("cube"), QStringLiteral("frame")}
                             .contains(preset) || preset.startsWith(QLatin1String("star")) || preset.startsWith(QLatin1String("irregularSeal"));
-    const QSizeF usual = isLine ? QSizeF(108, 0) : square ? QSizeF(86, 86) : QSizeF(108, 72);
+    const QSizeF usual = isLine ? QSizeF(108, 0) : isConnector ? QSizeF(108, 40) : square ? QSizeF(86, 86) : QSizeF(108, 72);
     QSizeF made = size.width() <= 0 && size.height() <= 0 ? usual : size;
     // (Only a line may be flat; any other shape is as large as a picture's least.)
     made = QSizeF(std::clamp(made.width(), isLine ? 0.0 : kLeastPictureSize, kMostPictureSize), std::clamp(made.height(), isLine ? 0.0 : kLeastPictureSize, kMostPictureSize));
     if (isLine && made.width() <= 0 && made.height() <= 0) made = usual;
     // (A line is not filled; an arrow has its head at the end.)
     ShapeLook shown = look;
-    if (isLine) shown.fill.clear();
-    const QByteArray ends = preset == QLatin1String("straightConnector1") ? QByteArray("<a:tailEnd type=\"triangle\"/>") : QByteArray();
+    if (isLine || isConnector) shown.fill.clear();
+    const QByteArray ends = preset == QLatin1String("straightConnector1") || isConnector ? QByteArray("<a:tailEnd type=\"triangle\"/>") : QByteArray();
     const QByteArray graphic = shapeGraphic(preset, emuOf(made.width()), emuOf(made.height()), shown, ends, nullptr);
-    return insertShapeGraphic(doc, c, graphic, made.width(), made.height(), wrap, isLine ? QStringLiteral("Line") : QStringLiteral("Shape"));
+    return insertShapeGraphic(doc, c, graphic, made.width(), made.height(), wrap, isLine ? QStringLiteral("Line") : isConnector ? QStringLiteral("Connector") : QStringLiteral("Shape"));
 }
 
 const QVector<TextBoxDesign> &textBoxDesigns()
