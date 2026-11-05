@@ -23,7 +23,7 @@
               "menu": ["edit.paste", "paste.formulas", "paste.values", "paste.formats", "paste.transpose", "-", "paste.special"]
             },
             {"small": "edit.cut", "keytip": "X"},
-            {"small": "edit.copy", "keytip": "C"},
+            {"small": "edit.copy", "keytip": "C", "split": true, "menu": ["edit.copy", "edit.copyPicture", "edit.copyBitmap"]},
             {"small": "fmt.painter", "keytip": "FP"}
           ]
         },

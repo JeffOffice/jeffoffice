@@ -296,6 +296,37 @@ private Q_SLOTS:
         QVERIFY(!s->anchors().noteAt(0, 0, 3));
     }
 
+    // Copy as Picture and Copy as Bitmap put an image of the selected cells (as drawn on screen, without the selection's tint) on the clipboard; the bitmap is the smaller.
+    void copyAsPictureMakesAnImageOfTheCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Hello", "B1=2", "A2=x"})));
+        e.view()->selectRange(0, 0, 1, 1);
+        QAction *picture = e.win.w.act(QStringLiteral("edit.copyPicture")), *bitmap = e.win.w.act(QStringLiteral("edit.copyBitmap"));
+        QVERIFY(picture && bitmap);
+        QVERIFY(picture->isEnabled() && bitmap->isEnabled());
+        QApplication::clipboard()->clear();
+        picture->trigger();
+        QTRY_VERIFY(!QApplication::clipboard()->image().isNull());
+        const QImage big = QApplication::clipboard()->image();
+        QVERIFY(big.width() > 60 && big.height() > 20);
+        // the empty cell B2, at the bottom right, is white: the selection's tint is not in the picture
+        QCOMPARE(big.pixelColor(big.width() * 3 / 4, big.height() * 3 / 4), QColor(Qt::white));
+        bool dark = false;   // (and the text is drawn)
+        for (int y = 0; y < big.height() && !dark; ++y)
+            for (int x = 0; x < big.width() && !dark; ++x) dark = qGray(big.pixel(x, y)) < 100;
+        QVERIFY(dark);
+        QApplication::clipboard()->clear();
+        bitmap->trigger();
+        QTRY_VERIFY(!QApplication::clipboard()->image().isNull());
+        QVERIFY(QApplication::clipboard()->image().width() < big.width());
+        // a block too big for one picture is told, and the clipboard is left alone
+        QApplication::clipboard()->clear();
+        e.view()->selectRange(0, 0, 5000, 40);
+        picture->trigger();
+        QVERIFY(QApplication::clipboard()->image().isNull());
+    }
+
     // Paste Special: values (a formula becomes its result), formulas, formats, the block turned over, the empty cells left, and an operation made with what is there.
     void pasteSpecialOptions()
     {
