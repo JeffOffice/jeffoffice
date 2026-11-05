@@ -536,6 +536,40 @@ private Q_SLOTS:
         w.document()->undo();
         QCOMPARE(w.outlineView()->topLevelItem(0)->text(0), QStringLiteral("One"));
     }
+
+    void aNewParagraphInTheOutlineHasTheLevelOfTheOneBefore()
+    {
+        auto doc = outlineDoc({{"One", 1}, {"body", kBodyLevel}, {"Two", 0}});
+        QVector<OutlineRow> rows = outlineRows(*doc);
+        int at = -1;
+        QVERIFY(outlineInsertAfter(*doc, rows[0].position, &at));
+        QCOMPARE(texts(*doc), (QStringList{"One", "", "body", "Two"}));
+        QCOMPARE(levels(*doc), (QList<int>{1, 1, kBodyLevel, 0}));
+        QCOMPARE(at, outlineRows(*doc)[1].position);
+        QVERIFY(outlineInsertAfter(*doc, outlineRows(*doc)[2].position, &at));
+        QCOMPARE(levels(*doc), (QList<int>{1, 1, kBodyLevel, kBodyLevel, 0}));
+        doc->undo();
+        QCOMPARE(texts(*doc).size(), 4);
+        QCOMPARE(levels(*doc), (QList<int>{1, 1, kBodyLevel, 0}));
+    }
+
+    void enterTabAndShiftTabWorkInTheOutline()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(outlineDoc({{"One", 0}, {"Sub", 1}, {"body", kBodyLevel}}), QString());
+        w.setOutlineMode(true);
+        w.outlineView()->selectParagraphAt(outlineRows(*w.document())[1].position);
+        QTest::keyClick(w.outlineView(), Qt::Key_Tab);   // demote Sub (it has body text under it, which stays body text)
+        QCOMPARE(levels(*w.document()), (QList<int>{0, 2, kBodyLevel}));
+        QTest::keyClick(w.outlineView(), Qt::Key_Backtab, Qt::ShiftModifier);
+        QCOMPARE(levels(*w.document()), (QList<int>{0, 1, kBodyLevel}));
+        QTest::keyClick(w.outlineView(), Qt::Key_Return);
+        QCOMPARE(texts(*w.document()), (QStringList{"One", "Sub", "", "body"}));
+        QCOMPARE(levels(*w.document()).at(2), 1);
+        QCOMPARE(w.outlineView()->selectedRange().first, outlineRows(*w.document())[2].position);
+    }
 };
 
 QTEST_MAIN(Tabs2Tests)

@@ -71,6 +71,22 @@ bool outlineSetText(WriteDoc &doc, int position, const QString &textIn)
     return true;
 }
 
+bool outlineInsertAfter(WriteDoc &doc, int position, int *newAt)
+{
+    const QVector<OutlineRow> rows = outlineRows(doc);
+    const int i = rowAt(rows, position);
+    if (i < 0 || !rows[i].editable) return false;
+    const WriteDoc::StepGroup group(doc);
+    QTextCursor c(doc.story());
+    c.setPosition(rows[i].position);
+    c.movePosition(QTextCursor::EndOfBlock);
+    insertParagraph(doc, c);
+    const int at = c.block().position();
+    if (levelOf(c.block()) != rows[i].level) outlineSetLevel(doc, at, at, rows[i].level);
+    if (newAt) *newAt = at;
+    return true;
+}
+
 bool outlineSetLevel(WriteDoc &doc, int first, int last, int level)
 {
     const QVector<OutlineRow> rows = outlineRows(doc);

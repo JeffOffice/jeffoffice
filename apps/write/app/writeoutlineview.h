@@ -40,8 +40,15 @@ public:
     QStringList shownRows() const;
 
 Q_SIGNALS:
+    // Enter on a row (not in its box): a new paragraph after it. Tab and Shift+Tab: its level one lower or higher (demote and promote).
+    void newParagraphWanted();
+    void levelKeyPressed(int by);
     // Words typed into a row: the place in the text of its paragraph and the new words.
     void textTyped(int position, const QString &text);
+
+protected:
+    bool event(QEvent *e) override;
+    void keyPressEvent(QKeyEvent *e) override;
 
 private:
     void applyLevel();

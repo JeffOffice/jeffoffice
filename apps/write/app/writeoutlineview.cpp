@@ -4,6 +4,7 @@
 #include "core/writedoc.h"
 
 #include <QHeaderView>
+#include <QKeyEvent>
 #include <QStack>
 
 namespace jp {
@@ -31,6 +32,28 @@ WriteOutlineView::WriteOutlineView(QWidget *parent) : QTreeWidget(parent)
     connect(this, &QTreeWidget::itemChanged, this, [this](QTreeWidgetItem *item, int) {
         if (!m_building) Q_EMIT textTyped(positionOf(item), item->text(0));
     });
+}
+
+bool WriteOutlineView::event(QEvent *e)
+{
+    // (Tab is the outline's own key, not the one that moves on to the next control.)
+    if (e->type() == QEvent::KeyPress && state() != EditingState) {
+        const int key = static_cast<QKeyEvent *>(e)->key();
+        if (key == Qt::Key_Tab || key == Qt::Key_Backtab) {
+            Q_EMIT levelKeyPressed(key == Qt::Key_Tab ? 1 : -1);
+            return true;
+        }
+    }
+    return QTreeWidget::event(e);
+}
+
+void WriteOutlineView::keyPressEvent(QKeyEvent *e)
+{
+    if ((e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) && state() != EditingState && !selectedItems().isEmpty()) {
+        Q_EMIT newParagraphWanted();
+        return;
+    }
+    QTreeWidget::keyPressEvent(e);
 }
 
 void WriteOutlineView::setDocument(write::WriteDoc *doc)

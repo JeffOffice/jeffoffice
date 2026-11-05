@@ -71,6 +71,16 @@ void WriteWindow::createOutlineActions()
     // (They work in the outline only, and so are off, and their keys free, otherwise.)
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("outline."))) a->setEnabled(false);
+    connect(m_outline, &WriteOutlineView::levelKeyPressed, this, [this](int by) { act(by > 0 ? "outline.demote" : "outline.promote")->trigger(); });
+    connect(m_outline, &WriteOutlineView::newParagraphWanted, this, [this] {
+        if (!m_doc || !m_outlineOn || isReadOnly()) return;
+        const QPair<int, int> range = m_outline->selectedRange();
+        int at = -1;
+        if (range.first < 0 || !write::outlineInsertAfter(*m_doc, range.second, &at)) return;
+        outlineEdited();
+        m_outline->selectParagraphAt(at);
+        if (QTreeWidgetItem *item = m_outline->currentItem(); item && (item->flags() & Qt::ItemIsEditable)) m_outline->editItem(item);
+    });
     connect(m_outline, &WriteOutlineView::textTyped, this, [this](int position, const QString &text) {
         if (!m_doc || !m_outlineOn) return;
         if (isReadOnly()) {

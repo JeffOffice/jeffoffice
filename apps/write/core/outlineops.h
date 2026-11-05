@@ -28,6 +28,8 @@ int outlineSubtreeEnd(const QVector<OutlineRow> &rows, int i);
 bool outlineShift(WriteDoc &doc, int first, int last, int by, bool withSubtree);
 // Puts new words in the paragraph at the position, in the look its first letter has (a line break is a space); one step that undoes. False where the paragraph is not editable.
 bool outlineSetText(WriteDoc &doc, int position, const QString &text);
+// A new empty paragraph after the one at the position, with the same outline level; its place is put in `newAt`. One step that undoes.
+bool outlineInsertAfter(WriteDoc &doc, int position, int *newAt = nullptr);
 // Makes the paragraphs a heading of `level` (0 to 8), or body text for kBodyLevel. True if anything changed.
 bool outlineSetLevel(WriteDoc &doc, int first, int last, int level);
 // Moves the paragraph at `position` (with the headings and text under it, if it is a heading and `withSubtree`) before the paragraph above it, or after the one below. False where it can't move.
