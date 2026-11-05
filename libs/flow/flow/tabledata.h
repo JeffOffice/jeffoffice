@@ -31,6 +31,8 @@ struct TableLine {
 };
 
 enum class CellAlign : quint8 { Top, Center, Bottom };
+// The way a cell's text runs: across, or turned so that it reads from the top down (its lines stack from the right) or from the bottom up (from the left).
+enum class CellDirection : quint8 { Horizontal, TopToBottom, BottomToTop };
 
 // What all the cells of a table share. Lengths are in points.
 struct TableData {
@@ -76,6 +78,7 @@ struct CellData {
     std::optional<TableLine> top, left, bottom, right;   // its own borders (a line of no style says none); else the table's
     std::optional<QColor> fill;     // its own (a transparent one says none); else the table's, if any
     CellAlign valign = CellAlign::Top;
+    CellDirection direction = CellDirection::Horizontal;
     bool noWrap = false;
     std::shared_ptr<const void> app;
 };

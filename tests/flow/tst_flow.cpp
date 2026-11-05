@@ -13590,6 +13590,45 @@ private Q_SLOTS:
         }
     }
 
+    // A cell whose text is turned (from the top down or from the bottom up) lays its lines out along the row: the row is as tall as the text is long (up to a limit), the lines stack
+    // across the cell from the side the direction says, and the caret and a click in it are found through the turn.
+    void aCellWithTurnedTextHasItsRowAsTallAsTheTextIsLong()
+    {
+        for (const CellDirection direction : {CellDirection::BottomToTop, CellDirection::TopToBottom}) {
+            FlowDocument fd;
+            fd.sections[0].paper = QSizeF(400, 400);
+            fd.sections[0].margins = QMarginsF(36, 36, 36, 36);
+            TestTable spec;
+            spec.rows = 1;
+            spec.cols = 2;
+            spec.columnWidth = 60;
+            spec.text = [](int, int c) { return c == 0 ? QStringLiteral("Turned text of some length") : QStringLiteral("x"); };
+            spec.setCell = [&](int, int c, CellData &cell) {
+                if (c == 0) cell.direction = direction;
+            };
+            const TestTable table = addTable(fd, spec);
+            Paginator pg(&fd);
+            const auto page = pg.materialize(0);
+            QVERIFY(page && !page->tables.isEmpty());
+            const TableFragment &fragment = *page->tables[0];
+            // (Across, the text would wrap in 60 points and make a row of about 60: turned, it is on one line along the row.)
+            QVERIFY2(fragment.layout->rowHeight(0) > 100 && fragment.layout->rowHeight(0) < 260, qPrintable(QString::number(fragment.layout->rowHeight(0))));
+            const int first = table.rowStarts[0];
+            QLineF line;
+            QVERIFY(fragment.caretLine(first, &line));
+            QVERIFY2(std::abs(line.dx()) > std::abs(line.dy()) * 3, "the caret of turned text lies across the line");
+            const QRectF all = fragment.rect();
+            if (direction == CellDirection::BottomToTop) QVERIFY2(line.y1() > all.center().y(), "the text begins at the foot");
+            else QVERIFY2(line.y1() < all.center().y(), "the text begins at the top");
+            // A click on the caret finds the character.
+            QLineF later;
+            QVERIFY(fragment.caretLine(first + 5, &later));
+            QVERIFY(std::abs(later.y1() - line.y1()) > 10);
+            const int hit = fragment.positionAt(QPointF(later.center().x(), later.center().y()));
+            QVERIFY2(hit >= first + 3 && hit <= first + 7, qPrintable(QString::number(hit - first)));
+        }
+    }
+
     // A file that says more than it can mean: cells that span further than the table has columns, a table that is a single row with a header, a header row taller than the
     // page, and cells joined down that have nothing to be joined to. Every one lays out and ends.
     void hostileTablesLayOutAndEnd()

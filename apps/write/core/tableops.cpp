@@ -1669,6 +1669,32 @@ void setCellAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment across, flow:
     c.endEditBlock();
 }
 
+bool hasTurnedText(WriteDoc &doc, const QTextCursor &c)
+{
+    const auto v = viewAt(doc, c.selectionStart());
+    if (!v) return false;
+    const Area area = areaOf(*v, c);
+    for (int i = 0; i < v->layout->cellCount(); ++i)
+        if (hits(v->layout->cell(i), area) && v->layout->cell(i).rec && v->layout->cell(i).rec->cell.direction != flow::CellDirection::Horizontal) return true;
+    return false;
+}
+
+void setCellTextDirection(WriteDoc &doc, QTextCursor &c, flow::CellDirection direction)
+{
+    TableCommand command(doc);
+    editTable(doc, c, [&](XTable &x, const View &w, const Area &a) {
+        const QByteArray element = direction == flow::CellDirection::TopToBottom ? QByteArray("<w:textDirection w:val=\"tbRl\"/>")
+                                   : direction == flow::CellDirection::BottomToTop ? QByteArray("<w:textDirection w:val=\"btLr\"/>") : QByteArray();
+        bool changed = false;
+        forCells(x, w, a, [&](XCell &cell, const flow::TableLayout::Cell &lc) {
+            if (lc.rec && lc.rec->cell.direction == direction) return;
+            cell.open = patchPr(cell.open, kCell, {{"textDirection", element}});
+            changed = true;
+        });
+        return changed;
+    });
+}
+
 // ---- size
 
 void setColumnWidth(WriteDoc &doc, QTextCursor &c, double points)
@@ -1828,7 +1854,7 @@ bool TableProps::operator==(const TableProps &o) const
 {
     return align == o.align && indent == o.indent && widthKind == o.widthKind && width == o.width && fixedLayout == o.fixedLayout && margins == o.margins && spacing == o.spacing &&
            altTitle == o.altTitle && altText == o.altText && style == o.style && look == o.look && rowHeight == o.rowHeight && rowExact == o.rowExact && cantSplit == o.cantSplit &&
-           header == o.header && columnWidth == o.columnWidth && valign == o.valign && noWrap == o.noWrap && wrapAround == o.wrapAround;
+           header == o.header && columnWidth == o.columnWidth && valign == o.valign && noWrap == o.noWrap && direction == o.direction && wrapAround == o.wrapAround;
 }
 
 TableProps tablePropsAt(WriteDoc &doc, const QTextCursor &c)
@@ -1870,6 +1896,7 @@ TableProps tablePropsAt(WriteDoc &doc, const QTextCursor &c)
         if (hits(v->layout->cell(i), a)) {
             p.valign = v->layout->cell(i).rec->cell.valign;
             p.noWrap = v->layout->cell(i).rec->cell.noWrap;
+            p.direction = v->layout->cell(i).rec->cell.direction;
             break;
         }
     return p;
@@ -1914,6 +1941,8 @@ void setTableProps(WriteDoc &doc, QTextCursor &c, const TableProps &was, const T
         QVector<Patch> cell;
         if (now.valign != was.valign) cell.push_back({"vAlign", QByteArray("<w:vAlign w:val=\"") + (now.valign == flow::CellAlign::Center ? "center" : now.valign == flow::CellAlign::Bottom ? "bottom" : "top") + "\"/>"});
         if (now.noWrap != was.noWrap) cell.push_back({"noWrap", now.noWrap ? "<w:noWrap/>" : QByteArray()});
+        if (now.direction != was.direction)
+            cell.push_back({"textDirection", now.direction == flow::CellDirection::TopToBottom ? QByteArray("<w:textDirection w:val=\"tbRl\"/>") : now.direction == flow::CellDirection::BottomToTop ? QByteArray("<w:textDirection w:val=\"btLr\"/>") : QByteArray()});
         if (!cell.isEmpty()) forCells(x, v, a, [&](XCell &cc, const flow::TableLayout::Cell &) { cc.open = patchPr(cc.open, kCell, cell); });
         if (now.columnWidth != was.columnWidth && now.columnWidth > 0) {
             QVector<double> columns = x.columns;

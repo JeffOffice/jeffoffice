@@ -12,6 +12,7 @@
 #include <QPainter>
 #include <QPointF>
 #include <QRectF>
+#include <QTransform>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -80,6 +81,9 @@ struct TableFragment;
 // What is in a cell, laid out: stretches of paragraphs and tables, one under the other, from the top of the cell's text area.
 struct CellContent {
     double height = 0;
+    int turn = 0;                           // the text is turned: 1 reads from the top down, 2 from the bottom up (the parts' lines are laid out along the cell's height: `height` is that length, and
+                                            // `stack` how thick the lines stack across the cell)
+    double stack = 0;
     struct Part {
         double y = 0;
         std::shared_ptr<StoryLayout> text;      // a stretch of paragraphs (its lines are frame 0, from the top of the part)
@@ -224,6 +228,8 @@ public:
     };
     // The most parts a row is shown in: what a row has left after that many is in the last part, whole (so that a row, however much it holds, ends).
     static constexpr int kMostParts = 50000;
+    // The most a cell of turned text lays out to along its row when the row has no height of its own, in points.
+    static constexpr double kMostTurnedLength = 200;
     // The most footnotes of one row (or of one part of it) the page makes room for: a file with more has the rest of its references set without notes.
     static constexpr int kMostRowNotes = 2000;
     // How far down the cell's text area the line of the position is (the top of the line; -1 when the cell has no line with it).
@@ -271,6 +277,9 @@ private:
     };
     std::shared_ptr<const Units> unitsOf(int cell);
     QHash<int, std::shared_ptr<const Units>> m_units;
+    // How long a cell of turned text lays its lines out (along its row): the row's set height inside the cell's margins, else the text's own length (at most kMostTurnedLength).
+    double turnedLength(const Cell &c) const;
+    mutable QHash<int, double> m_turnedNatural;
     std::function<double(const QString &)> m_noteHeight;
 };
 
@@ -351,8 +360,10 @@ private:
         QRectF clip;                        // the part of it on the page (a cell joined down may reach past)
         QRectF box;                         // the cell itself, in its place: the same, or in from it where the table has space between its cells (what its fill and its lines are drawn in)
         QPointF text;                       // where the cell's text area begins
+        bool turned = false;                // its text is turned (CellContent::turn): `map` takes the content's own coordinates to the page's, the text's area being laid out along the row
         double cut = 1e18;                  // the page height below which its text is not drawn (a part of a row ends there, with lines left for the next)
         double from = -1e18;                // the page height above which it is not drawn (a part of a row that goes on from the one before begins its text there)
+        QTransform map;                     // (turned cells)
     };
     std::vector<Placed> place() const;
     mutable std::vector<CellBox> m_boxes;

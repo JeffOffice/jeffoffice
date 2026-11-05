@@ -102,6 +102,10 @@ void setBorders(WriteDoc &doc, QTextCursor &c, int sides, const flow::TableLine 
 void setShading(WriteDoc &doc, QTextCursor &c, const QColor &fill);
 // The nine positions of text in a cell: across as the paragraphs' alignment, down as the cell's.
 void setCellAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment across, flow::CellAlign down);
+// Turns the text of the cells selected (or the cell the caret is in): across, from the top down, or from the bottom up. One step that undoes.
+void setCellTextDirection(WriteDoc &doc, QTextCursor &c, flow::CellDirection direction);
+// Whether the text of any cell selected (or of the cell the caret is in) runs another way than across.
+bool hasTurnedText(WriteDoc &doc, const QTextCursor &c);
 
 // Size: the width of the selected columns, the height of the selected rows (0: as tall as the cells need), the columns or the rows made equal, and the fit.
 void setColumnWidth(WriteDoc &doc, QTextCursor &c, double points);
@@ -134,6 +138,7 @@ struct TableProps {
     double gridWidth = 0;               // (the columns' widths together; not set by setTableProps)
     flow::CellAlign valign = flow::CellAlign::Top;
     bool noWrap = false;
+    flow::CellDirection direction = flow::CellDirection::Horizontal;
     bool wrapAround = false;            // the table is set at a place with the text going round it (w:tblpPr)
     bool operator==(const TableProps &o) const;
 };
