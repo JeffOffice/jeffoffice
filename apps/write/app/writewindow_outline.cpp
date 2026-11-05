@@ -11,6 +11,7 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QSplitter>
 #include <QStatusBar>
 #include <QTimer>
 
@@ -151,7 +152,7 @@ void WriteWindow::setOutlineMode(bool on)
         m_view->leaveHeaderFooter();
         m_view->leaveNote();
         m_ruler->hide();
-        m_view->hide();
+        m_splitter->hide();
         m_outline->setDocument(m_doc.get());
         m_outline->show();
         m_outline->selectParagraphAt(at);
@@ -160,7 +161,7 @@ void WriteWindow::setOutlineMode(bool on)
         // The caret goes to the start of the paragraph selected.
         const int at = m_outline->selectedRange().first;
         m_outline->hide();
-        m_view->show();
+        m_splitter->show();
         m_ruler->setVisible(act("view.ruler")->isChecked());
         if (at >= 0 && m_doc) {
             QTextCursor c(m_doc->story());

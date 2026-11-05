@@ -1,5 +1,5 @@
 # Find your way with the Navigation pane
-<!-- keywords: navigation pane, navigation, headings, outline, pages, thumbnails, results, search, promote, demote, collapse, expand, outline view, outlining, page movement, side to side, read mode, draft view, move heading, show level, focus, focus mode, full screen, gridlines -->
+<!-- keywords: navigation pane, navigation, headings, outline, pages, thumbnails, results, search, promote, demote, collapse, expand, outline view, outlining, page movement, side to side, read mode, draft view, split, move heading, show level, focus, focus mode, full screen, gridlines -->
 
 The **Navigation pane** is a panel on the left of the window. Open it with **View > Navigation Pane**. It has three tabs.
 
@@ -47,6 +47,10 @@ Each change is one step to undo. For more writing, such as new paragraphs, go to
 ## Draft view
 
 **View > Draft** shows the pages one after the other, with no page edges, shadows, headers, or footers. A dotted line shows where each page ends, and it says **Page Break** or **Section Break** where one was put in. You can still write and edit. Choose **Print Layout** to go back to the pages as they print.
+
+## Split
+
+**View > Split** adds a second pane under the pages. It shows the same document, and each pane scrolls and zooms on its own. Use it to look at one place, such as a table, while you write in another. You write in the first pane; the second is for looking, and it shows each change at once. Choose **Split** again to close it.
 
 ## Read Mode
 

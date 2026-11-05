@@ -369,7 +369,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [~] **first release** Status bar: page x of y, word count, language, proofing errors, tracking, section, line, and column, with the view buttons and the zoom slider *(shared: JeffPub's and JeffDeck's status bars)* *(0.9.0: the page, the word count, and the zoom slider)* *(round 10: the section the caret is in, shown where the document has more than one; no line, column, or proofing errors)*
 
 ### Window
-- [ ] **1.0** New Window, Arrange All, Switch Windows, View Side by Side with synchronous scrolling, Reset Window Position, and Split (two panes onto one document) *(shared: JeffPub's windows, apart from Split)*
+- [~] **1.0** New Window, Arrange All, Switch Windows, View Side by Side with synchronous scrolling, Reset Window Position, and Split (two panes onto one document) *(shared: JeffPub's windows, apart from Split)* *(round 10: View > Split puts a second pane under the pages, showing the same document with its own scrolling and zoom, and the text is written in the first pane (the second takes no typing); missing: New Window, Arrange All, Switch Windows, View Side by Side, Reset Window Position, and typing in the second pane)*
 - [x] **first release** Collapse the ribbon with Ctrl+F1, a double-click on a tab, or its chevron *(shared: JeffPub)*
 
 ## Developer tab (hidden until turned on)

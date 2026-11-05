@@ -26,6 +26,7 @@ class QLabel;
 class QMenu;
 class QPrinter;
 class QSlider;
+class QSplitter;
 class QToolButton;
 
 namespace jp {
@@ -195,6 +196,9 @@ public:
     // Draft (View > Draft): the pages run on without edges, headers, or footers; Print Layout and Outline each end it.
     void setDraftView(bool on);
     WriteOutlineView *outlineView() const { return m_outline; }
+    // View > Split: a second pane under the pages shows the same document, scrolled and zoomed on its own, for looking at one place while writing in another. It does not take typing.
+    write::PageView *splitView() const { return m_split; }
+    void setSplit(bool on);
 
     // The Styles pane on the right (made when first asked for, so null before).
     void showStylesPane();
@@ -359,6 +363,8 @@ private:
     QDockWidget *m_navDock = nullptr;
     bool m_focusMode = false;
     WriteOutlineView *m_outline = nullptr;
+    QSplitter *m_splitter = nullptr;
+    write::PageView *m_split = nullptr;
     bool m_outlineOn = false, m_outlineBusy = false;
     struct FocusWas {
         bool fullScreen = false, ribbon = true, ruler = true, status = true;

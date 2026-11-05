@@ -1209,6 +1209,16 @@
           ]
         },
         {
+          "name": "Window",
+          "keytip": "ZW",
+          "items": [
+            {
+              "large": "view.split",
+              "keytip": "SP"
+            }
+          ]
+        },
+        {
           "name": "Page Movement",
           "keytip": "ZM",
           "items": [

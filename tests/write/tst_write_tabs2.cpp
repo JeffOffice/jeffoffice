@@ -743,6 +743,39 @@ private Q_SLOTS:
         QVERIFY(countWords(*narrow, whole, false).lines >= hyphenRun(*narrow).second);   // (that is the first page's lines; the count goes on over the pages)
         QVERIFY(countWords(*narrow, whole, false).lines > 10);
     }
+
+    void splitShowsTheSameDocumentInASecondPane()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 800);
+        w.show();
+        QVERIFY(w.act("view.split") && !w.act("view.split")->isChecked());
+        QVERIFY(!w.splitView() || !w.splitView()->isVisible());
+        w.act(QStringLiteral("view.split"))->trigger();
+        QVERIFY(w.splitView() && w.splitView()->isVisible() && w.view()->isVisible());
+        QCOMPARE(w.splitView()->document(), w.document());
+        QVERIFY(w.splitView()->readOnly());   // (the second pane is for looking: the words are written in the first)
+        // What is written in the first pane is in the second: pages added there are counted there too.
+        QTextCursor c = w.view()->cursor();
+        insertText(*w.document(), c, QStringLiteral("shared words"));
+        insertBlankPage(*w.document(), c);
+        insertBlankPage(*w.document(), c);
+        w.view()->paginateAll();
+        w.splitView()->paginateAll();
+        QCOMPARE(w.splitView()->pageCount(), w.view()->pageCount());
+        QVERIFY(w.view()->pageCount() >= 3);
+        // The two scroll apart.
+        w.splitView()->goToPage(2);
+        QVERIFY(w.splitView()->topPage() != w.view()->topPage());
+        // A new document replaces the one both show.
+        w.setDocument(WriteDoc::blank(), QString());
+        QCOMPARE(w.splitView()->document(), w.document());
+        // Closing the split leaves the one pane.
+        w.act(QStringLiteral("view.split"))->trigger();
+        QVERIFY(!w.splitView()->isVisible() && w.view()->isVisible());
+        QVERIFY(!w.splitView()->document());
+    }
 };
 
 QTEST_MAIN(Tabs2Tests)

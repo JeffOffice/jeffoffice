@@ -5,6 +5,7 @@
 #include "app/icons.h"
 #include "app/keytips.h"
 #include "app/writeoutlineview.h"
+#include <QSplitter>
 #include "app/pageview.h"
 #include "app/reviewpane.h"
 #include "app/ribbon.h"
@@ -89,7 +90,17 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     column->setSpacing(0);
     m_ruler = new write::Ruler(m_view, central);
     column->addWidget(m_ruler);
-    column->addWidget(m_view, 1);
+    // The pages, with room below them for a second view of the same document (View > Split).
+    m_splitter = new QSplitter(Qt::Vertical, central);
+    m_splitter->setChildrenCollapsible(false);
+    m_splitter->addWidget(m_view);
+    m_split = new write::PageView(m_splitter);
+    m_split->setObjectName(QStringLiteral("splitView"));
+    m_split->setAccessibleName(tr("Document, second pane"));
+    m_split->setReadOnly(true);
+    m_split->hide();
+    m_splitter->addWidget(m_split);
+    column->addWidget(m_splitter, 1);
     m_outline = new WriteOutlineView(central);
     m_outline->hide();
     column->addWidget(m_outline, 1);
@@ -192,6 +203,7 @@ bool WriteWindow::isModified() const { return m_doc && m_doc->isModified(); }
 void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QString &path)
 {
     if (m_outlineOn) setOutlineMode(false);
+    m_split->setDocument(nullptr);
     m_view->setDocument(nullptr);
     m_doc = std::move(doc);
     m_path = path;
@@ -204,6 +216,7 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
         });
     }
     m_view->setDocument(m_doc.get());
+    if (m_split->isVisible()) m_split->setDocument(m_doc.get());
     m_view->setZoomMode(write::PageView::ZoomMode::Percent);
     m_view->setZoom(1.0);
     if (m_doc) {

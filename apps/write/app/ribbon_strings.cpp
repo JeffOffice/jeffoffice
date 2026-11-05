@@ -107,6 +107,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "View"),
     QT_TRANSLATE_NOOP("Ribbon", "Views"),
     QT_TRANSLATE_NOOP("Ribbon", "Width:"),
+    QT_TRANSLATE_NOOP("Ribbon", "Window"),
     QT_TRANSLATE_NOOP("Ribbon", "Wrap Text"),
     QT_TRANSLATE_NOOP("Ribbon", "Write & Insert Fields"),
     QT_TRANSLATE_NOOP("Ribbon", "Zoom"),

@@ -10,6 +10,7 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QDockWidget>
+#include <QSplitter>
 #include <QStatusBar>
 #include <QTreeWidget>
 
@@ -24,6 +25,7 @@ void WriteWindow::createViewExtraActions()
     movement->addAction(mk("view.pageMovement.sideToSide", tr("Side to Side"), "arrow-left-right", QKeySequence(), [this] { m_view->setSideToSide(true); }, true));
     act("view.pageMovement.vertical")->setChecked(true);
     mk("view.readMode", tr("Read Mode"), "book-open", QKeySequence(), [this] { setReadMode(act("view.readMode")->isChecked()); }, true);
+    mk("view.split", tr("Split"), "rows-2", QKeySequence(), [this] { setSplit(act("view.split")->isChecked()); }, true);
     mk("view.focus", tr("Focus"), "focus", QKeySequence(Qt::Key_F11), [this] { setFocusMode(!m_focusMode); });
 }
 
@@ -121,6 +123,27 @@ void WriteWindow::setReadMode(bool on)
     act("view.pageMovement.sideToSide")->setChecked(m_view->sideToSide());
     act("view.pageMovement.vertical")->setChecked(!m_view->sideToSide());
     refreshUi();
+}
+
+void WriteWindow::setSplit(bool on)
+{
+    if (on && !m_doc) {
+        act("view.split")->setChecked(false);
+        return;
+    }
+    if (on == m_split->isVisible()) return;
+    if (on) {
+        m_split->setDocument(m_doc.get());
+        m_split->show();
+        // The two panes share the height; the second begins where the first is.
+        m_splitter->setSizes({m_splitter->height() / 2, m_splitter->height() / 2});
+        m_split->goToPage(m_view->topPage());
+    } else {
+        m_split->hide();
+        m_split->setDocument(nullptr);
+    }
+    act("view.split")->setChecked(on);
+    m_view->setFocus(Qt::OtherFocusReason);
 }
 
 void WriteWindow::refreshViewUi()
