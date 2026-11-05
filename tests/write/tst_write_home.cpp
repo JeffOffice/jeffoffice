@@ -1811,6 +1811,46 @@ private Q_SLOTS:
         QVERIFY(!doc->styleSheet().find(id));
     }
 
+    void importingStylesFromAnotherDocumentCopiesThemWithTheirBaseInOneStep()
+    {
+        auto from = open(makeDocx(para(run("source text"))));
+        QTextCursor c(from->story());
+        c.setPosition(0);
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        toggleBold(*from, c);
+        QString problem;
+        office::wml::Style loud = styleFromSelection(*from, c, QStringLiteral("Loud"));
+        loud.basedOn = QStringLiteral("Normal");
+        const QString loudId = createStyle(*from, c, loud, &problem, true);
+        QVERIFY2(!loudId.isEmpty(), qPrintable(problem));
+        office::wml::Style kin = styleFromSelection(*from, c, QStringLiteral("Kin"));
+        kin.basedOn = loudId;
+        const QString kinId = createStyle(*from, c, kin, &problem, false);
+        QVERIFY2(!kinId.isEmpty(), qPrintable(problem));
+        auto to = open(makeDocx(para(run("target text")) + para(run("more"))));
+        QVERIFY(!to->styleSheet().find(loudId) && !to->styleSheet().find(kinId));
+        const quint64 serial = to->nextStepSerial();
+        // One style asked for brings the style it is based on.
+        QCOMPARE(importStyles(*to, *from, {kinId}, false, &problem), 2);
+        QCOMPARE(to->nextStepSerial(), serial + 1);
+        QVERIFY(to->styleSheet().find(loudId) && to->styleSheet().find(kinId));
+        QCOMPARE(to->styleSheet().find(kinId)->basedOn, loudId);
+        QCOMPARE(to->styleSheet().find(loudId)->rPr.bold, std::optional<bool>(true));
+        QVERIFY(to->undo());
+        QVERIFY(!to->styleSheet().find(loudId) && !to->styleSheet().find(kinId));
+        QVERIFY(to->redo());
+        // Styles the document has already are left alone unless asked to replace them; a replaced style restyles its text.
+        QCOMPARE(importStyles(*to, *from, {kinId, loudId}, false, &problem), 0);
+        office::wml::Style italicLoud = *from->styleSheet().find(loudId);
+        italicLoud.rPr.bold = false;
+        italicLoud.rPr.italic = true;
+        QTextCursor none;
+        QVERIFY(modifyStyle(*from, none, loudId, italicLoud, &problem));
+        QCOMPARE(importStyles(*to, *from, {loudId}, true, &problem), 1);
+        QCOMPARE(to->styleSheet().find(loudId)->rPr.italic, std::optional<bool>(true));
+        // A style that is not in the other document, or is a table's, is no style to import.
+        QCOMPARE(importStyles(*to, *from, {QStringLiteral("NoSuchStyle"), QStringLiteral("TableGrid")}, true, &problem), 0);
+    }
 
     void theVerticalRulerShowsTheMarginsOfThePagesAndComesAndGoesWithTheCommand()
     {
@@ -1849,6 +1889,68 @@ private Q_SLOTS:
         QTRY_VERIFY(!ruler->isVisible());
     }
 
+    void manageStylesCanDeleteAStyleOfYourOwnAndImportStylesFromAnotherDocument()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a paragraph")))), QString());
+        QString problem;
+        QTextCursor c(w.document()->story());
+        c.setPosition(0);
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        office::wml::Style mine = styleFromSelection(*w.document(), c, QStringLiteral("Mine"));
+        mine.basedOn = QStringLiteral("Normal");
+        const QString mineId = createStyle(*w.document(), c, mine, &problem, false);
+        QVERIFY2(!mineId.isEmpty(), qPrintable(problem));
+        withDialog([&w] { w.act(QStringLiteral("style.manage"))->trigger(); }, QStringLiteral("manageStylesDialog"), [&](QDialog *d) {
+            auto *list = d->findChild<QListWidget *>(QStringLiteral("manageStylesList"));
+            auto *del = d->findChild<QPushButton *>(QStringLiteral("manageDelete"));
+            auto *imp = d->findChild<QPushButton *>(QStringLiteral("manageImport"));
+            QVERIFY(list && del && imp);
+            auto pick = [&](const QString &id) {
+                for (int i = 0; i < list->count(); ++i)
+                    if (list->item(i)->data(Qt::UserRole).toString() == id) {
+                        list->setCurrentRow(i);
+                        return true;
+                    }
+                return false;
+            };
+            QVERIFY(pick(QStringLiteral("Heading1")));
+            QVERIFY(!del->isEnabled());   // (a style that comes with the program stays)
+            QVERIFY(pick(mineId));
+            QVERIFY(del->isEnabled());
+            shot(d, QStringLiteral("manage-styles-delete.png"));
+            del->click();
+            QVERIFY(!pick(mineId));
+        });
+        QVERIFY(!w.document()->styleSheet().find(mineId));
+        QVERIFY(w.document()->undo());
+        QVERIFY(w.document()->styleSheet().find(mineId));
+        // Import: a document with two styles of its own; check one, and it comes (and the style it is based on).
+        auto from = open(makeDocx(para(run("other"))));
+        QTextCursor fc(from->story());
+        fc.setPosition(0);
+        fc.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        office::wml::Style base = styleFromSelection(*from, fc, QStringLiteral("Base Look"));
+        base.basedOn = QStringLiteral("Normal");
+        const QString baseId = createStyle(*from, fc, base, &problem, false);
+        office::wml::Style top = styleFromSelection(*from, fc, QStringLiteral("Top Look"));
+        top.basedOn = baseId;
+        const QString topId = createStyle(*from, fc, top, &problem, false);
+        QVERIFY(!baseId.isEmpty() && !topId.isEmpty());
+        bool imported = false;
+        withDialog([&] { imported = importStylesDialog(&w, w.document(), *from); }, QStringLiteral("importStylesDialog"), [&](QDialog *d) {
+            auto *list = d->findChild<QListWidget *>(QStringLiteral("importStylesList"));
+            QVERIFY(list);
+            QCOMPARE(list->count(), 2);
+            shot(d, QStringLiteral("import-styles.png"));
+            for (int i = 0; i < list->count(); ++i)
+                if (list->item(i)->data(Qt::UserRole).toString() == topId) list->item(i)->setCheckState(Qt::Checked);
+        });
+        QVERIFY(imported);
+        QVERIFY(w.document()->styleSheet().find(topId) && w.document()->styleSheet().find(baseId));
+    }
 
     // ---- the review's fixes
     void saveAsOfAProtectedDocumentDoesNotLiftTheProtection()

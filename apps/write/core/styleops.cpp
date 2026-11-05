@@ -13,6 +13,7 @@
 #include <QTextBlock>
 #include <QTextDocument>
 #include <algorithm>
+#include <functional>
 
 using namespace jp::office;
 using namespace jp::office::wml;
@@ -552,6 +553,60 @@ bool deleteStyle(WriteDoc &doc, const QString &id, QString *problem)
     edit.endEditBlock();
     if (!doc.settleStyleEdit()) return fail(QCoreApplication::translate("jp::write::Styles", "The document keeps no history, so the style was not deleted."));
     return true;
+}
+
+int importStyles(WriteDoc &doc, const WriteDoc &from, const QStringList &ids, bool replace, QString *problem)
+{
+    auto fail = [&](const QString &why) {
+        if (problem) *problem = why;
+        return 0;
+    };
+    // The styles asked for and the styles they are based on, the bases first; a style that is no paragraph or character style, or that the other document lacks, is no style to import.
+    QVector<Style> wanted;
+    QSet<QString> seen;
+    std::function<void(const QString &, int)> collect = [&](const QString &id, int depth) {
+        if (id.isEmpty() || seen.contains(id) || depth > 32 || wanted.size() >= kMostStylesMade) return;
+        seen.insert(id);
+        const Style *s = from.styleSheet().find(id);
+        if (!s || (s->type != QLatin1String("paragraph") && s->type != QLatin1String("character"))) return;
+        collect(s->basedOn, depth + 1);
+        wanted.push_back(*s);
+    };
+    const QSet<QString> asked(ids.begin(), ids.end());
+    for (const QString &id : ids) collect(id, 0);
+    StyleSheet before = doc.styleSheet();
+    QVector<Style> put;
+    QSet<QString> paragraphs, characters;
+    for (Style s : std::as_const(wanted)) {
+        const Style *have = doc.styleSheet().find(s.id);
+        if (have && (!replace || !asked.contains(s.id) || have->type != s.type)) continue;   // (a base the style needs is not replaced unless it was asked for)
+        if (!have && doc.styleSheet().styles.size() + put.size() >= kMostStylesMade) break;
+        // (What the style says of the other document's numbering has no meaning here: its list is not carried.)
+        s.raw.clear();
+        s.pPr.numId.reset();
+        s.pPr.ilvl.reset();
+        s.isDefault = false;
+        // A name that another style of this document has is not taken twice.
+        if (!have && !styleNameProblem(doc, s.name.isEmpty() ? s.id : s.name, QString()).isEmpty()) continue;
+        if (have) (s.type == QLatin1String("paragraph") ? paragraphs : characters).unite(descendantsOf(before, s.id, s.type));
+        put.push_back(s);
+    }
+    if (put.isEmpty()) return 0;
+    QTextCursor edit(doc.story());
+    edit.beginEditBlock();
+    for (const Style &s : std::as_const(put)) {
+        // (A style based on one this document lacks is based on none.)
+        Style t = s;
+        if (!t.basedOn.isEmpty() && !doc.styleSheet().find(t.basedOn) && std::none_of(put.begin(), put.end(), [&](const Style &p) { return p.id == t.basedOn; })) t.basedOn.clear();
+        if (!t.next.isEmpty() && !doc.styleSheet().find(t.next) && std::none_of(put.begin(), put.end(), [&](const Style &p) { return p.id == t.next; })) t.next.clear();
+        t.link.clear();
+        doc.putStyle(t);
+    }
+    restyleText(doc, before, paragraphs, characters);
+    touchStyles(doc);
+    edit.endEditBlock();
+    if (!doc.settleStyleEdit()) return fail(QCoreApplication::translate("jp::write::Styles", "The document keeps no history, so the styles were not imported."));
+    return int(put.size());
 }
 
 namespace {
