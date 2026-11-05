@@ -15,6 +15,8 @@
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
+#include <QMenu>
+#include <QToolButton>
 #include <QDataStream>
 #include <QMimeData>
 #include <QSettings>
@@ -325,6 +327,29 @@ private Q_SLOTS:
         e.view()->selectRange(0, 0, 5000, 40);
         picture->trigger();
         QVERIFY(QApplication::clipboard()->image().isNull());
+    }
+
+    // The Paste button's menu offers each of Paste Special's choices, and each does what the dialog's choice does.
+    void thePasteGalleryOffersPasteSpecialsChoices()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1=y"})));
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("50%"));
+        const QStringList ids = {"paste.exceptBorders", "paste.formulaFormats", "paste.valueFormats", "paste.widths", "paste.notes"};
+        for (const QString &id : ids) QVERIFY2(e.win.w.act(id), qPrintable(id));
+        QToolButton *pasteButton = nullptr;
+        for (QToolButton *b : e.win.w.findChildren<QToolButton *>())
+            if (b->defaultAction() && b->defaultAction()->objectName() == QLatin1String("edit.paste") && b->menu()) pasteButton = b;
+        QVERIFY(pasteButton);
+        QStringList inMenu;
+        for (const QAction *a : pasteButton->menu()->actions()) inMenu << a->objectName();
+        for (const QString &id : ids) QVERIFY2(inMenu.contains(id), qPrintable(id));
+        copyRange(e, QStringLiteral("A1"));
+        paste(e, QStringLiteral("D1"), "paste.valueFormats");
+        QCOMPARE(shown(e, QStringLiteral("D1")), QStringLiteral("50%"));
+        paste(e, QStringLiteral("E1"), "paste.exceptBorders");
+        QCOMPARE(shown(e, QStringLiteral("E1")), QStringLiteral("50%"));
     }
 
     // Paste Special: values (a formula becomes its result), formulas, formats, the block turned over, the empty cells left, and an operation made with what is there.

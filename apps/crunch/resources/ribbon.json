@@ -20,7 +20,7 @@
               "large": "edit.paste",
               "keytip": "V",
               "split": true,
-              "menu": ["edit.paste", "paste.formulas", "paste.values", "paste.formats", "paste.transpose", "-", "paste.special"]
+              "menu": ["edit.paste", "paste.formulas", "paste.values", "paste.formats", "paste.transpose", "-", "paste.exceptBorders", "paste.formulaFormats", "paste.valueFormats", "paste.widths", "paste.notes", "-", "paste.special"]
             },
             {"small": "edit.cut", "keytip": "X"},
             {"small": "edit.copy", "keytip": "C", "split": true, "menu": ["edit.copy", "edit.copyPicture", "edit.copyBitmap"]},
