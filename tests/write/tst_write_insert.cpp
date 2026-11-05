@@ -945,6 +945,28 @@ private Q_SLOTS:
         QVERIFY(win.w.ruler()->isVisible());
     }
 
+    // The ruler's margin marker stays over the page's text edge when the
+    // window grows or shrinks (the pages move to stay centered).
+    void theRulerFollowsThePagesWhenTheWindowIsResized()
+    {
+        Win win;
+        auto marginAt = [&](double *ruler, double *page) {
+            QCoreApplication::processEvents();
+            QPointF at;
+            QVERIFY(win.w.ruler()->markerPoint(write::Ruler::Marker::LeftMargin, 0, &at));
+            *ruler = at.x();
+            const QRect pg = win.w.view()->pageRect(win.w.view()->currentPage());
+            const double scale = win.w.view()->zoom() * 96.0 / 72.0;
+            *page = win.w.ruler()->mapFromGlobal(win.w.view()->viewport()->mapToGlobal(QPoint(pg.left(), 0))).x() + win.w.ruler()->textLeft() * scale;
+        };
+        for (const QSize size : {QSize(1500, 900), QSize(900, 700), QSize(1700, 1000)}) {
+            win.w.resize(size);
+            double ruler = 0, page = 0;
+            marginAt(&ruler, &page);
+            QVERIFY2(std::abs(ruler - page) < 1.5, qPrintable(QStringLiteral("at %1x%2: ruler %3, page %4").arg(size.width()).arg(size.height()).arg(ruler).arg(page)));
+        }
+    }
+
     // ---------------------------------------------------------------- Insert > Date & Time
     void theDateAndTimeDialogPutsInFixedTextOrAFieldThatUpdates()
     {

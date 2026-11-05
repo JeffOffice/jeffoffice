@@ -1269,6 +1269,14 @@ private Q_SLOTS:
         QCoreApplication::processEvents();
         QVERIFY(!ring->isVisible());
         QVERIFY(view->property("jpOwnFocus").toBool());
+        // ...nor when it is resized (a window made bigger), moved, or shown again.
+        view->setGeometry(0, 0, 300, 160);
+        QCoreApplication::processEvents();
+        QVERIFY(!ring->isVisible());
+        view->hide();
+        view->show();
+        QCoreApplication::processEvents();
+        QVERIFY(!ring->isVisible());
     }
 
     // The Styles gallery's samples are the text as it prints: in a dark

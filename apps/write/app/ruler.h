@@ -49,6 +49,7 @@ protected:
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *e) override;
     bool event(QEvent *e) override;
+    bool eventFilter(QObject *watched, QEvent *e) override;
 
 private:
     struct State {

@@ -67,7 +67,9 @@ public:
         case QEvent::Move:
         case QEvent::Resize:
         case QEvent::Show:
-            if (m_target && (o == m_target || m_chain.contains(o))) place();
+            // Only a ring already on show follows: placing it would show it
+            // around a control that has none (the pages, the sheet) or after a click.
+            if (m_target && m_ring && m_ring->isVisible() && (o == m_target || m_chain.contains(o))) place();
             break;
         case QEvent::Hide:
             if (o == m_target) hideRing();

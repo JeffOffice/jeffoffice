@@ -60,6 +60,16 @@ Ruler::Ruler(PageView *view, QWidget *parent) : QWidget(parent), m_view(view)
     connect(view, &PageView::pagesChanged, this, &Ruler::sync);
     connect(view->horizontalScrollBar(), &QScrollBar::valueChanged, this, &Ruler::sync);
     connect(view->verticalScrollBar(), &QScrollBar::valueChanged, this, &Ruler::sync);
+    // The pages stay centered, so they move when the window's width changes:
+    // read them again once the view has laid them out at the new size.
+    view->viewport()->installEventFilter(this);
+}
+
+bool Ruler::eventFilter(QObject *watched, QEvent *e)
+{
+    if (watched == m_view->viewport() && (e->type() == QEvent::Resize || e->type() == QEvent::Move || e->type() == QEvent::Show))
+        QMetaObject::invokeMethod(this, &Ruler::sync, Qt::QueuedConnection);
+    return QWidget::eventFilter(watched, e);
 }
 
 QTextCursor Ruler::cursor() const { return m_view->cursor(); }
