@@ -48,16 +48,7 @@ QWidget *CrunchWindow::buildInfoPage(QWidget *parent)
     h.path = [this] { return m_path; };
     h.props = [this] { return properties(); };
     h.setProps = [this](const office::PackageProps &p) { applyProperties(p); };
-    h.statistics = [this] {
-        QVector<QPair<QString, QString>> rows;
-        if (m_loaded && m_loaded->book) {
-            int sheets = 0;
-            for (const auto &s : m_loaded->book->info().sheets)
-                if (!s.deleted) ++sheets;
-            rows.push_back({tr("Sheets"), QLocale().toString(sheets)});
-        }
-        return rows;
-    };
+    h.statistics = [this] { return statisticsRows(); };
     h.markFinalBlocked = [this] { return markFinalBlocked(); };
     h.markedFinal = [this] { return markedAsFinal(); };
     h.setMarkedFinal = [this](bool on) { setMarkedFinal(on); };

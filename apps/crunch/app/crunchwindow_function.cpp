@@ -6,6 +6,9 @@
 #include "app/functionargumentsdialog.h"
 #include "app/help.h"
 #include "app/insertfunctiondialog.h"
+#include "app/plaintext.h"
+#include "app/ribbonbuilder.h"
+#include "app/settings.h"
 #include "core/functioncall.h"
 #include "core/functioninfo.h"
 #include "grid/gridview.h"
@@ -13,6 +16,9 @@
 
 #include <QAction>
 #include <QEventLoop>
+#include <QMenu>
+
+#include <algorithm>
 
 namespace jp {
 
@@ -24,7 +30,7 @@ void CrunchWindow::createFunctionActions()
     updateEditActions();
 }
 
-void CrunchWindow::insertFunctionCommand()
+void CrunchWindow::insertFunctionCommand(const QString &preset)
 {
     if (!m_session || !m_loaded || m_argsDialog) return;
     const QChar separator = crunch::argumentSeparator(m_session->locale());
@@ -65,14 +71,16 @@ void CrunchWindow::insertFunctionCommand()
     if (m_edit.active) {
         line = m_formulaBar->hasFocus() ? m_formulaBar : m_cellEditor;
         const crunch::FunctionCall call = crunch::functionCallAt(line->text(), line->cursorPosition(), separator);
-        if (call.found) {
+        if (call.found && preset.isEmpty()) {
             // the cursor is in the brackets of a function: that call is what the dialog changes
             functionArguments(*crunch::docOf(call.name), call.arguments, call.start, call.end, call.name, call.raw);
             return;
         }
     }
     QString name;
-    if (m_functionAsker) {
+    if (!preset.isEmpty()) {
+        name = preset;
+    } else if (m_functionAsker) {
         if (!m_functionAsker(&name)) return;
         if (!m_argumentsAsker) {
             insertFunction(name);
@@ -85,6 +93,7 @@ void CrunchWindow::insertFunctionCommand()
     }
     const crunch::FunctionDoc *doc = crunch::docOf(name);
     if (!doc) return;
+    rememberFunction(QString::fromLatin1(doc->name));
     if (m_edit.active) {
         const QString text = line->text();
         if (!text.isEmpty() && !text.startsWith(QLatin1Char('='))) return;   // (text is being typed: not a formula, so a function does not go in it)
@@ -241,6 +250,109 @@ bool CrunchWindow::insertFunction(const QString &name)
     m_cellEditor->setCursorPosition(at);
     m_formulaBar->setCursorPosition(at);
     return true;
+}
+
+// ---- the function menus of the Formulas tab: Recently Used, and one menu for each kind of function
+
+namespace {
+constexpr int kRecentFunctions = 10;
+const char *const kRecentKey = "formulas/recentFunctions";
+}
+
+QStringList CrunchWindow::recentFunctions() const
+{
+    QStringList names = Settings::get().value(QString::fromLatin1(kRecentKey)).toStringList();
+    names.erase(std::remove_if(names.begin(), names.end(), [](const QString &n) { return !crunch::docOf(n); }), names.end());
+    while (names.size() > kRecentFunctions) names.removeLast();
+    return names;
+}
+
+void CrunchWindow::rememberFunction(const QString &name)
+{
+    QStringList names = recentFunctions();
+    names.removeAll(name);
+    names.prepend(name);
+    while (names.size() > kRecentFunctions) names.removeLast();
+    Settings::get().setValue(QString::fromLatin1(kRecentKey), names);
+}
+
+namespace {
+
+QMenu *scrolling(QWidget *owner)
+{
+    auto *menu = new QMenu(owner);
+    menu->setStyleSheet(QStringLiteral("QMenu { menu-scrollable: 1; }"));
+    return menu;
+}
+
+} // namespace
+
+void CrunchWindow::fillFunctionMenu(QMenu *menu, const QList<crunch::FunctionCategory> &kinds)
+{
+    menu->clear();
+    int count = 0;
+    const crunch::FunctionDoc *docs = crunch::functionDocs(&count);
+    for (int i = 0; i < count; ++i) {
+        if (!kinds.contains(docs[i].category)) continue;
+        const QString name = QString::fromLatin1(docs[i].name);
+        QAction *a = menu->addAction(name);
+        a->setToolTip(plainToolTip(crunch::summaryOf(docs[i])));
+        a->setStatusTip(plainToolTip(crunch::summaryOf(docs[i])));
+        connect(a, &QAction::triggered, this, [this, name] { insertFunctionCommand(name); });
+    }
+    if (menu->isEmpty()) menu->addAction(tr("(none)"))->setEnabled(false);
+}
+
+void CrunchWindow::functionRibbonParts(RibbonParts &parts)
+{
+    using crunch::FunctionCategory;
+    parts.menus[QStringLiteral("functionRecent")] = [this](QWidget *owner) {
+        QMenu *menu = scrolling(owner);
+        auto fill = [this, menu] {
+            menu->clear();
+            for (const QString &name : recentFunctions()) {
+                QAction *a = menu->addAction(name);
+                if (const crunch::FunctionDoc *doc = crunch::docOf(name)) a->setToolTip(plainToolTip(crunch::summaryOf(*doc)));
+                connect(a, &QAction::triggered, this, [this, name] { insertFunctionCommand(name); });
+            }
+            if (menu->isEmpty()) menu->addAction(tr("(no function used yet)"))->setEnabled(false);
+        };
+        connect(menu, &QMenu::aboutToShow, menu, fill);
+        fill();
+        return menu;
+    };
+    const struct {
+        const char *id;
+        QList<FunctionCategory> kinds;
+    } kinds[] = {
+        {"functionFinancial", {FunctionCategory::Financial}},
+        {"functionLogical", {FunctionCategory::Logical}},
+        {"functionText", {FunctionCategory::Text}},
+        {"functionDateTime", {FunctionCategory::DateTime}},
+        {"functionLookup", {FunctionCategory::LookupReference}},
+        {"functionMath", {FunctionCategory::MathTrig}},
+    };
+    for (const auto &k : kinds) {
+        const QList<FunctionCategory> list = k.kinds;
+        parts.menus[QString::fromLatin1(k.id)] = [this, list](QWidget *owner) {
+            QMenu *menu = scrolling(owner);
+            fillFunctionMenu(menu, list);
+            return menu;
+        };
+    }
+    parts.menus[QStringLiteral("functionMore")] = [this](QWidget *owner) {
+        QMenu *menu = new QMenu(owner);
+        const struct {
+            FunctionCategory kind;
+        } more[] = {{FunctionCategory::Statistical}, {FunctionCategory::Engineering}, {FunctionCategory::Information}, {FunctionCategory::Database}};
+        for (const auto &m : more) {
+            QMenu *sub = scrolling(menu);
+            sub->setTitle(crunch::categoryName(m.kind));
+            fillFunctionMenu(sub, {m.kind});
+            menu->addMenu(sub);
+        }
+        return menu;
+    };
 }
 
 } // namespace jp

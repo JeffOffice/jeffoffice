@@ -1,5 +1,5 @@
 # How formulas are shown and calculated
-<!-- keywords: formula, formulas, calculate, calculation, recalculate, function, functions, value, result, stored, F9, circular, show formulas, formula bar, error, point, pointing, click a cell, reference, F4 -->
+<!-- keywords: formula, formulas, calculate, calculation, recalculate, function, functions, value, result, stored, F9, circular, show formulas, formula bar, error, point, pointing, click a cell, reference, F4, error checking, ignore error, evaluate formula, step, watch window, watch -->
 
 A **formula** is a cell that works out its value from other cells, such as =SUM(B3:B8). The cell shows the value, and the **formula bar** shows the formula.
 
@@ -72,3 +72,17 @@ Some models need such a circle on purpose. Choose **Go Round Circular Formulas**
 ## See what a formula reads
 
 Select a cell and click **Show What Feeds This Cell** to draw arrows from the cells its formula reads. Click again to go one step further back. **Show What Uses This Cell** draws arrows to the formulas that read the cell, and each click goes one step on. A small page stands for a cell on another sheet. At most 2,000 arrows are drawn, and the status bar says when there were more. **Clear Arrows** clears them, and so does any change to the workbook.
+
+## Error Checking
+
+Choose **Error Checking** in the **Check** group of the Formulas tab to look through the sheet for cells that may be wrong. It looks for two things: a formula that comes to an error (such as #DIV/0!), and a number that is kept as text, which formulas may skip.
+
+The dialog shows one cell at a time, goes to that cell on the sheet, and says in a sentence what is the matter. **Next** and **Previous** move through the cells. A small green triangle in the upper-left corner of a cell marks it on the sheet. **Ignore Error** takes the cell off the list, takes its triangle away, and is saved in the file. One step of Undo brings it back. If nothing is wrong, you are told so.
+
+## Evaluate Formula
+
+Use this to see how a formula comes to its value. Select a cell that holds a formula and choose **Evaluate Formula**. The formula shows with the next part underlined. Press **Evaluate** to work that part out; its value takes its place. The parts go in this order: each single cell from the left, then each function with its brackets, starting with the innermost, then what is left. **Restart** begins again. If a part can't be worked out, the dialog says why and leaves the formula as it was.
+
+## Watch Window
+
+The **Watch Window** is a small window that stays in view while you work. It lists cells you want to keep an eye on, with their sheet, cell, value, and formula, even when they are on another sheet. Select cells and press **Add Watch**. Select rows in the list and press **Delete Watch**. Double-click a row to go to the cell. The values change when the sheet is worked out again. The list is kept while the workbook is open.

@@ -197,6 +197,12 @@ public:
     static constexpr size_t kMaxCheckArrows = 2000;
     static constexpr size_t kMaxCheckCircles = 10000;
     void setCheckMarks(std::vector<GridRange> circles, std::vector<CheckArrow> arrows);
+    // Notes over cells that a check found: a red oval round each cell with data that a rule does not allow, and a small green triangle in the corner of each cell with a problem found by Error
+    // Checking. At most kMaxCellFlags of each are kept.
+    static constexpr size_t kMaxCellFlags = 10000;
+    void setCellFlags(std::vector<GridRange> invalid, std::vector<GridRange> corners);
+    const std::vector<GridRange> &invalidCircles() const { return m_invalidCircles; }
+    const std::vector<GridRange> &errorCorners() const { return m_errorCorners; }
     const std::vector<CheckArrow> &checkArrows() const { return m_checkArrows; }
     const std::vector<GridRange> &checkCircles() const { return m_checkCircles; }
     // Buttons on cells (the drop-downs of a filter's header row): one at the bottom right of each cell, drawn as a funnel when `filtered`, with an arrow up or down when the cells are sorted
@@ -422,6 +428,7 @@ private:
     mutable qint64 m_shownLayouts = 0;
     qint64 m_hoverRow = -1, m_hoverCol = -1, m_pressRow = -1, m_pressCol = -1;
     std::vector<GridRange> m_checkCircles;
+    std::vector<GridRange> m_invalidCircles, m_errorCorners;
     std::vector<CheckArrow> m_checkArrows;
     std::vector<HeaderButton> m_headerButtons;
     GridRange m_fillSource, m_fillExtent;

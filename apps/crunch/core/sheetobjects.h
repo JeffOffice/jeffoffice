@@ -83,6 +83,15 @@ public:
     void geometryKnown(int sheet);
     // What the sheet's drawing holds (every object is made for it).
     DrawingCounts counts(int sheet);
+    // The charts, pictures, and shapes of a sheet as a person would name them (those taken away are left out): what they are, their name, the words that tell what they show (alt text), and
+    // the cell the top left of each is at. The sheet's drawing is listed if it has not been (an object of a drawing that is being read apart is not given).
+    struct ObjectInfo {
+        int id = 0;
+        jp::office::sheet::ObjectKind kind = jp::office::sheet::ObjectKind::Other;
+        QString name, description;
+        quint32 row = 0, col = 0;
+    };
+    std::vector<ObjectInfo> describe(int sheet);
     // The objects of a sheet that print (not hidden, not taken away, and not set to stay off the paper), in the order they are drawn, each ready to be drawn when asked (see
     // core/printobjects.h). The sheet's drawing is listed if it has not been.
     std::vector<jp::grid::LayerObject> printObjects(int sheet);

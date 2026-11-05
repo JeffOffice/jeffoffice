@@ -206,6 +206,8 @@ public:
         n += qint64(m_step.calcs.size()) * qint64(sizeof(CalcEdit));
         for (const SheetEdit &e : m_step.sheets) {
             n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.orderBefore.size() + e.orderAfter.size()) * qint64(sizeof(int));
+            for (const auto *rules : {&e.rulesBefore, &e.rulesAfter})
+                for (const jp::office::sheet::Validation &v : *rules) n += qint64(sizeof(v)) + qint64(v.ranges.size()) * qint64(sizeof(jp::office::sheet::CellRange)) + qint64(v.error.size() + v.prompt.size() + v.formula1.size() + v.formula2.size()) * 2;
             for (const auto *groups : {&e.sparksBefore, &e.sparksAfter})
                 for (const jp::office::sheet::SparklineGroup &g : *groups) {
                     n += qint64(sizeof(g)) + qint64(g.dateRange.size()) * 2 + g.otherAttributes.size() + qint64(g.sparklines.size()) * qint64(sizeof(jp::office::sheet::Sparkline));
@@ -424,6 +426,8 @@ void EditSession::cleanChanged(bool clean)
     m_sheetsListed = false;
     m_statesChanged.clear();
     m_tabColorsChanged.clear();
+    m_ignoredChanged.clear();
+    m_validationsChanged.clear();
     m_sparklinesChanged.clear();
     m_sheetOps.clear();
     m_copies.clear();
@@ -1507,6 +1511,18 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
                 sc.rows.push_back(p);
             }
         }
+        for (const int sheet : m_ignoredChanged) {
+            if (!written(sheet)) continue;
+            SheetChanges &sc = changes.sheets[sheet];
+            sc.replaceIgnoredErrors = true;
+            sc.ignoredErrors = calc->sheet(sheet).ignoredErrors;
+        }
+        for (const int sheet : m_validationsChanged) {
+            if (!written(sheet)) continue;
+            SheetChanges &sc = changes.sheets[sheet];
+            sc.replaceValidations = true;
+            sc.validations = calc->sheet(sheet).validations;
+        }
         for (const int sheet : m_sparklinesChanged) {
             if (!written(sheet)) continue;
             SheetChanges &sc = changes.sheets[sheet];
@@ -1817,6 +1833,8 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_sheetsListed = false;
     m_statesChanged.clear();
     m_tabColorsChanged.clear();
+    m_ignoredChanged.clear();
+    m_validationsChanged.clear();
     m_sparklinesChanged.clear();
     m_sheetOps.clear();
     m_copies.clear();

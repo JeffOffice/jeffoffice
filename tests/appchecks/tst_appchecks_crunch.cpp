@@ -414,8 +414,13 @@ private Q_SLOTS:
             {QStringLiteral("formulas.options"), menu},
             {QStringLiteral("sheet.tabColor"), menu},
             {QStringLiteral("sheet.unhide"), menu},
+            {QStringLiteral("formulas.errorChecking"), QStringLiteral("it tells in a message that no cell is wrong (the workbooks here have none), and shows its dialog only when one is")},
+            {QStringLiteral("formulas.evaluate"), QStringLiteral("it tells in a message to select a cell with a formula (none is selected here), and shows its dialog only for one")},
+            {QStringLiteral("data.circleInvalid"), QStringLiteral("it tells in a message that every cell follows its rule (no rule is set here), and draws ovals only when one does not")},
+            {QStringLiteral("review.statistics"), QStringLiteral("it tells the numbers in a message and changes nothing in the workbook")},
         };
         m_app.neverRun = {
+            {QStringLiteral("data.clearCircles"), QStringLiteral("it is on only when cells are circled by Circle Invalid Data, and no place here has a rule that a cell breaks; the data tools tests run it")},
             {QStringLiteral("cond.clearSelection"), QStringLiteral("it is on only when a rule of conditional formatting covers the selected cells, and no place here has a rule; the conditional formatting tests run it")},
             {QStringLiteral("cond.clearSheet"), QStringLiteral("it is on only when the sheet has a rule of conditional formatting, and no place here has one; the conditional formatting tests run it")},
         };

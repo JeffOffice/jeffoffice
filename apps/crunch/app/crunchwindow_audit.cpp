@@ -178,6 +178,7 @@ void CrunchWindow::refreshCheckMarks()
         arrows.push_back(a);
     }
     m_view->setCheckMarks(std::move(circles), std::move(arrows));
+    refreshCellFlags();
 }
 
 } // namespace jp

@@ -272,7 +272,17 @@
               "keytip": "U",
               "split": true,
               "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min", "-", "edit.autosum.more"]
-            }
+            },
+            {"small": {"id": "ribbon.fnRecent", "text": "Recently Used", "icon": "history"}, "keytip": "RU", "menu": "@functionRecent"},
+            {"small": {"id": "ribbon.fnFinancial", "text": "Financial", "icon": "landmark"}, "keytip": "FI", "menu": "@functionFinancial"},
+            {"small": {"id": "ribbon.fnLogical", "text": "Logical", "icon": "split"}, "keytip": "LG", "menu": "@functionLogical"},
+            {"column": true},
+            {"small": {"id": "ribbon.fnText", "text": "Text", "icon": "type"}, "keytip": "TX", "menu": "@functionText"},
+            {"small": {"id": "ribbon.fnDateTime", "text": "Date && Time", "icon": "calendar-clock"}, "keytip": "DT", "menu": "@functionDateTime"},
+            {"small": {"id": "ribbon.fnLookup", "text": "Lookup && Reference", "icon": "search"}, "keytip": "LR", "menu": "@functionLookup"},
+            {"column": true},
+            {"small": {"id": "ribbon.fnMath", "text": "Math && Trig", "icon": "pi"}, "keytip": "MT", "menu": "@functionMath"},
+            {"small": {"id": "ribbon.fnMore", "text": "More Functions", "icon": "ellipsis"}, "keytip": "MF", "menu": "@functionMore"}
           ]
         },
         {
@@ -293,6 +303,9 @@
             {"large": "formulas.traceDependents", "keytip": "TD"},
             {"small": "formulas.removeArrows", "keytip": "RA"},
             {"small": "view.formulas", "keytip": "H"},
+            {"small": "formulas.errorChecking", "keytip": "EC"},
+            {"small": "formulas.watchWindow", "keytip": "WW"},
+            {"small": "formulas.evaluate", "keytip": "EF"},
             {"small": "formulas.circular", "keytip": "CR"}
           ]
         },
@@ -332,7 +345,9 @@
             {"column": true},
             {"small": "filter.toggle", "keytip": "F1"},
             {"small": "filter.clear", "keytip": "C"},
-            {"small": "filter.reapply", "keytip": "Y"}
+            {"small": "filter.reapply", "keytip": "Y"},
+            {"column": true},
+            {"small": "data.advancedFilter", "keytip": "AF"}
           ]
         },
         {
@@ -340,7 +355,18 @@
           "keytip": "ZD",
           "items": [
             {"large": "data.textToColumns", "keytip": "E"},
-            {"large": "data.removeDuplicates", "keytip": "M"}
+            {"large": "data.removeDuplicates", "keytip": "M"},
+            {"large": "data.validation", "keytip": "V"},
+            {"small": "data.circleInvalid", "keytip": "CI"},
+            {"small": "data.clearCircles", "keytip": "CC"},
+            {"large": "data.consolidate", "keytip": "O"}
+          ]
+        },
+        {
+          "name": "Forecast",
+          "keytip": "ZF",
+          "items": [
+            {"large": "data.goalSeek", "keytip": "GS"}
           ]
         },
         {
@@ -351,7 +377,9 @@
             {"small": "outline.ungroupRows", "keytip": "UR"},
             {"column": true},
             {"small": "outline.groupColumns", "keytip": "GC"},
-            {"small": "outline.ungroupColumns", "keytip": "UC"}
+            {"small": "outline.ungroupColumns", "keytip": "UC"},
+            {"column": true},
+            {"small": "data.subtotal", "keytip": "ST"}
           ]
         },
         {
@@ -367,6 +395,14 @@
       "name": "Review",
       "keytip": "R",
       "groups": [
+        {
+          "name": "Proofing",
+          "keytip": "ZR",
+          "items": [
+            {"large": "review.statistics", "keytip": "WS"},
+            {"large": "review.accessibility", "keytip": "AC"}
+          ]
+        },
         {
           "name": "Notes",
           "keytip": "ZN",

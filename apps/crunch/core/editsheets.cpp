@@ -553,6 +553,79 @@ EditSession::Outcome EditSession::setSparklines(int sheet, QVector<jp::office::s
     return pushSheetEdit(e, text);
 }
 
+const QVector<jp::office::sheet::Validation> &EditSession::validationsOf(int sheet) const
+{
+    static const QVector<jp::office::sheet::Validation> none;
+    return m_book && m_book->calc && sheet >= 0 && sheet < m_book->calc->sheetCount() ? m_book->calc->sheet(sheet).validations : none;
+}
+
+EditSession::Outcome EditSession::setValidations(int sheet, QVector<jp::office::sheet::Validation> rules, const QString &text)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    if (m_book->calc->sheet(sheet).validationsInExtension) {
+        out.ok = false;
+        out.problem = tr("Some of this sheet's rules for what may be entered are stored in a part that JeffCrunch can't change (a list that reads cells of another sheet, for example), so it leaves the rules as they are.");
+        return out;
+    }
+    if (rules.size() > kMaxValidationRules) {
+        out.ok = false;
+        out.problem = tr("A sheet can have up to %1 rules for what may be entered.").arg(kMaxValidationRules);
+        return out;
+    }
+    const QVector<jp::office::sheet::Validation> &now = m_book->calc->sheet(sheet).validations;
+    if (now.size() == rules.size()) {
+        bool same = true;
+        for (int i = 0; i < now.size() && same; ++i) {
+            const auto &a = now[i], &b = rules[i];
+            same = a.type == b.type && a.style == b.style && a.compare == b.compare && a.allowBlank == b.allowBlank && a.dropDown == b.dropDown && a.showError == b.showError && a.showInput == b.showInput
+                   && a.errorTitle == b.errorTitle && a.error == b.error && a.promptTitle == b.promptTitle && a.prompt == b.prompt && a.formula1 == b.formula1 && a.formula2 == b.formula2 && a.ranges == b.ranges;
+        }
+        if (same) return out;   // (nothing to change)
+    }
+    SheetEdit e;
+    e.kind = SheetEdit::Kind::Validations;
+    e.sheet = sheet;
+    e.rulesBefore = now;
+    e.rulesAfter = rules;
+    return pushSheetEdit(e, text);
+}
+
+const QVector<jp::office::sheet::IgnoredError> &EditSession::ignoredErrorsOf(int sheet) const
+{
+    static const QVector<jp::office::sheet::IgnoredError> none;
+    return m_book && m_book->calc && sheet >= 0 && sheet < m_book->calc->sheetCount() ? m_book->calc->sheet(sheet).ignoredErrors : none;
+}
+
+EditSession::Outcome EditSession::setIgnoredErrors(int sheet, QVector<jp::office::sheet::IgnoredError> list, const QString &text)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    if (list.size() > 10000) {
+        out.ok = false;
+        out.problem = tr("Too many cells are set to be left out of Error Checking.");
+        return out;
+    }
+    const QVector<jp::office::sheet::IgnoredError> &now = m_book->calc->sheet(sheet).ignoredErrors;
+    if (now == list) return out;   // (nothing to change)
+    SheetEdit e;
+    e.kind = SheetEdit::Kind::IgnoredErrors;
+    e.sheet = sheet;
+    e.ignoredBefore = now;
+    e.ignoredAfter = list;
+    return pushSheetEdit(e, text);
+}
+
 // A sheet that was added is taken away: the values, results, and marks kept by cell for it are let go of, so that a sheet added later at its place starts with none.
 void EditSession::forgetSheet(int sheet)
 {
@@ -678,6 +751,14 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
         case SheetEdit::Kind::TabColor:
             calc->setTabColor(e.sheet, forward ? e.colorAfter : e.colorBefore);
             m_tabColorsChanged.insert(e.sheet);
+            break;
+        case SheetEdit::Kind::IgnoredErrors:
+            calc->setIgnoredErrors(e.sheet, forward ? e.ignoredAfter : e.ignoredBefore);
+            m_ignoredChanged.insert(e.sheet);
+            break;
+        case SheetEdit::Kind::Validations:
+            calc->setValidations(e.sheet, forward ? e.rulesAfter : e.rulesBefore);
+            m_validationsChanged.insert(e.sheet);
             break;
         case SheetEdit::Kind::Sparklines:
             calc->setSparklines(e.sheet, forward ? e.sparksAfter : e.sparksBefore);
