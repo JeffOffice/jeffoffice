@@ -1,6 +1,8 @@
 #include "core/drawnitems.h"
 
 #include "core/shapetypes.h"
+#include "office/drawingml.h"
+#include "office/xml.h"
 
 #include <QBuffer>
 #include <QColor>
@@ -162,6 +164,35 @@ bool holdsOnlyObjects(const QVector<Inline> &content)
         }
     }
     return true;
+}
+
+ItemPtr wspItem(const Shape &s, const office::Theme *theme)
+{
+    if (s.wsp.isEmpty()) return nullptr;
+    QDomDocument doc;
+    if (!office::parseXml(s.wsp, &doc)) return nullptr;
+    const QDomElement shape = doc.documentElement().firstChildElement();
+    if (shape.isNull()) return nullptr;
+    office::DrawingContext ctx;
+    QDomDocument themeDoc;
+    if (theme) {
+        ctx.theme = *theme;
+        // (The theme's format scheme: what a style reference's index points into.)
+        if (!theme->xml.isEmpty() && office::parseXml(theme->xml, &themeDoc))
+            for (QDomElement e = themeDoc.documentElement().firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
+                if (e.localName() == QLatin1String("themeElements"))
+                    for (QDomElement f = e.firstChildElement(); !f.isNull(); f = f.nextSiblingElement())
+                        if (f.localName() == QLatin1String("fmtScheme")) ctx.formats = f;
+    }
+    ItemPtr item = office::readShape(shape, ctx);
+    if (!item) return nullptr;
+    if (item->type() == ItemType::Group) {
+        const auto *group = static_cast<const GroupItem *>(item.get());
+        if (group->children.empty()) return nullptr;
+        item = group->children.front();
+    }
+    if (item->type() != ItemType::Line) item->rect = QRectF(0, 0, s.width, s.height);
+    return item;
 }
 
 QString presetOf(const Shape &s)

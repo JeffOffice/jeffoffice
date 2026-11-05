@@ -543,9 +543,15 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
         keepBehindOnlyWithoutAWall(&s);
         // The picture's data and a text box's text: found anywhere inside.
         std::vector<int> stack{c};
+        int shapeNode = -1;
         while (!stack.empty() && s.embed.isEmpty() && s.textBox.isEmpty()) {
             const int n = stack.back();
             stack.pop_back();
+            // (A shape that is a member of a group is not read as the whole of it: only one that is the drawing's own.)
+            if (t.localName(n) == "wsp" && s.wsp.isEmpty() && t.parent(n) >= 0 && t.localName(t.parent(n)) == "graphicData") {
+                s.wsp = "<x " + declarations() + ">" + t.raw(n) + "</x>";
+                shapeNode = n;
+            }
             if (t.localName(n) == "blip" && s.embed.isEmpty()) {
                 s.embed = t.attr(n, "embed", NsR);
                 // The cut edges are beside the blip, in its fill (thousandths of a percent).
@@ -568,6 +574,16 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
             }
             for (int k = t.firstChild(n); k >= 0; k = t.next(k)) stack.push_back(k);
             if (stack.size() > 4000) break;
+        }
+        if (shapeNode >= 0) {
+            if (s.kind == Shape::Picture) s.kind = Shape::Rect;
+            // The text's room in the shape (its insets, in EMU).
+            for (int k = t.firstChild(shapeNode); k >= 0; k = t.next(k))
+                if (t.localName(k) == "bodyPr") {
+                    const char *names[4] = {"lIns", "tIns", "rIns", "bIns"};
+                    for (int i = 0; i < 4; ++i)
+                        if (t.has(k, names[i])) s.inset[i] = std::clamp(emu(t.attr(k, names[i])), 0.0, 1000.0);
+                }
         }
         if (s.kind == Shape::Picture && s.embed.isEmpty()) continue;   // (a chart or other graphic: no picture of it)
         out->push_back(s);

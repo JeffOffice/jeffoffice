@@ -583,6 +583,9 @@ struct Shape {
     QString pictEmbed;                    // the Id of the picture's other form (VML's r:pict: a compressed picture the program keeps beside it)
     QString alt;                          // its description
     QByteArray textBox;                   // the w:txbxContent element of a text box, as written (insets: below)
+    // A shape of the drawing format's own (wps:wsp, directly in the drawing's graphic data): the element as written, inside a root that declares the usual prefixes, so that it
+    // reads as a document of its own. Its geometry, fill, line, effects, and turn are read from it by the one who draws the shape (the shared drawing reader).
+    QByteArray wsp;
     double inset[4] = {7.2, 3.6, 7.2, 3.6};   // left, top, right, bottom
     // A picture's cut edges, each a share of the whole picture (a negative one is room left round it), the color of it that is clear ("RRGGBB"),
     // and the border it is drawn with (its weight in points, 0 for none, and its color).
