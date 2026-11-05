@@ -50,7 +50,7 @@ This version of JeffWrite is a **beta**. It is ready for real work, but it does 
 - Bulleted and numbered lists, with levels.
 - Styles. The gallery has Normal, headings, Title, and more. The **Styles** pane (Ctrl+Alt+Shift+S) lists them all, and you can make a style from your text and change any style (see [Use styles](styles)).
 - Copy Formatting, which copies the look of some text onto other text (see [Copy a look with Copy Formatting](format-painter)).
-- Go To (Ctrl+G) a page, section, line, bookmark, footnote, or heading, and dragging selected text to move it, or Ctrl-dragging it to copy it (see [Go to a place and move text](go-to-and-move-text)).
+- Go To (Ctrl+G) a page, section, line, bookmark, footnote, endnote, comment, field, table, graphic, equation, or heading, and dragging selected text to move it, or Ctrl-dragging it to copy it (see [Go to a place and move text](go-to-and-move-text)).
 - Pages: paper size, orientation, margins, columns (one, two, or three), page breaks, and section breaks that start a new page. **Layout > Page Setup** sets the margins, paper, and layout of a section or of the whole document (see [Set up the page](page-setup)).
 - Pictures: **Insert > Pictures** puts in a picture from a file or the clipboard; you can size it with its handles, move it, wrap the text round it, and give it alt text (see [Add and change pictures](pictures)).
 - The ruler: drag the indents, tab stops, and margins (see [Use the ruler](ruler)).

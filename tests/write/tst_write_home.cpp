@@ -7,7 +7,9 @@
 #include "app/pageview.h"
 #include "core/appinfo.h"
 #include "core/accessops.h"
+#include "core/commentops.h"
 #include "core/compareops.h"
+#include "core/gotoops.h"
 #include "core/editops.h"
 #include "core/pictureops.h"
 #include "core/reviewops.h"
@@ -1258,6 +1260,47 @@ private Q_SLOTS:
         QCOMPARE(facts.value(QStringLiteral("Alignment")), QStringLiteral("Centered"));
         QVERIFY(facts.value(QStringLiteral("Indents (left, right, first line)")).startsWith(QLatin1String("36 pt")));
         QVERIFY(!facts.value(QStringLiteral("Paragraph style")).isEmpty());
+    }
+
+    void goToFindsEndnotesCommentsFieldsTablesGraphicsAndEquations()
+    {
+        const QByteArray cell = "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>c</w:t></w:r></w:p></w:tc>";
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"4000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr>" + cell + cell + "</w:tr><w:tr>" + cell + cell + "</w:tr></w:tbl>";
+        QByteArray body = "<w:p><w:r><w:t>first words here</w:t></w:r></w:p>";
+        body += table + "<w:p><w:r><w:t>between</w:t></w:r></w:p>" + table;
+        body += "<w:p><w:r><w:t>a field </w:t></w:r><w:fldSimple w:instr=\" DATE \"><w:r><w:t>today</w:t></w:r></w:fldSimple></w:p>";
+        body += "<w:p><m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:r><m:t>x+1</m:t></m:r></m:oMath><w:r><w:t> and last</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        // Made by the program's own commands, from the end back so that earlier places keep theirs.
+        const int lastWords = doc->story()->toPlainText().indexOf(QStringLiteral("last"));
+        QTextCursor at(doc->story());
+        at.setPosition(lastWords);
+        QVERIFY(insertPictureImage(*doc, at, QImage(8, 8, QImage::Format_RGB32)) == PictureResult::Ok);
+        at.setPosition(3);
+        at.setPosition(8, QTextCursor::KeepAnchor);
+        QVERIFY(addComment(*doc, at, QStringLiteral("look")) >= 0);
+        at = QTextCursor(doc->story());
+        at.setPosition(10);
+        QVERIFY(insertEndnote(*doc, at));
+        QString problem;
+        for (GoToKind kind : {GoToKind::Endnote, GoToKind::Comment, GoToKind::Graphic, GoToKind::Equation, GoToKind::Field}) {
+            QCOMPARE(goToItems(*doc, kind).size(), 1);
+            const int one = goToPosition(*doc, kind, QStringLiteral("1"), 0, &problem);
+            QVERIFY2(one >= 0, qPrintable(problem));
+            QCOMPARE(goToPosition(*doc, kind, QStringLiteral("2"), 0), -1);
+            QCOMPARE(goToPosition(*doc, kind, QStringLiteral("+1"), 0), one);
+            QCOMPARE(goToPosition(*doc, kind, QStringLiteral("0"), 0, &problem), -1);
+            QVERIFY(!problem.isEmpty());
+        }
+        const QVector<GoToItem> tables = goToItems(*doc, GoToKind::Table);
+        QCOMPARE(tables.size(), 2);
+        QVERIFY(tables[0].position < tables[1].position);
+        QCOMPARE(goToPosition(*doc, GoToKind::Table, QStringLiteral("2"), 0), tables[1].position);
+        QCOMPARE(goToPosition(*doc, GoToKind::Table, QStringLiteral("+1"), tables[0].position + 1), tables[1].position);
+        QCOMPARE(goToPosition(*doc, GoToKind::Table, QStringLiteral("3"), 0), -1);
+        QVERIFY(goToPosition(*doc, GoToKind::Graphic, QStringLiteral("1"), 0) > goToPosition(*doc, GoToKind::Equation, QStringLiteral("1"), 0));
+        QVERIFY(goToPosition(*doc, GoToKind::Comment, QStringLiteral("1"), 0) < goToPosition(*doc, GoToKind::Endnote, QStringLiteral("1"), 0));
     }
 };
 
