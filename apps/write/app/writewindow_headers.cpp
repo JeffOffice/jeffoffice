@@ -39,7 +39,7 @@ void WriteWindow::createHeaderFooterActions()
         m_view->setFocus(Qt::OtherFocusReason);
         m_view->viewport()->update();
     });
-    mk("hf.dateTime", tr("Date & Time…"), "calendar-clock", QKeySequence(), [this] {
+    mk("hf.dateTime", tr("Date && Time…"), "calendar-clock", QKeySequence(), [this] {
         if (!m_doc || !m_view->inHeaderFooter()) return;
         write::dateTimeDialog(this, m_doc.get(), m_view);
         m_view->setFocus(Qt::OtherFocusReason);
