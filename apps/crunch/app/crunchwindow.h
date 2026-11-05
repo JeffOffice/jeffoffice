@@ -1270,6 +1270,8 @@ public:
     };
     void setShapeTextAsker(const std::function<bool(ShapeTextChoices *)> &asker) { m_shapeTextAsker = asker; }
     bool setObjectFill(const QColor &color, bool none);
+    bool applyShapeStyle(int index);   // Shape Format > Shape Styles: a ready-made fill and outline, one step
+    void enableShapeStyles(bool on);
     bool setObjectOutline(const QColor &color, bool none);
     bool setObjectOutlineStyle(double weightPoints, const QString &dash);
     bool rotateObject(int quarterTurns, bool flipH, bool flipV);

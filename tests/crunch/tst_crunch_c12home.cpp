@@ -6,11 +6,15 @@
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
+#include "office/package.h"
+#include "savedok.h"
+#include "findbooks.h"
 #include "grid/gridview.h"
 #include "core/sheetobjects.h"
 #include "sheet/drawing.h"
 
 #include <QAction>
+#include <QSignalSpy>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QUndoStack>
@@ -57,6 +61,10 @@ private Q_SLOTS:
         const grid::ObjectBox box = o->layer()->boxNow(o->layer()->selectedId());
         QCOMPARE(box.w, 48.0);
         QCOMPARE(box.h, 48.0);
+        e.win.w.resize(1000, 600);
+        e.win.w.show();
+        if (qEnvironmentVariableIsSet("JC_SHOT_DIR")) QTest::qWait(1500);   // (the pictures are drawn a moment after they are put in)
+        saveShot(&e.win.w, QStringLiteral("icons-on-sheet"));
         QCOMPARE(e.win.w.undoStack()->count(), steps + 2);
         pressUndo(&e.win.w);
         QCOMPARE(int(o->idsOf(0).size()), 1);
@@ -109,6 +117,31 @@ private Q_SLOTS:
         QCOMPARE(o->kindOf(0, o->layer()->selectedId()), jp::office::sheet::ObjectKind::Picture);
         const grid::ObjectBox box = o->layer()->boxNow(o->layer()->selectedId());
         QVERIFY2(box.w > box.h * 1.5 && box.w < box.h * 2.5, qPrintable(QStringLiteral("%1 x %2").arg(box.w).arg(box.h)));
+    }
+    // Shape Format > Shape Styles: a ready-made fill and outline for the picked shape, in one step of Undo, written in the drawing; the commands are dimmed unless a shape is picked.
+    void aShapeStyleGivesTheShapeItsFillAndOutline()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1"})));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        QVERIFY(e.win.w.act(QStringLiteral("object.style.green")));
+        QVERIFY(!e.win.w.act(QStringLiteral("object.style.green"))->isEnabled());
+        QVERIFY(e.win.w.insertShape(QStringLiteral("rect")));
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("object.style.green"))->isEnabled());
+        const int steps = e.win.w.undoStack()->count();
+        e.win.w.act(QStringLiteral("object.style.green"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);   // (the macro is one step)
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Shape Style"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(savedOk(saved));
+        jp::office::Package p;
+        QString why;
+        QVERIFY(p.readLazyFile(e.path, &why));
+        const QByteArray drawing = p.part(QStringLiteral("/xl/drawings/drawing1.xml"));
+        QVERIFY(drawing.contains("C5E0B3"));
+        QVERIFY(drawing.contains("548235"));
     }
 };
 

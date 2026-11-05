@@ -28,7 +28,9 @@ EditLinksDialog::EditLinksDialog(crunch::EditSession *session, const QString &ba
     m_table->setSelectionMode(QAbstractItemView::SingleSelection);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_table->verticalHeader()->hide();
-    m_table->horizontalHeader()->setStretchLastSection(true);
+    m_table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
     layout->addWidget(m_table);
     auto *row = new QHBoxLayout;
     m_open = new QPushButton(tr("Open Source"), this);

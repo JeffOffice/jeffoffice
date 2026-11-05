@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, insert shape, text box, shapes, arrow, oval, rectangle, star -->
+<!-- keywords: chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, shape styles, styles, insert shape, text box, shapes, arrow, oval, rectangle, star -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -77,6 +77,8 @@ On the **Insert** tab, in **Illustrations**, **Picture** opens a file chooser. P
 **Icons** shows the same window of small line pictures that JeffPub and JeffDeck have, with a box to search them by name. Choose one or more, and each lands on the sheet as a picture, 48 points wide and tall. It is drawn in dark gray at a size that stays sharp when you make it larger. Each one is a single step you can undo.
 
 **Shapes** opens a list: rectangle, rounded rectangle, oval, triangle, diamond, arrows, a star, a heart, a cloud, a speech callout, and a line. Pick one and it lands on the sheet in light blue with a darker edge. **Text Box**, in the **Text** group, puts in an empty box with no fill and no edge.
+
+With a shape picked, **Styles** on the **Shape Format** tab gives it a ready-made look: a fill and an outline that go together, such as light blue with a darker blue edge. The last two keep only the outline or only the fill. One click is one step you can undo. **Shape Fill** and **Shape Outline** change each part by itself.
 
 Each one is a single step you can undo. The new object is picked, so you can drag it, size it, move it forward or back, give it a name and alt text in **Properties**, or press **Delete**.
 

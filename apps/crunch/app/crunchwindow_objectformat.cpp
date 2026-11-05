@@ -557,8 +557,48 @@ void CrunchWindow::refreshSelectionPane()
     m_selectionFilling = false;
 }
 
+namespace {
+
+// The ready-made looks of Shape Styles: a fill and an outline each (or none).
+struct ShapeStyleKind {
+    const char *id;
+    const char *text;
+    QRgb fill, line;
+    bool noFill, noLine;
+};
+const ShapeStyleKind kShapeStyles[] = {
+    {"object.style.blue", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Light Blue"), 0xBDD7EE, 0x2E75B6, false, false},
+    {"object.style.green", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Light Green"), 0xC5E0B3, 0x548235, false, false},
+    {"object.style.orange", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Light Orange"), 0xF8CBAD, 0xC55A11, false, false},
+    {"object.style.gold", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Light Gold"), 0xFFE699, 0xBF9000, false, false},
+    {"object.style.gray", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Light Gray"), 0xDBDBDB, 0x7F7F7F, false, false},
+    {"object.style.outline", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Outline Only"), 0, 0x2E75B6, true, false},
+    {"object.style.plain", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Fill Only"), 0xBDD7EE, 0, false, true},
+};
+
+} // namespace
+
+// A ready-made look for the picked shape: its fill and its outline, as one step of Undo.
+bool CrunchWindow::applyShapeStyle(int index)
+{
+    if (index < 0 || index >= int(sizeof(kShapeStyles) / sizeof(kShapeStyles[0])) || pickedObject() < 0 || !m_session) return false;
+    const ShapeStyleKind &k = kShapeStyles[index];
+    undoStack()->beginMacro(tr("Shape Style"));
+    const bool ok = setObjectFill(QColor(k.fill), k.noFill) && setObjectOutline(QColor(k.line), k.noLine);
+    undoStack()->endMacro();
+    return ok;
+}
+
+void CrunchWindow::enableShapeStyles(bool on)
+{
+    for (const ShapeStyleKind &k : kShapeStyles)
+        if (QAction *a = act(QString::fromLatin1(k.id))) a->setEnabled(on);
+}
+
 void CrunchWindow::createObjectFormatActions()
 {
+    for (int i = 0; i < int(sizeof(kShapeStyles) / sizeof(kShapeStyles[0])); ++i)
+        mk(QString::fromLatin1(kShapeStyles[i].id), QCoreApplication::translate("jp::CrunchWindow", kShapeStyles[i].text), "paint-bucket", QKeySequence(), [this, i] { applyShapeStyle(i); }, false, false);
     mk("object.selectionPane", tr("Selection Pane"), "layers", QKeySequence(), [this] { showSelectionPane(); });
     m_opsActions << QStringLiteral("object.selectionPane");
     auto mkObject = [this](const char *id, const QString &text, const char *icon, const std::function<void()> &fn) { mk(QString::fromLatin1(id), text, icon, QKeySequence(), fn, false, false); };

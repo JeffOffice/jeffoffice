@@ -348,6 +348,12 @@ private Q_SLOTS:
                 waitFor([&] { return quiet(w); });
                 w->view()->selectCell(4, 0);
             }),
+            in(QStringLiteral("an error that comes from a cell it reads"), [](CrunchWindow *w) {
+                enter(w, 6, 0, QStringLiteral("=1/0"));
+                enter(w, 6, 1, QStringLiteral("=A7+1"));
+                waitFor([&] { return quiet(w); });
+                w->view()->selectCell(6, 1);
+            }),
             in(QStringLiteral("a cell circled by Circle Invalid Data"), [](CrunchWindow *w) {
                 enter(w, 1, 1, QStringLiteral("50"));
                 waitFor([&] { return quiet(w); });
@@ -467,6 +473,7 @@ private Q_SLOTS:
             {QStringLiteral("printarea."), {QStringLiteral("a print area set")}},
             {QStringLiteral("sheet."), {QStringLiteral("a second sheet"), QStringLiteral("a hidden sheet")}},
             {QStringLiteral("formulas.trace"), {QStringLiteral("a formula's cell selected")}},
+            {QStringLiteral("formulas.traceError"), {QStringLiteral("an error that comes from a cell it reads")}},
             {QStringLiteral("formulas.removeArrows"), {QStringLiteral("arrows drawn to a formula's cells")}},
             {QStringLiteral("formulas.circular"), {QStringLiteral("a formula that refers to itself")}},
             {QStringLiteral("format.unhide"), {QStringLiteral("a hidden row and column, around them selected")}},
@@ -489,6 +496,7 @@ private Q_SLOTS:
             {QStringLiteral("data.circleInvalid"), QStringLiteral("it tells in a message that every cell follows its rule (no rule is set here), and draws ovals only when one does not")},
             {QStringLiteral("review.statistics"), QStringLiteral("it tells the numbers in a message and changes nothing in the workbook")},
             {QStringLiteral("style.delete"), QStringLiteral("it needs a style the workbook made for itself, and says so when there is none; the Cell Styles tests run it with one")},
+            {QStringLiteral("formulas.applyNames"), QStringLiteral("it tells in a message that no name stands for a block of cells (none is made here), and shows its dialog only when one does; the Formulas tests run it with names")},
             {QStringLiteral("insert.picture"), QStringLiteral("it asks for a picture file, and with none chosen nothing changes; the chart tests put pictures in")},
             {QStringLiteral("chartdesign.saveTemplate"), QStringLiteral("it writes a template file and nothing on the screen changes; the chart tests open the file")},
             {QStringLiteral("chartdesign.saveAsPicture"), QStringLiteral("it writes a picture file and nothing on the screen changes; the chart tests open the file")},

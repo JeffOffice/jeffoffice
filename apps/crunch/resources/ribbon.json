@@ -647,6 +647,7 @@
           "name": "Shape Styles",
           "keytip": "ZY",
           "items": [
+            {"large": {"id": "ribbon.shapeStyles", "text": "Styles", "icon": "swatch-book"}, "keytip": "SY", "menu": ["object.style.blue", "object.style.green", "object.style.orange", "object.style.gold", "object.style.gray", "-", "object.style.outline", "object.style.plain"]},
             {"row": [{"widget": "shapeFill", "keytip": "SF"}, {"widget": "shapeOutline", "keytip": "SO"}, {"icon": {"id": "ribbon.shapeLine", "text": "Line Style", "icon": "minus"}, "keytip": "SL", "menu": "@outlineStyle"}]}
           ]
         },

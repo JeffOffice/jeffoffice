@@ -9,6 +9,7 @@
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "editwindow.h"
+#include "findbooks.h"
 #include "io/cfb.h"
 #include "office/package.h"
 #include "sheet/sheetreader.h"
@@ -382,6 +383,8 @@ private Q_SLOTS:
         QCOMPARE(d.table()->item(0, 0)->text(), QStringLiteral("C:/data/prices.xlsx"));
         QCOMPARE(d.table()->item(0, 2)->text(), QStringLiteral("Not checked"));
         d.checkStatus();
+        d.show();
+        saveShot(&d, QStringLiteral("edit-links"));
         QVERIFY(d.table()->item(0, 2)->text().startsWith(QLatin1String("Not found")));
         // a source with no folder is looked for beside this workbook
         crunch::EditSession::ExternalSource s;
