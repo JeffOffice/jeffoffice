@@ -969,6 +969,7 @@ private:
     void mergeCommand(crunch::EditSession::MergeKind kind);
     void clearCommand(int what);
     void newCellStyleCommand();
+    void deleteCellStyleCommand();
     void applyCellStyle(const QString &name);
     void formatPainterCommand();
     void paintFormats();

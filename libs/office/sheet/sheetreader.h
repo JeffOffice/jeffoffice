@@ -320,6 +320,10 @@ public:
     // Takes a style made by addNamedStyle back out (Undo), with the cell formats made since that follow it: only while the file has not been saved with it, and only when it is the last
     // style there is. False (and nothing changed) otherwise.
     bool removeAddedStyle(const QString &name);
+    // Hides a named style from the lists of styles (the file keeps it, marked hidden, because cells may still name it), or shows it again; false if the workbook has none by that name. What
+    // was changed is kept, as the name and whether it is hidden now, for the saver to write.
+    bool setStyleHidden(const QString &name, bool hidden);
+    const QVector<QPair<QString, bool>> &styleVisibility() const { return m_stylesVisibility; }
     // The additions since the file was read or saved, for saving them: the strings, the number formats (id and code), and the cell formats (the one each is a copy of, and its number format).
     QStringList addedSharedStrings() const { return m_sharedAdded; }
     struct AddedNumberFormat {
@@ -458,6 +462,7 @@ private:
     QVector<FillSpec> m_fillsAdded;
     QVector<BorderSpec> m_bordersAdded;
     QVector<AddedStyle> m_stylesAdded;
+    QVector<QPair<QString, bool>> m_stylesVisibility;
     QVector<DifferentialFormat> m_dxfsAdded;
     qint64 m_dxfsInFile = 0;
     qint64 m_fontsInFile = 0, m_fillsInFile = 0, m_bordersInFile = 0, m_styleXfsInFile = 0;

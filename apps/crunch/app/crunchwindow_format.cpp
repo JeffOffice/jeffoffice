@@ -99,6 +99,7 @@ void CrunchWindow::createFormatActions()
     add(QStringLiteral("fmt.currency"), tr("Currency"), "dollar-sign", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Dollar), [this] { numberFormatCommand(2); });
     add(QStringLiteral("fmt.percent"), tr("Percent Style"), "percent", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Percent), [this] { numberFormatCommand(7); });
     add(QStringLiteral("style.new"), tr("New Cell Style…"), "palette", QKeySequence(), [this] { newCellStyleCommand(); });
+    add(QStringLiteral("style.delete"), tr("Delete Cell Style…"), "trash", QKeySequence(), [this] { deleteCellStyleCommand(); });
     add(QStringLiteral("fmt.comma"), tr("Comma Style"), "hash", QKeySequence(), [this] { numberFormatCommand(13); });
     // the Accounting Number Format with a currency from the list
     struct Money {
@@ -700,6 +701,31 @@ void CrunchWindow::newCellStyleCommand()
     updateFormatState();
 }
 
+// Delete Cell Style: the person picks a style of the workbook (not Normal); the cells that use it go back to Normal.
+void CrunchWindow::deleteCellStyleCommand()
+{
+    if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+    if (!editingAllowed() || !m_session || !m_loaded || !m_loaded->book) return;
+    QString name;
+    if (m_styleNameAsker) {
+        if (!m_styleNameAsker(&name)) return;
+    } else {
+        QStringList names;
+        for (const jp::office::sheet::CellStyleName &n : m_loaded->book->styles().cellStyles)
+            if (!n.hidden && n.builtin != 0) names << n.name;
+        if (names.isEmpty()) {
+            notice(tr("Delete Cell Style"), tr("This workbook has no style to delete besides Normal."));
+            return;
+        }
+        bool ok = false;
+        name = QInputDialog::getItem(this, tr("Delete Cell Style"), tr("Style to delete:"), names, 0, false, &ok);
+        if (!ok) return;
+    }
+    const crunch::EditSession::Outcome o = m_session->deleteCellStyle(name);
+    if (!o.ok) notice(tr("Delete Cell Style"), o.problem);
+    updateFormatState();
+}
+
 void CrunchWindow::applyCellStyle(const QString &name)
 {
     if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
@@ -730,6 +756,7 @@ QMenu *CrunchWindow::buildStylesMenu(QWidget *owner)
         }
         menu->addSeparator();
         menu->addAction(act(QStringLiteral("style.new")));
+        menu->addAction(act(QStringLiteral("style.delete")));
     });
     return menu;
 }

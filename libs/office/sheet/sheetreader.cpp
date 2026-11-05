@@ -2792,6 +2792,22 @@ bool Workbook::removeAddedStyle(const QString &name)
     return true;
 }
 
+bool Workbook::setStyleHidden(const QString &name, bool hidden)
+{
+    for (CellStyleName &n : m_styles.cellStyles) {
+        if (n.name.compare(name, Qt::CaseInsensitive) != 0) continue;
+        n.hidden = hidden;
+        for (QPair<QString, bool> &v : m_stylesVisibility)
+            if (v.first.compare(n.name, Qt::CaseInsensitive) == 0) {
+                v.second = hidden;
+                return true;
+            }
+        m_stylesVisibility.append({n.name, hidden});
+        return true;
+    }
+    return false;
+}
+
 const QVector<Table> &Workbook::tables() const
 {
     if (!m_tablesRead) {

@@ -846,11 +846,17 @@ public:
     void forgetDxf(qint32 place);
     // Why the rules of the sheet are not changed (empty when they may be).
     QString condRulesRefusal(int sheet);
+    // Delete Cell Style: the cells that use the style (their format follows it) go back to Normal, and the style is taken out of the lists of styles (the file keeps it, marked hidden), as one
+    // step. Not ok, and nothing changed, for Normal, a name the workbook does not have, or a style used by more runs of cells than are changed at once.
+    Outcome deleteCellStyle(const QString &name);
     // (the steps of New Cell Style: pushed after the style is made, and Undo and Redo take it out and put it in again)
     void pushStyleMade(const QString &name, quint32 format);
     void forgetNewStyle(const QString &name);
     void rememberNewStyle(const QString &name, quint32 format);
     Outcome newCellStyle(int sheet, quint32 row, quint32 col, const jp::office::sheet::CellRange &range, const QString &name);
+    // (the step of Delete Cell Style that takes the style out of the lists: pushed after it is hidden, and Undo and Redo show it and hide it again)
+    void pushStyleHidden(const QString &name);
+    void hideStyleNamed(const QString &name, bool hidden);
 
     // An object over the cells is taken away (Delete with it picked), put there, moved, or changed: one step, which Undo gives back. The hook (setObjectHook) is told the change when the step is
     // done, undone, and done again (`forward`: the object is to have the state after). A step that took an object away is like one that deleted rows: Undo goes back as far as the last such

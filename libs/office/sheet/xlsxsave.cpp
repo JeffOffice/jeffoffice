@@ -409,6 +409,21 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
         if (!appendToList(&result, "cellStyleXfs", xfs, changes.newStyles.size())) return bad();
         if (!appendToList(&result, "cellStyles", names, changes.newStyles.size())) return bad();
     }
+    // the named styles hidden or shown: the `hidden` of each one's `cellStyle` element
+    for (const QPair<QString, bool> &v : changes.styleVisibility) {
+        Tag t;
+        qsizetype pos = 0;
+        bool done = false;
+        while (!done && xmlscan::nextTag(result, pos, &t)) {
+            pos = t.end;
+            if (t.closing || t.local != QLatin1String("cellStyle")) continue;
+            QByteArray tag = result.mid(t.start, t.end - t.start);
+            if (xmlscan::unescape(xmlscan::attribute(QByteArrayView(tag), "name")) != v.first) continue;
+            setAttribute(&tag, "hidden", v.second ? "1" : "0");
+            result = result.left(t.start) + tag + result.mid(t.end);
+            done = true;
+        }
+    }
     // the borders, fills, and fonts (before the cell formats in the part; each is found again, so that the places do not matter)
     if (!changes.newBorders.isEmpty()) {
         QByteArray items;
@@ -2327,7 +2342,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         replaced.insert(index, patched);
     }
     // ---- the styles
-    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty() || !changes.newFonts.isEmpty() || !changes.newFills.isEmpty() || !changes.newBorders.isEmpty() || !changes.newStyles.isEmpty() || !changes.newDxfs.isEmpty()) {
+    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty() || !changes.newFonts.isEmpty() || !changes.newFills.isEmpty() || !changes.newBorders.isEmpty() || !changes.newStyles.isEmpty() || !changes.styleVisibility.isEmpty() || !changes.newDxfs.isEmpty()) {
         const int index = entryOfPart(book.stylesPart());
         QByteArray xml, patched;
         if (index < 0 || !inflate(index, &xml)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The styles part is not in the file."));

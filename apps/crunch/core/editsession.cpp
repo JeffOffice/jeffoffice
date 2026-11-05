@@ -116,6 +116,33 @@ private:
     bool m_first = true;
 };
 
+// A style taken out of the lists by Delete Cell Style: Undo shows it again, Redo hides it (the first Redo is a no-op: it was hidden before the step was pushed).
+class StyleHidden : public QUndoCommand {
+public:
+    StyleHidden(EditSession *session, const QString &name) : QUndoCommand(name), m_session(session), m_name(name) {}
+    void redo() override
+    {
+        if (m_first) {
+            m_first = false;
+            return;
+        }
+        m_session->hideStyleNamed(m_name, true);
+    }
+    void undo() override { m_session->hideStyleNamed(m_name, false); }
+
+private:
+    EditSession *m_session;
+    QString m_name;
+    bool m_first = true;
+};
+
+void EditSession::pushStyleHidden(const QString &name) { m_undo.push(new StyleHidden(this, name)); }
+
+void EditSession::hideStyleNamed(const QString &name, bool hidden)
+{
+    if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) m_book->book->setStyleHidden(name, hidden);
+}
+
 void EditSession::pushStyleMade(const QString &name, quint32 format) { m_undo.push(new StyleMade(this, name, format)); }
 
 void EditSession::forgetNewStyle(const QString &name)
@@ -1774,6 +1801,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
         changes.bordersBefore = book.bordersInFile();
         for (const Workbook::AddedStyle &s : book.addedStyles()) changes.newStyles.append({s.format, s.name});
         changes.styleXfsBefore = book.styleXfsInFile();
+        changes.styleVisibility = book.styleVisibility();
         changes.newDxfs = book.addedDxfs();
     }
     out->numberFormats = int(changes.newNumberFormats.size());
