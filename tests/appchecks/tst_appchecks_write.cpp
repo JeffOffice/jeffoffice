@@ -226,6 +226,25 @@ private Q_SLOTS:
                  asWrite(w)->refreshNow();
                  w->act(QStringLiteral("insert.header"))->trigger();
              }, false},
+            {QStringLiteral("the footer of a second section"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 w->act(QStringLiteral("layout.sectionBreak"))->trigger();
+                 typeInto(asWrite(w)->view(), QStringLiteral("In the second section"));
+                 asWrite(w)->view()->paginateAll();
+                 asWrite(w)->view()->goToPage(asWrite(w)->view()->pageCount() - 1);
+                 asWrite(w)->refreshNow();
+                 w->act(QStringLiteral("insert.footer"))->trigger();
+             }, false},
+            {QStringLiteral("the header of a first section that another follows"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 w->act(QStringLiteral("layout.sectionBreak"))->trigger();
+                 typeInto(asWrite(w)->view(), QStringLiteral("In the second section"));
+                 asWrite(w)->view()->paginateAll();
+                 asWrite(w)->view()->cursor().setPosition(0);
+                 asWrite(w)->view()->goToPage(0);
+                 asWrite(w)->refreshNow();
+                 w->act(QStringLiteral("insert.header"))->trigger();
+             }, false},
             {QStringLiteral("a header being edited"), [](AppWindow *w, bool) { w->act(QStringLiteral("insert.header"))->trigger(); }, false},
             {QStringLiteral("the Styles pane open"), [typed](AppWindow *w, bool f) {
                  typed(w, f);

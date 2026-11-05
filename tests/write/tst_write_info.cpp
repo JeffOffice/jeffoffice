@@ -489,6 +489,7 @@ private Q_SLOTS:
             QVERIFY(out.open(QIODevice::WriteOnly) && out.write(f.first) == f.first.size());
             out.close();
             WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
             w.setTextFormChooser([&](TextForm *, const QByteArray *) {
                 QTest::qFail("asked about a file whose encoding is plain", __FILE__, __LINE__);
                 return false;
