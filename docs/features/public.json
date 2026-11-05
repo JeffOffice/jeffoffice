@@ -5550,8 +5550,9 @@
          "text": "ea5620b613cd32b756dba2d140face9915c0e992ec339ed67d670c9dfec1f15b"
         },
         {
-         "status": "todo",
-         "text": "1abb53b3ab8c34db51724c08ea537ef0d3dfb2fcab73e150c331f1262425f2a5"
+         "hide_soon": true,
+         "status": "done",
+         "text": "11c37f0657022925677a61d7c156ebd98890dd8c678f666e4c796f7512961737"
         },
         {
          "status": "todo",
@@ -5772,7 +5773,7 @@
         },
         {
          "status": "todo",
-         "text": "fc2391b79160372f2e0f3a0a8ac788cf36308e12f213ca4d0932d740c5ac0189"
+         "text": "8851dadaa445207436d5c8757cc62d8d69a83b6437bcc209d7eb6c24a3edd598"
         },
         {
          "status": "todo",
@@ -5783,8 +5784,8 @@
          "text": "d8b66e9a32d6ec5b77750181153f1fed3473d62ce593091f2395c82b4ac59431"
         },
         {
-         "status": "todo",
-         "text": "97364b814b9158ad30ccd1420a3b4c98bd4a534701950f5276a22799d009ba76"
+         "status": "partly",
+         "text": "d50a9466651ec18bacc9d530b4c857d3a8620642a9434c7bf4b2fa70bedcd157"
         },
         {
          "status": "partly",
@@ -5834,19 +5835,19 @@
       },
       {
        "status": "todo",
-       "text": "e1ee40744347eed67251c6647ae9b2c51a0c88fb4ecd109b253a4ced4fda3adf"
-      },
-      {
-       "status": "todo",
-       "text": "6909b42bef00654f3c7c6db1a18f3e6e1583a23b9657b3ee2b4646c633ee4e05"
-      },
-      {
-       "status": "todo",
-       "text": "73c9f40118e44decb9919bc17af26a5bb01f59dbc4b5ca2e88cf9991396d82de"
+       "text": "697af04fb1b30473766f5a256c983f7b76c98578ce9051a26ac33f469cd91fe9"
       },
       {
        "status": "partly",
-       "text": "78b3881d8ee7d3cbd9737fab18fe001ccceceab338dbee1bcdccc39c820519bb"
+       "text": "3d0d957d899edf7c9c60e9b3da9965c37ff0b673b7fee743ab5b6ccaf3f47dd0"
+      },
+      {
+       "status": "partly",
+       "text": "a94eb9b5bc8284fbf01725609e29d995d5d47d23927fd478235245ce0537e0e7"
+      },
+      {
+       "status": "partly",
+       "text": "48aa548a08075a4c326884b4ec3fc2f24d8d802b9f7807035c49ef90d7c8333b"
       },
       {
        "status": "partly",
@@ -8337,6 +8338,18 @@
     "fr": ""
    }
   },
+  "11c37f0657022925677a61d7c156ebd98890dd8c678f666e4c796f7512961737": {
+   "drop": false,
+   "en": "Apply character shading from a color list, or remove it, and turn a thin character border on or off in JeffWrite. Shading is kept separate from the highlight, and each change is one Undo step.",
+   "es": "En JeffWrite puede aplicar sombreado de caracteres desde una lista de colores, o quitarlo, y activar o desactivar un borde fino de caracteres. El sombreado se mantiene aparte del resaltado y cada cambio se deshace en un solo paso.",
+   "fr": "Dans JeffWrite, vous pouvez appliquer une trame de fond aux caractères à partir d’une liste de couleurs, ou la retirer, et activer ou désactiver une fine bordure de caractères. La trame reste distincte du surlignage et chaque modification s’annule en une seule étape.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "11e2ff6ba02981cde8bbb20edc03a42f58ffe69bdbb731410928f10cc7d83764": {
    "drop": false,
    "en": "Options",
@@ -8935,18 +8948,6 @@
     "en": "Slicer: draw over the cells, change which tables it filters, and show each style’s look",
     "es": "Segmentación de datos: dibujarla sobre las celdas, cambiar qué tablas filtra y mostrar el aspecto de cada estilo",
     "fr": "Segment : dessin sur les cellules, changement des tableaux filtrés et rendu de chaque style"
-   }
-  },
-  "1abb53b3ab8c34db51724c08ea537ef0d3dfb2fcab73e150c331f1262425f2a5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Character shading and character border",
-    "es": "Sombreado y borde de carácter",
-    "fr": "Trame de fond et bordure de caractère"
    }
   },
   "1b368da7bee1bab847b7ab57eb6b2f49cbf03870c8e05569d273c929dce0f716": {
@@ -11301,6 +11302,18 @@
     "fr": ""
    }
   },
+  "3d0d957d899edf7c9c60e9b3da9965c37ff0b673b7fee743ab5b6ccaf3f47dd0": {
+   "drop": false,
+   "en": "Choose from seven paragraph spacing presets in JeffWrite: Default, No Paragraph Space, Compact, Tight, Open, Relaxed, and Double. They set the spacing of the default paragraph style in one step.",
+   "es": "En JeffWrite puede elegir entre siete ajustes preestablecidos de espaciado de párrafo: Predeterminado, Sin espacio entre párrafos, Compacto, Ajustado, Abierto, Relajado y Doble. Establecen el espaciado del estilo de párrafo predeterminado en un solo paso.",
+   "fr": "Dans JeffWrite, vous pouvez choisir parmi sept préréglages d’espacement des paragraphes : Par défaut, Sans espace entre paragraphes, Compact, Serré, Ouvert, Détendu et Double. Ils définissent l’espacement du style de paragraphe par défaut en une seule étape.",
+   "soon": {
+    "drop": false,
+    "en": "Style sets gallery, Set as Default, and Reset",
+    "es": "Galería de conjuntos de estilos, Establecer como predeterminado y Restablecer",
+    "fr": "Galerie de jeux de styles, Définir par défaut et Réinitialiser"
+   }
+  },
   "3d14f7a54416f7cef18a05f1858a74f11838669fceb514f5046368af7e41266c": {
    "drop": false,
    "en": "In JeffDeck, the themes gallery shows nine themes as pictures of their title slides. One click applies a theme to every slide. Each slide moves to the layout of its own kind, text you set yourself keeps its look, and a color that would be hard to read is adjusted just enough to be readable.",
@@ -12187,6 +12200,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "48aa548a08075a4c326884b4ec3fc2f24d8d802b9f7807035c49ef90d7c8333b": {
+   "drop": false,
+   "en": "Set the page color in JeffWrite to a theme color, any color, or none, in one Undo step. The color is kept in the file and drawn on the pages and in a PDF, and it is not printed on paper.",
+   "es": "En JeffWrite puede establecer el color de página con un color del tema, cualquier color o ninguno, en un solo paso que se puede deshacer. El color se guarda en el archivo, se dibuja en las páginas y en un PDF, y no se imprime en papel.",
+   "fr": "Dans JeffWrite, vous pouvez définir la couleur de page avec une couleur du thème, n’importe quelle couleur ou aucune, en une seule étape annulable. La couleur est conservée dans le fichier, affichée sur les pages et dans un PDF, et n’est pas imprimée sur papier.",
+   "soon": {
+    "drop": false,
+    "en": "Page color fill effects: gradient, texture, pattern, and picture",
+    "es": "Efectos de relleno del color de página: degradado, textura, trama e imagen",
+    "fr": "Effets de remplissage de la couleur de page : dégradé, texture, motif et image"
    }
   },
   "48c425a2c82a7f6ff437be635267138315fa6fd1bcd8cdb1362a0a2f085772bc": {
@@ -14565,18 +14590,6 @@
     "fr": ""
    }
   },
-  "6909b42bef00654f3c7c6db1a18f3e6e1583a23b9657b3ee2b4646c633ee4e05": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Style sets gallery, paragraph spacing presets, Set as Default, and Reset to the template’s set",
-    "es": "Galería de conjuntos de estilos, preajustes de espaciado de párrafo, Establecer como predeterminado y Restablecer al conjunto de la plantilla",
-    "fr": "Galerie de jeux de styles, préréglages d’espacement de paragraphe, Définir par défaut et Rétablir le jeu du modèle"
-   }
-  },
   "694f2d850314aec7ecff9177dc38cff43c3192141d8852bd37c713791fcc2085": {
    "drop": false,
    "en": "Expand or collapse an entire pivot table field, drill down or up on the item named in the selected cell, and double-click a value to see the rows behind it on a new sheet.",
@@ -14599,6 +14612,18 @@
     "en": "Show markup by person in the ribbon, highlight updates, a horizontal Reviewing pane, and balloons for formatting changes",
     "es": "Mostrar marcado por persona en la cinta de opciones, resaltar actualizaciones, un panel Revisiones horizontal y globos para cambios de formato",
     "fr": "Affichage des marques par personne dans le ruban, mise en évidence des mises à jour, volet Vérification horizontal et bulles pour les modifications de mise en forme"
+   }
+  },
+  "697af04fb1b30473766f5a256c983f7b76c98578ce9051a26ac33f469cd91fe9": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Theme Colors and Theme Fonts galleries: heading and body pairs, Create New, and restyling the whole document",
+    "es": "Galerías de colores y fuentes del tema: pares de títulos y cuerpo, Crear nuevo y nuevo estilo para todo el documento",
+    "fr": "Galeries de couleurs et de polices du thème : paires titre et corps, Créer, et restylage de tout le document"
    }
   },
   "698f03c7d1e0998511a15e2c9ab946feed7ee5d99a44b5826326fe4afa0ee241": {
@@ -15369,18 +15394,6 @@
     "fr": ""
    }
   },
-  "73c9f40118e44decb9919bc17af26a5bb01f59dbc4b5ca2e88cf9991396d82de": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Watermark: built-in or custom text or picture, with size, color, layout, transparency, and Remove",
-    "es": "Marca de agua: texto o imagen incorporados o personalizados, con tamaño, color, diseño, transparencia y Quitar",
-    "fr": "Filigrane : texte ou image intégrés ou personnalisés, avec taille, couleur, disposition, transparence et suppression"
-   }
-  },
   "74050f5fd5a5ce7bbbcd9fd156215c133c31d31f12431eccba1b7fdecc227e51": {
    "drop": false,
    "en": "File (backstage)",
@@ -15667,18 +15680,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "78b3881d8ee7d3cbd9737fab18fe001ccceceab338dbee1bcdccc39c820519bb": {
-   "drop": false,
-   "en": "Set the page color to a theme color, any color, or none. The file keeps it, it shows on the pages and in a PDF, and it is not printed on paper.",
-   "es": "Establezca el color de página con un color de tema, cualquier color o ninguno. El archivo lo conserva, se muestra en las páginas y en un PDF, y no se imprime en papel.",
-   "fr": "Définissez la couleur de page avec une couleur de thème, n’importe quelle couleur ou aucune. Le fichier la conserve, elle s’affiche sur les pages et dans un PDF, et elle n’est pas imprimée sur papier.",
-   "soon": {
-    "drop": false,
-    "en": "Page color fill effects: gradient, texture, pattern, and picture",
-    "es": "Efectos de relleno del color de página: degradado, textura, trama e imagen",
-    "fr": "Effets de remplissage de la couleur de page : dégradé, texture, motif et image"
    }
   },
   "78be05f22ff08d256ae672131e3678bcae31bd5e062f5ede808ca5e465a01d2b": {
@@ -16639,6 +16640,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "8851dadaa445207436d5c8757cc62d8d69a83b6437bcc209d7eb6c24a3edd598": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Text box gallery: built-in designs and saving your own",
+    "es": "Galería de cuadros de texto: diseños integrados y opción de guardar los suyos",
+    "fr": "Galerie de zones de texte : modèles intégrés et enregistrement des vôtres"
    }
   },
   "88b7f0e25ecfb5563649e6d84e15b2a630e411540aadbe494f1a200fdb3fd4a0": {
@@ -17635,18 +17648,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "97364b814b9158ad30ccd1420a3b4c98bd4a534701950f5276a22799d009ba76": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Drop Cap: dropped or in the margin, with lines high, distance from text, and font",
-    "es": "Letra capital: en el texto o en el margen, con altura en líneas, distancia al texto y fuente",
-    "fr": "Lettrine : dans le texte ou dans la marge, avec hauteur en lignes, distance au texte et police"
    }
   },
   "973a16406b9b58a415423aee42652b2b72521493185af842c0265a1ff375bc8e": {
@@ -18823,6 +18824,18 @@
     "en": "Object: embedded objects from other programs, shown as a picture and opened in their own program",
     "es": "Objeto: objetos incrustados de otros programas, mostrados como imagen y abiertos en su propio programa",
     "fr": "Objet : objets incorporés d’autres programmes, affichés sous forme d’image et ouverts dans leur propre programme"
+   }
+  },
+  "a94eb9b5bc8284fbf01725609e29d995d5d47d23927fd478235245ce0537e0e7": {
+   "drop": false,
+   "en": "Add a watermark in JeffWrite from six built-in words or a custom text watermark, with font, size, color, semitransparency, and diagonal or horizontal layout, and remove it. It appears behind the text in each header the document shows, is kept in the file, and is one Undo step.",
+   "es": "En JeffWrite puede agregar una marca de agua con seis palabras integradas o un texto personalizado, con fuente, tamaño, color, semitransparencia y diseño diagonal u horizontal, y quitarla. Aparece detrás del texto en cada encabezado que muestra el documento, se guarda en el archivo y se deshace en un solo paso.",
+   "fr": "Dans JeffWrite, vous pouvez ajouter un filigrane parmi six mots intégrés ou un texte personnalisé, avec police, taille, couleur, semi-transparence et disposition diagonale ou horizontale, puis le supprimer. Il apparaît derrière le texte dans chaque en-tête affiché par le document, est conservé dans le fichier et s’annule en une seule étape.",
+   "soon": {
+    "drop": false,
+    "en": "Picture watermark",
+    "es": "Marca de agua con imagen",
+    "fr": "Filigrane d’image"
    }
   },
   "a95efbe86afcf49dd7eced7df164d714beb46a36d04866f8eb369f142f889a9e": {
@@ -21717,6 +21730,18 @@
     "fr": ""
    }
   },
+  "d50a9466651ec18bacc9d530b4c857d3a8620642a9434c7bf4b2fa70bedcd157": {
+   "drop": false,
+   "en": "Insert a drop cap in JeffWrite with None, Dropped, or Drop Cap Options, including the number of lines, the number of letters, and a font of its own. It is one Undo step, and the drop cap reopens as a drop cap when the file is opened again.",
+   "es": "En JeffWrite puede insertar una letra capital con Ninguna, En texto o Opciones de letra capital, que incluyen el número de líneas, el número de letras y una fuente propia. Se deshace en un solo paso y la letra capital se vuelve a abrir como tal al abrir de nuevo el archivo.",
+   "fr": "Dans JeffWrite, vous pouvez insérer une lettrine avec Aucune, Dans le texte ou Options de lettrine, notamment le nombre de lignes, le nombre de lettres et une police propre. L’action s’annule en une seule étape et la lettrine se rouvre comme lettrine à la réouverture du fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Drop cap: in the margin, distance from text, and change or remove for a file’s own drop cap",
+    "es": "Letra capital: en el margen, distancia del texto, y cambio o eliminación de la que trae un archivo",
+    "fr": "Lettrine : dans la marge, distance du texte, et modification ou suppression de celle d’un fichier"
+   }
+  },
   "d50e7f3e2f633f3c4329ce4caec8ba3ea2ebcb88298287860f0e6e07e8355d91": {
    "drop": false,
    "en": "In JeffWrite, you can update a table of contents with `F9` or References > Update Table, choosing page numbers only or the entire table. You can also remove the table and use Add Text to set a paragraph as Heading 1, 2, or 3, or as body text.",
@@ -22471,18 +22496,6 @@
     "en": "Numbers with 15 significant digits kept and shown, including near-zero results and large numbers",
     "es": "Números con 15 cifras significativas conservadas y mostradas, incluidos los resultados casi nulos y los números grandes",
     "fr": "Nombres avec 15 chiffres significatifs conservés et affichés, y compris les résultats proches de zéro et les grands nombres"
-   }
-  },
-  "e1ee40744347eed67251c6647ae9b2c51a0c88fb4ecd109b253a4ced4fda3adf": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Theme Colors and Theme Fonts galleries, with Create New for each",
-    "es": "Galerías de colores y fuentes del tema, con Crear nuevo para cada una",
-    "fr": "Galeries de couleurs et de polices du thème, avec Créer pour chacune"
    }
   },
   "e1fd472a2c07ddb8e7196bf494ccb43d8e3f43077daea7fd4694923f348f6c90": {
@@ -24331,18 +24344,6 @@
     "en": "Customizable toolbar and ribbon: choose which commands appear",
     "es": "Barra de herramientas y cinta de opciones personalizables: elija qué comandos aparecen",
     "fr": "Barre d’outils et ruban personnalisables : choisissez les commandes affichées"
-   }
-  },
-  "fc2391b79160372f2e0f3a0a8ac788cf36308e12f213ca4d0932d740c5ac0189": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Text box gallery of built-in designs and saving your own",
-    "es": "Galería de cuadros de texto con diseños incorporados y guardado de los suyos",
-    "fr": "Galerie de zones de texte avec modèles intégrés et enregistrement des vôtres"
    }
   },
   "fc3d8e701328d363687acf7ea62792eca03c17323d7618a49ff0896d71c43a27": {
