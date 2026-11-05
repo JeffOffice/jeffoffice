@@ -47,6 +47,25 @@ class SheetChartEditTests : public QObject {
 private Q_SLOTS:
     void initTestCase() { jp::initCore(); }
 
+    // Drop lines, high-low lines, and up-down bars are offered for line plots (the last two with two series or more), set on every plot that takes them, and kept through writing.
+    void linesBetweenSeriesGoOnAndOff()
+    {
+        Chart col = columns();
+        QVERIFY(!plotLinesApply(col, PlotLines::Drop));
+        Chart c = columns(ChartKind::Line);
+        QVERIFY(plotLinesApply(c, PlotLines::Drop) && plotLinesApply(c, PlotLines::HighLow) && plotLinesApply(c, PlotLines::UpDown));
+        QVERIFY(!plotLinesOn(c, PlotLines::HighLow));
+        setPlotLines(&c, PlotLines::HighLow, true);
+        setPlotLines(&c, PlotLines::UpDown, true);
+        QVERIFY(plotLinesOn(c, PlotLines::HighLow) && plotLinesOn(c, PlotLines::UpDown) && !plotLinesOn(c, PlotLines::Drop));
+        const Chart back = roundTrip(c);
+        QVERIFY(plotLinesOn(back, PlotLines::HighLow) && plotLinesOn(back, PlotLines::UpDown));
+        setPlotLines(&c, PlotLines::HighLow, false);
+        QVERIFY(!plotLinesOn(c, PlotLines::HighLow));
+        Chart area = columns(ChartKind::Area);
+        QVERIFY(plotLinesApply(area, PlotLines::Drop) && !plotLinesApply(area, PlotLines::HighLow));
+    }
+
     // "Value from cells" is set for every series from a reference, taken away again, and kept through writing and reading.
     void dataLabelsReadTheirWordsFromCells()
     {

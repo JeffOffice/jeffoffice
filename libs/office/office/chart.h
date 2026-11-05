@@ -173,6 +173,12 @@ struct ChartPlot {
     bool lines = true;              // scatter: the points are joined (else markers only)
     bool smooth = false;            // scatter: made with smooth lines (each series says so in the file: the kind of a plot read from a file is told from its series)
     qint64 axisIds[2] = {0, 0};     // the category (or horizontal) and the value axes it is drawn against
+    // Lines and bars a line or area plot draws between its series: drop lines (from a category's highest point down to the axis), high-low lines (from its highest point to its lowest), and
+    // up-down bars (between its first and last series; up when the last is higher). The file's looks for them; the up bar is white and the down bar black when it says nothing.
+    bool dropLines = false, hiLowLines = false, upDownBars = false;
+    ChartLine dropLine, hiLowLine, upBarLine, downBarLine;
+    QColor upBarFill, downBarFill;
+    int upDownGap = 150;            // percent of a bar
     QVector<ChartSeries> series;
 };
 

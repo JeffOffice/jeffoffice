@@ -482,6 +482,42 @@ QString dataLabelsCellsRef(const Chart &chart)
     return QString();
 }
 
+namespace {
+
+bool plotTakes(const ChartPlot &p, PlotLines kind)
+{
+    if (kind == PlotLines::Drop) return p.type == ChartType::Line || p.type == ChartType::Area;
+    return p.type == ChartType::Line && p.series.size() >= 2;
+}
+
+} // namespace
+
+bool plotLinesApply(const Chart &chart, PlotLines kind)
+{
+    for (const ChartPlot &p : chart.plots)
+        if (plotTakes(p, kind)) return true;
+    return false;
+}
+
+bool plotLinesOn(const Chart &chart, PlotLines kind)
+{
+    bool any = false;
+    for (const ChartPlot &p : chart.plots) {
+        if (!plotTakes(p, kind)) continue;
+        any = true;
+        if (!(kind == PlotLines::Drop ? p.dropLines : kind == PlotLines::HighLow ? p.hiLowLines : p.upDownBars)) return false;
+    }
+    return any;
+}
+
+void setPlotLines(Chart *chart, PlotLines kind, bool on)
+{
+    for (ChartPlot &p : chart->plots) {
+        if (!plotTakes(p, kind)) continue;
+        (kind == PlotLines::Drop ? p.dropLines : kind == PlotLines::HighLow ? p.hiLowLines : p.upDownBars) = on;
+    }
+}
+
 // ---- colors and looks
 
 namespace {

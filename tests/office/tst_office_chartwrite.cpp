@@ -257,6 +257,46 @@ private Q_SLOTS:
         QVERIFY(!divided.contains("30000") && !divided.contains("30,000"));
     }
 
+    // Drop lines, high-low lines, and up-down bars of a line plot: written in the schema's place (after the series, before the markers), read back, and drawn.
+    void linesAndBarsBetweenSeriesAreKeptAndDrawn()
+    {
+        Chart c = comboChart();
+        ChartPlot &line = c.plots[1];
+        line.series << seriesOf(QStringLiteral("Low"), QString(), QString(), QString(), {"Q1", "Q2", "Q3"}, {20, 40, 60}, QColor("#A5A5A5"));
+        const QByteArray plain = chartSvg(c, QSizeF(480, 288));
+        line.dropLines = true;
+        line.hiLowLines = true;
+        line.hiLowLine.set = true;
+        line.hiLowLine.color = QColor("#FF0000");
+        line.upDownBars = true;
+        line.upDownGap = 80;
+        line.upBarFill = QColor("#00FF00");
+        const QByteArray xml = writeChartPart(c);
+        QDomDocument doc;
+        QVERIFY(doc.setContent(xml, true));
+        const QString cns = QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/chart");
+        const QDomElement lineChart = doc.elementsByTagNameNS(cns, QStringLiteral("lineChart")).at(0).toElement();
+        QStringList order;
+        for (QDomElement e = lineChart.firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
+            if (e.localName() != QLatin1String("ser") && e.localName() != QLatin1String("axId")) order << e.localName();
+        QCOMPARE(order, (QStringList{"grouping", "varyColors", "dropLines", "hiLowLines", "upDownBars", "marker"}));
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(xml, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        const ChartPlot &back = r.plots[1];
+        QVERIFY(back.dropLines && back.hiLowLines && back.upDownBars);
+        QCOMPARE(back.upDownGap, 80);
+        QCOMPARE(back.hiLowLine.color.name(), QStringLiteral("#ff0000"));
+        QCOMPARE(back.upBarFill.name(), QStringLiteral("#00ff00"));
+        QVERIFY(!r.plots[0].dropLines);
+        QCOMPARE(writeChartPart(r), xml);
+        QVERIFY(chartIsFullyModeled(xml, nullptr));
+        const QByteArray drawn = chartSvg(r, QSizeF(480, 288));
+        QVERIFY(drawn != plain);
+        QVERIFY(drawn.contains("#ff0000") || drawn.contains("#FF0000") || drawn.contains("rgb(255,0,0)"));
+        QVERIFY(drawn.contains("#00ff00") || drawn.contains("#00FF00") || drawn.contains("rgb(0,255,0)"));
+    }
+
     void aLabelsLegendKeyIsKeptAndDrawn()
     {
         Chart c = comboChart();

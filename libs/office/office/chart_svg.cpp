@@ -276,6 +276,8 @@ private:
     void drawBars(const View &v, const Scale &scale);
     void drawLines(const View &v, const Scale &scale);
     void drawAreas(const View &v, const Scale &scale);
+    // The drop lines, high-low lines, and up-down bars of a line or area plot, under its series.
+    void drawBetweenSeries(const View &v, const Scale &scale);
     void drawScatter(const View &v, const Scale &xs, const Scale &ys);
     // The trendlines of a series, over the plot: `xs` are the x of each of its values (a scatter's, else the places 1, 2, 3...), and `map` takes an x and a y to the page.
     void drawTrendlines(const ChartSeries &s, const QVector<double> &xs, const std::function<QPointF(double, double)> &map);
@@ -1011,9 +1013,53 @@ void ChartPainter::strokeThrough(const QVector<QPointF> &pts, const QVector<bool
     if (!longRun || !whole.isEmpty()) m_p->drawPath(whole);
 }
 
+void ChartPainter::drawBetweenSeries(const View &v, const Scale &scale)
+{
+    const ChartPlot &plot = *v.plot;
+    if (!plot.dropLines && !plot.hiLowLines && !plot.upDownBars) return;
+    const double base = std::clamp(m_baseline, scale.min, scale.max);
+    const double gray = 0.75;
+    m_p->save();
+    m_p->setBrush(Qt::NoBrush);
+    for (int i = 0; i < m_n; ++i) {
+        double high = -std::numeric_limits<double>::infinity(), low = std::numeric_limits<double>::infinity();
+        int finite = 0;
+        for (int k = 0; k < plot.series.size(); ++k) {
+            const double value = v.segs[k][i].to;
+            if (!std::isfinite(value)) continue;
+            high = std::max(high, value);
+            low = std::min(low, value);
+            ++finite;
+        }
+        if (!finite) continue;
+        if (plot.dropLines) {
+            m_p->setPen(penFor(plot.dropLine, lineColor(), gray));
+            m_p->drawLine(at(catUnit(i), high, scale), at(catUnit(i), base, scale));
+        }
+        if (plot.hiLowLines && finite > 1) {
+            m_p->setPen(penFor(plot.hiLowLine, lineColor(), gray));
+            m_p->drawLine(at(catUnit(i), high, scale), at(catUnit(i), low, scale));
+        }
+        if (plot.upDownBars && plot.series.size() > 1) {
+            const double first = v.segs[0][i].to, last = v.segs[plot.series.size() - 1][i].to;
+            if (!std::isfinite(first) || !std::isfinite(last)) continue;
+            const double bar = 1.0 / (1.0 + plot.upDownGap / 100.0);
+            const QRectF r = rectOf(catUnit(i) - bar / 2, catUnit(i) + bar / 2, first, last, scale);
+            const bool up = last >= first;
+            const QColor fill = up ? (plot.upBarFill.isValid() ? plot.upBarFill : QColor(Qt::white)) : (plot.downBarFill.isValid() ? plot.downBarFill : QColor(Qt::black));
+            m_p->setBrush(fill);
+            m_p->setPen(penFor(up ? plot.upBarLine : plot.downBarLine, lineColor(), gray));
+            m_p->drawRect(r);
+            m_p->setBrush(Qt::NoBrush);
+        }
+    }
+    m_p->restore();
+}
+
 void ChartPainter::drawLines(const View &v, const Scale &scale)
 {
     const ChartPlot &plot = *v.plot;
+    drawBetweenSeries(v, scale);
     static const ChartMarker::Symbol autoSymbols[] = {ChartMarker::Diamond, ChartMarker::Square, ChartMarker::Triangle, ChartMarker::X,
                                                       ChartMarker::Star,    ChartMarker::Circle, ChartMarker::Plus,     ChartMarker::Dash};
     const bool stacked = plot.grouping == ChartGrouping::Stacked || plot.grouping == ChartGrouping::PercentStacked;
@@ -1114,6 +1160,7 @@ void ChartPainter::drawAreas(const View &v, const Scale &scale)
         }
     }
     m_p->restore();
+    drawBetweenSeries(v, scale);
 }
 
 void ChartPainter::drawScatter(const View &v, const Scale &xs, const Scale &ys)

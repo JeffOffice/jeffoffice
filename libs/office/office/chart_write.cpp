@@ -581,6 +581,28 @@ private:
             }
             series(p, p.series[i]);
         }
+        // lines and bars between the series
+        if ((p.type == ChartType::Line || p.type == ChartType::Area) && p.dropLines) {
+            w.writeStartElement(QStringLiteral("c:dropLines"));
+            shapeProps(QColor(), false, p.dropLine);
+            w.writeEndElement();
+        }
+        if (p.type == ChartType::Line && p.hiLowLines) {
+            w.writeStartElement(QStringLiteral("c:hiLowLines"));
+            shapeProps(QColor(), false, p.hiLowLine);
+            w.writeEndElement();
+        }
+        if (p.type == ChartType::Line && p.upDownBars) {
+            w.writeStartElement(QStringLiteral("c:upDownBars"));
+            val("c:gapWidth", QString::number(p.upDownGap));
+            w.writeStartElement(QStringLiteral("c:upBars"));
+            shapeProps(p.upBarFill, false, p.upBarLine);
+            w.writeEndElement();
+            w.writeStartElement(QStringLiteral("c:downBars"));
+            shapeProps(p.downBarFill, false, p.downBarLine);
+            w.writeEndElement();
+            w.writeEndElement();
+        }
         switch (p.type) {
         case ChartType::Bar:
         case ChartType::Other:

@@ -945,6 +945,15 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
             legend->addSeparator();
             check(legend, tr("Over the Chart"), e.legendOverlay, [code = e.legendPosition, on = !e.legendOverlay](Chart *c) { setLegend(c, code, on); }, tr("Legend"));
         }
+        if (plotLinesApply(chart, PlotLines::Drop)) {
+            QMenu *lines = menu->addMenu(tr("Lines"));
+            lines->setObjectName(QStringLiteral("plotLinesMenu"));
+            check(lines, tr("Drop Lines"), plotLinesOn(chart, PlotLines::Drop), [on = !plotLinesOn(chart, PlotLines::Drop)](Chart *c) { setPlotLines(c, PlotLines::Drop, on); }, tr("Lines"));
+            if (plotLinesApply(chart, PlotLines::HighLow)) {
+                check(lines, tr("High-Low Lines"), plotLinesOn(chart, PlotLines::HighLow), [on = !plotLinesOn(chart, PlotLines::HighLow)](Chart *c) { setPlotLines(c, PlotLines::HighLow, on); }, tr("Lines"));
+                check(lines, tr("Up/Down Bars"), plotLinesOn(chart, PlotLines::UpDown), [on = !plotLinesOn(chart, PlotLines::UpDown)](Chart *c) { setPlotLines(c, PlotLines::UpDown, on); }, tr("Lines"));
+            }
+        }
         if (chart.type() != ChartType::Pie && chart.type() != ChartType::Doughnut) {
             QMenu *trend = menu->addMenu(tr("Trendline"));
             trend->setObjectName(QStringLiteral("trendlineMenu"));

@@ -748,6 +748,44 @@ private Q_SLOTS:
         QVERIFY(!elementsOf(chartOf(e)).labels);
     }
 
+    // Lines, in the elements list of a line chart: Drop Lines, High-Low Lines, and Up/Down Bars, each one step of Undo and kept in the file; a column chart has no such list.
+    void linesBetweenSeriesAreChosenInTheElementsList()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Line));
+        e.win.w.objects()->layer()->prepareAll();
+        QTRY_VERIFY(e.win.w.chartElementsButton() && e.win.w.chartElementsButton()->isVisible());
+        QMenu *menu = e.win.w.chartElementsButton()->menu();
+        auto fire = [&](const QStringList &path) {
+            QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+            QMenu *m = menu;
+            QAction *found = nullptr;
+            for (int i = 0; i < path.size(); ++i) {
+                found = nullptr;
+                for (QAction *a : m->actions())
+                    if (a->text() == path[i]) found = a;
+                if (!found) return false;
+                if (i + 1 < path.size()) m = found->menu();
+            }
+            found->trigger();
+            return true;
+        };
+        const int steps = e.win.w.session()->undoStack()->count();
+        QVERIFY(fire({"Lines", "High-Low Lines"}));
+        QVERIFY(fire({"Lines", "Up/Down Bars"}));
+        QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 2);
+        QVERIFY(plotLinesOn(chartOf(e), PlotLines::HighLow) && plotLinesOn(chartOf(e), PlotLines::UpDown));
+        QVERIFY(save(e));
+        QVERIFY(plotLinesOn(savedCharts(e.path)[0].chart, PlotLines::UpDown));
+        pressUndo(&e.win.w);
+        QVERIFY(!plotLinesOn(chartOf(e), PlotLines::UpDown) && plotLinesOn(chartOf(e), PlotLines::HighLow));
+        QVERIFY(fire({"Lines", "Drop Lines"}));
+        QVERIFY(plotLinesOn(chartOf(e), PlotLines::Drop));
+    }
+
     // Value From Cells, in the Data Labels list: the labels show the words of a range of cells (one step of Undo), the words follow the cells, and the file holds the range and its words.
     void dataLabelsTakeTheirWordsFromCells()
     {

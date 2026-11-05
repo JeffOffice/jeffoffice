@@ -900,6 +900,27 @@ bool Reader::readPlot(const QDomElement &e)
         const QString style = valOf(cChild(e, "scatterStyle"), QStringLiteral("lineMarker"));
         plot.lines = base == QLatin1String("scatter") && style != QLatin1String("marker") && style != QLatin1String("none");
     }
+    if (plot.type == ChartType::Line || plot.type == ChartType::Area) {
+        if (const QDomElement drop = cChild(e, "dropLines"); !drop.isNull()) {
+            plot.dropLines = true;
+            plot.dropLine = readLine(cChild(drop, "spPr"));
+        }
+        if (plot.type == ChartType::Line) {
+            if (const QDomElement hl = cChild(e, "hiLowLines"); !hl.isNull()) {
+                plot.hiLowLines = true;
+                plot.hiLowLine = readLine(cChild(hl, "spPr"));
+            }
+            if (const QDomElement bars = cChild(e, "upDownBars"); !bars.isNull()) {
+                plot.upDownBars = true;
+                plot.upDownGap = int(std::clamp<qint64>(parseInt(valOf(cChild(bars, "gapWidth")), 150), 0, 500));
+                bool none = false;
+                readFill(cChild(cChild(bars, "upBars"), "spPr"), &plot.upBarFill, &none);
+                plot.upBarLine = readLine(cChild(cChild(bars, "upBars"), "spPr"));
+                readFill(cChild(cChild(bars, "downBars"), "spPr"), &plot.downBarFill, &none);
+                plot.downBarLine = readLine(cChild(cChild(bars, "downBars"), "spPr"));
+            }
+        }
+    }
     const QVector<QDomElement> ids = cChildren(e, "axId");
     for (int i = 0; i < 2 && i < ids.size(); ++i) plot.axisIds[i] = parseInt(valOf(ids[i]), 0);
 

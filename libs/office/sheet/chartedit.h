@@ -90,6 +90,13 @@ void setDataLabelsFromCells(Chart *chart, const QString &ref);
 QString dataLabelsCellsRef(const Chart &chart);
 void setDataLabelParts(Chart *chart, const ChartLabelParts &parts);
 
+// Drop lines, high-low lines, and up-down bars of the chart's line plots (drop lines also of area plots). `appliesTo` says whether the chart can have them (high-low lines and up-down bars need a
+// line plot of two series or more); `on` whether every plot that can has them.
+enum class PlotLines : quint8 { Drop, HighLow, UpDown };
+bool plotLinesApply(const Chart &chart, PlotLines kind);
+bool plotLinesOn(const Chart &chart, PlotLines kind);
+void setPlotLines(Chart *chart, PlotLines kind, bool on);
+
 // ---- colors and looks of our own
 int chartColorSchemeCount();
 QString chartColorSchemeName(int index);
