@@ -1,7 +1,7 @@
 # Ajuda do JeffWrite
-<!-- keywords: conteúdo, ajuda, tópicos, início, sumário -->
+<!-- keywords: sumário, ajuda, tópicos, início -->
 
-Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está ou a página da tela Arquivo em que você está.
+Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, ou a página da tela Arquivo em que você está.
 
 ## Primeiros passos
 
@@ -12,12 +12,12 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Abrir arquivos RTF](open-rtf)
 - [Imprimir](print)
 
-## Trabalhar com o texto
+## Trabalhar no texto
 
 - [Verificar a ortografia](spelling)
 - [Contar palavras, definir o idioma, verificar a acessibilidade e pesquisar palavras](proofing-tools)
 - [Controlar alterações e aceitá-las ou rejeitá-las](track-changes)
-- [Adicionar e responder comentários](comments)
+- [Adicionar e responder a comentários](comments)
 - [Proteger um documento e bloquear o controle de alterações](protect)
 
 ## Escrever e alterar o texto
@@ -35,19 +35,22 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Criar um índice remissivo](making-an-index)
 - [Criar um índice de autoridades](table-of-authorities)
 - [Usar campos](fields)
-- [Apontar para outro lugar com referências cruzadas](cross-references)
-- [Marcar lugares com indicadores](bookmarks)
+- [Apontar para outro local com referências cruzadas](cross-references)
+- [Marcar locais com indicadores](bookmarks)
 - [Mala direta, envelopes e etiquetas](mail-merge)
 - [Adicionar e alterar imagens](pictures)
+- [Formas e caixas de texto](shapes-text-boxes)
+- [Gráficos](charts)
+- [Equações](equations)
 - [Configurar a página](page-setup)
 - [Quebras, colunas, hifenização e numeração de linhas](breaks-columns)
 - [Inserir símbolos e caracteres especiais](symbols-special-characters)
 - [Adicionar links e texto de outros arquivos](links)
 - [Alterar a cor e as bordas das páginas](page-look)
-- [Orientar-se com o painel de Navegação](navigation-pane)
+- [Encontrar seu caminho com o painel de Navegação](navigation-pane)
 - [Usar a régua](ruler)
 - [Localizar e substituir palavras](find-replace)
-- [Ir para um lugar e mover texto](go-to-and-move-text)
+- [Ir para um local e mover texto](go-to-and-move-text)
 
 ## Trabalhar mais rápido
 

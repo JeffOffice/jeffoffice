@@ -1,66 +1,68 @@
 # Usare gli stili
-<!-- keywords: stili, stile, riquadro stili, titolo, normale, creare stile, nuovo stile, modificare stile, cambiare stile, basato su, stile successivo, aggiorna automaticamente, raccolta, stile carattere, stile paragrafo, ctrl+alt+maiusc+s -->
 
-Uno **stile** è un insieme salvato di caratteristiche di formattazione: un tipo di carattere, una dimensione, una spaziatura e altro ancora. Quando applichi uno stile a un paragrafo, il paragrafo assume tutte queste caratteristiche in una volta sola. Quando modifichi lo stile, cambiano anche tutti i paragrafi a cui è applicato. Per questo gli stili mantengono ordinati i documenti lunghi.
+<!-- keywords: stili, stile, riquadro stili, titolo, normale, crea stile, nuovo stile, modifica stile, cambia stile, basato su, stile successivo, aggiorna automaticamente, raccolta, stile carattere, stile paragrafo, ctrl+alt+maiusc+s -->
+
+Uno **stile** è un insieme salvato di caratteristiche di aspetto: un carattere, una dimensione, la spaziatura e altro. Quando assegni uno stile a un paragrafo, il paragrafo assume tutte le sue caratteristiche in una volta. Quando modifichi lo stile, cambiano anche tutti i paragrafi che lo usano. Per questo gli stili mantengono ordinati i documenti lunghi.
 
 JeffWrite ha due tipi di stili:
 
-- Uno **stile paragrafo** definisce l'aspetto di interi paragrafi. **Titolo 1** e **Normale** sono stili paragrafo.
-- Uno **stile carattere** definisce l'aspetto delle parole selezionate. **Forte** è uno stile carattere.
+- Uno **stile paragrafo** imposta l'aspetto di interi paragrafi. **Titolo 1** e **Normale** sono stili paragrafo.
+- Uno **stile carattere** imposta l'aspetto delle parole selezionate. **Forte** è uno stile carattere.
 
-## Applicare uno stile al testo
+## Assegnare uno stile al testo
 
-1. Fai clic in un paragrafo oppure seleziona le parole da modificare.
-2. Fai clic su uno stile nella raccolta **Stili** della scheda **Home**. In alternativa, premi **Ctrl+Maiusc+N** per Normale oppure **Ctrl+Alt+1**, **Ctrl+Alt+2** o **Ctrl+Alt+3** per Titolo 1, 2 o 3.
+1. Fai clic in un paragrafo, oppure seleziona le parole che vuoi modificare.
+2. Fai clic su uno stile nella raccolta **Stili** della scheda **Home**. Oppure premi **Ctrl+Maiusc+N** per Normale, oppure **Ctrl+Alt+1**, **Ctrl+Alt+2** o **Ctrl+Alt+3** per Titolo 1, 2 o 3.
 
-Uno stile paragrafo viene applicato a tutti i paragrafi interessati. Uno stile carattere viene applicato alle parole selezionate.
+Uno stile paragrafo si applica a ogni paragrafo che tocchi. Uno stile carattere si applica alle parole selezionate.
 
 ## Aprire il riquadro Stili
 
-Fai clic sulla piccola freccia nell'angolo del gruppo **Stili** oppure premi **Ctrl+Alt+Maiusc+S**. A destra si apre il riquadro **Stili**, che elenca gli stili del documento, ognuno con il proprio aspetto.
+Fai clic sulla piccola freccia nell'angolo del gruppo **Stili**, oppure premi **Ctrl+Alt+Maiusc+S**. Il riquadro **Stili** si apre a destra. Elenca gli stili del documento, ciascuno con il proprio aspetto.
 
-- Lo stile nella posizione del cursore è in grassetto, con una freccia prima del nome.
-- Fai clic su uno stile per applicarlo alla selezione.
-- Usa l'elenco sotto gli stili per scegliere quali visualizzare:
+- Lo stile presente nel punto del cursore è in grassetto, con una freccia prima del nome.
+- Fai clic su uno stile per assegnarlo alla selezione.
+- Usa l'elenco sotto gli stili per scegliere quali mostrare:
   - **In uso** mostra solo gli stili usati nel testo.
-  - **Tutti gli stili** mostra tutti gli stili, compresi quelli non ancora presenti nel documento. Uno stile viene aggiunto al documento la prima volta che lo usi.
-  - **Consigliati** mostra gli stili destinati a essere visibili. Uno stile nascosto fino al primo utilizzo compare qui dopo che lo hai usato.
+  - **Tutti gli stili** mostra ogni stile, compresi quelli che il documento non ha ancora. Uno stile viene aggiunto al documento la prima volta che lo usi.
+  - **Consigliati** mostra gli stili pensati per essere visti. Uno stile nascosto finché non viene usato compare qui dopo il primo utilizzo.
+- Sotto l'elenco, la casella **Ordina** dispone gli stili in ordine. **Alfabetico** li ordina per nome. **Come consigliato** mette per primi gli stili più utili. **Per tipo** elenca prima gli stili paragrafo, poi quelli collegati, poi gli stili carattere. **In base a** raggruppa ogni stile con lo stile da cui deriva.
 
 ## Creare uno stile dal testo
 
-1. Formatta un paragrafo come preferisci. Ad esempio, applica il grassetto, centralo e imposta la dimensione.
-2. Fai clic su **Nuovo stile** nella parte inferiore del riquadro oppure su **Crea uno stile** nella scheda **Home**.
-3. Digita un **Nome**. Un nome può contenere fino a 255 caratteri e non può coincidere con il nome di un altro stile.
-4. Verifica le altre opzioni e fai clic su **OK**.
+1. Formatta un paragrafo come desideri. Per esempio, rendilo in grassetto, centralo e imposta la dimensione.
+2. Fai clic su **Nuovo stile** in fondo al riquadro, oppure fai clic su **Crea stile** nella scheda **Home**.
+3. Digita un **Nome**. Un nome può contenere fino a 255 caratteri e non può essere il nome di un altro stile.
+4. Controlla le altre opzioni e fai clic su **OK**.
 
-Il nuovo stile viene salvato con il documento e applicato al paragrafo. Un solo **Annulla** (Ctrl+Z) rimuove lo stile.
+Il nuovo stile viene salvato con il documento, e il paragrafo lo assume. Un **Annulla** (Ctrl+Z) elimina l'assegnazione dello stile.
 
 ## Modificare uno stile
 
-1. Fai clic in un paragrafo a cui è applicato lo stile oppure fai clic sullo stile nel riquadro.
-2. Fai clic su **Modifica** nella parte inferiore del riquadro oppure su **Modifica stile** nella scheda **Home**.
-3. Apporta le modifiche desiderate e fai clic su **OK**.
+1. Fai clic in un paragrafo che ha lo stile. Oppure fai clic sullo stile nel riquadro.
+2. Fai clic su **Modifica** in fondo al riquadro, oppure fai clic su **Modifica stile** nella scheda **Home**.
+3. Cambia ciò che ti serve e fai clic su **OK**.
 
-La finestra di dialogo contiene queste opzioni:
+La finestra di dialogo ha queste opzioni:
 
-- **Nome** è il nome dello stile. Gli stili forniti con JeffWrite mantengono il proprio nome.
-- **Basato su** è lo stile di partenza. Il nuovo stile ha lo stesso aspetto di quello stile, tranne che per le modifiche apportate. Se in seguito modifichi lo stile di base, anche questo stile cambia di conseguenza.
-- **Stile del paragrafo successivo** è lo stile assegnato al paragrafo seguente quando premi **Invio** alla fine di questo. Un titolo è in genere seguito da Normale.
-- **Carattere**, **dimensioni**, **Grassetto**, **Corsivo**, **Sottolineato** e **colore** definiscono l'aspetto delle parole.
-- **Allineamento**, **rientro**, **spaziatura** e **interlinea** definiscono l'aspetto dei paragrafi.
+- **Nome** è il nome dello stile. Uno stile fornito con JeffWrite mantiene il suo nome.
+- **Basato su** è lo stile da cui parte questo. Il nuovo stile somiglia a quello, tranne per ciò che modifichi. Se in seguito cambi lo stile di base, anche questo ne segue le modifiche.
+- **Stile per il paragrafo successivo** è lo stile che riceve il paragrafo seguente quando premi **Invio** alla fine di questo. Un titolo è di solito seguito da Normale.
+- **Carattere**, **dimensione**, **Grassetto**, **Corsivo**, **Sottolineato** e **colore** impostano l'aspetto delle parole.
+- **Allineamento**, **rientro**, **spaziatura** e **interlinea** impostano l'aspetto dei paragrafi.
 - **Aggiungi alla raccolta stili** inserisce lo stile nella raccolta della scheda **Home**.
-- **Aggiorna automaticamente** fa sì che lo stile segua la formattazione. Quando modifichi un paragrafo con questo stile, lo stile si aggiorna di conseguenza, e con esso tutti gli altri paragrafi a cui è applicato.
+- **Aggiorna automaticamente** fa seguire allo stile la tua formattazione. Quando modifichi un paragrafo che ha questo stile, lo stile cambia di conseguenza, e cambiano anche tutti gli altri paragrafi che lo usano.
 
-Quando modifichi uno stile, cambiano i paragrafi a cui è applicato. Se a un paragrafo hai dato una formattazione specifica, ad esempio una parola in rosso, questa viene mantenuta.
+Quando modifichi uno stile, cambiano i paragrafi che lo hanno. Se hai dato a un paragrafo un aspetto proprio, per esempio una parola in rosso, quell'aspetto resta.
 
 Se fai clic su **OK** senza modificare nulla, il documento non cambia.
 
 ## Aggiornare uno stile in base al testo
 
-Formatta un paragrafo come preferisci, quindi fai clic su **Aggiorna stile in base alla selezione** nella scheda **Home**. Lo stile del paragrafo assume le modifiche apportate e tutti i paragrafi con quello stile si aggiornano di conseguenza.
+Formatta un paragrafo come desideri. Poi fai clic su **Aggiorna stile in base alla selezione** nella scheda **Home**. Lo stile di quel paragrafo assume le modifiche che hai fatto, e ogni paragrafo con quello stile le segue.
 
-## Argomenti correlati
+## Vedi anche
 
-- [Modificare l'aspetto del testo](font)
+- [Cambiare l'aspetto del testo](font)
 - [Copiare un aspetto con Copia formato](format-painter)
 - [Usare JeffWrite con la tastiera](keyboard)
