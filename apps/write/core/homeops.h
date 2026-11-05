@@ -53,6 +53,8 @@ bool insertHorizontalLine(WriteDoc &doc, QTextCursor &c);
 // Cuts the selection as removeSelection does, and when it is whole words (it begins and ends with a letter or digit, with no letter or digit beside it) takes one space with it where two
 // spaces, or a space and a comma, period, or the like, would meet. One step. The caret is where the words were.
 void smartRemoveSelection(WriteDoc &doc, QTextCursor &c);
+// Whether the selection is whole words: it begins and ends with a letter or digit, and no letter or digit is beside it.
+bool selectionIsWholeWords(const QTextCursor &c);
 // Runs `paste` (which puts text at `c`, in place of its selection, and leaves `c` after it) as one step, and adds a space before or after what came in where it would run into a word beside
 // it (not in the middle of a word). The caret ends after the pasted words.
 void smartPaste(WriteDoc &doc, QTextCursor &c, const std::function<void()> &paste);

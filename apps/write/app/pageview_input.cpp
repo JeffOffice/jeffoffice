@@ -33,6 +33,7 @@ namespace {
 // The copy made in this program (from any of its documents): pasting it again keeps every format, and carries pictures and hyperlinks over.
 Clip s_copied;
 QString s_copiedText;
+bool s_copiedWhole = true;   // the words last copied from here were whole words (smart paste adds spaces only for those)
 
 } // namespace
 
@@ -89,6 +90,7 @@ void PageView::copy()
     mime->setData(QStringLiteral("application/x-jeffwrite-fragment"), text.toUtf8());
     s_copied = clip;
     s_copiedText = text;
+    s_copiedWhole = selectionIsWholeWords(m_cursor);
     QApplication::clipboard()->setMimeData(mime);
 }
 
@@ -128,7 +130,7 @@ void PageView::paste()
     } else {
         return;
     }
-    if (smartCutPaste()) smartPaste(*m_doc, m_cursor, put);
+    if (smartCutPaste() && (!ours || s_copiedWhole)) smartPaste(*m_doc, m_cursor, put);
     else put();
     caretMoved();
 }
@@ -153,8 +155,8 @@ void PageView::pasteAs(PasteKind kind)
     if (!m_doc || !canPaste(kind)) return;
     const QMimeData *mime = QApplication::clipboard()->mimeData();
     const bool ours = mime->hasFormat(QStringLiteral("application/x-jeffwrite-fragment")) && QString::fromUtf8(mime->data(QStringLiteral("application/x-jeffwrite-fragment"))) == s_copiedText && !s_copied.isEmpty();
-    auto put = [this](const std::function<void()> &what) {
-        if (smartCutPaste()) smartPaste(*m_doc, m_cursor, what);
+    auto put = [this, ours](const std::function<void()> &what) {
+        if (smartCutPaste() && (!ours || s_copiedWhole)) smartPaste(*m_doc, m_cursor, what);
         else what();
     };
     switch (kind) {

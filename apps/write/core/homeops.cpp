@@ -319,6 +319,14 @@ QChar characterBefore(const QTextDocument *story, int position) { return positio
 
 }
 
+bool selectionIsWholeWords(const QTextCursor &c)
+{
+    if (!c.hasSelection()) return false;
+    const QTextDocument *story = c.document();
+    const int from = c.selectionStart(), to = c.selectionEnd();
+    return isWordCharacter(story->characterAt(from)) && isWordCharacter(story->characterAt(to - 1)) && !isWordCharacter(characterBefore(story, from)) && !isWordCharacter(story->characterAt(to));
+}
+
 void smartRemoveSelection(WriteDoc &doc, QTextCursor &c)
 {
     if (!c.hasSelection()) {
@@ -327,8 +335,7 @@ void smartRemoveSelection(WriteDoc &doc, QTextCursor &c)
     }
     const QTextDocument *story = c.document();
     const int from = c.selectionStart(), to = c.selectionEnd();
-    const bool whole = to > from && isWordCharacter(story->characterAt(from)) && isWordCharacter(story->characterAt(to - 1)) && !isWordCharacter(characterBefore(story, from)) &&
-                       !isWordCharacter(story->characterAt(to));
+    const bool whole = selectionIsWholeWords(c);
     const QChar before = characterBefore(story, from), after = story->characterAt(to);
     WriteDoc::StepGroup group(doc);
     removeSelection(doc, c);

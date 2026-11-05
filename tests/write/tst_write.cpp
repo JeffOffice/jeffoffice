@@ -25299,8 +25299,8 @@ private Q_SLOTS:
         const int second = w->document()->story()->findBlock(w->document()->story()->toPlainText().indexOf(QStringLiteral("Second heading"))).position();
         withDialog([&] { goTo->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
             auto *kinds = d->findChild<QListWidget *>(QStringLiteral("goToKinds"));
-            QCOMPARE(kinds->count(), 6);
-            kinds->setCurrentRow(5);   // Heading
+            QCOMPARE(kinds->count(), 12);
+            kinds->setCurrentRow(11);   // Heading
             auto *choices = d->findChild<QListWidget *>(QStringLiteral("goToChoices"));
             QCOMPARE(choices->count(), 2);
             choices->setCurrentRow(1);
