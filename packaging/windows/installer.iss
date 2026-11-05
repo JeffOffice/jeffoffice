@@ -123,6 +123,8 @@ FinishedHeadingLabel={#Suite} is ready
 FinishedLabel={#Suite} {#VERSION} is installed.
 FinishedLabelNoIcons={#Suite} {#VERSION} is installed.
 ConfirmUninstall=Remove %1, with its settings, from this computer?
+; An app left unticked in an update is removed (RemoveUnticked), not left as it was.
+ComponentsExist=These apps are installed now, and setup will remove them:%n%n%1%n%nTheir settings stay, for when you install them again.%n%nDo you want to continue?
 UninstalledAll=%1 was removed from this computer.
 
 [Components]
