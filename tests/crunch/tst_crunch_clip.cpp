@@ -1,6 +1,7 @@
 // Tests of Cut, Copy, and Paste: within a workbook (values, formulas with their references moved, formats, merged ranges), between workbooks, with Paste Special's options, from and to other
 // programs as text and as HTML, and a cut that moves the cells and what refers to them. Every workbook is built here, in a temporary folder.
 #include "app/crunchinfo.h"
+#include "app/anchordialogs.h"
 #include "app/crunchwindow.h"
 #include "savedok.h"
 #include "app/settings.h"
@@ -350,6 +351,68 @@ private Q_SLOTS:
         QCOMPARE(shown(e, QStringLiteral("D1")), QStringLiteral("50%"));
         paste(e, QStringLiteral("E1"), "paste.exceptBorders");
         QCOMPARE(shown(e, QStringLiteral("E1")), QStringLiteral("50%"));
+    }
+
+    // Paste Text Import: text from another program is split by the separators the person chooses (a text column keeps its zeros), in one step of Undo.
+    void pastedTextCanBeSplitByTheTextImportChoices()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1"})));
+        auto *md = new QMimeData;
+        md->setText(QStringLiteral("junk\nname|007|x y\n\"q|r\"|2|z\n"));
+        QApplication::clipboard()->setMimeData(md);
+        TextImportRequest seen;
+        e.win.w.anchorHooks().textImportAsker = [&seen](TextImportRequest *r) {
+            seen = *r;
+            r->choices.separators = QStringLiteral("|");
+            r->choices.firstRow = 1;
+            r->choices.columns = {jp::office::sheet::CsvColumn{}, jp::office::sheet::CsvColumn{jp::office::sheet::CsvColumn::Kind::Text, QString()}};
+            return true;
+        };
+        QVERIFY(e.win.w.act(QStringLiteral("paste.textImport")));
+        e.select(QStringLiteral("C3"));
+        e.win.w.act(QStringLiteral("paste.textImport"))->trigger();
+        QVERIFY(e.settle());
+        QVERIFY(seen.head.startsWith("junk"));
+        QCOMPARE(e.valueAt(QStringLiteral("C3")), QStringLiteral("s:name"));
+        QCOMPARE(e.valueAt(QStringLiteral("D3")), QStringLiteral("s:007"));
+        QCOMPARE(e.valueAt(QStringLiteral("E3")), QStringLiteral("s:x y"));
+        QCOMPARE(e.valueAt(QStringLiteral("C4")), QStringLiteral("s:q|r"));
+        QCOMPARE(e.valueAt(QStringLiteral("D4")), QStringLiteral("s:2"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        // declined: nothing changes
+        e.win.w.anchorHooks().textImportAsker = [](TextImportRequest *) { return false; };
+        e.select(QStringLiteral("A8"));
+        e.win.w.act(QStringLiteral("paste.textImport"))->trigger();
+        QCOMPARE(e.valueAt(QStringLiteral("A8")), QStringLiteral("-"));
+    }
+
+    // Paste Link makes each pasted cell a formula that points at the copied cell, so it follows it; Paste as Hyperlink makes each a link to the copied cell.
+    void pasteLinkAndPasteAsHyperlinkPointAtTheCopiedCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=5", "B1=text", "A2=7"})));
+        copyRange(e, QStringLiteral("A1:B2"));
+        paste(e, QStringLiteral("D4"), "paste.link");
+        const QString f = formulaOf(e, QStringLiteral("D4"));
+        QVERIFY2(f.startsWith(QLatin1Char('=')) && f.endsWith(QLatin1String("!$A$1")), qPrintable(f));
+        QVERIFY(formulaOf(e, QStringLiteral("E5")).endsWith(QLatin1String("!$B$2")));
+        QCOMPARE(e.valueAt(QStringLiteral("D4")), QStringLiteral("n:5"));
+        QCOMPARE(e.valueAt(QStringLiteral("E4")), QStringLiteral("s:text"));
+        QCOMPARE(e.valueAt(QStringLiteral("E5")), QStringLiteral("n:0"));   // (a blank cell's link shows 0)
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("9"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("D4")), QStringLiteral("n:9"));
+        // as a hyperlink
+        copyRange(e, QStringLiteral("A1:B1"));
+        paste(e, QStringLiteral("G1"), "paste.hyperlink");
+        QCOMPARE(shown(e, QStringLiteral("G1:H1")), QStringLiteral("9|text"));
+        const jp::office::sheet::LinkSpec *link = e.win.w.session()->anchors().linkAt(0, 0, 6);
+        QVERIFY(link);
+        QVERIFY(link->location.endsWith(QLatin1String("!A1")));
+        QVERIFY(e.win.w.session()->anchors().linkAt(0, 0, 7));
     }
 
     // Paste Special: values (a formula becomes its result), formulas, formats, the block turned over, the empty cells left, and an operation made with what is there.

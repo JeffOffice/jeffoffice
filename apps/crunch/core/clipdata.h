@@ -4,6 +4,7 @@
 // puts back everything, and one in another workbook what both can hold. Text and HTML from other programs are read into a table of texts, which are entered as if typed.
 
 #include "sheet/calculation.h"
+#include "sheet/csvimport.h"
 
 #include <QByteArray>
 #include <QString>
@@ -52,5 +53,10 @@ struct ClipData {
 // HTML table. The table's cells as read back are the rows of texts.
 QVector<QStringList> parseTabSeparated(const QString &text);
 QVector<QStringList> parseHtmlTable(const QString &html);
+
+// Text split into fields the way a person chose in the Text Import dialog: by any of the separators (several in a row as one if asked), a field in the quote kept whole (with separators and
+// line breaks in it; the quote written twice is one), the rows before `firstRow` left out, a column read as text kept as the text it is (an apostrophe in front, which an entry reads as
+// text), a column read as a date turned to year-month-day when it is one in the order given, and a column to skip left out. At most kMaxClipCells fields are made.
+QVector<QStringList> splitDelimitedText(const QString &text, const jp::office::sheet::CsvImport &choices);
 
 } // namespace jp::crunch

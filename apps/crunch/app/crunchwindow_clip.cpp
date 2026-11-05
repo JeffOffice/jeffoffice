@@ -2,6 +2,7 @@
 // paste moves the cells; Paste Special asks what to paste and what to do with it.
 #include "app/crunchwindow.h"
 
+#include "app/textimportdialog.h"
 #include "core/printjob.h"
 #include "sheet/cellref.h"
 
@@ -71,6 +72,10 @@ void CrunchWindow::createClipboardActions()
     mk("edit.copyPicture", tr("Copy as Picture"), "image", QKeySequence(), [this] { copyAsPicture(false); });
     mk("edit.copyBitmap", tr("Copy as Bitmap"), "image", QKeySequence(), [this] { copyAsPicture(true); });
     m_opsActions << QStringLiteral("edit.copyPicture") << QStringLiteral("edit.copyBitmap");
+    mk("paste.textImport", tr("Paste Text Import…"), "", QKeySequence(), [this] { pasteTextImport(); });
+    mk("paste.link", tr("Paste Link"), "", QKeySequence(), [this] { pasteLink(); });
+    mk("paste.hyperlink", tr("Paste as Hyperlink"), "", QKeySequence(), [this] { pasteAsHyperlinks(); });
+    for (const char *id : {"paste.textImport", "paste.link", "paste.hyperlink"}) m_opsActions << QString::fromLatin1(id);
     mk("paste.special", tr("Paste Special…"), "", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V), [this] { pasteSpecial(); });
     for (const char *id : {"edit.cut", "edit.paste", "paste.values", "paste.formulas", "paste.formats", "paste.transpose", "paste.special"}) m_opsActions << QString::fromLatin1(id);
     connect(m_view, &grid::GridView::copyBorderCleared, this, [this] { forgetClip(); });
@@ -335,6 +340,130 @@ void CrunchWindow::pasteSpecial()
         o.transpose = transpose->isChecked();
     }
     pasteClipboard(o);
+}
+
+// Paste Text Import: the text on the clipboard is split as the person chooses in the Text Import dialog (the separators, the quote, the first row, how each column is read), then entered as if typed.
+void CrunchWindow::pasteTextImport()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !m_session || !editingAllowed()) return;
+    const QMimeData *md = QApplication::clipboard()->mimeData();
+    if (!md || !md->hasText() || md->text().isEmpty()) {
+        notice(tr("Paste Text Import"), tr("The clipboard has no text to split. Copy some text, and try again."));
+        return;
+    }
+    const QString text = md->text();
+    TextImportRequest req;
+    req.locale = QLocale();
+    req.head = text.toUtf8().left(jp::office::sheet::kCsvPreviewBytes);
+    req.size = text.toUtf8().size();
+    req.choices.encodingSet = true;
+    req.choices.separators = text.contains(QLatin1Char('\t')) ? QStringLiteral("\t") : QStringLiteral(",");
+    if (m_anchorHooks.textImportAsker) {
+        if (!m_anchorHooks.textImportAsker(&req)) return;
+    } else {
+        TextImportDialog dialog(req, this);
+        if (dialog.exec() != QDialog::Accepted) return;
+        req.choices = dialog.choices();
+    }
+    const QVector<QStringList> table = crunch::splitDelimitedText(text, req.choices);
+    if (table.isEmpty()) return;
+    const crunch::EditSession::Outcome o = m_session->pasteText(m_sheet, selectedRange(), table, crunch::EditSession::PasteOptions());
+    if (!o.ok) {
+        if (!o.confirm) notice(tr("Paste Text Import"), o.problem);
+        return;
+    }
+    m_calculating = true;
+    if (o.range.valid) {
+        widenForCells(m_sheet, o.range);
+        m_view->selectRange(o.range.row1, o.range.col1, o.range.row2, o.range.col2);
+    }
+}
+
+// The block of cells this workbook has on the clipboard (a copy made here): false, with the person told, if it is not.
+bool CrunchWindow::ownClipboardBlock(ClipData *clip, const QString &title)
+{
+    const QMimeData *md = QApplication::clipboard()->mimeData();
+    if (md && md->hasFormat(QLatin1String(crunch::kClipMime)) && ClipData::fromBytes(md->data(QLatin1String(crunch::kClipMime)), clip) && clip->valid() && m_session && clip->token == m_session->token()
+        && clip->sheet >= 0 && clip->sheet < m_loaded->book->info().sheets.size())
+        return true;
+    notice(title, tr("Copy some cells of this workbook first, and try again."));
+    return false;
+}
+
+// Paste Link: each cell pasted is a formula that points at the cell it was copied from, so it follows it.
+void CrunchWindow::pasteLink()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !m_session || !editingAllowed()) return;
+    ClipData clip;
+    if (!ownClipboardBlock(&clip, tr("Paste Link"))) return;
+    const QString name = m_loaded->book->info().sheets[clip.sheet].name;
+    QVector<QStringList> table;
+    for (quint32 r = 0; r < clip.rows; ++r) {
+        QStringList row;
+        for (quint32 c = 0; c < clip.cols; ++c) row << QLatin1Char('=') + jp::office::sheet::chartRef(name, CellRange{clip.source.row1 + r, clip.source.col1 + c, clip.source.row1 + r, clip.source.col1 + c, true});
+        table << row;
+    }
+    const crunch::EditSession::Outcome o = m_session->pasteText(m_sheet, selectedRange(), table, crunch::EditSession::PasteOptions());
+    if (!o.ok) {
+        if (!o.confirm) notice(tr("Paste Link"), o.problem);
+        return;
+    }
+    m_calculating = true;
+    if (o.range.valid) m_view->selectRange(o.range.row1, o.range.col1, o.range.row2, o.range.col2);
+}
+
+// Paste as Hyperlink: each cell pasted shows what the copied cell showed and is a link to it.
+void CrunchWindow::pasteAsHyperlinks()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !m_session || !editingAllowed()) return;
+    ClipData clip;
+    if (!ownClipboardBlock(&clip, tr("Paste as Hyperlink"))) return;
+    if (qint64(clip.rows) * clip.cols > 2000) {
+        notice(tr("Paste as Hyperlink"), tr("That is more than 2,000 cells. Copy fewer cells, and try again."));
+        return;
+    }
+    QString why;
+    if (!m_session->canEditNotes(m_sheet, &why)) {
+        notice(tr("Paste as Hyperlink"), why);
+        return;
+    }
+    const QString name = m_loaded->book->info().sheets[clip.sheet].name;
+    QVector<QStringList> table;
+    for (quint32 r = 0; r < clip.rows; ++r) {
+        QStringList row;
+        for (quint32 c = 0; c < clip.cols; ++c) row << QLatin1Char('\'') + m_session->displayText(clip.sheet, clip.source.row1 + r, clip.source.col1 + c);
+        table << row;
+    }
+    for (QStringList &row : table)
+        for (QString &f : row)
+            if (f == QLatin1String("'")) f.clear();
+    QUndoStack *u = undoStack();
+    u->beginMacro(tr("Paste as Hyperlink"));
+    const CellRange target = selectedRange();
+    crunch::EditSession::Outcome o = m_session->pasteText(m_sheet, target, table, crunch::EditSession::PasteOptions());
+    const CellRange pasted = o.range;
+    if (o.ok && pasted.valid) {
+        for (quint32 r = 0; r < clip.rows && o.ok; ++r)
+            for (quint32 c = 0; c < clip.cols && o.ok; ++c) {
+                jp::office::sheet::LinkSpec link;
+                const quint32 row = pasted.row1 + r, col = pasted.col1 + c;
+                link.range = CellRange{row, col, row, col, true};
+                const QString at = jp::office::sheet::chartRef(name, CellRange{clip.source.row1 + r, clip.source.col1 + c, clip.source.row1 + r, clip.source.col1 + c, true});
+                link.location = QString(at).remove(QLatin1Char('$'));
+                o = m_session->setLink(m_sheet, link.range, link, tr("Paste as Hyperlink"));
+            }
+        if (o.ok) m_session->applyStyleNamed(m_sheet, pasted, QStringLiteral("Hyperlink"), tr("Paste as Hyperlink"));
+    }
+    u->endMacro();
+    if (!o.ok) {
+        if (!o.confirm) notice(tr("Paste as Hyperlink"), o.problem);
+        return;
+    }
+    m_calculating = true;
+    if (pasted.valid) m_view->selectRange(pasted.row1, pasted.col1, pasted.row2, pasted.col2);
 }
 
 // Paste: what the clipboard holds goes in at the selected cell. The cells this program copied or cut go in whole (a cut moves them), and text or an HTML table from another program is entered

@@ -1025,6 +1025,10 @@ private:
     void publishClipboard(const QString &text);
     void pasteClipboard(const crunch::EditSession::PasteOptions &options);
     void pasteSpecial();
+    void pasteTextImport();
+    void pasteLink();
+    void pasteAsHyperlinks();
+    bool ownClipboardBlock(crunch::ClipData *clip, const QString &title);
     void onClipboardChanged();
     void forgetClip();
     void cancelCut();

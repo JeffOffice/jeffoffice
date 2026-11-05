@@ -1,6 +1,7 @@
 #include "core/clipdata.h"
 
 #include <QBuffer>
+#include <QDate>
 #include <QDataStream>
 #include <QRegularExpression>
 
@@ -264,6 +265,89 @@ QVector<QStringList> parseHtmlTable(const QString &html)
         }
         if (!row.isEmpty()) rows.append(row);
     }
+    return rows;
+}
+
+QVector<QStringList> splitDelimitedText(const QString &text, const jp::office::sheet::CsvImport &choices)
+{
+    using jp::office::sheet::CsvColumn;
+    QVector<QStringList> rows;
+    QStringList row;
+    QString field;
+    bool quoted = false, inQuote = false, wasSeparator = false, any = false;
+    qint64 made = 0, line = 0;
+    const QString seps = choices.separators.isEmpty() ? QStringLiteral("\t") : choices.separators;
+    auto endField = [&] {
+        row << field;
+        field.clear();
+        quoted = false;
+    };
+    auto endRow = [&] {
+        endField();
+        if (line++ >= choices.firstRow) {
+            QStringList out;
+            for (qsizetype c = 0; c < row.size(); ++c) {
+                const CsvColumn k = choices.columnAt(c);
+                if (k.kind == CsvColumn::Kind::Skip) continue;
+                QString f = row[c];
+                if (k.kind == CsvColumn::Kind::Text && !f.isEmpty()) f = QLatin1Char('\'') + f;
+                else if (k.kind == CsvColumn::Kind::Date && !f.isEmpty()) {
+                    const QString order = k.dateOrder.isEmpty() ? QStringLiteral("MDY") : k.dateOrder;
+                    const QStringList parts = f.trimmed().split(QRegularExpression(QStringLiteral("[-/.\\s]+")));
+                    if (parts.size() == 3) {
+                        bool ok[3] = {false, false, false};
+                        const int a = parts[0].toInt(&ok[0]), b = parts[1].toInt(&ok[1]), c3 = parts[2].toInt(&ok[2]);
+                        if (ok[0] && ok[1] && ok[2]) {
+                            int y = c3, m = a, d = b;
+                            if (order == QLatin1String("DMY")) { d = a; m = b; y = c3; }
+                            else if (order == QLatin1String("YMD")) { y = a; m = b; d = c3; }
+                            if (y < 100) y += y < 30 ? 2000 : 1900;
+                            const QDate date(y, m, d);
+                            if (date.isValid()) f = date.toString(Qt::ISODate);
+                        }
+                    }
+                }
+                out << f;
+            }
+            made += out.size();
+            rows << out;
+        }
+        row.clear();
+        any = false;
+    };
+    for (qsizetype i = 0; i < text.size() && made <= kMaxClipCells; ++i) {
+        const QChar ch = text[i];
+        if (inQuote) {
+            if (ch == choices.quote) {
+                if (i + 1 < text.size() && text[i + 1] == choices.quote) {
+                    field += ch;
+                    ++i;
+                } else inQuote = false;
+            } else field += ch;
+            continue;
+        }
+        if (!choices.quote.isNull() && ch == choices.quote && field.isEmpty() && !quoted) {
+            inQuote = quoted = any = true;
+            wasSeparator = false;
+            continue;
+        }
+        if (ch == QLatin1Char('\r') || ch == QLatin1Char('\n')) {
+            if (ch == QLatin1Char('\r') && i + 1 < text.size() && text[i + 1] == QLatin1Char('\n')) ++i;
+            endRow();
+            wasSeparator = false;
+            continue;
+        }
+        if (seps.contains(ch)) {
+            if (!(choices.mergeSeparators && wasSeparator)) endField();
+            wasSeparator = true;
+            any = true;
+            continue;
+        }
+        wasSeparator = false;
+        any = true;
+        field += ch;
+    }
+    if (any || !field.isEmpty() || !row.isEmpty()) endRow();
     return rows;
 }
 

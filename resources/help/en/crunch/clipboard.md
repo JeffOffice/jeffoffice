@@ -1,5 +1,5 @@
 # Cut, copy, and paste
-<!-- keywords: cut, copy, paste, clipboard, move, duplicate, special, values, formulas, formats, transpose, skip blanks, add, subtract, multiply, divide, operation, merged, text, tab, html, web page, other program, Escape, marching ants, border, column widths, notes, comments, number formats, all except borders, picture, bitmap, copy as picture -->
+<!-- keywords: cut, copy, paste, clipboard, move, duplicate, special, values, formulas, formats, transpose, skip blanks, add, subtract, multiply, divide, operation, merged, text, tab, html, web page, other program, Escape, marching ants, border, column widths, notes, comments, number formats, all except borders, picture, bitmap, copy as picture, paste link, hyperlink, text import, split text, separator -->
 
 **Copy** (**{key:Copy}**) puts a copy of the selected cells on the clipboard, a place the computer keeps for one thing at a time. **Paste** (**{key:Paste}**) puts what is on the clipboard into the cells starting at the selected cell. **Cut** (**{key:Cut}**) is like copy, but when you paste, the cells are moved and the old place is emptied.
 
@@ -27,6 +27,14 @@ When you cut cells and paste them, the cells really move. Every formula that poi
 - An **operation**: **Add**, **Subtract**, **Multiply**, or **Divide**. The numbers you copied are combined with the numbers already in the cells. Example: the cells hold 10 and 20, you copied 5, and you chose *Multiply*: they become 50 and 100.
 - **Skip blanks**: empty cells in the copy leave the cells they land on as they were.
 - **Transpose**: rows become columns and columns become rows.
+
+## Paste Link, Paste as Hyperlink, and Paste Text Import
+
+Three more choices are in the arrow under **Paste**. They work on cells you copied in the same workbook, except the last one.
+
+- **Paste Link** puts a formula in each cell that points at the cell you copied. Example: copy A1:B2, select D4, and use **Paste Link**: D4 becomes **=Sheet1!$A$1**. When A1 changes, D4 changes with it. A copied cell that is empty shows 0.
+- **Paste as Hyperlink** puts the same words in each cell that the copied cell shows, and makes each one a link to the copied cell. Hold **Ctrl** and click one to go to that cell. It works on up to 2,000 cells at a time.
+- **Paste Text Import** is for text from another program. It opens the same window as opening a text file: you say what separates the pieces (a comma, a tab, a space, a semicolon, a bar, or something else), what quotes a piece, the first row to use, and how to read each column (as typed, as text, as a date, or left out). Choose *text* for a column of codes such as 007, so the zeros stay. The pieces go into cells, starting at the selected cell, as one step you can undo.
 
 ## The Paste menu and pictures
 
