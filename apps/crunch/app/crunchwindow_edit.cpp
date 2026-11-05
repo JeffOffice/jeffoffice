@@ -2,6 +2,9 @@
 // EditSession (core/editsession.h), which holds the worker back for the moment the cell is put in; the worker works out what depends on it and tells the window in batches.
 
 #include "app/crunchwindow.h"
+
+#include "core/autocomplete.h"
+#include "core/fixeddecimals.h"
 #include "app/functionargumentsdialog.h"
 #include "app/formulahelper.h"
 #include "app/settings.h"
@@ -155,6 +158,9 @@ void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool
         return;
     }
     m_edit.active = true;
+    m_autoTyped = initial;
+    m_autoColumn.clear();
+    m_autoColumnKnown = false;
     m_point = PointState();
     m_point.line = fromBar ? static_cast<QLineEdit *>(m_formulaBar) : static_cast<QLineEdit *>(m_cellEditor);
     m_edit.sheet = sheet;
@@ -175,6 +181,11 @@ void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool
         m_cellEditor->setFocus(Qt::OtherFocusReason);
         m_cellEditor->setCursorPosition(int(initial.size()));
         m_formulaBar->setCursorPosition(int(initial.size()));
+        // (the first key typed over a cell starts an entry that may be finished too)
+        if (mode == CellEditor::Mode::Typing && !initial.isEmpty()) {
+            m_autoTyped.clear();
+            autoCompleteEntry(initial);
+        }
     }
     updatePointViews();
 }
@@ -204,6 +215,45 @@ void CrunchWindow::placeEditor()
     const int width = std::max(r.width(), std::min(want, std::max(r.width(), vp.right() - r.left())));
     m_cellEditor->setGeometry(r.left(), r.top(), width, r.height());
     m_cellEditor->show();
+}
+
+void CrunchWindow::setAutoComplete(bool on)
+{
+    m_autoComplete = on;
+    Settings::get().setValue(QStringLiteral("crunch/autoComplete"), on);
+}
+
+void CrunchWindow::setDragEditing(bool on)
+{
+    m_view->setDragEditing(on);
+    Settings::get().setValue(QStringLiteral("crunch/dragEditing"), on);
+}
+
+void CrunchWindow::setFixedDecimals(int places)
+{
+    m_fixedDecimals = std::clamp(places, -crunch::kMaxFixedDecimals, crunch::kMaxFixedDecimals);
+    Settings::get().setValue(QStringLiteral("crunch/fixedDecimals"), m_fixedDecimals);
+}
+
+// After a key typed in the cell: when one text in the column starts with what is typed, the rest of it is put in and selected (the next key replaces it, Backspace takes it away, Enter keeps it).
+void CrunchWindow::autoCompleteEntry(const QString &text)
+{
+    const bool grew = text.size() > m_autoTyped.size();
+    m_autoTyped = text;
+    if (!m_autoComplete || !m_edit.active || !grew || m_cellEditor->cursorPosition() != text.size() || m_edit.sheet != m_sheet) return;
+    if (!m_autoColumnKnown) {
+        m_autoColumn = crunch::columnTextsAround(*m_session, m_edit.sheet, m_edit.row, m_edit.col);
+        m_autoColumnKnown = true;
+    }
+    const QString whole = crunch::autoCompleted(m_autoColumn, text);
+    if (whole.isEmpty()) return;
+    // (the entry's own capitals are shown, and what was typed stays before the selected rest)
+    const QString shown = whole;
+    m_syncingEditors = true;
+    m_cellEditor->setText(shown);
+    m_cellEditor->setSelection(int(shown.size()), -int(shown.size() - text.size()));
+    m_formulaBar->setText(shown);
+    m_syncingEditors = false;
 }
 
 void CrunchWindow::setEnterMove(EnterMove move)
@@ -261,7 +311,8 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
 {
     if (!m_edit.active) return true;
     returnToEditSheet();   // (an entry made while pointing at another sheet is put in its own cell, and the selection goes on from there)
-    const QString text = m_cellEditor->text();
+    // (a number typed over a cell gets its decimal point where Options says; what was edited in the cell, or in the formula bar, is entered as it is)
+    const QString text = m_cellEditor->mode() == CellEditor::Mode::Typing && !m_formulaBar->hasFocus() ? crunch::withFixedDecimals(m_cellEditor->text(), m_fixedDecimals, QLocale().decimalPoint()) : m_cellEditor->text();
     // What F2 showed, put in again as it is (Enter, or a click on another cell), is not a change: nothing is put in, there is nothing to undo, and the cell keeps what it had (a formula
     // with a function this program lacks keeps the result the file stored, and is not written again as this program reads it back)
     if (m_cellEditor->mode() == CellEditor::Mode::Editing && text == m_session->editText(m_edit.sheet, m_edit.row, m_edit.col)) {

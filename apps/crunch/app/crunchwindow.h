@@ -492,6 +492,14 @@ public:
     enum class EnterMove { Down, Right, Up, Left, Stay };
     EnterMove enterMove() const { return m_enterMove; }
     void setEnterMove(EnterMove move);
+    // AutoComplete (Options > Editing): the rest of an entry above or below in the column is offered, selected, while a text is typed; on by default, kept in the person's settings.
+    bool autoComplete() const { return m_autoComplete; }
+    void setAutoComplete(bool on);
+    // The fill handle and the drag of cells (Options > Editing); on by default, kept in the person's settings.
+    void setDragEditing(bool on);
+    // Automatic decimal places (Options > Editing): 0 is off; with 2, typing 1234 enters 12.34; kept in the person's settings.
+    int fixedDecimals() const { return m_fixedDecimals; }
+    void setFixedDecimals(int places);
     // The custom lists of Fill (Options > Custom Lists), one list to a line, its items between commas: kept in the settings and given to the edit session.
     // The menu that chooses which numbers of the selection the status bar shows; the caller owns it.
     QMenu *statsChoiceMenu();
@@ -1314,6 +1322,12 @@ private:
     } m_edit;
     bool m_syncingEditors = false, m_undoing = false, m_finishing = false;
     EnterMove m_enterMove = EnterMove::Down;
+    bool m_autoComplete = true;
+    int m_fixedDecimals = 0;
+    QString m_autoTyped;           // what was typed in the entry so far, without the rest AutoComplete offered
+    QStringList m_autoColumn;      // the texts next to the cell in its column (made when the first is wanted)
+    bool m_autoColumnKnown = false;
+    void autoCompleteEntry(const QString &text);
     QPointer<QToolButton> m_fillOptions;
     qint64 m_tabOriginCol = -1, m_tabRow = -1;   // where a run of Tabs began (Enter then goes back to that column)
     // saving

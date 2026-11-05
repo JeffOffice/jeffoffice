@@ -18,6 +18,7 @@
 #include "io/zip.h"
 #include <QStandardPaths>
 #include "core/appinfo.h"
+#include "core/fixeddecimals.h"
 #include "core/fonts.h"
 #include "core/loader.h"
 #include "core/resultmap.h"
@@ -203,6 +204,99 @@ private Q_SLOTS:
             QCOMPARE(e.selected(), QString::fromLatin1(c.back));
         }
         w.setEnterMove(CrunchWindow::EnterMove::Down);
+    }
+
+    // AutoComplete: typing the start of a text that is in the column offers the rest of it, selected; Enter keeps it, a key replaces it, Backspace takes it away; two different texts that start
+    // alike offer nothing, nor does a number; and the option turns it off.
+    void autoCompleteOffersTheRestOfAnEntryInTheColumn()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        w.setAutoComplete(true);
+        e.select(QStringLiteral("E1"));
+        e.enter(QStringLiteral("Banana"));
+        QCOMPARE(e.selected(), QStringLiteral("E2"));
+        e.type(QStringLiteral("ba"));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("Banana"));
+        QCOMPARE(w.cellEditor()->selectedText(), QStringLiteral("nana"));
+        e.key(Qt::Key_Backspace);
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("Ba"));
+        e.key(Qt::Key_Escape);
+        e.select(QStringLiteral("E2"));
+        e.type(QStringLiteral("Bax"));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("Bax"));
+        e.key(Qt::Key_Escape);
+        e.select(QStringLiteral("E2"));
+        e.type(QStringLiteral("B"));
+        e.key(Qt::Key_Return);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("E2")), QStringLiteral("s:Banana"));
+        // another text that starts alike: neither is offered
+        e.select(QStringLiteral("E3"));
+        e.enter(QStringLiteral("Bake"));
+        e.select(QStringLiteral("E4"));
+        e.type(QStringLiteral("Ba"));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("Ba"));
+        e.key(Qt::Key_Escape);
+        // a number is not offered
+        e.select(QStringLiteral("F1"));
+        e.enter(QStringLiteral("12"));
+        e.select(QStringLiteral("F2"));
+        e.type(QStringLiteral("1"));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("1"));
+        e.key(Qt::Key_Escape);
+        // turned off
+        w.setAutoComplete(false);
+        e.select(QStringLiteral("E5"));
+        e.type(QStringLiteral("Bana"));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("Bana"));
+        e.key(Qt::Key_Escape);
+        w.setAutoComplete(true);
+    }
+
+    // The option that turns the fill handle and the dragging of cells off: with it off there is no handle at the corner of the selection.
+    void theFillHandleCanBeTurnedOff()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("A1"));
+        QVERIFY(!e.view()->fillHandleRect().isEmpty());
+        w.setDragEditing(false);
+        QVERIFY(!w.view()->dragEditing());
+        QVERIFY(e.view()->fillHandleRect().isEmpty());
+        w.setDragEditing(true);
+        QVERIFY(!e.view()->fillHandleRect().isEmpty());
+    }
+
+    // Automatic decimal places: a whole number typed over a cell gets its point that many places from the right; negative places add zeros; anything else is entered as typed.
+    void automaticDecimalPlacesPutThePointIn()
+    {
+        using crunch::withFixedDecimals;
+        const QString dot = QStringLiteral(".");
+        QCOMPARE(withFixedDecimals(QStringLiteral("1234"), 2, dot), QStringLiteral("12.34"));
+        QCOMPARE(withFixedDecimals(QStringLiteral("-5"), 2, dot), QStringLiteral("-0.05"));
+        QCOMPARE(withFixedDecimals(QStringLiteral("5"), -2, dot), QStringLiteral("500"));
+        QCOMPARE(withFixedDecimals(QStringLiteral("1.5"), 2, dot), QStringLiteral("1.5"));
+        QCOMPARE(withFixedDecimals(QStringLiteral("=A1"), 2, dot), QStringLiteral("=A1"));
+        QCOMPARE(withFixedDecimals(QStringLiteral("12"), 0, dot), QStringLiteral("12"));
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        w.setFixedDecimals(2);
+        e.select(QStringLiteral("G1"));
+        e.enter(QStringLiteral("1234"));
+        e.select(QStringLiteral("G3"));
+        e.enter(QStringLiteral("abc"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("G1")), QStringLiteral("n:12.34"));
+        QCOMPARE(e.valueAt(QStringLiteral("G3")), QStringLiteral("s:abc"));
+        w.setFixedDecimals(0);
+        e.select(QStringLiteral("G5"));
+        e.enter(QStringLiteral("1234"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("G5")), QStringLiteral("n:1234"));
     }
 
     // Ctrl+Enter puts what was typed in every selected cell (a formula shifts its relative references, as a copy does) as one step of Undo, and the selection stays.

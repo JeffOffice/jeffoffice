@@ -254,6 +254,9 @@ public:
     // do nothing to the cells.
     void setCellsEnabled(bool enabled);
     bool cellsEnabled() const { return m_cellsEnabled; }
+    // The fill handle at the corner of the selection and the drag of the selection's border (move or copy cells) are on; off, a drag only selects.
+    void setDragEditing(bool on) { m_dragEditing = on; viewport()->update(); }
+    bool dragEditing() const { return m_dragEditing; }
     // A hook asked before a click changes the selection: false, and the click is ignored (the window finishes an entry first, and does not go on when it can't).
     void setClickGuard(std::function<bool()> guard) { m_clickGuard = std::move(guard); }
     // A double click on a cell asks this first; true says it was taken (the cell is not edited).
@@ -473,6 +476,7 @@ private:
     std::function<bool(qint64, qint64)> m_pointGuard;
     GridOverlay *m_overlay = nullptr;
     bool m_cellsEnabled = true;
+    bool m_dragEditing = true;
     std::vector<PageBreakLine> m_breakRows, m_breakCols;
     bool m_breakView = false, m_breakEditable = true;
     std::vector<GridRange> m_breakAreas;
