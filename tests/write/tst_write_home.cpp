@@ -19,6 +19,7 @@
 #include "core/reviewops.h"
 #include "core/tableops.h"
 #include "core/fonts.h"
+#include "core/findops.h"
 #include "core/homeops.h"
 #include "core/styleops.h"
 #include "flow/flowdocument.h"
@@ -1256,6 +1257,85 @@ private Q_SLOTS:
         QTRY_COMPARE(pane->matchCount(), 1);
         w.view()->insertText(QStringLiteral("cat "));
         QTRY_COMPARE(pane->matchCount(), 2);
+    }
+
+    void wildcardsAndSpecialCodesMakeAPatternAndTheReplacementCanUseTheGroups()
+    {
+        auto all = [](const QString &pattern, const QString &text, bool matchCase = false) {
+            const FindPattern p = wildcardPattern(pattern, matchCase);
+            QStringList out;
+            if (!p.error.isEmpty()) return QStringList{QStringLiteral("!") + p.error};
+            auto it = p.regex.globalMatch(text);
+            while (it.hasNext()) out << it.next().captured(0);
+            return out;
+        };
+        QCOMPARE(all(QStringLiteral("c?t"), QStringLiteral("cat cot cut cart")), (QStringList{"cat", "cot", "cut"}));
+        QCOMPARE(all(QStringLiteral("c*t"), QStringLiteral("cat cart")), (QStringList{"cat", "cart"}));
+        QCOMPARE(all(QStringLiteral("<the>"), QStringLiteral("the other then the")), (QStringList{"the", "the"}));
+        QCOMPARE(all(QStringLiteral("<the"), QStringLiteral("the other then")), (QStringList{"the", "the"}));
+        QCOMPARE(all(QStringLiteral("[bc]at"), QStringLiteral("bat cat rat")), (QStringList{"bat", "cat"}));
+        QCOMPARE(all(QStringLiteral("[!bc]at"), QStringLiteral("bat cat rat")), (QStringList{"rat"}));
+        QCOMPARE(all(QStringLiteral("[a-c]{2}"), QStringLiteral("abxcc")), (QStringList{"ab", "cc"}));
+        QCOMPARE(all(QStringLiteral("lo@l"), QStringLiteral("lol lool lxl")), (QStringList{"lol", "lool"}));
+        QCOMPARE(all(QStringLiteral("^#^#"), QStringLiteral("a12b3")), (QStringList{"12"}));
+        QCOMPARE(all(QStringLiteral("a^tb"), QStringLiteral("a\tb a b")), (QStringList{"a\tb"}));
+        QCOMPARE(all(QStringLiteral("a^pb"), QStringLiteral("a\nb")), (QStringList{"a\nb"}));
+        QCOMPARE(all(QStringLiteral("\\?"), QStringLiteral("what? why")), (QStringList{"?"}));
+        QCOMPARE(all(QStringLiteral("a.b"), QStringLiteral("a.b axb")), (QStringList{"a.b"}));
+        QCOMPARE(all(QStringLiteral("CAT"), QStringLiteral("cat CAT"), true), (QStringList{"CAT"}));
+        QCOMPARE(all(QStringLiteral("CAT"), QStringLiteral("cat CAT"), false), (QStringList{"cat", "CAT"}));
+        QVERIFY(all(QStringLiteral("[abc"), QStringLiteral("x")).first().startsWith(QLatin1Char('!')));
+        QVERIFY(all(QStringLiteral("(ab"), QStringLiteral("x")).first().startsWith(QLatin1Char('!')));
+        QVERIFY(all(QStringLiteral("a{2"), QStringLiteral("x")).first().startsWith(QLatin1Char('!')));
+        // Groups in the replacement, and the whole match.
+        const FindPattern names = wildcardPattern(QStringLiteral("(<[A-Za-z]@>), (<[A-Za-z]@>)"), false);
+        QVERIFY2(names.error.isEmpty(), qPrintable(names.error));
+        const QString text = QStringLiteral("Smith, John");
+        const QRegularExpressionMatch m = names.regex.match(text);
+        QVERIFY(m.hasMatch());
+        QCOMPARE(expandReplacement(QStringLiteral("\\2 \\1"), m), QStringLiteral("John Smith"));
+        QCOMPARE(expandReplacement(QStringLiteral("[^&]"), m), QStringLiteral("[Smith, John]"));
+        QCOMPARE(expandReplacement(QStringLiteral("a^tb\\\\"), m), QStringLiteral("a\tb\\"));
+        QCOMPARE(expandReplacement(QStringLiteral("\\5"), m), QString());
+        QVERIFY(!wildcardPattern(QString(), false).error.isEmpty());
+    }
+
+    void theFindPaneCanSearchWithWildcardsAndReplaceWithGroups()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("Smith, John and Jones, Mary went home.")) + para(run("Lee, Ann stayed.")))), QString());
+        w.act(QStringLiteral("edit.replace"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QVERIFY(pane);
+        auto *wild = pane->findChild<QCheckBox *>(QStringLiteral("useWildcards"));
+        QVERIFY(wild);
+        wild->setChecked(true);
+        pane->findBox()->setText(QStringLiteral("(<[A-Z]@>), (<[A-Z]@>)"));
+        QTRY_COMPARE(pane->matchCount(), 3);
+        shot(&w, QStringLiteral("find-wildcards.png"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("Smith, John"));
+        pane->replaceBox()->setText(QStringLiteral("\\2 \\1"));
+        pane->replaceOne();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("John Smith and Jones, Mary went home.\nLee, Ann stayed."));
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("Jones, Mary"));
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("John Smith and Mary Jones went home.\nAnn Lee stayed."));
+        QVERIFY2(pane->status().contains(QStringLiteral("2")), qPrintable(pane->status()));
+        QVERIFY(w.document()->undo());
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("John Smith and Jones, Mary went home.\nLee, Ann stayed."));
+        // A pattern that is not one says so and finds nothing.
+        pane->findBox()->setText(QStringLiteral("[abc"));
+        QTRY_VERIFY(pane->status().contains(QStringLiteral("]")));
+        QCOMPARE(pane->matchCount(), 0);
+        QVERIFY(!pane->findNext());
+        // Off, the same text is plain words.
+        wild->setChecked(false);
+        pane->findBox()->setText(QStringLiteral("Jones, M"));
+        QTRY_COMPARE(pane->matchCount(), 1);
     }
 
     // ---- the review's fixes

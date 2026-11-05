@@ -8,6 +8,7 @@
 #include "app/findreplace.h"
 
 #include <QPair>
+#include <QRegularExpression>
 #include <QPointer>
 #include <QTextDocument>
 #include <QVector>
@@ -44,10 +45,14 @@ public:
     QLineEdit *replaceBox() const { return m_replace; }
     QCheckBox *matchCase() const { return m_case; }
     QCheckBox *wholeWords() const { return m_whole; }
+    QCheckBox *useWildcards() const { return m_wild; }
 
 private:
     QTextDocument::FindFlags flags() const;
     void refreshMatches();
+    // The first match of the search at or after a place of the words, as the search sees it (a pattern, or the plain words); null when there is none. `error` says what is wrong with a pattern.
+    QTextCursor matchFrom(int from, QString *error = nullptr);
+    QRegularExpressionMatch groupsOf(const QTextCursor &match);
     void hideEvent(QHideEvent *e) override;
     void showEvent(QShowEvent *e) override;
     // The story's words as they are now (made again when the story has changed), and the search's way to them.
@@ -58,7 +63,7 @@ private:
     WriteWindow *m_win;
     std::unique_ptr<StoryWords> m_text;
     QLineEdit *m_find, *m_replace;
-    QCheckBox *m_case, *m_whole;
+    QCheckBox *m_case, *m_whole, *m_wild;
     QLabel *m_status;
     QVector<QPair<int, int>> m_matches;
     QTimer *m_refresh = nullptr;

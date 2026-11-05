@@ -3,6 +3,7 @@
 #include "app/pageview.h"
 #include "app/writewindow.h"
 #include "core/editops.h"
+#include "core/findops.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 
@@ -132,6 +133,10 @@ WriteFindPane::WriteFindPane(WriteWindow *win, QWidget *parent) : QWidget(parent
     m_whole = new QCheckBox(tr("Find whole words only"), this);
     v->addWidget(m_case);
     v->addWidget(m_whole);
+    m_wild = new QCheckBox(tr("Use wildcards"), this);
+    m_wild->setObjectName(QStringLiteral("useWildcards"));
+    m_wild->setToolTip(tr("? is any letter, * is any run of letters, < and > are the start and end of a word, [a-c] is a range, @ is one or more, and ( ) make groups to use as \\1 in Replace with."));
+    v->addWidget(m_wild);
     auto *row = new QHBoxLayout();
     auto *next = new QPushButton(tr("Find Next"), this);
     auto *rep = new QPushButton(tr("Replace"), this);
@@ -159,6 +164,8 @@ WriteFindPane::WriteFindPane(WriteWindow *win, QWidget *parent) : QWidget(parent
     connect(m_find, &QLineEdit::textChanged, m_refresh, qOverload<>(&QTimer::start));
     connect(m_case, &QCheckBox::toggled, m_refresh, qOverload<>(&QTimer::start));
     connect(m_whole, &QCheckBox::toggled, m_refresh, qOverload<>(&QTimer::start));
+    connect(m_wild, &QCheckBox::toggled, m_refresh, qOverload<>(&QTimer::start));
+    connect(m_wild, &QCheckBox::toggled, m_whole, &QWidget::setDisabled);
 }
 
 void WriteFindPane::hideEvent(QHideEvent *e)
@@ -173,17 +180,44 @@ void WriteFindPane::showEvent(QShowEvent *e)
     m_refresh->start();
 }
 
+QTextCursor WriteFindPane::matchFrom(int from, QString *error)
+{
+    StoryWords *text = storyWords();
+    if (!text) return QTextCursor();
+    if (!m_wild->isChecked()) return text->words()->find(m_find->text(), from, flags());
+    const write::FindPattern pattern = write::wildcardPattern(m_find->text(), m_case->isChecked());
+    if (!pattern.error.isEmpty()) {
+        if (error) *error = pattern.error;
+        return QTextCursor();
+    }
+    for (int at = from;;) {
+        const QTextCursor m = text->words()->find(pattern.regex, at);
+        if (m.isNull() || m.selectionEnd() > m.selectionStart()) return m;
+        at = m.selectionEnd() + 1;   // (a match of no characters is none)
+    }
+}
+
+// The groups of the pattern for a match of it, found again in the words with what is round it (so that the starts and ends of words are right).
+QRegularExpressionMatch WriteFindPane::groupsOf(const QTextCursor &match)
+{
+    const write::FindPattern pattern = write::wildcardPattern(m_find->text(), m_case->isChecked());
+    StoryWords *text = storyWords();
+    if (!text || !pattern.error.isEmpty()) return QRegularExpressionMatch();
+    return pattern.regex.match(text->words()->toPlainText(), match.selectionStart());
+}
+
 // Finds every place the text of the box is (as findNext sees it), counts them, says so, and shows each on the pages.
 void WriteFindPane::refreshMatches()
 {
     m_matches.clear();
+    QString patternError;
     StoryWords *text = storyWords();
     const QString q = m_find->text();
     if (text && !q.isEmpty() && isVisible()) {
         const FindWords w = words();
         int at = 0;
         while (m_matches.size() < kMostMatches) {
-            const QTextCursor m = text->words()->find(q, at, flags());
+            const QTextCursor m = matchFrom(at, &patternError);
             if (m.isNull()) break;
             at = std::max(m.selectionEnd(), at + 1);
             if (w.skip && w.skip(m)) continue;
@@ -196,6 +230,7 @@ void WriteFindPane::refreshMatches()
     }
     m_win->view()->setFindHighlights(m_matches);
     if (q.isEmpty()) m_status->clear();
+    else if (!patternError.isEmpty()) m_status->setText(patternError);
     else if (m_matches.isEmpty()) m_status->setText(tr("No matches"));
     else if (m_matches.size() == 1) m_status->setText(tr("1 match"));
     else if (m_matches.size() >= kMostMatches) m_status->setText(tr("%1 or more matches").arg(kMostMatches));
@@ -285,7 +320,7 @@ bool WriteFindPane::selectionIsMatch()
     StoryWords *text = storyWords();
     if (!text || !sel.hasSelection() || m_find->text().isEmpty()) return false;
     const int from = text->toWords(sel.selectionStart()), to = text->toWords(sel.selectionEnd());
-    const QTextCursor m = text->words()->find(m_find->text(), from, flags());
+    const QTextCursor m = matchFrom(from);
     return !m.isNull() && m.selectionStart() == from && m.selectionEnd() == to && !words().skip(m);
 }
 
@@ -298,7 +333,32 @@ bool WriteFindPane::findNext()
     if (!text || q.isEmpty()) return false;
     int story = 0;
     QTextCursor found;
-    if (findInStories(words(), stories(), q, flags(), 0, text->toWords(m_win->view()->cursor().selectionEnd()), &story, &found)) {
+    bool got = false;
+    if (m_wild->isChecked()) {
+        // A pattern: from the end of the selection to the end of the text, then again from the start.
+        const FindWords w = words();
+        const int start = text->toWords(m_win->view()->cursor().selectionEnd());
+        QString problem;
+        for (int pass = 0; pass < 2 && !got; ++pass)
+            for (int at = pass == 0 ? start : 0;;) {
+                const QTextCursor m = matchFrom(at, &problem);
+                if (m.isNull()) break;
+                if (w.skip && w.skip(m)) {
+                    at = m.selectionEnd();
+                    continue;
+                }
+                found = m;
+                got = true;
+                break;
+            }
+        if (!problem.isEmpty()) {
+            m_status->setText(problem);
+            return false;
+        }
+    } else {
+        got = findInStories(words(), stories(), q, flags(), 0, text->toWords(m_win->view()->cursor().selectionEnd()), &story, &found);
+    }
+    if (got) {
         QTextCursor shown(text->story());
         shown.setPosition(text->toStory(found.selectionStart()));
         shown.setPosition(text->toStoryEnd(found.selectionEnd()), QTextCursor::KeepAnchor);
@@ -326,10 +386,11 @@ void WriteFindPane::replaceOne()
         match.setPosition(text->toWords(sel.selectionStart()));
         match.setPosition(text->toWords(sel.selectionEnd()), QTextCursor::KeepAnchor);
         const int at = text->pieces(match.selectionStart(), match.selectionEnd()).first().first;
-        words().put(match, m_replace->text());
+        const QString with = m_wild->isChecked() ? write::expandReplacement(m_replace->text(), groupsOf(match)) : m_replace->text();
+        words().put(match, with);
         // The caret is after the new words, where the next search goes on from.
         QTextCursor after(text->story());
-        after.setPosition(at + int(m_replace->text().size()));
+        after.setPosition(at + int(with.size()));
         m_win->view()->setCursor(after);
     }
     findNext();
@@ -344,7 +405,34 @@ void WriteFindPane::replaceAll()
     // Each swap is a step of its own; the edit block makes them one.
     QTextCursor block(m_win->document()->story());
     block.beginEditBlock();
-    const int n = replaceInStories(words(), stories(), q, flags(), m_replace->text());
+    int n = 0;
+    if (m_wild->isChecked()) {
+        // A pattern: every match is found first, then swapped from the last to the first (so that no swap moves another), each with its own groups.
+        const write::FindPattern pattern = write::wildcardPattern(q, m_case->isChecked());
+        if (!pattern.error.isEmpty()) {
+            block.endEditBlock();
+            m_status->setText(pattern.error);
+            return;
+        }
+        const FindWords w = words();
+        StoryWords *text = storyWords();
+        const QString plain = text->words()->toPlainText();
+        QVector<QTextCursor> found;
+        QString problem;
+        for (int at = 0; found.size() < kMostMatches;) {
+            const QTextCursor m = matchFrom(at, &problem);
+            if (m.isNull()) break;
+            at = std::max(m.selectionEnd(), at + 1);
+            if (!(w.skip && w.skip(m))) found.push_back(m);
+        }
+        for (int i = int(found.size()) - 1; i >= 0; --i) {
+            QTextCursor m = found[i];
+            w.put(m, write::expandReplacement(m_replace->text(), pattern.regex.match(plain, m.selectionStart())));
+            ++n;
+        }
+    } else {
+        n = replaceInStories(words(), stories(), q, flags(), m_replace->text());
+    }
     block.endEditBlock();
     m_status->setText(n == 0   ? tr("JeffWrite made no replacements. \"%1\" was not found.").arg(findTextForMessage(q))
                       : n == 1 ? tr("JeffWrite made 1 replacement.")
