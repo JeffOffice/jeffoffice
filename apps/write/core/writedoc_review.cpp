@@ -17,6 +17,7 @@ using namespace jp::office::wml;
 
 namespace jp::write {
 
+
 namespace {
 constexpr char kSettingsRel[] = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings";
 constexpr char kSettingsType[] = "application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml";
@@ -150,12 +151,22 @@ QVector<QTextDocument *> WriteDoc::storiesWithChanges(bool every)
     return out;
 }
 
+void WriteDoc::setShowHiddenText(bool on)
+{
+    if (on == m_showHidden) return;
+    m_showHidden = on;
+    m_flow->env.revisionView = m_revisionView | m_fieldCodeView | hiddenBit();
+    story()->setProperty(tp::kRevisionViewProperty, m_revisionView | m_fieldCodeView | hiddenBit());
+    if (m_pager) m_pager->invalidateFrom(0);
+    Q_EMIT sectionsChanged();
+}
+
 void WriteDoc::setRevisionView(int view)
 {
     if (view == m_revisionView) return;
     m_revisionView = view;
-    m_flow->env.revisionView = view | m_fieldCodeView;
-    story()->setProperty(tp::kRevisionViewProperty, view | m_fieldCodeView);
+    m_flow->env.revisionView = view | m_fieldCodeView | hiddenBit();
+    story()->setProperty(tp::kRevisionViewProperty, view | m_fieldCodeView | hiddenBit());
     if (m_pager) m_pager->invalidateFrom(0);
     Q_EMIT sectionsChanged();
     Q_EMIT reviewChanged();
@@ -177,8 +188,8 @@ void WriteDoc::setFieldCodes(bool all, const QSet<int> &ids)
         if (!ids.isEmpty()) tp::shownFieldCodeSets().insert(m_fieldCodesCount, ids);
         m_fieldCodeView = (all ? tp::kShowFieldCodes : 0) | (m_fieldCodesCount << tp::kFieldCodesCountShift);
     }
-    m_flow->env.revisionView = m_revisionView | m_fieldCodeView;
-    story()->setProperty(tp::kRevisionViewProperty, m_revisionView | m_fieldCodeView);
+    m_flow->env.revisionView = m_revisionView | m_fieldCodeView | hiddenBit();
+    story()->setProperty(tp::kRevisionViewProperty, m_revisionView | m_fieldCodeView | hiddenBit());
     if (m_pager) m_pager->invalidateFrom(0);
     Q_EMIT sectionsChanged();
 }

@@ -24,6 +24,7 @@ public:
     void refresh();
     QListWidget *list() const { return m_list; }
     QComboBox *filterBox() const { return m_filter; }
+    QComboBox *sortBox() const { return m_sort; }
     write::StyleFilter filter() const;
     void setFilter(write::StyleFilter filter);
     // The row of a style by its id ("p:Heading1" for a paragraph style, "c:Strong" for a character style); -1 where it is not listed.
@@ -44,11 +45,13 @@ private:
     void mark(const QString &key);
     WriteWindow *m_win;
     QComboBox *m_filter;
+    QComboBox *m_sort;
     QListWidget *m_list;
     QPushButton *m_new, *m_modify;
     QString m_caretKey, m_markedKey;
     // What the list was made from (it is made again only when these change; the caret's style is a mark on a row, which moves).
     int m_madeFilter = -1;
+    int m_madeSort = -1;
     quint64 m_madeStyles = ~quint64(0);
     size_t m_madeUsed = 0;
     int m_usedAtRevision = -1;

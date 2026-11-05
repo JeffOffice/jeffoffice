@@ -4,7 +4,11 @@
 
 #include "core/editops.h"
 #include "core/linkops.h"
+#include "app/settings.h"
 #include "core/homeops.h"
+#include <functional>
+#include <QMenu>
+#include <QToolButton>
 #include "core/refops.h"
 #include "core/tableops.h"
 #include "core/writeprops.h"
@@ -31,6 +35,7 @@ namespace {
 // The copy made in this program (from any of its documents): pasting it again keeps every format, and carries pictures and hyperlinks over.
 Clip s_copied;
 QString s_copiedText;
+bool s_copiedWhole = true;   // the words last copied from here were whole words (smart paste adds spaces only for those)
 
 } // namespace
 
@@ -87,36 +92,50 @@ void PageView::copy()
     mime->setData(QStringLiteral("application/x-jeffwrite-fragment"), text.toUtf8());
     s_copied = clip;
     s_copiedText = text;
+    s_copiedWhole = selectionIsWholeWords(m_cursor);
     QApplication::clipboard()->setMimeData(mime);
 }
+
+// Smart cut and paste (Options > Advanced): on unless turned off.
+bool PageView::smartCutPaste() { return Settings::get().value(QStringLiteral("edit/smartCutPaste"), true).toBool(); }
 
 void PageView::cut()
 {
     if (!m_doc || !m_cursor.hasSelection()) return;
     copy();
-    removeSelection(*m_doc, m_cursor);
+    if (smartCutPaste()) smartRemoveSelection(*m_doc, m_cursor);
+    else removeSelection(*m_doc, m_cursor);
     caretMoved();
 }
 
 void PageView::paste()
 {
     if (!m_doc) return;
+    const int pasteFrom = m_cursor.selectionStart(), pasteSelectionEnd = m_cursor.selectionEnd();
     const QMimeData *mime = QApplication::clipboard()->mimeData();
     if (!mime) return;
-    if (mime->hasFormat(QStringLiteral("application/x-jeffwrite-fragment")) && QString::fromUtf8(mime->data(QStringLiteral("application/x-jeffwrite-fragment"))) == s_copiedText && !s_copied.isEmpty())
-        pasteClip(*m_doc, m_cursor, s_copied);
-    else if (mime->hasImage() && !mime->hasText() && !mime->hasHtml()) {
+    const bool ours = mime->hasFormat(QStringLiteral("application/x-jeffwrite-fragment")) && QString::fromUtf8(mime->data(QStringLiteral("application/x-jeffwrite-fragment"))) == s_copiedText && !s_copied.isEmpty();
+    std::function<void()> put;
+    if (ours) {
+        put = [this] { pasteClip(*m_doc, m_cursor, s_copied); };
+    } else if (mime->hasImage() && !mime->hasText() && !mime->hasHtml()) {
         // A picture on the clipboard (a screenshot, say) goes in as a picture.
         const QVariant data = mime->imageData();
         if (!data.canConvert<QImage>()) return;
         insertPictureImage(data.value<QImage>());
         return;
-    } else if (mime->hasText())
-        pasteText(*m_doc, m_cursor, mime->text());
-    else if (mime->hasHtml())
-        pasteFragment(*m_doc, m_cursor, QTextDocumentFragment::fromHtml(mime->html()));
-    else
+    } else if (mime->hasText()) {
+        const QString text = mime->text();
+        put = [this, text] { pasteText(*m_doc, m_cursor, text); };
+    } else if (mime->hasHtml()) {
+        const QTextDocumentFragment fragment = QTextDocumentFragment::fromHtml(mime->html());
+        put = [this, fragment] { pasteFragment(*m_doc, m_cursor, fragment); };
+    } else {
         return;
+    }
+    if (smartCutPaste() && (!ours || s_copiedWhole)) smartPaste(*m_doc, m_cursor, put);
+    else put();
+    notePaste(pasteFrom, pasteSelectionEnd);
     caretMoved();
 }
 
@@ -138,29 +157,106 @@ bool PageView::canPaste(PasteKind kind) const
 void PageView::pasteAs(PasteKind kind)
 {
     if (!m_doc || !canPaste(kind)) return;
+    const int pasteFrom = m_cursor.selectionStart(), pasteSelectionEnd = m_cursor.selectionEnd();
     const QMimeData *mime = QApplication::clipboard()->mimeData();
     const bool ours = mime->hasFormat(QStringLiteral("application/x-jeffwrite-fragment")) && QString::fromUtf8(mime->data(QStringLiteral("application/x-jeffwrite-fragment"))) == s_copiedText && !s_copied.isEmpty();
+    auto put = [this, ours](const std::function<void()> &what) {
+        if (smartCutPaste() && (!ours || s_copiedWhole)) smartPaste(*m_doc, m_cursor, what);
+        else what();
+    };
     switch (kind) {
     case PasteKind::Keep:
         paste();
         return;
-    case PasteKind::Merge:
-        pasteMerged(*m_doc, m_cursor, ours ? s_copied.fragment : QTextDocumentFragment::fromHtml(mime->html()));
+    case PasteKind::Merge: {
+        const QTextDocumentFragment fragment = ours ? s_copied.fragment : QTextDocumentFragment::fromHtml(mime->html());
+        put([&] { pasteMerged(*m_doc, m_cursor, fragment); });
         break;
-    case PasteKind::TextOnly:
-        pasteText(*m_doc, m_cursor, ours ? plainTextOf(s_copied.fragment) : (mime->hasText() ? mime->text() : QTextDocumentFragment::fromHtml(mime->html()).toPlainText()));
+    }
+    case PasteKind::TextOnly: {
+        const QString text = ours ? plainTextOf(s_copied.fragment) : (mime->hasText() ? mime->text() : QTextDocumentFragment::fromHtml(mime->html()).toPlainText());
+        put([&] { pasteText(*m_doc, m_cursor, text); });
         break;
+    }
     case PasteKind::Picture: {
         const QVariant data = mime->imageData();
         if (!data.canConvert<QImage>()) return;
         insertPictureImage(data.value<QImage>());
         return;
     }
-    case PasteKind::Html:
-        pasteFragment(*m_doc, m_cursor, QTextDocumentFragment::fromHtml(mime->html()));
+    case PasteKind::Html: {
+        const QTextDocumentFragment fragment = QTextDocumentFragment::fromHtml(mime->html());
+        put([&] { pasteFragment(*m_doc, m_cursor, fragment); });
         break;
     }
+    }
+    notePaste(pasteFrom, pasteSelectionEnd);
     caretMoved();
+}
+
+void PageView::notePaste(int from, int selectionEnd)
+{
+    m_lastPaste = LastPaste{from, selectionEnd, m_cursor.position(), m_doc ? m_doc->story()->revision() : -1, m_doc ? m_doc->story() : nullptr};
+}
+
+bool PageView::pasteOptionsAvailable() const
+{
+    return m_doc && m_lastPaste.story == m_doc->story() && m_cursor.document() == m_doc->story() && !m_cursor.hasSelection() && m_cursor.position() == m_lastPaste.to &&
+           m_doc->story()->revision() == m_lastPaste.revision && m_lastPaste.to > m_lastPaste.from;
+}
+
+bool PageView::changeLastPaste(PasteKind kind)
+{
+    if (!pasteOptionsAvailable() || !canPaste(kind)) return false;
+    const int from = m_lastPaste.from, selectionEnd = m_lastPaste.selectionEnd;
+    undo();
+    QTextCursor again(m_doc->story());
+    again.setPosition(from);
+    again.setPosition(std::max(from, selectionEnd), QTextCursor::KeepAnchor);
+    m_cursor = again;
+    pasteAs(kind);
+    return true;
+}
+
+void PageView::updatePasteButton()
+{
+    if (!m_pasteButton) {
+        m_pasteButton = new QToolButton(viewport());
+        m_pasteButton->setObjectName(QStringLiteral("pasteOptionsButton"));
+        m_pasteButton->setText(QCoreApplication::translate("jp::write::PageView", "Paste Options"));
+        m_pasteButton->setAccessibleName(QCoreApplication::translate("jp::write::PageView", "Paste Options"));
+        m_pasteButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        m_pasteButton->setPopupMode(QToolButton::InstantPopup);
+        m_pasteButton->setFocusPolicy(Qt::NoFocus);
+        auto *menu = new QMenu(m_pasteButton);
+        struct Choice {
+            const char *text;
+            PasteKind kind;
+        };
+        for (const Choice &c : {Choice{QT_TRANSLATE_NOOP("jp::write::PageView", "Keep Source Formatting"), PasteKind::Keep}, Choice{QT_TRANSLATE_NOOP("jp::write::PageView", "Merge Formatting"), PasteKind::Merge},
+                                Choice{QT_TRANSLATE_NOOP("jp::write::PageView", "Keep Text Only"), PasteKind::TextOnly}}) {
+            const PasteKind kind = c.kind;
+            QAction *a = menu->addAction(QCoreApplication::translate("jp::write::PageView", c.text));
+            a->setObjectName(QStringLiteral("pasteOption%1").arg(int(kind)));
+            connect(a, &QAction::triggered, this, [this, kind] {
+                changeLastPaste(kind);
+                setFocus(Qt::OtherFocusReason);
+            });
+        }
+        m_pasteButton->setMenu(menu);
+        m_pasteButton->hide();
+        connect(verticalScrollBar(), &QScrollBar::valueChanged, this, [this] { updatePasteButton(); });
+    }
+    QRect r;
+    if (!pasteOptionsAvailable() || !caretRect(&r)) {
+        m_pasteButton->hide();
+        return;
+    }
+    m_pasteButton->adjustSize();
+    const QSize size = m_pasteButton->size();
+    m_pasteButton->move(std::clamp(r.right() + 6, 0, std::max(0, viewport()->width() - size.width())), std::clamp(r.bottom() + 4, 0, std::max(0, viewport()->height() - size.height())));
+    m_pasteButton->show();
+    m_pasteButton->raise();
 }
 
 void PageView::selectAll()

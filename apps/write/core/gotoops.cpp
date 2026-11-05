@@ -1,6 +1,10 @@
 #include "core/gotoops.h"
 
+#include "core/commentops.h"
 #include "core/editops.h"
+#include "core/fieldops.h"
+#include "core/pictureops.h"
+#include "core/tableops.h"
 #include "core/writeprops.h"
 #include "flow/flowdocument.h"
 #include "text/textprops.h"
@@ -94,6 +98,112 @@ QVector<int> footnotePositions(WriteDoc &doc)
     return out;
 }
 
+QVector<int> endnotePositions(WriteDoc &doc)
+{
+    QVector<int> out;
+    for (int id : doc.citedEndnotes()) {
+        out += doc.endnoteReferences(id);
+        if (out.size() >= kMostGoToItems) break;
+    }
+    std::sort(out.begin(), out.end());
+    if (out.size() > kMostGoToItems) out.resize(kMostGoToItems);
+    return out;
+}
+
+QVector<int> commentPositions(WriteDoc &doc)
+{
+    QVector<int> out;
+    for (const Comment &c : comments(doc)) {
+        if (c.parent >= 0) continue;   // (a reply is not a place of its own)
+        const int at = c.from >= 0 ? c.from : c.reference;
+        if (at >= 0) out.push_back(at);
+        if (out.size() >= kMostGoToItems) break;
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
+QVector<int> fieldPositions(WriteDoc &doc)
+{
+    QVector<int> out;
+    const StoryScan scan = scanStory(doc.story(), false);
+    for (const FieldPlace &f : scan.fields) {
+        if (f.parent >= 0 || f.begin < 0) continue;
+        out.push_back(f.begin);
+        if (out.size() >= kMostGoToItems) break;
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
+// The first paragraph of each table that is not inside another (tables are told apart by the address of their data).
+QVector<int> tablePositions(WriteDoc &doc)
+{
+    QVector<int> out;
+    const flow::TableStore &store = doc.flow().tables;
+    const void *last = nullptr;
+    for (QTextBlock b = doc.story()->begin(); b.isValid() && out.size() < kMostGoToItems; b = b.next()) {
+        const flow::CellRecord *rec = store.get(cellKeyOf(b));
+        if (!rec) {
+            last = nullptr;
+            continue;
+        }
+        for (int hops = 0; rec->parent && hops < 64; ++hops) {
+            const flow::CellRecord *up = store.get(rec->parent);
+            if (!up) break;
+            rec = up;
+        }
+        if (rec->table.get() != last) out.push_back(b.position());
+        last = rec->table.get();
+    }
+    return out;
+}
+
+// Pictures, shapes, and text boxes set in the text, and equations: one pass over the fragments, the places of each kind.
+void objectPositions(WriteDoc &doc, QVector<int> *graphics, QVector<int> *equations)
+{
+    for (QTextBlock b = doc.story()->begin(); b.isValid() && (graphics->size() < kMostGoToItems || equations->size() < kMostGoToItems); b = b.next())
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            const int at = it.fragment().position();
+            if (cf.hasProperty(tp::InlineObject) || isPictureAt(doc.story(), at)) {
+                if (graphics->size() < kMostGoToItems) graphics->push_back(at);
+            } else if (cf.hasProperty(prop::Atom)) {
+                const QByteArray bytes = storedBytes(cf, prop::Atom);
+                if (!bytes.contains("oMath")) continue;
+                const Inline atom = unpackAtom(bytes);
+                if ((atom.tag == QLatin1String("oMath") || atom.tag == QLatin1String("oMathPara")) && equations->size() < kMostGoToItems) equations->push_back(at);
+            }
+        }
+}
+
+QVector<int> positionsOf(WriteDoc &doc, GoToKind kind)
+{
+    switch (kind) {
+    case GoToKind::Footnote: return footnotePositions(doc);
+    case GoToKind::Endnote: return endnotePositions(doc);
+    case GoToKind::Comment: return commentPositions(doc);
+    case GoToKind::Field: return fieldPositions(doc);
+    case GoToKind::Table: return tablePositions(doc);
+    default: break;
+    }
+    QVector<int> graphics, equations;
+    objectPositions(doc, &graphics, &equations);
+    return kind == GoToKind::Graphic ? graphics : equations;
+}
+
+const char *noSuch(GoToKind kind)
+{
+    switch (kind) {
+    case GoToKind::Endnote: return QT_TRANSLATE_NOOP("jp::write::GoTo", "There is no such endnote.");
+    case GoToKind::Comment: return QT_TRANSLATE_NOOP("jp::write::GoTo", "There is no such comment.");
+    case GoToKind::Field: return QT_TRANSLATE_NOOP("jp::write::GoTo", "There is no such field.");
+    case GoToKind::Table: return QT_TRANSLATE_NOOP("jp::write::GoTo", "There is no such table.");
+    case GoToKind::Graphic: return QT_TRANSLATE_NOOP("jp::write::GoTo", "There is no such graphic.");
+    default: return QT_TRANSLATE_NOOP("jp::write::GoTo", "There is no such equation.");
+    }
+}
+
 // Where each section begins, in one pass over the paragraphs (a section ends at a paragraph that says so); at most `limit` of them.
 qint64 g_blocksVisited = 0;
 
@@ -131,8 +241,14 @@ QVector<GoToItem> goToItems(WriteDoc &doc, GoToKind kind)
     switch (kind) {
     case GoToKind::Bookmark: return bookmarks(doc);
     case GoToKind::Heading: return headings(doc);
-    case GoToKind::Footnote: {
-        const QVector<int> at = footnotePositions(doc);
+    case GoToKind::Footnote:
+    case GoToKind::Endnote:
+    case GoToKind::Comment:
+    case GoToKind::Field:
+    case GoToKind::Table:
+    case GoToKind::Graphic:
+    case GoToKind::Equation: {
+        const QVector<int> at = positionsOf(doc, kind);
         for (int i = 0; i < at.size(); ++i) out.push_back({QString::number(i + 1), at[i]});
         return out;
     }
@@ -195,6 +311,19 @@ int goToPosition(WriteDoc &doc, GoToKind kind, const QString &what, int from, QS
         for (int p : at) current += p < from ? 1 : 0;
         if (!numberOf(what, current, &n, problem)) return -1;
         if (n < 1 || n > at.size()) return none(QCoreApplication::translate("jp::write::GoTo", "There is no such footnote."));
+        return at[n - 1];
+    }
+    case GoToKind::Endnote:
+    case GoToKind::Comment:
+    case GoToKind::Field:
+    case GoToKind::Table:
+    case GoToKind::Graphic:
+    case GoToKind::Equation: {
+        const QVector<int> at = positionsOf(doc, kind);
+        int current = 0;
+        for (int p : at) current += p < from ? 1 : 0;
+        if (!numberOf(what, current, &n, problem)) return -1;
+        if (n < 1 || n > at.size()) return none(QCoreApplication::translate("jp::write::GoTo", noSuch(kind)));
         return at[n - 1];
     }
     case GoToKind::Heading: {

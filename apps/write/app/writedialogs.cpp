@@ -2,6 +2,8 @@
 
 #include "app/icons.h"
 #include "app/pageview.h"
+#include "core/homeops.h"
+#include "flow/flowdocument.h"
 #include "app/widgets.h"
 #include "core/editops.h"
 #include "core/rulerops.h"
@@ -747,6 +749,9 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     auto *noHyphen = flag("dontHyphenate", QCoreApplication::translate("jp::write::Dialogs", "Don't hyphenate"), noHyphen0, 2, 0);
     auto *contextual = flag("contextualSpacing", QCoreApplication::translate("jp::write::Dialogs", "Don't add space between paragraphs of the same style"), contextual0, 3, 0);
     bg->addWidget(contextual, 3, 0, 1, 2);
+    const bool noNumbers0 = start.boolProperty(flow::fp::SuppressLineNumbers);
+    auto *noNumbers = flag("suppressLineNumbers", QCoreApplication::translate("jp::write::Dialogs", "Suppress line numbers"), noNumbers0, 4, 0);
+    bg->addWidget(noNumbers, 4, 0, 1, 2);
     auto *outline = new QComboBox(breaks);
     outline->setObjectName(QStringLiteral("outlineLevel"));
     outline->addItem(QCoreApplication::translate("jp::write::Dialogs", "Body text"), 9);
@@ -800,6 +805,7 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
             if (contextual->isChecked()) bf.setProperty(tp::ContextualSpacing, true);
             else bf.clearProperty(tp::ContextualSpacing);
         }
+        if (noNumbers->isChecked() != noNumbers0) write::setSuppressLineNumbers(bf, noNumbers->isChecked());
         if (outlineNow != outline0) {
             if (outlineNow == 9) bf.clearProperty(prop::Outline);
             else bf.setProperty(prop::Outline, outlineNow);

@@ -1,19 +1,20 @@
 # Go to a place and move text
-<!-- keywords: go to, goto, ctrl+g, page, section, line, bookmark, footnote, heading, jump, move text, drag, drop, copy text, drag and drop -->
+<!-- keywords: go to, goto, ctrl+g, page, section, line, bookmark, footnote, endnote, comment, field, table, graphic, picture, equation, heading, jump, move text, drag, drop, copy text, drag and drop -->
 
 ## Go to a place
 
 Press **Ctrl+G**, or click **Home > Editing > Go To**. The **Go To** box opens.
 
-1. In **Go to what**, pick **Page**, **Section**, **Line**, **Bookmark**, **Footnote**, or **Heading**.
+1. In **Go to what**, pick **Page**, **Section**, **Line**, **Bookmark**, **Footnote**, **Endnote**, **Comment**, **Field**, **Table**, **Graphic**, **Equation**, or **Heading**.
 2. Type a number or a name. For a bookmark, a footnote, or a heading, you can pick one from the list under the box instead.
 3. Click **Go To**. Your cursor moves to that place, and the pages scroll to show it.
 
 Some notes on each kind:
 
-- **Page**, **Section**, **Footnote**, and **Heading** take a number: 3 goes to the third one. Put a **+** or a **-** first to count from where your cursor is: **+1** goes to the next one, and **-1** goes to the one before.
+- **Page**, **Section**, **Footnote**, **Endnote**, **Comment**, **Field**, **Table**, **Graphic**, **Equation**, and **Heading** take a number: 3 goes to the third one. Put a **+** or a **-** first to count from where your cursor is: **+1** goes to the next one, and **-1** goes to the one before.
 - **Line** takes a number counted from the top of the document.
 - **Bookmark** takes the name of a bookmark. It does not matter if you use capital letters or not. Bookmarks that a program made for its own use, whose names begin with an underscore, are not listed.
+- **Comment**, **Field**, **Table**, **Graphic**, and **Equation** are counted in the order they come in the text. A graphic is a picture, a shape, or a text box. A field is a piece of text that the program works out for you, such as a date or a page number. Replies to a comment are not counted on their own.
 - **Heading** takes a number, or any part of the heading's text. The headings are the paragraphs that have an outline level, such as the ones in the Heading styles.
 
 If the place is not in the document, the box says so and stays open, so you can type another.

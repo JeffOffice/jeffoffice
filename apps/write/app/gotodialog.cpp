@@ -1,4 +1,4 @@
-// Go To (Ctrl+G): a page, section, line, bookmark, footnote, or heading, by number or name; the caret goes there (the work of finding the place is core/gotoops.h).
+// Go To (Ctrl+G): a page, section, line, bookmark, footnote, endnote, comment, field, table, graphic, equation, or heading, by number or name; the caret goes there (the work of finding the place is core/gotoops.h).
 
 #include "app/writedialogs.h"
 
@@ -54,9 +54,15 @@ bool goToDialog(QWidget *parent, WriteDoc *doc, PageView *view)
                                {QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Line"), QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Line number:"), GoToKind::Line},
                                {QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Bookmark"), QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Bookmark name:"), GoToKind::Bookmark},
                                {QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Footnote"), QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Footnote number (+ or - for a footnote from here):"), GoToKind::Footnote},
+                               {QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Endnote"), QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Endnote number (+ or - for an endnote from here):"), GoToKind::Endnote},
+                               {QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Comment"), QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Comment number (+ or - for a comment from here):"), GoToKind::Comment},
+                               {QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Field"), QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Field number (+ or - for a field from here):"), GoToKind::Field},
+                               {QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Table"), QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Table number (+ or - for a table from here):"), GoToKind::Table},
+                               {QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Graphic"), QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Graphic number (+ or - for a graphic from here):"), GoToKind::Graphic},
+                               {QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Equation"), QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Equation number (+ or - for an equation from here):"), GoToKind::Equation},
                                {QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Heading"), QT_TRANSLATE_NOOP("jp::write::GoToDialog", "Heading number, or part of its text:"), GoToKind::Heading}};
     for (const Kind &k : all) kinds->addItem(QCoreApplication::translate("jp::write::GoToDialog", k.text));
-    kinds->setMaximumHeight(130);
+    kinds->setMaximumHeight(170);
     v->addWidget(kinds);
     auto *prompt = new QLabel(&dlg);
     prompt->setObjectName(QStringLiteral("goToPrompt"));
