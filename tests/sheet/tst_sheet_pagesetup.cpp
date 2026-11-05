@@ -66,6 +66,22 @@ private Q_SLOTS:
     }
 
     // A sheet that says nothing prints with the format's defaults.
+    // The print quality (the dots per inch the printer is asked for) is read, is 600 when the file gives none, and a value outside what the format allows is left out.
+    void thePrintQualityIsRead()
+    {
+        PageSetup p;
+        QVERIFY(readPage(QString(), QStringLiteral("<pageSetup horizontalDpi=\"300\" verticalDpi=\"1200\"/>"), &p));
+        QCOMPARE(p.horizontalDpi, 300);
+        QCOMPARE(p.verticalDpi, 1200);
+        PageSetup none;
+        QVERIFY(readPage(QString(), QStringLiteral("<pageSetup paperSize=\"9\"/>"), &none));
+        QCOMPARE(none.horizontalDpi, 600);
+        PageSetup bad;
+        QVERIFY(readPage(QString(), QStringLiteral("<pageSetup horizontalDpi=\"0\" verticalDpi=\"-5\"/>"), &bad));
+        QCOMPARE(bad.horizontalDpi, 600);
+        QCOMPARE(bad.verticalDpi, 600);
+    }
+
     void aSheetWithNoPageSettingsHasTheDefaults()
     {
         PageSetup p;

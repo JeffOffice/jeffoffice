@@ -1,5 +1,5 @@
 # The Page Setup dialog
-<!-- keywords: page setup, dialog, header, footer, page numbers, date, first page, odd even, black and white, draft, notes, errors, page order, center on page, start page numbers, header and footer codes -->
+<!-- keywords: page setup, dialog, header, footer, page numbers, date, first page, odd even, black and white, draft, notes, errors, page order, center on page, start page numbers, header and footer codes, print quality, dpi, dots per inch -->
 
 Open it from the small arrow at the corner of the **Page Setup** group on the **Page Layout** tab. It has four tabs. **OK** changes the sheet you are on, as one step you can undo.
 
@@ -8,6 +8,7 @@ Open it from the small arrow at the corner of the **Page Setup** group on the **
 - **Which way the paper turns**: tall or wide.
 - **How big the cells print**: a percent of full size, or **Shrink until it fits**, with how many pages across and down. "Any number of" lets that direction take as many pages as it needs.
 - **Paper**: the size of the paper.
+- **Print quality**: how many dots per inch the printer is asked for. More dots make finer print, and some printers take longer. If a workbook asks for a number that is not in the list, JeffCrunch keeps it.
 - **Start the page numbers at**: the number the first page gets. Without it, the first page is 1, and a workbook printed whole numbers its pages on from one sheet to the next.
 
 ## Margins

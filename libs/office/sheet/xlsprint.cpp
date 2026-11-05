@@ -58,7 +58,7 @@ bool readXlsPrintRecord(quint16 id, const QByteArray &data, qsizetype pos, qsize
     switch (id) {
     case kSetup: {
         const quint16 paper = b.u16(), scale = b.u16(), start = b.u16(), fitW = b.u16(), fitH = b.u16(), grbit = b.u16();
-        b.skip(4);
+        const quint16 horizontalDpi = b.u16(), verticalDpi = b.u16();
         const double header = b.f64(), footer = b.f64();
         if (b.bad()) return true;
         const bool noPrinter = grbit & 0x0004;
@@ -68,6 +68,8 @@ bool readXlsPrintRecord(quint16 id, const QByteArray &data, qsizetype pos, qsize
         }
         if (scale == 0 && !noPrinter) out->scale = 100;
         out->firstPageNumber = std::min<int>(start, 32767);
+        if (horizontalDpi > 0) out->horizontalDpi = horizontalDpi;
+        if (verticalDpi > 0) out->verticalDpi = verticalDpi;
         out->fitToWidth = std::min<int>(fitW, kMaxFitPages);
         out->fitToHeight = std::min<int>(fitH, kMaxFitPages);
         out->pageOrder = (grbit & 0x0001) ? PageOrder::OverThenDown : PageOrder::DownThenOver;

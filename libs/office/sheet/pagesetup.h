@@ -120,6 +120,7 @@ struct PageSetup {
     bool fitToPage = false;                   // sheetPr/pageSetUpPr: the pages above, not the scale
     int firstPageNumber = 1;
     bool useFirstPageNumber = false;
+    int horizontalDpi = 600, verticalDpi = 600;   // the print quality the printer is asked for (dots per inch)
     PageOrder pageOrder = PageOrder::DownThenOver;
     bool blackAndWhite = false, draft = false;
     PrintComments comments = PrintComments::None;

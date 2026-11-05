@@ -814,6 +814,28 @@ private Q_SLOTS:
         QCOMPARE(onSheet.tabs()->currentIndex(), 3);
     }
 
+    // The Page tab lists the print quality, shows the file's, and gives back a change.
+    void thePageTabHasThePrintQuality()
+    {
+        PageSetupRequest request;
+        request.setup = PageSetup();
+        request.setup.horizontalDpi = request.setup.verticalDpi = 300;
+        PageSetupDialog d(request);
+        QComboBox *quality = d.findChild<QComboBox *>(QStringLiteral("psQuality"));
+        QVERIFY(quality);
+        QCOMPARE(quality->currentData().toInt(), 300);
+        quality->setCurrentIndex(quality->findData(1200));
+        d.accept();
+        QCOMPARE(d.setup().horizontalDpi, 1200);
+        QCOMPARE(d.setup().verticalDpi, 1200);
+        // a quality the list does not have is kept and listed, and not changed by an Ok
+        request.setup.horizontalDpi = request.setup.verticalDpi = 360;
+        PageSetupDialog other(request);
+        QCOMPARE(other.findChild<QComboBox *>(QStringLiteral("psQuality"))->currentData().toInt(), 360);
+        other.accept();
+        QCOMPARE(other.setup().horizontalDpi, 360);
+    }
+
     // What the person changes goes back, and only that: the orientation, the scale or the pages to fit, the paper, the margins, centering, the print area and titles, the options, and the order.
     void changesInTheDialogGoBack()
     {

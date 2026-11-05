@@ -119,7 +119,7 @@ private:
     // What the dialog's controls say, all in one place: what is compared with what they said when it opened, so that only what the person changed goes back.
     struct View {
         bool landscape = false, fit = false;
-        int scale = 100, across = 0, down = 0, paper = 1;
+        int scale = 100, across = 0, down = 0, paper = 1, quality = 600;
         bool useFirst = false;
         int first = 1;
         double margin[6] = {0, 0, 0, 0, 0, 0};
@@ -142,7 +142,7 @@ private:
     QRadioButton *m_portrait = nullptr, *m_landscape = nullptr, *m_scaleRadio = nullptr, *m_fitRadio = nullptr;
     QSpinBox *m_scale = nullptr, *m_fitAcross = nullptr, *m_fitDown = nullptr, *m_firstNumber = nullptr;
     QCheckBox *m_useFirst = nullptr;
-    QComboBox *m_paper = nullptr;
+    QComboBox *m_paper = nullptr, *m_quality = nullptr;
     // margins
     QDoubleSpinBox *m_margin[6] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};   // left, right, top, bottom, header, footer
     QCheckBox *m_centerAcross = nullptr, *m_centerDown = nullptr;

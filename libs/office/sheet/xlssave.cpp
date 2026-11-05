@@ -983,7 +983,7 @@ private:
         grbit |= (p.errors == PrintErrors::Blank ? 1 : p.errors == PrintErrors::Dash ? 2 : p.errors == PrintErrors::NA ? 3 : 0) << 10;
         W setup;
         setup.u16(std::clamp(p.paperSize, 0, 32767)).u16(std::clamp(p.scale, kMinPageScale, kMaxPageScale)).u16(std::clamp(p.firstPageNumber, 0, 32767)).u16(std::clamp(p.fitToWidth, 0, 32767))
-            .u16(std::clamp(p.fitToHeight, 0, 32767)).u16(grbit).u16(600).u16(600).f64(std::clamp(p.margins.header, 0.0, 100.0)).f64(std::clamp(p.margins.footer, 0.0, 100.0)).u16(1);
+            .u16(std::clamp(p.fitToHeight, 0, 32767)).u16(grbit).u16(std::clamp(p.horizontalDpi, 1, 32767)).u16(std::clamp(p.verticalDpi, 1, 32767)).f64(std::clamp(p.margins.header, 0.0, 100.0)).f64(std::clamp(p.margins.footer, 0.0, 100.0)).u16(1);
         put(out, 0x00A1, setup);
         const HeaderFooter &h = p.headerFooter;
         if (h.differentOddEven || h.differentFirst || !h.evenHeader.isEmpty() || !h.evenFooter.isEmpty() || !h.firstHeader.isEmpty() || !h.firstFooter.isEmpty() || !h.scaleWithDoc || !h.alignWithMargins) {

@@ -382,7 +382,7 @@ private Q_SLOTS:
         Copies c;
         const QByteArray x = simple(row(1, num(QStringLiteral("A1"), 1)),
                                     QStringLiteral("<printOptions horizontalCentered=\"1\" gridLines=\"1\"/><pageMargins left=\"0.5\" right=\"0.6\" top=\"0.8\" bottom=\"0.9\" header=\"0.2\" footer=\"0.25\"/>"
-                                                   "<pageSetup paperSize=\"9\" scale=\"80\" orientation=\"landscape\" firstPageNumber=\"3\" useFirstPageNumber=\"1\"/>"
+                                                   "<pageSetup paperSize=\"9\" scale=\"80\" orientation=\"landscape\" firstPageNumber=\"3\" useFirstPageNumber=\"1\" horizontalDpi=\"300\" verticalDpi=\"1200\"/>"
                                                    "<headerFooter differentFirst=\"1\"><oddHeader>&amp;LLeft&amp;CPage &amp;P&amp;RRight</oddHeader><oddFooter>&amp;F</oddFooter><firstHeader>&amp;CFirst</firstHeader></headerFooter>"
                                                    "<rowBreaks count=\"1\" manualBreakCount=\"1\"><brk id=\"10\" max=\"16383\" man=\"1\"/></rowBreaks>"));
         QVERIFY2(c.make(x, false), qPrintable(c.why));
@@ -392,6 +392,8 @@ private Q_SLOTS:
         QVERIFY(b.orientation == PageOrientation::Landscape);
         QCOMPARE(b.firstPageNumber, 3);
         QVERIFY(b.useFirstPageNumber);
+        QCOMPARE(b.horizontalDpi, 300);   // the print quality
+        QCOMPARE(b.verticalDpi, 1200);
         QVERIFY(b.centerHorizontally && b.gridLines && !b.centerVertically);
         QCOMPARE(b.margins.left, a.margins.left);
         QCOMPARE(b.margins.right, a.margins.right);

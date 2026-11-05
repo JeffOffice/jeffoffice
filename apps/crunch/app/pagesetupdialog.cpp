@@ -527,6 +527,14 @@ void PageSetupDialog::buildPage(QWidget *tab)
     }
     m_paper->setCurrentIndex(std::max(0, m_paper->findData(m_setup.paperSize)));
     form->addRow(tr("Paper:"), m_paper);
+    // the print quality: the dots per inch the printer is asked for (a value the file has that is not in the list is kept and listed)
+    m_quality = new QComboBox(tab);
+    m_quality->setObjectName(QStringLiteral("psQuality"));
+    m_quality->setAccessibleName(tr("Print quality"));
+    for (const int dpi : {150, 300, 600, 1200}) m_quality->addItem(tr("%1 dots per inch").arg(dpi), dpi);
+    if (m_quality->findData(m_setup.horizontalDpi) < 0) m_quality->addItem(tr("%1 dots per inch").arg(m_setup.horizontalDpi), m_setup.horizontalDpi);
+    m_quality->setCurrentIndex(std::max(0, m_quality->findData(m_setup.horizontalDpi)));
+    form->addRow(tr("Print quality:"), m_quality);
     m_useFirst = new QCheckBox(tr("Start the page numbers at"), tab);
     m_useFirst->setObjectName(QStringLiteral("psUseFirst"));
     m_firstNumber = new QSpinBox(tab);
@@ -815,6 +823,7 @@ PageSetupDialog::View PageSetupDialog::view() const
     w.across = m_fitAcross->value();
     w.down = m_fitDown->value();
     w.paper = m_paper->currentData().toInt();
+    w.quality = m_quality->currentData().toInt();
     w.useFirst = m_useFirst->isChecked();
     w.first = m_firstNumber->value();
     for (int i = 0; i < 6; ++i) w.margin[i] = m_margin[i]->value();
@@ -904,6 +913,7 @@ PageSetup PageSetupDialog::setup() const
         s.paperSize = now.paper;
         s.paperWidth = s.paperHeight = 0;
     }
+    if (now.quality != was.quality) s.horizontalDpi = s.verticalDpi = now.quality;
     if (now.useFirst != was.useFirst || now.first != was.first) {
         s.useFirstPageNumber = now.useFirst;
         s.firstPageNumber = now.first;
