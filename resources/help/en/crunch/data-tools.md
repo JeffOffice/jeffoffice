@@ -1,5 +1,5 @@
 # Data tools
-<!-- keywords: data, data tab, text to columns, split, separator, comma, tab, fixed width, remove duplicates, goal seek, subtotal, totals, advanced filter, conditions, data validation, consolidate, combine ranges, allow, list, drop-down, input message, error alert, repeated rows, unique, text file, csv, from text, columns, delimiter, quotes -->
+<!-- keywords: data, data tab, text to columns, split, separator, comma, tab, fixed width, remove duplicates, goal seek, subtotal, totals, advanced filter, conditions, data validation, circle invalid data, red oval, clear validation circles, consolidate, combine ranges, allow, list, drop-down, input message, error alert, repeated rows, unique, text file, csv, from text, columns, delimiter, quotes -->
 
 The **Data** tab has the tools that work on a list of values: getting text from a file, putting a list in order, cutting text into columns, and taking out repeated rows.
 
@@ -97,6 +97,8 @@ Use this to say what may be typed in some cells, so that a wrong entry is stoppe
 On the **Input Message** tab, check the box and write a title and a message. They show beside the cell whenever it is selected.
 
 On the **Error Alert** tab, choose what happens to an entry that is not allowed. **Stop** refuses it. **Warning** asks whether to keep it. **Information** tells the person and keeps it. Write a title and a message for the alert.
+
+**Circle Invalid Data** (next to **Data Validation**) puts a red oval round each cell on the sheet whose value its rule does not allow, such as a number that was there before the rule, or the result of a formula. A message tells you if every cell is fine. A cell that you put right loses its oval. **Clear Validation Circles** takes all the ovals away.
 
 **Clear All** takes the rules off the selected cells. The new rule replaces any rule the selected cells had; other cells keep theirs. Changing rules is one step that you can undo, and the rules are saved in the file.
 

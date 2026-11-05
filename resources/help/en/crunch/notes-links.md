@@ -1,5 +1,5 @@
 # Notes and links
-<!-- keywords: note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables -->
+<!-- keywords: note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells -->
 
 ## Notes
 
@@ -33,3 +33,16 @@ A link goes with its cell when rows or columns are inserted or deleted, and when
 ## Workbook Statistics
 
 **Workbook Statistics** (**Review** tab) counts what the workbook holds: how many **Sheets** it has, how many **Cells with data** (cells that hold a number, text, or a formula), how many **Formulas**, how many **Charts**, and how many **Pivot tables**. Sheets you deleted are not counted. The same numbers are on the **Info** page of the File tab.
+
+## Check Accessibility
+
+**Check Accessibility** (**Review** tab) opens a small window that lists what in the workbook is hard for some readers to use, or for a screen reader (a program that reads the screen aloud) to say. Each line starts with **Error**, **Warning**, or **Tip**. Click a line to go to the cell.
+
+It looks for:
+
+- A chart or picture with no **alt text** (the words that say what it shows). This is an error.
+- A table with no header row, so its columns have no names. This is an error.
+- **Merged cells**, which are hard to move through with the keyboard. This is a warning.
+- A sheet that still has the name it was given, such as Sheet1. This is a tip.
+
+Press **Check Again** after you make changes.

@@ -426,6 +426,7 @@ void EditSession::cleanChanged(bool clean)
     m_sheetsListed = false;
     m_statesChanged.clear();
     m_tabColorsChanged.clear();
+    m_ignoredChanged.clear();
     m_validationsChanged.clear();
     m_sparklinesChanged.clear();
     m_sheetOps.clear();
@@ -1510,6 +1511,12 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
                 sc.rows.push_back(p);
             }
         }
+        for (const int sheet : m_ignoredChanged) {
+            if (!written(sheet)) continue;
+            SheetChanges &sc = changes.sheets[sheet];
+            sc.replaceIgnoredErrors = true;
+            sc.ignoredErrors = calc->sheet(sheet).ignoredErrors;
+        }
         for (const int sheet : m_validationsChanged) {
             if (!written(sheet)) continue;
             SheetChanges &sc = changes.sheets[sheet];
@@ -1826,6 +1833,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_sheetsListed = false;
     m_statesChanged.clear();
     m_tabColorsChanged.clear();
+    m_ignoredChanged.clear();
     m_validationsChanged.clear();
     m_sparklinesChanged.clear();
     m_sheetOps.clear();

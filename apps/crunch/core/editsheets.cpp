@@ -596,6 +596,36 @@ EditSession::Outcome EditSession::setValidations(int sheet, QVector<jp::office::
     return pushSheetEdit(e, text);
 }
 
+const QVector<jp::office::sheet::IgnoredError> &EditSession::ignoredErrorsOf(int sheet) const
+{
+    static const QVector<jp::office::sheet::IgnoredError> none;
+    return m_book && m_book->calc && sheet >= 0 && sheet < m_book->calc->sheetCount() ? m_book->calc->sheet(sheet).ignoredErrors : none;
+}
+
+EditSession::Outcome EditSession::setIgnoredErrors(int sheet, QVector<jp::office::sheet::IgnoredError> list, const QString &text)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    if (list.size() > 10000) {
+        out.ok = false;
+        out.problem = tr("Too many cells are set to be left out of Error Checking.");
+        return out;
+    }
+    const QVector<jp::office::sheet::IgnoredError> &now = m_book->calc->sheet(sheet).ignoredErrors;
+    if (now == list) return out;   // (nothing to change)
+    SheetEdit e;
+    e.kind = SheetEdit::Kind::IgnoredErrors;
+    e.sheet = sheet;
+    e.ignoredBefore = now;
+    e.ignoredAfter = list;
+    return pushSheetEdit(e, text);
+}
+
 // A sheet that was added is taken away: the values, results, and marks kept by cell for it are let go of, so that a sheet added later at its place starts with none.
 void EditSession::forgetSheet(int sheet)
 {
@@ -721,6 +751,10 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
         case SheetEdit::Kind::TabColor:
             calc->setTabColor(e.sheet, forward ? e.colorAfter : e.colorBefore);
             m_tabColorsChanged.insert(e.sheet);
+            break;
+        case SheetEdit::Kind::IgnoredErrors:
+            calc->setIgnoredErrors(e.sheet, forward ? e.ignoredAfter : e.ignoredBefore);
+            m_ignoredChanged.insert(e.sheet);
             break;
         case SheetEdit::Kind::Validations:
             calc->setValidations(e.sheet, forward ? e.rulesAfter : e.rulesBefore);

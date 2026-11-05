@@ -464,6 +464,26 @@ DrawingCounts SheetObjects::counts(int sheet)
     return s.counts;
 }
 
+std::vector<SheetObjects::ObjectInfo> SheetObjects::describe(int sheet)
+{
+    std::vector<ObjectInfo> out;
+    Sheet &s = sheetState(sheet);
+    if (!s.listed && !s.parsing) list(sheet, s);
+    if (!s.listed) return out;
+    for (const std::shared_ptr<Object> &o : s.objects) {
+        if (o->deleted) continue;
+        ObjectInfo info;
+        info.id = o->id;
+        info.kind = o->meta.kind;
+        info.name = o->meta.name;
+        info.description = o->meta.description;
+        info.row = o->anchor.from.row;
+        info.col = o->anchor.from.col;
+        out.push_back(info);
+    }
+    return out;
+}
+
 std::function<QImage()> SheetObjects::prepareChart(int sheet, Object &o, const RenderRequest &q)
 {
     ensureBuilt(sheet, o);

@@ -135,7 +135,7 @@ struct SizeEdit {
 // A sheet added, copied, renamed, deleted, moved, shown or hidden, or given a tab color by a step. The sheets are never renumbered (see Calculation::addSheet): `sheet` is the sheet's place for
 // good, and what a step changes of the order of the tabs is kept whole.
 struct SheetEdit {
-    enum class Kind { Insert, Copy, Delete, Rename, Move, State, TabColor, Sparklines, Validations } kind = Kind::Insert;
+    enum class Kind { Insert, Copy, Delete, Rename, Move, State, TabColor, Sparklines, Validations, IgnoredErrors } kind = Kind::Insert;
     int sheet = 0;
     QString nameBefore, nameAfter;
     QVector<int> orderBefore, orderAfter;
@@ -143,6 +143,7 @@ struct SheetEdit {
     jp::office::sheet::ColorSpec colorBefore, colorAfter;
     QVector<jp::office::sheet::SparklineGroup> sparksBefore, sparksAfter;   // Sparklines: the sheet's groups as they were and are
     QVector<jp::office::sheet::Validation> rulesBefore, rulesAfter;   // Validations: the sheet's rules of validation as they were and are
+    QVector<jp::office::sheet::IgnoredError> ignoredBefore, ignoredAfter;   // IgnoredErrors: the sheet's checks left out for cells, as they were and are
     int copyOf = -1;                                       // Copy: the sheet it is a copy of
     std::vector<std::pair<QString, QString>> tableRenames;   // Copy: the tables that were copied, by the name they had and have (the copy's formulas name its own tables)
     jp::office::sheet::Calculation::SheetRewrite rewrite;  // Rename and Delete: what the formulas were (made when the step is done)
@@ -792,6 +793,9 @@ public:
     const QVector<jp::office::sheet::Validation> &validationsOf(int sheet) const;
     static constexpr int kMaxValidationRules = 5000;
     Outcome setValidations(int sheet, QVector<jp::office::sheet::Validation> rules, const QString &text);
+    // The checks of Error Checking left out for cells (kept in the file as `ignoredErrors`), and the same changed: one step.
+    const QVector<jp::office::sheet::IgnoredError> &ignoredErrorsOf(int sheet) const;
+    Outcome setIgnoredErrors(int sheet, QVector<jp::office::sheet::IgnoredError> list, const QString &text);
     Outcome setSparklines(int sheet, QVector<jp::office::sheet::SparklineGroup> groups, const QString &text);
     const QVector<jp::office::sheet::SparklineGroup> &sparklinesOf(int sheet) const;
     // Whether a sheet holds any cells (what a person is asked about before it is deleted).
@@ -1133,6 +1137,7 @@ private:
     bool m_sheetsListed = false;                          // a step changed the list of sheets since the file was read or saved
     std::set<int> m_sheetsRestyled;                       // the sheets a step gave the format of very many cells (drawn again whole)
     std::set<int> m_statesChanged;                        // the sheets a step hid or showed
+    std::set<int> m_ignoredChanged;                       // the sheets whose ignored errors a step changed
     std::set<int> m_validationsChanged;                   // the sheets whose rules of validation a step changed
     std::set<int> m_sparklinesChanged;                    // the sheets whose sparklines a step changed
     std::set<int> m_tabColorsChanged;                     // the sheets whose tab color a step changed

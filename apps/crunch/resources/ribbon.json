@@ -357,6 +357,8 @@
             {"large": "data.textToColumns", "keytip": "E"},
             {"large": "data.removeDuplicates", "keytip": "M"},
             {"large": "data.validation", "keytip": "V"},
+            {"small": "data.circleInvalid", "keytip": "CI"},
+            {"small": "data.clearCircles", "keytip": "CC"},
             {"large": "data.consolidate", "keytip": "O"}
           ]
         },
@@ -397,7 +399,8 @@
           "name": "Proofing",
           "keytip": "ZR",
           "items": [
-            {"large": "review.statistics", "keytip": "WS"}
+            {"large": "review.statistics", "keytip": "WS"},
+            {"large": "review.accessibility", "keytip": "AC"}
           ]
         },
         {

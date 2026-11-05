@@ -13,6 +13,7 @@
 #include "app/filterpopup.h"
 #include "app/finddialog.h"
 #include "app/slicetuner.h"
+#include "app/accessibilitypane.h"
 #include "app/watchwindow.h"
 #include "app/sortdialog.h"
 #include "core/csvexport.h"
@@ -28,6 +29,7 @@
 #include "core/findrun.h"
 #include "core/functioninfo.h"
 #include "core/gotospecial.h"
+#include "core/invalidcells.h"
 #include "core/loader.h"
 #include "grid/gridview.h"
 #include "grid/pagelayoutview.h"
@@ -879,6 +881,13 @@ private:
     void evaluateFormulaDialog();
     void dataValidationDialog();
     void consolidateDialog();
+    void showAccessibilityPane();
+    void checkAccessibilityNow();
+    QPointer<AccessibilityPane> m_accessPane;
+    // Circles drawn by Circle Invalid Data, by sheet (cleared by Clear Validation Circles; looked at again as the sheet is worked out).
+    std::map<int, std::vector<jp::office::sheet::CellRange>> m_invalidCircled;
+    void refreshInvalidCircles();
+    void refreshCellFlags();
     void refreshWatches();
     struct Watch {
         int sheet;
@@ -886,7 +895,7 @@ private:
     };
     QList<Watch> m_watches;
     QPointer<WatchWindow> m_watchWindow;
-    std::vector<crunch::FormulaProblem> m_ignoredProblems;   // what the person chose to ignore in Error Checking (kept while the window is open)   // (ends a step made with beginMacro; see crunchwindow_tabs2.cpp)
+    // (ends a step made with beginMacro; see crunchwindow_tabs2.cpp)
 public:
     // Goal Seek without the question: the cell with the formula, the value wanted, and the cell to change (names such as "B3"). The solution is one step of Undo; false (nothing changed) if none was found.
     bool goalSeekIn(const QString &setCell, const QString &valueWanted, const QString &changeCell);
@@ -899,7 +908,7 @@ public:
     bool advancedFilterIn(const QString &list, const QString &criteria, const QString &copyTo = QString(), bool unique = false);
     // The cells of the sheet in view that Error Checking would show: a formula with an error, and a number kept as text (what was ignored is left out).
     std::vector<crunch::FormulaProblem> formulaProblems() const;
-    // Ignores the problem of that cell for as long as the window is open.
+    // Ignores the problem of that cell (kept in the file, one step of Undo).
     void ignoreFormulaProblem(quint32 row, quint32 col);
     // The cells the Watch Window lists (kept while the workbook is open), and adding one; false if it is watched already or too many are.
     int watchCount() const { return int(m_watches.size()); }
@@ -914,6 +923,15 @@ public:
     // Consolidate without the question: ranges as references ("Sheet2!A1:C10"; one without a sheet is on the sheet in view), the function (the number SUBTOTAL is called with), where the
     // names are, whether the results link to their sources, and the cell the result starts at. One step of Undo.
     bool consolidateIn(const QStringList &references, int function, bool topLabels, bool leftLabels, bool links, const QString &destination);
+    // Circle Invalid Data: puts a red oval round each cell of the sheet in view with data its rule does not allow, and gives how many; Clear Validation Circles takes them away. What is circled
+    // is looked at again as the sheet is worked out, so a cell that is put right loses its oval.
+    int circleInvalidData();
+    void clearValidationCircles();
+    // The cells of the sheet in view that have a red oval, and a green triangle (a problem found by Error Checking, not ignored).
+    std::vector<jp::office::sheet::CellRange> circledCells() const;
+    // Check Accessibility: the problems found in the workbook (for a test); the window lists them and goes to the one that is clicked.
+    std::vector<crunch::AccessIssue> accessibilityIssues();
+    AccessibilityPane *accessibilityPane() const { return m_accessPane; }
     // The functions used last, newest first (the Recently Used menu of the Formulas tab).
     QStringList recentFunctions() const;
     // The facts Workbook Statistics lists, as name and number: sheets, cells with data, formulas, charts, and pivot tables.

@@ -17,6 +17,7 @@
 #include "findbooks.h"
 
 #include <QAction>
+#include <QListWidget>
 #include <QMenu>
 #include <QTableWidget>
 #include <QSettings>
@@ -31,8 +32,14 @@
 using namespace jp;
 using namespace crunchtest;
 using crunch::EditSession;
+using jp::office::sheet::ChartKind;
 
 namespace {
+void selectCells(EditWindow &e, const QString &range)
+{
+    const CellRange r = rangeOf(range);
+    e.view()->selectRange(r.row1, r.col1, r.row2, r.col2);
+}
 // Whether the row (from 0) is hidden.
 bool rowHidden(EditWindow &e, quint32 row)
 {
@@ -592,6 +599,114 @@ private Q_SLOTS:
         QVERIFY(!e.win.w.consolidateIn({"A1:A2"}, 99, false, false, false, QStringLiteral("D1")));
         QCOMPARE(told.size(), 4);
         QVERIFY(e.win.w.act(QStringLiteral("data.consolidate"))->isEnabled());
+    }
+
+    void circleInvalidDataMarksCellsThatBreakTheirRuleAndClearsThem()
+    {
+        using jp::office::sheet::Validation;
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"B1=5", "B2=50", "B3=7", "B4=text", "D1=100"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        Validation rule;
+        rule.type = Validation::Type::Whole;
+        rule.compare = Validation::Compare::Between;
+        rule.formula1 = "1";
+        rule.formula2 = "9";
+        QVERIFY(w.setValidationOn(rangeOf(QStringLiteral("B1:B5")), rule));
+        QVERIFY(w.circledCells().empty());
+        QStringList told;
+        w.setNotifier([&](const QString &, const QString &text) { told << text; });
+        // (50 and the text are not allowed; 5 and 7 are; the empty cell and the cell with no rule are not looked at)
+        QCOMPARE(w.circleInvalidData(), 2);
+        QCOMPARE(w.circledCells().size(), size_t(2));
+        QCOMPARE(int(w.circledCells()[0].row1), 1);
+        QCOMPARE(int(w.circledCells()[1].row1), 3);
+        QCOMPARE(w.view()->invalidCircles().size(), size_t(2));
+        // put right, the oval goes when the sheet is worked out
+        e.select(QStringLiteral("B2"));
+        e.enter(QStringLiteral("8"));
+        QVERIFY(e.settle());
+        QTRY_COMPARE(w.view()->invalidCircles().size(), size_t(1));
+        w.act(QStringLiteral("data.clearCircles"))->trigger();
+        QVERIFY(w.circledCells().empty());
+        QVERIFY(w.view()->invalidCircles().empty());
+        // nothing wrong: the person is told
+        e.select(QStringLiteral("B4"));
+        e.enter(QStringLiteral("3"));
+        QVERIFY(e.settle());
+        w.act(QStringLiteral("data.circleInvalid"))->trigger();
+        QCOMPARE(told.size(), 1);
+    }
+
+    void errorCheckingMarksCellsWithAGreenCornerAndKeepsIgnoredErrorsInTheFile()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=1", "B1==A1/0", "B2==A1/0", "C1=2"}}, {{0, QStringLiteral("<ignoredErrors><ignoredError sqref=\"B2\" evalError=\"1\"/></ignoredErrors>")}})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        // the file's own ignored error was read: B2 is left out, B1 is marked
+        QCOMPARE(w.session()->ignoredErrorsOf(0).size(), 1);
+        QCOMPARE(w.formulaProblems().size(), size_t(1));
+        QTRY_COMPARE(w.view()->errorCorners().size(), size_t(1));
+        w.ignoreFormulaProblem(0, 1);
+        QVERIFY(w.formulaProblems().empty());
+        QVERIFY(w.view()->errorCorners().empty());
+        QCOMPARE(w.session()->ignoredErrorsOf(0).size(), 2);
+        // kept in the file, with the one that was there
+        QVERIFY(e.settle());
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY(saved.wait(20000) && saved.last().value(1).toBool());
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const auto back = second.w.session()->ignoredErrorsOf(0);
+        QCOMPARE(back.size(), 2);
+        QCOMPARE(int(back[0].kinds), int(jp::office::sheet::IgnoredError::EvalError));
+        QVERIFY(back[0].ranges[0] == rangeOf(QStringLiteral("B2")));
+        QVERIFY(back[1].ranges[0] == rangeOf(QStringLiteral("B1")));
+        QVERIFY(second.w.formulaProblems().empty());
+        // Undo brings the marker back
+        w.undoStack()->undo();
+        QCOMPARE(w.formulaProblems().size(), size_t(1));
+    }
+
+    void checkAccessibilityListsWhatIsHardToUseAndGoesToIt()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c></row><row r=\"2\"><c r=\"A2\"><v>3</v></c><c r=\"B2\"><v>4</v></c></row>");
+        const QString table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Plain\" displayName=\"Plain\" ref=\"A1:B2\" headerRowCount=\"0\">"
+                                             "<tableColumns count=\"2\"><tableColumn id=\"1\" name=\"Column1\"/><tableColumn id=\"2\" name=\"Column2\"/></tableColumns></table>");
+        const QByteArray merges = "<mergeCells count=\"1\"><mergeCell ref=\"D4:E4\"/></mergeCells>";
+        EditWindow e;
+        QVERIFY(e.open(withTables(buildXlsx({worksheet(rows, QString::fromLatin1(merges)), worksheet(QString())}, QByteArray(), QString(), QString(), QByteArray(), {QStringLiteral("Sheet1"), QStringLiteral("Budget")}), {table})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QTRY_VERIFY(w.session() != nullptr);
+        auto kinds = [](const std::vector<crunch::AccessIssue> &issues) {
+            QStringList k;
+            for (const auto &i : issues) k << QString::number(int(i.kind));
+            return k.join(QLatin1Char(' '));
+        };
+        // a sheet with its default name, merged cells, and a table with no header row (Sheet1 only: "Budget" was named)
+        auto issues = w.accessibilityIssues();
+        QCOMPARE(kinds(issues), QStringLiteral("2 1 3"));   // DefaultSheetName, MergedCells, TableWithoutHeader
+        QCOMPARE(int(issues[1].row), 3);
+        QCOMPARE(int(issues[1].col), 3);
+        // a chart with no alt text is an error
+        e.select(QStringLiteral("A1"));
+        selectCells(e, QStringLiteral("A1:B2"));
+        QVERIFY(w.insertChart(ChartKind::Column));
+        QVERIFY(e.settle());
+        issues = w.accessibilityIssues();
+        QCOMPARE(kinds(issues), QStringLiteral("2 0 1 3"));
+        QVERIFY(issues[1].level == crunch::AccessIssue::Error);
+        // the window lists them and goes to the one clicked
+        w.act(QStringLiteral("review.accessibility"))->trigger();
+        QVERIFY(w.accessibilityPane());
+        QCOMPARE(w.accessibilityPane()->issueCount(), 4);
+        w.accessibilityPane()->list()->setCurrentRow(2);
+        Q_EMIT w.accessibilityPane()->list()->itemActivated(w.accessibilityPane()->list()->item(2));
+        QCOMPARE(e.selected(), QStringLiteral("D4"));
     }
 
 private:

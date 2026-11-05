@@ -31,6 +31,16 @@ void GridView::setCheckMarks(std::vector<GridRange> circles, std::vector<CheckAr
     viewport()->update();
 }
 
+void GridView::setCellFlags(std::vector<GridRange> invalid, std::vector<GridRange> corners)
+{
+    if (invalid.size() > kMaxCellFlags) invalid.resize(kMaxCellFlags);
+    if (corners.size() > kMaxCellFlags) corners.resize(kMaxCellFlags);
+    if (invalid.empty() && corners.empty() && m_invalidCircles.empty() && m_errorCorners.empty()) return;
+    m_invalidCircles = std::move(invalid);
+    m_errorCorners = std::move(corners);
+    viewport()->update();
+}
+
 void GridView::setHeaderButtons(std::vector<HeaderButton> buttons)
 {
     if (buttons.size() > kMaxHeaderButtons) buttons.resize(kMaxHeaderButtons);
@@ -62,7 +72,7 @@ bool GridView::headerButtonPress(const QPoint &layoutPoint)
 
 void GridView::paintMarks(QPainter *painter, const QRect &clip)
 {
-    if (m_marks.empty() && m_headerButtons.empty() && m_checkCircles.empty() && m_checkArrows.empty()) return;
+    if (m_marks.empty() && m_headerButtons.empty() && m_checkCircles.empty() && m_checkArrows.empty() && m_invalidCircles.empty() && m_errorCorners.empty()) return;
     const GridLayout &L = m_sheet.layout();
     const QRect inLayout = mirror(clip);
     painter->save();
@@ -145,6 +155,23 @@ void GridView::paintChecks(QPainter *painter, const QRect &clip)
         if (rect.isEmpty() || !rect.intersects(clip)) continue;
         painter->drawRect(QRectF(rect).adjusted(1, 1, -1, -1));
     }
+    // a red oval round each cell with data that a rule does not allow
+    painter->setPen(QPen(red, 2));
+    for (const GridRange &r : m_invalidCircles) {
+        const QRect rect = visibleRangeRect(L, r);
+        if (rect.isEmpty() || !rect.intersects(clip)) continue;
+        painter->drawEllipse(QRectF(rect).adjusted(-2, -1, 2, 1));
+    }
+    // a small green triangle in the upper-left corner of each cell with a problem
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(dark ? 0x4c : 0x1a, dark ? 0xc2 : 0x9a, dark ? 0x6e : 0x4a));
+    for (const GridRange &r : m_errorCorners) {
+        const QRect rect = visibleRangeRect(L, r);
+        if (rect.isEmpty() || !rect.intersects(clip)) continue;
+        const QPointF tl = rect.topLeft() + QPointF(1, 1);
+        painter->drawPolygon(QPolygonF({tl, tl + QPointF(7, 0), tl + QPointF(0, 7)}));
+    }
+    painter->setBrush(Qt::NoBrush);
     // the icon of a sheet: a page with a folded corner and a few lines
     auto drawSheetIcon = [&](const QRectF &r) {
         painter->save();

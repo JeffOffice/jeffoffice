@@ -573,6 +573,12 @@ public:
         if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].validations = rules;
     }
 
+    // The checks left out for cells of a sheet, put in (an edit, taken back, or done again).
+    void setIgnoredErrors(int sheet, const QVector<IgnoredError> &list)
+    {
+        if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].ignoredErrors = list;
+    }
+
     // The sparklines of a sheet, put in (an edit of them, taken back, or done again).
     void setSparklines(int sheet, const QVector<SparklineGroup> &groups)
     {

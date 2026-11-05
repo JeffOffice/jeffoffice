@@ -77,7 +77,7 @@ Select a cell and click **Show What Feeds This Cell** to draw arrows from the ce
 
 Choose **Error Checking** in the **Check** group of the Formulas tab to look through the sheet for cells that may be wrong. It looks for two things: a formula that comes to an error (such as #DIV/0!), and a number that is kept as text, which formulas may skip.
 
-The dialog shows one cell at a time, goes to that cell on the sheet, and says in a sentence what is the matter. **Next** and **Previous** move through the cells. **Ignore Error** takes the cell off the list for as long as the workbook is open. If nothing is wrong, you are told so.
+The dialog shows one cell at a time, goes to that cell on the sheet, and says in a sentence what is the matter. **Next** and **Previous** move through the cells. A small green triangle in the upper-left corner of a cell marks it on the sheet. **Ignore Error** takes the cell off the list, takes its triangle away, and is saved in the file. One step of Undo brings it back. If nothing is wrong, you are told so.
 
 ## Evaluate Formula
 

@@ -1376,7 +1376,7 @@ bool SheetReader::read(QIODevice *in)
     QXmlStreamReader &r = src.reader;
     int depth = 0, phonetic = 0;
     bool rootSeen = false, inData = false, inRow = false, inCell = false, inFormula = false, inValue = false, inInline = false, inText = false, inMerge = false;
-    bool inSheetPr = false, inViews = false, inCols = false, inView = false, inValidations = false, inRule = false, inLinks = false;
+    bool inSheetPr = false, inViews = false, inCols = false, inView = false, inValidations = false, inRule = false, inLinks = false, inIgnored = false;
     bool inHeaderFooter = false;
     int inBreaks = 0;              // 1 while the row breaks are read, 2 for the column breaks
     QString *hfText = nullptr;     // the header or footer text being read
@@ -1455,6 +1455,8 @@ bool SheetReader::read(QIODevice *in)
                     inMerge = true;
                 } else if (isElement(r, "dataValidations")) {
                     inValidations = true;
+                } else if (isElement(r, "ignoredErrors")) {
+                    inIgnored = true;
                 } else if (isElement(r, "conditionalFormatting")) {
                     inCond = true;
                     condRanges.clear();
@@ -1605,6 +1607,21 @@ bool SheetReader::read(QIODevice *in)
                 x14Text = &x14Ranges;
             } else if (depth == 3 && inMerge && isElement(r, "mergeCell")) {
                 ok = startMerge(r);
+            } else if (depth == 3 && inIgnored && isElement(r, "ignoredError")) {
+                if (m_sheet.ignoredErrors.size() < 10000) {
+                    IgnoredError ig;
+                    for (const QString &part : attribute(r, "sqref").toString().split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+                        CellRange range;
+                        if (parseRangeRef(part, &range) && ig.ranges.size() < 64) ig.ranges.append(range);
+                    }
+                    static const struct { const char *name; quint16 bit; } names[] = {{"evalError", 1}, {"twoDigitTextYear", 2}, {"numberStoredAsText", 4}, {"formula", 8}, {"formulaRange", 16},
+                                                                                       {"unlockedFormula", 32}, {"emptyCellReference", 64}, {"listDataValidation", 128}, {"calculatedColumn", 256}};
+                    for (const auto &n : names) {
+                        const QStringView v = attribute(r, n.name);
+                        if (v == QLatin1String("1") || v == QLatin1String("true")) ig.kinds |= n.bit;
+                    }
+                    if (!ig.ranges.isEmpty() && ig.kinds) m_sheet.ignoredErrors.append(ig);
+                }
             } else if (depth == 3 && inLinks && isElement(r, "hyperlink")) {
                 readLink(r, &m_sheet.links);
             } else if (depth == 3 && inValidations && isElement(r, "dataValidation")) {
@@ -1792,6 +1809,7 @@ bool SheetReader::read(QIODevice *in)
             } else if (depth == 2) {
                 inData = inMerge = inSheetPr = inViews = inCols = inValidations = inCond = inExtension = inLinks = false;
                 inHeaderFooter = false;
+                inIgnored = false;
                 inBreaks = 0;
             }
             --depth;

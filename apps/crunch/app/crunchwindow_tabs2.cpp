@@ -9,6 +9,7 @@
 #include "app/subtotaldialog.h"
 #include "app/validationdialog.h"
 #include "app/watchwindow.h"
+#include "core/accesscheck.h"
 #include "core/advancedfilter.h"
 #include "core/consolidate.h"
 #include "core/gotospecial.h"
@@ -40,9 +41,20 @@ void CrunchWindow::createTabs2Actions()
     mk("formulas.watchWindow", tr("Watch Window"), "eye", QKeySequence(), [this] { showWatchWindow(); });
     mk("formulas.evaluate", tr("Evaluate Formula…"), "list-checks", QKeySequence(), [this] { evaluateFormulaDialog(); });
     mk("data.validation", tr("Data Validation"), "list-checks", QKeySequence(), [this] { dataValidationDialog(); });
+    mk("data.circleInvalid", tr("Circle Invalid Data"), "circle-alert", QKeySequence(), [this] {
+        const int n = circleInvalidData();
+        if (n == 0) notice(tr("Circle Invalid Data"), tr("Every cell with data follows its rule."), false);
+        else setStatus(tr("%1 cells with data that a rule does not allow are circled.").arg(n));
+    });
+    mk("data.clearCircles", tr("Clear Validation Circles"), "circle-slash", QKeySequence(), [this] { clearValidationCircles(); });
+    mk("review.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] { showAccessibilityPane(); });
     mk("data.consolidate", tr("Consolidate"), "combine", QKeySequence(), [this] { consolidateDialog(); });
     mk("data.subtotal", tr("Subtotal"), "sigma", QKeySequence(), [this] { subtotalDialog(); });
-    for (const char *id : {"review.statistics", "data.goalSeek", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"review.statistics", "data.goalSeek", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "data.clearCircles", "review.accessibility"}) m_opsActions << QString::fromLatin1(id);
+    connect(this, &CrunchWindow::calculationFinished, this, [this] {
+        refreshInvalidCircles();
+        refreshCellFlags();
+    });
     updateEditActions();
 }
 
@@ -402,19 +414,51 @@ bool CrunchWindow::advancedFilterIn(const QString &listText, const QString &crit
     return true;
 }
 
+namespace {
+quint16 ignoreBitOf(crunch::FormulaProblem::Kind kind)
+{
+    return kind == crunch::FormulaProblem::Kind::ErrorValue ? jp::office::sheet::IgnoredError::EvalError : jp::office::sheet::IgnoredError::NumberStoredAsText;
+}
+}
+
 std::vector<crunch::FormulaProblem> CrunchWindow::formulaProblems() const
 {
     std::vector<crunch::FormulaProblem> out;
     if (!m_session) return out;
-    for (const crunch::FormulaProblem &p : crunch::findFormulaProblems(*m_session, m_sheet))
-        if (std::find(m_ignoredProblems.begin(), m_ignoredProblems.end(), p) == m_ignoredProblems.end()) out.push_back(p);
+    const auto &ignored = m_session->ignoredErrorsOf(m_sheet);
+    for (const crunch::FormulaProblem &p : crunch::findFormulaProblems(*m_session, m_sheet)) {
+        bool left = false;
+        for (const jp::office::sheet::IgnoredError &e : ignored) {
+            if (!(e.kinds & ignoreBitOf(p.kind))) continue;
+            for (const jp::office::sheet::CellRange &r : e.ranges)
+                if (p.row >= r.row1 && p.row <= r.row2 && p.col >= r.col1 && p.col <= r.col2) left = true;
+        }
+        if (!left) out.push_back(p);
+    }
     return out;
 }
 
 void CrunchWindow::ignoreFormulaProblem(quint32 row, quint32 col)
 {
-    for (const crunch::FormulaProblem &p : formulaProblems())
-        if (p.row == row && p.col == col) m_ignoredProblems.push_back(p);
+    if (!m_session || !editingAllowed()) return;
+    QVector<jp::office::sheet::IgnoredError> list = m_session->ignoredErrorsOf(m_sheet);
+    bool added = false;
+    for (const crunch::FormulaProblem &p : formulaProblems()) {
+        if (p.row != row || p.col != col) continue;
+        jp::office::sheet::IgnoredError e;
+        e.kinds = ignoreBitOf(p.kind);
+        jp::office::sheet::CellRange r;
+        r.valid = true;
+        r.row1 = r.row2 = row;
+        r.col1 = r.col2 = col;
+        e.ranges = {r};
+        list.append(e);
+        added = true;
+    }
+    if (!added) return;
+    const crunch::EditSession::Outcome o = m_session->setIgnoredErrors(m_sheet, list, tr("Ignore Error"));
+    if (!o.ok) notice(tr("Error Checking"), o.problem);
+    refreshCellFlags();
 }
 
 void CrunchWindow::errorCheckingDialog()
@@ -441,7 +485,7 @@ void CrunchWindow::errorCheckingDialog()
     });
     connect(&dialog, &ErrorCheckDialog::ignored, this, [this, list](int i) {
         if (i < 0 || i >= int(list->size())) return;
-        m_ignoredProblems.push_back((*list)[size_t(i)]);
+        ignoreFormulaProblem((*list)[size_t(i)].row, (*list)[size_t(i)].col);
         list->erase(list->begin() + i);
     });
     dialog.exec();
@@ -627,6 +671,83 @@ bool CrunchWindow::consolidateIn(const QStringList &references, int function, bo
         return false;
     }
     return true;
+}
+
+int CrunchWindow::circleInvalidData()
+{
+    if (!m_session || !m_loaded || !m_loaded->calc) return 0;
+    std::vector<jp::office::sheet::CellRange> cells;
+    {
+        std::unique_ptr<crunch::WorkbookLoader::Hold> hold = m_loader.hold();
+        if (!hold) return 0;
+        cells = crunch::invalidCells(*hold->calculation(), m_sheet);
+    }
+    if (cells.empty()) m_invalidCircled.erase(m_sheet);
+    else m_invalidCircled[m_sheet] = cells;
+    refreshCellFlags();
+    return int(cells.size());
+}
+
+void CrunchWindow::clearValidationCircles()
+{
+    m_invalidCircled.clear();
+    refreshCellFlags();
+}
+
+void CrunchWindow::refreshInvalidCircles()
+{
+    if (m_invalidCircled.empty() || !m_loaded || !m_loaded->calc) return;
+    std::unique_ptr<crunch::WorkbookLoader::Hold> hold = m_loader.hold();
+    if (!hold) return;
+    for (auto it = m_invalidCircled.begin(); it != m_invalidCircled.end();) {
+        it->second = crunch::invalidCells(*hold->calculation(), it->first);
+        it = it->second.empty() ? m_invalidCircled.erase(it) : std::next(it);
+    }
+}
+
+std::vector<jp::office::sheet::CellRange> CrunchWindow::circledCells() const
+{
+    const auto it = m_invalidCircled.find(m_sheet);
+    return it == m_invalidCircled.end() ? std::vector<jp::office::sheet::CellRange>() : it->second;
+}
+
+// The ovals and the green triangles of the sheet in view.
+void CrunchWindow::refreshCellFlags()
+{
+    std::vector<grid::GridRange> ovals, corners;
+    for (const auto &r : circledCells()) ovals.push_back(grid::GridRange{qint64(r.row1), qint64(r.col1), qint64(r.row2), qint64(r.col2)});
+    if (m_session && m_loaded && m_haveCalc) {
+        // (a green triangle on each cell with a problem)
+        for (const crunch::FormulaProblem &p : formulaProblems()) corners.push_back(grid::GridRange{qint64(p.row), qint64(p.col), qint64(p.row), qint64(p.col)});
+    }
+    m_view->setCellFlags(std::move(ovals), std::move(corners));
+}
+
+std::vector<crunch::AccessIssue> CrunchWindow::accessibilityIssues()
+{
+    return m_session ? crunch::checkAccessibility(*m_session, m_objects.get()) : std::vector<crunch::AccessIssue>();
+}
+
+void CrunchWindow::checkAccessibilityNow()
+{
+    if (m_accessPane) m_accessPane->setIssues(accessibilityIssues());
+}
+
+void CrunchWindow::showAccessibilityPane()
+{
+    if (!m_session) return;
+    if (!m_accessPane) {
+        m_accessPane = new AccessibilityPane(this);
+        connect(m_accessPane, &AccessibilityPane::recheckRequested, this, [this] { checkAccessibilityNow(); });
+        connect(m_accessPane, &AccessibilityPane::goToRequested, this, [this](int sheet, quint32 row, quint32 col) {
+            if (sheet != m_sheet) setActiveSheet(sheet);
+            m_view->selectCell(row, col);
+            m_view->ensureVisible(row, col);
+        });
+    }
+    checkAccessibilityNow();
+    m_accessPane->show();
+    m_accessPane->raise();
 }
 
 } // namespace jp

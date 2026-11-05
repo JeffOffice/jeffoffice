@@ -1241,6 +1241,16 @@ struct Validation {
     QString formula1, formula2;    // as the file writes them (the limits, the choices, or the formula), relative to the first cell of the first range
 };
 
+// An `ignoredError`: the checks (the bits of `kinds`) that a person chose to leave out for the cells, so that the cells are not marked with a green corner for them.
+struct IgnoredError {
+    enum Kind : quint16 {
+        EvalError = 1, TwoDigitTextYear = 2, NumberStoredAsText = 4, Formula = 8, FormulaRange = 16, UnlockedFormula = 32, EmptyCellReference = 64, ListDataValidation = 128, CalculatedColumn = 256,
+    };
+    QVector<CellRange> ranges;     // the cells it is for (sqref)
+    quint16 kinds = 0;
+    bool operator==(const IgnoredError &o) const { return kinds == o.kinds && ranges == o.ranges; }
+};
+
 // A value a color scale, data bar, or icon set is cut at (a `cfvo`): a number, a percent, the lowest or highest value, a formula, or a percentile.
 struct CondValue {
     enum class Type : quint8 { Number, Percent, Max, Min, Formula, Percentile, AutoMin, AutoMax } type = Type::Number;
@@ -1374,6 +1384,7 @@ struct Sheet {
     bool rowSpecsAreIds = false;      // (a workbook that holds its formulas in the id frame keeps the specs of rows by id: an insert or delete of rows moves none, and Undo has none to put back)
     AutoFilter autoFilter;            // the sheet's filter (not valid when it has none)
     QVector<Validation> validations;  // the rules for what may be put in cells
+    QVector<IgnoredError> ignoredErrors;   // the checks of Error Checking that are left out for cells
     bool validationsInExtension = false;   // some of them are in the file's 2010 extension (they are kept there; a change to the rules is not written over them)
     QVector<CondRule> conditionalFormats;   // the rules of conditional formatting, by priority
     QVector<SparklineGroup> sparklineGroups;   // the sparklines (see sheet/sparkline.h)

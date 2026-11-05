@@ -651,6 +651,57 @@ QByteArray tailWithValidations(const QByteArray &after, const QVector<Validation
     return after.left(insertAt) + generated + after.mid(insertAt);
 }
 
+// What follows a sheet's cells with its ignored errors made from `rules`: in place of the element the file has, or where the format puts it. (Only for a sheet whose main namespace has
+// no prefix, which the writer of the rules does not use; with a prefix the file's element is left as it is.)
+QByteArray tailWithIgnoredErrors(const QByteArray &after, const QVector<IgnoredError> &list, const QByteArray &prefix)
+{
+    if (!prefix.isEmpty()) return after;
+    QByteArray generated;
+    if (!list.isEmpty()) {
+        static const struct { const char *name; quint16 bit; } names[] = {{"evalError", 1}, {"twoDigitTextYear", 2}, {"numberStoredAsText", 4}, {"formula", 8}, {"formulaRange", 16},
+                                                                           {"unlockedFormula", 32}, {"emptyCellReference", 64}, {"listDataValidation", 128}, {"calculatedColumn", 256}};
+        generated = "<ignoredErrors>";
+        for (const IgnoredError &e : list) {
+            QByteArray where;
+            for (const CellRange &r : e.ranges) where += (where.isEmpty() ? "" : " ") + (r.row1 == r.row2 && r.col1 == r.col2 ? cellName(r.row1, r.col1) : rangeName(r)).toLatin1();
+            if (where.isEmpty() || !e.kinds) continue;
+            generated += "<ignoredError sqref=\"" + where + "\"";
+            for (const auto &n : names)
+                if (e.kinds & n.bit) generated += QByteArray(" ") + n.name + "=\"1\"";
+            generated += "/>";
+        }
+        generated += "</ignoredErrors>";
+        if (generated == "<ignoredErrors></ignoredErrors>") generated.clear();
+    }
+    static const QList<QByteArray> later = {"smartTags", "drawing", "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
+    Tag t;
+    qsizetype pos = 0, existingStart = -1, existingEnd = -1, insertAt = -1;
+    int depth = 0;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                if (insertAt < 0) insertAt = t.start;   // </worksheet>
+                break;
+            }
+            if (depth == 0 && existingStart >= 0 && existingEnd < 0 && t.local == "ignoredErrors") existingEnd = t.end;
+            continue;
+        }
+        if (depth == 0) {
+            if (t.local == "ignoredErrors" && existingStart < 0) {
+                existingStart = t.start;
+                if (t.selfClosing) existingEnd = t.end;
+            } else if (insertAt < 0 && later.contains(QByteArray(t.local))) {
+                insertAt = t.start;
+            }
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    if (existingStart >= 0 && existingEnd >= 0) return after.left(existingStart) + generated + after.mid(existingEnd);
+    if (generated.isEmpty() || insertAt < 0) return after;
+    return after.left(insertAt) + generated + after.mid(insertAt);
+}
+
 // A filter as the element the file has it: the conditions of its columns, in order of column, and its sort state (as the file had it).
 QByteArray autoFilterElementOf(const AutoFilter &f, const QByteArray &prefix)
 {
@@ -1634,6 +1685,7 @@ public:
         if (changes.replaceColumns) m_columns = &changes.columns;
         if (changes.replaceMerges) m_merges = &changes.merges;
         if (changes.replaceValidations) m_validations = &changes.validations;
+        if (changes.replaceIgnoredErrors) m_ignored = &changes.ignoredErrors;
         if (changes.setPage) m_page = &changes.page;
         m_drawingId = changes.drawingRelId.toLatin1();
         m_addTables = &changes.addTableRels;
@@ -2166,7 +2218,7 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges || m_validations || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || m_cond || !m_addTables->empty() || !m_removeTables->empty()) {
+        if (m_merges || m_validations || m_ignored || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || m_cond || !m_addTables->empty() || !m_removeTables->empty()) {
             // (what follows the cells is held whole to change its merged ranges, its filter, its page setup, and its drawing)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -2181,6 +2233,7 @@ private:
                 if (m_filter) tail = tailWithFilter(tail, *m_filter, m_prefix);
                 if (m_merges) tail = tailWithMerges(tail, *m_merges, m_prefix);
                 if (m_validations) tail = tailWithValidations(tail, *m_validations, m_prefix);
+                if (m_ignored) tail = tailWithIgnoredErrors(tail, *m_ignored, m_prefix);
                 if (m_page) tail = patchPageSetupTail(tail, *m_page, m_prefix);
                 if (!m_drawingId.isEmpty()) tail = tailWithDrawing(tail, m_drawingId, m_prefix);
                 if (!m_legacyId.isEmpty()) tail = tailWithLegacyDrawing(tail, m_legacyId, m_prefix);
@@ -2228,6 +2281,7 @@ private:
     const std::vector<ColumnSpan> *m_columns = nullptr;
     const std::vector<CellRange> *m_merges = nullptr;
     const QVector<Validation> *m_validations = nullptr;
+    const QVector<IgnoredError> *m_ignored = nullptr;
     const PageSetup *m_page = nullptr;
     QByteArray m_drawingId;
     const QVector<SparklineGroup> *m_sparklines = nullptr;
