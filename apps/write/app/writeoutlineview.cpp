@@ -1,4 +1,4 @@
-#include "app/outlineview.h"
+#include "app/writeoutlineview.h"
 
 #include "core/outlineops.h"
 #include "core/writedoc.h"
@@ -14,7 +14,7 @@ constexpr int kPositionRole = Qt::UserRole, kLevelRole = Qt::UserRole + 1;
 QString keyOf(int level, const QString &text) { return QString::number(level) + QLatin1Char(':') + text; }
 } // namespace
 
-OutlineView::OutlineView(QWidget *parent) : QTreeWidget(parent)
+WriteOutlineView::WriteOutlineView(QWidget *parent) : QTreeWidget(parent)
 {
     setObjectName(QStringLiteral("outlineView"));
     setAccessibleName(tr("Outline"));
@@ -30,16 +30,16 @@ OutlineView::OutlineView(QWidget *parent) : QTreeWidget(parent)
     header()->setStretchLastSection(true);
 }
 
-void OutlineView::setDocument(write::WriteDoc *doc)
+void WriteOutlineView::setDocument(write::WriteDoc *doc)
 {
     m_doc = doc;
     rebuild();
 }
 
-int OutlineView::positionOf(const QTreeWidgetItem *item) { return item ? item->data(0, kPositionRole).toInt() : -1; }
-int OutlineView::levelOf(const QTreeWidgetItem *item) { return item ? item->data(0, kLevelRole).toInt() : write::kBodyLevel; }
+int WriteOutlineView::positionOf(const QTreeWidgetItem *item) { return item ? item->data(0, kPositionRole).toInt() : -1; }
+int WriteOutlineView::levelOf(const QTreeWidgetItem *item) { return item ? item->data(0, kLevelRole).toInt() : write::kBodyLevel; }
 
-void OutlineView::applyLook(QTreeWidgetItem *item)
+void WriteOutlineView::applyLook(QTreeWidgetItem *item)
 {
     QFont f = font();
     const int level = levelOf(item);
@@ -50,7 +50,7 @@ void OutlineView::applyLook(QTreeWidgetItem *item)
     item->setFont(0, f);
 }
 
-void OutlineView::rebuild()
+void WriteOutlineView::rebuild()
 {
     // What was collapsed, and what was selected, is found again after the rows are made.
     QSet<int> selectedPlaces;
@@ -87,7 +87,7 @@ void OutlineView::rebuild()
         if (selectedPlaces.contains(positionOf(*at))) (*at)->setSelected(true);
 }
 
-void OutlineView::applyLevel()
+void WriteOutlineView::applyLevel()
 {
     for (QTreeWidgetItemIterator at(this); *at; ++at) {
         QTreeWidgetItem *item = *at;
@@ -103,7 +103,7 @@ void OutlineView::applyLevel()
     }
 }
 
-void OutlineView::setShowLevel(int level)
+void WriteOutlineView::setShowLevel(int level)
 {
     m_level = qBound(0, level, 9);
     if (m_level == 0) {
@@ -113,13 +113,13 @@ void OutlineView::setShowLevel(int level)
     applyLevel();
 }
 
-void OutlineView::setShowFormatting(bool on)
+void WriteOutlineView::setShowFormatting(bool on)
 {
     m_formatting = on;
     for (QTreeWidgetItemIterator at(this); *at; ++at) applyLook(*at);
 }
 
-void OutlineView::setFirstLineOnly(bool on)
+void WriteOutlineView::setFirstLineOnly(bool on)
 {
     m_firstLine = on;
     setWordWrap(!on);
@@ -127,7 +127,7 @@ void OutlineView::setFirstLineOnly(bool on)
     doItemsLayout();
 }
 
-QPair<int, int> OutlineView::selectedRange() const
+QPair<int, int> WriteOutlineView::selectedRange() const
 {
     int first = -1, last = -1;
     for (const QTreeWidgetItem *it : selectedItems()) {
@@ -138,7 +138,7 @@ QPair<int, int> OutlineView::selectedRange() const
     return {first, last};
 }
 
-void OutlineView::selectParagraphAt(int position)
+void WriteOutlineView::selectParagraphAt(int position)
 {
     QTreeWidgetItem *best = nullptr;
     for (QTreeWidgetItemIterator at(this); *at; ++at)
@@ -152,7 +152,7 @@ void OutlineView::selectParagraphAt(int position)
     scrollToItem(best);
 }
 
-void OutlineView::expandSelected(bool expand)
+void WriteOutlineView::expandSelected(bool expand)
 {
     const QList<QTreeWidgetItem *> chosen = selectedItems();
     if (chosen.isEmpty()) {
@@ -168,10 +168,10 @@ void OutlineView::expandSelected(bool expand)
     }
 }
 
-QStringList OutlineView::shownRows() const
+QStringList WriteOutlineView::shownRows() const
 {
     QStringList out;
-    for (QTreeWidgetItemIterator at(const_cast<OutlineView *>(this)); *at; ++at) {
+    for (QTreeWidgetItemIterator at(const_cast<WriteOutlineView *>(this)); *at; ++at) {
         bool shown = !(*at)->isHidden();
         for (const QTreeWidgetItem *p = (*at)->parent(); p && shown; p = p->parent()) shown = p->isExpanded() && !p->isHidden();
         if (shown) out << (*at)->text(0);

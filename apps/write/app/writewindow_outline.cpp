@@ -3,7 +3,7 @@
 
 #include "app/writewindow.h"
 
-#include "app/outlineview.h"
+#include "app/writeoutlineview.h"
 #include "app/pageview.h"
 #include "app/ribbon.h"
 #include "app/ruler.h"
@@ -73,7 +73,7 @@ void WriteWindow::createOutlineActions()
     connect(m_outline, &QTreeWidget::itemDoubleClicked, this, [this](QTreeWidgetItem *item) {
         // (A double click on a row opens the text there in the pages; the arrow in front of a heading expands and collapses it.)
         if (item && item->childCount() == 0) {
-            const int at = OutlineView::positionOf(item);
+            const int at = WriteOutlineView::positionOf(item);
             setOutlineMode(false);
             if (m_doc) {
                 QTextCursor c(m_doc->story());

@@ -4,7 +4,7 @@
 
 #include "app/icons.h"
 #include "app/keytips.h"
-#include "app/outlineview.h"
+#include "app/writeoutlineview.h"
 #include "app/pageview.h"
 #include "app/reviewpane.h"
 #include "app/ribbon.h"
@@ -90,7 +90,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     m_ruler = new write::Ruler(m_view, central);
     column->addWidget(m_ruler);
     column->addWidget(m_view, 1);
-    m_outline = new OutlineView(central);
+    m_outline = new WriteOutlineView(central);
     m_outline->hide();
     column->addWidget(m_outline, 1);
     setCentralWidget(central);

@@ -10,10 +10,10 @@ class WriteDoc;
 
 namespace jp {
 
-class OutlineView : public QTreeWidget {
+class WriteOutlineView : public QTreeWidget {
     Q_OBJECT
 public:
-    explicit OutlineView(QWidget *parent = nullptr);
+    explicit WriteOutlineView(QWidget *parent = nullptr);
     // The document shown (not owned; null for none). The rows are made again with rebuild().
     void setDocument(write::WriteDoc *doc);
     // Makes the rows again from the text, keeping what was collapsed (a heading by its words and level) and what was selected (by place).

@@ -40,7 +40,7 @@ struct RibbonParts;
 class SizeCombo;
 class StylesPane;
 class NavigationPane;
-class OutlineView;
+class WriteOutlineView;
 class WriteFileScreen;
 class WriteFindPane;
 struct MailUi;
@@ -190,7 +190,7 @@ public:
     // Outline view (View > Outline): the paragraphs as a tree to promote, demote, and move, in place of the pages; the Outlining tab is there while it is.
     bool outlineMode() const { return m_outlineOn; }
     void setOutlineMode(bool on);
-    OutlineView *outlineView() const { return m_outline; }
+    WriteOutlineView *outlineView() const { return m_outline; }
 
     // The Styles pane on the right (made when first asked for, so null before).
     void showStylesPane();
@@ -353,7 +353,7 @@ private:
     NavigationPane *m_nav = nullptr;
     QDockWidget *m_navDock = nullptr;
     bool m_focusMode = false;
-    OutlineView *m_outline = nullptr;
+    WriteOutlineView *m_outline = nullptr;
     bool m_outlineOn = false;
     struct FocusWas {
         bool fullScreen = false, ribbon = true, ruler = true, status = true;

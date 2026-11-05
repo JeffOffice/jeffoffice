@@ -2,7 +2,7 @@
 
 #include "../isolatesettings.h"
 #include "app/help.h"
-#include "app/outlineview.h"
+#include "app/writeoutlineview.h"
 #include "app/pageview.h"
 #include "app/ribbon.h"
 #include "app/writeinfo.h"
