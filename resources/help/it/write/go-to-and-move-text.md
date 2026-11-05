@@ -1,34 +1,36 @@
-# Andare a una posizione e spostare il testo
-<!-- keywords: vai a, ctrl+g, pagina, sezione, riga, segnalibro, nota a piè di pagina, titolo, salta, spostare testo, trascinare, rilasciare, copiare testo, trascinamento, trascina e rilascia -->
+# Vai a un punto e sposta il testo
 
-## Andare a una posizione
+<!-- keywords: vai a, vai, ctrl+g, pagina, sezione, riga, segnalibro, nota a piè di pagina, nota di chiusura, commento, campo, tabella, grafico, immagine, equazione, titolo, salta, sposta testo, trascina, rilascia, copia testo, trascina e rilascia, spostamento, saltare a -->
 
-Premete **CTRL+G** oppure fate clic su **Home > Modifica > Vai a**. Si apre la finestra **Vai a**.
+## Vai a un punto
 
-1. In **Vai a**, scegliete **Pagina**, **Sezione**, **Riga**, **Segnalibro**, **Nota a piè di pagina** o **Titolo**.
-2. Digitate un numero o un nome. Per un segnalibro, una nota a piè di pagina o un titolo, potete invece sceglierne uno dall'elenco sotto la casella.
-3. Fate clic su **Vai a**. Il cursore si sposta in quella posizione e le pagine scorrono per mostrarla.
+Premi **Ctrl+G**, oppure fai clic su **Home > Modifica > Vai a**. Si apre la finestra **Vai a**.
 
-Alcune note su ciascun tipo:
+1. In **Vai a**, scegli **Pagina**, **Sezione**, **Riga**, **Segnalibro**, **Nota a piè di pagina**, **Nota di chiusura**, **Commento**, **Campo**, **Tabella**, **Grafico**, **Equazione** o **Titolo**.
+2. Digita un numero o un nome. Per un segnalibro, una nota a piè di pagina o un titolo, puoi invece sceglierne uno dall'elenco sotto la casella.
+3. Fai clic su **Vai a**. Il cursore si sposta in quel punto e le pagine scorrono fino a mostrarlo.
 
-- **Pagina**, **Sezione**, **Nota a piè di pagina** e **Titolo** richiedono un numero: 3 porta al terzo elemento. Anteponete un **+** o un **-** per contare a partire dalla posizione del cursore: **+1** porta all'elemento successivo e **-1** a quello precedente.
+Alcune note per ciascun tipo:
+
+- **Pagina**, **Sezione**, **Nota a piè di pagina**, **Nota di chiusura**, **Commento**, **Campo**, **Tabella**, **Grafico**, **Equazione** e **Titolo** richiedono un numero: 3 va al terzo elemento. Anteponi un **+** o un **-** per contare a partire dalla posizione del cursore: **+1** va al successivo, **-1** va al precedente.
 - **Riga** richiede un numero contato dall'inizio del documento.
-- **Segnalibro** richiede il nome di un segnalibro. Non importa se usate le maiuscole o no. I segnalibri creati da un programma per uso interno, i cui nomi iniziano con un carattere di sottolineatura, non vengono elencati.
-- **Titolo** richiede un numero o una parte qualsiasi del testo del titolo. I titoli sono i paragrafi che hanno un livello di struttura, come quelli con gli stili Titolo.
+- **Segnalibro** richiede il nome di un segnalibro. Non importa se si usano lettere maiuscole o minuscole. I segnalibri creati dal programma per uso interno, il cui nome inizia con un trattino basso, non vengono elencati.
+- **Commento**, **Campo**, **Tabella**, **Grafico** ed **Equazione** vengono contati nell'ordine in cui compaiono nel testo. Un grafico è un'immagine, una forma o una casella di testo. Un campo è un testo che il programma calcola per te, ad esempio una data o un numero di pagina. Le risposte a un commento non vengono contate separatamente.
+- **Titolo** richiede un numero oppure una parte del testo del titolo. I titoli sono i paragrafi che hanno un livello di struttura, come quelli degli stili Titolo.
 
-Se la posizione non esiste nel documento, la finestra lo segnala e rimane aperta, in modo che possiate digitarne un'altra.
+Se il punto non esiste nel documento, la finestra lo segnala e resta aperta, così puoi digitare un altro valore.
 
-## Spostare o copiare il testo trascinandolo
+## Sposta o copia testo trascinandolo
 
-1. Selezionate il testo da spostare.
-2. Premete il pulsante del mouse sul testo selezionato e tenetelo premuto mentre spostate leggermente il puntatore. Quindi trascinate il testo nella posizione desiderata.
-3. Rilasciate il pulsante del mouse. Il testo viene spostato in quella posizione e rimane selezionato.
+1. Seleziona il testo che vuoi spostare.
+2. Premi il pulsante del mouse sul testo selezionato e tienilo premuto mentre sposti leggermente il puntatore. Poi trascina il testo nel punto desiderato.
+3. Rilascia il pulsante del mouse. Il testo si sposta lì e resta selezionato.
 
-Per copiare il testo invece di spostarlo, tenete premuto **CTRL** mentre rilasciate il pulsante. L'originale rimane dov'era.
+Per copiare il testo invece di spostarlo, tieni premuto **Ctrl** mentre rilasci il pulsante. L'originale resta dov'era.
 
-Il trascinamento del testo avviene in un unico passaggio, quindi un solo **Annulla** (CTRL+Z) riporta il testo dov'era. Se rilasciate il testo sulla selezione stessa, non succede nulla. Potete anche trascinare nel documento il testo proveniente da un altro programma.
+Lo spostamento con trascinamento avviene in un solo passaggio, quindi un solo **Annulla** (Ctrl+Z) riporta il testo al suo posto. Se rilasci il testo sulla selezione stessa, non succede nulla. Puoi anche trascinare nel documento testo proveniente da un altro programma.
 
-## Argomenti correlati
+## Vedi anche
 
 - [Trovare e sostituire parole](find-replace)
 - [Usare JeffWrite con la tastiera](keyboard)

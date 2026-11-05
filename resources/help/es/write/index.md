@@ -1,5 +1,5 @@
 # Ayuda de JeffWrite
-<!-- keywords: contenido, ayuda, temas, inicio -->
+<!-- keywords: contenido, ayuda, temas, inicio, índice -->
 
 Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
 
@@ -15,8 +15,8 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 ## Revisar el texto
 
 - [Comprobar la ortografía](spelling)
-- [Contar palabras, establecer el idioma, comprobar la accesibilidad y buscar palabras](proofing-tools)
-- [Control de cambios: registrar, aceptar o rechazar cambios](track-changes)
+- [Contar palabras, definir el idioma, comprobar la accesibilidad y buscar palabras](proofing-tools)
+- [Control de cambios: aceptar o rechazar cambios](track-changes)
 - [Agregar y responder comentarios](comments)
 - [Proteger un documento y bloquear el control de cambios](protect)
 
@@ -25,7 +25,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Cambiar el aspecto del texto](font)
 - [Cambiar mayúsculas y minúsculas, ordenar y pegar de otras formas](home-tools)
 - [Usar estilos](styles)
-- [Copiar un aspecto con Copiar formato](format-painter)
+- [Copiar un formato con Copiar formato](format-painter)
 - [Agregar encabezados, pies de página y números de página](headers-footers)
 - [Crear y modificar tablas](tables)
 - [Agregar notas al pie y notas al final](footnotes-endnotes)
@@ -38,7 +38,10 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Señalar otro lugar con referencias cruzadas](cross-references)
 - [Marcar lugares con marcadores](bookmarks)
 - [Combinación de correspondencia, sobres y etiquetas](mail-merge)
-- [Agregar y modificar imágenes](pictures)
+- [Agregar y cambiar imágenes](pictures)
+- [Formas y cuadros de texto](shapes-text-boxes)
+- [Gráficos](charts)
+- [Ecuaciones](equations)
 - [Configurar la página](page-setup)
 - [Saltos, columnas, división de palabras y numeración de líneas](breaks-columns)
 - [Insertar símbolos y caracteres especiales](symbols-special-characters)
