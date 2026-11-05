@@ -25,6 +25,7 @@ std::unique_ptr<crunch::PrintJob> CrunchWindow::makePrintJob(crunch::PrintJobOpt
         return nullptr;
     }
     options.activeSheet = m_sheet;
+    if (options.what == crunch::PrintWhat::ActiveSheet) options.sheets = selectedSheets();
     options.fileName = m_path.isEmpty() ? displayName() : QFileInfo(m_path).fileName();
     options.folder = m_path.isEmpty() ? QString() : QFileInfo(m_path).absolutePath();
     if (options.what == crunch::PrintWhat::Selection && !options.selection.valid) options.selection = selectedRange();

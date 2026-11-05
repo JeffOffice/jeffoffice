@@ -9,6 +9,7 @@
 #include "app/pagesetupdialog.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/sheettabs.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
@@ -464,6 +465,25 @@ private Q_SLOTS:
         QVERIFY(session->setPageSetup(2, p, QStringLiteral("Page")).ok);
         const std::unique_ptr<crunch::PrintJob> second = e.win.w.makePrintJob(options, &why);
         QCOMPARE(second->numberOf(2), 7);
+    }
+
+    // With several sheet tabs picked, "this sheet" prints all of them, one after the other.
+    void theSelectedSheetsPrintTogether()
+    {
+        EditWindow e;
+        QVERIFY(e.open(budgetWorkbook()));   // three sheets, the second hidden
+        crunch::PrintJobOptions options;
+        options.what = crunch::PrintWhat::ActiveSheet;
+        QString why;
+        std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(options, &why);
+        QVERIFY2(job, qPrintable(why));
+        QCOMPARE(job->pageCount(), 2);   // (the first sheet alone: two pages across)
+        e.win.w.sheetTabs()->setSelectedTabs({0, 1});
+        job = e.win.w.makePrintJob(options, &why);
+        QVERIFY2(job, qPrintable(why));
+        QCOMPARE(job->pageCount(), 3);
+        QCOMPARE(job->sheetOf(2), 2);
+        QCOMPARE(job->numberOf(2), 3);
     }
 
     void aSelectionPrintsAlone()

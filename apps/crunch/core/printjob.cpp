@@ -221,6 +221,9 @@ bool PrintJob::beginBuild(QString *why)
     if (m_options.what == PrintWhat::Workbook) {
         for (int i = 0; i < m_source->sheetCount(); ++i)
             if (m_source->printable(i) && !m_source->hidden(i)) sheets << i;
+    } else if (m_options.sheets.size() > 1) {
+        for (const int i : m_options.sheets)
+            if (i >= 0 && i < m_source->sheetCount() && m_source->printable(i) && !m_source->hidden(i) && !sheets.contains(i)) sheets << i;
     } else if (m_source->printable(m_options.activeSheet)) {
         sheets << m_options.activeSheet;
     } else {

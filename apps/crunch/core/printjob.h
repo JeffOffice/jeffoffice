@@ -43,6 +43,7 @@ enum class PrintScaling { AsSheet, NoScaling, FitSheet, FitColumns, FitRows };
 struct PrintJobOptions {
     PrintWhat what = PrintWhat::ActiveSheet;
     int activeSheet = 0;
+    QVector<int> sheets;                        // for ActiveSheet, when more than one sheet tab is picked: all of them print, in order
     jp::office::sheet::CellRange selection;     // for Selection, on the active sheet
     bool ignorePrintArea = false;
     // what the person chose for this job, over what the sheets say
