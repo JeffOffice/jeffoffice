@@ -3,6 +3,7 @@
 #include "office/package.h"
 #include "office/xml.h"
 #include "wml/wml.h"
+#include "wml/wmlhtml.h"
 #include "wml/wmlmath.h"
 #include "wml/xmltree.h"
 
@@ -1741,6 +1742,117 @@ private Q_SLOTS:
         QCOMPARE(a->levels[1].numFmt, QStringLiteral("bullet"));
         QVERIFY(!a->levels[2].present);
         QCOMPARE(d.numbering.num(3)->startOverrides.value(0), 9);
+    }
+
+    // A package whose body is `body`, with the styles and numbering given, a picture part, and an outside link (rIdLink) to `address`.
+    static QByteArray htmlPackage(const QByteArray &body, const QByteArray &styles, const QByteArray &numbering, const QByteArray &address = "https://example.org/")
+    {
+        PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"), xmlDoc(QByteArray("<w:document ") + kW + " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><w:body>" + body + "</w:body></w:document>"),
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addPart(QStringLiteral("/word/styles.xml"), xmlDoc(QByteArray("<w:styles ") + kW + ">" + styles + "</w:styles>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"), QStringLiteral("/word/styles.xml"));
+        w.addPart(QStringLiteral("/word/numbering.xml"), xmlDoc(QByteArray("<w:numbering ") + kW + ">" + numbering + "</w:numbering>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering"), QStringLiteral("/word/numbering.xml"));
+        w.addPart(QStringLiteral("/word/media/image1.png"), QByteArray("\x89PNG\r\n\x1a\n pretend", 16), QStringLiteral("image/png"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdPic"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"), QStringLiteral("media/image1.png"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdLink"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"), QString::fromUtf8(address), true);
+        return w.finish();
+    }
+
+    static QByteArray htmlStyles()
+    {
+        return R"(<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Georgia"/><w:sz w:val="24"/></w:rPr></w:rPrDefault></w:docDefaults>)"
+               R"(<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>)"
+               R"(<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:pPr><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:sz w:val="32"/></w:rPr></w:style>)";
+    }
+
+    static QByteArray htmlNumbering()
+    {
+        return R"(<w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="o"/></w:lvl><w:lvl w:ilvl="1"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%2."/></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num>)";
+    }
+
+    // The web page keeps what a reader needs: headings, the marks of emphasis, a link, a list with a list inside it, a table with joined cells, and a picture; what a tracked deletion
+    // or hidden text holds stays out, and so does a link that would run a program.
+    void htmlKeepsTheStructureOfADocument()
+    {
+        const QByteArray body =
+            R"(<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Title &amp; more</w:t></w:r></w:p>)"
+            R"(<w:p><w:r><w:t xml:space="preserve">Plain </w:t></w:r><w:r><w:rPr><w:b/><w:i/></w:rPr><w:t>strong</w:t></w:r><w:r><w:rPr><w:vanish/></w:rPr><w:t>secret</w:t></w:r>)"
+            R"(<w:del w:id="1" w:author="A" w:date="2020-01-01T00:00:00Z"><w:r><w:delText>gone</w:delText></w:r></w:del>)"
+            R"(<w:hyperlink r:id="rIdLink"><w:r><w:t>site</w:t></w:r></w:hyperlink><w:r><w:t xml:space="preserve"> x</w:t></w:r><w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:t>2</w:t></w:r></w:p>)"
+            R"(<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>first</w:t></w:r></w:p>)"
+            R"(<w:p><w:pPr><w:numPr><w:ilvl w:val="1"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>inner</w:t></w:r></w:p>)"
+            R"(<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>second</w:t></w:r></w:p>)"
+            R"(<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="2000"/><w:gridCol w:w="2000"/></w:tblGrid>)"
+            R"(<w:tr><w:trPr><w:tblHeader/></w:trPr><w:tc><w:tcPr><w:gridSpan w:val="2"/></w:tcPr><w:p><w:r><w:t>head</w:t></w:r></w:p></w:tc></w:tr>)"
+            R"(<w:tr><w:tc><w:tcPr><w:vMerge w:val="restart"/></w:tcPr><w:p><w:r><w:t>tall</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>b1</w:t></w:r></w:p></w:tc></w:tr>)"
+            R"(<w:tr><w:tc><w:tcPr><w:vMerge/></w:tcPr><w:p/></w:tc><w:tc><w:p><w:r><w:t>b2</w:t></w:r></w:p></w:tc></w:tr></w:tbl>)"
+            R"(<w:p><w:r><w:drawing><wp:inline><wp:extent cx="952500" cy="476250"/><wp:docPr id="1" name="p" descr="A &quot;logo&quot;"/><a:graphic><a:graphicData><a:blip r:embed="rIdPic"/></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>)";
+        Document d;
+        QString err;
+        QVERIFY2(readDocx(htmlPackage(body, htmlStyles(), htmlNumbering()), &d, &err), qPrintable(err));
+        HtmlOptions opt;
+        opt.title = QStringLiteral("T <1>");
+        opt.language = QStringLiteral("en-US");
+        const QString html = QString::fromUtf8(documentToHtml(d, opt));
+        QVERIFY(html.startsWith(QLatin1String("<!DOCTYPE html>")));
+        QVERIFY(html.contains(QLatin1String("<html lang=\"en-US\">")));
+        QVERIFY(html.contains(QLatin1String("<title>T &lt;1&gt;</title>")));
+        QVERIFY2(html.contains(QLatin1String("<h1>Title &amp; more</h1>")), qPrintable(html));
+        QVERIFY(!html.contains(QLatin1String("<h1><b>")));   // (the heading's own bold is not marked again)
+        QVERIFY2(html.contains(QLatin1String("<p>Plain <b><i>strong</i></b><a href=\"https://example.org/\">site</a> x<sup>2</sup></p>")), qPrintable(html));
+        QVERIFY(!html.contains(QLatin1String("secret")));
+        QVERIFY(!html.contains(QLatin1String("gone")));
+        QVERIFY2(html.contains(QLatin1String("<ul>\n<li>first<ol>\n<li>inner</li></ol>\n</li>\n<li>second</li></ul>")), qPrintable(html));
+        QVERIFY2(html.contains(QLatin1String("<th colspan=\"2\"><p>head</p>\n</th></tr>")), qPrintable(html));
+        QVERIFY2(html.contains(QLatin1String("<td rowspan=\"2\"><p>tall</p>\n</td><td><p>b1</p>\n</td>")), qPrintable(html));
+        QVERIFY2(html.contains(QLatin1String("<tr><td><p>b2</p>\n</td></tr>")), qPrintable(html));
+        QVERIFY2(html.contains(QLatin1String("<img src=\"data:image/png;base64,")), qPrintable(html));
+        QVERIFY(html.contains(QLatin1String("alt=\"A &quot;logo&quot;\"")));
+        QVERIFY(!html.contains(QLatin1String("<style>")));   // (filtered: no looks)
+        QVERIFY(!html.contains(QLatin1String("width=\"100\"")));
+        QVERIFY(html.trimmed().endsWith(QLatin1String("</html>")));
+    }
+
+    void htmlOfASingleFileCarriesTheLooksAndSizes()
+    {
+        const QByteArray body =
+            R"(<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="240" w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial"/><w:color w:val="FF0000"/><w:sz w:val="40"/><w:highlight w:val="yellow"/></w:rPr><w:t>look</w:t></w:r></w:p>)"
+            R"(<w:p><w:r><w:drawing><wp:inline><wp:extent cx="952500" cy="476250"/><a:graphic><a:graphicData><a:blip r:embed="rIdPic"/></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>)"
+            R"(<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="2000"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w="2000" w:type="dxa"/><w:shd w:val="clear" w:fill="00FF00"/></w:tcPr><w:p><w:r><w:t>c</w:t></w:r></w:p></w:tc></w:tr></w:tbl>)";
+        Document d;
+        QString err;
+        QVERIFY2(readDocx(htmlPackage(body, htmlStyles(), htmlNumbering()), &d, &err), qPrintable(err));
+        HtmlOptions opt;
+        opt.singleFile = true;
+        opt.title = QStringLiteral("T");
+        const QString html = QString::fromUtf8(documentToHtml(d, opt));
+        QVERIFY2(html.contains(QLatin1String("font-family:\"Georgia\"")), qPrintable(html));
+        QVERIFY2(html.contains(QLatin1String("<p style=\"text-align:center;margin-top:12pt;margin-bottom:6pt;\">")), qPrintable(html));
+        QVERIFY2(html.contains(QLatin1String("font-family:\"Arial\";font-size:20pt;color:#ff0000;background-color:#ffff00;")), qPrintable(html));
+        QVERIFY2(html.contains(QLatin1String("width=\"100\" height=\"50\"")), qPrintable(html));
+        QVERIFY2(html.contains(QLatin1String("border:1px solid #000;background-color:#00ff00;width:100pt;")), qPrintable(html));
+    }
+
+    // A link that would start a program or run a script is shown as its words alone, and a table nested past the depth limit is left out.
+    void htmlLeavesOutLinksThatRunThingsAndTablesNestedTooDeep()
+    {
+        const QByteArray body = R"(<w:p><w:hyperlink r:id="rIdLink"><w:r><w:t>click</w:t></w:r></w:hyperlink></w:p>)";
+        Document d;
+        QString err;
+        QVERIFY2(readDocx(htmlPackage(body, htmlStyles(), htmlNumbering(), "javascript:alert(1)"), &d, &err), qPrintable(err));
+        const QString html = QString::fromUtf8(documentToHtml(d, HtmlOptions()));
+        QVERIFY2(html.contains(QLatin1String("<p>click</p>")), qPrintable(html));
+        QVERIFY(!html.contains(QLatin1String("javascript")));
+        QByteArray nest = "<w:p><w:r><w:t>deep</w:t></w:r></w:p>";
+        for (int i = 0; i < 60; ++i) nest = "<w:tbl><w:tblGrid><w:gridCol w:w=\"1000\"/></w:tblGrid><w:tr><w:tc>" + nest + "<w:p/></w:tc></w:tr></w:tbl>";
+        Document e;
+        QVERIFY2(readDocx(htmlPackage(nest + "<w:p/>", htmlStyles(), htmlNumbering()), &e, &err), qPrintable(err));
+        const QString deep = QString::fromUtf8(documentToHtml(e, HtmlOptions()));
+        QVERIFY(deep.count(QLatin1String("<table")) <= kMostHtmlDepth);
+        QVERIFY(!deep.contains(QLatin1String("deep")));
     }
 
     void roundTripKeepsPartsAndTheirRelationshipsAsTheyWere()
