@@ -40,6 +40,8 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Mail merge, envelopes, and labels](mail-merge)
 - [Add and change pictures](pictures)
 - [Shapes and text boxes](shapes-text-boxes)
+- [Charts](charts)
+- [Equations](equations)
 - [Set up the page](page-setup)
 - [Breaks, columns, hyphenation, and line numbers](breaks-columns)
 - [Put in symbols and special characters](symbols-special-characters)

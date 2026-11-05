@@ -1834,10 +1834,12 @@
     <file alias="en/write/bookmarks.md">help/en/write/bookmarks.md</file>
     <file alias="en/write/breaks-columns.md">help/en/write/breaks-columns.md</file>
     <file alias="en/write/captions.md">help/en/write/captions.md</file>
+    <file alias="en/write/charts.md">help/en/write/charts.md</file>
     <file alias="en/write/citations.md">help/en/write/citations.md</file>
     <file alias="en/write/comments.md">help/en/write/comments.md</file>
     <file alias="en/write/context.json">help/en/write/context.json</file>
     <file alias="en/write/cross-references.md">help/en/write/cross-references.md</file>
+    <file alias="en/write/equations.md">help/en/write/equations.md</file>
     <file alias="en/write/fields.md">help/en/write/fields.md</file>
     <file alias="en/write/find-replace.md">help/en/write/find-replace.md</file>
     <file alias="en/write/font.md">help/en/write/font.md</file>
@@ -1860,11 +1862,11 @@
     <file alias="en/write/page-look.md">help/en/write/page-look.md</file>
     <file alias="en/write/page-setup.md">help/en/write/page-setup.md</file>
     <file alias="en/write/pictures.md">help/en/write/pictures.md</file>
-    <file alias="en/write/shapes-text-boxes.md">help/en/write/shapes-text-boxes.md</file>
     <file alias="en/write/print.md">help/en/write/print.md</file>
     <file alias="en/write/proofing-tools.md">help/en/write/proofing-tools.md</file>
     <file alias="en/write/protect.md">help/en/write/protect.md</file>
     <file alias="en/write/ruler.md">help/en/write/ruler.md</file>
+    <file alias="en/write/shapes-text-boxes.md">help/en/write/shapes-text-boxes.md</file>
     <file alias="en/write/spelling.md">help/en/write/spelling.md</file>
     <file alias="en/write/start.md">help/en/write/start.md</file>
     <file alias="en/write/styles.md">help/en/write/styles.md</file>
