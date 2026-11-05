@@ -610,7 +610,8 @@
             {"small": "object.backward", "keytip": "BK"},
             {"small": "object.back", "keytip": "SB"},
             {"column": true},
-            {"large": {"id": "ribbon.rotate", "text": "Rotate", "icon": "rotate-cw"}, "keytip": "RO", "menu": ["object.rotateRight", "object.rotateLeft", "object.flipH", "object.flipV"]}
+            {"large": {"id": "ribbon.rotate", "text": "Rotate", "icon": "rotate-cw"}, "keytip": "RO", "menu": ["object.rotateRight", "object.rotateLeft", "object.flipH", "object.flipV"]},
+            {"small": "object.selectionPane", "keytip": "SP"}
           ]
         },
         {
@@ -659,7 +660,8 @@
             {"small": "object.backward", "keytip": "BK"},
             {"small": "object.back", "keytip": "SB"},
             {"column": true},
-            {"large": {"id": "ribbon.rotate", "text": "Rotate", "icon": "rotate-cw"}, "keytip": "RO", "menu": ["object.rotateRight", "object.rotateLeft", "object.flipH", "object.flipV"]}
+            {"large": {"id": "ribbon.rotate", "text": "Rotate", "icon": "rotate-cw"}, "keytip": "RO", "menu": ["object.rotateRight", "object.rotateLeft", "object.flipH", "object.flipV"]},
+            {"small": "object.selectionPane", "keytip": "SP"}
           ]
         },
         {

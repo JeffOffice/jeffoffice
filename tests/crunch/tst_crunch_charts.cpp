@@ -22,6 +22,8 @@
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QDoubleSpinBox>
+#include <QAbstractButton>
+#include <QListWidget>
 #include <QMenu>
 #include <QRadioButton>
 #include <QTemporaryDir>
@@ -2009,6 +2011,37 @@ private Q_SLOTS:
         for (auto it = parts.begin(); it != parts.end(); ++it)
             if (it.key().startsWith(QLatin1String("xl/media/"))) ++media;
         QCOMPARE(media, 1);
+    }
+
+    // The Selection Pane lists the sheet's objects, front first; choosing a row picks the object, and its buttons bring it forward or send it back.
+    void theSelectionPaneListsPicksAndReordersObjects()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(e.win.w.insertShape(QStringLiteral("rect")));
+        const int a = o->layer()->selectedId();
+        QVERIFY(e.win.w.insertShape(QStringLiteral("ellipse")));
+        const int b = o->layer()->selectedId();
+        QAction *open = e.win.w.act(QStringLiteral("object.selectionPane"));
+        QVERIFY(open);
+        QVERIFY(open->isEnabled());
+        open->trigger();
+        auto *list = e.win.w.findChild<QListWidget *>(QStringLiteral("selectionList"));
+        QVERIFY(list);
+        QCOMPARE(list->count(), 2);
+        QCOMPARE(list->item(0)->text(), o->nameOf(0, b));   // (the front one first)
+        QCOMPARE(list->item(1)->text(), o->nameOf(0, a));
+        list->setCurrentRow(1);
+        QCOMPARE(o->layer()->selectedId(), a);
+        auto *forward = e.win.w.findChild<QAbstractButton *>(QStringLiteral("selectionForward"));
+        QVERIFY(forward);
+        forward->click();
+        QCOMPARE(o->idsOf(0).back(), a);
+        QCOMPARE(list->item(0)->text(), o->nameOf(0, a));
+        QCOMPARE(list->currentRow(), 0);
     }
 
     // Pictures and shapes move and size too: the anchor of the file is kept in the form it keeps what the object does when cells change (a picture of a one-cell anchor moves with the cells and

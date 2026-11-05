@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, insert shape, text box, shapes, line, arrow, oval, rectangle, star, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key -->
+<!-- keywords: selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, insert shape, text box, shapes, line, arrow, oval, rectangle, star, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -80,6 +80,7 @@ Pick a picture and the **Picture Format** tab appears. Pick a shape, a line, or 
 - **Rotate** turns the object a quarter turn to the right or the left, or flips it over from side to side or top to bottom.
 - **Crop**, for a picture, cuts it to a shape of window: square, 4 wide by 3 tall, 3 wide by 4 tall, 16 by 9, or 9 by 16. The cut is made evenly from the middle of what shows, and the picture is made as large as what is left. **Show the Whole Picture** brings back what was cut. The picture file is not changed: the cut part is only hidden.
 - **Edit Text** is for shapes and text boxes. Type the words, and choose how they sit across and up and down, the size, bold or regular, and whether they wrap to the shape or stay on one line.
+- **Selection Pane** opens a list of every object on the sheet by name, the one in front first. Click a name to pick that object, which helps when objects hide each other. **Bring Forward** and **Send Backward** move it in the list.
 - **Properties** sets the size, the name, the alt text, and what the object does when cells are moved or made larger.
 
 ## Cut, copy, and paste an object

@@ -15,6 +15,9 @@
 #include <QDialogButtonBox>
 #include <QDomDocument>
 #include <QDoubleSpinBox>
+#include <QHBoxLayout>
+#include <QListWidget>
+#include <QPushButton>
 #include <QFormLayout>
 #include <QMenu>
 #include <QPlainTextEdit>
@@ -494,8 +497,70 @@ void CrunchWindow::editObjectText()
     setObjectText(c);
 }
 
+// The Selection Pane: the sheet's objects by name, the one in front first. Choosing a row picks the object; the buttons move it in front of or behind its neighbor.
+void CrunchWindow::showSelectionPane()
+{
+    if (!m_objects || !m_session) return;
+    if (!m_selectionPane) {
+        auto *dialog = new QDialog(this);
+        dialog->setObjectName(QStringLiteral("selectionPane"));
+        dialog->setWindowTitle(tr("Selection Pane"));
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        auto *layout = new QVBoxLayout(dialog);
+        auto *list = new QListWidget(dialog);
+        list->setObjectName(QStringLiteral("selectionList"));
+        list->setAccessibleName(tr("Objects on the sheet"));
+        layout->addWidget(list);
+        auto *row = new QHBoxLayout;
+        auto *forward = new QPushButton(tr("Bring Forward"), dialog);
+        forward->setObjectName(QStringLiteral("selectionForward"));
+        auto *backward = new QPushButton(tr("Send Backward"), dialog);
+        backward->setObjectName(QStringLiteral("selectionBackward"));
+        row->addWidget(forward);
+        row->addWidget(backward);
+        layout->addLayout(row);
+        m_selectionPane = dialog;
+        connect(list, &QListWidget::currentRowChanged, dialog, [this](int r) {
+            if (m_selectionFilling || r < 0 || !m_objects) return;
+            const std::vector<int> ids = m_objects->idsOf(m_sheet);
+            const int at = int(ids.size()) - 1 - r;
+            if (at >= 0 && at < int(ids.size())) m_objects->layer()->select(ids[size_t(at)]);
+        });
+        connect(m_objects->layer(), &jp::grid::ObjectLayer::selectionChanged, dialog, [this](int) { refreshSelectionPane(); });
+        connect(forward, &QPushButton::clicked, dialog, [this] {
+            reorderObject(1);
+            refreshSelectionPane();
+        });
+        connect(backward, &QPushButton::clicked, dialog, [this] {
+            reorderObject(-1);
+            refreshSelectionPane();
+        });
+    }
+    refreshSelectionPane();
+    m_selectionPane->show();
+    m_selectionPane->raise();
+}
+
+void CrunchWindow::refreshSelectionPane()
+{
+    if (!m_selectionPane || !m_objects) return;
+    auto *list = m_selectionPane->findChild<QListWidget *>(QStringLiteral("selectionList"));
+    if (!list) return;
+    m_selectionFilling = true;
+    list->clear();
+    const std::vector<int> ids = m_objects->idsOf(m_sheet);
+    const int picked = pickedObject();
+    for (int i = int(ids.size()) - 1; i >= 0; --i) {
+        list->addItem(m_objects->nameOf(m_sheet, ids[size_t(i)]));
+        if (ids[size_t(i)] == picked) list->setCurrentRow(list->count() - 1);
+    }
+    m_selectionFilling = false;
+}
+
 void CrunchWindow::createObjectFormatActions()
 {
+    mk("object.selectionPane", tr("Selection Pane"), "layers", QKeySequence(), [this] { showSelectionPane(); });
+    m_opsActions << QStringLiteral("object.selectionPane");
     auto mkObject = [this](const char *id, const QString &text, const char *icon, const std::function<void()> &fn) { mk(QString::fromLatin1(id), text, icon, QKeySequence(), fn, false, false); };
     mkObject("object.editText", tr("Edit Text…"), "text-cursor-input", [this] { editObjectText(); });
     mkObject("object.rotateRight", tr("Rotate Right 90°"), "rotate-cw", [this] { rotateObject(1, false, false); });

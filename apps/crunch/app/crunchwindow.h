@@ -1276,6 +1276,10 @@ private:
     bool placeObjectClip(const crunch::ObjectClip &clip, const QString &stepText, const jp::office::sheet::DrawingAnchor *at = nullptr, int order = -1);
     bool restyleObject(const QString &stepText, const std::function<bool(QDomElement &, jp::grid::ObjectBox *)> &edit, bool pictureOnly = false);
     void editObjectText();
+    void showSelectionPane();
+    void refreshSelectionPane();
+    QPointer<QDialog> m_selectionPane;
+    bool m_selectionFilling = false;
     void createObjectFormatActions();
     void objectFormatRibbonParts(RibbonParts &parts);
     std::function<bool(ShapeTextChoices *)> m_shapeTextAsker;
