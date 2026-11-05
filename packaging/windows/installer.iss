@@ -58,7 +58,7 @@
 #else
   #define NotCrunch ""
 #endif
-#define NotApps "JeffDeck.exe" + NotWrite + NotCrunch
+#define NotApps "JeffPub.exe,JeffDeck.exe" + NotWrite + NotCrunch
 
 [Setup]
 AppId=JeffOffice
@@ -126,7 +126,7 @@ ConfirmUninstall=Remove %1, with its settings, from this computer?
 UninstalledAll=%1 was removed from this computer.
 
 [Components]
-Name: "pub"; Description: "JeffPub: publications"; Flags: fixed
+Name: "pub"; Description: "JeffPub: publications"
 Name: "deck"; Description: "JeffDeck: presentations"
 #ifdef WITH_WRITE
 Name: "write"; Description: "JeffWrite: documents (beta)"
@@ -143,8 +143,8 @@ Name: "base"; Description: "JeffBase: databases (coming soon)"
 
 [Tasks]
 Name: "desktopicon"; Description: "Add shortcuts to the apps to your desktop"; GroupDescription: "Shortcuts:"
-Name: "jpub"; Description: "Open .jpub files with JeffPub"; GroupDescription: "File types:"
-Name: "pubdefault"; Description: "Make JeffPub the default for .pub files (off keeps your current program)"; GroupDescription: "File types:"; Flags: unchecked
+Name: "jpub"; Description: "Open .jpub files with JeffPub"; GroupDescription: "File types:"; Components: pub
+Name: "pubdefault"; Description: "Make JeffPub the default for .pub files (off keeps your current program)"; GroupDescription: "File types:"; Components: pub; Flags: unchecked
 Name: "stats"; Description: "{#TaskStats}"; GroupDescription: "Usage statistics:"
 
 [Dirs]
@@ -154,6 +154,7 @@ Name: "{app}"; Flags: uninsalwaysuninstall
 [Files]
 Source: "..\..\dist\JeffOffice\*"; DestDir: "{app}"; Excludes: "{#NotApps}"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "jeffoffice.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\dist\JeffOffice\JeffPub.exe"; DestDir: "{app}"; Components: pub; Flags: ignoreversion
 Source: "..\..\dist\JeffOffice\JeffDeck.exe"; DestDir: "{app}"; Components: deck; Flags: ignoreversion
 #ifdef WITH_WRITE
 Source: "..\..\dist\JeffOffice\JeffWrite.exe"; DestDir: "{app}"; Components: write; Flags: ignoreversion
@@ -163,13 +164,13 @@ Source: "..\..\dist\JeffOffice\JeffCrunch.exe"; DestDir: "{app}"; Components: cr
 #endif
 
 [Icons]
-Name: "{userprograms}\JeffPub"; Filename: "{app}\JeffPub.exe"
+Name: "{userprograms}\JeffPub"; Filename: "{app}\JeffPub.exe"; Components: pub
 Name: "{userprograms}\JeffDeck"; Filename: "{app}\JeffDeck.exe"; Components: deck
 ; A desktop shortcut made for an old folder follows it, and so does a taskbar pin (pins are shortcuts kept in the
 ; folder below; setup remakes the ones that exist, and the uninstaller leaves them, as the NSIS setups did).
-Name: "{userdesktop}\JeffPub"; Filename: "{app}\JeffPub.exe"; Check: WantDesktop('JeffPub')
+Name: "{userdesktop}\JeffPub"; Filename: "{app}\JeffPub.exe"; Components: pub; Check: WantDesktop('JeffPub')
 Name: "{userdesktop}\JeffDeck"; Filename: "{app}\JeffDeck.exe"; Components: deck; Check: WantDesktop('JeffDeck')
-Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\JeffPub"; Filename: "{app}\JeffPub.exe"; Check: PinExists('JeffPub'); Flags: uninsneveruninstall
+Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\JeffPub"; Filename: "{app}\JeffPub.exe"; Components: pub; Check: PinExists('JeffPub'); Flags: uninsneveruninstall
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\JeffDeck"; Filename: "{app}\JeffDeck.exe"; Components: deck; Check: PinExists('JeffDeck'); Flags: uninsneveruninstall
 #ifdef WITH_WRITE
 Name: "{userprograms}\JeffWrite"; Filename: "{app}\JeffWrite.exe"; Components: write
@@ -290,12 +291,15 @@ begin
 end;
 
 // An update keeps JeffWrite and JeffCrunch where they are installed: they start ticked, so their files are updated
-// with the rest and never left a version behind. (The folder of an earlier NSIS or Inno install counts too.)
+// with the rest and never left a version behind. (The folder of an earlier NSIS or Inno install counts too.) JeffPub
+// starts ticked, except in an update of an install that was made without it.
 procedure PresetApps(const Dir: String);
 var
   Old: String;
 begin
   Old := GetDefaultDir('');
+  WizardForm.ComponentsList.Checked[0] := FileExists(Dir + '\JeffPub.exe') or not (FileExists(Dir + '\JeffDeck.exe')
+    or FileExists(Dir + '\JeffWrite.exe') or FileExists(Dir + '\JeffCrunch.exe'));
   if FileExists(Dir + '\JeffWrite.exe') or FileExists(Old + '\JeffWrite.exe') then
     WizardForm.ComponentsList.Checked[2] := True;
   if FileExists(Dir + '\JeffCrunch.exe') or FileExists(Old + '\JeffCrunch.exe') then
@@ -367,7 +371,7 @@ var
   I: Integer;
 begin
   PresetFolder := '';
-  // With no setup types every component starts ticked: only JeffPub and JeffDeck do. The same goes for the file type
+  // With no setup types every component starts ticked: only JeffPub and JeffDeck do (PresetApps sets JeffPub). The same goes for the file type
   // that makes JeffPub the default for .pub files: it starts unticked.
   WizardForm.ComponentsList.Checked[1] := True;
   for I := 2 to 5 do
@@ -401,7 +405,7 @@ var
 begin
   SetArrayLength(Names, 4);
   N := 0;
-  Names[N] := 'JeffPub'; N := N + 1;
+  if WizardIsComponentSelected('pub') then begin Names[N] := 'JeffPub'; N := N + 1; end;
   if WizardIsComponentSelected('deck') then begin Names[N] := 'JeffDeck'; N := N + 1; end;
 #ifdef WITH_WRITE
   if WizardIsComponentSelected('write') then begin Names[N] := 'JeffWrite'; N := N + 1; end;
@@ -460,6 +464,24 @@ begin
   end
   else if CurPageID = wpFinished then
     WizardForm.FinishedLabel.Caption := FinishText;
+end;
+
+// Setup with no app ticked would install nothing anyone can open.
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if (CurPageID = wpSelectComponents) and not (WizardIsComponentSelected('pub') or WizardIsComponentSelected('deck')
+#ifdef WITH_WRITE
+    or WizardIsComponentSelected('write')
+#endif
+#ifdef WITH_CRUNCH
+    or WizardIsComponentSelected('crunch')
+#endif
+    ) then
+  begin
+    MsgBox('Choose at least one app to install.', mbInformation, MB_OK);
+    Result := False;
+  end;
 end;
 
 // ---- install ----
@@ -603,14 +625,17 @@ begin
     if WizardIsTaskSelected('stats') then
       RegWriteStringValue(HKCU, '{#SuiteKey}\telemetry', 'enabled', 'true');
   end;
-  // .pub files list JeffPub under "Open with" without becoming the default.
-  RegisterProgId('JeffPub.PubFile', '.pub publication', 'JeffPub.exe');
-  RegWriteStringValue(HKCU, Cls + '.pub\OpenWithProgids', 'JeffPub.PubFile', '');
-  RegWriteStringValue(HKCU, Cls + 'Applications\JeffPub.exe\SupportedTypes', '.pub', '');
-  RegWriteStringValue(HKCU, Cls + 'Applications\JeffPub.exe\SupportedTypes', '.jpub', '');
-  // .jpub files that open in JeffPub keep opening in it, from its new folder.
-  if RegQueryStringValue(HKCU, Cls + 'JeffPub.Publication\shell\open\command', '', V) and (V <> '') then
-    RegisterProgId('JeffPub.Publication', 'JeffPub publication', 'JeffPub.exe');
+  if WizardIsComponentSelected('pub') then
+  begin
+    // .pub files list JeffPub under "Open with" without becoming the default.
+    RegisterProgId('JeffPub.PubFile', '.pub publication', 'JeffPub.exe');
+    RegWriteStringValue(HKCU, Cls + '.pub\OpenWithProgids', 'JeffPub.PubFile', '');
+    RegWriteStringValue(HKCU, Cls + 'Applications\JeffPub.exe\SupportedTypes', '.pub', '');
+    RegWriteStringValue(HKCU, Cls + 'Applications\JeffPub.exe\SupportedTypes', '.jpub', '');
+    // .jpub files that open in JeffPub keep opening in it, from its new folder.
+    if RegQueryStringValue(HKCU, Cls + 'JeffPub.Publication\shell\open\command', '', V) and (V <> '') then
+      RegisterProgId('JeffPub.Publication', 'JeffPub publication', 'JeffPub.exe');
+  end;
   if WizardIsComponentSelected('deck') then
   begin
     RegisterProgId('JeffDeck.Presentation', 'Presentation', 'JeffDeck.exe');
@@ -630,36 +655,15 @@ begin
     OpenWith('{#CrunchExts}', 'JeffCrunch.Workbook', 'JeffCrunch.exe');
   end;
 #endif
-  if WizardIsTaskSelected('jpub') then
+  if WizardIsComponentSelected('pub') and WizardIsTaskSelected('jpub') then
   begin
     RegWriteStringValue(HKCU, Cls + '.jpub', '', 'JeffPub.Publication');
     RegWriteStringValue(HKCU, Cls + 'JeffPub.Publication', '', 'JeffPub publication');
     RegisterProgId('JeffPub.Publication', 'JeffPub publication', 'JeffPub.exe');
   end;
-  if WizardIsTaskSelected('pubdefault') then
+  if WizardIsComponentSelected('pub') and WizardIsTaskSelected('pubdefault') then
     RegWriteStringValue(HKCU, Cls + '.pub', '', 'JeffPub.PubFile');
 end;
-
-procedure CurStepChanged(CurStep: TSetupStep);
-begin
-  if CurStep = ssInstall then
-  begin
-    MoveFromJeffPub;
-    RemoveJeffPub79;
-    RemoveNsisInstall;
-    // The files an earlier version had and this one doesn't ship are cleared before the new ones are copied.
-    CleanProgramFolder(ExpandConstant('{app}'), False, False);
-  end
-  else if CurStep = ssPostInstall then
-  begin
-    RegisterTypes;
-    DropDanglingShortcut('JeffDeck');
-    DropDanglingShortcut('JeffWrite');
-    DropDanglingShortcut('JeffCrunch');
-  end;
-end;
-
-// ---- uninstall: everything setup added, and nothing else ----
 
 procedure UnOpenWith(Exts, ProgId: String);
 var
@@ -673,6 +677,71 @@ begin
     Delete(Exts, 1, P);
   end;
 end;
+
+// An app left unticked in an update goes: its program, shortcuts (a taskbar pin too, which would open nothing), and
+// file types. Its settings stay, for when it is ticked again.
+procedure RemoveApp(const App, ProgId, Exts: String);
+begin
+  DeleteFile(ExpandConstant('{app}\') + App + '.exe');
+  DeleteFile(ExpandConstant('{userprograms}\') + App + '.lnk');
+  DeleteFile(ExpandConstant('{userdesktop}\') + App + '.lnk');
+  DeleteFile(ExpandConstant('{userappdata}\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\') + App + '.lnk');
+  UnOpenWith(Exts, ProgId);
+  RegDeleteKeyIncludingSubkeys(HKCU, Cls + ProgId);
+  RegDeleteKeyIncludingSubkeys(HKCU, Cls + 'Applications\' + App + '.exe');
+end;
+
+procedure RemoveUnticked;
+var
+  V: String;
+begin
+  if not WizardIsComponentSelected('pub') then
+  begin
+    RemoveApp('JeffPub', 'JeffPub.PubFile', '.pub');
+    if RegQueryStringValue(HKCU, Cls + '.pub', '', V) and (V = 'JeffPub.PubFile') then
+      RegDeleteValue(HKCU, Cls + '.pub', '');
+    if RegQueryStringValue(HKCU, Cls + '.jpub', '', V) and (V = 'JeffPub.Publication') then
+      RegDeleteKeyIncludingSubkeys(HKCU, Cls + '.jpub');
+    RegDeleteKeyIncludingSubkeys(HKCU, Cls + 'JeffPub.Publication');
+  end;
+  if not WizardIsComponentSelected('deck') then
+    RemoveApp('JeffDeck', 'JeffDeck.Presentation', '{#DeckExts}');
+#ifdef WITH_WRITE
+  if not WizardIsComponentSelected('write') then
+    RemoveApp('JeffWrite', 'JeffWrite.Document', '{#WriteExts}');
+#endif
+#ifdef WITH_CRUNCH
+  if not WizardIsComponentSelected('crunch') then
+    RemoveApp('JeffCrunch', 'JeffCrunch.Workbook', '{#CrunchExts}');
+#endif
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then
+  begin
+    // An earlier JeffPub of its own is moved in only when JeffPub is ticked; otherwise it is left as it is.
+    if WizardIsComponentSelected('pub') then
+    begin
+      MoveFromJeffPub;
+      RemoveJeffPub79;
+    end;
+    RemoveNsisInstall;
+    // The files an earlier version had and this one doesn't ship are cleared before the new ones are copied.
+    CleanProgramFolder(ExpandConstant('{app}'), False, False);
+    RemoveUnticked;
+  end
+  else if CurStep = ssPostInstall then
+  begin
+    RegisterTypes;
+    DropDanglingShortcut('JeffPub');
+    DropDanglingShortcut('JeffDeck');
+    DropDanglingShortcut('JeffWrite');
+    DropDanglingShortcut('JeffCrunch');
+  end;
+end;
+
+// ---- uninstall: everything setup added, and nothing else ----
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
