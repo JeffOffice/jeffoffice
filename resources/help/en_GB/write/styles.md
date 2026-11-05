@@ -26,6 +26,8 @@ Click the small arrow at the corner of the **Styles** group, or press **Ctrl+Alt
   - **All Styles** shows every style, including ones your document does not have yet. A style is added to the document the first time you use it.
   - **Recommended** shows the styles that are meant to be seen. A style that is hidden until it is used appears here once you use it.
 - Click **Manage…** under the list to choose, for each style, whether it is **Recommended** (shown in the gallery), whether it is **Hidden** (left out of every list), and its **Order in the lists**. A lower number comes first. Click **OK**, and all the changes happen in one step, so one **Undo** takes them back.
+- In **Manage…**, click **Delete** to remove a style you made. Paragraphs that had it go back to Normal, and the styles that were based on it are based on what it was based on. Styles that come with JeffWrite can't be deleted. Deleting is one step, so **Undo** brings the style back.
+- In **Manage…**, click **Import from file…** to copy styles from another document. Pick the file, check the styles you want, and click **OK**. A style that needs another style brings it along. Styles you already have are left alone unless you check **Replace styles that have the same name**. Importing is one step to undo.
 - Under the list, the **Sort** box puts the styles in order. **Alphabetical** goes by name. **As Recommended** puts the most useful styles first. **By Type** lists paragraph styles, then linked styles, then character styles. **Based On** groups each style with the style it is built on.
 
 ## Make a style from your text

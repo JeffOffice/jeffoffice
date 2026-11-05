@@ -1,9 +1,13 @@
 # Use the ruler
 <!-- keywords: ruler, indent, indents, first line indent, hanging indent, left indent, right indent, tab, tab stop, tab stops, margin, margins, drag, units, inches, centimeters, show ruler, hide ruler, centimetres -->
 
-The **ruler** above the pages shows the margins, the indents of the paragraph the caret is in, and its tab stops. Drag a marker to change it. **View > Ruler** shows or hides it.
+The **ruler** above the pages shows the margins, the indents of the paragraph the caret is in, and its tab stops. Drag a marker to change it. **View > Ruler** shows or hides it. **View > Vertical Ruler** adds a second ruler on the left of the pages.
 
 The white part of the ruler is the text area of the page the caret is on; the grey ends are the left and right margins. The numbers count from the left margin, in the units you set in File > Options (inches, centimetres, millimetres, points, or picas).
+
+## The vertical ruler
+
+The **vertical ruler** runs down the left of the pages. For each page you can see, the grey ends are the top and bottom margins, and the white part is the text area. The numbers count from the top of the text area, up into the top margin and down toward the bottom one. You cannot drag anything on it yet. It goes away in Outline view and in Focus.
 
 ## Indents
 
