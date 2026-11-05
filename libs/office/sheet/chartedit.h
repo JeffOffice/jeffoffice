@@ -44,10 +44,21 @@ const ChartAxis *secondaryAxis(const Chart &chart, bool horizontal);
 
 enum class TitleMode : quint8 { None, Above, Overlay };
 void setChartTitle(Chart *chart, TitleMode mode);
+// The words of the chart title, or the cell it reads them from (`ref` such as "Sheet1!$A$1": the words follow that cell); the title is shown.
+void setChartTitleText(Chart *chart, const QString &text, const QString &ref = QString());
+// The same for the title of an axis.
+void setAxisTitleText(Chart *chart, bool horizontal, const QString &text, const QString &ref = QString(), bool secondary = false);
 void setAxisShown(Chart *chart, bool horizontal, bool shown, bool secondary = false);
 void setAxisTitle(Chart *chart, bool horizontal, bool shown, bool secondary = false);
 // Gridlines across the chart (`horizontal`) or up and down it, major or minor.
 void setGridlines(Chart *chart, bool horizontal, bool minor, bool shown);
+// A chart as a template file (.crtx): a package that holds the chart's part. Its look is what a template is for; the data it shows goes with it, as a chart's file has it.
+QByteArray chartTemplateFile(const Chart &chart);
+// The chart a template file holds; false, with a reason, if it is not one.
+bool readChartTemplate(const QByteArray &file, Chart *out, QString *why = nullptr);
+// `target` in the look of `look`: its kinds, axes, legend, title and text settings, fills, and the look of each series (a series past those of `look` takes the look of its last); the data,
+// the names, and the cells it reads stay `target`'s.
+Chart chartWithLook(const Chart &target, const Chart &look);
 // "" takes the legend away; else "r", "l", "t", or "b".
 void setLegend(Chart *chart, const QString &position, bool overlay = false);
 // A trendline of this kind on every series that can have one (none, with an empty `kind`); a series that has one of another kind is given this kind and keeps how far it runs and what it shows.
@@ -68,7 +79,7 @@ void setDataLabels(Chart *chart, bool shown, const QString &position = QString()
 // What the data labels hold: the value, the category's name, the series' name, and the percentage, with what stands between them ("" for the usual comma and space) and a number format
 // ("" for the values' own). Read from the first series that has labels; set on every series: one that has none gets labels in the usual place, and none chosen takes the labels away.
 struct ChartLabelParts {
-    bool value = false, category = false, series = false, percent = false;
+    bool value = false, category = false, series = false, percent = false, legendKey = false;
     QString separator, format;
 };
 ChartLabelParts labelPartsOf(const Chart &chart);

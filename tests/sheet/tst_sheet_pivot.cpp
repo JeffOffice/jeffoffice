@@ -198,6 +198,43 @@ private Q_SLOTS:
         QVERIFY(out.contains("baseItem=\"1048829\""));
     }
 
+    // A value shown as a rank among the items of a field (largest first or smallest first) or as a percent of the parent row or column total: worked out, written as the value field's
+    // extension (pivotShowAs), and read again.
+    void aValueCanBeShownAsARankOrAPercentOfItsParent()
+    {
+        auto shown = [&](const QString &as, PivotGrid *g, Worked *keep = nullptr) {
+            Worked w = work(tableDefinition(true, QString(), QString(), QStringLiteral("baseField=\"0\" baseItem=\"0\"")));
+            [&] { QVERIFY2(w.ok, qPrintable(w.why)); }();
+            w.table.dataFields[0].showDataAs = as;
+            w.table.dataFields[0].baseField = 0;
+            [&] { QVERIFY2(computePivot(w.table, w.cache, g, &w.why), qPrintable(w.why)); }();
+            if (keep) *keep = w;
+        };
+        PivotGrid g;
+        shown(QStringLiteral("rankDescending"), &g);
+        QCOMPARE(rowText(g, 2), (QStringList{QStringLiteral("East"), QStringLiteral("1"), QStringLiteral("1"), QStringLiteral("1")}));
+        QCOMPARE(rowText(g, 3), (QStringList{QStringLiteral("West"), QStringLiteral("2"), QStringLiteral("2"), QStringLiteral("2")}));
+        shown(QStringLiteral("rankAscending"), &g);
+        QCOMPARE(rowText(g, 2), (QStringList{QStringLiteral("East"), QStringLiteral("2"), QStringLiteral("2"), QStringLiteral("2")}));
+        QCOMPARE(rowText(g, 3), (QStringList{QStringLiteral("West"), QStringLiteral("1"), QStringLiteral("1"), QStringLiteral("1")}));
+        // (the rows are at the top level: their parent is the grand total, 22 for Jan, so East is 15/22)
+        shown(QStringLiteral("percentOfParentRow"), &g);
+        QVERIFY(qAbs(text(g, 2, 1).toDouble() - 15.0 / 22.0) < 1e-12);
+        QVERIFY(qAbs(text(g, 3, 2).toDouble() - 7.0 / 27.0) < 1e-12);
+        shown(QStringLiteral("percentOfParentCol"), &g);
+        QVERIFY(qAbs(text(g, 2, 1).toDouble() - 15.0 / 35.0) < 1e-12);
+        // written as the extension, and read again
+        Worked w;
+        shown(QStringLiteral("rankDescending"), &g, &w);
+        const QByteArray out = writePivotTable(tableDefinition(true), w.table, true);
+        QVERIFY2(out.contains("pivotShowAs=\"rankDescending\""), out.constData());
+        QVERIFY(!out.contains("showDataAs=\"rank"));
+        const Worked again = work(out);
+        QVERIFY2(again.ok, qPrintable(again.why));
+        QCOMPARE(again.table.dataFields[0].showDataAs, QStringLiteral("rankDescending"));
+        QCOMPARE(again.table.dataFields[0].baseField, 0);
+    }
+
     // A field's items sorted by their labels, or by a value, and left out by a filter on the labels, the values, or the first or last few items.
     void aFieldIsSortedAndFiltered()
     {

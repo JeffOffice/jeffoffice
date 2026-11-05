@@ -142,6 +142,54 @@ private Q_SLOTS:
         QCOMPARE(chartSvg(r, QSizeF(480, 288)), chartSvg(c, QSizeF(480, 288)));
     }
 
+    // The legend key of a data label (the small square of the series' color) is kept, written, and drawn beside the label.
+    void aLabelsLegendKeyIsKeptAndDrawn()
+    {
+        Chart c = comboChart();
+        c.plots[0].series[0].labels.value = true;
+        const QByteArray plain = chartSvg(c, QSizeF(480, 288));
+        c.plots[0].series[0].labels.legendKey = true;
+        const QByteArray xml = writeChartPart(c);
+        QVERIFY(xml.contains("<c:showLegendKey val=\"1\"/>"));
+        Chart r;
+        QVERIFY(readChart(xml, defaultTheme(), ColorMap(), &r));
+        QVERIFY(r.plots[0].series[0].labels.legendKey);
+        QVERIFY(!r.plots[0].series[1].labels.legendKey);
+        QVERIFY(chartSvg(r, QSizeF(480, 288)) != plain);
+        // a key alone is a label, too
+        c.plots[0].series[0].labels.value = false;
+        QVERIFY(c.plots[0].series[0].labels.shown());
+        QVERIFY(writeChartPart(c).contains("<c:showLegendKey val=\"1\"/>"));
+    }
+
+    // A logarithmic value axis (c:logBase) is kept, written back, and drawn with a mark at each power of its base.
+    void aLogarithmicAxisIsKeptAndDrawn()
+    {
+        Chart c = comboChart();
+        ChartAxis *value = nullptr;
+        for (ChartAxis &a : c.axes)
+            if (a.kind == ChartAxis::Value && !value) value = &a;
+        QVERIFY(value);
+        const QByteArray linear = chartSvg(c, QSizeF(480, 288));
+        QVERIFY(!linear.contains(">1000<"));
+        value->logBase = 10;
+        const QByteArray xml = writeChartPart(c);
+        QVERIFY(xml.contains("<c:logBase val=\"10\"/>"));
+        QVERIFY(xml.contains("<c:logBase val=\"10\"/><c:orientation"));
+        Chart r;
+        QVERIFY(readChart(xml, defaultTheme(), ColorMap(), &r));
+        const ChartAxis *back = nullptr;
+        for (const ChartAxis &a : r.axes)
+            if (a.kind == ChartAxis::Value && !back) back = &a;
+        QVERIFY(back && back->logBase == 10);
+        const QByteArray logged = chartSvg(r, QSizeF(480, 288));
+        QVERIFY(logged != linear);
+        // (the axis found is the one on the right: the line's values, 5 to 15, are marked at 1 and 10)
+        QVERIFY(logged.contains(">1<") && logged.contains(">10<"));
+        QVERIFY(!linear.contains(">1<"));
+        QCOMPARE(chartSvg(c, QSizeF(480, 288)), logged);
+    }
+
     void everyKindOfChartIsWrittenAndReadBack()
     {
         const ChartType kinds[] = {ChartType::Bar, ChartType::Line, ChartType::Pie, ChartType::Doughnut, ChartType::Area, ChartType::Scatter};

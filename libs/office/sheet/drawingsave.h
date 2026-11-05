@@ -38,6 +38,10 @@ bool setDrawingObjectNames(const QByteArray &xml, const std::map<int, QString> &
 // An object's element (or several) with the name of its first cNvPr set to `name`.
 QByteArray withFirstObjectName(const QByteArray &element, const QString &name);
 
+// The same for the alternative text (the descr of the first cNvPr; left out when empty), and for the objects at the given places of a drawing.
+QByteArray withFirstObjectDescription(const QByteArray &element, const QString &text);
+bool setDrawingObjectDescriptions(const QByteArray &xml, const std::map<int, QString> &texts, QByteArray *out, bool *changed);
+
 // Whether the objects at the given places print: the fPrintsWithSheet of the first clientData of each written as "0" (does not print) or left out (prints). Every other byte stays.
 bool setDrawingObjectPrints(const QByteArray &xml, const std::map<int, bool> &prints, QByteArray *out, bool *changed);
 // An object's element (or several) with its first clientData set so.

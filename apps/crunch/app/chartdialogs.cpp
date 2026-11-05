@@ -11,6 +11,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QPlainTextEdit>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPixmap>
@@ -580,6 +581,16 @@ ObjectPropertiesDialog::ObjectPropertiesDialog(const ObjectProperties &now, QWid
     m_width->setValue(now.widthPoints);
     m_height->setValue(now.heightPoints);
     m_ratioOf = now.heightPoints > 0 ? now.widthPoints / now.heightPoints : 1;
+    m_name = new QLineEdit(now.name, this);
+    m_name->setObjectName(QStringLiteral("objectName"));
+    m_name->setAccessibleName(tr("Name"));
+    form->addRow(tr("Name"), m_name);
+    m_alt = new QPlainTextEdit(now.description, this);
+    m_alt->setObjectName(QStringLiteral("objectAltText"));
+    m_alt->setAccessibleName(tr("Alt text"));
+    m_alt->setMaximumHeight(64);
+    m_alt->setTabChangesFocus(true);
+    form->addRow(tr("Alt text"), m_alt);
     form->addRow(tr("Width"), m_width);
     form->addRow(tr("Height"), m_height);
     m_ratio = new QCheckBox(tr("Keep the proportions"), this);
@@ -619,6 +630,8 @@ ObjectPropertiesDialog::ObjectPropertiesDialog(const ObjectProperties &now, QWid
 ObjectProperties ObjectPropertiesDialog::result() const
 {
     ObjectProperties p = m_now;
+    p.name = m_name->text().trimmed().isEmpty() ? m_now.name : m_name->text().trimmed();
+    p.description = m_alt->toPlainText().trimmed();
     p.widthPoints = m_width->value();
     p.heightPoints = m_height->value();
     p.follows = m_moves->isChecked() ? AnchorKind::OneCell : m_stays->isChecked() ? AnchorKind::Absolute : AnchorKind::TwoCell;
@@ -665,6 +678,17 @@ FormatAxisDialog::FormatAxisDialog(const jp::office::ChartAxis &axis, const QStr
     m_reversed = new QCheckBox(tr("Values in reverse order"), this);
     m_reversed->setChecked(axis.reversed);
     form->addRow(m_reversed);
+    m_log = new QCheckBox(tr("Logarithmic scale, base:"), this);
+    m_log->setObjectName(QStringLiteral("axisLog"));
+    m_log->setChecked(axis.logBase >= 2);
+    m_logBase = new QDoubleSpinBox(this);
+    m_logBase->setDecimals(0);
+    m_logBase->setObjectName(QStringLiteral("axisLogBase"));
+    m_logBase->setRange(2, 1000);
+    m_logBase->setValue(axis.logBase >= 2 ? axis.logBase : 10);
+    m_logBase->setEnabled(axis.logBase >= 2);
+    connect(m_log, &QCheckBox::toggled, m_logBase, &QWidget::setEnabled);
+    if (axis.kind == jp::office::ChartAxis::Value) form->addRow(m_log, m_logBase);
     m_crosses = new QComboBox(this);
     m_crosses->setObjectName(QStringLiteral("axisCrosses"));
     m_crosses->addItem(tr("Automatic"), QStringLiteral("autoZero"));
@@ -745,6 +769,7 @@ jp::office::ChartAxis FormatAxisDialog::result() const
         a.max = m_max->value();
         a.majorUnit = m_autoMajor->isChecked() ? 0 : m_major->value();
         a.minorUnit = m_autoMinor->isChecked() ? 0 : m_minor->value();
+        a.logBase = m_log->isChecked() ? std::round(m_logBase->value()) : 0;
     }
     a.reversed = m_reversed->isChecked();
     const QString crosses = m_crosses->currentData().toString();

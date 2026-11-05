@@ -704,7 +704,9 @@ void ValueFieldDialog::build(const ValueFieldSettings &settings)
     const std::pair<const char *, const char *> kinds[] = {
         {"normal", QT_TR_NOOP("No Calculation")}, {"percentOfTotal", QT_TR_NOOP("% of Grand Total")}, {"percentOfCol", QT_TR_NOOP("% of Column Total")},
         {"percentOfRow", QT_TR_NOOP("% of Row Total")}, {"index", QT_TR_NOOP("Index")}, {"difference", QT_TR_NOOP("Difference From")}, {"percent", QT_TR_NOOP("% Of")},
-        {"percentDiff", QT_TR_NOOP("% Difference From")}, {"runTotal", QT_TR_NOOP("Running Total In")}};
+        {"percentDiff", QT_TR_NOOP("% Difference From")}, {"runTotal", QT_TR_NOOP("Running Total In")},
+        {"percentOfParentRow", QT_TR_NOOP("% of Parent Row Total")}, {"percentOfParentCol", QT_TR_NOOP("% of Parent Column Total")}, {"rankAscending", QT_TR_NOOP("Rank Smallest to Largest")},
+        {"rankDescending", QT_TR_NOOP("Rank Largest to Smallest")}};
     for (const auto &k : kinds) {
         m_showAs->addItem(tr(k.second), QString::fromLatin1(k.first));
         if (settings.showAs == QLatin1String(k.first)) m_showAs->setCurrentIndex(m_showAs->count() - 1);
@@ -725,9 +727,10 @@ void ValueFieldDialog::build(const ValueFieldSettings &settings)
     connect(m_baseField, &QComboBox::currentIndexChanged, this, [this] { baseChanged(); });
     connect(m_showAs, &QComboBox::currentIndexChanged, this, [this] {
         const QString k = m_showAs->currentData().toString();
-        const bool relative = k == QLatin1String("difference") || k == QLatin1String("percent") || k == QLatin1String("percentDiff") || k == QLatin1String("runTotal");
+        const bool ranked = k == QLatin1String("rankAscending") || k == QLatin1String("rankDescending");
+        const bool relative = k == QLatin1String("difference") || k == QLatin1String("percent") || k == QLatin1String("percentDiff") || k == QLatin1String("runTotal") || ranked;
         m_baseField->setEnabled(relative && m_baseField->count() > 0);
-        m_baseItem->setEnabled(relative && k != QLatin1String("runTotal") && m_baseField->count() > 0);
+        m_baseItem->setEnabled(relative && !ranked && k != QLatin1String("runTotal") && m_baseField->count() > 0);
     });
     baseChanged();
     // the number format, as a code

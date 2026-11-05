@@ -1667,6 +1667,12 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         const int index = partBytes(part, &xml);
         if (index >= 0 && setDrawingObjectNames(xml, names, &now, &changed) && changed) replaced.insert(index, now);
     }
+    for (const auto &[part, texts] : changes.objectDescriptions) {
+        QByteArray xml, now;
+        bool changed = false;
+        const int index = partBytes(part, &xml);
+        if (index >= 0 && setDrawingObjectDescriptions(xml, texts, &now, &changed) && changed) replaced.insert(index, now);
+    }
     for (const auto &[part, prints] : changes.objectPrints) {
         QByteArray xml, now;
         bool changed = false;

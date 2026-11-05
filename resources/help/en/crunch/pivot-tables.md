@@ -1,5 +1,5 @@
 # Pivot tables
-<!-- keywords: pivot table, drill down, drill up, insert pivot table, create, make, select, move pivot table, getpivotdata, generate getpivotdata, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average, show values as, percent of total, difference, running total, number format, field settings, sort, filter, top, group, ungroup, dates, months, years, expand, collapse, options, style, banded rows, blank rows, repeat labels, refresh when the file opens, pivot chart, slicer, timeline, show details, drill down, rows behind a value -->
+<!-- keywords: report filter pages, pivot table, drill down, drill up, insert pivot table, create, make, select, move pivot table, getpivotdata, generate getpivotdata, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average, show values as, percent of total, difference, running total, number format, field settings, sort, filter, top, group, ungroup, dates, months, years, expand, collapse, options, style, banded rows, blank rows, repeat labels, refresh when the file opens, pivot chart, slicer, timeline, show details, drill down, rows behind a value -->
 
 A pivot table is a small report made from a long list. The list has one row for each sale, say; the report adds the sales up by region and month. You do not write any formulas. You say which columns of the list go down the side, which go across the top, and which one is added up, and the report fills itself in.
 
@@ -82,6 +82,10 @@ If the report would grow over cells that have something in them, JeffCrunch does
 
 ## Drill down and drill up
 
+## Report Filter Pages
+
+A filter sits above a pivot table and lets you look at one item at a time, such as one month. **Show Report Filter Pages** on the **Pivot Table** tab makes a page for every item at once. Each page is a new sheet, named for the item, with its own copy of the table. The filter of each copy is set to that item. If the table has more than one filter, you pick the one to use. One **Undo** takes all the pages away.
+
 When a report has more than one field in its rows, an item of the first field can be opened or shut. Click the cell with the item's name and choose **Drill Up** to shut it: the lines of the next field under it are hidden and only its total stays. **Drill Down** opens it again. An item of the last field has nothing under it. Each is one **Undo**.
 
 ## Select and move
@@ -110,6 +114,8 @@ In **Value Field Settings**, **Show values as** changes what a cell of the repor
 - **Index**: how the cell compares with what its row and column would give if the data were spread evenly. A number above 1 means more than the even share.
 - **Difference From**, **% Of**, and **% Difference From**: the cell compared with another item of a field. Pick the **Base field** (a field in Rows or Columns) and the **Base item** (one of its items, or the one before or after). For example, with Month as the base field and Jan as the base item, February shows how much more or less it is than January. The base item itself is left empty for a difference, and is 100% for **% Of**.
 - **Running Total In**: each cell adds the cells before it along the base field.
+- **Rank Smallest to Largest** and **Rank Largest to Smallest**: each cell shows its place, 1, 2, 3, and so on, among the cells of the base field in the same row or column. Rank 1 is the smallest number, or the largest.
+- **% of Parent Row Total** and **% of Parent Column Total**: each cell shows what part of its parent it is. The parent of an item is the item one level up, such as the year that holds a month. An item with no parent is shown as a part of the grand total.
 
 **Number format** takes a format code, such as `0.00`, `#,##0`, or `0.0%`. Leave it empty to keep the format the cells have. A value shown as a share gets `0.00%` unless you pick a format. The cells of the report take the format at once. **Undo** takes it back with the numbers.
 

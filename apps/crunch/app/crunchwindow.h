@@ -282,10 +282,15 @@ public:
     void tableGalleryChosen(const QString &style);
     bool showTotalsMenu(qint64 row, qint64 col);
     void setSparklineAsker(std::function<bool(QString *, QString *)> asker) { m_sparklineAsker = std::move(asker); }
+    void setPageFieldAsker(std::function<QString(const QStringList &, bool *)> asker) { m_pageFieldAsker = std::move(asker); }
     void setChartTextAsker(std::function<bool(const QString &, QString *)> asker) { m_chartTextAsker = std::move(asker); }
     void setFormatAxisAsker(std::function<bool(bool, jp::office::ChartAxis *)> asker) { m_formatAxisAsker = std::move(asker); }
     void setMoveChartAsker(std::function<bool(const QStringList &, int *)> asker) { m_moveChartAsker = std::move(asker); }
     void moveChartDialog();
+    void saveChartAsPicture();
+    void saveChartTemplate();
+    void applyChartTemplate();
+    void setTemplatePicker(std::function<QString()> picker) { m_templatePicker = std::move(picker); }
     void setDateAxisAsker(std::function<bool(QString *)> asker) { m_dateAxisAsker = std::move(asker); }
     void setAxisValueAsker(std::function<bool(bool, double *)> asker) { m_axisValueAsker = std::move(asker); }
     void setTableMakeAsker(std::function<bool(QString *, bool *)> asker) { m_tableMakeAsker = std::move(asker); }
@@ -792,6 +797,8 @@ private:
     void changeSparklineGroups(const std::function<void(jp::office::sheet::SparklineGroup *)> &change, const QString &text);
     bool makeSparklines(const QString &data, const QString &where, QVector<jp::office::sheet::Sparkline> *out, QString *why) const;
     std::function<bool(QString *, QString *)> m_sparklineAsker;   // test hook: the data and the cells of sparklines being made or edited
+    std::function<QString()> m_templatePicker;   // test hook: the template file Apply Template reads
+    std::function<QString(const QStringList &, bool *)> m_pageFieldAsker;   // test hook: which of the filters (by name) Report Filter Pages is made for
     std::function<bool(const QString &, QString *)> m_chartTextAsker;   // test hook: a short text asked for a chart (the title says what)
     std::function<bool(bool, jp::office::ChartAxis *)> m_formatAxisAsker;   // test hook: the axis (across: true) as the format pane left it
     std::function<bool(const QStringList &, int *)> m_moveChartAsker;   // test hook: which of the sheets offered (by place in the list) the chart goes to

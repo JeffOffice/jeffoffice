@@ -9,6 +9,7 @@
 #include "sheet/pivot.h"
 #include "sheet/pivotbook.h"
 
+#include <QDate>
 #include <QCoreApplication>
 #include <QRegularExpression>
 
@@ -95,8 +96,9 @@ bool EditSession::pivotUsable(int table, QString *why) const
     for (const PivotDataField &d : e.table->dataFields)
         if (d.showDataAs != QLatin1String("normal") && d.showDataAs != QLatin1String("difference") && d.showDataAs != QLatin1String("percent") && d.showDataAs != QLatin1String("percentDiff") &&
             d.showDataAs != QLatin1String("runTotal") && d.showDataAs != QLatin1String("percentOfRow") && d.showDataAs != QLatin1String("percentOfCol") && d.showDataAs != QLatin1String("percentOfTotal") &&
-            d.showDataAs != QLatin1String("index")) {
-            if (why) *why = tr("This pivot table shows a value as a rank or as a percent of a parent, which JeffCrunch doesn't work out yet. It stays as it is.");
+            d.showDataAs != QLatin1String("index") && d.showDataAs != QLatin1String("rankAscending") && d.showDataAs != QLatin1String("rankDescending") && d.showDataAs != QLatin1String("percentOfParentRow") &&
+            d.showDataAs != QLatin1String("percentOfParentCol")) {
+            if (why) *why = tr("This pivot table shows a value as something that JeffCrunch doesn't work out yet. It stays as it is.");
             return false;
         }
     return true;
@@ -985,6 +987,121 @@ EditSession::Outcome EditSession::showPivotDetail(int sheet, quint32 row, quint3
         }
     out = pushTableStep(std::move(step), tr("Show Details"));
     if (out.ok && made) *made = target;
+    return out;
+}
+
+// The words of an item of a cache field, as a sheet name or a comparison between two caches needs them.
+static QString pivotItemWords(const PivotCacheField &f, int x)
+{
+    const QVector<PivotValue> &items = f.storedItems();
+    if (x < 0 || x >= items.size()) return QString();
+    const PivotValue &v = items[x];
+    switch (v.kind) {
+    case PivotValue::Text: return v.text;
+    case PivotValue::Number: return QString::number(v.number, 'g', 15);
+    case PivotValue::Bool: return v.number != 0 ? QStringLiteral("TRUE") : QStringLiteral("FALSE");
+    case PivotValue::Date: return QDate(1899, 12, 30).addDays(int(v.number)).toString(Qt::ISODate);
+    case PivotValue::Error: return v.text;
+    case PivotValue::Missing: break;
+    }
+    return QString();
+}
+
+EditSession::Outcome EditSession::showReportFilterPages(int table, int pageField, int *firstSheet)
+{
+    Outcome out;
+    QString why;
+    auto refuse = [&](const QString &m) {
+        out.ok = false;
+        out.problem = m;
+        return out;
+    };
+    if (!canEdit(&why) || !m_book || !m_book->book || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) return refuse(why.isEmpty() ? tr("There is no pivot table here.") : why);
+    PivotBook &pb = m_book->book->pivots();
+    const std::shared_ptr<const PivotTable> original = pb.table(table).table;
+    const int originalCache = pb.table(table).cache;
+    if (!original || originalCache < 0 || pageField < 0 || pageField >= original->pageFields.size()) return refuse(tr("This pivot table has no filter to show pages for."));
+    const std::shared_ptr<const PivotCache> cache = pb.cache(originalCache).cache;
+    const int fld = original->pageFields[pageField].fld;
+    if (!cache || fld < 0 || fld >= original->fields.size() || fld >= cache->fields.size()) return refuse(tr("This pivot table has no filter to show pages for."));
+    const CellRange at = pb.locationOf(table);
+    const QString source = pivotSourceText(table);
+    if (!at.valid || source.isEmpty()) return refuse(tr("JeffCrunch can't find where this pivot table is, or the data it is made from."));
+    QStringList labels;
+    for (const PivotTableItem &it : original->fields[fld].items)
+        if (it.t.isEmpty() && it.x >= 0 && !it.hidden) labels << pivotItemWords(cache->fields[fld], it.x);
+    if (labels.isEmpty()) return refuse(tr("The filter has no items to make pages of."));
+    if (labels.size() > 100) return refuse(tr("The filter has %1 items. Pages are made for at most 100.").arg(labels.size()));
+    const int startIndex = m_undo.index();
+    m_undo.beginMacro(tr("Show Report Filter Pages"));
+    Outcome step;
+    int first = -1;
+    for (const QString &label : std::as_const(labels)) {
+        // a sheet name that is allowed (up to 31 letters, none of the marks a sheet name cannot hold) and not taken
+        QString name = label.trimmed();
+        for (QChar &c : name)
+            if (QStringLiteral("[]:*?/\\").contains(c)) c = QLatin1Char('_');
+        name = name.left(31).trimmed();
+        if (name.isEmpty()) name = tr("Blank");
+        const auto &sheets = m_book->book->info().sheets;
+        QString unique = name;
+        for (int n = 2;; ++n) {
+            bool taken = false;
+            for (const SheetEntry &se : sheets)
+                if (!se.deleted && se.name.compare(unique, Qt::CaseInsensitive) == 0) taken = true;
+            if (!taken) break;
+            const QString tail = QStringLiteral(" (%1)").arg(n);
+            unique = name.left(31 - tail.size()) + tail;
+        }
+        int target = -1;
+        step = insertSheet(int(sheets.size()), unique, &target);
+        if (!step.ok) break;
+        if (first < 0) first = target;
+        int made = -1;
+        step = createPivot(source, target, at.row1, at.col1, &made);
+        if (!step.ok) break;
+        // (the copy has the roles, the functions, and the look of the table; its items are those of its own cache, so the filter's item and the hidden ones are found there by their words)
+        PivotTable copy = *original;
+        copy.name = pb.table(made).table->name;
+        for (PivotField &pf : copy.fields) {
+            pf.items.clear();
+            pf.hasItems = false;
+        }
+        step = setPivot(made, copy, true, tr("Show Report Filter Pages"));
+        if (!step.ok) break;
+        const PivotTable &built = *pb.table(made).table;
+        const PivotCache &newCache = *pb.cache(pb.table(made).cache).cache;
+        PivotTable again = built;
+        auto positionOf = [&](int field, const QString &words) {
+            for (int k = 0; k < again.fields[field].items.size(); ++k) {
+                const PivotTableItem &it = again.fields[field].items[k];
+                if (it.t.isEmpty() && it.x >= 0 && pivotItemWords(newCache.fields[field], it.x) == words) return k;
+            }
+            return -1;
+        };
+        const int place = fld < again.fields.size() ? positionOf(fld, label) : -1;
+        if (place < 0) {
+            step.ok = false;
+            step.problem = tr("The item \"%1\" was not found in the copy of the data.").arg(label);
+            break;
+        }
+        for (PivotPageField &p : again.pageFields)
+            if (p.fld == original->pageFields[pageField].fld) p.item = place;
+        for (int field = 0; field < original->fields.size() && field < again.fields.size(); ++field)
+            for (const PivotTableItem &it : original->fields[field].items) {
+                if (!it.hidden || it.x < 0) continue;
+                const int k = positionOf(field, pivotItemWords(cache->fields[field], it.x));
+                if (k >= 0) again.fields[field].items[k].hidden = true;
+            }
+        step = setPivot(made, again, false, tr("Show Report Filter Pages"));
+        if (!step.ok) break;
+    }
+    m_undo.endMacro();
+    if (!step.ok) {
+        while (m_undo.index() > startIndex) m_undo.undo();
+        return step;
+    }
+    if (firstSheet) *firstSheet = first;
     return out;
 }
 

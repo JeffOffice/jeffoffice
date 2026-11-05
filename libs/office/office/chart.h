@@ -91,13 +91,14 @@ struct ChartMarker {
 
 struct ChartDataLabels {
     bool value = false, category = false, series = false, percent = false;
+    bool legendKey = false;         // the small square (or line) of the series' look beside each label
     QByteArray ext;                 // the labels' extension list (c:extLst), as the file wrote it
     QMap<int, QByteArray> kept;     // the labels of single points (c:dLbl), by the point's place, as the file wrote them
     QString position;               // c:dLblPos: "outEnd", "ctr", "inEnd", "inBase", "bestFit", "l", "r", "t", "b"; empty: the usual for the chart
     QString format;                 // a number format; empty: the values' own
     ChartFont font;
     QString separator;              // empty: ", "
-    bool shown() const { return value || category || series || percent; }
+    bool shown() const { return value || category || series || percent || legendKey; }
 };
 
 // The most trendlines a chart is read with, and the points they are fitted to in all (a line of a series counts the series' values).
@@ -178,6 +179,7 @@ struct ChartAxis {
     QString position = QStringLiteral("b");   // "b", "t", "l", "r"
     bool deleted = false;
     bool reversed = false;          // c:orientation "maxMin"
+    double logBase = 0;             // c:logBase (2 to 1000): a logarithmic scale of that base; 0: linear
     bool autoMin = true, autoMax = true;
     double min = 0, max = 0;        // when not automatic
     double majorUnit = 0, minorUnit = 0;     // 0: automatic

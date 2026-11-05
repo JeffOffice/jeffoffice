@@ -11,6 +11,7 @@
 #include "core/objectclip.h"
 #include "core/sheetobjects.h"
 #include "office/chart_write.h"
+#include "sheet/cellref.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -22,9 +23,14 @@
 #include <QMenu>
 #include <QMimeData>
 #include <QPainter>
+#include <QRegularExpression>
 #include <QSvgRenderer>
 #include <QToolButton>
 
+#include <QDir>
+#include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <algorithm>
 
 namespace jp {
@@ -127,6 +133,9 @@ void CrunchWindow::createChartActions()
     mk("chartdesign.axisH", tr("Format Horizontal Axis…"), "ruler", QKeySequence(), [this] { formatAxisDialog(true); }, false, false);
     mk("chartdesign.axisV", tr("Format Vertical Axis…"), "ruler", QKeySequence(), [this] { formatAxisDialog(false); }, false, false);
     mk("chartdesign.moveChart", tr("Move Chart…"), "move", QKeySequence(), [this] { moveChartDialog(); }, false, false);
+    mk("chartdesign.saveAsPicture", tr("Save as Picture…"), "image-down", QKeySequence(), [this] { saveChartAsPicture(); }, false, false);
+    mk("chartdesign.saveTemplate", tr("Save as Template…"), "file-down", QKeySequence(), [this] { saveChartTemplate(); }, false, false);
+    mk("chartdesign.applyTemplate", tr("Apply Template…"), "file-up", QKeySequence(), [this] { applyChartTemplate(); }, false, false);
     mk("object.properties", tr("Properties…"), "sliders-horizontal", QKeySequence(), [this] { propertiesDialog(); }, false, false);
     mk("object.front", tr("Bring to Front"), "bring-to-front", QKeySequence(), [this] { reorderObject(2); }, false, false);
     mk("object.forward", tr("Bring Forward"), "arrow-up", QKeySequence(), [this] { reorderObject(1); }, false, false);
@@ -353,6 +362,72 @@ bool CrunchWindow::changePickedChart(const QString &text, const std::function<vo
     return true;
 }
 
+// Save as Picture: the picked chart as it looks, twice the size it has on the sheet, as a .png or .jpg file.
+void CrunchWindow::saveChartAsPicture()
+{
+    const int id = pickedObject();
+    if (id < 0 || !m_session || !m_objects || m_chartSheetShown || m_objects->kindOf(m_sheet, id) != ObjectKind::Chart) return;
+    const grid::ObjectBox box = m_objects->layer()->boxNow(id);
+    const QSize pixels(std::clamp(int(box.w * 2), 40, 8000), std::clamp(int(box.h * 2), 40, 8000));
+    Chart chart = m_objects->chartNow(m_sheet, id);
+    if (m_objects->cells()) applyChartCells(&chart, m_sheet, *m_objects->cells());
+    const QImage image = renderChart(chart, pixels);
+    if (image.isNull()) {
+        notice(tr("Save as Picture"), tr("This chart can't be drawn as a picture."));
+        return;
+    }
+    const QString start = m_objects->nameOf(m_sheet, id) + QStringLiteral(".png");
+    const QString chosen = askForSavePath(tr("Save as Picture"), start, tr("PNG (*.png)") + QStringLiteral(";;") + tr("JPEG (*.jpg)"));
+    if (chosen.isEmpty()) return;
+    QString path = chosen;
+    // (a name that does not end as a picture does gets .png, so a picture never lands on a workbook's own name)
+    const QString ending = QFileInfo(path).suffix().toLower();
+    if (ending != QLatin1String("png") && ending != QLatin1String("jpg") && ending != QLatin1String("jpeg")) path += QStringLiteral(".png");
+    if (!image.save(path)) notice(tr("Save as Picture"), tr("The picture could not be saved to \"%1\".").arg(QDir::toNativeSeparators(path)));
+    else setStatus(tr("Saved the chart as a picture."));
+}
+
+// Save as Template: the picked chart's look, in a .crtx file that any chart can be given (Apply Template).
+void CrunchWindow::saveChartTemplate()
+{
+    const int id = pickedObject();
+    if (id < 0 || !m_session || !m_objects || m_chartSheetShown || m_objects->kindOf(m_sheet, id) != ObjectKind::Chart) return;
+    const QString chosen = askForSavePath(tr("Save as Template"), m_objects->nameOf(m_sheet, id) + QStringLiteral(".crtx"), tr("Chart templates (*.crtx)"));
+    if (chosen.isEmpty()) return;
+    QString path = chosen;
+    if (QFileInfo(path).suffix().compare(QLatin1String("crtx"), Qt::CaseInsensitive) != 0) path += QStringLiteral(".crtx");
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly) || f.write(chartTemplateFile(m_objects->chartNow(m_sheet, id))) < 0)
+        notice(tr("Save as Template"), tr("The template could not be saved to \"%1\".").arg(QDir::toNativeSeparators(path)));
+    else
+        setStatus(tr("Saved the chart as a template."));
+}
+
+// Apply Template: the picked chart takes the look of a template file and keeps its data.
+void CrunchWindow::applyChartTemplate()
+{
+    const int id = pickedObject();
+    if (id < 0 || !m_session || !m_objects || m_chartSheetShown) return;
+    QString why;
+    if (!m_objects->canEditChart(m_sheet, id, &why)) {
+        notice(tr("Apply Template"), why);
+        return;
+    }
+    const QString path = m_templatePicker ? m_templatePicker() : QFileDialog::getOpenFileName(this, tr("Apply Template"), QString(), tr("Chart templates (*.crtx)"));
+    if (path.isEmpty()) return;
+    QFile f(path);
+    Chart look;
+    if (!f.open(QIODevice::ReadOnly) || f.size() > (qint64(64) << 20)) {
+        notice(tr("Apply Template"), tr("The template \"%1\" could not be read.").arg(QDir::toNativeSeparators(path)));
+        return;
+    }
+    if (!readChartTemplate(f.readAll(), &look, &why)) {
+        notice(tr("Apply Template"), why);
+        return;
+    }
+    changePickedChart(tr("Apply Template"), [look](Chart *c) { *c = chartWithLook(*c, look); });
+}
+
 void CrunchWindow::propertiesDialog()
 {
     const int id = pickedObject();
@@ -364,6 +439,7 @@ void CrunchWindow::propertiesDialog()
     p.heightPoints = box.h * 0.75;
     p.follows = now.editAs;
     p.name = m_objects->nameOf(m_sheet, id);
+    p.description = m_objects->descriptionOf(m_sheet, id);
     p.keepProportions = m_objects->kindOf(m_sheet, id) == ObjectKind::Picture;
     p.prints = m_objects->printsOf(m_sheet, id);
     ObjectProperties out = p;
@@ -373,6 +449,22 @@ void CrunchWindow::propertiesDialog()
         ObjectPropertiesDialog d(p, this);
         if (d.exec() != QDialog::Accepted) return;
         out = d.result();
+    }
+    if (out.name != p.name || out.description != p.description) {
+        // (a name no other object of the sheet has)
+        if (out.name != p.name && m_objects->nameTaken(m_sheet, id, out.name)) {
+            notice(tr("Properties"), tr("Another object on this sheet is called \"%1\". Pick a different name.").arg(out.name));
+            out.name = p.name;
+        }
+        if (out.name != p.name || out.description != p.description) {
+            crunch::ObjectEdit e;
+            e.sheet = m_sheet;
+            e.id = id;
+            e.before = m_objects->stateOf(m_sheet, id);
+            e.after = m_objects->stateWithNames(m_sheet, id, out.name, out.description);
+            const crunch::EditSession::Outcome o = m_session->changeObjects({e}, out.name != p.name ? tr("Rename Object") : tr("Alt Text"));
+            if (!o.ok) notice(tr("Properties"), o.problem);
+        }
     }
     if (out.prints != p.prints) {
         crunch::ObjectEdit e;
@@ -631,6 +723,42 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
             group->addAction(a);
             return a;
         };
+        // Title text: typed words, or "=Sheet1!A1" for the words of a cell (the title follows that cell).
+        auto titleText = [this](QMenu *into, const QString &label, const QString &caption, const ChartTitle &now, std::function<void(Chart *, const QString &, const QString &)> put) {
+            QAction *a = into->addAction(label);
+            connect(a, &QAction::triggered, this, [this, caption, now, put] {
+                QString text = now.ref.isEmpty() ? now.text : QStringLiteral("=") + now.ref;
+                bool ok = false;
+                if (m_chartTextAsker) ok = m_chartTextAsker(caption, &text);
+                else text = QInputDialog::getText(this, caption, tr("The words, or = and a cell such as =Sheet1!A1 to show what that cell holds:"), QLineEdit::Normal, text, &ok);
+                if (!ok) return;
+                text = text.trimmed();
+                QString ref, words = text;
+                if (text.startsWith(QLatin1Char('='))) {
+                    const int id = pickedObject();
+                    if (id < 0 || !m_objects || !m_objects->cells() || !m_loaded || !m_loaded->book) return;
+                    ref = text.mid(1).trimmed();
+                    if (!ref.contains(QLatin1Char('!'))) {
+                        const QString own = m_loaded->book->info().sheets[m_sheet].name;
+                        ref = (own.contains(QRegularExpression(QStringLiteral("[^A-Za-z0-9_]"))) ? QStringLiteral("'") + QString(own).replace(QLatin1Char('\''), QStringLiteral("''")) + QStringLiteral("'") : own) + QLatin1Char('!') + ref;
+                    }
+                    // (one cell, written with $ the way a chart keeps it)
+                    QVector<ChartBlock> blocks;
+                    if (!chartBlocks(ref, m_sheet, *m_objects->cells(), &blocks) || blocks.size() != 1 || blocks[0].range.row1 != blocks[0].range.row2 || blocks[0].range.col1 != blocks[0].range.col2) {
+                        notice(caption, tr("\"%1\" isn't one cell JeffCrunch can find. Write it like =Sheet1!$A$1.").arg(text.mid(1)));
+                        return;
+                    }
+                    const int bang = int(ref.lastIndexOf(QLatin1Char('!')));
+                    ref = ref.left(bang + 1) + QStringLiteral("$") + columnName(blocks[0].range.col1) + QStringLiteral("$") + QString::number(qint64(blocks[0].range.row1) + 1);
+                    words = QString();
+                }
+                const int sheet = m_sheet;
+                changePickedChart(caption, [this, put, words, ref, sheet](Chart *c) {
+                    put(c, words, ref);
+                    if (!ref.isEmpty() && m_objects->cells()) applyChartCells(c, sheet, *m_objects->cells());
+                });
+            });
+        };
         if (e.hasHorizontal || e.hasVertical) {
             QMenu *axes = menu->addMenu(tr("Axes"));
             axes->setObjectName(QStringLiteral("axesMenu"));
@@ -640,6 +768,13 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
             titles->setObjectName(QStringLiteral("axisTitlesMenu"));
             if (e.hasHorizontal) check(titles, tr("Horizontal"), e.axisTitleHorizontal, [on = !e.axisTitleHorizontal](Chart *c) { setAxisTitle(c, true, on); }, tr("Axis Titles"));
             if (e.hasVertical) check(titles, tr("Vertical"), e.axisTitleVertical, [on = !e.axisTitleVertical](Chart *c) { setAxisTitle(c, false, on); }, tr("Axis Titles"));
+            titles->addSeparator();
+            if (e.hasHorizontal)
+                if (const ChartAxis *a = primaryAxis(chart, true))
+                    titleText(titles, tr("Horizontal Title Text…"), tr("Axis Titles"), a->title, [](Chart *c, const QString &t, const QString &r) { setAxisTitleText(c, true, t, r); });
+            if (e.hasVertical)
+                if (const ChartAxis *a = primaryAxis(chart, false))
+                    titleText(titles, tr("Vertical Title Text…"), tr("Axis Titles"), a->title, [](Chart *c, const QString &t, const QString &r) { setAxisTitleText(c, false, t, r); });
             if (e.hasSecondaryHorizontal) {
                 check(axes, tr("Second Horizontal"), e.axisSecondaryHorizontal, [on = !e.axisSecondaryHorizontal](Chart *c) { setAxisShown(c, true, on, true); }, tr("Axes"));
                 check(titles, tr("Second Horizontal"), e.axisTitleSecondaryHorizontal, [on = !e.axisTitleSecondaryHorizontal](Chart *c) { setAxisTitle(c, true, on, true); }, tr("Axis Titles"));
@@ -655,6 +790,8 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
         choice(title, titleGroup, tr("None"), !e.title, [](Chart *c) { setChartTitle(c, TitleMode::None); }, tr("Chart Title"));
         choice(title, titleGroup, tr("Above"), e.title && !e.titleOverlay, [](Chart *c) { setChartTitle(c, TitleMode::Above); }, tr("Chart Title"));
         choice(title, titleGroup, tr("On Top"), e.titleOverlay, [](Chart *c) { setChartTitle(c, TitleMode::Overlay); }, tr("Chart Title"));
+        title->addSeparator();
+        titleText(title, tr("Title Text…"), tr("Chart Title"), chart.title, [](Chart *c, const QString &t, const QString &r) { setChartTitleText(c, t, r); });
         QMenu *labels = menu->addMenu(tr("Data Labels"));
         labels->setObjectName(QStringLiteral("dataLabelsMenu"));
         auto *labelGroup = new QActionGroup(labels);
@@ -680,7 +817,8 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
                 bool ChartLabelParts::*member;
             };
             const Part list[] = {{tr("Value"), parts.value, &ChartLabelParts::value}, {tr("Category Name"), parts.category, &ChartLabelParts::category},
-                                 {tr("Series Name"), parts.series, &ChartLabelParts::series}, {tr("Percentage"), parts.percent, &ChartLabelParts::percent}};
+                                 {tr("Series Name"), parts.series, &ChartLabelParts::series}, {tr("Percentage"), parts.percent, &ChartLabelParts::percent},
+                                 {tr("Legend Key"), parts.legendKey, &ChartLabelParts::legendKey}};
             for (const Part &part : list)
                 check(contains, part.text, part.on, [parts, member = part.member, on = !part.on](Chart *c) {
                     ChartLabelParts now = parts;
@@ -794,6 +932,9 @@ void CrunchWindow::updateChartState()
         act(QStringLiteral("chartdesign.axisH"))->setEnabled(e.hasHorizontal);
         act(QStringLiteral("chartdesign.axisV"))->setEnabled(e.hasVertical);
     }
+    act(QStringLiteral("chartdesign.saveAsPicture"))->setEnabled(chart);
+    act(QStringLiteral("chartdesign.saveTemplate"))->setEnabled(chart);
+    act(QStringLiteral("chartdesign.applyTemplate"))->setEnabled(editable);
     for (const char *name : {"object.properties", "object.front", "object.forward", "object.backward", "object.back", "object.delete"}) act(QString::fromLatin1(name))->setEnabled(picked);
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Chart"), chart);
     m_chartButtonsTimer.start();
@@ -877,6 +1018,9 @@ QMenu *CrunchWindow::buildObjectMenu(int id, QWidget *owner)
         menu->addSeparator();
         menu->addAction(act(QStringLiteral("chartdesign.selectData")));
         menu->addAction(act(QStringLiteral("chartdesign.changeType")));
+        menu->addAction(act(QStringLiteral("chartdesign.saveAsPicture")));
+        menu->addAction(act(QStringLiteral("chartdesign.saveTemplate")));
+        menu->addAction(act(QStringLiteral("chartdesign.applyTemplate")));
         if (editable) {
             QMenu *elements = buildChartElementsMenu(menu);
             elements->setTitle(tr("Chart Parts"));

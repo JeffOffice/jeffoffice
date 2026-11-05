@@ -72,6 +72,8 @@ struct ObjectState {
     std::shared_ptr<const jp::office::Chart> chart;   // a chart's model (null: whatever the object has; for a picture or shape)
     std::vector<RefPlacement> refs;                   // what the chart reads, as given by a person
     QString name;                                     // its name (empty: whatever it has)
+    bool describes = false;                           // `description` is set (it may be empty: no alternative text)
+    QString description;                              // its alternative text (the descr of its cNvPr)
     int prints = -1;                                  // whether it is on the printed pages (-1: whatever it has)
     bool deleted = false;                             // taken away (or not made yet)
     int order = 0;                                    // its place among the sheet's objects, from the back

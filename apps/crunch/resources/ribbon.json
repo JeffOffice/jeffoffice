@@ -560,7 +560,9 @@
           "name": "Type",
           "keytip": "ZT",
           "items": [
-            {"large": "chartdesign.changeType", "keytip": "CT"}
+            {"large": "chartdesign.changeType", "keytip": "CT"},
+            {"small": "chartdesign.saveTemplate", "keytip": "TS"},
+            {"small": "chartdesign.applyTemplate", "keytip": "TA"}
           ]
         },
         {
@@ -569,7 +571,8 @@
           "items": [
             {"small": "chartdesign.axisH", "keytip": "AH"},
             {"small": "chartdesign.axisV", "keytip": "AV"},
-            {"small": "chartdesign.moveChart", "keytip": "MC"}
+            {"small": "chartdesign.moveChart", "keytip": "MC"},
+            {"small": "chartdesign.saveAsPicture", "keytip": "SP"}
           ]
         },
         {
@@ -706,7 +709,8 @@
           "items": [
             {"large": {"id": "ribbon.pivotClear", "text": "Clear", "icon": "eraser"}, "keytip": "PC", "menu": ["pivot.clearAll", "pivot.clearFilters"]},
             {"large": {"id": "ribbon.pivotSelect", "text": "Select", "icon": "square-dashed-mouse-pointer"}, "keytip": "PI", "menu": ["pivot.selectAll", "pivot.selectValues", "pivot.selectLabels"]},
-            {"large": "pivot.move", "keytip": "PM"}
+            {"large": "pivot.move", "keytip": "PM"},
+            {"large": "pivot.reportPages", "keytip": "RP"}
           ]
         },
         {

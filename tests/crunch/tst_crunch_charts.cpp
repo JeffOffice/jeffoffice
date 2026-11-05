@@ -17,12 +17,14 @@
 #include "sheet/xlsxsave.h"
 
 #include <QCheckBox>
+#include <QDir>
 #include <QDoubleSpinBox>
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QDoubleSpinBox>
 #include <QMenu>
 #include <QRadioButton>
+#include <QTemporaryDir>
 #include <QToolButton>
 
 using namespace crunchtest;
@@ -596,6 +598,10 @@ private Q_SLOTS:
             found->trigger();
             return true;
         };
+        QVERIFY(fire({"Data Labels", "Label Contains", "Legend Key"}));
+        QVERIFY(labelPartsOf(chartOf(e)).legendKey);
+        QVERIFY(fire({"Data Labels", "Label Contains", "Legend Key"}));
+        QVERIFY(!labelPartsOf(chartOf(e)).legendKey);
         QVERIFY(fire({"Data Labels", "Label Contains", "Category Name"}));
         ChartLabelParts p = labelPartsOf(chartOf(e));
         QVERIFY(p.category && !p.value);
@@ -697,6 +703,42 @@ private Q_SLOTS:
         QCOMPARE(o->layer()->boxNow(0).w, was.w);
         QCOMPARE(o->layer()->boxNow(0).h, was.h);
         QCOMPARE(int(o->printObjects(0).size()), 0);
+    }
+
+    // A logarithmic scale is chosen in Format Axis, saved, and refused when the lowest value is not over 0.
+    void aLogarithmicScaleIsChosenInFormatAxis()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.axisV"))->isEnabled());
+        const Chart before = chartOf(e);
+        const ChartAxis axisBefore = *primaryAxis(before, false);
+        FormatAxisDialog box(axisBefore, QStringLiteral("Format"));
+        QCheckBox *log = box.findChild<QCheckBox *>(QStringLiteral("axisLog"));
+        QVERIFY(log && !log->isChecked());
+        log->setChecked(true);
+        QVERIFY(box.result().logBase == 10);
+        QVERIFY(box.problem().isEmpty());
+        FormatAxisDialog low(axisBefore, QStringLiteral("Format"));
+        low.findChild<QCheckBox *>(QStringLiteral("axisLog"))->setChecked(true);
+        low.findChild<QCheckBox *>(QStringLiteral("axisMinAuto"))->setChecked(false);
+        low.findChild<QDoubleSpinBox *>(QStringLiteral("axisMin"))->setValue(0);
+        QVERIFY(!low.problem().isEmpty());
+        e.win.w.setFormatAxisAsker([&](bool, ChartAxis *axis) {
+            axis->logBase = 10;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("chartdesign.axisV"))->trigger();
+        Chart now = chartOf(e);
+        QCOMPARE(primaryAxis(now, false)->logBase, 10.0);
+        QVERIFY(save(e));
+        const Chart saved = savedCharts(e.path)[0].chart;
+        QCOMPARE(primaryAxis(saved, false)->logBase, 10.0);
+        pressUndo(&e.win.w);
+        now = chartOf(e);
+        QCOMPARE(primaryAxis(now, false)->logBase, 0.0);
     }
 
     // The Format Axis box refuses a lowest value that is not under the highest, and a unit of 0 or less unless Automatic is chosen (0 stays "automatic" only there); the window refuses the same from any source.
@@ -852,6 +894,214 @@ private Q_SLOTS:
         e.win.w.objects()->layer()->select(0);
         QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.axisV"))->isEnabled());
         QVERIFY(!e.win.w.act(QStringLiteral("chartdesign.moveChart"))->isEnabled());
+    }
+
+    // Save as Picture writes the picked chart as a picture file.
+    void aChartIsSavedAsAPicture()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        QVERIFY(!e.win.w.act(QStringLiteral("chartdesign.saveAsPicture"))->isEnabled());
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.saveAsPicture"))->isEnabled());
+        QTemporaryDir dir;
+        const QString target = dir.filePath(QStringLiteral("chart.png"));
+        e.win.w.setSavePicker([&](const QString &, const QString &) { return target; });
+        e.win.w.setPickedFilter(QStringLiteral("PNG (*.png)"));
+        e.win.w.act(QStringLiteral("chartdesign.saveAsPicture"))->trigger();
+        QImage img(target);
+        QVERIFY(!img.isNull());
+        // a name that is not a picture's gets .png: the workbook's own name is never written over
+        const QString workbook = dir.filePath(QStringLiteral("book.xlsx"));
+        QVERIFY(QFile::copy(target, dir.filePath(QStringLiteral("keep"))));
+        e.win.w.setSavePicker([&](const QString &, const QString &) { return workbook; });
+        e.win.w.act(QStringLiteral("chartdesign.saveAsPicture"))->trigger();
+        QVERIFY(QImage(workbook + QStringLiteral(".png")).width() > 100);
+        QVERIFY(!QFileInfo::exists(workbook));
+        QVERIFY(img.width() > 100 && img.height() > 60);
+        bool drawn = false;
+        for (int y = 0; y < img.height() && !drawn; ++y)
+            for (int x = 0; x < img.width(); ++x)
+                if (img.pixel(x, y) != qRgb(255, 255, 255)) { drawn = true; break; }
+        QVERIFY(drawn);
+    }
+
+    // The text of the chart title and of an axis title is typed in the list; "=Sheet1!A2" makes it follow that cell, and the file keeps the link.
+    void aTitleIsTypedOrLinkedToACell()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.chartElementsButton() && e.win.w.chartElementsButton()->isVisible());
+        QMenu *menu = e.win.w.chartElementsButton()->menu();
+        auto fire = [&](const QStringList &path) {
+            QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+            QMenu *m = menu;
+            QAction *found = nullptr;
+            for (int i = 0; i < path.size(); ++i) {
+                found = nullptr;
+                for (QAction *a : m->actions())
+                    if (a->text() == path[i]) found = a;
+                if (!found) return false;
+                if (i + 1 < path.size()) m = found->menu();
+            }
+            found->trigger();
+            return true;
+        };
+        QString answer;
+        e.win.w.setChartTextAsker([&](const QString &, QString *text) {
+            *text = answer;
+            return true;
+        });
+        answer = QStringLiteral("Sales Plan");
+        QVERIFY(fire({"Chart Title", "Title Text…"}));
+        QCOMPARE(chartOf(e).title.text, QStringLiteral("Sales Plan"));
+        QVERIFY(chartOf(e).title.present && chartOf(e).title.ref.isEmpty());
+        answer = QStringLiteral("=Sheet1!A2");
+        QVERIFY(fire({"Chart Title", "Title Text…"}));
+        QCOMPARE(chartOf(e).title.ref, QStringLiteral("Sheet1!$A$2"));
+        QCOMPARE(chartOf(e).title.text, QStringLiteral("Q1"));
+        // a link to nothing is refused and the title stays
+        answer = QStringLiteral("=Nowhere!A1");
+        QVERIFY(fire({"Chart Title", "Title Text…"}));
+        QCOMPARE(chartOf(e).title.ref, QStringLiteral("Sheet1!$A$2"));
+        // an axis title the same way
+        answer = QStringLiteral("=Sheet1!$A$3");
+        QVERIFY(fire({"Axis Titles", "Horizontal Title Text…"}));
+        const ChartAxis *across = primaryAxis(chartOf(e), true);
+        QVERIFY(across && across->title.present);
+        QCOMPARE(across->title.ref, QStringLiteral("Sheet1!$A$3"));
+        QCOMPARE(across->title.text, QStringLiteral("Q2"));
+        QVERIFY(save(e));
+        const Chart saved = savedCharts(e.path)[0].chart;
+        QCOMPARE(saved.title.ref, QStringLiteral("Sheet1!$A$2"));
+        QCOMPARE(primaryAxis(saved, true)->title.ref, QStringLiteral("Sheet1!$A$3"));
+        pressUndo(&e.win.w);
+        QVERIFY(!primaryAxis(chartOf(e), true)->title.present);
+    }
+
+    // A picture of the Chart tab and the title menu, for a person to look at (only when JC_SHOT_DIR names a folder).
+    void aPictureOfTheChartTab()
+    {
+        const QString dir = QString::fromLocal8Bit(qgetenv("JC_SHOT_DIR"));
+        if (dir.isEmpty()) QSKIP("set JC_SHOT_DIR to take the picture");
+        QDir().mkpath(dir);
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        e.win.w.resize(1440, 900);
+        e.win.w.show();
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QVERIFY(e.win.w.changePickedChart(QStringLiteral("Look"), [](Chart *c) {
+            setChartTitleText(c, QStringLiteral("Units by quarter, on a log scale"));
+            primaryAxis(c, false)->logBase = 10;
+            ChartLabelParts parts;
+            parts.value = true;
+            parts.legendKey = true;
+            setDataLabelParts(c, parts);
+        }));
+        if (Ribbon *r = e.win.w.ribbon()) r->showTab(r->tab(QStringLiteral("Chart")));
+        // (the chart is drawn when the event loop gets to it: the picture waits until its place has more than the sheet's white and lines)
+        QTRY_VERIFY([&] {
+            QSet<QRgb> colors;
+            const QImage shot = e.win.w.grab().toImage().copy(QRect(300, 230, 440, 230));
+            for (int y = 0; y < shot.height(); y += 3)
+                for (int x = 0; x < shot.width(); x += 3) colors.insert(shot.pixel(x, y));
+            return colors.size() > 8;
+        }());
+        QVERIFY(e.win.w.grab().save(dir + QStringLiteral("/chart-tab.png")));
+    }
+
+    // Properties holds the object's name and alternative text: each a step of Undo, saved as the name and descr of the object in the file, and read back.
+    void anObjectIsNamedAndGivenAltText()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("object.properties"))->isEnabled());
+        QString startedAs;
+        e.win.w.setPropertiesAsker([&](const ObjectProperties &now, ObjectProperties *out) {
+            *out = now;
+            startedAs = now.name + QLatin1Char('|') + now.description;
+            out->name = QStringLiteral("Units chart");
+            out->description = QStringLiteral("Bars of units sold by quarter");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("object.properties"))->trigger();
+        QCOMPARE(startedAs, QStringLiteral("Sales|"));
+        QCOMPARE(e.win.w.objects()->nameOf(0, 0), QStringLiteral("Units chart"));
+        QCOMPARE(e.win.w.objects()->descriptionOf(0, 0), QStringLiteral("Bars of units sold by quarter"));
+        QVERIFY(save(e));
+        auto descrOf = [&](const QString &name) {
+            Package p;
+            QString why;
+            if (!p.readLazyFile(e.path, &why)) return QString(QStringLiteral("(no file)"));
+            QDomDocument doc;
+            if (!parseXml(p.part(QStringLiteral("/xl/drawings/drawing1.xml")), &doc)) return QString(QStringLiteral("(no drawing)"));
+            const QDomNodeList all = doc.elementsByTagName(QStringLiteral("cNvPr"));
+            for (int i = 0; i < all.size(); ++i)
+                if (all.at(i).toElement().attribute(QStringLiteral("name")) == name) return all.at(i).toElement().attribute(QStringLiteral("descr"), QStringLiteral("(none)"));
+            return QString(QStringLiteral("(not found)"));
+        };
+        QCOMPARE(descrOf(QStringLiteral("Units chart")), QStringLiteral("Bars of units sold by quarter"));
+        // the alternative text alone, and then taken away again: the attribute is left out
+        e.win.w.setPropertiesAsker([&](const ObjectProperties &now, ObjectProperties *out) {
+            *out = now;
+            out->description.clear();
+            return true;
+        });
+        e.win.w.act(QStringLiteral("object.properties"))->trigger();
+        QVERIFY(save(e));
+        QCOMPARE(descrOf(QStringLiteral("Units chart")), QStringLiteral("(none)"));
+        pressUndo(&e.win.w);
+        QCOMPARE(e.win.w.objects()->descriptionOf(0, 0), QStringLiteral("Bars of units sold by quarter"));
+        pressUndo(&e.win.w);
+        QCOMPARE(e.win.w.objects()->nameOf(0, 0), QStringLiteral("Sales"));
+        QVERIFY(e.win.w.objects()->descriptionOf(0, 0).isEmpty());
+    }
+
+    // Save as Template writes the picked chart's look in a .crtx file; Apply Template gives another chart that look, as one step of Undo, and keeps the chart's own data.
+    void aChartTemplateIsSavedAndAppliedFromTheChartTab()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        QVERIFY(e.win.w.act(QStringLiteral("chartdesign.saveTemplate")));
+        QVERIFY(e.win.w.act(QStringLiteral("chartdesign.applyTemplate")));
+        QVERIFY(!e.win.w.act(QStringLiteral("chartdesign.saveTemplate"))->isEnabled());
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.saveTemplate"))->isEnabled());
+        // a look: lines, the legend above, a title
+        QVERIFY(e.win.w.changePickedChart(QStringLiteral("Look"), [](Chart *c) {
+            *c = withSeriesKinds(*c, {SeriesKind{ChartKind::Line, false}}, defaultTheme());
+            setLegend(c, QStringLiteral("t"));
+            setChartTitleText(c, QStringLiteral("From the template"));
+        }));
+        QTemporaryDir dir;
+        const QString target = dir.filePath(QStringLiteral("look.crtx"));
+        e.win.w.setSavePicker([&](const QString &, const QString &) { return target; });
+        e.win.w.act(QStringLiteral("chartdesign.saveTemplate"))->trigger();
+        QVERIFY(QFileInfo::exists(target));
+        // back to a plain chart, then the template
+        pressUndo(&e.win.w);
+        pressUndo(&e.win.w);
+        Chart plain = chartOf(e);
+        QCOMPARE(int(plain.type()), int(ChartType::Bar));
+        e.win.w.setTemplatePicker([&] { return target; });
+        const int steps = e.win.w.session()->undoStack()->index();
+        e.win.w.act(QStringLiteral("chartdesign.applyTemplate"))->trigger();
+        QCOMPARE(e.win.w.session()->undoStack()->index(), steps + 1);
+        Chart now = chartOf(e);
+        QCOMPARE(int(now.type()), int(ChartType::Line));
+        QCOMPARE(elementsOf(now).legendPosition, QStringLiteral("t"));
+        QCOMPARE(seriesOf(now)[0].valueRef, QStringLiteral("Sheet1!$B$2:$B$4"));
+        QVERIFY(save(e));
+        const Chart saved = savedCharts(e.path)[0].chart;
+        QCOMPARE(int(saved.type()), int(ChartType::Line));
+        // a file that is no template changes nothing (the notice is closed by the window's own hook-free path: the picker names a file that is not one)
     }
 
     void theChartDesignTabAppearsWithAChart()

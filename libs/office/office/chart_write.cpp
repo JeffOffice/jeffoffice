@@ -386,7 +386,7 @@ private:
         }
         if (hasFont(l.font)) textProps(l.font, false, 0);
         if (!l.position.isEmpty()) val("c:dLblPos", l.position);
-        flag("c:showLegendKey", false);
+        flag("c:showLegendKey", l.legendKey);
         flag("c:showVal", l.value);
         flag("c:showCatName", l.category);
         flag("c:showSerName", l.series);
@@ -557,6 +557,7 @@ private:
         w.writeStartElement(QString::fromLatin1(value ? "c:valAx" : date ? "c:dateAx" : "c:catAx"));
         val("c:axId", QString::number(a.id));
         w.writeStartElement(QStringLiteral("c:scaling"));
+        if (a.logBase >= 2 && a.logBase <= 1000) val("c:logBase", number(a.logBase));
         val("c:orientation", QString::fromLatin1(a.reversed ? "maxMin" : "minMax"));
         if (!a.autoMax) val("c:max", number(a.max));
         if (!a.autoMin) val("c:min", number(a.min));
