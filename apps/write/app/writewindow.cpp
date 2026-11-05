@@ -131,6 +131,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     connect(&m_wordTimer, &QTimer::timeout, this, &WriteWindow::updateWords);
 
     setDocument(write::WriteDoc::blank(), QString());
+    applyDisplayDefaults();
     resize(1280, 800);
     updateTitle();
     refreshUi();
@@ -194,6 +195,8 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
         m_doc->filePath = path;
         connect(m_doc.get(), &write::WriteDoc::modifiedChanged, this, [this] { updateTitle(); });
         connect(m_doc.get(), &write::WriteDoc::historyChanged, this, [this] { m_refreshTimer.start(); });
+        resetEditPlaces();
+        connect(m_doc->story(), &QTextDocument::contentsChange, this, [this](int position, int, int added) { recordPlace(position + added); });
     }
     m_view->setDocument(m_doc.get());
     m_view->setZoomMode(write::PageView::ZoomMode::Percent);
@@ -738,6 +741,7 @@ void WriteWindow::closeEvent(QCloseEvent *e)
         e->ignore();
         return;
     }
+    rememberPlace();
     e->accept();
 }
 

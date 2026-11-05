@@ -9,6 +9,7 @@
 #include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "core/printing.h"
+#include "core/templates.h"
 
 #include <QAction>
 #include <QButtonGroup>
@@ -23,9 +24,11 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
+#include <QPainter>
 #include <QPrinterInfo>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QScrollArea>
 #include <QSpinBox>
 #include <QStyleHints>
 #include <QTimer>
@@ -159,7 +162,7 @@ QWidget *WriteFileScreen::buildNew()
     v->addWidget(heading(tr("New Document"), w));
     // The tile shows the blank document's first page.
     const qreal dpr = devicePixelRatioF();
-    const QSize box(200, 260);
+    const QSize box(144, 188);
     auto blank = write::WriteDoc::blank();
     QImage first(QSize(qRound((box.width() - 16) * dpr), qRound((box.width() - 16) * dpr * 11 / 8.5)), QImage::Format_RGB32);
     first.fill(Qt::white);
@@ -170,10 +173,55 @@ QWidget *WriteFileScreen::buildNew()
         LayoutCache cache;
         write::paintPage(&p, *page, &cache, write::PageDrawing());
     }
+    // One row of columns: the blank document, then each kind of template under its heading; each tile shows the first page of the document it makes.
+    auto *row = new QHBoxLayout();
+    row->setSpacing(10);
+    auto addColumn = [&](const QString &headingText, QHBoxLayout **tiles) {
+        auto *column = new QVBoxLayout();
+        auto *label = new QLabel(headingText, w);
+        label->setTextFormat(Qt::PlainText);
+        QFont f = label->font();
+        f.setBold(true);
+        label->setFont(f);
+        label->setContentsMargins(2, 6, 0, 2);
+        column->addWidget(label);
+        *tiles = new QHBoxLayout();
+        (*tiles)->setSpacing(4);
+        column->addLayout(*tiles);
+        column->addStretch(1);
+        row->addLayout(column);
+    };
+    QHBoxLayout *tiles = nullptr;
+    addColumn(tr("Start"), &tiles);
     auto *tile = new StartTile(tr("Blank Document"), paperPixmap(first, box, dpr), w);
     connect(tile, &QAbstractButton::clicked, this, [this] { startBlank(); });
-    auto *row = new QHBoxLayout();
-    row->addWidget(tile);
+    tiles->addWidget(tile);
+    QString category;
+    for (const write::BuiltInTemplate &tmpl : write::builtInTemplates()) {
+        auto doc = write::builtInTemplateDocument(tmpl.id);
+        if (!doc) continue;
+        if (tmpl.category != category) {
+            category = tmpl.category;
+            addColumn(category, &tiles);
+        }
+        QImage page(QSize(qRound((box.width() - 16) * dpr), qRound((box.width() - 16) * dpr * 11 / 8.5)), QImage::Format_RGB32);
+        page.fill(Qt::white);
+        page.setDevicePixelRatio(dpr);
+        if (const auto laid = doc->pager().materialize(0)) {
+            QPainter p(&page);
+            p.scale((box.width() - 16) / laid->size.width(), (box.width() - 16) / laid->size.width());
+            LayoutCache pageCache;
+            write::paintPage(&p, *laid, &pageCache, write::PageDrawing());
+        }
+        auto *card = new StartTile(tmpl.name, paperPixmap(page, box, dpr), w);
+        card->setObjectName(QStringLiteral("template_") + tmpl.id);
+        const QString id = tmpl.id;
+        connect(card, &QAbstractButton::clicked, this, [this, id] {
+            m_win->newFromBuiltInTemplate(id);
+            Q_EMIT closeRequested();
+        });
+        tiles->addWidget(card);
+    }
     row->addStretch(1);
     v->addLayout(row);
     // The templates a person saved: a document made from one starts as the template is.
@@ -325,15 +373,18 @@ QWidget *WriteFileScreen::buildPrint()
     all->setObjectName(QStringLiteral("printRangeAll"));
     auto *current = new QRadioButton(tr("Current page"), w);
     current->setObjectName(QStringLiteral("printRangeCurrent"));
+    auto *selection = new QRadioButton(tr("Selection"), w);
+    selection->setObjectName(QStringLiteral("printRangeSelection"));
+    selection->setToolTip(tr("Print only what is selected in the document."));
     auto *some = new QRadioButton(tr("Pages:"), w);
     some->setObjectName(QStringLiteral("printRangePages"));
     auto *text = new QLineEdit(w);
     text->setObjectName(QStringLiteral("printRangeText"));
     text->setAccessibleName(tr("Pages to print"));
-    text->setPlaceholderText(tr("1-3, 5"));
-    text->setToolTip(tr("Page numbers and ranges, separated by commas."));
+    text->setPlaceholderText(tr("1-3, 5, p2s3"));
+    text->setToolTip(tr("Page numbers and ranges, separated by commas. p2s3 is the second page of section 3, and s3 is all of section 3."));
     auto *group = new QButtonGroup(w);
-    for (QRadioButton *r : {all, current, some}) {
+    for (QRadioButton *r : {all, current, selection, some}) {
         group->addButton(r);
         left->addWidget(r);
     }
@@ -351,13 +402,17 @@ QWidget *WriteFileScreen::buildPrint()
     reverse->setObjectName(QStringLiteral("printReverse"));
     reverse->setToolTip(tr("Print the pages in reverse order, so the stack comes out in order."));
     left->addWidget(reverse);
+    auto *byHand = new QCheckBox(tr("Both sides by hand"), w);
+    byHand->setObjectName(QStringLiteral("printByHand"));
+    byHand->setToolTip(tr("For a printer that can't print on both sides: the odd pages first, then a message to turn the stack over, then the even pages."));
+    left->addWidget(byHand);
     left->addStretch(1);
     h->addLayout(left, 1);
 
     auto *right = new QVBoxLayout();
     auto *preview = new PreviewLabel(w);
     preview->setObjectName(QStringLiteral("printPreview"));
-    preview->setMinimumSize(300, 300);
+    preview->setMinimumSize(280, 280);
     preview->setAlignment(Qt::AlignCenter);
     preview->setAccessibleName(tr("Preview of the printed page"));
     auto *nav = new QHBoxLayout();
@@ -378,7 +433,33 @@ QWidget *WriteFileScreen::buildPrint()
     nav->addWidget(pageLabel);
     nav->addWidget(next);
     nav->addStretch(1);
-    right->addWidget(preview, 1);
+    // How many pages the preview shows at once, and how large: the page that fits the window, or larger (the preview scrolls then).
+    auto *across = new QComboBox(w);
+    across->setObjectName(QStringLiteral("printAcross"));
+    across->setAccessibleName(tr("Pages shown"));
+    across->addItem(tr("One page"), 1);
+    across->addItem(tr("Two pages"), 2);
+    across->addItem(tr("Four pages"), 4);
+    auto *zoom = new QComboBox(w);
+    zoom->setObjectName(QStringLiteral("printZoom"));
+    zoom->setAccessibleName(tr("Zoom"));
+    zoom->addItem(tr("Fit"), 100);
+    zoom->addItem(tr("150%"), 150);
+    zoom->addItem(tr("200%"), 200);
+    zoom->addItem(tr("300%"), 300);
+    auto *look = new QHBoxLayout();
+    look->addStretch(1);
+    look->addWidget(new QLabel(tr("Show:"), w));
+    look->addWidget(across);
+    look->addWidget(new QLabel(tr("Zoom:"), w));
+    look->addWidget(zoom);
+    auto *scroll = new QScrollArea(w);
+    scroll->setObjectName(QStringLiteral("printPreviewScroll"));
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setWidgetResizable(true);
+    scroll->setWidget(preview);
+    right->addLayout(look);
+    right->addWidget(scroll, 1);
     right->addLayout(nav);
     h->addLayout(right, 2);
     all->setChecked(true);
@@ -386,6 +467,7 @@ QWidget *WriteFileScreen::buildPrint()
     auto options = [=]() {
         WriteOutputOptions o;
         if (current->isChecked()) o.range = WriteOutputOptions::Range::Current;
+        else if (selection->isChecked()) o.range = WriteOutputOptions::Range::Selection;
         else if (some->isChecked()) {
             o.range = WriteOutputOptions::Range::Pages;
             o.pages = text->text();
@@ -397,29 +479,45 @@ QWidget *WriteFileScreen::buildPrint()
         o.collate = collate->isChecked();
         o.sides = static_cast<WriteOutputOptions::Sides>(sides->currentData().toInt());
         o.reverse = reverse->isChecked();
+        o.byHand = byHand->isChecked() && !choice.toFile;
         return o;
     };
     auto page = std::make_shared<int>(0);
     // The words, the arrows, and the Print button for what is chosen; the pages it covers.
     auto covered = [=]() {
+        // (the selection can be printed only while there is one)
+        const bool hasSelection = view->cursor().hasSelection() && view->cursor().document() == m_win->document()->story();
+        selection->setEnabled(hasSelection);
+        if (!hasSelection && selection->isChecked()) all->setChecked(true);
         const QVector<int> pages = m_win->outputPages(options());
         text->setEnabled(some->isChecked());
         const bool bad = some->isChecked() && pages.isEmpty();
         text->setStyleSheet(bad && !text->text().isEmpty() ? QStringLiteral("QLineEdit { border: 1px solid #c42b1c; }") : QString());
         *page = std::clamp(*page, 0, std::max(0, int(pages.size()) - 1));
-        pageLabel->setText(bad ? tr("Enter page numbers, such as 1-3, 5.") : pages.isEmpty() ? tr("There are no pages to print.") : tr("Page %1 of %2").arg(pages[*page] + 1).arg(pageCount));
+        const int shownAtOnce = across->currentData().toInt();
+        *page -= *page % shownAtOnce;   // (the pages shown together start on a multiple of how many there are)
+        const int total = selection->isChecked() ? int(pages.size()) : pageCount;
+        const int lastShown = std::min(int(pages.size()) - 1, *page + shownAtOnce - 1);
+        pageLabel->setText(bad ? tr("Enter page numbers, such as 1-3, 5.") : pages.isEmpty() ? tr("There are no pages to print.")
+                           : lastShown > *page ? tr("Pages %1-%2 of %3").arg(pages[*page] + 1).arg(pages[lastShown] + 1).arg(total) : tr("Page %1 of %2").arg(pages[*page] + 1).arg(total));
         previous->setEnabled(*page > 0);
-        next->setEnabled(*page + 1 < pages.size());
+        next->setEnabled(*page + shownAtOnce < pages.size());
         printBtn->setEnabled(!pages.isEmpty());
         collate->setEnabled(copies->value() > 1);
+        // (a file has no sides; by hand, the pages of each side are chosen by the program)
+        const bool toFile = write::printerChoice(printer).toFile;
+        const bool hand = byHand->isChecked() && !toFile;
+        byHand->setEnabled(!toFile);
+        sides->setEnabled(!hand);
+        reverse->setEnabled(!hand);
         // The paper of the page shown; where the sections of the document set others for the pages to print, that is said.
         if (pages.isEmpty()) {
             paper->clear();
         } else {
-            const QSizeF shown = m_win->document()->pager().page(pages[*page]).size;
+            const QSizeF shown = m_win->outputPageSize(options(), pages[*page]);
             bool differ = false;
             for (int index : pages) {
-                const QSizeF size = m_win->document()->pager().page(index).size;
+                const QSizeF size = m_win->outputPageSize(options(), index);
                 differ |= std::abs(size.width() - shown.width()) > 1 || std::abs(size.height() - shown.height()) > 1;
             }
             paper->setText(write::paperDescription(shown) + (differ ? tr(" (the document's sections set other paper for some pages)") : QString()));
@@ -433,14 +531,39 @@ QWidget *WriteFileScreen::buildPrint()
             return;
         }
         const qreal dpr = preview->devicePixelRatioF();
-        const int room = std::max(preview->minimumHeight(), w->window()->height() - 200);
-        const QSizeF paper = m_win->document()->pager().page(pages[*page]).size;
-        const double scale = std::min((preview->width() - 16) / paper.width(), (room - 18) / paper.height());
+        const int shownAtOnce = across->currentData().toInt();
+        const int cols = shownAtOnce == 1 ? 1 : 2, rows = shownAtOnce == 4 ? 2 : 1;
+        const double zoomBy = zoom->currentData().toInt() / 100.0;
+        // (what fits is worked out from the scroll area's window, which the picture never changes)
+        const int availWidth = std::max(280, scroll->viewport()->width() - 4);
+        const int availHeight = std::max(280, scroll->viewport()->height() - 4);
+        const QSizeF first = m_win->outputPageSize(options(), pages[*page]);
+        const double scale = std::min((availWidth / cols - 16) / first.width(), (availHeight / rows - 18) / first.height()) * zoomBy;
         if (scale <= 0) return;
-        const int widthPx = std::max(1, int(std::lround(paper.width() * scale * dpr)));
-        QImage img = view->pageImage(pages[*page], widthPx);
-        img.setDevicePixelRatio(dpr);
-        preview->setPixmap(paperPixmap(img, QSize(int(std::ceil(paper.width() * scale)) + 16, int(std::ceil(paper.height() * scale)) + 18), dpr));
+        QVector<QPixmap> tiles;
+        QSize cell;
+        for (int k = 0; k < shownAtOnce && *page + k < pages.size(); ++k) {
+            const QSizeF paper = m_win->outputPageSize(options(), pages[*page + k]);
+            const int widthPx = std::max(1, int(std::lround(paper.width() * scale * dpr)));
+            QImage img = m_win->outputPageImage(options(), pages[*page + k], widthPx);
+            img.setDevicePixelRatio(dpr);
+            tiles << paperPixmap(img, QSize(int(std::ceil(paper.width() * scale)) + 16, int(std::ceil(paper.height() * scale)) + 18), dpr);
+            cell = cell.expandedTo(tiles.last().deviceIndependentSize().toSize());
+        }
+        if (tiles.size() == 1) {
+            preview->setPixmap(tiles.first());
+            return;
+        }
+        QPixmap sheet(QSize(cell.width() * cols, cell.height() * rows) * dpr);
+        sheet.setDevicePixelRatio(dpr);
+        sheet.fill(Qt::transparent);
+        QPainter painter(&sheet);
+        for (int k = 0; k < tiles.size(); ++k) {
+            const QSizeF size = tiles[k].deviceIndependentSize();
+            painter.drawPixmap(QPointF((k % cols) * cell.width() + (cell.width() - size.width()) / 2, (k / cols) * cell.height() + (cell.height() - size.height()) / 2), tiles[k]);
+        }
+        painter.end();
+        preview->setPixmap(sheet);
     };
     auto restart = [=]() {
         *page = 0;
@@ -455,8 +578,11 @@ QWidget *WriteFileScreen::buildPrint()
     connect(copies, &QSpinBox::valueChanged, w, [=] { covered(); });
     connect(sides, &QComboBox::currentIndexChanged, w, [=] { restart(); });
     connect(reverse, &QCheckBox::toggled, w, [=] { restart(); });
-    connect(previous, &QToolButton::clicked, w, [=] { --*page; paint(); });
-    connect(next, &QToolButton::clicked, w, [=] { ++*page; paint(); });
+    connect(byHand, &QCheckBox::toggled, w, [=] { restart(); });
+    connect(previous, &QToolButton::clicked, w, [=] { *page -= across->currentData().toInt(); paint(); });
+    connect(next, &QToolButton::clicked, w, [=] { *page += across->currentData().toInt(); paint(); });
+    connect(across, &QComboBox::currentIndexChanged, w, [=] { paint(); });
+    connect(zoom, &QComboBox::currentIndexChanged, w, [=] { paint(); });
     connect(printBtn, &QPushButton::clicked, this, [=] {
         if (m_win->printOutput(options())) Q_EMIT closeRequested();
     });
@@ -479,9 +605,9 @@ QWidget *WriteFileScreen::buildExport()
     v->setContentsMargins(40, 30, 40, 30);
     v->addWidget(heading(tr("Export"), w));
     v->setSpacing(10);
-    auto *b = new ActionCard(QStringLiteral("file-output"), tr("Export to PDF"), tr("The pages as a PDF that looks the same everywhere."), w);
+    auto *b = new ActionCard(QStringLiteral("file-output"), tr("Export to PDF"), tr("The pages, or the ones you choose, as a PDF that looks the same everywhere."), w);
     connect(b, &QAbstractButton::clicked, this, [this] {
-        if (m_win->exportPdf()) Q_EMIT closeRequested();
+        if (m_win->exportPdfAsk()) Q_EMIT closeRequested();
     });
     v->addWidget(b);
     auto *t = new ActionCard(QStringLiteral("file-text"), tr("Save as Plain Text"), tr("Only the words, in a .txt file. You choose how the characters and line ends are written."), w);
@@ -490,6 +616,13 @@ QWidget *WriteFileScreen::buildExport()
         if (m_win->exportTextAsk()) Q_EMIT closeRequested();
     });
     v->addWidget(t);
+    // A message as a file, for an email program: nothing is sent through an account.
+    auto *mail = new ActionCard(QStringLiteral("mail"), tr("Make an Email"), tr("A message file with the document, a PDF, or the pages in it. Open it in your email program, add who it is for, and send it."), w);
+    mail->setObjectName(QStringLiteral("exportEmail"));
+    connect(mail, &QAbstractButton::clicked, this, [this] {
+        if (m_win->exportEmailAsk()) Q_EMIT closeRequested();
+    });
+    v->addWidget(mail);
     v->addStretch(1);
     return w;
 }
