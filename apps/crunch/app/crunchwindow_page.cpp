@@ -5,6 +5,7 @@
 #include "app/crunchwindow.h"
 
 #include "app/pagesetupdialog.h"
+#include "app/settings.h"
 #include "app/ribbonbuilder.h"
 #include "core/editsession.h"
 #include "grid/gridview.h"
@@ -300,7 +301,7 @@ void CrunchWindow::pageSetupDialog(int tab)
     request.fileName = m_path.isEmpty() ? displayName() : QFileInfo(m_path).fileName();
     request.selectionText = m_view->rangeName();
     request.tab = tab;
-    request.metric = QLocale().measurementSystem() == QLocale::MetricSystem;
+    request.metric = jp::defaultUnit(QLocale()) != jp::Unit::Inch;
     if (m_pageSetupAsker) {
         if (!m_pageSetupAsker(&request)) return;
     } else {

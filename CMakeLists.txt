@@ -639,12 +639,17 @@ endif()
 if(Qt6LinguistTools_FOUND)
   file(GLOB JP_TRANSLATIONS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/translations/jeffoffice_*.ts)
   list(REMOVE_ITEM JP_TRANSLATIONS ${CMAKE_SOURCE_DIR}/translations/jeffoffice_en.ts)
+  # The English variants (en_GB, en_CA, en_AU) hold only the texts they spell differently; tools/translate/english_variants.py
+  # makes them from the list lupdate writes, so lupdate leaves them be.
+  set(JP_ENGLISH_VARIANTS ${JP_TRANSLATIONS})
+  list(FILTER JP_ENGLISH_VARIANTS INCLUDE REGEX "jeffoffice_en_[A-Z][A-Z]\\.ts$")
+  list(FILTER JP_TRANSLATIONS EXCLUDE REGEX "jeffoffice_en_[A-Z][A-Z]\\.ts$")
   qt_add_lupdate(TS_FILES ${CMAKE_SOURCE_DIR}/translations/jeffoffice.ts ${JP_TRANSLATIONS}
                  PLURALS_TS_FILE ${CMAKE_SOURCE_DIR}/translations/jeffoffice_en.ts
                  SOURCE_TARGETS ${JP_LUPDATE_TARGETS}
                  LUPDATE_TARGET jeffoffice_lupdate
                  OPTIONS -no-obsolete -locations relative)
-  qt_add_lrelease(TS_FILES ${JP_TRANSLATIONS} ${CMAKE_SOURCE_DIR}/translations/jeffoffice_en.ts QM_FILES_OUTPUT_VARIABLE JP_QM_FILES)
+  qt_add_lrelease(TS_FILES ${JP_TRANSLATIONS} ${JP_ENGLISH_VARIANTS} ${CMAKE_SOURCE_DIR}/translations/jeffoffice_en.ts QM_FILES_OUTPUT_VARIABLE JP_QM_FILES)
   qt_add_resources(jo_shell "translations" PREFIX "/i18n" BASE ${CMAKE_CURRENT_BINARY_DIR} FILES ${JP_QM_FILES})
   # Qt's own text in each of those languages (standard buttons such as
   # Cancel, file dialogs), built in too, so no package needs a translations

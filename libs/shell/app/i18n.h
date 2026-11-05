@@ -9,12 +9,19 @@
 namespace jp {
 
 // The languages the apps have a translation for (BCP 47 names, "de", "pt_BR"),
-// besides English, which its text is written in.
+// besides American English, which its text is written in. The English variants
+// ("en_GB", "en_CA", "en_AU") are in it: they hold only the texts they spell
+// differently, and show the American ones for the rest.
 QStringList availableUiLanguages();
 
 // A language's name as its speakers write it, with the country when the
 // language comes in more than one ("Português (Brasil)").
 QString uiLanguageName(const QString &language);
+
+// The language to use from the ones a person prefers, best first ("de_DE", "en_US"),
+// and the ones the apps have; empty for American English. A region the apps have no
+// file for but that writes its English as one of theirs ("en_NZ") gets that one.
+QString pickUiLanguage(const QStringList &wanted, const QStringList &have);
 
 // Loads the translation for the language chosen in Options (ui/language),
 // or the system's first language the apps have, at startup. Returns the

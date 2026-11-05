@@ -15,6 +15,10 @@ enum class Unit { Inch, Centimeter, Millimeter, Point, Pica };
 // it measures in inches (the United States), else centimeters, as is usual.
 Unit defaultUnit(const QLocale &region);
 
+// Whether a new document starts on a Letter page in a region (the United
+// States, Canada, and a few countries beside them); everywhere else on A4.
+bool usesLetterPaper(const QLocale &region);
+
 // For an app that kept its settings and files under another name: copies
 // the keys `to` lacks, and moves the folder unless `to` already exists.
 void copyMissingSettings(const QSettings &from, QSettings &to);
