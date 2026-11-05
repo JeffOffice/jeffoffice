@@ -283,9 +283,22 @@ begin
   end;
 end;
 
+// Next waits for at least one app ticked (the apps are the first four items; the rest are coming soon), and the line under
+// the list says why.
 procedure ShowDescription(Sender: TObject);
+var
+  I: Integer;
+  Any: Boolean;
 begin
-  DescLabel.Caption := Described(WizardForm.ComponentsList.ItemIndex);
+  Any := False;
+  for I := 0 to 3 do
+    if WizardForm.ComponentsList.Checked[I] then
+      Any := True;
+  WizardForm.NextButton.Enabled := Any;
+  if Any then
+    DescLabel.Caption := Described(WizardForm.ComponentsList.ItemIndex)
+  else
+    DescLabel.Caption := 'Choose at least one app to install.';
 end;
 
 procedure ShowDescriptionKey(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -454,7 +467,7 @@ begin
       L.Height := L.Height + I - ScaleY(46);
       DescLabel.SetBounds(L.Left, L.Top + L.Height + ScaleY(8), L.Width, ScaleY(38));
     end;
-    DescLabel.Caption := Described(L.ItemIndex);
+    ShowDescription(L);
   end
   else if CurPageID = wpSelectTasks then
   begin
