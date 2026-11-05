@@ -1123,6 +1123,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QVERIFY(w.act(QStringLiteral("formulas.applyNames"))->isEnabled());
         // no name for cells yet
+        w.setApplyNamesAsker([](const QStringList &, QStringList *) { return false; });
         QVERIFY(!w.applyNamesCommand());
         crunch::EditSession::NameDraft d;
         d.name = QStringLiteral("Rate");

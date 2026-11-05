@@ -20,7 +20,9 @@ EditLinksDialog::EditLinksDialog(crunch::EditSession *session, const QString &ba
     setObjectName(QStringLiteral("editLinksDialog"));
     setWindowTitle(tr("Edit Links"));
     auto *layout = new QVBoxLayout(this);
-    layout->addWidget(plainLabel(new QLabel(tr("This workbook reads values from these workbooks. Until it is opened again with them, it shows the values its file stored."))));
+    m_note = plainLabel(new QLabel);
+    m_note->setWordWrap(true);
+    layout->addWidget(m_note);
     m_table = new QTableWidget(0, 3, this);
     m_table->setObjectName(QStringLiteral("editLinksTable"));
     m_table->setHorizontalHeaderLabels({tr("Source"), tr("Type"), tr("Status")});
@@ -61,7 +63,7 @@ EditLinksDialog::EditLinksDialog(crunch::EditSession *session, const QString &ba
     });
     connect(m_break, &QPushButton::clicked, this, [this] { breakRow(m_table->currentRow()); });
     auto sync = [this] {
-        const bool one = m_table->currentRow() >= 0;
+        const bool one = m_table->currentRow() >= 0 && m_table->currentRow() < int(m_sources.size());
         m_open->setEnabled(one);
         m_break->setEnabled(one);
     };
@@ -83,6 +85,8 @@ QString EditLinksDialog::localPath(const crunch::EditSession::ExternalSource &so
 void EditLinksDialog::reload()
 {
     m_sources = m_session->externalLinkSources();
+    m_note->setText(m_sources.empty() ? tr("This workbook does not read values from other workbooks.")
+                                      : tr("This workbook reads values from these workbooks. Until it is opened again with them, it shows the values its file stored."));
     m_table->setRowCount(int(m_sources.size()));
     for (int r = 0; r < int(m_sources.size()); ++r) {
         const crunch::EditSession::ExternalSource &s = m_sources[size_t(r)];

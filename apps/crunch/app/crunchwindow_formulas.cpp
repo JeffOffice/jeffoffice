@@ -213,7 +213,18 @@ bool CrunchWindow::applyNamesCommand()
     if (!m_session || !m_loaded || !editingAllowed() || !commitEdit()) return false;
     const std::vector<jp::office::sheet::NameTarget> targets = m_session->nameTargets();
     if (targets.empty()) {
-        notice(tr("Apply Names"), tr("There is no name for a block of cells yet. Make one with New Name first."));
+        if (!m_applyNamesAsker) {
+            QDialog none(this);
+            none.setWindowTitle(tr("Apply Names"));
+            auto *layout = new QVBoxLayout(&none);
+            auto *text = plainLabel(new QLabel(tr("There is no name for a block of cells yet. Make one with New Name first.")));
+            text->setWordWrap(true);
+            layout->addWidget(text);
+            auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close);
+            layout->addWidget(buttons);
+            connect(buttons, &QDialogButtonBox::rejected, &none, &QDialog::reject);
+            none.exec();
+        }
         return false;
     }
     QStringList all;

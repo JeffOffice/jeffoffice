@@ -5,6 +5,7 @@
 
 #include <QDialog>
 
+class QLabel;
 class QPushButton;
 class QTableWidget;
 
@@ -33,6 +34,7 @@ private:
     QString m_baseDir;
     QTableWidget *m_table = nullptr;
     QPushButton *m_open = nullptr, *m_break = nullptr;
+    QLabel *m_note = nullptr;
     std::vector<crunch::EditSession::ExternalSource> m_sources;
 };
 

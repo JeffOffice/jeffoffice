@@ -28,10 +28,6 @@ void CrunchWindow::createDataToolsActions()
 void CrunchWindow::editLinksCommand()
 {
     if (!m_session || !m_loaded || !commitEdit()) return;
-    if (m_session->externalLinkSources().empty()) {
-        notice(tr("Edit Links"), tr("This workbook does not read values from other workbooks."));
-        return;
-    }
     EditLinksDialog dialog(m_session.get(), m_path.isEmpty() ? QString() : QFileInfo(m_path).absolutePath(), this);
     connect(&dialog, &EditLinksDialog::openRequested, this, [this](const QString &path) { openLinkSource(path); });
     connect(&dialog, &EditLinksDialog::linksBroken, this, [this] {
