@@ -16,6 +16,7 @@ namespace jp::office {
 namespace {
 
 const char kCNs[] = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+const char kC15Ns[] = "http://schemas.microsoft.com/office/drawing/2012/chart";
 const char kANs[] = "http://schemas.openxmlformats.org/drawingml/2006/main";
 const char kRNs[] = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
@@ -398,12 +399,25 @@ private:
         w.writeEndElement();
     }
 
-    void series(const ChartPlot &plot, const ChartSeries &s)
+    // The name of the extension's list of filtered series for a kind of plot (c15:filteredBarSeries, ...); null for a kind that has none.
+    static const char *filteredElement(ChartType t)
+    {
+        switch (t) {
+        case ChartType::Bar: return "c15:filteredBarSeries";
+        case ChartType::Line: return "c15:filteredLineSeries";
+        case ChartType::Area: return "c15:filteredAreaSeries";
+        case ChartType::Pie: return "c15:filteredPieSeries";
+        case ChartType::Scatter: return "c15:filteredScatterSeries";
+        default: return nullptr;
+        }
+    }
+
+    void series(const ChartPlot &plot, const ChartSeries &s, const char *element = "c:ser")
     {
         const bool stroked = plot.type == ChartType::Line || plot.type == ChartType::Scatter;
         const bool scatter = plot.type == ChartType::Scatter;
         const int index = m_serial++;
-        w.writeStartElement(QStringLiteral("c:ser"));
+        w.writeStartElement(QString::fromLatin1(element));
         val("c:idx", QString::number(index));
         val("c:order", QString::number(index));
         // its name
@@ -528,7 +542,16 @@ private:
         case ChartType::Pie:
         case ChartType::Doughnut: flag("c:varyColors", true); break;
         }
-        for (const ChartSeries &s : p.series) series(p, s);
+        // a series a filter leaves out is written in the plot's extension (after the axes ids), where it keeps its place by its index
+        const char *filteredName = filteredElement(p.type);
+        QVector<int> hidden;
+        for (int i = 0; i < p.series.size(); ++i) {
+            if (filteredName && p.series[i].filtered) {
+                hidden << m_serial++;   // (the index it is written with, below)
+                continue;
+            }
+            series(p, p.series[i]);
+        }
         switch (p.type) {
         case ChartType::Bar:
         case ChartType::Other:
@@ -546,6 +569,24 @@ private:
         if (p.type != ChartType::Pie && p.type != ChartType::Doughnut) {
             val("c:axId", QString::number(p.axisIds[0]));
             val("c:axId", QString::number(p.axisIds[1]));
+        }
+        if (!hidden.isEmpty()) {
+            w.writeStartElement(QStringLiteral("c:extLst"));
+            w.writeStartElement(QStringLiteral("c:ext"));
+            w.writeAttribute(QStringLiteral("uri"), QStringLiteral("{02D57815-91ED-43cb-92C2-25804820EDAC}"));
+            w.writeNamespace(QString::fromLatin1(kC15Ns), QStringLiteral("c15"));
+            w.writeStartElement(QString::fromLatin1(filteredName));
+            int at = 0;
+            for (const ChartSeries &s : p.series) {
+                if (!s.filtered) continue;
+                const int saved = m_serial;
+                m_serial = hidden[at++];
+                series(p, s, "c15:ser");
+                m_serial = saved;
+            }
+            w.writeEndElement();
+            w.writeEndElement();
+            w.writeEndElement();
         }
         w.writeEndElement();
     }
@@ -725,9 +766,16 @@ void collect(const QDomElement &e, Shape *out, int depth, QStringList &path)
     if (name == QLatin1String("printSettings")) return;   // (how it is printed: not kept, not a chart's look)
     if (name == QLatin1String("extLst") && (path.contains(QStringLiteral("dLbl")) || path.contains(QStringLiteral("dLbls")))) return;   // (a label of a point is kept as the file wrote it, extensions and all)
     if (name == QLatin1String("extLst")) {
-        // extensions: only those that hold nothing but an identifier of the chart or of a series
+        // extensions: only those that hold nothing but an identifier of the chart or of a series, or the series a filter leaves out (which are looked through like the others)
         for (QDomElement ext = e.firstChildElement(); !ext.isNull(); ext = ext.nextSiblingElement())
             for (QDomElement c = ext.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+                if (c.namespaceURI() == QLatin1String(kC15Ns) && c.localName().startsWith(QLatin1String("filtered")) && c.localName().endsWith(QLatin1String("Series")) && depth < 60) {
+                    path.append(QStringLiteral("extLst"));
+                    for (QDomElement ser = c.firstChildElement(); !ser.isNull(); ser = ser.nextSiblingElement())
+                        for (QDomElement part = ser.firstChildElement(); !part.isNull(); part = part.nextSiblingElement()) collect(part, out, depth + 2, path);
+                    path.removeLast();
+                    continue;
+                }
                 // (leader lines turned off draw nothing)
                 if (c.localName() == QLatin1String("showLeaderLines") && isOff(c)) continue;
                 if (c.localName() != QLatin1String("uniqueId")) out->problem = QStringLiteral("extLst (%1)").arg(c.localName());

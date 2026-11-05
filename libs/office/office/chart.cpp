@@ -820,6 +820,19 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
     return s;
 }
 
+// The lists of filtered series in a plot's extensions.
+static QVector<QDomElement> filteredLists(const QDomElement &plot)
+{
+    QVector<QDomElement> out;
+    const QDomElement ext = cChild(plot, "extLst");
+    for (QDomElement x = ext.firstChildElement(); !x.isNull(); x = x.nextSiblingElement()) {
+        if (x.localName() != QLatin1String("ext") || x.attribute(QStringLiteral("uri")).toUpper() != QLatin1String("{02D57815-91ED-43CB-92C2-25804820EDAC}")) continue;
+        for (QDomElement c = x.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+            if (c.localName().startsWith(QLatin1String("filtered")) && c.localName().endsWith(QLatin1String("Series"))) out << c;
+    }
+    return out;
+}
+
 bool Reader::readPlot(const QDomElement &e)
 {
     const QString name = e.localName();
@@ -865,6 +878,16 @@ bool Reader::readPlot(const QDomElement &e)
         Found f;
         f.series = readSeries(ser, plot, &f.order, &f.ownLabels);
         found << f;
+    }
+    // The series a filter leaves out (the extension's c15:filtered...Series), kept hidden and in their places.
+    for (const QDomElement &list : filteredLists(e)) {
+        for (QDomElement ser = list.firstChildElement(); !ser.isNull(); ser = ser.nextSiblingElement()) {
+            if (ser.localName() != QLatin1String("ser") || found.size() >= m_seriesLeft) continue;
+            Found f;
+            f.series = readSeries(ser, plot, &f.order, &f.ownLabels);
+            f.series.filtered = true;
+            found << f;
+        }
     }
     m_seriesLeft -= int(found.size());
     std::stable_sort(found.begin(), found.end(), [](const Found &a, const Found &b) { return a.order < b.order; });

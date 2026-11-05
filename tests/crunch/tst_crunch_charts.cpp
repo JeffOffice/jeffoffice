@@ -428,7 +428,7 @@ private Q_SLOTS:
         QCOMPARE(checkable, 2);
     }
 
-    // A series left out by Chart Filters is not lost on save: the file keeps it, and after reopening it can be brought back. (It is written as a series like the others, so it shows again.)
+    // A series left out by Chart Filters is not lost on save: the file keeps it, and after reopening it can be brought back. (It is written as a filtered series, so it reopens hidden.)
     void aFilteredSeriesSurvivesSaveAndReopen()
     {
         EditWindow e;
@@ -450,12 +450,23 @@ private Q_SLOTS:
         again.win.w.objects()->layer()->select(0);
         QVector<CrunchWindow::ChartFilterEntry> entries = again.win.w.chartFilterEntries();
         QCOMPARE(entries.size(), 2);
-        QVERIFY(entries[0].shown && entries[1].shown);
+        QVERIFY(!entries[0].shown && entries[1].shown);
         QCOMPARE(entries[0].name, first);
-        // it can be filtered out and brought back again
-        QVERIFY(again.win.w.setChartSeriesShown(0, false));
+        // it can be brought back, filtered out again, and kept hidden through another save and reopen
         QVERIFY(again.win.w.setChartSeriesShown(0, true));
-        QCOMPARE(chartOf(again).plots.first().series.size(), 2);
+        QVERIFY(again.win.w.setChartSeriesShown(0, false));
+        QVERIFY(save(again));
+        EditWindow third;
+        QVERIFY(third.open([&] { QFile f(again.path); f.open(QIODevice::ReadOnly); return f.readAll(); }(), QStringLiteral("third.xlsx")));
+        QVERIFY(third.settle());
+        QTRY_VERIFY(objectsShown(third, 1));
+        third.win.w.objects()->layer()->select(0);
+        QVERIFY(!third.win.w.chartFilterEntries()[0].shown);
+        QVERIFY(third.win.w.chartFilterEntries()[1].shown);
+        // and brought back again
+        QVERIFY(third.win.w.setChartSeriesShown(0, true));
+        QVERIFY(third.win.w.chartFilterEntries()[0].shown);
+        QCOMPARE(chartOf(third).plots.first().series.size(), 2);
     }
 
     // ---- moving and sizing

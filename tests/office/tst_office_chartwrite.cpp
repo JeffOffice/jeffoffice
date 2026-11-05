@@ -143,6 +143,42 @@ private Q_SLOTS:
     }
 
     // The legend key of a data label (the small square of the series' color) is kept, written, and drawn beside the label.
+    // A series a chart filter leaves out is written as a filtered series of the extension (c15:filteredBarSeries and its kin) inside the plot's extLst, so another program shows it hidden too; it is read back hidden, in its place.
+    void aFilteredSeriesIsWrittenAsAnExtensionAndReadBackHidden()
+    {
+        Chart c = comboChart();
+        c.plots[0].series[0].filtered = true;
+        c.plots[1].series[0].filtered = true;
+        const QByteArray xml = writeChartPart(c);
+        QDomDocument doc;
+        QVERIFY(doc.setContent(xml, true));
+        const QString c15 = QStringLiteral("http://schemas.microsoft.com/office/drawing/2012/chart");
+        const QString cns = QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/chart");
+        QCOMPARE(doc.elementsByTagNameNS(c15, QStringLiteral("filteredBarSeries")).size(), 1);
+        QCOMPARE(doc.elementsByTagNameNS(c15, QStringLiteral("filteredLineSeries")).size(), 1);
+        // the plain series list holds only the ones that are shown, and the extension comes last in the plot
+        const QDomNodeList bars = doc.elementsByTagNameNS(cns, QStringLiteral("barChart"));
+        QCOMPARE(bars.size(), 1);
+        int plain = 0;
+        for (QDomElement e = bars.at(0).toElement().firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) plain += e.localName() == QLatin1String("ser");
+        QCOMPARE(plain, 1);
+        QCOMPARE(bars.at(0).toElement().lastChildElement().localName(), QStringLiteral("extLst"));
+        QCOMPARE(bars.at(0).toElement().lastChildElement().firstChildElement().attribute(QStringLiteral("uri")), QStringLiteral("{02D57815-91ED-43cb-92C2-25804820EDAC}"));
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(xml, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        QCOMPARE(r.plots[0].series.size(), 2);
+        QVERIFY(r.plots[0].series[0].filtered);
+        QCOMPARE(r.plots[0].series[0].name, QStringLiteral("East"));
+        QCOMPARE(r.plots[0].series[0].values, (QVector<double>{10, 20, 30}));
+        QVERIFY(!r.plots[0].series[1].filtered);
+        QVERIFY(r.plots[1].series[0].filtered);
+        QCOMPARE(r.plots[1].series[0].name, QStringLiteral("Total"));
+        // and writing it again changes nothing: the part is modeled, so it may be written over
+        QCOMPARE(writeChartPart(r), xml);
+        QVERIFY(chartIsFullyModeled(xml, nullptr));
+    }
+
     void aLabelsLegendKeyIsKeptAndDrawn()
     {
         Chart c = comboChart();
