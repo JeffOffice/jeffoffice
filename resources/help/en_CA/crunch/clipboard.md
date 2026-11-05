@@ -1,5 +1,5 @@
 # Cut, copy, and paste
-<!-- keywords: cut, copy, paste, clipboard, move, duplicate, special, values, formulas, formats, transpose, skip blanks, add, subtract, multiply, divide, operation, merged, text, tab, html, web page, other program, Escape, marching ants, border, column widths, notes, comments, number formats, all except borders, picture, bitmap, copy as picture, printed picture, as printed, paste link, hyperlink, text import, split text, separator -->
+<!-- keywords: cut, copy, paste, clipboard, move, duplicate, special, values, formulas, formats, transpose, skip blanks, add, subtract, multiply, divide, operation, merged, text, tab, html, web page, other program, Escape, marching ants, border, column widths, notes, comments, number formats, all except borders, picture, bitmap, copy as picture, printed picture, as printed, paste link, hyperlink, text import, split text, separator, set default paste, default paste, fixed width -->
 
 **Copy** (**{key:Copy}**) puts a copy of the selected cells on the clipboard, a place the computer keeps for one thing at a time. **Paste** (**{key:Paste}**) puts what is on the clipboard into the cells starting at the selected cell. **Cut** (**{key:Cut}**) is like copy, but when you paste, the cells are moved and the old place is emptied.
 
@@ -34,7 +34,11 @@ Three more choices are in the arrow under **Paste**. They work on cells you copi
 
 - **Paste Link** puts a formula in each cell that points at the cell you copied. Example: copy A1:B2, select D4, and use **Paste Link**: D4 becomes **=Sheet1!$A$1**. When A1 changes, D4 changes with it. A copied cell that is empty shows 0.
 - **Paste as Hyperlink** puts the same words in each cell that the copied cell shows, and makes each one a link to the copied cell. Hold **Ctrl** and click one to go to that cell. It works on up to 2,000 cells at a time.
-- **Paste Text Import** is for text from another program. It opens the same window as opening a text file: you say what separates the pieces (a comma, a tab, a space, a semicolon, a bar, or something else), what quotes a piece, the first row to use, and how to read each column (as typed, as text, as a date, or left out). Choose *text* for a column of codes such as 007, so the zeros stay. The pieces go into cells, starting at the selected cell, as one step you can undo.
+- **Paste Text Import** is for text from another program. It opens the same window as opening a text file: you say what separates the pieces (a comma, a tab, a space, a semicolon, a bar, or something else), what quotes a piece, the first row to use, and how to read each column (as typed, as text, as a date, or left out). Some text lines its pieces up in columns of the same width, with spaces between. Tick **The columns have a fixed width**, and say where each column begins: each line is cut at those places, and the spaces around each piece are taken off. Choose *text* for a column of codes such as 007, so the zeros stay. The pieces go into cells, starting at the selected cell, as one step you can undo.
+
+## Set Default Paste
+
+**Set Default Paste** is the last choice in the arrow under **Paste**. It decides what the **Paste** button and **{key:Paste}** put in when you copied cells: everything (at first), or only the values, only the formulas, only the formatting, and so on. Example: choose *Values*, and a copied formula lands as the number it shows. The choice is kept for the next time. It does not change **Paste Special** or the choices in the menu, and text from other programs is pasted as it is. Choose *All* to go back.
 
 ## The Paste menu and pictures
 

@@ -422,6 +422,43 @@ private Q_SLOTS:
         QCOMPARE(int(g.book.info().calcMode), int(CalcMode::Auto));
         QVERIFY(!g.book.info().iterate);
     }
+
+    void calculateBeforeSaveWorksTheFormulasOutBeforeAFileByHandIsWritten()
+    {
+        EditWindow e;
+        QVERIFY(e.open(namesBook(QStringLiteral("calcMode=\"manual\""))));
+        CrunchWindow &w = e.win.w;
+        QTRY_VERIFY(!w.isCalculating());
+        QVERIFY(w.session()->calcSettings().calcOnSave);
+        QVERIFY(w.act(QStringLiteral("formulas.calcBeforeSave"))->isChecked());
+        QVERIFY(w.session()->type(0, 0, 2, QStringLiteral("9")).ok);
+        QTRY_VERIFY(w.calculationDue());
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY(savedOk(saved));
+        QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:18"));
+        Saved f;
+        QVERIFY(f.open(e.path));
+        QVERIFY(f.book.info().calcOnSave);
+        QVERIFY(!f.workbookXml().contains("calcOnSave"));
+        // switched off: the file keeps the values it had, and says so
+        w.act(QStringLiteral("formulas.calcBeforeSave"))->trigger();
+        QVERIFY(!w.session()->calcSettings().calcOnSave);
+        QCOMPARE(w.undoStack()->undoText(), QStringLiteral("How Formulas Are Worked Out"));
+        QVERIFY(w.session()->type(0, 0, 2, QStringLiteral("11")).ok);
+        QTRY_VERIFY(w.calculationDue());
+        QSignalSpy again(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY(savedOk(again));
+        QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:18"));
+        Saved g;
+        QVERIFY(g.open(e.path));
+        QVERIFY(!g.book.info().calcOnSave);
+        QVERIFY(g.workbookXml().contains("calcOnSave=\"0\""));
+        w.undoStack()->undo();   // (the cell)
+        w.undoStack()->undo();   // (the switch)
+        QVERIFY(w.act(QStringLiteral("formulas.calcBeforeSave"))->isChecked());
+    }
 };
 
 JP_TEST_CLASS(CrunchNamesTests)

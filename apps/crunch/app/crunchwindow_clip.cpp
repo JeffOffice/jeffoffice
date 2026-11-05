@@ -1,6 +1,8 @@
 // Cut, Copy, and Paste: the cells go on the clipboard as text, as an HTML table, and whole (see core/clipdata.h), and come back from it, from this program and from others. A cut and
 // paste moves the cells; Paste Special asks what to paste and what to do with it.
 #include "app/crunchwindow.h"
+#include "app/plaintext.h"
+#include "app/settings.h"
 
 #include "app/textimportdialog.h"
 #include "core/printjob.h"
@@ -10,17 +12,20 @@
 #include <QApplication>
 #include <QButtonGroup>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QClipboard>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QElapsedTimer>
 #include <QGroupBox>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMimeData>
 #include <QPainter>
 #include <QRadioButton>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 
@@ -34,7 +39,13 @@ void CrunchWindow::createClipboardActions()
     mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [this] { copySelection(); });
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [this] { cutSelection(); });
     using Options = crunch::EditSession::PasteOptions;
-    mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [this] { pasteClipboard(Options()); });
+    mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [this] {
+        Options o;
+        // (cells that were copied here or in another JeffCrunch window are pasted as the default says; text from other programs is only text)
+        const QMimeData *md = QApplication::clipboard()->mimeData();
+        if (md && md->hasFormat(QLatin1String(crunch::kClipMime))) o.what = Options::What(std::clamp(Settings::get().value(QStringLiteral("crunch/defaultPaste"), 0).toInt(), 0, int(Options::What::Comments)));
+        pasteClipboard(o);
+    });
     mk("paste.values", tr("Values"), "", QKeySequence(), [this] {
         Options o;
         o.what = Options::What::Values;
@@ -77,6 +88,8 @@ void CrunchWindow::createClipboardActions()
     mk("paste.link", tr("Paste Link"), "", QKeySequence(), [this] { pasteLink(); });
     mk("paste.hyperlink", tr("Paste as Hyperlink"), "", QKeySequence(), [this] { pasteAsHyperlinks(); });
     for (const char *id : {"paste.textImport", "paste.link", "paste.hyperlink"}) m_opsActions << QString::fromLatin1(id);
+    mk("paste.setDefault", tr("Set Default Paste…"), "", QKeySequence(), [this] { setDefaultPaste(); });
+    m_opsActions << QStringLiteral("paste.setDefault");
     mk("paste.special", tr("Paste Special…"), "", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V), [this] { pasteSpecial(); });
     for (const char *id : {"edit.cut", "edit.paste", "paste.values", "paste.formulas", "paste.formats", "paste.transpose", "paste.special"}) m_opsActions << QString::fromLatin1(id);
     connect(m_view, &grid::GridView::copyBorderCleared, this, [this] { forgetClip(); });
@@ -364,6 +377,38 @@ void CrunchWindow::pasteSpecial()
 }
 
 // Paste Text Import: the text on the clipboard is split as the person chooses in the Text Import dialog (the separators, the quote, the first row, how each column is read), then entered as if typed.
+bool CrunchWindow::setDefaultPaste()
+{
+    using What = crunch::EditSession::PasteOptions::What;
+    int what = std::clamp(Settings::get().value(QStringLiteral("crunch/defaultPaste"), 0).toInt(), 0, int(What::Comments));
+    const struct {
+        What what;
+        QString text;
+    } kinds[] = {{What::All, tr("All")}, {What::Formulas, tr("Formulas")}, {What::Values, tr("Values")}, {What::Formats, tr("Formatting")}, {What::AllExceptBorders, tr("No Borders")},
+                 {What::FormulasAndNumberFormats, tr("Formulas and Number Formatting")}, {What::ValuesAndNumberFormats, tr("Values and Number Formatting")}, {What::Comments, tr("Comments and Notes")}};
+    if (m_defaultPasteAsker) {
+        if (!m_defaultPasteAsker(&what)) return false;
+    } else {
+        QDialog dialog(this);
+        dialog.setWindowTitle(tr("Set Default Paste"));
+        auto *layout = new QVBoxLayout(&dialog);
+        layout->addWidget(plainLabel(new QLabel(tr("When you click Paste or press Ctrl+V with cells copied, put in:"))));
+        auto *box = new QComboBox;
+        box->setAccessibleName(tr("Default paste"));
+        for (const auto &k : kinds) box->addItem(k.text, int(k.what));
+        box->setCurrentIndex(std::max(0, box->findData(what)));
+        layout->addWidget(box);
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        layout->addWidget(buttons);
+        connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        if (dialog.exec() != QDialog::Accepted) return false;
+        what = box->currentData().toInt();
+    }
+    Settings::get().setValue(QStringLiteral("crunch/defaultPaste"), std::clamp(what, 0, int(What::Comments)));
+    return true;
+}
+
 void CrunchWindow::pasteTextImport()
 {
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);

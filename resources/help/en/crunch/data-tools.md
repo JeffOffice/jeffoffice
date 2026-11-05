@@ -1,11 +1,19 @@
 # Data tools
-<!-- keywords: data, data tab, text to columns, split, separator, comma, tab, fixed width, remove duplicates, goal seek, subtotal, totals, advanced filter, conditions, data validation, circle invalid data, red oval, clear validation circles, consolidate, combine ranges, allow, list, drop-down, input message, error alert, repeated rows, unique, text file, csv, from text, columns, delimiter, quotes -->
+<!-- keywords: data, data tab, text to columns, split, separator, comma, tab, fixed width, remove duplicates, goal seek, subtotal, totals, advanced filter, conditions, data validation, circle invalid data, red oval, clear validation circles, consolidate, combine ranges, allow, list, drop-down, input message, error alert, repeated rows, unique, text file, csv, from text, columns, delimiter, quotes, edit links, links, external, source, break link, check status, open source -->
 
 The **Data** tab has the tools that work on a list of values: getting text from a file, putting a list in order, cutting text into columns, and taking out repeated rows.
 
 ## From Text/CSV
 
 **From Text/CSV** opens a text file (.csv, .tsv, or .txt). It is the same as **Open Text File** on the File tab. JeffCrunch asks how the file is split into columns and what kind of text it holds, then shows it as a new workbook.
+
+## Edit Links
+
+If a workbook has formulas that read another workbook (such as ='[Prices.xlsx]Sheet1'!A1), **Edit Links** in the **Get Data** group lists those other workbooks, which are called sources. Each row shows where the source is, and its status. Until the workbook is opened again with its sources, it shows the numbers its file stored from them.
+
+- **Check Status** looks for each source on this computer and says **Found**, or says that it was not found. A source on the web is not fetched, so its status says it was not checked.
+- **Open Source** opens the chosen source in a new window, when it can be found.
+- **Break Link** turns every cell that reads the chosen source into the value it shows now, and a name that stood for a place in it into **#REF!**. This can't be undone, so JeffCrunch asks first. When no link is left, the file is saved without the parts that held them.
 
 ## Sort and filter
 

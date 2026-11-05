@@ -135,6 +135,22 @@
         </translation>
     </message>
     <message numerus="yes">
+        <location line="+1"/>
+        <source>%n reference(s) written as names.</source>
+        <translation>
+            <numerusform>%n reference written as a name.</numerusform>
+            <numerusform>%n references written as names.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+1"/>
+        <source>%n icon(s) inserted</source>
+        <translation>
+            <numerusform>%n icon inserted</numerusform>
+            <numerusform>%n icons inserted</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
         <location filename="../../apps/crunch/app/crunchwindow_calc.cpp" line="+140"/>
         <source>Circular references: %n cell(s)</source>
         <translation>

@@ -1,5 +1,5 @@
 # How formulas are shown and calculated
-<!-- keywords: formula, formulas, calculate, calculation, recalculate, function, functions, value, result, stored, F9, circular, show formulas, formula bar, error, point, pointing, click a cell, reference, F4, error checking, ignore error, evaluate formula, step, watch window, watch, let, name a value, cell function, info function, filterxml, xml, xpath-->
+<!-- keywords: trace error, calculate before save, formula, formulas, calculate, calculation, recalculate, function, functions, value, result, stored, F9, circular, show formulas, formula bar, error, point, pointing, click a cell, reference, F4, error checking, ignore error, evaluate formula, step, watch window, watch, let, name a value, cell function, info function, filterxml, xml, xpath-->
 
 A **formula** is a cell that works out its value from other cells, such as =SUM(B3:B8). The cell shows the value, and the **formula bar** shows the formula.
 
@@ -59,7 +59,7 @@ Click **Calculation Mode** on the **Formulas** tab to choose how the workbook wo
 
 - **Automatic** works them out as you change cells.
 - **Automatic, Tables by Hand** does the same, but leaves the cells of data tables as they are until you press **F9**.
-- **Manual** works nothing out, data tables included, until you ask. The status bar says **Out of date** after a change. Press **F9** (**Recalculate All**) to work everything out, or **Shift+F9** (**Recalculate This Sheet**) to work out the formulas of the sheet you are on, and whatever else was waiting. A workbook that is set to Manual opens with the results its file holds.
+- **Manual** works nothing out, data tables included, until you ask. The status bar says **Out of date** after a change. Press **F9** (**Recalculate All**) to work everything out, or **Shift+F9** (**Recalculate This Sheet**) to work out the formulas of the sheet you are on, and whatever else was waiting. A workbook that is set to Manual opens with the results its file holds. **Calculate Before Save**, also in the **Calculation Mode** menu, is ticked at first: when you save a Manual workbook that is out of date, the formulas are worked out first, so the file holds up-to-date numbers. Turn it off to save the numbers as they are.
 
 The choice is saved with the workbook, and it is one step you can undo.
 
@@ -72,6 +72,8 @@ Some models need such a circle on purpose. Choose **Go Round Circular Formulas**
 ## See what a formula reads
 
 Select a cell and click **Show What Feeds This Cell** to draw arrows from the cells its formula reads. Click again to go one step further back. **Show What Uses This Cell** draws arrows to the formulas that read the cell, and each click goes one step on. A small page stands for a cell on another sheet. At most 2,000 arrows are drawn, and the status bar says when there were more. **Clear Arrows** clears them, and so does any change to the workbook.
+
+When a cell shows an error such as #DIV/0!, select it and click **Trace Error**. Arrows are drawn to the cells it reads that show an error too. Click again to go one step further back. When no cell it reads shows an error, the status bar says that this cell makes the error, and that is the one to fix.
 
 ## Error Checking
 

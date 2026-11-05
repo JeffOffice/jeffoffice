@@ -249,6 +249,17 @@ public:
     void showNames();
     bool defineNameCommand();
     bool nameFromCellsCommand();
+    bool applyNamesCommand();
+    // Data > Edit Links: the workbooks this one reads, with Open Source, Check Status, and Break Link.
+    void editLinksCommand();
+    void openLinkSource(const QString &path) { openFile(path); }
+    // Paste > Set Default Paste: what the Paste button and Ctrl+V put in (all, or values, formulas, and so on) when cells are on the clipboard; asked as the number of the choice.
+    bool setDefaultPaste();
+    void setDefaultPasteAsker(const std::function<bool(int *)> &asker) { m_defaultPasteAsker = asker; }
+    // Insert > Icons: the icons the picker gave, each put on the sheet as a picture.
+    bool insertIcons();
+    void setIconsPicker(const std::function<QStringList()> &picker) { m_iconsPicker = picker; }
+    void setApplyNamesAsker(const std::function<bool(const QStringList &, QStringList *)> &asker) { m_applyNamesAsker = asker; }
     bool insertName(const QString &name);
     QMenu *namesMenu();
     // For tests: how many times the sorted list the menu shows was made (it is made again only when a name or the sheet in view changes).
@@ -266,6 +277,7 @@ public:
     // on each time), and the arrows taken away. They are taken away by any change to the workbook. False, with the reason in the status line, when there is nothing to draw.
     bool tracePrecedents();
     bool traceDependents();
+    bool traceError();
     void removeArrows();
     int arrowCount() const { return int(m_trace.size()); }
     // The circular references named once in a message each time they begin (not again while they stay).
@@ -784,7 +796,7 @@ private:
         quint32 row = 0, col = 0;
     } m_traceRoot;
     std::vector<crunch::TraceCell> m_traceUp, m_traceDown;   // the formulas the next step back and the next step on begin from
-    bool m_tracedUp = false, m_tracedDown = false;
+    bool m_tracedUp = false, m_tracedDown = false, m_tracedError = false;   // (m_tracedError: the arrows are Trace Error's, which follow errors only)
     bool startTrace(bool up);
     QLabel *m_calcNote = nullptr;
     std::vector<int> m_menuNames;
@@ -799,6 +811,9 @@ private:
     int m_completionsSheet = -2;
     std::function<bool(crunch::EditSession::NameDraft *)> m_nameAsker;
     std::function<bool(int *)> m_edgesAsker;
+    std::function<bool(int *)> m_defaultPasteAsker;
+    std::function<QStringList()> m_iconsPicker;
+    std::function<bool(const QStringList &, QStringList *)> m_applyNamesAsker;   // the names to choose from, the names chosen
     std::function<bool(crunch::CalcSettings *)> m_iterationAsker;
     bool m_calcDue = false, m_manualNow = false;
     qint64 m_circular = 0;
@@ -1242,6 +1257,7 @@ public:
     // cell the cursor is in, picked, as one step.
     void setPicturePicker(const std::function<QString()> &picker) { m_picturePicker = picker; }
     bool insertPictureFile(const QString &path);
+    bool insertPictureData(QByteArray bytes, const QString &name, int rasterSide = 0, double sheetSide = 0);
     bool insertShape(const QString &preset);
     bool insertTextBox();
     // Format of the picked picture, shape, or text box (each is one step: the object is made again with the change). The words in a shape: the box that asks stands in for the dialog (tests).
@@ -1254,6 +1270,8 @@ public:
     };
     void setShapeTextAsker(const std::function<bool(ShapeTextChoices *)> &asker) { m_shapeTextAsker = asker; }
     bool setObjectFill(const QColor &color, bool none);
+    bool applyShapeStyle(int index);   // Shape Format > Shape Styles: a ready-made fill and outline, one step
+    void enableShapeStyles(bool on);
     bool setObjectOutline(const QColor &color, bool none);
     bool setObjectOutlineStyle(double weightPoints, const QString &dash);
     bool rotateObject(int quarterTurns, bool flipH, bool flipV);

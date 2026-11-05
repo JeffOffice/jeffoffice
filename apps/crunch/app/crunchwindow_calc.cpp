@@ -86,6 +86,14 @@ void CrunchWindow::createCalcActions()
         if (!o.ok) notice(tr("Circular Formulas"), o.problem);
     }, false, false);
     mk("formulas.options", tr("Calculation Mode"), "settings-2", QKeySequence(), [] {}, false, false);
+    mk("formulas.calcBeforeSave", tr("Calculate Before Save"), "", QKeySequence(), [this] {
+        if (!m_session || !m_loaded) return;
+        crunch::CalcSettings s = m_session->calcSettings();
+        s.calcOnSave = !s.calcOnSave;
+        const crunch::EditSession::Outcome o = m_session->setCalcSettings(s);
+        if (!o.ok) notice(tr("Calculation"), o.problem);
+        sendCalcSettings();
+    }, true, false);
     mk("formulas.calculateSheet", tr("Recalculate This Sheet"), "calculator", QKeySequence(Qt::SHIFT | Qt::Key_F9), [this] {
         if (m_loading || !m_haveCalc || !m_loader.recalculateSheet(m_sheet)) return;
         m_calculating = true;
@@ -96,7 +104,7 @@ void CrunchWindow::createCalcActions()
     mk("formulas.rebuildAndCalculate", tr("Rebuild Dependencies and Recalculate"), "calculator", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::ALT | Qt::Key_F9),
        [this] { act("formulas.calculate")->trigger(); }, false, false);
     mk("formulas.circular", tr("Circular References…"), "triangle-alert", QKeySequence(), [this] { showCircularReferences(); }, false, false);
-    for (const char *id : {"formulas.iteration", "formulas.options", "formulas.calculateSheet", "formulas.circular", "formulas.calculateEverything", "formulas.rebuildAndCalculate"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"formulas.iteration", "formulas.options", "formulas.calcBeforeSave", "formulas.calculateSheet", "formulas.circular", "formulas.calculateEverything", "formulas.rebuildAndCalculate"}) m_opsActions << QString::fromLatin1(id);
     updateEditActions();
 }
 
@@ -126,6 +134,7 @@ void CrunchWindow::sendCalcSettings()
     if (s.mode != CalcMode::Manual) m_calcDue = false;
     const char *id = s.mode == CalcMode::Manual ? "formulas.calcManual" : s.mode == CalcMode::AutoNoTable ? "formulas.calcNoTables" : "formulas.calcAuto";
     if (QAction *a = act(QString::fromLatin1(id))) a->setChecked(true);
+    if (QAction *a = act(QStringLiteral("formulas.calcBeforeSave"))) a->setChecked(s.calcOnSave);
     if (QAction *a = act(QStringLiteral("formulas.iteration"))) a->setToolTip(s.iterate ? tr("Circular formulas are worked out by going round them") : tr("Circular formulas are not worked out"));
     updateCalcStatus();
 }

@@ -348,6 +348,12 @@ private Q_SLOTS:
                 waitFor([&] { return quiet(w); });
                 w->view()->selectCell(4, 0);
             }),
+            in(QStringLiteral("an error that comes from a cell it reads"), [](CrunchWindow *w) {
+                enter(w, 6, 0, QStringLiteral("=1/0"));
+                enter(w, 6, 1, QStringLiteral("=A7+1"));
+                waitFor([&] { return quiet(w); });
+                w->view()->selectCell(6, 1);
+            }),
             in(QStringLiteral("a cell circled by Circle Invalid Data"), [](CrunchWindow *w) {
                 enter(w, 1, 1, QStringLiteral("50"));
                 waitFor([&] { return quiet(w); });
@@ -467,6 +473,7 @@ private Q_SLOTS:
             {QStringLiteral("printarea."), {QStringLiteral("a print area set")}},
             {QStringLiteral("sheet."), {QStringLiteral("a second sheet"), QStringLiteral("a hidden sheet")}},
             {QStringLiteral("formulas.trace"), {QStringLiteral("a formula's cell selected")}},
+            {QStringLiteral("formulas.traceError"), {QStringLiteral("an error that comes from a cell it reads")}},
             {QStringLiteral("formulas.removeArrows"), {QStringLiteral("arrows drawn to a formula's cells")}},
             {QStringLiteral("formulas.circular"), {QStringLiteral("a formula that refers to itself")}},
             {QStringLiteral("format.unhide"), {QStringLiteral("a hidden row and column, around them selected")}},

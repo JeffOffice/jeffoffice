@@ -19,6 +19,7 @@
 #include "core/objectstate.h"
 #include "grid/valuestore.h"
 #include "sheet/entry.h"
+#include "sheet/namerefs.h"
 #include "calc/numfmt.h"
 #include "sheet/textmatch.h"
 #include "sheet/xlsxsave.h"
@@ -172,7 +173,8 @@ struct CalcSettings {
     bool iterate = false;
     int count = 100;
     double delta = 0.001;
-    bool operator==(const CalcSettings &o) const { return mode == o.mode && iterate == o.iterate && count == o.count && delta == o.delta; }
+    bool calcOnSave = true;   // by hand, the formulas are worked out before the workbook is saved
+    bool operator==(const CalcSettings &o) const { return mode == o.mode && calcOnSave == o.calcOnSave && iterate == o.iterate && count == o.count && delta == o.delta; }
     bool operator!=(const CalcSettings &o) const { return !(*this == o); }
 };
 struct CalcEdit {
@@ -638,6 +640,11 @@ public:
     // step. Nothing is changed, and the reason is told, if a cell is part of an array, is locked on a protected sheet, is in a table's header row, would not be a formula any more, or
     // there are more than kMaxCellsPerEdit. (A large one is made a slice at a time: planReplace, prepareReplace, and applyReplace; replaceInCells is all of them at once.)
     Outcome replaceInCells(const std::vector<CellSpot> &cells, const jp::office::sheet::TextPattern &pattern, const QString &with, ReplaceResult *result = nullptr);
+    // Apply Names: puts each name in place of the references to exactly its cells, in the formulas of these cells, as one step (nothing is changed, and the reason is told, for the same causes
+    // as replaceInCells). `result->occurrences` is how many references became names.
+    Outcome applyNamesInCells(const std::vector<CellSpot> &cells, const std::vector<jp::office::sheet::NameTarget> &names, ReplaceResult *result = nullptr);
+    // The names whose text is one block of cells on a sheet (the ones Apply Names can put in), in the order of the names.
+    std::vector<jp::office::sheet::NameTarget> nameTargets() const;
     struct ReplacePlan;
     std::shared_ptr<ReplacePlan> planReplace(const std::vector<CellSpot> &cells, const jp::office::sheet::TextPattern &pattern, const QString &with, QString *why);
     // Works out the new text of about `budget` more cells (0: all); true when done (or when a cell cannot be changed: applyReplace says why).
@@ -908,7 +915,17 @@ public:
     // ---- links to other workbooks (Inspect Workbook): every cell that reads one keeps the value it shows (each is a step of Undo, which is forgotten after, since the links are gone), a defined
     // name that stands for one becomes #REF!, and the next save leaves the link parts out. `cells` and `names` count what was changed; not ok, with a sentence, when a cell can't be (locked, or in an array).
     int externalLinkCells() const;
-    Outcome breakExternalLinks(int *cells = nullptr, int *names = nullptr);
+    // Edit Links: the workbooks this one reads, in the order of the numbers in its formulas ("[1]Prices!A1" is the first): where each is, as the file says and as a person reads it.
+    struct ExternalSource {
+        int index = 0;        // from 1, the number in the formulas
+        QString target;       // as the file writes it ("file:///C:/data/prices.xlsx", "prices.xlsx", "https://example.org/prices.xlsx")
+        QString shown;        // the same as a path or address a person reads (the file: marks and the percent escapes taken off)
+        bool local = false;   // a file on this computer, not an address on the web
+    };
+    std::vector<ExternalSource> externalLinkSources() const;
+    // Breaks the links to one of them (`only`, from 1), or to all (0): each cell that reads it keeps the value it shows, and each name that stands for a place in it is #REF!. When no
+    // link is left the saver leaves the link parts out.
+    Outcome breakExternalLinks(int *cells = nullptr, int *names = nullptr, int only = 0);
     bool externalLinksDropped() const { return m_dropExternalLinks; }
     // The custom XML data (what other programs added to the file) is left out at the next save.
     void dropCustomXml() { m_dropCustomXml = true; }

@@ -315,6 +315,31 @@ QVector<QStringList> splitDelimitedText(const QString &text, const jp::office::s
         row.clear();
         any = false;
     };
+    if (choices.fixedWidth) {
+        // columns of fixed width: each line is cut at the places chosen, and the pieces lose the spaces at their ends
+        QVector<int> breaks = choices.breaks;
+        std::sort(breaks.begin(), breaks.end());
+        qsizetype pos = 0;
+        while (pos < text.size() && made <= kMaxClipCells) {
+            qsizetype end = pos;
+            while (end < text.size() && text[end] != QLatin1Char('\r') && text[end] != QLatin1Char('\n')) ++end;
+            const QString lineText = text.mid(pos, end - pos);
+            pos = end;
+            if (pos < text.size() && text[pos] == QLatin1Char('\r') && pos + 1 < text.size() && text[pos + 1] == QLatin1Char('\n')) ++pos;
+            ++pos;
+            qsizetype from = 0;
+            for (qsizetype k = 0; k <= breaks.size(); ++k) {
+                const qsizetype to = k < breaks.size() ? qsizetype(breaks[k]) : lineText.size();
+                const QString piece = from < lineText.size() ? lineText.mid(from, std::max<qsizetype>(0, to - from)).trimmed() : QString();
+                if (k < breaks.size()) row << piece;
+                else field = piece;
+                from = std::max(from, to);
+            }
+            any = true;
+            endRow();
+        }
+        return rows;
+    }
     for (qsizetype i = 0; i < text.size() && made <= kMaxClipCells; ++i) {
         const QChar ch = text[i];
         if (inQuote) {

@@ -123,6 +123,92 @@ void eachNameUse(const QString &s, F use)
 
 } // namespace
 
+QString applyNamesInFormula(const QString &formula, const QString &formulaSheet, const std::vector<NameTarget> &names, int *count)
+{
+    if (count) *count = 0;
+    if (names.empty() || formula.isEmpty()) return formula;
+    // a reference: an optional sheet and "!", a cell, and optionally ":" and another cell
+    static const QRegularExpression ref(QStringLiteral("\\G(?:('(?:[^']|'')+'|[A-Za-z_][A-Za-z0-9_.]*)!)?(\\$?[A-Za-z]{1,3}\\$?[0-9]+)(?::(\\$?[A-Za-z]{1,3}\\$?[0-9]+))?"));
+    QString out;
+    const int n = int(formula.size());
+    int i = 0, done = 0;
+    while (i < n) {
+        const QChar c = formula[i];
+        const bool boundary = i == 0 || !(wordChar(formula[i - 1]) || formula[i - 1] == QLatin1Char('$') || formula[i - 1] == QLatin1Char('!') || formula[i - 1] == QLatin1Char(':'));
+        if (boundary && (c == QLatin1Char('\'') || c.isLetter() || c == QLatin1Char('_') || c == QLatin1Char('$'))) {
+            const QRegularExpressionMatch m = ref.match(formula, i);
+            if (m.hasMatch() && m.capturedStart() == i) {
+                const int end = i + int(m.capturedLength());
+                const int next = nextNonSpace(formula, end);
+                const bool tail = end < n && (wordChar(formula[end]) || formula[end] == QLatin1Char('(') || formula[end] == QLatin1Char('[') || formula[end] == QLatin1Char('!') || formula[end] == QLatin1Char(':') || formula[end] == QLatin1Char('$'));
+                const bool call = next < n && formula[next] == QLatin1Char('(') && !m.capturedLength(1);   // (LOG10(: a function)
+                if (!tail && !call) {
+                    QString sheet = m.captured(1);
+                    if (sheet.startsWith(QLatin1Char('\''))) sheet = sheet.mid(1, sheet.size() - 2).replace(QStringLiteral("''"), QStringLiteral("'"));
+                    if (sheet.isEmpty()) sheet = formulaSheet;
+                    CellRange cells;
+                    const QString last = m.captured(3).isEmpty() ? m.captured(2) : m.captured(2) + QLatin1Char(':') + m.captured(3);
+                    if (parseRangeRef(last, &cells)) {
+                        const NameTarget *hit = nullptr;
+                        for (const NameTarget &t : names) {
+                            if (t.cells == cells && t.sheet.compare(sheet, Qt::CaseInsensitive) == 0) {
+                                hit = &t;
+                                break;
+                            }
+                        }
+                        if (hit) {
+                            out += hit->name;
+                            ++done;
+                            i = end;
+                            continue;
+                        }
+                    }
+                }
+                out += formula.mid(i, end - i);
+                i = end;
+                continue;
+            }
+        }
+        if (c == QLatin1Char('"')) {
+            const int end = quotedEnd(formula, i);
+            out += formula.mid(i, end - i);
+            i = end;
+            continue;
+        }
+        if (c == QLatin1Char('\'')) {
+            const int end = quotedEnd(formula, i);
+            out += formula.mid(i, end - i);
+            i = end;
+            continue;
+        }
+        if (c == QLatin1Char('[')) {
+            int depth = 0, j = i;
+            while (j < n) {
+                if (formula[j] == QLatin1Char('[')) ++depth;
+                else if (formula[j] == QLatin1Char(']') && --depth == 0) {
+                    ++j;
+                    break;
+                }
+                ++j;
+            }
+            out += formula.mid(i, j - i);
+            i = j;
+            continue;
+        }
+        if (wordChar(c)) {   // (a word is passed over whole: "XA1" holds no reference)
+            int j = i;
+            while (j < n && wordChar(formula[j])) ++j;
+            out += formula.mid(i, j - i);
+            i = j;
+            continue;
+        }
+        out += c;
+        ++i;
+    }
+    if (count) *count = done;
+    return done > 0 ? out : formula;
+}
+
 QString renameNameInFormula(const QString &formula, const QString &oldName, const QString &newName, const std::function<bool(const QString &)> &applies, bool *changed, bool wideText)
 {
     if (changed) *changed = false;

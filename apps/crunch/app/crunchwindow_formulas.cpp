@@ -14,6 +14,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QLabel>
+#include <QListWidget>
 #include <QLineEdit>
 #include <QMenu>
 #include <QVBoxLayout>
@@ -109,13 +110,14 @@ void CrunchWindow::createNameActions()
     mk("formulas.names", tr("Names…"), "variable", QKeySequence(Qt::CTRL | Qt::Key_F3), [this] { showNames(); }, false, false);
     mk("formulas.defineName", tr("New Name…"), "tag", QKeySequence(), [this] { defineNameCommand(); }, false, false);
     mk("formulas.nameFromCells", tr("Name From Cells…"), "tags", QKeySequence(), [this] { nameFromCellsCommand(); }, false, false);
+    mk("formulas.applyNames", tr("Apply Names…"), "replace-all", QKeySequence(), [this] { applyNamesCommand(); }, false, false);
     mk("formulas.useName", tr("Insert Name"), "text-cursor-input", QKeySequence(), [this] {
         if (QMenu *menu = namesMenu()) {
             menu->exec(QCursor::pos());
             delete menu;
         }
     }, false, false);
-    for (const char *id : {"formulas.names", "formulas.defineName", "formulas.nameFromCells", "formulas.useName"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"formulas.names", "formulas.defineName", "formulas.nameFromCells", "formulas.applyNames", "formulas.useName"}) m_opsActions << QString::fromLatin1(id);
     updateEditActions();
 }
 
@@ -202,6 +204,78 @@ bool CrunchWindow::nameFromCellsCommand()
     }
     if (skipped > 0) setStatus(tr("%n name(s) made. %1 left out: empty, repeated, or already there.", nullptr, made).arg(skipped));
     else setStatus(tr("%n name(s) made.", nullptr, made));
+    return true;
+}
+
+// Apply Names: in the formulas of the selected cells (of the sheet, when one cell is selected), the references to exactly the cells of a chosen name are written as the name.
+bool CrunchWindow::applyNamesCommand()
+{
+    if (!m_session || !m_loaded || !editingAllowed() || !commitEdit()) return false;
+    const std::vector<jp::office::sheet::NameTarget> targets = m_session->nameTargets();
+    if (targets.empty()) {
+        if (!m_applyNamesAsker) {
+            QDialog none(this);
+            none.setWindowTitle(tr("Apply Names"));
+            auto *layout = new QVBoxLayout(&none);
+            auto *text = plainLabel(new QLabel(tr("There is no name for a block of cells yet. Make one with New Name first.")));
+            text->setWordWrap(true);
+            layout->addWidget(text);
+            auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close);
+            layout->addWidget(buttons);
+            connect(buttons, &QDialogButtonBox::rejected, &none, &QDialog::reject);
+            none.exec();
+        }
+        return false;
+    }
+    QStringList all;
+    for (const auto &t : targets) all << t.name;
+    QStringList chosen;
+    if (m_applyNamesAsker) {
+        if (!m_applyNamesAsker(all, &chosen)) return false;
+    } else {
+        QDialog dialog(this);
+        dialog.setWindowTitle(tr("Apply Names"));
+        auto *layout = new QVBoxLayout(&dialog);
+        layout->addWidget(new QLabel(tr("Choose the names to put in place of the cells they stand for:")));
+        auto *list = new QListWidget;
+        list->setSelectionMode(QAbstractItemView::ExtendedSelection);
+        for (const QString &n : all) list->addItem(n);
+        list->selectAll();
+        layout->addWidget(list);
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        layout->addWidget(buttons);
+        connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        if (dialog.exec() != QDialog::Accepted) return false;
+        for (QListWidgetItem *it : list->selectedItems()) chosen << it->text();
+    }
+    std::vector<jp::office::sheet::NameTarget> use;
+    for (const auto &t : targets)
+        if (chosen.contains(t.name, Qt::CaseInsensitive)) use.push_back(t);
+    if (use.empty()) return false;
+    const grid::Selection &sel = m_view->selection();
+    jp::office::sheet::CellRange block = cellsOf(sel.range);
+    const jp::office::sheet::Calculation *calc = m_session->calculation();
+    std::vector<crunch::EditSession::CellSpot> spots;
+    auto collect = [&](quint32 r1, quint32 c1, quint32 r2, quint32 c2) {
+        calc->sheet(m_sheet).cells.forEachInRange(r1, c1, r2, c2, [&](quint32 row, quint32 col, const jp::office::sheet::Cell &c) {
+            if (c.hasFormula()) spots.push_back({m_sheet, row, quint32(col)});
+            return spots.size() <= 200000;
+        });
+    };
+    if (sel.isOneCell()) collect(0, 0, jp::office::sheet::kMaxRows - 1, jp::office::sheet::kMaxColumns - 1);
+    else collect(block.row1, block.col1, block.row2, block.col2);
+    crunch::EditSession::ReplaceResult result;
+    const crunch::EditSession::Outcome o = m_session->applyNamesInCells(spots, use, &result);
+    if (!o.ok) {
+        notice(tr("Apply Names"), o.problem);
+        return false;
+    }
+    if (result.occurrences == 0) {
+        setStatus(tr("No formula reads exactly the cells of those names."));
+        return false;
+    }
+    setStatus(tr("%n reference(s) written as names.", nullptr, result.occurrences));
     return true;
 }
 

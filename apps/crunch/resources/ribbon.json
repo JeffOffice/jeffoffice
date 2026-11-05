@@ -20,7 +20,7 @@
               "large": "edit.paste",
               "keytip": "V",
               "split": true,
-              "menu": ["edit.paste", "paste.formulas", "paste.values", "paste.formats", "paste.transpose", "-", "paste.exceptBorders", "paste.formulaFormats", "paste.valueFormats", "paste.widths", "paste.notes", "-", "paste.link", "paste.hyperlink", "paste.textImport", "-", "paste.special"]
+              "menu": ["edit.paste", "paste.formulas", "paste.values", "paste.formats", "paste.transpose", "-", "paste.exceptBorders", "paste.formulaFormats", "paste.valueFormats", "paste.widths", "paste.notes", "-", "paste.link", "paste.hyperlink", "paste.textImport", "-", "paste.special", "paste.setDefault"]
             },
             {"small": "edit.cut", "keytip": "X"},
             {"small": "edit.copy", "keytip": "C", "split": true, "menu": ["edit.copy", "edit.copyPicture", "edit.copyBitmap", "edit.copyPicturePrinted"]},
@@ -173,6 +173,7 @@
           "keytip": "ZI",
           "items": [
             {"large": "insert.picture", "keytip": "P"},
+            {"large": "insert.icons", "keytip": "IC"},
             {"large": {"id": "ribbon.shapes", "text": "Shapes", "icon": "shapes"}, "keytip": "SH", "menu": ["insert.shape.rect", "insert.shape.roundRect", "insert.shape.ellipse", "insert.shape.triangle", "insert.shape.diamond", "insert.shape.pentagon", "insert.shape.hexagon", "insert.shape.rightArrow", "insert.shape.leftArrow", "insert.shape.upArrow", "insert.shape.downArrow", "insert.shape.star", "insert.shape.heart", "insert.shape.cloud", "insert.shape.callout", "insert.shape.line"]}
           ]
         },
@@ -303,7 +304,8 @@
             {"large": "formulas.names", "keytip": "N"},
             {"small": "formulas.defineName", "keytip": "DF"},
             {"small": "formulas.nameFromCells", "keytip": "FC"},
-            {"small": "formulas.useName", "keytip": "IN"}
+            {"small": "formulas.useName", "keytip": "IN"},
+            {"small": "formulas.applyNames", "keytip": "AN"}
           ]
         },
         {
@@ -312,6 +314,7 @@
           "items": [
             {"large": "formulas.tracePrecedents", "keytip": "TP"},
             {"large": "formulas.traceDependents", "keytip": "TD"},
+            {"small": "formulas.traceError", "keytip": "TE"},
             {"small": "formulas.removeArrows", "keytip": "RA"},
             {"small": "view.formulas", "keytip": "H"},
             {"small": "formulas.errorChecking", "keytip": "EC"},
@@ -329,7 +332,7 @@
             {
               "large": "formulas.options",
               "keytip": "O",
-              "menu": ["formulas.calcAuto", "formulas.calcNoTables", "formulas.calcManual", "-", "formulas.iteration"]
+              "menu": ["formulas.calcAuto", "formulas.calcNoTables", "formulas.calcManual", "formulas.calcBeforeSave", "-", "formulas.iteration"]
             }
           ]
         }
@@ -343,7 +346,8 @@
           "name": "Get Data",
           "keytip": "ZG",
           "items": [
-            {"large": "data.fromText", "keytip": "FT"}
+            {"large": "data.fromText", "keytip": "FT"},
+            {"large": "data.editLinks", "keytip": "EL"}
           ]
         },
         {
@@ -643,6 +647,7 @@
           "name": "Shape Styles",
           "keytip": "ZY",
           "items": [
+            {"large": {"id": "ribbon.shapeStyles", "text": "Styles", "icon": "swatch-book"}, "keytip": "SY", "menu": ["object.style.blue", "object.style.green", "object.style.orange", "object.style.gold", "object.style.gray", "-", "object.style.outline", "object.style.plain"]},
             {"row": [{"widget": "shapeFill", "keytip": "SF"}, {"widget": "shapeOutline", "keytip": "SO"}, {"icon": {"id": "ribbon.shapeLine", "text": "Line Style", "icon": "minus"}, "keytip": "SL", "menu": "@outlineStyle"}]}
           ]
         },

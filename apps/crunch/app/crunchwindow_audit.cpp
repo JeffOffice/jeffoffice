@@ -14,8 +14,9 @@ void CrunchWindow::createAuditActions()
 {
     mk("formulas.tracePrecedents", tr("Show What Feeds This Cell"), "arrow-down-to-dot", QKeySequence(), [this] { tracePrecedents(); }, false, false);
     mk("formulas.traceDependents", tr("Show What Uses This Cell"), "arrow-up-from-dot", QKeySequence(), [this] { traceDependents(); }, false, false);
+    mk("formulas.traceError", tr("Trace Error"), "triangle-alert", QKeySequence(), [this] { traceError(); }, false, false);
     mk("formulas.removeArrows", tr("Clear Arrows"), "eraser", QKeySequence(), [this] { removeArrows(); }, false, false);
-    for (const char *id : {"formulas.tracePrecedents", "formulas.traceDependents", "formulas.removeArrows"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"formulas.tracePrecedents", "formulas.traceDependents", "formulas.traceError", "formulas.removeArrows"}) m_opsActions << QString::fromLatin1(id);
     updateEditActions();
 }
 
@@ -41,7 +42,8 @@ bool CrunchWindow::startTrace(bool up)
     if (!m_session || !m_loaded || !commitEdit()) return false;
     const quint32 row = quint32(std::max<qint64>(0, m_view->selection().activeRow)), col = quint32(std::max<qint64>(0, m_view->selection().activeCol));
     // another cell: the arrows begin again from it
-    if (!m_traceRoot.set || m_traceRoot.sheet != m_sheet || m_traceRoot.row != row || m_traceRoot.col != col) {
+    if (!m_traceRoot.set || m_traceRoot.sheet != m_sheet || m_traceRoot.row != row || m_traceRoot.col != col || m_tracedError) {
+        m_tracedError = false;
         m_trace.clear();
         m_traceUp.clear();
         m_traceDown.clear();
@@ -148,6 +150,67 @@ bool CrunchWindow::traceDependents()
     return true;
 }
 
+// Trace Error: from a cell that shows an error, the arrows go to the cells it reads that are errors too, one step more with each click, until a cell reads no error: that one makes it.
+bool CrunchWindow::traceError()
+{
+    if (!m_session || !m_loaded || !commitEdit()) return false;
+    const quint32 row = quint32(std::max<qint64>(0, m_view->selection().activeRow)), col = quint32(std::max<qint64>(0, m_view->selection().activeCol));
+    if (!m_traceRoot.set || m_traceRoot.sheet != m_sheet || m_traceRoot.row != row || m_traceRoot.col != col || !m_tracedError) {
+        m_trace.clear();
+        m_traceUp.clear();
+        m_traceDown.clear();
+        m_tracedUp = m_tracedDown = false;
+        m_traceRoot = {true, m_sheet, row, col};
+        m_tracedError = true;
+        if (!m_session->valueAt(m_sheet, row, col).isError()) {
+            m_tracedError = false;
+            m_traceRoot = TraceRoot();
+            refreshCheckMarks();
+            setStatus(tr("This cell is not an error."));
+            return false;
+        }
+        m_traceUp = {{m_sheet, row, col}};
+    }
+    const jp::office::sheet::Calculation *calc = m_session->calculation();
+    const size_t before = m_trace.size();
+    std::vector<crunch::TraceCell> next;
+    for (const crunch::TraceCell &f : m_traceUp) {
+        if (m_trace.size() >= grid::GridView::kMaxCheckArrows) break;
+        bool cut = false;
+        const std::vector<crunch::TraceBlock> blocks = crunch::cellsRead(*calc, f.sheet, f.row, f.col, &cut);
+        for (const crunch::TraceBlock &b : blocks) {
+            if (m_trace.size() >= grid::GridView::kMaxCheckArrows) break;
+            std::vector<crunch::TraceCell> formulas;
+            formulaCellsIn(*calc, b, 200, &formulas);
+            bool any = false;
+            for (const crunch::TraceCell &c : formulas) {
+                if (!m_session->valueAt(c.sheet, c.row, c.col).isError()) continue;
+                any = true;
+                if (next.size() < 200) next.push_back(c);
+            }
+            if (!any) continue;
+            TraceArrow a;
+            a.fromSheet = b.sheet;
+            a.from = b.cells;
+            a.toSheet = f.sheet;
+            a.toRow = f.row;
+            a.toCol = f.col;
+            const bool dup = std::any_of(m_trace.begin(), m_trace.end(), [&](const TraceArrow &t) {
+                return t.fromSheet == a.fromSheet && t.from == a.from && t.toSheet == a.toSheet && t.toRow == a.toRow && t.toCol == a.toCol;
+            });
+            if (!dup) m_trace.push_back(a);
+        }
+    }
+    m_traceUp = next;
+    refreshCheckMarks();
+    if (m_trace.size() == before) {
+        setStatus(tr("No cell this one reads has an error: this cell makes the error."));
+        return false;
+    }
+    setStatus(tr("%n arrow(s) drawn.", nullptr, int(m_trace.size())));
+    return true;
+}
+
 void CrunchWindow::removeArrows()
 {
     if (m_trace.empty() && !m_traceRoot.set) return;
@@ -156,6 +219,7 @@ void CrunchWindow::removeArrows()
     m_traceDown.clear();
     m_tracedUp = m_tracedDown = false;
     m_traceRoot = TraceRoot();
+    m_tracedError = false;
     refreshCheckMarks();
 }
 

@@ -315,6 +315,7 @@ QByteArray workbookPart(const WorkbookInfo &fileInfo)
     o += "<calcPr";
     if (info.calcMode == CalcMode::Manual) o += attr("calcMode", "manual");
     else if (info.calcMode == CalcMode::AutoNoTable) o += attr("calcMode", "autoNoTable");
+    if (!info.calcOnSave) o += attr("calcOnSave", "0");
     if (info.iterate) o += attr("iterate", "1") + attr("iterateCount", num(info.iterateCount)) + attr("iterateDelta", QByteArray::number(info.iterateDelta, 'g', 12));
     if (info.fullCalcOnLoad) o += attr("fullCalcOnLoad", "1");
     return o + "/></workbook>";

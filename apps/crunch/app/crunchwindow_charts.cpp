@@ -1044,6 +1044,7 @@ void CrunchWindow::updateChartState()
         for (const char *name : {"object.rotateRight", "object.rotateLeft", "object.flipH", "object.flipV"}) act(QString::fromLatin1(name))->setEnabled(picture || shape || line);
         for (const char *name : {"object.cropSquare", "object.crop43", "object.crop34", "object.crop169", "object.crop916", "object.cropReset"}) act(QString::fromLatin1(name))->setEnabled(picture);
         act(QStringLiteral("object.editText"))->setEnabled(shape);
+        enableShapeStyles(shape);
         if (m_ribbon) {
             m_ribbon->setContextVisible(QStringLiteral("Picture Format"), picture);
             m_ribbon->setContextVisible(QStringLiteral("Shape Format"), shape || line);

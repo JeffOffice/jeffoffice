@@ -93,6 +93,27 @@ private Q_SLOTS:
         QVERIFY(!formulaUsesName(QStringLiteral("SUM(Rates)+\"Rate\""), QStringLiteral("Rate")));
     }
 
+    void applyingNamesPutsNamesWhereTheirCellsAreWritten()
+    {
+        CellRange one, block;
+        QVERIFY(parseRangeRef(QStringLiteral("A1"), &one));
+        QVERIFY(parseRangeRef(QStringLiteral("B2:C3"), &block));
+        const std::vector<NameTarget> names = {{QStringLiteral("Rate"), QStringLiteral("Data"), one}, {QStringLiteral("Grid"), QStringLiteral("Data"), block}, {QStringLiteral("Dup"), QStringLiteral("Data"), one}};
+        int n = 0;
+        // on the sheet itself, a reference with no sheet in front; "$" makes no difference
+        QCOMPARE(applyNamesInFormula(QStringLiteral("A1*2+$A$1+SUM(B2:C3)"), QStringLiteral("data"), names, &n), QStringLiteral("Rate*2+Rate+SUM(Grid)"));
+        QCOMPARE(n, 3);
+        // from another sheet only a reference that names the sheet
+        QCOMPARE(applyNamesInFormula(QStringLiteral("A1+Data!A1+'Data'!$B$2:$C$3"), QStringLiteral("Other"), names, &n), QStringLiteral("A1+Rate+Grid"));
+        QCOMPARE(n, 2);
+        // part of a longer range, text, table columns, functions, and other sheets' cells stay
+        QCOMPARE(applyNamesInFormula(QStringLiteral("SUM(A1:C3)+\"A1\"+T[A1]+LOG10(A1)+Other!A1+B2:D4+A1:A1"), QStringLiteral("Data"), names, &n),
+                 QStringLiteral("SUM(A1:C3)+\"A1\"+T[A1]+LOG10(Rate)+Other!A1+B2:D4+Rate"));
+        QCOMPARE(n, 2);
+        QCOMPARE(applyNamesInFormula(QStringLiteral("XA1+A10+A1B"), QStringLiteral("Data"), names, &n), QStringLiteral("XA1+A10+A1B"));
+        QCOMPARE(n, 0);
+    }
+
     void aNameGivenAnotherTextOrTakenAwayWorksItsFormulasOutAgain()
     {
         Book b;
@@ -684,6 +705,12 @@ private Q_SLOTS:
         QByteArray back;
         QVERIFY(patchCalcPr(out, CalcMode::Auto, false, 50, 0.01, &back));
         QCOMPARE(back, QByteArray("<workbook><sheets/><calcPr calcId=\"191029\" fullCalcOnLoad=\"1\" iterateCount=\"50\" iterateDelta=\"0.01\"/></workbook>"));
+        QByteArray off;
+        QVERIFY(patchCalcPr("<workbook><sheets/><calcPr calcId=\"1\"/></workbook>", CalcMode::Manual, false, 100, 0.001, &off, false));
+        QCOMPARE(off, QByteArray("<workbook><sheets/><calcPr calcId=\"1\" calcMode=\"manual\" calcOnSave=\"0\"/></workbook>"));
+        QByteArray on;
+        QVERIFY(patchCalcPr(off, CalcMode::Manual, false, 100, 0.001, &on));
+        QCOMPARE(on, QByteArray("<workbook><sheets/><calcPr calcId=\"1\" calcMode=\"manual\"/></workbook>"));
         QByteArray same;
         QVERIFY(patchCalcPr("<workbook><sheets/><calcPr calcId=\"1\"/></workbook>", CalcMode::Auto, false, 100, 0.001, &same));
         QCOMPARE(same, QByteArray("<workbook><sheets/><calcPr calcId=\"1\"/></workbook>"));
@@ -705,6 +732,10 @@ private Q_SLOTS:
         QCOMPARE(d.book.info().iterateCount, 100);
         QCOMPARE(d.book.info().iterateDelta, 0.001);
         QVERIFY(!d.book.info().calcUnfinished);
+        QVERIFY(d.book.info().calcOnSave);
+        Book n;
+        QVERIFY(n.open(nameBook(QStringLiteral("calcMode=\"manual\" calcOnSave=\"0\""))));
+        QVERIFY(!n.book.info().calcOnSave);
         Book u;
         QVERIFY(u.open(nameBook(QStringLiteral("calcCompleted=\"0\""))));
         QVERIFY(u.book.info().calcUnfinished);

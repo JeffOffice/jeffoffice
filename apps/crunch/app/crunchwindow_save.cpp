@@ -170,6 +170,13 @@ bool CrunchWindow::startSave(const QString &path)
         setStatus(tr("Saving when the calculation is done…"));
         return true;
     }
+    // by hand, with Calculate Before Save on (the default), the formulas that are out of date are worked out first
+    if (m_calcDue && m_session->calcSettings().mode == jp::office::sheet::CalcMode::Manual && m_session->calcSettings().calcOnSave && m_loader.recalculate()) {
+        m_calculating = true;
+        m_saveAfterCalculation = path;
+        setStatus(tr("Calculating before saving…"));
+        return true;
+    }
     // The new file is the one that was read with what changed put in: if another program changed the file since, saving over it would take that work out. The person is asked.
     if (samePath && fileChangedOnDisk()) {
         const QString name = QFileInfo(path).fileName();

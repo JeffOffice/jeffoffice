@@ -310,6 +310,7 @@ EditSession::EditSession(WorkbookLoader *loader, const std::shared_ptr<LoadedBoo
         const jp::office::sheet::WorkbookInfo &info = m_book->book->info();
         m_nameTable.load(info.definedNames);
         m_calcNow.mode = info.calcMode;
+        m_calcNow.calcOnSave = info.calcOnSave;
         m_calcNow.iterate = info.iterate;
         m_calcNow.count = info.iterateCount;
         m_calcNow.delta = info.iterateDelta;
@@ -1800,6 +1801,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
     if (m_calcNow != m_calcFile) {
         changes.calcChanged = true;
         changes.calcMode = m_calcNow.mode;
+        changes.calcOnSave = m_calcNow.calcOnSave;
         changes.iterate = m_calcNow.iterate;
         changes.iterateCount = m_calcNow.count;
         changes.iterateDelta = m_calcNow.delta;
