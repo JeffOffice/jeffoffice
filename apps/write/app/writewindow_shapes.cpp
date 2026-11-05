@@ -316,7 +316,7 @@ void WriteWindow::refreshChartUi()
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("chart."))) a->setEnabled(editable);
     act("chart.editData")->setEnabled(editable && info.dataEditable);
-    act("chart.editTitle")->setEnabled(editable && info.titleShown);
+    act("chart.editTitle")->setEnabled(editable);
     act("chart.title")->setChecked(editable && info.titleShown);
     act("chart.dataLabels")->setChecked(editable && info.dataLabels);
     for (const ChartName &n : kChartNames) act(QStringLiteral("chart.type.") + QLatin1String(n.id))->setChecked(editable && info.form == n.form);

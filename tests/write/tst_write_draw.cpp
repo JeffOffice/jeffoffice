@@ -639,6 +639,7 @@ private Q_SLOTS:
             {"x_i^2", "<m:sSubSup>", "xi2"},
             {"sqrt(x+1)", "<m:rad>", ""},
             {"sqrt[3](x)", "<m:deg>", ""},
+            {"sqrt[3]{x}", "<m:deg>", ""},
             {"\\sum_(i=1)^n i", "<m:nary>", ""},
             {"\\int_0^1 x", "<m:nary>", ""},
             {"(a+b)/(c+d)", "<m:f>", ""},
