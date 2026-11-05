@@ -39,6 +39,7 @@
 #include <QDialog>
 #include <QDoubleSpinBox>
 #include <QTimer>
+#include <QToolButton>
 #include <QListWidget>
 #include <QBuffer>
 #include <QImage>
@@ -55,6 +56,14 @@ using namespace jp;
 using namespace jp::write;
 
 namespace {
+
+QTextCharFormat charFormatAtEnd(WriteWindow &w)
+{
+    QTextCursor e(w.document()->story());
+    e.setPosition(w.document()->story()->characterCount() - 1);
+    e.movePosition(QTextCursor::PreviousCharacter, QTextCursor::KeepAnchor);
+    return e.charFormat();
+}
 
 const char kNs[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
 
@@ -110,6 +119,13 @@ QTextCursor selectBlocks(QTextDocument *d, int firstBlock, int lastBlock)
     QTextBlock last = d->findBlockByNumber(lastBlock);
     c.setPosition(last.position() + last.length() - 1, QTextCursor::KeepAnchor);
     return c;
+}
+
+// A picture of a widget for the person looking at the round's work: saved only when JP_SHOT_DIR names a folder.
+void shot(QWidget *w, const QString &name)
+{
+    const QString dir = qEnvironmentVariable("JP_SHOT_DIR");
+    if (!dir.isEmpty() && w) w->grab().save(dir + QLatin1Char('/') + name);
 }
 
 // Runs `open` (which opens a modal dialog named `objectName`), fills the dialog in, and accepts it (or rejects it).
@@ -1043,6 +1059,9 @@ private Q_SLOTS:
         box.lineEdit()->setText(QStringLiteral("+Heading"));
         QTest::keyClick(box.lineEdit(), Qt::Key_Return);
         jp::FontCombo later;
+        later.showPopup();
+        shot(later.view()->window(), QStringLiteral("font-list-recent.png"));
+        later.hidePopup();
         for (const jp::FontCombo *c : {&box, &later}) {
             const QStringList t = texts(*c);
             const int at = int(t.indexOf(QStringLiteral("Recently Used")));
@@ -1139,6 +1158,52 @@ private Q_SLOTS:
         w.view()->cut();
         QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("one  three"));
         jp::Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), true);
+    }
+
+    void aPasteOffersOptionsUntilTheNextEditAndTheChoiceRedoesThePaste()
+    {
+        jp::Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), true);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("plain ") + run("bold", "<w:b/>") + run(" end")))), QString());
+        QTextCursor c(w.document()->story());
+        c.setPosition(6);
+        c.setPosition(10, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        w.view()->copy();
+        QVERIFY(!w.view()->pasteOptionsAvailable());
+        c.movePosition(QTextCursor::End);
+        w.view()->setCursor(c);
+        w.view()->paste();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("plain bold end bold"));
+        QVERIFY(w.view()->pasteOptionsAvailable());
+        auto *button = w.view()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton"));
+        QVERIFY(button);
+        QTRY_VERIFY(button->isVisible());
+        shot(&w, QStringLiteral("paste-options.png"));
+        withDialog([&w] { w.act(QStringLiteral("edit.goTo"))->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            d->findChild<QListWidget *>(QStringLiteral("goToKinds"))->setCurrentRow(8);   // Table
+            shot(d, QStringLiteral("go-to.png"));
+        }, false);
+        auto lastIsBold = [&] { return charFormatAtEnd(w).fontWeight() >= QFont::DemiBold; };
+        QVERIFY(lastIsBold());
+        QVERIFY(w.view()->changeLastPaste(PageView::PasteKind::TextOnly));
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("plain bold end bold"));
+        QVERIFY(!lastIsBold());
+        QVERIFY(w.view()->pasteOptionsAvailable());
+        QVERIFY(w.view()->changeLastPaste(PageView::PasteKind::Keep));
+        QVERIFY(lastIsBold());
+        // One Undo takes the paste back whatever it was changed to.
+        QVERIFY(w.document()->undo());
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("plain bold end"));
+        // Typing, or moving the caret, ends the offer.
+        w.view()->paste();
+        QVERIFY(w.view()->pasteOptionsAvailable());
+        w.view()->insertText(QStringLiteral("x"));
+        QVERIFY(!w.view()->pasteOptionsAvailable());
+        QVERIFY(!w.view()->changeLastPaste(PageView::PasteKind::TextOnly));
+        QTRY_VERIFY(!button->isVisible());
     }
 
     // ---- the review's fixes

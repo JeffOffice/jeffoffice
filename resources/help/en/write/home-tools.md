@@ -1,5 +1,5 @@
 # Change case, sort, and paste in other ways
-<!-- keywords: smart cut and paste, spaces when pasting, horizontal line, rule, reveal formatting, style inspector, shift+f1, tabs, tab stops, leader, keep with next, keep lines together, page break before, widow, orphan, outline level, line and page breaks, change case, uppercase, lowercase, sentence case, capitalize, toggle case, shift+f3, sort, sort paragraphs, alphabetical, order, paste, paste special, keep text only, merge formatting, unformatted text, picture, clipboard -->
+<!-- keywords: paste options button, smart cut and paste, spaces when pasting, horizontal line, rule, reveal formatting, style inspector, shift+f1, tabs, tab stops, leader, keep with next, keep lines together, page break before, widow, orphan, outline level, line and page breaks, change case, uppercase, lowercase, sentence case, capitalize, toggle case, shift+f3, sort, sort paragraphs, alphabetical, order, paste, paste special, keep text only, merge formatting, unformatted text, picture, clipboard -->
 
 These tools are on the **Home** tab. They work on the text you select.
 
@@ -46,6 +46,8 @@ Click the small arrow under **Paste** for more choices:
 - **Paste Special** (**Ctrl+Alt+V**) lists every way the clipboard can be pasted now, and lets you pick one.
 
 A choice is dimmed when the clipboard has nothing it can use.
+
+Right after you paste, a small **Paste Options** button shows up next to your cursor. Click it to pick **Keep Source Formatting**, **Merge Formatting**, or **Keep Text Only**. JeffWrite takes the paste back and does it again that way. The button goes away as soon as you type, or move the cursor.
 
 **Smart cut and paste** keeps the spaces right when you move words. If you cut whole words from between two spaces, JeffWrite takes one of the spaces too, so you are not left with a double space. If you paste a word right up against another word, it adds a space between them. It leaves the middle of a word alone. To turn it off, click **File > Options > Advanced** and clear **Smart cut and paste**.
 

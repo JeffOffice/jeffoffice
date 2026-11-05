@@ -1203,6 +1203,7 @@ void PageView::caretMoved(bool keepWanted)
     m_caretOn = true;
     if (hasFocus()) m_blink.start();
     ensureCaretVisible();
+    updatePasteButton();
     viewport()->update();
     Q_EMIT caretChanged();
 }
