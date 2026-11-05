@@ -31,6 +31,10 @@ bool columnsDialog(QWidget *parent, WriteDoc *doc, int section);
 bool lineNumbersDialog(QWidget *parent, WriteDoc *doc, int section);
 // Page Borders: which sides, the line (style, width, color), its distance, where it is measured from, and the pages that have it; for the section or the whole document.
 bool pageBordersDialog(QWidget *parent, WriteDoc *doc, int section);
+// Design > Watermark > Custom Watermark: the words, font, size, color, and layout; puts the watermark in the headers (Cancel, or no words, changes nothing).
+bool watermarkDialog(QWidget *parent, WriteDoc *doc);
+// Insert > Drop Cap > Drop Cap Options: none or dropped, a font, the lines it drops, and the letters; set on the paragraph the cursor is in.
+bool dropCapDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
 // Date and Time: a list of ways to write today's date and the time, put in as the text of the moment or as a field that updates (F9, and when the document is opened). Returns whether the
 // text was changed.
 bool dateTimeDialog(QWidget *parent, WriteDoc *doc, PageView *view);

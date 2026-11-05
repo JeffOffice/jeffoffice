@@ -25,6 +25,8 @@ enum : int {
     DoubleStrike,                             // bool
     Hidden,                                   // (unused: hidden text is tp::HiddenText, which the text engine leaves out)
     Raised,                                   // int: half-points raised
+    CharShade,                                // QString: the shading ("RRGGBB") the run has, w:shd, drawn as the color behind the letters (tp::HighlightRefP holds it too)
+    CharBorder,                               // QString: the border a person gave the run (tp::RunBorder's text), written as w:bdr when the run keeps none as written
     TrackedDeleted,                           // int: the text (or mark) is what a tracked change deleted, hidden (tp::HiddenText) for the lines: HiddenAlready if its
                                               // format hid it before (the file's w:vanish or its style's, which the run says as it is), HiddenByDeletion if only deleting does
     // block formats

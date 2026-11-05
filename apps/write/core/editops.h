@@ -188,6 +188,8 @@ void setFontSize(WriteDoc &doc, QTextCursor &c, double points);
 void changeFontSize(WriteDoc &doc, QTextCursor &c, int steps);               // Grow and Shrink: along the sizes of the size box
 void setTextColor(WriteDoc &doc, QTextCursor &c, const QColor &color);       // invalid: automatic
 void setHighlight(WriteDoc &doc, QTextCursor &c, const QString &name);       // empty: none
+void setCharShading(WriteDoc &doc, QTextCursor &c, const QColor &color);   // invalid: none; the shading of the letters (w:shd), not the highlight
+void setCharBorder(WriteDoc &doc, QTextCursor &c, bool on);                  // a thin line round the letters (w:bdr)
 void clearFormatting(WriteDoc &doc, QTextCursor &c);
 
 // ---- paragraphs

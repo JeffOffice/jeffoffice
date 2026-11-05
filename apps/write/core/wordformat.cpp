@@ -413,6 +413,18 @@ QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunPro
         const QColor h = highlightColor(r.highlight);
         if (h.isValid()) cf.setProperty(tp::HighlightRefP, ColorRef::rgb(h).toString());
     }
+    // The shading the run states (w:shd, a plain fill): drawn as the color behind the letters, as a highlight is (a highlight, which is over it, stays the color shown).
+    for (const RawChild &ch : r.extra) {
+        static const QRegularExpression shade(QStringLiteral("^<w:shd\\b[^>]*?\\bw:fill=\"([0-9A-Fa-f]{6})\""));
+        static const QRegularExpression pattern(QStringLiteral("\\bw:val=\"(\\w+)\""));
+        if (!ch.xml.startsWith("<w:shd")) continue;
+        const QString head = QString::fromUtf8(ch.xml.left(400));
+        const QRegularExpressionMatch m = shade.match(head), v = pattern.match(head);
+        if (!m.hasMatch() || (v.hasMatch() && v.captured(1) != QLatin1String("clear"))) continue;   // (a pattern is not a plain fill)
+        const QString fill = m.captured(1).toUpper();
+        cf.setProperty(prop::CharShade, fill);
+        if (!cf.hasProperty(tp::HighlightRefP)) cf.setProperty(tp::HighlightRefP, ColorRef::rgb(QColor(QLatin1Char('#') + fill)).toString());
+    }
     // The ligatures the run asks for (w14:ligatures, kept as written): none, the standard ones, or the discretionary ones too; a run that says nothing has what
     // the text engine gives a word processor's text (none).
     for (const RawChild &ch : r.extra) {
@@ -499,6 +511,29 @@ RunProps runPropsOf(const QTextCharFormat &f)
     r.highlight = h.isEmpty() ? QStringLiteral("none") : highlightName(ColorRef::fromString(h).rgbValue());
     r.style = f.stringProperty(tp::CharStyle);
     if (f.hasProperty(prop::RawRPr)) r.extra = unpackRaw(storedBytes(f, prop::RawRPr));
+    // The shading and the border a person gave the text, when the run keeps none as the file wrote it (the color behind the letters is the shading's, not a highlight).
+    {
+        const QString shade = f.stringProperty(prop::CharShade);
+        const bool shadeColor = !shade.isEmpty() && h == ColorRef::rgb(QColor(QLatin1Char('#') + shade)).toString();
+        if (shadeColor) r.highlight = QStringLiteral("none");
+        bool keptShade = false, keptBorder = false;
+        for (const RawChild &ch : std::as_const(r.extra)) {
+            keptShade = keptShade || ch.xml.startsWith("<w:shd");
+            keptBorder = keptBorder || ch.xml.startsWith("<w:bdr");
+        }
+        auto put = [&r](const QByteArray &xml, const char *name) {
+            RawChild c;
+            c.rank = office::wml::runChildRank(name);
+            c.xml = xml;
+            int at = 0;
+            while (at < r.extra.size() && r.extra.at(at).rank <= c.rank) ++at;
+            r.extra.insert(at, c);
+        };
+        const QStringList border = f.stringProperty(prop::CharBorder).split(QLatin1Char(';'));
+        if (!keptBorder && border.size() == 4 && f.hasProperty(tp::RunBorder))
+            put("<w:bdr w:val=\"" + border[0].toUtf8() + "\" w:sz=\"" + border[1].toUtf8() + "\" w:space=\"" + border[2].toUtf8() + "\" w:color=\"" + (border[3].isEmpty() ? QByteArray("auto") : border[3].toUtf8()) + "\"/>", "bdr");
+        if (!keptShade && !shade.isEmpty()) put("<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"" + shade.toUtf8() + "\"/>", "shd");
+    }
     return r;
 }
 
