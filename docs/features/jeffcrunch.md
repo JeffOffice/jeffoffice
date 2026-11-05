@@ -341,7 +341,7 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 
 ### Proofing and Accessibility
 - [~] **first release** Spelling (F7): check the sheet or the selection, with the cell's text shown in context, ignore, change, add, and the dictionaries *(shared: the spelling service in libs/shell)*
-- [ ] **1.0** Thesaurus, from an open-licensed word list in the languages that have one
+- [x] **1.0** Thesaurus, from an open-licensed word list in the languages that have one *(done November 5, 2026: Review > Thesaurus (Shift+F7) looks up the first word of the cell's text in the English word list, and Replace puts the choice in the cell; the other languages follow when their lists are bundled)*
 - [x] **1.0** Workbook Statistics: the numbers of sheets, cells with data, formulas, charts, and pivot tables *(done November 4, 2026: Review > Workbook Statistics, and the same on the Info page: sheets, cells with data, formulas, charts, and pivot tables)*
 - [ ] **later** Speak Cells: read cells aloud as they are entered, by rows or by columns, with the system's speech
 - [~] **1.0** Check Accessibility: missing alt text, merged cells, blank cells used for layout, duplicate sheet names, a header row not marked, low color contrast, and a reading order *(done: missing alt text, merged cells, default sheet names, a table with no header row, and low color contrast; not yet: blank cells used for layout, and reading order)*

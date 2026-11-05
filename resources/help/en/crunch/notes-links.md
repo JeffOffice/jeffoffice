@@ -1,5 +1,5 @@
 # Notes and links
-<!-- keywords: note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells -->
+<!-- keywords: thesaurus, synonyms, word list, note, notes, comment, comments, hover, red mark, corner, new note, edit note, delete note, show note, hide note, show all notes, link, links, hyperlink, address, web page, e-mail, place in this workbook, Ctrl+K, Ctrl+click, screen tip, open link, remove link, conversation, workbook statistics, count, cells, formulas, charts, pivot tables, accessibility, alt text, merged cells -->
 
 ## Notes
 
@@ -33,6 +33,10 @@ A link goes with its cell when rows or columns are inserted or deleted, and when
 ## Workbook Statistics
 
 **Workbook Statistics** (**Review** tab) counts what the workbook holds: how many **Sheets** it has, how many **Cells with data** (cells that hold a number, text, or a formula), how many **Formulas**, how many **Charts**, and how many **Pivot tables**. Sheets you deleted are not counted. The same numbers are on the **Info** page of the File tab.
+
+## Thesaurus
+
+**Thesaurus** (**Review** tab, or **Shift+F7**) finds words that mean nearly the same as a word in a cell. It looks up the first word of the text in the cell you are on. Type another word in **Look up** and press **Enter** to look up that one instead. Pick a word in the list and click **Replace**, or double-click it. The word in the cell is replaced, and a capital first letter stays a capital. **Look Up** looks up the word you picked, to follow a chain of meanings. The word list works in English.
 
 ## Check Accessibility
 

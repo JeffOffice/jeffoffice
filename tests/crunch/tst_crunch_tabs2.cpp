@@ -1,6 +1,7 @@
 // Tests of tools on the Data, Formulas, Review, and View tabs: Workbook Statistics, Goal Seek, Subtotal, and Advanced Filter. Every workbook is built here.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "app/proofingdialogs.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
 #include "core/advancedfilter.h"
@@ -737,6 +738,24 @@ private Q_SLOTS:
         for (const auto &i : issues)
             if (i.kind == crunch::AccessIssue::LowContrast) where << QStringLiteral("%1,%2").arg(i.row).arg(i.col);
         QCOMPARE(where, (QStringList{QStringLiteral("0,0"), QStringLiteral("1,1")}));
+    }
+
+    // Thesaurus: the synonyms of the word in the active cell come from the word list, and the one chosen goes in the cell in place of the word (a capital stays a capital).
+    void theThesaurusFindsSynonymsAndReplacesTheWordInTheCell()
+    {
+        const QStringList found = jp::thesaurusLookup(QStringLiteral("happy"));
+        QVERIFY(!found.isEmpty());
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.act(QStringLiteral("review.thesaurus")));
+        e.select(QStringLiteral("E1"));
+        e.enter(QStringLiteral("Happy days"));
+        QVERIFY(e.settle());
+        QCOMPARE(w.thesaurusWordAt(0, 0, 4), QStringLiteral("Happy"));
+        QVERIFY(w.replaceWordInCell(0, 0, 4, QStringLiteral("Happy"), QStringLiteral("glad")));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("E1")), QStringLiteral("s:Glad days"));
     }
 
 private:

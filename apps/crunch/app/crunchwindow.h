@@ -500,6 +500,11 @@ public:
     // Whether cells that hold zero show it, on the sheet in view (Options > Display); kept with the sheet in the file.
     bool showZeros() const { return m_view->showZeros(); }
     void setShowZeros(bool on);
+    // Review > Thesaurus: the first word of the text in the active cell is looked up in the word list, and the word chosen goes in its place. `thesaurusWordAt` is that word (empty for
+    // none); `replaceWordInCell` puts `chosen` where `word` is in the cell's text (a capital first letter stays one).
+    void thesaurus();
+    QString thesaurusWordAt(int sheet, quint32 row, quint32 col) const;
+    bool replaceWordInCell(int sheet, quint32 row, quint32 col, const QString &word, const QString &chosen);
     // Automatic decimal places (Options > Editing): 0 is off; with 2, typing 1234 enters 12.34; kept in the person's settings.
     int fixedDecimals() const { return m_fixedDecimals; }
     void setFixedDecimals(int places);
