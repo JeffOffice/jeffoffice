@@ -74,6 +74,7 @@ struct WriteOutputOptions {
     Sides sides = Sides::All;   // only the pages whose numbers are odd or even, of the pages the range covers
     bool reverse = false;       // last page first
     bool byHand = false;        // both sides of the paper with a printer that has no duplex: the odd pages, a prompt to turn the stack over, then the even pages last first
+    bool pdfArchive = false;    // Export to PDF: a PDF/A-1b file, for keeping (fonts embedded, no transparency, and the standard's mark in its metadata)
     int perSheet = 1;           // pages on a sheet: 1, 2, 4, 6, 9, or 16 (each scaled to fit its place)
     QSizeF scaleTo;             // points, upright: each page is scaled to fit this paper (empty: the page's own)
 };
@@ -165,7 +166,7 @@ public:
     enum class EmailWhat { Document, Pdf, Pages };
     bool exportEmail(EmailWhat what);
     // The pages (by index) as a PDF, in memory; empty, with the reason, when they can't be made.
-    QByteArray pdfBytes(const QVector<int> &pages, QString *error);
+    QByteArray pdfBytes(const QVector<int> &pages, QString *error, bool archive = false);
     // Version history: named copies of the document kept on this computer (see app/versionstore.h). Each needs a file the document has been saved as.
     QVector<write::DocVersion> versions() const;
     bool saveVersion(const QString &name);

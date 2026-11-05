@@ -639,6 +639,28 @@ private Q_SLOTS:
         QCOMPARE(fileBytes(path), before);
     }
 
+    // Export to PDF can make a PDF/A-1b file: the standard's mark is in its metadata, and an ordinary export has none.
+    void aPdfCanBeExportedAsPdfA()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("keep this"));
+        QString target;
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        target = dir.filePath(QStringLiteral("plain.pdf"));
+        QVERIFY(w.exportPdfPages(WriteOutputOptions()));
+        WriteOutputOptions o;
+        o.pdfArchive = true;
+        target = dir.filePath(QStringLiteral("archive.pdf"));
+        QVERIFY(w.exportPdfPages(o));
+        const QByteArray plain = fileBytes(dir.filePath(QStringLiteral("plain.pdf"))), kept = fileBytes(target);
+        QVERIFY(plain.startsWith("%PDF") && kept.startsWith("%PDF"));
+        QVERIFY(!plain.contains("pdfaid:part"));
+        QVERIFY2(kept.contains("pdfaid:part") || kept.contains("<pdfaid:part>1</pdfaid:part>"), "no PDF/A mark");
+        QVERIFY(kept.contains("GTS_PDFA1") || kept.contains("OutputIntent"));
+    }
+
     void textFilesAreReadAndWrittenInTheEncodingAndLineEndsChosen()
     {
         // UTF-16 either way round, the mark deciding; a code page; and the three line ends.

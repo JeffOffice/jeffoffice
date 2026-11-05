@@ -25,6 +25,7 @@
 #include <QPainter>
 #include <QPrinter>
 #include <QSaveFile>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -157,7 +158,7 @@ QString WriteWindow::pdfPathToWrite(const QString &title)
     return path;
 }
 
-QByteArray WriteWindow::pdfBytes(const QVector<int> &pages, QString *error)
+QByteArray WriteWindow::pdfBytes(const QVector<int> &pages, QString *error, bool archive)
 {
     if (!m_doc || pages.isEmpty()) {
         if (error) *error = tr("The pages can't be made.");
@@ -172,10 +173,11 @@ QByteArray WriteWindow::pdfBytes(const QVector<int> &pages, QString *error)
     {
         QPdfWriter pdf(&made);
         pdf.setCreator(appInfo().name);
+        if (archive) pdf.setPdfVersion(QPdfWriter::PdfVersion_A1b);
         const office::PackageProps props = m_doc->packageProps();
         const QString title = props.title.isEmpty() ? displayName() : props.title;
         pdf.setTitle(title);
-        pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved ? QString() : props.creator, props.subject, props.keywords, appInfo().name));
+        pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved ? QString() : props.creator, props.subject, props.keywords, appInfo().name, archive));
         pdf.setResolution(1200);
         pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
         ok = write::paintSheets(*m_doc, &pdf, pages, m_view->pageCount());
@@ -216,12 +218,17 @@ bool WriteWindow::exportPdfAsk()
     auto *note = new QLabel(tr("Type page numbers and ranges, separated by commas. p2s3 is the second page of section 3, and s3 is all of section 3."), &dialog);
     note->setWordWrap(true);
     layout->addWidget(note);
+    auto *archive = new QCheckBox(tr("PDF/A, for keeping for a long time"), &dialog);
+    archive->setObjectName(QStringLiteral("pdfArchive"));
+    archive->setToolTip(tr("Makes a PDF/A-1b file: every font is in the file, so it looks the same in years. It is not tagged for screen readers."));
+    layout->addWidget(archive);
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
     if (dialog.exec() != QDialog::Accepted) return false;
     WriteOutputOptions o;
+    o.pdfArchive = archive->isChecked();
     o.range = static_cast<WriteOutputOptions::Range>(which->currentData().toInt());
     o.pages = text->text();
     if (o.range == WriteOutputOptions::Range::Pages && outputPages(o).isEmpty()) {
@@ -242,7 +249,7 @@ bool WriteWindow::exportPdfPages(const WriteOutputOptions &options)
     if (path.isEmpty()) return false;
     QString err;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    const QByteArray bytes = pdfBytes(pages, &err);
+    const QByteArray bytes = pdfBytes(pages, &err, options.pdfArchive);
     bool ok = !bytes.isEmpty();
     if (ok) {
         QSaveFile file(path);

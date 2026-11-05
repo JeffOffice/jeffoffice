@@ -226,17 +226,18 @@ QByteArray addPdfBookmarks(const QByteArray &pdf, const QVector<PdfBookmark> &ma
     return pdf + tail + x;
 }
 
-QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const QString &subject, const QString &keywords, const QString &program)
+QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const QString &subject, const QString &keywords, const QString &program, bool archive)
 {
     auto esc = [](const QString &t) { return t.toHtmlEscaped().toUtf8(); };
     QByteArray x = "<?xpacket begin=\"\xEF\xBB\xBF\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n"
                    "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n"
                    "<rdf:Description rdf:about=\"\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:pdf=\"http://ns.adobe.com/pdf/1.3/\" "
-                   "xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\">\n";
+                   "xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\"" + QByteArray(archive ? " xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\"" : "") + ">\n";
     x += "<dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">" + esc(title) + "</rdf:li></rdf:Alt></dc:title>\n";
     if (!author.isEmpty()) x += "<dc:creator><rdf:Seq><rdf:li>" + esc(author) + "</rdf:li></rdf:Seq></dc:creator>\n";
     if (!subject.isEmpty()) x += "<dc:description><rdf:Alt><rdf:li xml:lang=\"x-default\">" + esc(subject) + "</rdf:li></rdf:Alt></dc:description>\n";
     if (!keywords.isEmpty()) x += "<pdf:Keywords>" + esc(keywords) + "</pdf:Keywords>\n";
+    if (archive) x += "<pdfaid:part>1</pdfaid:part><pdfaid:conformance>B</pdfaid:conformance>\n";
     x += "<xmp:CreatorTool>" + esc(program) + "</xmp:CreatorTool>\n</rdf:Description>\n</rdf:RDF></x:xmpmeta>\n<?xpacket end=\"w\"?>";
     return x;
 }

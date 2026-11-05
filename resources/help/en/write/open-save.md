@@ -88,6 +88,10 @@ Click **File > Export** and choose one of two kinds of web page. A **web page** 
 
 Both keep headings, bulleted and numbered lists, tables with joined cells, links, and pictures. Hidden text, the words that a tracked change deleted, comments, headers, footers, and notes are left out. A link that would start a program or run a script is saved as plain words.
 
+## Make a PDF/A
+
+In the **Export to PDF** box, tick **PDF/A, for keeping for a long time**. A PDF/A file holds every font it uses and follows a standard made for keeping files for many years. It is not tagged for screen readers yet, and it does not have a password.
+
 ## Make an email
 
 Click **File > Export > Make an Email** to make a message file (.eml). Nothing is sent. You choose what goes in the message: the document, the document as a PDF, or the pages shown as pictures in the message (the first 30 pages). Open the file in your email program, add who it is for, and send it.
