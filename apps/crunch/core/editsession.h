@@ -442,7 +442,7 @@ public:
     // Where the data of a table's cache is, as the cache says it ("Data!A1:D100", or the name), for the dialog that changes it.
     QString pivotSourceText(int table) const;
 
-    // AutoSum and the functions of its menu (`function` is SUM, AVERAGE, COUNT, MAX, or MIN) for what is selected. With one cell: the numbers above it, or if there are none left of it,
+    // Sum and the functions of its menu (`function` is SUM, AVERAGE, COUNT, MAX, or MIN) for what is selected. With one cell: the numbers above it, or if there are none left of it,
     // are the range, and the formula is to be edited in the cell (`text`, with the cursor `cursorBack` characters before its end: inside the brackets of one with no range). With a
     // block of cells: a formula for each column under it, or for each row to the right of one row, in the empty cells at its end if its last row (column) is empty; one step.
     struct AutoSumResult {

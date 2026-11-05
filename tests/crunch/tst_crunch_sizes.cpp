@@ -153,7 +153,7 @@ private Q_SLOTS:
         QCOMPARE(columnPx(e, 0), columnPx(e, 1));
     }
 
-    // A double click on a border fits the column to its text, and AutoFit does it for what is selected; a row fits its tallest line.
+    // A double click on a border fits the column to its text, and Fit does it for what is selected; a row fits its tallest line.
     void aDoubleClickFitsTheContents()
     {
         EditWindow e;

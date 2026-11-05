@@ -20,7 +20,7 @@ QString copySuffix();
 // Where every run keeps its folder (tests point it elsewhere).
 QString root();
 void setRoot(const QString &dir);
-// The folder older versions kept their copies in, by default "AutoRecover" beside the root (none after setRoot): orphans() moves what is there into the root, and still reads what it
+// The folder older versions kept their copies in, by default the old-named folder beside the root (recovery.cpp) (none after setRoot): orphans() moves what is there into the root, and still reads what it
 // could not move.
 void setLegacyRoot(const QString &dir);
 

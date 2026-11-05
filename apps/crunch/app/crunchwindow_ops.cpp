@@ -1,4 +1,4 @@
-// The commands on a block of cells that are not typing: AutoSum, fill, the clipboard, inserting and deleting, the sizes of rows and columns. Each asks the edit session for one step.
+// The commands on a block of cells that are not typing: Sum, fill, the clipboard, inserting and deleting, the sizes of rows and columns. Each asks the edit session for one step.
 #include "app/crunchwindow.h"
 
 #include "app/crunchinfo.h"
@@ -30,7 +30,7 @@ using jp::office::sheet::CellRange;
 
 void CrunchWindow::createOpsActions()
 {
-    // AutoSum, and the functions of its menu
+    // Sum, and the functions of its menu
     mk("edit.autosum", tr("Sum"), "sigma", crunch::autoSumKey(), [this] { autoSum(QStringLiteral("SUM")); });
     mk("edit.autosum.sum", tr("Sum"), "sigma", QKeySequence(), [this] { autoSum(QStringLiteral("SUM")); });
     mk("edit.autosum.average", tr("Average"), "", QKeySequence(), [this] { autoSum(QStringLiteral("AVERAGE")); });
@@ -57,7 +57,7 @@ void CrunchWindow::createOpsActions()
     updateEditActions();
 }
 
-// AutoSum (and Average, How Many Numbers, Max, and Min): with one cell selected the formula is put in the cell to be edited, with the range it guessed; with a block of cells the formulas
+// Sum (and Average, How Many Numbers, Max, and Min): with one cell selected the formula is put in the cell to be edited, with the range it guessed; with a block of cells the formulas
 // are put in at once.
 void CrunchWindow::autoSum(const QString &function)
 {

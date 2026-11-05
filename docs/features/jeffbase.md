@@ -19,7 +19,7 @@ Every item carries a tier:
 There are no usage counts for databases. The owner has no Access files, and the public collections used for the other apps hold almost none, so the tiers rest on what a person moving from Access needs on day one, then on what a full replacement needs. Three cautions:
 
 - Microsoft never published the `.accdb` and `.mdb` formats. Writing `.accdb` follows the format knowledge of Jackcess, an open-source Java library, and every claim is proved by checks on the saved file: it must open without a repair message.
-- The ribbon below has 1,571 controls on the tabs, the Quick Access Toolbar, and the File page. Access's commands for SharePoint, web apps, replication, and source control are collected under "Left out on purpose".
+- The ribbon below has 1,571 controls on the tabs, the quick toolbar, and the File page. Access's commands for SharePoint, web apps, replication, and source control are collected under "Left out on purpose".
 - How Access's expressions and SQL behave (what `Null` does in arithmetic, how `Like` matches, what `True` equals) is documented only in part. Each such rule is checked against reference answers from real databases before JeffBase copies it.
 
 ## Words used here
@@ -78,7 +78,7 @@ What JeffBase offers that Access doesn't, then the plans that go past Access.
 - [ ] **first release** Back Up Database: a dated copy made while the file is open and in use, consistent as of one moment (SQLite's online backup)
 - [ ] **1.0** A warning before saving into a format that can't hold something in the database, naming what would change, with the choice to keep a SQLite copy as well
 - [ ] **1.0** Open and Repair: recover the tables, rows, and queries that can be read from a damaged SQLite, `.accdb`, or `.mdb` file into a new file, and say what was dropped
-- [~] **first release** AutoRecover for unsaved design work in forms, reports, and queries *(shared: libs/shell recovery)*
+- [~] **first release** automatic recovery for unsaved design work in forms, reports, and queries *(shared: libs/shell recovery)*
 
 ### Print
 - [~] **first release** Print, Quick Print, and Print Preview for the open datasheet, query answer, form, or report, with printer choice, copies, page ranges, selected records, and printer properties *(shared: JeffPub's print and print preview)*
@@ -90,7 +90,7 @@ What JeffBase offers that Access doesn't, then the plans that go past Access.
 - [ ] **1.0** Object Designers: default field type and text size for new fields, automatic indexes for names like ID and Code, show table names in the query designer, output all fields, the font for the query designer and for SQL view, and the control and error checks in the form and report designers
 - [~] **first release** Proofing: AutoCorrect, spelling as you type, ignoring words in capitals or with numbers, and custom dictionaries *(shared: JeffPub's Proofing options)*
 - [ ] **1.0** Client Settings and Advanced: the Enter key moves to the next field, next record, or stays; arrow keys move between fields; select the whole field on entering it; confirm record changes, deletions, and action queries; default find and replace behavior; how many recent databases to list; four-digit years; default print margins; open the last database at start; the default open mode (shared or exclusive); and the time to wait on a busy file
-- [ ] **1.0** Customize the Ribbon, the Quick Access Toolbar, and the keyboard: show, hide, rename, and reorder tabs and groups, add your own, assign keys to commands, and reset them
+- [ ] **1.0** Customize the Ribbon, the quick toolbar, and the keyboard: show, hide, rename, and reorder tabs and groups, add your own, assign keys to commands, and reset them
 - [ ] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports) *(shared: libs/shell telemetry)*
 - [ ] **first release** Trust Center: the list of what files may do (macros, VBA, remote links), the default of "ask, and keep disabled until allowed", and the list of files and folders the person has chosen to trust (see Macros and code)
 
@@ -103,7 +103,7 @@ What JeffBase offers that Access doesn't, then the plans that go past Access.
 - [~] **first release** Cut, Copy, and Paste of cells, rows, and columns in the datasheet, and of text in a box; copying makes tab-separated text, an HTML table, and rich text, and pasting takes the same from other programs, including JeffCrunch's cells *(shared: the suite's clipboard handling)*
 - [ ] **first release** Paste Append: add copied rows to the end of a table when their fields match, by position or by name; and Paste as a new table when a spreadsheet range or a CSV is pasted onto the Navigation pane
 - [ ] **1.0** Paste Special: as text, CSV, Unicode text, HTML, and JeffBase records (types kept), and Paste Table As (structure only, structure and data, or append the data to an existing table)
-- [~] **1.0** Format Painter for controls on forms and reports and for datasheet formatting *(shared: JeffPub's Format Painter)*
+- [~] **1.0** Copy Formatting for controls on forms and reports and for datasheet formatting *(shared: JeffPub's Copy Formatting)*
 
 ### Sort & Filter
 - [ ] **first release** Sort Ascending and Sort Descending on the selected column or on several side-by-side columns, and Remove Sort; the sort is part of the view and can be kept with the object
@@ -218,7 +218,7 @@ The tabs that appear only while an object is open or selected: a table in the da
 - [ ] **first release** Arrange tab, Table and Rows & Columns: Stacked and Tabular layouts, Remove Layout, Gridlines (style, width, and color), Insert Above, Below, Left, and Right, and Select Layout, Column, and Row
 - [ ] **1.0** Arrange tab, Merge/Split and Move: merge cells of a layout, split a cell vertically or horizontally, and move a row up or down
 - [~] **first release** Arrange tab, Position and Sizing & Ordering: control margins and padding, anchoring (which edges a control keeps when the window resizes), Size to Fit, to Tallest, Shortest, Widest, and Narrowest, spacing, Align (left, right, top, bottom, to grid), Bring to Front and Send to Back, Group and Ungroup, Snap to Grid, and the Grid and Ruler *(shared: JeffPub's Arrange group, snap, and rulers)*
-- [~] **first release** Format tab: Selection (the object box and Select All), Font, size, bold, italic, underline, alignment, font and fill colors, Format Painter, and Alternate Row Color *(shared: JeffPub's font and color pickers)*
+- [~] **first release** Format tab: Selection (the object box and Select All), Font, size, bold, italic, underline, alignment, font and fill colors, Copy Formatting, and Alternate Row Color *(shared: JeffPub's font and color pickers)*
 - [ ] **first release** Format tab, Number: the Format box, Currency, Percent, Comma, and decimals
 - [ ] **1.0** Format tab, Control Formatting: Quick Styles and Change Shape, Conditional Formatting, Shape Fill, Outline (color, thickness, and type), and Shape Effects (shadow, glow, soft edges, and bevel) *(shared: libs/draw effects)*
 - [ ] **1.0** Form Datasheet tab: when a form shows as a datasheet, Themes, the Field List and Property Sheet, background and alternate colors, and Conditional Formatting
@@ -264,7 +264,7 @@ What a right-click offers depends on what is under the pointer.
 - [~] **first release** Open objects are tabs in a row above the work area (the default); the person can switch to overlapping windows in Options, with Switch Windows, Size to Fit Form, Fit to Window, Tile, and Cascade *(shared: JeffPub's windows, for the overlapping mode)*
 - [ ] **first release** The status bar names the view and its state (Datasheet View, Design View, filtered, num lock) and has the view buttons and the zoom slider *(shared: JeffPub's and JeffDeck's status bars)*
 - [~] **first release** Collapse the ribbon with Ctrl+F1, a double-click on a tab, or its chevron; KeyTips (Alt, then letters) for every command *(shared: libs/shell ribbon and KeyTips)*
-- [ ] **1.0** Quick Access Toolbar: New, Open, Save, Print Preview, Spelling, Undo, Redo, Refresh All, and the Views button, with room for any command
+- [ ] **1.0** quick toolbar: New, Open, Save, Print Preview, Spelling, Undo, Redo, Refresh All, and the Views button, with room for any command
 
 ## Under the ribbon: tables and fields
 
@@ -530,11 +530,11 @@ The suite-wide map of shared parts, [shared.md](shared.md), says where each live
 What JeffBase builds on, and the pieces it should build so that JeffCrunch, JeffWrite, JeffDeck, and JeffMail can use them.
 
 ### Already there
-- [~] **first release** libs/shell: the window, ribbon, KeyTips, file pages, Help, translations, AutoRecover, settings, spelling, updates, and statistics
+- [~] **first release** libs/shell: the window, ribbon, KeyTips, file pages, Help, translations, automatic recovery, settings, spelling, updates, and statistics
 - [~] **first release** libs/base and libs/draw: zip, colors, fonts, barcodes, EMF and WMF, PDF, the dictionaries, shapes, fills, effects, SVG, and picture effects, for report and form decoration, PDF export, and label barcodes
 - [~] **first release** libs/office: Open XML packages and DrawingML (the base that JeffCrunch's `.xlsx` and JeffWrite's `.docx` build on, used here to read spreadsheets and write a report as a document), and charts read from stored values and drawn as SVG
 - [~] **first release** libs/text, the text engine, for the text in controls, report sections, and notes; libs/page's editor pieces: Find and Replace, proofing dialogs, options, and online pictures
-- [~] **first release** JeffPub's print and print preview, PDF export, mail merge, and merge-source reader (CSV and `.xlsx`, values only), and its New page, color and font schemes, Format Painter, and Arrange group
+- [~] **first release** JeffPub's print and print preview, PDF export, mail merge, and merge-source reader (CSV and `.xlsx`, values only), and its New page, color and font schemes, Copy Formatting, and Arrange group
 
 ### To build once, for several apps
 - [ ] **first release** The grid control (virtual rows and columns, frozen panes, selection, in-cell editing, and fast scrolling over millions of rows), which is JeffBase's datasheet *(needed by: JeffCrunch, JeffBase, JeffWrite, JeffDeck)*
@@ -552,7 +552,7 @@ What JeffBase builds on, and the pieces it should build so that JeffCrunch, Jeff
 
 ## Left out on purpose
 
-Not planned, because they only work with an online service or a product JeffOffice doesn't have: SharePoint lists and workflows, Access web apps and Access Services (publishing a database to a server), Microsoft Dataverse and other online services as data sources, Office add-ins and the Store, the online template store, source-control integration through Visual SourceSafe, replication and synchronization of replicas, user-level security and workgroup files, `.adp` and `.ade` projects (removed from Access in 2013), PivotTable and PivotChart views (removed in 2013), the web browser control and ActiveX controls, Paradox and Lotus import, Outlook folder import, the Switchboard Manager, Make ACCDE, encoding and decoding of old databases, and sign-in with a Microsoft account.
+Not planned, because they only work with an online service or a product JeffOffice doesn't have: SharePoint lists and workflows, Access web apps and Access Services (publishing a database to a server), Microsoft Dataverse and other online services as data sources, Office add-ins and the Store, the online template store, source-control integration through Visual SourceSafe, replication and synchronization of replicas, user-level security and workgroup files, `.adp` and `.ade` projects (removed from Access in 2013), pivot table and pivot chart views (removed in 2013), the web browser control and ActiveX controls, Paradox and Lotus import, Outlook folder import, the Switchboard Manager, Make ACCDE, encoding and decoding of old databases, and sign-in with a Microsoft account.
 
 ## Decided
 

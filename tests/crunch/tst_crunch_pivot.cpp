@@ -527,7 +527,7 @@ private Q_SLOTS:
         QCOMPARE(valueOf(e, QStringLiteral("L5")), QStringLiteral("n:15"));
     }
 
-    // The commands of the PivotTable tab work on the table the cursor is in: Refresh, Change Data Source (the cells asked for), and Clear; the tab shows only inside a table.
+    // The commands of the pivot table tab work on the table the cursor is in: Refresh, Change Data Source (the cells asked for), and Clear; the tab shows only inside a table.
     void theTabsCommandsWorkOnTheTableTheCursorIsIn()
     {
         EditWindow e;

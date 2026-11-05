@@ -30,7 +30,7 @@ inline QKeySequence showFormulasKey()
 #endif
 }
 
-// The keys of AutoSum: Alt and "=" on Windows and Linux, Command, Shift, and T on a Mac.
+// The keys of Sum: Alt and "=" on Windows and Linux, Command, Shift, and T on a Mac.
 inline QKeySequence autoSumKey(bool mac)
 {
     return mac ? QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T) : QKeySequence(Qt::ALT | Qt::Key_Equal);
