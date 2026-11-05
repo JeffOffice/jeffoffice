@@ -1,5 +1,5 @@
 # Names for cells and values
-<!-- keywords: name, names, defined name, new name, named range, scope, comment, name from cells, insert name, Ctrl+F3, refers to -->
+<!-- keywords: name, names, defined name, new name, named range, scope, comment, name from cells, insert name, Ctrl+F3, refers to, sort names, error name, warning-->
 
 A **name** is a word that stands for a cell, a block of cells, a number, or a formula, so that =Price*Quantity can be written in place of =B2*C2. A name belongs to the whole workbook, or to one sheet. A name on a sheet hides a name of the workbook that is spelled the same, on that sheet.
 
@@ -23,7 +23,7 @@ There is a quicker way for a name of the whole workbook. Select the cells, click
 
 ## Look at all the names
 
-Click **Names** on the **Formulas** tab, or press **Ctrl+F3**. The list shows each name, the value it has now, what it stands for, where it works, and its comment. Type in the filter to show only the names that fit. **New**, **Change**, and **Delete** make a name, change one, and take one away. A workbook with more than 20,000 names lists the first 20,000.
+Click **Names** on the **Formulas** tab, or press **Ctrl+F3**. The list shows each name, the value it has now, what it stands for, where it works, and its comment. Type in the filter to show only the names that fit. **New**, **Change**, and **Delete** make a name, change one, and take one away. Click a heading to sort the list by it, and click again to turn the order round. A name that points to an error, such as a place that was deleted, has a small warning sign beside it. A workbook with more than 20,000 names lists the first 20,000.
 
 Changing the name of a name changes it in every formula that uses it, on every sheet, in one step. Taking a name away leaves the formulas that used it showing **#NAME?**. Each change can be undone.
 
