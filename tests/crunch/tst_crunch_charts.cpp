@@ -20,6 +20,7 @@
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QClipboard>
+#include <QListWidget>
 #include <QGuiApplication>
 #include <QDoubleSpinBox>
 #include <QMenu>
@@ -353,6 +354,75 @@ private Q_SLOTS:
         e.win.w.insertChartDialog();
         QCOMPARE(e.win.w.objects()->layer()->count(), 1);
         QCOMPARE(int(kindOfChart(chartOf(e))), int(ChartKind::Pie));
+    }
+
+    // Recommended Charts offers the kinds the selected cells suit, best first, and makes the one picked; nothing selected says so; the dialog lists only those kinds.
+    void recommendedChartsAreOfferedForTheCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("H20:J22"));
+        e.win.w.recommendedChartsDialog();
+        QCOMPARE(e.win.w.objects()->layer()->count(), 0);
+        QVERIFY(e.win.told.last().contains(QLatin1String("Select the cells")));
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVector<ChartKind> offered;
+        e.win.w.setRecommendedChartsAsker([&](const QVector<ChartKind> &kinds, CrunchWindow::InsertChartChoice *c) {
+            offered = kinds;
+            c->kind = kinds.value(1);
+            return true;
+        });
+        e.win.w.recommendedChartsDialog();
+        QVERIFY(offered.size() >= 2 && offered.size() <= 6);
+        QCOMPARE(offered.first(), ChartKind::Column);
+        QCOMPARE(e.win.w.objects()->layer()->count(), 1);
+        QCOMPARE(int(kindOfChart(chartOf(e))), int(offered[1]));
+        // the dialog itself lists the kinds, and only those
+        InsertChartDialog dialog(nullptr, offered.first(), nullptr, offered, QStringLiteral("Recommended Charts"));
+        QCOMPARE(dialog.windowTitle(), QStringLiteral("Recommended Charts"));
+        QCOMPARE(dialog.findChild<QListWidget *>(QStringLiteral("chartKinds"))->count(), int(offered.size()));
+        QCOMPARE(int(dialog.kind()), int(offered.first()));
+        // it is a ribbon command, on the Insert tab
+        QVERIFY(e.win.w.act(QStringLiteral("insert.recommendedCharts")));
+    }
+
+    // Chart Filters: the button beside a picked chart lists its series; clearing one leaves it out of the chart (one step of Undo), checking it brings it back where it was; the last one stays.
+    void chartFiltersLeaveSeriesOutAndBringThemBack()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        e.win.w.objects()->layer()->prepareAll();
+        QTRY_VERIFY(e.win.w.chartFiltersButton() && e.win.w.chartFiltersButton()->isVisible());
+        QVector<CrunchWindow::ChartFilterEntry> entries = e.win.w.chartFilterEntries();
+        QCOMPARE(entries.size(), 2);
+        QVERIFY(entries[0].shown && entries[1].shown);
+        const QString first = entries[0].name;
+        const int steps = e.win.w.session()->undoStack()->count();
+        QVERIFY(e.win.w.setChartSeriesShown(0, false));
+        QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);
+        QCOMPARE(chartOf(e).plots.first().series.size(), 1);
+        entries = e.win.w.chartFilterEntries();
+        QCOMPARE(entries.size(), 2);
+        QVERIFY(!entries[1].shown);
+        QCOMPARE(entries[1].name, first);
+        // the one left stays
+        QVERIFY(!e.win.w.setChartSeriesShown(0, false));
+        QCOMPARE(chartOf(e).plots.first().series.size(), 1);
+        // back where it was
+        QVERIFY(e.win.w.setChartSeriesShown(1, true));
+        QCOMPARE(chartOf(e).plots.first().series.size(), 2);
+        QCOMPARE(chartOf(e).plots.first().series[0].name, first);
+        // the menu lists them with checks
+        QMenu *menu = e.win.w.chartFiltersButton()->menu();
+        QVERIFY(menu);
+        QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+        int checkable = 0;
+        for (QAction *a : menu->actions()) checkable += a->isCheckable() && a->isChecked();
+        QCOMPARE(checkable, 2);
     }
 
     // ---- moving and sizing

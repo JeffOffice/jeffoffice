@@ -1,10 +1,14 @@
 #include "sheet/pivot.h"
+#include "sheet/pivotformula.h"
 
 #include <algorithm>
+#include <functional>
+#include <memory>
 #include <map>
 #include <tuple>
 #include <cmath>
 #include <limits>
+#include <QHash>
 #include <string>
 #include <unordered_map>
 
@@ -357,7 +361,53 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
                                              QStringLiteral("percentOfRow"), QStringLiteral("percentOfCol"), QStringLiteral("percentOfTotal"), QStringLiteral("index")};
         if (!kShown.contains(d.showDataAs)) return fail(QStringLiteral("a value shown as something this does not work out (") + d.showDataAs + QLatin1Char(')'));
         if (fnOf(d.subtotal) == Fn::None) return fail(QStringLiteral("a value function this does not work out"));
+        if (c.fields[d.fld].isCalculated() && d.showDataAs != QLatin1String("normal")) return fail(QStringLiteral("a calculated field shown as something this does not work out"));
     }
+    // the calculated fields the values use: each formula is read once, and the fields whose totals it needs are found (those of other calculated fields it uses too)
+    std::vector<std::shared_ptr<const PivotFormula>> formulaOf;
+    formulaOf.resize(size_t(nf));
+    QHash<QString, int> fieldByName;
+    for (int f = nf - 1; f >= 0; --f) fieldByName.insert(c.fields[f].name.toLower(), f);
+    QVector<QVector<int>> refsOf(nf);   // for a calculated field, the fields with records its formula needs the totals of
+    {
+        std::function<bool(int, int)> read = [&](int f, int depth) {
+            if (formulaOf[size_t(f)]) return true;
+            if (depth > 16) return false;
+            QString problem;
+            formulaOf[size_t(f)] = PivotFormula::parse(c.fields[f].formula, &problem);
+            if (!formulaOf[size_t(f)]) return false;
+            for (const QString &name : formulaOf[size_t(f)]->names()) {
+                const int g = fieldByName.value(name.toLower(), -1);
+                if (g < 0 || g == f) continue;
+                if (c.fields[g].isCalculated()) {
+                    if (!read(g, depth + 1)) return false;
+                    for (int x : refsOf[g]) if (!refsOf[f].contains(x)) refsOf[f].append(x);
+                } else if (!refsOf[f].contains(g)) {
+                    refsOf[f].append(g);
+                }
+            }
+            return true;
+        };
+        for (const PivotDataField &d : t.dataFields)
+            if (c.fields[d.fld].isCalculated() && !read(d.fld, 0)) return fail(QStringLiteral("the formula of a calculated field can't be worked out"));
+    }
+    QVector<int> exFields, exIndex(nf, -1);   // the fields whose totals the formulas need, and each one's place among them
+    for (const PivotDataField &d : t.dataFields)
+        if (c.fields[d.fld].isCalculated())
+            for (int g : refsOf[d.fld])
+                if (exIndex[g] < 0) {
+                    exIndex[g] = int(exFields.size());
+                    exFields.append(g);
+                }
+    const int nEx = int(exFields.size());
+    for (int f = 0; f < nf; ++f)
+        if (c.fields[f].isCalculated()) {
+            if (t.rowFields.contains(f) || t.colFields.contains(f)) return fail(QStringLiteral("a calculated field is in the rows or the columns"));
+            for (const PivotPageField &p : t.pageFields)
+                if (p.fld == f) return fail(QStringLiteral("a calculated field is a filter"));
+        }
+    for (const PivotField &pf : t.fields)
+        if (pf.sortByData >= 0 && pf.sortByData < D && c.fields[t.dataFields[pf.sortByData].fld].isCalculated()) return fail(QStringLiteral("a field sorted by a calculated field"));
     int dataSlotRow = -1, dataSlotCol = -1;
     for (int pass = 0; pass < 2; ++pass) {
         const QVector<int> &list = pass == 0 ? t.rowFields : t.colFields;
@@ -375,9 +425,12 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
     if (D > 1 && dataSlotRow < 0 && dataSlotCol < 0) return fail(QStringLiteral("several values and no place for them"));
     for (const PivotPageField &p : t.pageFields)
         if (p.fld < 0 || p.fld >= nf) return fail(QStringLiteral("a filter names a field that is not in the cache"));
-    const qint64 nrec = nf > 0 && !c.fields.isEmpty() ? c.fields[0].records.size() : 0;
+    int firstReal = -1;
+    for (int f = 0; f < nf && firstReal < 0; ++f)
+        if (!c.fields[f].isCalculated()) firstReal = f;
+    const qint64 nrec = firstReal >= 0 ? c.fields[firstReal].records.size() : 0;
     for (const PivotCacheField &f : c.fields)
-        if (f.records.size() != nrec) return fail(QStringLiteral("the cache records are uneven"));
+        if (!f.isCalculated() && f.records.size() != nrec) return fail(QStringLiteral("the cache records are uneven"));
 
     // the place of each shared item in its field's list of items (-1: hidden, or not listed)
     auto positions = [&](int f, QVector<qint32> *pos, QVector<const PivotTableItem *> *itemOfPos) {
@@ -518,7 +571,7 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             if (rowTuples.size() > size_t(kPivotMaxRows) || colTuples.size() > size_t(kPivotMaxCols)) return fail(QStringLiteral("the table would have too many lines"));
             if (qint64(rowTuples.size()) * (rt.size() + 1) > kPivotMaxLevelCells || qint64(colTuples.size()) * (ct.size() + 1) > kPivotMaxLevelCells) return fail(QStringLiteral("the table would have too many lines"));
             entries.push_back({ri.first->second, ci.first->second, qint32(r), qint32(d)});
-            if (D > 0) {
+            if (D > 0 && (rowSort.any || colSort.any)) {
                 const PivotCacheField &dataField = c.fields[t.dataFields[d].fld];
                 const PivotValue &val = dataField.storedItems()[dataField.storedRecords()[r]];   // (a field that is grouped is added up by its own values)
                 for (int pass = 0; pass < 2; ++pass) {
@@ -631,6 +684,8 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
 
     // the values
     std::vector<Acc> acc(size_t(nRI) * size_t(nCI));
+    if (qint64(nRI) * nCI * nEx > 16000000) return fail(QStringLiteral("the table would take too much work to total"));
+    std::vector<Acc> exCell(size_t(nRI) * size_t(nCI) * size_t(nEx));   // (calculated fields) for each cell, the totals of the fields the formulas use
     bool anyShownAs = false;
     for (const PivotDataField &d : t.dataFields) anyShownAs |= d.showDataAs != QLatin1String("normal");
     // (for a value shown as a share of its line, its column, or the whole: those totals, which no line of the table need hold)
@@ -645,23 +700,33 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
         struct Leaf {
             int row, col, value;
             Acc acc;
+            std::vector<Acc> ex;   // (a calculated value) the totals of the fields its formula uses
         };
         std::map<std::tuple<int, int, int>, size_t> where;
         std::vector<Leaf> leaves;
         for (const Entry &e : entries) {
             const PivotCacheField &dataField = c.fields[t.dataFields[e.value].fld];
-            const PivotValue &val = dataField.storedItems()[dataField.storedRecords()[e.record]];
+            const bool calc = dataField.isCalculated();
+            PivotValue marker;
+            marker.kind = PivotValue::Number;
+            const PivotValue &val = calc ? marker : dataField.storedItems()[dataField.storedRecords()[e.record]];
             const auto key = std::make_tuple(rowNew[e.row], colNew[e.col], int(e.value));
             const auto it = where.find(key);
             size_t at;
             if (it == where.end()) {
                 at = leaves.size();
                 where.emplace(key, at);
-                leaves.push_back({rowNew[e.row], colNew[e.col], int(e.value), Acc()});
+                leaves.push_back({rowNew[e.row], colNew[e.col], int(e.value), Acc(), {}});
+                if (calc) leaves.back().ex.resize(size_t(nEx));
             } else {
                 at = it->second;
             }
             leaves[at].acc.add(val);
+            if (calc)
+                for (int g : refsOf[t.dataFields[e.value].fld]) {
+                    const PivotCacheField &rf = c.fields[g];
+                    leaves[at].ex[size_t(exIndex[g])].add(rf.storedItems()[rf.storedRecords()[e.record]]);
+                }
         }
         std::sort(leaves.begin(), leaves.end(), [](const Leaf &a, const Leaf &b) { return std::tie(a.row, a.col, a.value) < std::tie(b.row, b.col, b.value); });
         // (each group goes to the lines it is a part of on both axes: the work is the groups times the lines of each, which is bounded before it is done)
@@ -686,6 +751,11 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
                     Acc &a = acc[size_t(ri) * nCI + ci];
                     if (a.n == 0 && a.error.isEmpty()) a = l.acc;
                     else a.merge(l.acc);
+                    for (size_t k = 0; k < l.ex.size(); ++k) {
+                        Acc &x = exCell[(size_t(ri) * nCI + ci) * size_t(nEx) + k];
+                        if (x.n == 0 && x.error.isEmpty()) x = l.ex[k];
+                        else x.merge(l.ex[k]);
+                    }
                 }
     }
 
@@ -866,6 +936,31 @@ bool computePivot(const PivotTable &t, const PivotCache &c, PivotGrid *out, QStr
             const QString &lt = !rit.t.isEmpty() && rit.t != QLatin1String("default") && rit.t != QLatin1String("grand") ? rit.t : cit.t;
             if (!lt.isEmpty() && lt != QLatin1String("default") && lt != QLatin1String("grand")) fn = fnOfLine(lt);
             PivotCell pc = result(acc[size_t(ri) * nCI + ci], fn, t.dataFields[di].numFmtCode.isEmpty() ? t.dataFields[di].numFmtId : -2 - di);
+            if (c.fields[t.dataFields[di].fld].isCalculated() && acc[size_t(ri) * nCI + ci].n > 0) {
+                const size_t cellAt = size_t(ri) * size_t(nCI) + size_t(ci);
+                pc = PivotCell();
+                pc.isValue = true;
+                pc.numFmtId = t.dataFields[di].numFmtCode.isEmpty() ? t.dataFields[di].numFmtId : -2 - di;
+                fn = Fn::Sum;
+                std::function<PivotFormulaValue(int, int)> work = [&](int field, int depth) -> PivotFormulaValue {
+                    return formulaOf[size_t(field)]->evaluate([&](const QString &name) -> PivotFormulaValue {
+                        const int g = fieldByName.value(name.toLower(), -1);
+                        if (g < 0 || depth > 16) return PivotFormulaValue::err(QStringLiteral("#NAME?"));
+                        if (g == field) return PivotFormulaValue::err(QStringLiteral("#REF!"));
+                        if (c.fields[g].isCalculated()) return work(g, depth + 1);
+                        const Acc &a = exCell[cellAt * size_t(nEx) + size_t(exIndex[g])];
+                        if (!a.error.isEmpty()) return PivotFormulaValue::err(a.error);
+                        return PivotFormulaValue::num(a.n == 0 ? 0 : a.sum);
+                    });
+                };
+                const PivotFormulaValue fv = work(t.dataFields[di].fld, 0);
+                switch (fv.kind) {
+                case PivotFormulaValue::Number: pc.kind = PivotCell::Number; pc.number = fv.number; break;
+                case PivotFormulaValue::Bool: pc.kind = PivotCell::Bool; pc.number = fv.number; break;
+                case PivotFormulaValue::Text: pc.kind = PivotCell::Text; pc.text = fv.text; break;
+                case PivotFormulaValue::Error: pc.kind = PivotCell::Error; pc.text = fv.text; break;
+                }
+            }
             if (pc.kind == PivotCell::Empty && !t.showMissing && (fn == Fn::Sum || fn == Fn::Count || fn == Fn::CountNums)) {
                 pc.kind = PivotCell::Number;
                 pc.number = 0;
@@ -1177,6 +1272,7 @@ bool pivotFilterField(PivotTable *t, const PivotCache &c, int field, const Pivot
         if (filter.dataField < 0 || filter.dataField >= t->dataFields.size()) return fail(QStringLiteral("the value is not there"));
         const PivotDataField &df = t->dataFields[filter.dataField];
         if (df.fld < 0 || df.fld >= c.fields.size()) return fail(QStringLiteral("the value is not in the cache"));
+        if (c.fields[df.fld].isCalculated()) return fail(QStringLiteral("a filter by a calculated field is not offered"));
         fn = fnOf(df.subtotal);
         accs.resize(cf.items.size());
         present.fill(false, cf.items.size());

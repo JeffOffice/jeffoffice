@@ -1,4 +1,5 @@
 #include "app/pivotpane.h"
+#include <algorithm>
 
 #include <QAbstractButton>
 #include <QCoreApplication>
@@ -11,6 +12,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
+#include <QPushButton>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -462,6 +464,75 @@ GroupChoice GroupDialog::choice() const
     c.startText = m_start->text().trimmed();
     c.endText = m_end->text().trimmed();
     if (m_step) c.stepText = m_step->text().trimmed();
+    return c;
+}
+
+// ---------------------------------------------------------------- Calculated Field
+
+CalculatedFieldDialog::CalculatedFieldDialog(const CalculatedFieldChoice &c, QWidget *parent) : QDialog(parent), m_choice(c)
+{
+    setWindowTitle(tr("Insert Calculated Field"));
+    setObjectName(QStringLiteral("calculatedFieldDialog"));
+    auto *form = new QFormLayout(this);
+    m_name = new QComboBox(this);
+    m_name->setEditable(true);
+    m_name->setObjectName(QStringLiteral("calc.name"));
+    m_name->setAccessibleName(tr("Name"));
+    m_name->addItems(c.existingNames);
+    m_name->setCurrentText(c.name);
+    form->addRow(tr("Name:"), m_name);
+    m_formula = new QLineEdit(c.formula, this);
+    m_formula->setObjectName(QStringLiteral("calc.formula"));
+    m_formula->setAccessibleName(tr("Formula"));
+    m_formula->setMinimumWidth(320);
+    form->addRow(tr("Formula:"), m_formula);
+    m_fields = new QListWidget(this);
+    m_fields->setObjectName(QStringLiteral("calc.fields"));
+    m_fields->setAccessibleName(tr("Fields"));
+    m_fields->addItems(c.fieldNames);
+    form->addRow(tr("Fields:"), m_fields);
+    auto *hint = new QLabel(tr("Double-click a field to put its name in the formula. A field's name stands for its total in each cell."), this);
+    hint->setWordWrap(true);
+    form->addRow(hint);
+    auto *box = new QDialogButtonBox(this);
+    m_add = box->addButton(tr("Add"), QDialogButtonBox::AcceptRole);
+    m_add->setObjectName(QStringLiteral("calc.add"));
+    m_delete = box->addButton(tr("Delete"), QDialogButtonBox::DestructiveRole);
+    m_delete->setObjectName(QStringLiteral("calc.delete"));
+    box->addButton(QDialogButtonBox::Close);
+    form->addRow(box);
+    connect(m_add, &QAbstractButton::clicked, this, [this] {
+        m_choice.action = CalculatedFieldChoice::Add;
+        accept();
+    });
+    connect(m_delete, &QAbstractButton::clicked, this, [this] {
+        m_choice.action = CalculatedFieldChoice::Delete;
+        accept();
+    });
+    connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    connect(m_fields, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *item) {
+        const QString name = item->text();
+        const bool plain = !name.isEmpty() && std::all_of(name.begin(), name.end(), [](QChar ch) { return ch.isLetterOrNumber() || ch == QLatin1Char('_'); }) && !name.at(0).isDigit();
+        m_formula->insert(plain ? name : QLatin1Char('\'') + QString(name).replace(QLatin1Char('\''), QStringLiteral("''")) + QLatin1Char('\''));
+        m_formula->setFocus();
+    });
+    connect(m_name, &QComboBox::currentTextChanged, this, [this] { nameChanged(); });
+    nameChanged();
+}
+
+void CalculatedFieldDialog::nameChanged()
+{
+    const int at = int(m_choice.existingNames.indexOf(m_name->currentText().trimmed()));
+    if (at >= 0 && at < m_choice.existingFormulas.size() && m_formula->text() != m_choice.existingFormulas[at]) m_formula->setText(QLatin1Char('=') + m_choice.existingFormulas[at]);
+    m_add->setText(at >= 0 ? tr("Modify") : tr("Add"));
+    m_delete->setEnabled(at >= 0);
+}
+
+CalculatedFieldChoice CalculatedFieldDialog::choice() const
+{
+    CalculatedFieldChoice c = m_choice;
+    c.name = m_name->currentText().trimmed();
+    c.formula = m_formula->text().trimmed();
     return c;
 }
 

@@ -9,6 +9,7 @@
 //                                                       Chart Data, Chart Kind, and an object's menu
 
 #include "app/chartdialogs.h"
+#include "app/pivotpane.h"
 #include "app/crunchwindow.h"
 #include "core/sheetobjects.h"
 #include "grid/gridview.h"
@@ -238,6 +239,20 @@ int shots(const QString &in, const QString &dir)
             dialog->selectKind(ChartKind::LineMarkers);
             grabTo(d.get(), dir + QStringLiteral("/insert-chart.png"));
         }
+    }
+    if (std::unique_ptr<QDialog> d{w.makeRecommendedChartsDialog()}) {
+        d->show();
+        grabTo(d.get(), dir + QStringLiteral("/recommended-charts.png"));
+    }
+    {
+        CalculatedFieldChoice c;
+        c.fieldNames = {QStringLiteral("Region"), QStringLiteral("Unit price"), QStringLiteral("Amount")};
+        c.existingNames = {QStringLiteral("Bonus")};
+        c.existingFormulas = {QStringLiteral("Amount*0.1")};
+        c.name = QStringLiteral("Bonus");
+        CalculatedFieldDialog d(c);
+        d.show();
+        grabTo(&d, dir + QStringLiteral("/calculated-field.png"));
     }
     if (!w.insertChart(ChartKind::Column)) return 3;
     w.objects()->layer()->prepareAll();

@@ -290,7 +290,7 @@ bool readPivotCacheCore(const QByteArray &definition, const QByteArray &records,
             } else if (n == QLatin1String("cacheField") && depth == 3) {
                 if (out->fields.size() + derived->size() >= size_t(kPivotMaxFields)) return fail(QStringLiteral("too many fields"));
                 const auto a = r.attributes();
-                const bool hasRecords = flag(a.value(QLatin1String("databaseField")), true) || !a.value(QLatin1String("formula")).isEmpty();
+                const bool hasRecords = flag(a.value(QLatin1String("databaseField")), true);
                 if (hasRecords) {
                     out->fields.append(PivotCacheField());
                     interns.emplace_back();
@@ -305,7 +305,10 @@ bool readPivotCacheCore(const QByteArray &definition, const QByteArray &records,
                 PivotCacheField *named = cur ? cur : dcur;
                 named->name = pivotDecodeXString(a.value(QLatin1String("name")).toString());
                 named->numFmtId = toInt(a.value(QLatin1String("numFmtId")), 0);
-                if (!a.value(QLatin1String("formula")).isEmpty()) out->unsupported = QStringLiteral("a calculated field");
+                if (!a.value(QLatin1String("formula")).isEmpty()) {
+                    if (cur) out->unsupported = QStringLiteral("a calculated field that has records");
+                    else named->formula = a.value(QLatin1String("formula")).toString();
+                }
             } else if (n == QLatin1String("sharedItems") && cur) {
                 inShared = true;
                 cur->hasShared = r.attributes().hasAttribute(QLatin1String("count"));
