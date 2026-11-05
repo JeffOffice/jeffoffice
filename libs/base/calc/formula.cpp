@@ -125,6 +125,7 @@ private:
     size_t p = 0;
     int depth = 0;
     int arrayDepth = 0;
+    std::vector<std::pair<QString, int>> letScope;   // the names LET has given where the parser is (upper case), and the local each is
     int lastGroupEnd = -1;   // the size of the code when the last parenthesis closed
 
     bool fail(int pos, const QString &why)
@@ -914,6 +915,14 @@ private:
             return spill();
         case T::Name:
             advance();
+            if (t.sheetPlus1 == 0) {
+                const QString key = letKey(t.text);
+                for (size_t k = letScope.size(); k-- > 0;)
+                    if (letScope[k].first == key) {
+                        if (!emit(Op::PushLocal, letScope[k].second)) return false;
+                        return spill();
+                    }
+            }
             if (t.sheetPlus1 > 65534) return fail(t.pos, QCoreApplication::translate("jp::calc::Formula", "The formula names more sheets than JeffCrunch can read."));
             if (!emit(Op::PushName, addText(t.text), quint16(t.sheetPlus1))) return false;
             return spill();
@@ -1044,6 +1053,7 @@ private:
             --depth;
             return emit(Op::Single);
         }
+        if (fn && name == QLatin1String("LET")) return letCall(t, fi);
         const bool lazy = fn && (fn->flags & kFnLazy) && !arrayMode();
         std::vector<std::vector<Instr>> parts;   // the code of each argument, when the function works out only some of them
         std::vector<bool> missingArgs;
@@ -1113,6 +1123,58 @@ private:
         if (!seen) prog.calls.push_back({fi, 1});
         if (!lazy) return emit(Op::Call, fi, quint16(count));
         if (!lazyCall(name, parts)) return false;
+        lastGroupEnd = out == &prog.code ? int(out->size()) : -1;
+        return true;
+    }
+
+    // The name of a LET variable as it is compared: a file writes it with _xlpm. in front, and capitals do not matter.
+    static QString letKey(const QString &text)
+    {
+        QString name = text;
+        if (name.startsWith(QLatin1String("_xlpm."), Qt::CaseInsensitive)) name = name.mid(6);
+        return name.toUpper();
+    }
+
+    // LET(name1, value1, [name2, value2, ...], calculation): each value is kept under its name for the values after it and for the calculation. The call is made of the values' code, a Bind
+    // for each, and the calculation's code, so nothing is worked out twice. (The caller has read the name and the "(" and entered the call.)
+    bool letCall(const Token &t, int fi)
+    {
+        const size_t scopeMark = letScope.size();
+        int pairs = 0;
+        for (;;) {
+            const bool isName = peek().kind == T::Name && peek().sheetPlus1 == 0 && peek(1).kind == T::Comma;
+            bool missing = false;
+            if (isName) {
+                const Token n = peek();
+                advance();
+                advance();   // the name and its comma
+                if (!argument('r', &missing)) return false;
+                if (missing) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "LET needs a value after each name. Add one after the comma."));
+                if (prog.letSlots >= 4096) return fail(n.pos, QCoreApplication::translate("jp::calc::Formula", "LET gives more names than JeffCrunch can hold."));
+                const int slot = prog.letSlots++;
+                if (!emit(Op::Bind, slot)) return false;
+                letScope.emplace_back(letKey(n.text), slot);
+                ++pairs;
+                if (peek().kind != T::Comma) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "LET needs a calculation after the last value. Add a comma and the calculation."));
+                advance();
+                continue;
+            }
+            if (!argument('r', &missing)) return false;
+            if (missing) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "LET needs a calculation at the end. Add it after the last comma."));
+            break;
+        }
+        if (pairs == 0) return fail(t.pos, QCoreApplication::translate("jp::calc::Formula", "LET needs at least one name and its value before the calculation."));
+        if (peek().kind != T::RParen) return fail(peek().pos, peek().kind == T::End ? QCoreApplication::translate("jp::calc::Formula", "A ( is never closed. Add a ) at the end.") : QCoreApplication::translate("jp::calc::Formula", "A comma or a ) is missing here, after the argument."));
+        advance();
+        --depth;
+        letScope.resize(scopeMark);
+        bool seen = false;
+        for (auto &c : prog.calls)
+            if (c.first == fi) {
+                ++c.second;
+                seen = true;
+            }
+        if (!seen) prog.calls.push_back({fi, 1});
         lastGroupEnd = out == &prog.code ? int(out->size()) : -1;
         return true;
     }
@@ -1271,6 +1333,8 @@ QString Program::dump() const
             parts << sheetPrefix(sheetNames, r.sheet1, r.sheet2) + refText(r);
             break;
         }
+        case Op::Bind: parts << QStringLiteral("bind:") + QString::number(in.operand); break;
+        case Op::PushLocal: parts << QStringLiteral("local:") + QString::number(in.operand); break;
         case Op::PushName: parts << QStringLiteral("name:") + sheetPrefix(sheetNames, int(in.argc) - 1, -1) + texts.at(size_t(in.operand)); break;
         case Op::PushArray: {
             const Value &a = arrays.at(size_t(in.operand));

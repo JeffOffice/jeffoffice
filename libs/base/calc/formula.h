@@ -51,6 +51,8 @@ enum class Op : quint8 {
     IfJump,        // takes the condition; goes to operand if it is false, and to argc if it is an error (both counted from the next instruction)
     TryJump,       // IFERROR (flags 0) and IFNA (flags 1): keeps the value and goes to operand unless it is an error (for IFNA, #N/A)
     Choose,        // takes the index; goes to the operand's argc'th Jump that follows, or gives #VALUE! and goes to operand
+    Bind,          // LET: takes the value (or reference) and keeps it as local number `operand`
+    PushLocal,     // LET: the local number `operand`
 };
 
 // Instr::flags
@@ -113,6 +115,7 @@ struct Program {
     bool external = false;             // refers to another workbook
     bool structured = false;           // refers to the columns of a table, or to a spilled range (A1#)
     bool arrayFormula = false;         // parsed to be worked out as an array
+    int letSlots = 0;                  // the names LET gives, counted over the whole formula (each has its own place; see Op::Bind)
     QStringList unknownFunctions;      // names (upper case, once each) of functions that are not in the registry
     std::vector<std::pair<int, int>> calls;   // the functions called (registry places) and how many times
 

@@ -447,6 +447,7 @@ Item Machine::runProgram(const Program &p, bool)
         return it;
     };
     auto have = [&](size_t k) { return stack.size() >= base + k; };
+    std::vector<Item> locals(size_t(std::max(p.letSlots, 0)));   // what LET has bound
     while (pc < count) {
         if (over) {
             stack.resize(base);
@@ -505,6 +506,14 @@ Item Machine::runProgram(const Program &p, bool)
             }
             break;
         }
+        case Op::Bind:
+            if (!have(1) || in.operand < 0 || size_t(in.operand) >= locals.size()) return bad();
+            locals[size_t(in.operand)] = pop();
+            break;
+        case Op::PushLocal:
+            if (in.operand < 0 || size_t(in.operand) >= locals.size()) return bad();
+            stack.push_back(locals[size_t(in.operand)]);
+            break;
         case Op::PushExternal: unsupported |= 1; stack.push_back(Item::ofError(ErrorKind::Ref)); break;
         case Op::Add: case Op::Sub: case Op::Mul: case Op::Div: case Op::Pow: case Op::Concat:
         case Op::Eq: case Op::Ne: case Op::Lt: case Op::Le: case Op::Gt: case Op::Ge: {

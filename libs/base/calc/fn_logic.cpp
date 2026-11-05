@@ -288,6 +288,10 @@ Value fnErrorType(Call &c)
     }
 }
 
+// LET is compiled into the formula itself (Op::Bind and Op::PushLocal, in formula.cpp, which also checks its arguments: pairs of a name and a value, then the calculation): it has a place
+// in the registry for its name, and is never called.
+Value fnLet(Call &c) { return c.error(ErrorKind::Value); }
+
 } // namespace
 
 void registerLogicFunctions(std::vector<FunctionInfo> &r)
@@ -296,6 +300,7 @@ void registerLogicFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"IFERROR", 2, 2, "nn", kFnLazy, fnIfErrorF});
     r.push_back({"IFNA", 2, 2, "nn", kFnLazy | kFnFuture, fnIfNaF});
     r.push_back({"CHOOSE", 2, 254, "nn", kFnLazy, fnChoose});
+    r.push_back({"LET", 2, 255, "r", kFnFuture, fnLet});
     r.push_back({"IFS", 2, 254, "n", kFnFuture, fnIfs});
     r.push_back({"SWITCH", 3, 254, "n", kFnFuture, fnSwitch});
     r.push_back({"AND", 1, 255, "r", 0, fnAnd});

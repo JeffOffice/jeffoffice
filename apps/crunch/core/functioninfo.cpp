@@ -20,6 +20,7 @@ const FunctionDoc kDocs[] = {
     {"CHOOSE", Cat::Logical, "index, value1, ...", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Picks the value in a list that sits at the place the index names.")},
     {"IFS", Cat::Logical, "condition1, value1, ...", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Tests conditions in turn and gives the value that goes with the first one that holds.")},
     {"SWITCH", Cat::Logical, "expression, value1, result1, ...", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Compares a value with a list of values and gives the result that goes with the first match.")},
+    {"LET", Cat::Logical, "name1, value1, ...", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Gives names to values inside one formula, then works out a calculation that uses them.")},
     {"AND", Cat::Logical, "logical1, ...", QT_TRANSLATE_NOOP("jp::crunch::Functions", "True when every one of the conditions is true.")},
     {"OR", Cat::Logical, "logical1, ...", QT_TRANSLATE_NOOP("jp::crunch::Functions", "True when at least one of the conditions is true.")},
     {"XOR", Cat::Logical, "logical1, ...", QT_TRANSLATE_NOOP("jp::crunch::Functions", "True when an odd number of the conditions are true.")},
@@ -500,6 +501,8 @@ const ArgumentHelp kArgumentHelp[] = {
     {"PERCENTILE:k", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The share of the values, from 0 to 1, to give the value at.")},
     {"SMALL:k", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Which place to give, counting from the smallest: 1 is the smallest.")},
     {"SUBSTITUTE:old_text", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The text to find.")},
+    {"LET:name1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "A name to give to the value that follows. It can be used in the values after it and in the calculation.")},
+    {"LET:calculation", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The calculation that uses the names, and the answer the function gives.")},
     {"SWITCH:default", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The result to give when no value matches (the #N/A error if left out).")},
     {"...", QT_TRANSLATE_NOOP("jp::crunch::Functions", "As many more as you need.")},
     {"a1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "True or left out to read the address as a column letter and row number; false to read it as row and column numbers.")},
@@ -816,6 +819,7 @@ ArgumentPlan argumentPlanOf(const FunctionDoc &doc)
         plan.fixedOptional << optional;
     }
     if (QLatin1String(doc.name) == QLatin1String("SWITCH")) plan.trailing = QStringLiteral("default");
+    if (QLatin1String(doc.name) == QLatin1String("LET")) plan.trailing = QStringLiteral("calculation");
     return plan;
 }
 
