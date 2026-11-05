@@ -132,6 +132,8 @@ public:
     void setFieldCodeAsker(const std::function<QString(const QString &)> &asker) { m_fieldCodeAsker = asker; }
     // What asks for the hyphenation zone and limit (tests stand in for the box): changes them in place, true to take them.
     void setHyphenationAsker(const std::function<bool(double &, int &)> &asker) { m_hyphenationAsker = asker; }
+    // What asks for the alignment tab to put in a header or footer (tests stand in for the box): its alignment, what it is measured from, and its leader, changed in place; true to take them.
+    void setAlignmentTabAsker(const std::function<bool(QString &, QString &, QString &)> &asker) { m_alignmentTabAsker = asker; }
     void setLinkOpener(const std::function<void(const QString &)> &opener) { m_linkOpener = opener; }
     void setPictureChooser(const std::function<QString()> &chooser) { m_pictureChooser = chooser; }
     write::Ruler *ruler() const { return m_ruler; }
@@ -415,6 +417,7 @@ private:
     std::function<void(const QString &)> m_linkOpener;
     std::function<QString(const QString &)> m_fieldCodeAsker;
     std::function<bool(double &, int &)> m_hyphenationAsker;
+    std::function<bool(QString &, QString &, QString &)> m_alignmentTabAsker;
     std::function<bool(const QString &)> m_linkAsker;
     std::function<QString()> m_textFileChooser;
     NavigationPane *m_nav = nullptr;

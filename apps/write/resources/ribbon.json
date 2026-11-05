@@ -1422,6 +1422,10 @@
               "keytip": "DT"
             },
             {
+              "small": "hf.alignmentTab",
+              "keytip": "AL"
+            },
+            {
               "small": {
                 "id": "ribbon.headerInfo",
                 "text": "Document Info",

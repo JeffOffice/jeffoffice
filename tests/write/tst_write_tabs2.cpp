@@ -14,6 +14,7 @@
 #include "core/fonts.h"
 #include "core/insertops.h"
 #include "core/linkops.h"
+#include "core/headerops.h"
 #include "core/outlineops.h"
 #include "core/pictureops.h"
 #include "core/pagesetup.h"
@@ -867,6 +868,79 @@ private Q_SLOTS:
         auto again = WriteDoc::fromDocx(doc->toDocx(), &err);
         QVERIFY(again);
         QCOMPARE(pictureHeights(again->toDocx()), pictureHeights(doc->toDocx()));
+    }
+
+    // ---------------------------------------------------------------- Insert Alignment Tab
+    void anAlignmentTabInAHeaderIsSavedAsAnAbsolutePositionTab()
+    {
+        auto doc = WriteDoc::blank();
+        QVERIFY(doc->createHeaderFooter(0, false, WriteDoc::kDefaultSlot));
+        QTextDocument *header = doc->editableHeaderFooter(0, false, WriteDoc::kDefaultSlot);
+        QVERIFY(header);
+        QTextCursor c(header);
+        insertText(*doc, c, QStringLiteral("Left"));
+        QVERIFY(insertAlignmentTab(*doc, c, QStringLiteral("center"), QStringLiteral("margin"), QStringLiteral("dot")));
+        insertText(*doc, c, QStringLiteral("Middle"));
+        QVERIFY(insertAlignmentTab(*doc, c, QStringLiteral("right"), QStringLiteral("indent"), QStringLiteral("none")));
+        insertText(*doc, c, QStringLiteral("Right"));
+        QVERIFY(!insertAlignmentTab(*doc, c, QStringLiteral("sideways"), QStringLiteral("margin"), QStringLiteral("none")));   // (not one of the three)
+        // Each is a step, and the tab is one character that the layout sets as a tab at the place it says.
+        QCOMPARE(header->toPlainText().count(QChar::ObjectReplacementCharacter), 2);
+        QVERIFY(header->toPlainText().startsWith(QStringLiteral("Left")));
+        const QByteArray saved = doc->toDocx();
+        office::Package p;
+        p.read(saved);
+        QByteArray headerXml;
+        for (const QString &name : p.partNames())
+            if (name.contains(QStringLiteral("header"), Qt::CaseInsensitive) && name.endsWith(QStringLiteral(".xml")) && !name.contains(QStringLiteral("_rels"))) headerXml = p.part(name);
+        QVERIFY(!headerXml.isEmpty());
+        QVERIFY2(headerXml.contains("w:relativeTo=\"margin\"") && headerXml.contains("w:alignment=\"center\"") && headerXml.contains("w:leader=\"dot\""), headerXml.constData());
+        QVERIFY2(headerXml.contains("w:relativeTo=\"indent\"") && headerXml.contains("w:alignment=\"right\""), headerXml.constData());
+        QCOMPARE(headerXml.count("<w:ptab "), 2);
+        // Opened again, the tabs are still there, still in their place.
+        QString err;
+        auto again = WriteDoc::fromDocx(saved, &err);
+        QVERIFY(again);
+        QTextDocument *story = again->headerFooterStory(0, false, WriteDoc::kDefaultSlot);
+        QVERIFY(story);
+        QCOMPARE(story->toPlainText().count(QLatin1Char('\t')), 2);   // (read back, an absolute position tab is a tab that goes where it says)
+        QStringList aligned;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+                if (it.fragment().charFormat().hasProperty(tp::AlignTab)) aligned << it.fragment().charFormat().stringProperty(tp::AlignTab);
+        QCOMPARE(aligned, (QStringList{QStringLiteral("center:margin:dot"), QStringLiteral("right:indent:none")}));
+        QVERIFY(doc->undo());
+        QCOMPARE(header->toPlainText().count(QChar::ObjectReplacementCharacter), 2);   // (the last text typed is the step undone, not a tab)
+    }
+
+    void insertAlignmentTabOnTheHeaderAndFooterTabAsksForItsPlace()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QVERIFY(w.act("hf.alignmentTab"));
+        QVERIFY(!w.act("hf.alignmentTab")->isEnabled());
+        w.view()->paginateAll();
+        QVERIFY(w.view()->enterHeaderFooter(0, false, true));
+        w.refreshNow();
+        QVERIFY(w.act("hf.alignmentTab")->isEnabled());
+        QStringList asked;
+        w.setAlignmentTabAsker([&](QString &alignment, QString &relativeTo, QString &leader) {
+            asked << alignment << relativeTo << leader;
+            alignment = QStringLiteral("right");
+            leader = QStringLiteral("hyphen");
+            return true;
+        });
+        w.act(QStringLiteral("hf.alignmentTab"))->trigger();
+        QCOMPARE(asked, (QStringList{QStringLiteral("center"), QStringLiteral("margin"), QStringLiteral("none")}));   // (what a page number usually sits at: the middle, then offered again)
+        QTextDocument *story = w.view()->headerFooterEdit().story;
+        QVERIFY(story);
+        QCOMPARE(story->toPlainText().count(QChar::ObjectReplacementCharacter), 1);
+        w.setAlignmentTabAsker([](QString &, QString &, QString &) { return false; });
+        w.act(QStringLiteral("hf.alignmentTab"))->trigger();
+        QCOMPARE(story->toPlainText().count(QChar::ObjectReplacementCharacter), 1);
     }
 
     // ---------------------------------------------------------------- Page Setup

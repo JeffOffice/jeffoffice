@@ -4,6 +4,9 @@
 #include "core/fieldops.h"
 #include "core/rulerops.h"
 
+#include "text/textprops.h"
+#include "wml/wml.h"
+
 #include <QCoreApplication>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -70,6 +73,29 @@ bool insertDocumentInfo(WriteDoc &doc, QTextCursor &c, const QString &kind)
                                                   {QStringLiteral("fileName"), QStringLiteral("FILENAME")}, {QStringLiteral("filePath"), QStringLiteral("FILENAME \\p")}};
     const auto it = codes.constFind(kind);
     return it != codes.constEnd() && insertField(doc, c, it.value());
+}
+
+bool insertAlignmentTab(WriteDoc &doc, QTextCursor &c, const QString &alignment, const QString &relativeTo, const QString &leader)
+{
+    if (alignment != QLatin1String("left") && alignment != QLatin1String("center") && alignment != QLatin1String("right")) return false;
+    if (relativeTo != QLatin1String("margin") && relativeTo != QLatin1String("indent")) return false;
+    if (leader != QLatin1String("none") && leader != QLatin1String("dot") && leader != QLatin1String("hyphen") && leader != QLatin1String("underscore") && leader != QLatin1String("middleDot")) return false;
+    office::wml::Inline tab;
+    tab.kind = office::wml::Inline::RunAtom;
+    tab.role = office::wml::Inline::Single;
+    tab.tag = QStringLiteral("ptab");
+    tab.raw = "<w:ptab w:relativeTo=\"" + relativeTo.toLatin1() + "\" w:alignment=\"" + alignment.toLatin1() + "\" w:leader=\"" + leader.toLatin1() + "\"/>";
+    tab.display = QStringLiteral("\t");
+    const WriteDoc::StepGroup group(doc);
+    if (!insertFieldAtom(doc, c, tab)) return false;
+    // (The character just put in is the tab: the layout sets it as the file's own would be, where it says.)
+    QTextCursor made(c);
+    made.setPosition(c.position() - 1);
+    made.setPosition(c.position(), QTextCursor::KeepAnchor);
+    QTextCharFormat f;
+    f.setProperty(tp::AlignTab, alignment + QLatin1Char(':') + relativeTo + QLatin1Char(':') + leader);
+    made.mergeCharFormat(f);
+    return true;
 }
 
 } // namespace jp::write

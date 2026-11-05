@@ -29,6 +29,9 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
 bool columnsDialog(QWidget *parent, WriteDoc *doc, int section);
 // Line Numbers: on or off, start at, count by, distance from the text, and when the numbers begin again; for the section or the whole document.
 bool lineNumbersDialog(QWidget *parent, WriteDoc *doc, int section);
+// Insert Alignment Tab: where the text after the tab goes (left, center, or right), what it is measured from (the margins or the indents), and the leader before it; taken from and put
+// back in the arguments ("left"|"center"|"right", "margin"|"indent", and "none"|"dot"|"hyphen"|"underscore"|"middleDot"). False if canceled.
+bool alignmentTabDialog(QWidget *parent, QString *alignment, QString *relativeTo, QString *leader);
 // Layout > Hyphenation > Hyphenation Options: the zone (in points) and the most lines in a row that may end in a hyphen (0: no limit), taken from and put back in the arguments. False if canceled.
 bool hyphenationDialog(QWidget *parent, double *zone, int *limit);
 // Page Borders: which sides, the line (style, width, color), its distance, where it is measured from, and the pages that have it; for the section or the whole document.

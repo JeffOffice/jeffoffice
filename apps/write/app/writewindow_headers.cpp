@@ -44,6 +44,14 @@ void WriteWindow::createHeaderFooterActions()
         m_view->setFocus(Qt::OtherFocusReason);
         m_view->viewport()->update();
     });
+    mk("hf.alignmentTab", tr("Insert Alignment Tab…"), "arrow-right-to-line", QKeySequence(), [this] {
+        if (!m_doc || !m_view->inHeaderFooter()) return;
+        QString alignment = QStringLiteral("center"), relativeTo = QStringLiteral("margin"), leader = QStringLiteral("none");
+        const bool ok = m_alignmentTabAsker ? m_alignmentTabAsker(alignment, relativeTo, leader) : write::alignmentTabDialog(this, &alignment, &relativeTo, &leader);
+        if (ok) write::insertAlignmentTab(*m_doc, m_view->cursor(), alignment, relativeTo, leader);
+        m_view->setFocus(Qt::OtherFocusReason);
+        m_view->viewport()->update();
+    });
     mk("hf.dateTime", tr("Date && Time…"), "calendar-clock", QKeySequence(), [this] {
         if (!m_doc || !m_view->inHeaderFooter()) return;
         write::dateTimeDialog(this, m_doc.get(), m_view);

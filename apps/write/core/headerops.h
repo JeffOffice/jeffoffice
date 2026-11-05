@@ -20,4 +20,9 @@ bool applyHeaderFooterDesign(WriteDoc &doc, int section, bool footer, int slot, 
 // Puts a field of the document's information at the cursor: "author", "title", "fileName", or "filePath". False for any other kind.
 bool insertDocumentInfo(WriteDoc &doc, QTextCursor &c, const QString &kind);
 
+// Puts an alignment tab (an absolute position tab, w:ptab) at the cursor: the text after it goes to the left, center, or right (`alignment`: "left", "center", or "right"), measured
+// from the margins or the indents of the paragraph (`relativeTo`: "margin" or "indent"), with a leader ("none", "dot", "hyphen", "underscore", or "middleDot"). One step that undoes.
+// False for any other word or where the cursor can't take it.
+bool insertAlignmentTab(WriteDoc &doc, QTextCursor &c, const QString &alignment, const QString &relativeTo, const QString &leader);
+
 } // namespace jp::write

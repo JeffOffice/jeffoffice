@@ -1,5 +1,5 @@
 # Headers and footers
-<!-- keywords: header from top, footer from bottom, show document text, distance from the edge, header, footer, page number, page numbers, running head, top of page, bottom of page, different first page, odd and even pages, link to previous, section, field, page field, date, title, insert page number, close header and footer, edit header, edit footer, margin -->
+<!-- keywords: alignment tab, absolute position tab, header from top, footer from bottom, show document text, distance from the edge, header, footer, page number, page numbers, running head, top of page, bottom of page, different first page, odd and even pages, link to previous, section, field, page field, date, title, insert page number, close header and footer, edit header, edit footer, margin -->
 
 A **header** is text at the top of every page. A **footer** is text at the bottom. People use them for page numbers, a title, a date, or a company name. This topic shows how to add, edit, and close them.
 
@@ -29,6 +29,10 @@ Click **Header & Footer > Insert > Page Number Format**. Pick a look: 1, 2, 3, o
 ## Start from a design, add information, or take one away
 
 **Header & Footer > Design > Designs** gives the header or footer you are editing a ready look, such as a page number at the right, the title and the page number, or three columns. It replaces what was there, and **Undo** brings it back. **Document Info** puts in the author, the title, the file name, or the file's path. These are fields, so they change when the file does. **Remove Header** and **Remove Footer** take away the one in this part of the document. If a later section was sharing it, that section gets an empty one of its own.
+
+## Put text at the left, middle, or right
+
+An **alignment tab** sends the words after it to the left edge, the middle, or the right edge of the line, whatever tab stops the paragraph has. Click **Insert Alignment Tab** in the **Insert** group of the **Header & Footer** tab. Pick **Left**, **Center**, or **Right**. Pick whether the place is measured from the **Margin** or from the **Indent** of the paragraph. Pick a **Leader** if you want dots, dashes, or a line to fill the space before the words. For a header with a title on the left, the date in the middle, and a page number on the right, put an alignment tab (Center) before the date and another (Right) before the page number.
 
 ## Set how far they are from the edge of the paper
 
