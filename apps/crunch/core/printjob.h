@@ -46,6 +46,7 @@ struct PrintJobOptions {
     QVector<int> sheets;                        // for ActiveSheet, when more than one sheet tab is picked: all of them print, in order
     jp::office::sheet::CellRange selection;     // for Selection, on the active sheet
     bool ignorePrintArea = false;
+    bool archival = false;                      // for a PDF: PDF/A-1b, the form for keeping (every font inside, no transparency)
     // what the person chose for this job, over what the sheets say
     bool setOrientation = false;
     jp::office::sheet::PageOrientation orientation = jp::office::sheet::PageOrientation::Default;

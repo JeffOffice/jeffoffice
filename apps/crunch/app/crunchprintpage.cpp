@@ -436,6 +436,12 @@ QWidget *CrunchFileScreen::buildExport()
         if (m_win->exportPdf(true)) Q_EMIT closeRequested();
     });
     v->addWidget(book);
+    auto *archive = new ActionCard(QStringLiteral("file-output"), tr("Export the whole workbook as PDF/A"), tr("A PDF in the form made for keeping for years, with every font inside the file."), w);
+    archive->setObjectName(QStringLiteral("exportBookPdfA"));
+    connect(archive, &QAbstractButton::clicked, this, [this] {
+        if (m_win->exportPdf(true, true)) Q_EMIT closeRequested();
+    });
+    v->addWidget(archive);
     v->addStretch(1);
     return w;
 }

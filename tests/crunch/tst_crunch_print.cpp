@@ -501,6 +501,27 @@ private Q_SLOTS:
         QCOMPARE(job->printOf(0)->pages[0].row2, qint64(59));
     }
 
+    // A PDF/A export says what it is (the identification in its metadata and an output intent for color); the usual export does not.
+    void aPdfCanBeExportedAsPdfA()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(30, {})));
+        auto make = [&](bool archival, const QString &name) {
+            const QString path = e.folder.dir.filePath(name);
+            crunch::PrintJobOptions options;
+            options.archival = archival;
+            QString why;
+            if (!e.win.w.exportPdfTo(path, options, QString(), &why)) return QByteArray();
+            QFile f(path);
+            return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+        };
+        const QByteArray plain = make(false, QStringLiteral("plain.pdf")), archive = make(true, QStringLiteral("archive.pdf"));
+        QVERIFY(plain.startsWith("%PDF-") && archive.startsWith("%PDF-"));
+        QVERIFY(!plain.contains("/OutputIntents"));
+        QVERIFY(archive.contains("/OutputIntents"));
+        QVERIFY(archive.contains("pdfaid:part"));
+    }
+
     // The pages are put in a PDF file, whole or by a range, and a file that cannot be made is not left half made; the page ranges and the order of copies are read as they are typed.
     void thePagesGoToAPdfFile()
     {

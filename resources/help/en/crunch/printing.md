@@ -23,6 +23,8 @@ Pick a printer from the list, or **Save as PDF**. **Printer settings** opens you
 
 **File > Export** makes a PDF of the sheet you are on, or of the whole workbook, without choosing a printer. The letters stay letters (not pictures), so they can be searched and stay sharp when you zoom.
 
+**Export the whole workbook as PDF/A** makes a PDF in the form made for keeping for years. Every font is put inside the file, so it reads the same long from now. Programs that archive documents ask for this form.
+
 ## Page breaks on the screen
 
 After you open the Print screen, the sheet on your screen shows where the pages begin: a dashed line for a break JeffCrunch worked out, and a solid line for one you set. They stay up to date as you change the sheet. Turn them off with **View > Page Lines**. (The **Page Breaks** view, described in [Set up the pages](page-layout), always shows them.)

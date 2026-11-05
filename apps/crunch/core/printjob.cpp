@@ -693,6 +693,8 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
         QPdfWriter pdf(&file);
         pdf.setCreator(QStringLiteral("JeffCrunch"));
         pdf.setTitle(QFileInfo(m_options.fileName).completeBaseName());
+        // PDF/A-1b: Qt puts every font in the file, writes the identification and an sRGB output intent, and leaves transparency out
+        if (m_options.archival) pdf.setPdfVersion(QPagedPaintDevice::PdfVersion_A1b);
         constexpr int kResolution = 1200;
         pdf.setResolution(kResolution);
         QPainter p;

@@ -443,7 +443,7 @@ public:
     void setProgressHook(const std::function<bool(int, int)> &hook) { m_progressHook = hook; }
     // File > Export: asks for a name and puts the sheet in view (or every sheet that is shown) in a PDF file. True when the file is made; false, with the reason shown, if it is not or the
     // person gives it up.
-    bool exportPdf(bool wholeWorkbook);
+    bool exportPdf(bool wholeWorkbook, bool archival = false);
     // Prints what the choices say, to the printer or into a PDF file the person names (what asks for the name is the Save As picker). True when it was done; false, with the reason shown.
     bool printWith(const crunch::PrintChoices &choices);
     // What the Print screen has chosen (kept while the window is, so the screen comes back as it was left).
