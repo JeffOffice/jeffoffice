@@ -5,6 +5,7 @@
 
 #include "app/anchordialogs.h"
 #include "app/plaintext.h"
+#include "app/settings.h"
 #include "app/icons.h"
 #include "app/ribbon.h"
 #include "core/anchors.h"
@@ -371,6 +372,7 @@ void CrunchWindow::insertLink()
     req.where = range.cellCount() > 1 ? jp::office::sheet::rangeName(range) : jp::office::sheet::cellName(row, col);
     req.shownText = m_session->displayText(m_sheet, range.row1, range.col1);
     req.editing = was != nullptr;
+    req.recentFiles = Settings::get().recentFiles().mid(0, 12);
     if (was) req.link = *was;
     for (const int i : m_session->sheetOrder())
         if (i >= 0 && i < m_loaded->book->info().sheets.size()) {

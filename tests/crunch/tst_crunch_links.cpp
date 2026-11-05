@@ -536,6 +536,30 @@ private Q_SLOTS:
         QCOMPARE(out.link.target, QStringLiteral("https://www.example.org/a b"));
         QVERIFY(out.link.location.isEmpty());
     }
+
+    // The link dialog lists the files used lately: choosing one fills the address, and the list is empty-handed (just "none") when there are no recent files.
+    void theLinkDialogOffersRecentFiles()
+    {
+        LinkRequest req;
+        req.where = QStringLiteral("B2");
+        req.sheetNames = {QStringLiteral("Sheet1")};
+        req.recentFiles = {QStringLiteral("/home/a/budget.xlsx"), QStringLiteral("/home/a/notes.txt")};
+        LinkDialog dialog(req);
+        auto *recent = dialog.findChild<QComboBox *>(QStringLiteral("linkRecent"));
+        QVERIFY(recent);
+        QCOMPARE(recent->count(), 3);
+        recent->setCurrentIndex(2);
+        auto *address = dialog.findChild<QLineEdit *>(QStringLiteral("linkAddress"));
+        QCOMPARE(address->text(), QStringLiteral("/home/a/notes.txt"));
+        QString problem;
+        LinkRequest out = req;
+        QVERIFY(dialog.result(&out, &problem));
+        QVERIFY(out.link.target.endsWith(QLatin1String("notes.txt")));
+        LinkRequest none;
+        none.sheetNames = {QStringLiteral("Sheet1")};
+        LinkDialog empty(none);
+        QCOMPARE(empty.findChild<QComboBox *>(QStringLiteral("linkRecent"))->count(), 1);
+    }
 };
 
 JP_TEST_CLASS(CrunchLinksTests)
