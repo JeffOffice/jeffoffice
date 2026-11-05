@@ -174,6 +174,32 @@ void WriteWindow::createShapeActions()
     mk("shape.rotate.right", tr("Rotate Right 90°"), "rotate-cw", QKeySequence(), [this] { turnSelectedShape(90, true); });
     mk("shape.rotate.left", tr("Rotate Left 90°"), "rotate-ccw", QKeySequence(), [this] { turnSelectedShape(-90, true); });
     mk("shape.rotate.none", tr("No Rotation"), "refresh-ccw", QKeySequence(), [this] { turnSelectedShape(0, false); });
+    struct Align {
+        const char *id, *text, *icon;
+        write::ObjectAlign align;
+    };
+    for (const Align &a : {Align{"left", QT_TRANSLATE_NOOP("jp::WriteWindow", "Align Left"), "align-start-vertical", write::ObjectAlign::Left},
+                           Align{"center", QT_TRANSLATE_NOOP("jp::WriteWindow", "Align Center"), "align-center-vertical", write::ObjectAlign::Center},
+                           Align{"right", QT_TRANSLATE_NOOP("jp::WriteWindow", "Align Right"), "align-end-vertical", write::ObjectAlign::Right},
+                           Align{"top", QT_TRANSLATE_NOOP("jp::WriteWindow", "Align Top"), "align-start-horizontal", write::ObjectAlign::Top},
+                           Align{"middle", QT_TRANSLATE_NOOP("jp::WriteWindow", "Align Middle"), "align-center-horizontal", write::ObjectAlign::Middle},
+                           Align{"bottom", QT_TRANSLATE_NOOP("jp::WriteWindow", "Align Bottom"), "align-end-horizontal", write::ObjectAlign::Bottom}}) {
+        const int which = int(a.align);
+        mk(QStringLiteral("arrange.align.") + QLatin1String(a.id), QCoreApplication::translate("jp::WriteWindow", a.text), a.icon, QKeySequence(), [this, which] { alignSelectedObject(which); });
+    }
+    mk("arrange.alignToPage", tr("Align to Page"), "file", QKeySequence(), [] {}, true);
+    struct Gradient {
+        const char *id, *text;
+        double angle;
+        bool twoColors;
+    };
+    for (const Gradient &g : {Gradient{"down", QT_TRANSLATE_NOOP("jp::WriteWindow", "Linear Down"), 90, false}, Gradient{"up", QT_TRANSLATE_NOOP("jp::WriteWindow", "Linear Up"), 270, false},
+                              Gradient{"right", QT_TRANSLATE_NOOP("jp::WriteWindow", "Linear Right"), 0, false}, Gradient{"left", QT_TRANSLATE_NOOP("jp::WriteWindow", "Linear Left"), 180, false},
+                              Gradient{"diagonal", QT_TRANSLATE_NOOP("jp::WriteWindow", "Linear Diagonal"), 45, false}, Gradient{"sunset", QT_TRANSLATE_NOOP("jp::WriteWindow", "Sunset"), 90, true}}) {
+        const double angle = g.angle;
+        const bool two = g.twoColors;
+        mk(QStringLiteral("shape.gradient.") + QLatin1String(g.id), QCoreApplication::translate("jp::WriteWindow", g.text), "blend", QKeySequence(), [this, angle, two] { gradientSelectedShape(angle, two); });
+    }
     for (const double w : kWeights) {
         const double weight = w;
         mk(QStringLiteral("shape.weight.%1").arg(w), tr("%1 pt").arg(w), "minus", QKeySequence(), [this, weight] {
@@ -266,6 +292,38 @@ void WriteWindow::createChartActions()
             m_view->setFocus(Qt::OtherFocusReason);
         }, true);
     }
+    for (const bool values : {false, true}) {
+        const QString which = values ? QStringLiteral("value") : QStringLiteral("category");
+        const write::ChartAxisKind kind = values ? write::ChartAxisKind::Value : write::ChartAxisKind::Category;
+        mk(QStringLiteral("chart.axis.") + which, values ? tr("Axis of Values") : tr("Axis of Categories"), "chart-line", QKeySequence(), [this, which, kind] {
+            const bool on = act(QStringLiteral("chart.axis.") + which)->isChecked();
+            m_view->changeSelectedPicture([on, kind](write::WriteDoc &d, int position) { return write::setChartAxis(d, position, kind, on); });
+            m_view->setFocus(Qt::OtherFocusReason);
+        }, true);
+        mk(QStringLiteral("chart.axisTitle.") + which, values ? tr("Title of the Axis of Values…") : tr("Title of the Axis of Categories…"), "type", QKeySequence(), [this, values] { editChartAxisTitle(values); });
+    }
+    for (const char *id : {"valueMajor", "valueMinor", "categoryMajor"}) {
+        const QString which = QLatin1String(id);
+        const QString text = which == QLatin1String("valueMajor") ? tr("Major Gridlines of Values") : which == QLatin1String("valueMinor") ? tr("Minor Gridlines of Values") : tr("Major Gridlines of Categories");
+        mk(QStringLiteral("chart.grid.") + which, text, "grid-2x2", QKeySequence(), [this, which] {
+            const int at = m_view->selectedPicture();
+            if (!m_doc || at < 0) return;
+            const write::ChartInfo info = write::chartAt(*m_doc, at);
+            const bool on = act(QStringLiteral("chart.grid.") + which)->isChecked();
+            const bool categories = which == QLatin1String("categoryMajor"), minorOne = which == QLatin1String("valueMinor");
+            const bool major = categories ? on : (minorOne ? info.valueGridlines : on), minor = categories ? false : (minorOne ? on : info.valueMinorGridlines && on);
+            m_view->changeSelectedPicture([=](write::WriteDoc &d, int position) {
+                return write::setChartGridlines(d, position, categories ? write::ChartAxisKind::Category : write::ChartAxisKind::Value, major, minor);
+            });
+            m_view->setFocus(Qt::OtherFocusReason);
+        }, true);
+    }
+    for (int style = 1; style <= 8; ++style) {
+        mk(QStringLiteral("chart.style.%1").arg(style), tr("Style %1").arg(style), "palette", QKeySequence(), [this, style] {
+            m_view->changeSelectedPicture([style](write::WriteDoc &d, int position) { return write::setChartStyle(d, position, style); });
+            m_view->setFocus(Qt::OtherFocusReason);
+        }, true);
+    }
     mk("chart.dataLabels", tr("Data Labels"), "text", QKeySequence(), [this] {
         const bool on = act("chart.dataLabels")->isChecked();
         m_view->changeSelectedPicture([on](write::WriteDoc &d, int position) { return write::setChartDataLabels(d, position, on); });
@@ -286,6 +344,30 @@ void WriteWindow::chartRibbonParts(RibbonParts &parts)
         auto *group = new QActionGroup(m);
         for (const ChartName &n : kChartNames) {
             QAction *a = act(QStringLiteral("chart.type.") + QLatin1String(n.id));
+            group->addAction(a);
+            m->addAction(a);
+        }
+        return m;
+    };
+    parts.menus[QStringLiteral("chartAxes")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        m->addAction(act("chart.axis.category"));
+        m->addAction(act("chart.axis.value"));
+        m->addSeparator();
+        m->addAction(act("chart.axisTitle.category"));
+        m->addAction(act("chart.axisTitle.value"));
+        return m;
+    };
+    parts.menus[QStringLiteral("chartGridlines")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        for (const char *id : {"valueMajor", "valueMinor", "categoryMajor"}) m->addAction(act(QStringLiteral("chart.grid.") + QLatin1String(id)));
+        return m;
+    };
+    parts.menus[QStringLiteral("chartStyles")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        auto *group = new QActionGroup(m);
+        for (int style = 1; style <= 8; ++style) {
+            QAction *a = act(QStringLiteral("chart.style.%1").arg(style));
             group->addAction(a);
             m->addAction(a);
         }
@@ -319,10 +401,43 @@ void WriteWindow::refreshChartUi()
     act("chart.editTitle")->setEnabled(editable);
     act("chart.title")->setChecked(editable && info.titleShown);
     act("chart.dataLabels")->setChecked(editable && info.dataLabels);
+    for (const char *id : {"axis.category", "axis.value", "axisTitle.category", "axisTitle.value", "grid.valueMajor", "grid.valueMinor", "grid.categoryMajor"}) act(QStringLiteral("chart.") + QLatin1String(id))->setEnabled(editable && info.hasAxes);
+    act("chart.axis.category")->setChecked(editable && info.categoryAxisShown);
+    act("chart.axis.value")->setChecked(editable && info.valueAxisShown);
+    act("chart.grid.valueMajor")->setChecked(editable && info.valueGridlines);
+    act("chart.grid.valueMinor")->setChecked(editable && info.valueMinorGridlines);
+    act("chart.grid.categoryMajor")->setChecked(editable && info.categoryGridlines);
+    for (int style = 1; style <= 8; ++style) act(QStringLiteral("chart.style.%1").arg(style))->setChecked(editable && info.style == style);
     for (const ChartName &n : kChartNames) act(QStringLiteral("chart.type.") + QLatin1String(n.id))->setChecked(editable && info.form == n.form);
     static const std::pair<const char *, const char *> legends[] = {{"right", "r"}, {"top", "t"}, {"left", "l"}, {"bottom", "b"}};
     act("chart.legend.none")->setChecked(editable && !info.legendShown);
     for (const auto &l : legends) act(QStringLiteral("chart.legend.") + QLatin1String(l.first))->setChecked(editable && info.legendShown && info.legendPosition == QLatin1String(l.second));
+}
+
+void WriteWindow::editChartAxisTitle(bool values)
+{
+    const int at = m_view->selectedPicture();
+    if (!m_doc || at < 0) return;
+    const write::ChartInfo info = write::chartAt(*m_doc, at);
+    if (!info.valid || !info.hasAxes) return;
+    QDialog dlg(this);
+    dlg.setObjectName(QStringLiteral("chartAxisTitleDialog"));
+    dlg.setWindowTitle(values ? tr("Title of the Axis of Values") : tr("Title of the Axis of Categories"));
+    auto *layout = new QVBoxLayout(&dlg);
+    layout->addWidget(new QLabel(tr("Words for the title of the axis (leave empty for none):"), &dlg));
+    auto *edit = new QLineEdit(values ? info.valueAxisTitle : info.categoryAxisTitle, &dlg);
+    edit->setObjectName(QStringLiteral("chartAxisTitleEdit"));
+    edit->setMinimumWidth(320);
+    layout->addWidget(edit);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    layout->addWidget(buttons);
+    if (dlg.exec() != QDialog::Accepted) return;
+    const QString text = edit->text();
+    const write::ChartAxisKind kind = values ? write::ChartAxisKind::Value : write::ChartAxisKind::Category;
+    m_view->changeSelectedPicture([text, kind](write::WriteDoc &d, int position) { return write::setChartAxisTitle(d, position, kind, text); });
+    m_view->setFocus(Qt::OtherFocusReason);
 }
 
 void WriteWindow::editChartTitle()
@@ -420,17 +535,33 @@ void WriteWindow::editChartData()
 void WriteWindow::insertEquationDialog()
 {
     if (!m_doc || refuseIfReadOnly()) return;
+    // An equation next to the caret, or selected by itself, is changed (when it is one that a line can say); any other place puts a new one in.
+    int editAt = -1;
+    QString editText;
+    {
+        const QTextCursor now = m_view->cursor();
+        const int from = now.selectionStart(), to = now.selectionEnd();
+        for (const int candidate : to - from == 1 ? QList<int>{from} : (to == from ? QList<int>{from, from - 1} : QList<int>{})) {
+            const QString line = write::equationAt(*m_doc, candidate);
+            if (candidate >= 0 && !line.isEmpty()) {
+                editAt = candidate;
+                editText = line;
+                break;
+            }
+        }
+    }
     QDialog dlg(this);
     dlg.setObjectName(QStringLiteral("equationDialog"));
-    dlg.setWindowTitle(tr("Insert Equation"));
+    dlg.setWindowTitle(editAt >= 0 ? tr("Edit Equation") : tr("Insert Equation"));
     auto *layout = new QVBoxLayout(&dlg);
     auto *help = new QLabel(tr("Type the equation in a line. Use a/b for a fraction, x^2 for a power, x_i for a subscript, sqrt(x) for a root, and a backslash and a name for a symbol, such as \\alpha, \\pi, \\infty, \\leq, or \\times. "
-                               "Write \\sum_(i=1)^n, \\int_0^1, or \\prod for a sum, an integral, or a product with limits."),
+                               "Write \\sum_(i=1)^n, \\int_0^1, or \\prod for a sum, an integral, or a product with limits. Use \\hat{x}, \\vec{v}, or \\bar{x} for an accent, \\overline{x} for a bar, "
+                               "\\left( ... \\right) for brackets that grow, and \\pmatrix{a & b \\\\ c & d} for a matrix."),
                             &dlg);
     help->setWordWrap(true);
     help->setTextFormat(Qt::PlainText);
     layout->addWidget(help);
-    auto *input = new QLineEdit(&dlg);
+    auto *input = new QLineEdit(editText, &dlg);
     input->setObjectName(QStringLiteral("equationInput"));
     input->setMinimumWidth(420);
     layout->addWidget(input);
@@ -452,6 +583,11 @@ void WriteWindow::insertEquationDialog()
     connect(input, &QLineEdit::textChanged, &dlg, update);
     update();
     if (dlg.exec() != QDialog::Accepted) return;
+    if (editAt >= 0) {
+        if (!write::replaceEquation(*m_doc, editAt, input->text()) && write::equationAt(*m_doc, editAt) != input->text()) statusBar()->showMessage(tr("This equation can't be changed."), 6000);
+        m_view->setFocus(Qt::OtherFocusReason);
+        return;
+    }
     QTextCursor c = m_view->cursor();
     if (write::insertEquation(*m_doc, c, input->text())) m_view->showCursor(c);
     else statusBar()->showMessage(tr("An equation can't be put here."), 6000);
@@ -462,6 +598,14 @@ void WriteWindow::createPictureAdjustActions()
 {
     createChartActions();
     mk("insert.equation", tr("Equation…"), "square-pi", QKeySequence(QStringLiteral("Alt+=")), [this] { insertEquationDialog(); });
+    for (int i = 0; i < write::equationGallery().size(); ++i)
+        mk(QStringLiteral("insert.equation.design.%1").arg(i), write::equationGallery().at(i).name, "square-pi", QKeySequence(), [this, i] {
+            if (!m_doc || refuseIfReadOnly()) return;
+            QTextCursor c = m_view->cursor();
+            if (write::insertEquation(*m_doc, c, write::equationGallery().at(i).linear)) m_view->showCursor(c);
+            else statusBar()->showMessage(tr("An equation can't be put here."), 6000);
+            m_view->setFocus(Qt::OtherFocusReason);
+        });
     mk("picture.crop", tr("Crop…"), "crop", QKeySequence(), [this] { cropSelectedPicture(); });
     mk("picture.reset", tr("Reset Picture"), "refresh-ccw", QKeySequence(), [this] {
         m_view->changeSelectedPicture([](write::WriteDoc &d, int position) { return write::resetPicture(d, position); });
@@ -656,6 +800,35 @@ void WriteWindow::shapeRibbonParts(RibbonParts &parts)
         }
         return m;
     };
+    parts.menus[QStringLiteral("equationGallery")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        for (int i = 0; i < write::equationGallery().size(); ++i) m->addAction(act(QStringLiteral("insert.equation.design.%1").arg(i)));
+        return m;
+    };
+    parts.menus[QStringLiteral("objectAlign")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        for (const char *id : {"left", "center", "right"}) m->addAction(act(QStringLiteral("arrange.align.") + QLatin1String(id)));
+        m->addSeparator();
+        for (const char *id : {"top", "middle", "bottom"}) m->addAction(act(QStringLiteral("arrange.align.") + QLatin1String(id)));
+        m->addSeparator();
+        m->addAction(act("arrange.alignToPage"));
+        return m;
+    };
+    parts.menus[QStringLiteral("shapeGradient")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        for (const char *id : {"down", "up", "right", "left", "diagonal", "sunset"}) m->addAction(act(QStringLiteral("shape.gradient.") + QLatin1String(id)));
+        return m;
+    };
+    parts.widgets[QStringLiteral("pictureCropShape")] = [this]() -> QWidget * {
+        auto *b = new GalleryButton(icon("crop"), tr("Crop to Shape"), QSize(30, 30), 8, true);
+        b->setToolTip(tr("Crop to Shape"));
+        b->setItemsProvider([] { return shapeItems(true); });
+        connect(b, &GalleryButton::activated, this, [this](const QString &preset) {
+            m_view->changeSelectedPicture([preset](write::WriteDoc &d, int position) { return write::setPictureCropShape(d, position, preset); });
+            m_view->setFocus(Qt::OtherFocusReason);
+        });
+        return b;
+    };
     parts.menus[QStringLiteral("shapeRotate")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
         for (const char *id : {"right", "left", "none"}) m->addAction(act(QStringLiteral("shape.rotate.") + QLatin1String(id)));
@@ -756,6 +929,7 @@ void WriteWindow::refreshShapeUi()
     const bool body = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
     for (const write::TextBoxDesign &design : write::textBoxDesigns()) act(QStringLiteral("insert.textBox.") + design.id)->setEnabled(body);
     act("insert.equation")->setEnabled(body);
+    for (int i = 0; i < write::equationGallery().size(); ++i) act(QStringLiteral("insert.equation.design.%1").arg(i))->setEnabled(body);
     const int at = m_doc ? m_view->selectedPicture() : -1;
     const write::PictureInfo info = at >= 0 ? write::pictureAt(*m_doc, m_doc->story(), at) : write::PictureInfo();
     const bool shape = info.valid && info.kind != write::DrawnKind::Picture && info.kind != write::DrawnKind::Chart;
@@ -768,7 +942,8 @@ void WriteWindow::refreshShapeUi()
         const QString name = a->objectName();
         if (name.startsWith(QLatin1String("shape."))) a->setEnabled(editable);
         // (A picture takes a border: the line commands are for it too.)
-        if (name.startsWith(QLatin1String("shape.weight.")) || name.startsWith(QLatin1String("shape.dash."))) a->setEnabled(drawn);
+        if (name.startsWith(QLatin1String("shape.weight.")) || name.startsWith(QLatin1String("shape.dash.")) || name.startsWith(QLatin1String("shape.rotate."))) a->setEnabled(drawn && info.kind != write::DrawnKind::Chart);
+        if (name.startsWith(QLatin1String("arrange."))) a->setEnabled(drawn);
         if (name == QLatin1String("picture.crop") || name == QLatin1String("picture.reset") || name == QLatin1String("picture.change") || name.startsWith(QLatin1String("picture.correct.")) ||
             name.startsWith(QLatin1String("picture.recolor.")))
             a->setEnabled(picture);
@@ -824,6 +999,29 @@ void WriteWindow::editShapeText()
     if (dlg.exec() != QDialog::Accepted) return;
     const QStringList paragraphs = edit->toPlainText().split(QLatin1Char('\n'));
     m_view->changeSelectedPicture([paragraphs](write::WriteDoc &d, int position) { return write::setTextBoxText(d, position, paragraphs); });
+    m_view->setFocus(Qt::OtherFocusReason);
+}
+
+void WriteWindow::alignSelectedObject(int align)
+{
+    const bool toPage = act("arrange.alignToPage")->isChecked();
+    m_view->changeSelectedPicture([align, toPage](write::WriteDoc &d, int position) { return write::alignObject(d, position, write::ObjectAlign(align), toPage); });
+    m_view->setFocus(Qt::OtherFocusReason);
+}
+
+// Fills the selected shape with a gradient from a lighter to a darker shade of its fill (or of a blue it has none of), or from yellow to red.
+void WriteWindow::gradientSelectedShape(double angle, bool twoColors)
+{
+    const int at = m_view->selectedPicture();
+    if (!m_doc || at < 0) return;
+    const write::PictureInfo info = write::pictureAt(*m_doc, m_doc->story(), at);
+    QColor base(QLatin1Char('#') + (info.fillColor.isEmpty() ? QStringLiteral("3B78B8") : info.fillColor));
+    QString from = base.lighter(150).name(QColor::HexRgb).mid(1).toUpper(), to = base.darker(140).name(QColor::HexRgb).mid(1).toUpper();
+    if (twoColors) {
+        from = QStringLiteral("F7D154");
+        to = QStringLiteral("D2452D");
+    }
+    m_view->changeSelectedPicture([=](write::WriteDoc &d, int position) { return write::setShapeGradient(d, position, from, to, angle); });
     m_view->setFocus(Qt::OtherFocusReason);
 }
 

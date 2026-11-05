@@ -304,6 +304,10 @@
               "keytip": "SH"
             },
             {
+              "large": "insert.icons",
+              "keytip": "IC"
+            },
+            {
               "large": {
                 "id": "ribbon.chart",
                 "text": "Chart",
@@ -435,6 +439,15 @@
             {
               "large": "insert.equation",
               "keytip": "EQ"
+            },
+            {
+              "large": {
+                "id": "ribbon.equationGallery",
+                "text": "Built-In Equations",
+                "icon": "square-pi"
+              },
+              "keytip": "EG",
+              "menu": "@equationGallery"
             },
             {
               "large": {
@@ -1815,6 +1828,20 @@
           ]
         },
         {
+          "name": "Draw",
+          "keytip": "ZW",
+          "items": [
+            {
+              "large": "table.draw",
+              "keytip": "DT"
+            },
+            {
+              "large": "table.eraser",
+              "keytip": "ER"
+            }
+          ]
+        },
+        {
           "name": "Merge",
           "keytip": "ZM",
           "items": [
@@ -1924,6 +1951,15 @@
                   "keytip": "AC"
                 }
               ]
+            },
+            {
+              "large": {
+                "id": "ribbon.tableDirection",
+                "text": "Text Direction",
+                "icon": "arrow-down-wide-narrow"
+              },
+              "keytip": "TD",
+              "menu": "@tableDirection"
             }
           ]
         },
@@ -2053,6 +2089,24 @@
               "menu": "@pictureBackward"
             },
             {
+              "large": {
+                "id": "ribbon.objectAlign",
+                "text": "Align",
+                "icon": "align-center-vertical"
+              },
+              "keytip": "AL",
+              "menu": "@objectAlign"
+            },
+            {
+              "large": {
+                "id": "ribbon.pictureRotate",
+                "text": "Rotate",
+                "icon": "rotate-cw"
+              },
+              "keytip": "RO",
+              "menu": "@shapeRotate"
+            },
+            {
               "large": "picture.altText",
               "keytip": "AT"
             },
@@ -2095,6 +2149,10 @@
             {
               "large": "picture.crop",
               "keytip": "CR"
+            },
+            {
+              "widget": "pictureCropShape",
+              "keytip": "CH"
             }
           ]
         }
@@ -2157,6 +2215,15 @@
               },
               "keytip": "SD",
               "menu": "@shapeDash"
+            },
+            {
+              "large": {
+                "id": "ribbon.shapeGradient",
+                "text": "Gradient",
+                "icon": "blend"
+              },
+              "keytip": "GR",
+              "menu": "@shapeGradient"
             }
           ]
         },
@@ -2181,6 +2248,15 @@
               },
               "keytip": "RO",
               "menu": "@shapeRotate"
+            },
+            {
+              "large": {
+                "id": "ribbon.shapeAlign",
+                "text": "Align",
+                "icon": "align-center-vertical"
+              },
+              "keytip": "AL",
+              "menu": "@objectAlign"
             },
             {
               "large": "picture.altText",
@@ -2267,6 +2343,33 @@
               },
               "keytip": "LG",
               "menu": "@chartLegend"
+            },
+            {
+              "large": {
+                "id": "ribbon.chartAxes",
+                "text": "Axes",
+                "icon": "chart-line"
+              },
+              "keytip": "AX",
+              "menu": "@chartAxes"
+            },
+            {
+              "large": {
+                "id": "ribbon.chartGridlines",
+                "text": "Gridlines",
+                "icon": "grid-2x2"
+              },
+              "keytip": "GL",
+              "menu": "@chartGridlines"
+            },
+            {
+              "large": {
+                "id": "ribbon.chartStyles",
+                "text": "Chart Styles",
+                "icon": "palette"
+              },
+              "keytip": "CS",
+              "menu": "@chartStyles"
             },
             {
               "large": "chart.dataLabels",

@@ -4,6 +4,7 @@
 #include "app/writewindow.h"
 
 #include "app/filedialogs.h"
+#include "app/iconpicker.h"
 #include "app/icons.h"
 #include "app/pageview.h"
 #include "app/ribbon.h"
@@ -31,6 +32,7 @@ namespace jp {
 void WriteWindow::createPictureActions()
 {
     mk("insert.picture", tr("Picture…"), "image-plus", QKeySequence(), [this] { insertPictureFromFile(); });
+    mk("insert.icons", tr("Icons…"), "smile-plus", QKeySequence(), [this] { insertIconsFromPicker(); });
     mk("insert.pictureClipboard", tr("Picture from Clipboard"), "clipboard-paste", QKeySequence(), [this] { insertPictureFromClipboard(); });
     struct Wrap {
         const char *id;
@@ -167,6 +169,20 @@ void WriteWindow::insertPictureFromFile()
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
+// Insert > Icons: the shared icon picker, and each icon chosen put in at the caret as an SVG picture a little under an inch square, in the text's dark color.
+void WriteWindow::insertIconsFromPicker()
+{
+    if (!m_doc || refuseIfReadOnly()) return;
+    const QStringList names = pickIcons(this);
+    for (const QString &name : names) {
+        QByteArray svg = iconSvg(name, QColor(0x20, 0x20, 0x20));
+        if (svg.isEmpty()) continue;
+        svg.replace("width=\"24\"", "width=\"64\"").replace("height=\"24\"", "height=\"64\"");
+        if (!m_view->insertPictureBytes(svg, QString(name).replace(QLatin1Char('-'), QLatin1Char(' ')))) break;
+    }
+    m_view->setFocus(Qt::OtherFocusReason);
+}
+
 void WriteWindow::insertPictureFromClipboard()
 {
     if (!m_doc) return;
@@ -195,6 +211,7 @@ void WriteWindow::refreshPictureUi()
     const bool body = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
     act("insert.picture")->setEnabled(body);
     act("insert.pictureClipboard")->setEnabled(body);
+    act("insert.icons")->setEnabled(body);
     const int at = m_doc ? m_view->selectedPicture() : -1;
     const write::PictureInfo info = at >= 0 ? write::pictureAt(*m_doc, m_doc->story(), at) : write::PictureInfo();
     m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), info.valid && info.kind == write::DrawnKind::Picture, false);

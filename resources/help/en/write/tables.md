@@ -1,5 +1,5 @@
 # Tables
-<!-- keywords: delete cells, shift cells left, wrap text around a table, text wrapping, floating table, table, tables, insert table, rows, columns, cell, cells, merge cells, split cells, borders, shading, fill, cell size, column width, row height, fit, distribute rows, distribute columns, table properties, header row, repeat header, convert text to table, convert table to text, split table, sort, sort rows, formula, formulas, sum, view gridlines, table style, table styles, banded rows, alignment, align text in a cell, delete row, delete column, grid, gridlines, right click, table layout, table design -->
+<!-- keywords: delete cells, shift cells left, wrap text around a table, text wrapping, floating table, table, tables, insert table, rows, columns, cell, cells, merge cells, split cells, borders, shading, fill, cell size, column width, row height, fit, distribute rows, distribute columns, table properties, header row, repeat header, convert text to table, convert table to text, split table, sort, sort rows, formula, formulas, sum, view gridlines, table style, table styles, banded rows, alignment, align text in a cell, delete row, delete column, grid, gridlines, right click, table layout, table design, draw table, pen, eraser, text direction, rotate text, vertical text -->
 
 A **table** is a grid of **cells** in **rows** and **columns**. Each cell holds text, and you type in it as you do anywhere on the page. This topic shows how to add a table, change its shape and its look, and set it up for the pages it runs over.
 
@@ -102,9 +102,23 @@ On **Table Layout**:
 
 Each pull is one step. Undo takes it back.
 
+## Draw a table
+
+Click **Insert > Table > Draw Table**, or **Table Layout > Draw Table**. The pointer becomes a cross, and it stays one until you press **Esc** or click the button again.
+
+- Drag a rectangle in the text, and a table of one cell, as big as the rectangle, appears.
+- Drag a line across a cell, and the cell is divided. A line that goes mostly across makes two rows. A line that goes mostly down makes two columns. The two parts are always equal, wherever you drew the line.
+- Click **Table Layout > Eraser**, then drag from one cell into the next. The two cells join, and the words of both are kept.
+
+Each drag is one step to undo.
+
 ## Where the text sits in a cell
 
 The nine buttons on **Table Layout > Alignment** put the words at the top, the middle, or the bottom of the cell, and at its left, center, or right.
+
+## Turn the words in a cell
+
+Click **Table Layout > Text Direction**. **Rotate Text Down** turns the words so that they read from the top of the cell to the bottom, and **Rotate Text Up** turns them so that they read from the bottom to the top. **Text Across** puts them back. The row gets as tall as the words are long, up to about 200 points, so a short label such as "Total" fits on one line. Click in a turned cell and type as you do in any other. The same choice is in **Table Properties** on the **Cell** tab.
 
 ## Table Properties
 
@@ -113,7 +127,7 @@ Click **Table Properties** on **Table Layout**, or on the right-click menu. It h
 - **Table**: where the table sits (left, center, or right), how far it is from the left margin, its preferred width (automatic, in points, or as a percent of the text area), whether the columns are fixed, **Wrap text around the table** (the table sits where it is and the words of the next paragraphs flow beside it, instead of below it), the space inside every cell, and the space between cells.
 - **Row**: the height and whether it is a least height or an exact one, **Do not let the row break across pages**, and **Repeat as header row at the top of each page**. A header row shows again at the top of each page a long table runs onto. The button **Table Layout > Repeat Header Rows** does the same for the selected rows.
 - **Column**: the width of the column, in points or as a percent of the table. The two boxes follow each other.
-- **Cell**: where the words sit up and down, and whether the words may wrap.
+- **Cell**: where the words sit up and down, which way they run, and whether the words may wrap.
 - **Alt Text**: a title and a description of the table for people who can't see it.
 
 ## What JeffWrite keeps

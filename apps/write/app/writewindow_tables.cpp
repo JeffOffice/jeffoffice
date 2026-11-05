@@ -161,6 +161,31 @@ void WriteWindow::createTableActions()
         const flow::CellAlign down = p.down;
         cmd(QStringLiteral("table.align.") + QLatin1String(p.id), tr(p.text), p.iconName, [across, down](write::WriteDoc &d, QTextCursor &c) { write::setCellAlignment(d, c, across, down); });
     }
+    // The pen and the eraser: a mode of the pages' mouse until it is switched off (or Esc is pressed).
+    mk("table.draw", tr("Draw Table"), "pencil", QKeySequence(), [this] {
+        if (!m_doc || refuseIfReadOnly()) {
+            act("table.draw")->setChecked(false);
+            return;
+        }
+        m_view->setTableTool(act("table.draw")->isChecked() ? write::PageView::TableTool::Draw : write::PageView::TableTool::None);
+        m_view->setFocus(Qt::OtherFocusReason);
+    }, true);
+    mk("table.eraser", tr("Eraser"), "eraser", QKeySequence(), [this] {
+        if (!m_doc || refuseIfReadOnly()) {
+            act("table.eraser")->setChecked(false);
+            return;
+        }
+        m_view->setTableTool(act("table.eraser")->isChecked() ? write::PageView::TableTool::Erase : write::PageView::TableTool::None);
+        m_view->setFocus(Qt::OtherFocusReason);
+    }, true);
+    connect(m_view, &write::PageView::tableToolChanged, this, [this] {
+        act("table.draw")->setChecked(m_view->tableTool() == write::PageView::TableTool::Draw);
+        act("table.eraser")->setChecked(m_view->tableTool() == write::PageView::TableTool::Erase);
+    });
+    // The way the text of a cell runs.
+    cmd(QStringLiteral("table.direction.across"), tr("Text Across"), "text", [](write::WriteDoc &d, QTextCursor &c) { write::setCellTextDirection(d, c, flow::CellDirection::Horizontal); });
+    cmd(QStringLiteral("table.direction.down"), tr("Rotate Text Down"), "arrow-down-wide-narrow", [](write::WriteDoc &d, QTextCursor &c) { write::setCellTextDirection(d, c, flow::CellDirection::TopToBottom); });
+    cmd(QStringLiteral("table.direction.up"), tr("Rotate Text Up"), "arrow-up-wide-narrow", [](write::WriteDoc &d, QTextCursor &c) { write::setCellTextDirection(d, c, flow::CellDirection::BottomToTop); });
     // Borders: the sides of the cells selected, in a single line (or none).
     struct Border { const char *id; const char *text; const char *iconName; int sides; bool none; };
     const Border borders[] = {{"bottom", QT_TR_NOOP("Bottom Border"), "panel-bottom", write::BorderSide::Bottom, false},
@@ -298,6 +323,7 @@ void WriteWindow::tableRibbonParts(RibbonParts &parts)
         m->addAction(wa);
         m->addAction(act("insert.table"));
         m->addAction(act("insert.convertTextToTable"));
+        m->addAction(act("table.draw"));
         auto *readyMenu = m->addMenu(tr("Ready-Made Tables"));
         for (const char *id : {"insert.ready.calendar", "insert.ready.matrix", "insert.ready.list", "insert.ready.schedule"}) readyMenu->addAction(act(QString::fromLatin1(id)));
         connect(grid, &TableGrid::picked, this, [this, m](int rows, int cols) {
@@ -326,6 +352,7 @@ void WriteWindow::tableRibbonParts(RibbonParts &parts)
                                                            "table.border.inside", "table.border.insideH", "table.border.insideV", "-", "table.bordersShading"});
     parts.menus[QStringLiteral("tableAutoFit")] = menuOf({"table.autofitContents", "table.autofitWindow", "table.fixedWidth"});
     parts.menus[QStringLiteral("tableDelete")] = menuOf({"table.deleteCells", "-", "table.deleteRows", "table.deleteColumns", "table.deleteTable"});
+    parts.menus[QStringLiteral("tableDirection")] = menuOf({"table.direction.across", "table.direction.down", "table.direction.up"});
     parts.menus[QStringLiteral("tableSelect")] = menuOf({"table.selectTable", "table.selectRow", "table.selectColumn", "table.selectCell"});
     // The color of the cells' fill.
     parts.widgets[QStringLiteral("tableShading")] = [this]() -> QWidget * {
@@ -411,11 +438,14 @@ void WriteWindow::refreshTableUi()
     }
     const bool inBody = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
     act("insert.table")->setEnabled(inBody);
+    act("table.draw")->setEnabled(inBody || act("table.draw")->isChecked());   // (the pen can draw a table where there is none)
+    act("table.eraser")->setEnabled(in || act("table.eraser")->isChecked());
     act("insert.convertTextToTable")->setEnabled(inBody && !in);
     {
         QTextCursor probe = m_view->cursor();
         act("table.deleteCells")->setEnabled(in && write::deleteTableCellsShiftLeft(*m_doc, probe, false));   // (a cell with others left in its row, not joined down)
     }
+    act("table.direction.across")->setEnabled(in && write::hasTurnedText(*m_doc, m_view->cursor()));   // (nothing to put back where the text runs across)
     act("table.splitTable")->setEnabled(in && write::canSplitTable(*m_doc, m_view->cursor()));   // (a table is cut above the caret's row: not the first, and not through a cell joined down)
     act("table.gridlines")->setEnabled(in || act("table.gridlines")->isChecked());   // (it shows the edges of the cells of tables: nothing to show elsewhere, except to turn it off)
     m_ribbon->setContextVisible(QStringLiteral("Table Tools"), in, false);
@@ -460,6 +490,8 @@ void WriteWindow::addTableContextMenu(QMenu &menu)
     for (const char *id : {"table.autofitContents", "table.autofitWindow", "table.fixedWidth"}) fit->addAction(act(QString::fromLatin1(id)));
     menu.addAction(act("table.distributeRows"));
     menu.addAction(act("table.distributeColumns"));
+    auto *direction = menu.addMenu(tr("Text Direction"));
+    for (const char *id : {"table.direction.across", "table.direction.down", "table.direction.up"}) direction->addAction(act(QString::fromLatin1(id)));
     auto *align = menu.addMenu(tr("Cell Alignment"));
     for (const char *id : {"tl", "tc", "tr", "ml", "mc", "mr", "bl", "bc", "br"}) align->addAction(act(QStringLiteral("table.align.") + QLatin1String(id)));
     menu.addAction(act("table.properties"));

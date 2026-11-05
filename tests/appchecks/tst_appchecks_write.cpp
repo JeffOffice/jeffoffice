@@ -447,6 +447,17 @@ private Q_SLOTS:
                  for (int i = 0; i < 8 && !write::canSplitTable(*asWrite(w)->document(), asWrite(w)->view()->cursor()); ++i) write::tabThroughCells(*asWrite(w)->document(), asWrite(w)->view()->cursor(), false);
                  asWrite(w)->refreshNow();
              }, false},
+            {QStringLiteral("the cursor in the second cell of a row of a table"), [](AppWindow *w, bool) {
+                 // (a cell with others left in its row: Delete Cells, Shift Left can take it out)
+                 tableAtCursor(asWrite(w));
+                 write::tabThroughCells(*asWrite(w)->document(), asWrite(w)->view()->cursor(), false);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("the cursor in a cell of turned text"), [](AppWindow *w, bool) {
+                 tableAtCursor(asWrite(w));
+                 write::setCellTextDirection(*asWrite(w)->document(), asWrite(w)->view()->cursor(), flow::CellDirection::BottomToTop);
+                 asWrite(w)->refreshNow();
+             }, false},
             {QStringLiteral("the whole table selected"), [](AppWindow *w, bool) {
                  tableAtCursor(asWrite(w));
                  write::selectInTable(*asWrite(w)->document(), asWrite(w)->view()->cursor(), write::TableUnit::Table);
@@ -592,6 +603,9 @@ private Q_SLOTS:
             {QStringLiteral("view.printLayout"), QStringLiteral("the window begins in the print layout, and choosing it again changes nothing; the outline tests choose it from Outline view")},
             {QStringLiteral("review.show.comments"), QStringLiteral("it chooses whether the balloons for comments are painted in the pages' margin, which no control shows; the window's tests check the painting")},
             {QStringLiteral("hf.showDocumentText"), QStringLiteral("it covers or shows the text of the page under a header or footer being edited, and the places here have no text there; the window's tests check the painting")},
+            {QStringLiteral("arrange.alignToPage"), QStringLiteral("it is the setting the next Align command reads, and changes nothing by itself")},
+            {QStringLiteral("table.draw"), QStringLiteral("it picks up the pen, which changes the pointer and draws only when the mouse is dragged across the pages; the window's tests drag it")},
+            {QStringLiteral("table.eraser"), QStringLiteral("it picks up the eraser, which changes the pointer and joins cells only when the mouse is dragged from one to the next; the window's tests drag it")},
             {QStringLiteral("table.gridlines"), QStringLiteral("it draws the edges of the cells that have no line, and the tables the checks make have lines; the window's tests check the drawing")},
             {QStringLiteral("review.show.formatting"), QStringLiteral("it chooses whether the bars for changes of formatting are painted in the pages' margin, which no control shows; the window's tests check the painting")},
         };

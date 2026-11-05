@@ -1,5 +1,5 @@
 # Shapes and text boxes
-<!-- keywords: shape, shapes, text box, textbox, rectangle, arrow, star, callout, line, draw, insert shape, shape format, fill, outline, weight, dashes, rotate, change shape, edit text, sidebar, pull quote, banner, shape styles -->
+<!-- keywords: shape, shapes, text box, textbox, rectangle, arrow, star, callout, line, draw, insert shape, shape format, fill, outline, weight, dashes, rotate, change shape, edit text, sidebar, pull quote, banner, shape styles, gradient, align, gradient fill -->
 
 A **shape** is a drawn figure, such as a rectangle, an arrow, a star, or a speech bubble. A **text box** is a shape that holds words. Both float on the page, and the words of the document go round them. This topic shows how to put them in and change them.
 
@@ -32,6 +32,8 @@ Click the shape to select it. Drag a handle to change its size, or drag the shap
 - **Shape Fill** sets the color inside the shape. Choose **No Fill** to see through it.
 - **Shape Outline** sets the color of the line round it. Choose **No Outline** to take the line off.
 - **Weight** is how thick the line is. **Dashes** makes the line solid, dotted, or dashed.
+- **Gradient** fills the shape with a color that fades into another. The first five choices fade from a lighter to a darker shade of the shape's own color (or of blue, if it has no color), in the direction you pick. **Sunset** fades from yellow to red.
+- **Align** lines the shape up with the margins or the page. See [Add and change pictures](pictures).
 - **Change Shape** puts another shape in the same place, with the same size and colors.
 - **Rotate** turns the shape a quarter turn to the right or the left, or back to no turn.
 - **Wrap Text** says how the words go round the shape. See [Add and change pictures](pictures) for what each choice means.

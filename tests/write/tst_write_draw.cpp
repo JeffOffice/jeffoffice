@@ -466,6 +466,87 @@ private Q_SLOTS:
         QVERIFY(!resetPicture(*doc, 7));
     }
 
+    void aPictureIsTurnedAndCutToAShapeSavedAndDrawn()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertPicture(*doc, c, pngOf(160, 160)), PictureResult::Ok);
+        QVERIFY(setShapeRotation(*doc, 7, 30));
+        QVERIFY(std::abs(pictureAt(*doc, doc->story(), 7).rotation - 30) < 0.01);
+        QVERIFY(!setShapeRotation(*doc, 7, 30));
+        QVERIFY(setPictureCropShape(*doc, 7, QStringLiteral("ellipse")));
+        QVERIFY(!setPictureCropShape(*doc, 7, QStringLiteral("ellipse")));
+        QVERIFY(!setPictureCropShape(*doc, 7, QStringLiteral("no such shape")));
+        QCOMPARE(pictureAt(*doc, doc->story(), 7).cropShape, QStringLiteral("ellipse"));
+        auto pic = pictureOfPage(*doc);
+        QVERIFY(pic);
+        QVERIFY(std::abs(pic->rotation - 30) < 0.01);
+        QCOMPARE(pic->maskShape, QStringLiteral("ellipse"));
+        const QByteArray saved = doc->toDocx();
+        const QByteArray x = documentXml(saved);
+        QVERIFY(x.contains("rot=\"1800000\""));
+        QVERIFY(x.contains("<a:prstGeom prst=\"ellipse\">"));
+        auto back = open(saved);
+        QCOMPARE(pictureAt(*back, back->story(), 7).cropShape, QStringLiteral("ellipse"));
+        QVERIFY(std::abs(pictureAt(*back, back->story(), 7).rotation - 30) < 0.01);
+        QVERIFY(doc->undo());
+        QCOMPARE(pictureAt(*doc, doc->story(), 7).cropShape, QStringLiteral("rect"));
+        QVERIFY(doc->redo());
+        QVERIFY(setPictureCropShape(*doc, 7, QStringLiteral("rect")));
+        QCOMPARE(pictureAt(*doc, doc->story(), 7).cropShape, QStringLiteral("rect"));
+    }
+
+    void aFloatingObjectIsAlignedToTheMarginsOrThePage()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        QVERIFY(alignObject(*doc, 7, ObjectAlign::Right, false));
+        PictureInfo info = pictureAt(*doc, doc->story(), 7);
+        QCOMPARE(info.alignAcross, QStringLiteral("right"));
+        QVERIFY(!info.alignedToPage);
+        QVERIFY(!alignObject(*doc, 7, ObjectAlign::Right, false));
+        QVERIFY(alignObject(*doc, 7, ObjectAlign::Middle, true));
+        info = pictureAt(*doc, doc->story(), 7);
+        QCOMPARE(info.alignDown, QStringLiteral("center"));
+        QCOMPARE(info.alignAcross, QStringLiteral("right"));
+        QVERIFY(info.alignedToPage);
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY(x.contains("<wp:align>right</wp:align>") && x.contains("<wp:align>center</wp:align>"));
+        auto back = open(doc->toDocx());
+        QCOMPARE(pictureAt(*back, back->story(), 7).alignDown, QStringLiteral("center"));
+        QVERIFY(doc->undo());
+        QVERIFY(pictureAt(*doc, doc->story(), 7).alignDown.isEmpty() || pictureAt(*doc, doc->story(), 7).alignDown != QLatin1String("center"));
+    }
+
+    void aShapeTakesAGradientFill()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        QVERIFY(setShapeGradient(*doc, 7, QStringLiteral("FF0000"), QStringLiteral("0000FF"), 90));
+        QVERIFY(!setShapeGradient(*doc, 7, QStringLiteral("FF0000"), QStringLiteral("0000FF"), 90));
+        QVERIFY(!setShapeGradient(*doc, 7, QStringLiteral("red"), QStringLiteral("0000FF"), 90));
+        PictureInfo info = pictureAt(*doc, doc->story(), 7);
+        QCOMPARE(info.gradientFrom, QStringLiteral("FF0000"));
+        QCOMPARE(info.gradientTo, QStringLiteral("0000FF"));
+        QVERIFY(std::abs(info.gradientAngle - 90) < 0.01);
+        const QByteArray x = documentXml(doc->toDocx());
+        const qsizetype geom = x.indexOf("<a:prstGeom"), grad = x.indexOf("<a:gradFill", geom), ln = x.indexOf("<a:ln", geom);
+        QVERIFY(geom > 0 && grad > geom && ln > grad);
+        QVERIFY(x.contains("<a:lin ang=\"5400000\""));
+        auto back = open(doc->toDocx());
+        QCOMPARE(pictureAt(*back, back->story(), 7).gradientTo, QStringLiteral("0000FF"));
+        QVERIFY(doc->undo());
+        QVERIFY(pictureAt(*doc, doc->story(), 7).gradientFrom.isEmpty());
+        QVERIFY(doc->redo());
+        QVERIFY(setShapeFill(*doc, 7, QStringLiteral("00AA00")));
+        QVERIFY(pictureAt(*doc, doc->story(), 7).gradientFrom.isEmpty());
+    }
+
     void aPicturesBrightnessContrastAndColorAreChangedSavedAndDrawn()
     {
         auto doc = textDoc({"Before after"});
@@ -671,6 +752,83 @@ private Q_SLOTS:
         QVERIFY(equationSymbol(QStringLiteral("nonsense")).isEmpty());
     }
 
+    void accentsBarsBracketsAndMatricesAreMadeAndTheirMarkupFollowsTheStandard()
+    {
+        struct Case {
+            const char *typed, *element, *attribute;
+        };
+        const Case cases[] = {
+            {"\\hat{x}", "<m:acc>", "m:val=\"\xCC\x82\""},
+            {"\\vec{v}", "<m:acc>", "m:val=\"\xE2\x83\x97\""},
+            {"\\bar x", "<m:acc>", ""},
+            {"\\overline{ab}", "<m:bar>", "m:val=\"top\""},
+            {"\\underline{ab}", "<m:bar>", "m:val=\"bot\""},
+            {"\\left( a/b \\right)", "<m:d>", "<m:begChr m:val=\"(\"/>"},
+            {"\\left[ x \\right.", "<m:d>", "<m:endChr m:val=\"\"/>"},
+            {"\\matrix{a & b \\\\ c & d}", "<m:m>", "<m:mr>"},
+            {"\\pmatrix{1 & 0 \\\\ 0 & 1}", "<m:d>", "<m:m>"},
+            {"\\vmatrix{a & b \\\\ c & d}", "<m:d>", "<m:begChr m:val=\"|\"/>"},
+        };
+        for (const Case &k : cases) {
+            bool ok = false;
+            const QByteArray markup = equationMarkup(QString::fromUtf8(k.typed), &ok);
+            QVERIFY2(ok, k.typed);
+            QVERIFY2(markup.contains(k.element), k.typed);
+            if (*k.attribute) QVERIFY2(markup.contains(k.attribute), k.typed);
+            office::wml::XmlTree tree;
+            QVERIFY2(tree.parse(markup), k.typed);
+            QVERIFY2(!equationLine(markup).isEmpty(), k.typed);
+        }
+        // A matrix has a row of cells for each line, and the same number of columns in each.
+        const QByteArray m = equationMarkup(QStringLiteral("\\matrix{a & b \\\\ c & d}"));
+        QCOMPARE(m.count("<m:mr>"), 2);
+        QCOMPARE(m.count("<m:e>"), 4);
+        QVERIFY(m.contains("<m:mcs><m:mc><m:mcPr><m:count m:val=\"2\"/>"));
+        // The element order of the standard: the properties first.
+        QVERIFY(equationMarkup(QStringLiteral("\\left( x \\right)")).indexOf("<m:dPr>") < equationMarkup(QStringLiteral("\\left( x \\right)")).indexOf("<m:e>"));
+    }
+
+    void theGalleryHasBuiltInEquationsThatAllReadAndEveryLineIsMadeAgainFromItsMarkup()
+    {
+        const QVector<EquationDesign> &gallery = equationGallery();
+        QVERIFY(gallery.size() >= 8);
+        for (const EquationDesign &d : gallery) {
+            bool ok = false;
+            const QByteArray markup = equationMarkup(d.linear, &ok);
+            QVERIFY2(ok && !d.name.isEmpty(), qPrintable(d.name));
+            QVERIFY2(!equationLine(markup).isEmpty(), qPrintable(d.name));
+            // (The line made from the markup makes the same markup.)
+            const QString again = equationLinear(markup);
+            QVERIFY2(!again.isEmpty(), qPrintable(d.name));
+            QCOMPARE(equationMarkup(again), markup);
+        }
+        // Markup with something the lines can't say is not turned into a line.
+        QVERIFY(equationLinear("<m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:groupChr><m:e><m:r><m:t>x</m:t></m:r></m:e></m:groupChr></m:oMath>").isEmpty());
+    }
+
+    void anEquationThatIsInIsChangedInPlaceInOneStep()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QVERIFY(insertEquation(*doc, c, QStringLiteral("x^2/y")));
+        QVERIFY(!equationAt(*doc, 7).isEmpty());
+        QVERIFY(equationAt(*doc, 0).isEmpty());
+        QCOMPARE(equationMarkup(equationAt(*doc, 7)), equationMarkup(QStringLiteral("x^2/y")));
+        QVERIFY(replaceEquation(*doc, 7, QStringLiteral("\\hat{y}+1")));
+        QVERIFY(!replaceEquation(*doc, 7, QStringLiteral("\\hat{y}+1")));
+        QVERIFY(!replaceEquation(*doc, 7, QStringLiteral("   ")));
+        QVERIFY(!replaceEquation(*doc, 0, QStringLiteral("x")));
+        QCOMPARE(doc->story()->toPlainText().count(QChar::ObjectReplacementCharacter), 1);
+        QVERIFY(documentXml(doc->toDocx()).contains("<m:acc>"));
+        QVERIFY(!documentXml(doc->toDocx()).contains("<m:sSup>"));
+        QVERIFY(doc->undo());
+        QVERIFY(documentXml(doc->toDocx()).contains("<m:sSup>"));
+        QVERIFY(doc->redo());
+        auto back = open(doc->toDocx());
+        QVERIFY(!equationAt(*back, 7).isEmpty());
+    }
+
     void anEquationIsPutInAsOneStepIsShownAsItsLineAndSavedAsMathMarkup()
     {
         auto doc = textDoc({"Before after"});
@@ -845,6 +1003,45 @@ private Q_SLOTS:
         QCOMPARE(insertShape(*doc, d, QStringLiteral("rect")), PictureResult::Ok);
         QVERIFY(!chartAt(*doc, 2).valid);
         QVERIFY(!setChartForm(*doc, 2, ChartForm::Pie));
+    }
+
+    void aChartsAxesGridlinesTitlesAndStyleAreChangedOneStepEach()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertChart(*doc, c, ChartForm::Column), PictureResult::Ok);
+        ChartInfo info = chartAt(*doc, 7);
+        QVERIFY(info.hasAxes && info.categoryAxisShown && info.valueAxisShown);
+        QVERIFY(setChartAxis(*doc, 7, ChartAxisKind::Value, false));
+        QVERIFY(!setChartAxis(*doc, 7, ChartAxisKind::Value, false));
+        QVERIFY(!chartAt(*doc, 7).valueAxisShown && chartAt(*doc, 7).categoryAxisShown);
+        QVERIFY(doc->undo());
+        QVERIFY(chartAt(*doc, 7).valueAxisShown);
+        QVERIFY(doc->redo());
+        QVERIFY(setChartAxis(*doc, 7, ChartAxisKind::Value, true));
+        QVERIFY(setChartGridlines(*doc, 7, ChartAxisKind::Value, true, true));
+        QVERIFY(!setChartGridlines(*doc, 7, ChartAxisKind::Value, true, true));
+        info = chartAt(*doc, 7);
+        QVERIFY(info.valueGridlines && info.valueMinorGridlines);
+        QVERIFY(setChartGridlines(*doc, 7, ChartAxisKind::Category, true, false));
+        QVERIFY(chartAt(*doc, 7).categoryGridlines);
+        QVERIFY(setChartAxisTitle(*doc, 7, ChartAxisKind::Value, QStringLiteral("Units <sold>")));
+        QVERIFY(!setChartAxisTitle(*doc, 7, ChartAxisKind::Value, QStringLiteral("Units <sold>")));
+        QCOMPARE(chartAt(*doc, 7).valueAxisTitle, QStringLiteral("Units <sold>"));
+        QVERIFY(setChartStyle(*doc, 7, 10));
+        QVERIFY(!setChartStyle(*doc, 7, 10));
+        QVERIFY(!setChartStyle(*doc, 7, 49));
+        QCOMPARE(chartAt(*doc, 7).style, 10);
+        auto back = open(doc->toDocx());
+        const ChartInfo again = chartAt(*back, 7);
+        QVERIFY(again.valueGridlines && again.valueMinorGridlines && again.categoryGridlines);
+        QCOMPARE(again.valueAxisTitle, QStringLiteral("Units <sold>"));
+        QCOMPARE(again.style, 10);
+        // A pie has no axes.
+        QVERIFY(setChartForm(*doc, 7, ChartForm::Pie));
+        QVERIFY(!chartAt(*doc, 7).hasAxes);
+        QVERIFY(!setChartAxis(*doc, 7, ChartAxisKind::Value, false));
     }
 
     void aChartAFileHoldsIsDrawnAndItsTitleIsChangedKeepingItsWorkbook()
