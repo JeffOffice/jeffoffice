@@ -1,6 +1,7 @@
 #include "core/accessops.h"
 
 #include "core/editops.h"
+#include "core/linkops.h"
 #include "core/pictureops.h"
 #include "core/tableops.h"
 #include "core/wordformat.h"
@@ -26,6 +27,16 @@ double luminance(const QColor &c)
 
 } // namespace
 
+bool unhelpfulLinkText(const QString &text)
+{
+    const QString t = text.simplified().toLower();
+    if (t.isEmpty()) return true;
+    static const QSet<QString> vague = {QStringLiteral("click here"), QStringLiteral("here"), QStringLiteral("link"), QStringLiteral("this link"), QStringLiteral("this"), QStringLiteral("read more"),
+                                         QStringLiteral("more"), QStringLiteral("click"), QStringLiteral("click this"), QStringLiteral("go here"), QStringLiteral("see here"), QStringLiteral("learn more")};
+    if (vague.contains(t)) return true;
+    return t.startsWith(QLatin1String("http://")) || t.startsWith(QLatin1String("https://")) || t.startsWith(QLatin1String("www."));
+}
+
 double contrastRatio(const QColor &a, const QColor &b)
 {
     const double la = luminance(a), lb = luminance(b);
@@ -40,6 +51,7 @@ QVector<AccessIssue> checkAccessibility(WriteDoc &doc, int most)
     static const QRegularExpression headingId(QStringLiteral("^Heading([1-9])$"));
     int lastHeading = 0;
     QSet<int> cellsSeen;
+    QSet<const void *> mergedTold;
     auto add = [&](AccessIssue::Kind kind, AccessIssue::Level level, int position, const QString &message) {
         if (out.size() < most) out.push_back({kind, level, position, message});
     };
@@ -54,6 +66,11 @@ QVector<AccessIssue> checkAccessibility(WriteDoc &doc, int most)
             if (place.inTable) {
                 if (place.row == 0 && place.column == 0 && !tablePropsAt(doc, at).header)
                     add(AccessIssue::TableWithoutHeader, AccessIssue::Error, b.position(), QCoreApplication::translate("jp::write::Access", "The table has no header row. Screen readers read the header row as the names of the columns."));
+                // Merged cells (a cell that spans columns, or rows) throw a screen reader off its place in the table: said once for each table.
+                if (const flow::CellRecord *record = doc.flow().tables.get(key); record && (record->cell.span > 1 || record->cell.vmerge != flow::CellData::VMerge::None) && !mergedTold.contains(record->table.get())) {
+                    mergedTold.insert(record->table.get());
+                    add(AccessIssue::MergedCells, AccessIssue::Warning, b.position(), QCoreApplication::translate("jp::write::Access", "The table has merged cells. A screen reader can lose its place in a table with merged cells. Split them, or use a simple table."));
+                }
                 // The cell is blank when all of its paragraphs are.
                 bool blank = true;
                 for (QTextBlock c = b; c.isValid() && cellKeyOf(c) == key; c = c.next())
@@ -77,6 +94,12 @@ QVector<AccessIssue> checkAccessibility(WriteDoc &doc, int most)
             const QTextCharFormat cf = f.charFormat();
             if (cf.hasProperty(prop::TrackedDeleted) || cf.boolProperty(tp::HiddenText)) continue;
             if (isAtom(cf)) {
+                // A link whose words say nothing about where it goes ("click here"), or are the address itself, is no help to a person who hears the links of a page as a list.
+                if (unpackAtom(storedBytes(cf, prop::Atom)).tag == QLatin1String("hyperlink") && unpackAtom(storedBytes(cf, prop::Atom)).role == office::wml::Inline::Open) {
+                    const Hyperlink link = hyperlinkAt(doc, f.position());
+                    if (link.valid() && unhelpfulLinkText(link.text))
+                        add(AccessIssue::LinkText, AccessIssue::Warning, f.position(), QCoreApplication::translate("jp::write::Access", "A link's words (\"%1\") don't say where it goes. Use words that name the page.").arg(link.text.trimmed().left(60)));
+                }
                 for (int k = 0; k < f.length(); ++k) {
                     const int pos = f.position() + k;
                     if (!isPictureAt(story, pos)) continue;

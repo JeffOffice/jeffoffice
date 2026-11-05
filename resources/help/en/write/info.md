@@ -1,5 +1,5 @@
 # Info: properties, passwords, and Inspect
-<!-- keywords: info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, docproperty, mark as final, final, read-only, password, encrypt, protect, open password, inspect document, personal information, hidden text, custom xml, check compatibility, version history, versions, keep a version, go back, restore, compare versions, show in folder, copy path, folder, path -->
+<!-- keywords: check accessibility, info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, docproperty, mark as final, final, read-only, password, encrypt, protect, open password, inspect document, personal information, hidden text, custom xml, check compatibility, version history, versions, keep a version, go back, restore, compare versions, show in folder, copy path, folder, path -->
 
 Click **File > Info** to see the facts about your document, and to protect it before you share it. Press **Esc** to go back to your document.
 
@@ -51,6 +51,10 @@ Click **Remove All** next to a kind to take it out. You can undo what changes th
 Click **Check Compatibility** to see what an older kind of file can't hold. JeffWrite saves **.docx** and **.odt** files. A .docx file holds everything in your document. An .odt file can't hold a few things, and this list says which. If nothing is listed, nothing is lost.
 
 When you save as an .odt file, JeffWrite lists what the file can't hold **before** it writes anything. You can choose **Save as .odt Anyway**, **Save as .docx Instead** (the .docx file is put beside it, and nothing is lost), or **Cancel**.
+
+## Check Accessibility
+
+Click **Check Accessibility** to open the list of things that may be hard for some people to read or use, such as a picture with no description. It is the same check as **Review > Check Accessibility**. See [Count words, set the language, check accessibility, and look up words](proofing-tools).
 
 ## Version History
 

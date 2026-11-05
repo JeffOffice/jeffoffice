@@ -413,6 +413,9 @@ QWidget *buildInfoPage(QWidget *parent, const InfoHost &h)
     if (h.checkCompatibility)
         card(QStringLiteral("infoCompatibility"), QStringLiteral("list-checks"), QCoreApplication::translate("jp::InfoPage", "Check Compatibility"), QCoreApplication::translate("jp::InfoPage", "See what an older kind of file can't hold, before you save to it."),
              [h] { h.checkCompatibility(); });
+    if (h.checkAccessibility)
+        card(QStringLiteral("infoAccessibility"), QStringLiteral("list-checks"), QCoreApplication::translate("jp::InfoPage", "Check Accessibility"),
+             QCoreApplication::translate("jp::InfoPage", "Find what may be hard for some people to read or use, such as a picture with no description."), [h] { h.checkAccessibility(); });
     if (h.versionHistory)
         card(QStringLiteral("infoVersions"), QStringLiteral("history"), QCoreApplication::translate("jp::InfoPage", "Version History"), QCoreApplication::translate("jp::InfoPage", "Keep named copies of this file on your computer, and compare them or go back to one."),
              [h] { h.versionHistory(); });

@@ -46,6 +46,10 @@ QWidget *WriteWindow::buildInfoPage(QWidget *parent)
     h.inspect = [this] { inspectDocument(); };
     h.checkCompatibility = [this] { checkCompatibility(); };
     h.versionHistory = [this] { versionHistory(); };
+    h.checkAccessibility = [this] {
+        hideFileScreen();
+        act(QStringLiteral("review.accessibility"))->trigger();
+    };
     h.thumbnail = [this] { return m_view->pageImage(0, 240); };
     return jp::buildInfoPage(parent, h);
 }

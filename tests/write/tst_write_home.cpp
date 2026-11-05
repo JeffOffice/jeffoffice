@@ -7,6 +7,7 @@
 #include "app/pageview.h"
 #include "core/appinfo.h"
 #include "core/accessops.h"
+#include "core/linkops.h"
 #include "core/compareops.h"
 #include "core/editops.h"
 #include "core/pictureops.h"
@@ -793,6 +794,49 @@ private Q_SLOTS:
         }
         QCOMPARE(header, 1);
         QCOMPARE(blank, 4);
+    }
+
+    void theAccessibilityCheckFindsMergedCellsOnceForATableAndLinksWithNoMeaningfulWords()
+    {
+        auto doc = open(makeDocx(para(run("Read click here now and the site"))));
+        QString problem;
+        QTextCursor sel(doc->story());
+        sel.setPosition(5);
+        sel.setPosition(15, QTextCursor::KeepAnchor);
+        QVERIFY2(insertHyperlink(*doc, sel, QStringLiteral("https://example.com"), QString(), QString(), QString(), &problem), qPrintable(problem));
+        QTextCursor sel2(doc->story());
+        const int at = doc->story()->toPlainText().indexOf(QLatin1String("the site"));
+        sel2.setPosition(at);
+        sel2.setPosition(at + 8, QTextCursor::KeepAnchor);
+        QVERIFY2(insertHyperlink(*doc, sel2, QStringLiteral("https://example.org/tides"), QString(), QString(), QString(), &problem), qPrintable(problem));
+        QVector<AccessIssue> issues = checkAccessibility(*doc);
+        int vague = 0;
+        for (const AccessIssue &i : issues) vague += i.kind == AccessIssue::LinkText;
+        QCOMPARE(vague, 1);
+        QVERIFY(unhelpfulLinkText(QStringLiteral(" Click   HERE ")));
+        QVERIFY(unhelpfulLinkText(QStringLiteral("https://example.com/a")));
+        QVERIFY(unhelpfulLinkText(QString()));
+        QVERIFY(!unhelpfulLinkText(QStringLiteral("the tide tables")));
+        NewTable t;
+        t.rows = 2;
+        t.columns = 3;
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        insertTable(*doc, c, t);
+        for (const AccessIssue &i : checkAccessibility(*doc)) QVERIFY(i.kind != AccessIssue::MergedCells);
+        // Two cells of the first row are made one.
+        QTextCursor m(doc->story());
+        m.setPosition(0);
+        QTextBlock first = doc->story()->begin();
+        m.setPosition(first.position());
+        QTextBlock second = first.next();
+        QVERIFY(second.isValid());
+        m.setPosition(second.position(), QTextCursor::KeepAnchor);
+        QVERIFY(canMergeCells(*doc, m));
+        QVERIFY(mergeCells(*doc, m));
+        int merged = 0;
+        for (const AccessIssue &i : checkAccessibility(*doc)) merged += i.kind == AccessIssue::MergedCells;
+        QCOMPARE(merged, 1);
     }
 
     // With JW_SHOTS set to a folder, saves a picture of each dialog there (for looking at them); skipped otherwise.

@@ -408,7 +408,7 @@ private Q_SLOTS:
         QCOMPARE(screen->currentPage(), QStringLiteral("info"));
         QWidget *page = screen->findChild<QWidget *>(QStringLiteral("infoPage"));
         QVERIFY(page);
-        for (const char *name : {"infoMarkFinal", "infoEncrypt", "infoInspect", "infoCompatibility", "infoCustom", "infoShowFolder", "infoCopyPath"})
+        for (const char *name : {"infoMarkFinal", "infoEncrypt", "infoInspect", "infoCompatibility", "infoAccessibility", "infoCustom", "infoShowFolder", "infoCopyPath"})
             QVERIFY2(page->findChild<QWidget *>(QString::fromLatin1(name)), name);
         QVERIFY(!page->findChild<QPushButton *>(QStringLiteral("infoCopyPath"))->isEnabled());   // (nothing saved yet)
         auto *title = page->findChild<QLineEdit *>(QStringLiteral("infoTitle"));
