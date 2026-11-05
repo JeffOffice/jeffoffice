@@ -209,7 +209,7 @@ bool paragraphKeepsOwn(int key)
     return own.contains(key);
 }
 
-QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString &caretStyle)
+QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString &caretStyle, StyleSort sort)
 {
     const StyleSheet &sheet = doc.styleSheet();
     const QSet<QString> used = doc.stylesInUse();
@@ -231,6 +231,7 @@ QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString
         ListedStyle e;
         e.id = s.id;
         e.name = shownName(s);
+        e.basedOn = s.basedOn;
         e.character = s.type == QLatin1String("character");
         e.linked = !e.character && !s.link.isEmpty();
         e.inUse = inUse;
@@ -260,13 +261,28 @@ QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString
         }
     QVector<int> order(out.size());
     for (int i = 0; i < order.size(); ++i) order[i] = i;
-    if (filter == StyleFilter::Recommended)
+    auto byName = [&](int a, int b) { return QString::compare(out[a].name, out[b].name, Qt::CaseInsensitive) < 0; };
+    auto byPriority = [&](int a, int b) {
+        if (priority[a] != priority[b]) return priority[a] < priority[b];
+        return byName(a, b);
+    };
+    auto kind = [&](int i) { return out[i].character ? 2 : out[i].linked ? 1 : 0; };
+    switch (sort) {
+    case StyleSort::Alphabetical: std::stable_sort(order.begin(), order.end(), byName); break;
+    case StyleSort::AsRecommended: std::stable_sort(order.begin(), order.end(), byPriority); break;
+    case StyleSort::ByType:
+        std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return kind(a) != kind(b) ? kind(a) < kind(b) : byName(a, b); });
+        break;
+    case StyleSort::BasedOn:
         std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
-            if (priority[a] != priority[b]) return priority[a] < priority[b];
-            return QString::compare(out[a].name, out[b].name, Qt::CaseInsensitive) < 0;
+            const int c = QString::compare(out[a].basedOn, out[b].basedOn, Qt::CaseInsensitive);
+            return c != 0 ? c < 0 : byName(a, b);
         });
-    else
-        std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return QString::compare(out[a].name, out[b].name, Qt::CaseInsensitive) < 0; });
+        break;
+    default:
+        if (filter == StyleFilter::Recommended) std::stable_sort(order.begin(), order.end(), byPriority);
+        else std::stable_sort(order.begin(), order.end(), byName);
+    }
     QVector<ListedStyle> sorted;
     sorted.reserve(out.size());
     for (int i : order) sorted.push_back(out[i]);

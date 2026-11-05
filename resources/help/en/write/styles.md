@@ -25,6 +25,7 @@ Click the small arrow at the corner of the **Styles** group, or press **Ctrl+Alt
   - **In Use** shows only the styles your text uses.
   - **All Styles** shows every style, including ones your document does not have yet. A style is added to the document the first time you use it.
   - **Recommended** shows the styles that are meant to be seen. A style that is hidden until it is used appears here once you use it.
+- Under the list, the **Sort** box puts the styles in order. **Alphabetical** goes by name. **As Recommended** puts the most useful styles first. **By Type** lists paragraph styles, then linked styles, then character styles. **Based On** groups each style with the style it is built on.
 
 ## Make a style from your text
 

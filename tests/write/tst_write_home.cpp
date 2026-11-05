@@ -16,6 +16,7 @@
 #include "core/tableops.h"
 #include "core/fonts.h"
 #include "core/homeops.h"
+#include "core/styleops.h"
 #include "flow/flowdocument.h"
 #include "core/proofops.h"
 #include "core/writedoc.h"
@@ -990,6 +991,33 @@ private Q_SLOTS:
         w.act(QStringLiteral("view.marks"))->trigger();
         QVERIFY(!w.view()->showMarks());
         QCOMPARE(w.document()->pager().lines(0).size(), 1);
+    }
+
+    void theStylesListCanBeSortedByNameTypeBaseOrRecommendation()
+    {
+        auto doc = open(makeDocx(para(run("text"))));
+        const auto names = [](const QVector<ListedStyle> &list) {
+            QStringList out;
+            for (const ListedStyle &e : list) out << e.name;
+            return out;
+        };
+        const QVector<ListedStyle> alpha = listStyles(*doc, StyleFilter::Recommended, QString(), StyleSort::Alphabetical);
+        QVERIFY(alpha.size() > 3);
+        for (int i = 1; i < alpha.size(); ++i) QVERIFY2(QString::compare(alpha[i - 1].name, alpha[i].name, Qt::CaseInsensitive) <= 0, qPrintable(alpha[i].name));
+        QVERIFY(names(alpha) != names(listStyles(*doc, StyleFilter::Recommended)));
+        const QVector<ListedStyle> byType = listStyles(*doc, StyleFilter::All, QString(), StyleSort::ByType);
+        bool sawCharacter = false;
+        for (const ListedStyle &e : byType) {
+            if (e.character) sawCharacter = true;
+            else QVERIFY2(!sawCharacter, qPrintable(e.name));
+        }
+        QVERIFY(sawCharacter);
+        const QVector<ListedStyle> byBase = listStyles(*doc, StyleFilter::All, QString(), StyleSort::BasedOn);
+        for (int i = 1; i < byBase.size(); ++i) QVERIFY2(QString::compare(byBase[i - 1].basedOn, byBase[i].basedOn, Qt::CaseInsensitive) <= 0, qPrintable(byBase[i].name));
+        QVERIFY(!byBase.last().basedOn.isEmpty());
+        const QVector<ListedStyle> rec = listStyles(*doc, StyleFilter::All, QString(), StyleSort::AsRecommended);
+        QCOMPARE(rec.first().id, doc->defaultParagraphStyle());
+        QCOMPARE(names(listStyles(*doc, StyleFilter::All, QString(), StyleSort::Default)), names(listStyles(*doc, StyleFilter::All)));
     }
 
     // ---- the review's fixes

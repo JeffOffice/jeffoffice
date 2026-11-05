@@ -41,6 +41,15 @@ StylesPane::StylesPane(WriteWindow *win, QWidget *parent) : QWidget(parent), m_w
     m_filter->addItem(QCoreApplication::translate("jp::StylesPane", "Recommended"), int(write::StyleFilter::Recommended));
     m_filter->setCurrentIndex(2);
     v->addWidget(m_filter);
+    m_sort = new QComboBox(this);
+    m_sort->setObjectName(QStringLiteral("stylesSort"));
+    m_sort->setAccessibleName(QCoreApplication::translate("jp::StylesPane", "Sort styles by"));
+    m_sort->addItem(QCoreApplication::translate("jp::StylesPane", "Sort: Default"), int(write::StyleSort::Default));
+    m_sort->addItem(QCoreApplication::translate("jp::StylesPane", "Sort: Alphabetical"), int(write::StyleSort::Alphabetical));
+    m_sort->addItem(QCoreApplication::translate("jp::StylesPane", "Sort: As Recommended"), int(write::StyleSort::AsRecommended));
+    m_sort->addItem(QCoreApplication::translate("jp::StylesPane", "Sort: By Type"), int(write::StyleSort::ByType));
+    m_sort->addItem(QCoreApplication::translate("jp::StylesPane", "Sort: Based On"), int(write::StyleSort::BasedOn));
+    v->addWidget(m_sort);
     auto *row = new QHBoxLayout;
     m_new = new QPushButton(QCoreApplication::translate("jp::StylesPane", "New Style…"), this);
     m_new->setObjectName(QStringLiteral("newStyleButton"));
@@ -53,6 +62,7 @@ StylesPane::StylesPane(WriteWindow *win, QWidget *parent) : QWidget(parent), m_w
     m_idle.setInterval(600);
     connect(&m_idle, &QTimer::timeout, this, &StylesPane::recheckUse);
     connect(m_filter, &QComboBox::currentIndexChanged, this, [this] { refresh(); });
+    connect(m_sort, &QComboBox::currentIndexChanged, this, [this] { refresh(); });
     connect(m_list, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) { apply(m_list->row(item)); });
     connect(m_new, &QPushButton::clicked, this, [this] { m_win->act(QStringLiteral("style.new"))->trigger(); });
     connect(m_modify, &QPushButton::clicked, this, [this] { m_win->act(QStringLiteral("style.modify"))->trigger(); });
@@ -102,7 +112,7 @@ void StylesPane::refresh()
     m_caretKey = QStringLiteral("p:") + write::paragraphStyleAt(*doc, m_win->view()->cursor());
     // The list is made again only when the styles or the choice of what to list changed. Which styles the text uses can change with any edit, and finding out takes a pass over the
     // text, so while the list is of those in use that is looked at a moment after the last edit (typing costs no pass).
-    if (m_madeDoc != doc || m_madeStyles != doc->styleSheetRevision() || m_madeFilter != int(filter())) {
+    if (m_madeDoc != doc || m_madeStyles != doc->styleSheetRevision() || m_madeFilter != int(filter()) || m_madeSort != m_sort->currentIndex()) {
         rebuild();
     } else {
         if (filter() == write::StyleFilter::InUse && m_usedAtRevision != doc->story()->revision()) m_idle.start();
@@ -153,7 +163,7 @@ void StylesPane::rebuild()
     const int scroll = m_list->verticalScrollBar()->value();
     m_list->clear();
     m_markedKey.clear();
-    const QVector<write::ListedStyle> styles = write::listStyles(*doc, filter(), m_caretKey.mid(2));
+    const QVector<write::ListedStyle> styles = write::listStyles(*doc, filter(), m_caretKey.mid(2), write::StyleSort(m_sort->currentData().toInt()));
     int shown = 0;
     for (const write::ListedStyle &s : styles) {
         const QString key = (s.character ? QStringLiteral("c:") : QStringLiteral("p:")) + s.id;
@@ -176,6 +186,7 @@ void StylesPane::rebuild()
     m_madeDoc = doc;
     m_madeStyles = doc->styleSheetRevision();
     m_madeFilter = int(filter());
+    m_madeSort = m_sort->currentIndex();
     m_madeUsed = 0;
     if (filter() == write::StyleFilter::InUse)
         for (const QString &id : doc->stylesInUse()) m_madeUsed += qHash(id);
