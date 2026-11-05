@@ -227,6 +227,7 @@ public:
     bool hyphenate = false;
     double hyphenZone = 18;
     int hyphenLimit = 0;   // the most lines in a row that may end in a hyphen (0: no limit)
+    bool hyphenateCaps = false;   // words in capitals are hyphenated too (not by default: a slide's or a page's words in capitals stay whole)
     // The color the pages are filled with (a word processor's page color); none (invalid) by default.
     QColor pageColor;
     // The paragraph mark after a page break character that ends a paragraph goes to the page after the break, where it makes an empty line before the next

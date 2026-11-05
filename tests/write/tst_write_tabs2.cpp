@@ -14,13 +14,27 @@
 #include "core/fonts.h"
 #include "core/insertops.h"
 #include "core/linkops.h"
+#include "core/headerops.h"
 #include "core/outlineops.h"
+#include "core/pictureops.h"
+#include "core/pagesetup.h"
+#include "app/tabledialogs.h"
+#include "app/writedialogs.h"
 #include "core/proofops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
+#include "app/widgets.h"
 
 #include "office/package.h"
 #include <QAction>
+#include <QBuffer>
+#include <QImage>
+#include <QRegularExpression>
+#include <QApplication>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QDialog>
+#include <QTimer>
 #include <QDockWidget>
 #include <QLabel>
 #include <QMenu>
@@ -129,6 +143,48 @@ std::unique_ptr<WriteDoc> narrowDoc(const QByteArray &settings)
     const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"2400\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"720\" w:bottom=\"1440\" w:left=\"720\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
     QString err;
     return WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r></w:p>" + sect, settings), &err);
+}
+
+// A page wide enough for each word of a line, its words in capitals (so that a line ends inside a word only where the word is hyphenated).
+std::unique_ptr<WriteDoc> capsDoc(const QByteArray &settings)
+{
+    QByteArray text;
+    for (int i = 0; i < 30; ++i) text += i % 3 == 0 ? "EXTRAORDINARILY " : i % 3 == 1 ? "INDISTINGUISHABLE " : "UNQUESTIONABLY ";
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"720\" w:bottom=\"1440\" w:left=\"720\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    QString err;
+    return WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r></w:p>" + sect, settings), &err);
+}
+
+QByteArray bluePng()
+{
+    QImage image(40, 20, QImage::Format_ARGB32);
+    image.fill(Qt::blue);
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    return png;
+}
+
+// The positions of the pictures of the story, in order.
+QList<int> picturePositions(WriteDoc &doc)
+{
+    QList<int> out;
+    for (int p = 0; p + 1 < doc.story()->characterCount(); ++p)
+        if (isPictureAt(doc.story(), p)) out << p;
+    return out;
+}
+
+// The heights (w:relativeHeight) of the pictures the file holds, in the order of the text.
+QList<qint64> pictureHeights(const QByteArray &docx)
+{
+    office::Package p;
+    p.read(docx);
+    const QString xml = QString::fromUtf8(p.part(QStringLiteral("/word/document.xml")));
+    QList<qint64> out;
+    auto it = QRegularExpression(QStringLiteral("relativeHeight=\"([0-9]+)\"")).globalMatch(xml);
+    while (it.hasNext()) out << it.next().captured(1).toLongLong();
+    return out;
 }
 
 // The longest run of lines in a row that end inside a word (a hyphenated break), and how many lines there are.
@@ -682,6 +738,50 @@ private Q_SLOTS:
         QVERIFY(!plain.contains("consecutiveHyphenLimit") && !plain.contains("hyphenationZone"));
     }
 
+    void wordsInCapitalsAreHyphenatedUnlessTheSettingsSayNot()
+    {
+        auto on = capsDoc("<w:autoHyphenation/>");
+        QVERIFY(on);
+        QVERIFY(on->hyphenateCaps());
+        QVERIFY2(hyphenRun(*on).first >= 1, qPrintable(QString::number(hyphenRun(*on).first)));
+        auto off = capsDoc("<w:autoHyphenation/><w:doNotHyphenateCaps/>");
+        QVERIFY(off);
+        QVERIFY(!off->hyphenateCaps());
+        QCOMPARE(hyphenRun(*off).first, 0);
+        // The choice is the document's: set, it lays the lines out again, undoes, and is saved in the schema's place (after the zone, before the compatibility part).
+        off->setHyphenateCaps(true);
+        QVERIFY(hyphenRun(*off).first >= 1);
+        const QByteArray plain = settingsXml(off->toDocx());
+        QVERIFY2(!plain.contains("doNotHyphenateCaps"), plain.constData());
+        on->setHyphenateCaps(false);
+        QCOMPARE(hyphenRun(*on).first, 0);
+        const QByteArray settings = settingsXml(on->toDocx());
+        QVERIFY2(settings.contains("<w:doNotHyphenateCaps/>"), settings.constData());
+        QVERIFY(settings.indexOf("autoHyphenation") < settings.indexOf("doNotHyphenateCaps"));
+        QString err;
+        auto again = WriteDoc::fromDocx(on->toDocx(), &err);
+        QVERIFY(again);
+        QVERIFY(!again->hyphenateCaps());
+        on->undo();
+        QVERIFY(on->hyphenateCaps());
+    }
+
+    void hyphenateCapsOnTheLayoutTabFollowsAutomaticHyphenation()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QVERIFY(w.act("layout.hyphenation.caps"));
+        QVERIFY(!w.act("layout.hyphenation.caps")->isEnabled());   // (nothing is hyphenated, so there is nothing to choose)
+        w.act(QStringLiteral("layout.hyphenation.auto"))->trigger();
+        QTRY_VERIFY(w.act("layout.hyphenation.caps")->isEnabled());
+        QVERIFY(w.act("layout.hyphenation.caps")->isChecked());
+        w.act(QStringLiteral("layout.hyphenation.caps"))->trigger();
+        QVERIFY(!w.document()->hyphenateCaps());
+        QVERIFY(!w.act("layout.hyphenation.caps")->isChecked());
+    }
+
     void theLimitKeepsLinesFromEndingInAHyphenTooManyTimesInARow()
     {
         auto none = narrowDoc("<w:autoHyphenation/>");
@@ -721,6 +821,378 @@ private Q_SLOTS:
         w.setHyphenationAsker([](double &, int &) { return false; });
         w.act(QStringLiteral("layout.hyphenation.options"))->trigger();
         QCOMPARE(w.document()->hyphenLimit(), 2);
+    }
+
+    // ---------------------------------------------------------------- Arrange
+    void floatingPicturesMoveForwardAndBackwardInTheLayers()
+    {
+        auto doc = WriteDoc::blank();
+        QTextCursor c(doc->story());
+        for (int i = 0; i < 3; ++i) {
+            QCOMPARE(insertPicture(*doc, c, bluePng(), QStringLiteral("p%1").arg(i), PictureWrap::Square), PictureResult::Ok);
+            insertText(*doc, c, QStringLiteral(" "));
+        }
+        QCOMPARE(insertPicture(*doc, c, bluePng(), QStringLiteral("flat")), PictureResult::Ok);   // (in line with the text: no layer)
+        const QList<int> at = picturePositions(*doc);
+        QCOMPARE(at.size(), 4);
+        QVERIFY(!canOrderPicture(*doc, at[3], PictureOrder::BringToFront));
+        QVERIFY(!setPictureOrder(*doc, at[3], PictureOrder::BringToFront));
+        // Level to begin with (a new picture is at the usual height), the last of them is the one in front: none to bring to the front, a place to send to the back.
+        QVERIFY(canOrderPicture(*doc, at[2], PictureOrder::SendToBack));
+        QVERIFY(setPictureOrder(*doc, at[2], PictureOrder::SendToBack));
+        QList<qint64> z = pictureHeights(doc->toDocx());
+        QCOMPARE(z.size(), 3);
+        QVERIFY2(z[2] < z[0] && z[2] < z[1], qPrintable(QString::number(z[2])));
+        // The first to the front: above both.
+        QVERIFY(setPictureOrder(*doc, at[0], PictureOrder::BringToFront));
+        z = pictureHeights(doc->toDocx());
+        QVERIFY(z[0] > z[1] && z[0] > z[2] && z[1] > z[2]);
+        QVERIFY(!canOrderPicture(*doc, at[0], PictureOrder::BringToFront));
+        // The one at the back goes one forward: above the middle one, below the front one.
+        QVERIFY(setPictureOrder(*doc, at[2], PictureOrder::BringForward));
+        z = pictureHeights(doc->toDocx());
+        QVERIFY2(z[2] > z[1] && z[2] < z[0], qPrintable(QString::number(z[0]) + "," + QString::number(z[1]) + "," + QString::number(z[2])));
+        // And one backward again, which is one step of the history each time.
+        QVERIFY(setPictureOrder(*doc, at[2], PictureOrder::SendBackward));
+        z = pictureHeights(doc->toDocx());
+        QVERIFY(z[2] < z[1]);
+        QVERIFY(doc->undo());
+        z = pictureHeights(doc->toDocx());
+        QVERIFY(z[2] > z[1] && z[2] < z[0]);
+        // The lowest one sent backward goes behind the text; one more step forward brings it out in front of it again.
+        QVERIFY(setPictureOrder(*doc, at[1], PictureOrder::SendBackward));
+        QCOMPARE(pictureAt(*doc, doc->story(), at[1]).wrap, PictureWrap::BehindText);
+        QVERIFY(!canOrderPicture(*doc, at[1], PictureOrder::SendBackward));
+        QVERIFY(setPictureOrder(*doc, at[1], PictureOrder::BringForward));
+        QCOMPARE(pictureAt(*doc, doc->story(), at[1]).wrap, PictureWrap::InFrontOfText);
+        // The file reads back with the same layers.
+        QString err;
+        auto again = WriteDoc::fromDocx(doc->toDocx(), &err);
+        QVERIFY(again);
+        QCOMPARE(pictureHeights(again->toDocx()), pictureHeights(doc->toDocx()));
+    }
+
+    // ---------------------------------------------------------------- Insert Alignment Tab
+    void anAlignmentTabInAHeaderIsSavedAsAnAbsolutePositionTab()
+    {
+        auto doc = WriteDoc::blank();
+        QVERIFY(doc->createHeaderFooter(0, false, WriteDoc::kDefaultSlot));
+        QTextDocument *header = doc->editableHeaderFooter(0, false, WriteDoc::kDefaultSlot);
+        QVERIFY(header);
+        QTextCursor c(header);
+        insertText(*doc, c, QStringLiteral("Left"));
+        QVERIFY(insertAlignmentTab(*doc, c, QStringLiteral("center"), QStringLiteral("margin"), QStringLiteral("dot")));
+        insertText(*doc, c, QStringLiteral("Middle"));
+        QVERIFY(insertAlignmentTab(*doc, c, QStringLiteral("right"), QStringLiteral("indent"), QStringLiteral("none")));
+        insertText(*doc, c, QStringLiteral("Right"));
+        QVERIFY(!insertAlignmentTab(*doc, c, QStringLiteral("sideways"), QStringLiteral("margin"), QStringLiteral("none")));   // (not one of the three)
+        // Each is a step, and the tab is one character that the layout sets as a tab at the place it says.
+        QCOMPARE(header->toPlainText().count(QChar::ObjectReplacementCharacter), 2);
+        QVERIFY(header->toPlainText().startsWith(QStringLiteral("Left")));
+        const QByteArray saved = doc->toDocx();
+        office::Package p;
+        p.read(saved);
+        QByteArray headerXml;
+        for (const QString &name : p.partNames())
+            if (name.contains(QStringLiteral("header"), Qt::CaseInsensitive) && name.endsWith(QStringLiteral(".xml")) && !name.contains(QStringLiteral("_rels"))) headerXml = p.part(name);
+        QVERIFY(!headerXml.isEmpty());
+        QVERIFY2(headerXml.contains("w:relativeTo=\"margin\"") && headerXml.contains("w:alignment=\"center\"") && headerXml.contains("w:leader=\"dot\""), headerXml.constData());
+        QVERIFY2(headerXml.contains("w:relativeTo=\"indent\"") && headerXml.contains("w:alignment=\"right\""), headerXml.constData());
+        QCOMPARE(headerXml.count("<w:ptab "), 2);
+        // Opened again, the tabs are still there, still in their place.
+        QString err;
+        auto again = WriteDoc::fromDocx(saved, &err);
+        QVERIFY(again);
+        QTextDocument *story = again->headerFooterStory(0, false, WriteDoc::kDefaultSlot);
+        QVERIFY(story);
+        QCOMPARE(story->toPlainText().count(QLatin1Char('\t')), 2);   // (read back, an absolute position tab is a tab that goes where it says)
+        QStringList aligned;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+                if (it.fragment().charFormat().hasProperty(tp::AlignTab)) aligned << it.fragment().charFormat().stringProperty(tp::AlignTab);
+        QCOMPARE(aligned, (QStringList{QStringLiteral("center:margin:dot"), QStringLiteral("right:indent:none")}));
+        QVERIFY(doc->undo());
+        QCOMPARE(header->toPlainText().count(QChar::ObjectReplacementCharacter), 2);   // (the last text typed is the step undone, not a tab)
+    }
+
+    void insertAlignmentTabOnTheHeaderAndFooterTabAsksForItsPlace()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QVERIFY(w.act("hf.alignmentTab"));
+        QVERIFY(!w.act("hf.alignmentTab")->isEnabled());
+        w.view()->paginateAll();
+        QVERIFY(w.view()->enterHeaderFooter(0, false, true));
+        w.refreshNow();
+        QVERIFY(w.act("hf.alignmentTab")->isEnabled());
+        QStringList asked;
+        w.setAlignmentTabAsker([&](QString &alignment, QString &relativeTo, QString &leader) {
+            asked << alignment << relativeTo << leader;
+            alignment = QStringLiteral("right");
+            leader = QStringLiteral("hyphen");
+            return true;
+        });
+        w.act(QStringLiteral("hf.alignmentTab"))->trigger();
+        QCOMPARE(asked, (QStringList{QStringLiteral("center"), QStringLiteral("margin"), QStringLiteral("none")}));   // (what a page number usually sits at: the middle, then offered again)
+        QTextDocument *story = w.view()->headerFooterEdit().story;
+        QVERIFY(story);
+        QCOMPARE(story->toPlainText().count(QChar::ObjectReplacementCharacter), 1);
+        w.setAlignmentTabAsker([](QString &, QString &, QString &) { return false; });
+        w.act(QStringLiteral("hf.alignmentTab"))->trigger();
+        QCOMPARE(story->toPlainText().count(QChar::ObjectReplacementCharacter), 1);
+    }
+
+    // ---------------------------------------------------------------- Tables
+    void textWrapsRoundATableThatTheTablePropertiesSetAtAPlace()
+    {
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1500\"/><w:gridCol w:w=\"1500\"/></w:tblGrid>"
+                                 "<w:tr><w:tc><w:p><w:r><w:t>a1</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>b1</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx(table + "<w:p><w:r><w:t>After the table, words that go round it.</w:t></w:r></w:p>", QByteArray()), &err);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->toPlainText().indexOf(QLatin1String("a1")) + 1);
+        const TableProps was = tablePropsAt(*doc, c);
+        QVERIFY(!was.wrapAround);
+        TableProps now = was;
+        now.wrapAround = true;
+        setTableProps(*doc, c, was, now);
+        QVERIFY(tablePropsAt(*doc, c).wrapAround);
+        QVERIFY(doc->flow().tables.get(cellKeyOf(c.block()))->table->place.has_value());
+        // The file says it, in the schema's place (after the style, before the width), and reads back the same.
+        office::Package p;
+        p.read(doc->toDocx());
+        const QByteArray xml = p.part(QStringLiteral("/word/document.xml"));
+        QVERIFY2(xml.contains("<w:tblpPr "), xml.constData());
+        QVERIFY(xml.indexOf("<w:tblpPr ") < xml.indexOf("<w:tblW "));
+        auto again = WriteDoc::fromDocx(doc->toDocx(), &err);
+        QVERIFY(again);
+        QTextCursor d(again->story());
+        d.setPosition(again->story()->toPlainText().indexOf(QLatin1String("a1")) + 1);
+        QVERIFY(tablePropsAt(*again, d).wrapAround);
+        // Off again takes the element away; one step each.
+        TableProps off = tablePropsAt(*doc, c);
+        off.wrapAround = false;
+        setTableProps(*doc, c, tablePropsAt(*doc, c), off);
+        QVERIFY(!tablePropsAt(*doc, c).wrapAround);
+        office::Package q;
+        q.read(doc->toDocx());
+        QVERIFY(!q.part(QStringLiteral("/word/document.xml")).contains("tblpPr"));
+        QVERIFY(doc->undo());
+        QVERIFY(tablePropsAt(*doc, c).wrapAround);
+    }
+
+    void deletingACellCanShiftTheCellsAfterItLeft()
+    {
+        auto cell = [](const char *t) { return QByteArray("<w:tc><w:tcPr><w:tcW w:w=\"1000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>") + t + "</w:t></w:r></w:p></w:tc>"; };
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/></w:tblGrid>"
+                                 "<w:tr>" + cell("a1") + cell("b1") + cell("c1") + "</w:tr><w:tr>" + cell("a2") + cell("b2") + cell("c2") + "</w:tr></w:tbl><w:p/>";
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx(table, QByteArray()), &err);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->toPlainText().indexOf(QLatin1String("b1")) + 1);
+        QVERIFY(deleteTableCellsShiftLeft(*doc, c));
+        const QString text = doc->story()->toPlainText();
+        QVERIFY2(!text.contains(QLatin1String("b1")) && text.contains(QLatin1String("c1")) && text.contains(QLatin1String("b2")), qPrintable(text));
+        office::Package p;
+        p.read(doc->toDocx());
+        const QByteArray xml = p.part(QStringLiteral("/word/document.xml"));
+        const qsizetype secondRow = xml.indexOf("</w:tr>") + 7;
+        const QByteArray firstRow = xml.left(secondRow);
+        QVERIFY2(firstRow.count("<w:tc>") == 2, firstRow.constData());   // (the cells have no attributes in the file)
+        QVERIFY2(firstRow.contains("<w:gridAfter w:val=\"1\"/>"), firstRow.constData());
+        QCOMPARE(xml.mid(secondRow).count("<w:tc>"), 3);   // (the other row is as it was)
+        auto again = WriteDoc::fromDocx(doc->toDocx(), &err);
+        QVERIFY(again);
+        QVERIFY(!again->story()->toPlainText().contains(QLatin1String("b1")));
+        QVERIFY(doc->undo());
+        QVERIFY(doc->story()->toPlainText().contains(QLatin1String("b1")));
+        QVERIFY(!doc->canUndo());
+    }
+
+    void theTablePropertiesDialogHasAWrapTextAroundChoice()
+    {
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>a1</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p/>";
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx(table, QByteArray()), &err);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->toPlainText().indexOf(QLatin1String("a1")) + 1);
+        bool found = false;
+        QTimer::singleShot(0, [&found] {
+            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dlg) return;
+            if (auto *around = dlg->findChild<QCheckBox *>(QStringLiteral("wrapAround"))) {
+                found = true;
+                around->setChecked(true);
+            }
+            dlg->accept();
+        });
+        tablePropertiesDialog(nullptr, doc.get(), &c);
+        QVERIFY(found);
+        QVERIFY(tablePropsAt(*doc, c).wrapAround);
+    }
+
+    // ---------------------------------------------------------------- Paper sizes
+    void envelopeSizesAreOnTheSizeMenuAndInPageSetup()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        const QList<std::pair<QString, QSizeF>> envelopes = {{QStringLiteral("envelope10"), QSizeF(297, 684)}, {QStringLiteral("envelopeMonarch"), QSizeF(279, 540)},
+                                                              {QStringLiteral("envelopeDL"), QSizeF(311.81, 623.62)}, {QStringLiteral("envelopeC5"), QSizeF(459.21, 649.13)}};
+        for (const auto &e : envelopes) {
+            QVERIFY2(w.act(QStringLiteral("layout.size.") + e.first), qPrintable(e.first));
+            w.act(QStringLiteral("layout.size.") + e.first)->trigger();
+            const QSizeF paper = w.document()->flow().section(0).paper;   // (kept to a twentieth of a point)
+            QVERIFY2(std::abs(paper.width() - e.second.width()) < 0.1 && std::abs(paper.height() - e.second.height()) < 0.1, qPrintable(e.first));
+            QTRY_VERIFY(w.act(QStringLiteral("layout.size.") + e.first)->isChecked());
+        }
+        // Page Setup names the paper the same way.
+        QString found;
+        QTimer::singleShot(0, [&found] {
+            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dlg) return;
+            auto *size = dlg->findChild<QComboBox *>(QStringLiteral("paperSize"));
+            if (size) found = size->currentText();
+            dlg->reject();
+        });
+        pageSetupDialog(nullptr, w.document(), 0);
+        QCOMPARE(found, QStringLiteral("Envelope C5"));
+    }
+
+    // ---------------------------------------------------------------- Page Setup
+    void pageSetupFromThisPointForwardMakesASectionAtTheCursor()
+    {
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t>One</w:t></w:r></w:p><w:p><w:r><w:t>Two</w:t></w:r></w:p><w:p><w:r><w:t>Three</w:t></w:r></w:p>", QByteArray()), &err);
+        QVERIFY(doc);
+        QCOMPARE(doc->sectionCount(), 1);
+        const SectionSetup before = pageSetupOf(doc->sectionProps(0), false);
+        SectionSetup after = before;
+        after.left = 36;
+        after.right = 36;
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(1).position() + 1);
+        QVERIFY(applyPageSetupFromCursor(*doc, c, before, after) >= 1);
+        QCOMPARE(doc->sectionCount(), 2);
+        QCOMPARE(pageSetupOf(doc->sectionProps(0), false).left, before.left);   // (the text before the cursor is as it was)
+        QCOMPARE(pageSetupOf(doc->sectionProps(1), false).left, 36.0);
+        QCOMPARE(pageSetupOf(doc->sectionProps(1), false).right, 36.0);
+        QCOMPARE(doc->sectionProps(1).type, QStringLiteral("continuous"));
+        QCOMPARE(doc->sectionAt(c.position()), 1);
+        // One step, and the file keeps both sections.
+        QByteArray body;
+        {
+            office::Package p;
+            p.read(doc->toDocx());
+            body = p.part(QStringLiteral("/word/document.xml"));
+        }
+        QCOMPARE(body.count("<w:sectPr"), 2);
+        QVERIFY2(body.contains("w:left=\"720\""), body.constData());
+        QVERIFY(doc->undo());
+        QCOMPARE(doc->sectionCount(), 1);
+        QVERIFY(!doc->canUndo());
+        // Nothing to change puts nothing in.
+        QCOMPARE(applyPageSetupFromCursor(*doc, c, before, before), 0);
+        QCOMPARE(doc->sectionCount(), 1);
+    }
+
+    void thePageSetupDialogOffersThisPointForwardOnlyWithACursor()
+    {
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t>One</w:t></w:r></w:p><w:p><w:r><w:t>Two</w:t></w:r></w:p>", QByteArray()), &err);
+        QVERIFY(doc);
+        auto choices = [&](QTextCursor *cursor, bool pick) {
+            int count = -1;
+            QTimer::singleShot(0, [&count, pick] {
+                auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!dlg) return;
+                auto *applyTo = dlg->findChild<QComboBox *>(QStringLiteral("applyTo"));
+                count = applyTo ? applyTo->count() : -1;
+                if (pick && applyTo && applyTo->count() > 2) {
+                    applyTo->setCurrentIndex(2);
+                    dlg->findChild<MeasureSpin *>(QStringLiteral("left"))->setValue(36);
+                }
+                dlg->accept();
+            });
+            pageSetupDialog(nullptr, doc.get(), 0, cursor);
+            return count;
+        };
+        QCOMPARE(choices(nullptr, false), 2);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(1).position() + 1);
+        QCOMPARE(choices(&c, true), 3);
+        QCOMPARE(doc->sectionCount(), 2);
+        QCOMPARE(pageSetupOf(doc->sectionProps(1), false).left, 36.0);
+        QCOMPARE(pageSetupOf(doc->sectionProps(0), false).left, 72.0);
+    }
+
+    // ---------------------------------------------------------------- Header & Footer
+    void theHeaderAndFooterDistancesOnTheTabSetTheSectionsPageMargins()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        w.view()->paginateAll();
+        QVERIFY(w.view()->enterHeaderFooter(0, false, true));
+        auto *header = w.findChild<MeasureSpin *>(QStringLiteral("headerFromTopField"));
+        auto *footer = w.findChild<MeasureSpin *>(QStringLiteral("footerFromBottomField"));
+        QVERIFY(header && footer);
+        w.refreshNow();
+        QCOMPARE(header->value(), w.document()->sectionProps(0).header / 20.0);
+        QCOMPARE(footer->value(), w.document()->sectionProps(0).footer / 20.0);
+        header->setValue(18);
+        Q_EMIT header->editingFinished();
+        footer->setValue(54);
+        Q_EMIT footer->editingFinished();
+        QCOMPARE(w.document()->sectionProps(0).header, 360);
+        QCOMPARE(w.document()->sectionProps(0).footer, 1080);
+        // Each is one step that undoes, and the file says it.
+        const QByteArray saved = w.document()->toDocx();
+        office::Package p;
+        p.read(saved);
+        const QByteArray body = p.part(QStringLiteral("/word/document.xml"));
+        QVERIFY2(body.contains("w:header=\"360\"") && body.contains("w:footer=\"1080\""), body.constData());
+        w.document()->undo();
+        QCOMPARE(w.document()->sectionProps(0).footer, 720);
+        QCOMPARE(w.document()->sectionProps(0).header, 360);
+        // A value that is no change is no step.
+        w.document()->redo();
+        const bool could = w.document()->canUndo();
+        Q_EMIT header->editingFinished();
+        QCOMPARE(w.document()->sectionProps(0).header, 360);
+        QVERIFY(could);
+    }
+
+    void showDocumentTextCoversThePagesTextWhileAHeaderIsEdited()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        QVERIFY(w.act("hf.showDocumentText"));
+        QVERIFY(!w.act("hf.showDocumentText")->isEnabled());   // (only while a header or footer is edited)
+        w.view()->paginateAll();
+        QVERIFY(w.view()->enterHeaderFooter(0, false, true));
+        w.refreshNow();
+        QVERIFY(w.act("hf.showDocumentText")->isEnabled() && w.act("hf.showDocumentText")->isChecked());
+        bool covered = true;
+        setPaintObserver([&](const flow::MaterializedPage &, const PageDrawing &d) { covered = d.hideBody; });
+        w.view()->grab();
+        QVERIFY(!covered);
+        w.act(QStringLiteral("hf.showDocumentText"))->trigger();
+        QVERIFY(!w.view()->showBodyWhileEditingHeader());
+        w.view()->grab();
+        setPaintObserver(nullptr);
+        QVERIFY(covered);
     }
 
     void wordCountHasTheLinesTheLayoutMade()

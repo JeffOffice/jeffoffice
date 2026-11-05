@@ -50,6 +50,22 @@ void WriteWindow::createPictureActions()
             m_view->setFocus(Qt::OtherFocusReason);
         }, true);
     }
+    struct Order {
+        const char *id;
+        const char *text;
+        write::PictureOrder order;
+        const char *icon;
+    };
+    for (const Order &o : {Order{"front", QT_TRANSLATE_NOOP("jp::WriteWindow", "Bring to Front"), write::PictureOrder::BringToFront, "bring-to-front"},
+                           Order{"forward", QT_TRANSLATE_NOOP("jp::WriteWindow", "Bring Forward"), write::PictureOrder::BringForward, "arrow-up"},
+                           Order{"back", QT_TRANSLATE_NOOP("jp::WriteWindow", "Send to Back"), write::PictureOrder::SendToBack, "send-to-back"},
+                           Order{"backward", QT_TRANSLATE_NOOP("jp::WriteWindow", "Send Backward"), write::PictureOrder::SendBackward, "arrow-down"}}) {
+        const write::PictureOrder order = o.order;
+        mk(QStringLiteral("picture.order.") + QLatin1String(o.id), QCoreApplication::translate("jp::WriteWindow", o.text), o.icon, QKeySequence(), [this, order] {
+            m_view->changeSelectedPicture([order](write::WriteDoc &d, int at) { return write::setPictureOrder(d, at, order); });
+            m_view->setFocus(Qt::OtherFocusReason);
+        });
+    }
     mk("picture.altText", tr("Alt Text…"), "captions", QKeySequence(), [this] {
         const int at = m_view->selectedPicture();
         if (!m_doc || at < 0) return;
@@ -79,6 +95,18 @@ void WriteWindow::pictureRibbonParts(RibbonParts &parts)
             group->addAction(a);
             m->addAction(a);
         }
+        return m;
+    };
+    parts.menus[QStringLiteral("pictureForward")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        m->addAction(act("picture.order.forward"));
+        m->addAction(act("picture.order.front"));
+        return m;
+    };
+    parts.menus[QStringLiteral("pictureBackward")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        m->addAction(act("picture.order.backward"));
+        m->addAction(act("picture.order.back"));
         return m;
     };
     for (int which = 0; which < 2; ++which) {
@@ -155,7 +183,9 @@ void WriteWindow::insertPictureFromClipboard()
 void WriteWindow::showPageSetupDialog()
 {
     if (!m_doc) return;
-    if (write::pageSetupDialog(this, m_doc.get(), m_view->cursorSection())) m_view->refresh();
+    // ("This point forward" needs a place in the text for the section break: not in a header, a footer, or a note.)
+    QTextCursor *place = !m_view->inHeaderFooter() && !m_view->inNote() ? &m_view->cursor() : nullptr;
+    if (write::pageSetupDialog(this, m_doc.get(), m_view->cursorSection(), place)) m_view->refresh();
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
@@ -172,6 +202,10 @@ void WriteWindow::refreshPictureUi()
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("picture."))) a->setEnabled(editable);
     act("picture.lockAspect")->setEnabled(true);
+    // (A picture moves in the layers only where it floats and there is a place for it to go.)
+    for (const auto &o : {std::pair<const char *, write::PictureOrder>{"front", write::PictureOrder::BringToFront}, {"forward", write::PictureOrder::BringForward},
+                          {"back", write::PictureOrder::SendToBack}, {"backward", write::PictureOrder::SendBackward}})
+        act(QStringLiteral("picture.order.") + QLatin1String(o.first))->setEnabled(editable && info.floating && write::canOrderPicture(*m_doc, at, o.second));
     static const std::pair<const char *, write::PictureWrap> wraps[] = {{"inline", write::PictureWrap::Inline}, {"square", write::PictureWrap::Square}, {"tight", write::PictureWrap::Tight},
                                                                         {"topBottom", write::PictureWrap::TopAndBottom}, {"behind", write::PictureWrap::BehindText},
                                                                         {"front", write::PictureWrap::InFrontOfText}};
@@ -191,6 +225,8 @@ void WriteWindow::addPictureContextMenu(QMenu &menu)
     menu.addSeparator();
     QMenu *wrap = menu.addMenu(tr("Wrap Text"));
     for (const char *id : {"inline", "square", "tight", "topBottom", "behind", "front"}) wrap->addAction(act(QStringLiteral("picture.wrap.") + QLatin1String(id)));
+    QMenu *order = menu.addMenu(tr("Arrange"));
+    for (const char *id : {"front", "forward", "back", "backward"}) order->addAction(act(QStringLiteral("picture.order.") + QLatin1String(id)));
     menu.addAction(act("picture.altText"));
     menu.addAction(act("picture.decorative"));
     if (act("shape.editText")->isEnabled()) menu.addAction(act("shape.editText"));

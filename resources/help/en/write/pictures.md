@@ -1,5 +1,5 @@
 # Add and change pictures
-<!-- keywords: picture, pictures, image, insert picture, photo, clipboard, paste a picture, screenshot, wrap text, text wrapping, in line with text, square, tight, top and bottom, behind text, in front of text, alt text, description, resize, size, handles, move a picture, drag a picture, drop, picture format, lock aspect ratio, crop, cut, brightness, contrast, corrections, recolor, grayscale, black and white, washout, border, frame, picture styles, change picture, reset picture -->
+<!-- keywords: picture, pictures, image, insert picture, photo, clipboard, paste a picture, screenshot, wrap text, text wrapping, in line with text, square, tight, top and bottom, behind text, in front of text, alt text, description, resize, size, handles, move a picture, drag a picture, drop, picture format, lock aspect ratio, crop, cut, brightness, contrast, corrections, recolor, grayscale, black and white, washout, border, frame, picture styles, change picture, reset picture, bring forward, send backward, bring to front, send to back, layers, arrange pictures -->
 
 A **picture** can sit in a line of text, like a letter, or float on the page with the words going round it. This topic shows how to put a picture in a document, how to change its size, its place, and how the text goes round it, and how to describe it for people who can't see it.
 
@@ -49,6 +49,12 @@ These commands are on the **Picture Format** tab. Each one is a single step to u
 - **Top and Bottom**: the words stop above the picture and start again under it.
 - **Behind Text**: the picture is under the words, which go straight over it.
 - **In Front of Text**: the picture is over the words, which go straight under it.
+
+## Put one picture over another
+
+Pictures that float (any wrap except **In Line with Text**) lie in layers, like sheets of paper. **Bring Forward** moves the selected picture up one layer. **Send Backward** moves it down one layer. Each button has a small menu with **Bring to Front** and **Send to Back**, which move it over or under all the others. The same four commands are in the right-click menu, under **Arrange**.
+
+A picture at the very bottom of the layers in front of the text goes behind the text on one more **Send Backward**. A picture behind the text comes out in front of it on one more **Bring Forward**. A command is dimmed when the picture cannot move that way. Each one is a step that **Undo** takes back.
 
 ## Move a picture
 

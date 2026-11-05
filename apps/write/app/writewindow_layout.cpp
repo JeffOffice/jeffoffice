@@ -60,6 +60,10 @@ void WriteWindow::createLayoutExtraActions()
         if (m_doc) m_doc->setAutoHyphenation(true);
         m_view->setFocus(Qt::OtherFocusReason);
     }, true);
+    mk("layout.hyphenation.caps", tr("Hyphenate Words in Capitals"), "", QKeySequence(), [this] {
+        if (m_doc) m_doc->setHyphenateCaps(act("layout.hyphenation.caps")->isChecked());
+        m_view->setFocus(Qt::OtherFocusReason);
+    }, true);
     mk("layout.hyphenation.options", tr("Hyphenation Options…"), "", QKeySequence(), [this] {
         if (!m_doc) return;
         double zone = m_doc->hyphenationZone();
@@ -172,12 +176,15 @@ void WriteWindow::refreshLayoutUi()
     act("design.watermark.remove")->setEnabled(m_doc != nullptr && write::watermarkOf(*m_doc).has_value());
     act("design.pageColor.none")->setEnabled(m_doc && m_doc->pageColor().isValid());
     if (!m_doc) {
-        for (const char *id : {"layout.mirrorMargins", "layout.hyphenation.none", "layout.hyphenation.auto"}) act(QString::fromLatin1(id))->setChecked(false);
+        for (const char *id : {"layout.mirrorMargins", "layout.hyphenation.none", "layout.hyphenation.auto", "layout.hyphenation.caps"}) act(QString::fromLatin1(id))->setChecked(false);
+        act("layout.hyphenation.caps")->setEnabled(false);
         return;
     }
     act("layout.mirrorMargins")->setChecked(m_doc->mirrorMargins());
     act("layout.hyphenation.auto")->setChecked(m_doc->autoHyphenation());
     act("layout.hyphenation.none")->setChecked(!m_doc->autoHyphenation());
+    act("layout.hyphenation.caps")->setChecked(m_doc->hyphenateCaps());
+    act("layout.hyphenation.caps")->setEnabled(m_doc->autoHyphenation());   // (words in capitals are hyphenated only where words are)
     const int section = m_view->cursorSection();
     const office::wml::SectionProps props = m_doc->sectionProps(section);
     const write::LineNumberSetup numbers = write::lineNumbersOf(props);

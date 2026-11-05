@@ -396,7 +396,9 @@ void WriteWindow::createLayoutActions()
         }, true);
     struct Paper { const char *id; const char *text; double w, h; };
     for (const Paper &p : {Paper{"letter", QT_TRANSLATE_NOOP("jp::WriteWindow", "Letter"), 612, 792}, Paper{"legal", QT_TRANSLATE_NOOP("jp::WriteWindow", "Legal"), 612, 1008}, Paper{"executive", QT_TRANSLATE_NOOP("jp::WriteWindow", "Executive"), 522, 756}, Paper{"a3", QT_TRANSLATE_NOOP("jp::WriteWindow", "A3"), 841.9, 1190.55},
-                           Paper{"a4", QT_TRANSLATE_NOOP("jp::WriteWindow", "A4"), 595.3, 841.9}, Paper{"a5", QT_TRANSLATE_NOOP("jp::WriteWindow", "A5"), 419.55, 595.3}, Paper{"b5", QT_TRANSLATE_NOOP("jp::WriteWindow", "B5"), 498.95, 708.75}}) {
+                           Paper{"a4", QT_TRANSLATE_NOOP("jp::WriteWindow", "A4"), 595.3, 841.9}, Paper{"a5", QT_TRANSLATE_NOOP("jp::WriteWindow", "A5"), 419.55, 595.3}, Paper{"b5", QT_TRANSLATE_NOOP("jp::WriteWindow", "B5"), 498.95, 708.75},
+                           Paper{"envelope10", QT_TRANSLATE_NOOP("jp::WriteWindow", "Envelope #10"), 297, 684}, Paper{"envelopeMonarch", QT_TRANSLATE_NOOP("jp::WriteWindow", "Envelope Monarch"), 279, 540},
+                           Paper{"envelopeDL", QT_TRANSLATE_NOOP("jp::WriteWindow", "Envelope DL"), 311.81, 623.62}, Paper{"envelopeC5", QT_TRANSLATE_NOOP("jp::WriteWindow", "Envelope C5"), 459.21, 649.13}}) {
         const double w = p.w, h = p.h;
         mk(QStringLiteral("layout.size.") + QLatin1String(p.id), QCoreApplication::translate("jp::WriteWindow", p.text), "", QKeySequence(), [this, w, h] {
             changeSection([w, h](flow::Section &s) { s.paper = QSizeF(w, h); });
@@ -542,12 +544,13 @@ void WriteWindow::refreshUi()
     act("layout.portrait")->setChecked(s.orientation == flow::Section::Orientation::Portrait);
     act("layout.landscape")->setChecked(s.orientation == flow::Section::Orientation::Landscape);
     for (int n = 1; n <= 3; ++n) act(QStringLiteral("layout.columns.%1").arg(n))->setChecked(s.columns == n);
-    for (const char *id : {"letter", "legal", "executive", "a3", "a4", "a5", "b5"}) {
+    for (const char *id : {"letter", "legal", "executive", "a3", "a4", "a5", "b5", "envelope10", "envelopeMonarch", "envelopeDL", "envelopeC5"}) {
         QAction *a = act(QStringLiteral("layout.size.") + QLatin1String(id));
         const QSizeF paper = s.paper;
         // (Each size by its paper, to a point.)
         static const QHash<QString, QSizeF> sizes = {{"letter", QSizeF(612, 792)}, {"legal", QSizeF(612, 1008)}, {"executive", QSizeF(522, 756)}, {"a3", QSizeF(841.9, 1190.55)},
-                                                     {"a4", QSizeF(595.3, 841.9)}, {"a5", QSizeF(419.55, 595.3)}, {"b5", QSizeF(498.95, 708.75)}};
+                                                     {"a4", QSizeF(595.3, 841.9)}, {"a5", QSizeF(419.55, 595.3)}, {"b5", QSizeF(498.95, 708.75)},
+                                                     {"envelope10", QSizeF(297, 684)}, {"envelopeMonarch", QSizeF(279, 540)}, {"envelopeDL", QSizeF(311.81, 623.62)}, {"envelopeC5", QSizeF(459.21, 649.13)}};
         const QSizeF want = sizes.value(QString::fromLatin1(id));
         a->setChecked(std::abs(paper.width() - want.width()) < 2 && std::abs(paper.height() - want.height()) < 2);
     }
@@ -564,7 +567,7 @@ void WriteWindow::refreshUi()
     {
         const bool editing = m_view->inHeaderFooter();
         const write::PageView::HeaderFooterEdit &e = m_view->headerFooterEdit();
-        for (const char *id : {"hf.close", "hf.pageNumber", "hf.pageNumberFormat", "hf.dateTime", "hf.removeHeader", "hf.removeFooter", "hf.differentFirst", "hf.differentOddEven"}) act(QString::fromLatin1(id))->setEnabled(editing);
+        for (const char *id : {"hf.close", "hf.pageNumber", "hf.pageNumberFormat", "hf.alignmentTab", "hf.dateTime", "hf.removeHeader", "hf.removeFooter", "hf.differentFirst", "hf.differentOddEven", "hf.showDocumentText"}) act(QString::fromLatin1(id))->setEnabled(editing);
         // (A header, a footer, or a note takes no break of a page or a section.)
         if (editing || m_view->inNote())
             for (const char *id : {"insert.pageBreak", "layout.sectionBreak"}) act(QString::fromLatin1(id))->setEnabled(false);
@@ -619,6 +622,13 @@ void WriteWindow::refreshUi()
         act("hf.goToFooter")->setEnabled(editing && !e.footer);
         act("hf.linkPrevious")->setEnabled(editing && e.section > 0);
         act("hf.linkPrevious")->setChecked(editing && m_doc->linkedToPrevious(e.section, e.footer, e.slot));
+        if (editing && m_hfFields.size() >= 2) {
+            const office::wml::SectionProps sp = m_doc->sectionProps(e.section);
+            m_updatingFields = true;
+            m_hfFields[0]->setPoints(sp.header / 20.0);
+            m_hfFields[1]->setPoints(sp.footer / 20.0);
+            m_updatingFields = false;
+        }
     }
     refreshTableUi();
     refreshPictureUi();

@@ -661,6 +661,7 @@
                 "layout.hyphenation.none",
                 "layout.hyphenation.auto",
                 "-",
+                "layout.hyphenation.caps",
                 "layout.hyphenation.options"
               ]
             }
@@ -1455,6 +1456,10 @@
               "keytip": "DT"
             },
             {
+              "small": "hf.alignmentTab",
+              "keytip": "AL"
+            },
+            {
               "small": {
                 "id": "ribbon.headerInfo",
                 "text": "Document Info",
@@ -1485,6 +1490,38 @@
             {
               "small": "hf.removeFooter",
               "keytip": "RF"
+            }
+          ]
+        },
+        {
+          "name": "Position",
+          "keytip": "ZP",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Header from Top:"
+                },
+                {
+                  "widget": "headerFromTop",
+                  "keytip": "HT"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Footer from Bottom:"
+                },
+                {
+                  "widget": "footerFromBottom",
+                  "keytip": "FB"
+                }
+              ]
+            },
+            {
+              "small": "hf.showDocumentText",
+              "keytip": "ST"
             }
           ]
         },
@@ -1971,6 +2008,24 @@
               },
               "keytip": "WT",
               "menu": "@pictureWrap"
+            },
+            {
+              "large": {
+                "id": "ribbon.bringForward",
+                "text": "Bring Forward",
+                "icon": "arrow-up"
+              },
+              "keytip": "BF",
+              "menu": "@pictureForward"
+            },
+            {
+              "large": {
+                "id": "ribbon.sendBackward",
+                "text": "Send Backward",
+                "icon": "arrow-down"
+              },
+              "keytip": "SB",
+              "menu": "@pictureBackward"
             },
             {
               "large": "picture.altText",

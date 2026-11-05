@@ -265,7 +265,7 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
             // (Before the 2013 program, the indent is to the first cell's text, and the table's edge is left of it by the cell's margin.)
             t.indent = points(m.indent);
             t.indentToText = m_compat < 15;
-            t.place = floatingPlaceOf(direct.original, direct.floating);
+            t.place = floatingPlaceOf(direct.original.isEmpty() ? blk.raw : direct.original, direct.floating || m.floating);   // (a table made again by an edit has no original: its own start has the properties)
             l.tablePart = std::make_shared<TablePart>();
             l.tablePart->open = blk.raw;
             l.tablePart->mark = blk.table;

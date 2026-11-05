@@ -19,6 +19,9 @@
 namespace jp::write {
 
 enum class PictureWrap { Inline, Square, Tight, TopAndBottom, BehindText, InFrontOfText };
+// Where a floating picture goes among the floating pictures of the story (their layers: the ones behind the text, then the ones in front of it): to the very front or back of its
+// layer, or one step forward or backward, which past the end of the layer takes it behind (or in front of) the text.
+enum class PictureOrder { BringToFront, SendToBack, BringForward, SendBackward };
 
 // What a drawn object of the text is: a picture, a shape of the drawing format (a rectangle, an arrow, a star, and the rest), a text box, a line, or a chart.
 enum class DrawnKind { Picture, Shape, TextBox, Line, Chart };
@@ -99,6 +102,10 @@ bool setPictureSize(WriteDoc &doc, int position, double width, double height);
 // The size and the place (the picture's top left corner on the page) in one step; with no place, only the size; with no size (0), only the place.
 bool setPictureBox(WriteDoc &doc, int position, double width, double height, const std::optional<QPointF> &pageTopLeft);
 bool setPictureWrap(WriteDoc &doc, int position, PictureWrap wrap);
+// Moves the floating picture at `position` in the layers as `order` says, as one step that undoes (the pictures it passes are given heights to keep their order). False where it does
+// not move (an inline picture, or one already there); `canOrderPicture` says whether it would.
+bool setPictureOrder(WriteDoc &doc, int position, PictureOrder order);
+bool canOrderPicture(WriteDoc &doc, int position, PictureOrder order);
 bool setPictureAltText(WriteDoc &doc, int position, const QString &alt);
 // Mark as Decorative: the picture is marked as adding nothing to the page's meaning, and its description is taken off; off, the mark goes.
 bool setPictureDecorative(WriteDoc &doc, int position, bool decorative);

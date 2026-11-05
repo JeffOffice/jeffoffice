@@ -35,6 +35,8 @@ struct PageDrawing {
     SpellCheck *editSpelling = nullptr;
     int editTypingAt = -1;
     bool editFooter = false;
+    bool hideBody = false;     // the header or footer is edited with "Show Document Text" off: the page's own text is covered, not dimmed
+    QColor pageColor;          // (what covers it: the page's color, white where it has none)
     bool editIsNote = false;   // the edited story is a footnote's (its box is among the page's notes; the text of the page is not dimmed)
 };
 

@@ -1141,6 +1141,59 @@ void deleteTableColumns(WriteDoc &doc, QTextCursor &c)
     c.endEditBlock();
 }
 
+bool deleteTableCellsShiftLeft(WriteDoc &doc, QTextCursor &c, bool apply)
+{
+    TableCommand command(doc);
+    auto v = viewAt(doc, c.selectionStart());
+    if (!v) return false;
+    flow::TableLayout &t = *v->layout;
+    const Area area = areaOf(*v, c);
+    const QVector<double> columns = columnWidthsOf(t);
+    struct Cut {
+        int from, to;
+    };
+    QVector<Cut> cuts;
+    QHash<const flow::RowData *, std::shared_ptr<flow::RowData>> newRows;
+    for (int r = area.r0; r <= area.r1 && r < t.rowCount(); ++r) {
+        const flow::TableLayout::Row &row = t.row(r);
+        int hit = 0, span = 0;
+        for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
+            const flow::TableLayout::Cell &cell = t.cell(i);
+            if (!(cell.row <= area.r1 && cell.row + cell.rows - 1 >= area.r0 && cell.col <= area.c1 && cell.col + cell.span - 1 >= area.c0)) continue;
+            // (A cell joined with others down is more than this row's: it is not shifted.)
+            if (cell.rows > 1 || cell.covered || cell.rec->cell.vmerge != flow::CellData::VMerge::None) return false;
+            ++hit;
+            span += cell.span;
+            cuts.push_back({cell.from, cell.to});
+        }
+        if (hit == 0 || hit >= row.cells) return false;   // (a row with no cell left is a row to delete)
+        const flow::RowData &rd = *row.data;
+        newRows.insert(row.data, rowWithGaps(rd, rd.before, rd.after + span, columns));
+    }
+    if (cuts.isEmpty()) return false;
+    if (!apply) return true;
+    QTextDocument *d = doc.story();
+    std::shared_ptr<flow::TableData> table = tableWithColumns(t.data(), columns, columns);
+    retireRange(doc, v->index.refs()[size_t(v->first)].pos, v->index.refs()[size_t(v->last - 1)].end);
+    c.beginEditBlock();
+    std::sort(cuts.begin(), cuts.end(), [](const Cut &a, const Cut &b) { return a.from > b.from; });
+    for (const Cut &g : std::as_const(cuts)) removeParagraphs(d, d->findBlock(g.from), d->findBlock(g.to - 1));
+    const int stop = parentOf(*v);
+    const int at = std::clamp(c.selectionStart(), 0, std::max(0, d->characterCount() - 1));
+    {
+        auto changed = [&](const flow::CellRecord &old, flow::CellRecord *rec) {
+            const auto row = newRows.constFind(old.row.get());
+            if (row != newRows.constEnd()) rec->row = row.value();
+        };
+        Rekey rekey(doc, &t.data(), table, stop, changed);
+        applyRekey(doc, &t.data(), &rekey);
+    }
+    c.setPosition(std::clamp(at, 0, std::max(0, d->characterCount() - 1)));
+    restyleTable(doc, c);
+    c.endEditBlock();
+    return true;
+}
+
 bool tabThroughCells(WriteDoc &doc, QTextCursor &c, bool back)
 {
     TableCommand command(doc);
@@ -1775,7 +1828,7 @@ bool TableProps::operator==(const TableProps &o) const
 {
     return align == o.align && indent == o.indent && widthKind == o.widthKind && width == o.width && fixedLayout == o.fixedLayout && margins == o.margins && spacing == o.spacing &&
            altTitle == o.altTitle && altText == o.altText && style == o.style && look == o.look && rowHeight == o.rowHeight && rowExact == o.rowExact && cantSplit == o.cantSplit &&
-           header == o.header && columnWidth == o.columnWidth && valign == o.valign && noWrap == o.noWrap;
+           header == o.header && columnWidth == o.columnWidth && valign == o.valign && noWrap == o.noWrap && wrapAround == o.wrapAround;
 }
 
 TableProps tablePropsAt(WriteDoc &doc, const QTextCursor &c)
@@ -1798,6 +1851,7 @@ TableProps tablePropsAt(WriteDoc &doc, const QTextCursor &c)
     }
     p.fixedLayout = m.layout == QLatin1String("fixed");
     p.margins = data.margins;
+    p.wrapAround = data.place.has_value();
     p.spacing = data.spacing;
     p.altTitle = textOfElement(x.open, "tblCaption");
     p.altText = textOfElement(x.open, "tblDescription");
@@ -1836,6 +1890,9 @@ void setTableProps(WriteDoc &doc, QTextCursor &c, const TableProps &was, const T
                                                                               : QByteArray("<w:tblW w:w=\"0\" w:type=\"auto\"/>");
             table.push_back({"tblW", w});
         }
+        // (Text wrapped round the table: it is set at a place, a little from the text on either side, with the text going round it; off, it is in the text again.)
+        if (now.wrapAround != was.wrapAround)
+            table.push_back({"tblpPr", now.wrapAround ? QByteArray("<w:tblpPr w:leftFromText=\"180\" w:rightFromText=\"180\" w:vertAnchor=\"text\" w:horzAnchor=\"margin\" w:tblpXSpec=\"left\" w:tblpY=\"1\"/>") : QByteArray()});
         if (now.fixedLayout != was.fixedLayout) table.push_back({"tblLayout", QByteArray("<w:tblLayout w:type=\"") + (now.fixedLayout ? "fixed" : "autofit") + "\"/>"});
         if (now.margins != was.margins)
             table.push_back({"tblCellMar", "<w:tblCellMar><w:top w:w=\"" + twipsText(now.margins.top()) + "\" w:type=\"dxa\"/><w:left w:w=\"" + twipsText(now.margins.left()) +

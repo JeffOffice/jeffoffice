@@ -177,6 +177,39 @@ bool columnsDialog(QWidget *parent, WriteDoc *doc, int section)
     return applyToSections(*doc, section, scope->currentIndex() == 1, [after](office::wml::SectionProps *p) { setColumnSetup(p, after); }) > 0;
 }
 
+bool alignmentTabDialog(QWidget *parent, QString *alignment, QString *relativeTo, QString *leader)
+{
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("alignmentTabDialog"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::LayoutDialogs", "Alignment Tab"));
+    auto *form = new QFormLayout(&dlg);
+    auto choice = [&dlg](const char *name, const QList<std::pair<QString, QString>> &items, const QString &current) {
+        auto *box = new QComboBox(&dlg);
+        box->setObjectName(QString::fromLatin1(name));
+        for (const auto &item : items) box->addItem(item.first, item.second);
+        box->setCurrentIndex(std::max(0, box->findData(current)));
+        return box;
+    };
+    auto *where = choice("alignment", {{QCoreApplication::translate("jp::write::LayoutDialogs", "Left"), QStringLiteral("left")}, {QCoreApplication::translate("jp::write::LayoutDialogs", "Center"), QStringLiteral("center")},
+                                       {QCoreApplication::translate("jp::write::LayoutDialogs", "Right"), QStringLiteral("right")}}, *alignment);
+    auto *from = choice("relativeTo", {{QCoreApplication::translate("jp::write::LayoutDialogs", "Margin"), QStringLiteral("margin")}, {QCoreApplication::translate("jp::write::LayoutDialogs", "Indent"), QStringLiteral("indent")}}, *relativeTo);
+    auto *lead = choice("leader", {{QCoreApplication::translate("jp::write::LayoutDialogs", "None"), QStringLiteral("none")}, {QCoreApplication::translate("jp::write::LayoutDialogs", "Dots"), QStringLiteral("dot")},
+                                   {QCoreApplication::translate("jp::write::LayoutDialogs", "Dashes"), QStringLiteral("hyphen")}, {QCoreApplication::translate("jp::write::LayoutDialogs", "Line"), QStringLiteral("underscore")},
+                                   {QCoreApplication::translate("jp::write::LayoutDialogs", "Middle dots"), QStringLiteral("middleDot")}}, *leader);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Alignment:"), where);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Align relative to:"), from);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Leader:"), lead);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    form->addRow(buttons);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    if (dlg.exec() != QDialog::Accepted) return false;
+    *alignment = where->currentData().toString();
+    *relativeTo = from->currentData().toString();
+    *leader = lead->currentData().toString();
+    return true;
+}
+
 bool hyphenationDialog(QWidget *parent, double *zone, int *limit)
 {
     QDialog dlg(parent);

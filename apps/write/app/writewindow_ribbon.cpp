@@ -180,6 +180,8 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         auto *m = new QMenu(owner);
         for (const char *id : {"letter", "legal", "executive", "a3", "a4", "a5", "b5"}) m->addAction(act(QStringLiteral("layout.size.") + QLatin1String(id)));
         m->addSeparator();
+        for (const char *id : {"envelope10", "envelopeMonarch", "envelopeDL", "envelopeC5"}) m->addAction(act(QStringLiteral("layout.size.") + QLatin1String(id)));
+        m->addSeparator();
         m->addAction(act("layout.moreSizes"));
         return m;
     };

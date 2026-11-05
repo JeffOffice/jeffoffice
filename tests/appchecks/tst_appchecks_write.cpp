@@ -270,6 +270,26 @@ private Q_SLOTS:
                  w->act(QStringLiteral("insert.picture"))->trigger();
                  asWrite(w)->refreshNow();
              }, false},
+            {QStringLiteral("three floating pictures, the middle one selected"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 asWrite(w)->setPictureChooser([] { return pngFile(80, 60); });
+                 for (int i = 0; i < 3; ++i) {
+                     // (After the end of the text: a picture put in over a selected picture takes its place.)
+                     QTextCursor end(asWrite(w)->document()->story());
+                     end.movePosition(QTextCursor::End);
+                     asWrite(w)->view()->setCursor(end);
+                     w->act(QStringLiteral("insert.picture"))->trigger();
+                     asWrite(w)->refreshNow();
+                     w->act(QStringLiteral("picture.wrap.square"))->trigger();
+                     asWrite(w)->refreshNow();
+                 }
+                 QList<int> at;
+                 const QTextDocument *story = asWrite(w)->document()->story();
+                 for (int p = 0; p + 1 < story->characterCount(); ++p)
+                     if (write::isPictureAt(story, p)) at << p;
+                 if (at.size() == 3) asWrite(w)->view()->selectPicture(at[1]);
+                 asWrite(w)->refreshNow();
+             }, false},
             {QStringLiteral("comments, the caret in the first"), [typed](AppWindow *w, bool f) {
                  typed(w, f);
                  write::WriteDoc *doc = asWrite(w)->document();
@@ -550,6 +570,11 @@ private Q_SLOTS:
                  asWrite(w)->view()->setCursor(c);
                  asWrite(w)->refreshNow();
              }, false},
+            {QStringLiteral("automatic hyphenation on"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 w->act(QStringLiteral("layout.hyphenation.auto"))->trigger();
+                 asWrite(w)->refreshNow();
+             }, false},
             {QStringLiteral("a page color"), [typed](AppWindow *w, bool f) {
                  typed(w, f);
                  asWrite(w)->document()->setPageColor(QColor(0xFF, 0xF4, 0xD6));
@@ -565,6 +590,7 @@ private Q_SLOTS:
             {QStringLiteral("edit.formatPainter"), QStringLiteral("it picks up the look of the selection and waits for the next selection; the paint is the change, and the window's tests check it")},
             {QStringLiteral("view.printLayout"), QStringLiteral("the window begins in the print layout, and choosing it again changes nothing; the outline tests choose it from Outline view")},
             {QStringLiteral("review.show.comments"), QStringLiteral("it chooses whether the balloons for comments are painted in the pages' margin, which no control shows; the window's tests check the painting")},
+            {QStringLiteral("hf.showDocumentText"), QStringLiteral("it covers or shows the text of the page under a header or footer being edited, and the places here have no text there; the window's tests check the painting")},
             {QStringLiteral("table.gridlines"), QStringLiteral("it draws the edges of the cells that have no line, and the tables the checks make have lines; the window's tests check the drawing")},
             {QStringLiteral("review.show.formatting"), QStringLiteral("it chooses whether the bars for changes of formatting are painted in the pages' margin, which no control shows; the window's tests check the painting")},
         };

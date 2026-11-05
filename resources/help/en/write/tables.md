@@ -1,5 +1,5 @@
 # Tables
-<!-- keywords: table, tables, insert table, rows, columns, cell, cells, merge cells, split cells, borders, shading, fill, cell size, column width, row height, fit, distribute rows, distribute columns, table properties, header row, repeat header, convert text to table, convert table to text, split table, sort, sort rows, formula, formulas, sum, view gridlines, table style, table styles, banded rows, alignment, align text in a cell, delete row, delete column, grid, gridlines, right click, table layout, table design -->
+<!-- keywords: delete cells, shift cells left, wrap text around a table, text wrapping, floating table, table, tables, insert table, rows, columns, cell, cells, merge cells, split cells, borders, shading, fill, cell size, column width, row height, fit, distribute rows, distribute columns, table properties, header row, repeat header, convert text to table, convert table to text, split table, sort, sort rows, formula, formulas, sum, view gridlines, table style, table styles, banded rows, alignment, align text in a cell, delete row, delete column, grid, gridlines, right click, table layout, table design -->
 
 A **table** is a grid of **cells** in **rows** and **columns**. Each cell holds text, and you type in it as you do anywhere on the page. This topic shows how to add a table, change its shape and its look, and set it up for the pages it runs over.
 
@@ -37,7 +37,7 @@ Click in a cell, or drag from one cell to another to select a block of cells. **
 
 ## Add and take away rows and columns
 
-On **Table Layout**, use **Insert Above**, **Insert Below**, **Insert Left**, and **Insert Right**. The new row or column takes as many rows or columns as you selected. **Delete** takes away the rows, the columns, or the whole table. Take away every row and the table is gone.
+On **Table Layout**, use **Insert Above**, **Insert Below**, **Insert Left**, and **Insert Right**. The new row or column takes as many rows or columns as you selected. **Delete** takes away the rows, the columns, or the whole table. **Delete > Delete Cells, Shift Left** takes away only the cells you selected, with their words, and moves the other cells of the row to the left. The row then ends with an empty space where the last cell was. It is dimmed when a cell is joined with cells below it, or when it would take every cell of a row (use **Delete Rows** for that). Take away every row and the table is gone.
 
 ## Merge and split cells
 
@@ -110,7 +110,7 @@ The nine buttons on **Table Layout > Alignment** put the words at the top, the m
 
 Click **Table Properties** on **Table Layout**, or on the right-click menu. It has a tab for each part:
 
-- **Table**: where the table sits (left, center, or right), how far it is from the left margin, its preferred width (automatic, in points, or as a percent of the text area), whether the columns are fixed, the space inside every cell, and the space between cells.
+- **Table**: where the table sits (left, center, or right), how far it is from the left margin, its preferred width (automatic, in points, or as a percent of the text area), whether the columns are fixed, **Wrap text around the table** (the table sits where it is and the words of the next paragraphs flow beside it, instead of below it), the space inside every cell, and the space between cells.
 - **Row**: the height and whether it is a least height or an exact one, **Do not let the row break across pages**, and **Repeat as header row at the top of each page**. A header row shows again at the top of each page a long table runs onto. The button **Table Layout > Repeat Header Rows** does the same for the selected rows.
 - **Column**: the width of the column, in points or as a percent of the table. The two boxes follow each other.
 - **Cell**: where the words sit up and down, and whether the words may wrap.

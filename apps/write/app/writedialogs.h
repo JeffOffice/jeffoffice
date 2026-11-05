@@ -22,13 +22,16 @@ void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
 void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
 // The Page Setup dialog for the section `section`: margins and gutter, orientation, paper size, and layout (how the section starts, a different first page, different odd and even
 // pages, and the header and footer distances), applied to the section or to the whole document when it is accepted, as one step that undoes. Only what the person changed is applied.
-// Returns whether anything was applied.
-bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section);
+// With a cursor the choice "This point forward" is offered too (a continuous section break goes in at the cursor). Returns whether anything was applied.
+bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *cursor = nullptr);
 // More Columns: the number of columns (up to 32), equal widths or each column's own width and space, a line between, and presets (One, Two, Three, Left, Right); applied to the
 // section or the whole document as one step that undoes. Returns whether anything was changed.
 bool columnsDialog(QWidget *parent, WriteDoc *doc, int section);
 // Line Numbers: on or off, start at, count by, distance from the text, and when the numbers begin again; for the section or the whole document.
 bool lineNumbersDialog(QWidget *parent, WriteDoc *doc, int section);
+// Insert Alignment Tab: where the text after the tab goes (left, center, or right), what it is measured from (the margins or the indents), and the leader before it; taken from and put
+// back in the arguments ("left"|"center"|"right", "margin"|"indent", and "none"|"dot"|"hyphen"|"underscore"|"middleDot"). False if canceled.
+bool alignmentTabDialog(QWidget *parent, QString *alignment, QString *relativeTo, QString *leader);
 // Layout > Hyphenation > Hyphenation Options: the zone (in points) and the most lines in a row that may end in a hyphen (0: no limit), taken from and put back in the arguments. False if canceled.
 bool hyphenationDialog(QWidget *parent, double *zone, int *limit);
 // Page Borders: which sides, the line (style, width, color), its distance, where it is measured from, and the pages that have it; for the section or the whole document.

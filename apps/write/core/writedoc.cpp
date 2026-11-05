@@ -57,7 +57,7 @@ QByteArray packSection(const SectionProps &s)
     d << s.type << qint32(s.pageW) << qint32(s.pageH) << s.orient << qint32(s.top) << qint32(s.right) << qint32(s.bottom) << qint32(s.left) << qint32(s.header)
       << qint32(s.footer) << qint32(s.gutter) << qint32(s.cols) << qint32(s.colSpace) << s.colSep << s.colEqual << qint32(s.colDefs.size());
     for (const ColumnDef &c : s.colDefs) d << qint32(c.width) << qint32(c.space);
-    d << qint32(s.pageStart.value_or(-1)) << s.pageFormat << s.titlePg << s.hasPgSz << s.hasPgMar << s.hasCols << s.attrs << packRaw(s.extra) << s.pgSzAttrs << s.pgMarAttrs << s.pgNumAttrs << s.colsAttrs << s.oddEvenHeaders << s.mirrorMargins << s.autoHyphenation << s.pageColor << qint32(s.hyphenationZone) << qint32(s.consecutiveHyphenLimit);
+    d << qint32(s.pageStart.value_or(-1)) << s.pageFormat << s.titlePg << s.hasPgSz << s.hasPgMar << s.hasCols << s.attrs << packRaw(s.extra) << s.pgSzAttrs << s.pgMarAttrs << s.pgNumAttrs << s.colsAttrs << s.oddEvenHeaders << s.mirrorMargins << s.autoHyphenation << s.pageColor << qint32(s.hyphenationZone) << qint32(s.consecutiveHyphenLimit) << s.doNotHyphenateCaps;
     return out;
 }
 
@@ -104,6 +104,9 @@ SectionProps unpackSection(const QByteArray &packed)
         s.hyphenationZone = zone;
         s.consecutiveHyphenLimit = limit;
     }
+    bool noCaps = false;
+    d >> noCaps;
+    s.doNotHyphenateCaps = d.status() == QDataStream::Ok && noCaps;
     return s;
 }
 
@@ -441,6 +444,7 @@ void WriteDoc::setUpEnvironment()
     f.env.wordLines = true;
     // Punctuation hangs past the margin only where the file has the East Asian layout on (and not its own option against it).
     f.env.wordNoHang = true;
+    f.hyphenateCaps = true;   // (words in capitals are hyphenated as the file's format says, unless its settings say not)
     if (!m_wml.settingsName.isEmpty()) {
         // (One reading of the part for all of them.)
         const QByteArray settingsBytes = partData(m_wml.settingsName);
@@ -453,6 +457,8 @@ void WriteDoc::setUpEnvironment()
         f.hyphenZone = compat.hyphenationZone / 20.0;
         f.mirrorMargins = compat.mirrorMargins;
         f.hyphenLimit = compat.consecutiveHyphenLimit;
+        f.hyphenateCaps = !compat.doNotHyphenateCaps;
+        m_last.doNotHyphenateCaps = m_noHyphenCapsAtOpen = compat.doNotHyphenateCaps;
         m_last.autoHyphenation = m_hyphenAtOpen = compat.autoHyphenation;
         m_last.hyphenationZone = m_hyphenZoneAtOpen = compat.hyphenationZone;
         m_last.consecutiveHyphenLimit = m_hyphenLimitAtOpen = compat.consecutiveHyphenLimit;
@@ -658,6 +664,10 @@ void WriteDoc::syncSections()
         if (m_last.hyphenationZone != int(std::lround(m_flow->hyphenZone * 20)) || m_last.consecutiveHyphenLimit != m_flow->hyphenLimit) {
             m_flow->hyphenZone = m_last.hyphenationZone / 20.0;
             m_flow->hyphenLimit = m_last.consecutiveHyphenLimit;
+            oddEvenChanged = true;
+        }
+        if (m_last.doNotHyphenateCaps == m_flow->hyphenateCaps) {
+            m_flow->hyphenateCaps = !m_last.doNotHyphenateCaps;
             oddEvenChanged = true;
         }
         if (m_last.autoHyphenation != m_flow->hyphenate) {

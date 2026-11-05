@@ -41,11 +41,15 @@ const Paper kPapers[] = {
     {QT_TRANSLATE_NOOP("jp::write::Dialogs", "A4"), 595.3, 841.9},
     {QT_TRANSLATE_NOOP("jp::write::Dialogs", "A5"), 419.55, 595.3},
     {QT_TRANSLATE_NOOP("jp::write::Dialogs", "B5"), 498.95, 708.75},
+    {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Envelope #10"), 297, 684},
+    {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Envelope Monarch"), 279, 540},
+    {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Envelope DL"), 311.81, 623.62},
+    {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Envelope C5"), 459.21, 649.13},
 };
 
 } // namespace
 
-bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section)
+bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *cursor)
 {
     if (!doc) return false;
     section = std::clamp(section, 0, doc->sectionCount() - 1);
@@ -179,6 +183,7 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section)
     applyTo->setObjectName(QStringLiteral("applyTo"));
     applyTo->addItem(QCoreApplication::translate("jp::write::Dialogs", "This section"), int(PageSetupScope::ThisSection));
     applyTo->addItem(QCoreApplication::translate("jp::write::Dialogs", "Whole document"), int(PageSetupScope::WholeDocument));
+    if (cursor) applyTo->addItem(QCoreApplication::translate("jp::write::Dialogs", "This point forward"), int(PageSetupScope::ThisPointForward));
     if (doc->sectionCount() == 1) applyTo->setCurrentIndex(1);
     auto *row = new QFormLayout;
     row->addRow(QCoreApplication::translate("jp::write::Dialogs", "Apply to:"), applyTo);
@@ -204,7 +209,9 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section)
     after.start = start->currentData().toString();
     after.differentFirstPage = firstPage->isChecked();
     after.differentOddEven = oddEven->isChecked();
-    return applyPageSetup(*doc, section, PageSetupScope(applyTo->currentData().toInt()), before, after) > 0;
+    const PageSetupScope scope = PageSetupScope(applyTo->currentData().toInt());
+    if (scope == PageSetupScope::ThisPointForward && cursor) return applyPageSetupFromCursor(*doc, *cursor, before, after) > 0;
+    return applyPageSetup(*doc, section, scope, before, after) > 0;
 }
 
 bool altTextDialog(QWidget *parent, QString *alt)
