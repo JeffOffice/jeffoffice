@@ -200,7 +200,7 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
         connect(m_doc.get(), &write::WriteDoc::modifiedChanged, this, [this] { updateTitle(); });
         connect(m_doc.get(), &write::WriteDoc::historyChanged, this, [this] {
             m_refreshTimer.start();
-            if (m_outlineOn) m_outline->rebuild();
+            if (m_outlineOn && !m_outlineBusy) m_outline->rebuild();
         });
     }
     m_view->setDocument(m_doc.get());

@@ -21,13 +21,16 @@ WriteOutlineView::WriteOutlineView(QWidget *parent) : QTreeWidget(parent)
     setAccessibleDescription(tr("The headings and text of the document. Use the Outlining tab to promote, demote, and move them."));
     setHeaderHidden(true);
     setSelectionMode(QAbstractItemView::ExtendedSelection);
-    setEditTriggers(QAbstractItemView::NoEditTriggers);
+    setEditTriggers(QAbstractItemView::EditKeyPressed);   // (F2: a click selects, and a double click opens the text on the pages)
     setUniformRowHeights(false);
     setWordWrap(true);
     setIndentation(22);
     setRootIsDecorated(true);
     setFrameShape(QFrame::NoFrame);
     header()->setStretchLastSection(true);
+    connect(this, &QTreeWidget::itemChanged, this, [this](QTreeWidgetItem *item, int) {
+        if (!m_building) Q_EMIT textTyped(positionOf(item), item->text(0));
+    });
 }
 
 void WriteOutlineView::setDocument(write::WriteDoc *doc)
@@ -63,8 +66,12 @@ void WriteOutlineView::rebuild()
             ++at;
         }
     }
+    m_building = true;
     clear();
-    if (!m_doc) return;
+    if (!m_doc) {
+        m_building = false;
+        return;
+    }
     const QVector<write::OutlineRow> rows = write::outlineRows(*m_doc);
     QStack<QTreeWidgetItem *> open;   // the headings above the next row
     for (const write::OutlineRow &r : rows) {
@@ -72,6 +79,7 @@ void WriteOutlineView::rebuild()
         item->setText(0, r.text);
         item->setData(0, kPositionRole, r.position);
         item->setData(0, kLevelRole, r.level);
+        if (r.editable) item->setFlags(item->flags() | Qt::ItemIsEditable);
         if (r.heading())
             while (!open.isEmpty() && levelOf(open.top()) >= r.level) open.pop();
         if (open.isEmpty()) addTopLevelItem(item);
@@ -79,6 +87,7 @@ void WriteOutlineView::rebuild()
         if (r.heading()) open.push(item);
         applyLook(item);
     }
+    m_building = false;
     expandAll();
     for (QTreeWidgetItemIterator at(this); *at; ++at)
         if (m_collapsed.contains(keyOf(levelOf(*at), (*at)->text(0)))) (*at)->setExpanded(false);

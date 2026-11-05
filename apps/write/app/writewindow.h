@@ -354,7 +354,7 @@ private:
     QDockWidget *m_navDock = nullptr;
     bool m_focusMode = false;
     WriteOutlineView *m_outline = nullptr;
-    bool m_outlineOn = false;
+    bool m_outlineOn = false, m_outlineBusy = false;
     struct FocusWas {
         bool fullScreen = false, ribbon = true, ruler = true, status = true;
         QList<QPointer<QDockWidget>> docks;

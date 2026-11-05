@@ -30,9 +30,10 @@ Type a word or phrase and press Enter. The tab lists each place it is found, wit
 - The small arrow beside a heading, or **Expand** and **Collapse**, shows or hides what is under it.
 - **Show Level** shows only the headings down to the level you pick, such as Level 2, and hides the text. **All Levels** shows everything.
 - **Show Text Formatting** draws big headings in bold. **Show First Line Only** cuts each paragraph of text to one line.
+- Press **F2** on a row to change its words, and press Enter to keep them. A paragraph that holds a field, a picture, or the like can't be changed here.
 - Double-click a paragraph of text to open it on the pages. **Close Outline View**, or **View > Print Layout**, goes back to the pages.
 
-Each change is one step to undo. You write the words of the document in Print Layout.
+Each change is one step to undo. For more writing, such as new paragraphs, go to Print Layout.
 
 ## Focus
 

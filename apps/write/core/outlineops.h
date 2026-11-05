@@ -15,6 +15,7 @@ struct OutlineRow {
     int position = 0;                  // where the paragraph begins in the story
     int level = kBodyLevel;
     QString text;                      // the paragraph's words (a line break shows as a space)
+    bool editable = true;              // false where the paragraph holds a field, picture, or other piece the words alone do not stand for
     bool heading() const { return level < kBodyLevel; }
 };
 // Every paragraph of the text in order (at most kMostOutlineRows).
@@ -25,6 +26,8 @@ int outlineSubtreeEnd(const QVector<OutlineRow> &rows, int i);
 // Promotes (by < 0) or demotes (by > 0) the paragraphs from `first` to `last` (positions in them) by `by` levels. A heading is moved with the headings under it when `withSubtree`.
 // Body text promoted becomes a heading of the level of the heading above it (Heading 1 with none); Heading 9 demoted becomes body text; Heading 1 promoted stays. True if anything changed.
 bool outlineShift(WriteDoc &doc, int first, int last, int by, bool withSubtree);
+// Puts new words in the paragraph at the position, in the look its first letter has (a line break is a space); one step that undoes. False where the paragraph is not editable.
+bool outlineSetText(WriteDoc &doc, int position, const QString &text);
 // Makes the paragraphs a heading of `level` (0 to 8), or body text for kBodyLevel. True if anything changed.
 bool outlineSetLevel(WriteDoc &doc, int first, int last, int level);
 // Moves the paragraph at `position` (with the headings and text under it, if it is a heading and `withSubtree`) before the paragraph above it, or after the one below. False where it can't move.

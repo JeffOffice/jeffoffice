@@ -12,6 +12,7 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QStatusBar>
+#include <QTimer>
 
 namespace jp {
 
@@ -70,6 +71,21 @@ void WriteWindow::createOutlineActions()
     // (They work in the outline only, and so are off, and their keys free, otherwise.)
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("outline."))) a->setEnabled(false);
+    connect(m_outline, &WriteOutlineView::textTyped, this, [this](int position, const QString &text) {
+        if (!m_doc || !m_outlineOn) return;
+        if (isReadOnly()) {
+            QTimer::singleShot(0, this, [this] { if (m_outlineOn) m_outline->rebuild(); });
+            return;
+        }
+        m_outlineBusy = true;
+        write::outlineSetText(*m_doc, position, text);
+        m_outlineBusy = false;
+        // (The rows are made again once the box that took the words is closed.)
+        QTimer::singleShot(0, this, [this] {
+            if (m_outlineOn) m_outline->rebuild();
+            refreshUi();
+        });
+    });
     connect(m_outline, &QTreeWidget::itemDoubleClicked, this, [this](QTreeWidgetItem *item) {
         // (A double click on a row opens the text there in the pages; the arrow in front of a heading expands and collapses it.)
         if (item && item->childCount() == 0) {

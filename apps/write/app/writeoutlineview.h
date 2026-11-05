@@ -39,12 +39,17 @@ public:
     // Whether the headings are collapsed: for tests, the words of each row that is shown.
     QStringList shownRows() const;
 
+Q_SIGNALS:
+    // Words typed into a row: the place in the text of its paragraph and the new words.
+    void textTyped(int position, const QString &text);
+
 private:
     void applyLevel();
     void applyLook(QTreeWidgetItem *item);
     write::WriteDoc *m_doc = nullptr;
     int m_level = 0;
     bool m_formatting = true, m_firstLine = false;
+    bool m_building = false;
     QSet<QString> m_collapsed;   // (level and words of a collapsed heading)
 };
 

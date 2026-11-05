@@ -497,6 +497,45 @@ private Q_SLOTS:
         doc->undo();
         QCOMPARE(doc->toDocx(), bytes);
     }
+
+    void aParagraphsWordsCanBeChangedFromTheOutline()
+    {
+        auto doc = outlineDoc({{"One", 0}, {"some body", kBodyLevel}, {"Two", 1}});
+        QVector<OutlineRow> rows = outlineRows(*doc);
+        QVERIFY(rows[0].editable && rows[1].editable);
+        QVERIFY(outlineSetText(*doc, rows[0].position, QStringLiteral("First")));
+        QCOMPARE(texts(*doc), (QStringList{"First", "some body", "Two"}));
+        QCOMPARE(levels(*doc), (QList<int>{0, kBodyLevel, 1}));   // (the heading stays a heading)
+        QVERIFY(outlineSetText(*doc, outlineRows(*doc)[1].position, QStringLiteral("")));
+        QCOMPARE(texts(*doc), (QStringList{"First", "", "Two"}));
+        QVERIFY(outlineSetText(*doc, outlineRows(*doc)[2].position, QStringLiteral("Second\nline")));   // (a line break is a space)
+        QCOMPARE(texts(*doc).last(), QStringLiteral("Second line"));
+        doc->undo();
+        QCOMPARE(texts(*doc).last(), QStringLiteral("Two"));
+        // A paragraph that holds a field is left as it is.
+        QTextCursor c(doc->story());
+        c.setPosition(outlineRows(*doc)[1].position);
+        QVERIFY(insertField(*doc, c, QStringLiteral("= 2 + 3")));
+        rows = outlineRows(*doc);
+        QVERIFY(!rows[1].editable);
+        QVERIFY(!outlineSetText(*doc, rows[1].position, QStringLiteral("x")));
+    }
+
+    void theOutlineViewTakesTypedWordsIntoTheDocument()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(outlineDoc({{"One", 0}, {"body", kBodyLevel}}), QString());
+        w.setOutlineMode(true);
+        QTreeWidgetItem *item = w.outlineView()->topLevelItem(0);
+        QVERIFY(item && (item->flags() & Qt::ItemIsEditable));
+        item->setText(0, QStringLiteral("Renamed"));   // (what the editing box does when it is accepted)
+        QCOMPARE(texts(*w.document()).first(), QStringLiteral("Renamed"));
+        QCOMPARE(levels(*w.document()).first(), 0);
+        w.document()->undo();
+        QCOMPARE(w.outlineView()->topLevelItem(0)->text(0), QStringLiteral("One"));
+    }
 };
 
 QTEST_MAIN(Tabs2Tests)

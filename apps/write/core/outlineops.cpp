@@ -3,6 +3,7 @@
 #include "core/editops.h"
 #include "core/writeprops.h"
 
+#include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -35,6 +36,7 @@ QVector<OutlineRow> outlineRows(WriteDoc &doc)
         r.position = b.position();
         r.level = levelOf(b);
         r.text = b.text();
+        r.editable = !r.text.contains(QChar(0xFFFC)) && !b.blockFormat().hasProperty(prop::RawBlock);
         r.text.replace(QChar::LineSeparator, QLatin1Char(' ')).remove(QChar(0xFFFC));
         rows << r;
     }
@@ -47,6 +49,26 @@ int outlineSubtreeEnd(const QVector<OutlineRow> &rows, int i)
     int j = i + 1;
     while (j < rows.size() && rows[j].level > rows[i].level) ++j;
     return j;
+}
+
+bool outlineSetText(WriteDoc &doc, int position, const QString &textIn)
+{
+    const QVector<OutlineRow> rows = outlineRows(doc);
+    const int i = rowAt(rows, position);
+    if (i < 0 || !rows[i].editable) return false;
+    QString text = textIn;
+    text.replace(QRegularExpression(QStringLiteral("[\\r\\n\\x{2028}\\x{2029}]+")), QStringLiteral(" "));
+    QTextBlock b = doc.story()->findBlock(rows[i].position);
+    QTextCursor c(doc.story());
+    c.setPosition(b.position());
+    c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+    const WriteDoc::StepGroup group(doc);
+    if (text.isEmpty()) {
+        if (c.hasSelection()) removeSelection(doc, c);
+        return true;
+    }
+    insertText(doc, c, text);
+    return true;
 }
 
 bool outlineSetLevel(WriteDoc &doc, int first, int last, int level)
