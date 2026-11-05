@@ -1,3 +1,5 @@
+#include "sheet/htmlbook.h"
+#include "wml/wmlhtmlread.h"
 #include "sheet/sheetreader.h"
 #include "sheet/xmlscan.h"
 #include "sheet/builtinstyles.h"
@@ -1605,6 +1607,21 @@ bool SheetReader::read(QIODevice *in)
                 x14Text = x14Which == 1 ? &x14Rule.formula1 : &x14Rule.formula2;
             } else if (inX14Rule && depth == 6 && isElement(r, "sqref")) {
                 x14Text = &x14Ranges;
+            } else if (depth == 3 && isElement(r, "protectedRange")) {
+                if (m_sheet.protection.editRanges.size() < kMaxEditRanges) {
+                    EditRange range;
+                    range.title = attribute(r, "name").toString().left(255);
+                    range.sqref = attribute(r, "sqref").toString().left(4096);
+                    range.securityDescriptor = attribute(r, "securityDescriptor").toString().left(4096);
+                    range.password.legacy = attribute(r, "password").toString().left(16);
+                    range.password.algorithm = attribute(r, "algorithmName").toString().left(32);
+                    range.password.hash = attribute(r, "hashValue").toString().left(1024);
+                    range.password.salt = attribute(r, "saltValue").toString().left(1024);
+                    bool spinOk = false;
+                    const qint64 spin = attribute(r, "spinCount").toString().toLongLong(&spinOk);
+                    range.password.spin = spinOk ? spin : 0;
+                    if (!range.sqref.isEmpty()) m_sheet.protection.editRanges.append(range);
+                }
             } else if (depth == 3 && inMerge && isElement(r, "mergeCell")) {
                 ok = startMerge(r);
             } else if (depth == 3 && inIgnored && isElement(r, "ignoredError")) {
@@ -2213,6 +2230,8 @@ bool Workbook::openBinaryWith(const QByteArray &file, QString *error, const Limi
     if (!startsCompoundFile(file)) {
         // (a stream with no container: the forms before BIFF5, which says so; or not a workbook of this kind at all)
         const bool stream = file.size() >= 4 && quint8(file[0]) == 0x09 && (quint8(file[1]) == 0x00 || quint8(file[1]) == 0x02 || quint8(file[1]) == 0x04 || quint8(file[1]) == 0x08);
+        // (a web page saved with a name of a workbook: its tables are the sheets)
+        if (!stream && (wml::looksLikeHtml(file) || file.left(1024).toLower().contains("<html"))) return openHtml(file, QString(), error, limits);
         if (!stream) {
             const QString kind = plainKindOfText(file);
             if (!kind.isEmpty()) {
@@ -2329,9 +2348,10 @@ bool Workbook::openFileWith(const QString &path, QString *error, const Limits &l
     if (!zip) {
         // (an OpenDocument spreadsheet in its flat XML form, or a text file of delimited values by its name)
         const bool flat = looksLikeFlatOpenDocument(head);
-        if (flat || isDelimitedName(path)) {
+        if (flat || isDelimitedName(path) || isHtmlName(path)) {
             QByteArray text;
             if (!readWholeFile(path, &text, error, limits.fileBytes)) return false;
+            if (!flat && isHtmlName(path)) return openHtml(text, path, error, limits);
             return flat ? openOpenDocument(text, true, error, limits) : openDelimited(text, path, error, limits);
         }
         const QString kind = plainKindOfText(head);

@@ -448,6 +448,7 @@ private:
     void prepareSheetList();
     bool openOpenDocument(const QByteArray &file, bool flat, QString *error, const Limits &limits);
     bool openDelimited(const QByteArray &file, const QString &path, QString *error, const Limits &limits);
+    bool openHtml(const QByteArray &file, const QString &path, QString *error, const Limits &limits);
     void nameBaseParts();
     Package m_package;
     std::shared_ptr<const XlsBook> m_xls;

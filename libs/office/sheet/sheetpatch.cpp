@@ -977,7 +977,13 @@ const QList<QByteArray> &afterProtection()
 
 QByteArray tailWithProtection(const QByteArray &after, const SheetProtection &protection, const QByteArray &prefix)
 {
-    return tailWithElement(after, "sheetProtection", sheetProtectionElement(protection, prefix), afterProtection());
+    const QByteArray withProtection = tailWithElement(after, "sheetProtection", sheetProtectionElement(protection, prefix), afterProtection());
+    static const QList<QByteArray> afterRanges = [] {
+        QList<QByteArray> l = afterProtection();
+        l.removeAll("protectedRanges");
+        return l;
+    }();
+    return tailWithElement(withProtection, "protectedRanges", protectedRangesElement(protection, prefix), afterRanges);
 }
 
 // The element that names the drawing of the notes (`legacyDrawing`), where the format has it (after the drawing, before the header and footer pictures); not if the sheet has one.

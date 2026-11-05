@@ -5,6 +5,7 @@
 
 #include <QByteArray>
 #include <QString>
+#include <QVector>
 
 #include <atomic>
 
@@ -40,6 +41,19 @@ bool makePasswordHash(const QString &password, PasswordHash *out, const std::ato
 // The older 16-bit form of a password, as four upper-case hex digits (for the tests and for checking).
 QString legacyPasswordHash(const QString &password);
 
+// A range that can be edited on a protected sheet (Allow Edit Ranges): with no password, anyone may change its cells; with one, the cells are changed once it is given. The cells are named as
+// the file names them ("A1:B2 D4"); a `securityDescriptor` (the file's list of people who may edit without the password) is kept as it is read and never made here.
+struct EditRange {
+    QString title;
+    QString sqref;
+    PasswordHash password;
+    QString securityDescriptor;
+    // Whether the cell is in the range.
+    bool contains(quint32 row, quint32 col) const;
+    bool operator==(const EditRange &o) const { return title == o.title && sqref == o.sqref && password == o.password && securityDescriptor == o.securityDescriptor; }
+};
+constexpr int kMaxEditRanges = 256;
+
 struct SheetProtection {
     bool enabled = false;
     bool objects = true;     // drawing objects are protected
@@ -51,9 +65,13 @@ struct SheetProtection {
     bool allowDeleteColumns = false, allowDeleteRows = false;
     bool allowSort = false, allowFilter = false, allowPivot = false;
     PasswordHash password;
+    QVector<EditRange> editRanges;   // the ranges the protection leaves open (they are in the file whether or not the sheet is protected)
     bool operator==(const SheetProtection &o) const;
     bool operator!=(const SheetProtection &o) const { return !(*this == o); }
 };
+
+// The element `protectedRanges` made from the settings (empty when there are none).
+QByteArray protectedRangesElement(const SheetProtection &p, const QByteArray &prefix);
 
 // The element `sheetProtection` made from the settings (empty when not enabled); `prefix` is the namespace prefix of the sheet's elements ("" or "x:").
 QByteArray sheetProtectionElement(const SheetProtection &p, const QByteArray &prefix);
