@@ -970,7 +970,8 @@ private Q_SLOTS:
         // an axis title the same way
         answer = QStringLiteral("=Sheet1!$A$3");
         QVERIFY(fire({"Axis Titles", "Horizontal Title Text…"}));
-        const ChartAxis *across = primaryAxis(chartOf(e), true);
+        const Chart titled = chartOf(e);   // (kept: the axis points into it)
+        const ChartAxis *across = primaryAxis(titled, true);
         QVERIFY(across && across->title.present);
         QCOMPARE(across->title.ref, QStringLiteral("Sheet1!$A$3"));
         QCOMPARE(across->title.text, QStringLiteral("Q2"));
