@@ -423,6 +423,7 @@ private Q_SLOTS:
         QCOMPARE(d.model()->sortOrder(), Qt::AscendingOrder);
         QMetaObject::invokeMethod(d.table()->horizontalHeader(), "sectionClicked", Q_ARG(int, int(NamesModel::CommentColumn)));
         QCOMPARE(d.model()->sortOrder(), Qt::DescendingOrder);
+        saveShot(&d, QStringLiteral("names-sorted-flagged"));
         // the name that points to an error is marked, the others are not
         for (int r = 0; r < d.model()->rowCount(); ++r) {
             const QModelIndex at = d.model()->index(r, NamesModel::NameColumn);

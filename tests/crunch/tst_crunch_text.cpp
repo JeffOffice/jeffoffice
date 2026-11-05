@@ -9,6 +9,7 @@
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
+#include "findbooks.h"
 #include "../localepin.h"
 
 #include <QAction>
@@ -155,6 +156,7 @@ private Q_SLOTS:
         thousands->setCurrentIndex(thousands->findText(QStringLiteral("Point (.)")));
         minus->setChecked(true);
         const jp::office::sheet::CsvImport c = dialog.choices();
+        saveShot(&dialog, QStringLiteral("text-import-fixed"));
         QCOMPARE(c.decimalMark, QChar(','));
         QCOMPARE(c.thousandsMark, QChar('.'));
         QVERIFY(c.trailingMinus);
