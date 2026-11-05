@@ -1,5 +1,5 @@
 # Change JeffWrite's settings
-<!-- keywords: ctrl+click, follow link, drag and drop, personal information, remove personal information, advanced, units, measurements, inches, centimeters, options, settings, preferences, save, default format, default folder, default file location, recovery, formatting marks, gridlines, display, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about -->
+<!-- keywords: overtype, insert key, typing replaces selection, ctrl+click, follow link, drag and drop, personal information, remove personal information, advanced, units, measurements, inches, centimeters, options, settings, preferences, save, default format, default folder, default file location, recovery, formatting marks, gridlines, display, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about -->
 
 Your settings are in the **JeffWrite Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
@@ -29,7 +29,11 @@ A change on this page applies to the window you are in at once, and to each wind
 
 **Allow text to be dragged and dropped** lets you select words and drag them to a new place. Hold **Ctrl** while you drop to copy them instead of moving them. Turn it off if you drag by accident.
 
-These two choices apply to the window you are in at once, and to each window you open after it.
+**Typing replaces the selected text** is on at first: when words are selected and you type, the new letters take their place. Turn it off and the new letters go after the selected words instead.
+
+**Use the Insert key to turn overtype mode on and off** is off at first. When it is on, the **Insert** key switches between two ways of typing. Normally each letter you type pushes the letters after it along. In **overtype** mode each letter you type replaces the letter after the cursor. Press **Insert** again to go back.
+
+These choices apply to the window you are in at once, and to each window you open after it.
 
 ## Usage statistics
 

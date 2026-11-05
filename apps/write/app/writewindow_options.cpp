@@ -44,6 +44,8 @@ void WriteWindow::applyEditingDefaults()
 {
     m_view->setLinkNeedsCtrl(Settings::get().value(QStringLiteral("edit/ctrlClickLinks"), true).toBool());
     m_view->setDragTextOption(Settings::get().value(QStringLiteral("edit/dragText"), true).toBool());
+    m_view->setTypingReplaces(Settings::get().value(QStringLiteral("edit/typingReplaces"), true).toBool());
+    m_view->setInsertKeyOvertype(Settings::get().value(QStringLiteral("edit/insertKey"), false).toBool());
 }
 
 QVector<OptionsPage> WriteWindow::optionsPages()
@@ -54,7 +56,7 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         QLineEdit *folder = nullptr;
         QCheckBox *marks = nullptr, *grid = nullptr;
         QComboBox *units = nullptr;
-        QCheckBox *ctrlLinks = nullptr, *dragText = nullptr, *privacy = nullptr;
+        QCheckBox *ctrlLinks = nullptr, *dragText = nullptr, *replaces = nullptr, *insertKey = nullptr, *privacy = nullptr;
     };
     auto f = std::make_shared<Fields>();
     QVector<OptionsPage> pages;
@@ -139,12 +141,22 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         f->dragText->setObjectName(QStringLiteral("dragText"));
         f->dragText->setChecked(Settings::get().value(QStringLiteral("edit/dragText"), true).toBool());
         form->addRow(f->dragText);
+        f->replaces = new QCheckBox(QCoreApplication::translate("Dialogs", "Typing replaces the selected text"), page);
+        f->replaces->setObjectName(QStringLiteral("typingReplaces"));
+        f->replaces->setChecked(Settings::get().value(QStringLiteral("edit/typingReplaces"), true).toBool());
+        form->addRow(f->replaces);
+        f->insertKey = new QCheckBox(QCoreApplication::translate("Dialogs", "Use the Insert key to turn overtype mode on and off"), page);
+        f->insertKey->setObjectName(QStringLiteral("insertKeyOvertype"));
+        f->insertKey->setChecked(Settings::get().value(QStringLiteral("edit/insertKey"), false).toBool());
+        form->addRow(f->insertKey);
         return page;
     }, [this, f] {
         Settings::get().setUnit(static_cast<Unit>(f->units->currentData().toInt()));
         m_ruler->update();   // (the ruler's marks are in the unit chosen)
         Settings::get().setValue(QStringLiteral("edit/ctrlClickLinks"), f->ctrlLinks->isChecked());
         Settings::get().setValue(QStringLiteral("edit/dragText"), f->dragText->isChecked());
+        Settings::get().setValue(QStringLiteral("edit/typingReplaces"), f->replaces->isChecked());
+        Settings::get().setValue(QStringLiteral("edit/insertKey"), f->insertKey->isChecked());
         applyEditingDefaults();
     }};
     return pages;

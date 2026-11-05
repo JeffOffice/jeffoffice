@@ -478,6 +478,58 @@ private Q_SLOTS:
         Settings::get().setValue(QStringLiteral("edit/dragText"), true);
     }
 
+    // Options > Advanced: typing replaces the selected text unless asked not to, and the Insert key turns on overtype when it is let to.
+    void theAdvancedPageSetsWhetherTypingReplacesTheSelectionAndOvertype()
+    {
+        Settings::get().setValue(QStringLiteral("edit/typingReplaces"), true);
+        Settings::get().setValue(QStringLiteral("edit/insertKey"), false);
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("abcdef"));
+        auto select = [&](int from, int to) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            w.view()->setCursor(c);
+        };
+        auto text = [&] { return w.document()->story()->toPlainText(); };
+        select(1, 3);
+        QTest::keyClicks(w.view(), QStringLiteral("X"));
+        QCOMPARE(text(), QStringLiteral("aXdef"));
+        // Overtype does nothing until the Insert key is let to.
+        select(1, 1);
+        QTest::keyClick(w.view(), Qt::Key_Insert);
+        QVERIFY(!w.view()->overtype());
+        auto set = [&](const char *name, bool on) {
+            QVector<OptionsPage> pages = w.optionsPages();
+            QList<QWidget *> built;
+            for (const OptionsPage &p : pages) built << p.build();
+            for (QWidget *page : built)
+                if (auto *b = page->findChild<QCheckBox *>(QString::fromLatin1(name))) b->setChecked(on);
+            for (const OptionsPage &p : pages)
+                if (p.apply) p.apply();
+            qDeleteAll(built);
+        };
+        set("typingReplaces", false);
+        select(1, 3);
+        QTest::keyClicks(w.view(), QStringLiteral("Y"));
+        QCOMPARE(text(), QStringLiteral("aXdYef"));
+        set("typingReplaces", true);
+        set("insertKeyOvertype", true);
+        select(0, 0);
+        QTest::keyClick(w.view(), Qt::Key_Insert);
+        QVERIFY(w.view()->overtype());
+        QTest::keyClicks(w.view(), QStringLiteral("12"));
+        QCOMPARE(text(), QStringLiteral("12dYef"));
+        QTest::keyClick(w.view(), Qt::Key_Insert);
+        QVERIFY(!w.view()->overtype());
+        QTest::keyClicks(w.view(), QStringLiteral("Z"));
+        QCOMPARE(text(), QStringLiteral("12Zd" "Yef"));
+        Settings::get().setValue(QStringLiteral("edit/typingReplaces"), true);
+        Settings::get().setValue(QStringLiteral("edit/insertKey"), false);
+    }
+
     void printingOnlyOddOrEvenPagesAndInReverse()
     {
         WriteWindow w;

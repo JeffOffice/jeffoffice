@@ -173,6 +173,15 @@ void PageView::selectAll()
 void PageView::insertText(const QString &text)
 {
     if (!m_doc) return;
+    if (m_cursor.hasSelection() && !m_typingReplaces) {
+        m_cursor.setPosition(m_cursor.selectionEnd());
+    } else if (m_overtype && !m_cursor.hasSelection()) {
+        // Overtype: the letters typed take the place of those after the caret, as far as the paragraph goes.
+        const QTextBlock b = m_cursor.block();
+        const int room = b.position() + b.length() - 1 - m_cursor.position();
+        const int n = std::min<int>(room, int(text.size()));
+        if (n > 0) m_cursor.setPosition(m_cursor.position() + n, QTextCursor::KeepAnchor);
+    }
     write::insertText(*m_doc, m_cursor, text);
     caretMoved();
 }
@@ -329,6 +338,12 @@ void PageView::keyPressEvent(QKeyEvent *e)
         return;
     default:
         break;
+    }
+    if (e->key() == Qt::Key_Insert && m_insertKeyOvertype && !(e->modifiers() & (Qt::ControlModifier | Qt::ShiftModifier))) {
+        m_overtype = !m_overtype;
+        Q_EMIT notice(m_overtype ? tr("Overtype: typing replaces the letters after the caret. Press Insert to go back.") : tr("Insert: typing pushes the letters after the caret along."));
+        e->accept();
+        return;
     }
     // Text: not a shortcut (Ctrl alone), and not a control character.
     const QString text = e->text();
