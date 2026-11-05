@@ -134,7 +134,7 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
         QString path = askForSavePath(tr("Save as PDF"), QDir(dir).filePath(displayName() + QStringLiteral(".pdf")), tr("PDF (*.pdf)"));
         if (path.isEmpty()) return false;
         if (QFileInfo(path).suffix().compare(QLatin1String("pdf"), Qt::CaseInsensitive) != 0) path += QStringLiteral(".pdf");
-        ok = job->exportPdf(path, pages, &why, progressFunction(tr("Save as PDF"), tr("Making the pages...")));
+        ok = job->exportPdf(path, pages, &why, progressFunction(tr("Save as PDF"), tr("Making the pages...")), c.pagesPerSheet);
         if (!ok && job->wasCancelled()) {
             setStatus(tr("Saving the PDF was cancelled"));
             return false;
@@ -150,7 +150,7 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
         if (m_printerPreparer) m_printerPreparer(p);
         // a printer that can't make copies is sent the pages again, in the order the copies are to come out
         const bool again = p.outputFormat() == QPrinter::NativeFormat && !p.supportsMultipleCopies();
-        ok = job->printTo(&p, pages, &why, progressFunction(tr("Printing"), tr("Sending the pages...")), again ? c.copies : 1, c.collate);
+        ok = job->printTo(&p, pages, &why, progressFunction(tr("Printing"), tr("Sending the pages...")), again ? c.copies : 1, c.collate, c.pagesPerSheet);
         if (!ok && job->wasCancelled()) {
             setStatus(tr("Printing was cancelled"));
             return false;

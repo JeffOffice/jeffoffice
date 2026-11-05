@@ -1391,6 +1391,35 @@ private Q_SLOTS:
         QVERIFY(!w.findChild<QPushButton *>(QStringLiteral("printButton"))->isVisible());   // (the screen is closed)
     }
 
+    // Several pages on a sheet: the pages of the job are put 2, 4, and so on to a sheet of the file, so it has fewer sheets (3 pages: 2 sheets for 2 on a sheet, 1 for 4).
+    void severalPagesCanShareASheet()
+    {
+        auto sheetsWith = [&](int perSheet) {
+            EditWindow e;
+            if (!e.open(rowsWithFormulas(100, {}))) return -1;
+            CrunchWindow &w = e.win.w;
+            const QString target = e.folder.dir.filePath(QStringLiteral("n.pdf"));
+            w.setSavePicker([&](const QString &, const QString &) { return target; });
+            w.act(QStringLiteral("file.print"))->trigger();
+            QComboBox *printer = w.findChild<QComboBox *>(QStringLiteral("printPrinter"));
+            printer->setCurrentIndex(printer->count() - 1);
+            QComboBox *per = w.findChild<QComboBox *>(QStringLiteral("printPerSheet"));
+            if (!per) return -2;
+            per->setCurrentIndex(per->findData(perSheet));
+            w.findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+            QFile f(target);
+            if (!f.open(QIODevice::ReadOnly)) return -3;
+            const QByteArray pdf = f.readAll();
+            int pages = 0;
+            for (qsizetype at = pdf.indexOf("/Type /Page"); at >= 0; at = pdf.indexOf("/Type /Page", at + 1))
+                if (at + 11 >= pdf.size() || pdf[at + 11] != 's') ++pages;
+            return pages;
+        };
+        QCOMPARE(sheetsWith(1), 3);
+        QCOMPARE(sheetsWith(2), 2);
+        QCOMPARE(sheetsWith(4), 1);
+    }
+
     // The printer the pages go to is a QPrinter the window keeps: pages sent to one that writes a file are the pages of the job, with the copies the choices ask for.
     void pagesGoToAPrinterObject()
     {

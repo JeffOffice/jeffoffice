@@ -132,6 +132,13 @@ QWidget *CrunchFileScreen::buildPrint()
     sides->setCurrentIndex(std::max(0, sides->findData(int(choices.sides))));
     sides->setToolTip(tr("To print on both sides by hand, print the odd pages, turn the stack over, put it back in the printer, and then print the even pages."));
     form->addRow(tr("Sides:"), sides);
+    auto *perSheet = new QComboBox(w);
+    perSheet->setObjectName(QStringLiteral("printPerSheet"));
+    perSheet->setAccessibleName(tr("Pages on each sheet of paper"));
+    for (const int n : {1, 2, 4, 6, 9, 16}) perSheet->addItem(n == 1 ? tr("1 page on a sheet") : tr("%1 pages on a sheet").arg(n), n);
+    perSheet->setCurrentIndex(std::max(0, perSheet->findData(choices.pagesPerSheet)));
+    perSheet->setToolTip(tr("Print several pages, made smaller, on each sheet of paper. The preview shows one page at full size."));
+    form->addRow(tr("Pages on a sheet:"), perSheet);
     auto *collate = new QCheckBox(tr("Collated"), w);
     collate->setObjectName(QStringLiteral("printCollate"));
     collate->setChecked(choices.collate);
@@ -270,6 +277,7 @@ QWidget *CrunchFileScreen::buildPrint()
         c.job.scaling = crunch::PrintScaling(scaling->currentData().toInt());
         c.pageRange = range->text();
         c.sides = crunch::PrintSides(sides->currentData().toInt());
+        c.pagesPerSheet = perSheet->currentData().toInt();
         c.copies = copies->value();
         c.collate = collate->isChecked();
         c.toFile = printer->currentData(Qt::UserRole + 1).toBool();
@@ -377,6 +385,7 @@ QWidget *CrunchFileScreen::buildPrint()
         words();
     });
     connect(collate, &QCheckBox::toggled, w, [=] { win->printChoices() = read(); });
+    connect(perSheet, &QComboBox::currentIndexChanged, w, [=] { win->printChoices() = read(); });
     connect(printer, &QComboBox::currentIndexChanged, w, [=] { win->printChoices() = read(); });
     connect(previous, &QToolButton::clicked, w, [=] {
         --state->page;
