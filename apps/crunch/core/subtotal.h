@@ -5,6 +5,7 @@
 #include "core/editsession.h"
 
 #include <QCoreApplication>
+#include <functional>
 #include <vector>
 
 namespace jp::crunch {
@@ -23,10 +24,11 @@ struct SubtotalSpec {
     bool replace = true;               // subtotals already in the list are taken away first
 };
 
+// `beforeEnd` is called just before the step (one macro of the undo stack) ends, for a window that must note the changes first.
 // `region` is the list with its header row (the first row is not totaled). On success `groups` is the number of runs that got a subtotal row. Not ok, and nothing changed, if the list is
 // empty, has no header row to be below, or has too many runs.
-EditSession::Outcome applySubtotals(EditSession &session, int sheet, jp::office::sheet::CellRange region, const SubtotalSpec &spec, int *groups = nullptr);
+EditSession::Outcome applySubtotals(EditSession &session, int sheet, jp::office::sheet::CellRange region, const SubtotalSpec &spec, int *groups = nullptr, const std::function<void()> &beforeEnd = nullptr);
 // Takes away the rows that hold only text and SUBTOTAL formulas (one at least) inside `region`, and the outline of the rows left; `removed` is how many rows went.
-EditSession::Outcome removeSubtotals(EditSession &session, int sheet, jp::office::sheet::CellRange region, int *removed = nullptr);
+EditSession::Outcome removeSubtotals(EditSession &session, int sheet, jp::office::sheet::CellRange region, int *removed = nullptr, const std::function<void()> &beforeEnd = nullptr);
 
 } // namespace jp::crunch

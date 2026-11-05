@@ -414,6 +414,8 @@ private Q_SLOTS:
             {QStringLiteral("formulas.options"), menu},
             {QStringLiteral("sheet.tabColor"), menu},
             {QStringLiteral("sheet.unhide"), menu},
+            {QStringLiteral("formulas.errorChecking"), QStringLiteral("it tells in a message that no cell is wrong (the workbooks here have none), and shows its dialog only when one is")},
+            {QStringLiteral("formulas.evaluate"), QStringLiteral("it tells in a message to select a cell with a formula (none is selected here), and shows its dialog only for one")},
             {QStringLiteral("review.statistics"), QStringLiteral("it tells the numbers in a message and changes nothing in the workbook")},
         };
         m_app.neverRun = {

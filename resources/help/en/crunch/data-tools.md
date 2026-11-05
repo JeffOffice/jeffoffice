@@ -1,5 +1,5 @@
 # Data tools
-<!-- keywords: data, data tab, text to columns, split, separator, comma, tab, fixed width, remove duplicates, goal seek, subtotal, totals, advanced filter, conditions, repeated rows, unique, text file, csv, from text, columns, delimiter, quotes -->
+<!-- keywords: data, data tab, text to columns, split, separator, comma, tab, fixed width, remove duplicates, goal seek, subtotal, totals, advanced filter, conditions, data validation, consolidate, combine ranges, allow, list, drop-down, input message, error alert, repeated rows, unique, text file, csv, from text, columns, delimiter, quotes -->
 
 The **Data** tab has the tools that work on a list of values: getting text from a file, putting a list in order, cutting text into columns, and taking out repeated rows.
 
@@ -81,3 +81,35 @@ How to write a condition:
 - **>**, **>=**, **<**, **<=**, and **<>** (not equal) before a number or a word compare with it, such as **>25**. **<>** alone picks cells that are not empty.
 
 A row of conditions with nothing in it picks every row. To show the hidden rows again, choose **Clear**. A copy is made at once and does not change when the list does. Advanced Filter is one step that you can undo.
+
+## Data Validation
+
+Use this to say what may be typed in some cells, so that a wrong entry is stopped or questioned.
+
+1. Select the cells.
+2. Choose **Data Validation** in the **Data Tools** group of the **Data** tab.
+3. On the **Settings** tab, choose what to **Allow**: **Any value** (no rule), **Whole number**, **Decimal**, **List**, **Date**, **Time**, **Text length**, or **Custom**.
+4. For a number, date, time, or text length, choose **Data** (**between**, **not between**, **equal to**, and so on) and type the limits. A limit can be a value or a formula that starts with =.
+5. For a **List**, type the choices with commas between them, such as Red,Green,Blue, or type a range of cells after =, such as =$A$1:$A$5. The cell then shows an arrow with the choices. Turn off **In-cell drop-down** to hide the arrow.
+6. For **Custom**, type a formula that starts with =. The entry is allowed when the formula is true.
+7. **Ignore blank** lets an empty cell pass.
+
+On the **Input Message** tab, check the box and write a title and a message. They show beside the cell whenever it is selected.
+
+On the **Error Alert** tab, choose what happens to an entry that is not allowed. **Stop** refuses it. **Warning** asks whether to keep it. **Information** tells the person and keeps it. Write a title and a message for the alert.
+
+**Clear All** takes the rules off the selected cells. The new rule replaces any rule the selected cells had; other cells keep theirs. Changing rules is one step that you can undo, and the rules are saved in the file.
+
+## Consolidate
+
+Use this to combine ranges that look alike, such as the same table from several sheets, into one table.
+
+1. Choose **Consolidate** in the **Data Tools** group of the **Data** tab.
+2. Choose the **Function** to combine with, such as **Sum** or **Average**.
+3. Type a range in the box and press **Add**. Use **Sheet2!A1:C10** for a range on another sheet. Add each range you want to combine. Select a range in the list and press **Delete** to take it out.
+4. If the ranges have names in their first row, check **Top row holds the names of columns**. If they have names in their first column, check **Left column holds the names of rows**.
+5. In **Put the result at**, type the first cell for the result.
+6. Check **Create links to the source data** if each result should be a formula that reads its source cells, so it changes when they do. Without it, the results are plain numbers.
+7. Press **OK**.
+
+With no names checked, the cell at the same place in each range is combined (the first cell of every range, then the second, and so on). With names checked, cells with the same names are combined, wherever they are in each range, and a name that only some ranges have still gets a row or column. Consolidate is one step that you can undo.

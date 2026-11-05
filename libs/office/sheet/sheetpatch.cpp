@@ -615,6 +615,42 @@ QByteArray tailWithMerges(const QByteArray &after, const std::vector<CellRange> 
     return after.left(insertAt) + generated + after.mid(insertAt);
 }
 
+// What follows a sheet's cells with its rules of validation made from `rules`: in place of the element the file has, or where the format puts it. (Only for a sheet whose main namespace has
+// no prefix, which the writer of the rules does not use; with a prefix the file's element is left as it is.)
+QByteArray tailWithValidations(const QByteArray &after, const QVector<Validation> &rules, const QByteArray &prefix)
+{
+    if (!prefix.isEmpty()) return after;
+    const QByteArray generated = validationsXml(rules);
+    static const QList<QByteArray> later = {"hyperlinks", "printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks", "customProperties", "cellWatches", "ignoredErrors",
+                                            "smartTags", "drawing", "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
+    Tag t;
+    qsizetype pos = 0, existingStart = -1, existingEnd = -1, insertAt = -1;
+    int depth = 0;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                if (insertAt < 0) insertAt = t.start;   // </worksheet>
+                break;
+            }
+            if (depth == 0 && existingStart >= 0 && existingEnd < 0 && t.local == "dataValidations") existingEnd = t.end;
+            continue;
+        }
+        if (depth == 0) {
+            if (t.local == "dataValidations" && existingStart < 0) {
+                existingStart = t.start;
+                if (t.selfClosing) existingEnd = t.end;
+            } else if (insertAt < 0 && later.contains(QByteArray(t.local))) {
+                insertAt = t.start;
+            }
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    if (existingStart >= 0 && existingEnd >= 0) return after.left(existingStart) + generated + after.mid(existingEnd);
+    if (generated.isEmpty() || insertAt < 0) return after;
+    return after.left(insertAt) + generated + after.mid(insertAt);
+}
+
 // A filter as the element the file has it: the conditions of its columns, in order of column, and its sort state (as the file had it).
 QByteArray autoFilterElementOf(const AutoFilter &f, const QByteArray &prefix)
 {
@@ -1597,6 +1633,7 @@ public:
         for (const RowProps &p : changes.rows) rowFor(p.row).props = &p;
         if (changes.replaceColumns) m_columns = &changes.columns;
         if (changes.replaceMerges) m_merges = &changes.merges;
+        if (changes.replaceValidations) m_validations = &changes.validations;
         if (changes.setPage) m_page = &changes.page;
         m_drawingId = changes.drawingRelId.toLatin1();
         m_addTables = &changes.addTableRels;
@@ -2129,7 +2166,7 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || m_cond || !m_addTables->empty() || !m_removeTables->empty()) {
+        if (m_merges || m_validations || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || m_cond || !m_addTables->empty() || !m_removeTables->empty()) {
             // (what follows the cells is held whole to change its merged ranges, its filter, its page setup, and its drawing)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -2143,6 +2180,7 @@ private:
                 if (m_protection) tail = tailWithProtection(tail, *m_protection, m_prefix);
                 if (m_filter) tail = tailWithFilter(tail, *m_filter, m_prefix);
                 if (m_merges) tail = tailWithMerges(tail, *m_merges, m_prefix);
+                if (m_validations) tail = tailWithValidations(tail, *m_validations, m_prefix);
                 if (m_page) tail = patchPageSetupTail(tail, *m_page, m_prefix);
                 if (!m_drawingId.isEmpty()) tail = tailWithDrawing(tail, m_drawingId, m_prefix);
                 if (!m_legacyId.isEmpty()) tail = tailWithLegacyDrawing(tail, m_legacyId, m_prefix);
@@ -2189,6 +2227,7 @@ private:
     quint32 m_sharedUntil = 0;
     const std::vector<ColumnSpan> *m_columns = nullptr;
     const std::vector<CellRange> *m_merges = nullptr;
+    const QVector<Validation> *m_validations = nullptr;
     const PageSetup *m_page = nullptr;
     QByteArray m_drawingId;
     const QVector<SparklineGroup> *m_sparklines = nullptr;

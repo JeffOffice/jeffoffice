@@ -303,6 +303,9 @@
             {"large": "formulas.traceDependents", "keytip": "TD"},
             {"small": "formulas.removeArrows", "keytip": "RA"},
             {"small": "view.formulas", "keytip": "H"},
+            {"small": "formulas.errorChecking", "keytip": "EC"},
+            {"small": "formulas.watchWindow", "keytip": "WW"},
+            {"small": "formulas.evaluate", "keytip": "EF"},
             {"small": "formulas.circular", "keytip": "CR"}
           ]
         },
@@ -352,7 +355,9 @@
           "keytip": "ZD",
           "items": [
             {"large": "data.textToColumns", "keytip": "E"},
-            {"large": "data.removeDuplicates", "keytip": "M"}
+            {"large": "data.removeDuplicates", "keytip": "M"},
+            {"large": "data.validation", "keytip": "V"},
+            {"large": "data.consolidate", "keytip": "O"}
           ]
         },
         {

@@ -5,7 +5,9 @@
 #include "core/advancedfilter.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
+#include "core/formulasteps.h"
 #include "core/goalseek.h"
+#include "core/validationedit.h"
 #include "core/outline.h"
 #include "sheet/calculation.h"
 #include "app/functionargumentsdialog.h"
@@ -16,8 +18,10 @@
 
 #include <QAction>
 #include <QMenu>
+#include <QTableWidget>
 #include <QSettings>
 #include <QToolButton>
+#include <QSignalSpy>
 #include <QTest>
 #include <QUndoStack>
 #include "../localepin.h"
@@ -346,6 +350,248 @@ private Q_SLOTS:
         // and they are kept as written
         QCOMPARE(e.win.w.session()->editText(0, 3, 3), QStringLiteral("=SUM(Sheet1:Sheet3!A1)"));
         QCOMPARE(e.win.w.session()->editText(0, 7, 3), QStringLiteral("='Sheet2'!B2+Sheet3!A1"));   // (as typed)
+    }
+
+    void aStepMadeOfSeveralChangesLeavesTheWindowNotCalculating()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1==A1*2+3", "D1=Region", "E1=Sales", "D2=East", "E2=10", "D3=East", "E3=20", "D4=West", "E4=5",
+                                "G1=Region", "G2=East"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.goalSeekIn(QStringLiteral("B1"), QStringLiteral("11"), QStringLiteral("A1")));
+        QVERIFY(!w.isCalculating());   // (right after: the formulas were worked out before the step ended)
+        e.select(QStringLiteral("D2"));
+        QVERIFY(w.subtotalIn(0, 9, {1}));
+        QTRY_VERIFY_WITH_TIMEOUT(!w.isCalculating(), 5000);
+        QVERIFY(e.settle());
+        QVERIFY(w.advancedFilterIn(QStringLiteral("D1:E7"), QStringLiteral("G1:G2")));
+        QTRY_VERIFY_WITH_TIMEOUT(!w.isCalculating(), 5000);
+        QVERIFY(e.settle());
+        QVERIFY(!w.isCalculating());
+    }
+
+    void errorCheckingFindsFormulaErrorsAndNumbersKeptAsTextAndCanIgnoreThem()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1==A1/0", "A3=word", "B3==\"x\"+1", "A4=7", "B4==A4+1"})));
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("A2"));
+        e.enter(QStringLiteral("'12"));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        auto problems = w.formulaProblems();
+        QCOMPARE(problems.size(), size_t(3));
+        QCOMPARE(int(problems[0].row), 0);   // B1: divides by zero
+        QCOMPARE(int(problems[0].col), 1);
+        QVERIFY(problems[0].explanation.contains(QStringLiteral("divides by zero")));
+        QCOMPARE(int(problems[1].row), 1);   // A2: a number kept as text
+        QVERIFY(problems[1].kind == crunch::FormulaProblem::Kind::NumberAsText);
+        QCOMPARE(int(problems[2].row), 2);   // B3: text where a number is needed
+        QVERIFY(problems[2].explanation.contains(QStringLiteral("wrong kind")));
+        w.ignoreFormulaProblem(1, 0);
+        QCOMPARE(w.formulaProblems().size(), size_t(2));
+        // the command goes to each cell and says so when there is none
+        QStringList told;
+        w.setNotifier([&](const QString &, const QString &text) { told << text; });
+        w.ignoreFormulaProblem(0, 1);
+        w.ignoreFormulaProblem(2, 1);
+        QVERIFY(w.formulaProblems().empty());
+        QVERIFY(w.act(QStringLiteral("formulas.errorChecking"))->isEnabled());
+        w.act(QStringLiteral("formulas.errorChecking"))->trigger();
+        QCOMPARE(told.size(), 1);
+    }
+
+    void theWatchWindowListsWatchedCellsAndKeepsTheirValuesCurrent()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=1", "B1==A1*2"}, {"A1=100"}})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.act(QStringLiteral("formulas.watchWindow"))->trigger();
+        QVERIFY(w.watchWindow());
+        QCOMPARE(w.watchWindow()->rowCount(), 0);
+        QVERIFY(w.addWatch(0, 0, 1));
+        QVERIFY(w.addWatch(1, 0, 0));
+        QVERIFY(!w.addWatch(0, 0, 1));   // (once)
+        QCOMPARE(w.watchWindow()->rowCount(), 2);
+        auto cell = [&](int r, int c) { return w.watchWindow()->table()->item(r, c)->text(); };
+        QCOMPARE(cell(0, 0), QStringLiteral("Sheet1"));
+        QCOMPARE(cell(0, 1), QStringLiteral("B1"));
+        QCOMPARE(cell(0, 2), QStringLiteral("2"));
+        QCOMPARE(cell(0, 3), QStringLiteral("=A1*2"));
+        QCOMPARE(cell(1, 0), QStringLiteral("Sheet2"));
+        QCOMPARE(cell(1, 2), QStringLiteral("100"));
+        // an edit that changes what a watched cell comes to shows
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("21"));
+        QVERIFY(e.settle());
+        QTRY_COMPARE(cell(0, 2), QStringLiteral("42"));
+    }
+
+    void evaluateFormulaWorksOutOnePartAtATime()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=2", "A2=3", "A3=5", "B1==(A1+A2)*SUM(A1:A3)"})));
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("B1"));
+        auto steps = e.win.w.formulaStepsOfCursorCell();
+        QVERIFY(steps);
+        QCOMPARE(steps->text(), QStringLiteral("(A1+A2)*SUM(A1:A3)"));
+        QCOMPARE(steps->text().mid(steps->underlineStart(), steps->underlineLength()), QStringLiteral("A1"));   // the leftmost cell first
+        QStringList seen{steps->text()};
+        for (int i = 0; i < 20 && !steps->finished(); ++i) {
+            QVERIFY2(steps->step(), qPrintable(steps->problem()));
+            seen << steps->text();
+        }
+        QCOMPARE(seen, (QStringList{"(A1+A2)*SUM(A1:A3)", "(2+A2)*SUM(A1:A3)", "(2+3)*SUM(A1:A3)", "5*SUM(A1:A3)", "5*10", "50"}));
+        QVERIFY(steps->finished());
+        QVERIFY(!steps->step());
+        steps->restart();
+        QCOMPARE(steps->text(), QStringLiteral("(A1+A2)*SUM(A1:A3)"));
+        // a cell that holds no formula has none to go through
+        e.select(QStringLiteral("A1"));
+        QVERIFY(!e.win.w.formulaStepsOfCursorCell());
+    }
+
+    void evaluateFormulaStopsAtAPartThatCannotBeWorkedOut()
+    {
+        crunch::FormulaSteps steps(QStringLiteral("1+NOSUCH(2)"), [](const QString &part, QString *problem) -> std::optional<QString> {
+            if (part.contains(QStringLiteral("NOSUCH"))) {
+                *problem = QStringLiteral("unknown");
+                return std::nullopt;
+            }
+            return part;
+        });
+        QCOMPARE(steps.text().mid(steps.underlineStart(), steps.underlineLength()), QStringLiteral("NOSUCH(2)"));
+        QVERIFY(!steps.step());
+        QCOMPARE(steps.problem(), QStringLiteral("unknown"));
+        QCOMPARE(steps.text(), QStringLiteral("1+NOSUCH(2)"));
+        QVERIFY(!steps.finished());
+    }
+
+    void aRuleOfValidationTakesItsCellsFromTheRulesThatHadThem()
+    {
+        using jp::office::sheet::Validation;
+        Validation old;
+        old.type = Validation::Type::Whole;
+        old.formula1 = "1";
+        old.formula2 = "9";
+        old.ranges = {rangeOf(QStringLiteral("B1:B10"))};
+        Validation fresh;
+        fresh.type = Validation::Type::List;
+        fresh.formula1 = "\"a,b\"";
+        const auto rules = crunch::withRuleOn({old}, rangeOf(QStringLiteral("B3:B4")), fresh);
+        QCOMPARE(rules.size(), 2);
+        QCOMPARE(rules[0].ranges.size(), 2);   // B1:B2 and B5:B10
+        QVERIFY(rules[0].ranges[0] == rangeOf(QStringLiteral("B1:B2")));
+        QVERIFY(rules[0].ranges[1] == rangeOf(QStringLiteral("B5:B10")));
+        QVERIFY(rules[1].type == Validation::Type::List);
+        QVERIFY(rules[1].ranges[0] == rangeOf(QStringLiteral("B3:B4")));
+        // a rule that allows any value and has no messages is no rule; it takes the cells' rules away
+        Validation none;
+        const auto cleared = crunch::withRuleOn(rules, rangeOf(QStringLiteral("A1:C20")), none);
+        QVERIFY(cleared.isEmpty());
+        // the limits as the file writes them
+        bool ok = false;
+        QCOMPARE(crunch::validationLimitText(Validation::Type::List, QStringLiteral("a,b \"c\""), &ok), QStringLiteral("\"a,b \"\"c\"\"\""));
+        QVERIFY(ok);
+        QCOMPARE(crunch::validationLimitText(Validation::Type::List, QStringLiteral("=$A$1:$A$5"), &ok), QStringLiteral("$A$1:$A$5"));
+        QCOMPARE(crunch::validationLimitText(Validation::Type::Whole, QStringLiteral("12"), &ok), QStringLiteral("12"));
+        QCOMPARE(crunch::validationLimitText(Validation::Type::Date, QStringLiteral("1900-01-02"), &ok), QStringLiteral("2"));
+        crunch::validationLimitText(Validation::Type::Whole, QStringLiteral("many"), &ok);
+        QVERIFY(!ok);
+        QCOMPARE(crunch::validationLimitShown(Validation::Type::List, QStringLiteral("\"a,b\"")), QStringLiteral("a,b"));
+    }
+
+    void dataValidationIsEnforcedUndoneAndKeptInTheSavedFile()
+    {
+        using jp::office::sheet::Validation;
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1=5"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        const int steps = w.undoStack()->count();
+        Validation rule;
+        rule.type = Validation::Type::Whole;
+        rule.compare = Validation::Compare::Between;
+        rule.formula1 = "1";
+        rule.formula2 = "9";
+        rule.showError = true;
+        rule.errorTitle = "Too big";
+        rule.error = "Use 1 to 9.";
+        rule.showInput = true;
+        rule.prompt = "A digit";
+        QVERIFY(w.setValidationOn(rangeOf(QStringLiteral("B2:B3")), rule));
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        QVERIFY(w.calculation()->validationAt(0, 1, 1));
+        QVERIFY(!w.calculation()->validationAt(0, 0, 1));
+        // what is typed there is held to it
+        QVERIFY(!w.session()->type(0, 1, 1, QStringLiteral("20")).ok);
+        QVERIFY(w.session()->type(0, 1, 1, QStringLiteral("4")).ok);
+        QVERIFY(e.settle());
+        // kept in the file, with its messages, and read back
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY(saved.wait(20000) && saved.last().value(1).toBool());
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const Validation *back = second.w.calculation()->validationAt(0, 2, 1);
+        QVERIFY(back);
+        QVERIFY(back->type == Validation::Type::Whole);
+        QCOMPARE(back->formula2, QStringLiteral("9"));
+        QCOMPARE(back->error, QStringLiteral("Use 1 to 9."));
+        QCOMPARE(back->prompt, QStringLiteral("A digit"));
+        QVERIFY(!second.w.calculation()->validationAt(0, 0, 1));
+        // taken away again, and Undo gives it back
+        QVERIFY(w.setValidationOn(rangeOf(QStringLiteral("B2:B3")), std::nullopt));
+        QVERIFY(!w.calculation()->validationAt(0, 1, 1));
+        w.undoStack()->undo();
+        QVERIFY(w.calculation()->validationAt(0, 1, 1));
+        QVERIFY(w.act(QStringLiteral("data.validation"))->isEnabled());
+    }
+
+    void consolidateCombinesRangesByPositionAndByLabels()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=1", "B1=2", "A2=3", "B2=4", "G1=Q1", "F2=East", "G2=5", "F3=West", "G3=7"}, {"A1=10", "B1=20", "A2=30", "B2=40", "G1=Q1", "F2=West", "G2=3", "F3=North", "G3=1"}})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        const int steps = w.undoStack()->count();
+        // by position, with links: each result names its source cells
+        QVERIFY(w.consolidateIn({"A1:B2", "Sheet2!A1:B2"}, 9, false, false, true, QStringLiteral("D5")));
+        QVERIFY(e.settle());
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        QVERIFY(!w.isCalculating());
+        QCOMPARE(shown(e, QStringLiteral("D5:E6")), QStringLiteral("11|22|33|44"));
+        QCOMPARE(w.session()->editText(0, 4, 3), QStringLiteral("=SUM(A1,Sheet2!A1)"));
+        // by position, as numbers, with another function
+        QVERIFY(w.consolidateIn({"A1:B2", "Sheet2!A1:B2"}, 1, false, false, false, QStringLiteral("H5")));
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("H5:I6")), QStringLiteral("5.5|11|16.5|22"));
+        QCOMPARE(w.session()->editText(0, 4, 7), QStringLiteral("5.5"));
+        // by labels: the same label is combined, wherever it is
+        QVERIFY(w.consolidateIn({"F1:G3", "Sheet2!F1:G3"}, 9, true, true, false, QStringLiteral("J10")));
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("J10:K13")), QStringLiteral("|Q1|East|5|West|10|North|1"));
+        pressUndo(&w);
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("J10:K13")), QStringLiteral("|||||||"));
+    }
+
+    void consolidateRefusesWhatItCannotRead()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1"})));
+        QVERIFY(e.settle());
+        QStringList told;
+        e.win.w.setNotifier([&](const QString &, const QString &text) { told << text; });
+        QVERIFY(!e.win.w.consolidateIn({"nonsense"}, 9, false, false, false, QStringLiteral("D1")));
+        QVERIFY(!e.win.w.consolidateIn({"A1:A2"}, 9, false, false, false, QStringLiteral("not a cell")));
+        QVERIFY(!e.win.w.consolidateIn({}, 9, false, false, false, QStringLiteral("D1")));
+        QVERIFY(!e.win.w.consolidateIn({"A1:A2"}, 99, false, false, false, QStringLiteral("D1")));
+        QCOMPARE(told.size(), 4);
+        QVERIFY(e.win.w.act(QStringLiteral("data.consolidate"))->isEnabled());
     }
 
 private:

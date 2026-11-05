@@ -567,6 +567,12 @@ public:
         if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].tabColor = color;
     }
 
+    // The rules of validation of a sheet, put in (an edit of them, taken back, or done again).
+    void setValidations(int sheet, const QVector<Validation> &rules)
+    {
+        if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].validations = rules;
+    }
+
     // The sparklines of a sheet, put in (an edit of them, taken back, or done again).
     void setSparklines(int sheet, const QVector<SparklineGroup> &groups)
     {

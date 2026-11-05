@@ -13,6 +13,7 @@
 #include "app/filterpopup.h"
 #include "app/finddialog.h"
 #include "app/slicetuner.h"
+#include "app/watchwindow.h"
 #include "app/sortdialog.h"
 #include "core/csvexport.h"
 #include "app/formatdialog.h"
@@ -20,6 +21,8 @@
 #include "core/color.h"
 #include "core/auditing.h"
 #include "core/editsession.h"
+#include "core/errorcheck.h"
+#include "core/formulasteps.h"
 #include "core/formulaspot.h"
 #include "core/filterlist.h"
 #include "core/findrun.h"
@@ -870,6 +873,20 @@ private:
     jp::office::sheet::CellRange listRegion(const QString &title);   // (the selection, or the list around the cell with the cursor; not valid, and told, if none)
     // Waits (with the window's events going, but not a person's keys) until the formulas are worked out; false if that took too long.
     bool settleCalculation(int milliseconds = 20000);
+    void endEditStep(QUndoStack *stack);
+    void errorCheckingDialog();
+    void showWatchWindow();
+    void evaluateFormulaDialog();
+    void dataValidationDialog();
+    void consolidateDialog();
+    void refreshWatches();
+    struct Watch {
+        int sheet;
+        quint32 row, col;
+    };
+    QList<Watch> m_watches;
+    QPointer<WatchWindow> m_watchWindow;
+    std::vector<crunch::FormulaProblem> m_ignoredProblems;   // what the person chose to ignore in Error Checking (kept while the window is open)   // (ends a step made with beginMacro; see crunchwindow_tabs2.cpp)
 public:
     // Goal Seek without the question: the cell with the formula, the value wanted, and the cell to change (names such as "B3"). The solution is one step of Undo; false (nothing changed) if none was found.
     bool goalSeekIn(const QString &setCell, const QString &valueWanted, const QString &changeCell);
@@ -880,6 +897,23 @@ public:
     // Advanced Filter without the question: the list and the conditions as ranges ("A1:C20"), where to copy the rows to (a cell name; empty to hide the other rows in the list), and whether rows
     // that repeat an earlier one are left out. One step of Undo.
     bool advancedFilterIn(const QString &list, const QString &criteria, const QString &copyTo = QString(), bool unique = false);
+    // The cells of the sheet in view that Error Checking would show: a formula with an error, and a number kept as text (what was ignored is left out).
+    std::vector<crunch::FormulaProblem> formulaProblems() const;
+    // Ignores the problem of that cell for as long as the window is open.
+    void ignoreFormulaProblem(quint32 row, quint32 col);
+    // The cells the Watch Window lists (kept while the workbook is open), and adding one; false if it is watched already or too many are.
+    int watchCount() const { return int(m_watches.size()); }
+    bool addWatch(int sheet, quint32 row, quint32 col);
+    // The Watch Window itself (null until it is shown): the window is open for a test to look at.
+    WatchWindow *watchWindow() const { return m_watchWindow; }
+    // Evaluate Formula's step maker for the formula in the cell with the cursor (null if that cell holds no formula); for a test to go through the steps without the dialog.
+    std::unique_ptr<crunch::FormulaSteps> formulaStepsOfCursorCell();
+    // Data Validation without the question: `rule` (its cells are `where`) is what may be entered there, replacing the rules those cells had; no rule takes the cells' rules away.
+    // One step of Undo.
+    bool setValidationOn(const jp::office::sheet::CellRange &where, const std::optional<jp::office::sheet::Validation> &rule);
+    // Consolidate without the question: ranges as references ("Sheet2!A1:C10"; one without a sheet is on the sheet in view), the function (the number SUBTOTAL is called with), where the
+    // names are, whether the results link to their sources, and the cell the result starts at. One step of Undo.
+    bool consolidateIn(const QStringList &references, int function, bool topLabels, bool leftLabels, bool links, const QString &destination);
     // The functions used last, newest first (the Recently Used menu of the Formulas tab).
     QStringList recentFunctions() const;
     // The facts Workbook Statistics lists, as name and number: sheets, cells with data, formulas, charts, and pivot tables.

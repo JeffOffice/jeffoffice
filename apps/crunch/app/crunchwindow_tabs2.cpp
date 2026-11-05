@@ -2,13 +2,21 @@
 #include "app/crunchwindow.h"
 
 #include "app/advancedfilterdialog.h"
+#include "app/consolidatedialog.h"
+#include "app/errorcheckdialog.h"
+#include "app/evaluateformuladialog.h"
 #include "app/goalseekdialog.h"
 #include "app/subtotaldialog.h"
+#include "app/validationdialog.h"
+#include "app/watchwindow.h"
 #include "core/advancedfilter.h"
+#include "core/consolidate.h"
+#include "core/gotospecial.h"
 #include "core/goalseek.h"
 #include "core/loader.h"
 #include "core/sheetobjects.h"
 #include "core/subtotal.h"
+#include "core/validationedit.h"
 #include "core/workbookstats.h"
 #include "sheet/calculation.h"
 #include "sheet/cellref.h"
@@ -17,6 +25,7 @@
 #include <QElapsedTimer>
 #include <QUndoStack>
 
+#include <algorithm>
 #include <cmath>
 #include <optional>
 
@@ -27,8 +36,13 @@ void CrunchWindow::createTabs2Actions()
     mk("review.statistics", tr("Workbook Statistics"), "chart-no-axes-column", QKeySequence(), [this] { workbookStatisticsDialog(); });
     mk("data.goalSeek", tr("Goal Seek"), "target", QKeySequence(), [this] { goalSeekDialog(); });
     mk("data.advancedFilter", tr("Advanced"), "list-filter", QKeySequence(), [this] { advancedFilterDialog(); });
+    mk("formulas.errorChecking", tr("Error Checking…"), "triangle-alert", QKeySequence(), [this] { errorCheckingDialog(); });
+    mk("formulas.watchWindow", tr("Watch Window"), "eye", QKeySequence(), [this] { showWatchWindow(); });
+    mk("formulas.evaluate", tr("Evaluate Formula…"), "list-checks", QKeySequence(), [this] { evaluateFormulaDialog(); });
+    mk("data.validation", tr("Data Validation"), "list-checks", QKeySequence(), [this] { dataValidationDialog(); });
+    mk("data.consolidate", tr("Consolidate"), "combine", QKeySequence(), [this] { consolidateDialog(); });
     mk("data.subtotal", tr("Subtotal"), "sigma", QKeySequence(), [this] { subtotalDialog(); });
-    for (const char *id : {"review.statistics", "data.goalSeek", "data.subtotal", "data.advancedFilter"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"review.statistics", "data.goalSeek", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate"}) m_opsActions << QString::fromLatin1(id);
     updateEditActions();
 }
 
@@ -58,6 +72,14 @@ void CrunchWindow::workbookStatisticsDialog()
     QString text;
     for (const auto &row : statisticsRows()) text += row.first + QStringLiteral(": ") + row.second + QLatin1Char('\n');
     notice(tr("Workbook Statistics"), text.trimmed(), false);
+}
+
+// Ends a step made of several changes. The undo stack says "the index changed" only now, and the window would then take the changes for new work for the worker (and wait for a batch that
+// has already come, if the caller waited for the formulas). So the changes are noted as seen first; a caller that leaves work for the worker says so itself (m_calculating = true).
+void CrunchWindow::endEditStep(QUndoStack *stack)
+{
+    m_changesNoted = m_loader.changesMade();
+    stack->endMacro();
 }
 
 bool CrunchWindow::settleCalculation(int milliseconds)
@@ -157,9 +179,7 @@ bool CrunchWindow::goalSeekIn(const QString &setText, const QString &valueText, 
     };
     const crunch::GoalSeekResult found = crunch::goalSeek(trial, changeValue.isNumber() ? changeValue.number() : 0.0, target);
     if (found.found) put(found.input);
-    // (the formulas are worked out already: the step ending must not take the window for calculating again)
-    if (found.found && !failedToType) m_changesNoted = m_loader.changesMade();
-    stack->endMacro();
+    endEditStep(stack);
     if (failedToType) {
         stack->undo();
         notice(title, tr("The cell to change could not be changed."));
@@ -223,7 +243,7 @@ bool CrunchWindow::subtotalIn(int changeColumn, int function, const std::vector<
     for (const int c : columns) spec.columns.push_back(range.col1 + quint32(std::max(0, c)));
     const qint64 before = m_loader.changesMade();
     int groups = 0;
-    const crunch::EditSession::Outcome o = crunch::applySubtotals(*m_session, m_sheet, range, spec, &groups);
+    const crunch::EditSession::Outcome o = crunch::applySubtotals(*m_session, m_sheet, range, spec, &groups, [this] { m_changesNoted = m_loader.changesMade(); });
     if (m_loader.changesMade() != before) m_calculating = true;
     if (!o.ok) {
         notice(tr("Subtotal"), o.problem);
@@ -240,7 +260,7 @@ bool CrunchWindow::removeSubtotalsIn()
     if (!range.valid) return false;
     const qint64 before = m_loader.changesMade();
     int removed = 0;
-    const crunch::EditSession::Outcome o = crunch::removeSubtotals(*m_session, m_sheet, range, &removed);
+    const crunch::EditSession::Outcome o = crunch::removeSubtotals(*m_session, m_sheet, range, &removed, [this] { m_changesNoted = m_loader.changesMade(); });
     if (m_loader.changesMade() != before) m_calculating = true;
     if (!o.ok) {
         notice(tr("Subtotal"), o.problem);
@@ -367,7 +387,7 @@ bool CrunchWindow::advancedFilterIn(const QString &listText, const QString &crit
             if (i < runs.size()) next = runs[i].second + 1;
         }
     }
-    stack->endMacro();
+    endEditStep(stack);
     if (m_loader.changesMade() != before) m_calculating = true;
     if (!out.ok) {
         stack->undo();
@@ -379,6 +399,233 @@ bool CrunchWindow::advancedFilterIn(const QString &listText, const QString &crit
         m_advancedRows.row1 = spec.list.row1 + 1;
     }
     setStatus(tr("%1 of %2 rows meet the conditions.").arg(found.rows.size()).arg(spec.list.row2 - spec.list.row1));
+    return true;
+}
+
+std::vector<crunch::FormulaProblem> CrunchWindow::formulaProblems() const
+{
+    std::vector<crunch::FormulaProblem> out;
+    if (!m_session) return out;
+    for (const crunch::FormulaProblem &p : crunch::findFormulaProblems(*m_session, m_sheet))
+        if (std::find(m_ignoredProblems.begin(), m_ignoredProblems.end(), p) == m_ignoredProblems.end()) out.push_back(p);
+    return out;
+}
+
+void CrunchWindow::ignoreFormulaProblem(quint32 row, quint32 col)
+{
+    for (const crunch::FormulaProblem &p : formulaProblems())
+        if (p.row == row && p.col == col) m_ignoredProblems.push_back(p);
+}
+
+void CrunchWindow::errorCheckingDialog()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !m_session) return;
+    const std::vector<crunch::FormulaProblem> problems = formulaProblems();
+    if (problems.empty()) {
+        notice(tr("Error Checking"), tr("No errors were found on this sheet."), false);
+        return;
+    }
+    QStringList cells, messages;
+    int first = 0;
+    const grid::Selection &sel = m_view->selection();
+    for (size_t i = 0; i < problems.size(); ++i) {
+        cells << jp::office::sheet::cellName(problems[i].row, problems[i].col);
+        messages << problems[i].explanation;
+        if (first == 0 && (qint64(problems[i].row) > sel.activeRow || (qint64(problems[i].row) == sel.activeRow && qint64(problems[i].col) >= sel.activeCol))) first = int(i);
+    }
+    auto list = std::make_shared<std::vector<crunch::FormulaProblem>>(problems);
+    ErrorCheckDialog dialog(cells, messages, first, this);
+    connect(&dialog, &ErrorCheckDialog::showing, this, [this, list](int i) {
+        if (i >= 0 && i < int(list->size())) m_view->selectCell((*list)[size_t(i)].row, (*list)[size_t(i)].col);
+    });
+    connect(&dialog, &ErrorCheckDialog::ignored, this, [this, list](int i) {
+        if (i < 0 || i >= int(list->size())) return;
+        m_ignoredProblems.push_back((*list)[size_t(i)]);
+        list->erase(list->begin() + i);
+    });
+    dialog.exec();
+}
+
+bool CrunchWindow::addWatch(int sheet, quint32 row, quint32 col)
+{
+    constexpr int kMaxWatches = 500;
+    if (!m_session || m_watches.size() >= kMaxWatches) return false;
+    for (const Watch &w : m_watches)
+        if (w.sheet == sheet && w.row == row && w.col == col) return false;
+    m_watches.append({sheet, row, col});
+    refreshWatches();
+    return true;
+}
+
+void CrunchWindow::refreshWatches()
+{
+    if (!m_watchWindow) return;
+    QVector<QStringList> rows;
+    if (m_session && m_loaded && m_loaded->book) {
+        const auto &sheets = m_loaded->book->info().sheets;
+        for (const Watch &w : m_watches) {
+            if (w.sheet < 0 || w.sheet >= int(sheets.size()) || sheets[size_t(w.sheet)].deleted) continue;
+            const jp::calc::Value v = m_session->valueAt(w.sheet, w.row, w.col);
+            QString shown;
+            if (v.isNumber()) shown = QLocale().toString(v.number(), 'g', 12);
+            else if (v.isText()) shown = v.text();
+            else if (v.isBool()) shown = v.boolean() ? QStringLiteral("TRUE") : QStringLiteral("FALSE");
+            else if (v.isError()) shown = jp::calc::errorKindText(v.errorKind());
+            const QString held = m_session->editText(w.sheet, w.row, w.col);
+            rows.push_back({sheets[size_t(w.sheet)].name, jp::office::sheet::cellName(w.row, w.col), shown, held.startsWith(QLatin1Char('=')) ? held : QString()});
+        }
+    }
+    m_watchWindow->setRows(rows);
+}
+
+void CrunchWindow::showWatchWindow()
+{
+    if (!m_session) return;
+    if (!m_watchWindow) {
+        m_watchWindow = new WatchWindow(this);
+        connect(m_watchWindow, &WatchWindow::addRequested, this, [this] {
+            const jp::office::sheet::CellRange r = selectedRange();
+            for (quint32 row = r.row1; row <= r.row2 && row < r.row1 + 100; ++row)
+                for (quint32 col = r.col1; col <= r.col2 && col < r.col1 + 100; ++col)
+                    if (!addWatch(m_sheet, row, col)) return;
+        });
+        connect(m_watchWindow, &WatchWindow::deleteRequested, this, [this](const QList<int> &rows) {
+            for (int i = int(rows.size()) - 1; i >= 0; --i)
+                if (rows[i] >= 0 && rows[i] < m_watches.size()) m_watches.removeAt(rows[i]);
+            refreshWatches();
+        });
+        connect(m_watchWindow, &WatchWindow::goToRequested, this, [this](int i) {
+            if (i < 0 || i >= m_watches.size()) return;
+            const Watch w = m_watches[i];
+            if (w.sheet != m_sheet) setActiveSheet(w.sheet);
+            m_view->selectCell(w.row, w.col);
+        });
+        connect(this, &CrunchWindow::calculationFinished, m_watchWindow, [this] { refreshWatches(); });
+    }
+    refreshWatches();
+    m_watchWindow->show();
+    m_watchWindow->raise();
+}
+
+std::unique_ptr<crunch::FormulaSteps> CrunchWindow::formulaStepsOfCursorCell()
+{
+    if (!m_session) return nullptr;
+    const grid::Selection &sel = m_view->selection();
+    const quint32 row = quint32(std::max<qint64>(0, sel.activeRow)), col = quint32(std::max<qint64>(0, sel.activeCol));
+    const QString text = m_session->editText(m_sheet, row, col);
+    if (!text.startsWith(QLatin1Char('=')) || text.size() < 2) return nullptr;
+    const int sheet = m_sheet;
+    auto eval = [this, sheet, row, col](const QString &expression, QString *problem) -> std::optional<QString> {
+        const crunch::EditSession::Preview p = m_session->previewFormula(expression, sheet, row, col);
+        if (p.ok) return p.shown;
+        *problem = p.problem.isEmpty() ? tr("This part can't be worked out here.") : p.problem;
+        return std::nullopt;
+    };
+    return std::make_unique<crunch::FormulaSteps>(text.mid(1), eval);
+}
+
+void CrunchWindow::evaluateFormulaDialog()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !m_session) return;
+    const grid::Selection &sel = m_view->selection();
+    const quint32 row = quint32(std::max<qint64>(0, sel.activeRow)), col = quint32(std::max<qint64>(0, sel.activeCol));
+    const QString text = m_session->editText(m_sheet, row, col);
+    if (!text.startsWith(QLatin1Char('=')) || text.size() < 2) {
+        notice(tr("Evaluate Formula"), tr("Select a cell that holds a formula."));
+        return;
+    }
+    const int sheet = m_sheet;
+    auto eval = [this, sheet, row, col](const QString &expression, QString *problem) -> std::optional<QString> {
+        const crunch::EditSession::Preview p = m_session->previewFormula(expression, sheet, row, col);
+        if (p.ok) return p.shown;
+        *problem = p.problem.isEmpty() ? tr("This part can't be worked out here.") : p.problem;
+        return std::nullopt;
+    };
+    EvaluateFormulaDialog dialog(jp::office::sheet::cellName(row, col), text.mid(1), eval, this);
+    dialog.exec();
+}
+
+bool CrunchWindow::setValidationOn(const jp::office::sheet::CellRange &where, const std::optional<jp::office::sheet::Validation> &rule)
+{
+    if (!m_session || !editingAllowed()) return false;
+    const qint64 before = m_loader.changesMade();
+    const crunch::EditSession::Outcome o = m_session->setValidations(m_sheet, crunch::withRuleOn(m_session->validationsOf(m_sheet), where, rule), tr("Data Validation"));
+    if (m_loader.changesMade() != before) m_calculating = true;
+    if (!o.ok) {
+        notice(tr("Data Validation"), o.problem);
+        return false;
+    }
+    updateBars();
+    return true;
+}
+
+void CrunchWindow::dataValidationDialog()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed() || !m_session || !m_loaded || !m_loaded->calc) return;
+    const jp::office::sheet::CellRange where = selectedRange();
+    const grid::Selection &sel = m_view->selection();
+    const jp::office::sheet::Validation *held = m_loaded->calc->validationAt(m_sheet, quint32(std::max<qint64>(0, sel.activeRow)), quint32(std::max<qint64>(0, sel.activeCol)));
+    ValidationDialog dialog(held ? std::optional<jp::office::sheet::Validation>(*held) : std::nullopt, this);
+    for (;;) {
+        if (dialog.exec() != QDialog::Accepted) return;
+        if (dialog.clearAll()) {
+            setValidationOn(where, std::nullopt);
+            return;
+        }
+        QString problem;
+        const std::optional<jp::office::sheet::Validation> rule = dialog.rule(&problem);
+        if (!rule) {
+            notice(tr("Data Validation"), problem);
+            continue;
+        }
+        setValidationOn(where, rule);
+        return;
+    }
+}
+
+void CrunchWindow::consolidateDialog()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed() || !m_session) return;
+    const grid::Selection &sel = m_view->selection();
+    ConsolidateDialog dialog(jp::office::sheet::cellName(quint32(std::max<qint64>(0, sel.activeRow)), quint32(std::max<qint64>(0, sel.activeCol))), this);
+    if (dialog.exec() != QDialog::Accepted) return;
+    consolidateIn(dialog.references(), dialog.function(), dialog.topLabels(), dialog.leftLabels(), dialog.links(), dialog.destination());
+}
+
+bool CrunchWindow::consolidateIn(const QStringList &references, int function, bool topLabels, bool leftLabels, bool links, const QString &destination)
+{
+    if (!m_session || !editingAllowed()) return false;
+    const QString title = tr("Consolidate");
+    crunch::ConsolidateSpec spec;
+    spec.function = function;
+    spec.topLabels = topLabels;
+    spec.leftLabels = leftLabels;
+    spec.links = links;
+    spec.sheet = m_sheet;
+    for (const QString &ref : references) {
+        const crunch::GoToTarget t = crunch::resolveGoTo(*m_session, ref, m_sheet);
+        if (!t.ok || t.wholeRows || t.wholeColumns) {
+            notice(title, tr("%1 is not a range of cells. Write it as A1:C10, or Sheet2!A1:C10 for another sheet.").arg(ref));
+            return false;
+        }
+        spec.sources.push_back({t.sheet, t.range});
+    }
+    if (!jp::office::sheet::parseCellRef(destination, &spec.row, &spec.col)) {
+        notice(title, tr("Write where the result starts as a cell name, such as H1."));
+        return false;
+    }
+    const qint64 before = m_loader.changesMade();
+    jp::office::sheet::CellRange written;
+    const crunch::EditSession::Outcome o = crunch::consolidate(*m_session, spec, &written, [this] { m_changesNoted = m_loader.changesMade(); });
+    if (m_loader.changesMade() != before) m_calculating = true;
+    if (!o.ok) {
+        notice(title, o.problem);
+        return false;
+    }
     return true;
 }
 

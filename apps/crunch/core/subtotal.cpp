@@ -81,7 +81,7 @@ const std::vector<SubtotalFunction> &subtotalFunctions()
     return all;
 }
 
-EditSession::Outcome removeSubtotals(EditSession &session, int sheet, CellRange region, int *removed)
+EditSession::Outcome removeSubtotals(EditSession &session, int sheet, CellRange region, int *removed, const std::function<void()> &beforeEnd)
 {
     if (removed) *removed = 0;
     if (!region.valid) return refuse(QCoreApplication::translate("jp::crunch::Subtotal", "Select a cell in the list first."));
@@ -110,6 +110,7 @@ EditSession::Outcome removeSubtotals(EditSession &session, int sheet, CellRange 
             if (outline.levelOf(row) > 0) changes.push_back({row, 0, 0, 0});
         if (!changes.empty()) out = session.changeOutline(sheet, false, changes, QCoreApplication::translate("jp::crunch::Subtotal", "Remove All Subtotals"));
     }
+    if (beforeEnd) beforeEnd();
     stack->endMacro();
     if (!out.ok) {
         stack->undo();
@@ -119,7 +120,7 @@ EditSession::Outcome removeSubtotals(EditSession &session, int sheet, CellRange 
     return EditSession::Outcome();
 }
 
-EditSession::Outcome applySubtotals(EditSession &session, int sheet, CellRange region, const SubtotalSpec &spec, int *groups)
+EditSession::Outcome applySubtotals(EditSession &session, int sheet, CellRange region, const SubtotalSpec &spec, int *groups, const std::function<void()> &beforeEnd)
 {
     if (groups) *groups = 0;
     if (!region.valid || region.row2 <= region.row1) return refuse(QCoreApplication::translate("jp::crunch::Subtotal", "Select a cell in a list that has a header row and rows of data."));
@@ -135,7 +136,7 @@ EditSession::Outcome applySubtotals(EditSession &session, int sheet, CellRange r
     EditSession::Outcome out;
     if (spec.replace) {
         int removed = 0;
-        out = removeSubtotals(session, sheet, region, &removed);
+        out = removeSubtotals(session, sheet, region, &removed, beforeEnd);
         region.row2 -= quint32(removed);
     }
     // the runs of equal entries
@@ -183,6 +184,7 @@ EditSession::Outcome applySubtotals(EditSession &session, int sheet, CellRange r
         const auto changes = outline.group(runs[i].first + shift, runs[i].last + shift);
         if (!changes.empty()) out = session.changeOutline(sheet, false, changes, QCoreApplication::translate("jp::crunch::Subtotal", "Subtotal"));
     }
+    if (beforeEnd) beforeEnd();
     stack->endMacro();
     if (!out.ok) {
         stack->undo();

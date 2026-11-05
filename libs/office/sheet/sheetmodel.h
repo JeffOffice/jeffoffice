@@ -1374,6 +1374,7 @@ struct Sheet {
     bool rowSpecsAreIds = false;      // (a workbook that holds its formulas in the id frame keeps the specs of rows by id: an insert or delete of rows moves none, and Undo has none to put back)
     AutoFilter autoFilter;            // the sheet's filter (not valid when it has none)
     QVector<Validation> validations;  // the rules for what may be put in cells
+    bool validationsInExtension = false;   // some of them are in the file's 2010 extension (they are kept there; a change to the rules is not written over them)
     QVector<CondRule> conditionalFormats;   // the rules of conditional formatting, by priority
     QVector<SparklineGroup> sparklineGroups;   // the sparklines (see sheet/sparkline.h)
     bool sparklinesLossy = false;     // the file has sparkline parts that the model does not hold whole: they are shown, and written back only as the file has them

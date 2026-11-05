@@ -1737,6 +1737,7 @@ bool SheetReader::read(QIODevice *in)
                 x14Text = nullptr;
             } else if (inX14Rule && depth == 5) {
                 inX14Rule = false;
+                m_sheet.validationsInExtension = true;
                 if (!x14Rule.ranges.isEmpty() && m_sheet.validations.size() < kMaxValidations) m_sheet.validations.append(x14Rule);
             } else if (inX14Rules && depth == 4) {
                 inX14Rules = false;
