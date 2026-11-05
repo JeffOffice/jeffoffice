@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, title text, legend key -->
+<!-- keywords: chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -40,6 +40,7 @@ When a chart is picked, two buttons appear beside it and a **Chart** tab appears
 - **Move Chart…** on the **Chart** tab asks for another worksheet and puts the chart there, in the same cells. It still reads the cells it read, and keeps its size and its place on the sheet, even where the rows and columns are taller or wider, and it moves and sizes with the cells there as it did. Sheets that are hidden are not offered. It is one **Undo**, even after you saved. A chart sheet (a sheet that is only a chart) can't be made yet, and a chart that is on one can't be moved.
 - **Chart Title** and **Axis Titles** (in the **+** menu) also have **Title Text…**. Type the words you want. Or type an equals sign and a cell, such as **=Sheet1!A1**, and the title shows what that cell holds. When the cell changes, so does the title. The file keeps the link.
 - **Save as Picture…** on the **Chart** tab (and in the right-click menu) saves the picked chart as a **PNG** or **JPEG** picture file, twice as large as it is on the sheet so it stays sharp.
+- **Save as Template…** and **Apply Template…** (on the **Chart** tab, in the **Type** group) keep a chart's look in a **.crtx** file and give it to another chart. The look is the kind, the colors, the title and legend settings, the axes, and the fonts. The chart you apply it to keeps its own numbers and the cells it reads. One **Undo** takes the look away again.
 - **Chart Kind** changes the kind for the whole chart, or for each series: columns with a line over them, or a series against a second vertical axis.
 
 A reference to cells is written like **Sheet1!$B$2:$B$9**, with the sheet's name in single quotes when it has spaces.

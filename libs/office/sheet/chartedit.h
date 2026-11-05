@@ -52,6 +52,13 @@ void setAxisShown(Chart *chart, bool horizontal, bool shown, bool secondary = fa
 void setAxisTitle(Chart *chart, bool horizontal, bool shown, bool secondary = false);
 // Gridlines across the chart (`horizontal`) or up and down it, major or minor.
 void setGridlines(Chart *chart, bool horizontal, bool minor, bool shown);
+// A chart as a template file (.crtx): a package that holds the chart's part. Its look is what a template is for; the data it shows goes with it, as a chart's file has it.
+QByteArray chartTemplateFile(const Chart &chart);
+// The chart a template file holds; false, with a reason, if it is not one.
+bool readChartTemplate(const QByteArray &file, Chart *out, QString *why = nullptr);
+// `target` in the look of `look`: its kinds, axes, legend, title and text settings, fills, and the look of each series (a series past those of `look` takes the look of its last); the data,
+// the names, and the cells it reads stay `target`'s.
+Chart chartWithLook(const Chart &target, const Chart &look);
 // "" takes the legend away; else "r", "l", "t", or "b".
 void setLegend(Chart *chart, const QString &position, bool overlay = false);
 // A trendline of this kind on every series that can have one (none, with an empty `kind`); a series that has one of another kind is given this kind and keeps how far it runs and what it shows.

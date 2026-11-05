@@ -414,6 +414,8 @@ private Q_SLOTS:
             {QStringLiteral("formulas.options"), menu},
             {QStringLiteral("sheet.tabColor"), menu},
             {QStringLiteral("sheet.unhide"), menu},
+            {QStringLiteral("chartdesign.saveTemplate"), QStringLiteral("it writes a template file and nothing on the screen changes; the chart tests open the file")},
+            {QStringLiteral("chartdesign.applyTemplate"), QStringLiteral("it asks for a file in a box the check closes; the chart tests apply a template")},
             {QStringLiteral("chartdesign.saveAsPicture"), QStringLiteral("it writes a picture file and nothing on the screen changes; the chart tests open the file")},
         };
         m_app.neverRun = {

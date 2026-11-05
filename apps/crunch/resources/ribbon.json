@@ -523,7 +523,9 @@
           "name": "Type",
           "keytip": "ZT",
           "items": [
-            {"large": "chartdesign.changeType", "keytip": "CT"}
+            {"large": "chartdesign.changeType", "keytip": "CT"},
+            {"small": "chartdesign.saveTemplate", "keytip": "TS"},
+            {"small": "chartdesign.applyTemplate", "keytip": "TA"}
           ]
         },
         {

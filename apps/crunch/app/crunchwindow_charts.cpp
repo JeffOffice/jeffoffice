@@ -28,6 +28,8 @@
 #include <QToolButton>
 
 #include <QDir>
+#include <QFile>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <algorithm>
 
@@ -132,6 +134,8 @@ void CrunchWindow::createChartActions()
     mk("chartdesign.axisV", tr("Format Vertical Axis…"), "ruler", QKeySequence(), [this] { formatAxisDialog(false); }, false, false);
     mk("chartdesign.moveChart", tr("Move Chart…"), "move", QKeySequence(), [this] { moveChartDialog(); }, false, false);
     mk("chartdesign.saveAsPicture", tr("Save as Picture…"), "image-down", QKeySequence(), [this] { saveChartAsPicture(); }, false, false);
+    mk("chartdesign.saveTemplate", tr("Save as Template…"), "file-down", QKeySequence(), [this] { saveChartTemplate(); }, false, false);
+    mk("chartdesign.applyTemplate", tr("Apply Template…"), "file-up", QKeySequence(), [this] { applyChartTemplate(); }, false, false);
     mk("object.properties", tr("Properties…"), "sliders-horizontal", QKeySequence(), [this] { propertiesDialog(); }, false, false);
     mk("object.front", tr("Bring to Front"), "bring-to-front", QKeySequence(), [this] { reorderObject(2); }, false, false);
     mk("object.forward", tr("Bring Forward"), "arrow-up", QKeySequence(), [this] { reorderObject(1); }, false, false);
@@ -381,6 +385,47 @@ void CrunchWindow::saveChartAsPicture()
     if (ending != QLatin1String("png") && ending != QLatin1String("jpg") && ending != QLatin1String("jpeg")) path += QStringLiteral(".png");
     if (!image.save(path)) notice(tr("Save as Picture"), tr("The picture could not be saved to \"%1\".").arg(QDir::toNativeSeparators(path)));
     else setStatus(tr("Saved the chart as a picture."));
+}
+
+// Save as Template: the picked chart's look, in a .crtx file that any chart can be given (Apply Template).
+void CrunchWindow::saveChartTemplate()
+{
+    const int id = pickedObject();
+    if (id < 0 || !m_session || !m_objects || m_chartSheetShown || m_objects->kindOf(m_sheet, id) != ObjectKind::Chart) return;
+    const QString chosen = askForSavePath(tr("Save as Template"), m_objects->nameOf(m_sheet, id) + QStringLiteral(".crtx"), tr("Chart templates (*.crtx)"));
+    if (chosen.isEmpty()) return;
+    QString path = chosen;
+    if (QFileInfo(path).suffix().compare(QLatin1String("crtx"), Qt::CaseInsensitive) != 0) path += QStringLiteral(".crtx");
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly) || f.write(chartTemplateFile(m_objects->chartNow(m_sheet, id))) < 0)
+        notice(tr("Save as Template"), tr("The template could not be saved to \"%1\".").arg(QDir::toNativeSeparators(path)));
+    else
+        setStatus(tr("Saved the chart as a template."));
+}
+
+// Apply Template: the picked chart takes the look of a template file and keeps its data.
+void CrunchWindow::applyChartTemplate()
+{
+    const int id = pickedObject();
+    if (id < 0 || !m_session || !m_objects || m_chartSheetShown) return;
+    QString why;
+    if (!m_objects->canEditChart(m_sheet, id, &why)) {
+        notice(tr("Apply Template"), why);
+        return;
+    }
+    const QString path = m_templatePicker ? m_templatePicker() : QFileDialog::getOpenFileName(this, tr("Apply Template"), QString(), tr("Chart templates (*.crtx)"));
+    if (path.isEmpty()) return;
+    QFile f(path);
+    Chart look;
+    if (!f.open(QIODevice::ReadOnly) || f.size() > (qint64(64) << 20)) {
+        notice(tr("Apply Template"), tr("The template \"%1\" could not be read.").arg(QDir::toNativeSeparators(path)));
+        return;
+    }
+    if (!readChartTemplate(f.readAll(), &look, &why)) {
+        notice(tr("Apply Template"), why);
+        return;
+    }
+    changePickedChart(tr("Apply Template"), [look](Chart *c) { *c = chartWithLook(*c, look); });
 }
 
 void CrunchWindow::propertiesDialog()
@@ -888,6 +933,8 @@ void CrunchWindow::updateChartState()
         act(QStringLiteral("chartdesign.axisV"))->setEnabled(e.hasVertical);
     }
     act(QStringLiteral("chartdesign.saveAsPicture"))->setEnabled(chart);
+    act(QStringLiteral("chartdesign.saveTemplate"))->setEnabled(chart);
+    act(QStringLiteral("chartdesign.applyTemplate"))->setEnabled(editable);
     for (const char *name : {"object.properties", "object.front", "object.forward", "object.backward", "object.back", "object.delete"}) act(QString::fromLatin1(name))->setEnabled(picked);
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Chart"), chart);
     m_chartButtonsTimer.start();
@@ -972,6 +1019,8 @@ QMenu *CrunchWindow::buildObjectMenu(int id, QWidget *owner)
         menu->addAction(act(QStringLiteral("chartdesign.selectData")));
         menu->addAction(act(QStringLiteral("chartdesign.changeType")));
         menu->addAction(act(QStringLiteral("chartdesign.saveAsPicture")));
+        menu->addAction(act(QStringLiteral("chartdesign.saveTemplate")));
+        menu->addAction(act(QStringLiteral("chartdesign.applyTemplate")));
         if (editable) {
             QMenu *elements = buildChartElementsMenu(menu);
             elements->setTitle(tr("Chart Parts"));

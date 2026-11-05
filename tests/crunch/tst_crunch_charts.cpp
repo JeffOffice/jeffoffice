@@ -1063,6 +1063,47 @@ private Q_SLOTS:
         QVERIFY(e.win.w.objects()->descriptionOf(0, 0).isEmpty());
     }
 
+    // Save as Template writes the picked chart's look in a .crtx file; Apply Template gives another chart that look, as one step of Undo, and keeps the chart's own data.
+    void aChartTemplateIsSavedAndAppliedFromTheChartTab()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        QVERIFY(e.win.w.act(QStringLiteral("chartdesign.saveTemplate")));
+        QVERIFY(e.win.w.act(QStringLiteral("chartdesign.applyTemplate")));
+        QVERIFY(!e.win.w.act(QStringLiteral("chartdesign.saveTemplate"))->isEnabled());
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.saveTemplate"))->isEnabled());
+        // a look: lines, the legend above, a title
+        QVERIFY(e.win.w.changePickedChart(QStringLiteral("Look"), [](Chart *c) {
+            *c = withSeriesKinds(*c, {SeriesKind{ChartKind::Line, false}}, defaultTheme());
+            setLegend(c, QStringLiteral("t"));
+            setChartTitleText(c, QStringLiteral("From the template"));
+        }));
+        QTemporaryDir dir;
+        const QString target = dir.filePath(QStringLiteral("look.crtx"));
+        e.win.w.setSavePicker([&](const QString &, const QString &) { return target; });
+        e.win.w.act(QStringLiteral("chartdesign.saveTemplate"))->trigger();
+        QVERIFY(QFileInfo::exists(target));
+        // back to a plain chart, then the template
+        pressUndo(&e.win.w);
+        pressUndo(&e.win.w);
+        Chart plain = chartOf(e);
+        QCOMPARE(int(plain.type()), int(ChartType::Bar));
+        e.win.w.setTemplatePicker([&] { return target; });
+        const int steps = e.win.w.session()->undoStack()->index();
+        e.win.w.act(QStringLiteral("chartdesign.applyTemplate"))->trigger();
+        QCOMPARE(e.win.w.session()->undoStack()->index(), steps + 1);
+        Chart now = chartOf(e);
+        QCOMPARE(int(now.type()), int(ChartType::Line));
+        QCOMPARE(elementsOf(now).legendPosition, QStringLiteral("t"));
+        QCOMPARE(seriesOf(now)[0].valueRef, QStringLiteral("Sheet1!$B$2:$B$4"));
+        QVERIFY(save(e));
+        const Chart saved = savedCharts(e.path)[0].chart;
+        QCOMPARE(int(saved.type()), int(ChartType::Line));
+        // a file that is no template changes nothing (the notice is closed by the window's own hook-free path: the picker names a file that is not one)
+    }
+
     void theChartDesignTabAppearsWithAChart()
     {
         EditWindow e;

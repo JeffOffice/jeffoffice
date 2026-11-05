@@ -1,5 +1,8 @@
 #include "sheet/chartedit.h"
 
+#include "io/zip.h"
+#include "office/chart_write.h"
+#include "office/theme.h"
 #include <QCoreApplication>
 
 #include <algorithm>
@@ -288,6 +291,123 @@ void setAxisFormat(Chart *chart, bool horizontal, bool secondary, const ChartAxi
     a->labelPosition = from.labelPosition;
     a->hasRotation = from.hasRotation;
     a->labelRotation = from.labelRotation;
+}
+
+QByteArray chartTemplateFile(const Chart &chart)
+{
+    jp::ZipWriter zip;
+    zip.add(QStringLiteral("[Content_Types].xml"),
+            QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
+                       "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/>"
+                       "<Override PartName=\"/chart.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/></Types>"),
+            true);
+    zip.add(QStringLiteral("_rels/.rels"),
+            QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                       "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"chart.xml\"/></Relationships>"),
+            true);
+    Chart held = chart;
+    held.clearPartLinks();
+    zip.add(QStringLiteral("chart.xml"), writeChartPart(held), true);
+    return zip.finish();
+}
+
+bool readChartTemplate(const QByteArray &file, Chart *out, QString *why)
+{
+    QMap<QString, QByteArray> parts;
+    QString problem;
+    if (!jp::readZip(file, parts, &problem)) {
+        if (why) *why = QCoreApplication::translate("Chart", "This is not a chart template.");
+        return false;
+    }
+    // (the part the package's relationships call its document, else any part that is a chart)
+    QByteArray xml;
+    const QByteArray rels = parts.value(QStringLiteral("_rels/.rels"));
+    const int at = int(rels.indexOf("officeDocument\""));
+    if (at >= 0) {
+        const int t = int(rels.indexOf("Target=\"", at));
+        if (t >= 0) {
+            const int e = int(rels.indexOf('"', t + 8));
+            if (e > t) {
+                QString target = QString::fromUtf8(rels.mid(t + 8, e - t - 8));
+                if (target.startsWith(QLatin1Char('/'))) target.remove(0, 1);
+                xml = parts.value(target);
+            }
+        }
+    }
+    if (xml.isEmpty())
+        for (auto it = parts.cbegin(); it != parts.cend() && xml.isEmpty(); ++it)
+            if (it.key().endsWith(QLatin1String(".xml")) && it.value().contains("chartSpace")) xml = it.value();
+    QString error;
+    if (xml.isEmpty() || !readChart(xml, defaultTheme(), ColorMap(), out, &error)) {
+        if (why) *why = QCoreApplication::translate("Chart", "This is not a chart template.");
+        return false;
+    }
+    return true;
+}
+
+Chart chartWithLook(const Chart &target, const Chart &look)
+{
+    std::vector<const ChartSeries *> mine;
+    for (const ChartPlot &p : target.plots)
+        for (const ChartSeries &s : p.series) mine.push_back(&s);
+    struct Slot {
+        int plot, series;
+    };
+    std::vector<Slot> slots;
+    for (int p = 0; p < look.plots.size(); ++p)
+        for (int s = 0; s < look.plots[p].series.size(); ++s) slots.push_back({p, s});
+    if (mine.empty() || slots.empty()) return target;
+    Chart out = look;
+    // what is the target's own: the colors its series take, where it is drawn from, and the links its part has
+    out.palette = target.palette;
+    out.pivotName = target.pivotName;
+    out.pivotFmtId = target.pivotFmtId;
+    out.pivotTable = target.pivotTable;
+    out.externalAutoUpdate = target.externalAutoUpdate;
+    out.userShapesId = target.userShapesId;
+    out.externalDataId = target.externalDataId;
+    out.blanksAs = target.blanksAs;
+    out.plotVisibleOnly = target.plotVisibleOnly;
+    out.drawTrendlines = target.drawTrendlines;
+    if (target.title.present && out.title.present) {
+        out.title.text = target.title.text;
+        out.title.ref = target.title.ref;
+        out.title.automatic = target.title.automatic;
+    }
+    // (series past the look's take the look of its last, in the colors of the palette; series the target lacks are left out)
+    const int had = int(slots.size());
+    while (slots.size() < mine.size()) {
+        const Slot last = slots.back();
+        ChartSeries more = out.plots[last.plot].series[last.series];
+        more.colorFromFile = false;
+        more.pointColors.clear();
+        more.keptPoints.clear();
+        if (!out.palette.isEmpty()) more.color = out.palette[int(slots.size()) % out.palette.size()];
+        out.plots[last.plot].series.push_back(more);
+        slots.push_back({last.plot, int(out.plots[last.plot].series.size()) - 1});
+    }
+    for (int j = int(slots.size()) - 1; j >= int(mine.size()); --j) out.plots[slots[size_t(j)].plot].series.remove(slots[size_t(j)].series);
+    slots.resize(mine.size());
+    for (size_t j = 0; j < mine.size(); ++j) {
+        ChartSeries &s = out.plots[slots[j].plot].series[slots[j].series];
+        const ChartSeries &t = *mine[j];
+        s.name = t.name;
+        s.categories = t.categories;
+        s.values = t.values;
+        s.xValues = t.xValues;
+        s.format = t.format;
+        s.nameRef = t.nameRef;
+        s.categoryRef = t.categoryRef;
+        s.valueRef = t.valueRef;
+        s.xRef = t.xRef;
+        s.categoryRefNumeric = t.categoryRefNumeric;
+        s.categoryNumbers = t.categoryNumbers;
+        s.categoryFormat = t.categoryFormat;
+        if (int(j) >= had && out.palette.isEmpty()) s.color = t.color;
+    }
+    for (int p = int(out.plots.size()) - 1; p >= 0; --p)
+        if (out.plots[p].series.isEmpty()) out.plots.remove(p);
+    return out;
 }
 
 void setDataLabels(Chart *chart, bool shown, const QString &position)

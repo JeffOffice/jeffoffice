@@ -516,6 +516,51 @@ private Q_SLOTS:
         switchedRowsColumns(literal, defaultTheme(), &ok);
         QVERIFY(!ok);
     }
+
+    // A chart saved as a template file and read again keeps its look; applied to another chart it gives that chart the look and keeps its data.
+    void aChartTemplateKeepsTheLookAndNotTheData()
+    {
+        Chart look = columns(ChartKind::Line);
+        setLegend(&look, QStringLiteral("t"));
+        setChartTitleText(&look, QStringLiteral("Template title"));
+        look.plots[0].series[0].color = QColor("#FF0000");
+        look.plots[0].series[0].colorFromFile = true;
+        const QByteArray file = chartTemplateFile(look);
+        QVERIFY(!file.isEmpty());
+        Chart back;
+        QString why;
+        QVERIFY2(readChartTemplate(file, &back, &why), qPrintable(why));
+        QCOMPARE(int(back.type()), int(ChartType::Line));
+        QCOMPARE(elementsOf(back).legendPosition, QStringLiteral("t"));
+        QVERIFY(!readChartTemplate(QByteArray("not a package"), &back, &why));
+        QVERIFY(!why.isEmpty());
+        // one series of the target against two of the look
+        Chart target = columns(ChartKind::Column);
+        setChartTitleText(&target, QStringLiteral("Mine"));
+        const QString valueRef = target.plots[0].series[0].valueRef;
+        target.plots[0].series.removeLast();
+        const Chart made = chartWithLook(target, back);
+        QCOMPARE(int(made.type()), int(ChartType::Line));
+        QCOMPARE(elementsOf(made).legendPosition, QStringLiteral("t"));
+        QCOMPARE(made.plots[0].series.size(), 1);
+        QCOMPARE(made.plots[0].series[0].valueRef, valueRef);
+        QCOMPARE(made.plots[0].series[0].values, target.plots[0].series[0].values);
+        QCOMPARE(made.plots[0].series[0].color, QColor("#FF0000"));
+        QCOMPARE(made.title.text, QStringLiteral("Mine"));
+        // three series against the look's two: the third has the look of the second
+        Chart wide = columns(ChartKind::Column);
+        ChartSeries extra = wide.plots[0].series[1];
+        extra.name = QStringLiteral("Extra");
+        extra.valueRef = QStringLiteral("Sheet1!$D$2:$D$4");
+        wide.plots[0].series.push_back(extra);
+        const Chart three = chartWithLook(wide, back);
+        int count = 0;
+        for (const ChartPlot &p : three.plots) count += int(p.series.size());
+        QCOMPARE(count, 3);
+        QCOMPARE(three.plots[0].series.last().valueRef, QStringLiteral("Sheet1!$D$2:$D$4"));
+        // and the result is a chart that is written and read again
+        QCOMPARE(roundTrip(three).plots[0].series.size(), three.plots[0].series.size());
+    }
 };
 
 JP_TEST_CLASS(SheetChartEditTests)
