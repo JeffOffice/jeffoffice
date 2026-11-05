@@ -1,4 +1,4 @@
-// Tests of what a person does with a block of cells besides typing in it: AutoSum and the functions of its menu, fill, the clipboard, inserting and deleting, the sizes of rows and
+// Tests of what a person does with a block of cells besides typing in it: Sum and the functions of its menu, fill, the clipboard, inserting and deleting, the sizes of rows and
 // columns, and the rules of validation. Every workbook is built here, in a temporary folder; each step is one on the undo stack.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
@@ -1173,9 +1173,9 @@ private Q_SLOTS:
         }
     }
 
-    // ---- AutoSum
+    // ---- Sum
 
-    // AutoSum on one cell below numbers puts =SUM over the numbers above it in the cell to be edited (Enter keeps it); with none above it takes the numbers to its left; with neither it
+    // Sum on one cell below numbers puts =SUM over the numbers above it in the cell to be edited (Enter keeps it); with none above it takes the numbers to its left; with neither it
     // gives =SUM() with the cursor inside the brackets. The keys are the platform's.
     void autoSumGuessesTheRangeOfNumbers()
     {
@@ -1223,7 +1223,7 @@ private Q_SLOTS:
         e.key(Qt::Key_Escape);
     }
 
-    // The menu of AutoSum: Average, How Many Numbers, Max, and Min work the same way.
+    // The menu of Sum: Average, How Many Numbers, Max, and Min work the same way.
     void autoSumsMenuHasTheOtherFunctions()
     {
         EditWindow e;

@@ -79,7 +79,7 @@ What JeffMail offers that the original doesn't, then the plans that go past it.
 - [~] **first release** Proofing: spelling as you type, ignored words, custom dictionaries, and AutoCorrect, shared with the editor *(shared: JeffPub's Proofing options)*
 - [ ] **1.0** Search: which accounts and folders are indexed, and the status of the index
 - [ ] **1.0** Accessibility: high contrast, text size, a screen-reader-friendly list layout, and no motion
-- [ ] **1.0** Customize the Ribbon and the Quick Access Toolbar, and customize the keyboard (assign keys to commands, Quick Steps, and signatures)
+- [ ] **1.0** Customize the Ribbon and the quick toolbar, and customize the keyboard (assign keys to commands, Quick Steps, and signatures)
 - [ ] **1.0** Advanced: where the local copy is kept and how large it may grow, the sound and look of reminders, the proxy to use, and the log of what the program sent and received (with passwords hidden)
 
 ## Accounts and sign-in
@@ -201,12 +201,12 @@ The main window, then reading a message, then writing one. Everything that file,
 - [ ] **later** **(alt)** Translate a message or a selection with a model that runs on your own computer, if a small enough open one exists; no cloud translation
 
 ### Writing a message: Message tab
-- [ ] **first release** Send, with the From picker for the account and identity; a draft saved automatically every few minutes in the account's Drafts folder; and Close asking to keep or discard *(shared: AutoRecover keeps unsent text after a crash)*
+- [ ] **first release** Send, with the From picker for the account and identity; a draft saved automatically every few minutes in the account's Drafts folder; and Close asking to keep or discard *(shared: automatic recovery keeps unsent text after a crash)*
 - [ ] **first release** To, Cc, and Bcc boxes with completion from contacts, recent recipients, and the autocomplete list; Check Names (resolves each name, and asks when a name matches two people); Address Book to pick from; and contact groups expanded, or kept as one name until Send
 - [ ] **first release** Show Bcc and Show From toggles
 - [ ] **first release** Attach File by button, drag, or paste, with a list of recent files, a remove button, and the size shown against the account's limit
 - [ ] **first release** Signatures: several per account, one default for new messages and another for replies and forwards, text or formatted with pictures, placed above or below the quoted text, and edited in the same editor
-- [~] **first release** Basic text from JeffWrite's editor: font, size, bold, italic, underline, strikethrough, color, highlight, bulleted and numbered lists, alignment, indents, text direction, Clear Formatting, Format Painter, and the paste choices (keep source formatting, merge, or text only) *(shared: JeffWrite's editor)*
+- [~] **first release** Basic text from JeffWrite's editor: font, size, bold, italic, underline, strikethrough, color, highlight, bulleted and numbered lists, alignment, indents, text direction, Clear Formatting, Copy Formatting, and the paste choices (keep source formatting, merge, or text only) *(shared: JeffWrite's editor)*
 - [~] **first release** Spelling as you type, the Spelling and Grammar dialog (F7), and the language of the selection, with Harper for English grammar *(shared: libs/shell spelling; Harper shared with JeffWrite)*
 - [ ] **first release** The message body is written as clean HTML that other mail programs show the same way (tables and plain styles, not floating objects), with a plain-text twin sent beside it, or as plain text only; plain text wraps lines in the format other programs repair
 - [ ] **first release** Reply and forward layout: reply above or below the quote, an attribution line in the message's language, the quote marked by indent or by a prefix, and the choice to include, attach, or leave out the original
@@ -250,7 +250,7 @@ The main window, then reading a message, then writing one. Everything that file,
 ### Keyboard and menus
 - [~] **first release** KeyTips and the ribbon by keyboard, with a visible focus ring *(shared: libs/shell)*
 - [ ] **first release** The original's keyboard shortcuts for the common commands (new message, reply, reply all, forward, send, mark read and unread, move, flag, search, go to a module, new appointment, contact, and task, and send/receive)
-- [ ] **1.0** Quick Access Toolbar *(shared: libs/shell)*
+- [ ] **1.0** quick toolbar *(shared: libs/shell)*
 
 ## Calendar
 
@@ -543,7 +543,7 @@ The suite-wide map of shared parts, [shared.md](shared.md), says where each live
 What JeffMail builds on, and the pieces it should build so that JeffWrite, JeffCrunch, JeffDeck, JeffPub, and JeffBase can use them.
 
 ### Already there
-- [~] **first release** libs/shell: the window, ribbon, KeyTips, file pages, Help, translations, AutoRecover, settings, spelling, updates, statistics, and crash reports
+- [~] **first release** libs/shell: the window, ribbon, KeyTips, file pages, Help, translations, automatic recovery, settings, spelling, updates, statistics, and crash reports
 - [~] **first release** libs/text and libs/page: the text engine and editor that JeffWrite's flowing editor grows from, and the one JeffMail's composer uses
 - [~] **first release** libs/office: Open XML packages and readers, used for attachment previews of Word, Excel, and PowerPoint files
 - [~] **first release** libs/base: zip and compound files (`.msg`), PDF reading and writing, fonts, barcodes, and the 12-language dictionaries

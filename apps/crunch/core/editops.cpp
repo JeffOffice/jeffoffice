@@ -1,4 +1,4 @@
-// What a person does with a block of cells besides typing in it: AutoSum, fill, the clipboard. Each makes the changes for one step of the undo stack.
+// What a person does with a block of cells besides typing in it: Sum, fill, the clipboard. Each makes the changes for one step of the undo stack.
 #include "core/editsession.h"
 
 #include "sheet/cellref.h"

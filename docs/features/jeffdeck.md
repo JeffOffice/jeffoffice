@@ -77,7 +77,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** Open with Ctrl+O, Browse, the Pinned and Recent lists (pin, unpin, remove; a file that can't be found is gray); a file opens in the current window when it holds an untouched new presentation, and in a window of its own otherwise
 - [x] **1.0** Save (Ctrl+S) and Save As (F12) with a kind chosen by ending (`.pptx`, `.potx`, `.ppsx`, `.odp`, `.otp`); a star in the title bar marks unsaved changes; Close asks first; the old file is kept when the new one can't be written
 - [x] **1.0** A file that is not entirely readable opens with the rest and lists what it left out; a file that can't be read at all says why
-- [x] **1.0** AutoRecover every 10 minutes for each presentation with unsaved changes, offered again after a crash, and Recover Unsaved Work on the Open page
+- [x] **1.0** automatic recovery every 10 minutes for each presentation with unsaved changes, offered again after a crash, and Recover Unsaved Work on the Open page
 - [~] **1.0** Open and Repair: recover what can be read from a damaged file *(a damaged `.pptx` or `.odp` opens with what can be read, as above; Open > More Ways to Open > Open and Repair also finds the parts of a `.pptx` cut short or with its directory gone by their own headers, keeps what broke part way, and opens the result as a copy with a note of what was left out; a badly damaged `.ppt` is refused; shared: libs/office repair)*
 - [x] **1.0** Save a Copy (keeps working in the original) and Save as Template from the File screen *(Save as Template puts a `.potx` in My Templates)*
 - [x] **1.0** Open read-only, open as a copy, and open in a new window *(More Ways to Open on the Open page, and the right-click menu of the Recent list)*
@@ -116,9 +116,9 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [ ] **1.0** AutoCorrect Options window: the replacement list, exceptions, capitalization rules, and math symbols *(only check boxes now)*
 - [x] **1.0** View: show the ruler, and snap objects to other objects
 - [x] **1.0** Save: embed the bundled fonts the slides use, on by default
-- [ ] **1.0** Save options: default format, AutoRecover interval, and default folder
+- [ ] **1.0** Save options: default format, automatic recovery interval, and default folder
 - [ ] **1.0** Advanced: undo steps, the default slide show choices, print choices, cut and paste choices, and picture quality
-- [ ] **1.0** Customize the Quick Access Toolbar *(fixed at Undo, Redo, and From Beginning today)* and the ribbon
+- [ ] **1.0** Customize the quick toolbar *(fixed at Undo, Redo, and From Beginning today)* and the ribbon
 - [ ] **1.0** Trust Center equivalents: what happens with linked files, linked media, and macros (kept, never run)
 - [ ] **later** Customize the keyboard: assign keys to commands, with the original's shortcuts as the starting set
 - [~] **later** Accessibility options: high contrast, sound and animation feedback, and keyboard focus *(follows the system theme; the ribbon has KeyTips)*
@@ -132,7 +132,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 ### Clipboard
 - [x] **1.0** Paste, Cut, and Copy of text and objects, inside JeffDeck and to and from other programs (text, formatted text, and pictures), by the usual keys
 - [~] **1.0** Paste options: keep source formatting, use the destination theme, paste as a picture, and keep text only, with Paste Special for the list of forms *(the editor can paste text only, but no command or key reaches it; formatted text from a web page keeps its formatting)*
-- [x] **1.0** Format Painter for text and objects, once or, with Shift on the button, many times
+- [x] **1.0** Copy Formatting for text and objects, once or, with Shift on the button, many times
 - [ ] **1.0** Cut, copy, and paste whole slides in the slides pane and the Slide Sorter, with the choice to keep the source formatting or use the destination theme *(Duplicate Slide and Ctrl+D in the sorter exist; no slide clipboard was found)*
 - [ ] **later** The Clipboard pane that keeps the last 24 items
 
@@ -309,7 +309,7 @@ PowerPoint's Draw tab is for ink on slides while editing. JeffDeck has ink only 
 
 ## Slide Show tab
 
-- [x] **1.0** From Beginning (F5, and a button on the Quick Access Toolbar) and From Current Slide (Shift+F5, and a button on the status bar)
+- [x] **1.0** From Beginning (F5, and a button on the quick toolbar) and From Current Slide (Shift+F5, and a button on the status bar)
 - [x] **1.0** Custom Slide Show: a list of your custom shows to play, and the Custom Shows window to make (New, with slides added, reordered, and removed), edit, copy, and delete them; a slide may be in a show twice; saved in the file *(custom shows: ours 0 of 19)*
 - [x] **1.0** Set Up Slide Show: Presented by a speaker (full screen), Browsed by an individual (window), and Browsed at a kiosk (full screen, always loops, moves on only by timings); loop until Esc; show without animation; pen color and laser color; all slides, a range, or a custom show; advance manually or by timings; saved in the file *(kiosk or loop: ours 0 of 19; slides that advance by a time: 0 of 19)*
 - [x] **1.0** Hide Slide, Rehearse Timings (a bar with Next, Pause, this slide's time, Repeat, and the total; offers to keep the times at the end), and Use Timings
@@ -650,7 +650,7 @@ What JeffDeck builds on, and the pieces to build once so that JeffWrite, JeffCru
 - [~] **1.0** libs/page: the document of placed objects (each slide is a page, each layout a master page), its editor (undo as one step, selection, text editing, align and distribute, connectors that stay attached), canvas, proofing dialogs, options, Online Pictures, the icon picker, and the Text Art gallery, shared with JeffPub; the search for Find and Replace and the spelling help for the right-click menu are shared, and the crop tool still sits in JeffPub's own code
 - [~] **1.0** libs/office: Open XML packages, themes, DrawingML shapes, text, and tables (read and written), charts (read from their stored values and drawn), the Escher drawing reader for `.ppt`, and the embedded-font readers; JeffDeck adds the presentation parts (apps/deck/io)
 - [~] **1.0** libs/draw, libs/text, and libs/base: shapes, fills, effects, text art, SVG, picture effects, the text engine, colors, fonts, barcodes, zip and compound files, EMF and WMF, PDF, and the dictionaries
-- [~] **1.0** libs/shell: the window, ribbon, KeyTips, file pages, Help, translations, AutoRecover, settings, spelling, updates, and statistics
+- [~] **1.0** libs/shell: the window, ribbon, KeyTips, file pages, Help, translations, automatic recovery, settings, spelling, updates, and statistics
 - [x] **1.0** JeffDeck's own pieces in apps/deck/core: themes and their application, the animation model and its editing, sections, comments, slide reuse, ink, show settings, media, and embedded fonts
 
 ### To build once, for several apps

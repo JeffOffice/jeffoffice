@@ -335,7 +335,7 @@
         },
         {
          "status": "todo",
-         "text": "352cc0bd9c383cd62d122391b84103a800cd1a0341e6eb3a0e106fb588a92b57"
+         "text": "cc6c5a76fa021b8f9370a399d2613cd3fa01b453206808a9239cc7737a9c7393"
         },
         {
          "status": "todo",
@@ -2384,7 +2384,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "ae377c02daaf4679b94ecdcbba6d734a80a7e5e19923c486454188428dffbfe5"
+         "text": "5f844670d287dd3594c4f960328c3b1dbda26c71bf6da50c5d348901e1237768"
         },
         {
          "status": "partly",
@@ -2510,7 +2510,7 @@
         },
         {
          "status": "todo",
-         "text": "bacf4e7ae5fa3f80ab78428830bd3593787a28720318accdc5e7f6ae62f8f808"
+         "text": "5909f09baccf2a471f8e0f6ad1139550c54aa734bbfcb6f0cbdbf77e18d7df1b"
         },
         {
          "status": "todo",
@@ -2518,7 +2518,7 @@
         },
         {
          "status": "todo",
-         "text": "fc00a955b9134fb00670a062943479f1f97bbb987a7c9423871cddcbeccd73ad"
+         "text": "bdb6a661dab26648e4351560a4ec92faf84d48e6b8f9c9b1e69f01b9f4a7c6b6"
         },
         {
          "status": "todo",
@@ -2561,7 +2561,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "b27e97ffce893702bd4cde03aa0f55813f26f289261ea74ed8965625e5721abd"
+         "text": "9848cd66c9afa034654c5f893684892375514c468e13863cc63777fc54a3cfc6"
         },
         {
          "status": "todo",
@@ -3086,7 +3086,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "751e7a1d52fcfeef403147a17af8354dc628e169ca8a5d68816900fb4f4f57b1"
+       "text": "f7e47c29ca7ee7a20803309d16bf17f374d638632c54a057e47397c3bdf6833f"
       },
       {
        "hide_soon": true,
@@ -4144,7 +4144,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "305f44b05cc374a4a2d1c1fb6adb76581828cbd7be20ac117cf9d7bd2bcb8310"
+         "text": "a8554254f5f837308c961675a672b6e8c443a45f770798837c017582721edd44"
         },
         {
          "hide_soon": true,
@@ -4243,7 +4243,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "e6637e9ed96940bde92626f8895e5af8e011b8e90c600b7ab28452996dd7d548"
+         "text": "c701684084ed25986e0f7c183ca61d72c66a599c12f67d99e12ee0a5a11e263b"
         },
         {
          "hide_soon": true,
@@ -4263,7 +4263,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "8cf01f0b4e45d642a7328f599dd4501e4c713d69fa35434bbd79d00ed6840b9f"
+       "text": "4a76cbcea507352f896e12176e261430419fa31eaf6f5ce255e1b7534e4351d8"
       },
       {
        "hide_soon": true,
@@ -4690,7 +4690,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "73898e5cb166e2bd4b6fdb404c748687344a4429be829dfc100baaaabce34570"
+         "text": "a061f70eac04a257b91af05bc1173784bfd50bba035da90fa09a08229cb9d9dd"
         }
        ]
       },
@@ -5031,7 +5031,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "86bbd03d1234075e9be87c50ddaf21aba69d79b9dc7c1bde41bd561fe7181466"
+       "text": "2e5b01edd90187e2f85a67c67d03c4989d934bc057cbedc61b095d98ac407d8d"
       }
      ]
     },
@@ -5090,7 +5090,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "c7ad6daea1a1b9e4eb982fe1c2b8e60d2825a160a8f3f5d867b9fe5880673a4d"
+         "text": "bf3ae376432789c45eddfe436164ce979cb18aba5ccf5c31d4c07c0db72eee0d"
         }
        ]
       },
@@ -10464,6 +10464,18 @@
     "fr": "Nom d’objet pour Morph : nommer un objet pour associer deux objets"
    }
   },
+  "2e5b01edd90187e2f85a67c67d03c4989d934bc057cbedc61b095d98ac407d8d": {
+   "drop": false,
+   "en": "JeffPub has a quick toolbar with Save, Undo, Redo, and Print, reachable with KeyTips `1` to `4`.",
+   "es": "JeffPub tiene una barra de herramientas rápida con Guardar, Deshacer, Rehacer e Imprimir, accesibles con las teclas de acceso `1` a `4`.",
+   "fr": "JeffPub dispose d’une barre d’outils rapide avec Enregistrer, Annuler, Rétablir et Imprimer, accessibles par les KeyTips `1` à `4`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "2e5f80a1c3bd8e8f07f1ea7cd7c3f8c5151fd579aaf1872af252f43eeb8eb6a4": {
    "drop": false,
    "en": "Symbols",
@@ -10546,18 +10558,6 @@
     "en": "Customize the ribbon: show, hide, rename, and reorder tabs and groups, plus the quick toolbar",
     "es": "Personalización de la cinta de opciones: mostrar, ocultar, cambiar el nombre y reordenar pestañas y grupos, y la barra de herramientas rápida",
     "fr": "Personnalisation du ruban : afficher, masquer, renommer et réorganiser les onglets et groupes, et la barre d’outils rapide"
-   }
-  },
-  "305f44b05cc374a4a2d1c1fb6adb76581828cbd7be20ac117cf9d7bd2bcb8310": {
-   "drop": false,
-   "en": "JeffPub has Save, Save As, automatic recovery of unsaved work after a crash, and backup on save.",
-   "es": "JeffPub incluye Guardar, Guardar como, recuperación automática del trabajo no guardado tras un fallo y copia de seguridad al guardar.",
-   "fr": "JeffPub propose Enregistrer, Enregistrer sous, la récupération automatique du travail non enregistré après un plantage et la sauvegarde à l’enregistrement.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "30ad4c796c981186c3d2fd25c56b16202dbd0d6baa22b4195571f50dec5cffa4": {
@@ -10882,18 +10882,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "352cc0bd9c383cd62d122391b84103a800cd1a0341e6eb3a0e106fb588a92b57": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Ribbon and toolbar customization: choose which commands appear",
-    "es": "Personalización de la cinta de opciones y de la barra de herramientas: elegir qué comandos aparecen",
-    "fr": "Personnalisation du ruban et de la barre d’outils : choisir les commandes affichées"
    }
   },
   "3576cbc1ef54218e81d16d720d48ec8f4a2ae30d8943434f8f1c1b7487d3d84e": {
@@ -12336,6 +12324,18 @@
     "fr": ""
    }
   },
+  "4a76cbcea507352f896e12176e261430419fa31eaf6f5ce255e1b7534e4351d8": {
+   "drop": false,
+   "en": "In JeffPub, the Clipboard group offers Paste with its source formatting, Keep Text Only, Paste Special, Cut, Copy, and Copy Formatting, which works once or locked for repeated use.",
+   "es": "En JeffPub, el grupo Portapapeles ofrece Pegar con su formato de origen, Mantener solo texto, Pegado especial, Cortar, Copiar y Copiar formato, que funciona una vez o bloqueado para uso repetido.",
+   "fr": "Dans JeffPub, le groupe Presse-papiers propose Coller avec sa mise en forme d’origine, Conserver le texte uniquement, Collage spécial, Couper, Copier et Reproduire la mise en forme, utilisable une fois ou verrouillé pour un usage répété.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "4ae1d15e5d6fcbfbb2ab7aad429f10beb86f91ddbcc2600e84cb35064f15e6e4": {
    "drop": false,
    "en": "Move by character, word, sentence, line, paragraph, and page. Extend a selection with `Shift`, `F8`, or the mouse, select a column with `Alt`+drag, select several places with `Ctrl`, and use double- and triple-click and Click and Type.",
@@ -13428,6 +13428,18 @@
     "fr": ""
    }
   },
+  "5909f09baccf2a471f8e0f6ad1139550c54aa734bbfcb6f0cbdbf77e18d7df1b": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Save options: default format, automatic recovery interval, and default folder",
+    "es": "Opciones de guardado: formato predeterminado, intervalo de recuperación automática y carpeta predeterminada",
+    "fr": "Options d’enregistrement : format par défaut, intervalle de récupération automatique et dossier par défaut"
+   }
+  },
   "5935e2eaadf6aff5730c8ca764629d833a06f16b21c4864998dfc75720888082": {
    "drop": false,
    "en": "JeffPub counts pages, words, characters, paragraphs, text boxes, and pictures.",
@@ -13841,6 +13853,18 @@
    "en": "Proofing and Accessibility",
    "es": "Revisión y accesibilidad",
    "fr": "Vérification et accessibilité",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "5f844670d287dd3594c4f960328c3b1dbda26c71bf6da50c5d348901e1237768": {
+   "drop": false,
+   "en": "JeffDeck saves a recovery copy every 10 minutes for each presentation with unsaved changes, offers it again after a crash, and lists it under Recover Unsaved Work on the Open page.",
+   "es": "JeffDeck guarda una copia de recuperación cada 10 minutos de cada presentación con cambios sin guardar, la ofrece de nuevo después de un fallo y la muestra en Recuperar trabajo sin guardar en la página Abrir.",
+   "fr": "JeffDeck enregistre une copie de récupération toutes les 10 minutes pour chaque présentation comportant des modifications non enregistrées, la propose de nouveau après un plantage et la liste sous Récupérer le travail non enregistré dans la page Ouvrir.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15312,18 +15336,6 @@
     "fr": "Réduire et développer les titres dans le document"
    }
   },
-  "73898e5cb166e2bd4b6fdb404c748687344a4429be829dfc100baaaabce34570": {
-   "drop": false,
-   "en": "In JeffPub, you can insert a picture, link it to its file, or do both. The Graphics Manager pane lists every picture with its page, format, size, original file, status, and resolution, and lets you go to it, save a copy, or replace it. Linked pictures show a status of Embedded, Linked, Missing, Modified, or Not updated, and can be updated, relinked, or embedded. Linked pictures are saved in `.jpub` files; a `.pub` file opens with embedded pictures.",
-   "es": "En JeffPub, usted puede insertar una imagen, vincularla a su archivo o hacer ambas cosas. El panel Administrador de gráficos muestra cada imagen con su página, formato, tamaño, archivo original, estado y resolución, y permite ir a ella, guardar una copia o reemplazarla. Las imágenes vinculadas muestran el estado Incrustada, Vinculada, Faltante, Modificada o No actualizada, y se pueden actualizar, revincular o incrustar. Las imágenes vinculadas se guardan en archivos `.jpub`; un archivo `.pub` se abre con las imágenes incrustadas.",
-   "fr": "Dans JeffPub, vous pouvez insérer une image, la lier à son fichier, ou faire les deux. Le volet Gestionnaire de graphiques liste chaque image avec sa page, son format, sa taille, son fichier d’origine, son état et sa résolution, et permet d’y accéder, d’en enregistrer une copie ou de la remplacer. Les images liées affichent l’état Incorporée, Liée, Manquante, Modifiée ou Non mise à jour, et peuvent être mises à jour, reliées ou incorporées. Les images liées sont enregistrées dans des fichiers `.jpub` ; un fichier `.pub` s’ouvre avec les images incorporées.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "73ab224bd3076d2a1b0cc93b416da64cf212c0372fb8f53b2c4920cbaf4fb10d": {
    "drop": false,
    "en": "JeffPub has Commercial Print Information: color model (RGB, process CMYK, spot colors, or process plus spot) and embedded-font management. Spot colors print on their own separation plates, and a process-color publication makes a CMYK PDF.",
@@ -15442,18 +15454,6 @@
     "en": "Dynamic arrays and spill: a formula whose result is a list fills the cells below and beside it",
     "es": "Matrices dinámicas y desbordamiento: una fórmula cuyo resultado es una lista llena las celdas de abajo y de al lado",
     "fr": "Tableaux dynamiques et débordement : une formule dont le résultat est une liste remplit les cellules en dessous et à côté"
-   }
-  },
-  "751e7a1d52fcfeef403147a17af8354dc628e169ca8a5d68816900fb4f4f57b1": {
-   "drop": false,
-   "en": "In JeffDeck, From Beginning starts the show with `F5` or a toolbar button, and From Current Slide starts it with `Shift+F5` or a status bar button.",
-   "es": "En JeffDeck, Desde el principio inicia la presentación con `F5` o un botón de la barra de herramientas, y Desde la diapositiva actual la inicia con `Shift+F5` o un botón de la barra de estado.",
-   "fr": "Dans JeffDeck, Depuis le début lance le diaporama avec `F5` ou un bouton de la barre d’outils, et Depuis la diapositive actuelle le lance avec `Shift+F5` ou un bouton de la barre d’état.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "753da8574daf27eb6027f8a9da6136698e862c1e66b2f9aa658c45d0b4ddf7e7": {
@@ -16536,18 +16536,6 @@
     "fr": ""
    }
   },
-  "86bbd03d1234075e9be87c50ddaf21aba69d79b9dc7c1bde41bd561fe7181466": {
-   "drop": false,
-   "en": "JeffPub has a toolbar with Save, Undo, Redo, and Print buttons. Each button has a keyboard shortcut hint, numbered 1 to 4.",
-   "es": "JeffPub tiene una barra de herramientas con los botones Guardar, Deshacer, Rehacer e Imprimir. Cada botón tiene una indicación de acceso por teclado, numerada del 1 al 4.",
-   "fr": "JeffPub propose une barre d’outils avec les boutons Enregistrer, Annuler, Rétablir et Imprimer. Chaque bouton a une indication de raccourci clavier, numérotée de 1 à 4.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "86d4fd2ebc486f01f2f4cfbc972259f19ec4329da39f67f7bb1bca4b5971681d": {
    "drop": false,
    "en": "When saving a text file, code pages include Japanese, both Chinese, Korean, Hebrew, Arabic, Baltic, Vietnamese, and Thai. A file in a page JeffCrunch does not write is saved in UTF-8 with the mark, and the question says which.",
@@ -16949,18 +16937,6 @@
    "en": "The JeffPub ribbon works by keyboard: `Tab` and the arrow keys move among its tabs and controls with a visible focus ring, `Escape` returns to the page, and `F6` moves between the ribbon, the page thumbnails, and the page.",
    "es": "La cinta de opciones de JeffPub se maneja con el teclado: `Tab` y las teclas de flecha se mueven entre pestañas y controles con un anillo de foco visible, `Escape` vuelve a la página y `F6` alterna entre la cinta, las miniaturas de página y la página.",
    "fr": "Le ruban de JeffPub se commande au clavier : `Tab` et les touches fléchées passent d’un onglet ou d’un contrôle à l’autre avec un anneau de focus visible, `Escape` revient à la page et `F6` alterne entre le ruban, les miniatures de pages et la page.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "8cf01f0b4e45d642a7328f599dd4501e4c713d69fa35434bbd79d00ed6840b9f": {
-   "drop": false,
-   "en": "Paste (with its source formatting), keep text only, use Paste Special, cut, copy, and copy formatting to other text (single use or locked).",
-   "es": "Pegue (con el formato de origen), conserve solo el texto, use Pegado especial, corte, copie y copie el formato a otro texto (de un solo uso o fijo).",
-   "fr": "Collez (avec la mise en forme source), conservez uniquement le texte, utilisez Collage spécial, coupez, copiez et reproduisez la mise en forme sur un autre texte (usage unique ou verrouillé).",
    "soon": {
     "drop": true,
     "en": "",
@@ -17808,6 +17784,18 @@
     "fr": "Nouveau style de tableau : définir un style pour chaque partie d’un tableau"
    }
   },
+  "9848cd66c9afa034654c5f893684892375514c468e13863cc63777fc54a3cfc6": {
+   "drop": false,
+   "en": "In JeffDeck, Copy Formatting applies the formatting of text and objects once, or many times when you hold `Shift` while choosing the button.",
+   "es": "En JeffDeck, Copiar formato aplica el formato de texto y objetos una vez, o varias veces si mantiene presionada la tecla `Shift` al elegir el botón.",
+   "fr": "Dans JeffDeck, Reproduire la mise en forme applique la mise en forme du texte et des objets une fois, ou plusieurs fois si vous maintenez `Shift` en choisissant le bouton.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "984ec79037aff40a7fb7fee8150d0d9d6c2fb52014179a783fd1bdb7b8ad045f": {
    "drop": false,
    "en": "The Page tab has Print quality (150, 300, 600, and 1200 dots per inch, and a value the file has), read and saved in `.xlsx` and `.xls` files.",
@@ -18468,6 +18456,18 @@
     "fr": "Bouton Filtres de graphique"
    }
   },
+  "a061f70eac04a257b91af05bc1173784bfd50bba035da90fa09a08229cb9d9dd": {
+   "drop": false,
+   "en": "JeffPub has a Graphics Manager pane that lists every picture with its page, format, size, file, status, and resolution, and lets you go to a picture, save a copy, or replace it. Pictures can be inserted, linked to their files, or both.",
+   "es": "JeffPub incluye un panel Administrador de gráficos que enumera cada imagen con su página, formato, tamaño, archivo, estado y resolución, y permite ir a una imagen, guardar una copia o reemplazarla. Las imágenes pueden insertarse, vincularse a sus archivos o ambas cosas.",
+   "fr": "JeffPub propose un volet Gestionnaire d’images qui liste chaque image avec sa page, son format, sa taille, son fichier, son état et sa résolution, et permet d’atteindre une image, d’en enregistrer une copie ou de la remplacer. Les images peuvent être insérées, liées à leurs fichiers, ou les deux.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "a066d857ed93ffc2963175f7e3e98e1b22a2c0ad667bdd1a9cd4b989a05e89d3": {
    "drop": true,
    "en": "",
@@ -18826,6 +18826,18 @@
     "en": "Query steps editor: choose columns, filter, sort, split, group, pivot, merge, append, and load",
     "es": "Editor de pasos de consulta: elegir columnas, filtrar, ordenar, dividir, agrupar, dinamizar, combinar, anexar y cargar",
     "fr": "Éditeur d’étapes de requête : choisir des colonnes, filtrer, trier, fractionner, regrouper, pivoter, fusionner, ajouter et charger"
+   }
+  },
+  "a8554254f5f837308c961675a672b6e8c443a45f770798837c017582721edd44": {
+   "drop": false,
+   "en": "JeffPub saves publications with Save and Save As, and can make a backup copy on save. After a crash, it offers copies of unsaved work again and cleans them up once the work is saved.",
+   "es": "JeffPub guarda las publicaciones con Guardar y Guardar como, y puede crear una copia de seguridad al guardar. Después de un fallo, ofrece de nuevo las copias del trabajo sin guardar y las elimina una vez guardado el trabajo.",
+   "fr": "JeffPub enregistre les publications avec Enregistrer et Enregistrer sous, et peut créer une copie de sauvegarde à l’enregistrement. Après un plantage, il propose de nouveau les copies du travail non enregistré et les supprime une fois le travail enregistré.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "a85e59e305b39d1d578e31b5573982c9908ce2ecb0edb465ce01df1ba93a96a4": {
@@ -19248,18 +19260,6 @@
     "fr": "Personnalisation du clavier : attribuer des touches aux commandes, styles, symboles et blocs de construction, et les réinitialiser"
    }
   },
-  "ae377c02daaf4679b94ecdcbba6d734a80a7e5e19923c486454188428dffbfe5": {
-   "drop": false,
-   "en": "JeffDeck saves a recovery copy every 10 minutes for each presentation with unsaved changes, offers it again after a crash, and has Recover Unsaved Work on the Open page.",
-   "es": "JeffDeck guarda una copia de recuperación cada 10 minutos de cada presentación con cambios sin guardar, la ofrece de nuevo tras un fallo y tiene Recuperar trabajo no guardado en la página Abrir.",
-   "fr": "JeffDeck enregistre une copie de récupération toutes les 10 minutes pour chaque présentation comportant des modifications non enregistrées, la propose de nouveau après un plantage et offre Récupérer le travail non enregistré dans la page Ouvrir.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "ae8afc8bc67a22e40dae8e62664e39c3d89a8f3550009d89ee26d940fcb10ee6": {
    "drop": false,
    "en": "Export > Make an Email creates a message file with the document, a PDF, or the first 30 pages as pictures inside the message. A password-protected document stays protected. Nothing is sent.",
@@ -19469,18 +19469,6 @@
    "en": "In JeffDeck, Undo and Redo treat every change as one step that restores the whole presentation.",
    "es": "En JeffDeck, Deshacer y Rehacer tratan cada cambio como un paso que restaura toda la presentación.",
    "fr": "Dans JeffDeck, Annuler et Rétablir traitent chaque modification comme une étape qui restaure toute la présentation.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "b27e97ffce893702bd4cde03aa0f55813f26f289261ea74ed8965625e5721abd": {
-   "drop": false,
-   "en": "In JeffDeck you can copy formatting from text and objects and apply it once or, by holding `Shift` on the button, many times.",
-   "es": "En JeffDeck puede copiar el formato de texto y objetos y aplicarlo una vez o, manteniendo `Shift` en el botón, varias veces.",
-   "fr": "Dans JeffDeck, vous pouvez copier la mise en forme du texte et des objets et l’appliquer une fois ou, avec `Shift` sur le bouton, plusieurs fois.",
    "soon": {
     "drop": true,
     "en": "",
@@ -19896,18 +19884,6 @@
     "fr": ""
    }
   },
-  "bacf4e7ae5fa3f80ab78428830bd3593787a28720318accdc5e7f6ae62f8f808": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Save options: default format, automatic recovery interval, and default folder",
-    "es": "Opciones de guardado: formato predeterminado, intervalo de recuperación automática y carpeta predeterminada",
-    "fr": "Options d’enregistrement : format par défaut, intervalle de récupération automatique et dossier par défaut"
-   }
-  },
   "bae15634168309e8350b3b0309ee8f64a4a836c66faa2138c5210aac3aed4b8d": {
    "drop": false,
    "en": "In JeffCrunch, you can apply bold, italic, single and double underline, and strikethrough on the Home tab. Accounting underlines, subscript, and superscript are in Format Cells. All are drawn on the sheet.",
@@ -20064,6 +20040,18 @@
     "fr": "Fichiers `.odt` protégés par mot de passe : ouverture et enregistrement"
    }
   },
+  "bdb6a661dab26648e4351560a4ec92faf84d48e6b8f9c9b1e69f01b9f4a7c6b6": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Quick toolbar and ribbon: customize",
+    "es": "Barra de herramientas rápida y cinta de opciones: personalización",
+    "fr": "Barre d’outils rapide et ruban : personnalisation"
+   }
+  },
   "bdf6e50f597cdda517d628acfdab82f657f5d21ebe908ca51862181e129c193c": {
    "drop": false,
    "en": "JeffCrunch reads and writes 38 older-style statistical functions, including `STDEV`, `NORMDIST`, `RANK`, `VAR`, `MODE`, `QUARTILE`, `PERCENTILE`, `TDIST`, and `TTEST`.",
@@ -20182,6 +20170,18 @@
     "en": "Array formula entry with `Ctrl+Shift+Enter` and the expanded formula bar",
     "es": "Introducción de fórmulas de matriz con `Ctrl+Shift+Enter` y barra de fórmulas ampliada",
     "fr": "Saisie de formules matricielles avec `Ctrl+Maj+Entrée` et barre de formule étendue"
+   }
+  },
+  "bf3ae376432789c45eddfe436164ce979cb18aba5ccf5c31d4c07c0db72eee0d": {
+   "drop": false,
+   "en": "JeffPub keeps automatic recovery copies of unsaved work in `.jpub` format, offers them again after a crash, and cleans them up once the work is saved.",
+   "es": "JeffPub conserva copias de recuperación automática del trabajo sin guardar en formato `.jpub`, las ofrece de nuevo después de un fallo y las elimina una vez guardado el trabajo.",
+   "fr": "JeffPub conserve des copies de récupération automatique du travail non enregistré au format `.jpub`, les propose de nouveau après un plantage et les supprime une fois le travail enregistré.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "bf426298573ccca221b133a747a5c729e9c8c4caccdacbfc09d65db1afce3d69": {
@@ -20736,6 +20736,18 @@
     "fr": ""
    }
   },
+  "c701684084ed25986e0f7c183ca61d72c66a599c12f67d99e12ee0a5a11e263b": {
+   "drop": false,
+   "en": "JeffPub options cover General (user name and initials, light or dark interface, display language, usage statistics, update checks), Proofing (spelling as you type, ignoring words in capitals or with numbers, automatic correction of common misspellings, symbols, sentence capitals, and two initial capitals, smart quotes, and formatting as you type), Save (automatic recovery interval and backup copies), and Advanced (auto-select entire word, drag-and-drop text, hyphenation in new text boxes, measurement units, nudge amount, and recent publication count).",
+   "es": "Las opciones de JeffPub abarcan General (nombre de usuario e iniciales, interfaz clara u oscura, idioma de la pantalla, estadísticas de uso, búsqueda de actualizaciones), Revisión (ortografía mientras escribe, omisión de palabras en mayúsculas o con números, corrección automática de errores comunes, símbolos, mayúscula al inicio de oración y dos mayúsculas iniciales, comillas tipográficas y formato mientras escribe), Guardar (intervalo de recuperación automática y copias de seguridad) y Avanzadas (selección automática de palabras completas, arrastrar y soltar texto, separación silábica en cuadros de texto nuevos, unidades de medida, distancia de desplazamiento y número de publicaciones recientes).",
+   "fr": "Les options de JeffPub couvrent Général (nom d’utilisateur et initiales, interface claire ou sombre, langue d’affichage, statistiques d’utilisation, recherche de mises à jour), Vérification (orthographe pendant la frappe, mots en majuscules ou contenant des chiffres ignorés, correction automatique des fautes courantes, des symboles, des majuscules en début de phrase et des deux majuscules initiales, guillemets typographiques et mise en forme pendant la frappe), Enregistrement (intervalle de récupération automatique et copies de sauvegarde) et Avancé (sélection automatique du mot entier, glisser-déposer du texte, césure dans les nouvelles zones de texte, unités de mesure, pas de déplacement et nombre de publications récentes).",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "c7437921dbdc40420c31baa74b990e0b5a9b32eda5943bb892cfae3bf08ced7d": {
    "drop": false,
    "en": "In JeffDeck, Select Objects and Select All are in the Select menu under Editing.",
@@ -20770,18 +20782,6 @@
     "en": "Manual hyphenation",
     "es": "Separación manual de palabras con guiones",
     "fr": "Césure manuelle"
-   }
-  },
-  "c7ad6daea1a1b9e4eb982fe1c2b8e60d2825a160a8f3f5d867b9fe5880673a4d": {
-   "drop": false,
-   "en": "JeffPub keeps recovery copies of unsaved work, offers them again after a crash, and cleans them up once the work is saved.",
-   "es": "JeffPub guarda copias de recuperación del trabajo sin guardar, las ofrece de nuevo tras un fallo y las elimina una vez guardado el trabajo.",
-   "fr": "JeffPub conserve des copies de récupération du travail non enregistré, les propose à nouveau après un plantage et les supprime une fois le travail enregistré.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "c7cb70fdf0b130f39fa06bc1cb9f0fe48fc0368aaa61eeb4031507e5580674ba": {
@@ -21166,6 +21166,18 @@
     "en": "Data bars, color scales, and icon sets: create",
     "es": "Barras de datos, escalas de color y conjuntos de iconos: crear",
     "fr": "Barres de données, nuances de couleurs et jeux d’icônes : création"
+   }
+  },
+  "cc6c5a76fa021b8f9370a399d2613cd3fa01b453206808a9239cc7737a9c7393": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Ribbon and quick toolbar: customize",
+    "es": "Cinta de opciones y barra de herramientas rápida: personalización",
+    "fr": "Ruban et barre d’outils rapide : personnalisation"
    }
   },
   "cc98411f16b82071946349690f3623d494abac85c0159defb26bdcdab5504222": {
@@ -22944,18 +22956,6 @@
     "fr": ""
    }
   },
-  "e6637e9ed96940bde92626f8895e5af8e011b8e90c600b7ab28452996dd7d548": {
-   "drop": false,
-   "en": "Set general options (user name and initials, light or dark interface, display language, usage statistics, update checks), proofing (spelling as you type, ignoring words in capitals or with numbers, automatic correction of common misspellings, symbols, sentence capitals, and two initial capitals; smart quotes; automatic formatting as you type), saving (automatic recovery interval, backup copies), and advanced settings (auto-select entire word, drag-and-drop text, hyphenation in new text boxes, measurement units, nudge amount, recent publication count).",
-   "es": "Defina opciones generales (nombre de usuario e iniciales, interfaz clara u oscura, idioma de la interfaz, estadísticas de uso, búsqueda de actualizaciones), revisión (ortografía mientras escribe, omitir palabras en mayúsculas o con números, corrección automática de errores comunes, símbolos, mayúscula al inicio de oración y dos mayúsculas iniciales; comillas tipográficas; formato automático mientras escribe), guardado (intervalo de recuperación automática, copias de seguridad) y opciones avanzadas (selección automática de palabras completas, arrastrar y soltar texto, guiones en cuadros de texto nuevos, unidades de medida, desplazamiento mínimo, número de publicaciones recientes).",
-   "fr": "Définissez les options générales (nom d’utilisateur et initiales, interface claire ou sombre, langue d’affichage, statistiques d’utilisation, recherche de mises à jour), la vérification (orthographe pendant la frappe, mots en majuscules ou avec chiffres ignorés, correction automatique des fautes courantes, des symboles, des majuscules en début de phrase et des deux majuscules initiales ; guillemets typographiques ; mise en forme automatique pendant la frappe), l’enregistrement (intervalle de récupération automatique, copies de sauvegarde) et les options avancées (sélection automatique du mot entier, glisser-déposer du texte, césure dans les nouvelles zones de texte, unités de mesure, pas de déplacement, nombre de publications récentes).",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "e689f1b4f76a0db0169475bfacc54b9b6ded6291798f8c052e7bfa9d3fa4dddd": {
    "drop": false,
    "en": "Manage Styles lists every style and lets you set which are recommended in the gallery, which are hidden, and their order in the lists, applied together as one step. You can modify styles, delete a style you made (its paragraphs go back to Normal), and import styles from another document, optionally replacing those with the same name.",
@@ -24012,6 +24012,18 @@
     "fr": "Protection de la présentation : marquer comme finale, chiffrer avec un mot de passe et toujours ouvrir en lecture seule"
    }
   },
+  "f7e47c29ca7ee7a20803309d16bf17f374d638632c54a057e47397c3bdf6833f": {
+   "drop": false,
+   "en": "JeffDeck starts a slide show From Beginning with `F5` or a button on the quick toolbar, and From Current Slide with `Shift+F5` or a button on the status bar.",
+   "es": "JeffDeck inicia una presentación con diapositivas Desde el principio con `F5` o un botón de la barra de herramientas rápida, y Desde la diapositiva actual con `Shift+F5` o un botón de la barra de estado.",
+   "fr": "JeffDeck lance un diaporama Depuis le début avec `F5` ou un bouton de la barre d’outils rapide, et Depuis la diapositive actuelle avec `Shift+F5` ou un bouton de la barre d’état.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "f81282a4641f7bf3491bb3f42a1ee5d979377e0bf41a9ad20fe633b7e9671164": {
    "drop": false,
    "en": "Page Design tab",
@@ -24382,18 +24394,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "fc00a955b9134fb00670a062943479f1f97bbb987a7c9423871cddcbeccd73ad": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Customizable toolbar and ribbon: choose which commands appear",
-    "es": "Barra de herramientas y cinta de opciones personalizables: elija qué comandos aparecen",
-    "fr": "Barre d’outils et ruban personnalisables : choisissez les commandes affichées"
    }
   },
   "fc3d8e701328d363687acf7ea62792eca03c17323d7618a49ff0896d71c43a27": {

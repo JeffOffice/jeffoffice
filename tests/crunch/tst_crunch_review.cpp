@@ -365,7 +365,7 @@ private Q_SLOTS:
         QCOMPARE(data.conditionalFormats[0].values[1].value, QStringLiteral("'Q 1'!$A$1"));
     }
 
-    // A PivotTable's cache names the sheet it was made from: renamed, the cache names it by its new name; cells inserted above the source move its range; a source sheet that is deleted is
+    // A pivot table's cache names the sheet it was made from: renamed, the cache names it by its new name; cells inserted above the source move its range; a source sheet that is deleted is
     // left as it is (the cache keeps its records and the name of the sheet it had, as the programs people know leave it, and nothing else of the file changes).
     void aPivotCacheFollowsItsSourceSheet()
     {

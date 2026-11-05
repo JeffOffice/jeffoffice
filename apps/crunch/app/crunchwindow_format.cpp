@@ -763,7 +763,7 @@ QMenu *CrunchWindow::buildStylesMenu(QWidget *owner)
     return menu;
 }
 
-// The Copy Formatting: the first click takes the format of the cells selected and waits; the cells selected next are given it (and the painter is done); a second click soon after the first
+// Copy Formatting: the first click takes the format of the cells selected and waits; the cells selected next are given it (and the painter is done); a second click soon after the first
 // (a double click) keeps it on until it is clicked again or Esc is pressed.
 void CrunchWindow::formatPainterCommand()
 {

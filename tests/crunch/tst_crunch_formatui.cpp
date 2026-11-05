@@ -1,5 +1,5 @@
 // Tests of the formatting commands of JeffCrunch's window: the buttons of the Home tab (font, size, bold, italic, underlines, colors, borders, alignment, indent, orientation, merging, the
-// number format and its buttons, cell styles, the Format Painter, Clear) and the Format Cells dialog's changes made to the cells. Each command is one step of Undo; every language is set
+// number format and its buttons, cell styles, Copy Formatting, Clear) and the Format Cells dialog's changes made to the cells. Each command is one step of Undo; every language is set
 // explicitly; the workbook is built here.
 #include "app/crunchwindow.h"
 #include "savedok.h"
@@ -1699,7 +1699,7 @@ private Q_SLOTS:
         QCOMPARE(int(second.w.view()->sheet().data().sheet->conditionalFormats.size()), 1);
     }
 
-    // The Format Painter: a click takes the format of the cells selected and the next cells selected get it; a double click keeps it on until Esc.
+    // Copy Formatting: a click takes the format of the cells selected and the next cells selected get it; a double click keeps it on until Esc.
     void theFormatPainter()
     {
         EditWindow e;

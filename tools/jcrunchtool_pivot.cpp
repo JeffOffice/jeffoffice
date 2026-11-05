@@ -1,4 +1,4 @@
-// The yardstick of the pivot tables (docs/features/jeffcrunch.md, PivotTable Analyze):
+// The yardstick of the pivot tables (docs/features/jeffcrunch.md, pivot table Analyze):
 //   jcrunchtool pivot-check <file> [-v]   works out every pivot table of the workbook from its stored cache and compares the cells with those the file stored
 //                                         where the table is: one line of tab-separated fields for each table: `pivot-check`, the path, the sheet, the table's name,
 //                                         the result (ok, differs, or unsupported: and why), the cells compared, the cells that differ, and the first difference.

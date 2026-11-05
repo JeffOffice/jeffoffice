@@ -551,7 +551,7 @@ void CrunchWindow::defaultSizeDialog(bool column)
     if (!o.ok) notice(column ? tr("Default Width") : tr("Default Row Height"), o.problem);
 }
 
-// AutoFit: the columns (rows) of the selection each get the size that holds what is in them (one that holds nothing keeps its size).
+// Fit: the columns (rows) of the selection each get the size that holds what is in them (one that holds nothing keeps its size).
 void CrunchWindow::fitSelection(bool column)
 {
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);

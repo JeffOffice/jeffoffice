@@ -427,7 +427,7 @@ public:
     void setFormatAsker(const std::function<bool(const FormatCellsDialog::Input &, FormatCellsDialog::Result *)> &asker) { m_formatAsker = asker; }
     // What is asked before a step that throws something away (merging cells that hold values): the title and the sentence; true goes on. A message box unless this stands in for it (tests).
     void setConfirmAsker(const std::function<bool(const QString &title, const QString &text)> &asker) { m_confirmAsker = asker; }
-    // The Format Painter: whether it is waiting for cells to paint, and whether it stays on after painting (a double click).
+    // Copy Formatting: whether it is waiting for cells to paint, and whether it stays on after painting (a double click).
     // How many times the buttons of formatting were made to show a cell's format (they are not, for a cell that has the format they already show).
     int formatStateRuns() const { return m_formatStateRuns; }
     bool formatPainterActive() const { return m_painter.mode != PainterMode::Off; }

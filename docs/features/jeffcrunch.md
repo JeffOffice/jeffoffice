@@ -117,7 +117,7 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 - [~] **1.0** Advanced display for workbooks and sheets: show formulas, page breaks, zeros, outline symbols, objects, the gridline color, and right-to-left sheets; set the default zoom and the standard width *(done November 5, 2026: Options > Editing has Show a zero in cells that have a zero value for the sheet in view, kept with the sheet in `.xlsx`; the other display options were there before as ribbon commands; not done: the gridline color, the default zoom, and the standard width)*
 - [ ] **1.0** Advanced calculation and compatibility: precision as displayed, update links to other workbooks on open, save external link values, ignore other programs that use DDE, and the use of system separators (decimal, thousands, and list separators)
 - [ ] **1.0** Language: editing languages and the display language; the list separator and decimal mark follow the system, with a choice
-- [ ] **1.0** Customize the Ribbon and the Quick Access Toolbar
+- [ ] **1.0** Customize the Ribbon and the quick toolbar
 - [ ] **1.0** Customize the keyboard: assign keys to commands, with Excel's shortcuts the starting set
 - [ ] **1.0** Trust Center equivalents: what happens with external links, data connections, macros (kept, never run), and files from outside; no add-ins from the Store
 - [~] **1.0** Privacy: remove personal information on save, and the choice about what is sent anywhere (statistics, crash reports) *(shared: libs/shell telemetry)*
