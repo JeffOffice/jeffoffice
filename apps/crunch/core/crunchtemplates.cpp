@@ -1,6 +1,6 @@
 // The built-in templates. A small builder lays out cells by name (text, numbers, formulas, a style from the list below) and writes the .xlsx package a workbook is read from, as the blank workbook is.
 
-#include "core/templates.h"
+#include "core/crunchtemplates.h"
 
 #include "office/package.h"
 

@@ -6,7 +6,7 @@
 #include "app/settings.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
-#include "core/templates.h"
+#include "core/crunchtemplates.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"

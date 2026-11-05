@@ -6,7 +6,7 @@
 #include "app/icons.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
-#include "core/templates.h"
+#include "core/crunchtemplates.h"
 #include <QDateTime>
 #include <QDir>
 #include <QAbstractButton>
