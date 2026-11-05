@@ -1273,7 +1273,7 @@
         },
         {
          "status": "partly",
-         "text": "e6a6781b1880e67e399599dd593ad4dca859d91e116fbe295a8be4daddd9579b"
+         "text": "34deaba63422627479d31df980fa7a955c885091030640f081da4598c7171bab"
         },
         {
          "status": "partly",
@@ -1305,8 +1305,9 @@
          "text": "e4a8a370cd0d0c37e850ae8f53103fdf35bbf11aff6b9ef9552b27e7b27fada2"
         },
         {
-         "status": "todo",
-         "text": "54b4c5787613db1298b43ce18a7ff7decec7b6b4b77c7442311f0881ace6933b"
+         "hide_soon": true,
+         "status": "done",
+         "text": "d308e235596fdf2b84368825bfdd6e04f2773431b7cb3a375d729c6c4488cdef"
         },
         {
          "hide_soon": true,
@@ -1327,8 +1328,8 @@
          "text": "d26d9f2c518b0313c42e2800ba6fab1b1d032a5d5d664806bb813d6d98c98579"
         },
         {
-         "status": "todo",
-         "text": "51e0bcac960ff64ae0dfc1242b1c803a65f5b9045ff46e607e7d2c284b9c2f0a"
+         "status": "partly",
+         "text": "ea99aaa8f107950b0036b9446aa8e64e5c66a266c7bfaaea21f47bd44c4c81eb"
         }
        ]
       },
@@ -1365,11 +1366,11 @@
         },
         {
          "status": "partly",
-         "text": "2deafcc9139b6096736173fbda0299133244143497810e2bf6f613c1e34129e7"
+         "text": "cf24e11bd2bd373c359b4c31ea9232fb9399b9f802f7f28f946d7f54e7196b38"
         },
         {
          "status": "partly",
-         "text": "ace237441c8b60464eadf59cc95a4df1d17416ef0cc7ae6058c1265d34cb3899"
+         "text": "866a14b461221cd13446f7934b3649e1b9dfbcd71b042a031aae0395f8c1d4db"
         },
         {
          "status": "partly",
@@ -1384,12 +1385,12 @@
          "text": "645d7c181bfcb635ace3cfe809ba2aa391c776159734460b2f7dfb42869ce996"
         },
         {
-         "status": "todo",
-         "text": "bfdcde01e7102765cb402890cd1dc9af7f7a1d888e5c37f9085eda881d26dc64"
+         "status": "partly",
+         "text": "18862bee79a32562bddfcd76912de7d41ed4fa3b2062bad0ee65b31a4518fd1d"
         },
         {
-         "status": "todo",
-         "text": "d9addbd16bf8981d3a9c3155a3ce82fa8d69b1ea7fd99ca29f73cf272d307d92"
+         "status": "partly",
+         "text": "c9a41ab3a956005a0e4ca2981896c538fe0eabdb46ded7d4be3308077dad57d6"
         },
         {
          "status": "partly",
@@ -1447,7 +1448,7 @@
         },
         {
          "status": "partly",
-         "text": "2a27f0d757204f4c18a137422182d9461cd8808a56c9f00260bd2b9b63c312c1"
+         "text": "e4f04f445a4ca11c3ce1a2688b39d48b0afd539c7e3f00576b0a2bd96f9950fb"
         },
         {
          "status": "partly",
@@ -8799,6 +8800,18 @@
     "fr": "Davantage de fonctions"
    }
   },
+  "18862bee79a32562bddfcd76912de7d41ed4fa3b2062bad0ee65b31a4518fd1d": {
+   "drop": false,
+   "en": "Save as Picture, on the Chart tab and in the chart’s menu, writes a `.png` or `.jpg` file twice the chart’s size. Save as Template and Apply Template write and read a `.crtx` file, giving a chart the look of the template while keeping its data.",
+   "es": "Save as Picture, en la pestaña Chart y en el menú del gráfico, genera un fichero `.png` o `.jpg` del doble del tamaño del gráfico. Save as Template y Apply Template escriben y leen un fichero `.crtx`, y dan a un gráfico el aspecto de la plantilla conservando sus datos.",
+   "fr": "Save as Picture, dans l’onglet Chart et dans le menu du graphique, écrit un fichier `.png` ou `.jpg` de deux fois la taille du graphique. Save as Template et Apply Template écrivent et lisent un fichier `.crtx`, et donnent à un graphique l’aspect du modèle tout en conservant ses données.",
+   "soon": {
+    "drop": false,
+    "en": "Chart template folder listed in the Chart Kind box",
+    "es": "Carpeta de plantillas de gráficos en la lista del cuadro Chart Kind",
+    "fr": "Dossier de modèles de graphique dans la liste de la zone Chart Kind"
+   }
+  },
   "18d1d5b665ef44829cfec26184694d030700c0a7e9313bbbf7d811618a5108ab": {
    "drop": false,
    "en": "JeffPub can find and replace text across all stories.",
@@ -10155,18 +10168,6 @@
     "fr": ""
    }
   },
-  "2a27f0d757204f4c18a137422182d9461cd8808a56c9f00260bd2b9b63c312c1": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Picture crop, size, arrange, and alt text",
-    "es": "Recorte, tamaño, organización y texto alternativo de imágenes",
-    "fr": "Rognage, taille, organisation et texte de remplacement des images"
-   }
-  },
   "2a5f1f63a5185dd6f6891d443df3536974c370817b8aa62d6176f60f4c3ab535": {
    "drop": false,
    "en": "OpenDocument `.odt`, `.ott`",
@@ -10381,18 +10382,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "2deafcc9139b6096736173fbda0299133244143497810e2bf6f613c1e34129e7": {
-   "drop": false,
-   "en": "Format the horizontal and vertical axes of a chart: bounds, major and minor units, reverse order, where the other axis crosses, number format, tick marks, label position, and label rotation.",
-   "es": "Dé formato a los ejes horizontal y vertical de un gráfico: límites, unidades principales y secundarias, orden inverso, punto donde cruza el otro eje, formato de número, marcas de graduación, posición de las etiquetas y giro de las etiquetas.",
-   "fr": "Mettez en forme les axes horizontal et vertical d’un graphique : limites, unités principales et secondaires, ordre inversé, point de croisement de l’autre axe, format de nombre, graduations, position des étiquettes et rotation des étiquettes.",
-   "soon": {
-    "drop": false,
-    "en": "Chart format panes: log scale, display units, text direction, series, and point",
-    "es": "Paneles de formato de gráfico: escala logarítmica, unidades de visualización, dirección del texto, series y puntos",
-    "fr": "Volets de mise en forme de graphique : échelle logarithmique, unités d’affichage, orientation du texte, séries et points"
    }
   },
   "2e0add71177aa3481e43701694a9eac6797c11eeb88a41b881ea61a86f7ee224": {
@@ -10825,6 +10814,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "34deaba63422627479d31df980fa7a955c885091030640f081da4598c7171bab": {
+   "drop": false,
+   "en": "In a pivot table, Value Field Settings lets you choose how to total a field (sum, count, count numbers, average, max, min, product, standard deviation, variance, and their population forms) and give it a custom name. You can also set a number format and use Show Values As for percent of grand, column, and row total, index, difference from, percent of, percent difference from, running total, rank, and percent of parent row and column total.",
+   "es": "En una tabla dinámica, Value Field Settings le permite elegir cómo totalizar un campo (suma, recuento, recuento de números, promedio, máximo, mínimo, producto, desviación estándar, varianza y sus formas poblacionales) y asignarle un nombre personalizado. También puede definir un formato de número y usar Show Values As para porcentaje del total general, de columna y de fila, índice, diferencia de, porcentaje de, diferencia porcentual de, total acumulado, clasificación y porcentaje del total principal de fila y de columna.",
+   "fr": "Dans un tableau croisé dynamique, Value Field Settings vous permet de choisir le mode de total d’un champ (somme, nombre, nombre de valeurs numériques, moyenne, maximum, minimum, produit, écart type, variance et leurs formes pour population) et de lui donner un nom personnalisé. Vous pouvez aussi définir un format de nombre et utiliser Show Values As pour le pourcentage du total général, de colonne et de ligne, l’indice, la différence par rapport à, le pourcentage de, la différence en pourcentage par rapport à, le cumul, le rang et le pourcentage du total parent de ligne et de colonne.",
+   "soon": {
+    "drop": false,
+    "en": "Show Values As: percent of parent total, percent of running total, and rank in tables without a parent line",
+    "es": "Show Values As: porcentaje del total principal, porcentaje del total acumulado y clasificación en tablas sin línea principal",
+    "fr": "Show Values As : pourcentage du total parent, pourcentage du cumul et rang dans les tableaux sans ligne parent"
    }
   },
   "350c51dce4cf51d847df9ed355fd2845ce83a2f4645d840c67e7b5547ee8e17e": {
@@ -12807,18 +12808,6 @@
     "fr": ""
    }
   },
-  "51e0bcac960ff64ae0dfc1242b1c803a65f5b9045ff46e607e7d2c284b9c2f0a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Pivot chart tab and Format: the same options as for other charts",
-    "es": "Pestaña y formato del gráfico dinámico: las mismas opciones que en otros gráficos",
-    "fr": "Onglet et format du graphique croisé dynamique : les mêmes options que pour les autres graphiques"
-   }
-  },
   "523bb5224c0cea88ca0bfaddaf2843576b0fa04fa0f1c482633982342976f67e": {
    "drop": false,
    "en": "Safety and limits",
@@ -12973,18 +12962,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "54b4c5787613db1298b43ce18a7ff7decec7b6b4b77c7442311f0881ace6933b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Report filter pages: each filter value on its own sheet",
-    "es": "Páginas de filtro de informe: cada valor de un filtro en su propia hoja",
-    "fr": "Pages de filtre de rapport : chaque valeur d’un filtre sur sa propre feuille"
    }
   },
   "54c19110f427f312f807763f12ade1be49b3776ea76796b534a19a5da0554a24": {
@@ -16443,6 +16420,18 @@
     "fr": ""
    }
   },
+  "866a14b461221cd13446f7934b3649e1b9dfbcd71b042a031aae0395f8c1d4db": {
+   "drop": false,
+   "en": "Data Labels can show the value, category name, series name, percentage, or legend key, with a separator, a position, and a number format. Label Contains is used to choose what each label shows.",
+   "es": "Data Labels puede mostrar el valor, el nombre de categoría, el nombre de serie, el porcentaje o la clave de leyenda, con un separador, una posición y un formato de número. Con Label Contains se elige lo que muestra cada etiqueta.",
+   "fr": "Data Labels peut afficher la valeur, le nom de catégorie, le nom de série, le pourcentage ou la clé de légende, avec un séparateur, une position et un format de nombre. Label Contains permet de choisir ce que chaque étiquette affiche.",
+   "soon": {
+    "drop": false,
+    "en": "Data labels: leader lines and labels from a cell range",
+    "es": "Etiquetas de datos: líneas guía y etiquetas desde un rango de celdas",
+    "fr": "Étiquettes de données : lignes de repère et étiquettes issues d’une plage de cellules"
+   }
+  },
   "866cdf910db933b4394921828f7c8ffb6c9596dcb4f00ddc012598222de57316": {
    "drop": false,
    "en": "JeffWrite saves `.docx`, `.dotx`, and `.odt` files.",
@@ -19023,18 +19012,6 @@
     "fr": "Code QR ou code-barres sur une diapositive en image vectorielle"
    }
   },
-  "ace237441c8b60464eadf59cc95a4df1d17416ef0cc7ae6058c1265d34cb3899": {
-   "drop": false,
-   "en": "Add data labels to a chart showing the value, category name, series name, or percentage, with a separator, a number format, and a position.",
-   "es": "Agregue rótulos de datos a un gráfico que muestren el valor, el nombre de categoría, el nombre de serie o el porcentaje, con un separador, un formato de número y una posición.",
-   "fr": "Ajoutez à un graphique des étiquettes de données indiquant la valeur, le nom de catégorie, le nom de série ou le pourcentage, avec un séparateur, un format de nombre et une position.",
-   "soon": {
-    "drop": false,
-    "en": "Data labels: legend key, leader lines, and value from cells",
-    "es": "Rótulos de datos: clave de leyenda, líneas de guía y valor de celdas",
-    "fr": "Étiquettes de données : clé de légende, lignes de repère et valeur issue de cellules"
-   }
-  },
   "ad0b951a96dc325309af41cfb88b1a88daa270ea5fd1144ef214924b418f24e7": {
    "drop": true,
    "en": "",
@@ -20151,18 +20128,6 @@
     "fr": ""
    }
   },
-  "bfdcde01e7102765cb402890cd1dc9af7f7a1d888e5c37f9085eda881d26dc64": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Chart templates (`.crtx`) and Save as Picture",
-    "es": "Plantillas de gráfico (`.crtx`) y Guardar como imagen",
-    "fr": "Modèles de graphique (`.crtx`) et Enregistrer comme image"
-   }
-  },
   "c01eda28712915ee5c13215f7ae438eceea6754bf1effbb870f01ed78d8c7bd4": {
    "drop": false,
    "en": "In JeffWrite, you can set row height to at least or exactly a value, set column width in points or as a percent of the table, fit a table to its contents, to the window, or to a fixed size, and distribute rows and columns evenly. Dragging a column or row line with the mouse sets its width or height.",
@@ -20847,6 +20812,18 @@
     "fr": "Valeurs de tableaux croisés dynamiques : formats de nombre"
    }
   },
+  "c9a41ab3a956005a0e4ca2981896c538fe0eabdb46ded7d4be3308077dad57d6": {
+   "drop": false,
+   "en": "Title Text… sets the chart title and each axis title, and a title can link to a cell (`=Sheet1!A1`). The title follows the cell, and the file keeps the link.",
+   "es": "Title Text… define el título del gráfico y el de cada eje, y un título puede vincularse a una celda (`=Sheet1!A1`). El título sigue a la celda y el fichero conserva el vínculo.",
+   "fr": "Title Text… définit le titre du graphique et celui de chaque axe, et un titre peut être lié à une cellule (`=Sheet1!A1`). Le titre suit la cellule et le fichier conserve le lien.",
+   "soon": {
+    "drop": false,
+    "en": "Chart text: cell links typed in the formula bar, rich text, and axis labels that wrap and rotate",
+    "es": "Texto de gráficos: vínculos a celdas escritos en la barra de fórmulas, texto con formato y etiquetas de eje que se ajustan y giran",
+    "fr": "Texte de graphique : liens de cellule saisis dans la barre de formule, texte enrichi et étiquettes d’axe avec retour à la ligne et rotation"
+   }
+  },
   "c9aed89cd4ab7849802e2b9a37fd9b5c2cf4c237b6fb863a284055f7fa66905a": {
    "drop": false,
    "en": "Function Library",
@@ -21267,6 +21244,18 @@
     "fr": ""
    }
   },
+  "cf24e11bd2bd373c359b4c31ea9232fb9399b9f802f7f28f946d7f54e7196b38": {
+   "drop": false,
+   "en": "Format Horizontal Axis and Format Vertical Axis on the Chart tab set bounds, major and minor units, reverse order, where the other axis crosses, number format, tick marks, label position, and label rotation. A log scale with a base from 2 to 1000 can be chosen in Format Axis.",
+   "es": "Format Horizontal Axis y Format Vertical Axis, en la pestaña Chart, establecen los límites, las unidades principales y secundarias, el orden inverso, el punto donde se cruza el otro eje, el formato de número, las marcas de graduación, la posición de las etiquetas y su giro. En Format Axis puede elegir una escala logarítmica con base de 2 a 1000.",
+   "fr": "Format Horizontal Axis et Format Vertical Axis, dans l’onglet Chart, définissent les bornes, les unités principales et secondaires, l’ordre inverse, le point où l’autre axe croise, le format de nombre, les graduations, la position des étiquettes et leur rotation. Dans Format Axis, vous pouvez choisir une échelle logarithmique de base 2 à 1000.",
+   "soon": {
+    "drop": false,
+    "en": "Axis display units and text direction; format panes for a series and a point",
+    "es": "Unidades de visualización y dirección del texto de los ejes; paneles de formato para una serie y un punto",
+    "fr": "Unités d’affichage et sens du texte des axes ; volets de format pour une série et un point"
+   }
+  },
   "cf30c78b4294d33a089b3a912a03bd8b39298fd416fa6569c29e9708f7046321": {
    "drop": false,
    "en": "Printing and color",
@@ -21481,6 +21470,18 @@
     "en": "Pivot chart Analyze tab: field buttons, expand and collapse buttons, field list, and refresh, change source, and clear commands",
     "es": "Pestaña Analizar del gráfico dinámico: botones de campo, botones de expandir y contraer, lista de campos y comandos de actualizar, cambiar origen y borrar",
     "fr": "Onglet Analyse du graphique croisé dynamique : boutons de champ, boutons développer et réduire, liste des champs et commandes d’actualisation, de changement de source et d’effacement"
+   }
+  },
+  "d308e235596fdf2b84368825bfdd6e04f2773431b7cb3a375d729c6c4488cdef": {
+   "drop": false,
+   "en": "Show Report Filter Pages on the Pivot Table tab creates a sheet for each filter item. Each sheet holds a copy of the table with its filter set to that item, and hidden items stay hidden. It can be undone in one step.",
+   "es": "Show Report Filter Pages, en la pestaña Pivot Table, crea una hoja para cada elemento del filtro. Cada hoja contiene una copia de la tabla con su filtro establecido en ese elemento, y los elementos ocultos siguen ocultos. Se puede deshacer en un solo paso.",
+   "fr": "Show Report Filter Pages, dans l’onglet Pivot Table, crée une feuille pour chaque élément du filtre. Chaque feuille contient une copie du tableau dont le filtre est réglé sur cet élément, et les éléments masqués restent masqués. L’opération s’annule en une seule étape.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "d319775f3cb92056b352ad44bee47979014d8b408e6de4d907cfbbcd77a975b2": {
@@ -21961,18 +21962,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d9addbd16bf8981d3a9c3155a3ce82fa8d69b1ea7fd99ca29f73cf272d307d92": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Chart text linked to a cell, rich text in titles, and wrapping and rotating axis labels",
-    "es": "Texto de gráfico vinculado a una celda, texto enriquecido en títulos y etiquetas de ejes con ajuste y rotación",
-    "fr": "Texte de graphique lié à une cellule, texte enrichi dans les titres et étiquettes d’axes avec retour à la ligne et rotation"
    }
   },
   "da02845ee10433f71ca19d01834659a831cfced7c6dbfe4faeab6aed0b2981c4": {
@@ -22743,6 +22732,18 @@
     "fr": ""
    }
   },
+  "e4f04f445a4ca11c3ce1a2688b39d48b0afd539c7e3f00576b0a2bd96f9950fb": {
+   "drop": false,
+   "en": "Any chart, picture, or shape can be given a name and alt text in Properties. They are saved with the file and read back.",
+   "es": "A cualquier gráfico, imagen o forma se le puede dar un nombre y un texto alternativo en Properties. Se guardan con el fichero y se leen de nuevo.",
+   "fr": "Tout graphique, image ou forme peut recevoir un nom et un texte de remplacement dans Properties. Ils sont enregistrés avec le fichier et relus.",
+   "soon": {
+    "drop": false,
+    "en": "Picture crop, size, and arrange",
+    "es": "Recorte, tamaño y organización de imágenes",
+    "fr": "Rognage, taille et organisation des images"
+   }
+  },
   "e50d45c23cb6010c3ad2eb546a2468fd2096abd4455bfa6bc89522666a8f24bb": {
    "drop": false,
    "en": "In JeffPub, press `Alt` and letters appear on the ribbon. Type a tab's letter, then a command's, to use it without the mouse.",
@@ -22921,18 +22922,6 @@
     "en": "Embed fonts in the file",
     "es": "Incrustar fuentes en el documento",
     "fr": "Incorporation des polices dans le fichier"
-   }
-  },
-  "e6a6781b1880e67e399599dd593ad4dca859d91e116fbe295a8be4daddd9579b": {
-   "drop": false,
-   "en": "Value Field Settings in JeffCrunch sets how to total and a custom name, plus a number format. Show Values As offers percent of grand, column, and row total, index, difference from, percent of, percent difference from, and running total.",
-   "es": "La configuración de campo de valor de JeffCrunch permite elegir cómo totalizar, un nombre personalizado y un formato de número. Mostrar valores como ofrece porcentaje del total general, de columna y de fila, índice, diferencia de, porcentaje de, porcentaje de diferencia de y total acumulado.",
-   "fr": "Les paramètres de champ de valeur de JeffCrunch permettent de choisir le mode de calcul du total, un nom personnalisé et un format de nombre. Afficher les valeurs sous forme de propose pourcentage du total général, de colonne et de ligne, indice, différence par rapport à, pourcentage de, pourcentage de différence par rapport à et total cumulé.",
-   "soon": {
-    "drop": false,
-    "en": "Show Values As: rank and percent of parent total",
-    "es": "Mostrar valores como: clasificación y porcentaje del total principal",
-    "fr": "Afficher les valeurs sous forme de : rang et pourcentage du total parent"
    }
   },
   "e6b58d8728f740a2ede9a83b8c7db1eff3c880e2fececa9a1cab59f23757cda6": {
@@ -23221,6 +23210,18 @@
     "en": "`INFO` function",
     "es": "Función `INFO`",
     "fr": "Fonction `INFO`"
+   }
+  },
+  "ea99aaa8f107950b0036b9446aa8e64e5c66a266c7bfaaea21f47bd44c4c81eb": {
+   "drop": false,
+   "en": "A selected pivot chart has the Chart tab, with chart kind, data, titles, labels, and Save as Picture. Changes are kept with the table’s chart and stay after a refresh.",
+   "es": "Un gráfico dinámico seleccionado tiene la pestaña Chart, con tipo de gráfico, datos, títulos, etiquetas y Save as Picture. Los cambios se conservan con el gráfico de la tabla y permanecen tras una actualización.",
+   "fr": "Un graphique croisé dynamique sélectionné dispose de l’onglet Chart, avec le type de graphique, les données, les titres, les étiquettes et Save as Picture. Les modifications sont conservées avec le graphique du tableau et subsistent après une actualisation.",
+   "soon": {
+    "drop": false,
+    "en": "Format tab for pivot charts",
+    "es": "Pestaña Format para gráficos dinámicos",
+    "fr": "Onglet Format pour les graphiques croisés dynamiques"
    }
   },
   "eab6e62fb26a175eeb50644ca8ec8643de46f5e8b0dfa6ced997a2b6d7ba1000": {
