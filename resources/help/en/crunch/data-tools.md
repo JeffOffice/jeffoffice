@@ -1,5 +1,5 @@
 # Data tools
-<!-- keywords: data, data tab, text to columns, split, separator, comma, tab, fixed width, remove duplicates, goal seek, subtotal, totals, advanced filter, conditions, data validation, circle invalid data, red oval, clear validation circles, consolidate, combine ranges, allow, list, drop-down, input message, error alert, repeated rows, unique, text file, csv, from text, columns, delimiter, quotes, edit links, links, external, source, break link, check status, open source -->
+<!-- keywords: scenario manager, scenarios, what-if, what if, scenario summary, data, data tab, text to columns, split, separator, comma, tab, fixed width, remove duplicates, goal seek, subtotal, totals, advanced filter, conditions, data validation, circle invalid data, red oval, clear validation circles, consolidate, combine ranges, allow, list, drop-down, input message, error alert, repeated rows, unique, text file, csv, from text, columns, delimiter, quotes, edit links, links, external, source, break link, check status, open source -->
 
 The **Data** tab has the tools that work on a list of values: getting text from a file, putting a list in order, cutting text into columns, and taking out repeated rows.
 
@@ -57,6 +57,20 @@ Use this when you know the answer you want but not the number that gives it. For
 5. Press **OK**.
 
 If Goal Seek finds a number, it stays in the cell to change, and the status bar says what it is. If it can't, nothing changes and you are told. Try a different starting number in the cell to change, and check that the formula really uses that cell. Goal Seek is one step that you can undo.
+
+## Scenario Manager
+
+A scenario is a named set of values for some cells. Use scenarios to try "what if" on one sheet. For example, keep a "Low sales" scenario and a "High sales" scenario for the same input cells, and show the one you want to look at.
+
+1. Choose **Scenario Manager** on the **Data** tab.
+2. Press **Add**. Type a name, such as High sales. In **Changing cells**, type the cells the scenario sets, such as B1:B3 or D5. A scenario can change up to 32 cells. The cells you selected are filled in for you. Each cell starts with the value it holds now. Type the value this scenario should use in the table, and press **OK**.
+3. Pick a scenario in the list and press **Show** to put its values in the cells. Double-clicking a name does the same. Press **Edit** to change its name, its comment, or its values. Press **Delete** to take it away.
+
+Show, Add, Edit, and Delete are each one step that you can undo. A scenario keeps the cell names it was made with. If you insert or delete rows or columns, check that its cells are still the right ones.
+
+**Summary** puts all the scenarios side by side on a new sheet called Scenario Summary. It asks for the result cells, which are the cells you want to compare, such as the total in B10. For each scenario, the summary shows the values of the changing cells and what the result cells come to, worked out with that scenario's values. A column called Current Values shows how the cells were when you made the summary. Your own cells are left as they were.
+
+The scenarios are saved in the workbook. A workbook made by another program keeps its scenarios, and you see them here. A copy saved as an older .xls file or as .ods does not hold them, and the save tells you so.
 
 ## Subtotal
 
