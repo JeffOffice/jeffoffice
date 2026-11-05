@@ -1,5 +1,5 @@
 # Headers and footers
-<!-- keywords: header, footer, page number, page numbers, running head, top of page, bottom of page, different first page, odd and even pages, link to previous, section, field, page field, date, title, insert page number, close header and footer, edit header, edit footer, margin -->
+<!-- keywords: header from top, footer from bottom, show document text, distance from the edge, header, footer, page number, page numbers, running head, top of page, bottom of page, different first page, odd and even pages, link to previous, section, field, page field, date, title, insert page number, close header and footer, edit header, edit footer, margin -->
 
 A **header** is text at the top of every page. A **footer** is text at the bottom. People use them for page numbers, a title, a date, or a company name. This topic shows how to add, edit, and close them.
 
@@ -29,6 +29,12 @@ Click **Header & Footer > Insert > Page Number Format**. Pick a look: 1, 2, 3, o
 ## Start from a design, add information, or take one away
 
 **Header & Footer > Design > Designs** gives the header or footer you are editing a ready look, such as a page number at the right, the title and the page number, or three columns. It replaces what was there, and **Undo** brings it back. **Document Info** puts in the author, the title, the file name, or the file's path. These are fields, so they change when the file does. **Remove Header** and **Remove Footer** take away the one in this part of the document. If a later section was sharing it, that section gets an empty one of its own.
+
+## Set how far they are from the edge of the paper
+
+On the **Header & Footer** tab, the **Position** group has two boxes. **Header from Top** is the space between the top edge of the paper and the header. **Footer from Bottom** is the space between the bottom edge and the footer. Type a number and press Enter. It changes the section you are editing, and **Undo** takes it back.
+
+**Show Document Text** is a check mark in the same group. Turn it off to hide the words of the page while you work on the header or footer. They come back when you turn it on again. It changes only what you see, not the document.
 
 ## Move between headers and footers
 

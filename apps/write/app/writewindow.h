@@ -441,6 +441,7 @@ private:
     write::FormatBrush m_brush;
     QList<MeasureSpin *> m_pictureFields;   // the height and width of the Picture Format tab
     write::Ruler *m_ruler = nullptr;
+    QList<MeasureSpin *> m_hfFields;        // the header and footer distances of the Header & Footer tab
     QList<MeasureSpin *> m_tableFields;     // the row height and column width of the Table Layout tab
     QWidget *m_tableStyleGallery = nullptr;
     QHash<QString, QAction *> m_actions;

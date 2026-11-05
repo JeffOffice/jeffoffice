@@ -310,6 +310,13 @@ void PageView::setDraft(bool on)
     viewport()->update();
 }
 
+void PageView::setShowBodyWhileEditingHeader(bool on)
+{
+    if (m_showBodyInHeader == on) return;
+    m_showBodyInHeader = on;
+    viewport()->update();
+}
+
 void PageView::setSideToSide(bool on)
 {
     if (m_sideToSide == on) return;
@@ -645,6 +652,8 @@ void PageView::paintEvent(QPaintEvent *e)
             if (m_hf.active) {
                 d.editedStory = m_hf.story;
                 d.editFooter = m_hf.footer;
+                d.hideBody = !m_showBodyInHeader;
+                d.pageColor = m_doc ? m_doc->pageColor() : QColor();
                 d.editSpelling = m_hfSpell.get();
                 d.editTypingAt = !m_cursor.hasSelection() && m_cursor.position() == m_editEnd ? m_cursor.position() : -1;
                 if (m_cursor.hasSelection()) {

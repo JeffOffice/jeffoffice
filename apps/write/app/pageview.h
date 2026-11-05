@@ -74,6 +74,9 @@ public:
     // Draft: the pages run on without edges, shadows, headers, or footers, a dotted line (named for a page or section break) where each ends.
     void setDraft(bool on);
     bool draft() const { return m_draft; }
+    // While a header or footer is edited the page's own text is shown dimmed (the usual), or left out.
+    void setShowBodyWhileEditingHeader(bool on);
+    bool showBodyWhileEditingHeader() const { return m_showBodyInHeader; }
     void setSideToSide(bool on);
     bool sideToSide() const { return m_sideToSide; }
 
@@ -425,7 +428,7 @@ private:
     double m_zoom = 1.0;
     ZoomMode m_mode = ZoomMode::Percent;
     int m_across = 1, m_down = 1;
-    bool m_sideToSide = false, m_draft = false;
+    bool m_sideToSide = false, m_draft = false, m_showBodyInHeader = true;
     bool m_marks = false;
     bool m_gridlines = false;
     bool m_shadeFields = false;

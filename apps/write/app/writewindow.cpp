@@ -562,7 +562,7 @@ void WriteWindow::refreshUi()
     {
         const bool editing = m_view->inHeaderFooter();
         const write::PageView::HeaderFooterEdit &e = m_view->headerFooterEdit();
-        for (const char *id : {"hf.close", "hf.pageNumber", "hf.pageNumberFormat", "hf.dateTime", "hf.removeHeader", "hf.removeFooter", "hf.differentFirst", "hf.differentOddEven"}) act(QString::fromLatin1(id))->setEnabled(editing);
+        for (const char *id : {"hf.close", "hf.pageNumber", "hf.pageNumberFormat", "hf.dateTime", "hf.removeHeader", "hf.removeFooter", "hf.differentFirst", "hf.differentOddEven", "hf.showDocumentText"}) act(QString::fromLatin1(id))->setEnabled(editing);
         // (A header, a footer, or a note takes no break of a page or a section.)
         if (editing || m_view->inNote())
             for (const char *id : {"insert.pageBreak", "layout.sectionBreak"}) act(QString::fromLatin1(id))->setEnabled(false);
@@ -617,6 +617,13 @@ void WriteWindow::refreshUi()
         act("hf.goToFooter")->setEnabled(editing && !e.footer);
         act("hf.linkPrevious")->setEnabled(editing && e.section > 0);
         act("hf.linkPrevious")->setChecked(editing && m_doc->linkedToPrevious(e.section, e.footer, e.slot));
+        if (editing && m_hfFields.size() >= 2) {
+            const office::wml::SectionProps sp = m_doc->sectionProps(e.section);
+            m_updatingFields = true;
+            m_hfFields[0]->setPoints(sp.header / 20.0);
+            m_hfFields[1]->setPoints(sp.footer / 20.0);
+            m_updatingFields = false;
+        }
     }
     refreshTableUi();
     refreshPictureUi();

@@ -18,6 +18,7 @@
 #include "core/proofops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
+#include "app/widgets.h"
 
 #include "office/package.h"
 #include <QAction>
@@ -131,13 +132,6 @@ std::unique_ptr<WriteDoc> narrowDoc(const QByteArray &settings)
     return WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r></w:p>" + sect, settings), &err);
 }
 
-// The longest run of lines in a row that end inside a word (a hyphenated break), and how many lines there are.
-QPair<int, int> hyphenRun(WriteDoc &doc)
-{
-    int run = 0, most = 0;
-    const auto lines = doc.pager().lines(0);
-    for (const auto &l : lines) {
-        const QChar last = l.end > 0 ? doc.story()->characterAt(l.end - 1) : QChar(), next = doc.story()->characterAt(l.end);
 // A page wide enough for each word of a line, its words in capitals (so that a line ends inside a word only where the word is hyphenated).
 std::unique_ptr<WriteDoc> capsDoc(const QByteArray &settings)
 {
@@ -148,6 +142,13 @@ std::unique_ptr<WriteDoc> capsDoc(const QByteArray &settings)
     return WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r></w:p>" + sect, settings), &err);
 }
 
+// The longest run of lines in a row that end inside a word (a hyphenated break), and how many lines there are.
+QPair<int, int> hyphenRun(WriteDoc &doc)
+{
+    int run = 0, most = 0;
+    const auto lines = doc.pager().lines(0);
+    for (const auto &l : lines) {
+        const QChar last = l.end > 0 ? doc.story()->characterAt(l.end - 1) : QChar(), next = doc.story()->characterAt(l.end);
         if (last.isLetter() && next.isLetter()) most = std::max(most, ++run);
         else run = 0;
     }
@@ -692,13 +693,6 @@ private Q_SLOTS:
         QVERIFY(!plain.contains("consecutiveHyphenLimit") && !plain.contains("hyphenationZone"));
     }
 
-    void theLimitKeepsLinesFromEndingInAHyphenTooManyTimesInARow()
-    {
-        auto none = narrowDoc("<w:autoHyphenation/>");
-        QVERIFY(none);
-        const QPair<int, int> free = hyphenRun(*none);
-        QVERIFY2(free.first >= 3, qPrintable(QString::number(free.first)));   // (there are long runs without a limit)
-        auto one = narrowDoc("<w:autoHyphenation/><w:consecutiveHyphenLimit w:val=\"1\"/>");
     void wordsInCapitalsAreHyphenatedUnlessTheSettingsSayNot()
     {
         auto on = capsDoc("<w:autoHyphenation/>");
@@ -743,6 +737,13 @@ private Q_SLOTS:
         QVERIFY(!w.act("layout.hyphenation.caps")->isChecked());
     }
 
+    void theLimitKeepsLinesFromEndingInAHyphenTooManyTimesInARow()
+    {
+        auto none = narrowDoc("<w:autoHyphenation/>");
+        QVERIFY(none);
+        const QPair<int, int> free = hyphenRun(*none);
+        QVERIFY2(free.first >= 3, qPrintable(QString::number(free.first)));   // (there are long runs without a limit)
+        auto one = narrowDoc("<w:autoHyphenation/><w:consecutiveHyphenLimit w:val=\"1\"/>");
         QVERIFY(one);
         const QPair<int, int> limited = hyphenRun(*one);
         QCOMPARE(limited.first, 1);
@@ -775,6 +776,68 @@ private Q_SLOTS:
         w.setHyphenationAsker([](double &, int &) { return false; });
         w.act(QStringLiteral("layout.hyphenation.options"))->trigger();
         QCOMPARE(w.document()->hyphenLimit(), 2);
+    }
+
+    // ---------------------------------------------------------------- Header & Footer
+    void theHeaderAndFooterDistancesOnTheTabSetTheSectionsPageMargins()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        w.view()->paginateAll();
+        QVERIFY(w.view()->enterHeaderFooter(0, false, true));
+        auto *header = w.findChild<MeasureSpin *>(QStringLiteral("headerFromTopField"));
+        auto *footer = w.findChild<MeasureSpin *>(QStringLiteral("footerFromBottomField"));
+        QVERIFY(header && footer);
+        w.refreshNow();
+        QCOMPARE(header->value(), w.document()->sectionProps(0).header / 20.0);
+        QCOMPARE(footer->value(), w.document()->sectionProps(0).footer / 20.0);
+        header->setValue(18);
+        Q_EMIT header->editingFinished();
+        footer->setValue(54);
+        Q_EMIT footer->editingFinished();
+        QCOMPARE(w.document()->sectionProps(0).header, 360);
+        QCOMPARE(w.document()->sectionProps(0).footer, 1080);
+        // Each is one step that undoes, and the file says it.
+        const QByteArray saved = w.document()->toDocx();
+        office::Package p;
+        p.read(saved);
+        const QByteArray body = p.part(QStringLiteral("/word/document.xml"));
+        QVERIFY2(body.contains("w:header=\"360\"") && body.contains("w:footer=\"1080\""), body.constData());
+        w.document()->undo();
+        QCOMPARE(w.document()->sectionProps(0).footer, 720);
+        QCOMPARE(w.document()->sectionProps(0).header, 360);
+        // A value that is no change is no step.
+        w.document()->redo();
+        const bool could = w.document()->canUndo();
+        Q_EMIT header->editingFinished();
+        QCOMPARE(w.document()->sectionProps(0).header, 360);
+        QVERIFY(could);
+    }
+
+    void showDocumentTextCoversThePagesTextWhileAHeaderIsEdited()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        QVERIFY(w.act("hf.showDocumentText"));
+        QVERIFY(!w.act("hf.showDocumentText")->isEnabled());   // (only while a header or footer is edited)
+        w.view()->paginateAll();
+        QVERIFY(w.view()->enterHeaderFooter(0, false, true));
+        w.refreshNow();
+        QVERIFY(w.act("hf.showDocumentText")->isEnabled() && w.act("hf.showDocumentText")->isChecked());
+        bool covered = true;
+        setPaintObserver([&](const flow::MaterializedPage &, const PageDrawing &d) { covered = d.hideBody; });
+        w.view()->grab();
+        QVERIFY(!covered);
+        w.act(QStringLiteral("hf.showDocumentText"))->trigger();
+        QVERIFY(!w.view()->showBodyWhileEditingHeader());
+        w.view()->grab();
+        setPaintObserver(nullptr);
+        QVERIFY(covered);
     }
 
     void wordCountHasTheLinesTheLayoutMade()

@@ -88,6 +88,14 @@ void paintEditedEdge(QPainter *p, const flow::MaterializedPage &page, const Page
     p->save();
     p->setRenderHint(QPainter::Antialiasing, false);
     p->fillPath(dim, QColor(255, 255, 255, 150));
+    // (Without the document text, the text area is covered by the page's own color; the headers and footers stay.)
+    if (d.hideBody && !d.editIsNote) {
+        QPainterPath body;
+        body.addRect(page.bodyArea);
+        for (const auto &fb : page.furniture)
+            if (const Item *item = page.doc->item(fb.itemId)) body = body.subtracted([&] { QPainterPath r; r.addRect(item->rect); return r; }());
+        p->fillPath(body, d.pageColor.isValid() ? d.pageColor : QColor(Qt::white));
+    }
     const double y = d.editFooter ? page.bodyArea.bottom() : page.bodyArea.top();
     p->setPen(QPen(QColor(90, 90, 90), 0.6, Qt::DashLine));
     p->drawLine(QPointF(0, y), QPointF(page.size.width(), y));

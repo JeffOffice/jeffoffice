@@ -1456,6 +1456,38 @@
           ]
         },
         {
+          "name": "Position",
+          "keytip": "ZP",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Header from Top:"
+                },
+                {
+                  "widget": "headerFromTop",
+                  "keytip": "HT"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Footer from Bottom:"
+                },
+                {
+                  "widget": "footerFromBottom",
+                  "keytip": "FB"
+                }
+              ]
+            },
+            {
+              "small": "hf.showDocumentText",
+              "keytip": "ST"
+            }
+          ]
+        },
+        {
           "name": "Navigation",
           "keytip": "ZN",
           "items": [
