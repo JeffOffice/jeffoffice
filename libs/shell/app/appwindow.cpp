@@ -3,6 +3,7 @@
 #include "app/ribbon.h"
 
 #include <QApplication>
+#include <QScreen>
 #include <QSet>
 #include <QMenu>
 #include <QToolButton>
@@ -16,6 +17,37 @@ QList<AppWindow *> AppWindow::windows()
     for (QWidget *w : QApplication::topLevelWidgets())
         if (auto *a = qobject_cast<AppWindow *>(w)) out << a;
     return out;
+}
+
+void AppWindow::arrangeInColumns(const QList<AppWindow *> &wins)
+{
+    if (wins.isEmpty()) return;
+    const QRect area = wins.first()->screen()->availableGeometry();
+    const int each = area.width() / int(wins.size());
+    for (int i = 0; i < wins.size(); ++i) {
+        wins[i]->showNormal();
+        wins[i]->setGeometry(area.left() + i * each, area.top(), each, area.height());
+    }
+}
+
+void AppWindow::cascade(const QList<AppWindow *> &wins)
+{
+    int k = 0;
+    for (AppWindow *w : wins) {
+        w->showNormal();
+        w->move(40 + k * 30, 40 + k * 30);
+        w->raise();
+        ++k;
+    }
+}
+
+void AppWindow::placeSideBySide(AppWindow *left, AppWindow *right)
+{
+    const QRect area = left->screen()->availableGeometry();
+    left->showNormal();
+    right->showNormal();
+    left->setGeometry(area.left(), area.top(), area.width() / 2, area.height());
+    right->setGeometry(area.left() + area.width() / 2, area.top(), area.width() / 2, area.height());
 }
 
 bool AppWindow::commandAllowedReadOnly(const QString &id)

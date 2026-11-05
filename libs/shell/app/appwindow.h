@@ -20,6 +20,11 @@ public:
     virtual Ribbon *ribbon() const = 0;
     // Every app window that is open, in the order the system lists them.
     static QList<AppWindow *> windows();
+    // The View > Window group's placing, for the windows an app lists (its own kind): side by side in columns across the screen, stacked with each a little down and right from the one
+    // before, and two windows each filling half of the screen. Each window that is placed is shown normal (not maximized or minimized).
+    static void arrangeInColumns(const QList<AppWindow *> &wins);
+    static void cascade(const QList<AppWindow *> &wins);
+    static void placeSideBySide(AppWindow *left, AppWindow *right);
 
     // A file opened read-only: nothing in it can be changed here, and Save asks for a new name (which makes the window an ordinary one). The app's window overrides
     // setReadOnly to show it (the title, what it will not let be typed or dragged), and calls the base.
