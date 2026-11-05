@@ -3,7 +3,7 @@
   "jeffcrunch": {
    "name": "JeffCrunch",
    "reviewed": {
-    "day": "4",
+    "day": "5",
     "month": "November",
     "year": "2026"
    },
@@ -110,7 +110,7 @@
         },
         {
          "status": "partly",
-         "text": "5a4312ac5ae088fa65f719388c6acf53b792986abc44f043da3966a7e8681fc2"
+         "text": "8122c7a8d52b53fe224551de94c042eab5975e21c4ed323b1d6d553e413cf662"
         },
         {
          "status": "partly",
@@ -118,7 +118,7 @@
         },
         {
          "status": "partly",
-         "text": "1b2da739205e5ef00a88142c55c1db447fa0d8e5c38905ed0886104520f01ceb"
+         "text": "2941ca9ba1e6012dec536a59840f174d30bb9a16ecd6fd0350a78d923d85f869"
         },
         {
          "hide_soon": true,
@@ -251,8 +251,9 @@
          "text": "aa5c7292c5bd3f9dcbc80d0b258c1d20a87608124c26551c6b94defa89c04320"
         },
         {
-         "status": "todo",
-         "text": "cff4dcdd7547f7c48e39cde6830583c0b2b0a324784b47d037e8d45093a13ded"
+         "hide_soon": true,
+         "status": "done",
+         "text": "a0a699829db6cc393e5aaa348b65607a22d89e6d0bb3e3ce296f2dd1d8b7db9d"
         }
        ]
       },
@@ -316,8 +317,8 @@
          "text": "328aec9659bc0dd2fceeed37ba78ff18cd620002b882f8f0efa22bbe45fff269"
         },
         {
-         "status": "todo",
-         "text": "03469a5caea158e3393c9abbe389367a0b0b0d3c051faa284f9dceccec3bdd54"
+         "status": "partly",
+         "text": "7cc66d54c5068da08a69bc513718f421d39bddcbcadb34994e2453a8595e4938"
         },
         {
          "status": "todo",
@@ -1109,8 +1110,9 @@
          "text": "69b666e8becbc4fed0c3450210a99626d4118c5ee049f1e7585a6fb6ec00eecb"
         },
         {
-         "status": "todo",
-         "text": "02506436007364d8af8dda128f6b07e232bd0c87ed0e9d1b2048b291eed9a32a"
+         "hide_soon": true,
+         "status": "partly",
+         "text": "935939a8980548987aac5850402875fc35b8b991186e7a9239b5afa0b345ecb2"
         }
        ]
       },
@@ -2127,8 +2129,9 @@
          "text": "2b1b1f8bb976d5f4393cc6d70ddec8406c022c10a1e153e6aaf72e8be5f1d71e"
         },
         {
-         "status": "todo",
-         "text": "2418710f36ab404d1c72397d7ae9752713c20fcd5906432a3333e4c651afbaf5"
+         "hide_soon": true,
+         "status": "done",
+         "text": "51e7e7bf8ecf235ea3c36337864ee8b9945f7fb11b6f23c65b1e77b5d94ecd4a"
         }
        ]
       },
@@ -7152,18 +7155,6 @@
     "fr": "Modifier les données et sélectionner les données : une grille de données pour les chiffres du graphique, ouverte sur place, avec inversion lignes/colonnes"
    }
   },
-  "02506436007364d8af8dda128f6b07e232bd0c87ed0e9d1b2048b291eed9a32a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Check Accessibility: alt text, merged cells, layout blanks, sheet names, header row, color contrast, and reading order",
-    "es": "Comprobar accesibilidad: texto alternativo, celdas combinadas, celdas en blanco de diseño, nombres de hojas, fila de encabezado, contraste de color y orden de lectura",
-    "fr": "Vérification de l’accessibilité : texte de remplacement, cellules fusionnées, cellules vides de mise en page, noms de feuilles, ligne d’en-tête, contraste des couleurs et ordre de lecture"
-   }
-  },
   "025da5213017d5f3cdbb40b530a254abbd9a6887dc95c4c8191545066040a862": {
    "drop": false,
    "en": "JeffPub supports fields for page number, page count, date and time, business information, and mail merge.",
@@ -7222,18 +7213,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "03469a5caea158e3393c9abbe389367a0b0b0d3c051faa284f9dceccec3bdd54": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Advanced editing options: Enter key direction, in-cell editing, fill handle, drag and drop, and paste choices",
-    "es": "Opciones avanzadas de edición: dirección de la tecla `Enter`, edición en la celda, controlador de relleno, arrastrar y soltar, y opciones de pegado",
-    "fr": "Options avancées de modification : direction de la touche `Entrée`, modification dans la cellule, poignée de recopie, glisser-déposer et choix de collage"
    }
   },
   "038b0b921cc277642323ae1c85ff65abb88e3429727abfee64e528f9c782e2f7": {
@@ -8964,18 +8943,6 @@
     "fr": "Segment : dessin sur les cellules, changement des tableaux filtrés et rendu de chaque style"
    }
   },
-  "1b2da739205e5ef00a88142c55c1db447fa0d8e5c38905ed0886104520f01ceb": {
-   "drop": false,
-   "en": "Review > Check Accessibility lists charts and pictures with no alt text, tables with no header row, merged cells, and sheets with default names, and goes to each.",
-   "es": "Revisar > Comprobar accesibilidad enumera los gráficos e imágenes sin texto alternativo, las tablas sin fila de encabezado, las celdas combinadas y las hojas con nombres predeterminados, y va a cada uno.",
-   "fr": "Révision > Vérifier l’accessibilité répertorie les graphiques et images sans texte de remplacement, les tableaux sans ligne d’en-tête, les cellules fusionnées et les feuilles aux noms par défaut, et accède à chacun.",
-   "soon": {
-    "drop": false,
-    "en": "Accessibility checks for blank cells used for layout, low color contrast, and reading order",
-    "es": "Comprobaciones de accesibilidad para celdas en blanco usadas para el diseño, bajo contraste de color y orden de lectura",
-    "fr": "Vérifications d’accessibilité des cellules vides utilisées pour la mise en page, du faible contraste des couleurs et de l’ordre de lecture"
-   }
-  },
   "1b390ec037e1d33847d0c6b521d480232d32fe623f7444d585a33f6dee7aa181": {
    "drop": false,
    "en": "Contextual tabs",
@@ -9636,18 +9603,6 @@
     "fr": ""
    }
   },
-  "2418710f36ab404d1c72397d7ae9752713c20fcd5906432a3333e4c651afbaf5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Save as `.ots` (OpenDocument template)",
-    "es": "Guardar como `.ots` (plantilla OpenDocument)",
-    "fr": "Enregistrement en `.ots` (modèle OpenDocument)"
-   }
-  },
   "2427e5232df6c29cac3a81c66b35805a952e43db46d5518853c17b84eae6784b": {
    "drop": true,
    "en": "",
@@ -10090,6 +10045,18 @@
     "en": "Charts, pictures, comments, pivot tables, macros, conditional formats, and data validation in `.ods`: read",
     "es": "Gráficos, imágenes, comentarios, tablas dinámicas, macros, formatos condicionales y validación de datos en `.ods`: lectura",
     "fr": "Graphiques, images, commentaires, tableaux croisés dynamiques, macros, mises en forme conditionnelles et validation des données dans `.ods` : lecture"
+   }
+  },
+  "2941ca9ba1e6012dec536a59840f174d30bb9a16ecd6fd0350a78d923d85f869": {
+   "drop": false,
+   "en": "Check Accessibility lists charts and pictures with no alt text, tables with no header row, merged cells, sheets with default names, and text that is hard to read against its fill. It goes to each item.",
+   "es": "Comprobar accesibilidad enumera los gráficos e imágenes sin texto alternativo, las tablas sin fila de encabezado, las celdas combinadas, las hojas con nombres predeterminados y el texto difícil de leer sobre su relleno. Permite ir a cada elemento.",
+   "fr": "Vérifier l’accessibilité répertorie les graphiques et images sans texte de remplacement, les tableaux sans ligne d’en-tête, les cellules fusionnées, les feuilles aux noms par défaut et le texte difficile à lire sur son remplissage. Elle permet d’accéder à chaque élément.",
+   "soon": {
+    "drop": false,
+    "en": "Accessibility checks: blank cells used for layout and reading order",
+    "es": "Comprobaciones de accesibilidad: celdas en blanco usadas para el diseño y orden de lectura",
+    "fr": "Contrôles d’accessibilité : cellules vides utilisées pour la mise en page et ordre de lecture"
    }
   },
   "29484d236f66a10a66c57203781d56b7ec5dbfa244876a3e26ec35856eb3acb1": {
@@ -12828,6 +12795,18 @@
     "fr": ""
    }
   },
+  "51e7e7bf8ecf235ea3c36337864ee8b9945f7fb11b6f23c65b1e77b5d94ecd4a": {
+   "drop": false,
+   "en": "Save a copy of a workbook as an `.ots` file, an OpenDocument template, using Save a Copy.",
+   "es": "Con Guardar una copia, puede guardar un libro como archivo `.ots`, una plantilla de OpenDocument.",
+   "fr": "Avec Enregistrer une copie, vous pouvez enregistrer un classeur au format `.ots`, un modèle OpenDocument.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "523bb5224c0cea88ca0bfaddaf2843576b0fa04fa0f1c482633982342976f67e": {
    "drop": false,
    "en": "Safety and limits",
@@ -13402,18 +13381,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "5a4312ac5ae088fa65f719388c6acf53b792986abc44f043da3966a7e8681fc2": {
-   "drop": false,
-   "en": "Inspect Workbook counts notes, personal information, hidden sheets, external links, and custom XML. It removes notes and personal information, shows hidden sheets and hidden rows and columns (not those a filter hides), and removes headers and footers.",
-   "es": "Inspeccionar libro cuenta las notas, la información personal, las hojas ocultas, los vínculos externos y el XML personalizado. Elimina las notas y la información personal, muestra las hojas ocultas y las filas y columnas ocultas (no las que oculta un filtro) y elimina los encabezados y pies de página.",
-   "fr": "Inspecter le classeur compte les notes, les informations personnelles, les feuilles masquées, les liens externes et le XML personnalisé. Il supprime les notes et les informations personnelles, affiche les feuilles masquées ainsi que les lignes et colonnes masquées (pas celles qu’un filtre masque) et supprime les en-têtes et pieds de page.",
-   "soon": {
-    "drop": false,
-    "en": "Inspecting invisible objects and removing external links and custom XML",
-    "es": "Inspección de objetos invisibles y eliminación de vínculos externos y XML personalizado",
-    "fr": "Inspection des objets invisibles et suppression des liens externes et du XML personnalisé"
    }
   },
   "5ad0db0bbc8e59144334752f140c842f2781e8acfa717026c7a7b6aa5b1db5ad": {
@@ -15816,6 +15783,18 @@
     "fr": ""
    }
   },
+  "7cc66d54c5068da08a69bc513718f421d39bddcbcadb34994e2453a8595e4938": {
+   "drop": false,
+   "en": "In File > Options > Editing, choose where `Enter` moves the selection, turn AutoComplete for text typed in a column on or off, turn the fill handle and cell dragging on or off, and set automatic decimal places, positive or negative.",
+   "es": "En Archivo > Opciones > Edición, puede elegir hacia dónde mueve la selección la tecla `Enter`, activar o desactivar el autocompletado del texto escrito en una columna, activar o desactivar el controlador de relleno y el arrastre de celdas, y definir los decimales automáticos, positivos o negativos.",
+   "fr": "Dans Fichier > Options > Édition, vous pouvez choisir où `Entrée` déplace la sélection, activer ou désactiver la saisie semi-automatique du texte tapé dans une colonne, activer ou désactiver la poignée de recopie et le glissement des cellules, et définir les décimales automatiques, positives ou négatives.",
+   "soon": {
+    "drop": false,
+    "en": "Editing directly in the cell, extending data range formats and formulas, and cut, copy, and paste choices",
+    "es": "Edición directa en la celda, extensión de formatos y fórmulas de rangos de datos, y opciones de cortar, copiar y pegar",
+    "fr": "Modification directe dans la cellule, extension des formats et formules de plages de données, et options de couper, copier et coller"
+   }
+  },
   "7cd24f147c2a163a1eace73e96f61e7e02cbc1a1db39938df871ab6dabbeb156": {
    "drop": false,
    "en": "Set the font face (scheme fonts first) and size, grow or shrink the font, clear all formatting, and apply bold, italic, underline styles, strikethrough, subscript, superscript, case changes, character spacing, and font color (scheme colors, tints, more colors, eyedropper). The Font dialog is also available.",
@@ -16102,6 +16081,18 @@
     "en": "Open and Repair for a damaged `.doc` file",
     "es": "Abrir y reparar para un archivo `.doc` dañado",
     "fr": "Ouvrir et réparer pour un fichier `.doc` endommagé"
+   }
+  },
+  "8122c7a8d52b53fe224551de94c042eab5975e21c4ed323b1d6d553e413cf662": {
+   "drop": false,
+   "en": "Inspect Workbook counts notes, personal information, hidden sheets, external links, and custom XML. It removes notes, personal information, headers, and footers, and shows hidden sheets, rows, and columns. Remove All on external links turns linked cells into the values they show.",
+   "es": "Inspeccionar libro cuenta las notas, la información personal, las hojas ocultas, los vínculos externos y el XML personalizado. Elimina las notas, la información personal, los encabezados y los pies de página, y muestra las hojas, filas y columnas ocultas. Quitar todo en los vínculos externos convierte las celdas vinculadas en los valores que muestran.",
+   "fr": "Inspecter le classeur compte les notes, les informations personnelles, les feuilles masquées, les liens externes et le XML personnalisé. Il supprime les notes, les informations personnelles, les en-têtes et les pieds de page, et affiche les feuilles, lignes et colonnes masquées. Tout supprimer sur les liens externes transforme les cellules liées en les valeurs qu’elles affichent.",
+   "soon": {
+    "drop": false,
+    "en": "Inspect Workbook: find and remove invisible objects",
+    "es": "Inspeccionar libro: buscar y eliminar objetos invisibles",
+    "fr": "Inspecter le classeur : rechercher et supprimer les objets invisibles"
    }
   },
   "8142b6bd031d5a724f9f6a09673b144af547e5c4a509c21b702d9b4227fbe563": {
@@ -17364,6 +17355,18 @@
     "fr": ""
    }
   },
+  "935939a8980548987aac5850402875fc35b8b991186e7a9239b5afa0b345ecb2": {
+   "drop": false,
+   "en": "Check Accessibility finds missing alt text, merged cells, default sheet names, tables with no header row, and low color contrast.",
+   "es": "Comprobar accesibilidad detecta el texto alternativo que falta, las celdas combinadas, los nombres de hoja predeterminados, las tablas sin fila de encabezado y el bajo contraste de color.",
+   "fr": "Vérifier l’accessibilité détecte les textes de remplacement manquants, les cellules fusionnées, les noms de feuille par défaut, les tableaux sans ligne d’en-tête et le faible contraste des couleurs.",
+   "soon": {
+    "drop": false,
+    "en": "Accessibility checks: blank cells used for layout and reading order",
+    "es": "Comprobaciones de accesibilidad: celdas en blanco usadas para el diseño y orden de lectura",
+    "fr": "Contrôles d’accessibilité : cellules vides utilisées pour la mise en page et ordre de lecture"
+   }
+  },
   "935d9041c421786ecc251f9e96cffb6d6c0442f353ee740937acf47b2e7dbec3": {
    "drop": false,
    "en": "In JeffWrite, Insert > Bookmark (`Ctrl+Shift+F5`) adds, deletes, and goes to a bookmark, sorts bookmarks by name or location, and shows hidden bookmarks.",
@@ -18334,6 +18337,18 @@
     "en": "Recover unsaved workbooks",
     "es": "Recuperación de libros sin guardar",
     "fr": "Récupération des classeurs non enregistrés"
+   }
+  },
+  "a0a699829db6cc393e5aaa348b65607a22d89e6d0bb3e3ce296f2dd1d8b7db9d": {
+   "drop": false,
+   "en": "Print all pages, only the odd pages, or only the even pages within the page range. After the odd pages are sent to a printer, a message says to turn the stack over and print the even pages.",
+   "es": "Puede imprimir todas las páginas, solo las impares o solo las pares dentro del intervalo de páginas. Después de enviar las páginas impares a la impresora, un mensaje le indica que dé la vuelta a la pila e imprima las pares.",
+   "fr": "Vous pouvez imprimer toutes les pages, uniquement les pages impaires ou uniquement les pages paires dans la plage de pages. Après l’envoi des pages impaires à une imprimante, un message vous invite à retourner la pile et à imprimer les pages paires.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "a0d6db6f6aadd796487186e169a6e6d8dea5cf43f5b8da88c9628a9767691bcc": {
@@ -21370,18 +21385,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "cff4dcdd7547f7c48e39cde6830583c0b2b0a324784b47d037e8d45093a13ded": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Manual duplex printing: odd pages, then even pages, with a prompt to turn the stack over",
-    "es": "Impresión a doble cara manual: páginas impares y luego pares, con un aviso para dar la vuelta a la pila",
-    "fr": "Impression recto verso manuelle : pages impaires, puis paires, avec un message pour retourner la pile"
    }
   },
   "d04a57cde3a6fcb29f1c73ad14a2c52c49d060d6172d1a07351be59a916f1177": {
