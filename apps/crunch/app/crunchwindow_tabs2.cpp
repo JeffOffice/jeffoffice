@@ -47,10 +47,11 @@ void CrunchWindow::createTabs2Actions()
         else setStatus(tr("%1 cells with data that a rule does not allow are circled.").arg(n));
     });
     mk("data.clearCircles", tr("Clear Validation Circles"), "circle-slash", QKeySequence(), [this] { clearValidationCircles(); });
+    act("data.clearCircles")->setEnabled(false);   // (on while some cells are circled)
     mk("review.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] { showAccessibilityPane(); });
     mk("data.consolidate", tr("Consolidate"), "combine", QKeySequence(), [this] { consolidateDialog(); });
     mk("data.subtotal", tr("Subtotal"), "sigma", QKeySequence(), [this] { subtotalDialog(); });
-    for (const char *id : {"review.statistics", "data.goalSeek", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "data.clearCircles", "review.accessibility"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"review.statistics", "data.goalSeek", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "review.accessibility"}) m_opsActions << QString::fromLatin1(id);
     connect(this, &CrunchWindow::calculationFinished, this, [this] {
         refreshInvalidCircles();
         refreshCellFlags();
@@ -720,6 +721,7 @@ void CrunchWindow::refreshCellFlags()
         // (a green triangle on each cell with a problem)
         for (const crunch::FormulaProblem &p : formulaProblems()) corners.push_back(grid::GridRange{qint64(p.row), qint64(p.col), qint64(p.row), qint64(p.col)});
     }
+    if (QAction *a = act(QStringLiteral("data.clearCircles"))) a->setEnabled(!m_invalidCircled.empty());
     m_view->setCellFlags(std::move(ovals), std::move(corners));
 }
 

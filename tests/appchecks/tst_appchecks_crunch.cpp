@@ -416,6 +416,7 @@ private Q_SLOTS:
             {QStringLiteral("sheet.unhide"), menu},
             {QStringLiteral("formulas.errorChecking"), QStringLiteral("it tells in a message that no cell is wrong (the workbooks here have none), and shows its dialog only when one is")},
             {QStringLiteral("formulas.evaluate"), QStringLiteral("it tells in a message to select a cell with a formula (none is selected here), and shows its dialog only for one")},
+            {QStringLiteral("data.circleInvalid"), QStringLiteral("it tells in a message that every cell follows its rule (no rule is set here), and draws ovals only when one does not")},
             {QStringLiteral("review.statistics"), QStringLiteral("it tells the numbers in a message and changes nothing in the workbook")},
         };
         m_app.neverRun = {

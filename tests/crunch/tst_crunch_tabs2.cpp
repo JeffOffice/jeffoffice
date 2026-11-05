@@ -615,6 +615,7 @@ private Q_SLOTS:
         rule.formula2 = "9";
         QVERIFY(w.setValidationOn(rangeOf(QStringLiteral("B1:B5")), rule));
         QVERIFY(w.circledCells().empty());
+        QVERIFY(!w.act(QStringLiteral("data.clearCircles"))->isEnabled());   // (nothing to clear)
         QStringList told;
         w.setNotifier([&](const QString &, const QString &text) { told << text; });
         // (50 and the text are not allowed; 5 and 7 are; the empty cell and the cell with no rule are not looked at)
@@ -623,6 +624,7 @@ private Q_SLOTS:
         QCOMPARE(int(w.circledCells()[0].row1), 1);
         QCOMPARE(int(w.circledCells()[1].row1), 3);
         QCOMPARE(w.view()->invalidCircles().size(), size_t(2));
+        QVERIFY(w.act(QStringLiteral("data.clearCircles"))->isEnabled());
         // put right, the oval goes when the sheet is worked out
         e.select(QStringLiteral("B2"));
         e.enter(QStringLiteral("8"));
