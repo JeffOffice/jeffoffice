@@ -1,10 +1,12 @@
 #include "core/spellcheck.h"
 
 #include "app/spelling.h"
+#include "core/dropcapops.h"
 #include "core/editops.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 
+#include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextBlockUserData>
 #include <QTextCharFormat>
@@ -154,6 +156,18 @@ SpellCheck::Answer *SpellCheck::check(const QTextBlock &block, int revision, int
         if (a->checkedTo >= length) a->done = true;
         if (a->done || (upTo >= 0 && a->checkedTo > upTo)) break;
         if (!ignoreTime && outOfTime()) break;
+    }
+    // The paragraph after a drop cap goes on with the drop cap's word: that word is read whole, the big letters and the rest of it together.
+    if (a->checkedTo > 0 && isDropCapFrame(block.previous()) && !block.previous().text().isEmpty()) {
+        static const QRegularExpression letters(QStringLiteral("^[\\p{L}\\p{M}]+"));
+        const QRegularExpressionMatch lead = letters.match(block.text());
+        if (lead.hasMatch() && lead.capturedLength() <= a->checkedTo) {
+            for (int i = int(a->words.size()) - 1; i >= 0; --i)
+                if (a->words[i].first == 0) a->words.removeAt(i);
+            QTextDocument whole;
+            whole.setPlainText(block.previous().text() + lead.captured());
+            if (!misspellingsIn(whole.begin(), m_language).isEmpty()) a->words.prepend(qMakePair(0, int(lead.capturedLength())));
+        }
     }
     return a;
 }

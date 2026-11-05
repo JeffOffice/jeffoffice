@@ -80,7 +80,11 @@ QVector<QTextDocument *> headersOf(WriteDoc &doc, bool make)
 
 QByteArray colorWord(const QColor &c) { return "#" + c.name(QColor::HexRgb).mid(1).toLatin1(); }
 
+bool s_putting = false;   // a watermark is being put in: the headers it makes are given it by that
+
 } // namespace
+
+std::optional<WatermarkSetup> watermarkForNewHeader(WriteDoc &doc) { return s_putting ? std::nullopt : watermarkOf(doc); }
 
 QStringList builtInWatermarks()
 {
@@ -113,28 +117,37 @@ QByteArray watermarkXml(const WatermarkSetup &setup, int number)
     return x;
 }
 
+int watermarksIn(QTextDocument *story) { return story ? int(marksIn(story).size()) : 0; }
+
+void putWatermark(QTextDocument *story, const WatermarkSetup &setup, int number)
+{
+    Inline atom;
+    atom.kind = Inline::RunAtom;
+    atom.tag = QStringLiteral("pict");
+    atom.raw = watermarkXml(setup, number);
+    QTextCursor c(story);
+    c.setPosition(0);
+    QTextCharFormat look = c.charFormat();
+    look.clearProperty(prop::Atom);
+    look.clearProperty(tp::Field);
+    look.clearProperty(tp::LinkResult);
+    setStored(look, prop::Atom, packAtom(atom));
+    look.setProperty(tp::Field, QStringLiteral("raw:"));
+    c.insertText(QString(QChar::ObjectReplacementCharacter), look);
+}
+
 int insertWatermark(WriteDoc &doc, const WatermarkSetup &setup)
 {
     if (setup.text.trimmed().isEmpty()) return 0;
     const WriteDoc::StepGroup together(doc);   // (the headers are stories of their own: one undo takes the watermark from all of them)
     removeWatermark(doc);
     int n = 0;
+    s_putting = true;
     const QVector<QTextDocument *> stories = headersOf(doc, true);
+    s_putting = false;
     for (int i = 0; i < stories.size(); ++i) {
         QTextDocument *story = stories[i];
-        Inline atom;
-        atom.kind = Inline::RunAtom;
-        atom.tag = QStringLiteral("pict");
-        atom.raw = watermarkXml(setup, i + 1);
-        QTextCursor c(story);
-        c.setPosition(0);
-        QTextCharFormat look = c.charFormat();
-        look.clearProperty(prop::Atom);
-        look.clearProperty(tp::Field);
-        look.clearProperty(tp::LinkResult);
-        setStored(look, prop::Atom, packAtom(atom));
-        look.setProperty(tp::Field, QStringLiteral("raw:"));
-        c.insertText(QString(QChar::ObjectReplacementCharacter), look);
+        putWatermark(story, setup, i + 1);
         ++n;
     }
     return n;

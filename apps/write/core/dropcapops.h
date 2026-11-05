@@ -18,6 +18,8 @@ constexpr int kMostDropCapLines = 10, kMostDropCapChars = 10;
 
 // The drop cap of the paragraph a block is: the one made here, or the frame a file has (a paragraph of its own set as a drop cap, or the paragraph after it, whose text it begins).
 DropCapSetup dropCapOf(const QTextBlock &block);
+// Whether the block is a paragraph a file sets as a drop cap (a frame of the big letters, whose word goes on in the paragraph after it).
+bool isDropCapFrame(const QTextBlock &block);
 // Whether the paragraph can have a drop cap made here: it has letters first, is not in a list or a table, and is not kept as XML.
 bool canHaveDropCap(const QTextBlock &block);
 // Sets (or, with 0 lines, takes away) the drop cap of the paragraph the caret is in, as one step; false where it can't be (see canHaveDropCap, and a file's own drop cap is not changed).

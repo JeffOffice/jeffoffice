@@ -20,6 +20,7 @@
 #include "core/insertops.h"
 #include "core/layoutops.h"
 #include "core/refops.h"
+#include "core/spellcheck.h"
 #include "core/linkops.h"
 #include "core/watermarkops.h"
 #include "core/writedoc.h"
@@ -634,6 +635,77 @@ private Q_SLOTS:
             }
     }
 
+    void aWatermarkReachesHeadersMadeAfterIt()
+    {
+        auto doc = open(makeDocx(para("One") + para("Two")));
+        QVERIFY(doc);
+        QVERIFY(doc->createHeaderFooter(0, false, WriteDoc::kDefaultSlot));
+        WatermarkSetup w;
+        w.text = QStringLiteral("DRAFT");
+        QCOMPARE(insertWatermark(*doc, w), 1);
+        // A first-page header made later has it, as part of the step that made the header.
+        doc->setDifferentFirstPage(0, true);
+        QVERIFY(!doc->hasOwnHeaderFooter(0, false, WriteDoc::kFirstSlot));
+        QVERIFY(doc->createHeaderFooter(0, false, WriteDoc::kFirstSlot));
+        QCOMPARE(watermarksIn(doc->editableHeaderFooter(0, false, WriteDoc::kFirstSlot)), 1);
+        doc->undo();
+        QVERIFY(!doc->hasOwnHeaderFooter(0, false, WriteDoc::kFirstSlot));
+        QCOMPARE(watermarksIn(doc->editableHeaderFooter(0, false, WriteDoc::kDefaultSlot)), 1);
+        doc->redo();
+        QVERIFY(doc->hasOwnHeaderFooter(0, false, WriteDoc::kFirstSlot));
+        QCOMPARE(watermarksIn(doc->editableHeaderFooter(0, false, WriteDoc::kFirstSlot)), 1);
+        // An even-page header, too, and one made to be typed in (shown before it is kept).
+        doc->setDifferentOddEven(true);
+        QVERIFY(doc->createHeaderFooter(0, false, WriteDoc::kEvenSlot, true));
+        QCOMPARE(watermarksIn(doc->headerFooterStory(0, false, WriteDoc::kEvenSlot)), 1);
+        doc->discardPendingHeaderFooter();
+        // A new section's own header, made by unlinking it, and its first-page header.
+        QTextCursor c(doc->story());
+        QVERIFY(doc->insertSectionBreak(doc->story()->begin()));
+        QVERIFY(doc->sectionCount() >= 2);
+        doc->setDifferentFirstPage(1, true);
+        QVERIFY(doc->createHeaderFooter(1, false, WriteDoc::kFirstSlot));
+        QCOMPARE(watermarksIn(doc->editableHeaderFooter(1, false, WriteDoc::kFirstSlot)), 1);
+        // A footer gets none, and a document with no watermark makes plain headers.
+        QVERIFY(doc->createHeaderFooter(0, true, WriteDoc::kDefaultSlot));
+        QCOMPARE(watermarksIn(doc->editableHeaderFooter(0, true, WriteDoc::kDefaultSlot)), 0);
+        auto plain = WriteDoc::blank();
+        QVERIFY(plain->createHeaderFooter(0, false, WriteDoc::kDefaultSlot));
+        QCOMPARE(watermarksIn(plain->editableHeaderFooter(0, false, WriteDoc::kDefaultSlot)), 0);
+    }
+
+    void aWatermarkCoversEveryHeaderOfEverySectionAsOneStepEachWay()
+    {
+        auto doc = open(makeDocx(para("One") + para("Two")));
+        QVERIFY(doc);
+        QVERIFY(doc->insertSectionBreak(doc->story()->begin()));
+        QVERIFY(doc->createHeaderFooter(0, false, WriteDoc::kDefaultSlot));
+        QVERIFY(doc->setLinkedToPrevious(1, false, WriteDoc::kDefaultSlot, false));
+        QVERIFY(doc->hasOwnHeaderFooter(1, false, WriteDoc::kDefaultSlot));
+        QTextDocument *one = doc->editableHeaderFooter(0, false, WriteDoc::kDefaultSlot), *two = doc->editableHeaderFooter(1, false, WriteDoc::kDefaultSlot);
+        QVERIFY(one);
+        QVERIFY(two);
+        QVERIFY(one != two);
+        WatermarkSetup w;
+        w.text = QStringLiteral("SAMPLE");
+        QCOMPARE(insertWatermark(*doc, w), 2);
+        QCOMPARE(watermarksIn(one), 1);
+        QCOMPARE(watermarksIn(two), 1);
+        doc->undo();
+        QCOMPARE(watermarksIn(one), 0);
+        QCOMPARE(watermarksIn(two), 0);
+        doc->redo();
+        QCOMPARE(watermarksIn(one), 1);
+        QCOMPARE(watermarksIn(two), 1);
+        QCOMPARE(removeWatermark(*doc), 2);
+        QCOMPARE(watermarksIn(one) + watermarksIn(two), 0);
+        doc->undo();
+        QCOMPARE(watermarksIn(one), 1);
+        QCOMPARE(watermarksIn(two), 1);
+        doc->redo();
+        QCOMPARE(watermarksIn(one) + watermarksIn(two), 0);
+    }
+
     void aWatermarkMakesAHeaderWhereThereIsNoneAndNothingForNoWords()
     {
         auto doc = WriteDoc::blank();
@@ -705,6 +777,33 @@ private Q_SLOTS:
         w.lines = 0;
         QVERIFY(setDropCap(*doc, c, w));
         QVERIFY(!documentXml(doc->toDocx()).contains("dropCap"));
+    }
+
+    void theSpellingCheckReadsADropCapAndTheRestOfItsWordAsOneWord()
+    {
+        auto doc = open(makeDocx(para("Once upon a time there was a drop cap.")));
+        QTextCursor c(doc->story());
+        DropCapSetup w;
+        w.lines = 3;
+        QVERIFY(setDropCap(*doc, c, w));
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(again->story()->blockCount(), 2);
+        SpellCheck sc(again->story());
+        QVERIFY2(sc.misspelledIn(0, again->story()->characterCount()).isEmpty(), "the rest of the first word is flagged");
+        // A real mistake in that word is still found, as the whole word.
+        auto bad = open(makeDocx(para("Onze upon a time.")));
+        QTextCursor b(bad->story());
+        QVERIFY(setDropCap(*bad, b, w));
+        auto badAgain = open(bad->toDocx());
+        SpellCheck sb(badAgain->story());
+        const auto flagged = sb.misspelledIn(0, badAgain->story()->characterCount());
+        QCOMPARE(flagged.size(), 1);
+        QCOMPARE(badAgain->story()->toPlainText().mid(flagged.first().first, flagged.first().second - flagged.first().first), QStringLiteral("nze"));
+        // Two paragraphs that are not a drop cap are two words.
+        auto plain = open(makeDocx(para("O") + para("nce upon a time.")));
+        SpellCheck sp(plain->story());
+        QCOMPARE(sp.misspelledIn(0, plain->story()->characterCount()).size(), 1);
     }
 
     void aDropCapOfMoreLettersAndAFontIsKept()

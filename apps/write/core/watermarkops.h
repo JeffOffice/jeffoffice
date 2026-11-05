@@ -10,6 +10,8 @@
 #include <QStringList>
 #include <optional>
 
+class QTextDocument;
+
 namespace jp::write {
 
 struct WatermarkSetup {
@@ -32,6 +34,13 @@ int insertWatermark(WriteDoc &doc, const WatermarkSetup &setup);
 int removeWatermark(WriteDoc &doc);
 // The watermark the document's headers show (the first found), or none.
 std::optional<WatermarkSetup> watermarkOf(WriteDoc &doc);
+
+// The watermark a header made now should begin with (the document's, if its headers show one); none while a watermark is being put in, which makes the headers itself.
+std::optional<WatermarkSetup> watermarkForNewHeader(WriteDoc &doc);
+// How many watermarks a story (a header) holds; 0 for none or no story.
+int watermarksIn(QTextDocument *story);
+// Puts a watermark at the start of a header's story, as part of the edit going on (it makes no step of its own: a header made with it has it from the start).
+void putWatermark(QTextDocument *story, const WatermarkSetup &setup, int number);
 
 // The XML of the shape (the child of a run) for a setup; exposed for the tests.
 QByteArray watermarkXml(const WatermarkSetup &setup, int number = 1);

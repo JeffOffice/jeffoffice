@@ -26,6 +26,8 @@ bool hasDropCapFrame(const QTextBlockFormat &bf)
 
 } // namespace
 
+bool isDropCapFrame(const QTextBlock &block) { return block.isValid() && hasDropCapFrame(block.blockFormat()); }
+
 DropCapSetup dropCapOf(const QTextBlock &block)
 {
     DropCapSetup s;

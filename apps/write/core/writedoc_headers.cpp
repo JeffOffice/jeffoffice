@@ -2,6 +2,7 @@
 // and the stories of its headers and footers.
 
 #include "core/writedoc.h"
+#include "core/watermarkops.h"
 
 #include "core/tablemodel.h"
 #include "core/writeprops.h"
@@ -209,6 +210,7 @@ bool WriteDoc::createHeaderFooter(int section, bool footer, int slot, bool lazy)
         ensureStyle(style);
         for (qsizetype i = had; i < m_wml.styles.styles.size(); ++i) m_headerStyles.insert(m_wml.styles.styles[i].id);
     }
+    const std::optional<WatermarkSetup> mark = footer ? std::nullopt : watermarkForNewHeader(*this);
     Block blank;
     blank.para.props.style = style;
     auto story = std::make_shared<QTextDocument>();
@@ -217,6 +219,8 @@ bool WriteDoc::createHeaderFooter(int section, bool footer, int slot, bool lazy)
     story->setUndoRedoEnabled(false);
     HeaderPart *part = addHeaderPart(footer, story, QString(), !lazy);
     fillStory(story.get(), {blank}, true, part->name, true, false, -1, true);
+    // (A header made while the document shows a watermark has it from the start: it is part of the header's first state, so no step of its own.)
+    if (!footer && mark) putWatermark(story.get(), *mark, int(m_headerParts.size()) + 1);
     finishEditable(*part);
     if (lazy) {
         m_pending = Pending{part->name, section, slot, footer};
