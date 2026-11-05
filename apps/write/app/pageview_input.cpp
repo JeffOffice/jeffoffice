@@ -4,7 +4,9 @@
 
 #include "core/editops.h"
 #include "core/linkops.h"
+#include "app/settings.h"
 #include "core/homeops.h"
+#include <functional>
 #include "core/refops.h"
 #include "core/tableops.h"
 #include "core/writeprops.h"
@@ -90,11 +92,15 @@ void PageView::copy()
     QApplication::clipboard()->setMimeData(mime);
 }
 
+// Smart cut and paste (Options > Advanced): on unless turned off.
+bool PageView::smartCutPaste() { return Settings::get().value(QStringLiteral("edit/smartCutPaste"), true).toBool(); }
+
 void PageView::cut()
 {
     if (!m_doc || !m_cursor.hasSelection()) return;
     copy();
-    removeSelection(*m_doc, m_cursor);
+    if (smartCutPaste()) smartRemoveSelection(*m_doc, m_cursor);
+    else removeSelection(*m_doc, m_cursor);
     caretMoved();
 }
 
@@ -103,20 +109,27 @@ void PageView::paste()
     if (!m_doc) return;
     const QMimeData *mime = QApplication::clipboard()->mimeData();
     if (!mime) return;
-    if (mime->hasFormat(QStringLiteral("application/x-jeffwrite-fragment")) && QString::fromUtf8(mime->data(QStringLiteral("application/x-jeffwrite-fragment"))) == s_copiedText && !s_copied.isEmpty())
-        pasteClip(*m_doc, m_cursor, s_copied);
-    else if (mime->hasImage() && !mime->hasText() && !mime->hasHtml()) {
+    const bool ours = mime->hasFormat(QStringLiteral("application/x-jeffwrite-fragment")) && QString::fromUtf8(mime->data(QStringLiteral("application/x-jeffwrite-fragment"))) == s_copiedText && !s_copied.isEmpty();
+    std::function<void()> put;
+    if (ours) {
+        put = [this] { pasteClip(*m_doc, m_cursor, s_copied); };
+    } else if (mime->hasImage() && !mime->hasText() && !mime->hasHtml()) {
         // A picture on the clipboard (a screenshot, say) goes in as a picture.
         const QVariant data = mime->imageData();
         if (!data.canConvert<QImage>()) return;
         insertPictureImage(data.value<QImage>());
         return;
-    } else if (mime->hasText())
-        pasteText(*m_doc, m_cursor, mime->text());
-    else if (mime->hasHtml())
-        pasteFragment(*m_doc, m_cursor, QTextDocumentFragment::fromHtml(mime->html()));
-    else
+    } else if (mime->hasText()) {
+        const QString text = mime->text();
+        put = [this, text] { pasteText(*m_doc, m_cursor, text); };
+    } else if (mime->hasHtml()) {
+        const QTextDocumentFragment fragment = QTextDocumentFragment::fromHtml(mime->html());
+        put = [this, fragment] { pasteFragment(*m_doc, m_cursor, fragment); };
+    } else {
         return;
+    }
+    if (smartCutPaste()) smartPaste(*m_doc, m_cursor, put);
+    else put();
     caretMoved();
 }
 
@@ -140,25 +153,35 @@ void PageView::pasteAs(PasteKind kind)
     if (!m_doc || !canPaste(kind)) return;
     const QMimeData *mime = QApplication::clipboard()->mimeData();
     const bool ours = mime->hasFormat(QStringLiteral("application/x-jeffwrite-fragment")) && QString::fromUtf8(mime->data(QStringLiteral("application/x-jeffwrite-fragment"))) == s_copiedText && !s_copied.isEmpty();
+    auto put = [this](const std::function<void()> &what) {
+        if (smartCutPaste()) smartPaste(*m_doc, m_cursor, what);
+        else what();
+    };
     switch (kind) {
     case PasteKind::Keep:
         paste();
         return;
-    case PasteKind::Merge:
-        pasteMerged(*m_doc, m_cursor, ours ? s_copied.fragment : QTextDocumentFragment::fromHtml(mime->html()));
+    case PasteKind::Merge: {
+        const QTextDocumentFragment fragment = ours ? s_copied.fragment : QTextDocumentFragment::fromHtml(mime->html());
+        put([&] { pasteMerged(*m_doc, m_cursor, fragment); });
         break;
-    case PasteKind::TextOnly:
-        pasteText(*m_doc, m_cursor, ours ? plainTextOf(s_copied.fragment) : (mime->hasText() ? mime->text() : QTextDocumentFragment::fromHtml(mime->html()).toPlainText()));
+    }
+    case PasteKind::TextOnly: {
+        const QString text = ours ? plainTextOf(s_copied.fragment) : (mime->hasText() ? mime->text() : QTextDocumentFragment::fromHtml(mime->html()).toPlainText());
+        put([&] { pasteText(*m_doc, m_cursor, text); });
         break;
+    }
     case PasteKind::Picture: {
         const QVariant data = mime->imageData();
         if (!data.canConvert<QImage>()) return;
         insertPictureImage(data.value<QImage>());
         return;
     }
-    case PasteKind::Html:
-        pasteFragment(*m_doc, m_cursor, QTextDocumentFragment::fromHtml(mime->html()));
+    case PasteKind::Html: {
+        const QTextDocumentFragment fragment = QTextDocumentFragment::fromHtml(mime->html());
+        put([&] { pasteFragment(*m_doc, m_cursor, fragment); });
         break;
+    }
     }
     caretMoved();
 }

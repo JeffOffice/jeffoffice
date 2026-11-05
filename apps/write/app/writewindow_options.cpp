@@ -48,6 +48,7 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         QLineEdit *folder = nullptr;
         QCheckBox *marks = nullptr, *grid = nullptr;
         QComboBox *units = nullptr;
+        QCheckBox *smart = nullptr;
     };
     auto f = std::make_shared<Fields>();
     QVector<OptionsPage> pages;
@@ -119,9 +120,14 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         f->units->addItem(QCoreApplication::translate("Dialogs", "Picas"), int(Unit::Pica));
         f->units->setCurrentIndex(std::max(0, f->units->findData(int(Settings::get().unit()))));
         form->addRow(QCoreApplication::translate("Dialogs", "Show measurements in:"), f->units);
+        f->smart = new QCheckBox(QCoreApplication::translate("Dialogs", "Smart cut and paste (fix the spaces round words that are moved)"), page);
+        f->smart->setObjectName(QStringLiteral("smartCutPaste"));
+        f->smart->setChecked(Settings::get().value(QStringLiteral("edit/smartCutPaste"), true).toBool());
+        form->addRow(f->smart);
         return page;
     }, [this, f] {
         Settings::get().setUnit(static_cast<Unit>(f->units->currentData().toInt()));
+        Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), f->smart->isChecked());
         m_ruler->update();   // (the ruler's marks are in the unit chosen)
     }};
     return pages;

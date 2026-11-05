@@ -1054,6 +1054,93 @@ private Q_SLOTS:
         jp::Settings::get().setValue(QStringLiteral("fonts/recent"), QStringList());
     }
 
+    void smartCutTakesOneSpaceWithTheWordsAndSmartPasteAddsOneWhereWordsWouldRunTogether()
+    {
+        auto doc = open(makeDocx(para(run("one two three, four"))));
+        auto text = [&] { return doc->story()->toPlainText(); };
+        auto select = [&](int from, int to) {
+            QTextCursor c(doc->story());
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            return c;
+        };
+        // Cut "two": the two spaces round it become one, and one Undo puts it all back.
+        const quint64 serial = doc->nextStepSerial();
+        QTextCursor c = select(4, 7);
+        smartRemoveSelection(*doc, c);
+        QCOMPARE(text(), QStringLiteral("one three, four"));
+        QCOMPARE(c.position(), 4);
+        QVERIFY(doc->undo());
+        QCOMPARE(text(), QStringLiteral("one two three, four"));
+        QVERIFY(doc->nextStepSerial() > serial);
+        // Cut "three": a space before the comma goes.
+        c = select(8, 13);
+        smartRemoveSelection(*doc, c);
+        QCOMPARE(text(), QStringLiteral("one two, four"));
+        QVERIFY(doc->undo());
+        // Part of a word is cut as it is.
+        c = select(5, 7);
+        smartRemoveSelection(*doc, c);
+        QCOMPARE(text(), QStringLiteral("one t three, four"));
+        QVERIFY(doc->undo());
+        // Paste between words that touch: spaces are added; in the middle of a word, none.
+        auto paste = [&](int at, const QString &words) {
+            QTextCursor p(doc->story());
+            p.setPosition(at);
+            smartPaste(*doc, p, [&] { insertText(*doc, p, words); });
+            return p.position();
+        };
+        auto bare = open(makeDocx(para(run("abcd"))));
+        doc = std::move(bare);
+        QCOMPARE(paste(2, QStringLiteral("xy")), 4);
+        QCOMPARE(text(), QStringLiteral("abxycd"));
+        QVERIFY(doc->undo());
+        doc = open(makeDocx(para(run("ab, cd"))));
+        QCOMPARE(paste(2, QStringLiteral("word")), 7);
+        QCOMPARE(text(), QStringLiteral("ab word, cd"));
+        QVERIFY(doc->undo());
+        doc = open(makeDocx(para(run("end"))));
+        QCOMPARE(paste(3, QStringLiteral("next")), 8);
+        QCOMPARE(text(), QStringLiteral("end next"));
+        QVERIFY(doc->undo());
+        QCOMPARE(text(), QStringLiteral("end"));
+        doc = open(makeDocx(para(run("go on"))));
+        QCOMPARE(paste(2, QStringLiteral("it")), 5);
+        QCOMPARE(text(), QStringLiteral("go it on"));
+        // Words between spaces are pasted as they are, and a paste that touches the word after it gets a space after.
+        doc = open(makeDocx(para(run("go  on"))));
+        QCOMPARE(paste(3, QStringLiteral("it")), 5);
+        QCOMPARE(text(), QStringLiteral("go it on"));
+    }
+
+    void cuttingAndPastingInTheWindowKeepsTheSpacesRightUnlessSmartCutAndPasteIsOff()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("one two three")))), QString());
+        auto select = [&](int from, int to) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            w.view()->setCursor(c);
+        };
+        jp::Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), true);
+        select(4, 7);
+        w.view()->cut();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("one three"));
+        QTextCursor end(w.document()->story());
+        end.setPosition(3);
+        w.view()->setCursor(end);
+        w.view()->paste();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("one two three"));
+        jp::Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), false);
+        select(4, 7);
+        w.view()->cut();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("one  three"));
+        jp::Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), true);
+    }
+
     // ---- the review's fixes
     void saveAsOfAProtectedDocumentDoesNotLiftTheProtection()
     {

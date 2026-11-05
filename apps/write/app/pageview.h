@@ -118,6 +118,7 @@ public:
     // ---- editing (each is a step that undoes)
     void undo();
     void redo();
+    static bool smartCutPaste();
     void cut();
     void copy();
     void paste();
