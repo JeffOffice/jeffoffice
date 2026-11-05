@@ -1,5 +1,5 @@
 # Find and replace words
-<!-- keywords: find, replace, replace all, search, look for, change words, match case, whole words, find next, ctrl+f, ctrl+h, editing, pane, hidden text, undo -->
+<!-- keywords: find, match count, highlight all matches, replace, replace all, search, look for, change words, match case, whole words, find next, ctrl+f, ctrl+h, editing, pane, hidden text, undo -->
 
 Use Find to jump to words in your document. Use Replace to change them. Both work in one pane on the right of the window.
 
@@ -9,6 +9,8 @@ Use Find to jump to words in your document. Use Replace to change them. Both wor
 2. Type the words you want. Then press **Enter**, or click **Find Next**.
 
 JeffWrite starts where your cursor is. It selects the next place where it finds your words, and scrolls the pages so you can see it. That place is called a **match**. Click **Find Next** again to go to the next match. After the last match, it goes back to the start of the document.
+
+As you type, the pane counts the matches, such as "9 matches", and every match gets a yellow band on the pages. After **Find Next**, the pane says which one you are on, such as "Match 2 of 4". The count and the bands change when you click **Match case** or **Find whole words only**, or when you change the text. They go away when you close the pane.
 
 If your words are not in the document, the pane says so, and nothing moves.
 

@@ -261,6 +261,7 @@ struct PaintOptions {
     bool shadeFields = false;
     bool showSpelling = false;
     QVector<QPair<int, int>> misspelled;  // document ranges
+    QVector<QPair<int, int>> found;       // document ranges shown as found by a search (a translucent yellow band behind the words)
 };
 
 // A paragraph's text layout. Qt works out a tab's width from the layout's tab

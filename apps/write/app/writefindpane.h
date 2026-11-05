@@ -7,13 +7,17 @@
 
 #include "app/findreplace.h"
 
+#include <QPair>
+#include <QPointer>
 #include <QTextDocument>
+#include <QVector>
 #include <QWidget>
 #include <memory>
 
 class QCheckBox;
 class QLabel;
 class QLineEdit;
+class QTimer;
 
 namespace jp {
 
@@ -32,6 +36,10 @@ public:
     void replaceOne();
     void replaceAll();
     QString status() const;
+    // How many places the search text is found in the document now (at most kMostMatches), and where: ranges of the story. The count and the yellow bands on the pages follow the text of
+    // the box, the two choices, and the document as they change.
+    int matchCount() const { return m_matches.size(); }
+    static constexpr int kMostMatches = 20000;
     QLineEdit *findBox() const { return m_find; }
     QLineEdit *replaceBox() const { return m_replace; }
     QCheckBox *matchCase() const { return m_case; }
@@ -39,6 +47,9 @@ public:
 
 private:
     QTextDocument::FindFlags flags() const;
+    void refreshMatches();
+    void hideEvent(QHideEvent *e) override;
+    void showEvent(QShowEvent *e) override;
     // The story's words as they are now (made again when the story has changed), and the search's way to them.
     StoryWords *storyWords();
     FindWords words();
@@ -49,6 +60,9 @@ private:
     QLineEdit *m_find, *m_replace;
     QCheckBox *m_case, *m_whole;
     QLabel *m_status;
+    QVector<QPair<int, int>> m_matches;
+    QTimer *m_refresh = nullptr;
+    QPointer<QTextDocument> m_watched;
 };
 
 } // namespace jp

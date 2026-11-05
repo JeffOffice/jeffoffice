@@ -8,6 +8,7 @@
 #include "app/writedialogs.h"
 #include "app/writewindow.h"
 #include "app/pageview.h"
+#include "app/writefindpane.h"
 #include "core/appinfo.h"
 #include "core/accessops.h"
 #include "core/commentops.h"
@@ -1204,6 +1205,57 @@ private Q_SLOTS:
         QVERIFY(!w.view()->pasteOptionsAvailable());
         QVERIFY(!w.view()->changeLastPaste(PageView::PasteKind::TextOnly));
         QTRY_VERIFY(!button->isVisible());
+    }
+
+    void findCountsTheMatchesAndHighlightsThemOnThePages()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("The cat and the hat. Then THE end.")) + para(run("Gather the others, the tide, and the line.")))), QString());
+        w.act(QStringLiteral("edit.find"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QVERIFY(pane);
+        QCOMPARE(pane->matchCount(), 0);
+        QTest::keyClicks(pane->findBox(), QStringLiteral("the"));
+        // Typing counts: "the" is in "The", "the", "Then", "THE", "Gather", "the", "others", "the", and "the".
+        QTRY_COMPARE(pane->matchCount(), 9);
+        QVERIFY2(pane->status().contains(QStringLiteral("9")), qPrintable(pane->status()));
+        QCOMPARE(w.view()->findHighlights().size(), 9);
+        pane->matchCase()->setChecked(true);
+        QTRY_COMPARE(pane->matchCount(), 6);
+        pane->wholeWords()->setChecked(true);
+        QTRY_COMPARE(pane->matchCount(), 4);
+        QCOMPARE(w.view()->findHighlights().size(), 4);
+        QVERIFY(pane->findNext());
+        QVERIFY2(pane->status().contains(QStringLiteral("1 of 4")), qPrintable(pane->status()));
+        QVERIFY(pane->findNext());
+        QVERIFY2(pane->status().contains(QStringLiteral("2 of 4")), qPrintable(pane->status()));
+        // The highlights are drawn: more yellow on the pages than without them.
+        auto yellow = [&] {
+            const QImage img = w.view()->viewport()->grab().toImage();
+            int n = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) {
+                    const QColor c = img.pixelColor(x, y);
+                    if (c.red() > 200 && c.green() > 200 && c.blue() < 170) ++n;
+                }
+            return n;
+        };
+        const int with = yellow();
+        shot(&w, QStringLiteral("find-highlights.png"));
+        pane->findBox()->clear();
+        QTRY_COMPARE(pane->matchCount(), 0);
+        QVERIFY(w.view()->findHighlights().isEmpty());
+        QVERIFY2(with > yellow() + 100, qPrintable(QString::number(with)));
+        // Editing the text keeps the count right.
+        pane->matchCase()->setChecked(false);
+        pane->wholeWords()->setChecked(false);
+        QTest::keyClicks(pane->findBox(), QStringLiteral("cat"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        w.view()->insertText(QStringLiteral("cat "));
+        QTRY_COMPARE(pane->matchCount(), 2);
     }
 
     // ---- the review's fixes

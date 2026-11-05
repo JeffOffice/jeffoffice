@@ -16,6 +16,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextFragment>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <algorithm>
 
@@ -150,6 +151,55 @@ WriteFindPane::WriteFindPane(WriteWindow *win, QWidget *parent) : QWidget(parent
     connect(rep, &QPushButton::clicked, this, [this] { replaceOne(); });
     connect(all, &QPushButton::clicked, this, [this] { replaceAll(); });
     setMinimumWidth(240);
+    // The count and the yellow bands follow the box, the choices, and the text (a moment after the last change).
+    m_refresh = new QTimer(this);
+    m_refresh->setSingleShot(true);
+    m_refresh->setInterval(30);
+    connect(m_refresh, &QTimer::timeout, this, [this] { refreshMatches(); });
+    connect(m_find, &QLineEdit::textChanged, m_refresh, qOverload<>(&QTimer::start));
+    connect(m_case, &QCheckBox::toggled, m_refresh, qOverload<>(&QTimer::start));
+    connect(m_whole, &QCheckBox::toggled, m_refresh, qOverload<>(&QTimer::start));
+}
+
+void WriteFindPane::hideEvent(QHideEvent *e)
+{
+    QWidget::hideEvent(e);
+    m_win->view()->setFindHighlights({});
+}
+
+void WriteFindPane::showEvent(QShowEvent *e)
+{
+    QWidget::showEvent(e);
+    m_refresh->start();
+}
+
+// Finds every place the text of the box is (as findNext sees it), counts them, says so, and shows each on the pages.
+void WriteFindPane::refreshMatches()
+{
+    m_matches.clear();
+    StoryWords *text = storyWords();
+    const QString q = m_find->text();
+    if (text && !q.isEmpty() && isVisible()) {
+        const FindWords w = words();
+        int at = 0;
+        while (m_matches.size() < kMostMatches) {
+            const QTextCursor m = text->words()->find(q, at, flags());
+            if (m.isNull()) break;
+            at = std::max(m.selectionEnd(), at + 1);
+            if (w.skip && w.skip(m)) continue;
+            m_matches.push_back({text->toStory(m.selectionStart()), text->toStoryEnd(m.selectionEnd())});
+        }
+        if (text->story() != m_watched) {
+            m_watched = text->story();
+            connect(text->story(), &QTextDocument::contentsChanged, m_refresh, qOverload<>(&QTimer::start));
+        }
+    }
+    m_win->view()->setFindHighlights(m_matches);
+    if (q.isEmpty()) m_status->clear();
+    else if (m_matches.isEmpty()) m_status->setText(tr("No matches"));
+    else if (m_matches.size() == 1) m_status->setText(tr("1 match"));
+    else if (m_matches.size() >= kMostMatches) m_status->setText(tr("%1 or more matches").arg(kMostMatches));
+    else m_status->setText(tr("%1 matches").arg(m_matches.size()));
 }
 
 WriteFindPane::~WriteFindPane() = default;
@@ -253,7 +303,11 @@ bool WriteFindPane::findNext()
         shown.setPosition(text->toStory(found.selectionStart()));
         shown.setPosition(text->toStoryEnd(found.selectionEnd()), QTextCursor::KeepAnchor);
         m_win->view()->showCursor(shown);
-        m_status->clear();
+        refreshMatches();
+        int index = 0;
+        for (int i = 0; i < m_matches.size(); ++i)
+            if (m_matches[i].first == shown.selectionStart()) index = i + 1;
+        if (index > 0 && m_matches.size() < kMostMatches) m_status->setText(tr("Match %1 of %2").arg(index).arg(m_matches.size()));
         return true;
     }
     m_status->setText(tr("JeffWrite finished searching the document. \"%1\" was not found.").arg(findTextForMessage(q)));

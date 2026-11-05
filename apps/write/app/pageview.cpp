@@ -519,6 +519,13 @@ void PageView::setZoomMode(ZoomMode mode, int across, int down)
     Q_EMIT zoomChanged(m_zoom);
 }
 
+void PageView::setFindHighlights(const QVector<QPair<int, int>> &ranges)
+{
+    if (ranges == m_findHighlights) return;
+    m_findHighlights = ranges;
+    viewport()->update();
+}
+
 void PageView::setShowMarks(bool on)
 {
     m_marks = on;
@@ -643,6 +650,7 @@ void PageView::paintEvent(QPaintEvent *e)
             d.gridlines = m_gridlines;
             d.shadeFields = m_shadeFields;
             d.draft = m_draft;
+            d.found = m_findHighlights.isEmpty() ? nullptr : &m_findHighlights;
             d.pageCount = std::max(1, m_knownPages);
             if (m_hf.active) {
                 d.editedStory = m_hf.story;
