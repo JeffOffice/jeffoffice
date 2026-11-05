@@ -432,6 +432,7 @@
           "keytip": "ZP",
           "items": [
             {"large": "protect.sheet", "keytip": "PS"},
+            {"large": "protect.editRanges", "keytip": "AE"},
             {"large": "protect.workbook", "keytip": "PW"},
             {"large": "protect.password", "keytip": "PP"}
           ]
@@ -484,6 +485,16 @@
               "large": {"id": "ribbon.freeze", "text": "Freeze Panes", "icon": "snowflake"},
               "keytip": "FZ",
               "menu": ["view.freeze", "view.freezeRow", "view.freezeCol", "-", "view.unfreeze"]
+            },
+            {"large": "win.new", "keytip": "NW"},
+            {"small": "win.arrange", "keytip": "AA"},
+            {"small": "view.sideBySide", "keytip": "VB"},
+            {"small": "view.syncScroll", "keytip": "SS"},
+            {"small": "view.resetWindowPosition", "keytip": "RW"},
+            {
+              "small": {"id": "ribbon.switchWindows", "text": "Switch Windows", "icon": "app-window"},
+              "keytip": "SW",
+              "menu": "@switchWindowsMenu"
             }
           ]
         }

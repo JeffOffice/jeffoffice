@@ -916,7 +916,7 @@ EditSession::Outcome EditSession::removeDuplicateRows(int sheet, const CellRange
         });
         for (quint32 r = data.row1; r <= lastMoving && bad.isEmpty(); ++r)
             for (quint32 c = data.col1; c <= data.col2; ++c)
-                if (!sh.cells.find(r, c) && isLocked(sheet, implicitStyle(sheet, r, c))) {
+                if (!sh.cells.find(r, c) && isLocked(sheet, implicitStyle(sheet, r, c), r, c)) {
                     bad = tr("%1 is locked, and its sheet is protected, so the cells can't be moved.").arg(cellName(r, c));
                     break;
                 }

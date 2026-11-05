@@ -145,6 +145,10 @@ public:
 
     // ---- the file
     QString filePath() const { return m_path; }
+    // The windows that show a workbook (or are reading one), in the order they were made.
+    static QList<CrunchWindow *> crunchWindows();
+    // The window View > View Side by Side has this one's scrolling follow (null when it is not on).
+    CrunchWindow *sideBySidePartner() const { return m_sidePartner; }
     // The name the title shows: the file's, or "Book1" for a window with none.
     QString displayName() const;
     bool hasWorkbook() const { return bool(m_loaded); }
@@ -503,6 +507,18 @@ public:
     void setAutoComplete(bool on);
     // The fill handle and the drag of cells (Options > Editing); on by default, kept in the person's settings.
     void setDragEditing(bool on);
+    // Options > Editing and Display and Privacy: whether a cell is edited in the cell (else in the formula bar), the color of the gridlines, the zoom a new workbook starts at, whether
+    // personal information is taken out of the properties when the workbook is saved, and the standard width of the columns of the sheet in view (in the units a person is shown).
+    bool editInCell() const { return m_editInCell; }
+    void setEditInCell(bool on);
+    bool editingInFormulaBar() const { return m_edit.active && m_point.line == m_formulaBar; }
+    QColor gridlineColor() const { return m_view->gridlineColor(); }
+    void setGridlineColor(const QColor &color);
+    int defaultZoom() const;
+    void setDefaultZoom(int percent);
+    bool removePersonalOnSave() const;
+    void setRemovePersonalOnSave(bool on);
+    void setStandardColumnWidth(double shown);
     // Whether cells that hold zero show it, on the sheet in view (Options > Display); kept with the sheet in the file.
     bool showZeros() const { return m_view->showZeros(); }
     void setShowZeros(bool on);
@@ -1139,6 +1155,13 @@ private:
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);
 
+    // View > Window: a second window on the workbook's file, the windows set in columns or in a stack, two windows side by side whose scrolling goes together, and the list to switch
+    // by (crunchwindow_windows.cpp)
+    void createWindowActions();
+    void windowRibbonParts(RibbonParts &parts);
+    void setSideBySide(bool on);
+    void setSynchronousScrolling(bool on);
+    void updateWindowActions();
     // the views of a sheet: the cells, the page breaks, the pages (crunchwindow_views.cpp)
     void createViewActions();
     void addViewButtons(QStatusBar *bar);
@@ -1398,6 +1421,7 @@ private:
     bool m_syncingEditors = false, m_undoing = false, m_finishing = false;
     EnterMove m_enterMove = EnterMove::Down;
     bool m_autoComplete = true;
+    bool m_editInCell = true;
     int m_fixedDecimals = 0;
     QString m_autoTyped;           // what was typed in the entry so far, without the rest AutoComplete offered
     QStringList m_autoColumn;      // the texts next to the cell in its column (made when the first is wanted)
@@ -1407,6 +1431,10 @@ private:
     qint64 m_tabOriginCol = -1, m_tabRow = -1;   // where a run of Tabs began (Enter then goes back to that column)
     // saving
     bool m_saving = false, m_closeAfterSave = false, m_closing = false;
+    bool m_secondView = false;   // (View > New Window: this window opens the file another window has, for reading)
+    QPointer<CrunchWindow> m_sidePartner;
+    QMetaObject::Connection m_sideScroll[4];
+    bool m_syncScroll = true;
     bool m_reopening = false;   // (going back to a version: the workbook's file is read again in this window)
     QPointer<QThread> m_saveThread;
     QString m_saveAfterCalculation;
@@ -1480,6 +1508,7 @@ private:
     void updateProtectActions();
     void protectSheet();
     void protectWorkbook();
+    void allowEditRanges();
     QLabel *m_finalNote = nullptr;                       // (on the status bar while the workbook is marked as final and read-only)
     bool m_personalInfoRemoved = false;                  // (Inspect took the personal information out: saving does not put the name of the person back)
     std::optional<office::PackageProps> m_editedProps;   // properties a person edited, written at the next save

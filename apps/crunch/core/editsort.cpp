@@ -132,7 +132,7 @@ std::shared_ptr<EditSession::SortPlan> EditSession::planSort(int sheet, const Ce
         // (a cell that is not there is locked unless its row or column says it is not)
         for (quint32 row = plan->data.row1; row <= plan->data.row2 && bad.isEmpty(); ++row)
             for (quint32 col = plan->data.col1; col <= plan->data.col2; ++col)
-                if (!s.cells.find(row, col) && isLocked(sheet, implicitStyle(sheet, row, col))) {
+                if (!s.cells.find(row, col) && isLocked(sheet, implicitStyle(sheet, row, col), row, col)) {
                     bad = tr("%1 is locked, and its sheet is protected, so the cells can't be moved. Nothing was sorted.").arg(cellName(row, col));
                     break;
                 }

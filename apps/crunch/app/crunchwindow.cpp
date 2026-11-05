@@ -32,6 +32,8 @@
 #include <QDoubleSpinBox>
 #include <QFontComboBox>
 #include <QFormLayout>
+#include <QColorDialog>
+#include <QPushButton>
 #include <QSpinBox>
 #include <array>
 #include <QPlainTextEdit>
@@ -85,6 +87,14 @@ CrunchWindow *CrunchWindow::windowWith(const QString &path)
     for (CrunchWindow *w : openWindows())
         if (!w->m_path.isEmpty() && (w->m_loaded || w->m_loading) && QFileInfo(w->m_path).canonicalFilePath() == wanted) return w;
     return nullptr;
+}
+
+QList<CrunchWindow *> CrunchWindow::crunchWindows()
+{
+    QList<CrunchWindow *> out;
+    for (CrunchWindow *w : openWindows())
+        if (w->isVisible()) out << w;
+    return out;
 }
 
 CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
@@ -498,6 +508,10 @@ void CrunchWindow::createActions()
             drag->setObjectName(QStringLiteral("optionDragEditing"));
             drag->setChecked(m_view->dragEditing());
             layout->addRow(drag);
+            auto *inCell = new QCheckBox(tr("Allow editing directly in cells (else a cell is edited in the formula bar)"), page);
+            inCell->setObjectName(QStringLiteral("optionEditInCell"));
+            inCell->setChecked(m_editInCell);
+            layout->addRow(inCell);
             auto *zeros = new QCheckBox(tr("Show a zero in cells that have a zero value (this sheet)"), page);
             zeros->setObjectName(QStringLiteral("optionShowZeros"));
             zeros->setChecked(m_view->showZeros());
@@ -525,6 +539,7 @@ void CrunchWindow::createActions()
                     if (fixed && places) setFixedDecimals(fixed->isChecked() ? places->value() : 0);
                 }
                 if (auto *zeros = (*choice)->parentWidget() ? (*choice)->parentWidget()->findChild<QCheckBox *>(QStringLiteral("optionShowZeros")) : nullptr) setShowZeros(zeros->isChecked());
+                if (auto *inCell = (*choice)->parentWidget() ? (*choice)->parentWidget()->findChild<QCheckBox *>(QStringLiteral("optionEditInCell")) : nullptr) setEditInCell(inCell->isChecked());
                 if (auto *drag = (*choice)->parentWidget() ? (*choice)->parentWidget()->findChild<QCheckBox *>(QStringLiteral("optionDragEditing")) : nullptr) setDragEditing(drag->isChecked());
             }
         }};
@@ -560,6 +575,71 @@ void CrunchWindow::createActions()
             if (auto *size = qobject_cast<QDoubleSpinBox *>((*newBook)[1].data())) Settings::get().setValue(QStringLiteral("crunch/newFontSize"), size->value());
             if (auto *sheets = qobject_cast<QSpinBox *>((*newBook)[2].data())) Settings::get().setValue(QStringLiteral("crunch/newSheets"), sheets->value());
         }};
+        auto display = std::make_shared<std::array<QPointer<QWidget>, 3>>();
+        pages << OptionsPage{tr("Display"), [this, display] {
+            auto *page = new QWidget;
+            auto *layout = new QFormLayout(page);
+            auto *color = new QPushButton(page);
+            color->setObjectName(QStringLiteral("optionGridColor"));
+            color->setAccessibleName(tr("Gridline color"));
+            auto paintColor = [color](const QColor &c) {
+                color->setProperty("color", c);
+                color->setText(c.name().toUpper());
+                color->setStyleSheet(QStringLiteral("QPushButton { border-left: 18px solid %1; text-align: left; padding: 4px 8px; }").arg(c.name()));
+            };
+            paintColor(m_view->gridlineColor());
+            connect(color, &QPushButton::clicked, color, [this, color, paintColor] {
+                const QColor chosen = QColorDialog::getColor(color->property("color").value<QColor>(), this, tr("Gridline color"));
+                if (chosen.isValid()) paintColor(chosen);
+            });
+            layout->addRow(tr("Gridline color:"), color);
+            auto *zoom = new QSpinBox(page);
+            zoom->setObjectName(QStringLiteral("optionDefaultZoom"));
+            zoom->setAccessibleName(tr("Zoom of a new workbook"));
+            zoom->setRange(10, 400);
+            zoom->setSuffix(QStringLiteral("%"));
+            zoom->setValue(defaultZoom());
+            layout->addRow(tr("Zoom of a new workbook:"), zoom);
+            auto *width = new QDoubleSpinBox(page);
+            width->setObjectName(QStringLiteral("optionStandardWidth"));
+            width->setAccessibleName(tr("Standard column width of this sheet"));
+            width->setRange(0.1, 255);
+            width->setDecimals(2);
+            const int mdw = m_view->sheet().looks().maxDigitWidth();
+            width->setValue(grid::GridSheet::shownWidth(m_view->sheet().layout().cols.defaultSize() / double(std::max(1, mdw)), mdw));
+            width->setEnabled(m_session && m_sheet >= 0 && !m_chartSheetShown);
+            layout->addRow(tr("Standard column width (this sheet):"), width);
+            (*display)[0] = color;
+            (*display)[1] = zoom;
+            (*display)[2] = width;
+            return static_cast<QWidget *>(page);
+        }, [this, display] {
+            if (auto *color = qobject_cast<QPushButton *>((*display)[0].data())) setGridlineColor(color->property("color").value<QColor>());
+            if (auto *zoom = qobject_cast<QSpinBox *>((*display)[1].data())) setDefaultZoom(zoom->value());
+            if (auto *width = qobject_cast<QDoubleSpinBox *>((*display)[2].data())) {
+                const int mdw = m_view->sheet().looks().maxDigitWidth();
+                const double now = grid::GridSheet::shownWidth(m_view->sheet().layout().cols.defaultSize() / double(std::max(1, mdw)), mdw);
+                if (width->isEnabled() && std::abs(width->value() - now) > 0.005) setStandardColumnWidth(width->value());
+            }
+        }};
+        auto privacy = std::make_shared<QPointer<QCheckBox>>();
+        pages << OptionsPage{tr("Privacy"), [this, privacy] {
+            auto *page = new QWidget;
+            auto *layout = new QVBoxLayout(page);
+            auto *remove = new QCheckBox(tr("Take my name and company out of a workbook's properties each time it is saved"), page);
+            remove->setObjectName(QStringLiteral("optionRemovePersonal"));
+            remove->setChecked(removePersonalOnSave());
+            layout->addWidget(remove);
+            auto *about = new QLabel(tr("The properties are the author, who saved it last, the company, and the manager. Usage statistics and update checks are chosen on the General page."), page);
+            about->setWordWrap(true);
+            about->setTextFormat(Qt::PlainText);
+            layout->addWidget(about);
+            layout->addStretch(1);
+            *privacy = remove;
+            return static_cast<QWidget *>(page);
+        }, [this, privacy] {
+            if (*privacy) setRemovePersonalOnSave((*privacy)->isChecked());
+        }};
         pages << OptionsPage{tr("Custom Lists"), [this, lists] {
             auto *page = new QWidget;
             auto *layout = new QVBoxLayout(page);
@@ -586,6 +666,8 @@ void CrunchWindow::createActions()
     m_opsActions << QStringLiteral("edit.insertDate") << QStringLiteral("edit.insertTime");
     m_enterMove = EnterMove(std::clamp(Settings::get().value(QStringLiteral("crunch/enterMove"), 0).toInt(), 0, 4));
     m_autoComplete = Settings::get().value(QStringLiteral("crunch/autoComplete"), true).toBool();
+    m_editInCell = Settings::get().value(QStringLiteral("crunch/editInCell"), true).toBool();
+    if (const QColor c(Settings::get().value(QStringLiteral("crunch/gridColor")).toString()); c.isValid()) m_view->setGridlineColor(c);
     m_fixedDecimals = std::clamp(Settings::get().value(QStringLiteral("crunch/fixedDecimals"), 0).toInt(), -crunch::kMaxFixedDecimals, crunch::kMaxFixedDecimals);
     // ---- view
     mk("view.gridlines", tr("Gridlines"), "grid-3x3", QKeySequence(), [this] { m_view->setShowGridlines(act("view.gridlines")->isChecked()); }, true)->setChecked(true);
@@ -633,6 +715,7 @@ void CrunchWindow::createActions()
     createSheetActions();
     createPageActions();
     createViewActions();
+    createWindowActions();
     createPageLayoutActions();
     createOutlineActions();
     createChartActions();
