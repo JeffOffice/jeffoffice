@@ -164,6 +164,42 @@ bool EditRange::contains(quint32 row, quint32 col) const
     return false;
 }
 
+QString editRangeAfterLines(const QString &sqref, bool rows, bool insert, quint32 first, quint32 count)
+{
+    QStringList kept;
+    const quint32 last = first + count - 1, limit = rows ? kMaxRows : kMaxColumns;
+    for (const QString &part : sqref.split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+        CellRange r;
+        if (!parseRangeRef(part, &r)) {
+            kept << part;
+            continue;
+        }
+        quint32 &lo = rows ? r.row1 : r.col1, &hi = rows ? r.row2 : r.col2;
+        if (insert) {
+            if (first <= lo) lo += count, hi += count;
+            else if (first <= hi) hi += count;
+            if (lo >= limit) continue;
+            hi = std::min(hi, limit - 1);
+        } else {
+            if (hi < first) {
+            } else if (lo > last) {
+                lo -= count, hi -= count;
+            } else if (lo >= first && hi <= last) {
+                continue;
+            } else if (lo < first && hi > last) {
+                hi -= count;
+            } else if (lo < first) {
+                hi = first - 1;
+            } else {
+                lo = first;
+                hi -= count;
+            }
+        }
+        kept << rangeName(r);
+    }
+    return kept.join(QLatin1Char(' '));
+}
+
 QByteArray protectedRangesElement(const SheetProtection &p, const QByteArray &prefix)
 {
     if (p.editRanges.isEmpty()) return QByteArray();

@@ -17,7 +17,7 @@ A few things stay off limits on a protected sheet whatever you allow: merging ce
 
 **Review > Allow Edit Ranges** lists the **ranges** that people may change even when the sheet is protected. A range is a block of cells, such as A1:C5. Click **New** to add one. Give it a **title**, type the cells it covers (use a space between blocks), and, if you like, a **password**. A range with no password can be changed by anyone. A range with a password can be changed only after someone types the password the first time they try to change one of its cells. After that, the range stays open until the workbook is closed.
 
-**Modify** changes a range, and **Delete** takes one away. You can set up ranges before you protect the sheet. They are saved with the workbook, and the passwords are kept in the same scrambled form as a sheet's password. Allow Edit Ranges is one step you can undo. The cells of a range are written by their addresses, so if you insert or delete rows or columns, check that each range still covers the cells you meant.
+**Modify** changes a range, and **Delete** takes one away. You can set up ranges before you protect the sheet. They are saved with the workbook, and the passwords are kept in the same scrambled form as a sheet's password. Allow Edit Ranges is one step you can undo. When you insert or delete rows or columns, the ranges move with their cells, get smaller or larger, or go away if all their cells are deleted. Undo brings them back.
 
 ## Protect the workbook
 

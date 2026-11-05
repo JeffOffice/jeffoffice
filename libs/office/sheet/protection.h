@@ -53,6 +53,9 @@ struct EditRange {
     bool operator==(const EditRange &o) const { return title == o.title && sqref == o.sqref && password == o.password && securityDescriptor == o.securityDescriptor; }
 };
 constexpr int kMaxEditRanges = 256;
+// The cells of an edit range (as the file names them) after `count` rows (or columns) are put in at `first` (from 0), or taken out from there: a range at or below the place moves, a range that
+// holds it grows (put in) or shrinks (taken out), and a range that is taken out whole is gone (the result is empty).
+QString editRangeAfterLines(const QString &sqref, bool rows, bool insert, quint32 first, quint32 count);
 
 struct SheetProtection {
     bool enabled = false;

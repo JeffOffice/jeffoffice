@@ -371,6 +371,61 @@ private Q_SLOTS:
         w.setRemovePersonalOnSave(false);
     }
 
+    // Edit ranges move with inserted and deleted rows and columns, as one step of Undo with the edit; a range cut by a deleted column shrinks, one taken out whole is gone, and the file holds the new cells.
+    void editRangesFollowInsertedAndDeletedLines()
+    {
+        QString rows;
+        for (int r = 1; r <= 4; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>1</v></c><c r=\"B%1\"><v>2</v></c><c r=\"C%1\"><v>3</v></c></row>").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, QStringLiteral("<protectedRanges><protectedRange sqref=\"A1:A2\" name=\"Open\"/>"
+                                                                "<protectedRange sqref=\"B1:D4\" name=\"Wide\"/></protectedRanges>"))})));
+        crunch::EditSession *s = e.win.w.session();
+        auto cells = [&] {
+            QStringList out;
+            for (const EditRange &r : s->protectionOf(0).editRanges) out << r.title + QLatin1Char('=') + r.sqref;
+            return out.join(QLatin1Char(' '));
+        };
+        QCOMPARE(cells(), QStringLiteral("Open=A1:A2 Wide=B1:D4"));
+        QVERIFY(s->insertRows(0, 0, 1).ok);   // a row above both
+        QCOMPARE(cells(), QStringLiteral("Open=A2:A3 Wide=B2:D5"));
+        QVERIFY(s->deleteColumns(0, 2, 1).ok);   // column C, inside "Wide"
+        QCOMPARE(cells(), QStringLiteral("Open=A2:A3 Wide=B2:C5"));
+        QVERIFY(s->deleteColumns(0, 0, 1).ok);   // column A: "Open" is gone, "Wide" moves left
+        QTRY_COMPARE(cells(), QStringLiteral("Wide=A2:B5"));
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QTRY_COMPARE(cells(), QStringLiteral("Open=A2:A3 Wide=B2:C5"));
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QTRY_COMPARE(cells(), QStringLiteral("Open=A2:A3 Wide=B2:D5"));
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QTRY_COMPARE(cells(), QStringLiteral("Open=A1:A2 Wide=B1:D4"));
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        QTRY_COMPARE(cells(), QStringLiteral("Open=A2:A3 Wide=B2:C5"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        const QByteArray xml = savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml"));
+        QVERIFY2(xml.contains("sqref=\"A2:A3\"") && xml.contains("sqref=\"B2:C5\""), xml.constData());
+    }
+
+    // An edit range's password is kept as its salted hash (never the text), and one the file holds in the older form is still checked.
+    void anEditRangePasswordIsHashedAndTheOlderFormIsChecked()
+    {
+        const EditRange legacy = [] { EditRange r; r.password.legacy = QStringLiteral("CBEB"); return r; }();
+        QCOMPARE(jp::office::sheet::checkPassword(legacy.password, QStringLiteral("test")), jp::office::sheet::PasswordResult::Match);
+        QCOMPARE(jp::office::sheet::checkPassword(legacy.password, QStringLiteral("nope")), jp::office::sheet::PasswordResult::Wrong);
+        EditRange made;
+        QVERIFY(jp::office::sheet::makePasswordHash(QStringLiteral("correct horse"), &made.password));
+        made.title = QStringLiteral("T");
+        made.sqref = QStringLiteral("A1");
+        jp::office::sheet::SheetProtection p;
+        p.editRanges.append(made);
+        const QByteArray xml = jp::office::sheet::protectedRangesElement(p, QByteArray());
+        QVERIFY2(xml.contains("algorithmName=\"SHA-512\"") && xml.contains("hashValue=\"") && xml.contains("saltValue=\"") && xml.contains("spinCount=\"100000\""), xml.constData());
+        QVERIFY(!xml.contains("correct horse") && !xml.contains(" password="));
+        QCOMPARE(jp::office::sheet::checkPassword(made.password, QStringLiteral("correct horse")), jp::office::sheet::PasswordResult::Match);
+    }
+
 private:
     QLocale m_localeBefore;
     std::unique_ptr<PinnedLocale> m_pin;
