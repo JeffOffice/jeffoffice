@@ -26,6 +26,12 @@ struct ClipCell {
     jp::calc::Value shown;                               // what the cell showed when it was copied: a formula's result
 };
 
+struct ClipNote {
+    quint32 dRow = 0, dCol = 0;
+    QString text, author;
+    bool shown = false;
+};
+
 struct ClipData {
     qint64 token = 0;                                    // the workbook it was copied in (0 for none)
     qint64 serial = 0;                                   // and which copy it was there (a cut is pasted as a move only while it is the last copy)
@@ -35,6 +41,8 @@ struct ClipData {
     bool cut = false;
     std::vector<ClipCell> cells;                         // those that exist
     std::vector<jp::office::sheet::CellRange> merges;    // inside the block, from its first cell
+    std::vector<ClipNote> notes;                         // the notes of the cells (not those that are a conversation of comments)
+    std::vector<double> columnWidths;                    // the width of each column of the block, in the sheet's units; below 0 for the sheet's usual
     bool valid() const { return rows > 0 && cols > 0; }
     QByteArray toBytes() const;
     static bool fromBytes(const QByteArray &bytes, ClipData *out);

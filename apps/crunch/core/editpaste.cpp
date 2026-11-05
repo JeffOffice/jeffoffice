@@ -98,6 +98,22 @@ ClipData EditSession::copyCells(int sheet, const CellRange &range, bool cut) con
             r.col2 -= range.col1;
             d.merges.push_back(r);
         }
+    for (quint32 r = 0; r < d.rows; ++r)
+        for (quint32 c = 0; c < d.cols; ++c) {
+            const NoteInfo *n = m_anchors.noteAt(sheet, range.row1 + r, range.col1 + c);
+            if (!n || n->threaded || n->text.isEmpty()) continue;
+            ClipNote cn;
+            cn.dRow = r;
+            cn.dCol = c;
+            cn.text = n->text;
+            cn.author = n->author;
+            cn.shown = n->shown;
+            d.notes.push_back(std::move(cn));
+        }
+    for (quint32 c = 0; c < d.cols && c < 1000; ++c) {
+        const std::vector<ColumnSpan> runs = calc->columnRuns(sheet, range.col1 + c, range.col1 + c);
+        d.columnWidths.push_back(!runs.empty() && runs.front().customWidth && runs.front().width >= 0 ? runs.front().width : -1.0);
+    }
     return d;
 }
 
@@ -213,9 +229,19 @@ EditSession::Outcome EditSession::paste(int sheet, const CellRange &target, cons
         const Calculation::CellContent &before = ch->before;
         Calculation::CellContent &after = ch->after;
         const qint64 dRow = qint64(spot.row) - (qint64(clip.source.row1) + sr), dCol = qint64(spot.col) - (qint64(clip.source.col1) + sc);
+        auto setNumberFormatFrom = [&] {
+            // (only the number format comes: the look the cell has stays)
+            const QString code = src && !src->formatCode.isEmpty() ? src->formatCode : QStringLiteral("General");
+            if (code != m_book->book->styles().formatCode(before.style, QLocale(QLocale::English, QLocale::UnitedStates))) ch->formatCode = code;
+        };
         auto setStyleFrom = [&] {
-            if (same) {
+            if (same && o.what == What::AllExceptBorders) {
                 after.style = src ? src->content.style : 0;
+                ch->keepBorders = true;
+            } else if (same) {
+                after.style = src ? src->content.style : 0;
+            } else if (o.what == What::AllExceptBorders) {
+                if (src && !src->formatCode.isEmpty() && src->formatCode != QLatin1String("General")) ch->formatCode = src->formatCode;
             } else {
                 after.style = 0;
                 if (src && !src->formatCode.isEmpty() && src->formatCode != QLatin1String("General")) ch->formatCode = src->formatCode;
@@ -228,6 +254,7 @@ EditSession::Outcome EditSession::paste(int sheet, const CellRange &target, cons
             after.sharedString = -1;
             after.hasStored = false;
         };
+        if (o.what == What::ColumnWidths || o.what == What::Comments) return true;   // (no cell changes: the widths and the notes are made after)
         if (o.operation != Op::None && o.what != What::Formats) {
             // the copy's number is made with what is there
             const Value given = src ? (src->content.isFormula ? src->shown : src->content.value) : Value();
@@ -243,12 +270,17 @@ EditSession::Outcome EditSession::paste(int sheet, const CellRange &target, cons
             return true;
         }
         switch (o.what) {
+        case What::ColumnWidths:
+        case What::Comments: break;
         case What::All:
+        case What::AllExceptBorders:
         case What::Formulas:
+        case What::FormulasAndNumberFormats:
         case What::Values:
+        case What::ValuesAndNumberFormats:
             if (!hasValue) {
                 clearContent();
-            } else if (o.what == What::Values) {
+            } else if (o.what == What::Values || o.what == What::ValuesAndNumberFormats) {
                 after.isFormula = false;
                 after.formula.clear();
                 after.value = src->content.isFormula ? src->shown : src->content.value;
@@ -263,7 +295,8 @@ EditSession::Outcome EditSession::paste(int sheet, const CellRange &target, cons
                 after.sharedString = -1;
                 after.hasStored = false;
             }
-            if (o.what == What::All) setStyleFrom();
+            if (o.what == What::All || o.what == What::AllExceptBorders) setStyleFrom();
+            if (o.what == What::FormulasAndNumberFormats || o.what == What::ValuesAndNumberFormats) setNumberFormatFrom();
             break;
         case What::Formats: setStyleFrom(); break;
         }
@@ -279,7 +312,66 @@ EditSession::Outcome EditSession::paste(int sheet, const CellRange &target, cons
         }
         merges.push_back(m);
     }
-    return pasteChanges(sheet, target, blockRows, blockCols, make, merges, o.what == What::All || o.what == What::Formats, tr("Pasting"));
+    const bool widths = o.what == What::ColumnWidths && !o.transpose && !clip.columnWidths.empty();
+    const bool notes = o.what == What::Comments && !clip.notes.empty() && !o.transpose;
+    if (!widths && !notes) return pasteChanges(sheet, target, blockRows, blockCols, make, merges, o.what == What::All || o.what == What::AllExceptBorders || o.what == What::Formats, tr("Pasting"));
+    // the widths and the notes are steps of their own, and are one step to undo together
+    Outcome result;
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+        result.ok = false;
+        result.problem = why;
+        return result;
+    }
+    const quint32 targetRows = target.row2 - target.row1 + 1, targetCols = target.col2 - target.col1 + 1;
+    quint32 tilesRows = 1, tilesCols = 1;
+    if (targetRows >= blockRows && targetCols >= blockCols && targetRows % blockRows == 0 && targetCols % blockCols == 0) {
+        tilesRows = targetRows / blockRows;
+        tilesCols = targetCols / blockCols;
+    }
+    const quint64 totalRows = quint64(blockRows) * tilesRows, totalCols = quint64(blockCols) * tilesCols;
+    if (target.row1 + totalRows > kMaxRows || target.col1 + totalCols > kMaxColumns) {
+        result.ok = false;
+        result.problem = tr("That would go past the edge of the sheet. Select a cell nearer its start.");
+        return result;
+    }
+    if (qint64(clip.notes.size()) * qint64(tilesRows) * qint64(tilesCols) > jp::office::sheet::kMaxNotes || totalCols > 1000) {
+        result.ok = false;
+        result.problem = tr("That is more than JeffCrunch pastes at once. Paste into fewer cells.");
+        return result;
+    }
+    result.range = target;
+    result.range.row2 = target.row1 + quint32(totalRows) - 1;
+    result.range.col2 = target.col1 + quint32(totalCols) - 1;
+    const int startIndex = m_undo.index();
+    m_undo.beginMacro(tr("Pasting"));
+    if (widths) {
+        for (quint32 c = 0; c < totalCols && result.ok; ++c) {
+            const double w = clip.columnWidths[c % blockCols < clip.columnWidths.size() ? c % blockCols : 0];
+            if (w < 0) continue;
+            SizeChange by;
+            by.setSize = true;
+            by.size = w;
+            const Outcome r = resizeColumns(sheet, target.col1 + c, target.col1 + c, by, tr("Pasting"));
+            if (!r.ok) result = r;
+        }
+    } else {
+        for (quint32 tr_ = 0; tr_ < tilesRows && result.ok; ++tr_)
+            for (quint32 tc = 0; tc < tilesCols && result.ok; ++tc)
+                for (const ClipNote &n : clip.notes) {
+                    const Outcome r = setNote(sheet, target.row1 + tr_ * blockRows + n.dRow, target.col1 + tc * blockCols + n.dCol, n.text, n.author, n.shown, tr("Pasting"));
+                    if (!r.ok) {
+                        result = r;
+                        break;
+                    }
+                }
+    }
+    m_undo.endMacro();
+    if (!result.ok) {
+        while (m_undo.index() > startIndex) m_undo.undo();   // (what was done is taken back)
+        return result;
+    }
+    return result;
 }
 
 EditSession::Outcome EditSession::pasteText(int sheet, const CellRange &target, const QVector<QStringList> &table, const PasteOptions &o)
@@ -290,7 +382,7 @@ EditSession::Outcome EditSession::pasteText(int sheet, const CellRange &target, 
         if (!out.ok) out.problem = tr("The workbook is still being opened. It can be changed when it is open.");
         return out;
     }
-    if (o.what == PasteOptions::What::Formats) return out;   // (text has no formats)
+    if (o.what == PasteOptions::What::Formats || o.what == PasteOptions::What::ColumnWidths || o.what == PasteOptions::What::Comments) return out;   // (text has no formats, widths, or notes)
     quint32 width = 0;
     for (const QStringList &row : table) width = std::max<quint32>(width, quint32(row.size()));
     const quint32 blockRows = o.transpose ? width : quint32(table.size()), blockCols = o.transpose ? quint32(table.size()) : width;

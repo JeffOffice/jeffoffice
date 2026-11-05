@@ -1005,6 +1005,20 @@ bool EditSession::apply(Step *step, bool forward)
                     ch.after.style = book.formatWithNumberFormat(ch.after.style, book.numberFormatId(ch.formatCode));
                     ch.formatCode.clear();
                 }
+                if (ch.keepBorders) {
+                    const jp::office::sheet::Styles &st = book.styles();
+                    const jp::office::sheet::BorderSpec &kept = st.border(st.format(ch.before.exists ? ch.before.style : 0).border);
+                    jp::office::sheet::FormatChange borders;
+                    borders.left = kept.left;
+                    borders.right = kept.right;
+                    borders.top = kept.top;
+                    borders.bottom = kept.bottom;
+                    borders.diagonal = kept.diagonal;
+                    borders.diagonalUp = kept.diagonalUp;
+                    borders.diagonalDown = kept.diagonalDown;
+                    ch.after.style = book.formatWith(ch.after.style, borders);
+                    ch.keepBorders = false;
+                }
                 if (ch.wrapToSet) {
                     jp::office::sheet::FormatChange wrap;
                     wrap.wrap = true;

@@ -235,7 +235,7 @@ void CrunchWindow::pasteSpecial()
         auto *what = new QGroupBox(tr("Paste"));
         auto *whatLayout = new QVBoxLayout(what);
         auto *whatGroup = new QButtonGroup(&dialog);
-        const QStringList whatNames = {tr("All"), tr("Formulas"), tr("Values"), tr("Formats")};
+        const QStringList whatNames = {tr("All"), tr("Formulas"), tr("Values"), tr("Formats"), tr("All Except Borders"), tr("Formulas and Number Formats"), tr("Values and Number Formats"), tr("Column Widths"), tr("Comments and Notes")};
         for (int i = 0; i < whatNames.size(); ++i) {
             auto *b = new QRadioButton(whatNames[i]);
             b->setChecked(i == 0);

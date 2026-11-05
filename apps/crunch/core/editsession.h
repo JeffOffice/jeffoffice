@@ -74,6 +74,8 @@ struct CellChange {
     // Only the format of the cell changes (its value, formula, and the array it may be part of stay as they are).
     bool styleOnly = false;
 };
+    // The format the change gives the cell keeps the borders the cell had (Paste Special > All Except Borders).
+    bool keepBorders = false;
 
 // A table's column renamed by a step (its header cell is one of the step's cells): the table by its place in the workbook's tables, the column by its place in the table.
 struct TableRename {
@@ -717,7 +719,7 @@ public:
     // What a paste puts: everything the cells have (All), their formulas or values, their values (a formula's result), or their formats; an operation made with the cells already there (the
     // numbers of the copy added to them, ...); the cells that are empty in the copy left alone; the block turned over (rows become columns).
     struct PasteOptions {
-        enum class What { All, Formulas, Values, Formats } what = What::All;
+        enum class What { All, Formulas, Values, Formats, AllExceptBorders, FormulasAndNumberFormats, ValuesAndNumberFormats, ColumnWidths, Comments } what = What::All;
         enum class Operation { None, Add, Subtract, Multiply, Divide } operation = Operation::None;
         bool skipBlanks = false;
         bool transpose = false;
