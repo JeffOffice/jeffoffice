@@ -1047,7 +1047,9 @@ void CrunchWindow::updateChartState()
         enableShapeStyles(shape);
         if (m_ribbon) {
             m_ribbon->setContextVisible(QStringLiteral("Picture Format"), picture);
-            m_ribbon->setContextVisible(QStringLiteral("Shape Format"), shape || line);
+            // (the shapes tab also stays for a group, and for several objects picked together: it has Group and Align)
+            const std::vector<int> several = pickedObjects();
+            m_ribbon->setContextVisible(QStringLiteral("Shape Format"), shape || line || kind == ObjectKind::Group || several.size() >= 2);
         }
     }
     m_chartButtonsTimer.start();

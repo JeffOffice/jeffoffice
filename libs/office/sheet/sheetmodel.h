@@ -1135,8 +1135,17 @@ struct RichRun {
     static constexpr quint32 kCellFont = 0xFFFFFFFFu;
     quint32 start = 0;
     quint32 font = kCellFont;
+    bool operator==(const RichRun &o) const { return start == o.start && font == o.font; }
 };
 using RichRuns = QVector<RichRun>;
+
+// The text of a cell with the formatting inside it: the runs, and the fonts they name (each run's font is whole: what the run is set in, whatever the cell's font is).
+struct RichText {
+    QString text;
+    RichRuns runs;
+    QVector<FontSpec> fonts;
+    bool isEmpty() const { return runs.isEmpty(); }
+};
 
 // Every string the sheets of a workbook have in common, in order. The text of
 // a rich string is its runs one after another.
@@ -1249,6 +1258,34 @@ struct IgnoredError {
     QVector<CellRange> ranges;     // the cells it is for (sqref)
     quint16 kinds = 0;
     bool operator==(const IgnoredError &o) const { return kinds == o.kinds && ranges == o.ranges; }
+};
+
+// One changing cell of a scenario (`inputCells`): the cell, and the value the scenario puts there as the file writes it (the cell's text).
+struct ScenarioCell {
+    QString ref;
+    QString value;
+    bool deleted = false, undone = false;
+    qint32 numFmtId = -1;
+    bool operator==(const ScenarioCell &o) const { return ref == o.ref && value == o.value && deleted == o.deleted && undone == o.undone && numFmtId == o.numFmtId; }
+};
+
+// A named set of values for some cells of a sheet (`scenario`).
+struct Scenario {
+    QString name, user, comment;
+    bool locked = false, hidden = false;
+    QVector<ScenarioCell> cells;
+    bool operator==(const Scenario &o) const { return name == o.name && user == o.user && comment == o.comment && locked == o.locked && hidden == o.hidden && cells == o.cells; }
+};
+
+// What a sheet's `scenarios` holds: the scenarios, the one shown last (`current`) and the one the file says to show (`show`), and the cells the scenarios change (`sqref`).
+struct ScenarioList {
+    static constexpr int kMaxScenarios = 1000;
+    static constexpr int kMaxCells = 1000;
+    QVector<Scenario> list;
+    qint32 current = 0, show = 0;
+    QString sqref;
+    bool isEmpty() const { return list.isEmpty(); }
+    bool operator==(const ScenarioList &o) const { return list == o.list && current == o.current && show == o.show && sqref == o.sqref; }
 };
 
 // A value a color scale, data bar, or icon set is cut at (a `cfvo`): a number, a percent, the lowest or highest value, a formula, or a percentile.
@@ -1385,6 +1422,7 @@ struct Sheet {
     AutoFilter autoFilter;            // the sheet's filter (not valid when it has none)
     QVector<Validation> validations;  // the rules for what may be put in cells
     QVector<IgnoredError> ignoredErrors;   // the checks of Error Checking that are left out for cells
+    ScenarioList scenarios;           // the scenarios of the Scenario Manager
     bool validationsInExtension = false;   // some of them are in the file's 2010 extension (they are kept there; a change to the rules is not written over them)
     QVector<CondRule> conditionalFormats;   // the rules of conditional formatting, by priority
     QVector<SparklineGroup> sparklineGroups;   // the sparklines (see sheet/sparkline.h)

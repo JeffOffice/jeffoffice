@@ -6,6 +6,7 @@
 [[maybe_unused]] static const char *const kRibbonStrings[] = {
     QT_TRANSLATE_NOOP("Ribbon", "Accounting Number Format"),
     QT_TRANSLATE_NOOP("Ribbon", "Actions"),
+    QT_TRANSLATE_NOOP("Ribbon", "Align"),
     QT_TRANSLATE_NOOP("Ribbon", "Alignment"),
     QT_TRANSLATE_NOOP("Ribbon", "Arrange"),
     QT_TRANSLATE_NOOP("Ribbon", "Axis"),

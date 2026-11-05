@@ -27,6 +27,10 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error = nullp
 // prefix, for putting in a styles part that is changed (see xlsxsave.h); and the alignment element of a format, empty if it has none.
 QByteArray fontXml(const FontSpec &font);
 QByteArray fillXml(const FillSpec &fill);
+// The `scenarios` element of a sheet's scenarios (empty for none).
+QByteArray scenariosXml(const ScenarioList &list);
+// The inside of a string with runs of formatting (a run with its properties for each).
+QByteArray richRunsXml(const QString &text, const RichRuns &runs, const QVector<FontSpec> &fonts);
 QByteArray borderXml(const BorderSpec &border);
 QByteArray xfXml(const CellFormat &format, int xfId, bool cellFormat);
 QByteArray alignmentXml(const CellFormat &format);

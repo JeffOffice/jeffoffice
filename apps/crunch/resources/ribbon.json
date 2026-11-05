@@ -381,7 +381,8 @@
           "name": "Forecast",
           "keytip": "ZF",
           "items": [
-            {"large": "data.goalSeek", "keytip": "GS"}
+            {"large": "data.goalSeek", "keytip": "GS"},
+            {"large": "data.scenarioManager", "keytip": "SM"}
           ]
         },
         {
@@ -668,6 +669,11 @@
             {"small": "object.back", "keytip": "SB"},
             {"column": true},
             {"large": {"id": "ribbon.rotate", "text": "Rotate", "icon": "rotate-cw"}, "keytip": "RO", "menu": ["object.rotateRight", "object.rotateLeft", "object.flipH", "object.flipV"]},
+            {"large": {"id": "ribbon.align", "text": "Align", "icon": "align-horizontal-justify-center"}, "keytip": "AL", "menu": ["object.alignLeft", "object.alignCenter", "object.alignRight", "-", "object.alignTop", "object.alignMiddle", "object.alignBottom", "-", "object.distributeH", "object.distributeV"]},
+            {"column": true},
+            {"small": "object.group", "keytip": "GP"},
+            {"small": "object.ungroup", "keytip": "UG"},
+            {"small": "object.selectObjects", "keytip": "OB"},
             {"small": "object.selectionPane", "keytip": "SP"}
           ]
         },

@@ -246,6 +246,10 @@ bool CrunchWindow::confirm(const QString &title, const QString &text)
 // Gives the selected cells a change of format: one step of Undo called `text`. An entry in progress is finished first.
 bool CrunchWindow::formatSelection(const FormatChange &change, const QString &text)
 {
+    if (m_edit.active && applyRunFormat(change)) {
+        updateFormatState();
+        return true;
+    }
     if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return false;
     if (!editingAllowed()) return false;
     m_formatting = true;
@@ -307,7 +311,12 @@ FormatView CrunchWindow::viewOfActiveCell() const
     if (font.color.isSet() && font.color.kind != ColorSpec::Kind::Auto) v.fontColor = QColor::fromRgb(st.resolve(font.color, 0x000000));
     const FillSpec &fill = st.fill(f.fill);
     v.pattern = fill.pattern;
-    if (fill.pattern == PatternKind::Solid) {
+    if (fill.gradient && fill.stops.size() >= 2) {
+        v.gradient = true;
+        v.fillColor = QColor::fromRgb(st.resolve(fill.stops.first().color, 0xFFFFFF));
+        v.gradientColor = QColor::fromRgb(st.resolve(fill.stops.last().color, 0xFFFFFF));
+        v.gradientStyle = fill.path ? 4 : std::abs(fill.degree - 90) < 1 ? 1 : std::abs(fill.degree - 45) < 1 ? 2 : std::abs(fill.degree - 135) < 1 ? 3 : 0;
+    } else if (fill.pattern == PatternKind::Solid) {
         v.fillColor = QColor::fromRgb(st.resolve(fill.fg, 0xFFFFFF));
     } else if (fill.pattern != PatternKind::None) {
         v.patternColor = QColor::fromRgb(st.resolve(fill.fg, 0x000000));
@@ -972,6 +981,128 @@ void CrunchWindow::formatRibbonParts(RibbonParts &parts)
     parts.launchers[QStringLiteral("font")] = [this] { formatCellsDialog(2); };
     parts.launchers[QStringLiteral("alignment")] = [this] { formatCellsDialog(1); };
     parts.launchers[QStringLiteral("number")] = [this] { formatCellsDialog(0); };
+}
+
+} // namespace jp
+
+namespace jp {
+
+// The runs of an entry after the text changed from what they were made for to `now`: a run that begins in text that went begins where it was; runs after it move by what was added and taken.
+void CrunchWindow::adjustEditRuns(const QString &now)
+{
+    using jp::office::sheet::RichRun;
+    const QString old = m_editRich.text;
+    m_editRich.text = now;
+    if (m_editRich.runs.isEmpty() || old == now) return;
+    qsizetype p = 0;
+    while (p < old.size() && p < now.size() && old[p] == now[p]) ++p;
+    qsizetype s = 0;
+    while (s < old.size() - p && s < now.size() - p && old[old.size() - 1 - s] == now[now.size() - 1 - s]) ++s;
+    const qsizetype removed = old.size() - p - s, added = now.size() - p - s;
+    for (RichRun &run : m_editRich.runs) {
+        if (qsizetype(run.start) >= p + removed && run.start > 0) run.start = quint32(qsizetype(run.start) - removed + added);
+        else if (qsizetype(run.start) > p) run.start = quint32(p);
+    }
+    // (runs with nothing in them go, and the first begins at the first character)
+    QVector<RichRun> kept;
+    for (int i = 0; i < m_editRich.runs.size(); ++i) {
+        const qsizetype end = i + 1 < m_editRich.runs.size() ? qsizetype(m_editRich.runs[i + 1].start) : now.size();
+        if (end > qsizetype(m_editRich.runs[i].start) || (kept.isEmpty() && i + 1 == m_editRich.runs.size())) kept.append(m_editRich.runs[i]);
+    }
+    if (!kept.isEmpty()) kept[0].start = 0;
+    m_editRich.runs = kept;
+    if (now.isEmpty()) m_editRich.runs.clear();
+}
+
+// Bold, italic, underline, strikethrough, a font, a size, or a color, on the text selected in the entry (the cell editor or the formula bar): that stretch gets runs of its own. False when no
+// text is selected, or when the change is of more than the font: the entry is then put in the cell as always.
+bool CrunchWindow::applyRunFormat(const FormatChange &c)
+{
+    using jp::office::sheet::RichRun;
+    if (!c.touchesFont() || c.fill || c.left || c.right || c.top || c.bottom || c.diagonal || c.diagonalUp || c.diagonalDown || c.numberFormat || c.horizontal || c.vertical || c.wrap || c.shrink
+        || c.indent || c.rotation || c.readingOrder || c.locked || c.formulaHidden || c.namedStyle)
+        return false;
+    QLineEdit *line = m_formulaBar->hasFocus() ? static_cast<QLineEdit *>(m_formulaBar) : static_cast<QLineEdit *>(m_cellEditor);
+    if (!line->hasSelectedText() || line->text().startsWith(QLatin1Char('='))) return false;
+    const QString text = line->text();
+    const qsizetype from = line->selectionStart(), to = from + line->selectedText().size();
+    if (from < 0 || to > text.size() || to <= from) return false;
+    if (m_editRich.text != text) {
+        m_editRich.text = text;
+        m_editRich.runs.clear();
+    }
+    const FormatView v = viewOfActiveCell();
+    FontSpec base;
+    base.name = v.fontName;
+    base.size = v.fontSize;
+    base.bold = v.bold;
+    base.italic = v.italic;
+    base.strike = v.strike;
+    base.underline = v.underline;
+    base.vertAlign = v.vertAlign;
+    if (v.fontColor.isValid()) base.color = ColorSpec::fromRgb(quint32(v.fontColor.rgb() & 0xFFFFFF));
+    if (m_editRich.runs.isEmpty()) {
+        m_editRich.runs = {RichRun{0, RichRun::kCellFont}};
+        m_editRich.fonts.clear();
+    }
+    auto fontOf = [&](const RichRun &r) { return r.font == RichRun::kCellFont || r.font >= quint32(m_editRich.fonts.size()) ? base : m_editRich.fonts[int(r.font)]; };
+    // a run begins at `at`
+    auto split = [&](qsizetype at) {
+        if (at <= 0 || at >= text.size()) return;
+        int i = 0;
+        while (i + 1 < m_editRich.runs.size() && qsizetype(m_editRich.runs[i + 1].start) <= at) ++i;
+        if (qsizetype(m_editRich.runs[i].start) == at) return;
+        RichRun again = m_editRich.runs[i];
+        again.start = quint32(at);
+        m_editRich.runs.insert(i + 1, again);
+    };
+    split(from);
+    split(to);
+    auto inside = [&](int i) {
+        const qsizetype start = m_editRich.runs[i].start, end = i + 1 < m_editRich.runs.size() ? qsizetype(m_editRich.runs[i + 1].start) : text.size();
+        return start >= from && end <= to;
+    };
+    // a toggle decides by the selection: all of it is on, so it goes off; else it comes on
+    auto allOn = [&](auto get) {
+        bool all = true;
+        for (int i = 0; i < m_editRich.runs.size(); ++i)
+            if (inside(i) && !get(fontOf(m_editRich.runs[i]))) all = false;
+        return all;
+    };
+    const bool bold = c.bold ? !allOn([](const FontSpec &f) { return f.bold; }) : false, italic = c.italic ? !allOn([](const FontSpec &f) { return f.italic; }) : false;
+    const bool strike = c.strike ? !allOn([](const FontSpec &f) { return f.strike; }) : false;
+    const bool underline = c.underline && *c.underline != Underline::None ? !allOn([&](const FontSpec &f) { return f.underline == *c.underline; }) : false;
+    for (int i = 0; i < m_editRich.runs.size(); ++i) {
+        if (!inside(i)) continue;
+        FontSpec f = fontOf(m_editRich.runs[i]);
+        if (c.bold) f.bold = bold;
+        if (c.italic) f.italic = italic;
+        if (c.strike) f.strike = strike;
+        if (c.underline) f.underline = *c.underline == Underline::None ? Underline::None : (underline ? *c.underline : Underline::None);
+        if (c.fontName) f.name = *c.fontName;
+        if (c.fontSize) f.size = *c.fontSize;
+        if (c.vertAlign) f.vertAlign = *c.vertAlign;
+        if (c.fontColor) f.color = *c.fontColor;
+        if (f == base) {
+            m_editRich.runs[i].font = RichRun::kCellFont;
+            continue;
+        }
+        int at = int(m_editRich.fonts.indexOf(f));
+        if (at < 0) {
+            m_editRich.fonts.append(f);
+            at = int(m_editRich.fonts.size() - 1);
+        }
+        m_editRich.runs[i].font = quint32(at);
+    }
+    // (neighbors in one font are one run; a text all in the cell's font has none)
+    QVector<RichRun> merged;
+    for (const RichRun &r : std::as_const(m_editRich.runs))
+        if (merged.isEmpty() || merged.last().font != r.font) merged.append(r);
+    m_editRich.runs = merged;
+    bool plain = true;
+    for (const RichRun &r : std::as_const(m_editRich.runs)) plain = plain && r.font == RichRun::kCellFont;
+    if (plain) m_editRich.runs.clear();
+    return true;
 }
 
 } // namespace jp

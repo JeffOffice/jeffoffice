@@ -579,6 +579,12 @@ public:
         if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].ignoredErrors = list;
     }
 
+    // The scenarios of a sheet, put in (an edit, taken back, or done again).
+    void setScenarios(int sheet, const ScenarioList &list)
+    {
+        if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].scenarios = list;
+    }
+
     // The sparklines of a sheet, put in (an edit of them, taken back, or done again).
     void setSparklines(int sheet, const QVector<SparklineGroup> &groups)
     {

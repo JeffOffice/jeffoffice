@@ -74,6 +74,9 @@ ValueXml valueXml(const SavedValue &v, bool formula, bool hasShared, const QByte
         } else if (v.sharedString >= 0 && hasShared) {
             x.type = " t=\"s\"";
             x.content = vo + QByteArray::number(v.sharedString) + vc;
+        } else if (!v.richRuns.isEmpty() && p.isEmpty()) {   // (a sheet whose elements have a prefix has the text written plain)
+            x.type = " t=\"inlineStr\"";
+            x.content = "<is>" + richRunsXml(v.text, v.richRuns, v.richFonts) + "</is>";
         } else {
             x.type = " t=\"inlineStr\"";
             x.content = "<" + p + "is><" + p + "t" + (needsPreserve(v.text) ? " xml:space=\"preserve\"" : "") + ">" + xmlscan::escapeText(v.text) + "</" + p + "t></" + p + "is>";
@@ -702,6 +705,20 @@ QByteArray tailWithIgnoredErrors(const QByteArray &after, const QVector<IgnoredE
     if (existingStart >= 0 && existingEnd >= 0) return after.left(existingStart) + generated + after.mid(existingEnd);
     if (generated.isEmpty() || insertAt < 0) return after;
     return after.left(insertAt) + generated + after.mid(insertAt);
+}
+
+QByteArray tailWithElement(const QByteArray &after, const char *name, const QByteArray &element, const QList<QByteArray> &later);
+
+// What follows a sheet's cells with its scenarios made from `list`: in place of the element the file has, or where the format puts it (after the protection, before the filter). (Only for
+// a sheet whose main namespace has no prefix, as for the ignored errors.)
+QByteArray tailWithScenarios(const QByteArray &after, const ScenarioList &list, const QByteArray &prefix)
+{
+    if (!prefix.isEmpty()) return after;
+    const QByteArray generated = scenariosXml(list);
+    static const QList<QByteArray> later = {"autoFilter", "sortState", "dataConsolidate", "customSheetViews", "mergeCells", "phoneticPr", "conditionalFormatting", "dataValidations", "hyperlinks",
+                                            "printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks", "customProperties", "cellWatches", "ignoredErrors", "smartTags", "drawing",
+                                            "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
+    return tailWithElement(after, "scenarios", generated, later);
 }
 
 // A filter as the element the file has it: the conditions of its columns, in order of column, and its sort state (as the file had it).
@@ -1688,6 +1705,7 @@ public:
         if (changes.replaceMerges) m_merges = &changes.merges;
         if (changes.replaceValidations) m_validations = &changes.validations;
         if (changes.replaceIgnoredErrors) m_ignored = &changes.ignoredErrors;
+        if (changes.replaceScenarios) m_scenarios = &changes.scenarios;
         if (changes.setPage) m_page = &changes.page;
         m_drawingId = changes.drawingRelId.toLatin1();
         m_addTables = &changes.addTableRels;
@@ -2220,7 +2238,7 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges || m_validations || m_ignored || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || m_cond || !m_addTables->empty() || !m_removeTables->empty()) {
+        if (m_merges || m_validations || m_ignored || m_scenarios || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || m_cond || !m_addTables->empty() || !m_removeTables->empty()) {
             // (what follows the cells is held whole to change its merged ranges, its filter, its page setup, and its drawing)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -2235,6 +2253,7 @@ private:
                 if (m_filter) tail = tailWithFilter(tail, *m_filter, m_prefix);
                 if (m_merges) tail = tailWithMerges(tail, *m_merges, m_prefix);
                 if (m_validations) tail = tailWithValidations(tail, *m_validations, m_prefix);
+                if (m_scenarios) tail = tailWithScenarios(tail, *m_scenarios, m_prefix);
                 if (m_ignored) tail = tailWithIgnoredErrors(tail, *m_ignored, m_prefix);
                 if (m_page) tail = patchPageSetupTail(tail, *m_page, m_prefix);
                 if (!m_drawingId.isEmpty()) tail = tailWithDrawing(tail, m_drawingId, m_prefix);
@@ -2284,6 +2303,7 @@ private:
     const std::vector<CellRange> *m_merges = nullptr;
     const QVector<Validation> *m_validations = nullptr;
     const QVector<IgnoredError> *m_ignored = nullptr;
+    const ScenarioList *m_scenarios = nullptr;
     const PageSetup *m_page = nullptr;
     QByteArray m_drawingId;
     const QVector<SparklineGroup> *m_sparklines = nullptr;

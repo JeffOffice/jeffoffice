@@ -245,6 +245,7 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     // (the read can be stopped while a large document's styles and settings are read, and while its sheets are)
     Limits limits;
     limits.cancelled = cancelled;
+    limits.richText = true;   // (the runs of formatting inside texts are kept: they are drawn, edited, and written back)
     limits.csv = csv;
     limits.password = password;
     if (!blank.isEmpty()) {

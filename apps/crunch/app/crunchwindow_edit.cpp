@@ -34,6 +34,19 @@ void CrunchWindow::createEditing()
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, &CrunchWindow::onCellsChanged);
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, &CrunchWindow::onSizesChanged);
+    // the grid asks for the formatting inside a text, and draws a sheet's texts again when it changes
+    m_view->sheet().setRichSource([this](quint32 row, quint32 col, jp::office::sheet::RichText *out) {
+        if (!m_session || !m_session->mayHaveRich(m_sheet)) return false;
+        const std::optional<jp::office::sheet::RichText> r = m_session->richOf(m_sheet, row, col);
+        if (!r) return false;
+        *out = *r;
+        return true;
+    });
+    connect(m_session.get(), &crunch::EditSession::richTextChanged, this, [this](int sheet) {
+        if (sheet != m_sheet) return;
+        m_view->sheet().invalidateTexts();
+        m_view->viewport()->update();
+    });
     connect(m_session.get(), &crunch::EditSession::sparklinesChanged, this, [this](int sheet) {
         if (sheet != m_sheet) return;
         m_view->sheet().resetSparklines();
@@ -168,6 +181,12 @@ void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool
     m_edit.col = col;
     m_edit.original = m_formulaFull;
     m_edit.view = m_view->viewState();
+    m_editRich = jp::office::sheet::RichText();
+    if (mode == CellEditor::Mode::Editing && !fromBar) {
+        const std::optional<jp::office::sheet::RichText> runs = m_session->richOf(sheet, row, col);
+        if (runs && runs->text == initial) m_editRich = *runs;
+    }
+    m_editRichFirst = m_editRich;
     m_view->ensureVisible(row, col);
     m_syncingEditors = true;
     m_cellEditor->setMode(mode);
@@ -323,7 +342,17 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
     const QString text = m_cellEditor->mode() == CellEditor::Mode::Typing && !m_formulaBar->hasFocus() ? crunch::withFixedDecimals(m_cellEditor->text(), m_fixedDecimals, QLocale().decimalPoint()) : m_cellEditor->text();
     // What F2 showed, put in again as it is (Enter, or a click on another cell), is not a change: nothing is put in, there is nothing to undo, and the cell keeps what it had (a formula
     // with a function this program lacks keeps the result the file stored, and is not written again as this program reads it back)
+    const bool richNow = m_editRich.text == text && !m_editRich.isEmpty();
+    const bool sameRuns = m_editRich.text == m_editRichFirst.text && m_editRich.runs == m_editRichFirst.runs && m_editRich.fonts == m_editRichFirst.fonts;
     if (m_cellEditor->mode() == CellEditor::Mode::Editing && text == m_session->editText(m_edit.sheet, m_edit.row, m_edit.col)) {
+        // (the text is as it was: only the formatting inside it may be new)
+        if (!sameRuns || (!richNow && !m_editRichFirst.isEmpty())) {
+            const crunch::EditSession::Outcome o = m_session->setRichText(m_edit.sheet, m_edit.row, m_edit.col, richNow ? m_editRich : jp::office::sheet::RichText(), tr("Format Text"));
+            if (!o.ok) {
+                notice(tr("Format Text"), o.problem);
+                return false;
+            }
+        }
         finishEdit(way);
         return true;
     }
@@ -333,7 +362,7 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
     const bool fill = way == CellEditor::Way::Fill && m_edit.sheet == m_sheet && !m_view->selection().isOneCell();
     auto enter = [&](bool checkRule) {
         return fill ? m_session->typeInto(m_edit.sheet, block.row1, block.col1, block.row2, block.col2, m_edit.row, m_edit.col, text, checkRule)
-                    : m_session->type(m_edit.sheet, m_edit.row, m_edit.col, text, checkRule);
+                    : m_session->type(m_edit.sheet, m_edit.row, m_edit.col, text, checkRule, richNow ? &m_editRich : nullptr);
     };
     crunch::EditSession::Outcome o = enter(true);
     if (!o.ok && o.rule) {
@@ -366,6 +395,7 @@ void CrunchWindow::finishEdit(CellEditor::Way way)
     m_cellEditor->hide();
     const quint32 row = m_edit.row, col = m_edit.col;
     m_edit.active = false;
+    m_editRich = m_editRichFirst = jp::office::sheet::RichText();
     updatePointViews();   // (the outlines go, and the colors of the text in both lines)
     if (!m_calculating && !m_loading) setStatus(tr("Ready"));
     m_view->setFocus(Qt::OtherFocusReason);
@@ -417,6 +447,7 @@ void CrunchWindow::cancelEdit()
     if (m_helper) m_helper->close();
     m_cellEditor->hide();
     m_edit.active = false;
+    m_editRich = m_editRichFirst = jp::office::sheet::RichText();
     updatePointViews();
     if (m_edit.view.valid && m_view->viewState().valid) m_view->setViewState(m_edit.view);   // (the sheet is scrolled as it was, and the cell with the cursor is where it was)
     if (!m_calculating && !m_loading) setStatus(tr("Ready"));

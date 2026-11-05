@@ -1,5 +1,8 @@
 #include "grid/gridsheet.h"
 
+#include <QFont>
+#include <QFontMetricsF>
+
 #include "sheet/cellref.h"
 
 #include <QLocale>
@@ -729,6 +732,43 @@ Shown GridSheet::shown(quint32 row, quint32 col, const Cell &cell) const
         }
         if (m_rtl) align = align == HAlign::Left ? HAlign::Right : align == HAlign::Right ? HAlign::Left : align;
         s.align = align;
+    }
+    if (m_rich && s.kind == Kind::Text && !s.hashes && !s.text.isEmpty()) {
+        jp::office::sheet::RichText rich;
+        if (m_rich(row, col, &rich) && rich.text == s.text && !rich.runs.isEmpty()) {
+            const CellLook &look = lookOf(row, col, cell.style);
+            double w = 0;
+            for (int i = 0; i < rich.runs.size(); ++i) {
+                const int from = int(std::min<qsizetype>(rich.runs[i].start, s.text.size())), to = i + 1 < rich.runs.size() ? int(std::min<qsizetype>(rich.runs[i + 1].start, s.text.size())) : int(s.text.size());
+                TextRun run;
+                run.start = from;
+                double segment = 0;
+                const QString part = s.text.mid(from, std::max(0, to - from));
+                const quint32 font = rich.runs[i].font;
+                if (font != jp::office::sheet::RichRun::kCellFont && font < quint32(rich.fonts.size()) && m_data.styles) {
+                    const jp::office::sheet::FontSpec &f = rich.fonts[int(font)];
+                    run.own = true;
+                    run.family = f.name;
+                    run.pointSize = f.size;
+                    run.bold = f.bold;
+                    run.italic = f.italic;
+                    run.strike = f.strike;
+                    run.underline = f.underline;
+                    run.vertAlign = f.vertAlign;
+                    run.color = f.color.isSet() ? (0xFF000000u | m_data.styles->resolve(f.color, 0x000000)) : 0;
+                    QFont qf(f.name.isEmpty() ? QFont().family() : f.name);
+                    qf.setPixelSize(std::max(1, int(std::lround(f.size * 96.0 / 72.0 * (f.vertAlign ? 0.65 : 1.0)))));
+                    qf.setBold(f.bold);
+                    qf.setItalic(f.italic);
+                    segment = QFontMetricsF(qf).horizontalAdvance(part);
+                } else {
+                    segment = part.isEmpty() ? 0 : m_meter->width(part, look);
+                }
+                w += segment;
+                s.runs.push_back(run);
+            }
+            s.width = w;
+        }
     }
     if (m_texts.size() >= kMaxTexts) m_texts.clear();
     m_texts.emplace(key, s);

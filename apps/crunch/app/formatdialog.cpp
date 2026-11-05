@@ -895,6 +895,43 @@ void FormatCellsDialog::buildFill(QWidget *page)
         if (kPatterns[i] == v.pattern) m_patternStyle->setCurrentIndex(i);
     form->addRow(tr("Pattern &Style:"), m_patternStyle);
     layout->addLayout(form);
+    // a gradient: the background color changes into a second one
+    auto *effects = new QGroupBox(tr("Gradient"), page);
+    auto *effectsForm = new QFormLayout(effects);
+    m_gradientOn = new QCheckBox(tr("&Fill with a gradient of two colors"), effects);
+    m_gradientOn->setObjectName(QStringLiteral("fillGradient"));
+    m_gradientOn->setChecked(v.gradient);
+    effectsForm->addRow(m_gradientOn);
+    m_gradientColor = new ColorButton(QStringLiteral("paint-bucket"), tr("Second Color"), true, tr("White"), effects);
+    m_gradientColor->setObjectName(QStringLiteral("gradientColor"));
+    m_gradientColor->setWell(true);
+    m_gradientColor->setCurrent(v.gradientColor.isValid() ? ColorRef::rgb(v.gradientColor) : ColorRef::none());
+    effectsForm->addRow(tr("&Second Color:"), m_gradientColor);
+    m_gradientStyle = new QComboBox(effects);
+    m_gradientStyle->setObjectName(QStringLiteral("gradientStyle"));
+    m_gradientStyle->addItems({tr("From left to right"), tr("From top to bottom"), tr("Diagonal, from top left"), tr("Diagonal, from top right"), tr("From the center out")});
+    m_gradientStyle->setCurrentIndex(std::max(0, std::min(4, v.gradientStyle)));
+    effectsForm->addRow(tr("&Direction:"), m_gradientStyle);
+    layout->addWidget(effects);
+    const bool wasOn = v.gradient;
+    m_gradientColor->setEnabled(wasOn);
+    m_gradientStyle->setEnabled(wasOn);
+    auto gradientChanged = [this] {
+        const bool on = m_gradientOn->isChecked();
+        m_gradientColor->setEnabled(on);
+        m_gradientStyle->setEnabled(on);
+        m_patternStyle->setEnabled(!on);
+        m_patternColor->setEnabled(!on);
+        m_fillTouched = true;
+        updateFillSample();
+    };
+    connect(m_gradientOn, &QCheckBox::toggled, this, gradientChanged);
+    connect(m_gradientStyle, qOverload<int>(&QComboBox::currentIndexChanged), this, [this] { m_fillTouched = true; updateFillSample(); });
+    connect(m_gradientColor, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
+        m_gradientColor->setCurrent(c);
+        m_fillTouched = true;
+        updateFillSample();
+    });
     auto *sample = new QGroupBox(tr("Sample"), page);
     auto *sl = new QVBoxLayout(sample);
     m_fillSample = new QLabel(page);
@@ -930,6 +967,28 @@ void FormatCellsDialog::updateFillSample()
     const QColor background = colorOf(m_fillColor), pattern = colorOf(m_patternColor);
     QPixmap pm(220, 60);
     pm.fill(kind == PatternKind::Solid ? (background.isValid() ? background : Qt::white) : (background.isValid() ? background : Qt::white));
+    if (m_gradientOn && m_gradientOn->isChecked()) {
+        QPainter p(&pm);
+        const QColor first = background.isValid() ? background : QColor(Qt::white), last = colorOf(m_gradientColor).isValid() ? colorOf(m_gradientColor) : QColor(Qt::white);
+        const QRectF r = pm.rect();
+        const int style = m_gradientStyle->currentIndex();
+        if (style == 4) {
+            QRadialGradient g(r.center(), std::hypot(r.width(), r.height()) / 2);
+            g.setColorAt(0, first);
+            g.setColorAt(1, last);
+            p.fillRect(pm.rect(), QBrush(g));
+        } else {
+            const double deg = style == 1 ? 90 : style == 2 ? 45 : style == 3 ? 135 : 0, rad = deg * 3.14159265358979323846 / 180.0;
+            const QPointF dir(std::cos(rad), std::sin(rad)), c = r.center();
+            const double half = (std::abs(r.width() * dir.x()) + std::abs(r.height() * dir.y())) / 2;
+            QLinearGradient g(c - dir * half, c + dir * half);
+            g.setColorAt(0, first);
+            g.setColorAt(1, last);
+            p.fillRect(pm.rect(), QBrush(g));
+        }
+        m_fillSample->setPixmap(pm);
+        return;
+    }
     if (kind != PatternKind::None && kind != PatternKind::Solid) {
         QPainter p(&pm);
         const QColor ink = pattern.isValid() ? pattern : QColor(Qt::black);
@@ -1024,7 +1083,24 @@ FormatCellsDialog::Result FormatCellsDialog::result() const
         FillSpec fill;
         const PatternKind kind = kPatterns[std::max(0, m_patternStyle->currentIndex())];
         const QColor background = colorOf(m_fillColor), pattern = colorOf(m_patternColor);
-        if (kind == PatternKind::None || (kind == PatternKind::Solid && !background.isValid())) {
+        if (m_gradientOn && m_gradientOn->isChecked()) {
+            const QColor first = background.isValid() ? background : QColor(Qt::white), last = colorOf(m_gradientColor).isValid() ? colorOf(m_gradientColor) : QColor(Qt::white);
+            fill.pattern = PatternKind::Solid;
+            fill.gradient = true;
+            fill.stops = {{0, specOf(first)}, {1, specOf(last)}};
+            fill.fg = fill.stops.first().color;
+            fill.bg = fill.stops.last().color;
+            switch (m_gradientStyle->currentIndex()) {
+            case 1: fill.degree = 90; break;
+            case 2: fill.degree = 45; break;
+            case 3: fill.degree = 135; break;
+            case 4:
+                fill.path = true;
+                fill.left = fill.right = fill.top = fill.bottom = 0.5;
+                break;
+            default: break;
+            }
+        } else if (kind == PatternKind::None || (kind == PatternKind::Solid && !background.isValid())) {
             fill.pattern = PatternKind::None;
         } else if (kind == PatternKind::Solid) {
             fill.pattern = PatternKind::Solid;

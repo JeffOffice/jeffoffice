@@ -175,6 +175,19 @@ CellLook LookTable::make(quint32 xf) const
         l.pattern = fill.pattern;
         l.fg = opaque(s.resolve(fill.fg, 0x000000));
         l.bg = opaque(s.resolve(fill.bg, 0xFFFFFF));
+        if (fill.gradient && fill.stops.size() >= 2) {
+            auto g = std::make_shared<GradientLook>();
+            g->path = fill.path;
+            g->degree = fill.degree;
+            g->left = fill.left;
+            g->right = fill.right;
+            g->top = fill.top;
+            g->bottom = fill.bottom;
+            for (const jp::office::sheet::GradientStop &stop : fill.stops) g->stops.push_back({stop.position, opaque(s.resolve(stop.color, 0x000000))});
+            l.pattern = PatternKind::Solid;
+            l.fg = g->stops.front().second;
+            l.gradient = g;
+        }
     }
     const jp::office::sheet::BorderSpec &b = s.border(f.border);
     l.left = lineOf(s, b.left);

@@ -65,11 +65,29 @@ enum class PatternKind : quint8 {
     LightHorizontal, LightVertical, LightDown, LightUp, LightGrid, LightTrellis, Gray125, Gray0625
 };
 
+// One stop of a gradient fill: where it is along the gradient (0 to 1) and its color.
+struct GradientStop {
+    double position = 0;
+    ColorSpec color;
+    bool operator==(const GradientStop &o) const { return position == o.position && color == o.color; }
+};
+
+// The most stops a gradient is read with.
+constexpr int kMaxGradientStops = 64;
+
 struct FillSpec {
     PatternKind pattern = PatternKind::None;
     ColorSpec fg, bg;                // a solid fill shows fg; a pattern draws fg over bg
-    bool gradient = false;           // a gradient is shown as a solid fill of its first stop (fg)
-    bool operator==(const FillSpec &o) const { return pattern == o.pattern && fg == o.fg && bg == o.bg && gradient == o.gradient; }
+    bool gradient = false;           // a gradient fill: `stops` are its colors (when there are none, it is shown as a solid fill of fg)
+    bool path = false;               // a gradient that runs outward from a rectangle (left, right, top, bottom: parts of the cell) rather than along a line at `degree`
+    double degree = 0;               // the angle of a linear gradient, degrees clockwise from left to right
+    double left = 0, right = 0, top = 0, bottom = 0;
+    QVector<GradientStop> stops;
+    bool operator==(const FillSpec &o) const
+    {
+        return pattern == o.pattern && fg == o.fg && bg == o.bg && gradient == o.gradient && path == o.path && degree == o.degree && left == o.left && right == o.right && top == o.top && bottom == o.bottom
+               && stops == o.stops;
+    }
     bool operator!=(const FillSpec &o) const { return !(*this == o); }
 };
 

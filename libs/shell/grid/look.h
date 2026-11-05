@@ -27,6 +27,14 @@ struct LineLook {
     QRgb color = 0xFF000000;
 };
 
+// A gradient fill as the painter draws it: along a line at an angle, or outward from a rectangle (parts of the cell), through its colors.
+struct GradientLook {
+    bool path = false;
+    double degree = 0;
+    double left = 0, right = 0, top = 0, bottom = 0;
+    std::vector<std::pair<double, QRgb>> stops;
+};
+
 struct CellLook {
     // the text
     QString family;
@@ -39,6 +47,7 @@ struct CellLook {
     // the fill: none, a solid color (fg), or a pattern of fg over bg
     PatternKind pattern = PatternKind::None;
     QRgb fg = 0, bg = 0;
+    std::shared_ptr<const GradientLook> gradient;   // a gradient fill (the pattern is then Solid, of the first color)
     // the borders
     LineLook left, right, top, bottom, diagonal;
     bool diagonalUp = false, diagonalDown = false;

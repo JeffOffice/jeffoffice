@@ -38,6 +38,9 @@ struct FormatView {
     QColor fontColor;                 // invalid for automatic
     jp::office::sheet::PatternKind pattern = jp::office::sheet::PatternKind::None;
     QColor fillColor, patternColor;   // the background color (invalid for none) and the color of the pattern
+    bool gradient = false;            // the fill is a gradient: fillColor is its first color, gradientColor its last, gradientStyle the direction (see the Fill tab)
+    QColor gradientColor;
+    int gradientStyle = 0;
     jp::office::sheet::BorderSpec border;   // with colors as RGB
     jp::office::sheet::HAlign horizontal = jp::office::sheet::HAlign::General;
     jp::office::sheet::VAlign vertical = jp::office::sheet::VAlign::Bottom;
@@ -140,7 +143,9 @@ private:
     jp::office::sheet::BorderSide m_edgeLines[8];
     bool m_edgeChanged[8] = {};
     // fill
-    ColorButton *m_fillColor = nullptr, *m_patternColor = nullptr;
+    ColorButton *m_fillColor = nullptr, *m_patternColor = nullptr, *m_gradientColor = nullptr;
+    QCheckBox *m_gradientOn = nullptr;
+    QComboBox *m_gradientStyle = nullptr;
     QComboBox *m_patternStyle = nullptr;
     QLabel *m_fillSample = nullptr;
     bool m_fillTouched = false;

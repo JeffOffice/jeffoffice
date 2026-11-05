@@ -181,6 +181,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
         m_syncingEditors = true;
         m_formulaBar->setText(text);
         m_syncingEditors = false;
+        adjustEditRuns(text);
         autoCompleteEntry(text);
         placeEditor();
     });
@@ -190,6 +191,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
             beginEdit(text, CellEditor::Mode::Editing, true);
             return;
         }
+        adjustEditRuns(text);
         m_syncingEditors = true;
         m_cellEditor->setText(text);
         m_syncingEditors = false;
@@ -637,6 +639,7 @@ void CrunchWindow::createActions()
     createOutlineActions();
     createChartActions();
     createInsertObjectActions();
+    createArrangeActions();
     createObjectFormatActions();
     createDrawBorderActions();
     createTableActions();
