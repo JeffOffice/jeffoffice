@@ -45,6 +45,9 @@ void insertTableRow(WriteDoc &doc, QTextCursor &c, bool below);
 void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right);
 void deleteTableRows(WriteDoc &doc, QTextCursor &c);
 void deleteTableColumns(WriteDoc &doc, QTextCursor &c);
+// Delete Cells, shifting the cells to the right of them left: the cells the selection touches go (with their words), and the rest of each row moves left, the row ending in an empty
+// space instead of a cell. One step. False, with nothing done, where a cell is joined with others down or across rows, or where no cell of a row would be left (Delete Rows is that).
+bool deleteTableCellsShiftLeft(WriteDoc &doc, QTextCursor &c, bool apply = true);   // (not `apply`: only whether it could be)
 void deleteTable(WriteDoc &doc, QTextCursor &c);
 
 // ---- Making and changing tables (each is one step that undoes, and is written to the file so that it opens the same)

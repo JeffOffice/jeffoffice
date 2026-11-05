@@ -123,6 +123,7 @@ void WriteWindow::createTableActions()
     cmd(QStringLiteral("table.insertBelow"), tr("Insert Below"), "between-vertical-end", [](write::WriteDoc &d, QTextCursor &c) { write::insertTableRow(d, c, true); });
     cmd(QStringLiteral("table.insertLeft"), tr("Insert Left"), "between-horizontal-start", [](write::WriteDoc &d, QTextCursor &c) { write::insertTableColumn(d, c, false); });
     cmd(QStringLiteral("table.insertRight"), tr("Insert Right"), "between-horizontal-end", [](write::WriteDoc &d, QTextCursor &c) { write::insertTableColumn(d, c, true); });
+    cmd(QStringLiteral("table.deleteCells"), tr("Delete Cells, Shift Left"), "grid-2x2-x", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableCellsShiftLeft(d, c); });
     cmd(QStringLiteral("table.deleteRows"), tr("Delete Rows"), "grid-2x2-x", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableRows(d, c); });
     cmd(QStringLiteral("table.deleteColumns"), tr("Delete Columns"), "table-columns-split", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableColumns(d, c); });
     cmd(QStringLiteral("table.deleteTable"), tr("Delete Table"), "trash-2", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTable(d, c); });
@@ -324,7 +325,7 @@ void WriteWindow::tableRibbonParts(RibbonParts &parts)
     parts.menus[QStringLiteral("tableBorders")] = menuOf({"table.border.bottom", "table.border.top", "table.border.left", "table.border.right", "-", "table.border.none", "table.border.all", "table.border.outside",
                                                            "table.border.inside", "table.border.insideH", "table.border.insideV", "-", "table.bordersShading"});
     parts.menus[QStringLiteral("tableAutoFit")] = menuOf({"table.autofitContents", "table.autofitWindow", "table.fixedWidth"});
-    parts.menus[QStringLiteral("tableDelete")] = menuOf({"table.deleteRows", "table.deleteColumns", "table.deleteTable"});
+    parts.menus[QStringLiteral("tableDelete")] = menuOf({"table.deleteCells", "-", "table.deleteRows", "table.deleteColumns", "table.deleteTable"});
     parts.menus[QStringLiteral("tableSelect")] = menuOf({"table.selectTable", "table.selectRow", "table.selectColumn", "table.selectCell"});
     // The color of the cells' fill.
     parts.widgets[QStringLiteral("tableShading")] = [this]() -> QWidget * {
@@ -411,6 +412,10 @@ void WriteWindow::refreshTableUi()
     const bool inBody = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
     act("insert.table")->setEnabled(inBody);
     act("insert.convertTextToTable")->setEnabled(inBody && !in);
+    {
+        QTextCursor probe = m_view->cursor();
+        act("table.deleteCells")->setEnabled(in && write::deleteTableCellsShiftLeft(*m_doc, probe, false));   // (a cell with others left in its row, not joined down)
+    }
     act("table.splitTable")->setEnabled(in && write::canSplitTable(*m_doc, m_view->cursor()));   // (a table is cut above the caret's row: not the first, and not through a cell joined down)
     act("table.gridlines")->setEnabled(in || act("table.gridlines")->isChecked());   // (it shows the edges of the cells of tables: nothing to show elsewhere, except to turn it off)
     m_ribbon->setContextVisible(QStringLiteral("Table Tools"), in, false);
@@ -444,7 +449,7 @@ void WriteWindow::addTableContextMenu(QMenu &menu)
     auto *insert = menu.addMenu(tr("Insert"));
     for (const char *id : {"table.insertAbove", "table.insertBelow", "table.insertLeft", "table.insertRight"}) insert->addAction(act(QString::fromLatin1(id)));
     auto *remove = menu.addMenu(tr("Delete"));
-    for (const char *id : {"table.deleteRows", "table.deleteColumns", "table.deleteTable"}) remove->addAction(act(QString::fromLatin1(id)));
+    for (const char *id : {"table.deleteCells", "table.deleteRows", "table.deleteColumns", "table.deleteTable"}) remove->addAction(act(QString::fromLatin1(id)));
     auto *select = menu.addMenu(tr("Select"));
     for (const char *id : {"table.selectTable", "table.selectRow", "table.selectColumn", "table.selectCell"}) select->addAction(act(QString::fromLatin1(id)));
     menu.addAction(act("table.merge"));

@@ -985,6 +985,35 @@ private Q_SLOTS:
         QVERIFY(tablePropsAt(*doc, c).wrapAround);
     }
 
+    void deletingACellCanShiftTheCellsAfterItLeft()
+    {
+        auto cell = [](const char *t) { return QByteArray("<w:tc><w:tcPr><w:tcW w:w=\"1000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>") + t + "</w:t></w:r></w:p></w:tc>"; };
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/></w:tblGrid>"
+                                 "<w:tr>" + cell("a1") + cell("b1") + cell("c1") + "</w:tr><w:tr>" + cell("a2") + cell("b2") + cell("c2") + "</w:tr></w:tbl><w:p/>";
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx(table, QByteArray()), &err);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->toPlainText().indexOf(QLatin1String("b1")) + 1);
+        QVERIFY(deleteTableCellsShiftLeft(*doc, c));
+        const QString text = doc->story()->toPlainText();
+        QVERIFY2(!text.contains(QLatin1String("b1")) && text.contains(QLatin1String("c1")) && text.contains(QLatin1String("b2")), qPrintable(text));
+        office::Package p;
+        p.read(doc->toDocx());
+        const QByteArray xml = p.part(QStringLiteral("/word/document.xml"));
+        const qsizetype secondRow = xml.indexOf("</w:tr>") + 7;
+        const QByteArray firstRow = xml.left(secondRow);
+        QVERIFY2(firstRow.count("<w:tc>") == 2, firstRow.constData());   // (the cells have no attributes in the file)
+        QVERIFY2(firstRow.contains("<w:gridAfter w:val=\"1\"/>"), firstRow.constData());
+        QCOMPARE(xml.mid(secondRow).count("<w:tc>"), 3);   // (the other row is as it was)
+        auto again = WriteDoc::fromDocx(doc->toDocx(), &err);
+        QVERIFY(again);
+        QVERIFY(!again->story()->toPlainText().contains(QLatin1String("b1")));
+        QVERIFY(doc->undo());
+        QVERIFY(doc->story()->toPlainText().contains(QLatin1String("b1")));
+        QVERIFY(!doc->canUndo());
+    }
+
     void theTablePropertiesDialogHasAWrapTextAroundChoice()
     {
         const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>a1</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p/>";
