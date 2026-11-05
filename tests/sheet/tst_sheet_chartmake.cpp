@@ -86,6 +86,48 @@ class SheetChartMakeTests : public QObject {
 private Q_SLOTS:
     void initTestCase() { jp::initCore(); }
 
+    // Recommended charts: a column chart always, a pie for one series of a few positive values, a line for dates, points for numbers with no labels, and none for no data.
+    void chartsAreRecommendedForTheShapeOfTheData()
+    {
+        Cells f = regional();
+        ChartPlan plan = planChart(f, 0, QStringLiteral("Sheet1"), range(QStringLiteral("A1:C4")), ChartKind::Column);
+        QVector<ChartKind> kinds = recommendChartKinds(f, 0, plan);
+        QCOMPARE(kinds.value(0), ChartKind::Column);
+        QVERIFY(kinds.contains(ChartKind::Bar) && kinds.contains(ChartKind::ColumnStacked));
+        QVERIFY(!kinds.contains(ChartKind::Pie));   // (two series)
+        QVERIFY(!kinds.contains(ChartKind::Scatter));
+        QVERIFY(kinds.size() <= 6);
+        // one series of a few positive values, with labels: a pie too
+        plan = planChart(f, 0, QStringLiteral("Sheet1"), range(QStringLiteral("A1:B4")), ChartKind::Column);
+        QVERIFY(recommendChartKinds(f, 0, plan).contains(ChartKind::Pie));
+        // a negative value is no slice
+        f.put(QStringLiteral("B3"), -4.0);
+        plan = planChart(f, 0, QStringLiteral("Sheet1"), range(QStringLiteral("A1:B4")), ChartKind::Column);
+        QVERIFY(!recommendChartKinds(f, 0, plan).contains(ChartKind::Pie));
+        // dates down the side: a line with markers and an area, and no bars
+        Cells d;
+        d.put(QStringLiteral("A1"), QStringLiteral("Day"));
+        d.put(QStringLiteral("B1"), QStringLiteral("Sales"));
+        for (int i = 0; i < 6; ++i) {
+            d.put(QStringLiteral("A%1").arg(i + 2), 45000.0 + i);
+            d.shown[{quint32(i + 1), 0}] = QStringLiteral("1/%1/2023").arg(i + 1);
+            d.put(QStringLiteral("B%1").arg(i + 2), 3.0 + i);
+        }
+        plan = planChart(d, 0, QStringLiteral("Sheet1"), range(QStringLiteral("A1:B7")), ChartKind::Column);
+        kinds = recommendChartKinds(d, 0, plan);
+        QVERIFY2(kinds.contains(ChartKind::LineMarkers) && kinds.contains(ChartKind::Area) && !kinds.contains(ChartKind::Bar), "dates");
+        // two columns of plain numbers: points
+        Cells n;
+        for (int i = 0; i < 6; ++i) {
+            n.put(QStringLiteral("A%1").arg(i + 1), 1.5 * i + 1);
+            n.put(QStringLiteral("B%1").arg(i + 1), 2.0 * i * i);
+        }
+        plan = planChart(n, 0, QStringLiteral("Sheet1"), range(QStringLiteral("A1:B6")), ChartKind::Column);
+        QCOMPARE(recommendChartKinds(n, 0, plan).value(0), ChartKind::Scatter);
+        // nothing to chart
+        QVERIFY(recommendChartKinds(Cells(), 0, ChartPlan()).isEmpty());
+    }
+
     void theFirstRowAndColumnAreTheNamesAndTheCategories()
     {
         const Cells f = regional();

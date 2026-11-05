@@ -512,4 +512,44 @@ ChartKind kindOfChart(const Chart &chart)
     return kindOfPlot(chart.plots.first());
 }
 
+QVector<ChartKind> recommendChartKinds(const ChartCells &cells, int sheet, const ChartPlan &plan)
+{
+    QVector<ChartKind> out;
+    const int n = int(plan.series.size());
+    if (n == 0 || !plan.data.valid) return out;
+    const bool labels = plan.seriesInRows ? plan.headerRow : plan.headerColumn;
+    // the first series' values (the first column of the data, or its first row)
+    QVector<double> first;
+    bool allNumbers = true;
+    const quint32 steps = plan.seriesInRows ? plan.data.col2 - plan.data.col1 + 1 : plan.data.row2 - plan.data.row1 + 1;
+    for (quint32 i = 0; i < steps && i < 64; ++i) {
+        const jp::calc::Value v = plan.seriesInRows ? cells.value(sheet, plan.data.row1, plan.data.col1 + i) : cells.value(sheet, plan.data.row1 + i, plan.data.col1);
+        if (v.isNumber()) first.append(v.number());
+        else if (!v.isEmpty()) allNumbers = false;
+    }
+    bool positive = allNumbers && !first.isEmpty();
+    for (double d : first) positive = positive && d >= 0;
+    // dates for the labels: numbers shown as dates
+    bool dates = false;
+    if (labels) {
+        const quint32 r = plan.seriesInRows ? plan.data.row1 - 1 : plan.data.row1;
+        const quint32 c = plan.seriesInRows ? plan.data.col1 : plan.data.col1 - 1;
+        dates = kindAt(cells, sheet, r, c) == Kind::Date;
+    }
+    const int points = plan.points;
+    auto add = [&](ChartKind k) {
+        if (!out.contains(k) && out.size() < 6) out.append(k);
+    };
+    if (!labels && n >= 2 && points >= 5) add(ChartKind::Scatter);
+    add(ChartKind::Column);
+    if (dates || points >= 6) add(dates ? ChartKind::LineMarkers : ChartKind::Line);
+    if (n == 1 && positive && points >= 2 && points <= 8 && labels) add(ChartKind::Pie);
+    if (points <= 12 && !dates) add(ChartKind::Bar);
+    if (n >= 2) add(ChartKind::ColumnStacked);
+    if (dates || (n >= 2 && points >= 4)) add(ChartKind::Area);
+    if (n >= 2 && points <= 12 && !dates) add(ChartKind::ColumnPercent);
+    if (!labels || n == 1) add(ChartKind::Line);
+    return out;
+}
+
 } // namespace jp::office::sheet

@@ -96,6 +96,7 @@ class PivotFieldsPane;
 struct ValueFieldSettings;
 struct FieldSettings;
 struct GroupChoice;
+struct CalculatedFieldChoice;
 struct PivotOptionsChoice;
 class HelpWindow;
 class Ribbon;
@@ -307,6 +308,7 @@ public:
     void setPivotOptionsAsker(std::function<bool(bool *)> asker) { m_pivotOptionsAsker = std::move(asker); }   // test hook: whether a click writes GETPIVOTDATA
     void setPivotSourceAsker(std::function<bool(QString *)> asker) { m_pivotSourceAsker = std::move(asker); }
     void setValueFieldAsker(std::function<bool(QString *, QString *)> asker) { m_valueFieldAsker = std::move(asker); }
+    void setCalculatedFieldAsker(std::function<bool(jp::CalculatedFieldChoice *)> asker) { m_calculatedAsker = std::move(asker); }   // test hook: all of Calculated Field
     void setGroupAsker(std::function<bool(jp::GroupChoice *)> asker) { m_groupAsker = std::move(asker); }   // test hook: all of Group Field
     void setFieldSettingsAsker(std::function<bool(jp::FieldSettings *)> asker) { m_fieldSettingsAsker = std::move(asker); }   // test hook: all of Field Settings
     void setPivotOptionsChoiceAsker(std::function<bool(jp::PivotOptionsChoice *)> asker) { m_pivotOptionsChoiceAsker = std::move(asker); }   // test hook: all of Pivot Table Options
@@ -873,6 +875,7 @@ private:
     bool showPivotDetailAtCursor(bool onlyForValues);
     bool insertPivotChart();
     void askGroupField(int field);
+    void askCalculatedField();
     void pivotProblem(const QString &title, const jp::crunch::EditSession::Outcome &o);
     PivotFieldsPane *m_pivotPane = nullptr;
     QDockWidget *m_pivotDock = nullptr;
@@ -888,6 +891,7 @@ private:
     std::function<bool(jp::ValueFieldSettings *)> m_valueSettingsAsker;
     std::function<bool(jp::FieldSettings *)> m_fieldSettingsAsker;
     std::function<bool(jp::GroupChoice *)> m_groupAsker;
+    std::function<bool(jp::CalculatedFieldChoice *)> m_calculatedAsker;
     std::function<bool(jp::PivotOptionsChoice *)> m_pivotOptionsChoiceAsker;
     // the data tools: Remove Duplicates and Text to Columns (crunchwindow_datatools.cpp)
     void createDataToolsActions();
@@ -1200,6 +1204,8 @@ public:
         int inRows = -1;
     };
     void setInsertChartAsker(const std::function<bool(InsertChartChoice *)> &asker) { m_insertChartAsker = asker; }
+    // Recommended Charts: given the kinds the cells suit (best first), gives the choice; false gives it up.
+    void setRecommendedChartsAsker(const std::function<bool(const QVector<jp::office::sheet::ChartKind> &, InsertChartChoice *)> &asker) { m_recommendedAsker = asker; }
     // Chart Data: given the chart and what a dialog needs, gives the chart as it should be; false gives it up.
     void setSelectDataAsker(const std::function<bool(const SelectDataRequest &, jp::office::Chart *)> &asker) { m_selectDataAsker = asker; }
     // Chart Kind: given each series' name and what it is drawn as, gives what each is to be drawn as.
@@ -1209,6 +1215,7 @@ public:
     // The commands of charts, for tests and the menus: a chart of the kind from the cells selected; the picked object moved to an anchor; the model of the picked chart changed.
     bool insertChart(jp::office::sheet::ChartKind kind, int inRows = -1);
     void insertChartDialog();
+    void recommendedChartsDialog();
     // The dialogs, made but not shown, for whoever shows them (the window runs them; a tool takes pictures of them). Null if there is nothing for them to work on.
     QDialog *makeInsertChartDialog();
     QDialog *makeSelectDataDialog();
@@ -1247,6 +1254,7 @@ private:
     jp::office::sheet::DrawingAnchor newObjectAnchor(double width, double height);
     void objectContextMenu(int id, const QPoint &global);
     std::function<bool(InsertChartChoice *)> m_insertChartAsker;
+    std::function<bool(const QVector<jp::office::sheet::ChartKind> &, InsertChartChoice *)> m_recommendedAsker;
     std::function<bool(const SelectDataRequest &, jp::office::Chart *)> m_selectDataAsker;
     std::function<bool(const QStringList &, const QVector<jp::office::sheet::SeriesKind> &, QVector<jp::office::sheet::SeriesKind> *)> m_changeTypeAsker;
     std::function<bool(const ObjectProperties &, ObjectProperties *)> m_propertiesAsker;

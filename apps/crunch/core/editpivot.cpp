@@ -991,6 +991,63 @@ EditSession::Outcome EditSession::showPivotDetail(int sheet, quint32 row, quint3
     return out;
 }
 
+EditSession::Outcome EditSession::listPivotFormulas(int table, int *made)
+{
+    Outcome out;
+    QString why;
+    auto refuse = [&](const QString &m) {
+        out.ok = false;
+        out.problem = m;
+        return out;
+    };
+    if (!canEdit(&why) || table < 0 || table >= m_book->book->pivots().tableCount() || !pivotUsable(table, &why)) return refuse(why.isEmpty() ? tr("There is no pivot table here.") : why);
+    PivotBook &pb = m_book->book->pivots();
+    const int ci = pb.table(table).cache;
+    const PivotCache &cache = *pb.cache(ci).cache;
+    QVector<int> calc;
+    for (int f = 0; f < cache.fields.size(); ++f)
+        if (cache.fields[f].isCalculated()) calc.append(f);
+    if (calc.isEmpty()) return refuse(tr("This pivot table has no calculated fields."));
+    const auto &sheets = m_book->book->info().sheets;
+    QString name;
+    for (int n = 1;; ++n) {
+        name = tr("Formulas %1").arg(n);
+        bool taken = false;
+        for (const SheetEntry &se : sheets)
+            if (!se.deleted && se.name.compare(name, Qt::CaseInsensitive) == 0) taken = true;
+        if (!taken) break;
+    }
+    int target = -1;
+    const Outcome inserted = insertSheet(int(sheets.size()), name, &target);
+    if (!inserted.ok) return inserted;
+    Step step;
+    auto put = [&](quint32 r, quint32 c, const QString &text) {
+        CellChange cc;
+        cc.sheet = target;
+        cc.row = r;
+        cc.col = quint16(c);
+        cc.before = m_book->calc->content(target, r, c);
+        cc.after = cc.before;
+        cc.after.exists = true;
+        cc.after.isFormula = false;
+        cc.after.formula.clear();
+        cc.after.value = Value::text(text);
+        cc.after.sharedString = -1;
+        cc.after.hasStored = false;
+        cc.textToShare = !m_book->book->sharedStringsPart().isEmpty();
+        step.cells.push_back(std::move(cc));
+    };
+    put(0, 0, tr("Calculated Field"));
+    put(0, 1, tr("Formula"));
+    for (int k = 0; k < calc.size(); ++k) {
+        put(quint32(k) + 1, 0, cache.fields[calc[k]].name);
+        put(quint32(k) + 1, 1, QLatin1Char('=') + cache.fields[calc[k]].formula);
+    }
+    out = pushTableStep(std::move(step), tr("List Formulas"));
+    if (out.ok && made) *made = target;
+    return out;
+}
+
 // The words of an item of a cache field, as a sheet name or a comparison between two caches needs them.
 static QString pivotItemWords(const PivotCacheField &f, int x)
 {

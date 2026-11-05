@@ -172,6 +172,7 @@
           "name": "Charts",
           "keytip": "ZH",
           "items": [
+            {"large": "insert.recommendedCharts", "keytip": "CR"},
             {"large": "insert.chart", "keytip": "C"},
             {"small": "chart.column", "keytip": "CL", "split": true, "menu": ["chart.column.clustered", "chart.column.stacked", "chart.column.percent"]},
             {"small": "chart.line", "keytip": "CN", "split": true, "menu": ["chart.line.plain", "chart.line.markers", "chart.line.stacked"]},
@@ -729,6 +730,14 @@
             {"small": "pivot.drillDown", "keytip": "DD"},
             {"small": "pivot.drillUp", "keytip": "DU"},
             {"small": "pivot.slicers", "keytip": "PN"}
+          ]
+        },
+        {
+          "name": "Calculations",
+          "keytip": "ZQ",
+          "items": [
+            {"large": "pivot.calculatedField", "keytip": "CF"},
+            {"large": "pivot.listFormulas", "keytip": "LF"}
           ]
         },
         {

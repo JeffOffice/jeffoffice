@@ -12,6 +12,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Borders"),
     QT_TRANSLATE_NOOP("Ribbon", "Breaks"),
     QT_TRANSLATE_NOOP("Ribbon", "Calculate"),
+    QT_TRANSLATE_NOOP("Ribbon", "Calculations"),
     QT_TRANSLATE_NOOP("Ribbon", "Cell Styles"),
     QT_TRANSLATE_NOOP("Ribbon", "Cells"),
     QT_TRANSLATE_NOOP("Ribbon", "Chart"),

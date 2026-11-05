@@ -20,6 +20,7 @@
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QClipboard>
+#include <QListWidget>
 #include <QGuiApplication>
 #include <QDoubleSpinBox>
 #include <QMenu>
@@ -353,6 +354,37 @@ private Q_SLOTS:
         e.win.w.insertChartDialog();
         QCOMPARE(e.win.w.objects()->layer()->count(), 1);
         QCOMPARE(int(kindOfChart(chartOf(e))), int(ChartKind::Pie));
+    }
+
+    // Recommended Charts offers the kinds the selected cells suit, best first, and makes the one picked; nothing selected says so; the dialog lists only those kinds.
+    void recommendedChartsAreOfferedForTheCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("H20:J22"));
+        e.win.w.recommendedChartsDialog();
+        QCOMPARE(e.win.w.objects()->layer()->count(), 0);
+        QVERIFY(e.win.told.last().contains(QLatin1String("Select the cells")));
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVector<ChartKind> offered;
+        e.win.w.setRecommendedChartsAsker([&](const QVector<ChartKind> &kinds, CrunchWindow::InsertChartChoice *c) {
+            offered = kinds;
+            c->kind = kinds.value(1);
+            return true;
+        });
+        e.win.w.recommendedChartsDialog();
+        QVERIFY(offered.size() >= 2 && offered.size() <= 6);
+        QCOMPARE(offered.first(), ChartKind::Column);
+        QCOMPARE(e.win.w.objects()->layer()->count(), 1);
+        QCOMPARE(int(kindOfChart(chartOf(e))), int(offered[1]));
+        // the dialog itself lists the kinds, and only those
+        InsertChartDialog dialog(nullptr, offered.first(), nullptr, offered, QStringLiteral("Recommended Charts"));
+        QCOMPARE(dialog.windowTitle(), QStringLiteral("Recommended Charts"));
+        QCOMPARE(dialog.findChild<QListWidget *>(QStringLiteral("chartKinds"))->count(), int(offered.size()));
+        QCOMPARE(int(dialog.kind()), int(offered.first()));
+        // it is a ribbon command, on the Insert tab
+        QVERIFY(e.win.w.act(QStringLiteral("insert.recommendedCharts")));
     }
 
     // ---- moving and sizing

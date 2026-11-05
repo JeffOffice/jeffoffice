@@ -1,5 +1,5 @@
 # Pivot tables
-<!-- keywords: report filter pages, pivot table, drill down, drill up, insert pivot table, create, make, select, move pivot table, getpivotdata, generate getpivotdata, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average, show values as, percent of total, difference, running total, number format, field settings, sort, filter, top, group, ungroup, dates, months, years, expand, collapse, options, style, banded rows, blank rows, repeat labels, refresh when the file opens, pivot chart, slicer, timeline, show details, drill down, rows behind a value -->
+<!-- keywords: list formulas, calculated field, formula field, report filter pages, pivot table, drill down, drill up, insert pivot table, create, make, select, move pivot table, getpivotdata, generate getpivotdata, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average, show values as, percent of total, difference, running total, number format, field settings, sort, filter, top, group, ungroup, dates, months, years, expand, collapse, options, style, banded rows, blank rows, repeat labels, refresh when the file opens, pivot chart, slicer, timeline, show details, drill down, rows behind a value -->
 
 A pivot table is a small report made from a long list. The list has one row for each sale, say; the report adds the sales up by region and month. You do not write any formulas. You say which columns of the list go down the side, which go across the top, and which one is added up, and the report fills itself in.
 
@@ -140,6 +140,20 @@ Select a field of dates or of numbers in **Rows** or **Columns** and choose **Gr
 - **Numbers**: **Starting at**, **Ending at**, and **By** make groups such as 1-10, 11-20, and so on.
 
 **Ungroup** takes the groups away and the fields that were added for them. Refresh makes the groups again from the new data. When two pivot tables are made from the same data, groups can't be made, because a group is a part of the data they share.
+
+## Calculated fields
+
+A calculated field is a field you make from a formula. It uses other fields of the list. For example, a bonus of one tenth of the amount is `=Amount*0.1`.
+
+Choose **Calculated Field** on the **Pivot Table** tab. Type a name and a formula. Write a field's name in the formula, or double-click it in the **Fields** list to put it there. Put a name that has spaces in single quotes, as in `='Unit price'*Quantity`. You can use numbers, `+ - * / ^ %`, comparisons, and a few functions such as `IF`, `ROUND`, `SUM`, `MIN`, `MAX`, `AVERAGE`, and `ABS`.
+
+Choose **Add**. The new field is put in the **Values** box. It also shows in the field list, where you can check or clear it like any other field. It can't go in the rows, columns, or filters.
+
+A calculated field is worked out in every cell of the report. A field's name stands for the total of that field in the cell, so `=Amount*Amount` squares the cell's total. It does not square each row and add them up. A grand total uses the totals of the whole list.
+
+**List Formulas** (next to **Calculated Field**) makes a new sheet that names each calculated field and its formula. **Undo** takes the cells away, and another **Undo** takes the sheet away.
+
+To change a field, pick its name in the **Name** box. Its formula shows. Change it and choose **Modify**. **Delete** takes the field and its value away. Each is one step of **Undo**. A calculated field is saved with the file and is kept when the report is refreshed. Two pivot tables made from the same data can't have one, because a calculated field is a part of the data they share.
 
 ## Show the rows behind a value
 

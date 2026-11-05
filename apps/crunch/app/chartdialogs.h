@@ -40,7 +40,8 @@ using ChartPreviewFn = std::function<QImage(jp::office::sheet::ChartKind kind, i
 class InsertChartDialog : public QDialog {
     Q_OBJECT
 public:
-    InsertChartDialog(const ChartPreviewFn &preview, jp::office::sheet::ChartKind initial, QWidget *parent = nullptr);
+    // `only`, when it has kinds, lists those in that order (Recommended Charts), under `title`.
+    InsertChartDialog(const ChartPreviewFn &preview, jp::office::sheet::ChartKind initial, QWidget *parent = nullptr, const QVector<jp::office::sheet::ChartKind> &only = {}, const QString &title = QString());
     jp::office::sheet::ChartKind kind() const;
     // -1 as the cells say, 0 the series are columns, 1 they are rows.
     int inRows() const;

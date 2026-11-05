@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key -->
+<!-- keywords: recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -8,6 +8,8 @@ A chart is a picture of numbers that stays tied to them: change a number and the
 1. Select the numbers you want to chart. If the first row has names and the first column has labels, select those too. JeffCrunch looks at the first row and column and uses them as the names and the labels when they are words (or dates, for the labels).
 2. On the **Insert** tab, in **Charts**, pick a kind: **Column**, **Bar**, **Line**, **Pie**, **Area**, **Scatter**, or **Combo**. The small arrow beside a kind has its variations, such as stacked columns, a line with markers, or a scatter chart of points, of joined points, or of smooth lines.
 3. For a look at every kind first, choose **More Charts**. The list on the left shows each kind drawn from your cells. **Swap rows and columns** turns the series the other way.
+
+Not sure which kind to pick? Select your cells and choose **Recommended Charts** on the **Insert** tab. JeffCrunch looks at the cells and lists a few kinds that suit them, best first. For example, dates down the side suggest a line, and one column of a few positive numbers with labels suggests a pie. Each kind is drawn from your cells. Pick one and choose **OK**.
 
 If you select only one cell, JeffCrunch charts the block of cells around it that has something in it.
 

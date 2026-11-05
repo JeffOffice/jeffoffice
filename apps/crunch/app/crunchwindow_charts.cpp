@@ -104,6 +104,8 @@ void CrunchWindow::createChartActions()
     // (Insert > Chart is the dialog; the others make the kind they name from the cells selected)
     mk("insert.chart", tr("More Charts…"), "chart-column", QKeySequence(), [this] { insertChartDialog(); });
     m_chartActions << QStringLiteral("insert.chart");
+    mk("insert.recommendedCharts", tr("Recommended Charts…"), "chart-no-axes-combined", QKeySequence(), [this] { recommendedChartsDialog(); });
+    m_chartActions << QStringLiteral("insert.recommendedCharts");
     for (const KindAction &k : kKindActions) {
         const ChartKind kind = k.kind;
         mk(QString::fromLatin1(k.id), QCoreApplication::translate("jp::CrunchWindow", k.text), k.icon, QKeySequence(), [this, kind] { insertChart(kind); });
@@ -310,6 +312,33 @@ void CrunchWindow::insertChartDialog()
         const auto *d = static_cast<InsertChartDialog *>(dialog.get());
         choice.kind = d->kind();
         choice.inRows = d->inRows();
+    }
+    insertChart(choice.kind, choice.inRows);
+}
+
+void CrunchWindow::recommendedChartsDialog()
+{
+    if (!m_session || !m_objects || m_chartSheetShown) return;
+    const QString title = tr("Recommended Charts");
+    ChartPlan plan;
+    QVector<ChartKind> kinds;
+    if (m_objects->cells() && chartPlanFor(ChartKind::Column, -1, &plan)) kinds = recommendChartKinds(*m_objects->cells(), m_sheet, plan);
+    if (kinds.isEmpty()) {
+        notice(title, m_objects->cells() ? tr("Select the cells that hold the numbers to chart. If the first row has names and the first column has labels, select those too.") : tr("The workbook is still being read. A chart can be made when it is open."), false);
+        return;
+    }
+    InsertChartChoice choice;
+    choice.kind = kinds.first();
+    if (m_recommendedAsker) {
+        if (!m_recommendedAsker(kinds, &choice)) return;
+    } else {
+        m_previewBlock = jp::office::sheet::CellRange();
+        InsertChartDialog dialog([this](ChartKind k, int inRows, const QSize &px) { return chartPreviewImage(k, inRows, px); }, kinds.first(), this, kinds, title);
+        const bool accepted = dialog.exec() == QDialog::Accepted;
+        m_previewBlock = jp::office::sheet::CellRange();
+        if (!accepted) return;
+        choice.kind = dialog.kind();
+        choice.inRows = dialog.inRows();
     }
     insertChart(choice.kind, choice.inRows);
 }

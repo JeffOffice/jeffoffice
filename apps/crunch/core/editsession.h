@@ -402,6 +402,8 @@ public:
     // formula and name of that field are changed. Delete takes the field and the values made from it away. One step of Undo each; the pivot table must not share its data with another.
     Outcome setPivotCalculatedField(int table, int field, const QString &name, const QString &formula);
     Outcome deletePivotCalculatedField(int table, int field);
+    // List Formulas: a new sheet that names each calculated field of the table and its formula (`made` is given the sheet's place). One step of Undo for the cells, and one for the sheet.
+    Outcome listPivotFormulas(int table, int *made = nullptr);
     // The rows behind a value of a pivot table (the cell at `row`, `col` of `sheet`), put on a new sheet with the names of the fields above them: one step of Undo for the sheet, one for the rows.
     // `made` is the sheet's place. A cell that is no value, or a table that can't be read, is refused.
     Outcome showPivotDetail(int sheet, quint32 row, quint32 col, int *made = nullptr);
