@@ -42,6 +42,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Usar JeffDeck con el teclado](keyboard)
 - [Cambiar la configuración de JeffDeck](options)
+- [Elegir un idioma](language)
 - [La pantalla Archivo](file-screen)
 
 ## Las pestañas de la cinta de opciones

@@ -59,6 +59,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Lectores de pantalla, contraste alto y texto alternativo](accessibility)
 - [Comprobar el diseño](design-checker)
 - [Cambiar la configuración de JeffPub](options)
+- [Elegir un idioma](language)
 - [Obtener ayuda e informar de problemas](support)
 
 ## Las pestañas de la cinta de opciones

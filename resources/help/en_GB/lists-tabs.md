@@ -1,0 +1,71 @@
+# Bullets, numbering, and tabs
+<!-- keywords: bullet list, bulleted list, numbered list, numbering, bullets, list, tab stops, tabs, ruler, tab leader, dot leader, decimal tab, hanging indent -->
+
+A list puts each item on its own line, marked with a bullet or a number. Tab stops line text up in neat columns, like the prices on a menu.
+
+## Make a list
+
+1. Click in a paragraph, or select several.
+2. Click **Home > Paragraph > Bullets** or **Home > Paragraph > Numbering**.
+
+Click the same button again to turn the list off. Each button also has an arrow. The arrow beside **Bullets** offers eight bullet symbols. The arrow beside **Numbering** offers seven styles, such as 1. 2. 3., a. b. c., I. II. III., and (1) (2) (3). Choose **None** to remove a list.
+
+For more choices, choose **Bullets and Numbering…** from either menu. The **Bullets** tab has 12 symbols and a **Character…** button for your own. The **Numbering** tab has a **Start at** box, so a list can begin at 5, for example.
+
+**Increase Indent** and **Decrease Indent** move list items in or out a level, a quarter inch at a time. An item moved in starts a list of its own under the one above: numbers there go a. b. c. (then i. ii. iii. a level further), and bullets become circles (then squares). For example, select items 2 and 3 of a numbered list and click **Increase Indent**: they become a. and b. under 1., and the next item stays 2.
+
+## Type a list
+
+- Type `*` or `-` and a space at the start of a paragraph to begin a bulleted list.
+- Type `1.` or `1)` and a space to begin a numbered list.
+- Press Enter for the next item. Press Enter on an empty item to end the list.
+- Press Backspace at the start of an item to remove its bullet.
+
+To turn this off, clear **AutoFormat as you type** on the **Proofing** tab of **File > Options** (the **JeffPub Options** window).
+
+## What tab stops are
+
+A tab stop is a place on the line where text jumps when you press the Tab key. If you set none, Tab jumps to the next default tab stop. Those are a half inch apart, counting from the left edge of the text, unless you change them (see **Change the default tab stops** below). If the text after a Tab does not fit on the line, the Tab and that text move to the start of the next line together, as long as the first word fits there after the Tab's stop. If it does not, the Tab stays at the end of the line and the text starts the next line at the paragraph's left edge. A stop can be one of four kinds:
+
+- **Left:** the text starts at the stop.
+- **Centre:** the text is centred on the stop.
+- **Right:** the text ends at the stop.
+- **Decimal:** the decimal points line up on the stop.
+
+A stop can also have a leader. That is a row of dots, dashes, a line, or bullets that fills the gap before the stop. A menu line like "Soup ....... $4.50" is a right tab with a dot leader.
+
+Tab stops belong to paragraphs. They count from the left edge of the text, inside the box's margin. The default tab stops are the one exception: they belong to the whole publication.
+
+## Set tab stops on the ruler
+
+1. Click **View > Show > Rulers** if the rulers are hidden.
+2. Click in the text. The ruler shows the width of the text in white.
+3. Click the ruler where you want a stop. A left tab stop appears.
+4. Drag a stop to move it. Drag it down, off the ruler, to remove it.
+
+## Set tab stops in a dialog
+
+1. Click in the paragraph and double-click the ruler. The **Paragraph** dialog opens on its **Tabs** tab. (You can also open it from **Home > Paragraph > Line Spacing > Paragraph…** and click the **Tabs** tab.)
+2. Click **Add**, then double-click the new **Position** to type a number.
+3. Pick an **Alignment** (left, centre, right, or decimal) and a **Leader** for the row.
+4. Click **OK**.
+
+**Delete** removes the selected row. **Clear All** removes every stop.
+
+In a table cell, the Tab key moves to the next cell instead. See [Make and edit tables](tables).
+
+## Change the default tab stops
+
+Where a paragraph has no tab stops of its own, the Tab key jumps to the next default tab stop. They start out a half inch apart, and one setting spaces them for every paragraph in the publication.
+
+1. Open the **Paragraph** dialog and click its **Tabs** tab, as described above. You do not need to select any text first.
+2. Under the list of stops, type a distance in **Default tab stops**. It can be anything from 1 point to 1,584 points (22 inches). The box uses the measurement units you chose in **File > Options**, and you can type a unit, such as 1 cm.
+3. Click **OK**.
+
+All the text that uses default stops moves to the new spacing at once, and **Undo** puts the old spacing back. The publication keeps the setting when you save it, as a JeffPub file or as a .pub file. Stops you set yourself, on the ruler or with **Add**, stay where you put them.
+
+## Related
+
+- [Format text](formatting-text)
+- [Use styles](styles)
+- [The Home tab](tab-home)

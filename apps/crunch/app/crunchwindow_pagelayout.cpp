@@ -6,6 +6,7 @@
 #include "app/crunchwindow.h"
 
 #include "app/pagesetupdialog.h"
+#include "app/settings.h"
 #include "app/ribbon.h"
 #include "core/editsession.h"
 #include "core/printjob.h"
@@ -177,7 +178,7 @@ void CrunchWindow::buildPageLayoutView(QWidget *parent, QVBoxLayout *into)
     m_pageView->setObjectName(QStringLiteral("pageLayoutView"));
     m_pageView->setAccessibleName(tr("Pages"));
     m_pageView->setAccessibleDescription(tr("The sheet as the pages it prints on. Click a cell to choose it; click the top or bottom margin of a page to type its header or footer."));
-    m_pageView->setMetric(QLocale().measurementSystem() == QLocale::MetricSystem);
+    m_pageView->setMetric(jp::defaultUnit(QLocale()) != jp::Unit::Inch);
     m_pageView->hide();
     into->addWidget(m_pageView, 1);
     connect(m_pageView, &grid::PageLayoutView::cellPressed, this, [this](int, qint64 row, qint64 col, Qt::KeyboardModifiers mods) {

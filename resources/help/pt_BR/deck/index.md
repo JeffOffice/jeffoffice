@@ -42,6 +42,7 @@ Digite na caixa de pesquisa acima para localizar um tópico ou um comando a exec
 
 - [Usar o JeffDeck com o teclado](keyboard)
 - [Alterar as configurações do JeffDeck](options)
+- [Escolher um idioma](language)
 - [A tela Arquivo](file-screen)
 
 ## As guias da faixa de opções

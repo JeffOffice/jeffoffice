@@ -5,9 +5,12 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QHash>
 #include <QLibraryInfo>
 #include <QLocale>
 #include <QTranslator>
+
+#include <utility>
 
 namespace jp {
 
@@ -30,6 +33,7 @@ QString uiLanguageName(const QString &language)
     // The language's plain name ("português", not "português europeu"),
     // then the country.
     QString name = QLocale(language.section(QLatin1Char('_'), 0, 0)).nativeLanguageName();
+    if (name.startsWith(QLatin1String("American English"), Qt::CaseInsensitive)) name = QStringLiteral("English");   // ("en" alone is the United States', and the country follows)
     if (language.contains(QLatin1Char('_'))) name += QStringLiteral(" (%1)").arg(QLocale(language).nativeTerritoryName());
     if (!name.isEmpty()) name[0] = name[0].toUpper();
     return name;
@@ -37,10 +41,29 @@ QString uiLanguageName(const QString &language)
 
 namespace {
 QString s_language = QStringLiteral("en");
+QList<QTranslator *> s_installed;   // what installTranslations() put in, to take out again
 QString installTranslationsFor();
 }
 
 QString currentUiLanguage() { return s_language; }
+
+QString pickUiLanguage(const QStringList &wanted, const QStringList &have)
+{
+    // Countries that write English as one of the variants, when the system names theirs and the apps have no file for it.
+    static const QHash<QString, QString> neighbor = {
+        {QStringLiteral("en_NZ"), QStringLiteral("en_AU")}, {QStringLiteral("en_IE"), QStringLiteral("en_GB")}, {QStringLiteral("en_ZA"), QStringLiteral("en_GB")},
+        {QStringLiteral("en_IN"), QStringLiteral("en_GB")}, {QStringLiteral("en_SG"), QStringLiteral("en_GB")}, {QStringLiteral("en_HK"), QStringLiteral("en_GB")},
+        {QStringLiteral("en_MT"), QStringLiteral("en_GB")}};
+    for (const QString &w : wanted) {
+        if (have.contains(w)) return w;
+        const QString near = neighbor.value(w);
+        if (!near.isEmpty() && have.contains(near)) return near;
+        if (w.startsWith(QLatin1String("en"))) return QString();   // the text is English already
+        const QString base = w.section(QLatin1Char('_'), 0, 0);
+        if (have.contains(base)) return base;
+    }
+    return QString();
+}
 
 QString installTranslations()
 {
@@ -68,21 +91,29 @@ QString installTranslationsFor()
     if (!chosen.isEmpty()) wanted << chosen;
     else
         for (QString l : QLocale::system().uiLanguages()) wanted << l.replace(QLatin1Char('-'), QLatin1Char('_'));
-    QString lang;
-    for (const QString &w : wanted) {
-        if (w.startsWith(QLatin1String("en"))) break;   // the text is English already
-        if (have.contains(w)) { lang = w; break; }
-        const QString base = w.section(QLatin1Char('_'), 0, 0);
-        if (have.contains(base)) { lang = base; break; }
+    // (a language chosen in Options is looked up as it is; "en" is the text itself)
+    const QString lang = chosen == QLatin1String("en") ? QString() : pickUiLanguage(wanted, have);
+    // Each call starts from none, so a test (or a later change of language) is not stacked on the last.
+    for (QTranslator *t : std::exchange(s_installed, {})) {
+        QCoreApplication::removeTranslator(t);
+        delete t;
     }
-    if (lang.isEmpty()) {
-        // English: only its plural forms ("1 page", "2 pages") need a file.
-        auto *plurals = new QTranslator(QCoreApplication::instance());
-        if (plurals->load(QStringLiteral(":/i18n/%1_en.qm").arg(kSuiteFiles))) QCoreApplication::installTranslator(plurals);
-        return QStringLiteral("en");
-    }
-    auto *own = new QTranslator(QCoreApplication::instance());
-    if (own->load(QStringLiteral(":/i18n/%1_%2.qm").arg(kSuiteFiles, lang))) QCoreApplication::installTranslator(own);
+    auto install = [](QTranslator *t, bool loaded) {
+        if (loaded) {
+            QCoreApplication::installTranslator(t);
+            s_installed << t;
+        } else delete t;
+    };
+    auto installFile = [&install](const QString &file) {
+        auto *t = new QTranslator(QCoreApplication::instance());
+        install(t, t->load(file));
+    };
+    // English: only its plural forms ("1 page", "2 pages") need a file. The variants (en_GB, en_CA, en_AU) go on top of it and hold
+    // only the texts they spell differently; any other text is the American English one.
+    if (lang.isEmpty() || lang.startsWith(QLatin1String("en_"))) installFile(QStringLiteral(":/i18n/%1_en.qm").arg(kSuiteFiles));
+    if (lang.isEmpty()) return QStringLiteral("en");
+    installFile(QStringLiteral(":/i18n/%1_%2.qm").arg(kSuiteFiles, lang));
+    if (lang.startsWith(QLatin1String("en_"))) return lang;   // (Qt's own text is English already)
     // Qt's own text (standard buttons such as Cancel, file dialogs): built
     // in beside the apps' (Portugal's falls back to Brazil's, the one Qt
     // has), else beside the program, else where Qt keeps it.
@@ -94,7 +125,7 @@ QString installTranslationsFor()
         if ((found = qt->load(QStringLiteral(":/i18n/qtbase_%1.qm").arg(l)))) break;
     for (const QString &dir : {QCoreApplication::applicationDirPath() + QStringLiteral("/translations"), QLibraryInfo::path(QLibraryInfo::TranslationsPath)})
         if (!found) found = qt->load(QStringLiteral("qtbase_%1").arg(lang), dir);
-    if (found) QCoreApplication::installTranslator(qt);
+    install(qt, found);
     return lang;
 }
 } // namespace

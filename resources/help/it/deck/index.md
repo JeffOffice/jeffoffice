@@ -42,6 +42,7 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 - [Usare JeffDeck con la tastiera](keyboard)
 - [Modificare le impostazioni di JeffDeck](options)
+- [Scegliere una lingua](language)
 - [La schermata File](file-screen)
 
 ## Le schede della barra multifunzione

@@ -1,0 +1,791 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="en_AU">
+<context>
+    <name>Animation</name>
+    <message>
+        <source>Object Center</source>
+        <translation>Object Centre</translation>
+    </message>
+    <message>
+        <source>Slide Center</source>
+        <translation>Slide Centre</translation>
+    </message>
+</context>
+<context>
+    <name>Core</name>
+    <message>
+        <source>No Color</source>
+        <translation>No Colour</translation>
+    </message>
+</context>
+<context>
+    <name>Dialogs</name>
+    <message>
+        <source>No Color</source>
+        <translation>No Colour</translation>
+    </message>
+    <message>
+        <source>Add center guide between columns and rows</source>
+        <translation>Add centre guide between columns and rows</translation>
+    </message>
+    <message>
+        <source>Fill color:</source>
+        <translation>Fill colour:</translation>
+    </message>
+    <message>
+        <source>Line color:</source>
+        <translation>Line colour:</translation>
+    </message>
+    <message>
+        <source>Create New Color Scheme</source>
+        <translation>Create New Colour Scheme</translation>
+    </message>
+    <message>
+        <source>Two colors</source>
+        <translation>Two colours</translation>
+    </message>
+    <message>
+        <source>From center</source>
+        <translation>From centre</translation>
+    </message>
+    <message>
+        <source>Base color:</source>
+        <translation>Base colour:</translation>
+    </message>
+    <message>
+        <source>Top center</source>
+        <translation>Top centre</translation>
+    </message>
+    <message>
+        <source>Bottom center</source>
+        <translation>Bottom centre</translation>
+    </message>
+    <message>
+        <source>Single color (spot)</source>
+        <translation>Single colour (spot)</translation>
+    </message>
+    <message>
+        <source>Spot colors</source>
+        <translation>Spot colours</translation>
+    </message>
+    <message>
+        <source>Process colors (CMYK)</source>
+        <translation>Process colours (CMYK)</translation>
+    </message>
+    <message>
+        <source>Process plus spot colors</source>
+        <translation>Process plus spot colours</translation>
+    </message>
+    <message>
+        <source>Spot colors:</source>
+        <translation>Spot colours:</translation>
+    </message>
+    <message>
+        <source>Spot Color</source>
+        <translation>Spot Colour</translation>
+    </message>
+    <message>
+        <source>Spot color %1</source>
+        <translation>Spot colour %1</translation>
+    </message>
+</context>
+<context>
+    <name>Export</name>
+    <message>
+        <source>Your printer's color profile (an .icc file)</source>
+        <translation>Your printer's colour profile (an .icc file)</translation>
+    </message>
+    <message>
+        <source>a color JeffPub couldn't turn into ink amounts</source>
+        <translation>a colour JeffPub couldn't turn into ink amounts</translation>
+    </message>
+    <message>
+        <source>an RGB color space JeffPub couldn't convert</source>
+        <translation>an RGB colour space JeffPub couldn't convert</translation>
+    </message>
+</context>
+<context>
+    <name>FileDialogs</name>
+    <message>
+        <source>
+
+Windows is probably blocking %1 from saving in this folder. Windows Security's "Controlled folder access" protects folders such as Documents and Desktop from programs it doesn't recognize yet.
+
+To allow %1: open Windows Security, choose Virus &amp; threat protection, then Manage ransomware protection, then Allow an app through Controlled folder access. Choose Add an allowed app, then Browse all apps, and select:
+%2
+
+Or save to a folder that isn't protected.</source>
+        <translation>
+
+Windows is probably blocking %1 from saving in this folder. Windows Security's "Controlled folder access" protects folders such as Documents and Desktop from programs it doesn't recognise yet.
+
+To allow %1: open Windows Security, choose Virus &amp; threat protection, then Manage ransomware protection, then Allow an app through Controlled folder access. Choose Add an allowed app, then Browse all apps, and select:
+%2
+
+Or save to a folder that isn't protected.</translation>
+    </message>
+</context>
+<context>
+    <name>FormatPane</name>
+    <message>
+        <source>From Center</source>
+        <translation>From Centre</translation>
+    </message>
+    <message>
+        <source>Offset Center</source>
+        <translation>Offset Centre</translation>
+    </message>
+</context>
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>choose your printer's color profile (an .icc file) first</source>
+        <translation>choose your printer's colour profile (an .icc file) first</translation>
+    </message>
+    <message>
+        <source>its color profile, %1, hasn't been downloaded yet</source>
+        <translation>its colour profile, %1, hasn't been downloaded yet</translation>
+    </message>
+    <message>
+        <source>A PDF/X-4 file carries the color profile of its printing condition, "%1". The European Color Initiative, which makes it, lets anyone use it and put it in PDFs but not pass it on, so it doesn't come with JeffPub.
+
+Download it from %2 now? (%3, once.)</source>
+        <translation>A PDF/X-4 file carries the colour profile of its printing condition, "%1". The European Colour Initiative, which makes it, lets anyone use it and put it in PDFs but not pass it on, so it doesn't come with JeffPub.
+
+Download it from %2 now? (%3, once.)</translation>
+    </message>
+    <message>
+        <source>its color profile wasn't downloaded</source>
+        <translation>its colour profile wasn't downloaded</translation>
+    </message>
+</context>
+<context>
+    <name>PptxImport</name>
+    <message>
+        <source>The slide master %1 has no theme, so JeffDeck's colors and fonts stand in.</source>
+        <translation>The slide master %1 has no theme, so JeffDeck's colours and fonts stand in.</translation>
+    </message>
+    <message>
+        <source>The theme of slide master %1 can't be read (%2), so JeffDeck's colors and fonts stand in.</source>
+        <translation>The theme of slide master %1 can't be read (%2), so JeffDeck's colours and fonts stand in.</translation>
+    </message>
+</context>
+<context>
+    <name>Ribbon</name>
+    <message>
+        <source>Page Color:</source>
+        <translation>Page Colour:</translation>
+    </message>
+    <message>
+        <source>Text Highlight Color</source>
+        <translation>Text Highlight Colour</translation>
+    </message>
+    <message>
+        <source>Marker Color</source>
+        <translation>Marker Colour</translation>
+    </message>
+    <message>
+        <source>Sparkline Color</source>
+        <translation>Sparkline Colour</translation>
+    </message>
+    <message>
+        <source>Tab Color</source>
+        <translation>Tab Colour</translation>
+    </message>
+</context>
+<context>
+    <name>Sheet</name>
+    <message>
+        <source>tab colors</source>
+        <translation>tab colours</translation>
+    </message>
+</context>
+<context>
+    <name>Templates</name>
+    <message>
+        <source>The program began twelve years ago with a single folding stage and a borrowed sound system. Today more than forty volunteers set up the lawn each week, and the concerts draw neighbors from across the county. Admission is free, and donations go directly to music lessons for students in the district.</source>
+        <translation>The program began twelve years ago with a single folding stage and a borrowed sound system. Today more than forty volunteers set up the lawn each week, and the concerts draw neighbours from across the county. Admission is free, and donations go directly to music lessons for students in the district.</translation>
+    </message>
+    <message>
+        <source>Dear neighbor,</source>
+        <translation>Dear neighbour,</translation>
+    </message>
+    <message>
+        <source>Fall Catalog</source>
+        <translation>Fall Catalogue</translation>
+    </message>
+    <message>
+        <source>News for friends and neighbors</source>
+        <translation>News for friends and neighbours</translation>
+    </message>
+    <message>
+        <source>Fold along the dashed lines, center line first.</source>
+        <translation>Fold along the dashed lines, centre line first.</translation>
+    </message>
+    <message>
+        <source>Product Catalog</source>
+        <translation>Product Catalogue</translation>
+    </message>
+    <message>
+        <source>Cut out the square. Fold the corners to the center, turn it over, fold the corners in again, then fold in half both ways.</source>
+        <translation>Cut out the square. Fold the corners to the centre, turn it over, fold the corners in again, then fold in half both ways.</translation>
+    </message>
+    <message>
+        <source>Full-color sale sign with a percentage burst.</source>
+        <translation>Full-colour sale sign with a percentage burst.</translation>
+    </message>
+    <message>
+        <source>Warm colors and rounded type.</source>
+        <translation>Warm colours and rounded type.</translation>
+    </message>
+    <message>
+        <source>Merged Product Catalog</source>
+        <translation>Merged Product Catalogue</translation>
+    </message>
+    <message>
+        <source>Cover, then a catalog page filled from a product list.</source>
+        <translation>Cover, then a catalogue page filled from a product list.</translation>
+    </message>
+    <message>
+        <source>Origami fortune teller with colors and numbers.</source>
+        <translation>Origami fortune teller with colours and numbers.</translation>
+    </message>
+</context>
+<context>
+    <name>Theme</name>
+    <message>
+        <source>The theme has no colors.</source>
+        <translation>The theme has no colours.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::BackgroundDialog</name>
+    <message>
+        <source>Background Color</source>
+        <translation>Background Colour</translation>
+    </message>
+    <message>
+        <source>Solid fill color:</source>
+        <translation>Solid fill colour:</translation>
+    </message>
+</context>
+<context>
+    <name>jp::Backstage</name>
+    <message>
+        <source>Choose the color model (RGB, process CMYK, spot colors) and font embedding for a print shop.</source>
+        <translation>Choose the colour model (RGB, process CMYK, spot colours) and font embedding for a print shop.</translation>
+    </message>
+    <message>
+        <source>Composite grayscale</source>
+        <translation>Composite greyscale</translation>
+    </message>
+    <message>
+        <source>An ISO 19005 (PDF/A-1b) file for long-term storage and court or records filing: every font embedded, standard sRGB color, no transparency.</source>
+        <translation>An ISO 19005 (PDF/A-1b) file for long-term storage and court or records filing: every font embedded, standard sRGB colour, no transparency.</translation>
+    </message>
+    <message>
+        <source>An ISO 15930 file (PDF/X-1a or PDF/X-4), the kind printers and print-on-demand services ask for: every color in ink, fonts embedded, trim and bleed marked. PDF/X-4 keeps transparency and carries the printing condition's color profile.</source>
+        <translation>An ISO 15930 file (PDF/X-1a or PDF/X-4), the kind printers and print-on-demand services ask for: every colour in ink, fonts embedded, trim and bleed marked. PDF/X-4 keeps transparency and carries the printing condition's colour profile.</translation>
+    </message>
+    <message>
+        <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;JeffPub is free software under the &lt;a href="%1"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%2"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;JeffPub is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
+        <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;JeffPub is free software under the &lt;a href="%1"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%2"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;JeffPub is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
+    </message>
+    <message>
+        <source>PDF/X-4 (downloaded from the European Color Initiative)</source>
+        <translation>PDF/X-4 (downloaded from the European Colour Initiative)</translation>
+    </message>
+</context>
+<context>
+    <name>jp::CatalogPane</name>
+    <message>
+        <source>Insert Catalog Area</source>
+        <translation>Insert Catalogue Area</translation>
+    </message>
+    <message>
+        <source>Remove Catalog Area</source>
+        <translation>Remove Catalogue Area</translation>
+    </message>
+</context>
+<context>
+    <name>jp::ColorButton</name>
+    <message>
+        <source>Applies the color shown; Down arrow or F4 opens more colors.</source>
+        <translation>Applies the colour shown; Down arrow or F4 opens more colours.</translation>
+    </message>
+    <message>
+        <source>No Color</source>
+        <translation>No Colour</translation>
+    </message>
+</context>
+<context>
+    <name>jp::ColorPopup</name>
+    <message>
+        <source>Scheme Colors</source>
+        <translation>Scheme Colours</translation>
+    </message>
+    <message>
+        <source>Spot Colors</source>
+        <translation>Spot Colours</translation>
+    </message>
+    <message>
+        <source>Standard Colors</source>
+        <translation>Standard Colours</translation>
+    </message>
+    <message>
+        <source>Recent Colors</source>
+        <translation>Recent Colours</translation>
+    </message>
+    <message>
+        <source>More Colors…</source>
+        <translation>More Colours…</translation>
+    </message>
+    <message>
+        <source>Pick a color from anywhere on the page</source>
+        <translation>Pick a colour from anywhere on the page</translation>
+    </message>
+</context>
+<context>
+    <name>jp::CrunchFileScreen</name>
+    <message>
+        <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%3"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
+        <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%3"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::CrunchWindow</name>
+    <message>
+        <source>Chart Colors and Styles</source>
+        <translation>Chart Colours and Styles</translation>
+    </message>
+    <message>
+        <source>Merge and Center</source>
+        <translation>Merge and Centre</translation>
+    </message>
+    <message>
+        <source>Fill Color</source>
+        <translation>Fill Colour</translation>
+    </message>
+    <message>
+        <source>Font Color</source>
+        <translation>Font Colour</translation>
+    </message>
+    <message>
+        <source>Line Color</source>
+        <translation>Line Colour</translation>
+    </message>
+    <message>
+        <source>Tab Color</source>
+        <translation>Tab Colour</translation>
+    </message>
+    <message>
+        <source>No Color</source>
+        <translation>No Colour</translation>
+    </message>
+    <message>
+        <source>Dark Gray</source>
+        <translation>Dark Grey</translation>
+    </message>
+    <message>
+        <source>Sparkline Color</source>
+        <translation>Sparkline Colour</translation>
+    </message>
+    <message>
+        <source>Sparkline Marker Color</source>
+        <translation>Sparkline Marker Colour</translation>
+    </message>
+</context>
+<context>
+    <name>jp::DeckFileScreen</name>
+    <message>
+        <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%3"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
+        <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%3"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::DeckWindow</name>
+    <message>
+        <source>&amp;Grayscale</source>
+        <translation>&amp;Greyscale</translation>
+    </message>
+    <message>
+        <source>Font Color</source>
+        <translation>Font Colour</translation>
+    </message>
+    <message>
+        <source>More Fill Colors…</source>
+        <translation>More Fill Colours…</translation>
+    </message>
+    <message>
+        <source>More Outline Colors…</source>
+        <translation>More Outline Colours…</translation>
+    </message>
+    <message>
+        <source>Theme Colors</source>
+        <translation>Theme Colours</translation>
+    </message>
+    <message>
+        <source>Pen Color</source>
+        <translation>Pen Colour</translation>
+    </message>
+</context>
+<context>
+    <name>jp::Editor</name>
+    <message>
+        <source>Font Color</source>
+        <translation>Font Colour</translation>
+    </message>
+</context>
+<context>
+    <name>jp::FillEditor</name>
+    <message>
+        <source>Fill color</source>
+        <translation>Fill colour</translation>
+    </message>
+    <message>
+        <source>Foreground color</source>
+        <translation>Foreground colour</translation>
+    </message>
+    <message>
+        <source>Background color</source>
+        <translation>Background colour</translation>
+    </message>
+    <message>
+        <source>No Color</source>
+        <translation>No Colour</translation>
+    </message>
+</context>
+<context>
+    <name>jp::FilterPopup</name>
+    <message>
+        <source>Sort by a Color</source>
+        <translation>Sort by a Colour</translation>
+    </message>
+    <message>
+        <source>Keep a Color</source>
+        <translation>Keep a Colour</translation>
+    </message>
+    <message>
+        <source>Without a text color</source>
+        <translation>Without a text colour</translation>
+    </message>
+    <message>
+        <source>Fill colors</source>
+        <translation>Fill colours</translation>
+    </message>
+    <message>
+        <source>Text colors</source>
+        <translation>Text colours</translation>
+    </message>
+</context>
+<context>
+    <name>jp::FormatCellsDialog</name>
+    <message>
+        <source>Font Color</source>
+        <translation>Font Colour</translation>
+    </message>
+    <message>
+        <source>&amp;Color:</source>
+        <translation>&amp;Colour:</translation>
+    </message>
+    <message>
+        <source>Line Color</source>
+        <translation>Line Colour</translation>
+    </message>
+    <message>
+        <source>Click a button to put the line in the style and color chosen on the edge it names, or to take away the line that is there.</source>
+        <translation>Click a button to put the line in the style and colour chosen on the edge it names, or to take away the line that is there.</translation>
+    </message>
+    <message>
+        <source>Background Color</source>
+        <translation>Background Colour</translation>
+    </message>
+    <message>
+        <source>No Color</source>
+        <translation>No Colour</translation>
+    </message>
+    <message>
+        <source>&amp;Background Color:</source>
+        <translation>&amp;Background Colour:</translation>
+    </message>
+    <message>
+        <source>Pattern Color</source>
+        <translation>Pattern Colour</translation>
+    </message>
+    <message>
+        <source>P&amp;attern Color:</source>
+        <translation>P&amp;attern Colour:</translation>
+    </message>
+    <message>
+        <source>All one color</source>
+        <translation>All one colour</translation>
+    </message>
+</context>
+<context>
+    <name>jp::FormatPane</name>
+    <message>
+        <source>Shadow color</source>
+        <translation>Shadow colour</translation>
+    </message>
+    <message>
+        <source>Glow color</source>
+        <translation>Glow colour</translation>
+    </message>
+    <message>
+        <source>Picture Color</source>
+        <translation>Picture Colour</translation>
+    </message>
+    <message>
+        <source>Top Centered</source>
+        <translation>Top Centred</translation>
+    </message>
+    <message>
+        <source>Middle Centered</source>
+        <translation>Middle Centred</translation>
+    </message>
+    <message>
+        <source>Bottom Centered</source>
+        <translation>Bottom Centred</translation>
+    </message>
+</context>
+<context>
+    <name>jp::LineEditor</name>
+    <message>
+        <source>Line color</source>
+        <translation>Line colour</translation>
+    </message>
+</context>
+<context>
+    <name>jp::MainWindow</name>
+    <message>
+        <source>PDF/X-4: Your printer's color profile (%1)</source>
+        <translation>PDF/X-4: Your printer's colour profile (%1)</translation>
+    </message>
+    <message>
+        <source>Your Printer's Color Profile</source>
+        <translation>Your Printer's Colour Profile</translation>
+    </message>
+    <message>
+        <source>"%1" isn't a color profile for printing in CMYK.</source>
+        <translation>"%1" isn't a colour profile for printing in CMYK.</translation>
+    </message>
+    <message>
+        <source>the color profile isn't one for printing in CMYK</source>
+        <translation>the colour profile isn't one for printing in CMYK</translation>
+    </message>
+    <message>
+        <source>The PDF was made, but its spot colors are process colors: %1</source>
+        <translation>The PDF was made, but its spot colours are process colours: %1</translation>
+    </message>
+    <message>
+        <source>Align Center</source>
+        <translation>Align Centre</translation>
+    </message>
+    <message>
+        <source>Create New Color Scheme…</source>
+        <translation>Create New Colour Scheme…</translation>
+    </message>
+    <message>
+        <source>Set Transparent Color</source>
+        <translation>Set Transparent Colour</translation>
+    </message>
+    <message>
+        <source>Font Color</source>
+        <translation>Font Colour</translation>
+    </message>
+    <message>
+        <source>Line Color</source>
+        <translation>Line Colour</translation>
+    </message>
+</context>
+<context>
+    <name>jp::OnlinePicturesPane</name>
+    <message>
+        <source>Most open licenses ask you to name the author and the license where the picture is used.</source>
+        <translation>Most open licences ask you to name the author and the licence where the picture is used.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n picture(s) found. Choose one to see its license.</source>
+        <translation>
+            <numerusform>%n picture found. Choose it to see its licence.</numerusform>
+            <numerusform>%n pictures found. Choose one to see its licence.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Inserted. Check that its license fits how you'll use it.</source>
+        <translation>Inserted. Check that its licence fits how you'll use it.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::PivotOptionsDialog</name>
+    <message>
+        <source>Merge and center cells with labels</source>
+        <translation>Merge and centre cells with labels</translation>
+    </message>
+</context>
+<context>
+    <name>jp::SetUpShowDialog</name>
+    <message>
+        <source>Pen color</source>
+        <translation>Pen colour</translation>
+    </message>
+    <message>
+        <source>Laser pointer color</source>
+        <translation>Laser pointer colour</translation>
+    </message>
+    <message>
+        <source>Pen color:</source>
+        <translation>Pen colour:</translation>
+    </message>
+    <message>
+        <source>Laser pointer color:</source>
+        <translation>Laser pointer colour:</translation>
+    </message>
+    <message>
+        <source>Pen Color</source>
+        <translation>Pen Colour</translation>
+    </message>
+    <message>
+        <source>More Colors…</source>
+        <translation>More Colours…</translation>
+    </message>
+</context>
+<context>
+    <name>jp::SlideShow</name>
+    <message>
+        <source>Ink Color</source>
+        <translation>Ink Colour</translation>
+    </message>
+</context>
+<context>
+    <name>jp::SortDialog</name>
+    <message>
+        <source>Place color</source>
+        <translation>Place colour</translation>
+    </message>
+    <message>
+        <source>Fill color</source>
+        <translation>Fill colour</translation>
+    </message>
+    <message>
+        <source>Text color</source>
+        <translation>Text colour</translation>
+    </message>
+    <message>
+        <source>Where to put the color</source>
+        <translation>Where to put the colour</translation>
+    </message>
+    <message>
+        <source>No color</source>
+        <translation>No colour</translation>
+    </message>
+</context>
+<context>
+    <name>jp::ThemeColors</name>
+    <message>
+        <source>Theme colors</source>
+        <translation>Theme colours</translation>
+    </message>
+    <message>
+        <source>The twelve colors of this presentation's theme.</source>
+        <translation>The twelve colours of this presentation's theme.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::WriteFileScreen</name>
+    <message>
+        <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%3"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
+        <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%3"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::WriteWindow</name>
+    <message>
+        <source>No Color</source>
+        <translation>No Colour</translation>
+    </message>
+    <message>
+        <source>Page Color</source>
+        <translation>Page Colour</translation>
+    </message>
+    <message>
+        <source>Compare was canceled.</source>
+        <translation>Compare was cancelled.</translation>
+    </message>
+    <message>
+        <source>Font Color</source>
+        <translation>Font Colour</translation>
+    </message>
+    <message>
+        <source>Align Top Center</source>
+        <translation>Align Top Centre</translation>
+    </message>
+    <message>
+        <source>Align Center Left</source>
+        <translation>Align Centre Left</translation>
+    </message>
+    <message>
+        <source>Align Center</source>
+        <translation>Align Centre</translation>
+    </message>
+    <message>
+        <source>Align Center Right</source>
+        <translation>Align Centre Right</translation>
+    </message>
+    <message>
+        <source>Align Bottom Center</source>
+        <translation>Align Bottom Centre</translation>
+    </message>
+</context>
+<context>
+    <name>jp::crunch::EditSession</name>
+    <message>
+        <source>Merging and centering</source>
+        <translation>Merging and centring</translation>
+    </message>
+    <message>
+        <source>Tab Color</source>
+        <translation>Tab Colour</translation>
+    </message>
+</context>
+<context>
+    <name>jp::crunch::OtherFormats</name>
+    <message>
+        <source>number formats, fonts, colors, and column widths</source>
+        <translation>number formats, fonts, colours, and column widths</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::Access</name>
+    <message>
+        <source>Some text is hard to read: its color is too close to the color behind it.</source>
+        <translation>Some text is hard to read: its colour is too close to the colour behind it.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::Dialogs</name>
+    <message>
+        <source>Font color:</source>
+        <translation>Font colour:</translation>
+    </message>
+    <message>
+        <source>Underline color:</source>
+        <translation>Underline colour:</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::StyleDialog</name>
+    <message>
+        <source>Font Color</source>
+        <translation>Font Colour</translation>
+    </message>
+</context>
+<context>
+    <name>odt</name>
+    <message>
+        <source>the page color</source>
+        <translation>the page colour</translation>
+    </message>
+</context>
+</TS>

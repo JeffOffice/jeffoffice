@@ -1,5 +1,6 @@
 // JeffDeck's tests of PDF, pictures, handouts, and printed output.
 #include "deckhelpers.h"
+#include "../localepin.h"
 
 class DeckOutputTests : public QObject {
     Q_OBJECT
@@ -187,6 +188,19 @@ private Q_SLOTS:
         QCOMPARE(deck::parseSlideRange(QStringLiteral("3"), 3), (R{2}));
         for (const char *bad : {"", "  ", "9", "0", "4-2", "1-a", "x", "1,,", "1-2-3", "-"}) QCOMPARE(deck::parseSlideRange(QString::fromLatin1(bad), 8), R());
         QCOMPARE(deck::parseSlideRange(QStringLiteral("1"), 0), R());
+    }
+
+    // Handouts and notes pages print on Letter in the United States and Canada, and on A4 elsewhere (the United Kingdom and Australia among them).
+    void localePaperFollowsTheRegion()
+    {
+        for (const char *letter : {"en_US", "en_CA", "es_MX"}) {
+            PinnedLocale pinned{QLocale(QLatin1String(letter))};
+            QCOMPARE(deck::localePaper(), QSizeF(612, 792));
+        }
+        for (const char *a4 : {"en_GB", "en_AU", "de_DE", "en_NZ"}) {
+            PinnedLocale pinned{QLocale(QLatin1String(a4))};
+            QVERIFY2(qAbs(deck::localePaper().width() - 595.28) < 0.5, a4);
+        }
     }
 
     // Printed slides are as big as the slide; the rest are on the locale's paper.

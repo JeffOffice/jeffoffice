@@ -59,6 +59,7 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 - [Sprachausgabe, hoher Kontrast und Alternativtext](accessibility)
 - [Den Entwurf prüfen](design-checker)
 - [Die Einstellungen von JeffPub ändern](options)
+- [Sprache wählen](language)
 - [Hilfe erhalten und Probleme melden](support)
 
 ## Die Registerkarten des Menübands

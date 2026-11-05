@@ -1390,6 +1390,104 @@ private Q_SLOTS:
                  "translations/jeffoffice_en.ts has a plural without its English forms");
     }
 
+    // English (United Kingdom), English (Canada), and English (Australia) are languages of their own in Options, written the way their people write them.
+    void englishVariantsAreListed()
+    {
+        const QStringList have = jp::availableUiLanguages();
+        for (const char *lang : {"en_GB", "en_CA", "en_AU"}) QVERIFY2(have.contains(QLatin1String(lang)), lang);
+        QCOMPARE(jp::uiLanguageName(QStringLiteral("en_GB")), QStringLiteral("English (United Kingdom)"));
+        QCOMPARE(jp::uiLanguageName(QStringLiteral("en_CA")), QStringLiteral("English (Canada)"));
+        QCOMPARE(jp::uiLanguageName(QStringLiteral("en_AU")), QStringLiteral("English (Australia)"));
+        // The default follows the system's languages, best first; American English needs no file.
+        const QStringList all{QStringLiteral("en_GB"), QStringLiteral("en_CA"), QStringLiteral("en_AU"), QStringLiteral("de"), QStringLiteral("pt_BR")};
+        QCOMPARE(jp::pickUiLanguage({QStringLiteral("en_GB")}, all), QStringLiteral("en_GB"));
+        QCOMPARE(jp::pickUiLanguage({QStringLiteral("en_AU"), QStringLiteral("de_DE")}, all), QStringLiteral("en_AU"));
+        QCOMPARE(jp::pickUiLanguage({QStringLiteral("en_US"), QStringLiteral("de_DE")}, all), QString());   // (the first language is English: the text is English already)
+        QCOMPARE(jp::pickUiLanguage({QStringLiteral("en_NZ")}, all), QStringLiteral("en_AU"));
+        QCOMPARE(jp::pickUiLanguage({QStringLiteral("en_IE")}, all), QStringLiteral("en_GB"));
+        QCOMPARE(jp::pickUiLanguage({QStringLiteral("en")}, all), QString());
+        QCOMPARE(jp::pickUiLanguage({QStringLiteral("de_DE")}, all), QStringLiteral("de"));
+        QCOMPARE(jp::pickUiLanguage({QStringLiteral("pt_PT")}, all), QString());   // (no file for it)
+    }
+
+    // A variant's own spellings show on screen, every other text is the American English one, plurals still work, and the American interface is as it was.
+    void englishVariantsShowTheirSpellings()
+    {
+        struct Restore {
+            QVariant before = jp::Settings::get().value(QStringLiteral("ui/language"));
+            ~Restore()
+            {
+                jp::Settings::get().setValue(QStringLiteral("ui/language"), before);
+                jp::installTranslations();
+            }
+        } restore;
+        auto say = [](const char *lang) {
+            jp::Settings::get().setValue(QStringLiteral("ui/language"), QLatin1String(lang));
+            return jp::installTranslations();
+        };
+        const auto fill = [] { return QCoreApplication::translate("Dialogs", "Fill color:"); };
+        const auto centre = [] { return QCoreApplication::translate("Dialogs", "Top center"); };
+        const auto other = [] { return QCoreApplication::translate("Dialogs", "Initials:"); };   // (spelled the same in all)
+        const auto pages = [](int n) { return QCoreApplication::translate("Dialogs", "Added %n page(s) for the rest of the text.", "", n); };
+        QCOMPARE(say("en"), QStringLiteral("en"));
+        QCOMPARE(fill(), QStringLiteral("Fill color:"));
+        QCOMPARE(pages(1), QStringLiteral("Added 1 page for the rest of the text."));
+        for (const char *lang : {"en_GB", "en_AU", "en_CA"}) {
+            QCOMPARE(say(lang), QLatin1String(lang));
+            QCOMPARE(jp::currentUiLanguage(), QLatin1String(lang));
+            QCOMPARE(fill(), QStringLiteral("Fill colour:"));
+            QCOMPARE(centre(), QStringLiteral("Top centre"));
+            QCOMPARE(other(), QStringLiteral("Initials:"));
+            QCOMPARE(pages(1), QStringLiteral("Added 1 page for the rest of the text."));
+            QCOMPARE(pages(3), QStringLiteral("Added 3 pages for the rest of the text."));
+        }
+        // -ize: British and Australian write -ise; Canadian keeps -ize.
+        const auto customize = [] { return QCoreApplication::translate("Ribbon", "Customize"); };
+        say("en_GB");
+        const QString gb = customize();
+        say("en_CA");
+        const QString ca = customize();
+        QVERIFY2(gb == QStringLiteral("Customise") || gb == QStringLiteral("Customize"), qPrintable(gb));
+        QCOMPARE(ca, QStringLiteral("Customize"));
+        // A text a variant doesn't list shows in American English; a language that isn't English is not stacked on the variant.
+        say("en_GB");
+        QCOMPARE(QCoreApplication::translate("Nowhere", "Spelled the same"), QStringLiteral("Spelled the same"));
+        QCOMPARE(say("de"), QStringLiteral("de"));
+        QVERIFY(fill() != QStringLiteral("Fill colour:") && fill() != QStringLiteral("Fill color:"));
+        QCOMPARE(say("en"), QStringLiteral("en"));
+        QCOMPARE(fill(), QStringLiteral("Fill color:"));
+    }
+
+    // Help follows the variant, page by page: a page with a different spelling is the variant's, and one without is the American English one.
+    void helpFollowsTheEnglishVariant()
+    {
+        struct Restore {
+            QVariant before = jp::Settings::get().value(QStringLiteral("ui/language"));
+            ~Restore()
+            {
+                jp::Settings::get().setValue(QStringLiteral("ui/language"), before);
+                jp::installTranslations();
+            }
+        } restore;
+        auto say = [](const char *lang) {
+            jp::Settings::get().setValue(QStringLiteral("ui/language"), QLatin1String(lang));
+            jp::installTranslations();
+        };
+        say("en");
+        const jp::help::Topic us = jp::help::topic(QStringLiteral("color-schemes"));
+        QVERIFY(us.markdown.contains(QLatin1String("A color scheme is")) && !us.markdown.contains(QLatin1String("A colour scheme")));
+        const QString recover = jp::help::topic(QStringLiteral("recover")).markdown;
+        QVERIFY(!recover.isEmpty());
+        for (const char *lang : {"en_GB", "en_AU", "en_CA"}) {
+            say(lang);
+            const jp::help::Topic t = jp::help::topic(QStringLiteral("color-schemes"));
+            QVERIFY2(t.markdown.contains(QLatin1String("A colour scheme is")) && !t.markdown.contains(QLatin1String("A color scheme is")), lang);
+            QCOMPARE(t.title, QString(us.title).replace(QLatin1String("Color"), QLatin1String("Colour")));
+            QCOMPARE(jp::help::topic(QStringLiteral("recover")).markdown, recover);   // (no page of its own: the American English one)
+            QVERIFY2(jp::help::searchTopics(QStringLiteral("colour scheme")).contains(QStringLiteral("color-schemes")), lang);
+        }
+    }
+
     // Every translation keeps what the program fills in or acts on: its
     // placeholders (%1, %n; a singular may spell the number out), HTML
     // tags, line breaks, & shortcut markers, and both plural forms. A
@@ -1478,7 +1576,7 @@ private Q_SLOTS:
         for (const QString &lang : help.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
             if (lang == QLatin1String("en")) continue;
             if (!jp::availableUiLanguages().contains(lang)) problems << lang + QStringLiteral(": Help without the program's text");
-            if (!QFile::exists(QStringLiteral(":/i18n/qtbase_%1.qm").arg(lang))) problems << lang + QStringLiteral(": Qt's own text not built in");
+            if (!lang.startsWith(QLatin1String("en_")) && !QFile::exists(QStringLiteral(":/i18n/qtbase_%1.qm").arg(lang))) problems << lang + QStringLiteral(": Qt's own text not built in");
             for (const QString &file : QDir(help.filePath(lang)).entryList({QStringLiteral("*.md")}, QDir::Files)) {
                 const QString en = read(help.filePath(QStringLiteral("en/") + file)), md = read(help.filePath(lang + QLatin1Char('/') + file));
                 const QString where = lang + QLatin1Char('/') + file;

@@ -1,4 +1,5 @@
 #include "core/templates.h"
+#include "app/settings.h"
 
 #include "core/writedoc.h"
 #include "office/package.h"
@@ -87,8 +88,8 @@ struct Page {
 
 Page pageSize()
 {
-    // (a letter page where inches are used, else A4, as a blank document is)
-    if (QLocale::system().measurementSystem() == QLocale::ImperialUSSystem) return {12240, 15840};
+    // (a letter page where Letter is used, else A4, as a blank document is)
+    if (jp::usesLetterPaper(QLocale())) return {12240, 15840};
     return {11906, 16838};
 }
 

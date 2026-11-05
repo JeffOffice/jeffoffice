@@ -338,10 +338,12 @@ QByteArray blankWorkbookBytes(const BlankDefaults &defaults)
     w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/xl/workbook.xml"));
     const int sheets = defaults.sheets >= 1 && defaults.sheets <= 255 ? defaults.sheets : 1;
     QString sheetList;
+    // (A4 is said in each sheet; Letter is what a sheet without one prints on)
+    const QByteArray paper = defaults.paperSize == 9 ? QByteArray("<pageSetup paperSize=\"9\"/>") : QByteArray();
     for (int i = 1; i <= sheets; ++i) {
         const QString part = QStringLiteral("/xl/worksheets/sheet%1.xml").arg(i);
         w.addPart(part,
-                  head + "<worksheet xmlns=\"" + main.toUtf8() + "\"><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews><sheetFormatPr defaultRowHeight=\"15\"/><sheetData/></worksheet>",
+                  head + "<worksheet xmlns=\"" + main.toUtf8() + "\"><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews><sheetFormatPr defaultRowHeight=\"15\"/><sheetData/>" + paper + "</worksheet>",
                   QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
         const QString id = w.addRelationship(QStringLiteral("/xl/workbook.xml"), rel + QStringLiteral("worksheet"), part);
         sheetList += QStringLiteral("<sheet name=\"Sheet%1\" sheetId=\"%1\" r:id=\"%2\"/>").arg(i).arg(id);

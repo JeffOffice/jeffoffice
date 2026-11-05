@@ -42,6 +42,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Utilizar o JeffDeck com o teclado](keyboard)
 - [Alterar as definições do JeffDeck](options)
+- [Escolher um idioma](language)
 - [O ecrã Ficheiro](file-screen)
 
 ## Os separadores do friso

@@ -1,5 +1,6 @@
 #include "io/deckoutput.h"
 
+#include "app/settings.h"
 #include "core/appinfo.h"
 #include "core/deck.h"
 #include "core/fonts.h"
@@ -454,10 +455,7 @@ int slidesPerPage(PrintLayout layout)
 QSizeF localePaper()
 {
     // Letter in North America and a few countries beside it, A4 everywhere else.
-    static const QList<QLocale::Territory> letter = {QLocale::UnitedStates, QLocale::Canada,     QLocale::Mexico,   QLocale::Philippines, QLocale::Colombia,
-                                                     QLocale::Chile,        QLocale::Venezuela,  QLocale::CostaRica, QLocale::Guatemala,   QLocale::Panama,
-                                                     QLocale::DominicanRepublic, QLocale::ElSalvador, QLocale::Nicaragua, QLocale::Honduras, QLocale::PuertoRico};
-    return QPageSize(letter.contains(QLocale().territory()) ? QPageSize::Letter : QPageSize::A4).size(QPageSize::Point);
+    return QPageSize(jp::usesLetterPaper(QLocale()) ? QPageSize::Letter : QPageSize::A4).size(QPageSize::Point);
 }
 
 QSizeF outputPageSize(const Document &d, const OutputOptions &o, const QSizeF &paper)

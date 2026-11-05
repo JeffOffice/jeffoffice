@@ -59,6 +59,7 @@ Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une comma
 - [Lecteurs d'écran, contraste élevé et texte de remplacement](accessibility)
 - [Vérifier votre conception](design-checker)
 - [Modifier les paramètres de JeffPub](options)
+- [Choisir une langue](language)
 - [Obtenir de l'aide et signaler des problèmes](support)
 
 ## Les onglets du ruban

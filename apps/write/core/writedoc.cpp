@@ -1,4 +1,5 @@
 #include "core/writedoc.h"
+#include "app/settings.h"
 #include "wml/wmlhtmlread.h"
 
 #include "core/commentops.h"
@@ -313,7 +314,7 @@ std::unique_ptr<WriteDoc> WriteDoc::blank()
 {
     std::unique_ptr<WriteDoc> doc(new WriteDoc());
     office::wml::Document d = newDocument();
-    if (QLocale::system().measurementSystem() != QLocale::ImperialUSSystem) {
+    if (!jp::usesLetterPaper(QLocale())) {
         d.lastSection.pageW = 11906;   // A4
         d.lastSection.pageH = 16838;
     }

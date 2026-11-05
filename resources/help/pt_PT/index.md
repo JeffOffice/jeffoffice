@@ -59,6 +59,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Leitores de ecrã, alto contraste e texto alternativo](accessibility)
 - [Verificar a estrutura](design-checker)
 - [Alterar as definições do JeffPub](options)
+- [Escolher um idioma](language)
 - [Obter ajuda e comunicar problemas](support)
 
 ## Os separadores do friso

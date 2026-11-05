@@ -42,6 +42,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 
 - [Use JeffDeck with the keyboard](keyboard)
 - [Change JeffDeck's settings](options)
+- [Choose a language](language)
 - [The File screen](file-screen)
 
 ## The ribbon's tabs

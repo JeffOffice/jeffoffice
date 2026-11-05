@@ -56,3 +56,4 @@ Geben Sie oben in das Suchfeld einen Begriff ein, um ein Thema oder einen Befehl
 
 - [JeffWrite mit der Tastatur bedienen](keyboard)
 - [JeffWrite-Einstellungen ändern](options)
+- [Sprache wählen](language)

@@ -59,6 +59,7 @@ Digite na caixa de pesquisa acima para localizar um tópico ou um comando a ser 
 - [Leitores de tela, alto contraste e texto alternativo](accessibility)
 - [Verificar o design](design-checker)
 - [Alterar as configurações do JeffPub](options)
+- [Escolher um idioma](language)
 - [Obter ajuda e relatar problemas](support)
 
 ## As guias da faixa de opções

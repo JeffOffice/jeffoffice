@@ -42,6 +42,7 @@ Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une comma
 
 - [Utiliser JeffDeck avec le clavier](keyboard)
 - [Modifier les paramètres de JeffDeck](options)
+- [Choisir une langue](language)
 - [L'écran Fichier](file-screen)
 
 ## Les onglets du ruban

@@ -56,3 +56,4 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 - [Usare JeffWrite con la tastiera](keyboard)
 - [Modificare le impostazioni di JeffWrite](options)
+- [Scegliere una lingua](language)

@@ -51,3 +51,4 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 
 - [JeffCrunch mit der Tastatur verwenden](keyboard)
 - [Einstellungen von JeffCrunch ändern](options)
+- [Sprache wählen](language)

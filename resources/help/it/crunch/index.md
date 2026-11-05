@@ -51,3 +51,4 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 - [Usare JeffCrunch con la tastiera](keyboard)
 - [Modificare le impostazioni di JeffCrunch](options)
+- [Scegliere una lingua](language)

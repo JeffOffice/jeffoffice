@@ -72,6 +72,14 @@ Unit defaultUnit(const QLocale &region)
     return region.measurementSystem() == QLocale::ImperialUSSystem ? Unit::Inch : Unit::Centimeter;
 }
 
+bool usesLetterPaper(const QLocale &region)
+{
+    static const QList<QLocale::Territory> letter = {QLocale::UnitedStates, QLocale::Canada,     QLocale::Mexico,   QLocale::Philippines, QLocale::Colombia,
+                                                     QLocale::Chile,        QLocale::Venezuela,  QLocale::CostaRica, QLocale::Guatemala,   QLocale::Panama,
+                                                     QLocale::DominicanRepublic, QLocale::ElSalvador, QLocale::Nicaragua, QLocale::Honduras, QLocale::PuertoRico};
+    return letter.contains(region.territory());
+}
+
 Settings::Settings()
     // (in the system's own store: QSettings::defaultFormat() is it, except in a test run, which keeps its settings in files of its own)
     : m_s(QSettings::defaultFormat(), QSettings::UserScope, appInfo().organization, appInfo().name), m_suite(QSettings::defaultFormat(), QSettings::UserScope, appInfo().organization, QStringLiteral("JeffOffice"))

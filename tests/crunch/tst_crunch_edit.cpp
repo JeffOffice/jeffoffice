@@ -1,6 +1,7 @@
 // Tests of editing in JeffCrunch's window: typing over a cell, in it (F2, a double click), and in the formula bar; the keys that finish or give up an entry; what typed numbers,
 // percents, money, dates, and times are given as values and formats; a formula that is not one; Delete; what depends on a cell worked out again by the worker; Undo and Redo; and saving
 // (Save, Save As, a save that fails, the question when a window with changes is closed). Every workbook is built here, in a temporary folder.
+#include "../localepin.h"
 #include "../settingguard.h"
 #include "app/crunchinfo.h"
 #include "app/crunchfilescreen.h"
@@ -11,6 +12,7 @@
 #include "app/settings.h"
 #include "app/filetasks.h"
 #include "app/finddialog.h"
+#include "app/pagesetupdialog.h"
 #include "office/package.h"
 #include <QLineEdit>
 #include <QPushButton>
@@ -2441,6 +2443,32 @@ private Q_SLOTS:
         QVERIFY(jp::readZip(crunch::blankWorkbookBytes(bad), parts));
         QVERIFY(QString::fromUtf8(parts.value(QStringLiteral("xl/styles.xml"))).contains(QLatin1String("<sz val=\"11\"/><name val=\"Calibri\"/>")));
         QVERIFY(!QString::fromUtf8(parts.value(QStringLiteral("xl/workbook.xml"))).contains(QLatin1String("Sheet256")));
+    }
+
+    // A new workbook prints on Letter in the United States and Canada and on A4 elsewhere, and the page setup shows centimeters outside the United States; a file with no page setup is Letter as before.
+    void aNewWorkbooksPaperAndUnitsFollowTheRegion()
+    {
+        struct Case { const char *locale; int paper; bool metric; };
+        for (const Case &c : {Case{"en_US", 1, false}, Case{"en_CA", 1, true}, Case{"en_GB", 9, true}, Case{"en_AU", 9, true}, Case{"de_DE", 9, true}}) {
+            PinnedLocale pinned{QLocale(QLatin1String(c.locale))};
+            EditWindow e;
+            QVERIFY(e.openBlank());
+            QVERIFY2(e.win.w.session()->pages().sheet(0).paperSize == c.paper, c.locale);
+            bool metric = !c.metric;
+            e.win.w.setPageSetupAsker([&](PageSetupRequest *r) {
+                metric = r->metric;
+                return false;
+            });
+            e.win.w.act(QStringLiteral("pagesetup.dialog"))->trigger();
+            QVERIFY2(metric == c.metric, c.locale);
+        }
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(crunch::blankWorkbookBytes(), parts));
+        QVERIFY(!QString::fromUtf8(parts.value(QStringLiteral("xl/worksheets/sheet1.xml"))).contains(QLatin1String("pageSetup")));
+        crunch::BlankDefaults a4;
+        a4.paperSize = 9;
+        QVERIFY(jp::readZip(crunch::blankWorkbookBytes(a4), parts));
+        QVERIFY(QString::fromUtf8(parts.value(QStringLiteral("xl/worksheets/sheet1.xml"))).contains(QLatin1String("<pageSetup paperSize=\"9\"/>")));
     }
 
     void theWindowMakesNewWorkbooksFromTheSettings()

@@ -59,6 +59,7 @@ Digitare nella casella di ricerca qui sopra per trovare un argomento o un comand
 - [Utilità per la lettura dello schermo, contrasto elevato e testo alternativo](accessibility)
 - [Verificare la struttura](design-checker)
 - [Modificare le impostazioni di JeffPub](options)
+- [Scegliere una lingua](language)
 - [Ottenere assistenza e segnalare problemi](support)
 
 ## Le schede della barra multifunzione
