@@ -146,6 +146,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     connect(&m_wordTimer, &QTimer::timeout, this, &WriteWindow::updateWords);
 
     setDocument(write::WriteDoc::blank(), QString());
+    applyDisplayDefaults();
     resize(1280, 800);
     updateTitle();
     refreshUi();
@@ -214,6 +215,8 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
             m_refreshTimer.start();
             if (m_outlineOn && !m_outlineBusy) m_outline->rebuild();
         });
+        resetEditPlaces();
+        connect(m_doc->story(), &QTextDocument::contentsChange, this, [this](int position, int, int added) { recordPlace(position + added); });
     }
     m_view->setDocument(m_doc.get());
     if (m_split->isVisible()) m_split->setDocument(m_doc.get());
@@ -304,6 +307,12 @@ void WriteWindow::createFormatActions()
     mk("fmt.strike", tr("Strikethrough"), "strikethrough", QKeySequence(), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleStrike(d, c); }); }, true);
     mk("fmt.subscript", tr("Subscript"), "subscript", QKeySequence(Qt::CTRL | Qt::Key_Equal), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleSubscript(d, c); }); }, true);
     mk("fmt.superscript", tr("Superscript"), "superscript", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Equal), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleSuperscript(d, c); }); }, true);
+    mk("fmt.charBorder", tr("Character Border"), "square", QKeySequence(), [edit] {
+        edit([](write::WriteDoc &d, QTextCursor &c) {
+            const bool on = !write::allSelected(c, [](const QTextCharFormat &f) { return f.hasProperty(tp::RunBorder); });
+            write::setCharBorder(d, c, on);
+        });
+    }, true);
     mk("fmt.grow", tr("Increase Font Size"), "a-arrow-up", QKeySequence(Qt::CTRL | Qt::Key_BracketRight), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::changeFontSize(d, c, 1); }); });
     mk("fmt.shrink", tr("Decrease Font Size"), "a-arrow-down", QKeySequence(Qt::CTRL | Qt::Key_BracketLeft), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::changeFontSize(d, c, -1); }); });
     mk("fmt.clear", tr("Clear All Formatting"), "remove-formatting", QKeySequence(Qt::CTRL | Qt::Key_Space), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::clearFormatting(d, c); }); });
@@ -499,6 +508,7 @@ void WriteWindow::refreshUi()
     act("fmt.underline")->setChecked(all([](const QTextCharFormat &f) { return f.underlineStyle() != QTextCharFormat::NoUnderline; }));
     act("fmt.strike")->setChecked(all([](const QTextCharFormat &f) { return f.fontStrikeOut(); }));
     act("fmt.subscript")->setChecked(all([](const QTextCharFormat &f) { return f.verticalAlignment() == QTextCharFormat::AlignSubScript; }));
+    act("fmt.charBorder")->setChecked(all([](const QTextCharFormat &f) { return f.hasProperty(tp::RunBorder); }));
     act("fmt.superscript")->setChecked(all([](const QTextCharFormat &f) { return f.verticalAlignment() == QTextCharFormat::AlignSuperScript; }));
     const QTextBlock block = c.block();
     const Qt::Alignment al = block.blockFormat().alignment() & Qt::AlignHorizontal_Mask;
@@ -552,7 +562,7 @@ void WriteWindow::refreshUi()
     {
         const bool editing = m_view->inHeaderFooter();
         const write::PageView::HeaderFooterEdit &e = m_view->headerFooterEdit();
-        for (const char *id : {"hf.close", "hf.pageNumber", "hf.differentFirst", "hf.differentOddEven"}) act(QString::fromLatin1(id))->setEnabled(editing);
+        for (const char *id : {"hf.close", "hf.pageNumber", "hf.pageNumberFormat", "hf.dateTime", "hf.removeHeader", "hf.removeFooter", "hf.differentFirst", "hf.differentOddEven"}) act(QString::fromLatin1(id))->setEnabled(editing);
         // (A header, a footer, or a note takes no break of a page or a section.)
         if (editing || m_view->inNote())
             for (const char *id : {"insert.pageBreak", "layout.sectionBreak"}) act(QString::fromLatin1(id))->setEnabled(false);
@@ -601,6 +611,10 @@ void WriteWindow::refreshUi()
         }
         act("hf.differentFirst")->setChecked(editing && m_doc->differentFirstPage(e.section));
         act("hf.differentOddEven")->setChecked(m_doc->differentOddEven());
+        act("hf.previousSection")->setEnabled(editing && e.section > 0);
+        act("hf.nextSection")->setEnabled(editing && e.section < m_doc->sectionCount() - 1);
+        act("hf.goToHeader")->setEnabled(editing && e.footer);
+        act("hf.goToFooter")->setEnabled(editing && !e.footer);
         act("hf.linkPrevious")->setEnabled(editing && e.section > 0);
         act("hf.linkPrevious")->setChecked(editing && m_doc->linkedToPrevious(e.section, e.footer, e.slot));
     }
@@ -770,6 +784,7 @@ void WriteWindow::closeEvent(QCloseEvent *e)
         e->ignore();
         return;
     }
+    rememberPlace();
     e->accept();
 }
 

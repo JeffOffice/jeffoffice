@@ -1302,6 +1302,26 @@ bool PageView::enterHeaderFooter(int page, bool footer, bool makeNow)
 
 bool PageView::enterHeaderFooterAtCaret(bool footer) { return enterHeaderFooter(currentPage(), footer, true); }
 
+bool PageView::enterNeighborSection(int step)
+{
+    if (!m_doc || !m_hf.active) return false;
+    const int target = m_hf.section + (step < 0 ? -1 : 1);
+    if (target < 0 || target >= m_doc->sectionCount()) return false;
+    flow::Paginator &pg = m_doc->pager();
+    const int pages = pg.pageCount();
+    for (int i = 0; i < pages; ++i) {
+        const flow::Paginator::Page p = pg.page(i);
+        if (!p.start.blank && p.start.section == target) return enterHeaderFooter(i, m_hf.footer, true);
+    }
+    return false;
+}
+
+bool PageView::enterOtherHeaderFooter(bool footer)
+{
+    if (!m_doc || !m_hf.active) return false;
+    return enterHeaderFooter(m_hf.page, footer, true);
+}
+
 bool PageView::enterHeaderFooterFor(int section, bool footer, int slot, int page, bool makeNow)
 {
     if (!m_doc) return false;

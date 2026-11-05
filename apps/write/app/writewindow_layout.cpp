@@ -9,7 +9,9 @@
 #include "app/ribbonbuilder.h"
 #include "app/widgets.h"
 #include "app/writedialogs.h"
+#include "core/designops.h"
 #include "core/layoutops.h"
+#include "core/watermarkops.h"
 
 #include <QAction>
 #include <QMenu>
@@ -100,6 +102,39 @@ void WriteWindow::createLayoutExtraActions()
         if (m_doc) m_doc->setPageColor(QColor());
         m_view->setFocus(Qt::OtherFocusReason);
     });
+    // Paragraph Spacing: the ready-made spacings.
+    for (const write::SpacingPreset &preset : write::spacingPresets()) {
+        const QString id = preset.id;
+        mk(QStringLiteral("design.spacing.") + id, write::spacingPresetName(id), "", QKeySequence(), [this, id] {
+            if (!m_doc || refuseIfReadOnly()) return;
+            write::applyParagraphSpacing(*m_doc, id);
+            m_view->setFocus(Qt::OtherFocusReason);
+        }, true);
+    }
+    // Watermark: the built-in words, custom words, and taking it out.
+    {
+        const QStringList words = write::builtInWatermarks();
+        for (int i = 0; i < words.size(); ++i) {
+            const QString text = words.at(i);
+            mk(QStringLiteral("design.watermark.%1").arg(i), text, "", QKeySequence(), [this, text] {
+                if (!m_doc || refuseIfReadOnly()) return;
+                write::WatermarkSetup w;
+                w.text = text;
+                write::insertWatermark(*m_doc, w);
+                m_view->setFocus(Qt::OtherFocusReason);
+            });
+        }
+    }
+    mk("design.watermark.custom", tr("Custom Watermark…"), "stamp", QKeySequence(), [this] {
+        if (!m_doc || refuseIfReadOnly()) return;
+        write::watermarkDialog(this, m_doc.get());
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("design.watermark.remove", tr("Remove Watermark"), "circle-slash", QKeySequence(), [this] {
+        if (!m_doc || refuseIfReadOnly()) return;
+        write::removeWatermark(*m_doc);
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
     mk("design.pageBorders", tr("Page Borders…"), "square-dashed", QKeySequence(), [this, sectionNow] {
         if (!m_doc) return;
         write::pageBordersDialog(this, m_doc.get(), sectionNow());
@@ -125,6 +160,16 @@ void WriteWindow::layoutRibbonParts(RibbonParts &parts)
 void WriteWindow::refreshLayoutUi()
 {
     act("design.pageBorders")->setEnabled(m_doc != nullptr);
+    for (int i = 0; i < write::builtInWatermarks().size(); ++i) act(QStringLiteral("design.watermark.%1").arg(i))->setEnabled(m_doc != nullptr);
+    {
+        const QString now = m_doc ? write::paragraphSpacingOf(*m_doc) : QString();
+        for (const write::SpacingPreset &preset : write::spacingPresets()) {
+            act(QStringLiteral("design.spacing.") + preset.id)->setEnabled(m_doc != nullptr);
+            act(QStringLiteral("design.spacing.") + preset.id)->setChecked(m_doc && preset.id == now);
+        }
+    }
+    act("design.watermark.custom")->setEnabled(m_doc != nullptr);
+    act("design.watermark.remove")->setEnabled(m_doc != nullptr && write::watermarkOf(*m_doc).has_value());
     act("design.pageColor.none")->setEnabled(m_doc && m_doc->pageColor().isValid());
     if (!m_doc) {
         for (const char *id : {"layout.mirrorMargins", "layout.hyphenation.none", "layout.hyphenation.auto"}) act(QString::fromLatin1(id))->setChecked(false);

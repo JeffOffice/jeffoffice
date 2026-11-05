@@ -134,6 +134,19 @@
                   },
                   "keytip": "I",
                   "menu": "@highlightColors"
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.charShading",
+                    "text": "Character Shading",
+                    "icon": "paint-bucket"
+                  },
+                  "keytip": "SH",
+                  "menu": "@shadingColors"
+                },
+                {
+                  "icon": "fmt.charBorder",
+                  "keytip": "CB"
                 }
               ]
             }
@@ -366,6 +379,20 @@
               "keytip": "TF"
             },
             {
+              "large": {
+                "id": "ribbon.dropCap",
+                "text": "Drop Cap",
+                "icon": "letter-text"
+              },
+              "keytip": "DC",
+              "menu": [
+                "insert.dropCap.none",
+                "insert.dropCap.dropped",
+                "-",
+                "insert.dropCap.options"
+              ]
+            },
+            {
               "large": "insert.dateTime",
               "keytip": "DT"
             }
@@ -420,9 +447,51 @@
       "keytip": "G",
       "groups": [
         {
+          "name": "Document Formatting",
+          "keytip": "DF",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.paragraphSpacing",
+                "text": "Paragraph Spacing",
+                "icon": "chevrons-up-down"
+              },
+              "keytip": "PS",
+              "menu": [
+                "design.spacing.default",
+                "design.spacing.none",
+                "design.spacing.compact",
+                "design.spacing.tight",
+                "design.spacing.open",
+                "design.spacing.relaxed",
+                "design.spacing.double"
+              ]
+            }
+          ]
+        },
+        {
           "name": "Page Background",
           "keytip": "PB",
           "items": [
+            {
+              "large": {
+                "id": "ribbon.watermark",
+                "text": "Watermark",
+                "icon": "stamp"
+              },
+              "keytip": "WM",
+              "menu": [
+                "design.watermark.0",
+                "design.watermark.1",
+                "design.watermark.2",
+                "design.watermark.3",
+                "design.watermark.4",
+                "design.watermark.5",
+                "-",
+                "design.watermark.custom",
+                "design.watermark.remove"
+              ]
+            },
             {
               "row": [
                 {
@@ -1342,6 +1411,68 @@
             {
               "large": "hf.pageNumber",
               "keytip": "PN"
+            },
+            {
+              "small": "hf.pageNumberFormat",
+              "keytip": "PF"
+            },
+            {
+              "small": "hf.dateTime",
+              "keytip": "DT"
+            },
+            {
+              "small": {
+                "id": "ribbon.headerInfo",
+                "text": "Document Info",
+                "icon": "info"
+              },
+              "keytip": "DI",
+              "menu": "@headerInfo"
+            }
+          ]
+        },
+        {
+          "name": "Design",
+          "keytip": "ZD",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.headerDesigns",
+                "text": "Designs",
+                "icon": "layout-template"
+              },
+              "keytip": "DS",
+              "menu": "@headerDesigns"
+            },
+            {
+              "small": "hf.removeHeader",
+              "keytip": "RH"
+            },
+            {
+              "small": "hf.removeFooter",
+              "keytip": "RF"
+            }
+          ]
+        },
+        {
+          "name": "Navigation",
+          "keytip": "ZN",
+          "items": [
+            {
+              "small": "hf.goToHeader",
+              "keytip": "GH"
+            },
+            {
+              "small": "hf.goToFooter",
+              "keytip": "GF"
+            },
+            {
+              "small": "hf.previousSection",
+              "keytip": "PS"
+            },
+            {
+              "small": "hf.nextSection",
+              "keytip": "NS"
             }
           ]
         },
@@ -1746,6 +1877,10 @@
             {
               "large": "picture.altText",
               "keytip": "AT"
+            },
+            {
+              "large": "picture.decorative",
+              "keytip": "MD"
             }
           ]
         },

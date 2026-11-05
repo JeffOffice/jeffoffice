@@ -45,6 +45,7 @@ QWidget *WriteWindow::buildInfoPage(QWidget *parent)
     h.encrypt = [this] { encryptWithPassword(); };
     h.inspect = [this] { inspectDocument(); };
     h.checkCompatibility = [this] { checkCompatibility(); };
+    h.versionHistory = [this] { versionHistory(); };
     h.thumbnail = [this] { return m_view->pageImage(0, 240); };
     return jp::buildInfoPage(parent, h);
 }

@@ -140,6 +140,8 @@ int main(int argc, char **argv)
             w->view()->paginateAll();
             applyView();
             w->view()->setCaretWithoutFocus(true);
+            // (A hook for screenshots: edit the header (1) or the footer (2) of the first page, which brings up the Header & Footer tab.)
+            if (qEnvironmentVariableIsSet("JW_SCREENSHOT_HEADER")) w->view()->enterHeaderFooterAtCaret(qEnvironmentVariableIntValue("JW_SCREENSHOT_HEADER") == 2);
             // (A hook for screenshots: the ribbon tab to show, by name, as the tab is named in ribbon.json.)
             const QString tab = qEnvironmentVariable("JW_SCREENSHOT_TAB");
             if (!tab.isEmpty())

@@ -42,6 +42,8 @@ Dragging a picture that is in line with text does not change its wrap; to let it
 
 ## Describe a picture
 
+A picture that only decorates the page, such as a line or a border, does not need a description. Select it and click **Picture Format > Mark as Decorative** (or right-click it). Screen readers then skip it. Click it again to take the mark off.
+
 **Alt text** is a short description that screen readers read aloud, and that shows when a picture can't be. Select the picture and click **Picture Format > Alt Text** (or right-click the picture and choose **Alt Text**), type the description, and click **OK**.
 
 ## Pictures from other documents

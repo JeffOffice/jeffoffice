@@ -2,6 +2,7 @@
 // the pieces kept as XML go back where they were.
 
 #include "core/writedoc.h"
+#include "rtf/rtfwrite.h"
 #include "odt/odt.h"
 
 #include "core/editops.h"
@@ -11,10 +12,12 @@
 #include "core/writeprops.h"
 #include "text/textprops.h"
 
+#include <QCoreApplication>
 #include <QSet>
 #include <limits>
 #include <QTextBlock>
 #include <cctype>
+#include <cmath>
 #include <algorithm>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -53,6 +56,43 @@ RunProps WriteDoc::runPropsWritten(const QTextCharFormat &format, const QString 
     RunProps diff = run.differences(base);
     diff.style = run.style;
     return diff;
+}
+
+// A drop cap the paragraph has (the text engine's, set by Insert > Drop Cap): its first letters become a paragraph of their own, a frame set as a drop cap, in front of the rest, which is how
+// the file holds one. `size` is the paragraph's text size in points. Nothing is made, and the paragraph kept whole, where it does not begin with text.
+static bool takeDropCap(Paragraph *p, const ParaProps &direct, int lines, int chars, const QString &font, double size, Paragraph *cap)
+{
+    if (p->content.isEmpty() || p->content.first().kind != Inline::Text || lines <= 0) return false;
+    Inline &first = p->content.first();
+    qsizetype n = std::min<qsizetype>(std::max(1, chars), first.text.size());
+    if (n < first.text.size() && first.text.at(n - 1).isHighSurrogate()) ++n;
+    if (n <= 0) return false;
+    Inline letters = first;
+    letters.text = first.text.left(n);
+    first.text.remove(0, n);
+    if (first.text.isEmpty()) p->content.removeFirst();
+    const int half = std::clamp(int(std::lround(lines * size * 1.745 * 2)), 2, 4000);
+    letters.props.size = half;
+    letters.props.position = -int(std::lround(half * 0.09));
+    if (!font.isEmpty()) {
+        Fonts f = letters.props.fonts.value_or(Fonts());
+        f.ascii = f.hAnsi = font;
+        letters.props.fonts = f;
+    }
+    cap->content.push_back(letters);
+    cap->props.style = direct.style;
+    cap->props.keepNext = true;
+    cap->props.before = 0;
+    cap->props.after = 0;
+    cap->props.line = int(std::lround(lines * size * 1.52 * 20));
+    cap->props.lineRule = QStringLiteral("exact");
+    RawChild frame, baseline;
+    frame.rank = paraChildRank("framePr");
+    frame.xml = "<w:framePr w:dropCap=\"drop\" w:lines=\"" + QByteArray::number(lines) + "\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"text\"/>";
+    baseline.rank = paraChildRank("textAlignment");
+    baseline.xml = "<w:textAlignment w:val=\"baseline\"/>";
+    cap->props.extra << frame << baseline;
+    return true;
 }
 
 void WriteDoc::exportBody(QVector<Block> *out)
@@ -187,6 +227,12 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose, QTextBlock firs
         if (!ofText && lastPart.blockFormat().hasProperty(prop::SectionData) && !lastPart.blockFormat().boolProperty(flow::fp::SectionBreakAfter))
             direct.section = std::make_shared<SectionProps>(unpackSection(storedBytes(lastPart.blockFormat(), prop::SectionData)));
         p.props = direct;
+        if (const int dropLines = bf.intProperty(tp::DropCapLines); dropLines > 0 && !asNote && m_dropCapsAsFrames) {
+            double size = sheet.run(styleId, QString(), layer).size.value_or(sheet.defaultRun.size.value_or(22)) / 2.0;
+            if (!p.content.isEmpty() && p.content.first().props.size) size = *p.content.first().props.size / 2.0;
+            Block capBlock;
+            if (takeDropCap(&p, direct, dropLines, bf.intProperty(tp::DropCapChars), bf.stringProperty(tp::DropCapFont), size, &capBlock.para)) out.add(std::move(capBlock));
+        }
         out.add(std::move(blk));
         const QTextBlockFormat lastFormat = lastPart.blockFormat();
         if (lastFormat.hasProperty(prop::RawAfter))
@@ -256,12 +302,22 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
 
 QByteArray WriteDoc::toOdt(QString *error, QStringList *notes)
 {
+    m_dropCapsAsFrames = false;
     const QByteArray docx = toDocx(error);
+    m_dropCapsAsFrames = true;
     if (docx.isEmpty()) return QByteArray();
-    return office::odt::fromDocxPackage(docx, error, notes);
+    const QByteArray odt = office::odt::fromDocxPackage(docx, error, notes);
+    if (notes) {
+        for (QTextBlock b = story()->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().intProperty(tp::DropCapLines) > 0) {
+                *notes << QCoreApplication::translate("odt", "drop caps (the letters are saved as ordinary ones)");
+                break;
+            }
+    }
+    return odt;
 }
 
-QByteArray WriteDoc::toDocx(QString *error, bool template_)
+bool WriteDoc::exportDocument(office::wml::Document *result, bool template_, bool macros)
 {
     syncSections();
     office::wml::Document out = m_wml;
@@ -305,10 +361,10 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
         }
         out.mainRelationships.push_back(office::Relationship{QStringLiteral("rId%1").arg(id), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"), out.stylesName, false});
     }
-    // Macros are not kept: a file that had them is saved without, as a plain document (the project, its signature, the data it has, and the
-    // links to them).
+    // Macros are kept only in a .docm or .dotm, as they were and never run; in any other file they are left out (the project, its signature, the
+    // data it has, and the links to them).
     QSet<QString> gone;
-    for (int i = int(out.parts.size()) - 1; i >= 0; --i) {
+    for (int i = int(out.parts.size()) - 1; !macros && i >= 0; --i) {
         const QString &type = out.parts[i].contentType;
         if (type.startsWith(QLatin1String("application/vnd.ms-office.vba")) || type.contains(QLatin1String("macroEnabled")) || type.contains(QLatin1String("vbaData"))) {
             gone.insert(out.parts[i].name.toLower());
@@ -323,13 +379,31 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
                     }),
                     rels->end());
     };
-    dropMacroLinks(&out.mainRelationships);
-    dropMacroLinks(&out.packageRelationships);
-    for (auto it = out.partRelationships.begin(); it != out.partRelationships.end(); ++it) dropMacroLinks(&it.value());
+    if (!macros) {
+        dropMacroLinks(&out.mainRelationships);
+        dropMacroLinks(&out.packageRelationships);
+        for (auto it = out.partRelationships.begin(); it != out.partRelationships.end(); ++it) dropMacroLinks(&it.value());
+    }
     pruneUnusedMedia(&out);
-    out.mainContentType = template_ ? QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml")
-                                    : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml");
+    out.mainContentType = macros ? template_ ? QStringLiteral("application/vnd.ms-word.template.macroEnabledTemplate.main+xml") : QStringLiteral("application/vnd.ms-word.document.macroEnabled.main+xml")
+                          : template_ ? QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml")
+                                      : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml");
+    *result = std::move(out);
+    return true;
+}
+
+QByteArray WriteDoc::toDocx(QString *error, bool template_, bool macros)
+{
+    office::wml::Document out;
+    if (!exportDocument(&out, template_, macros)) return QByteArray();
     return writeDocx(out, error);
+}
+
+QByteArray WriteDoc::toRtf(QString *error, QStringList *notes)
+{
+    office::wml::Document out;
+    if (!exportDocument(&out, false, false)) return QByteArray();
+    return office::rtf::writeRtf(out, notes, error);
 }
 
 } // namespace jp::write

@@ -284,8 +284,27 @@ QByteArray workbookPart(const WorkbookInfo &fileInfo)
     o += "</sheets>";
     if (!info.definedNames.isEmpty()) {
         o += "<definedNames>";
+        // a name the format refuses (an old file's "SMW 14") makes the whole file refused: its marks become underscores, and a number keeps it apart from the names already there
+        auto allowed = [](const QString &name) {
+            if (name.isEmpty() || name.size() > 255 || !(name[0].isLetter() || name[0] == QLatin1Char('_') || name[0] == QLatin1Char('\\'))) return false;
+            for (const QChar c : name)
+                if (!(c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('.') || c == QLatin1Char('\\') || c == QLatin1Char('?'))) return false;
+            return true;
+        };
+        QSet<QString> taken;
+        for (const DefinedName &n : info.definedNames)
+            if (allowed(n.name)) taken.insert(QString::number(n.localSheet) + QLatin1Char('|') + n.name.toLower());
         for (const DefinedName &n : info.definedNames) {
-            o += "<definedName" + attrText("name", n.name);
+            QString name = n.name;
+            if (!allowed(name)) {
+                QString base;
+                for (const QChar c : name.left(250)) base += c.isLetterOrNumber() || c == QLatin1Char('.') || c == QLatin1Char('\\') || c == QLatin1Char('?') ? c : QLatin1Char('_');
+                if (base.isEmpty() || !(base[0].isLetter() || base[0] == QLatin1Char('_') || base[0] == QLatin1Char('\\'))) base.prepend(QLatin1Char('_'));
+                name = base;
+                for (int k = 2; taken.contains(QString::number(n.localSheet) + QLatin1Char('|') + name.toLower()); ++k) name = base + QLatin1Char('_') + QString::number(k);
+                taken.insert(QString::number(n.localSheet) + QLatin1Char('|') + name.toLower());
+            }
+            o += "<definedName" + attrText("name", name);
             if (n.localSheet >= 0) o += attr("localSheetId", num(n.localSheet));
             if (n.hidden) o += attr("hidden", "1");
             if (!n.comment.isEmpty()) o += attrText("comment", n.comment);

@@ -14,6 +14,7 @@
 #include "app/telemetry.h"
 #include "app/writefilescreen.h"
 #include "core/appinfo.h"
+#include "core/templates.h"
 #include "app/passworddialogs.h"
 #include "io/crypto.h"
 #include "office/officecrypt.h"
@@ -22,6 +23,7 @@
 #include "odt/odttemplate.h"
 
 #include <QAction>
+#include <QCryptographicHash>
 #include <QApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -98,24 +100,23 @@ UnlockResult unlockProtected(QWidget *parent, const QString &fileName, QByteArra
 bool isWrittenEnding(const QString &path)
 {
     const QString ending = QFileInfo(path).suffix().toLower();
-    return ending == QLatin1String("docx") || ending == QLatin1String("dotx") || ending == QLatin1String("odt") || ending == QLatin1String("ott");
+    return ending == QLatin1String("docx") || ending == QLatin1String("dotx") || ending == QLatin1String("docm") || ending == QLatin1String("dotm") || ending == QLatin1String("odt") || ending == QLatin1String("ott") || ending == QLatin1String("txt") || ending == QLatin1String("rtf");
 }
 
 // The old binary kinds, which are read and never written over.
 bool isOldBinary(const QString &path)
 {
     const QString ending = QFileInfo(path).suffix().toLower();
-    return ending == QLatin1String("doc") || ending == QLatin1String("dot") || ending == QLatin1String("rtf");
+    return ending == QLatin1String("doc") || ending == QLatin1String("dot");
 }
 
-bool isRichText(const QString &path) { return QFileInfo(path).suffix().compare(QLatin1String("rtf"), Qt::CaseInsensitive) == 0; }
 
 // A flat OpenDocument text (one XML file), which is read and never written over: it is saved as a packed .odt.
 bool isFlatOdt(const QString &path) { return QFileInfo(path).suffix().compare(QLatin1String("fodt"), Qt::CaseInsensitive) == 0; }
 
 QString fileKind(const QString &path)
 {
-    static const QStringList kinds = {QStringLiteral("docx"), QStringLiteral("dotx"), QStringLiteral("docm"), QStringLiteral("dotm"), QStringLiteral("doc"), QStringLiteral("dot"), QStringLiteral("rtf"), QStringLiteral("odt"), QStringLiteral("fodt"), QStringLiteral("ott")};
+    static const QStringList kinds = {QStringLiteral("docx"), QStringLiteral("dotx"), QStringLiteral("docm"), QStringLiteral("dotm"), QStringLiteral("doc"), QStringLiteral("dot"), QStringLiteral("rtf"), QStringLiteral("odt"), QStringLiteral("fodt"), QStringLiteral("ott"), QStringLiteral("txt")};
     const QString ending = QFileInfo(path).suffix().toLower();
     return kinds.contains(ending) ? ending : QStringLiteral("other");
 }
@@ -135,11 +136,13 @@ void WriteWindow::createFileActions()
     mk("file.saveAs", tr("Save As"), "save-all", QKeySequence(Qt::Key_F12), [this] { saveAs(); });
     mk("file.print", tr("Print…"), "printer", QKeySequence::Print, [this] { showFileScreen(QStringLiteral("print")); });
     mk("file.exportPdf", tr("Export to PDF…"), "file-output", QKeySequence(), [this] { exportPdf(); });
+    mk("edit.lastPlace", tr("Go to Last Edit"), "", QKeySequence(Qt::SHIFT | Qt::Key_F5), [this] { goToLastPlace(); });
+    act("edit.lastPlace")->setEnabled(false);
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] {
         // The shared pages (General, Proofing); JeffWrite has no pages of its own yet.
         Editor stand;
         stand.view.spelling = m_view->spellingEnabled();   // (its "check spelling as you type" is the view's)
-        if (optionsDialog(this, &stand, {})) {
+        if (optionsDialog(this, &stand, optionsPages())) {
             act("review.checkAsType")->setChecked(stand.view.spelling);
             m_view->setSpellingEnabled(stand.view.spelling);
             Settings::get().setValue(QStringLiteral("proof/asYouType"), stand.view.spelling);
@@ -157,11 +160,26 @@ void WriteWindow::createFileActions()
 
 void WriteWindow::browseAndOpen(OpenHow how)
 {
-    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
-                                                   tr("Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott)") + QStringLiteral(";;") + tr("Rich Text Format (*.rtf)") + QStringLiteral(";;") + tr("OpenDocument Text (*.odt *.fodt *.ott)") + QStringLiteral(";;") + tr("All Files (*)"));
+    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), Settings::get().value("dirs/open", defaultFolder()).toString(),
+                                                   tr("Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt)") + QStringLiteral(";;") + tr("Rich Text Format (*.rtf)") + QStringLiteral(";;") + tr("OpenDocument Text (*.odt *.fodt *.ott)") + QStringLiteral(";;") + tr("All Files (*)"));
     if (p.isEmpty()) return;
     Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
     openFile(p, how);
+}
+
+bool WriteWindow::newFromBuiltInTemplate(const QString &id)
+{
+    auto doc = write::builtInTemplateDocument(id);
+    if (!doc) return false;
+    WriteWindow *target = this;
+    if (isModified() || !m_path.isEmpty()) {
+        target = new WriteWindow();
+        target->setAttribute(Qt::WA_DeleteOnClose);
+        target->show();
+    }
+    target->setDocument(std::move(doc), QString());
+    target->m_doc->setModified(true);
+    return true;
 }
 
 void WriteWindow::setReadOnly(bool on)
@@ -184,7 +202,23 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
     const bool repairing = how == OpenHow::Repair;
     QString openedWith;   // the password a protected file was opened with
     bool wasProtected = false, cancelledAsking = false;
-    if (office::readWholeFile(path, &bytes, &err) && !bytes.isEmpty()) {
+    const bool textFile = QFileInfo(path).suffix().compare(QLatin1String("txt"), Qt::CaseInsensitive) == 0 && how != OpenHow::Repair;
+    write::TextForm textForm;
+    bool textFormChosen = false;
+    const bool readIt = office::readWholeFile(path, &bytes, &err);
+    if (readIt && textFile && write::looksLikePlainText(bytes)) {
+        // A plain text file is read in the encoding the person confirms (the one its first bytes point to is offered).
+        textForm = write::detectTextForm(bytes);
+        QApplication::restoreOverrideCursor();
+        // (A file with a byte order mark, or that is valid UTF-8, ASCII included, opens as it is; the question is for bytes that are not UTF-8.)
+        const bool chosen = textForm.encoding != write::TextEncoding::CodePage || askTextForm(tr("Open Plain Text"), tr("\"%1\" is a plain text file. It is not Unicode, so choose the encoding that shows its characters right; the first lines are shown below.").arg(QFileInfo(path).fileName()), &textForm, &bytes);
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+        if (!chosen) cancelledAsking = true;
+        else {
+            doc = write::WriteDoc::fromText(write::decodeTextFile(bytes, textForm));
+            textFormChosen = true;
+        }
+    } else if (readIt && !bytes.isEmpty()) {
         // A file protected with a password is opened with it: asked for, as often as it takes.
         if (!repairing) {
             QApplication::restoreOverrideCursor();
@@ -225,6 +259,9 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
     target->setReadOnly(how == OpenHow::ReadOnly);
     target->setDocument(std::move(doc), tmpl || copy ? QString() : path);
     target->m_macrosNoted = false;
+    target->m_textFormKnown = textFormChosen && !copy;
+    target->m_textForm = textForm;
+    target->m_textNoted = false;
     target->m_personalInfoRemoved = false;
     target->m_recoveryNoted = false;
     target->m_fileProtected = wasProtected && !tmpl && !copy;
@@ -236,6 +273,8 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
         target->setReadOnly(true);
         target->statusBar()->showMessage(tr("Marked as final: this document is open for reading only. Open File > Info and choose Marked as Final to edit it."), 12000);
     }
+    // The file opens where editing stopped (a template or a copy is a new document, and starts at the top).
+    if (!tmpl && !copy) target->returnToPlace(path);
     target->m_odtNoted.clear();
     target->m_protectedPath = leftOut && !tmpl && !copy && !isOldBinary(path) ? path : QString();
     if (tmpl || copy) target->m_doc->setModified(true);
@@ -259,8 +298,7 @@ bool WriteWindow::save()
         notice(tr("Save"), tr("Part of this file couldn't be opened, so saving it here would lose that part: choose a new name for the copy."));
         return saveAs();
     }
-    if (isRichText(m_path)) notice(tr("Save"), tr("This document came from an .rtf file, which %1 doesn't write, so it is saved as a new .docx file.").arg(appInfo().name));
-    else if (isOldBinary(m_path)) notice(tr("Save"), tr("This document came from an older .doc file, which %1 doesn't write, so it is saved as a new .docx file.").arg(appInfo().name));
+    if (isOldBinary(m_path)) notice(tr("Save"), tr("This document came from an older .doc file, which %1 doesn't write, so it is saved as a new .docx file.").arg(appInfo().name));
     else if (isFlatOdt(m_path)) notice(tr("Save"), tr("This document came from a flat .fodt file, which %1 doesn't write, so it is saved as a new .odt file.").arg(appInfo().name));
     if (m_path.isEmpty() || !isWrittenEnding(m_path)) return saveAs();
     return saveTo(m_path);
@@ -276,17 +314,20 @@ void WriteWindow::notice(const QString &title, const QString &text, bool warning
 bool WriteWindow::saveAs()
 {
     const QString from = m_path.isEmpty() ? m_recoveredFrom : m_path;
-    const QString dir = from.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(from).absolutePath();
+    const QString dir = from.isEmpty() ? defaultFolder() : QFileInfo(from).absolutePath();
     // (a document open for reading only is offered a name of its own, not the file's)
     const QString name = isReadOnly() ? tr("%1 copy").arg(from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName()) : from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName();
     // The dialog hands back the filter text it showed, so the choice is recognized by comparing with these same (translated) texts.
     const QString docxFilter = tr("Document (*.docx)"), dotxFilter = tr("Template (*.dotx)"), odtFilter = tr("OpenDocument Text (*.odt)"), ottFilter = tr("OpenDocument Text Template (*.ott)");
+    const QString docmFilter = tr("Macro-Enabled Document (*.docm)"), dotmFilter = tr("Macro-Enabled Template (*.dotm)"), txtFilter = tr("Plain Text (*.txt)"), rtfFilter = tr("Rich Text Format (*.rtf)");
     const QString fromEnding = QFileInfo(from).suffix().toLower();
-    QString selected = fromEnding == QLatin1String("dotx") || fromEnding == QLatin1String("dot") ? dotxFilter : fromEnding == QLatin1String("ott") ? ottFilter : fromEnding == QLatin1String("odt") || fromEnding == QLatin1String("fodt") ? odtFilter : docxFilter;
-    auto endingOf = [&](const QString &filter) { return filter == dotxFilter ? QStringLiteral(".dotx") : filter == odtFilter ? QStringLiteral(".odt") : filter == ottFilter ? QStringLiteral(".ott") : QStringLiteral(".docx"); };
+    QString selected = fromEnding == QLatin1String("rtf") ? rtfFilter : fromEnding == QLatin1String("txt") ? txtFilter : fromEnding == QLatin1String("docm") ? docmFilter : fromEnding == QLatin1String("dotm") ? dotmFilter : fromEnding == QLatin1String("dotx") || fromEnding == QLatin1String("dot") ? dotxFilter : fromEnding == QLatin1String("ott") ? ottFilter : fromEnding == QLatin1String("odt") || fromEnding == QLatin1String("fodt") ? odtFilter : docxFilter;
+    // (a document with no file yet starts on the kind Options > Save names)
+    if (from.isEmpty() && Settings::get().value(QStringLiteral("save/format")).toString() == QLatin1String("odt")) selected = odtFilter;
+    auto endingOf = [&](const QString &filter) { return filter == rtfFilter ? QStringLiteral(".rtf") : filter == txtFilter ? QStringLiteral(".txt") : filter == docmFilter ? QStringLiteral(".docm") : filter == dotmFilter ? QStringLiteral(".dotm") : filter == dotxFilter ? QStringLiteral(".dotx") : filter == odtFilter ? QStringLiteral(".odt") : filter == ottFilter ? QStringLiteral(".ott") : QStringLiteral(".docx"); };
     const QString suggested = dir + QLatin1Char('/') + name + endingOf(selected);
     QString path = m_pathChooser ? m_pathChooser(suggested, selected)
-                                 : askSavePath(this, tr("Save As"), suggested, docxFilter + QStringLiteral(";;") + dotxFilter + QStringLiteral(";;") + odtFilter + QStringLiteral(";;") + ottFilter, &selected);
+                                 : askSavePath(this, tr("Save As"), suggested, docxFilter + QStringLiteral(";;") + dotxFilter + QStringLiteral(";;") + odtFilter + QStringLiteral(";;") + ottFilter + QStringLiteral(";;") + docmFilter + QStringLiteral(";;") + dotmFilter + QStringLiteral(";;") + txtFilter + QStringLiteral(";;") + rtfFilter, &selected);
     if (path.isEmpty()) return false;
     if (!isWrittenEnding(path)) path += endingOf(selected);
     return saveTo(path);
@@ -299,11 +340,12 @@ bool WriteWindow::saveCopy()
     const QString dir = from.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(from).absolutePath();
     const QString name = tr("%1 copy").arg(from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName());
     const QString docxFilter = tr("Document (*.docx)"), dotxFilter = tr("Template (*.dotx)"), odtFilter = tr("OpenDocument Text (*.odt)"), ottFilter = tr("OpenDocument Text Template (*.ott)");
+    const QString docmFilter = tr("Macro-Enabled Document (*.docm)"), dotmFilter = tr("Macro-Enabled Template (*.dotm)"), txtFilter = tr("Plain Text (*.txt)"), rtfFilter = tr("Rich Text Format (*.rtf)");
     QString selected = docxFilter;
-    auto endingOf = [&](const QString &filter) { return filter == dotxFilter ? QStringLiteral(".dotx") : filter == odtFilter ? QStringLiteral(".odt") : filter == ottFilter ? QStringLiteral(".ott") : QStringLiteral(".docx"); };
+    auto endingOf = [&](const QString &filter) { return filter == rtfFilter ? QStringLiteral(".rtf") : filter == txtFilter ? QStringLiteral(".txt") : filter == docmFilter ? QStringLiteral(".docm") : filter == dotmFilter ? QStringLiteral(".dotm") : filter == dotxFilter ? QStringLiteral(".dotx") : filter == odtFilter ? QStringLiteral(".odt") : filter == ottFilter ? QStringLiteral(".ott") : QStringLiteral(".docx"); };
     const QString suggested = dir + QLatin1Char('/') + name + endingOf(selected);
     QString path = m_pathChooser ? m_pathChooser(suggested, selected)
-                                 : askSavePath(this, tr("Save a Copy"), suggested, docxFilter + QStringLiteral(";;") + dotxFilter + QStringLiteral(";;") + odtFilter + QStringLiteral(";;") + ottFilter, &selected);
+                                 : askSavePath(this, tr("Save a Copy"), suggested, docxFilter + QStringLiteral(";;") + dotxFilter + QStringLiteral(";;") + odtFilter + QStringLiteral(";;") + ottFilter + QStringLiteral(";;") + docmFilter + QStringLiteral(";;") + dotmFilter + QStringLiteral(";;") + txtFilter + QStringLiteral(";;") + rtfFilter, &selected);
     if (path.isEmpty()) return false;
     if (!isWrittenEnding(path)) path += endingOf(selected);
     return saveTo(path, true);
@@ -344,13 +386,15 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
         notice(tr("Save"), tr("Part of this file couldn't be opened, so saving it here would lose that part: choose a new name for the copy."));
         return false;
     }
-    if (m_doc->hadMacros() && !m_macrosNoted) {
+    const QString ending = QFileInfo(path).suffix().toLower();
+    const bool macroFile = ending == QLatin1String("docm") || ending == QLatin1String("dotm");
+    if (m_doc->hadMacros() && !m_macrosNoted && !macroFile) {
         m_macrosNoted = true;
         const QString kind = QFileInfo(path).suffix().toLower() == QLatin1String("odt") || QFileInfo(path).suffix().toLower() == QLatin1String("ott") ? QStringLiteral(".odt") : QStringLiteral(".docx");
         notice(tr("Save"), tr("The macros in this document aren't saved, because a %1 file can't hold them.").arg(kind));
     }
     QString err;
-    const bool tmpl = QFileInfo(path).suffix().compare(QLatin1String("dotx"), Qt::CaseInsensitive) == 0;
+    const bool tmpl = ending == QLatin1String("dotx") || ending == QLatin1String("dotm");
     const bool ott = QFileInfo(path).suffix().compare(QLatin1String("ott"), Qt::CaseInsensitive) == 0;
     const bool odt = ott || QFileInfo(path).suffix().compare(QLatin1String("odt"), Qt::CaseInsensitive) == 0;
     // A password protects a .docx file; an .odt file can't be protected yet, and is never written without the protection the person asked for.
@@ -367,13 +411,51 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
             m_doc->setPackageProps(unmarked);
         }
     }
-    if (!backupBeforeSave(this, path)) return false;
+    const bool text = ending == QLatin1String("txt");
+    const bool rtf = ending == QLatin1String("rtf");
+    if (rtf && m_fileProtected) {
+        notice(tr("Save"), tr("This document is protected with a password, and a .rtf file can't hold one. Save it as a .docx file, or remove the password first (File > Info)."));
+        return false;
+    }
+    if (text && m_fileProtected) {
+        notice(tr("Save"), tr("This document is protected with a password, and a plain text file can't hold one. Save it as a .docx file, or remove the password first (File > Info)."));
+        return false;
+    }
+    // A plain text file holds the words and nothing else: asked once how it is written (an opened .txt file keeps the form it was read in), and told once what is left out.
+    write::TextForm textForm = m_textForm;
+    if (text && !m_textFormKnown) {
+#ifdef Q_OS_WIN
+        textForm.ends = write::LineEnds::Windows;
+#endif
+        if (!askTextForm(tr("Save as Plain Text"), tr("The file will hold the words of the document and nothing else: no fonts, pictures, or tables' borders. Choose how the characters and line ends are written. A character the encoding can't hold is saved as a question mark."), &textForm)) return false;
+    }
     QStringList notKept;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    QByteArray bytes = odt ? m_doc->toOdt(&err, &notKept) : m_doc->toDocx(&err, tmpl);
+    int lostChars = 0;
+    QByteArray bytes = text ? write::plainTextFile(*m_doc, textForm.encoding, textForm.ends, &lostChars, textForm.codePage) : rtf ? m_doc->toRtf(&err, &notKept) : odt ? m_doc->toOdt(&err, &notKept) : m_doc->toDocx(&err, tmpl, macroFile);
+    QApplication::restoreOverrideCursor();
+    // What the format would lose is said before anything is written, with the choice of a .docx beside it.
+    if ((odt || rtf) && !bytes.isEmpty() && (m_formatAsker || !m_notifier)) {
+        QStringList fresh;
+        for (const QString &what : std::as_const(notKept))
+            if (!m_odtNoted.contains(what)) fresh << what;
+        if (!fresh.isEmpty()) {
+            const FormatChoice choice = askFormatChoice(fresh, rtf ? QStringLiteral(".rtf") : QStringLiteral(".odt"));
+            if (choice == FormatChoice::Cancel) return false;
+            if (choice == FormatChoice::Docx) {
+                QString beside = QFileInfo(path).absolutePath() + QLatin1Char('/') + QFileInfo(path).completeBaseName();
+                QString target = beside + QStringLiteral(".docx");
+                for (int n = 2; QFileInfo::exists(target); ++n) target = beside + QStringLiteral(" (%1).docx").arg(n);
+                return saveTo(target, asCopy);
+            }
+            for (const QString &what : fresh) m_odtNoted.insert(what);   // (said now: not said again afterward)
+        }
+    }
+    if (!backupBeforeSave(this, path)) return false;
+    QApplication::setOverrideCursor(Qt::WaitCursor);
     if (ott && !bytes.isEmpty()) bytes = office::odt::odfAsTemplate(bytes);
     if (m_fileProtected && !bytes.isEmpty()) bytes = office::encryptPackage(bytes, m_filePassword);
-    bool ok = !bytes.isEmpty();
+    bool ok = text || !bytes.isEmpty();
     if (ok) {
         QSaveFile out(path);
         ok = out.open(QIODevice::WriteOnly) && out.write(bytes) == bytes.size() && out.commit();
@@ -383,6 +465,26 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     if (!ok) {
         jp::plainWarning(this, tr("Save"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
+    }
+    if (text) {
+        if (lostChars > 0) notice(tr("Save"), tr("Some characters couldn't be saved in this encoding (%1 in all). They were saved as question marks.").arg(lostChars), true);
+        if (!m_textNoted) {
+            m_textNoted = true;
+            notice(tr("Save"), tr("A plain text file holds only the words of this document, so its fonts, pictures, tables, and other formatting aren't saved in it."));
+        }
+        if (!asCopy) {
+            m_textForm = textForm;
+            m_textFormKnown = true;
+        }
+    }
+    if (rtf) {
+        QStringList fresh;
+        for (const QString &what : std::as_const(notKept))
+            if (!m_odtNoted.contains(what)) {
+                m_odtNoted.insert(what);
+                fresh << what;
+            }
+        if (!fresh.isEmpty()) notice(tr("Save"), tr("A Rich Text Format file can't hold some of what this document has, so these were saved as they stand now or left out:\n\n%1").arg(fresh.join(QLatin1Char('\n'))));
     }
     if (odt) {
         // (Told once of each thing, not once of the first: a later save that leaves out something new says so.)
@@ -402,6 +504,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     }
     m_doc->setModified(false);
     m_path = path;
+    rememberPlace();
     m_doc->filePath = path;
     if (isReadOnly() && !m_readOnlyByProtection) setReadOnly(false);   // (a protected document is saved as it is: the protection stays)
     m_recoveredFrom.clear();
@@ -411,6 +514,79 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     updateTitle();
     statusBar()->showMessage(tr("Saved %1").arg(QFileInfo(path).fileName()), 4000);
     return true;
+}
+
+WriteWindow::FormatChoice WriteWindow::askFormatChoice(const QStringList &lost, const QString &kind)
+{
+    if (m_formatAsker) return m_formatAsker(lost);
+    QMessageBox box(QMessageBox::Warning, tr("Save"), tr("A %1 file can't hold some of what this document has. If you save it here, these parts are saved as they stand now or left out:\n\n%2").arg(kind, lost.join(QLatin1Char('\n'))), QMessageBox::NoButton, this);
+    box.setTextFormat(Qt::PlainText);
+    QPushButton *keep = box.addButton(tr("Save as %1 Anyway").arg(kind), QMessageBox::AcceptRole);
+    QPushButton *docx = box.addButton(tr("Save as .docx Instead"), QMessageBox::ActionRole);
+    box.addButton(QMessageBox::Cancel);
+    box.setDefaultButton(docx);
+    box.exec();
+    if (box.clickedButton() == keep) return FormatChoice::Keep;
+    if (box.clickedButton() == docx) return FormatChoice::Docx;
+    return FormatChoice::Cancel;
+}
+
+// ---- Where editing stopped
+
+QString WriteWindow::placeKey(const QString &path)
+{
+    const QString canonical = QFileInfo(path).canonicalFilePath();
+    const QByteArray id = QCryptographicHash::hash((canonical.isEmpty() ? QFileInfo(path).absoluteFilePath() : canonical).toUtf8(), QCryptographicHash::Sha1).toHex();
+    return QStringLiteral("places/") + QString::fromLatin1(id);
+}
+
+void WriteWindow::rememberPlace()
+{
+    if (!m_doc || m_path.isEmpty()) return;
+    const QTextCursor &c = m_view->cursor();
+    // (the place in the text, not in a header or a note being edited)
+    if (c.document() != m_doc->story()) return;
+    Settings::get().setValue(placeKey(m_path), c.position());
+}
+
+void WriteWindow::returnToPlace(const QString &path)
+{
+    if (!m_doc) return;
+    bool ok = false;
+    const int at = Settings::get().value(placeKey(path)).toInt(&ok);
+    if (!ok || at <= 0) return;
+    QTextCursor c(m_doc->story());
+    c.setPosition(std::clamp(at, 0, std::max(0, m_doc->story()->characterCount() - 1)));
+    m_view->showCursor(c);
+}
+
+void WriteWindow::recordPlace(int position)
+{
+    m_placeStep = 0;
+    // (an edit near the last one is the same place)
+    if (!m_editPlaces.isEmpty() && qAbs(m_editPlaces.first() - position) <= 100) m_editPlaces[0] = position;
+    else {
+        m_editPlaces.prepend(position);
+        while (m_editPlaces.size() > 3) m_editPlaces.removeLast();
+    }
+    act("edit.lastPlace")->setEnabled(true);
+}
+
+void WriteWindow::resetEditPlaces()
+{
+    m_editPlaces.clear();
+    m_placeStep = 0;
+    act("edit.lastPlace")->setEnabled(false);
+}
+
+void WriteWindow::goToLastPlace()
+{
+    if (!m_doc || m_editPlaces.isEmpty()) return;
+    const int at = m_editPlaces.at(m_placeStep % m_editPlaces.size());
+    ++m_placeStep;
+    QTextCursor c(m_doc->story());
+    c.setPosition(std::clamp(at, 0, std::max(0, m_doc->story()->characterCount() - 1)));
+    m_view->showCursor(c);
 }
 
 // ---- Automatic recovery

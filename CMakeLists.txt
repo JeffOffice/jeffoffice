@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(JeffPub VERSION 0.20.1 LANGUAGES CXX)
+project(JeffPub VERSION 0.21.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -512,6 +512,11 @@ target_link_libraries(writemailtests PRIVATE jwcore Qt6::Test)
 set_target_properties(writemailtests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME writemailtests COMMAND writemailtests)
 set_tests_properties(writemailtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+qt_add_executable(writefiletests tests/write/tst_write_file.cpp)
+target_link_libraries(writefiletests PRIVATE jwcore Qt6::Test)
+set_target_properties(writefiletests PROPERTIES WIN32_EXECUTABLE OFF)
+add_test(NAME writefiletests COMMAND writefiletests)
+set_tests_properties(writefiletests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
 
 # JeffCrunch, the spreadsheet app: like JeffWrite, everything except main() is a library its tests link. It reads workbooks in libs/office/sheet, works their formulas out
