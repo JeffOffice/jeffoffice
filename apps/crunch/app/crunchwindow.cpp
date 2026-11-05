@@ -26,7 +26,11 @@
 #include "sheet/cellref.h"
 
 #include <QComboBox>
+#include <QDoubleSpinBox>
+#include <QFontComboBox>
 #include <QFormLayout>
+#include <QSpinBox>
+#include <array>
 #include <QPlainTextEdit>
 #include <QPointer>
 #include <QAction>
@@ -484,6 +488,38 @@ void CrunchWindow::createActions()
             return static_cast<QWidget *>(page);
         }, [this, choice] {
             if (*choice) setEnterMove(EnterMove((*choice)->currentData().toInt()));
+        }};
+        auto newBook = std::make_shared<std::array<QPointer<QWidget>, 3>>();
+        pages << OptionsPage{tr("New Workbooks"), [newBook] {
+            auto *page = new QWidget;
+            auto *layout = new QFormLayout(page);
+            crunch::BlankDefaults d;
+            auto *font = new QFontComboBox(page);
+            font->setObjectName(QStringLiteral("optionNewFont"));
+            font->setAccessibleName(tr("Font of a new workbook"));
+            font->setCurrentFont(QFont(Settings::get().value(QStringLiteral("crunch/newFont"), d.font).toString()));
+            layout->addRow(tr("Font of a new workbook:"), font);
+            auto *size = new QDoubleSpinBox(page);
+            size->setObjectName(QStringLiteral("optionNewFontSize"));
+            size->setAccessibleName(tr("Font size of a new workbook"));
+            size->setRange(1, 409);
+            size->setDecimals(1);
+            size->setValue(Settings::get().value(QStringLiteral("crunch/newFontSize"), d.size).toDouble());
+            layout->addRow(tr("Font size:"), size);
+            auto *sheets = new QSpinBox(page);
+            sheets->setObjectName(QStringLiteral("optionNewSheets"));
+            sheets->setAccessibleName(tr("Number of sheets in a new workbook"));
+            sheets->setRange(1, 255);
+            sheets->setValue(Settings::get().value(QStringLiteral("crunch/newSheets"), d.sheets).toInt());
+            layout->addRow(tr("Sheets in a new workbook:"), sheets);
+            (*newBook)[0] = font;
+            (*newBook)[1] = size;
+            (*newBook)[2] = sheets;
+            return static_cast<QWidget *>(page);
+        }, [newBook] {
+            if (auto *font = qobject_cast<QFontComboBox *>((*newBook)[0].data())) Settings::get().setValue(QStringLiteral("crunch/newFont"), font->currentFont().family());
+            if (auto *size = qobject_cast<QDoubleSpinBox *>((*newBook)[1].data())) Settings::get().setValue(QStringLiteral("crunch/newFontSize"), size->value());
+            if (auto *sheets = qobject_cast<QSpinBox *>((*newBook)[2].data())) Settings::get().setValue(QStringLiteral("crunch/newSheets"), sheets->value());
         }};
         pages << OptionsPage{tr("Custom Lists"), [this, lists] {
             auto *page = new QWidget;

@@ -98,7 +98,13 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
                const std::atomic<int> *pace = nullptr);
 
 // The package of a new, empty workbook: one worksheet named "Sheet1" and the styles a workbook starts with. It is read as a file is (WorkbookLoader::startBlank).
-QByteArray blankWorkbookBytes();
+struct BlankDefaults {
+    QString font = QStringLiteral("Calibri");   // the font of every cell until styled
+    double size = 11;
+    int sheets = 1;                              // how many sheets: "Sheet1", "Sheet2", ...
+};
+// (a font name with a character a name can't have, a size outside 1 to 409, or a count outside 1 to 255 is the usual one)
+QByteArray blankWorkbookBytes(const BlankDefaults &defaults = BlankDefaults());
 
 // What a file's suffix is called in the usage statistics: one of the formats JeffCrunch opens, else "other" (never the suffix as it is: it is whatever the file is called).
 QString fileKind(const QString &path);
@@ -117,7 +123,7 @@ public:
     // step of a formula it is taking); a worker that is still going when the program ends is waited for then.
     void cancel();
     // Begins reading a new, empty workbook (blankWorkbookBytes) the way a file is read: the same signals, the same calculation and worker; its path is empty.
-    void startBlank();
+    void startBlank(const BlankDefaults &defaults = BlankDefaults());
     bool isRunning() const;
     // Stops the calculation only (what it has worked out is told; the rest keeps what the file stored); calculationStopped is then the last batch's `stopped`.
     void stopCalculation();

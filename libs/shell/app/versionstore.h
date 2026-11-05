@@ -21,7 +21,8 @@ struct DocVersion {
 class VersionStore {
 public:
     // The versions of the document that is the file `documentPath`.
-    explicit VersionStore(const QString &documentPath);
+    // `extension` is the ending of the copies' files: the kind of file the document is saved as (".docx" if none is given).
+    explicit VersionStore(const QString &documentPath, const QString &extension = QStringLiteral(".docx"));
     // Where this file's versions are kept.
     QString folder() const { return m_folder; }
     // Newest first.
@@ -38,6 +39,7 @@ private:
     QVector<DocVersion> load() const;
     bool store(const QVector<DocVersion> &all, QString *error) const;
     QString m_folder;
+    QString m_extension;
 };
 
 } // namespace jp::write

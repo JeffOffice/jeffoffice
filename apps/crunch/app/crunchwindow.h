@@ -4,6 +4,7 @@
 // cell, in it with F2 or a double click, or in the formula bar), clears them with Delete, undoes and redoes, and saves the workbook as it was read with only what changed put in.
 
 #include "app/appwindow.h"
+#include "app/versionstore.h"
 #include "app/filetasks.h"
 #include "app/infopage.h"
 
@@ -341,6 +342,16 @@ public:
     // Writes the workbook as a copy in the older binary form (.xls) or as an OpenDocument spreadsheet (.ods) (see crunchwindow_copy.cpp): the person is told what the file cannot hold, and the
     // workbook open here is not changed or marked saved. `copyExported` says when it is over. A path ending in .xls or .ods given to save() or saveAs() comes here.
     bool exportCopy(const QString &path);
+    // Check Compatibility: works out what an .xls file would not hold, as a copy would, and says it; writes nothing.
+    void checkCompatibility();
+    // Version History (File > Info): named copies of the workbook kept on this computer, one for each time it is asked for (see libs/shell/app/versionstore.h). Each needs a file the workbook was
+    // saved as. `saveVersion` takes the workbook as it is now, in the background, and `versionKept` says when it is over; `restoreVersion` keeps what the workbook is now as a version first,
+    // then puts the chosen one in the workbook's file and reads it again; `openVersionCopy` opens one in a window of its own, to look at beside this one.
+    QVector<jp::write::DocVersion> versions() const;
+    bool saveVersion(const QString &name);
+    bool restoreVersion(const QString &file);
+    bool openVersionCopy(const QString &file);
+    void versionHistory();
     bool isModified() const { return m_session && m_session->isModified(); }
     bool isSaving() const { return m_saving; }
     // What the person is asked when the window is closed with changes that are not saved: Save, Don't Save, or Cancel (a message box, unless this stands in for it: tests).
@@ -454,7 +465,12 @@ public:
     void setProgressHook(const std::function<bool(int, int)> &hook) { m_progressHook = hook; }
     // File > Export: asks for a name and puts the sheet in view (or every sheet that is shown) in a PDF file. True when the file is made; false, with the reason shown, if it is not or the
     // person gives it up.
-    bool exportPdf(bool wholeWorkbook);
+    bool exportPdf(bool wholeWorkbook, bool archival = false);
+    // Email: makes a message as a .eml file (asking where to put it) with the workbook, or the workbook as a PDF; the person opens it in an email program. Nothing is sent.
+    enum class EmailWhat { Workbook, Pdf };
+    bool exportEmail(EmailWhat what);
+    // Asks which of the two, then makes the message as exportEmail does.
+    bool exportEmailAsk();
     // Prints what the choices say, to the printer or into a PDF file the person names (what asks for the name is the Save As picker). True when it was done; false, with the reason shown.
     bool printWith(const crunch::PrintChoices &choices);
     // What the Print screen has chosen (kept while the window is, so the screen comes back as it was left).
@@ -527,6 +543,7 @@ Q_SIGNALS:
     void csvExported(const QString &path, bool ok);
     // A copy of the workbook was written as an .xls or .ods file, or could not be.
     void copyExported(const QString &path, bool ok);
+    void versionKept(bool ok);
     // The first rows are on the screen.
     void firstScreenShown();
     // The workbook is read whole (or could not be opened).
@@ -1301,6 +1318,7 @@ private:
     qint64 m_tabOriginCol = -1, m_tabRow = -1;   // where a run of Tabs began (Enter then goes back to that column)
     // saving
     bool m_saving = false, m_closeAfterSave = false, m_closing = false;
+    bool m_reopening = false;   // (going back to a version: the workbook's file is read again in this window)
     QPointer<QThread> m_saveThread;
     QString m_saveAfterCalculation;
     // (the repaired package is kept in a file that goes with this object, whatever ends the open: the read, a failed read, another open, or the window)

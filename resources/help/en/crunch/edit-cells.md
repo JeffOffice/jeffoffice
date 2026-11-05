@@ -88,3 +88,7 @@ When you change a cell, JeffCrunch works out the formulas that depend on it in t
 - A workbook that could not be read whole can be looked at but not changed or saved.
 - A function JeffCrunch does not have yet leaves a new formula without a value in the cell; the workbook asks the program that opens it next to work the formula out.
 - Formatting, sorting, and find and replace come in a later version. Inserting and deleting, cut and paste, fill, and the sizes of rows and columns are in [Insert and delete rows, columns, and cells](insert-delete), [Cut, copy, and paste](clipboard), [Fill cells and add them up](fill-sum), and [Change the width of columns and the height of rows](sizes).
+
+## New workbooks
+
+In **File > Options > New Workbooks**, choose the font, the font size, and the number of sheets that every new workbook starts with. Workbooks you already have are not changed.

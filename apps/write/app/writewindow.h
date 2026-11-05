@@ -11,7 +11,7 @@
 #include "core/writedoc.h"
 #include "core/compareops.h"
 #include "core/homeops.h"
-#include "core/versionstore.h"
+#include "app/versionstore.h"
 #include "app/optionsdialog.h"
 
 #include <QHash>
@@ -164,7 +164,7 @@ public:
     bool exportEmail(EmailWhat what);
     // The pages (by index) as a PDF, in memory; empty, with the reason, when they can't be made.
     QByteArray pdfBytes(const QVector<int> &pages, QString *error);
-    // Version history: named copies of the document kept on this computer (see core/versionstore.h). Each needs a file the document has been saved as.
+    // Version history: named copies of the document kept on this computer (see app/versionstore.h). Each needs a file the document has been saved as.
     QVector<write::DocVersion> versions() const;
     bool saveVersion(const QString &name);
     // The document becomes the version (what it was is kept first, as a version, so that nothing is lost); it is then changed, to be saved.

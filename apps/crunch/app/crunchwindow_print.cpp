@@ -25,6 +25,7 @@ std::unique_ptr<crunch::PrintJob> CrunchWindow::makePrintJob(crunch::PrintJobOpt
         return nullptr;
     }
     options.activeSheet = m_sheet;
+    if (options.what == crunch::PrintWhat::ActiveSheet) options.sheets = selectedSheets();
     options.fileName = m_path.isEmpty() ? displayName() : QFileInfo(m_path).fileName();
     options.folder = m_path.isEmpty() ? QString() : QFileInfo(m_path).absolutePath();
     if (options.what == crunch::PrintWhat::Selection && !options.selection.valid) options.selection = selectedRange();
@@ -78,7 +79,7 @@ QPrinter &CrunchWindow::printer()
     return *m_printer;
 }
 
-bool CrunchWindow::exportPdf(bool wholeWorkbook)
+bool CrunchWindow::exportPdf(bool wholeWorkbook, bool archival)
 {
     if (!m_loaded || !m_haveCalc) {
         notice(tr("Export to PDF"), tr("The workbook is still being opened. It can be exported when it is open."));
@@ -87,6 +88,7 @@ bool CrunchWindow::exportPdf(bool wholeWorkbook)
     crunch::PrintJobOptions options = m_printChoices->job;
     options.what = wholeWorkbook ? crunch::PrintWhat::Workbook : crunch::PrintWhat::ActiveSheet;
     options.activeSheet = m_sheet;
+    options.archival = archival;
     const QString dir = m_path.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(m_path).absolutePath();
     const QString start = QDir(dir).filePath(displayName() + QStringLiteral(".pdf"));
     QString path = askForSavePath(tr("Export to PDF"), start, tr("PDF (*.pdf)"));

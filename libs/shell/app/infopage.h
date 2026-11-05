@@ -34,6 +34,8 @@ struct InfoHost {
     std::function<bool()> hasPassword;
     std::function<void()> encrypt;   // asks for the password (the app does what follows)
     std::function<void()> inspect;
+    std::function<void()> protectSheet;       // none: no card
+    std::function<void()> protectStructure;   // none: no card
     std::function<void()> checkCompatibility;   // none: no card
     std::function<void()> versionHistory;       // none: no card
     // The page the person is shown the file on, drawn small; none: no picture.

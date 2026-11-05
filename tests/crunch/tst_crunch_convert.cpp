@@ -354,6 +354,41 @@ private Q_SLOTS:
         QVERIFY(!cancelled.exists);
     }
 
+    // The Hebrew, Arabic, Baltic, Vietnamese, and Thai pages are among the encodings a text file is saved in, and write their letters as one byte.
+    void moreCodePagesAreOfferedWhenSavingATextFile()
+    {
+        const struct {
+            int page;
+            const char *letter;
+            char expected;
+        } pages[] = {{1255, "\xD7\x90", char(0xE0)}, {1256, "\xD8\xA7", char(0xC7)}, {1257, "\xC4\x81", char(0xE2)}, {1258, "\xC4\x91", char(0xF0)}, {874, "\xE0\xB8\x81", char(0xA1)}};
+        for (const auto &p : pages) {
+            Win o;
+            QVERIFY(o.open(QByteArray("a,b\n") + p.letter + ",2\n", QStringLiteral("v.csv")));
+            o.w.setLossAsker(nullptr);
+            bool found = false;
+            QTimer finder;
+            finder.setInterval(10);
+            QObject::connect(&finder, &QTimer::timeout, &finder, [&] {
+                auto *dialog = qobject_cast<CsvSaveDialog *>(QApplication::activeModalWidget());
+                if (!dialog || found) return;
+                auto *enc = dialog->findChild<QComboBox *>(QStringLiteral("csvEncoding"));
+                const int at = enc->findData(p.page);
+                found = at >= 0;
+                if (found) enc->setCurrentIndex(at);
+                if (found) dialog->findChild<QPushButton *>(QStringLiteral("csvSaveValues"))->click();
+                else dialog->reject();
+            });
+            finder.start();
+            QSignalSpy exported(&o.w, &CrunchWindow::csvExported);
+            const bool started = o.w.saveAs(o.folder.dir.filePath(QStringLiteral("copy.csv")));
+            if (started && exported.count() == 0) exported.wait(20000);
+            QVERIFY2(found, qPrintable(QString::number(p.page)));
+            const QByteArray got = o.folder.read(QStringLiteral("copy.csv"));
+            QVERIFY2(got.contains(p.expected) && !got.contains('?'), qPrintable(QString::number(p.page) + QLatin1Char(' ') + QString::fromLatin1(got.toHex())));
+        }
+    }
+
     // Once a cell is changed the file is written in the form it came in: its separator, its line ends, its encoding with or without the mark; a file of another ending is written the usual way.
     void anEditedCsvIsWrittenInTheFormItCameIn()
     {

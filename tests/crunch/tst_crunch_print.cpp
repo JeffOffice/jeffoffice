@@ -9,6 +9,7 @@
 #include "app/pagesetupdialog.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/sheettabs.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
@@ -466,6 +467,25 @@ private Q_SLOTS:
         QCOMPARE(second->numberOf(2), 7);
     }
 
+    // With several sheet tabs picked, "this sheet" prints all of them, one after the other.
+    void theSelectedSheetsPrintTogether()
+    {
+        EditWindow e;
+        QVERIFY(e.open(budgetWorkbook()));   // three sheets, the second hidden
+        crunch::PrintJobOptions options;
+        options.what = crunch::PrintWhat::ActiveSheet;
+        QString why;
+        std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(options, &why);
+        QVERIFY2(job, qPrintable(why));
+        QCOMPARE(job->pageCount(), 2);   // (the first sheet alone: two pages across)
+        e.win.w.sheetTabs()->setSelectedTabs({0, 1});
+        job = e.win.w.makePrintJob(options, &why);
+        QVERIFY2(job, qPrintable(why));
+        QCOMPARE(job->pageCount(), 3);
+        QCOMPARE(job->sheetOf(2), 2);
+        QCOMPARE(job->numberOf(2), 3);
+    }
+
     void aSelectionPrintsAlone()
     {
         EditWindow e;
@@ -479,6 +499,27 @@ private Q_SLOTS:
         QCOMPARE(job->pageCount(), 1);
         QCOMPARE(job->printOf(0)->pages[0].row1, qint64(50));
         QCOMPARE(job->printOf(0)->pages[0].row2, qint64(59));
+    }
+
+    // A PDF/A export says what it is (the identification in its metadata and an output intent for color); the usual export does not.
+    void aPdfCanBeExportedAsPdfA()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(30, {})));
+        auto make = [&](bool archival, const QString &name) {
+            const QString path = e.folder.dir.filePath(name);
+            crunch::PrintJobOptions options;
+            options.archival = archival;
+            QString why;
+            if (!e.win.w.exportPdfTo(path, options, QString(), &why)) return QByteArray();
+            QFile f(path);
+            return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+        };
+        const QByteArray plain = make(false, QStringLiteral("plain.pdf")), archive = make(true, QStringLiteral("archive.pdf"));
+        QVERIFY(plain.startsWith("%PDF-") && archive.startsWith("%PDF-"));
+        QVERIFY(!plain.contains("/OutputIntents"));
+        QVERIFY(archive.contains("/OutputIntents"));
+        QVERIFY(archive.contains("pdfaid:part"));
     }
 
     // The pages are put in a PDF file, whole or by a range, and a file that cannot be made is not left half made; the page ranges and the order of copies are read as they are typed.

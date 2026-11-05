@@ -22,6 +22,11 @@ namespace jp::office::sheet {
 // True if the bytes begin as a compound file (the container the old format lives in): the signature of 8 bytes.
 bool startsCompoundFile(const QByteArray &head);
 
+// Open and Repair of an .xls file whose container is damaged (cut short, or its tables of sectors broken): the workbook's stream is read through the container if that can be done, and
+// else found by its own records, at the start of the first stream that reads as a workbook. The result is the stream alone (it opens as the forms before BIFF5 do), empty with `error` set if
+// none is found. `notes` says in words what was done and what may be missing. The file is looked through once, and at most 64 places are tried.
+QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStringList *notes, QString *error);
+
 class XlsBook {
 public:
     // Reads the workbook stream's globals: fills `info` (sheets, names, date system, how it calculates, the view), `shared`, and `styles`. False, with a message, if the

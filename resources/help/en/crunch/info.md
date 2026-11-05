@@ -1,5 +1,5 @@
 # Info: properties, passwords, and Inspect
-<!-- keywords: info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, mark as final, final, read-only, password, encrypt, protect, inspect workbook, personal information, hidden sheets, notes, external links, custom xml, show in folder, copy path, folder, path -->
+<!-- keywords: info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, mark as final, final, read-only, password, encrypt, protect, inspect workbook, personal information, hidden sheets, notes, external links, custom xml, show in folder, copy path, folder, path, version history, versions, go back -->
 
 Click **File > Info** to see the facts about your workbook, and to protect it before you share it. Press **Esc** to go back to your workbook.
 
@@ -23,6 +23,21 @@ Click **Encrypt with Password** to ask for a password whenever the file is opene
 
 For stopping changes to a sheet or its layout, see [Protect a sheet or the workbook](protect).
 
+## Protect the sheet or the sheets
+
+**Protect Current Sheet** lets you choose what people may change on the sheet you are on, with a password if you like. **Protect Workbook Structure** stops people from adding, deleting, moving, hiding, or renaming sheets. Both are also on the **Review** tab.
+
+## Version History
+
+**Version History** keeps copies of your workbook on this computer. Nothing is sent anywhere. A copy is called a version. Keep one before a big change.
+
+- **Keep a Version** saves the workbook as it is now, with a name you choose.
+- **Open a Copy** opens a version in a window of its own, so you can look at it beside the workbook.
+- **Go Back to It** puts a version back as your workbook. The workbook as it is now is kept as a version first, so nothing is lost.
+- **Delete** throws a version away.
+
+The workbook must be saved first, because versions belong to a file. Going back works for an .xlsx file.
+
 ## Inspect Workbook
 
 Click **Inspect Workbook** before you send a workbook to someone. It lists what the file holds that you may not want to share, and how many of each it found:
@@ -30,7 +45,13 @@ Click **Inspect Workbook** before you send a workbook to someone. It lists what 
 - **Notes** are notes that people left on cells. **Remove All** takes them off.
 - **Document properties and personal information** are the author, the person who last saved it, the company, and the manager. **Remove All** clears them.
 - **Hidden sheets** are sheets that do not show as tabs. **Show All** shows them, so you can see what they hold, and delete the ones you don't want.
+- **Hidden rows and columns** are lines you hid by hand. Rows hidden by a filter are not counted. **Show All** shows them, so you can see what they hold.
+- **Headers and footers** are the text printed at the top and the bottom of every page. **Remove All** clears them on every sheet.
 - **External links** are links to values in other workbooks. This list only counts them. Break them on the **Data** tab.
 - **Custom XML data** is data that other programs added to the file. This list only counts it.
 
 Save the workbook afterward to keep the clean copy.
+
+## Check Compatibility
+
+Click **Check Compatibility** to see what an older file, an .xls file, would not hold. It lists the parts of the workbook that would be left out or cut to fit, such as charts, notes, or rows past the old limit. It saves nothing, and your workbook stays as it is.

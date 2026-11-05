@@ -9,6 +9,7 @@
 #include <QElapsedTimer>
 #include <QFileInfo>
 #include <QMetaObject>
+#include <QRegularExpression>
 #include <QThread>
 
 #include "core/threadtime.h"
@@ -124,7 +125,7 @@ void WorkbookLoader::startThread(std::function<void()> work, const std::shared_p
 
 void WorkbookLoader::start(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QString &password) { begin(path, csv, QByteArray(), password); }
 
-void WorkbookLoader::startBlank() { begin(QString(), nullptr, blankWorkbookBytes()); }
+void WorkbookLoader::startBlank(const BlankDefaults &defaults) { begin(QString(), nullptr, blankWorkbookBytes(defaults)); }
 
 void WorkbookLoader::begin(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank, const QString &password)
 {
@@ -325,7 +326,7 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     return true;
 }
 
-QByteArray blankWorkbookBytes()
+QByteArray blankWorkbookBytes(const BlankDefaults &defaults)
 {
     using office::PackageWriter;
     const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
@@ -334,12 +335,21 @@ QByteArray blankWorkbookBytes()
     PackageWriter w;
     w.addPart(QStringLiteral("/xl/workbook.xml"), QByteArray(), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
     w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/xl/workbook.xml"));
-    w.addPart(QStringLiteral("/xl/worksheets/sheet1.xml"),
-              head + "<worksheet xmlns=\"" + main.toUtf8() + "\"><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews><sheetFormatPr defaultRowHeight=\"15\"/><sheetData/></worksheet>",
-              QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
-    const QString sheetId = w.addRelationship(QStringLiteral("/xl/workbook.xml"), rel + QStringLiteral("worksheet"), QStringLiteral("/xl/worksheets/sheet1.xml"));
+    const int sheets = defaults.sheets >= 1 && defaults.sheets <= 255 ? defaults.sheets : 1;
+    QString sheetList;
+    for (int i = 1; i <= sheets; ++i) {
+        const QString part = QStringLiteral("/xl/worksheets/sheet%1.xml").arg(i);
+        w.addPart(part,
+                  head + "<worksheet xmlns=\"" + main.toUtf8() + "\"><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews><sheetFormatPr defaultRowHeight=\"15\"/><sheetData/></worksheet>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
+        const QString id = w.addRelationship(QStringLiteral("/xl/workbook.xml"), rel + QStringLiteral("worksheet"), part);
+        sheetList += QStringLiteral("<sheet name=\"Sheet%1\" sheetId=\"%1\" r:id=\"%2\"/>").arg(i).arg(id);
+    }
+    const bool plainName = !defaults.font.trimmed().isEmpty() && defaults.font.size() <= 31 && !defaults.font.contains(QRegularExpression(QStringLiteral("[<>&\"'\\x00-\\x1f]")));
+    const QString font = plainName ? defaults.font.trimmed() : QStringLiteral("Calibri");
+    const double size = defaults.size >= 1 && defaults.size <= 409 ? defaults.size : 11;
     w.addPart(QStringLiteral("/xl/styles.xml"),
-              head + "<styleSheet xmlns=\"" + main.toUtf8() + "\"><fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/><family val=\"2\"/></font></fonts>"
+              head + "<styleSheet xmlns=\"" + main.toUtf8() + "\"><fonts count=\"1\"><font><sz val=\"" + QByteArray::number(size) + "\"/><name val=\"" + font.toUtf8() + "\"/><family val=\"2\"/></font></fonts>"
                      "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
                      "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"
                      "<cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs>"
@@ -348,8 +358,8 @@ QByteArray blankWorkbookBytes()
               QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"));
     w.addRelationship(QStringLiteral("/xl/workbook.xml"), rel + QStringLiteral("styles"), QStringLiteral("/xl/styles.xml"));
     w.addPart(QStringLiteral("/xl/workbook.xml"),
-              head + "<workbook xmlns=\"" + main.toUtf8() + "\" xmlns:r=\"" + rel.chopped(1).toUtf8() + "\"><bookViews><workbookView/></bookViews><sheets><sheet name=\"Sheet1\" sheetId=\"1\" r:id=\""
-                     + sheetId.toUtf8() + "\"/></sheets><calcPr calcId=\"191029\"/></workbook>",
+              head + "<workbook xmlns=\"" + main.toUtf8() + "\" xmlns:r=\"" + rel.chopped(1).toUtf8() + "\"><bookViews><workbookView/></bookViews><sheets>"
+                     + sheetList.toUtf8() + "</sheets><calcPr calcId=\"191029\"/></workbook>",
               QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
     return w.finish();
 }

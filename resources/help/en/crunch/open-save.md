@@ -1,5 +1,5 @@
 # Open and save workbooks
-<!-- keywords: copy, older format, opendocument, compatibility, new, blank, book1, untitled, open, save, save as, file, workbook, xlsx, xlsm, xls, ods, csv, tsv, text file, delimited, import, export, recent, pinned, drag, drop, loading, large, big, macros, unsaved, changes, close, copy, calculation chain, template, xltx, xltm, cannot open, damaged, encrypted, password, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ots, repair, open and repair -->
+<!-- keywords: copy, older format, opendocument, compatibility, new, blank, book1, untitled, open, save, save as, file, workbook, xlsx, xlsm, xls, ods, csv, tsv, text file, delimited, import, export, recent, pinned, drag, drop, loading, large, big, macros, unsaved, changes, close, copy, calculation chain, template, xltx, xltm, cannot open, damaged, encrypted, password, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ots, repair, open and repair, built-in templates, budget, invoice, timesheet, loan, calendar, grade book -->
 
 When JeffCrunch starts with no file to open, the window holds a new, empty workbook with one sheet, named Book1. Each new workbook takes the next number (Book2, Book3, and so on), and a number is not used again after its window is closed. To start another one, press **{key:New}**, or click **File**, then **New**, and choose **Blank Workbook**; it opens in a window of its own. A new workbook that you have not changed gives way when you open a file in its window; one you have changed stays, and the file opens in another window. **Save** on a new workbook asks for a name, as **Save As** does, and saves it as a .xlsx file. Closing a new workbook you have not changed asks nothing.
 
@@ -20,7 +20,7 @@ When you open a text file, a window first shows its first rows and asks how it i
 To keep only the values of the sheet you are looking at, click **File**, then **Save As**, and choose the **.csv** kind of file (or **.tsv** and **.txt**, tab-separated). Before it writes the file, JeffCrunch says what your workbook has that the file will not hold (the other sheets, formulas, pictures, charts, notes, and macros, for example), and asks how to write it, and whether to **Save Values Only**, to **Save as .xlsx** instead and keep everything, or to **Cancel**:
 
 - **Separator.** A comma, semicolon, tab, space, vertical bar, or a character you type. A **.csv** begins with a semicolon where your language writes a comma in its numbers, and a comma elsewhere; a **.tsv** or **.txt** with a tab.
-- **Text encoding.** UTF-8 with a mark (so that other programs take accented letters right), UTF-8 without it, UTF-16, or a code page such as Western European (1252), the ISO 8859 pages, or Mac Roman. A letter the code page has no byte for is written as a question mark, and the status bar says how many.
+- **Text encoding.** UTF-8 with a mark (so that other programs take accented letters right), UTF-8 without it, UTF-16, or a code page such as Western European (1252), the ISO 8859 pages, Mac Roman, or the Japanese, Chinese, Korean, Hebrew, Arabic, Baltic, Vietnamese, and Thai pages. A letter the code page has no byte for is written as a question mark, and the status bar says how many.
 - **Line ends.** Windows (carriage return and line feed), Linux and Mac (line feed), or old Mac (carriage return).
 - **Cells.** **As shown in the cells** writes what you see. **As stored** writes every digit of a number (0.1 and not 10%), and a date as ISO text such as 2026-03-04.
 
@@ -64,13 +64,17 @@ On the **Open** page, click **More Ways to Open**. You can also right-click a na
 - **Open Read-Only** opens the workbook for reading only. You can look, scroll, search, and copy, but you can't change a cell. The title bar says "Read-Only". If you press **Save**, JeffCrunch asks for a new name, so the file you opened is not changed.
 - **Open as Copy** opens the workbook with no file of its own. **Save** asks where to put it. The file you opened is never changed.
 - **Open in New Window** opens the workbook in a window of its own, even when the window you are in is empty.
-- **Open and Repair** is for an .xlsx file that is damaged. See below.
+- **Open and Repair** is for an .xlsx or .xls file that is damaged. See below.
 
 ## Open and Repair
 
 Sometimes an .xlsx file is damaged. A download stopped halfway, or a disk made mistakes. An .xlsx file is a bundle of smaller parts, such as the sheets, the styles, and the shared text. **Open and Repair** reads every part that it can. A part that stopped in the middle is kept up to the place where it stopped, so you may get the first rows of a sheet. A part that can't be read is left out. If the list of parts or the links between them are gone, JeffCrunch makes them again.
 
 The repaired workbook opens with no file of its own, and a name like "Repaired budget". A message tells you what was kept up to a break and what was left out. The damaged file is not changed. Save the repaired workbook under a new name, and check the numbers before you trust it.
+
+### An .xls file
+
+An .xls file can be damaged too. If its outer wrapper is cut short, **Open and Repair** looks through the file for the start of the workbook and reads from there. A sheet that was cut short keeps the cells before the cut. Whatever came after the cut is lost, and you are told so. The repaired workbook opens as a copy, so save it under a new name.
 
 ## Large workbooks
 
@@ -101,3 +105,7 @@ If the formulas are still being worked out when you save, JeffCrunch waits until
 ## Closing with changes
 
 If you close a workbook that has changes that are not saved, JeffCrunch asks whether to **Save** them, to **Don't Save** them, or to **Cancel** and go on working. An asterisk (*) in the window's title shows that there are changes not saved.
+
+## Built-in templates
+
+On **File > New**, under the blank workbook, are ready-made workbooks in groups: **Finance** (a monthly budget, a loan schedule, and a checkbook register), **Business** (an invoice, an expense report, a timesheet, an inventory list, a mileage log, and a sales report), **Planning** (a calendar and a project plan), and **Education** (a grade book). Each shows a small picture of its top. Click one to start a new workbook from it. Type in the yellow boxes. The other numbers are worked out for you. The workbook has no file of its own until you save it.

@@ -27,7 +27,10 @@ const Code kPages[] = {{1252, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Western Eu
                        {28592, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Central European (ISO 8859-2)")}, {28605, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Western European (ISO 8859-15)")},
                        {10000, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Mac Roman")},
                        {932, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Japanese (932)")}, {936, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Chinese, simplified (936)")},
-                       {949, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Korean (949)")}, {950, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Chinese, traditional (950)")}};
+                       {949, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Korean (949)")}, {950, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Chinese, traditional (950)")},
+                       {1255, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Hebrew (1255)")}, {1256, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Arabic (1256)")},
+                       {1257, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Baltic (1257)")}, {1258, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Vietnamese (1258)")},
+                       {874, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Thai (874)")}};
 
 } // namespace
 

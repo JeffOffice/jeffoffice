@@ -6,6 +6,7 @@
 #include "app/settings.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
+#include "core/crunchtemplates.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
@@ -13,6 +14,7 @@
 #include "../localepin.h"
 
 #include <QAction>
+#include <QApplication>
 #include <QLabel>
 #include <QLineEdit>
 #include <QSettings>
@@ -148,6 +150,173 @@ private Q_SLOTS:
         QVERIFY(!find("External links")->removable);
     }
 
+    void inspectFindsAndShowsHiddenRowsAndColumns()
+    {
+        EditWindow e;
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\" hidden=\"1\"><c r=\"A2\"><v>2</v></c></row>"
+                                            "<row r=\"3\" hidden=\"1\"><c r=\"A3\"><v>3</v></c></row><row r=\"5\" hidden=\"1\"><c r=\"A5\"><v>5</v></c></row>");
+        const QString cols = QStringLiteral("<cols><col min=\"2\" max=\"3\" width=\"9\" hidden=\"1\" customWidth=\"1\"/></cols>");
+        QVERIFY(e.open(buildXlsx({worksheet(rows, QString(), cols)})));
+        const QVector<InspectItem> items = e.win.w.inspectItems();
+        const InspectItem *item = nullptr;
+        for (const InspectItem &i : items)
+            if (i.title == QLatin1String("Hidden rows and columns")) item = &i;
+        QVERIFY(item);
+        QCOMPARE(item->count(), 5);   // (three rows and two columns)
+        QVERIFY(item->removable);
+        QCOMPARE(item->remove(), 5);
+        QCOMPARE(item->count(), 0);
+    }
+
+    void inspectFindsAndTakesOutHeadersAndFooters()
+    {
+        EditWindow e;
+        const QString after = QStringLiteral("<headerFooter><oddHeader>&amp;CQuarterly</oddHeader><oddFooter>&amp;LPage &amp;P</oddFooter></headerFooter>");
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), after)})));
+        const QVector<InspectItem> items = e.win.w.inspectItems();
+        const InspectItem *item = nullptr;
+        for (const InspectItem &i : items)
+            if (i.title == QLatin1String("Headers and footers")) item = &i;
+        QVERIFY(item);
+        QCOMPARE(item->count(), 1);
+        QCOMPARE(item->remove(), 1);
+        QCOMPARE(item->count(), 0);
+    }
+
+    // Every built-in template opens, works its formulas out with no error, and says what it should.
+    void everyBuiltInTemplateOpensAndWorksItsFormulasOut()
+    {
+        const QVector<crunch::TemplateInfo> all = crunch::builtinTemplates();
+        QVERIFY(all.size() >= 12);
+        QStringList ids;
+        for (const crunch::TemplateInfo &t : all) {
+            QVERIFY(!ids.contains(t.id));
+            ids << t.id;
+            QVERIFY(!t.name.isEmpty() && !t.category.isEmpty() && !t.description.isEmpty());
+            const QByteArray bytes = crunch::builtinTemplateBytes(t.id);
+            QVERIFY2(!bytes.isEmpty(), qPrintable(t.id));
+            const QImage picture = crunch::builtinTemplatePreview(t.id, 200);
+            QVERIFY2(picture.width() == 200 && picture.height() > 50, qPrintable(t.id));
+            bool drawn = false;
+            for (int y = 0; y < picture.height() && !drawn; ++y)
+                for (int x = 0; x < picture.width() && !drawn; ++x) drawn = picture.pixelColor(x, y) != QColor(Qt::white);
+            QVERIFY2(drawn, qPrintable(t.id));
+            EditWindow e;
+            QVERIFY2(e.open(bytes), qPrintable(t.id));
+            QVERIFY2(e.settle(), qPrintable(t.id));
+            for (int row = 1; row <= 80; ++row)
+                for (int col = 0; col < 16; ++col) {
+                    const QString ref = QString(QChar(u'A' + col)) + QString::number(row);
+                    QVERIFY2(!e.shownAt(ref).startsWith(QLatin1Char('#')), qPrintable(t.id + QLatin1Char(' ') + ref + QLatin1Char(' ') + e.shownAt(ref)));
+                }
+            if (t.id == QLatin1String("loan")) {
+                QCOMPARE(e.shownAt(QStringLiteral("B6")), QStringLiteral("$386.66"));
+                QVERIFY(e.shownAt(QStringLiteral("E70")).endsWith(QLatin1String("0.00")));   // (sixty payments: the balance is paid off at the last)
+                QVERIFY(e.shownAt(QStringLiteral("A71")).isEmpty());
+            }
+            if (t.id == QLatin1String("calendar")) {
+                QCOMPARE(e.shownAt(QStringLiteral("A4")), QStringLiteral("January 2027"));
+                QCOMPARE(e.shownAt(QStringLiteral("F6")), QStringLiteral("1"));   // (January 1, 2027 is a Friday)
+            }
+            if (t.id == QLatin1String("budget")) QCOMPARE(e.shownAt(QStringLiteral("B7")), QStringLiteral("$0.00"));
+        }
+        QVERIFY(crunch::builtinTemplateBytes(QStringLiteral("none")).isEmpty());
+    }
+
+    // Open and Repair of an .xls file whose container is cut short: the workbook is found by its records, the cells that can be read are kept, and the person is told.
+    void aDamagedXlsFileIsRepairedByItsRecords()
+    {
+        QByteArray rows;
+        for (int r = 1; r <= 700; ++r) rows += "<row r=\"" + QByteArray::number(r) + "\"><c r=\"A" + QByteArray::number(r) + "\"><v>" + QByteArray::number(r * 3) + "</v></c></row>";
+        QByteArray damaged;
+        {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(QString::fromLatin1(rows))})));
+            const QString target = e.folder.dir.filePath(QStringLiteral("whole.xls"));
+            QSignalSpy copied(&e.win.w, &CrunchWindow::copyExported);
+            QVERIFY(e.win.w.saveAs(target));
+            QVERIFY(copied.count() > 0 || copied.wait(20000));
+            QFile f(target);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray whole = f.readAll();
+            QVERIFY(whole.size() > 6000);
+            damaged = whole.left(whole.size() * 4 / 5);   // (the tables at the end that name the streams are gone)
+        }
+        EditWindow fixed;
+        const QString again = fixed.folder.write(QStringLiteral("cut.xls"), damaged);
+        QVERIFY2(fixed.win.open(again, OpenHow::Repair), qPrintable(fixed.win.told.join(QLatin1Char('|'))));
+        QVERIFY(fixed.settle());
+        QCOMPARE(fixed.shownAt(QStringLiteral("A1")), QStringLiteral("3"));
+        QCOMPARE(fixed.shownAt(QStringLiteral("A100")), QStringLiteral("300"));
+        QVERIFY2(fixed.win.told.join(QLatin1Char('|')).contains(QLatin1String("repaired")), qPrintable(fixed.win.told.join(QLatin1Char('|'))));
+    }
+
+    // Versions of a workbook: one is kept, listed, and gone back to (the workbook as it was just before is kept first), and one opens as a copy in a window of its own.
+    void versionsAreKeptListedAndRestored()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        write::VersionStore(e.path, QStringLiteral(".xlsx")).removeAll();
+        QVERIFY(e.win.w.versions().isEmpty());
+        QSignalSpy kept(&e.win.w, &CrunchWindow::versionKept);
+        QVERIFY(e.win.w.saveVersion(QStringLiteral("First")));
+        QVERIFY(kept.count() > 0 || kept.wait(20000));
+        QVERIFY(kept.last().first().toBool());
+        QCOMPARE(e.win.w.versions().size(), 1);
+        QCOMPARE(e.win.w.versions().first().name, QStringLiteral("First"));
+        QVERIFY(write::VersionStore(e.path, QStringLiteral(".xlsx")).read(e.win.w.versions().first().file).startsWith("PK"));
+        // a change, then back to the first
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("77"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("A1")), QStringLiteral("77"));
+        const QString first = e.win.w.versions().first().file;
+        QSignalSpy loaded(&e.win.w, &CrunchWindow::loadFinished);
+        QVERIFY(e.win.w.restoreVersion(first));
+        QVERIFY(loaded.count() > 0 || loaded.wait(60000));
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("A1")), QStringLiteral("1"));
+        QVERIFY(!e.win.w.isModified());
+        const QVector<write::DocVersion> all = e.win.w.versions();
+        QCOMPARE(all.size(), 2);
+        QVERIFY(all.first().name.startsWith(QLatin1String("Before restoring")));   // (what the workbook was just before, kept first)
+        // the kept state has the change
+        QVERIFY(write::VersionStore(e.path, QStringLiteral(".xlsx")).read(all.first().file).startsWith("PK"));
+        const QList<QWidget *> before = QApplication::topLevelWidgets();
+        QVERIFY(e.win.w.openVersionCopy(all.first().file));
+        bool opened = false;
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (auto *c = qobject_cast<CrunchWindow *>(top); c && c != &e.win.w && !before.contains(top)) {
+                opened = true;
+                c->setNotifier([](const QString &, const QString &) {});
+                QVERIFY(QTest::qWaitFor([&] { return c->session() != nullptr && !c->isCalculating(); }, 20000));
+                QVERIFY(c->windowTitle().contains(QLatin1String("Copy")));
+                c->setWindowModified(false);
+                c->close();
+            }
+        QVERIFY(opened);
+        write::VersionStore(e.path, QStringLiteral(".xlsx")).removeAll();
+    }
+
+    // Make an Email: a .eml file with the workbook, or the workbook as a PDF, attached; nothing is sent.
+    void aWorkbookIsMadeIntoAnEmailFile()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        for (const bool pdf : {false, true}) {
+            const QString target = e.folder.dir.filePath(pdf ? QStringLiteral("pdf.eml") : QStringLiteral("book.eml"));
+            e.win.w.setSavePicker([target](const QString &, const QString &) { return target; });
+            QVERIFY2(e.win.w.exportEmail(pdf ? CrunchWindow::EmailWhat::Pdf : CrunchWindow::EmailWhat::Workbook), qPrintable(e.win.told.join(QLatin1Char('|'))));
+            QFile f(target);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray message = f.readAll();
+            QVERIFY(message.contains("MIME-Version: 1.0"));
+            QVERIFY2(message.contains(pdf ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"), message.left(600).constData());
+            QVERIFY(message.contains(pdf ? ".pdf" : ".xlsx"));
+            QVERIFY(message.contains("Content-Transfer-Encoding: base64"));
+        }
+    }
+
     void personalInformationStaysOutOfLaterEdits()
     {
         EditWindow e;
@@ -206,7 +375,7 @@ private Q_SLOTS:
         QCOMPARE(screen->currentPage(), QStringLiteral("info"));
         QWidget *page = screen->findChild<QWidget *>(QStringLiteral("infoPage"));
         QVERIFY(page);
-        for (const char *name : {"infoMarkFinal", "infoEncrypt", "infoInspect", "infoCustom", "infoShowFolder", "infoCopyPath"})
+        for (const char *name : {"infoMarkFinal", "infoEncrypt", "infoProtectSheet", "infoProtectStructure", "infoInspect", "infoCompatibility", "infoCustom", "infoShowFolder", "infoCopyPath"})
             QVERIFY2(page->findChild<QWidget *>(QString::fromLatin1(name)), name);
         auto *title = page->findChild<QLineEdit *>(QStringLiteral("infoTitle"));
         QVERIFY(title);

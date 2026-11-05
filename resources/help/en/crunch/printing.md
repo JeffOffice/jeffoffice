@@ -1,11 +1,11 @@
 # Print and make a PDF
-<!-- keywords: print, printer, preview, pdf, export, copies, collate, pages, page range, selection, entire workbook, scaling, fit, page breaks, dashed lines, save as pdf -->
+<!-- keywords: print, printer, preview, pdf, export, copies, collate, pages, page range, selection, entire workbook, scaling, fit, email, page breaks, dashed lines, save as pdf -->
 
 Choose **File > Print** (or press **Ctrl+P**). The page opens with a preview of the pages that will come out, one at a time. Use the arrows under it to go from page to page, and **Fit page** or the zoom buttons to see more or less of a page. The preview is drawn the way the printer and the PDF are, so what you see is what you get.
 
 ## What to print
 
-- **What**: the sheet you are on, the whole workbook (every sheet that is shown), or the selection. Hidden sheets are left out. A chart sheet is one page, with its chart as large as the page's room inside the margins.
+- **What**: the sheet you are on (or all the sheets whose tabs you picked with Ctrl or Shift, one after the other), the whole workbook (every sheet that is shown), or the selection. Hidden sheets are left out. A chart sheet is one page, with its chart as large as the page's room inside the margins.
 - **Pages**: all of them, or some, such as **1-3, 5**.
 - **Copies** and **Collated** (a whole set at a time, 1 2 3 1 2 3, instead of each page's copies together).
 - **Orientation**, **Paper**, and **Margins**, to use for this print instead of what each sheet says.
@@ -22,6 +22,10 @@ Pick a printer from the list, or **Save as PDF**. **Printer settings** opens you
 ## Export to PDF
 
 **File > Export** makes a PDF of the sheet you are on, or of the whole workbook, without choosing a printer. The letters stay letters (not pictures), so they can be searched and stay sharp when you zoom.
+
+**Export the whole workbook as PDF/A** makes a PDF in the form made for keeping for years. Every font is put inside the file, so it reads the same long from now. Programs that archive documents ask for this form.
+
+**Make an Email** makes a message file with your workbook in it, or a PDF of it. Nothing is sent. Open the file in your email program, add who it is for, and send it. A workbook that has a password stays locked in the message: whoever gets it needs the password to open it. The password itself is never put in the message. A PDF of the workbook has no password.
 
 ## Page breaks on the screen
 

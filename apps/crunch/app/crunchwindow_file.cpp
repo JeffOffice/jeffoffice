@@ -12,6 +12,7 @@
 #include "app/otherformats.h"
 #include "office/package.h"
 #include "office/repair.h"
+#include "sheet/xls.h"
 #include "app/settings.h"
 #include "app/sheettabs.h"
 #include "app/telemetry.h"
@@ -100,7 +101,11 @@ bool CrunchWindow::newBlank()
     m_values.clear();
     m_longestBatchMicros = m_batches = m_longestBatchItems = 0;
     m_loadProblem.clear();
-    m_loader.startBlank();
+    crunch::BlankDefaults defaults;
+    defaults.font = Settings::get().value(QStringLiteral("crunch/newFont"), defaults.font).toString();
+    defaults.size = Settings::get().value(QStringLiteral("crunch/newFontSize"), defaults.size).toDouble();
+    defaults.sheets = Settings::get().value(QStringLiteral("crunch/newSheets"), defaults.sheets).toInt();
+    m_loader.startBlank(defaults);
     setStatus(tr("Ready"));
     updateTitle();
     return true;
@@ -140,7 +145,7 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         return false;
     }
     // A file that is open in a window is not opened again: that window is brought to the front
-    if (CrunchWindow *have = how == OpenHow::Copy ? nullptr : windowWith(path)) {
+    if (CrunchWindow *have = how == OpenHow::Copy || m_reopening ? nullptr : windowWith(path)) {
         have->setWindowState(have->windowState() & ~Qt::WindowMinimized);
         have->show();
         have->raise();
@@ -149,7 +154,7 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         return true;
     }
     // A new workbook nobody has changed gives way to the file (and comes back if the file can't be read).
-    const bool replacing = isUntouchedBlank() && how != OpenHow::NewWindow;
+    const bool replacing = (isUntouchedBlank() || m_reopening) && how != OpenHow::NewWindow;
     // A window that shows a workbook, or is reading one, stays; the new one opens in a window of its own.
     if (how == OpenHow::NewWindow || ((m_loaded || m_loading) && !replacing)) {
         auto *w = new CrunchWindow();
@@ -178,9 +183,14 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         QString why;
         office::RepairReport report;
         QByteArray fixed;
-        if (office::readWholeFile(path, &bytes, &why)) fixed = office::repairPackage(bytes, &why, &report);
+        const bool binary = QFileInfo(path).suffix().compare(QLatin1String("xls"), Qt::CaseInsensitive) == 0;
+        QStringList notes;
+        if (office::readWholeFile(path, &bytes, &why)) {
+            if (binary) fixed = office::sheet::salvageXlsStream(bytes, office::sheet::Limits(), &notes, &why);
+            else fixed = office::repairPackage(bytes, &why, &report);
+        }
         // (the file is removed when this object goes, on every path)
-        auto temp = std::make_unique<QTemporaryFile>(QDir::temp().filePath(QStringLiteral("jeffcrunch-repair-XXXXXX.xlsx")));
+        auto temp = std::make_unique<QTemporaryFile>(QDir::temp().filePath(binary ? QStringLiteral("jeffcrunch-repair-XXXXXX.xls") : QStringLiteral("jeffcrunch-repair-XXXXXX.xlsx")));
         if (fixed.isEmpty() || !temp->open() || temp->write(fixed) != fixed.size()) {
             if (!fixed.isEmpty()) why = temp->errorString();
             notice(tr("Open and Repair"), tr("%1 can't repair \"%2\".\n%3").arg(appInfo().name, name, why));
@@ -192,7 +202,7 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         m_lastRepairFile = loadPath;
         m_repairFile = loadPath;
         m_repairName = name;
-        m_repairNote = office::repairSummary(report);
+        m_repairNote = binary ? notes.join(QLatin1Char('\n')) : office::repairSummary(report);
     }
     if (replacing) dropWorkbook();
     setReadOnly(how == OpenHow::ReadOnly);
