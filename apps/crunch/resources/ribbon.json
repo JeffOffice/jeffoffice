@@ -597,7 +597,7 @@
     }    ,
     {
       "name": "Picture Format",
-      "keytip": "JP",
+      "keytip": "JF",
       "context": "Picture Format",
       "color": "pictureFormat",
       "groups": [
@@ -632,7 +632,7 @@
     },
     {
       "name": "Shape Format",
-      "keytip": "JS",
+      "keytip": "JA",
       "context": "Shape Format",
       "color": "shapeFormat",
       "groups": [
@@ -644,7 +644,7 @@
           ]
         },
         {
-          "name": "Text",
+          "name": "Shape Text",
           "keytip": "ZX",
           "items": [
             {"large": "object.editText", "keytip": "ET"}

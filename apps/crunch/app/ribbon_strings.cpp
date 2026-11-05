@@ -96,6 +96,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Select"),
     QT_TRANSLATE_NOOP("Ribbon", "Shape Format"),
     QT_TRANSLATE_NOOP("Ribbon", "Shape Styles"),
+    QT_TRANSLATE_NOOP("Ribbon", "Shape Text"),
     QT_TRANSLATE_NOOP("Ribbon", "Shapes"),
     QT_TRANSLATE_NOOP("Ribbon", "Sheet Options"),
     QT_TRANSLATE_NOOP("Ribbon", "Show"),
