@@ -5,6 +5,8 @@
 #include "core/writedoc.h"
 
 #include "core/drawnitems.h"
+#include "office/chart.h"
+#include "office/theme.h"
 #include "core/tablemodel.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
@@ -1592,6 +1594,26 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
     bool shownMissing = false;   // (the picture the last call made is the mark of a picture that cannot be shown)
     auto pictureOf = [&](const Shape &s) -> int {
         shownMissing = false;
+        // A chart is drawn as the picture its part makes (at the size of its frame), kept with the document's pictures.
+        if (s.embed.isEmpty() && !s.chartEmbed.isEmpty()) {
+            if (f.images.size() >= kMostImages || s.width <= 0 || s.height <= 0) return -1;
+            QString chartTarget;
+            const QVector<Relationship> &chartLinks = part.isEmpty() ? m_wml.mainRelationships : m_wml.partRelationships.value(part);
+            for (const Relationship &r : chartLinks)
+                if (r.id == s.chartEmbed && !r.external) chartTarget = r.target;
+            const QByteArray chartXml = chartTarget.isEmpty() ? QByteArray() : partData(chartTarget);
+            office::Chart chart;
+            if (chartXml.isEmpty() || !office::readChart(chartXml, theme() ? *theme() : office::defaultTheme(), office::ColorMap(), &chart)) return -1;
+            const QByteArray svg = office::chartSvg(chart, QSizeF(s.width, s.height));
+            if (svg.isEmpty()) return -1;
+            for (int i = 0; i < f.images.size(); ++i)
+                if (f.images[i].bytes == svg) return i;
+            flow::FlowImage image;
+            image.bytes = svg;
+            image.format = QStringLiteral("svg");
+            f.images.push_back(image);
+            return int(f.images.size()) - 1;
+        }
         if (s.embed.isEmpty() || f.images.size() >= kMostImages) return -1;
         QString target;
         const QVector<Relationship> &links = part.isEmpty() ? m_wml.mainRelationships : m_wml.partRelationships.value(part);

@@ -32,6 +32,29 @@ void dressPicture(PictureItem &pic, const Shape &s)
         const double wholeW = w / keepW, wholeH = h / keepH;
         pic.imgRect = QRectF(-s.cropL * wholeW, -s.cropT * wholeH, wholeW, wholeH);
     }
+    // The colors it is changed to: its brightness and contrast, then gray or black and white (the order the standard's own writers give them).
+    {
+        QVector<BlipEffect> listed;
+        if (s.bright != 0 || s.contrast != 0) {
+            BlipEffect e;
+            e.kind = BlipEffect::Luminance;
+            e.brightness = s.bright;
+            e.contrast = s.contrast;
+            listed << e;
+        }
+        if (s.gray) {
+            BlipEffect e;
+            e.kind = BlipEffect::Grayscale;
+            listed << e;
+        }
+        if (s.biLevel) {
+            BlipEffect e;
+            e.kind = BlipEffect::BiLevel;
+            e.threshold = s.biLevelThreshold;
+            listed << e;
+        }
+        if (!listed.isEmpty()) pic.takeEffects(listed);
+    }
     if (!s.clearColor.isEmpty()) {
         pic.hasTransparentColor = true;
         pic.transparentColor = QColor(QLatin1Char('#') + s.clearColor);

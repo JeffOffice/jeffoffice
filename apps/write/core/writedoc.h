@@ -539,6 +539,13 @@ public:
     // Takes back a relationship of the main part that addMedia made, and its part if no other relationship names it (for a picture that could not be put in the text).
     void removeMedia(const QString &id);
 
+    // The bytes of the part that a relationship of the main part names (a chart), or none for an Id that names no part. And a new part with a relationship to it of this kind, named
+    // folder/base1.ext and on (it has the relationships of `likePart`, a part it takes the place of); the Id of the relationship. Like a picture's, it is left out of the file when nothing names it (a chart taken back by Undo).
+    QByteArray relatedPartData(const QString &id) const;
+    QString addRelatedPart(const QString &folder, const QString &base, const QString &extension, const QByteArray &data, const QString &contentType, const QString &relationshipType, const QString &likePart = QString());
+    // The relationships of the main part (for the code that edits a part and puts the new one beside it).
+    const QVector<office::Relationship> &mainRelationshipsForTest() const { return m_wml.mainRelationships; }
+
     // The most the pictures of a document come to, together, and the limit this document is held to (a test sets a smaller one); how much they come to now.
     qint64 mediaLimit = kMostMediaBytes;
     qint64 mediaBytes() const;

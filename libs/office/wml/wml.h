@@ -579,6 +579,7 @@ struct Shape {
     bool flipH = false, flipV = false;
     bool arrowEnd = false, arrowStart = false;
     QString embed;                        // a picture's relationship Id
+    QString chartEmbed;                   // a chart's: the Id of the relationship that names its part (DrawingML's c:chart)
     QString fillEmbed;                    // the Id of a picture that fills the shape, stretched over it (VML's v:fill of type frame)
     QString pictEmbed;                    // the Id of the picture's other form (VML's r:pict: a compressed picture the program keeps beside it)
     QString alt;                          // its description
@@ -591,6 +592,10 @@ struct Shape {
     // and the border it is drawn with (its weight in points, 0 for none, and its color).
     double cropL = 0, cropT = 0, cropR = 0, cropB = 0;
     QString clearColor;
+    // A picture's brightness and contrast (each from -1 to 1), and whether its colors are turned to gray or to black and white (DrawingML's a:lum, a:grayscl, a:biLevel in the blip).
+    double bright = 0, contrast = 0;
+    bool gray = false, biLevel = false;
+    double biLevelThreshold = 0.5;
     double borderWeight = 0;              // the heaviest of its sides'
     QString borderColor;
     // The weights of the sides of a picture's border, in points (top, left, bottom, right): the sides the file sets, 0 for the others.
