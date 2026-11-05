@@ -673,8 +673,9 @@
          "text": "26c597e7b6d8940b5c86f64fc05ae734154c19b924782d0f61b8290a7d85d6d7"
         },
         {
-         "status": "todo",
-         "text": "59c327fd54fbcfd11ffd18745c328782ed23dd9423473f74db4ca8014372f931"
+         "hide_soon": true,
+         "status": "done",
+         "text": "635280e7595b91215e2ce7aa1b21c1f23e8ad6d215086b20f70d7742dc24a569"
         },
         {
          "status": "partly",
@@ -686,8 +687,9 @@
        "heading": "d4c7bac5b475fee65512621f3327448cb4510158cc1cbc6a4ab3e8906c2713d7",
        "items": [
         {
-         "status": "partly",
-         "text": "bc0a968f1f7b7d1dcffd7df0ca1d6423b44b2fa17b02efa3ffd17947ba49b745"
+         "hide_soon": true,
+         "status": "done",
+         "text": "89c43343f263390fcdc7f750f6f1ed4254f365a1555965956f72325a5fab1923"
         }
        ]
       },
@@ -1296,8 +1298,8 @@
          "text": "694f2d850314aec7ecff9177dc38cff43c3192141d8852bd37c713791fcc2085"
         },
         {
-         "status": "todo",
-         "text": "d841a4f3a2f4257ae9730886ef93cc1fb32d2ac63ab2afa3363fc139d3619342"
+         "status": "partly",
+         "text": "2e0fa83fac514f91afac07714a92aa738f83a4ca07211d84a3cc0ed91bc91fce"
         },
         {
          "hide_soon": true,
@@ -1351,7 +1353,7 @@
         },
         {
          "status": "partly",
-         "text": "9b5351148cb0b808e967776f136b87e5a5fd309a0b43575a4ded97c5b1d632b5"
+         "text": "467b25f70c07944a760d79065468f2b95c30d1fb90b08b2d9ebea9eceb147580"
         },
         {
          "hide_soon": true,
@@ -10407,6 +10409,18 @@
     "fr": ""
    }
   },
+  "2e0fa83fac514f91afac07714a92aa738f83a4ca07211d84a3cc0ed91bc91fce": {
+   "drop": false,
+   "en": "In JeffCrunch, you can add, change, and delete a calculated field in a pivot table, defined by a formula over the other fields, and list all calculated field formulas on a new sheet.",
+   "es": "En JeffCrunch, usted puede agregar, cambiar y eliminar un campo calculado en una tabla dinámica, definido por una fórmula sobre los demás campos, y listar todas las fórmulas de campos calculados en una hoja nueva.",
+   "fr": "Dans JeffCrunch, vous pouvez ajouter, modifier et supprimer un champ calculé dans un tableau croisé dynamique, défini par une formule sur les autres champs, et lister toutes les formules des champs calculés dans une nouvelle feuille.",
+   "soon": {
+    "drop": false,
+    "en": "Calculated Item and Solve Order",
+    "es": "Elemento calculado y orden de resolución",
+    "fr": "Élément calculé et ordre de résolution"
+   }
+  },
   "2e2b7978a86933ebaec447bbe9a9cb181013f0af9f77f1f945ea4307bb791bad": {
    "drop": false,
    "en": "`CELL` works.",
@@ -11943,6 +11957,18 @@
     "fr": ""
    }
   },
+  "467b25f70c07944a760d79065468f2b95c30d1fb90b08b2d9ebea9eceb147580": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Chart Filters button",
+    "es": "Botón de filtros de gráfico",
+    "fr": "Bouton de filtres du graphique"
+   }
+  },
   "4692718a9d35382a842890cd50dea9f35f63605487087d7a65b09fc44750275a": {
    "drop": false,
    "en": "Diagrams in a file are drawn from the drawing the file keeps and are written back as they were.",
@@ -13335,18 +13361,6 @@
     "fr": ""
    }
   },
-  "59c327fd54fbcfd11ffd18745c328782ed23dd9423473f74db4ca8014372f931": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Recommended Charts: charts picked for the selected data",
-    "es": "Gráficos recomendados: gráficos elegidos para los datos seleccionados",
-    "fr": "Graphiques recommandés : graphiques choisis pour les données sélectionnées"
-   }
-  },
   "59cce1573c253632fe73154a1eb0dadbcb07f7a81121db56b84bff494c4d9692": {
    "drop": false,
    "en": "JeffPub uses standard desktop publishing keyboard shortcuts, such as `Ctrl+B`, `Ctrl+Shift+>`, `F9`, `Ctrl+Shift+L`, `Ctrl+M` for the master page, `Ctrl+Shift+C` and `Ctrl+Shift+V` to copy and paste formatting, and `Ctrl+Shift+N`. No two commands share keys.",
@@ -14000,6 +14014,18 @@
    "en": "File formats",
    "es": "Formatos de archivo",
    "fr": "Formats de fichier",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "635280e7595b91215e2ce7aa1b21c1f23e8ad6d215086b20f70d7742dc24a569": {
+   "drop": false,
+   "en": "In JeffCrunch, Recommended Charts lists up to six chart types that suit the selected cells, such as a pie, line, points, or bars, each drawn from your data. Picking one inserts it.",
+   "es": "En JeffCrunch, Gráficos recomendados muestra hasta seis tipos de gráfico adecuados para las celdas seleccionadas, como circular, de líneas, de puntos o de barras, cada uno dibujado con sus datos. Al elegir uno, se inserta.",
+   "fr": "Dans JeffCrunch, Graphiques recommandés propose jusqu’à six types de graphiques adaptés aux cellules sélectionnées, comme un secteur, une courbe, des points ou des barres, chacun dessiné à partir de vos données. Le graphique choisi est inséré.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16611,6 +16637,18 @@
     "fr": ""
    }
   },
+  "89c43343f263390fcdc7f750f6f1ed4254f365a1555965956f72325a5fab1923": {
+   "drop": false,
+   "en": "In JeffCrunch, you can make sparklines, tiny charts inside a cell, in Line, Column, and Win/Loss types from a row or column of values. They can go in one cell or a group of cells, and can color the high, low, first, last, and negative points.",
+   "es": "En JeffCrunch, usted puede crear minigráficos, pequeños gráficos dentro de una celda, de tipo Línea, Columna y Ganancia/pérdida a partir de una fila o columna de valores. Pueden ir en una celda o en un grupo de celdas, y pueden colorear los puntos más alto, más bajo, primero, último y negativos.",
+   "fr": "Dans JeffCrunch, vous pouvez créer des graphiques sparkline, de minuscules graphiques dans une cellule, de type Ligne, Colonne et Gain/perte à partir d’une ligne ou d’une colonne de valeurs. Ils peuvent se placer dans une cellule ou un groupe de cellules, et peuvent colorer les points le plus haut, le plus bas, le premier, le dernier et les points négatifs.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "89c573fba5157463785b19fd1f58ce5f70517aa02eb1928e1ff1a6bb47bdad13": {
    "drop": false,
    "en": "File > Options > New Workbooks sets the font, its size, and the number of sheets a new workbook starts with.",
@@ -17941,18 +17979,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "9b5351148cb0b808e967776f136b87e5a5fd309a0b43575a4ded97c5b1d632b5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Chart Filters button",
-    "es": "Botón de filtros de gráfico",
-    "fr": "Bouton de filtres de graphique"
    }
   },
   "9b6859161de8113f907684721c72da6c12ac9f2d38467316ed33f8169d1e152d": {
@@ -19885,18 +19911,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "bc0a968f1f7b7d1dcffd7df0ca1d6423b44b2fa17b02efa3ffd17947ba49b745": {
-   "drop": false,
-   "en": "In JeffCrunch, Insert > Sparklines makes line, column, and win/loss sparklines from a row or column of values, into one cell or a group of cells. They are drawn inside their cells, can color the high, low, first, last, and negative points, and are saved with the sheet.",
-   "es": "En JeffCrunch, Insertar > Minigráficos crea minigráficos de línea, de columna y de ganancia/pérdida a partir de una fila o columna de valores, en una celda o en un grupo de celdas. Se dibujan dentro de sus celdas, pueden colorear los puntos más alto, más bajo, primero, último y negativos, y se guardan con la hoja.",
-   "fr": "Dans JeffCrunch, Insertion > Graphiques sparkline crée des sparklines en courbe, en colonne et gain/perte à partir d’une ligne ou d’une colonne de valeurs, dans une cellule ou un groupe de cellules. Elles sont dessinées dans leurs cellules, peuvent colorer les points le plus haut, le plus bas, le premier, le dernier et les points négatifs, et sont enregistrées avec la feuille.",
-   "soon": {
-    "drop": false,
-    "en": "Sparklines: date axis with proportional spacing, and hidden rows and columns left out of the drawing",
-    "es": "Minigráficos: eje de fechas con espaciado proporcional y exclusión de filas y columnas ocultas en el dibujo",
-    "fr": "Sparklines : axe de dates avec espacement proportionnel et exclusion des lignes et colonnes masquées du dessin"
    }
   },
   "bc0b94d1aa27281b181db57d0ea0767d2855fd17ad5588a2cc50e0460c6e8108": {
@@ -21937,18 +21951,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d841a4f3a2f4257ae9730886ef93cc1fb32d2ac63ab2afa3363fc139d3619342": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Pivot table calculated fields, calculated items, solve order, and formula list",
-    "es": "Campos calculados, elementos calculados, orden de resolución y lista de fórmulas en tablas dinámicas",
-    "fr": "Champs calculés, éléments calculés, ordre de résolution et liste des formules dans les tableaux croisés dynamiques"
    }
   },
   "d85ddf06f44789f0e37021ae2e348139f130c5fd216d4ee5b7acdde9b32c54bb": {
