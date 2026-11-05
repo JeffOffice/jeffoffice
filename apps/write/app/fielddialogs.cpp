@@ -285,6 +285,33 @@ bool fieldDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     return true;
 }
 
+QString editFieldDialog(QWidget *parent, const QString &codeNow)
+{
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("editFieldDialog"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::FieldDialogs", "Edit Field"));
+    auto *v = new QVBoxLayout(&dlg);
+    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Field codes:"), &dlg));
+    auto *code = new QLineEdit(codeNow, &dlg);
+    code->setObjectName(QStringLiteral("fieldCode"));
+    code->setMinimumWidth(360);
+    v->addWidget(code);
+    auto *hint = new QLabel(&dlg);
+    hint->setObjectName(QStringLiteral("fieldPreview"));
+    v->addWidget(hint);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    v->addWidget(buttons);
+    auto check = [&](const QString &t) {
+        buttons->button(QDialogButtonBox::Ok)->setEnabled(!t.trimmed().isEmpty());
+        hint->setText(fields::isKnown(fields::parseCode(t).name) ? QString() : QCoreApplication::translate("jp::write::FieldDialogs", "This field is kept as it is and not worked out."));
+    };
+    QObject::connect(code, &QLineEdit::textChanged, &dlg, check);
+    check(codeNow);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    return dlg.exec() == QDialog::Accepted ? code->text().trimmed() : QString();
+}
+
 bool tableOfContentsDialog(QWidget *parent, WriteDoc *doc, PageView *view)
 {
     if (!doc || !view) return false;

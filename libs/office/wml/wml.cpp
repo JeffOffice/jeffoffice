@@ -215,12 +215,14 @@ bool settingsChildren(const QByteArray &xml, QVector<SettingsChild> *out, qsizet
 } // namespace
 
 // The settings with the on-or-off element `name` (an empty element of the settings) on or off, in the place the schema gives it: before the first of the elements `later`.
-static QByteArray settingsWithFlag(const QByteArray &settings, const QByteArray &name, bool on, const QVector<QByteArray> &later)
+static QByteArray settingsWithFlag(const QByteArray &settings, const QByteArray &name, bool on, const QVector<QByteArray> &later, const QByteArray &value = QByteArray())
 {
+    // (A setting with a value, not a flag: <w:name w:val="value"/>.)
+    auto valued = [&](const QByteArray &prefix) { return value.isEmpty() ? QByteArray() : " " + prefix + "val=\"" + value + "\""; };
     static const char kXml[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n";
     if (settings.trimmed().isEmpty()) {
         if (!on) return QByteArray();
-        return QByteArray(kXml) + "<w:settings xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><w:" + name + "/></w:settings>";
+        return QByteArray(kXml) + "<w:settings xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><w:" + name + valued("w:") + "/></w:settings>";
     }
     // A part that is one empty element: made one with a start and an end for the setting to be in.
     {
@@ -248,7 +250,7 @@ static QByteArray settingsWithFlag(const QByteArray &settings, const QByteArray 
                 const QByteArray qname = open.mid(1, space < 0 ? -1 : space - 1);
                 const qsizetype colon = qname.indexOf(':');
                 const QByteArray qualified = colon >= 0 ? qname.left(colon + 1) : QByteArray();
-                return settings.left(at) + open + ">" + "<" + qualified + name + "/></" + qname + ">" + settings.mid(close + 1);
+                return settings.left(at) + open + ">" + "<" + qualified + name + valued(qualified) + "/></" + qname + ">" + settings.mid(close + 1);
             }
             break;
         }
@@ -257,7 +259,7 @@ static QByteArray settingsWithFlag(const QByteArray &settings, const QByteArray 
     qsizetype rootEnd = 0;
     QByteArray prefix;
     if (!settingsChildren(settings, &children, &rootEnd, &prefix)) return settings;
-    const QByteArray element = "<" + prefix + name + "/>";
+    const QByteArray element = "<" + prefix + name + valued(prefix) + "/>";
     for (const SettingsChild &c : children) {
         if (c.name != name) continue;
         if (!on) return settings.left(c.begin) + settings.mid(c.end);
@@ -332,6 +334,30 @@ QByteArray settingsWithAutoHyphenation(const QByteArray &settings, bool on)
                                         "doNotAutoCompressPictures", "forceUpgrade", "captions", "readModeInkLockDown", "smartTagType", "schemaLibrary", "shapeDefaults", "doNotEmbedSmartTags",
                                         "decimalSymbol", "listSeparator"};
     return settingsWithFlag(settings, "autoHyphenation", on, later);
+}
+
+// The elements the schema puts after w:autoHyphenation, from the one named on.
+static QVector<QByteArray> afterAutoHyphenationFrom(const QByteArray &first)
+{
+    const QVector<QByteArray> all = {"consecutiveHyphenLimit", "hyphenationZone", "doNotHyphenateCaps", "showEnvelope", "summaryLength", "clickAndTypeStyle", "defaultTableStyle", "evenAndOddHeaders",
+                                     "bookFoldRevPrinting", "bookFoldPrinting", "bookFoldPrintingSheets", "drawingGridHorizontalSpacing", "drawingGridVerticalSpacing", "displayHorizontalDrawingGridEvery",
+                                     "displayVerticalDrawingGridEvery", "doNotUseMarginsForDrawingGridOrigin", "drawingGridHorizontalOrigin", "drawingGridVerticalOrigin", "doNotShadeFormData",
+                                     "noPunctuationKerning", "characterSpacingControl", "printTwoOnOne", "strictFirstAndLastChars", "noLineBreaksAfter", "noLineBreaksBefore", "savePreviewPicture",
+                                     "doNotValidateAgainstSchema", "saveInvalidXml", "ignoreMixedContent", "alwaysShowPlaceholderText", "doNotDemarcateInvalidXml", "saveXmlDataOnly", "useXSLTWhenSaving",
+                                     "saveThroughXslt", "showXMLTags", "alwaysMergeEmptyNamespace", "updateFields", "hdrShapeDefaults", "footnotePr", "endnotePr", "compat", "docVars", "rsids", "mathPr",
+                                     "attachedSchema", "themeFontLang", "clrSchemeMapping", "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures", "forceUpgrade", "captions", "readModeInkLockDown",
+                                     "smartTagType", "schemaLibrary", "shapeDefaults", "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
+    return all.mid(qMax<qsizetype>(0, all.indexOf(first)));
+}
+
+QByteArray settingsWithHyphenationZone(const QByteArray &settings, int twips)
+{
+    return settingsWithFlag(settings, "hyphenationZone", twips != 360, afterAutoHyphenationFrom("hyphenationZone"), QByteArray::number(twips));
+}
+
+QByteArray settingsWithConsecutiveHyphenLimit(const QByteArray &settings, int limit)
+{
+    return settingsWithFlag(settings, "consecutiveHyphenLimit", limit > 0, afterAutoHyphenationFrom("consecutiveHyphenLimit"), QByteArray::number(limit));
 }
 
 QByteArray settingsWithTrackRevisions(const QByteArray &settings, bool on)

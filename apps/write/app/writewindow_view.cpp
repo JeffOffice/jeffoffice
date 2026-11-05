@@ -8,7 +8,9 @@
 #include "app/ruler.h"
 
 #include <QAction>
+#include <QActionGroup>
 #include <QDockWidget>
+#include <QSplitter>
 #include <QStatusBar>
 #include <QTreeWidget>
 
@@ -17,6 +19,13 @@ namespace jp {
 void WriteWindow::createViewExtraActions()
 {
     mk("view.navigationPane", tr("Navigation Pane"), "panel-left", QKeySequence(), [this] { showNavigationPane(act("view.navigationPane")->isChecked()); }, true);
+    // Page movement: the pages in a column, or side by side in one row.
+    auto *movement = new QActionGroup(this);
+    movement->addAction(mk("view.pageMovement.vertical", tr("Vertical"), "arrow-up-down", QKeySequence(), [this] { m_view->setSideToSide(false); }, true));
+    movement->addAction(mk("view.pageMovement.sideToSide", tr("Side to Side"), "arrow-left-right", QKeySequence(), [this] { m_view->setSideToSide(true); }, true));
+    act("view.pageMovement.vertical")->setChecked(true);
+    mk("view.readMode", tr("Read Mode"), "book-open", QKeySequence(), [this] { setReadMode(act("view.readMode")->isChecked()); }, true);
+    mk("view.split", tr("Split"), "rows-2", QKeySequence(), [this] { setSplit(act("view.split")->isChecked()); }, true);
     mk("view.focus", tr("Focus"), "focus", QKeySequence(Qt::Key_F11), [this] { setFocusMode(!m_focusMode); });
 }
 
@@ -50,6 +59,10 @@ void WriteWindow::showNavigationPane(bool show)
 void WriteWindow::setFocusMode(bool on)
 {
     if (m_focusMode == on) return;
+    if (!on && m_readMode) {
+        setReadMode(false);
+        return;
+    }
     m_focusMode = on;
     if (on) {
         m_focusWas.fullScreen = isFullScreen();
@@ -76,6 +89,60 @@ void WriteWindow::setFocusMode(bool on)
         m_focusWas.docks.clear();
     }
     act("view.focus")->setChecked(on);
+    m_view->setFocus(Qt::OtherFocusReason);
+}
+
+// Read Mode: the window as Focus makes it, the pages in a row each fitted to the window, and the text read only; what was there before comes back when it ends.
+void WriteWindow::setReadMode(bool on)
+{
+    if (m_readMode == on) return;
+    if (on && !m_doc) {
+        act("view.readMode")->setChecked(false);
+        return;
+    }
+    if (on) {
+        setOutlineMode(false);
+        m_readWas.readOnly = m_view->readOnly();
+        m_readWas.sideToSide = m_view->sideToSide();
+        m_readWas.zoomMode = int(m_view->zoomMode());
+        m_readWas.zoom = m_view->zoom();
+        m_readMode = true;
+        setFocusMode(true);
+        m_view->setReadOnly(true);
+        m_view->setSideToSide(true);
+        m_view->setZoomMode(write::PageView::ZoomMode::OnePage);
+    } else {
+        m_readMode = false;
+        setFocusMode(false);
+        m_view->setReadOnly(m_readWas.readOnly);
+        m_view->setSideToSide(m_readWas.sideToSide);
+        m_view->setZoomMode(write::PageView::ZoomMode(m_readWas.zoomMode));
+        if (m_view->zoomMode() == write::PageView::ZoomMode::Percent) m_view->setZoom(m_readWas.zoom);
+    }
+    act("view.readMode")->setChecked(on);
+    act("view.pageMovement.sideToSide")->setChecked(m_view->sideToSide());
+    act("view.pageMovement.vertical")->setChecked(!m_view->sideToSide());
+    refreshUi();
+}
+
+void WriteWindow::setSplit(bool on)
+{
+    if (on && !m_doc) {
+        act("view.split")->setChecked(false);
+        return;
+    }
+    if (on == m_split->isVisible()) return;
+    if (on) {
+        m_split->setDocument(m_doc.get());
+        m_split->show();
+        // The two panes share the height; the second begins where the first is.
+        m_splitter->setSizes({m_splitter->height() / 2, m_splitter->height() / 2});
+        m_split->goToPage(m_view->topPage());
+    } else {
+        m_split->hide();
+        m_split->setDocument(nullptr);
+    }
+    act("view.split")->setChecked(on);
     m_view->setFocus(Qt::OtherFocusReason);
 }
 

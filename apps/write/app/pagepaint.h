@@ -22,6 +22,7 @@ struct PageDrawing {
     TextOutput textOutput = TextOutput::Picture;
     int pageCount = 1;
     bool grayscale = false;
+    bool draft = false;                          // Draft view: the header and footer are left out (the page is not drawn with its edges)
     bool gridlines = false;                      // the edges of the cells of tables drawn as faint dotted lines, where the table has no line of its own (on the screen only)
     // The misspelled words get a red wave under them on the screen (never in a proof, a printer, or a PDF, which set `output`). `typingAt` is the caret
     // while a word is being typed: that word is left alone until the caret moves on.

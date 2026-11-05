@@ -396,6 +396,17 @@ void WriteDoc::setAutoHyphenation(bool on)
     setSectionProps(sectionCount() - 1, last);
 }
 
+void WriteDoc::setHyphenation(double zonePoints, int limit)
+{
+    const int zone = qBound(1, int(std::lround(zonePoints * 20)), 31680);
+    limit = qBound(0, limit, 1000);
+    if (m_flow->hyphenZone * 20 == zone && m_flow->hyphenLimit == limit) return;
+    SectionProps last = m_last;
+    last.hyphenationZone = zone;
+    last.consecutiveHyphenLimit = limit;
+    setSectionProps(sectionCount() - 1, last);
+}
+
 void WriteDoc::setDifferentOddEven(bool on)
 {
     if (m_wml.evenAndOddHeaders == on) return;
@@ -645,6 +656,10 @@ void WriteDoc::writeHeaderParts(office::wml::Document *out)
     if (m_wml.evenAndOddHeaders != m_oddEvenAtOpen) changeSetting(settingsWithEvenAndOddHeaders, m_wml.evenAndOddHeaders);
     if (m_flow->mirrorMargins != m_mirrorAtOpen) changeSetting(settingsWithMirrorMargins, m_flow->mirrorMargins);
     if (m_flow->hyphenate != m_hyphenAtOpen) changeSetting(settingsWithAutoHyphenation, m_flow->hyphenate);
+    if (const int zone = int(std::lround(m_flow->hyphenZone * 20)); zone != m_hyphenZoneAtOpen)
+        changeSetting([zone](const QByteArray &settings, bool) { return settingsWithHyphenationZone(settings, zone); }, zone != 360);
+    if (m_flow->hyphenLimit != m_hyphenLimitAtOpen)
+        changeSetting([limit = m_flow->hyphenLimit](const QByteArray &settings, bool) { return settingsWithConsecutiveHyphenLimit(settings, limit); }, m_flow->hyphenLimit > 0);
     // The page color is the document's w:background (the first thing in the file besides the body), shown by a setting of the document.
     if (m_last.pageColor.toUpper() != m_pageColorAtOpen.toUpper()) {
         static const QRegularExpression background(QStringLiteral("<(?:[\\w.-]+:)?background\\b[^>]*?/>|<(?:[\\w.-]+:)?background\\b[^>]*?>.*?</(?:[\\w.-]+:)?background>"), QRegularExpression::DotMatchesEverythingOption);

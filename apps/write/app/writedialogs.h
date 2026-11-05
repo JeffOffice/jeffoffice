@@ -29,6 +29,8 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section);
 bool columnsDialog(QWidget *parent, WriteDoc *doc, int section);
 // Line Numbers: on or off, start at, count by, distance from the text, and when the numbers begin again; for the section or the whole document.
 bool lineNumbersDialog(QWidget *parent, WriteDoc *doc, int section);
+// Layout > Hyphenation > Hyphenation Options: the zone (in points) and the most lines in a row that may end in a hyphen (0: no limit), taken from and put back in the arguments. False if canceled.
+bool hyphenationDialog(QWidget *parent, double *zone, int *limit);
 // Page Borders: which sides, the line (style, width, color), its distance, where it is measured from, and the pages that have it; for the section or the whole document.
 bool pageBordersDialog(QWidget *parent, WriteDoc *doc, int section);
 // Page Number Format: the look of the number, the chapter number before it, and where the numbering starts; for the section or the whole document. Returns whether anything was changed.
@@ -55,6 +57,8 @@ bool bookmarkDialog(QWidget *parent, WriteDoc *doc, PageView *view);
 bool crossReferenceDialog(QWidget *parent, WriteDoc *doc, PageView *view);
 // Field: a field of the list and its code to be edited; OK puts it at the caret with the result worked out.
 bool fieldDialog(QWidget *parent, WriteDoc *doc, PageView *view);
+// Asks for the new code of a field (its code now is shown); the new code, empty if canceled.
+QString editFieldDialog(QWidget *parent, const QString &code);
 // Table of Contents: the levels, whether page numbers show and line up at the right, the leader, and whether lines are links; OK puts the table at the caret.
 bool tableOfContentsDialog(QWidget *parent, WriteDoc *doc, PageView *view);
 // Update Table of Contents: page numbers only, or the entire table. Returns 0 for neither (canceled), 1 for page numbers only, and 2 for the entire table.

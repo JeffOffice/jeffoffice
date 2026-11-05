@@ -57,15 +57,29 @@ WordStats countWordsIn(const QTextDocument *story, int from, int to, bool withEn
     return s;
 }
 
+// The lines of the text's pages that hold part of [from, to).
+static int linesBetween(WriteDoc &doc, int from, int to)
+{
+    flow::Paginator &pager = doc.pager();
+    const int pages = pager.pageCount();
+    int n = 0;
+    for (int i = 0; i < pages; ++i)
+        for (const auto &line : pager.lines(i))
+            if (line.end > from && line.pos < to) ++n;
+    return n;
+}
+
 WordStats countWords(WriteDoc &doc, const QTextCursor &selection, bool notes)
 {
     WordStats s;
     const QTextDocument *story = selection.document() ? selection.document() : doc.story();
     if (selection.hasSelection()) {
         addTo(s, story, selection.selectionStart(), selection.selectionEnd(), notes);
+        if (story == doc.story()) s.lines = linesBetween(doc, selection.selectionStart(), selection.selectionEnd());
         return s;
     }
     addTo(s, doc.story(), 0, doc.story()->characterCount(), notes);
+    s.lines = linesBetween(doc, 0, doc.story()->characterCount());
     if (notes)
         for (const int id : doc.citedFootnotes())
             if (const QTextDocument *note = doc.editableFootnote(id)) addTo(s, note, 0, note->characterCount(), true);

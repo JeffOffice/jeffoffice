@@ -1166,4 +1166,40 @@ int toggleFieldCodes(WriteDoc &doc, const QTextCursor &c, bool all)
     return changed;
 }
 
+namespace {
+
+// The outermost field of the text that holds the position; -1 for none.
+int outermostFieldAt(const StoryScan &scan, int position)
+{
+    int at = fieldContaining(scan, position);
+    while (at >= 0 && scan.fields[at].parent >= 0) at = scan.fields[at].parent;
+    return at;
+}
+
+} // namespace
+
+QString fieldCodeAt(WriteDoc &doc, int position)
+{
+    const StoryScan scan = scanStory(doc.story(), false);
+    const int at = outermostFieldAt(scan, position);
+    return at < 0 ? QString() : scan.instructionOf(at).trimmed();
+}
+
+bool replaceFieldCode(WriteDoc &doc, int position, const QString &code)
+{
+    if (code.trimmed().isEmpty()) return false;
+    const StoryScan scan = scanStory(doc.story(), false);
+    const int at = outermostFieldAt(scan, position);
+    if (at < 0) return false;
+    const FieldPlace &f = scan.fields[at];
+    if (f.locked) return false;
+    for (const CodePiece &piece : f.code)
+        if (piece.field >= 0) return false;
+    QTextCursor whole(doc.story());
+    whole.setPosition(f.begin);
+    whole.setPosition(f.end + 1, QTextCursor::KeepAnchor);
+    const WriteDoc::StepGroup group(doc);
+    return insertField(doc, whole, code);
+}
+
 } // namespace jp::write

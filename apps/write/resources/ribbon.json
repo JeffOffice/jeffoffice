@@ -625,7 +625,9 @@
               "keytip": "HY",
               "menu": [
                 "layout.hyphenation.none",
-                "layout.hyphenation.auto"
+                "layout.hyphenation.auto",
+                "-",
+                "layout.hyphenation.options"
               ]
             }
           ]
@@ -1238,6 +1240,18 @@
             {
               "large": "view.printLayout",
               "keytip": "P"
+            },
+            {
+              "large": "view.draft",
+              "keytip": "D"
+            },
+            {
+              "large": "view.outline",
+              "keytip": "O"
+            },
+            {
+              "large": "view.readMode",
+              "keytip": "R"
             }
           ]
         },
@@ -1260,6 +1274,30 @@
             {
               "large": "view.navigationPane",
               "keytip": "SN"
+            }
+          ]
+        },
+        {
+          "name": "Window",
+          "keytip": "ZW",
+          "items": [
+            {
+              "large": "view.split",
+              "keytip": "SP"
+            }
+          ]
+        },
+        {
+          "name": "Page Movement",
+          "keytip": "ZM",
+          "items": [
+            {
+              "large": "view.pageMovement.vertical",
+              "keytip": "MV"
+            },
+            {
+              "large": "view.pageMovement.sideToSide",
+              "keytip": "MS"
             }
           ]
         },
@@ -1311,6 +1349,40 @@
             {
               "large": "zoom.pageWidth",
               "keytip": "I"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Help",
+      "keytip": "Y",
+      "groups": [
+        {
+          "name": "Help",
+          "keytip": "ZH",
+          "items": [
+            {
+              "large": "help.show",
+              "keytip": "H"
+            },
+            {
+              "large": "help.shortcuts",
+              "keytip": "K"
+            }
+          ]
+        },
+        {
+          "name": "About",
+          "keytip": "ZA",
+          "items": [
+            {
+              "large": "help.whatsNew",
+              "keytip": "N"
+            },
+            {
+              "large": "help.feedback",
+              "keytip": "F"
             }
           ]
         }
@@ -1419,6 +1491,97 @@
             {
               "small": "hf.linkPrevious",
               "keytip": "LP"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Outlining",
+      "keytip": "JO",
+      "context": "Outlining",
+      "color": "headerFooter",
+      "groups": [
+        {
+          "name": "Outline Tools",
+          "keytip": "ZT",
+          "items": [
+            {
+              "small": "outline.toHeading1",
+              "keytip": "H"
+            },
+            {
+              "small": "outline.promote",
+              "keytip": "L"
+            },
+            {
+              "small": "outline.demote",
+              "keytip": "R"
+            },
+            {
+              "small": "outline.toBody",
+              "keytip": "B"
+            },
+            {
+              "small": "outline.moveUp",
+              "keytip": "U"
+            },
+            {
+              "small": "outline.moveDown",
+              "keytip": "D"
+            },
+            {
+              "small": "outline.expand",
+              "keytip": "E"
+            },
+            {
+              "small": "outline.collapse",
+              "keytip": "C"
+            }
+          ]
+        },
+        {
+          "name": "Show",
+          "keytip": "ZS",
+          "items": [
+            {
+              "large": {
+                "id": "outline.showLevel",
+                "text": "Show Level",
+                "icon": "list-tree"
+              },
+              "keytip": "V",
+              "menu": [
+                "outline.level.all",
+                "-",
+                "outline.level.1",
+                "outline.level.2",
+                "outline.level.3",
+                "outline.level.4",
+                "outline.level.5",
+                "outline.level.6",
+                "outline.level.7",
+                "outline.level.8",
+                "outline.level.9"
+              ]
+            },
+            {
+              "small": "outline.showFormatting",
+              "keytip": "F"
+            },
+            {
+              "small": "outline.firstLineOnly",
+              "keytip": "L"
+            }
+          ]
+        },
+        {
+          "name": "Close",
+          "keytip": "ZX",
+          "items": [
+            {
+              "large": "outline.close",
+              "keytip": "X"
             }
           ]
         }

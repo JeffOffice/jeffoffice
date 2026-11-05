@@ -426,21 +426,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
     }
     if (e->button() != Qt::LeftButton) return;
     // Ctrl+click on a link inside the text (a reference or a table of contents line with its link, or a link to a bookmark) goes to what it names.
-    if ((e->modifiers() & Qt::ControlModifier) && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story()) {
-        const Hyperlink link = hyperlinkAt(*m_doc, at);
-        if (link.valid() && link.anchor.isEmpty() && !link.address.isEmpty()) {
-            if (mayFollow(link.address)) Q_EMIT linkFollowed(link.address, link.text);
-            else Q_EMIT notice(tr("JeffWrite only follows links to web and email addresses."));
-            return;
-        }
-        const int target = linkTargetAt(*m_doc, at);
-        if (target >= 0) {
-            QTextCursor c(m_doc->story());
-            c.setPosition(target);
-            showCursor(c);
-            return;
-        }
-    }
+    if ((e->modifiers() & Qt::ControlModifier) && followLinkAt(at)) return;
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
     const bool again = now - m_lastClickTime < QApplication::doubleClickInterval() && (e->position().toPoint() - m_lastPos).manhattanLength() < 6;
     // (A double click event is the second press of a pair, whatever came before it.)
@@ -589,7 +575,15 @@ void PageView::mouseDoubleClickEvent(QMouseEvent *e)
             e->accept();
             return;
         }
-        if (!m_hf.active && area != Area::Body && (leaveNote(), enterHeaderFooter(hit.page, area == Area::Footer))) {
+        if (!m_hf.active && !m_note.active && area == Area::Body && !(e->modifiers() & (Qt::ControlModifier | Qt::ShiftModifier))) {
+            // A footnote's mark: the note is edited where it stands.
+            const int at = positionAt(hit);
+            if (at >= 0 && openNoteAt(at)) {
+                e->accept();
+                return;
+            }
+        }
+        if (!m_hf.active && !m_draft && area != Area::Body && (leaveNote(), enterHeaderFooter(hit.page, area == Area::Footer))) {
             const int at = positionAt(hit);
             if (at >= 0) {
                 m_cursor.setPosition(at);
@@ -601,6 +595,30 @@ void PageView::mouseDoubleClickEvent(QMouseEvent *e)
     }
     // (A double click is a second press: the press handler counts it.)
     mousePressEvent(e);
+}
+
+bool PageView::openNoteAt(int at)
+{
+    if (!m_doc || m_hf.active || m_cursor.document() != m_doc->story()) return false;
+    const int id = footnoteReferenceAt(*m_doc, at);
+    return id >= 0 && enterFootnote(id);
+}
+
+bool PageView::followLinkAt(int at)
+{
+    if (!m_doc || m_hf.active || m_note.active || m_cursor.document() != m_doc->story()) return false;
+    const Hyperlink link = hyperlinkAt(*m_doc, at);
+    if (link.valid() && link.anchor.isEmpty() && !link.address.isEmpty()) {
+        if (mayFollow(link.address)) Q_EMIT linkFollowed(link.address, link.text);
+        else Q_EMIT notice(tr("JeffWrite only follows links to web and email addresses."));
+        return true;
+    }
+    const int target = linkTargetAt(*m_doc, at);
+    if (target < 0) return false;
+    QTextCursor c(m_doc->story());
+    c.setPosition(target);
+    showCursor(c);
+    return true;
 }
 
 void PageView::contextMenuEvent(QContextMenuEvent *e)
@@ -624,6 +642,13 @@ void PageView::wheelEvent(QWheelEvent *e)
     if (e->modifiers() & Qt::ControlModifier) {
         const double steps = e->angleDelta().y() / 120.0;
         if (steps != 0) setZoom(std::round(m_zoom * 10 + steps) / 10);
+        e->accept();
+        return;
+    }
+    if (m_sideToSide && e->angleDelta().x() == 0 && e->angleDelta().y() != 0) {
+        // (Pages side by side: the wheel turns them past.)
+        horizontalScrollBar()->setValue(horizontalScrollBar()->value() - e->angleDelta().y());
+        if (!pagesComplete() && horizontalScrollBar()->value() >= horizontalScrollBar()->maximum() - 2) startPagination();
         e->accept();
         return;
     }

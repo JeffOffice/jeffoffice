@@ -30,6 +30,7 @@ class QLabel;
 class QMenu;
 class QPrinter;
 class QSlider;
+class QSplitter;
 class QToolButton;
 
 namespace jp {
@@ -44,6 +45,7 @@ struct RibbonParts;
 class SizeCombo;
 class StylesPane;
 class NavigationPane;
+class WriteOutlineView;
 class WriteFileScreen;
 class WriteFindPane;
 struct MailUi;
@@ -84,6 +86,8 @@ public:
     QStringList actionIds() const override;
     Ribbon *ribbon() const override { return m_ribbon; }
     write::PageView *view() const { return m_view; }
+    // Fills a menu with what a right click offers where the pointer was (or the caret): the commands for text, and for a link, a field, a note, a picture, a table, or a change under it.
+    void fillContextMenu(QMenu &menu);
     // Brings the commands up to date with the selection at once (the window does it a moment after a change; a test does not wait for the moment).
     void refreshNow() { refreshUi(); }
     write::WriteDoc *document() const { return m_doc.get(); }
@@ -124,6 +128,10 @@ public:
     void setTextFileChooser(const std::function<QString()> &chooser) { m_textFileChooser = chooser; }
     // What asks the person before a link is followed that needs it (tests stand in for the message box): the question; true to go on.
     void setLinkAsker(const std::function<bool(const QString &)> &asker) { m_linkAsker = asker; }
+    // What asks for a field's new code when it is edited (tests stand in for the box): the field's code now; the new code, empty for none.
+    void setFieldCodeAsker(const std::function<QString(const QString &)> &asker) { m_fieldCodeAsker = asker; }
+    // What asks for the hyphenation zone and limit (tests stand in for the box): changes them in place, true to take them.
+    void setHyphenationAsker(const std::function<bool(double &, int &)> &asker) { m_hyphenationAsker = asker; }
     void setLinkOpener(const std::function<void(const QString &)> &opener) { m_linkOpener = opener; }
     void setPictureChooser(const std::function<QString()> &chooser) { m_pictureChooser = chooser; }
     write::Ruler *ruler() const { return m_ruler; }
@@ -235,6 +243,18 @@ public:
     // Focus mode: the ribbon, ruler, status bar, and panes hidden and the window full screen (View > Focus, F11; Esc leaves it).
     void setFocusMode(bool on);
     bool focusMode() const { return m_focusMode; }
+    // Read Mode (View > Read Mode): Focus mode with the pages side by side, each fitted to the window, and nothing typed; Esc, F11, or the command again leaves it.
+    bool readMode() const { return m_readMode; }
+    void setReadMode(bool on);
+    // Outline view (View > Outline): the paragraphs as a tree to promote, demote, and move, in place of the pages; the Outlining tab is there while it is.
+    bool outlineMode() const { return m_outlineOn; }
+    void setOutlineMode(bool on);
+    // Draft (View > Draft): the pages run on without edges, headers, or footers; Print Layout and Outline each end it.
+    void setDraftView(bool on);
+    WriteOutlineView *outlineView() const { return m_outline; }
+    // View > Split: a second pane under the pages shows the same document, scrolled and zoomed on its own, for looking at one place while writing in another. It does not take typing.
+    write::PageView *splitView() const { return m_split; }
+    void setSplit(bool on);
 
     // The Styles pane on the right (made when first asked for, so null before).
     void showStylesPane();
@@ -286,6 +306,7 @@ private:
     int resolveShown(bool accept);
     QVector<write::Revision> shownRevisions() const;
     void addReviewContextMenu(QMenu &menu);
+    void addLinkFieldNoteContextMenu(QMenu &menu);
     void createEditingActions();
     void createHeaderFooterActions();
     void createNoteActions();
@@ -298,6 +319,8 @@ private:
     void createInsertActions();
     void createLayoutExtraActions();
     void createViewExtraActions();
+    void createOutlineActions();
+    void outlineEdited();
     void refreshViewUi();
     void layoutRibbonParts(RibbonParts &parts);
     void refreshLayoutUi();
@@ -379,6 +402,7 @@ private:
     WriteFindPane *m_find = nullptr;
     QDockWidget *m_findDock = nullptr;
     QToolButton *m_langLabel = nullptr;
+    QLabel *m_sectionLabel = nullptr;
     QLabel *m_pageLabel = nullptr, *m_wordLabel = nullptr, *m_zoomLabel = nullptr;
     QSlider *m_zoomSlider = nullptr;
     bool m_noteLimitShown = false;   // the status bar has said that the document holds the most notes
@@ -389,15 +413,27 @@ private:
     QList<MeasureSpin *> m_indentFields;
     QWidget *m_styleGallery = nullptr;
     std::function<void(const QString &)> m_linkOpener;
+    std::function<QString(const QString &)> m_fieldCodeAsker;
+    std::function<bool(double &, int &)> m_hyphenationAsker;
     std::function<bool(const QString &)> m_linkAsker;
     std::function<QString()> m_textFileChooser;
     NavigationPane *m_nav = nullptr;
     QDockWidget *m_navDock = nullptr;
     bool m_focusMode = false;
+    WriteOutlineView *m_outline = nullptr;
+    QSplitter *m_splitter = nullptr;
+    write::PageView *m_split = nullptr;
+    bool m_outlineOn = false, m_outlineBusy = false;
     struct FocusWas {
         bool fullScreen = false, ribbon = true, ruler = true, status = true;
         QList<QPointer<QDockWidget>> docks;
     } m_focusWas;
+    bool m_readMode = false;
+    struct {
+        bool readOnly = false, sideToSide = false;
+        int zoomMode = 0;
+        double zoom = 1;
+    } m_readWas;
     StylesPane *m_styles = nullptr;
     QDockWidget *m_stylesDock = nullptr;
     PainterMode m_painter = PainterMode::Off;

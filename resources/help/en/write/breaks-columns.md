@@ -1,5 +1,5 @@
 # Breaks, columns, hyphenation, and line numbers
-<!-- keywords: break, breaks, page break, column break, section break, continuous, next page, even page, odd page, columns, column, two columns, three columns, left, right, line between, more columns, hyphenation, hyphenate, automatic hyphenation, line numbers, line numbering, mirrored margins, mirror margins, inside, outside, facing pages, custom margins -->
+<!-- keywords: break, breaks, page break, column break, section break, continuous, next page, even page, odd page, columns, column, two columns, three columns, left, right, line between, more columns, hyphenation, hyphenate, automatic hyphenation, hyphenation zone, consecutive hyphens, line numbers, line numbering, mirrored margins, mirror margins, inside, outside, facing pages, custom margins -->
 
 All of these are on the **Layout** tab, in the **Page Setup** group.
 
@@ -28,6 +28,8 @@ A **section** is a part of the document with its own page setup, so it can have 
 ## Hyphenation
 
 **Layout > Hyphenation > Automatic** splits long words at the end of a line, with a hyphen, so the right edge looks smoother. **None** turns it off. It uses the word lists for the language of the text. It applies to the whole document.
+
+**Hyphenation Options** has two numbers. The **hyphenation zone** is the empty room, in points, at the end of a line. A word is split only if moving the whole word down would leave more than that much room. The **limit** is the most lines in a row that may end in a hyphen. After that many, the next word moves down whole. "No limit" lets any number of lines in a row end in a hyphen.
 
 ## Line numbers
 

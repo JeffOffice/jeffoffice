@@ -18,6 +18,9 @@ namespace jp {
 void WriteWindow::createHelpActions()
 {
     mk("help.show", tr("Help"), "circle-help", QKeySequence::HelpContents, [this] { showHelp(helpContext()); });
+    mk("help.shortcuts", tr("Keyboard Shortcuts"), "keyboard", QKeySequence(), [this] { showHelp(QStringLiteral("keyboard")); });
+    mk("help.whatsNew", tr("What's New"), "sparkles", QKeySequence(), [] { help::openUrl(help::whatsNewUrl()); });
+    mk("help.feedback", tr("Feedback"), "smile", QKeySequence(), [] { help::openUrl(help::feedbackUrl()); });
     connect(m_ribbon, &Ribbon::helpClicked, this, [this] { act("help.show")->trigger(); });
 }
 

@@ -30,7 +30,7 @@ bool AppWindow::commandAllowedReadOnly(const QString &id)
                  "file.openDialog", "file.openText", "file.options", "file.print", "file.printNow", "file.save", "file.save.jpub", "file.save.pub", "file.saveAs", "file.saveAsPub",
                  "file.saveCopy", "file.saveTemplate",
                  "find.find", "find.goto", "find.gotoSpecial", "find.next",
-                 "help.feedback", "help.shortcuts", "help.show", "help.whatsNew",
+                 "help.feedback", "help.shortcuts", "help.show", "help.whatsNew", "view.pageMovement.sideToSide", "view.pageMovement.vertical", "view.readMode", "view.draft", "view.split",
                  "show.fromCurrent", "show.fromStart", "show.presenterView",
                  "view.baselines", "view.boundaries", "view.collapseRibbon", "view.fields", "view.fit", "view.formulaBar", "view.formulas", "view.graphics", "view.gridlines", "view.guides",
                  "view.headings", "view.marks", "view.master", "view.measurement", "view.normal", "view.notes", "view.outline", "view.pageBreakView", "view.pageBreaks", "view.pageLayout",

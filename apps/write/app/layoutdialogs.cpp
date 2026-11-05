@@ -29,6 +29,7 @@
 #include <QRadioButton>
 #include <QScrollArea>
 #include <QSignalBlocker>
+#include <QDoubleSpinBox>
 #include <QSpinBox>
 #include <QVBoxLayout>
 #include <algorithm>
@@ -174,6 +175,35 @@ bool columnsDialog(QWidget *parent, WriteDoc *doc, int section)
     }
     after = normalized(after);
     return applyToSections(*doc, section, scope->currentIndex() == 1, [after](office::wml::SectionProps *p) { setColumnSetup(p, after); }) > 0;
+}
+
+bool hyphenationDialog(QWidget *parent, double *zone, int *limit)
+{
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("hyphenationDialog"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::LayoutDialogs", "Hyphenation Options"));
+    auto *form = new QFormLayout(&dlg);
+    auto *z = new QDoubleSpinBox(&dlg);
+    z->setObjectName(QStringLiteral("hyphenationZone"));
+    z->setRange(0.05, 1584);
+    z->setDecimals(2);
+    z->setSuffix(QCoreApplication::translate("jp::write::LayoutDialogs", " pt"));
+    z->setValue(*zone);
+    auto *n = new QSpinBox(&dlg);
+    n->setObjectName(QStringLiteral("hyphenLimit"));
+    n->setRange(0, 1000);
+    n->setSpecialValueText(QCoreApplication::translate("jp::write::LayoutDialogs", "No limit"));
+    n->setValue(*limit);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Hyphenation zone:"), z);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Limit consecutive hyphens to:"), n);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    form->addRow(buttons);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    if (dlg.exec() != QDialog::Accepted) return false;
+    *zone = z->value();
+    *limit = n->value();
+    return true;
 }
 
 bool lineNumbersDialog(QWidget *parent, WriteDoc *doc, int section)

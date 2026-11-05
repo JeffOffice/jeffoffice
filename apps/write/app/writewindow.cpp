@@ -4,6 +4,8 @@
 
 #include "app/icons.h"
 #include "app/keytips.h"
+#include "app/writeoutlineview.h"
+#include <QSplitter>
 #include "app/pageview.h"
 #include "app/reviewpane.h"
 #include "app/ribbon.h"
@@ -88,7 +90,20 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     column->setSpacing(0);
     m_ruler = new write::Ruler(m_view, central);
     column->addWidget(m_ruler);
-    column->addWidget(m_view, 1);
+    // The pages, with room below them for a second view of the same document (View > Split).
+    m_splitter = new QSplitter(Qt::Vertical, central);
+    m_splitter->setChildrenCollapsible(false);
+    m_splitter->addWidget(m_view);
+    m_split = new write::PageView(m_splitter);
+    m_split->setObjectName(QStringLiteral("splitView"));
+    m_split->setAccessibleName(tr("Document, second pane"));
+    m_split->setReadOnly(true);
+    m_split->hide();
+    m_splitter->addWidget(m_split);
+    column->addWidget(m_splitter, 1);
+    m_outline = new WriteOutlineView(central);
+    m_outline->hide();
+    column->addWidget(m_outline, 1);
     setCentralWidget(central);
 
     createActions();
@@ -188,17 +203,23 @@ bool WriteWindow::isModified() const { return m_doc && m_doc->isModified(); }
 
 void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QString &path)
 {
+    if (m_outlineOn) setOutlineMode(false);
+    m_split->setDocument(nullptr);
     m_view->setDocument(nullptr);
     m_doc = std::move(doc);
     m_path = path;
     if (m_doc) {
         m_doc->filePath = path;
         connect(m_doc.get(), &write::WriteDoc::modifiedChanged, this, [this] { updateTitle(); });
-        connect(m_doc.get(), &write::WriteDoc::historyChanged, this, [this] { m_refreshTimer.start(); });
+        connect(m_doc.get(), &write::WriteDoc::historyChanged, this, [this] {
+            m_refreshTimer.start();
+            if (m_outlineOn && !m_outlineBusy) m_outline->rebuild();
+        });
         resetEditPlaces();
         connect(m_doc->story(), &QTextDocument::contentsChange, this, [this](int position, int, int added) { recordPlace(position + added); });
     }
     m_view->setDocument(m_doc.get());
+    if (m_split->isVisible()) m_split->setDocument(m_doc.get());
     m_view->setZoomMode(write::PageView::ZoomMode::Percent);
     m_view->setZoom(1.0);
     if (m_doc) {
@@ -246,6 +267,7 @@ void WriteWindow::createActions()
     createInsertActions();
     createLayoutExtraActions();
     createViewExtraActions();
+    createOutlineActions();
     createStyleActions();
     createHomeActions();
     createProtectActions();
@@ -421,18 +443,30 @@ void WriteWindow::showZoomDialog()
 void WriteWindow::showContextMenu(const QPoint &globalPos)
 {
     QMenu menu(this);
+    fillContextMenu(menu);
+    menu.exec(globalPos);
+}
+
+void WriteWindow::fillContextMenu(QMenu &menu)
+{
     write::addSpellingSuggestions(menu, m_view);
     for (const char *id : {"edit.cut", "edit.copy", "edit.paste"}) menu.addAction(act(QString::fromLatin1(id)));
+    // The ways to paste: with the source's formatting, merged into the text round it, or as text only.
+    QMenu *paste = menu.addMenu(tr("Paste Options"));
+    for (const char *id : {"edit.paste", "edit.pasteMerge", "edit.pasteText"}) paste->addAction(act(QString::fromLatin1(id)));
     menu.addSeparator();
     menu.addAction(act("fmt.fontDialog"));
     menu.addAction(act("para.dialog"));
+    QMenu *lists = menu.addMenu(tr("Bullets and Numbering"));
+    lists->addAction(act("para.bullets"));
+    lists->addAction(act("para.numbers"));
     menu.addAction(act("edit.selectAll"));
+    addLinkFieldNoteContextMenu(menu);
     // On a picture: how the text goes round it, and its alt text.
     if (m_view->selectedPicture() >= 0) addPictureContextMenu(menu);
     // In a table: its rows and columns, merging, lines, size, and properties.
     if (cursorInTable()) addTableContextMenu(menu);
     addReviewContextMenu(menu);
-    menu.exec(globalPos);
 }
 
 // ---- keeping the controls in step with the text
@@ -598,6 +632,11 @@ void WriteWindow::updateStatus()
     const int pages = m_view->pageCount();
     const QString total = m_view->pagesComplete() ? QString::number(pages) : QStringLiteral("%1+").arg(pages);
     m_pageLabel->setText(tr("Page %1 of %2").arg(m_doc ? m_view->currentPage() + 1 : 0).arg(total));
+    if (m_sectionLabel) {
+        const bool several = m_doc && m_doc->sectionCount() > 1;
+        m_sectionLabel->setVisible(several);
+        if (several) m_sectionLabel->setText(tr("Section %1").arg(m_view->cursorSection() + 1));
+    }
     updateLanguage();
     if (m_doc && !m_wordTimer.isActive()) m_wordTimer.start();
 }

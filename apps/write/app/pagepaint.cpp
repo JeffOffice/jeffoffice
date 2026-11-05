@@ -192,6 +192,11 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
     }
     if (d.spelling && !d.output) paintCellWaves(p, page, d);
     if (d.editedStory && !d.output && !d.editIsNote) paintEditedEdge(p, page, d);
+    if (d.draft && !d.output) {
+        // (The margins above and below the text hold the header and footer only: Draft leaves them blank.)
+        p->fillRect(QRectF(0, 0, page.size.width(), page.bodyArea.top()), Qt::white);
+        p->fillRect(QRectF(0, page.bodyArea.bottom(), page.size.width(), page.size.height() - page.bodyArea.bottom()), Qt::white);
+    }
 }
 
 } // namespace jp::write

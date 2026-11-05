@@ -57,7 +57,7 @@ QByteArray packSection(const SectionProps &s)
     d << s.type << qint32(s.pageW) << qint32(s.pageH) << s.orient << qint32(s.top) << qint32(s.right) << qint32(s.bottom) << qint32(s.left) << qint32(s.header)
       << qint32(s.footer) << qint32(s.gutter) << qint32(s.cols) << qint32(s.colSpace) << s.colSep << s.colEqual << qint32(s.colDefs.size());
     for (const ColumnDef &c : s.colDefs) d << qint32(c.width) << qint32(c.space);
-    d << qint32(s.pageStart.value_or(-1)) << s.pageFormat << s.titlePg << s.hasPgSz << s.hasPgMar << s.hasCols << s.attrs << packRaw(s.extra) << s.pgSzAttrs << s.pgMarAttrs << s.pgNumAttrs << s.colsAttrs << s.oddEvenHeaders << s.mirrorMargins << s.autoHyphenation << s.pageColor;
+    d << qint32(s.pageStart.value_or(-1)) << s.pageFormat << s.titlePg << s.hasPgSz << s.hasPgMar << s.hasCols << s.attrs << packRaw(s.extra) << s.pgSzAttrs << s.pgMarAttrs << s.pgNumAttrs << s.colsAttrs << s.oddEvenHeaders << s.mirrorMargins << s.autoHyphenation << s.pageColor << qint32(s.hyphenationZone) << qint32(s.consecutiveHyphenLimit);
     return out;
 }
 
@@ -98,6 +98,12 @@ SectionProps unpackSection(const QByteArray &packed)
     QString pageColor;
     d >> pageColor;
     if (d.status() == QDataStream::Ok) s.pageColor = pageColor;
+    qint32 zone = 360, limit = 0;
+    d >> zone >> limit;
+    if (d.status() == QDataStream::Ok) {
+        s.hyphenationZone = zone;
+        s.consecutiveHyphenLimit = limit;
+    }
     return s;
 }
 
@@ -446,7 +452,10 @@ void WriteDoc::setUpEnvironment()
         f.hyphenate = compat.autoHyphenation;
         f.hyphenZone = compat.hyphenationZone / 20.0;
         f.mirrorMargins = compat.mirrorMargins;
+        f.hyphenLimit = compat.consecutiveHyphenLimit;
         m_last.autoHyphenation = m_hyphenAtOpen = compat.autoHyphenation;
+        m_last.hyphenationZone = m_hyphenZoneAtOpen = compat.hyphenationZone;
+        m_last.consecutiveHyphenLimit = m_hyphenLimitAtOpen = compat.consecutiveHyphenLimit;
         m_last.mirrorMargins = m_mirrorAtOpen = compat.mirrorMargins;
         // (And how the endnotes are numbered, read here once, not at each story's making.)
         const office::wml::NoteNumbering endnotes = office::wml::readNoteNumbering(partData(m_wml.settingsName), "endnotePr");
@@ -611,6 +620,11 @@ void WriteDoc::syncSections()
         }
         if (m_last.pageColor.toLower() != (m_flow->pageColor.isValid() ? m_flow->pageColor.name().mid(1) : QString())) {
             m_flow->pageColor = m_last.pageColor.isEmpty() ? QColor() : QColor(QLatin1Char('#') + m_last.pageColor);
+            oddEvenChanged = true;
+        }
+        if (m_last.hyphenationZone != int(std::lround(m_flow->hyphenZone * 20)) || m_last.consecutiveHyphenLimit != m_flow->hyphenLimit) {
+            m_flow->hyphenZone = m_last.hyphenationZone / 20.0;
+            m_flow->hyphenLimit = m_last.consecutiveHyphenLimit;
             oddEvenChanged = true;
         }
         if (m_last.autoHyphenation != m_flow->hyphenate) {

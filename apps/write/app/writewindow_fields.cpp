@@ -7,11 +7,13 @@
 #include "app/writedialogs.h"
 #include "core/editops.h"
 #include "core/fieldops.h"
+#include "core/linkops.h"
 #include "core/refops.h"
 #include "core/tocops.h"
 
 #include <QAction>
 #include <QLocale>
+#include <QMenu>
 #include <QStatusBar>
 
 namespace jp {
@@ -123,6 +125,49 @@ void WriteWindow::createFieldActions()
     mk("refs.previousFootnote", tr("Previous Footnote"), "arrow-up", QKeySequence(), [note] { note(false, false); });
     mk("refs.nextEndnote", tr("Next Endnote"), "arrow-down", QKeySequence(), [note] { note(true, true); });
     mk("refs.previousEndnote", tr("Previous Endnote"), "arrow-up", QKeySequence(), [note] { note(false, true); });
+}
+
+// The right-click menu on a link (open, edit, remove), a field (update, show its code, lock, unlink), or a footnote's mark (go to the note): the commands are the ribbon's own.
+void WriteWindow::addLinkFieldNoteContextMenu(QMenu &menu)
+{
+    if (!m_doc || !inText(m_view)) return;
+    const int at = m_view->contextPosition();
+    auto local = [&](const char *id, const QString &text, const std::function<void()> &run) {
+        QAction *a = menu.addAction(text, this, run);
+        a->setObjectName(QString::fromLatin1(id));
+        return a;
+    };
+    bool sep = false;
+    auto separate = [&] {
+        if (!sep) menu.addSeparator();
+        sep = true;
+    };
+    if (write::hyperlinkAt(*m_doc, at).valid()) {
+        separate();
+        local("ctx.openLink", tr("Open Link"), [this, at] { m_view->followLinkAt(at); });
+        local("ctx.editLink", tr("Edit Link…"), [this] { act("insert.hyperlink")->trigger(); });
+        menu.addAction(act("insert.removeHyperlink"));
+    } else {
+        menu.addAction(act("insert.hyperlink"));
+    }
+    QTextCursor where(m_doc->story());
+    where.setPosition(qBound(0, at, m_doc->story()->characterCount() - 1));
+    if (write::fieldsNearSelection(m_doc->story(), where).any) {
+        separate();
+        local("ctx.editField", tr("Edit Field…"), [this, at] {
+            const QString now = write::fieldCodeAt(*m_doc, at);
+            const QString code = m_fieldCodeAsker ? m_fieldCodeAsker(now) : write::editFieldDialog(this, now);
+            if (!code.trimmed().isEmpty() && code.trimmed() != now && !write::replaceFieldCode(*m_doc, at, code)) statusBar()->showMessage(tr("This field can't be edited here."), 6000);
+            m_view->setFocus(Qt::OtherFocusReason);
+            m_view->viewport()->update();
+            refreshUi();
+        });
+        for (const char *id : {"fields.update", "fields.toggleCode", "fields.lock", "fields.unlock", "fields.unlink"}) menu.addAction(act(QString::fromLatin1(id)));
+    }
+    if (const int note = write::footnoteReferenceAt(*m_doc, at); note >= 0) {
+        separate();
+        local("ctx.goToNote", tr("Go to Footnote"), [this, at] { m_view->openNoteAt(at); });
+    }
 }
 
 } // namespace jp

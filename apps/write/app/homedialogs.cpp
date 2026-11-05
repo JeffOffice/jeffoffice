@@ -125,7 +125,7 @@ void wordCountDialog(QWidget *parent, int pages, bool selection, const std::func
     v->addWidget(title);
     auto *grid = new QGridLayout;
     v->addLayout(grid);
-    const QStringList labels = {QCoreApplication::translate("jp::write::HomeDialogs", "Pages:"), QCoreApplication::translate("jp::write::HomeDialogs", "Words:"), QCoreApplication::translate("jp::write::HomeDialogs", "Characters (no spaces):"), QCoreApplication::translate("jp::write::HomeDialogs", "Characters (with spaces):"), QCoreApplication::translate("jp::write::HomeDialogs", "Paragraphs:")};
+    const QStringList labels = {QCoreApplication::translate("jp::write::HomeDialogs", "Pages:"), QCoreApplication::translate("jp::write::HomeDialogs", "Words:"), QCoreApplication::translate("jp::write::HomeDialogs", "Characters (no spaces):"), QCoreApplication::translate("jp::write::HomeDialogs", "Characters (with spaces):"), QCoreApplication::translate("jp::write::HomeDialogs", "Paragraphs:"), QCoreApplication::translate("jp::write::HomeDialogs", "Lines:")};
     QVector<QLabel *> values;
     for (int i = 0; i < labels.size(); ++i) {
         grid->addWidget(plainLabel(new QLabel(labels.at(i), &dlg)), i, 0);
@@ -146,6 +146,7 @@ void wordCountDialog(QWidget *parent, int pages, bool selection, const std::func
         values[2]->setText(QString::number(s.charactersNoSpaces));
         values[3]->setText(QString::number(s.charactersWithSpaces));
         values[4]->setText(QString::number(s.paragraphs));
+        values[5]->setText(QString::number(s.lines));
     };
     QObject::connect(notes, &QCheckBox::toggled, &dlg, fill);
     fill();

@@ -70,6 +70,12 @@ public:
     // Page Width fits the page to the width of the window, One Page the whole page in the window, Many Pages `across` pages by `down`.
     void setZoomMode(ZoomMode mode, int across = 2, int down = 1);
     int pagesAcross() const { return m_across; }
+    // Page movement: the pages in a column (the usual), or all in one row that the window scrolls side to side.
+    // Draft: the pages run on without edges, shadows, headers, or footers, a dotted line (named for a page or section break) where each ends.
+    void setDraft(bool on);
+    bool draft() const { return m_draft; }
+    void setSideToSide(bool on);
+    bool sideToSide() const { return m_sideToSide; }
 
     // ---- pages
     // The number of pages a page made for the view shows (NUMPAGES), -1 where the page isn't made or shows none: what the page says, for the tests.
@@ -101,6 +107,10 @@ public:
     SpellCheck *editedSpelling() const { return (m_hf.active || m_note.active) && m_hfSpell ? m_hfSpell.get() : m_spell.get(); }
     SpellCheck *spelling() const { return m_spell.get(); }
     bool spellingEnabled() const { return m_spellOn; }
+    // Follows the link at a position of the text as a Ctrl+click does (a web or email address is handed on, a link to a bookmark or a reference moves the caret); false where there is none.
+    bool followLinkAt(int position);
+    // Edits the footnote whose mark is at the position (a double click on a mark), at the foot of its page; false where there is no mark.
+    bool openNoteAt(int position);
     // The place a menu is for: where the last right click was (a click inside a selection leaves the selection and the caret as they were), else the caret.
     int contextPosition() const { return m_contextAt >= 0 ? m_contextAt : m_cursor.position(); }
     void setSpellingEnabled(bool on);
@@ -415,6 +425,7 @@ private:
     double m_zoom = 1.0;
     ZoomMode m_mode = ZoomMode::Percent;
     int m_across = 1, m_down = 1;
+    bool m_sideToSide = false, m_draft = false;
     bool m_marks = false;
     bool m_gridlines = false;
     bool m_shadeFields = false;

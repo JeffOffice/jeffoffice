@@ -12,6 +12,7 @@ struct WordStats {
     int charactersNoSpaces = 0;
     int charactersWithSpaces = 0;
     int paragraphs = 0;
+    int lines = 0;   // the lines the layout made of the text (the selection's, or all the text's), not counting text boxes, tables' cells, headers, or notes
 };
 // The count of the text (or, with a selection, of what is selected). Hidden text and text a tracked change deleted are not counted, and a picture, a field's code, or a bookmark is no letter.
 // `notes`: also the words of the footnotes and endnotes (without it the endnotes the pages set after the text are left out too). A paragraph is counted when it has any text.

@@ -237,6 +237,12 @@ void WriteWindow::buildStatusBar()
     m_pageLabel->setObjectName(QStringLiteral("pageNumber"));
     m_pageLabel->setMinimumWidth(110);
     sb->addWidget(m_pageLabel);
+    // The section the caret is in, shown where the document has more than one.
+    m_sectionLabel = plainLabel(new QLabel(this));
+    m_sectionLabel->setObjectName(QStringLiteral("sectionNumber"));
+    m_sectionLabel->setToolTip(tr("The section the caret is in"));
+    m_sectionLabel->hide();
+    sb->addWidget(m_sectionLabel);
     m_wordLabel = new QLabel(this);
     m_wordLabel->setObjectName(QStringLiteral("wordCount"));
     m_wordLabel->setTextFormat(Qt::PlainText);

@@ -1,5 +1,5 @@
 # Fields
-<!-- keywords: field, fields, INDEX, TOA, CITATION, BIBLIOGRAPHY, XE, TA, TC, update field, F9, unlink, lock, field codes, page number, date, NUMPAGES, SEQ, REF, PAGEREF, formula, Insert Field -->
+<!-- keywords: field, fields, INDEX, TOA, CITATION, BIBLIOGRAPHY, XE, TA, TC, update field, F9, unlink, lock, field codes, page number, date, NUMPAGES, SEQ, REF, PAGEREF, formula, Insert Field, edit field, right-click -->
 
 A **field** is a piece of text that the program works out for you, such as a page number, today's date, or the number of a figure. It has two parts: a **code**, which says what to work out, and a **result**, which is the text you see. The code for a page number is `PAGE`, and its result on the third page is `3`.
 
@@ -11,6 +11,10 @@ A **field** is a piece of text that the program works out for you, such as a pag
 4. Click **OK**.
 
 For example, choose **Date**, change the code to `DATE \@ "MMMM d, yyyy"`, and click **OK**. The text shows the date as `November 2, 2026`.
+
+## Change a field's code
+
+Right-click a field and choose **Edit Field**. A box shows the code. Change it and click **OK**, and the field is worked out again. **Undo** puts the old field back. A locked field can't be edited until you unlock it. The right-click menu also has **Update Field**, **Toggle Field Code**, **Lock Field**, **Unlock Field**, and **Unlink Field**.
 
 ## Update fields
 

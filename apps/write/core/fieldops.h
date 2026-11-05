@@ -153,5 +153,9 @@ bool insertField(WriteDoc &doc, QTextCursor &c, const QString &code, const QStri
 // The same field at each of these places of the text, in one pass (one scan, not one for each place; the caller makes it one step). For the marks (XE, TA, TC), whose result does not depend
 // on the place. Returns how many were put.
 int insertFieldAtEach(WriteDoc &doc, const QVector<int> &positions, const QString &code);
+// The code (instruction) of the field at the position, the outermost one if fields are nested; empty where there is none.
+QString fieldCodeAt(WriteDoc &doc, int position);
+// Puts a new code in the field at the position, and works out its result. One step that undoes. False where there is no field there, it is locked, or it has other fields in its code.
+bool replaceFieldCode(WriteDoc &doc, int position, const QString &code);
 
 } // namespace jp::write

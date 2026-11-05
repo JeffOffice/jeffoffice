@@ -448,4 +448,12 @@ int nextNoteReference(WriteDoc &doc, int from, bool forward, bool endnote)
     return -1;
 }
 
+int footnoteReferenceAt(WriteDoc &doc, int position)
+{
+    for (int id : doc.citedFootnotes())
+        for (int p : doc.footnoteReferences(id))
+            if (p == position || p + 1 == position) return id;
+    return -1;
+}
+
 } // namespace jp::write
