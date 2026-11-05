@@ -3,6 +3,7 @@
 #include "app/writewindow.h"
 
 #include "app/homedialogs.h"
+#include "app/widgets.h"
 #include "app/pageview.h"
 #include "app/writefilescreen.h"
 #include "app/pageview.h"
@@ -19,6 +20,7 @@
 #include <QAction>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QToolButton>
 #include <QDockWidget>
 #include <QDesktopServices>
@@ -257,9 +259,22 @@ void WriteWindow::createMiniToolbar()
     m_mini->setObjectName(QStringLiteral("miniToolbar"));
     m_mini->setFrameShape(QFrame::StyledPanel);
     m_mini->setAutoFillBackground(true);
-    auto *row = new QHBoxLayout(m_mini);
-    row->setContentsMargins(3, 2, 3, 2);
+    auto *column = new QVBoxLayout(m_mini);
+    column->setContentsMargins(3, 2, 3, 2);
+    column->setSpacing(1);
+    // The font box on top, then the buttons and the font color (the same commands as the ribbon's, and they follow the selection as its boxes do).
+    auto *font = new FontCombo(m_mini);
+    connect(font, &FontCombo::familyChosen, this, [this](const QString &f) {
+        if (refuseIfReadOnly()) return;
+        if (m_doc) write::setFontFamily(*m_doc, m_view->cursor(), f);
+        m_view->setFocus();
+    });
+    m_fontCombos << font;
+    column->addWidget(font);
+    auto *row = new QHBoxLayout;
+    row->setContentsMargins(0, 0, 0, 0);
     row->setSpacing(1);
+    column->addLayout(row);
     for (const char *id : {"fmt.bold", "fmt.italic", "fmt.underline", "fmt.shrink", "fmt.grow", "fmt.alignLeft", "fmt.alignCenter", "fmt.alignRight", "para.bullets", "para.numbers"}) {
         auto *button = new QToolButton(m_mini);
         button->setDefaultAction(act(QString::fromLatin1(id)));
@@ -268,6 +283,15 @@ void WriteWindow::createMiniToolbar()
         button->setFocusPolicy(Qt::NoFocus);   // (the text keeps the keyboard)
         row->addWidget(button);
     }
+    auto *color = new ColorButton(QStringLiteral("baseline"), tr("Font Color"), true, tr("Automatic"), m_mini);
+    color->setCurrent(ColorRef::rgb(QColor(0xC0, 0, 0)));
+    connect(color, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
+        if (!m_doc || refuseIfReadOnly()) return;
+        write::setTextColor(*m_doc, m_view->cursor(), c.isNone() ? QColor() : c.resolve(m_doc->flow().env.colors));
+        m_view->setFocus();
+    });
+    m_colorButtons << color;
+    row->addWidget(color);
     m_mini->hide();
     connect(m_view, &write::PageView::selectionMade, this, [this] { updateMiniToolbar(true); });
     connect(m_view, &write::PageView::caretChanged, this, [this] { updateMiniToolbar(false); });

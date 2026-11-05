@@ -1303,6 +1303,10 @@
               "keytip": "SR"
             },
             {
+              "large": "view.verticalRuler",
+              "keytip": "SV"
+            },
+            {
               "large": "table.gridlines",
               "keytip": "SG"
             },

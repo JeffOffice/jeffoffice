@@ -7,6 +7,7 @@
 #include <QVector>
 #include <QWidget>
 
+class QComboBox;
 class QLineEdit;
 class QListWidget;
 class QTabWidget;
@@ -29,6 +30,8 @@ public:
     QListWidget *pages() const { return m_pages; }
     QLineEdit *searchBox() const { return m_search; }
     QListWidget *results() const { return m_results; }
+    // How the results are listed: 0 as the words round each (the order of the text), 1 under the heading each is in, 2 under the page each is on.
+    QComboBox *groupBox() const { return m_group; }
     // Goes to the heading of a row (what a click does).
     void goToHeading(QTreeWidgetItem *item);
     // Promotes or demotes the heading of the row and the headings under it by one level; false where a level would pass the ends.
@@ -53,6 +56,7 @@ private:
     QTreeWidget *m_headings;
     QListWidget *m_pages, *m_results;
     QLineEdit *m_search;
+    QComboBox *m_group;
     quint64 m_headingsOf = 0, m_pagesOf = 0;
     int m_revision = -1, m_pageRevision = -1;
     bool m_dying = false;

@@ -8,6 +8,7 @@
 #include "app/writedialogs.h"
 #include "app/writewindow.h"
 #include "app/pageview.h"
+#include "app/ruler.h"
 #include "app/writefindpane.h"
 #include "core/appinfo.h"
 #include "core/accessops.h"
@@ -32,6 +33,8 @@
 
 #include <QAction>
 #include <QElapsedTimer>
+#include <QLabel>
+#include <QMenu>
 #include <QLineEdit>
 #include <QStatusBar>
 #include <QUrlQuery>
@@ -1345,6 +1348,250 @@ private Q_SLOTS:
         QVERIFY(!wildcardPattern(QString(), false).error.isEmpty());
     }
 
+    void advancedFindReadsSoundsFormsAndLettersWithPunctuationBetween()
+    {
+        QCOMPARE(soundexOf(QStringLiteral("Smith")), QStringLiteral("S530"));
+        QCOMPARE(soundexOf(QStringLiteral("smyth")), QStringLiteral("S530"));
+        QCOMPARE(soundexOf(QStringLiteral("Robert")), QStringLiteral("R163"));
+        QCOMPARE(soundexOf(QStringLiteral("Rupert")), QStringLiteral("R163"));
+        QCOMPARE(soundexOf(QStringLiteral("Tymczak")), QStringLiteral("T522"));
+        QCOMPARE(soundexOf(QStringLiteral("Pfister")), QStringLiteral("P236"));
+        QCOMPARE(soundexOf(QStringLiteral("123")), QString());
+        QCOMPARE(wordStem(QStringLiteral("Running")), wordStem(QStringLiteral("runs")));
+        QCOMPARE(wordStem(QStringLiteral("ran")), wordStem(QStringLiteral("run")));
+        QCOMPARE(wordStem(QStringLiteral("making")), wordStem(QStringLiteral("made")));
+        QCOMPARE(wordStem(QStringLiteral("tries")), wordStem(QStringLiteral("try")));
+        QCOMPARE(wordStem(QStringLiteral("buses")), wordStem(QStringLiteral("bus")));
+        QCOMPARE(wordStem(QStringLiteral("walked")), wordStem(QStringLiteral("walking")));
+        QVERIFY(wordStem(QStringLiteral("string")) != wordStem(QStringLiteral("str")));
+        QVERIFY(wordStem(QStringLiteral("cat")) != wordStem(QStringLiteral("cart")));
+        auto all = [](const QString &text, AdvancedFind o) {
+            QStringList out;
+            for (int at = 0;;) {
+                const QPair<int, int> m = advancedMatch(text, at, o);
+                if (m.first < 0) break;
+                out << text.mid(m.first, m.second - m.first);
+                at = std::max(m.second, at + 1);
+            }
+            return out;
+        };
+        AdvancedFind o;
+        o.query = QStringLiteral("Smith");
+        o.soundsLike = true;
+        QCOMPARE(all(QStringLiteral("Mr. Smyth met Smith and Schmidt, not Jones."), o), (QStringList{"Smyth", "Smith", "Schmidt"}));   // (Schmidt has the same code, S530)
+        o = AdvancedFind();
+        o.query = QStringLiteral("run");
+        o.wordForms = true;
+        QCOMPARE(all(QStringLiteral("He runs, ran, and was running; a rung and a runner."), o), (QStringList{"runs", "ran", "running", "runner"}));   // ("rung" is another word)
+        o.query = QStringLiteral("big dog");
+        QCOMPARE(all(QStringLiteral("Two bigger dogs; one big dog; a big, dog."), o), (QStringList{"bigger dogs", "big dog"}));
+        o = AdvancedFind();
+        o.query = QStringLiteral("e-mail");
+        o.ignorePunctuation = true;
+        QCOMPARE(all(QStringLiteral("email, e-mail, e.mail, e mail"), o), (QStringList{"email", "e-mail", "e.mail"}));
+        o.ignorePunctuation = false;
+        o.ignoreSpaces = true;
+        o.query = QStringLiteral("e mail");
+        QCOMPARE(all(QStringLiteral("email, e-mail, e   mail, e\tmail"), o), (QStringList{"email", "e   mail", "e\tmail"}));
+        o.wholeWords = true;
+        o.query = QStringLiteral("ab");
+        QCOMPARE(all(QStringLiteral("a b, cab, a  b"), o), (QStringList{"a b", "a  b"}));
+        o = AdvancedFind();
+        o.query = QStringLiteral("AB");
+        o.ignoreSpaces = true;
+        o.matchCase = true;
+        QCOMPARE(all(QStringLiteral("a b A B ab AB"), o), (QStringList{"A B", "AB"}));
+        // A search that has nothing to look for finds nothing.
+        o = AdvancedFind();
+        o.ignorePunctuation = true;
+        o.query = QStringLiteral("-.");
+        QVERIFY(advancedMatch(QStringLiteral("a-b"), 0, o).first < 0);
+        // Format filters.
+        FormatFilter f;
+        QVERIFY(!f.any());
+        QTextCharFormat bold;
+        bold.setFontWeight(QFont::Bold);
+        QTextCharFormat plain;
+        f.bold = 1;
+        QVERIFY(f.any() && f.matchesChar(bold) && !f.matchesChar(plain));
+        f.bold = 0;
+        QVERIFY(!f.matchesChar(bold) && f.matchesChar(plain));
+        f = FormatFilter();
+        f.font = QStringLiteral("arial");
+        QTextCharFormat arial;
+        arial.setFontFamilies({QStringLiteral("Arial")});
+        QVERIFY(f.matchesChar(arial) && !f.matchesChar(plain));
+        f = FormatFilter();
+        f.underline = 1;
+        f.highlighted = 1;
+        QTextCharFormat both;
+        both.setFontUnderline(true);
+        both.setProperty(tp::HighlightRefP, QStringLiteral("rgb:FFFF00"));
+        QVERIFY(f.matchesChar(both));
+        both.setFontUnderline(false);
+        QVERIFY(!f.matchesChar(both));
+        f = FormatFilter();
+        f.style = QStringLiteral("Heading1");
+        QVERIFY(f.matchesStyle(QStringLiteral("Heading1")) && !f.matchesStyle(QString()));
+    }
+
+    void theFindPaneSearchesBySoundByWordFormsAndByLettersWithPunctuationBetween()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("Mr. Smyth met Smith, who is running; he runs, ran, and e-mail came by email.")))), QString());
+        w.act(QStringLiteral("edit.find"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QVERIFY(pane && pane->soundsLike() && pane->wordForms() && pane->ignorePunctuation() && pane->ignoreSpaces() && pane->specialButton() && pane->formatButton());
+        pane->findBox()->setText(QStringLiteral("Smith"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->soundsLike()->setChecked(true);
+        QTRY_COMPARE(pane->matchCount(), 2);
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("Smyth"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("Smith"));
+        QVERIFY(!pane->wordForms()->isEnabled());   // (one reading at a time)
+        pane->soundsLike()->setChecked(false);
+        pane->findBox()->setText(QStringLiteral("run"));
+        QTRY_COMPARE(pane->matchCount(), 2);   // (the letters alone: "running" and "runs")
+        pane->wordForms()->setChecked(true);
+        QTRY_COMPARE(pane->matchCount(), 3);   // (and "ran")
+        pane->findBox()->setText(QStringLiteral("ran"));
+        QTRY_COMPARE(pane->matchCount(), 3);
+        pane->wordForms()->setChecked(false);
+        pane->findBox()->setText(QStringLiteral("email"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->ignorePunctuation()->setChecked(true);
+        QTRY_COMPARE(pane->matchCount(), 2);
+        pane->findBox()->setText(QStringLiteral("e-mail"));
+        QTRY_COMPARE(pane->matchCount(), 2);
+        // Replace All reads the same way and is one step.
+        pane->replaceBox()->setText(QStringLiteral("message"));
+        const quint64 serial = w.document()->nextStepSerial();
+        pane->replaceAll();
+        QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("and message came by message.")));
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+    }
+
+    void theSpecialCodesWorkWithoutWildcardsAndTheMenuTypesThem()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a? b*")) + para("<w:r><w:t>c</w:t><w:tab/><w:t>d 12</w:t></w:r>") + para(run("end")))), QString());
+        w.act(QStringLiteral("edit.find"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("^p"));
+        QTRY_COMPARE(pane->matchCount(), 2);
+        pane->findBox()->setText(QStringLiteral("^t"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->findBox()->setText(QStringLiteral("^#^#"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        // The other characters are themselves: "?" is a question mark here, not any letter.
+        pane->findBox()->setText(QStringLiteral("a?^p"));
+        QTRY_COMPARE(pane->matchCount(), 0);
+        pane->findBox()->setText(QStringLiteral("b*^p"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->findBox()->clear();
+        QAction *digit = nullptr;
+        for (QAction *a : pane->specialButton()->menu()->actions())
+            if (a->data().toString() == QStringLiteral("^#")) digit = a;
+        QVERIFY(digit);
+        digit->trigger();
+        QCOMPARE(pane->findBox()->text(), QStringLiteral("^#"));
+        QTRY_COMPARE(pane->matchCount(), 2);
+    }
+
+    void theFindPaneFindsByFormatWithOrWithoutText()
+    {
+        const QByteArray body = para(run("Plain words ") + run("bold words", "<w:b/>") + run(" and plain end")) + para(run("A second bold line", "<w:b/>"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        w.act(QStringLiteral("edit.replace"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        write::FormatFilter bold;
+        bold.bold = 1;
+        pane->setFormatFilter(bold);
+        // Only the look: each stretch of bold text is a match.
+        QTRY_COMPARE(pane->matchCount(), 2);
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("bold words"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("A second bold line"));
+        // A word, and the look.
+        pane->findBox()->setText(QStringLiteral("words"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->findBox()->setText(QStringLiteral("plain"));
+        QTRY_COMPARE(pane->matchCount(), 0);
+        bold.bold = 0;
+        pane->setFormatFilter(bold);
+        QTRY_COMPARE(pane->matchCount(), 2);
+        QVERIFY(pane->findChild<QLabel *>(QStringLiteral("findFormatLabel"))->isVisible());
+        // Replace All changes the words that have the look and no others.
+        bold.bold = 1;
+        pane->setFormatFilter(bold);
+        pane->findBox()->setText(QStringLiteral("words"));
+        pane->replaceBox()->setText(QStringLiteral("text"));
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("Plain words bold text and plain end\nA second bold line"));
+        pane->setFormatFilter(write::FormatFilter());
+        QVERIFY(!pane->findChild<QLabel *>(QStringLiteral("findFormatLabel"))->isVisible());
+    }
+
+    void findHighlightsAlsoShowInTableCellsAndHeaders()
+    {
+        auto yellow = [](QWidget *view) {
+            const QImage img = view->grab().toImage();
+            int n = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) {
+                    const QColor c = img.pixelColor(x, y);
+                    if (c.red() > 200 && c.green() > 200 && c.blue() < 170) ++n;
+                }
+            return n;
+        };
+        const QByteArray cell = "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>needle in a cell</w:t></w:r></w:p></w:tc>";
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"4000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr>" + cell + cell + "</w:tr></w:tbl>";
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdHead\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        office::PackageWriter pw;
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        pw.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + para(run("body text")) + table + para(run("end")) + sect + "</w:body></w:document>"),
+                   QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        pw.addPart(QStringLiteral("/word/header1.xml"), xml(QByteArray("<w:hdr ") + kNs + "><w:p><w:r><w:t>needle in the header</w:t></w:r></w:p></w:hdr>"),
+                   QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"));
+        pw.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        pw.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdHead"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 900);
+        w.show();
+        w.setDocument(open(pw.finish()), QString());
+        w.act(QStringLiteral("edit.find"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QTRY_VERIFY(w.view()->pageCount() >= 1);
+        QTest::qWait(50);
+        const int none = yellow(w.view()->viewport());
+        pane->findBox()->setText(QStringLiteral("needle"));
+        QTRY_COMPARE(pane->matchCount(), 2);   // (the two cells: the header is counted by the pages as they draw it)
+        QTRY_VERIFY(yellow(w.view()->viewport()) > none + 300);
+        shot(&w, QStringLiteral("find-cells-header.png"));
+        // The cells alone, then the header alone: each adds its own band.
+        const int both = yellow(w.view()->viewport());
+        QVERIFY(!pane->matchesInSideStory(w.document()->headerFooterStory(0, false, 0)).isEmpty());
+        pane->findBox()->setText(QStringLiteral("cell"));
+        QTRY_COMPARE(pane->matchCount(), 2);
+        QTRY_VERIFY(yellow(w.view()->viewport()) < both);
+        QTRY_VERIFY(yellow(w.view()->viewport()) > none + 200);
+        QVERIFY(pane->matchesInSideStory(w.document()->headerFooterStory(0, false, 0)).isEmpty());
+    }
+
     void theFindPaneCanSearchWithWildcardsAndReplaceWithGroups()
     {
         WriteWindow w;
@@ -1431,6 +1678,36 @@ private Q_SLOTS:
         QTRY_VERIFY(!mini->isVisible());
     }
 
+    void theMiniToolbarHasTheFontBoxAndTheFontColorButton()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("Some words to pick from here")))), QString());
+        QTextCursor c(w.document()->story());
+        c.setPosition(5);
+        c.setPosition(10, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        Q_EMIT w.view()->selectionMade();
+        auto *mini = w.view()->findChild<QFrame *>(QStringLiteral("miniToolbar"));
+        QVERIFY(mini);
+        QTRY_VERIFY(mini->isVisible());
+        auto *font = mini->findChild<FontCombo *>();
+        auto *color = mini->findChild<ColorButton *>();
+        QVERIFY(font && color);
+        shot(&w, QStringLiteral("mini-toolbar.png"));
+        // The font box follows the selection and sets the font of it.
+        Q_EMIT font->familyChosen(QStringLiteral("Courier New"));
+        QTextCursor in(w.document()->story());
+        in.setPosition(7);
+        in.setPosition(8, QTextCursor::KeepAnchor);
+        QCOMPARE(in.charFormat().fontFamilies().toStringList().value(0), QStringLiteral("Courier New"));
+        Q_EMIT color->colorPicked(ColorRef::rgb(QColor(0x12, 0x34, 0x56)));
+        QCOMPARE(in.charFormat().foreground().color(), QColor(0x12, 0x34, 0x56));
+        QVERIFY(mini->isVisible());
+    }
+
     void manageStylesChangesWhichStylesAreRecommendedHiddenAndInWhatOrderInOneStep()
     {
         WriteWindow w;
@@ -1488,6 +1765,191 @@ private Q_SLOTS:
         const quint64 serial = w.document()->nextStepSerial();
         withDialog([&w] { w.act(QStringLiteral("style.manage"))->trigger(); }, QStringLiteral("manageStylesDialog"), [](QDialog *) {});
         QCOMPARE(w.document()->nextStepSerial(), serial);
+    }
+
+    void deletingAStyleOfYourOwnPutsItsTextBackToNormalInOneStepThatUndoes()
+    {
+        auto doc = open(makeDocx(para(run("one")) + para(run("two"))));
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        toggleBold(*doc, c);
+        QString problem;
+        office::wml::Style loud = styleFromSelection(*doc, c, QStringLiteral("Loud"));
+        loud.basedOn = QStringLiteral("Normal");
+        const QString id = createStyle(*doc, c, loud, &problem, true);
+        QVERIFY2(!id.isEmpty(), qPrintable(problem));
+        // A child style, based on the one to delete.
+        office::wml::Style kid = styleFromSelection(*doc, c, QStringLiteral("Louder"));
+        kid.basedOn = id;
+        const QString kidId = createStyle(*doc, c, kid, &problem, false);
+        QVERIFY2(!kidId.isEmpty(), qPrintable(problem));
+        QCOMPARE(doc->story()->begin().blockFormat().stringProperty(tp::StyleName), id);
+        QVERIFY(doc->story()->begin().begin().fragment().charFormat().fontWeight() >= QFont::DemiBold);
+        // Built-in styles and styles the document lacks stay.
+        QVERIFY(!deleteStyle(*doc, QStringLiteral("Heading1"), &problem));
+        QVERIFY(!problem.isEmpty());
+        QVERIFY(!deleteStyle(*doc, QStringLiteral("NoSuchStyle")));
+        const quint64 serial = doc->nextStepSerial();
+        QVERIFY(deleteStyle(*doc, id, &problem));
+        QCOMPARE(doc->nextStepSerial(), serial + 1);
+        QVERIFY(!doc->styleSheet().find(id));
+        QVERIFY(doc->styleSheet().find(kidId));
+        QCOMPARE(doc->styleSheet().find(kidId)->basedOn, QStringLiteral("Normal"));
+        QVERIFY(doc->story()->begin().blockFormat().stringProperty(tp::StyleName).isEmpty());
+        QVERIFY(doc->story()->begin().begin().fragment().charFormat().fontWeight() < QFont::DemiBold);
+        for (const ListedStyle &e : listStyles(*doc, StyleFilter::All)) QVERIFY(e.id != id);
+        const QByteArray saved = doc->toDocx();
+        QVERIFY(!part(saved, QStringLiteral("/word/styles.xml")).contains("w:styleId=\"Loud\""));
+        QVERIFY(!part(saved, QStringLiteral("/word/document.xml")).contains("Loud"));
+        QVERIFY(doc->undo());
+        QVERIFY(doc->styleSheet().find(id));
+        QCOMPARE(doc->story()->begin().blockFormat().stringProperty(tp::StyleName), id);
+        QVERIFY(doc->story()->begin().begin().fragment().charFormat().fontWeight() >= QFont::DemiBold);
+        QCOMPARE(doc->styleSheet().find(kidId)->basedOn, id);
+        QVERIFY(doc->redo());
+        QVERIFY(!doc->styleSheet().find(id));
+    }
+
+    void importingStylesFromAnotherDocumentCopiesThemWithTheirBaseInOneStep()
+    {
+        auto from = open(makeDocx(para(run("source text"))));
+        QTextCursor c(from->story());
+        c.setPosition(0);
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        toggleBold(*from, c);
+        QString problem;
+        office::wml::Style loud = styleFromSelection(*from, c, QStringLiteral("Loud"));
+        loud.basedOn = QStringLiteral("Normal");
+        const QString loudId = createStyle(*from, c, loud, &problem, true);
+        QVERIFY2(!loudId.isEmpty(), qPrintable(problem));
+        office::wml::Style kin = styleFromSelection(*from, c, QStringLiteral("Kin"));
+        kin.basedOn = loudId;
+        const QString kinId = createStyle(*from, c, kin, &problem, false);
+        QVERIFY2(!kinId.isEmpty(), qPrintable(problem));
+        auto to = open(makeDocx(para(run("target text")) + para(run("more"))));
+        QVERIFY(!to->styleSheet().find(loudId) && !to->styleSheet().find(kinId));
+        const quint64 serial = to->nextStepSerial();
+        // One style asked for brings the style it is based on.
+        QCOMPARE(importStyles(*to, *from, {kinId}, false, &problem), 2);
+        QCOMPARE(to->nextStepSerial(), serial + 1);
+        QVERIFY(to->styleSheet().find(loudId) && to->styleSheet().find(kinId));
+        QCOMPARE(to->styleSheet().find(kinId)->basedOn, loudId);
+        QCOMPARE(to->styleSheet().find(loudId)->rPr.bold, std::optional<bool>(true));
+        QVERIFY(to->undo());
+        QVERIFY(!to->styleSheet().find(loudId) && !to->styleSheet().find(kinId));
+        QVERIFY(to->redo());
+        // Styles the document has already are left alone unless asked to replace them; a replaced style restyles its text.
+        QCOMPARE(importStyles(*to, *from, {kinId, loudId}, false, &problem), 0);
+        office::wml::Style italicLoud = *from->styleSheet().find(loudId);
+        italicLoud.rPr.bold = false;
+        italicLoud.rPr.italic = true;
+        QTextCursor none;
+        QVERIFY(modifyStyle(*from, none, loudId, italicLoud, &problem));
+        QCOMPARE(importStyles(*to, *from, {loudId}, true, &problem), 1);
+        QCOMPARE(to->styleSheet().find(loudId)->rPr.italic, std::optional<bool>(true));
+        // A style that is not in the other document, or is a table's, is no style to import.
+        QCOMPARE(importStyles(*to, *from, {QStringLiteral("NoSuchStyle"), QStringLiteral("TableGrid")}, true, &problem), 0);
+    }
+
+    void theVerticalRulerShowsTheMarginsOfThePagesAndComesAndGoesWithTheCommand()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 900);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("one")) + para(run("two")))), QString());
+        QVERIFY(w.act(QStringLiteral("view.verticalRuler")));
+        auto *ruler = w.findChild<write::VerticalRuler *>(QStringLiteral("verticalRuler"));
+        QVERIFY(ruler);
+        QVERIFY(!w.act(QStringLiteral("view.verticalRuler"))->isChecked());
+        QVERIFY(!ruler->isVisible());
+        w.act(QStringLiteral("view.verticalRuler"))->trigger();
+        QTRY_VERIFY(ruler->isVisible());
+        QVERIFY(ruler->mapToGlobal(QPoint(ruler->width(), 0)).x() <= w.view()->mapToGlobal(QPoint(0, 0)).x() + 2);   // (left of the pages)
+        double top = 0, bottom = 0;
+        QTRY_VERIFY(ruler->textAreaOf(0, &top, &bottom));
+        const QRect page = w.view()->pageRect(0);
+        const double scale = w.view()->zoom() * 96.0 / 72.0;
+        const double pageTop = ruler->mapFromGlobal(w.view()->viewport()->mapToGlobal(QPoint(0, page.top()))).y();
+        QVERIFY2(std::abs((top - pageTop) - 72 * scale) < 2, qPrintable(QString::number(top - pageTop)));   // (the page's top margin: an inch)
+        QVERIFY(bottom > top + 100);
+        // The text area is white and the margins are gray, in the ruler's own picture.
+        const QImage img = ruler->grab().toImage();
+        const int mid = int((top + bottom) / 2), inMargin = int(pageTop + 20 * scale);
+        QVERIFY(mid < img.height() && inMargin >= 0 && inMargin < img.height());
+        QVERIFY(img.pixelColor(img.width() / 2, mid).lightness() > img.pixelColor(img.width() / 2, inMargin).lightness());
+        shot(&w, QStringLiteral("vertical-ruler.png"));
+        // The tree of the outline view has no pages: the ruler goes, and comes back with the pages.
+        w.act(QStringLiteral("view.outline"))->trigger();
+        QTRY_VERIFY(!ruler->isVisible());
+        w.act(QStringLiteral("view.printLayout"))->trigger();
+        QTRY_VERIFY(ruler->isVisible());
+        w.act(QStringLiteral("view.verticalRuler"))->trigger();
+        QTRY_VERIFY(!ruler->isVisible());
+    }
+
+    void manageStylesCanDeleteAStyleOfYourOwnAndImportStylesFromAnotherDocument()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a paragraph")))), QString());
+        QString problem;
+        QTextCursor c(w.document()->story());
+        c.setPosition(0);
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        office::wml::Style mine = styleFromSelection(*w.document(), c, QStringLiteral("Mine"));
+        mine.basedOn = QStringLiteral("Normal");
+        const QString mineId = createStyle(*w.document(), c, mine, &problem, false);
+        QVERIFY2(!mineId.isEmpty(), qPrintable(problem));
+        withDialog([&w] { w.act(QStringLiteral("style.manage"))->trigger(); }, QStringLiteral("manageStylesDialog"), [&](QDialog *d) {
+            auto *list = d->findChild<QListWidget *>(QStringLiteral("manageStylesList"));
+            auto *del = d->findChild<QPushButton *>(QStringLiteral("manageDelete"));
+            auto *imp = d->findChild<QPushButton *>(QStringLiteral("manageImport"));
+            QVERIFY(list && del && imp);
+            auto pick = [&](const QString &id) {
+                for (int i = 0; i < list->count(); ++i)
+                    if (list->item(i)->data(Qt::UserRole).toString() == id) {
+                        list->setCurrentRow(i);
+                        return true;
+                    }
+                return false;
+            };
+            QVERIFY(pick(QStringLiteral("Heading1")));
+            QVERIFY(!del->isEnabled());   // (a style that comes with the program stays)
+            QVERIFY(pick(mineId));
+            QVERIFY(del->isEnabled());
+            shot(d, QStringLiteral("manage-styles-delete.png"));
+            del->click();
+            QVERIFY(!pick(mineId));
+        });
+        QVERIFY(!w.document()->styleSheet().find(mineId));
+        QVERIFY(w.document()->undo());
+        QVERIFY(w.document()->styleSheet().find(mineId));
+        // Import: a document with two styles of its own; check one, and it comes (and the style it is based on).
+        auto from = open(makeDocx(para(run("other"))));
+        QTextCursor fc(from->story());
+        fc.setPosition(0);
+        fc.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        office::wml::Style base = styleFromSelection(*from, fc, QStringLiteral("Base Look"));
+        base.basedOn = QStringLiteral("Normal");
+        const QString baseId = createStyle(*from, fc, base, &problem, false);
+        office::wml::Style top = styleFromSelection(*from, fc, QStringLiteral("Top Look"));
+        top.basedOn = baseId;
+        const QString topId = createStyle(*from, fc, top, &problem, false);
+        QVERIFY(!baseId.isEmpty() && !topId.isEmpty());
+        bool imported = false;
+        withDialog([&] { imported = importStylesDialog(&w, w.document(), *from); }, QStringLiteral("importStylesDialog"), [&](QDialog *d) {
+            auto *list = d->findChild<QListWidget *>(QStringLiteral("importStylesList"));
+            QVERIFY(list);
+            QCOMPARE(list->count(), 2);
+            shot(d, QStringLiteral("import-styles.png"));
+            for (int i = 0; i < list->count(); ++i)
+                if (list->item(i)->data(Qt::UserRole).toString() == topId) list->item(i)->setCheckState(Qt::Checked);
+        });
+        QVERIFY(imported);
+        QVERIFY(w.document()->styleSheet().find(topId) && w.document()->styleSheet().find(baseId));
     }
 
     // ---- the review's fixes

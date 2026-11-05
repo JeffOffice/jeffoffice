@@ -72,6 +72,40 @@ void paintCellWaves(QPainter *p, const flow::MaterializedPage &page, const PageD
     }
 }
 
+// The words a search found in the cells of the page's tables, in the places the rows' own lines are (the rows are drawn apart from the page's text).
+void paintCellFound(QPainter *p, const flow::MaterializedPage &page, const PageDrawing &d)
+{
+    for (const auto &fragment : page.tables) {
+        p->save();
+        p->setClipRect(fragment->rect());
+        fragment->forTexts([&](const StoryLayout &text) {
+            const int first = text.firstPosition(0), last = text.lastPosition(0);
+            if (first < 0) return;
+            QVector<QPair<int, int>> words;
+            for (const auto &w : *d.found)
+                if (w.second > first && w.first <= last) words << w;
+            if (words.isEmpty()) return;
+            QLineF onPage;
+            int frame = 0;
+            QRectF inText;
+            if (!fragment->caretLine(first, &onPage) || !text.caretRect(first, &frame, &inText)) return;
+            const QPointF origin = onPage.p1() - inText.topLeft();
+            for (const StoryLayout::LineInfo &line : text.lineInfo(0))
+                for (const auto &w : words) {
+                    const int s = std::max(w.first, line.docPos), e = std::min(w.second, line.docEnd);
+                    if (s >= e) continue;
+                    double x1 = 1e18, x2 = -1e18;
+                    for (const QRectF &r : text.rangeRects(0, s, e)) {
+                        x1 = std::min(x1, r.left());
+                        x2 = std::max(x2, r.right());
+                    }
+                    if (x2 > x1) p->fillRect(QRectF(origin.x() + x1, origin.y() + line.rect.top(), x2 - x1, line.rect.height()), QColor(255, 220, 0, 110));
+                }
+        });
+        p->restore();
+    }
+}
+
 // While a header or footer is edited the text of the page is dimmed (the headers and footers are not), and the edge of the one being edited is a dashed line with its name.
 void paintEditedEdge(QPainter *p, const flow::MaterializedPage &page, const PageDrawing &d)
 {
@@ -190,6 +224,26 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
         inBoxes(page.furniture);
         inBoxes(page.noteBoxes);
     }
+    // The words a search found in the headers, footers, and notes: in the boxes that show them.
+    if (d.foundIn && !d.output) {
+        auto inBoxes = [&](const QVector<flow::MaterializedPage::FurnitureBox> &boxes) {
+            for (const auto &fb : boxes) {
+                if (!fb.source) continue;
+                const Item *item = page.doc->item(fb.itemId);
+                if (!item || item->type() != ItemType::Text) continue;
+                const QString id = static_cast<const TextItem *>(item)->storyId;
+                const Story *shown = page.doc->story(id);
+                if (!shown || !shown->doc) continue;
+                const int length = shown->doc->characterCount();
+                QVector<QPair<int, int>> words;
+                for (const auto &w : d.foundIn(fb.source))
+                    if (w.second > fb.from && w.first < fb.from + length) words << qMakePair(std::max(0, w.first - fb.from), std::min(length, w.second - fb.from));
+                if (!words.isEmpty()) ctx.opt.found.insert(id, words);
+            }
+        };
+        inBoxes(page.furniture);
+        inBoxes(page.noteBoxes);
+    }
     Renderer::paintPage(p, ctx, 0);
     flow::TablePaint tables;
     tables.output = d.textOutput;
@@ -207,6 +261,7 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
         p->restore();
     }
     if (d.spelling && !d.output) paintCellWaves(p, page, d);
+    if (d.found && !d.output) paintCellFound(p, page, d);
     if (d.editedStory && !d.output && !d.editIsNote) paintEditedEdge(p, page, d);
     if (d.draft && !d.output) {
         // (The margins above and below the text hold the header and footer only: Draft leaves them blank.)

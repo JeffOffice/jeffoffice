@@ -240,7 +240,7 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
         }
         // Open and Repair: what can be read of a damaged package is made into a package that opens, and what was left out is said.
         if (repairing) bytes = office::repairPackage(bytes, &err, &repair);
-        if (!bytes.isEmpty()) doc = write::WriteDoc::fromFile(bytes, &err, &notes);
+        if (!bytes.isEmpty()) doc = write::WriteDoc::fromFile(bytes, &err, &notes, isWebPage(path) ? QFileInfo(path).absolutePath() : QString());
     }
     QApplication::restoreOverrideCursor();
     const QString name = QFileInfo(path).fileName();

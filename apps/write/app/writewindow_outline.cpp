@@ -141,6 +141,7 @@ void WriteWindow::setOutlineMode(bool on)
         return;
     }
     m_outlineOn = on;
+    syncVerticalRuler();
     act("view.outline")->setChecked(on);
     act("view.printLayout")->setChecked(!on);
     m_ribbon->setContextVisible(QStringLiteral("Outlining"), on, true);

@@ -157,7 +157,8 @@ public:
     // A document of plain text: a paragraph for each line, in the default style (the text of a .txt file once its characters are read).
     static std::unique_ptr<WriteDoc> fromText(const QString &text);
     // A document from the bytes of a file of any kind: an OpenDocument text, a Rich Text Format file (it begins "{\\rtf"), and an old binary file (a compound file) are read as such, anything else as a .docx.
-    static std::unique_ptr<WriteDoc> fromFile(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr);
+    // `baseDir` is the folder of the file the bytes came from: the pictures of a web page that sit in files beside it are read from there (nothing else is opened, and no address of the network).
+    static std::unique_ptr<WriteDoc> fromFile(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr, const QString &baseDir = QString());
     // The story written back into a package (empty, with the reason, if it can't be made). `template_` saves it as a template.
     // `macros`: the macro project, its signature, and its data are kept as they were (for a .docm or .dotm); otherwise they are left out.
     QByteArray toDocx(QString *error = nullptr, bool template_ = false, bool macros = false);
@@ -460,6 +461,8 @@ public:
     // Puts a style in the style sheet (one of that id is replaced where it stands, a new one goes last) as part of the edit it is made in: the step of the history that edit becomes
     // keeps what the style was and is, so that Undo and Redo put the style sheet as they put the text. Called inside an edit block of the story (styleops.cpp does).
     void putStyle(const office::wml::Style &style);
+    // Takes a style out of the style sheet as part of the edit it is made in (as putStyle: the step keeps the style, so that Undo puts it back). Nothing for an id the sheet lacks.
+    void removeStyle(const QString &id);
     // Makes the edit being made a step of the story's history even if it changes nothing else (the count on the first paragraph goes up), for a style put with it.
     void markStyleStep();
     // What a run of this format says beyond the style it has (the difference from the paragraph style's look and its own character style), for a style made from a selection.

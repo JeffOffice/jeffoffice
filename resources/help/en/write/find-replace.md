@@ -1,5 +1,5 @@
 # Find and replace words
-<!-- keywords: wildcards, wildcard, pattern, regular expression, groups, match count, highlight all matches, replace, replace all, search, look for, change words, match case, whole words, find next, ctrl+f, ctrl+h, editing, pane, hidden text, undo -->
+<!-- keywords: advanced find, sounds like, soundex, word forms, all forms of a word, ignore punctuation, ignore spaces, special, paragraph mark, tab, find by format, format, bold, font, style, wildcards, wildcard, pattern, regular expression, groups, match count, highlight all matches, replace, replace all, search, look for, change words, match case, whole words, find next, ctrl+f, ctrl+h, editing, pane, hidden text, undo -->
 
 Use Find to jump to words in your document. Use Replace to change them. Both work in one pane on the right of the window.
 
@@ -10,7 +10,7 @@ Use Find to jump to words in your document. Use Replace to change them. Both wor
 
 JeffWrite starts where your cursor is. It selects the next place where it finds your words, and scrolls the pages so you can see it. That place is called a **match**. Click **Find Next** again to go to the next match. After the last match, it goes back to the start of the document.
 
-As you type, the pane counts the matches, such as "9 matches", and every match gets a yellow band on the pages. After **Find Next**, the pane says which one you are on, such as "Match 2 of 4". The count and the bands change when you click **Match case** or **Find whole words only**, or when you change the text. They go away when you close the pane.
+As you type, the pane counts the matches, such as "9 matches", and every match gets a yellow band on the pages. The bands show in table cells, headers, footers, and footnotes too. After **Find Next**, the pane says which one you are on, such as "Match 2 of 4". The count and the bands change when you click **Match case** or **Find whole words only**, or when you change the text. They go away when you close the pane.
 
 ## Find with wildcards
 
@@ -33,6 +33,27 @@ If your words are not in the document, the pane says so, and nothing moves.
 
 You can keep working in the document while the pane is open. Click the page to type. Click the **X** at the top of the pane to close it.
 
+## Advanced Find
+
+These choices are in the pane under **Use wildcards**. Each one changes how JeffWrite reads the words in **Find what**.
+
+- **Sounds like** finds words that are said the way your word is said. It gives each word a code from its sounds, and finds the words with the same code. Type **Smith**, and it finds "Smyth" too.
+- **Find all word forms** finds every form of the word. Type **run**, and it finds "runs," "running," and "ran." It works on whole words. If you type two words, such as **big dog**, it finds them side by side, in any of their forms.
+- **Ignore punctuation characters** skips marks such as hyphens and periods between the letters. Type **email**, and it finds "e-mail" too.
+- **Ignore white-space characters** skips spaces and tabs between the letters. Type **e mail**, and it finds "email."
+
+Only one of **Sounds like**, **Find all word forms**, and **Use wildcards** can be on at a time. **Sounds like** and **Find all word forms** always find whole words, so **Find whole words only** and **Match case** are dimmed.
+
+### Special
+
+Click **Special** to put a code in **Find what**: **Paragraph Mark** (^p), **Tab Character** (^t), **Any Digit** (^#), **Any Letter** (^$), **White Space** (^w), or **Caret Character** (^^). The codes work without **Use wildcards**. The other marks in the box, such as **?** and **\***, are then just those characters.
+
+### Format
+
+Click **Format** to find only text that has a certain look: **Bold**, **Italic**, **Underline**, **Strikethrough**, **Highlighted**, a **Font**, or a paragraph **Style**. The pane lists the looks you chose under the buttons. Pick **No Formatting** to clear them.
+
+You can leave **Find what** empty. Then every stretch of text with that look is a match. With words in **Find what**, only the words with that look are found. **Replace All** changes only those words.
+
 ## Narrow the search
 
 - **Match case** finds only words with the same capital letters. With it on, "Plan" does not find "plan."
@@ -53,7 +74,7 @@ For example, to change "color" to "colour" everywhere: type **color** in **Find 
 ## What the search looks at
 
 - It looks at the text of the document, including the text in tables. A bookmark in the middle of some words, which some files have, does not stop them from being found. **Replace** and **Replace All** keep the bookmark.
-- It does not look in headers, footers, footnotes, or endnotes yet. Words there are not found, and **Replace All** does not change them. If a header or footer is open for editing when you open the pane, it closes first. See [Headers and footers](headers-footers).
+- **Find Next**, **Replace**, and **Replace All** do not look in headers, footers, footnotes, or endnotes yet. Words there get a yellow band, but they are not selected and not changed. If a header or footer is open for editing when you open the pane, it closes first. See [Headers and footers](headers-footers).
 - It skips text that is set to **Hidden**, because that text is not shown. See [Change how text looks](font).
 
 ## Related

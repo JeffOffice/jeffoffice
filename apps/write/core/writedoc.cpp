@@ -379,14 +379,14 @@ std::unique_ptr<WriteDoc> WriteDoc::fromRtf(const QByteArray &bytes, QString *er
     return doc;
 }
 
-std::unique_ptr<WriteDoc> WriteDoc::fromFile(const QByteArray &bytes, QString *error, QStringList *notes)
+std::unique_ptr<WriteDoc> WriteDoc::fromFile(const QByteArray &bytes, QString *error, QStringList *notes, const QString &baseDir)
 {
     // By what is inside: an OpenDocument text (a ZIP whose mimetype says so), then Rich Text Format ("{\\rtf"), then an old binary file (a compound file), else a .docx.
     if (office::odt::looksLikeOdt(bytes)) return fromOdt(bytes, error, notes);
     if (office::rtf::looksLikeRtf(bytes)) return fromRtf(bytes, error, notes);
     if (office::wml::looksLikeHtml(bytes)) {
         office::wml::Document page;
-        if (!office::wml::readHtml(bytes, &page, error)) return nullptr;
+        if (!office::wml::readHtml(bytes, &page, error, baseDir)) return nullptr;
         const QByteArray docx = office::wml::writeDocx(page, error);
         return docx.isEmpty() ? nullptr : fromDocx(docx, error, notes);
     }
@@ -1042,6 +1042,21 @@ void WriteDoc::putStyle(const Style &style)
     change.after = style;
     change.after->raw.clear();   // (the step keeps the bytes of what the style was, not of what it is)
     m_wml.styles.add(style);
+    m_tableSheet.reset();
+    m_scratch.clear();
+    ++m_styleRev;
+    m_pendingStyleChanges.push_back(change);
+}
+
+void WriteDoc::removeStyle(const QString &id)
+{
+    const Style *old = m_wml.styles.find(id);
+    if (!old) return;
+    StyleChange change;
+    change.id = id;
+    change.before = *old;
+    change.modifiedBefore = m_wml.styles.modified;
+    m_wml.styles.remove(id);
     m_tableSheet.reset();
     m_scratch.clear();
     ++m_styleRev;

@@ -85,6 +85,7 @@ void WriteWindow::setFocusMode(bool on)
         return;
     }
     m_focusMode = on;
+    syncVerticalRuler();
     if (on) {
         m_focusWas.fullScreen = isFullScreen();
         m_focusWas.ribbon = m_ribbon->isVisible();
@@ -114,6 +115,11 @@ void WriteWindow::setFocusMode(bool on)
 }
 
 // Read Mode: the window as Focus makes it, the pages in a row each fitted to the window, and the text read only; what was there before comes back when it ends.
+void WriteWindow::syncVerticalRuler()
+{
+    if (m_vruler) m_vruler->setVisible(act("view.verticalRuler")->isChecked() && !m_outlineOn && !m_focusMode);
+}
+
 void WriteWindow::setReadMode(bool on)
 {
     if (m_readMode == on) return;

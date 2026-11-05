@@ -1,5 +1,5 @@
 # Find your way with the Navigation pane
-<!-- keywords: navigation pane, navigation, headings, outline, pages, thumbnails, results, search, promote, demote, collapse, expand, outline view, outlining, page movement, side to side, read mode, draft view, split, move heading, show level, focus, focus mode, full screen, gridlines -->
+<!-- keywords: navigation pane, navigation, headings, outline, pages, thumbnails, results, results by heading, results by page, search, promote, demote, collapse, expand, outline view, outlining, page movement, side to side, read mode, draft view, split, move heading, show level, focus, focus mode, full screen, gridlines -->
 
 The **Navigation pane** is a panel on the left of the window. Open it with **View > Navigation Pane**. It has three tabs.
 
@@ -19,6 +19,8 @@ Small pictures of the pages. Click one to go to that page. It shows up to the fi
 ## Results
 
 Type a word or phrase and press Enter. The tab lists each place it is found, with the words around it. Click a result to select it in the text. At most 500 results are listed.
+
+The box under the search box sets how the places are listed. **As text** lists them in the order of the document. **By heading** puts them under the heading each one is in, with the headings in bold. **By page** puts them under the page each one is on, such as **Page 3**. Click a place, not a heading or a page name, to go to it.
 
 ## Outline view
 

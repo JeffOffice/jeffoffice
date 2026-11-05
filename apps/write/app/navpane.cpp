@@ -7,6 +7,7 @@
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 
+#include <QComboBox>
 #include <QCoreApplication>
 #include <QHeaderView>
 #include <QLabel>
@@ -77,15 +78,23 @@ NavigationPane::NavigationPane(WriteWindow *win, QWidget *parent) : QWidget(pare
     m_search->setObjectName(QStringLiteral("navigationSearch"));
     m_search->setPlaceholderText(tr("Search document"));
     m_search->setClearButtonEnabled(true);
+    m_group = new QComboBox(resultsPage);
+    m_group->setObjectName(QStringLiteral("navigationGroup"));
+    m_group->setAccessibleName(tr("Show results"));
+    m_group->addItem(tr("As text"));
+    m_group->addItem(tr("By heading"));
+    m_group->addItem(tr("By page"));
     m_results = new QListWidget(resultsPage);
     m_results->setObjectName(QStringLiteral("navigationResults"));
     m_results->setAccessibleName(tr("Results"));
     rv->addWidget(m_search);
+    rv->addWidget(m_group);
     rv->addWidget(m_results, 1);
     m_tabs->addTab(resultsPage, tr("Results"));
     connect(m_search, &QLineEdit::returnPressed, this, &NavigationPane::search);
+    connect(m_group, &QComboBox::currentIndexChanged, this, [this] { search(); });
     connect(m_results, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
-        if (!m_win->document()) return;
+        if (!m_win->document() || !item->data(kPositionRole).isValid()) return;
         QTextCursor c(m_win->document()->story());
         const int at = item->data(kPositionRole).toInt(), length = item->data(kLengthRole).toInt();
         c.setPosition(std::clamp(at, 0, write::editableEnd(m_win->document()->story())));
@@ -284,17 +293,51 @@ void NavigationPane::search()
     if (!doc || what.isEmpty()) return;
     const QTextDocument *story = doc->story();
     const int end = write::editableEnd(story);
+    struct Hit {
+        int at, length;
+        QString context;
+    };
+    QVector<Hit> hits;
     QTextCursor found = story->find(what, 0);
-    while (!found.isNull() && found.selectionEnd() <= end && m_results->count() < kMostResults) {
+    while (!found.isNull() && found.selectionEnd() <= end && hits.size() < kMostResults) {
         const QTextBlock b = found.block();
         const int from = std::max(0, found.selectionStart() - b.position() - 24), to = std::min(b.length(), found.selectionEnd() - b.position() + 24);
         QString context = b.text().mid(from, to - from).simplified();
         if (from > 0) context.prepend(QChar(0x2026));
         if (to < b.length() - 1) context.append(QChar(0x2026));
-        auto *item = new QListWidgetItem(context, m_results);
-        item->setData(kPositionRole, found.selectionStart());
-        item->setData(kLengthRole, found.selectionEnd() - found.selectionStart());
+        hits.push_back({found.selectionStart(), int(found.selectionEnd() - found.selectionStart()), context});
         found = story->find(what, found.selectionEnd());
+    }
+    const int grouping = m_group->currentIndex();
+    // The headings the places are under (the last at or before each), and the page each is on.
+    if (grouping == 1 && (m_headingsOf != doc->id() || m_revision != doc->story()->revision())) scanHeadings();
+    QString lastGroup;
+    bool grouped = false;
+    for (const Hit &h : std::as_const(hits)) {
+        if (grouping != 0) {
+            QString group;
+            if (grouping == 1) {
+                const auto after = std::upper_bound(m_positions.cbegin(), m_positions.cend(), h.at);
+                const int heading = int(after - m_positions.cbegin()) - 1;
+                group = heading >= 0 && heading < m_shown.size() ? m_shown[heading].first : tr("Before the first heading");
+            } else {
+                group = tr("Page %1").arg(doc->pager().pageOfPosition(h.at) + 1);
+            }
+            // (Two headings with the same words, one after the other, are two groups: a group is told by the heading it is under.)
+            const QString key = grouping == 1 ? QString::number(std::upper_bound(m_positions.cbegin(), m_positions.cend(), h.at) - m_positions.cbegin()) : group;
+            if (!grouped || key != lastGroup) {
+                auto *header = new QListWidgetItem(group, m_results);
+                QFont bold = header->font();
+                bold.setBold(true);
+                header->setFont(bold);
+                header->setFlags(Qt::ItemIsEnabled);
+                lastGroup = key;
+                grouped = true;
+            }
+        }
+        auto *item = new QListWidgetItem(h.context, m_results);
+        item->setData(kPositionRole, h.at);
+        item->setData(kLengthRole, h.length);
     }
     if (m_results->count() == 0) m_results->addItem(tr("No results"));
 }

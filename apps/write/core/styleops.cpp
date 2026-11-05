@@ -13,6 +13,7 @@
 #include <QTextBlock>
 #include <QTextDocument>
 #include <algorithm>
+#include <functional>
 
 using namespace jp::office;
 using namespace jp::office::wml;
@@ -450,6 +451,162 @@ bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const Style &
     edit.endEditBlock();
     if (!doc.settleStyleEdit()) return fail(QCoreApplication::translate("jp::write::Styles", "The document keeps no history, so the style was not changed."));
     return true;
+}
+
+bool deleteStyle(WriteDoc &doc, const QString &id, QString *problem)
+{
+    auto fail = [&](const QString &why) {
+        if (problem) *problem = why;
+        return false;
+    };
+    const Style *found = doc.styleSheet().find(id);
+    if (!found) return fail(QCoreApplication::translate("jp::write::Styles", "The document has no such style."));
+    if (!found->customStyle || found->isDefault || (found->type != QLatin1String("paragraph") && found->type != QLatin1String("character")))
+        return fail(QCoreApplication::translate("jp::write::Styles", "Only a style you made can be deleted."));
+    const Style old = *found;
+    const bool paragraphKind = old.type == QLatin1String("paragraph");
+    StyleSheet before = doc.styleSheet();
+    const QString normal = doc.defaultParagraphStyle();
+    QSet<QString> kids = descendantsOf(before, id, old.type);
+    kids.remove(id);
+    QTextCursor edit(doc.story());
+    edit.beginEditBlock();
+    // The styles based on it are based on what it was based on; those that name it as the next style or as their linked style let go of it.
+    for (Style s : before.styles) {
+        if (s.id == id) continue;
+        bool changed = false;
+        if (s.basedOn == id && s.type == old.type) {
+            s.basedOn = old.basedOn;
+            changed = true;
+        }
+        if (s.next == id) {
+            s.next.clear();
+            changed = true;
+        }
+        if (s.link == id) {
+            s.link.clear();
+            changed = true;
+        }
+        if (changed) {
+            s.raw.clear();
+            doc.putStyle(s);
+        }
+    }
+    doc.removeStyle(id);
+    restyleText(doc, before, paragraphKind ? kids : QSet<QString>(), paragraphKind ? QSet<QString>() : kids);
+    // The text that had the style: what the style gave it is taken off, what it says itself stays.
+    struct Forget {
+        WriteDoc &doc;
+        ~Forget() { doc.forgetSwappedScratch(); }
+    } forget{doc};
+    doc.forgetSwappedScratch();
+    auto blockLook = [&](const QString &style, bool was) {
+        if (was) doc.swapStyleSheet(before);
+        const QTextBlockFormat bf = doc.styleBlockFormat(style);
+        if (was) doc.swapStyleSheet(before);
+        return bf;
+    };
+    auto charLook = [&](const QString &style, const QString &character, bool was) {
+        if (was) doc.swapStyleSheet(before);
+        const QTextCharFormat cf = doc.styleCharFormat(style, character);
+        if (was) doc.swapStyleSheet(before);
+        return cf;
+    };
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
+        if (isLocked(b)) continue;
+        const QTextBlockFormat bf = b.blockFormat();
+        const QString style = styleOfBlock(bf);
+        const bool whole = paragraphKind && style == id;
+        struct Edit {
+            int from, to;
+            QTextCharFormat format;
+        };
+        QVector<Edit> edits;
+        const QString paragraphStyle = style.isEmpty() ? normal : style;
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            const QString character = f.charFormat().stringProperty(tp::CharStyle);
+            QTextCharFormat nfmt = f.charFormat();
+            if (whole) {
+                nfmt = restyleCharFormat(nfmt, charLook(id, character, true), charLook(normal, character, false));
+            } else if (!paragraphKind && character == id) {
+                nfmt = restyleCharFormat(nfmt, charLook(paragraphStyle, id, true), charLook(paragraphStyle, QString(), false));
+                nfmt.clearProperty(tp::CharStyle);
+            }
+            if (nfmt != f.charFormat()) edits.push_back({f.position(), f.position() + f.length(), nfmt});
+        }
+        for (const Edit &e : std::as_const(edits)) {
+            QTextCursor t(b);
+            t.setPosition(e.from);
+            t.setPosition(e.to, QTextCursor::KeepAnchor);
+            t.setCharFormat(e.format);
+        }
+        if (whole) {
+            QTextBlockFormat nf = restyledBlock(bf, blockLook(id, true), blockLook(normal, false));
+            nf.clearProperty(tp::StyleName);
+            nf.setObjectIndex(bf.objectIndex());
+            QTextCursor(b).setBlockFormat(nf);
+            setMarkFormat(b, restyleCharFormat(markFormat(b), charLook(id, QString(), true), charLook(normal, QString(), false)));
+        }
+    }
+    touchStyles(doc);
+    edit.endEditBlock();
+    if (!doc.settleStyleEdit()) return fail(QCoreApplication::translate("jp::write::Styles", "The document keeps no history, so the style was not deleted."));
+    return true;
+}
+
+int importStyles(WriteDoc &doc, const WriteDoc &from, const QStringList &ids, bool replace, QString *problem)
+{
+    auto fail = [&](const QString &why) {
+        if (problem) *problem = why;
+        return 0;
+    };
+    // The styles asked for and the styles they are based on, the bases first; a style that is no paragraph or character style, or that the other document lacks, is no style to import.
+    QVector<Style> wanted;
+    QSet<QString> seen;
+    std::function<void(const QString &, int)> collect = [&](const QString &id, int depth) {
+        if (id.isEmpty() || seen.contains(id) || depth > 32 || wanted.size() >= kMostStylesMade) return;
+        seen.insert(id);
+        const Style *s = from.styleSheet().find(id);
+        if (!s || (s->type != QLatin1String("paragraph") && s->type != QLatin1String("character"))) return;
+        collect(s->basedOn, depth + 1);
+        wanted.push_back(*s);
+    };
+    const QSet<QString> asked(ids.begin(), ids.end());
+    for (const QString &id : ids) collect(id, 0);
+    StyleSheet before = doc.styleSheet();
+    QVector<Style> put;
+    QSet<QString> paragraphs, characters;
+    for (Style s : std::as_const(wanted)) {
+        const Style *have = doc.styleSheet().find(s.id);
+        if (have && (!replace || !asked.contains(s.id) || have->type != s.type)) continue;   // (a base the style needs is not replaced unless it was asked for)
+        if (!have && doc.styleSheet().styles.size() + put.size() >= kMostStylesMade) break;
+        // (What the style says of the other document's numbering has no meaning here: its list is not carried.)
+        s.raw.clear();
+        s.pPr.numId.reset();
+        s.pPr.ilvl.reset();
+        s.isDefault = false;
+        // A name that another style of this document has is not taken twice.
+        if (!have && !styleNameProblem(doc, s.name.isEmpty() ? s.id : s.name, QString()).isEmpty()) continue;
+        if (have) (s.type == QLatin1String("paragraph") ? paragraphs : characters).unite(descendantsOf(before, s.id, s.type));
+        put.push_back(s);
+    }
+    if (put.isEmpty()) return 0;
+    QTextCursor edit(doc.story());
+    edit.beginEditBlock();
+    for (const Style &s : std::as_const(put)) {
+        // (A style based on one this document lacks is based on none.)
+        Style t = s;
+        if (!t.basedOn.isEmpty() && !doc.styleSheet().find(t.basedOn) && std::none_of(put.begin(), put.end(), [&](const Style &p) { return p.id == t.basedOn; })) t.basedOn.clear();
+        if (!t.next.isEmpty() && !doc.styleSheet().find(t.next) && std::none_of(put.begin(), put.end(), [&](const Style &p) { return p.id == t.next; })) t.next.clear();
+        t.link.clear();
+        doc.putStyle(t);
+    }
+    restyleText(doc, before, paragraphs, characters);
+    touchStyles(doc);
+    edit.endEditBlock();
+    if (!doc.settleStyleEdit()) return fail(QCoreApplication::translate("jp::write::Styles", "The document keeps no history, so the styles were not imported."));
+    return int(put.size());
 }
 
 namespace {
