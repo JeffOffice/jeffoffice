@@ -407,6 +407,14 @@ void PageView::keyPressEvent(QKeyEvent *e)
         e->ignore();
         return;
     }
+    if (e->key() == Qt::Key_Escape && m_tableTool != TableTool::None) {
+        // (the pen or the eraser is put down; a line begun is let go)
+        m_toolDrag = ToolDrag();
+        setTableTool(TableTool::None);
+        viewport()->update();
+        e->accept();
+        return;
+    }
     if (e->key() == Qt::Key_Escape && m_columnDrag.active) {
         // (a pull of a border or of the table's handle is let go: nothing is changed)
         m_columnDrag.active = false;
@@ -487,6 +495,16 @@ void PageView::mousePressEvent(QMouseEvent *e)
         return;
     }
     m_columnDrag.pending = false;
+    if (m_tableTool != TableTool::None && e->button() == Qt::LeftButton && !m_hf.active && !m_note.active && !m_readOnly) {
+        const Hit hit = hitAt(e->position().toPoint());
+        const int at = positionAt(hit);
+        if (hit.page >= 0 && at >= 0) {
+            m_toolDrag = {true, hit.page, at, hit.point, hit.point};
+            viewport()->update();
+            e->accept();
+            return;
+        }
+    }
     if (e->button() == Qt::LeftButton && e->type() != QEvent::MouseButtonDblClick && !m_hf.active && !m_note.active) {
         if (tableHandleAt(e->position().toPoint(), &m_columnDrag)) {
             m_columnDrag.active = true;
@@ -570,6 +588,12 @@ void PageView::mousePressEvent(QMouseEvent *e)
 
 void PageView::mouseMoveEvent(QMouseEvent *e)
 {
+    if (m_toolDrag.active) {
+        const Hit hit = hitAt(e->position().toPoint());
+        if (hit.page == m_toolDrag.page) m_toolDrag.to = hit.point;
+        viewport()->update();
+        return;
+    }
     if (m_columnDrag.pending) {
         if (!(e->buttons() & Qt::LeftButton)) m_columnDrag.pending = false;
         else if ((e->position().toPoint() - m_columnDrag.startPx).manhattanLength() >= QApplication::startDragDistance()) {
@@ -595,7 +619,7 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
         else if ((e->position().toPoint() - m_textDrag.start).manhattanLength() >= QApplication::startDragDistance()) startTextDrag();
         return;
     }
-    if (m_doc && !m_dragging && !(e->buttons() & Qt::LeftButton)) {
+    if (m_doc && !m_dragging && m_tableTool == TableTool::None && !(e->buttons() & Qt::LeftButton)) {
         // The pointer says what a press on the selected picture would do, or that a press on a column's border would pull it.
         const PictureHandle h = pictureHandleAt(e->position().toPoint());
         ColumnDrag border;
@@ -628,8 +652,64 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
     caretMoved();
 }
 
+void PageView::setTableTool(TableTool tool)
+{
+    if (m_tableTool == tool) return;
+    m_tableTool = tool;
+    m_toolDrag = ToolDrag();
+    m_hoverCursorShape = -1;
+    viewport()->setCursor(tool == TableTool::None ? Qt::IBeamCursor : Qt::CrossCursor);
+    viewport()->update();
+    Q_EMIT tableToolChanged();
+}
+
+void PageView::finishTableTool(const QPoint &viewportPos)
+{
+    const ToolDrag d = m_toolDrag;
+    m_toolDrag = ToolDrag();
+    viewport()->update();
+    if (!m_doc || d.position < 0 || d.position >= m_doc->story()->characterCount()) return;
+    const Hit hit = hitAt(viewportPos);
+    const QPointF delta = hit.page == d.page ? hit.point - d.from : QPointF();
+    const int toPosition = hit.page == d.page ? positionAt(hit) : -1;
+    QTextCursor c(m_doc->story());
+    c.setPosition(d.position);
+    m_doc->tableNotice.clear();
+    bool changed = false;
+    if (m_tableTool == TableTool::Draw) {
+        if (!inTable(c.block())) {
+            // A rectangle drawn in the text: a table of one cell that size (as wide as drawn, at least as tall).
+            if (std::abs(delta.x()) < 12 || std::abs(delta.y()) < 8) return;
+            write::NewTable table;
+            table.rows = table.columns = 1;
+            table.columnWidth = std::min(std::abs(delta.x()), write::textWidthAt(*m_doc, d.position));
+            if (write::insertTable(*m_doc, c, table)) {
+                write::setRowHeight(*m_doc, c, std::abs(delta.y()), false);
+                changed = true;
+            }
+        } else if (std::abs(delta.x()) >= 8 || std::abs(delta.y()) >= 8) {
+            // A line drawn across a cell divides it: a line that goes across makes two rows, one that goes down makes two columns.
+            changed = write::splitCells(*m_doc, c, std::abs(delta.x()) >= std::abs(delta.y()) ? 1 : 2, std::abs(delta.x()) >= std::abs(delta.y()) ? 2 : 1);
+        }
+    } else if (toPosition >= 0 && toPosition != d.position) {
+        // The eraser rubs out the line between the cell it began in and the one it ended in.
+        c.setPosition(toPosition, QTextCursor::KeepAnchor);
+        if (inTable(m_doc->story()->findBlock(d.position)) && inTable(m_doc->story()->findBlock(toPosition))) changed = write::mergeCells(*m_doc, c);
+    }
+    if (!changed && !m_doc->tableNotice.isEmpty()) Q_EMIT notice(m_doc->tableNotice);
+    if (changed) {
+        m_cursor.setPosition(std::min(c.position(), m_doc->story()->characterCount() - 1));
+        refresh();
+        caretMoved();
+    }
+}
+
 void PageView::mouseReleaseEvent(QMouseEvent *e)
 {
+    if (m_toolDrag.active) {
+        finishTableTool(e->position().toPoint());
+        return;
+    }
     if (m_columnDrag.active) {
         const Hit hit = hitAt(e->position().toPoint());
         const double width = std::max(6.0, m_columnDrag.width + (m_columnDrag.row ? hit.point.y() - m_columnDrag.startY : hit.point.x() - m_columnDrag.startX));

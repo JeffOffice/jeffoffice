@@ -447,6 +447,17 @@ private Q_SLOTS:
                  for (int i = 0; i < 8 && !write::canSplitTable(*asWrite(w)->document(), asWrite(w)->view()->cursor()); ++i) write::tabThroughCells(*asWrite(w)->document(), asWrite(w)->view()->cursor(), false);
                  asWrite(w)->refreshNow();
              }, false},
+            {QStringLiteral("the cursor in the second cell of a row of a table"), [](AppWindow *w, bool) {
+                 // (a cell with others left in its row: Delete Cells, Shift Left can take it out)
+                 tableAtCursor(asWrite(w));
+                 write::tabThroughCells(*asWrite(w)->document(), asWrite(w)->view()->cursor(), false);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("the cursor in a cell of turned text"), [](AppWindow *w, bool) {
+                 tableAtCursor(asWrite(w));
+                 write::setCellTextDirection(*asWrite(w)->document(), asWrite(w)->view()->cursor(), flow::CellDirection::BottomToTop);
+                 asWrite(w)->refreshNow();
+             }, false},
             {QStringLiteral("the whole table selected"), [](AppWindow *w, bool) {
                  tableAtCursor(asWrite(w));
                  write::selectInTable(*asWrite(w)->document(), asWrite(w)->view()->cursor(), write::TableUnit::Table);
@@ -592,6 +603,9 @@ private Q_SLOTS:
             {QStringLiteral("view.printLayout"), QStringLiteral("the window begins in the print layout, and choosing it again changes nothing; the outline tests choose it from Outline view")},
             {QStringLiteral("review.show.comments"), QStringLiteral("it chooses whether the balloons for comments are painted in the pages' margin, which no control shows; the window's tests check the painting")},
             {QStringLiteral("hf.showDocumentText"), QStringLiteral("it covers or shows the text of the page under a header or footer being edited, and the places here have no text there; the window's tests check the painting")},
+            {QStringLiteral("arrange.alignToPage"), QStringLiteral("it is the setting the next Align command reads, and changes nothing by itself; alignToPageDecidesWhatTheAlignCommandsLineUpWith runs both ways with a shape selected")},
+            {QStringLiteral("table.draw"), QStringLiteral("it picks up the pen: the pointer and the mark change, and the drawing is made by a mouse drag; drawTableAndEraserCommandsPickUpTheToolsThatDrawAndJoin drags it in a window")},
+            {QStringLiteral("table.eraser"), QStringLiteral("it picks up the eraser: the pointer and the mark change, and the join is made by a mouse drag; drawTableAndEraserCommandsPickUpTheToolsThatDrawAndJoin drags it in a window")},
             {QStringLiteral("table.gridlines"), QStringLiteral("it draws the edges of the cells that have no line, and the tables the checks make have lines; the window's tests check the drawing")},
             {QStringLiteral("review.show.formatting"), QStringLiteral("it chooses whether the bars for changes of formatting are painted in the pages' margin, which no control shows; the window's tests check the painting")},
         };
@@ -737,6 +751,101 @@ private Q_SLOTS:
     {
         const QStringList fails = checkStandardCommands(m_app);
         QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
+    }
+
+    // ---- the modes and settings the command check cannot see work (they change what the next drag or command does)
+    // Draw Table and Eraser: the commands pick up the pen and the eraser (the pointer changes, the mark shows), and the mouse then draws a table, divides a cell, and joins two cells.
+    void drawTableAndEraserCommandsPickUpTheToolsThatDrawAndJoin()
+    {
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        typeInto(w->view(), QStringLiteral("Intro"));
+        w->refreshNow();
+        auto pagePoint = [&](double x, double y) {
+            const QRect r = w->view()->pageRect(0);
+            return QPoint(r.left() + int(x * 96 / 72 * w->view()->zoom()), r.top() + int(y * 96 / 72 * w->view()->zoom()));
+        };
+        auto drag = [&](const QPoint &from, const QPoint &to) {
+            QTest::mousePress(w->view()->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+            QTest::mouseMove(w->view()->viewport(), to);
+            QTest::mouseRelease(w->view()->viewport(), Qt::LeftButton, Qt::NoModifier, to);
+            w->view()->refresh();
+            w->refreshNow();
+        };
+        auto cells = [&] {
+            QSet<int> keys;
+            for (QTextBlock b = w->document()->story()->begin(); b.isValid(); b = b.next())
+                if (write::inTable(b)) keys.insert(write::cellKeyOf(b));
+            return int(keys.size());
+        };
+        // No table: the pen can be picked up (it draws one), the eraser can't (nothing to join).
+        QVERIFY(w->act(QStringLiteral("table.draw"))->isEnabled());
+        QVERIFY(!w->act(QStringLiteral("table.eraser"))->isEnabled());
+        w->act(QStringLiteral("table.draw"))->trigger();
+        QVERIFY(w->act(QStringLiteral("table.draw"))->isChecked());
+        QCOMPARE(w->view()->tableTool(), write::PageView::TableTool::Draw);
+        QCOMPARE(w->view()->viewport()->cursor().shape(), Qt::CrossCursor);
+        drag(pagePoint(100, 80), pagePoint(260, 150));
+        QCOMPARE(cells(), 1);
+        QVERIFY(w->act(QStringLiteral("table.eraser"))->isEnabled());
+        // A line across the cell divides it (the first cell's box is found from the page).
+        QRectF box;
+        auto firstCell = [&] {
+            box = QRectF();
+            const auto page = w->document()->pager().materialize(0);
+            if (page && !page->tables.isEmpty()) page->tables[0]->forCellBoxes([&](const QRectF &b, int, int, int) {
+                if (!box.isValid()) box = b;
+            });
+            return box.isValid();
+        };
+        QVERIFY(firstCell());
+        drag(pagePoint(box.left() + 10, box.center().y()), pagePoint(box.right() - 10, box.center().y()));
+        QCOMPARE(cells(), 2);
+        // The eraser: picking it up lets the pen go (the marks follow), and a drag from one cell to the next joins them.
+        w->act(QStringLiteral("table.eraser"))->trigger();
+        QVERIFY(w->act(QStringLiteral("table.eraser"))->isChecked() && !w->act(QStringLiteral("table.draw"))->isChecked());
+        QVERIFY(firstCell());
+        QVector<QRectF> boxes;
+        {
+            const auto page = w->document()->pager().materialize(0);
+            page->tables[0]->forCellBoxes([&](const QRectF &b, int, int, int) { boxes << b; });
+        }
+        QCOMPARE(boxes.size(), 2);
+        drag(pagePoint(boxes[0].center().x(), boxes[0].center().y()), pagePoint(boxes[1].center().x(), boxes[1].center().y()));
+        // (Cells joined down keep their paragraphs; the page shows one box for the joined cell.)
+        QVERIFY(firstCell());
+        {
+            int shown = 0;
+            const auto page = w->document()->pager().materialize(0);
+            page->tables[0]->forCellBoxes([&](const QRectF &, int, int, int) { ++shown; });
+            QCOMPARE(shown, 1);
+        }
+        // Triggering the eraser again puts it down.
+        w->act(QStringLiteral("table.eraser"))->trigger();
+        QCOMPARE(w->view()->tableTool(), write::PageView::TableTool::None);
+    }
+
+    // Align to Page is the setting the next Align command reads: with it on, Align lines the selected shape up with the page, and off, with the margins.
+    void alignToPageDecidesWhatTheAlignCommandsLineUpWith()
+    {
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        typeInto(w->view(), QStringLiteral("Intro"));
+        QTextCursor c(w->document()->story());
+        c.setPosition(0);
+        QVERIFY(write::insertShape(*w->document(), c, QStringLiteral("rect")) == write::PictureResult::Ok);
+        w->view()->selectPicture(0);
+        w->refreshNow();
+        QVERIFY(w->act(QStringLiteral("arrange.alignToPage"))->isEnabled() && w->act(QStringLiteral("arrange.align.left"))->isEnabled());
+        w->act(QStringLiteral("arrange.alignToPage"))->trigger();
+        QVERIFY(w->act(QStringLiteral("arrange.alignToPage"))->isChecked());
+        w->act(QStringLiteral("arrange.align.left"))->trigger();
+        write::PictureInfo info = write::pictureAt(*w->document(), w->document()->story(), 0);
+        QVERIFY(info.alignedToPage);
+        QCOMPARE(info.alignAcross, QStringLiteral("left"));
+        w->act(QStringLiteral("arrange.alignToPage"))->trigger();
+        w->act(QStringLiteral("arrange.align.right"))->trigger();
+        info = write::pictureAt(*w->document(), w->document()->story(), 0);
+        QCOMPARE(info.alignAcross, QStringLiteral("right"));
+        QVERIFY(!info.alignedToPage);   // (the margin is what the across direction is measured from now)
     }
 
     // ---- tables (beta wave B)

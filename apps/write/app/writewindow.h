@@ -342,12 +342,15 @@ private:
     void refreshChartUi();
     void editChartData();
     void editChartTitle();
+    void editChartAxisTitle(bool values);
     void cropSelectedPicture();
     void changeSelectedPicture();
     void shapeRibbonParts(RibbonParts &parts);
     void refreshShapeUi();
     void editShapeText();
     void turnSelectedShape(double degrees, bool relative);
+    void alignSelectedObject(int align);
+    void gradientSelectedShape(double angle, bool twoColors);
     void createInsertActions();
     void createLayoutExtraActions();
     void createViewExtraActions();
@@ -377,6 +380,7 @@ private:
     void removeEdited(bool footer);
     void insertPictureFromFile();
     void insertPictureFromClipboard();
+    void insertIconsFromPicker();
     void showPageSetupDialog();
     void refreshPictureUi();
     void addPictureContextMenu(QMenu &menu);

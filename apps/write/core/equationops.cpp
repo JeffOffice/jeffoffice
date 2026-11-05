@@ -7,6 +7,7 @@
 #include "wml/wmlmath.h"
 #include "wml/xmltree.h"
 
+#include <QCoreApplication>
 #include <QHash>
 #include <QVector>
 
@@ -25,6 +26,14 @@ QByteArray run(const QString &text)
     if (text.isEmpty()) return {};
     const bool spaces = text.startsWith(QLatin1Char(' ')) || text.endsWith(QLatin1Char(' ')) || text.contains(QLatin1String("  "));
     return QByteArray("<m:r><m:t") + (spaces ? " xml:space=\"preserve\"" : "") + ">" + escaped(text) + "</m:t></m:r>";
+}
+
+// The accents a name puts over its operand, and the combining character each is written as.
+const QVector<std::pair<const char *, ushort>> &accents()
+{
+    static const QVector<std::pair<const char *, ushort>> list = {{"hat", 0x302}, {"check", 0x30C}, {"tilde", 0x303}, {"acute", 0x301}, {"grave", 0x300}, {"breve", 0x306},
+                                                                  {"dot", 0x307}, {"ddot", 0x308}, {"bar", 0x305}, {"vec", 0x20D7}};
+    return list;
 }
 
 struct Item {
@@ -64,6 +73,7 @@ private:
         }
         while (more() && !m_failed) {
             if (!closer.isNull() && peek() == closer) break;
+            if (m_leftDepth > 0 && atRight()) break;
             if (++m_pieces > 4000) {
                 fail();
                 break;
@@ -123,6 +133,9 @@ private:
         }
         return items;
     }
+
+    // At \right (and not a longer name that begins so, as \rightarrow).
+    bool atRight() const { return m_text.mid(m_at, 6) == QLatin1String("\\right") && (m_at + 6 >= m_text.size() || !m_text[m_at + 6].isLetter()); }
 
     void skipBlanks()
     {
@@ -184,6 +197,147 @@ private:
         const QByteArray e = radicand.bare.isEmpty() ? radicand.xml : radicand.bare;
         const QByteArray props = degree.isEmpty() ? QByteArray("<m:radPr><m:degHide m:val=\"1\"/></m:radPr><m:deg/>") : QByteArray("<m:deg>") + degree + "</m:deg>";
         return Item{"<m:rad>" + props + "<m:e>" + e + "</m:e></m:rad>", QByteArray(), true};
+    }
+
+    // The operand of an accent, a bar, or a root-like command: a group in braces, or one item.
+    Item operandOf(int depth)
+    {
+        skipBlanks();
+        return peek() == QLatin1Char('{') ? group(QLatin1Char('}'), false, depth) : (more() ? primary(depth) : Item{});
+    }
+
+    // A matrix: rows of cells in braces, the cells divided by & and the rows by a double backslash.
+    Item matrix(const QChar &open, const QChar &close, int depth)
+    {
+        skipBlanks();
+        if (peek() != QLatin1Char('{')) {
+            fail();
+            return Item{};
+        }
+        ++m_at;
+        QVector<QVector<QByteArray>> rows(1);
+        QVector<Item> cell;
+        auto endCell = [&] {
+            rows.last().push_back(join(cell));
+            cell.clear();
+        };
+        while (more() && !m_failed && peek() != QLatin1Char('}')) {
+            if (++m_pieces > 4000) {
+                fail();
+                break;
+            }
+            if (peek() == QLatin1Char('&')) {
+                ++m_at;
+                endCell();
+                skipBlanks();
+            } else if (m_text.mid(m_at, 2) == QLatin1String("\\\\")) {
+                m_at += 2;
+                endCell();
+                rows.push_back({});
+                skipBlanks();
+            } else {
+                // A piece of the cell: one run of items up to the next divider.
+                const qsizetype before = m_at;
+                QVector<Item> part = sequenceUntilDivider(depth + 1);
+                for (const Item &i : part) cell.push_back(i);
+                if (m_at == before) fail();
+            }
+        }
+        if (peek() == QLatin1Char('}')) ++m_at;
+        endCell();
+        int columns = 0;
+        for (const auto &r : rows) columns = std::max(columns, int(r.size()));
+        if (rows.size() > 64 || columns > 64 || columns == 0) {
+            fail();
+            return Item{};
+        }
+        QByteArray x = "<m:m><m:mPr><m:mcs><m:mc><m:mcPr><m:count m:val=\"" + QByteArray::number(columns) + "\"/><m:mcJc m:val=\"center\"/></m:mcPr></m:mc></m:mcs></m:mPr>";
+        for (auto &r : rows) {
+            while (r.size() < columns) r.push_back({});
+            x += "<m:mr>";
+            for (const QByteArray &c : r) x += "<m:e>" + (c.isEmpty() ? QByteArray("<m:r><m:t></m:t></m:r>") : c) + "</m:e>";
+            x += "</m:mr>";
+        }
+        x += "</m:m>";
+        if (open.isNull()) return Item{x, QByteArray(), true};
+        const QByteArray d = "<m:d><m:dPr><m:begChr m:val=\"" + escaped(QString(open)) + "\"/><m:endChr m:val=\"" + escaped(QString(close)) + "\"/></m:dPr><m:e>" + x + "</m:e></m:d>";
+        return Item{d, QByteArray(), true};
+    }
+
+    // Items up to a & or a double backslash or the closing brace of a matrix (left for the caller).
+    QVector<Item> sequenceUntilDivider(int depth)
+    {
+        QVector<Item> items;
+        const qsizetype start = m_at;
+        // (The items are read one at a time by the usual reader on the text up to the divider, so that scripts and fractions work in a cell.)
+        qsizetype end = m_at;
+        int braces = 0;
+        while (end < m_text.size()) {
+            const QChar ch = m_text[end];
+            if (ch == QLatin1Char('{')) ++braces;
+            else if (ch == QLatin1Char('}')) {
+                if (braces == 0) break;
+                --braces;
+            } else if (braces == 0 && ch == QLatin1Char('&')) break;
+            else if (braces == 0 && m_text.mid(end, 2) == QLatin1String("\\\\")) break;
+            else if (ch == QLatin1Char('\\') && end + 1 < m_text.size()) ++end;
+            ++end;
+        }
+        const QString saved = m_text;
+        const qsizetype savedAt = end;
+        m_text = saved.left(end);
+        m_at = start;
+        items = sequence(QChar(), depth);
+        m_text = saved;
+        m_at = savedAt;
+        // (Blanks at the cell's ends are not part of it.)
+        while (!items.isEmpty() && items.last().xml == run(QStringLiteral(" "))) items.removeLast();
+        while (!items.isEmpty() && items.first().xml == run(QStringLiteral(" "))) items.removeFirst();
+        return items;
+    }
+
+    // \left( ... \right): brackets that grow with what is between them.
+    Item growing(int depth)
+    {
+        auto delimiter = [&]() -> QString {
+            skipBlanks();
+            if (!more()) return QString();
+            if (peek() == QLatin1Char('.')) {
+                ++m_at;
+                return QString();
+            }
+            if (peek() == QLatin1Char('\\') && m_at + 1 < m_text.size()) {
+                ++m_at;
+                return QString(m_text[m_at++]);
+            }
+            return QString(m_text[m_at++]);
+        };
+        const QString open = delimiter();
+        ++m_leftDepth;
+        const QVector<Item> inner = sequence(QChar(), depth + 1);
+        --m_leftDepth;
+        QString close;
+        if (atRight()) {
+            m_at += 6;
+            close = delimiter();
+        }
+        QByteArray body = join(inner);
+        if (body.isEmpty()) body = "<m:r><m:t></m:t></m:r>";
+        return Item{"<m:d><m:dPr><m:begChr m:val=\"" + escaped(open) + "\"/><m:endChr m:val=\"" + escaped(close) + "\"/></m:dPr><m:e>" + body + "</m:e></m:d>", QByteArray(), true};
+    }
+
+    Item accent(const QString &chr, int depth)
+    {
+        const Item operand = operandOf(depth);
+        const QByteArray e = operand.bare.isEmpty() ? operand.xml : operand.bare;
+        return Item{"<m:acc><m:accPr><m:chr m:val=\"" + escaped(chr) + "\"/></m:accPr><m:e>" + e + "</m:e></m:acc>", QByteArray(), true};
+    }
+
+    Item bar(bool over, int depth)
+    {
+        const Item operand = operandOf(depth);
+        const QByteArray e = operand.bare.isEmpty() ? operand.xml : operand.bare;
+        return Item{"<m:bar><m:barPr><m:pos m:val=\"" + QByteArray(over ? "top" : "bot") + "\"/></m:barPr><m:e>" + e + "</m:e></m:bar>", QByteArray(), true};
     }
 
     Item nary(const QString &symbol, bool integral, int depth)
@@ -249,6 +403,15 @@ private:
                 return Item{"<m:f><m:num>" + n + "</m:num><m:den>" + d + "</m:den></m:f>", QByteArray(), true};
             }
             if (name == QLatin1String("sqrt")) return radical(depth);
+            if (name == QLatin1String("left")) return growing(depth);
+            if (name == QLatin1String("overline")) return bar(true, depth);
+            if (name == QLatin1String("underline")) return bar(false, depth);
+            if (name == QLatin1String("matrix")) return matrix(QChar(), QChar(), depth);
+            if (name == QLatin1String("pmatrix")) return matrix(QLatin1Char('('), QLatin1Char(')'), depth);
+            if (name == QLatin1String("bmatrix")) return matrix(QLatin1Char('['), QLatin1Char(']'), depth);
+            if (name == QLatin1String("vmatrix")) return matrix(QLatin1Char('|'), QLatin1Char('|'), depth);
+            for (const auto &acc : accents())
+                if (name == QLatin1String(acc.first)) return accent(QString(QChar(acc.second)), depth);
             if (name == QLatin1String("sum")) return nary(QString(QChar(0x2211)), false, depth);
             if (name == QLatin1String("prod")) return nary(QString(QChar(0x220F)), false, depth);
             if (name == QLatin1String("int")) return nary(QString(QChar(0x222B)), true, depth);
@@ -297,6 +460,7 @@ private:
     qsizetype m_at = 0;
     int m_pieces = 0;
     bool m_failed = false;
+    int m_leftDepth = 0;
 };
 
 } // namespace
@@ -341,6 +505,227 @@ QString equationLine(const QByteArray &markup)
     const int n = t.firstChild(t.root());
     if (n < 0) return QString();
     return equationText(t, n, 4000).text;
+}
+
+const QVector<EquationDesign> &equationGallery()
+{
+    static const QVector<EquationDesign> designs = {
+        {QCoreApplication::translate("jp::write::Equations", "Quadratic Formula"), QStringLiteral("x=(-b\\pm\\sqrt(b^2-4ac))/(2a)")},
+        {QCoreApplication::translate("jp::write::Equations", "Pythagorean Theorem"), QStringLiteral("a^2+b^2=c^2")},
+        {QCoreApplication::translate("jp::write::Equations", "Area of a Circle"), QStringLiteral("A=\\pi r^2")},
+        {QCoreApplication::translate("jp::write::Equations", "Euler's Identity"), QStringLiteral("e^(i\\pi)+1=0")},
+        {QCoreApplication::translate("jp::write::Equations", "Geometric Series"), QStringLiteral("\\sum_(k=0)^n x^k=(1-x^(n+1))/(1-x)")},
+        {QCoreApplication::translate("jp::write::Equations", "Taylor Expansion"), QStringLiteral("e^x=1+x+x^2/2+x^3/6+\\cdots")},
+        {QCoreApplication::translate("jp::write::Equations", "Normal Distribution"), QStringLiteral("f(x)=1/(\\sigma\\sqrt(2\\pi)) e^(-(x-\\mu)^2/(2\\sigma^2))")},
+        {QCoreApplication::translate("jp::write::Equations", "Definition of a Derivative"), QStringLiteral("f'(x)=lim_(h\\to 0) (f(x+h)-f(x))/h")},
+        {QCoreApplication::translate("jp::write::Equations", "Integral of a Power"), QStringLiteral("\\int_0^1 x^n dx=1/(n+1)")},
+        {QCoreApplication::translate("jp::write::Equations", "Identity Matrix"), QStringLiteral("I=\\pmatrix{1 & 0 \\\\ 0 & 1}")},
+        {QCoreApplication::translate("jp::write::Equations", "Vector Length"), QStringLiteral("|\\vec{v}|=\\sqrt(x^2+y^2)")},
+        {QCoreApplication::translate("jp::write::Equations", "Mean"), QStringLiteral("\\bar{x}=(\\sum_(i=1)^n x_i)/n")},
+    };
+    return designs;
+}
+
+namespace {
+
+// The line for one node of the markup: what the reader makes the same node of. `ok` goes false for anything it can't say.
+class Lineup {
+public:
+    explicit Lineup(const XmlTree &t) : m_t(t) {}
+    bool ok() const { return m_ok; }
+    QString of(int node, int depth)
+    {
+        QString out;
+        for (int c = m_t.firstChild(node); c >= 0; c = m_t.next(c)) out += one(c, depth + 1);
+        return out;
+    }
+
+private:
+    QString braces(const QString &s) const { return QLatin1Char('{') + s + QLatin1Char('}'); }
+    static QString plain(const QString &text)
+    {
+        QString out;
+        for (const QChar ch : text) {
+            if (QString::fromLatin1("\\(){}^_/[]&").contains(ch)) out += QLatin1Char('\\');
+            out += ch;
+        }
+        return out;
+    }
+    int kid(int node, const char *name) const
+    {
+        for (int c = m_t.firstChild(node); c >= 0; c = m_t.next(c))
+            if (m_t.localName(c) == name) return c;
+        return -1;
+    }
+    QString valueOf(int node, const char *name, const QString &fallback) const
+    {
+        const int c = node >= 0 ? kid(node, name) : -1;
+        return c >= 0 && m_t.has(c, "val", m_t.ns(c)) ? m_t.attr(c, "val", m_t.ns(c)) : fallback;
+    }
+    QString text(int node) const
+    {
+        QString out;
+        for (int c = m_t.firstChild(node); c >= 0; c = m_t.next(c))
+            if (m_t.localName(c) == "t") out += m_t.text(c);
+        return out;
+    }
+    // A bracket character for \left or \right.
+    static QString delimiterText(const QString &chr)
+    {
+        if (chr.isEmpty()) return QStringLiteral(".");
+        return chr == QLatin1String(".") || chr == QLatin1String("\\") ? QLatin1Char('\\') + chr : chr;
+    }
+
+    QString one(int node, int depth)
+    {
+        if (depth > kMostEquationDepth + 4) {
+            m_ok = false;
+            return QString();
+        }
+        const QByteArray name = m_t.localName(node);
+        if (name == "r") {
+            const QString t = text(node);
+            const int pr = kid(node, "rPr");
+            const bool styled = pr >= 0;
+            if (styled) {
+                // (Only an upright run of a function's name is one the reader makes.)
+                if (valueOf(pr, "sty", QString()) != QLatin1String("p") || t.isEmpty()) {
+                    m_ok = false;
+                    return QString();
+                }
+                for (const QChar ch : t)
+                    if (!ch.isLetter()) m_ok = false;
+                return t;
+            }
+            return plain(t);
+        }
+        if (name == "f") return braces(of(kid(node, "num"), depth)) + QLatin1Char('/') + braces(of(kid(node, "den"), depth));
+        if (name == "sSup") return braces(of(kid(node, "e"), depth)) + QLatin1String("^") + braces(of(kid(node, "sup"), depth));
+        if (name == "sSub") return braces(of(kid(node, "e"), depth)) + QLatin1String("_") + braces(of(kid(node, "sub"), depth));
+        if (name == "sSubSup") return braces(of(kid(node, "e"), depth)) + QLatin1String("_") + braces(of(kid(node, "sub"), depth)) + QLatin1String("^") + braces(of(kid(node, "sup"), depth));
+        if (name == "rad") {
+            const int pr = kid(node, "radPr");
+            const bool hidden = pr >= 0 && valueOf(pr, "degHide", QString()) == QLatin1String("1");
+            const QString degree = hidden ? QString() : of(kid(node, "deg"), depth);
+            return QLatin1String("\\sqrt") + (degree.isEmpty() ? QString() : QLatin1Char('[') + degree + QLatin1Char(']')) + braces(of(kid(node, "e"), depth));
+        }
+        if (name == "nary") {
+            const int pr = kid(node, "naryPr");
+            const QString chr = valueOf(pr, "chr", QString());
+            const char *command = chr == QString(QChar(0x2211)) ? "\\sum" : chr == QString(QChar(0x220F)) ? "\\prod" : chr == QString(QChar(0x222B)) ? "\\int" : chr == QString(QChar(0x222E)) ? "\\oint" : nullptr;
+            if (!command) {
+                m_ok = false;
+                return QString();
+            }
+            const bool subHidden = valueOf(pr, "subHide", QString()) == QLatin1String("1"), supHidden = valueOf(pr, "supHide", QString()) == QLatin1String("1");
+            QString out = QLatin1String(command);
+            if (!subHidden) out += QLatin1String("_") + braces(of(kid(node, "sub"), depth));
+            if (!supHidden) out += QLatin1String("^") + braces(of(kid(node, "sup"), depth));
+            return out + braces(of(kid(node, "e"), depth));
+        }
+        if (name == "acc") {
+            const int pr = kid(node, "accPr");
+            const QString chr = valueOf(pr, "chr", QString());
+            for (const auto &a : accents())
+                if (chr == QString(QChar(a.second))) return QLatin1Char('\\') + QLatin1String(a.first) + braces(of(kid(node, "e"), depth));
+            m_ok = false;
+            return QString();
+        }
+        if (name == "bar") {
+            const int pr = kid(node, "barPr");
+            return QLatin1String(valueOf(pr, "pos", QStringLiteral("bot")) == QLatin1String("top") ? "\\overline" : "\\underline") + braces(of(kid(node, "e"), depth));
+        }
+        if (name == "m") {
+            QString rows;
+            for (int r = m_t.firstChild(node); r >= 0; r = m_t.next(r)) {
+                if (m_t.localName(r) != "mr") continue;
+                QString row;
+                for (int e = m_t.firstChild(r); e >= 0; e = m_t.next(e))
+                    if (m_t.localName(e) == "e") row += (row.isEmpty() ? QString() : QStringLiteral(" & ")) + of(e, depth);
+                rows += (rows.isEmpty() ? QString() : QStringLiteral(" \\\\ ")) + row;
+            }
+            return QLatin1String("\\matrix") + braces(rows);
+        }
+        if (name == "d") {
+            const int pr = kid(node, "dPr");
+            const QString open = valueOf(pr, "begChr", QStringLiteral("(")), close = valueOf(pr, "endChr", QStringLiteral(")"));
+            int es = 0, e = -1;
+            for (int c = m_t.firstChild(node); c >= 0; c = m_t.next(c))
+                if (m_t.localName(c) == "e") ++es, e = c;
+            if (es != 1 || (pr >= 0 && (kid(pr, "sepChr") >= 0 || kid(pr, "grow") >= 0 || kid(pr, "shp") >= 0)) || open.size() > 1 || close.size() > 1) {
+                m_ok = false;
+                return QString();
+            }
+            // (A matrix alone in brackets is the one command that makes both.)
+            const int only = m_t.firstChild(e);
+            if (only >= 0 && m_t.next(only) < 0 && m_t.localName(only) == "m") {
+                const QString matrix = one(only, depth + 1);
+                const char *kind = open == QLatin1String("(") && close == QLatin1String(")") ? "\\pmatrix" : open == QLatin1String("[") && close == QLatin1String("]") ? "\\bmatrix"
+                                   : open == QLatin1String("|") && close == QLatin1String("|") ? "\\vmatrix" : nullptr;
+                if (kind) return QLatin1String(kind) + matrix.mid(7);
+            }
+            return QLatin1String("\\left") + delimiterText(open) + of(e, depth) + QLatin1String("\\right") + delimiterText(close);
+        }
+        m_ok = false;
+        return QString();
+    }
+
+    const XmlTree &m_t;
+    bool m_ok = true;
+};
+
+} // namespace
+
+QString equationLinear(const QByteArray &markup)
+{
+    XmlTree t;
+    if (!t.parse("<x>" + markup + "</x>", nullptr)) return QString();
+    const int n = t.firstChild(t.root());
+    if (n < 0 || t.localName(n) != "oMath") return QString();
+    Lineup lineup(t);
+    const QString out = lineup.of(n, 0);
+    return lineup.ok() ? out : QString();
+}
+
+namespace {
+
+// The equation the character just after `position` holds: its markup and its atom; false for any other character.
+bool equationAtomAt(const QTextDocument *story, int position, Inline *atom)
+{
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return false;
+    for (QTextBlock::iterator it = story->findBlock(position).begin(); !it.atEnd(); ++it) {
+        const QTextFragment f = it.fragment();
+        if (position < f.position() || position >= f.position() + f.length()) continue;
+        const QTextCharFormat cf = f.charFormat();
+        if (!cf.hasProperty(prop::Atom)) return false;
+        const QByteArray bytes = storedBytes(cf, prop::Atom);
+        if (!bytes.contains("oMath")) return false;
+        *atom = unpackAtom(bytes);
+        return atom->tag == QLatin1String("oMath");
+    }
+    return false;
+}
+
+} // namespace
+
+QString equationAt(const WriteDoc &doc, int position)
+{
+    Inline atom;
+    if (!equationAtomAt(doc.story(), position, &atom)) return QString();
+    return equationLinear(atom.raw);
+}
+
+bool replaceEquation(WriteDoc &doc, int position, const QString &linear)
+{
+    Inline atom;
+    if (!equationAtomAt(doc.story(), position, &atom) || isLocked(doc.story()->findBlock(position))) return false;
+    bool ok = false;
+    const QByteArray markup = equationMarkup(linear, &ok);
+    if (!ok || markup == atom.raw) return false;
+    QTextCursor c(doc.story());
+    c.setPosition(position);
+    c.setPosition(position + 1, QTextCursor::KeepAnchor);
+    return insertEquation(doc, c, linear);
 }
 
 bool insertEquation(WriteDoc &doc, QTextCursor &c, const QString &linear)

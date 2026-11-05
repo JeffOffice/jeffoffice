@@ -403,6 +403,8 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
                 c.right = lineOf(m.right);
                 c.fill = fillOf(m);
                 c.valign = m.vAlign == QLatin1String("center") ? flow::CellAlign::Center : m.vAlign == QLatin1String("bottom") ? flow::CellAlign::Bottom : flow::CellAlign::Top;
+                c.direction = m.textDirection == QLatin1String("tbRl") || m.textDirection == QLatin1String("tbRlV") ? flow::CellDirection::TopToBottom
+                              : m.textDirection == QLatin1String("btLr") ? flow::CellDirection::BottomToTop : flow::CellDirection::Horizontal;
                 c.noWrap = m.noWrap;
                 c.app = cell.cellPart;
                 if (row->hidden) {

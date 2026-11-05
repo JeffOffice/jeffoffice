@@ -1,5 +1,5 @@
 # Add and change pictures
-<!-- keywords: picture, pictures, image, insert picture, photo, clipboard, paste a picture, screenshot, wrap text, text wrapping, in line with text, square, tight, top and bottom, behind text, in front of text, alt text, description, resize, size, handles, move a picture, drag a picture, drop, picture format, lock aspect ratio, crop, cut, brightness, contrast, corrections, recolor, grayscale, black and white, washout, border, frame, picture styles, change picture, reset picture, bring forward, send backward, bring to front, send to back, layers, arrange pictures, greyscale -->
+<!-- keywords: picture, pictures, image, insert picture, photo, clipboard, paste a picture, screenshot, wrap text, text wrapping, in line with text, square, tight, top and bottom, behind text, in front of text, alt text, description, resize, size, handles, move a picture, drag a picture, drop, picture format, lock aspect ratio, crop, cut, brightness, contrast, corrections, recolor, grayscale, black and white, washout, border, frame, picture styles, change picture, reset picture, bring forward, send backward, bring to front, send to back, layers, arrange pictures, crop to shape, rotate, align, icons, insert icon, greyscale -->
 
 A **picture** can sit in a line of text, like a letter, or float on the page with the words going round it. This topic shows how to put a picture in a document, how to change its size, its place, and how the text goes round it, and how to describe it for people who can't see it.
 
@@ -8,6 +8,7 @@ A **picture** can sit in a line of text, like a letter, or float on the page wit
 - Click **Insert > Pictures**, then **Picture**, pick a file, and click **Open**. JeffWrite reads PNG, JPEG, GIF, BMP, TIFF, WebP, and SVG files. A picture that comes from a file is kept in the document as the file it was (a WebP or SVG picture is kept as PNG).
 - Or click **Insert > Pictures > Picture from Clipboard**, or press **Ctrl+V**, when you have copied a picture (a screenshot, say). The picture is kept in the document, so it is still there when you save and open the file again.
 - Or drag a picture file from your computer's file manager onto a page. The picture goes where you drop it.
+- Or click **Insert > Icons**. A box shows small drawings of things, such as arrows, people, and tools. Type a word to find one, pick one or more, and click **OK**. Each icon goes in at the caret as a picture about two thirds of an inch square.
 
 The picture goes where the caret is, in place of anything you selected. It is made as large as it asks to be, but no wider than the column and no taller than the page's text, with its proportions kept. The picture is selected afterward, and the **Picture Format** tab appears at the right of the ribbon.
 
@@ -28,6 +29,18 @@ Each change is one step to undo.
 To **crop** a picture is to cut off part of its edges. Select the picture and click **Picture Format > Crop**. Type how much to cut off the left, top, right, and bottom, as a percent of the whole picture. Click **OK**.
 
 The picture frame gets smaller by the same amount, so the part that is left keeps its size. Crop again later and you start from the whole picture, so you can always get back what you cut. A number below zero leaves empty room around the picture. The cut on two opposite sides can add up to no more than 98 percent.
+
+## Cut a picture to a shape
+
+Select the picture and click **Picture Format > Crop to Shape**. Pick a shape, such as an oval, a star, or a rounded rectangle. The picture is shown only inside that shape. Pick the plain rectangle to put the corners back. The picture file itself is not changed.
+
+## Turn a picture
+
+Select the picture and click **Picture Format > Rotate**. Turn it a quarter turn to the right or the left, or back to no turn.
+
+## Line pictures up
+
+Click **Align** on the **Picture Format** tab. Choose **Align Left**, **Align Centre**, or **Align Right** to line the picture up across the page, and **Align Top**, **Align Middle**, or **Align Bottom** to line it up down the page. By default the picture lines up with the margins. Turn on **Align to Page** to line it up with the edges of the page instead. A picture that sits in the line of text becomes a floating picture in front of the text.
 
 ## Change how a picture looks
 

@@ -291,6 +291,13 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     valign->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Bottom")), int(flow::CellAlign::Bottom));
     valign->setCurrentIndex(int(was.valign));
     cl->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Vertical alignment:")), valign);
+    auto *direction = new QComboBox(cellPage);
+    direction->setObjectName(QStringLiteral("textDirection"));
+    direction->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Across")), int(flow::CellDirection::Horizontal));
+    direction->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Top to bottom")), int(flow::CellDirection::TopToBottom));
+    direction->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Bottom to top")), int(flow::CellDirection::BottomToTop));
+    direction->setCurrentIndex(int(was.direction));
+    cl->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Text direction:")), direction);
     auto *noWrap = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Do not wrap text")), cellPage);
     noWrap->setObjectName(QStringLiteral("noWrap"));
     noWrap->setChecked(was.noWrap);
@@ -327,6 +334,7 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     now.columnPercent = columnPercent->property("typed").toBool() && now.columnWidth != was.columnWidth ? columnPercent->value() : 0;
     now.valign = flow::CellAlign(valign->currentData().toInt());
     now.noWrap = noWrap->isChecked();
+    now.direction = flow::CellDirection(direction->currentData().toInt());
     now.altTitle = title->text();
     now.altText = text->text();
     if (now == was) return true;

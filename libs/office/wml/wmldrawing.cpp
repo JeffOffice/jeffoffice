@@ -589,6 +589,13 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                 for (int k = picNode >= 0 ? t.firstChild(picNode) : -1; k >= 0; k = t.next(k)) {
                     if (t.localName(k) != "spPr") continue;
                     for (int ln = t.firstChild(k); ln >= 0; ln = t.next(ln)) {
+                        if (t.localName(ln) == "xfrm" && t.has(ln, "rot")) {
+                            const double turn = std::fmod(t.attr(ln, "rot").toDouble() / 60000.0, 360.0);
+                            s.rotation = std::isfinite(turn) ? (turn < 0 ? turn + 360 : turn) : 0;
+                        } else if (t.localName(ln) == "prstGeom") {
+                            const QString prst = t.attr(ln, "prst");
+                            if (prst != QLatin1String("rect")) s.cropShape = prst;
+                        }
                         if (t.localName(ln) != "ln") continue;
                         QString color;
                         bool solid = false;

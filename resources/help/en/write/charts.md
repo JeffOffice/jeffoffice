@@ -1,5 +1,5 @@
 # Charts
-<!-- keywords: chart, charts, graph, column chart, bar chart, line chart, pie chart, doughnut, area, scatter, insert chart, chart data, edit data, chart title, legend, data labels, chart type, chart format -->
+<!-- keywords: chart, charts, graph, column chart, bar chart, line chart, pie chart, doughnut, area, scatter, insert chart, chart data, edit data, chart title, legend, data labels, chart type, chart format, axes, axis title, gridlines, chart style -->
 
 A **chart** turns numbers into a picture, such as columns, a line, or slices of a pie. This topic shows how to put a chart in a document, how to type its numbers, and how to change how it looks.
 
@@ -31,6 +31,9 @@ These commands are on the **Chart Format** tab. Each one is a single step to und
 - **Change Chart Type** turns the chart into another kind with the same numbers.
 - **Chart Title** shows or hides the title. **Edit Chart Title** changes its words.
 - **Legend** is the key that says which color is which series. Put it at the right, top, left, or bottom, or take it off.
+- **Axes** shows or hides the line of words under the chart (the **categories**) and the line of numbers beside it (the **values**), and sets a title for each. A pie chart has no axes.
+- **Gridlines** draws faint lines across the chart to help your eye follow the numbers. The **major** lines sit at the main numbers on the side, and the **minor** lines sit between them.
+- **Chart Styles** picks one of eight overall styles.
 - **Data Labels** writes each number on its column, point, or slice.
 - **Wrap Text**, **Alt Text**, and **Height** and **Width** work as they do for pictures. See [Add and change pictures](pictures).
 

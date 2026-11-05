@@ -753,6 +753,18 @@ void PageView::paintEvent(QPaintEvent *e)
             p.restore();
         }
     }
+    if (m_toolDrag.active && m_toolDrag.page >= 0 && m_toolDrag.page < m_rects.size()) {
+        // What the pen or the eraser is drawing: a rectangle (a new table) or a line.
+        const double s = scale();
+        const QRectF pr = m_rects[m_toolDrag.page].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
+        const QPointF a(pr.left() + m_toolDrag.from.x() * s, pr.top() + m_toolDrag.from.y() * s), b(pr.left() + m_toolDrag.to.x() * s, pr.top() + m_toolDrag.to.y() * s);
+        p.save();
+        p.setPen(QPen(QColor(0x2B, 0x57, 0xB5), 1, Qt::DashLine));
+        const QTextBlock under = m_doc && m_toolDrag.position >= 0 && m_toolDrag.position < m_doc->story()->characterCount() ? m_doc->story()->findBlock(m_toolDrag.position) : QTextBlock();
+        if (m_tableTool == TableTool::Draw && under.isValid() && !inTable(under)) p.drawRect(QRectF(a, b).normalized());
+        else p.drawLine(a, b);
+        p.restore();
+    }
     // The caret.
     if (m_caretOn && (hasFocus() || m_caretWithoutFocus) && !m_cursor.hasSelection()) {
         QRect r;

@@ -1222,6 +1222,7 @@ void overlayTableMark(TableMark *dm, const TableMark &sm)
     if (!sm.jc.isEmpty()) dm->jc = sm.jc;
     if (!sm.layout.isEmpty()) dm->layout = sm.layout;
     if (!sm.vAlign.isEmpty()) dm->vAlign = sm.vAlign;
+    if (!sm.textDirection.isEmpty()) dm->textDirection = sm.textDirection;
     if (sm.noWrap) dm->noWrap = true;
 }
 

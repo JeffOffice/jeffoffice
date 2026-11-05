@@ -3336,6 +3336,86 @@ private Q_SLOTS:
         QCOMPARE(tablesSignature(*doc), before);
     }
 
+    // Draw Table: the pen draws a table of one cell where there is none, and a line across a cell divides it; the eraser joins cells it is dragged across; Esc puts the tool down.
+    void thePenDrawsATableAndDividesItsCellsAndTheEraserJoinsThem()
+    {
+        auto doc = open(makeDocx(cellP("before text") + cellP("after text"), kStyles));
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        view.paginateAll();
+        view.grab();
+        auto counts = [&](int *tables, int *rows, int *cells) {
+            QSet<const flow::TableData *> t;
+            QSet<const flow::RowData *> r;
+            QSet<int> c;
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+                if (const flow::CellRecord *rec = doc->flow().tables.get(cellKeyOf(b))) {
+                    t.insert(rec->table.get());
+                    r.insert(rec->row.get());
+                    c.insert(rec->key);
+                }
+            *tables = int(t.size());
+            *rows = int(r.size());
+            *cells = int(c.size());
+        };
+        int tables = 0, rows = 0, cells = 0;
+        auto drag = [&](const QPoint &from, const QPoint &to) {
+            QTest::mousePress(view.viewport(), Qt::LeftButton, Qt::NoModifier, from);
+            QTest::mouseMove(view.viewport(), to);
+            QTest::mouseRelease(view.viewport(), Qt::LeftButton, Qt::NoModifier, to);
+            view.paginateAll();
+            view.grab();
+        };
+        // Without the pen a drag selects text and makes no table.
+        drag(pagePoint(view, 0, 100, 90), pagePoint(view, 0, 250, 150));
+        counts(&tables, &rows, &cells);
+        QCOMPARE(tables, 0);
+        view.setTableTool(PageView::TableTool::Draw);
+        QCOMPARE(view.viewport()->cursor().shape(), Qt::CrossCursor);
+        // A rectangle drawn in the text: a table of one cell.
+        view.setCursor(QTextCursor(doc->story()));
+        drag(pagePoint(view, 0, 100, 90), pagePoint(view, 0, 250, 150));
+        counts(&tables, &rows, &cells);
+        QCOMPARE(tables, 1);
+        QCOMPARE(rows, 1);
+        QCOMPARE(cells, 1);
+        QVERIFY(tablesSignature(*doc).contains(QStringLiteral("cols=150.0")));
+        // A line across the cell makes two rows, and one down makes two columns.
+        auto firstCell = [&] {
+            const auto page = doc->pager().materialize(0);
+            QRectF box;
+            if (page && !page->tables.isEmpty()) page->tables[0]->forCellBoxes([&](const QRectF &b, int, int, int) {
+                if (!box.isValid()) box = b;
+            });
+            return box;
+        };
+        QRectF box = firstCell();
+        QVERIFY(box.isValid());
+        drag(pagePoint(view, 0, box.left() + 10, box.center().y()), pagePoint(view, 0, box.right() - 10, box.center().y()));
+        counts(&tables, &rows, &cells);
+        QCOMPARE(rows, 2);
+        QCOMPARE(cells, 2);
+        checkTablesReopenTheSame(*doc);
+        box = firstCell();
+        drag(pagePoint(view, 0, box.center().x(), box.top() + 3), pagePoint(view, 0, box.center().x(), box.bottom() - 3));
+        counts(&tables, &rows, &cells);
+        QCOMPARE(cells, 3);
+        QVERIFY(doc->story()->isUndoAvailable());
+        // The eraser joins the two cells of the first row.
+        view.setTableTool(PageView::TableTool::Erase);
+        box = firstCell();
+        const double middle = box.center().y();
+        drag(pagePoint(view, 0, box.left() + 10, middle), pagePoint(view, 0, box.right() + 20, middle));
+        counts(&tables, &rows, &cells);
+        QCOMPARE(cells, 2);
+        // Esc puts the tool down, and the pointer is the text's again.
+        QTest::keyClick(&view, Qt::Key_Escape);
+        QCOMPARE(view.tableTool(), PageView::TableTool::None);
+        QVERIFY(view.viewport()->cursor().shape() != Qt::CrossCursor);
+    }
+
     // Pulling the border at the foot of a row makes the row at least that tall (one step that undoes).
     void draggingARowBorderSetsTheRowsHeight()
     {
@@ -15670,6 +15750,43 @@ private Q_SLOTS:
         doc->story()->undo();
         doc->story()->undo();
         QCOMPARE(doc->flow().tables.get(cellKeyOf(cursorAt(*doc, QStringLiteral("r1c1")).block()))->cell.valign, flow::CellAlign::Top);
+    }
+
+    // The direction of a cell's text: from the top down or from the bottom up is written as w:textDirection in the place the schema gives it, read again, and one step to undo.
+    void cellTextDirectionIsKeptInTheCellAndInTheFile()
+    {
+        auto doc = open(tableDocx(2, 2));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r1c1"));
+        setCellAlignment(*doc, c, Qt::AlignLeft, flow::CellAlign::Bottom);
+        c = cursorAt(*doc, QStringLiteral("r1c1"));
+        setCellTextDirection(*doc, c, flow::CellDirection::BottomToTop);
+        QCOMPARE(doc->flow().tables.get(cellKeyOf(cursorAt(*doc, QStringLiteral("r1c1")).block()))->cell.direction, flow::CellDirection::BottomToTop);
+        QCOMPARE(doc->flow().tables.get(cellKeyOf(cursorAt(*doc, QStringLiteral("r0c0")).block()))->cell.direction, flow::CellDirection::Horizontal);
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY(x.contains("<w:textDirection w:val=\"btLr\"/>"));
+        // (In the order of the schema: the direction comes before the vertical alignment.)
+        QVERIFY(x.indexOf("<w:textDirection") < x.indexOf("<w:vAlign"));
+        checkTablesReopenTheSame(*doc);
+        auto back = open(doc->toDocx());
+        QCOMPARE(back->flow().tables.get(cellKeyOf(cursorAt(*back, QStringLiteral("r1c1")).block()))->cell.direction, flow::CellDirection::BottomToTop);
+        c = cursorAt(*doc, QStringLiteral("r1c1"));
+        setCellTextDirection(*doc, c, flow::CellDirection::TopToBottom);
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:textDirection w:val=\"tbRl\"/>"));
+        c = cursorAt(*doc, QStringLiteral("r1c1"));
+        setCellTextDirection(*doc, c, flow::CellDirection::Horizontal);
+        QVERIFY(!documentXml(doc->toDocx()).contains("textDirection"));
+        // The same direction again changes nothing (no step to undo).
+        const QByteArray same = documentXml(doc->toDocx());
+        c = cursorAt(*doc, QStringLiteral("r1c1"));
+        setCellTextDirection(*doc, c, flow::CellDirection::Horizontal);
+        QCOMPARE(documentXml(doc->toDocx()), same);
+        // Table Properties reads and sets it.
+        c = cursorAt(*doc, QStringLiteral("r0c1"));
+        const TableProps was = tablePropsAt(*doc, c);
+        TableProps now = was;
+        now.direction = flow::CellDirection::TopToBottom;
+        setTableProps(*doc, c, was, now);
+        QCOMPARE(tablePropsAt(*doc, cursorAt(*doc, QStringLiteral("r0c1"))).direction, flow::CellDirection::TopToBottom);
     }
 
     // Column width, row height, equal columns and rows, and the fit of the table: the grid and the cells' widths are written together.

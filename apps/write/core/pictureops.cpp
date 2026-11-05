@@ -367,7 +367,7 @@ DrawnKind kindOfShape(const Shape &s)
     if (s.kind == Shape::Picture) return DrawnKind::Picture;
     if (s.kind == Shape::TextBox) return DrawnKind::TextBox;
     if (s.kind == Shape::Line) return DrawnKind::Line;
-    return s.wsp.contains("prst=\"line\"") || s.wsp.contains("prst=\"straightConnector1\"") ? DrawnKind::Line : DrawnKind::Shape;
+    return s.wsp.contains("prst=\"line\"") || s.wsp.contains("prst=\"straightConnector1\"") || s.wsp.contains("prst=\"bentConnector") || s.wsp.contains("prst=\"curvedConnector") ? DrawnKind::Line : DrawnKind::Shape;
 }
 
 PictureWrap wrapOfShape(const Shape &s)
@@ -641,6 +641,21 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
     info.placeIsOffset = s.hAlign == Shape::NoAlign && s.vAlign == Shape::NoAlign;
     info.left = s.left;
     info.top = s.top;
+    {
+        auto word = [](Shape::Align a, bool across) -> QString {
+            switch (a) {
+            case Shape::Start: return across ? QStringLiteral("left") : QStringLiteral("top");
+            case Shape::Center: return QStringLiteral("center");
+            case Shape::End: return across ? QStringLiteral("right") : QStringLiteral("bottom");
+            case Shape::Inside: return QStringLiteral("inside");
+            case Shape::Outside: return QStringLiteral("outside");
+            default: return {};
+            }
+        };
+        info.alignAcross = word(s.hAlign, true);
+        info.alignDown = word(s.vAlign, false);
+        info.alignedToPage = s.hRel == Shape::Page || s.vRel == Shape::Page;
+    }
     Model m;
     info.editable = parseDrawing(atom.raw, &m);
     info.decorative = isDecorativeInner(m.docPrInner);
@@ -651,6 +666,8 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
         info.cropBottom = s.cropB;
         info.lineColor = s.borderWeight > 0 ? s.borderColor : QString();
         info.lineWeight = s.borderWeight;
+        info.cropShape = s.cropShape.isEmpty() ? QStringLiteral("rect") : s.cropShape;
+        info.rotation = s.rotation;
         info.grayscale = m.graphic.contains("<a:grayscl");
         info.blackWhite = m.graphic.contains("<a:biLevel");
         static const QRegularExpression lum(QStringLiteral("<a:lum\\b([^>]*)/?>"));
@@ -669,6 +686,12 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
         if (const auto *shape = look->type() == ItemType::Shape ? static_cast<const ShapeItem *>(look.get()) : nullptr) info.preset = shape->shape;
         auto rgb = [](const ColorRef &c) { return c.rgbValue().isValid() ? c.rgbValue().name(QColor::HexRgb).mid(1).toUpper() : QString(); };
         if (!look->fill.isNone() && look->fill.type == Fill::Solid) info.fillColor = rgb(look->fill.color);
+        if (look->fill.type == Fill::Gradient) {
+            const Fill &g = look->fill;
+            info.gradientFrom = rgb(g.stops.isEmpty() ? g.color : g.stops.first().color);
+            info.gradientTo = rgb(g.stops.isEmpty() ? g.color2 : g.stops.last().color);
+            info.gradientAngle = g.angle;
+        }
         if (!look->stroke.isNone()) {
             info.lineColor = rgb(look->stroke.color);
             info.lineWeight = look->stroke.width;
@@ -1258,7 +1281,7 @@ BoxContent boxContentOf(const QByteArray &graphic)
 const QVector<ShapeGroup> &shapeGallery()
 {
     static const QVector<ShapeGroup> groups = {
-        {QStringLiteral("Lines"), {QStringLiteral("line"), QStringLiteral("straightConnector1")}},
+        {QStringLiteral("Lines"), {QStringLiteral("line"), QStringLiteral("straightConnector1"), QStringLiteral("bentConnector3"), QStringLiteral("curvedConnector3")}},
         {QStringLiteral("Rectangles"), {QStringLiteral("rect"), QStringLiteral("roundRect"), QStringLiteral("snip1Rect"), QStringLiteral("snip2SameRect"), QStringLiteral("round1Rect"),
                                          QStringLiteral("round2SameRect")}},
         {QStringLiteral("Basic Shapes"), {QStringLiteral("ellipse"), QStringLiteral("triangle"), QStringLiteral("rtTriangle"), QStringLiteral("diamond"), QStringLiteral("parallelogram"),
@@ -1289,21 +1312,23 @@ PictureResult insertShape(WriteDoc &doc, QTextCursor &c, const QString &preset, 
     for (const ShapeGroup &g : shapeGallery()) known = known || g.presets.contains(preset);
     if (!known) return PictureResult::Unreadable;
     const bool isLine = preset == QLatin1String("line") || preset == QLatin1String("straightConnector1");
+    // (The elbow and the curved connector are shapes of their own geometry that are not filled, with an arrowhead at the end, as the straight one has.)
+    const bool isConnector = preset == QLatin1String("bentConnector3") || preset == QLatin1String("curvedConnector3");
     const bool square = QStringList{QStringLiteral("ellipse"), QStringLiteral("sun"), QStringLiteral("moon"), QStringLiteral("heart"), QStringLiteral("smileyFace"), QStringLiteral("donut"),
                                     QStringLiteral("plus"), QStringLiteral("mathPlus"), QStringLiteral("mathMinus"), QStringLiteral("mathMultiply"), QStringLiteral("mathDivide"),
                                     QStringLiteral("mathEqual"), QStringLiteral("mathNotEqual"), QStringLiteral("flowChartConnector"), QStringLiteral("cube"), QStringLiteral("frame")}
                             .contains(preset) || preset.startsWith(QLatin1String("star")) || preset.startsWith(QLatin1String("irregularSeal"));
-    const QSizeF usual = isLine ? QSizeF(108, 0) : square ? QSizeF(86, 86) : QSizeF(108, 72);
+    const QSizeF usual = isLine ? QSizeF(108, 0) : isConnector ? QSizeF(108, 40) : square ? QSizeF(86, 86) : QSizeF(108, 72);
     QSizeF made = size.width() <= 0 && size.height() <= 0 ? usual : size;
     // (Only a line may be flat; any other shape is as large as a picture's least.)
     made = QSizeF(std::clamp(made.width(), isLine ? 0.0 : kLeastPictureSize, kMostPictureSize), std::clamp(made.height(), isLine ? 0.0 : kLeastPictureSize, kMostPictureSize));
     if (isLine && made.width() <= 0 && made.height() <= 0) made = usual;
     // (A line is not filled; an arrow has its head at the end.)
     ShapeLook shown = look;
-    if (isLine) shown.fill.clear();
-    const QByteArray ends = preset == QLatin1String("straightConnector1") ? QByteArray("<a:tailEnd type=\"triangle\"/>") : QByteArray();
+    if (isLine || isConnector) shown.fill.clear();
+    const QByteArray ends = preset == QLatin1String("straightConnector1") || isConnector ? QByteArray("<a:tailEnd type=\"triangle\"/>") : QByteArray();
     const QByteArray graphic = shapeGraphic(preset, emuOf(made.width()), emuOf(made.height()), shown, ends, nullptr);
-    return insertShapeGraphic(doc, c, graphic, made.width(), made.height(), wrap, isLine ? QStringLiteral("Line") : QStringLiteral("Shape"));
+    return insertShapeGraphic(doc, c, graphic, made.width(), made.height(), wrap, isLine ? QStringLiteral("Line") : isConnector ? QStringLiteral("Connector") : QStringLiteral("Shape"));
 }
 
 const QVector<TextBoxDesign> &textBoxDesigns()
@@ -1454,7 +1479,8 @@ bool setShapeRotation(WriteDoc &doc, int position, double degrees)
     double turn = std::fmod(degrees, 360.0);
     if (turn < 0) turn += 360;
     const qint64 rot = qint64(std::llround(turn * 60000.0)) % 21600000;
-    return changeSpPrOf(doc, position, true, [&](SpPr *sp, const Model &) {
+    return changeSpPrOf(doc, position, false, [&](SpPr *sp, const Model &m) {
+        if (m.graphic.contains("chart")) return false;
         for (SpPr::Child &child : sp->children) {
             if (child.slot != SlotXfrm) continue;
             const qsizetype gt = child.raw.indexOf('>');
@@ -1474,6 +1500,59 @@ bool setShapeRotation(WriteDoc &doc, int position, double degrees)
             return true;
         }
         return false;
+    });
+}
+
+bool setShapeGradient(WriteDoc &doc, int position, const QString &from, const QString &to, double angle)
+{
+    const QByteArray a = cleanRgb(from), b = cleanRgb(to);
+    if (a.isEmpty() || b.isEmpty() || !std::isfinite(angle)) return false;
+    double turn = std::fmod(angle, 360.0);
+    if (turn < 0) turn += 360;
+    const qint64 ang = qint64(std::llround(turn * 60000.0)) % 21600000;
+    const QByteArray now = "<a:gradFill rotWithShape=\"1\"><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"" + a + "\"/></a:gs><a:gs pos=\"100000\"><a:srgbClr val=\"" + b +
+                           "\"/></a:gs></a:gsLst><a:lin ang=\"" + QByteArray::number(ang) + "\" scaled=\"0\"/></a:gradFill>";
+    return changeSpPrOf(doc, position, true, [&](SpPr *sp, const Model &) {
+        if (childRaw(*sp, SlotFill) == now) return false;
+        setSlot(sp, SlotFill, "gradFill", now);
+        return true;
+    });
+}
+
+bool setPictureCropShape(WriteDoc &doc, int position, const QString &preset)
+{
+    bool known = preset == QLatin1String("rect");
+    for (const ShapeGroup &g : shapeGallery()) known = known || (g.presets.contains(preset) && g.name != QLatin1String("Lines"));
+    if (!known) return false;
+    return changeSpPrOf(doc, position, false, [&](SpPr *sp, const Model &m) {
+        if (!m.graphic.contains("blip") || m.graphic.contains("wsp")) return false;
+        const QByteArray now = geometryElement(preset), before = childRaw(*sp, SlotGeometry);
+        if (before == now) return false;
+        setSlot(sp, SlotGeometry, "prstGeom", now);
+        return true;
+    });
+}
+
+bool alignObject(WriteDoc &doc, int position, ObjectAlign align, bool toPage)
+{
+    return changePicture(doc, position, [&](Model &m) {
+        const bool across = align == ObjectAlign::Left || align == ObjectAlign::Center || align == ObjectAlign::Right;
+        const char *word = align == ObjectAlign::Left ? "left" : align == ObjectAlign::Right ? "right" : align == ObjectAlign::Top ? "top" : align == ObjectAlign::Bottom ? "bottom" : "center";
+        const QByteArray element = across ? "positionH" : "positionV";
+        const QByteArray now = "<wp:" + element + " relativeFrom=\"" + (toPage ? "page" : "margin") + "\"><wp:align>" + word + "</wp:align></wp:" + element + ">";
+        QByteArray &place = across ? m.posH : m.posV;
+        const bool wasFloating = m.floating;
+        // (What the file had is compared without the declarations of prefixes that reading it made whole with.)
+        static const QRegularExpression declared(QStringLiteral(" xmlns(:[A-Za-z0-9]+)?=\"[^\"]*\""));
+        if (wasFloating && QString::fromUtf8(place).remove(declared).toUtf8() == now) return false;
+        if (!wasFloating) {
+            m.floating = true;
+            m.distL = m.distR = m.distT = m.distB = 0;
+            m.wrap = PictureWrap::InFrontOfText;
+            m.relativeHeight = 251658240;
+        }
+        place = now;
+        return true;
     });
 }
 
@@ -1833,6 +1912,20 @@ QVector<ChartSeries> allSeries(const Chart &chart)
     return out;
 }
 
+// The axis of the chart that is its category (or x) axis or its value axis, or null (a chart with no axes, a pie).
+office::ChartAxis *chartAxisOf(Chart &chart, ChartAxisKind which)
+{
+    office::ChartAxis *category = nullptr;
+    for (office::ChartAxis &a : chart.axes)
+        if (!category && (a.kind == office::ChartAxis::Category || a.kind == office::ChartAxis::Date)) category = &a;
+    for (office::ChartAxis &a : chart.axes)
+        if (!category && (a.position == QLatin1String("b") || a.position == QLatin1String("t"))) category = &a;   // (a scatter's x axis)
+    if (which == ChartAxisKind::Category) return category;
+    for (office::ChartAxis &a : chart.axes)
+        if (&a != category && a.kind == office::ChartAxis::Value) return &a;
+    return nullptr;
+}
+
 // The part a chart drawing names: the Id in its c:chart, and the bytes.
 bool chartPartOf(const WriteDoc &doc, const QByteArray &graphic, QString *id, QByteArray *bytes)
 {
@@ -1910,6 +2003,20 @@ ChartInfo chartAt(const WriteDoc &doc, int position)
     info.title = chart.title.text;
     info.legendShown = chart.legend.shown;
     info.legendPosition = chart.legend.position;
+    info.style = chart.style;
+    if (office::ChartAxis *a = chartAxisOf(chart, ChartAxisKind::Category)) {
+        info.hasAxes = true;
+        info.categoryAxisShown = !a->deleted;
+        info.categoryGridlines = a->majorGridlines;
+        info.categoryAxisTitle = a->title.present ? a->title.text : QString();
+    }
+    if (office::ChartAxis *a = chartAxisOf(chart, ChartAxisKind::Value)) {
+        info.hasAxes = true;
+        info.valueAxisShown = !a->deleted;
+        info.valueGridlines = a->majorGridlines;
+        info.valueMinorGridlines = a->minorGridlines;
+        info.valueAxisTitle = a->title.present ? a->title.text : QString();
+    }
     const QVector<ChartSeries> series = allSeries(chart);
     info.dataEditable = !series.isEmpty() && office::chartIsFullyModeled(bytes);
     for (const ChartSeries &s : series) {
@@ -2035,6 +2142,49 @@ bool setChartDataLabels(WriteDoc &doc, int position, bool shown)
                 s.labels.value = shown;
                 if (!shown) s.labels.category = s.labels.series = s.labels.percent = s.labels.legendKey = false;
             }
+        return true;
+    });
+}
+
+bool setChartAxis(WriteDoc &doc, int position, ChartAxisKind which, bool shown)
+{
+    return editChart(doc, position, [&](Chart &chart) {
+        office::ChartAxis *a = chartAxisOf(chart, which);
+        if (!a || a->deleted == !shown) return false;
+        a->deleted = !shown;
+        return true;
+    });
+}
+
+bool setChartGridlines(WriteDoc &doc, int position, ChartAxisKind which, bool major, bool minor)
+{
+    return editChart(doc, position, [&](Chart &chart) {
+        office::ChartAxis *a = chartAxisOf(chart, which);
+        if (!a || (a->majorGridlines == major && a->minorGridlines == minor)) return false;
+        a->majorGridlines = major;
+        a->minorGridlines = minor;
+        return true;
+    });
+}
+
+bool setChartAxisTitle(WriteDoc &doc, int position, ChartAxisKind which, const QString &text)
+{
+    const QString clean = cleanText(text, 500);
+    return editChart(doc, position, [&](Chart &chart) {
+        office::ChartAxis *a = chartAxisOf(chart, which);
+        if (!a || (a->title.present == !clean.isEmpty() && a->title.text == clean)) return false;
+        a->title.present = !clean.isEmpty();
+        a->title.text = clean;
+        return true;
+    });
+}
+
+bool setChartStyle(WriteDoc &doc, int position, int style)
+{
+    if (style < 1 || style > 48) return false;
+    return editChart(doc, position, [&](Chart &chart) {
+        if (chart.style == style) return false;
+        chart.style = style;
         return true;
     });
 }

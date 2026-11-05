@@ -78,6 +78,13 @@ struct PictureInfo {
     double cropLeft = 0, cropTop = 0, cropRight = 0, cropBottom = 0;
     bool grayscale = false, blackWhite = false;
     double brightness = 0, contrast = 0;
+    // The shape a picture is cut to (a preset name; "rect" for none), where a floating object is aligned ("left", "center", "right", "inside", "outside" across; "top", "center",
+    // "bottom" down; empty when it is set by an offset), and a shape's gradient fill (the two end colors as RRGGBB, and the angle in degrees; empty colors for none).
+    QString cropShape = QStringLiteral("rect");
+    QString alignAcross, alignDown;
+    bool alignedToPage = false;
+    QString gradientFrom, gradientTo;
+    double gradientAngle = 0;
 };
 
 // The picture at a place of the story (the character just after `position`); `valid` is false for any other character.
@@ -182,6 +189,14 @@ bool setShapeFill(WriteDoc &doc, int position, const QString &rgb);
 bool setShapeLine(WriteDoc &doc, int position, const QString &rgb, double weight, const QString &dash);
 // Turns the object to this many degrees clockwise (any number: it is held to 0 up to 360).
 bool setShapeRotation(WriteDoc &doc, int position, double degrees);
+// Fills the shape with a gradient from one color to the other (RRGGBB), along an angle in degrees (0 across, from left to right, 90 down); one step.
+bool setShapeGradient(WriteDoc &doc, int position, const QString &from, const QString &to, double angle);
+// Cuts the picture to a shape of the gallery (its preset name; "rect" takes the cut off); the picture's frame and size stay. One step.
+bool setPictureCropShape(WriteDoc &doc, int position, const QString &preset);
+// Where a floating object is lined up: across to the left, middle, or right, or down to the top, middle, or bottom, of the margins or the page (the other direction is kept). An object
+// that is in line with the text becomes a floating one (in front of the text).
+enum class ObjectAlign { Left, Center, Right, Top, Middle, Bottom };
+bool alignObject(WriteDoc &doc, int position, ObjectAlign align, bool toPage);
 // Another shape of the gallery in its place, its size and look kept.
 bool setShapePreset(WriteDoc &doc, int position, const QString &preset);
 
@@ -211,7 +226,14 @@ struct ChartInfo {
     bool dataLabels = false;
     bool dataEditable = false;
     ChartData data;
+    // The axes: whether each is shown (a pie has none), whether the value axis has major and minor gridlines and the category axis major ones, the words of each axis's title (empty for
+    // none), and the style number (1 to 48).
+    bool hasAxes = false, categoryAxisShown = false, valueAxisShown = false;
+    bool valueGridlines = false, valueMinorGridlines = false, categoryGridlines = false;
+    QString categoryAxisTitle, valueAxisTitle;
+    int style = 2;
 };
+enum class ChartAxisKind { Category, Value };
 ChartInfo chartAt(const WriteDoc &doc, int position);
 // A chart of the kind at the cursor (in line with the text), in place of a selection, one step that undoes; `size` (points; empty for the usual 360 by 216) is held to the least and most
 // a picture's is. Unreadable for data that is empty, or has more than the most categories or series, or numbers that are not numbers.
@@ -224,5 +246,11 @@ bool setChartTitle(WriteDoc &doc, int position, bool shown, const QString &text)
 bool setChartLegend(WriteDoc &doc, int position, const QString &legendPosition);
 bool setChartDataLabels(WriteDoc &doc, int position, bool shown);
 bool setChartData(WriteDoc &doc, int position, const ChartData &data);
+// The axes (false for a chart that has none, such as a pie, or when nothing changes): an axis shown or not, the gridlines (major and minor, as the axis has them), the words of an axis's title
+// (empty takes it off), and the style (1 to 48).
+bool setChartAxis(WriteDoc &doc, int position, ChartAxisKind axis, bool shown);
+bool setChartGridlines(WriteDoc &doc, int position, ChartAxisKind axis, bool major, bool minor);
+bool setChartAxisTitle(WriteDoc &doc, int position, ChartAxisKind axis, const QString &text);
+bool setChartStyle(WriteDoc &doc, int position, int style);
 
 } // namespace jp::write

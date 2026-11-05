@@ -509,15 +509,57 @@ double TableLayout::leftEdgeIn(double area) const
 
 double TableLayout::innerWidth(const Cell &c) const { return std::max(kLeastWidth, c.w - c.margins.left() - c.margins.right()); }
 
+double TableLayout::turnedLength(const Cell &c) const
+{
+    const Row &row = m_rows[size_t(c.row)];
+    if (c.rows == 1 && row.data->height > 0) return std::max(kLeastWidth, row.data->height - c.margins.top() - c.margins.bottom());
+    const int index = int(&c - m_cells.data());
+    const auto found = m_turnedNatural.constFind(index);
+    if (found != m_turnedNatural.constEnd()) return found.value();
+    // The text's own length: laid out as wide as it can be, the widest line.
+    double widest = 0;
+    const auto natural = layoutCellContent(m_ctx, c.r0, c.r1, m_depth + 1, 20000);
+    for (const CellContent::Part &part : natural->parts) {
+        if (part.text) {
+            for (const StoryLayout::LineBrief &l : part.text->lineBriefs()) {
+                if (l.frame < 0) continue;
+                int frame = 0;
+                QRectF caret;
+                // (Where the line's last character ends: its caret after the character.)
+                bool any = false;
+                for (const int at : {l.end, std::max(l.pos, l.end - 1)})
+                    if (part.text->caretRect(at, &frame, &caret)) {
+                        widest = std::max(widest, caret.right() + 6);
+                        any = true;
+                    }
+                if (!any) widest = std::max(widest, l.rect.right());
+            }
+        } else if (part.table) {
+            widest = std::max(widest, part.table->layout->width());
+        }
+    }
+    const double length = std::clamp(widest, kLeastWidth, kMostTurnedLength);
+    m_turnedNatural.insert(index, length);
+    return length;
+}
+
 std::shared_ptr<CellContent> TableLayout::contentFor(const Cell &c, bool keep) const
 {
     CellContentCache *cache = m_ctx.valid() ? m_ctx.contents : nullptr;
-    const double width = innerWidth(c);
+    const CellDirection direction = c.rec ? c.rec->cell.direction : CellDirection::Horizontal;
+    const bool turned = direction != CellDirection::Horizontal;
+    const double width = turned ? turnedLength(c) : innerWidth(c);
     if (cache && c.rec) {
         if (auto found = cache->find(c.rec->key, width)) return found;
     }
     if (m_ctx.laidOut) ++*m_ctx.laidOut;
     auto content = layoutCellContent(m_ctx, c.r0, c.r1, m_depth + 1, width);
+    if (turned) {
+        // (The lines are laid out along the row: the content is as tall as that length, and as thick as its lines stack.)
+        content->turn = direction == CellDirection::TopToBottom ? 1 : 2;
+        content->stack = content->height;
+        content->height = width;
+    }
     if (cache && c.rec) {
         if (keep) cache->insert(c.rec->key, width, content, std::max(1, c.r1 - c.r0));
         else cache->insertJustMeasured(c.rec->key, width, content);
@@ -684,7 +726,7 @@ bool TableLayout::splittable(int r) const
     // A row as tall as it was set to be (its cells need less) has no lines to cut it between: it goes whole, as tall as it was set.
     if (row.data->height > 0 && row.height <= row.least + 0.01) return false;
     for (int i = row.cell0; i < row.cell0 + row.cells; ++i)
-        if (m_cells[size_t(i)].covered || m_cells[size_t(i)].rows > 1) return false;
+        if (m_cells[size_t(i)].covered || m_cells[size_t(i)].rows > 1 || (m_cells[size_t(i)].rec && m_cells[size_t(i)].rec->cell.direction != CellDirection::Horizontal)) return false;
     return true;
 }
 
@@ -789,6 +831,10 @@ void tableLines(const TableFragment &nested, double y0, LineList *out)
 
 void contentLines(const CellContent &content, double y0, LineList *out)
 {
+    if (content.turn) {
+        out->push_back({y0, y0 + content.height, {}});
+        return;
+    }
     for (const CellContent::Part &part : content.parts) {
         if (part.text) {
             const auto &notes = part.notes;
@@ -1122,7 +1168,8 @@ std::vector<TableFragment::Placed> TableFragment::place() const
             }
             const double inner = h - c.margins.top() - c.margins.bottom() - extraTop - extraFoot;
             const double free = std::max(0.0, inner - items[size_t(n)].content->height);
-            double drop = c.rec->cell.valign == CellAlign::Center ? free / 2 : c.rec->cell.valign == CellAlign::Bottom ? free : 0;
+            const int turn = items[size_t(n)].content->turn;
+            double drop = turn ? 0.0 : c.rec->cell.valign == CellAlign::Center ? free / 2 : c.rec->cell.valign == CellAlign::Bottom ? free : 0;
             double offset = 0;
             if (part) {
                 // (A row shown in part is set from the top: the cell's content begins where its part does. A cell whose content is all in the part is set in it as it is in a row.)
@@ -1140,6 +1187,22 @@ std::vector<TableFragment::Placed> TableFragment::place() const
                 if (at >= 0 && at < part->piece.ends.size() && part->piece.ends[at] < 1e17) p.cut = p.text.y() + part->piece.ends[at];
             } else {
                 p.text = QPointF(p.rect.left() + c.margins.left(), p.rect.top() + c.margins.top() + extraTop + drop - offset);
+            }
+            if (turn) {
+                // The text is laid out along the row and turned: from the top (lines stacking from the right) or from the foot (stacking from the left). The lines' stack sits across the cell
+                // as the cell's vertical alignment says (its top is the side the lines begin at).
+                const double left = p.rect.left() + c.margins.left(), right = p.rect.right() - c.margins.right();
+                const double acrossFree = std::max(0.0, right - left - items[size_t(n)].content->stack);
+                const double along = c.rec->cell.valign == CellAlign::Center ? acrossFree / 2 : c.rec->cell.valign == CellAlign::Bottom ? acrossFree : 0;
+                const double top = p.text.y(), foot = top + inner;
+                p.turned = true;
+                if (turn == 1) {
+                    p.map.translate(right - along, top);
+                    p.map.rotate(90);
+                } else {
+                    p.map.translate(left + along, foot);
+                    p.map.rotate(-90);
+                }
             }
             out.push_back(p);
         }
@@ -1299,7 +1362,12 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
         p->setClipRect(area, Qt::IntersectClip);
         for (const CellContent::Part &part : content.parts) {
             p->save();
-            p->translate(pl.text.x(), pl.text.y() + part.y);
+            if (pl.turned) {
+                p->setTransform(pl.map, true);
+                p->translate(0, part.y);
+            } else {
+                p->translate(pl.text.x(), pl.text.y() + part.y);
+            }
             if (part.text) {
                 part.text->paint(p, 0, po);
                 if (o.objects && !part.text->inlineObjects().isEmpty()) o.objects(p, *part.text);
@@ -1417,6 +1485,10 @@ bool TableFragment::caretLine(int pos, QLineF *line) const
                 int frame = -1;
                 QRectF rect;
                 if (!part.text->caretRect(pos, &frame, &rect) || frame != 0) continue;
+                if (pl.turned) {
+                    *line = QLineF(pl.map.map(QPointF(rect.x(), part.y + rect.top())), pl.map.map(QPointF(rect.x(), part.y + rect.bottom())));
+                    return true;
+                }
                 const double x = pl.text.x() + rect.x(), top = pl.text.y() + part.y + rect.top();
                 *line = QLineF(x, top, x, top + rect.height());
                 return true;
@@ -1447,7 +1519,8 @@ void TableFragment::forLines(const std::function<void(const StoryLayout::LineBri
             if (part.text) {
                 for (const StoryLayout::LineBrief &ln : part.text->lineBriefs()) {
                     if (ln.frame != 0) continue;
-                    const QRectF rect(pl.text.x() + ln.rect.x(), pl.text.y() + part.y + ln.rect.top(), ln.rect.width(), ln.rect.height());
+                    const QRectF rect = pl.turned ? pl.map.mapRect(QRectF(ln.rect.x(), part.y + ln.rect.top(), ln.rect.width(), ln.rect.height()))
+                                                  : QRectF(pl.text.x() + ln.rect.x(), pl.text.y() + part.y + ln.rect.top(), ln.rect.width(), ln.rect.height());
                     const double middle = rect.center().y();
                     if (middle < pl.clip.top() || middle > pl.clip.bottom() || middle > pl.cut) continue;
                     visit(ln, rect);
@@ -1489,7 +1562,7 @@ int TableFragment::moveVertical(int pos, int direction, double *wantedX) const
             int at = -1;
             for (int i = 0; i < briefs.size() && at < 0; ++i)
                 if (pos >= briefs[i].pos && (pos < briefs[i].end || i == briefs.size() - 1)) at = i;
-            const bool edge = at < 0 || (direction < 0 && at == 0) || (direction > 0 && at == briefs.size() - 1);
+            const bool edge = pl.turned || at < 0 || (direction < 0 && at == 0) || (direction > 0 && at == briefs.size() - 1);   // (turned text: Up and Down go to the cell above or below)
             if (!edge) {
                 const int moved = part.text->moveVertical(pos, direction, *wantedX - pl.text.x());
                 if (moved != pos) return moved;
@@ -1523,12 +1596,20 @@ int TableFragment::positionAt(const QPointF &point) const
     if (!best) return -1;
     const CellContent &content = *items[size_t(best->item)].content;
     const CellContent::Part *chosen = nullptr;
+    // The point in the cell's text area (turned text: through the turn).
+    QPointF inArea(point.x() - best->text.x(), point.y() - best->text.y());
+    if (best->turned) {
+        bool invertible = false;
+        const QTransform back = best->map.inverted(&invertible);
+        if (!invertible) return layout->cell(items[size_t(best->item)].cell).from;
+        inArea = back.map(point);
+    }
     for (const CellContent::Part &part : content.parts) {
-        const double top = best->text.y() + part.y;
-        if (point.y() >= top || !chosen) chosen = &part;
+        if (inArea.y() >= part.y || !chosen) chosen = &part;
     }
     if (!chosen) return layout->cell(items[size_t(best->item)].cell).from;
     if (chosen->table) {
+        if (best->turned) return chosen->from;
         TableFragment nested = *chosen->table;
         nested.origin = QPointF(best->text.x(), best->text.y() + chosen->y);
         const int p = nested.positionAt(point);
@@ -1536,7 +1617,7 @@ int TableFragment::positionAt(const QPointF &point) const
         return chosen->from;
     }
     if (!chosen->text) return chosen->from;
-    const QPointF local(point.x() - best->text.x(), point.y() - (best->text.y() + chosen->y));
+    const QPointF local(inArea.x(), inArea.y() - chosen->y);
     const QVector<QRectF> lines = chosen->text->lineRects(0);
     if (lines.isEmpty()) return chosen->from;
     int line = 0;

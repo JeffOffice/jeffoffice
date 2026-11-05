@@ -55,6 +55,8 @@ void dressPicture(PictureItem &pic, const Shape &s)
         }
         if (!listed.isEmpty()) pic.takeEffects(listed);
     }
+    if (!s.cropShape.isEmpty()) pic.maskShape = s.cropShape;
+    pic.rotation = s.rotation;
     if (!s.clearColor.isEmpty()) {
         pic.hasTransparentColor = true;
         pic.transparentColor = QColor(QLatin1Char('#') + s.clearColor);
