@@ -72,8 +72,9 @@
        "text": "aab8ccdd715e8e1fbb741a3cd4c8e4c593baa6359a1731d7b3cb24fe25bcfd7b"
       },
       {
-       "status": "partly",
-       "text": "5e89fce801d617350c8aceb9549cf456e5de6b9ea3564562c97b11ce3d181c56"
+       "hide_soon": true,
+       "status": "done",
+       "text": "d686598cff635077c8f7cec2d837688b3bb918640540ba67b8114f357e368c93"
       },
       {
        "status": "partly",
@@ -376,8 +377,9 @@
          "text": "886781a9eaa9d8438a36af8adb5a94d9567b95efb8ed74cf0324a107dac5e371"
         },
         {
-         "status": "partly",
-         "text": "e17b77f96f0f424148ce4f73f008a5c7b7b2876b5661739060907aea8b99ccf6"
+         "hide_soon": true,
+         "status": "done",
+         "text": "561f42f062ad94f951545754a3b1ccb9f23811dbe184d98bcc7dd6fc684ffa1b"
         },
         {
          "hide_soon": true,
@@ -632,7 +634,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "9880077aa73baa76d3d8cfe81cd5a00a2092c517913e466b6dc667a37086a316"
+         "text": "04e76b65044a502d215b4681ead533847d7e5ba385a4e3d0f0d1ab40493b8f55"
         },
         {
          "status": "partly",
@@ -644,7 +646,7 @@
         },
         {
          "status": "partly",
-         "text": "a36a7ccca5d054b32ff1908443dadd59f2d6e69993e873efea9256db6581a238"
+         "text": "098a0573a1b6f4a940eec33b0df2604da8b874027c7d7329c19e92ea4d1eea8e"
         },
         {
          "status": "todo",
@@ -907,8 +909,9 @@
          "text": "0d74ed6a6360573b7af47582fa18bece9f985a448c528a28f7c291b77a210cf3"
         },
         {
-         "status": "partly",
-         "text": "aff9248f2ee0a12d0dcad62d043bdaa83794d2625d31075ea151f6db6b1f22a1"
+         "hide_soon": true,
+         "status": "done",
+         "text": "e88b314978dfe2a2e8141bf015d98fd9a5de0698667637fe0f16366534ea9af4"
         }
        ]
       },
@@ -917,7 +920,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "a758d94e5f2564b5f85a648904eabe76c3ddab7c0bf69a45e58c00e73c6b40be"
+         "text": "4bc5aa7075b03172cde25ca530af5903bc5479091c5e225b9ea04223d1e71718"
         },
         {
          "hide_soon": true,
@@ -946,8 +949,9 @@
        "heading": "65b8d745c4be4013e8d8a0eb1e12f77e0e62a9289ae6507631f889ebf455fe19",
        "items": [
         {
-         "status": "partly",
-         "text": "dea57a6a414c01eacf38b3a9a15a0d5288777782551d386e1bb6c4f0a139f6ca"
+         "hide_soon": true,
+         "status": "done",
+         "text": "fd428e2b4d52132622cf8796f37e20200e06d01e937ea192bdcd894459410ff9"
         },
         {
          "hide_soon": true,
@@ -991,8 +995,8 @@
          "text": "bc96919060e7d1d8ab943ca348fb678d8f5f036360cbda0e8bbc8d32414be9b9"
         },
         {
-         "status": "todo",
-         "text": "1465d017d99685090e94d4e0883962679abf0b3847e8f7a1e9cc80ba06e05a73"
+         "status": "partly",
+         "text": "54731d9c5588336746b682beac1850583b0bf91110cc7d291f40557ce897a743"
         }
        ]
       },
@@ -1474,7 +1478,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "309296816c747e0ef378ee6435120336057fc8e3a74689c0ca98784f576e9e1f"
+         "text": "e9e02c483f9546eaad16f39f04a0b35f8935504e560efb9fc1c4576236a830f6"
         },
         {
          "status": "partly",
@@ -7364,6 +7368,18 @@
     "fr": ""
    }
   },
+  "04e76b65044a502d215b4681ead533847d7e5ba385a4e3d0f0d1ab40493b8f55": {
+   "drop": false,
+   "en": "In JeffCrunch, Insert > Picture places a PNG, JPEG, GIF, BMP, or TIFF file on the sheet. An SVG, WMF, or EMF file is placed as a PNG image.",
+   "es": "En JeffCrunch, Insertar > Imagen coloca en la hoja un fichero PNG, JPEG, GIF, BMP o TIFF. Un fichero SVG, WMF o EMF se coloca como una imagen PNG.",
+   "fr": "Dans JeffCrunch, Insertion > Image place sur la feuille un fichier PNG, JPEG, GIF, BMP ou TIFF. Un fichier SVG, WMF ou EMF est placé sous forme d’image PNG.",
+   "soon": {
+    "drop": false,
+    "en": "Online pictures",
+    "es": "Imágenes en línea",
+    "fr": "Images en ligne"
+   }
+  },
   "04fb1637f1ac8b5fa1f155db067a5e35cca24d919fad9faea2cb77d8a3b1636e": {
    "drop": false,
    "en": "JeffDeck keeps what it can't edit yet, such as charts, diagrams, equations, and some animation and transition effects, with its slide and writes it back whole. A duplicated slide keeps them too.",
@@ -7782,6 +7798,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "098a0573a1b6f4a940eec33b0df2604da8b874027c7d7329c19e92ea4d1eea8e": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Icons, and online pictures from open image libraries",
+    "es": "Iconos e imágenes en línea de bibliotecas de imágenes abiertas",
+    "fr": "Icônes et images en ligne provenant de bibliothèques d’images libres"
    }
   },
   "098e9476ae23f7a76107523af9d69ef3fdafd6ba40d2c4eed8da5e2ccc16781f": {
@@ -8538,18 +8566,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "1465d017d99685090e94d4e0883962679abf0b3847e8f7a1e9cc80ba06e05a73": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Edit Links: update, change, open, break, and check links to external workbooks",
-    "es": "Modificar vínculos: actualizar, cambiar, abrir, romper y comprobar vínculos a libros externos",
-    "fr": "Modifier les liens : mettre à jour, changer, ouvrir, rompre et vérifier les liens vers des classeurs externes"
    }
   },
   "14739a67c240f7ce897240b84927e4c6a910eafedccd626fb67e0256db7ca392": {
@@ -10544,18 +10560,6 @@
     "fr": ""
    }
   },
-  "309296816c747e0ef378ee6435120336057fc8e3a74689c0ca98784f576e9e1f": {
-   "drop": false,
-   "en": "The Shape Format tab has Shape Fill, Shape Outline (color, none, weight, dashes), and Rotate. Each is one step of Undo and keeps the shape’s name, alternative text, place, and order.",
-   "es": "La pestaña Formato de forma incluye Relleno de forma, Contorno de forma (color, ninguno, grosor, guiones) y Girar. Cada uno es un solo paso de Deshacer y conserva el nombre, el texto alternativo, la posición y el orden de la forma.",
-   "fr": "L’onglet Format de forme propose Remplissage de forme, Contour de forme (couleur, aucun, épaisseur, tirets) et Rotation. Chacun constitue une seule étape d’annulation et conserve le nom, le texte de remplacement, l’emplacement et l’ordre de la forme.",
-   "soon": {
-    "drop": false,
-    "en": "Change shape, edit points, shape styles, and shape effects",
-    "es": "Cambiar forma, editar puntos, estilos de forma y efectos de forma",
-    "fr": "Changement de forme, modification des points, styles de forme et effets de forme"
-   }
-  },
   "30ad4c796c981186c3d2fd25c56b16202dbd0d6baa22b4195571f50dec5cffa4": {
    "drop": false,
    "en": "Insert, remove, and reset horizontal and vertical page breaks in JeffCrunch; automatic breaks show as dashed lines on the sheet.",
@@ -12404,6 +12408,18 @@
     "fr": ""
    }
   },
+  "4bc5aa7075b03172cde25ca530af5903bc5479091c5e225b9ea04223d1e71718": {
+   "drop": false,
+   "en": "In JeffCrunch, you can draw arrows to the cells a formula reads and to the formulas that read a cell, clear the arrows, and trace an error back to the error cells it reads.",
+   "es": "En JeffCrunch, usted puede dibujar flechas hacia las celdas que lee una fórmula y hacia las fórmulas que leen una celda, borrar las flechas y rastrear un error hasta las celdas con error que lee.",
+   "fr": "Dans JeffCrunch, vous pouvez tracer des flèches vers les cellules lues par une formule et vers les formules qui lisent une cellule, effacer les flèches et remonter une erreur jusqu’aux cellules en erreur qu’elle lit.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "4bc5cbadcafb7a0a2caefa92dfce77ed2864b0338321e4044a15202f4b352b40": {
    "drop": false,
    "en": "Older binary `.doc` and `.dot`",
@@ -13052,6 +13068,18 @@
     "fr": ""
    }
   },
+  "54731d9c5588336746b682beac1850583b0bf91110cc7d291f40557ce897a743": {
+   "drop": false,
+   "en": "In JeffCrunch, Data > Edit Links lists the external workbooks that formulas read. You can check the status of a source, open it, or break a link to turn the cells into their values.",
+   "es": "En JeffCrunch, Datos > Modificar vínculos muestra los libros externos que leen las fórmulas. Usted puede comprobar el estado de un origen, abrirlo o romper un vínculo para convertir las celdas en sus valores.",
+   "fr": "Dans JeffCrunch, Données > Modifier les liens liste les classeurs externes lus par les formules. Vous pouvez vérifier l’état d’une source, l’ouvrir ou rompre un lien pour convertir les cellules en leurs valeurs.",
+   "soon": {
+    "drop": false,
+    "en": "Update Values, Change Source, and stored values of linked sources",
+    "es": "Actualizar valores, cambiar origen y valores almacenados de los orígenes vinculados",
+    "fr": "Mise à jour des valeurs, changement de source et valeurs stockées des sources liées"
+   }
+  },
   "547456a22dbe31bc34e42d7abf751684315e4d66479425fd766e1bc5f81f3ae8": {
    "drop": false,
    "en": "Advanced editing options: Ctrl+click to follow a link, drag-and-drop text, typing that replaces the selection, and overtype mode with the `Insert` key.",
@@ -13242,6 +13270,18 @@
     "en": "Evaluate Formula: step through a formula",
     "es": "Evaluar fórmula: recorrer una fórmula paso a paso",
     "fr": "Évaluation de formule : parcourir une formule pas à pas"
+   }
+  },
+  "561f42f062ad94f951545754a3b1ccb9f23811dbe184d98bcc7dd6fc684ffa1b": {
+   "drop": false,
+   "en": "In JeffCrunch, you can paste text through the Text Import dialog, which splits it into columns by separator or fixed width. Set Default Paste keeps your last Paste choice for copied cells, used by Paste and `Ctrl+V`.",
+   "es": "En JeffCrunch, usted puede pegar texto mediante el cuadro de diálogo de importación de texto, que lo divide en columnas por separador o por ancho fijo. Establecer pegado predeterminado conserva su última elección de Pegar para las celdas copiadas, que usan Pegar y `Ctrl+V`.",
+   "fr": "Dans JeffCrunch, vous pouvez coller du texte via la boîte de dialogue d’importation de texte, qui le répartit en colonnes par séparateur ou par largeur fixe. Définir le collage par défaut conserve votre dernier choix de Coller pour les cellules copiées, utilisé par Coller et `Ctrl+V`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "563bfe61f3a5f5c65be4efcacac85965bb48aea289f3afdd189669d3342953f6": {
@@ -13758,18 +13798,6 @@
     "en": "Show a presentation's folder and copy its path",
     "es": "Mostrar la carpeta de una presentación y copiar su ruta",
     "fr": "Afficher le dossier d’une présentation et copier son chemin"
-   }
-  },
-  "5e89fce801d617350c8aceb9549cf456e5de6b9ea3564562c97b11ce3d181c56": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Insert > Icons: open vector icons, searched by name",
-    "es": "Insertar > Iconos: iconos vectoriales abiertos, con búsqueda por nombre",
-    "fr": "Insertion > Icônes : icônes vectorielles ouvertes, recherchées par nom"
    }
   },
   "5e9957a5d07fe0a4835f015c77ca5d64911b3614dea42b7de476fdeb49b19fd7": {
@@ -17804,18 +17832,6 @@
     "fr": ""
    }
   },
-  "9880077aa73baa76d3d8cfe81cd5a00a2092c517913e466b6dc667a37086a316": {
-   "drop": false,
-   "en": "Insert > Picture puts a PNG, JPEG, GIF, BMP, or TIFF on the sheet as it is, and an SVG as a PNG, scaled to at most 480 wide, as one step of Undo. Pictures in a file, including WMF and EMF, are shown and kept, and alt text is supported.",
-   "es": "Insertar > Imagen coloca en la hoja un PNG, JPEG, GIF, BMP o TIFF tal cual, y un SVG como PNG, con un ancho máximo de 480, en un solo paso de Deshacer. Las imágenes de un archivo, incluidos WMF y EMF, se muestran y se conservan, y se admite texto alternativo.",
-   "fr": "Insertion > Image place sur la feuille un PNG, JPEG, GIF, BMP ou TIFF tel quel, et un SVG sous forme de PNG, redimensionné à 480 de large au plus, en une seule étape d’annulation. Les images d’un fichier, y compris WMF et EMF, sont affichées et conservées, et le texte de remplacement est pris en charge.",
-   "soon": {
-    "drop": false,
-    "en": "Inserting WMF and EMF pictures, online pictures, and icons",
-    "es": "Insertar imágenes WMF y EMF, imágenes en línea e iconos",
-    "fr": "Insertion d’images WMF et EMF, d’images en ligne et d’icônes"
-   }
-  },
   "9894e474ee4a6d5e1f8e4035ce525790331b830e087f88da88a2221fe1f31e9b": {
    "drop": true,
    "en": "",
@@ -18572,18 +18588,6 @@
     "fr": ""
    }
   },
-  "a36a7ccca5d054b32ff1908443dadd59f2d6e69993e873efea9256db6581a238": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Icons, and online pictures from open image libraries",
-    "es": "Iconos e imágenes en línea de bibliotecas de imágenes abiertas",
-    "fr": "Icônes et images en ligne issues de bibliothèques d’images libres"
-   }
-  },
   "a3d39d17fb55fb6da972c1d0693b0e3be5b4c690477d3cbb6ca54930233bbb68": {
    "drop": false,
    "en": "JeffCrunch keeps the data connections, query tables, and query definitions in a workbook and writes them back as they were. The cells show their last results.",
@@ -18786,18 +18790,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "a758d94e5f2564b5f85a648904eabe76c3ddab7c0bf69a45e58c00e73c6b40be": {
-   "drop": false,
-   "en": "Show arrows from the cells a formula reads and to the formulas that read a cell, one more step with each click, with a sheet icon for a cell on another sheet; Clear Arrows removes them.",
-   "es": "Muestre flechas desde las celdas que lee una fórmula y hacia las fórmulas que leen una celda, un paso más con cada clic, con un icono de hoja para una celda de otra hoja; Quitar flechas las elimina.",
-   "fr": "Affichez des flèches depuis les cellules lues par une formule et vers les formules qui lisent une cellule, une étape de plus à chaque clic, avec une icône de feuille pour une cellule d’une autre feuille ; Effacer les flèches les supprime.",
-   "soon": {
-    "drop": false,
-    "en": "Trace Error",
-    "es": "Rastrear error",
-    "fr": "Repérer l’erreur"
    }
   },
   "a78e22da01066a8673786cef7d1ffaafeec941998deada19c253f2e234393636": {
@@ -19350,18 +19342,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "aff9248f2ee0a12d0dcad62d043bdaa83794d2625d31075ea151f6db6b1f22a1": {
-   "drop": false,
-   "en": "Name From Cells creates names from top, left, bottom, or right labels in one step, and Insert Name is a menu on the Formulas tab.",
-   "es": "Nombre desde celdas crea nombres a partir de rótulos superiores, izquierdos, inferiores o derechos en un solo paso, e Insertar nombre es un menú de la pestaña Fórmulas.",
-   "fr": "Nom à partir des cellules crée des noms à partir des libellés du haut, de gauche, du bas ou de droite en une seule étape, et Insérer un nom est un menu de l’onglet Formules.",
-   "soon": {
-    "drop": false,
-    "en": "Apply Names: replace references with names",
-    "es": "Aplicar nombres: reemplazar referencias por nombres",
-    "fr": "Appliquer les noms : remplacer des références par des noms"
    }
   },
   "b012ab6f3872f74f257b3ba4d47639c70ad9ee71f8f310b53082e508b53fcdac": {
@@ -21932,6 +21912,18 @@
     "fr": ""
    }
   },
+  "d686598cff635077c8f7cec2d837688b3bb918640540ba67b8114f357e368c93": {
+   "drop": false,
+   "en": "In JeffCrunch, Insert > Icons opens an icon picker with open vector icons that you can search by name. Each icon you choose is placed on the sheet as a picture.",
+   "es": "En JeffCrunch, Insertar > Iconos abre un selector de iconos vectoriales abiertos que usted puede buscar por nombre. Cada icono que elija se coloca en la hoja como una imagen.",
+   "fr": "Dans JeffCrunch, Insertion > Icônes ouvre un sélecteur d’icônes vectorielles libres que vous pouvez rechercher par nom. Chaque icône choisie est placée sur la feuille sous forme d’image.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "d6a3c505701e165480969d92d2837f5c0f1dc5434cdca7d8fc5f626c94cba496": {
    "drop": false,
    "en": "JeffPub supports rich text: fonts, sizes, scheme-aware color, highlight, underline styles, strikethrough, subscript and superscript, all caps, small caps, tracking (a percentage, with presets from Very Tight to Very Loose) and kerning (points) together, automatic pair kerning (for fonts 14 pt and above unless set otherwise), and scaling.",
@@ -22340,18 +22332,6 @@
     "fr": ""
    }
   },
-  "dea57a6a414c01eacf38b3a9a15a0d5288777782551d386e1bb6c4f0a139f6ca": {
-   "drop": false,
-   "en": "JeffCrunch has three calculation modes: Automatic, Tables by Hand, and Manual. The mode is saved in the file, and one step of Undo applies. A Manual workbook opens with the results its file holds, and the status bar says when a recalculation is due. Iterative calculation is supported, bounded, and saved. Data tables are worked out in Automatic mode and wait for `F9` in the other two.",
-   "es": "JeffCrunch tiene tres modos de cálculo: Automático, Tablas manual y Manual. El modo se guarda en el archivo y se puede deshacer en un paso. Un libro en modo Manual se abre con los resultados que contiene su archivo, y la barra de estado indica cuándo corresponde recalcular. El cálculo iterativo es compatible, acotado y se guarda. Las tablas de datos se calculan en modo Automático y esperan a `F9` en los otros dos.",
-   "fr": "JeffCrunch propose trois modes de calcul : Automatique, Tables manuelles et Manuel. Le mode est enregistré dans le fichier et une étape d’annulation s’applique. Un classeur en mode Manuel s’ouvre avec les résultats que contient son fichier, et la barre d’état indique quand un recalcul est nécessaire. Le calcul itératif est pris en charge, borné et enregistré. Les tables de données sont calculées en mode Automatique et attendent `F9` dans les deux autres.",
-   "soon": {
-    "drop": false,
-    "en": "Calculate Before Save in Manual mode",
-    "es": "Calcular antes de guardar en modo Manual",
-    "fr": "Calcul avant enregistrement en mode Manuel"
-   }
-  },
   "dec19760678c41044e16e8bad4e8bd3439f40939df02ad7ee75d336ded1a7449": {
    "drop": false,
    "en": "Thesaurus (`Shift+F7`) looks up the word at the caret in the English thesaurus on your computer, offline. You can look up another word, and Replace keeps a capital letter.",
@@ -22518,18 +22498,6 @@
     "en": "AutoCorrect, exclusion dictionaries, custom dictionary editing, and the Spelling pane in tables, headers, footers, and notes",
     "es": "Autocorrección, diccionarios de exclusión, edición del diccionario personalizado y panel Ortografía en tablas, encabezados, pies de página y notas",
     "fr": "Correction automatique, dictionnaires d’exclusion, modification du dictionnaire personnel et volet Orthographe dans les tableaux, les en-têtes, les pieds de page et les notes"
-   }
-  },
-  "e17b77f96f0f424148ce4f73f008a5c7b7b2876b5661739060907aea8b99ccf6": {
-   "drop": false,
-   "en": "Paste Text Import opens the Text Import dialog on the clipboard text and splits it into columns by the separators, quote, first row, and column kinds chosen (text, date, or left out), in one step of Undo.",
-   "es": "Importar texto al pegar abre el cuadro de importación de texto con el texto del portapapeles y lo divide en columnas según los separadores, la comilla, la primera fila y los tipos de columna elegidos (texto, fecha u omitida), en un solo paso de Deshacer.",
-   "fr": "Importer le texte collé ouvre la boîte d’importation de texte sur le contenu du presse-papiers et le divise en colonnes selon les séparateurs, le guillemet, la première ligne et les types de colonne choisis (texte, date ou ignorée), en une seule étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Fixed-width columns in text import, and Set Default Paste",
-    "es": "Columnas de ancho fijo en la importación de texto, y Establecer pegado predeterminado",
-    "fr": "Colonnes de largeur fixe à l’importation du texte, et Définir le collage par défaut"
    }
   },
   "e1919a88302c01c899a1a731f71c1bf0f53806e9461d5692880f8d04d706e617": {
@@ -23132,6 +23100,18 @@
     "fr": ""
    }
   },
+  "e88b314978dfe2a2e8141bf015d98fd9a5de0698667637fe0f16366534ea9af4": {
+   "drop": false,
+   "en": "In JeffCrunch, you can create names from the row and column labels of a selection, insert a name into a formula, and apply names to replace cell references with names.",
+   "es": "En JeffCrunch, usted puede crear nombres a partir de las etiquetas de fila y columna de una selección, insertar un nombre en una fórmula y aplicar nombres para sustituir referencias de celda por nombres.",
+   "fr": "Dans JeffCrunch, vous pouvez créer des noms à partir des étiquettes de ligne et de colonne d’une sélection, insérer un nom dans une formule et appliquer des noms pour remplacer des références de cellule par des noms.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "e8990ffa51d668f992e6446d843b64bfea0965eef06d7c9ee0bfa2e92d5842a7": {
    "drop": false,
    "en": "Notes",
@@ -23202,6 +23182,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e9e02c483f9546eaad16f39f04a0b35f8935504e560efb9fc1c4576236a830f6": {
+   "drop": false,
+   "en": "In JeffCrunch, the Shape Format tab has Shape Fill, Shape Outline (color, none, weight, and dashes), Rotate, and Shape Styles with seven ready-made fills and outlines.",
+   "es": "En JeffCrunch, la pestaña Formato de forma ofrece Relleno de forma, Contorno de forma (color, ninguno, grosor y guiones), Girar y Estilos de forma con siete rellenos y contornos predefinidos.",
+   "fr": "Dans JeffCrunch, l’onglet Format de la forme propose Remplissage de forme, Contour de forme (couleur, aucun, épaisseur et tirets), Rotation et Styles de forme avec sept remplissages et contours prédéfinis.",
+   "soon": {
+    "drop": false,
+    "en": "Change shape, edit points, and shape effects",
+    "es": "Cambiar forma, editar puntos y efectos de forma",
+    "fr": "Changement de forme, modification des points et effets de forme"
    }
   },
   "e9e23fac479951e13c372fa45cba38fe0077dd0b4a77cca5dbae069b446f568e": {
@@ -24493,6 +24485,18 @@
    "en": "Shape Format tab (shapes, text boxes, lines, connectors)",
    "es": "Pestaña Formato de forma (formas, cuadros de texto, líneas, conectores)",
    "fr": "Onglet Format de la forme (formes, zones de texte, lignes, connecteurs)",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "fd428e2b4d52132622cf8796f37e20200e06d01e937ea192bdcd894459410ff9": {
+   "drop": false,
+   "en": "In JeffCrunch, you can set formulas to calculate Automatic, Tables by Hand, or Manual, with Calculate Before Save. The setting is saved in the file.",
+   "es": "En JeffCrunch, usted puede configurar el cálculo de fórmulas como automático, automático excepto tablas o manual, con la opción de calcular antes de guardar. La configuración se guarda en el fichero.",
+   "fr": "Dans JeffCrunch, vous pouvez régler le calcul des formules sur automatique, automatique sauf tables ou manuel, avec l’option de calculer avant l’enregistrement. Le réglage est enregistré dans le fichier.",
    "soon": {
     "drop": true,
     "en": "",
