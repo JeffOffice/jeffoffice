@@ -556,6 +556,8 @@ QByteArray paneFromChange(const QByteArray &head, const SheetView &v, const QByt
         else dropAttr(&tag, "topLeftCell");
         if (v.rightToLeft) setAttr(&tag, "rightToLeft", "1");
         else dropAttr(&tag, "rightToLeft");
+        if (!v.showZeros) setAttr(&tag, "showZeros", "0");
+        else dropAttr(&tag, "showZeros");
         return tag;
     };
     if (viewAt >= 0) {
@@ -569,7 +571,7 @@ QByteArray paneFromChange(const QByteArray &head, const SheetView &v, const QByt
         const qsizetype end = selfClosing ? viewTagEnd : viewEnd;
         return head.left(viewAt) + tag + inner + "</" + prefix + "sheetView>" + head.mid(end);
     }
-    if (!frozen && !v.rightToLeft) return head;
+    if (!frozen && !v.rightToLeft && v.showZeros) return head;
     const QByteArray tag = startTag("<" + prefix + "sheetView workbookViewId=\"0\">");
     const qsizetype at = insertAt >= 0 ? insertAt : head.size();
     return head.left(at) + "<" + prefix + "sheetViews>" + tag + inner + "</" + prefix + "sheetView></" + prefix + "sheetViews>" + head.mid(at);

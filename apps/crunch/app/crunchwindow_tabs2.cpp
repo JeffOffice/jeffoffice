@@ -6,6 +6,8 @@
 #include "app/errorcheckdialog.h"
 #include "app/evaluateformuladialog.h"
 #include "app/goalseekdialog.h"
+#include "app/plaintext.h"
+#include "app/proofingdialogs.h"
 #include "app/subtotaldialog.h"
 #include "app/validationdialog.h"
 #include "app/watchwindow.h"
@@ -23,6 +25,14 @@
 #include "sheet/cellref.h"
 
 #include <QAction>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QLabel>
+#include <QLineEdit>
+#include <QListWidget>
+#include <QPushButton>
+#include <QRegularExpression>
+#include <QVBoxLayout>
 #include <QElapsedTimer>
 #include <QUndoStack>
 
@@ -48,10 +58,11 @@ void CrunchWindow::createTabs2Actions()
     });
     mk("data.clearCircles", tr("Clear Validation Circles"), "circle-slash", QKeySequence(), [this] { clearValidationCircles(); });
     act("data.clearCircles")->setEnabled(false);   // (on while some cells are circled)
+    mk("review.thesaurus", tr("Thesaurus"), "book-a", QKeySequence(Qt::SHIFT | Qt::Key_F7), [this] { thesaurus(); });
     mk("review.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] { showAccessibilityPane(); });
     mk("data.consolidate", tr("Consolidate"), "combine", QKeySequence(), [this] { consolidateDialog(); });
     mk("data.subtotal", tr("Subtotal"), "sigma", QKeySequence(), [this] { subtotalDialog(); });
-    for (const char *id : {"review.statistics", "data.goalSeek", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "review.accessibility"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"review.statistics", "data.goalSeek", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "review.accessibility", "review.thesaurus"}) m_opsActions << QString::fromLatin1(id);
     connect(this, &CrunchWindow::calculationFinished, this, [this] {
         refreshInvalidCircles();
         refreshCellFlags();
@@ -750,6 +761,89 @@ void CrunchWindow::showAccessibilityPane()
     checkAccessibilityNow();
     m_accessPane->show();
     m_accessPane->raise();
+}
+
+QString CrunchWindow::thesaurusWordAt(int sheet, quint32 row, quint32 col) const
+{
+    if (!m_session) return QString();
+    const QString text = m_session->editText(sheet, row, col);
+    if (text.startsWith(QLatin1Char('='))) return QString();
+    static const QRegularExpression word(QStringLiteral("\\p{L}[\\p{L}'-]*"));
+    const QRegularExpressionMatch m = word.match(text);
+    return m.hasMatch() ? m.captured() : QString();
+}
+
+bool CrunchWindow::replaceWordInCell(int sheet, quint32 row, quint32 col, const QString &word, const QString &chosen)
+{
+    if (!m_session || word.isEmpty() || chosen.isEmpty()) return false;
+    QString text = m_session->editText(sheet, row, col);
+    const int at = int(text.indexOf(word));
+    if (at < 0) return false;
+    QString replacement = chosen;
+    if (word.at(0).isUpper()) replacement[0] = replacement.at(0).toUpper();
+    text.replace(at, word.size(), replacement);
+    if (!editingAllowed()) return false;
+    const crunch::EditSession::Outcome o = m_session->type(sheet, row, col, text);
+    if (!o.ok) {
+        notice(tr("Thesaurus"), o.problem);
+        return false;
+    }
+    m_calculating = true;
+    return true;
+}
+
+void CrunchWindow::thesaurus()
+{
+    if (!m_session || !commitEdit()) return;
+    const grid::Selection &sel = m_view->selection();
+    const quint32 row = quint32(std::max<qint64>(0, sel.activeRow)), col = quint32(std::max<qint64>(0, sel.activeCol));
+    const QString word = thesaurusWordAt(m_sheet, row, col);
+    QDialog dlg(this);
+    dlg.setObjectName(QStringLiteral("thesaurusDialog"));
+    dlg.setWindowTitle(tr("Thesaurus"));
+    auto *v = new QVBoxLayout(&dlg);
+    v->addWidget(plainLabel(new QLabel(tr("Look up:"), &dlg)));
+    auto *query = new QLineEdit(word, &dlg);
+    query->setObjectName(QStringLiteral("thesaurusQuery"));
+    v->addWidget(query);
+    auto *list = new QListWidget(&dlg);
+    list->setObjectName(QStringLiteral("thesaurusList"));
+    v->addWidget(list);
+    auto fill = [&] {
+        list->clear();
+        const QStringList found = jp::thesaurusLookup(query->text());
+        if (found.isEmpty()) {
+            auto *none = new QListWidgetItem(query->text().trimmed().isEmpty() ? tr("(Type a word to look up)") : tr("(No suggestions)"), list);
+            none->setFlags(Qt::NoItemFlags);
+            return;
+        }
+        for (const QString &entry : found) {
+            // (an entry is the word and, in parentheses, the kind of word it is: "glad (adj)")
+            QString text = entry;
+            const int paren = int(text.lastIndexOf(QLatin1String(" (")));
+            if (paren > 0) text.truncate(paren);
+            auto *item = new QListWidgetItem(entry, list);
+            item->setData(Qt::UserRole, text);
+        }
+        list->setCurrentRow(0);
+    };
+    fill();
+    auto *buttons = new QDialogButtonBox(&dlg);
+    auto *replace = buttons->addButton(tr("Replace"), QDialogButtonBox::AcceptRole);
+    replace->setObjectName(QStringLiteral("thesaurusReplace"));
+    auto *lookUp = buttons->addButton(tr("Look Up"), QDialogButtonBox::ActionRole);
+    buttons->addButton(QDialogButtonBox::Close);
+    connect(lookUp, &QPushButton::clicked, &dlg, [&] {
+        if (list->currentItem() && list->currentItem()->data(Qt::UserRole).isValid()) query->setText(list->currentItem()->data(Qt::UserRole).toString());
+        fill();
+    });
+    connect(query, &QLineEdit::returnPressed, &dlg, fill);
+    connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    connect(list, &QListWidget::itemDoubleClicked, &dlg, &QDialog::accept);
+    v->addWidget(buttons);
+    if (dlg.exec() != QDialog::Accepted || !list->currentItem() || !list->currentItem()->data(Qt::UserRole).isValid() || word.isEmpty()) return;
+    replaceWordInCell(m_sheet, row, col, word, list->currentItem()->data(Qt::UserRole).toString());
 }
 
 } // namespace jp

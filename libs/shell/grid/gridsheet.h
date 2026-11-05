@@ -150,6 +150,9 @@ public:
     // The sheet reads right to left: column A is at the right, and what a cell's alignment says of the left and right is the screen's. (The `align` a cell shows is in the grid's own places,
     // the way the layout puts the columns: a sheet that reads right to left has them mirrored for the screen, so a text aligned to its left has `align` right.)
     bool rightToLeft() const { return m_rtl; }
+    // Whether a cell whose number is zero shows it (off: the cell shows nothing, whatever its format).
+    bool showZeros() const { return m_showZeros; }
+    void setShowZeros(bool on);
     // Turns the sheet's reading direction round (the sheet's cells are drawn again).
     void setRightToLeft(bool on);
     // The marks the person's language puts in numbers (the decimal mark, the grouping of digits): what a number cell shows and a copy gives. Plain ("." and ",") until set.
@@ -220,6 +223,7 @@ private:
     ErrorDisplay m_errors = ErrorDisplay::Shown;
     jp::calc::NumberSymbols m_symbols;
     bool m_rtl = false;
+    bool m_showZeros = true;
     mutable CondFormats m_cond{this};
     std::vector<TableSkin> m_skins;
     mutable std::unordered_map<quint64, std::pair<int, int>> m_sparkIndex;   // by cell: the group and the place in it

@@ -299,6 +299,39 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("G5")), QStringLiteral("n:1234"));
     }
 
+    // Show zeros: a sheet can hide the zeros its cells hold; the choice is the sheet's, is kept when the sheet is left and shown again, and is saved in the file and read back.
+    void zerosCanBeHiddenOnASheetAndAreSavedThatWay()
+    {
+        EditWindow e;
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>0</v></c><c r=\"B1\"><v>5</v></c></row>");
+        QVERIFY(e.open(buildXlsx({worksheet(rows), worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), {QStringLiteral("One"), QStringLiteral("Two")})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QCOMPARE(e.shownAt(QStringLiteral("A1")), QStringLiteral("0"));
+        w.setShowZeros(false);
+        QCOMPARE(e.shownAt(QStringLiteral("A1")), QString());
+        QCOMPARE(e.shownAt(QStringLiteral("B1")), QStringLiteral("5"));
+        // another sheet keeps its zeros, and this one has none when it comes back
+        w.setActiveSheet(1);
+        QVERIFY(w.showZeros());
+        w.setActiveSheet(0);
+        QVERIFY(!w.showZeros());
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(f.readAll(), parts));
+        QVERIFY(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("showZeros=\"0\""));
+        QVERIFY(!parts.value(QStringLiteral("xl/worksheets/sheet2.xml")).contains("showZeros"));
+        f.seek(0);
+        EditWindow again;
+        QVERIFY(again.open(f.readAll(), QStringLiteral("zeros.xlsx")));
+        QVERIFY(!again.win.w.showZeros());
+        QCOMPARE(again.shownAt(QStringLiteral("A1")), QString());
+    }
+
     // Ctrl+Enter puts what was typed in every selected cell (a formula shifts its relative references, as a copy does) as one step of Undo, and the selection stays.
     void ctrlEnterFillsTheSelection()
     {

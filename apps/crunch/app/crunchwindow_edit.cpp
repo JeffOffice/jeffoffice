@@ -223,6 +223,14 @@ void CrunchWindow::setAutoComplete(bool on)
     Settings::get().setValue(QStringLiteral("crunch/autoComplete"), on);
 }
 
+void CrunchWindow::setShowZeros(bool on)
+{
+    if (m_view->showZeros() == on) return;
+    m_view->setShowZeros(on);
+    syncPanes();
+    if (m_session && m_session->viewsChanged()) setWindowModified(true);
+}
+
 void CrunchWindow::setDragEditing(bool on)
 {
     m_view->setDragEditing(on);

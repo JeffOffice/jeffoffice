@@ -95,6 +95,7 @@ GridView::ViewState GridView::viewState() const
     v.zoom = zoom();
     v.gridlines = m_gridlines;
     v.headings = m_headings;
+    v.showZeros = m_sheet.showZeros();
     v.valid = true;
     return v;
 }
@@ -105,6 +106,7 @@ void GridView::setViewState(const ViewState &v)
     GridLayout &L = m_sheet.layout();
     m_gridlines = v.gridlines;
     m_headings = v.headings;
+    m_sheet.setShowZeros(v.showZeros);
     L.setZoom(v.zoom);
     L.setSkipped(v.skipRows, v.skipCols);
     L.setFrozen(v.frozenRows, v.frozenCols);
@@ -138,6 +140,7 @@ void GridView::setData(const GridData &data, bool keepView)
     if (data.sheet) {
         m_gridlines = data.sheet->view.showGridLines;
         m_headings = data.sheet->view.showHeadings;
+        m_sheet.setShowZeros(data.sheet->view.showZeros);
     }
     m_sheet.layout().setViewport(viewport()->size());
     m_widened.clear();   // (the sizes are the data's again)
@@ -374,6 +377,13 @@ void GridView::setZoom(double z)
 void GridView::setShowGridlines(bool on)
 {
     m_gridlines = on;
+    viewport()->update();
+}
+
+void GridView::setShowZeros(bool on)
+{
+    if (m_sheet.showZeros() == on) return;
+    m_sheet.setShowZeros(on);
     viewport()->update();
 }
 

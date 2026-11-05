@@ -67,6 +67,7 @@ enum class PrintSides : quint8 { All, Odd, Even };
 // What the Print screen holds: the job's choices, and what is to be done with its pages.
 struct PrintChoices {
     PrintJobOptions job;
+    int pagesPerSheet = 1;      // 1, 2, 4, 6, 9, or 16 pages on each sheet of paper
     QString pageRange;          // "1-3, 5"; empty for all
     PrintSides sides = PrintSides::All;   // all the pages, or only the odd ones or the even ones (by page number)
     int copies = 1;
@@ -186,15 +187,20 @@ public:
 
     // Draws a page in points on the painter (its origin the paper's corner). Gives false if the page is not one.
     bool paint(QPainter *painter, int page);
+    // The paper size and the painting of a group of pages that share a sheet (see `perSheet` below).
+    QSizeF sheetFor(const QVector<int> &group, int perSheet) const;
+    void paintGroup(QPainter *painter, const QVector<int> &group, const QSizeF &sheet, int perSheet);
     // The page as a picture of the width (its height follows), on white.
     QImage preview(int page, int widthPixels);
 
     // The pages (indexes from 0, in the order given) as a PDF file, written at once; `progress` is told the pages done and the total, and says false to stop. The file is not there if it fails.
-    bool exportPdf(const QString &path, const QVector<int> &pages, QString *error = nullptr, const std::function<bool(int done, int total)> &progress = nullptr);
+    bool exportPdf(const QString &path, const QVector<int> &pages, QString *error = nullptr, const std::function<bool(int done, int total)> &progress = nullptr, int perSheet = 1);
     // The pages to a printer (any QPrinter, a file among them), one sheet of paper each; the printer's own copies are not used here (the caller repeats the pages).
     // `copies` of the pages are sent, each set together (collated) or each page's copies together; never made into a list (the number sent is held to kMaxSentPages).
     bool printTo(QPrinter *printer, const QVector<int> &pages, QString *error = nullptr, const std::function<bool(int done, int total)> &progress = nullptr, int copies = 1,
-                 bool collate = true);
+                 bool collate = true, int perSheet = 1);
+    // `perSheet` (1, 2, 4, 6, 9, or 16) puts that many of the pages on each sheet of paper, each shrunk to fit its place in a grid and framed (the paper is that of the first page of the
+    // sheet, turned to lie on its side for 2 and 6). Any other number is 1.
     // Whether the last export or print was stopped by its progress function (not a failure: nothing was written or sent past that point).
     bool wasCancelled() const { return m_cancelled; }
     // The date and time the date and time fields show on every page (taken when the job was made, or the moment the options gave).

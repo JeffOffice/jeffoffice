@@ -411,6 +411,7 @@
           "keytip": "ZR",
           "items": [
             {"large": "review.statistics", "keytip": "WS"},
+            {"large": "review.thesaurus", "keytip": "TH"},
             {"large": "review.accessibility", "keytip": "AC"}
           ]
         },
