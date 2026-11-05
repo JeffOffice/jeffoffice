@@ -46,7 +46,7 @@ public:
         qint64 frozenRows = 0, frozenCols = 0;   // where the frozen part ends, from the first row and column of the sheet
         qint64 skipRows = 0, skipCols = 0;       // and the rows and columns before where it begins, which are out of sight
         double zoom = 1.0;
-        bool gridlines = true, headings = true;
+        bool gridlines = true, headings = true, showZeros = true;
         bool valid = false;
     };
     ViewState viewState() const;
@@ -68,6 +68,9 @@ public:
     double zoom() const { return m_sheet.layout().zoom(); }
     void setZoom(double zoom);
     bool showGridlines() const { return m_gridlines; }
+    // Zeros shown or hidden on the sheet in view (the sheet view's showZeros).
+    bool showZeros() const { return m_sheet.showZeros(); }
+    void setShowZeros(bool on);
     void setShowGridlines(bool on);
     // The sheet reads from the right (column A at the right edge): the grid is laid out and drawn mirrored. (Set when a sheet is shown; the data's own view says it first.)
     void setRightToLeft(bool on);

@@ -10,6 +10,7 @@ The **Editing** page changes how typing in cells works.
 - **After pressing Enter, move the selection** says where the selection goes when you finish an entry: down, right, up, left, or nowhere.
 - **Offer to finish a text from the cells above and below** is called AutoComplete. When you type the first letters of a text, and only one text in that column starts with them, JeffCrunch shows the rest of it, selected. Press **Enter** to keep it. Keep typing to ignore it, or press **Backspace** to take it away. It looks only at the block of cells next to the one you are typing in, and only at texts, not numbers.
 - **Use the fill handle, and drag cells to move or copy them** turns on the small square at the corner of the selection and the dragging of the selection's border. Turn it off if you keep moving cells by accident. Copy and Paste still work.
+- **Show a zero in cells that have a zero value (this sheet)** turns zeros on or off for the sheet you are looking at. When it is off, a cell that holds 0 looks empty, but it still holds the 0 and adds up as 0. The choice is saved with the sheet.
 - **Put a decimal point in whole numbers that are typed** is called automatic decimal places. Set **Places** to 2, and typing 1234 enters 12.34. Set it to -2, and typing 5 enters 500. A number you type with a decimal point is entered as typed.
 
 ## Usage statistics

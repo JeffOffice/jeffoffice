@@ -498,6 +498,10 @@ void CrunchWindow::createActions()
             drag->setObjectName(QStringLiteral("optionDragEditing"));
             drag->setChecked(m_view->dragEditing());
             layout->addRow(drag);
+            auto *zeros = new QCheckBox(tr("Show a zero in cells that have a zero value (this sheet)"), page);
+            zeros->setObjectName(QStringLiteral("optionShowZeros"));
+            zeros->setChecked(m_view->showZeros());
+            layout->addRow(zeros);
             auto *fixed = new QCheckBox(tr("Put a decimal point in whole numbers that are typed (automatic decimal places)"), page);
             fixed->setObjectName(QStringLiteral("optionFixedDecimals"));
             fixed->setChecked(m_fixedDecimals != 0);
@@ -520,6 +524,7 @@ void CrunchWindow::createActions()
                     auto *places = page->findChild<QSpinBox *>(QStringLiteral("optionFixedPlaces"));
                     if (fixed && places) setFixedDecimals(fixed->isChecked() ? places->value() : 0);
                 }
+                if (auto *zeros = (*choice)->parentWidget() ? (*choice)->parentWidget()->findChild<QCheckBox *>(QStringLiteral("optionShowZeros")) : nullptr) setShowZeros(zeros->isChecked());
                 if (auto *drag = (*choice)->parentWidget() ? (*choice)->parentWidget()->findChild<QCheckBox *>(QStringLiteral("optionDragEditing")) : nullptr) setDragEditing(drag->isChecked());
             }
         }};
@@ -666,6 +671,7 @@ void CrunchWindow::syncPanes()
     v.activeRow = quint32(std::max<qint64>(0, sel.activeRow));
     v.activeCol = quint32(std::max<qint64>(0, sel.activeCol));
     v.rightToLeft = m_view->sheet().rightToLeft();
+    v.showZeros = m_view->showZeros();
     m_session->setSheetPane(m_sheet, v);
 }
 

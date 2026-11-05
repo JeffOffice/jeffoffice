@@ -443,6 +443,7 @@ void CrunchWindow::afterSheetShown(int sheetIndex, bool inPlace)
     const jp::office::sheet::Sheet *shown = m_view->sheet().data().sheet;
     // (which way the sheet reads is what the person left it at, not the file's alone)
     if (m_session && sheetIndex >= 0 && sheetIndex < m_session->pages().sheetCount()) m_view->setRightToLeft(m_session->pages().pane(sheetIndex).rightToLeft);
+    if (m_session && sheetIndex >= 0 && sheetIndex < m_session->pages().sheetCount()) m_view->setShowZeros(m_session->pages().pane(sheetIndex).showZeros);
     if (QAction *rtl = act("view.rightToLeft")) rtl->setChecked(m_view->sheet().rightToLeft());
     updateCondActions();
     if (!inPlace) {

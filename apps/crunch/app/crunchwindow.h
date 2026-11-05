@@ -497,6 +497,9 @@ public:
     void setAutoComplete(bool on);
     // The fill handle and the drag of cells (Options > Editing); on by default, kept in the person's settings.
     void setDragEditing(bool on);
+    // Whether cells that hold zero show it, on the sheet in view (Options > Display); kept with the sheet in the file.
+    bool showZeros() const { return m_view->showZeros(); }
+    void setShowZeros(bool on);
     // Automatic decimal places (Options > Editing): 0 is off; with 2, typing 1234 enters 12.34; kept in the person's settings.
     int fixedDecimals() const { return m_fixedDecimals; }
     void setFixedDecimals(int places);

@@ -749,6 +749,7 @@ QString GridSheet::textOf(quint32 row, quint32 col, const Cell &cell) const
         return v.text();
     }
     case Value::Kind::Number: {
+        if (!m_showZeros && v.number() == 0) return QString();
         const jp::calc::Formatted f = look.format.format(v.number(), m_data.dateSystem, 0, &m_symbols);
         return f.failed ? jp::calc::numberToText(v.number()) : f.text;
     }
@@ -785,6 +786,13 @@ QString GridSheet::storedTextOf(quint32 row, quint32 col, const Cell &cell) cons
     case Value::Kind::Error: return jp::calc::errorKindText(v.errorKind());
     default: return QString();
     }
+}
+
+void GridSheet::setShowZeros(bool on)
+{
+    if (m_showZeros == on) return;
+    m_showZeros = on;
+    invalidateLooks();
 }
 
 void GridSheet::setRightToLeft(bool on)
