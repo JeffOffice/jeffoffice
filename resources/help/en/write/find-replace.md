@@ -1,5 +1,5 @@
 # Find and replace words
-<!-- keywords: find, replace, replace all, search, look for, change words, match case, whole words, find next, ctrl+f, ctrl+h, editing, pane, hidden text, undo -->
+<!-- keywords: wildcards, wildcard, pattern, regular expression, groups, match count, highlight all matches, replace, replace all, search, look for, change words, match case, whole words, find next, ctrl+f, ctrl+h, editing, pane, hidden text, undo -->
 
 Use Find to jump to words in your document. Use Replace to change them. Both work in one pane on the right of the window.
 
@@ -9,6 +9,25 @@ Use Find to jump to words in your document. Use Replace to change them. Both wor
 2. Type the words you want. Then press **Enter**, or click **Find Next**.
 
 JeffWrite starts where your cursor is. It selects the next place where it finds your words, and scrolls the pages so you can see it. That place is called a **match**. Click **Find Next** again to go to the next match. After the last match, it goes back to the start of the document.
+
+As you type, the pane counts the matches, such as "9 matches", and every match gets a yellow band on the pages. After **Find Next**, the pane says which one you are on, such as "Match 2 of 4". The count and the bands change when you click **Match case** or **Find whole words only**, or when you change the text. They go away when you close the pane.
+
+## Find with wildcards
+
+Check **Use wildcards** to search for a pattern, not just words. A **wildcard** is a mark that stands for other letters. These are the marks:
+
+- **?** stands for any one letter. **c?t** finds "cat" and "cot".
+- **\*** stands for any run of letters. **c\*t** finds "cat" and "cart".
+- **<** is the start of a word, and **>** is the end of one. **<the>** finds "the" but not "other".
+- **[abc]** is any one of those letters, **[a-c]** is any letter from a to c, and **[!abc]** is any letter but those.
+- **{2}** repeats the letter before it twice. **{1,3}** repeats it one to three times.
+- **@** means one or more of the letter before it.
+- **\\** in front of a mark finds the mark itself. **\\?** finds a question mark.
+- **^p** is a paragraph mark, **^t** is a tab, **^#** is a digit, **^$** is a letter, and **^w** is white space.
+
+Put part of the pattern in **( )** to make a **group**. In **Replace with**, **\1** is the first group, **\2** is the second, and so on up to **\9**. **^&** is everything that was found. For example, find **(<[A-Z]@>), (<[A-Z]@>)** and replace with **\2 \1** to turn "Smith, John" into "John Smith". **Find whole words only** is dimmed while wildcards are on, because **<** and **>** do that job.
+
+If the pattern has a mistake, the pane says what it is.
 
 If your words are not in the document, the pane says so, and nothing moves.
 

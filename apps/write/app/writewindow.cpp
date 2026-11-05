@@ -209,6 +209,7 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
     m_view->setDocument(nullptr);
     m_doc = std::move(doc);
     m_path = path;
+    if (!m_mini) createMiniToolbar();
     if (m_doc) {
         m_doc->filePath = path;
         connect(m_doc.get(), &write::WriteDoc::modifiedChanged, this, [this] { updateTitle(); });

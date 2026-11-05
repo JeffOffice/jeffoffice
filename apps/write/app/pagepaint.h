@@ -28,6 +28,7 @@ struct PageDrawing {
     // while a word is being typed: that word is left alone until the caret moves on.
     SpellCheck *spelling = nullptr;
     int typingAt = -1;
+    const QVector<QPair<int, int>> *found = nullptr;   // the words the Find pane found, as positions in the document (screen only)
     // A header or footer is being edited: its story (the text of the page dims, and the boxes of the headers and footers do not), the selection in it, its misspelled words (its
     // own check, and the caret's place while a word is typed), and which of the two it is, for the label on its edge.
     const QTextDocument *editedStory = nullptr;

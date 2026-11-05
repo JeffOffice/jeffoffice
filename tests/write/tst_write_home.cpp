@@ -8,6 +8,7 @@
 #include "app/writedialogs.h"
 #include "app/writewindow.h"
 #include "app/pageview.h"
+#include "app/writefindpane.h"
 #include "core/appinfo.h"
 #include "core/accessops.h"
 #include "core/linkops.h"
@@ -19,6 +20,7 @@
 #include "core/reviewops.h"
 #include "core/tableops.h"
 #include "core/fonts.h"
+#include "core/findops.h"
 #include "core/homeops.h"
 #include "core/styleops.h"
 #include "flow/flowdocument.h"
@@ -39,6 +41,7 @@
 #include <QComboBox>
 #include <QDialog>
 #include <QDoubleSpinBox>
+#include <QSpinBox>
 #include <QTimer>
 #include <QToolButton>
 #include <QListWidget>
@@ -1248,6 +1251,243 @@ private Q_SLOTS:
         QVERIFY(!w.view()->pasteOptionsAvailable());
         QVERIFY(!w.view()->changeLastPaste(PageView::PasteKind::TextOnly));
         QTRY_VERIFY(!button->isVisible());
+    }
+
+    void findCountsTheMatchesAndHighlightsThemOnThePages()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("The cat and the hat. Then THE end.")) + para(run("Gather the others, the tide, and the line.")))), QString());
+        w.act(QStringLiteral("edit.find"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QVERIFY(pane);
+        QCOMPARE(pane->matchCount(), 0);
+        QTest::keyClicks(pane->findBox(), QStringLiteral("the"));
+        // Typing counts: "the" is in "The", "the", "Then", "THE", "Gather", "the", "others", "the", and "the".
+        QTRY_COMPARE(pane->matchCount(), 9);
+        QVERIFY2(pane->status().contains(QStringLiteral("9")), qPrintable(pane->status()));
+        QCOMPARE(w.view()->findHighlights().size(), 9);
+        pane->matchCase()->setChecked(true);
+        QTRY_COMPARE(pane->matchCount(), 6);
+        pane->wholeWords()->setChecked(true);
+        QTRY_COMPARE(pane->matchCount(), 4);
+        QCOMPARE(w.view()->findHighlights().size(), 4);
+        QVERIFY(pane->findNext());
+        QVERIFY2(pane->status().contains(QStringLiteral("1 of 4")), qPrintable(pane->status()));
+        QVERIFY(pane->findNext());
+        QVERIFY2(pane->status().contains(QStringLiteral("2 of 4")), qPrintable(pane->status()));
+        // The highlights are drawn: more yellow on the pages than without them.
+        auto yellow = [&] {
+            const QImage img = w.view()->viewport()->grab().toImage();
+            int n = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) {
+                    const QColor c = img.pixelColor(x, y);
+                    if (c.red() > 200 && c.green() > 200 && c.blue() < 170) ++n;
+                }
+            return n;
+        };
+        const int with = yellow();
+        shot(&w, QStringLiteral("find-highlights.png"));
+        pane->findBox()->clear();
+        QTRY_COMPARE(pane->matchCount(), 0);
+        QVERIFY(w.view()->findHighlights().isEmpty());
+        QVERIFY2(with > yellow() + 100, qPrintable(QString::number(with)));
+        // Editing the text keeps the count right.
+        pane->matchCase()->setChecked(false);
+        pane->wholeWords()->setChecked(false);
+        QTest::keyClicks(pane->findBox(), QStringLiteral("cat"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        w.view()->insertText(QStringLiteral("cat "));
+        QTRY_COMPARE(pane->matchCount(), 2);
+    }
+
+    void wildcardsAndSpecialCodesMakeAPatternAndTheReplacementCanUseTheGroups()
+    {
+        auto all = [](const QString &pattern, const QString &text, bool matchCase = false) {
+            const FindPattern p = wildcardPattern(pattern, matchCase);
+            QStringList out;
+            if (!p.error.isEmpty()) return QStringList{QStringLiteral("!") + p.error};
+            auto it = p.regex.globalMatch(text);
+            while (it.hasNext()) out << it.next().captured(0);
+            return out;
+        };
+        QCOMPARE(all(QStringLiteral("c?t"), QStringLiteral("cat cot cut cart")), (QStringList{"cat", "cot", "cut"}));
+        QCOMPARE(all(QStringLiteral("c*t"), QStringLiteral("cat cart")), (QStringList{"cat", "cart"}));
+        QCOMPARE(all(QStringLiteral("<the>"), QStringLiteral("the other then the")), (QStringList{"the", "the"}));
+        QCOMPARE(all(QStringLiteral("<the"), QStringLiteral("the other then")), (QStringList{"the", "the"}));
+        QCOMPARE(all(QStringLiteral("[bc]at"), QStringLiteral("bat cat rat")), (QStringList{"bat", "cat"}));
+        QCOMPARE(all(QStringLiteral("[!bc]at"), QStringLiteral("bat cat rat")), (QStringList{"rat"}));
+        QCOMPARE(all(QStringLiteral("[a-c]{2}"), QStringLiteral("abxcc")), (QStringList{"ab", "cc"}));
+        QCOMPARE(all(QStringLiteral("lo@l"), QStringLiteral("lol lool lxl")), (QStringList{"lol", "lool"}));
+        QCOMPARE(all(QStringLiteral("^#^#"), QStringLiteral("a12b3")), (QStringList{"12"}));
+        QCOMPARE(all(QStringLiteral("a^tb"), QStringLiteral("a\tb a b")), (QStringList{"a\tb"}));
+        QCOMPARE(all(QStringLiteral("a^pb"), QStringLiteral("a\nb")), (QStringList{"a\nb"}));
+        QCOMPARE(all(QStringLiteral("\\?"), QStringLiteral("what? why")), (QStringList{"?"}));
+        QCOMPARE(all(QStringLiteral("a.b"), QStringLiteral("a.b axb")), (QStringList{"a.b"}));
+        QCOMPARE(all(QStringLiteral("CAT"), QStringLiteral("cat CAT"), true), (QStringList{"CAT"}));
+        QCOMPARE(all(QStringLiteral("CAT"), QStringLiteral("cat CAT"), false), (QStringList{"cat", "CAT"}));
+        QVERIFY(all(QStringLiteral("[abc"), QStringLiteral("x")).first().startsWith(QLatin1Char('!')));
+        QVERIFY(all(QStringLiteral("(ab"), QStringLiteral("x")).first().startsWith(QLatin1Char('!')));
+        QVERIFY(all(QStringLiteral("a{2"), QStringLiteral("x")).first().startsWith(QLatin1Char('!')));
+        // Groups in the replacement, and the whole match.
+        const FindPattern names = wildcardPattern(QStringLiteral("(<[A-Za-z]@>), (<[A-Za-z]@>)"), false);
+        QVERIFY2(names.error.isEmpty(), qPrintable(names.error));
+        const QString text = QStringLiteral("Smith, John");
+        const QRegularExpressionMatch m = names.regex.match(text);
+        QVERIFY(m.hasMatch());
+        QCOMPARE(expandReplacement(QStringLiteral("\\2 \\1"), m), QStringLiteral("John Smith"));
+        QCOMPARE(expandReplacement(QStringLiteral("[^&]"), m), QStringLiteral("[Smith, John]"));
+        QCOMPARE(expandReplacement(QStringLiteral("a^tb\\\\"), m), QStringLiteral("a\tb\\"));
+        QCOMPARE(expandReplacement(QStringLiteral("\\5"), m), QString());
+        QVERIFY(!wildcardPattern(QString(), false).error.isEmpty());
+    }
+
+    void theFindPaneCanSearchWithWildcardsAndReplaceWithGroups()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("Smith, John and Jones, Mary went home.")) + para(run("Lee, Ann stayed.")))), QString());
+        w.act(QStringLiteral("edit.replace"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QVERIFY(pane);
+        auto *wild = pane->findChild<QCheckBox *>(QStringLiteral("useWildcards"));
+        QVERIFY(wild);
+        wild->setChecked(true);
+        pane->findBox()->setText(QStringLiteral("(<[A-Z]@>), (<[A-Z]@>)"));
+        QTRY_COMPARE(pane->matchCount(), 3);
+        shot(&w, QStringLiteral("find-wildcards.png"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("Smith, John"));
+        pane->replaceBox()->setText(QStringLiteral("\\2 \\1"));
+        pane->replaceOne();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("John Smith and Jones, Mary went home.\nLee, Ann stayed."));
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("Jones, Mary"));
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("John Smith and Mary Jones went home.\nAnn Lee stayed."));
+        QVERIFY2(pane->status().contains(QStringLiteral("2")), qPrintable(pane->status()));
+        QVERIFY(w.document()->undo());
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("John Smith and Jones, Mary went home.\nLee, Ann stayed."));
+        // A pattern that is not one says so and finds nothing.
+        pane->findBox()->setText(QStringLiteral("[abc"));
+        QTRY_VERIFY(pane->status().contains(QStringLiteral("]")));
+        QCOMPARE(pane->matchCount(), 0);
+        QVERIFY(!pane->findNext());
+        // Off, the same text is plain words.
+        wild->setChecked(false);
+        pane->findBox()->setText(QStringLiteral("Jones, M"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+    }
+
+    void theMiniToolbarFloatsAboveWordsSelectedWithTheMouseAndGoesWhenTheSelectionDoes()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("Some words to pick out of the line.")))), QString());
+        auto *mini = w.view()->findChild<QFrame *>(QStringLiteral("miniToolbar"));
+        QVERIFY(mini);
+        QVERIFY(!mini->isVisible());
+        QTextCursor c(w.document()->story());
+        c.setPosition(5);
+        c.setPosition(10, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        // (A selection made with the keys brings none: only one made with the mouse.)
+        QVERIFY(!mini->isVisible());
+        Q_EMIT w.view()->selectionMade();
+        QTRY_VERIFY(mini->isVisible());
+        QRect first;
+        QVERIFY(w.view()->positionRect(5, &first));
+        QVERIFY2(mini->geometry().bottom() <= first.top() + 2, qPrintable(QStringLiteral("mini %1,%2 selection top %3").arg(mini->x()).arg(mini->y()).arg(first.top())));
+        QVERIFY(w.view()->viewport()->rect().contains(mini->geometry()));
+        shot(&w, QStringLiteral("mini-toolbar.png"));
+        // Its buttons are the window's own commands: Bold takes the words bold, in one step.
+        QToolButton *bold = nullptr;
+        for (QToolButton *b : mini->findChildren<QToolButton *>())
+            if (b->defaultAction() == w.act(QStringLiteral("fmt.bold"))) bold = b;
+        QVERIFY(bold);
+        QVERIFY(mini->findChildren<QToolButton *>().size() >= 6);
+        bold->click();
+        QTextCursor probe(w.document()->story());
+        probe.setPosition(6);
+        probe.setPosition(7, QTextCursor::KeepAnchor);
+        QVERIFY(probe.charFormat().fontWeight() >= QFont::DemiBold);
+        QVERIFY(mini->isVisible());   // (it stays for the next choice)
+        // Collapsing the selection, or typing, takes it away.
+        c.setPosition(2);
+        w.view()->setCursor(c);
+        QTRY_VERIFY(!mini->isVisible());
+        c.setPosition(5);
+        c.setPosition(10, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        Q_EMIT w.view()->selectionMade();
+        QTRY_VERIFY(mini->isVisible());
+        w.view()->insertText(QStringLiteral("x"));
+        QTRY_VERIFY(!mini->isVisible());
+    }
+
+    void manageStylesChangesWhichStylesAreRecommendedHiddenAndInWhatOrderInOneStep()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a paragraph")))), QString());
+        QVERIFY(w.act(QStringLiteral("style.manage")));
+        auto recommended = [&] {
+            QStringList ids;
+            for (const ListedStyle &e : listStyles(*w.document(), StyleFilter::Recommended)) ids << e.id;
+            return ids;
+        };
+        QVERIFY(recommended().contains(QStringLiteral("Heading1")));
+        QVERIFY(recommended().contains(QStringLiteral("Heading2")));
+        withDialog([&w] { w.act(QStringLiteral("style.manage"))->trigger(); }, QStringLiteral("manageStylesDialog"), [](QDialog *d) {
+            auto *list = d->findChild<QListWidget *>(QStringLiteral("manageStylesList"));
+            QVERIFY(list);
+            auto pick = [&](const QString &id) {
+                for (int i = 0; i < list->count(); ++i)
+                    if (list->item(i)->data(Qt::UserRole).toString() == id) {
+                        list->setCurrentRow(i);
+                        return true;
+                    }
+                return false;
+            };
+            auto *gallery = d->findChild<QCheckBox *>(QStringLiteral("manageInGallery"));
+            auto *hidden = d->findChild<QCheckBox *>(QStringLiteral("manageHidden"));
+            auto *priority = d->findChild<QSpinBox *>(QStringLiteral("managePriority"));
+            QVERIFY(gallery && hidden && priority);
+            QVERIFY(pick(QStringLiteral("Heading1")));
+            shot(d, QStringLiteral("manage-styles.png"));
+            QVERIFY(gallery->isChecked());
+            QVERIFY(!hidden->isChecked());
+            gallery->setChecked(false);
+            priority->setValue(99);
+            QVERIFY(pick(QStringLiteral("Heading2")));
+            hidden->setChecked(true);
+            priority->setValue(50);
+            QVERIFY(pick(QStringLiteral("Heading1")));   // (what was chosen for it is kept while the box is open)
+            QVERIFY(!gallery->isChecked());
+            QCOMPARE(priority->value(), 99);
+        });
+        QVERIFY(!recommended().contains(QStringLiteral("Heading1")));
+        QVERIFY(!recommended().contains(QStringLiteral("Heading2")));
+        const std::optional<office::wml::Style> h1 = styleOfDocument(*w.document(), QStringLiteral("Heading1"));
+        QVERIFY(h1 && !h1->qFormat && h1->uiPriority.value_or(0) == 99);
+        const QByteArray out = part(w.document()->toDocx(), QStringLiteral("/word/styles.xml"));
+        QVERIFY2(out.contains("<w:uiPriority w:val=\"50\"/>") && out.contains("<w:hidden/>"), out.constData());
+        QVERIFY(styleOfDocument(*w.document(), QStringLiteral("Heading2"))->hidden);
+        // One step takes both back.
+        QVERIFY(w.document()->undo());
+        QVERIFY(recommended().contains(QStringLiteral("Heading1")));
+        QVERIFY(recommended().contains(QStringLiteral("Heading2")));
+        // Nothing changed, nothing done.
+        const quint64 serial = w.document()->nextStepSerial();
+        withDialog([&w] { w.act(QStringLiteral("style.manage"))->trigger(); }, QStringLiteral("manageStylesDialog"), [](QDialog *) {});
+        QCOMPARE(w.document()->nextStepSerial(), serial);
     }
 
     // ---- the review's fixes

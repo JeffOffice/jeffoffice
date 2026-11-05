@@ -17,6 +17,9 @@
 #include "app/settings.h"
 
 #include <QAction>
+#include <QFrame>
+#include <QHBoxLayout>
+#include <QToolButton>
 #include <QDockWidget>
 #include <QDesktopServices>
 #include <QUrl>
@@ -242,6 +245,55 @@ void WriteWindow::updateLanguage()
     QAction *skip = act("review.noProof");
     const QSignalBlocker block(skip);
     skip->setChecked(write::noProofAt(m_view->cursor()));
+}
+
+} // namespace jp
+
+namespace jp {
+
+void WriteWindow::createMiniToolbar()
+{
+    m_mini = new QFrame(m_view->viewport());
+    m_mini->setObjectName(QStringLiteral("miniToolbar"));
+    m_mini->setFrameShape(QFrame::StyledPanel);
+    m_mini->setAutoFillBackground(true);
+    auto *row = new QHBoxLayout(m_mini);
+    row->setContentsMargins(3, 2, 3, 2);
+    row->setSpacing(1);
+    for (const char *id : {"fmt.bold", "fmt.italic", "fmt.underline", "fmt.shrink", "fmt.grow", "fmt.alignLeft", "fmt.alignCenter", "fmt.alignRight", "para.bullets", "para.numbers"}) {
+        auto *button = new QToolButton(m_mini);
+        button->setDefaultAction(act(QString::fromLatin1(id)));
+        button->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        button->setAutoRaise(true);
+        button->setFocusPolicy(Qt::NoFocus);   // (the text keeps the keyboard)
+        row->addWidget(button);
+    }
+    m_mini->hide();
+    connect(m_view, &write::PageView::selectionMade, this, [this] { updateMiniToolbar(true); });
+    connect(m_view, &write::PageView::caretChanged, this, [this] { updateMiniToolbar(false); });
+}
+
+// Shown above the first line of the selection (below the last when there is no room above) once a mouse selection ends; follows the selection while it stays; gone with it.
+void WriteWindow::updateMiniToolbar(bool show)
+{
+    if (!m_mini) return;
+    const QTextCursor &c = m_view->cursor();
+    if (!m_doc || !c.hasSelection() || c.document() != m_doc->story() || isReadOnly() || (!show && !m_mini->isVisible())) {
+        m_mini->hide();
+        return;
+    }
+    QRect first, last;
+    if (!m_view->positionRect(c.selectionStart(), &first) || !m_view->positionRect(c.selectionEnd(), &last)) {
+        m_mini->hide();
+        return;
+    }
+    const QSize size = m_mini->sizeHint();
+    const QRect area = m_view->viewport()->rect();
+    int y = first.top() - size.height() - 6;
+    if (y < 0) y = last.bottom() + 8;
+    m_mini->setGeometry(QRect(QPoint(std::clamp(first.left(), 0, std::max(0, area.width() - size.width())), std::clamp(y, 0, std::max(0, area.height() - size.height()))), size));
+    m_mini->show();
+    m_mini->raise();
 }
 
 } // namespace jp

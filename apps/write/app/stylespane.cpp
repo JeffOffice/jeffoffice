@@ -55,8 +55,12 @@ StylesPane::StylesPane(WriteWindow *win, QWidget *parent) : QWidget(parent), m_w
     m_new->setObjectName(QStringLiteral("newStyleButton"));
     m_modify = new QPushButton(QCoreApplication::translate("jp::StylesPane", "Modify…"), this);
     m_modify->setObjectName(QStringLiteral("modifyStyleButton"));
+    auto *manage = new QPushButton(QCoreApplication::translate("jp::StylesPane", "Manage…"), this);
+    manage->setObjectName(QStringLiteral("manageStylesButton"));
     row->addWidget(m_new);
     row->addWidget(m_modify);
+    row->addWidget(manage);
+    connect(manage, &QPushButton::clicked, this, [this] { m_win->act(QStringLiteral("style.manage"))->trigger(); });
     v->addLayout(row);
     m_idle.setSingleShot(true);
     m_idle.setInterval(600);

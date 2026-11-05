@@ -1835,7 +1835,7 @@ private Q_SLOTS:
         pane->findBox()->setText(QStringLiteral("zebrafish"));
         QVERIFY(pane->findNext());
         QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("zebrafish"));
-        QVERIFY(pane->status().isEmpty());
+        QVERIFY(pane->status().startsWith(QLatin1String("Match ")));   // (it says which match it is on)
         QVERIFY(w.view()->pageCount() > known);
         QVERIFY(w.view()->currentPage() > 5);
         QVERIFY(w.view()->verticalScrollBar()->value() > 0);

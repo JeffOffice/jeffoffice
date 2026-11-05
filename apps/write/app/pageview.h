@@ -96,6 +96,8 @@ public:
     QImage pageImage(int index, int width);
     // The caret: where it is in the window, if it is on a page that is shown.
     bool caretRect(QRect *rect);
+    // The line of text at a position of the document, as a rectangle of the viewport (a caret's place); false when that page is not laid out.
+    bool positionRect(int position, QRect *rect);
     // Draws the caret while the view has not the keyboard (for screenshots).
     void setCaretWithoutFocus(bool on) { m_caretWithoutFocus = on; viewport()->update(); }
 
@@ -104,6 +106,9 @@ public:
     void setShadeFields(bool on);   // the fields shaded gray on the screen (never in print or a PDF)
     bool shadeFields() const { return m_shadeFields; }
     bool showMarks() const { return m_marks; }
+    // The words the Find pane found, as ranges of the document's text: drawn on a yellow band until it sets none.
+    void setFindHighlights(const QVector<QPair<int, int>> &ranges);
+    const QVector<QPair<int, int>> &findHighlights() const { return m_findHighlights; }
     // The faint edges of the cells of tables that have no lines (View Gridlines).
     void setShowGridlines(bool on);
     bool showGridlines() const { return m_gridlines; }
@@ -451,6 +456,7 @@ private:
     int m_across = 1, m_down = 1;
     bool m_sideToSide = false, m_draft = false, m_showBodyInHeader = true;
     bool m_marks = false;
+    QVector<QPair<int, int>> m_findHighlights;
     struct LastPaste {
         int from = -1, selectionEnd = -1, to = -1;   // the place the paste began (and where the selection it replaced ended), and where it ended
         int revision = -1;

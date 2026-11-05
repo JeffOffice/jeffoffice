@@ -150,6 +150,14 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
         }
         if (!words.isEmpty()) ctx.opt.misspelled.insert(bodyId, words);
     }
+    // The words a search found, in the same positions.
+    if (d.found && !d.output && body && body->doc) {
+        const int length = body->doc->characterCount();
+        QVector<QPair<int, int>> words;
+        for (const auto &w : *d.found)
+            if (w.second > page.storyFrom && w.first < page.storyFrom + length) words << qMakePair(std::max(0, w.first - page.storyFrom), std::min(length, w.second - page.storyFrom));
+        if (!words.isEmpty()) ctx.opt.found.insert(bodyId, words);
+    }
     // The header, footer, or note being edited: the selection and the misspelled words in the boxes that show it.
     if (d.editedStory) {
         auto inBoxes = [&](const QVector<flow::MaterializedPage::FurnitureBox> &boxes) {

@@ -1,5 +1,5 @@
 # Use styles
-<!-- keywords: styles, style, styles pane, heading, normal, create style, new style, modify style, change style, based on, next style, update automatically, gallery, character style, paragraph style, ctrl+alt+shift+s -->
+<!-- keywords: manage styles, hide a style, recommended styles, styles, style, styles pane, heading, normal, create style, new style, modify style, change style, based on, next style, update automatically, gallery, character style, paragraph style, ctrl+alt+shift+s -->
 
 A **style** is a saved set of looks: a font, a size, spacing, and more. When you give a style to a paragraph, the paragraph takes all of its looks at once. When you change the style, every paragraph that has it changes too. That is why styles keep long documents tidy.
 
@@ -25,6 +25,7 @@ Click the small arrow at the corner of the **Styles** group, or press **Ctrl+Alt
   - **In Use** shows only the styles your text uses.
   - **All Styles** shows every style, including ones your document does not have yet. A style is added to the document the first time you use it.
   - **Recommended** shows the styles that are meant to be seen. A style that is hidden until it is used appears here once you use it.
+- Click **Manage…** under the list to choose, for each style, whether it is **Recommended** (shown in the gallery), whether it is **Hidden** (left out of every list), and its **Order in the lists**. A lower number comes first. Click **OK**, and all the changes happen in one step, so one **Undo** takes them back.
 - Under the list, the **Sort** box puts the styles in order. **Alphabetical** goes by name. **As Recommended** puts the most useful styles first. **By Type** lists paragraph styles, then linked styles, then character styles. **Based On** groups each style with the style it is built on.
 
 ## Make a style from your text

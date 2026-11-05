@@ -775,6 +775,7 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
         const QString sid = chain.isEmpty() ? t.storyId : chain.first()->storyId;
         if (ctx.opt.editStory == sid) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
         if (ctx.opt.misspelled.contains(sid)) { po.showSpelling = true; po.misspelled = ctx.opt.misspelled.value(sid); }
+        if (ctx.opt.found.contains(sid)) po.found = ctx.opt.found.value(sid);
         p->save();
         if (t.vertical) {
             p->translate(r.width(), 0);

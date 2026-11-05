@@ -526,6 +526,13 @@ void PageView::setZoomMode(ZoomMode mode, int across, int down)
     Q_EMIT zoomChanged(m_zoom);
 }
 
+void PageView::setFindHighlights(const QVector<QPair<int, int>> &ranges)
+{
+    if (ranges == m_findHighlights) return;
+    m_findHighlights = ranges;
+    viewport()->update();
+}
+
 void PageView::setShowMarks(bool on)
 {
     m_marks = on;
@@ -650,6 +657,7 @@ void PageView::paintEvent(QPaintEvent *e)
             d.gridlines = m_gridlines;
             d.shadeFields = m_shadeFields;
             d.draft = m_draft;
+            d.found = m_findHighlights.isEmpty() ? nullptr : &m_findHighlights;
             d.pageCount = std::max(1, m_knownPages);
             if (m_hf.active) {
                 d.editedStory = m_hf.story;
@@ -948,11 +956,13 @@ bool PageView::caretLine(int position, int *pageOut, QLineF *line)
     return false;
 }
 
-bool PageView::caretRect(QRect *rect)
+bool PageView::caretRect(QRect *rect) { return positionRect(m_cursor.position(), rect); }
+
+bool PageView::positionRect(int position, QRect *rect)
 {
     int page = 0;
     QLineF line;
-    if (!caretLine(m_cursor.position(), &page, &line) || page >= m_rects.size()) return false;
+    if (!caretLine(position, &page, &line) || page >= m_rects.size()) return false;
     const double s = scale();
     const QRectF pr = m_rects[page].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
     *rect = QRectF(pr.left() + line.x1() * s, pr.top() + line.y1() * s, 1, (line.y2() - line.y1()) * s).toAlignedRect();

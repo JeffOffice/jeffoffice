@@ -289,6 +289,22 @@ QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString
     return sorted;
 }
 
+bool setStyleListing(WriteDoc &doc, const QString &id, bool inGallery, bool hidden, int priority, QString *problem)
+{
+    const std::optional<Style> found = styleOfDocument(doc, id);
+    if (!found) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::Styles", "The document has no such style.");
+        return false;
+    }
+    Style def = *found;
+    def.qFormat = inGallery;
+    def.hidden = hidden;
+    if (!hidden && found->hidden) def.semiHidden = false;
+    if (priority >= 0) def.uiPriority = std::clamp(priority, 0, 99);
+    QTextCursor none;
+    return modifyStyle(doc, none, id, def, problem);
+}
+
 std::optional<Style> styleOfDocument(const WriteDoc &doc, const QString &id)
 {
     if (const Style *s = doc.styleSheet().find(id)) return *s;

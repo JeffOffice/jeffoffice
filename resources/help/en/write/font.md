@@ -1,7 +1,11 @@
 # Change how text looks
-<!-- keywords: character spacing, expanded, condensed, raised, lowered, position, kerning, set as default, default font, font, font box, font dialog, typeface, size, style, bold, italic, color, underline, underline color, strikethrough, double strikethrough, superscript, subscript, small caps, all caps, hidden, hidden text, effects, preview, ctrl+d, character formatting, character shading, shading, character border, border, box around letters -->
+<!-- keywords: mini toolbar, floating toolbar, character spacing, expanded, condensed, raised, lowered, position, kerning, set as default, default font, font, font box, font dialog, typeface, size, style, bold, italic, color, underline, underline color, strikethrough, double strikethrough, superscript, subscript, small caps, all caps, hidden, hidden text, effects, preview, ctrl+d, character formatting, character shading, shading, character border, border, box around letters -->
 
 The **Home > Font** group has buttons for the common changes: font, size, bold, italic, and so on. The **Font** box has all of them in one place, and a few more.
+
+## The mini toolbar
+
+When you select words with the mouse, a small bar floats above them. It has the buttons you use most: **Bold**, **Italic**, **Underline**, make the text smaller or bigger, left, center, and right alignment, bullets, and numbers. They are the same buttons as on the ribbon, so you can change the look without moving the mouse far. The bar goes away when you click elsewhere or type.
 
 ## The font list
 
