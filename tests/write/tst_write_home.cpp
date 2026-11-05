@@ -1766,6 +1766,49 @@ private Q_SLOTS:
         QCOMPARE(w.document()->nextStepSerial(), serial);
     }
 
+    void deletingAStyleOfYourOwnPutsItsTextBackToNormalInOneStepThatUndoes()
+    {
+        auto doc = open(makeDocx(para(run("one")) + para(run("two"))));
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        toggleBold(*doc, c);
+        QString problem;
+        office::wml::Style loud = styleFromSelection(*doc, c, QStringLiteral("Loud"));
+        loud.basedOn = QStringLiteral("Normal");
+        const QString id = createStyle(*doc, c, loud, &problem, true);
+        QVERIFY2(!id.isEmpty(), qPrintable(problem));
+        // A child style, based on the one to delete.
+        office::wml::Style kid = styleFromSelection(*doc, c, QStringLiteral("Louder"));
+        kid.basedOn = id;
+        const QString kidId = createStyle(*doc, c, kid, &problem, false);
+        QVERIFY2(!kidId.isEmpty(), qPrintable(problem));
+        QCOMPARE(doc->story()->begin().blockFormat().stringProperty(tp::StyleName), id);
+        QVERIFY(doc->story()->begin().begin().fragment().charFormat().fontWeight() >= QFont::DemiBold);
+        // Built-in styles and styles the document lacks stay.
+        QVERIFY(!deleteStyle(*doc, QStringLiteral("Heading1"), &problem));
+        QVERIFY(!problem.isEmpty());
+        QVERIFY(!deleteStyle(*doc, QStringLiteral("NoSuchStyle")));
+        const quint64 serial = doc->nextStepSerial();
+        QVERIFY(deleteStyle(*doc, id, &problem));
+        QCOMPARE(doc->nextStepSerial(), serial + 1);
+        QVERIFY(!doc->styleSheet().find(id));
+        QVERIFY(doc->styleSheet().find(kidId));
+        QCOMPARE(doc->styleSheet().find(kidId)->basedOn, QStringLiteral("Normal"));
+        QVERIFY(doc->story()->begin().blockFormat().stringProperty(tp::StyleName).isEmpty());
+        QVERIFY(doc->story()->begin().begin().fragment().charFormat().fontWeight() < QFont::DemiBold);
+        for (const ListedStyle &e : listStyles(*doc, StyleFilter::All)) QVERIFY(e.id != id);
+        const QByteArray saved = doc->toDocx();
+        QVERIFY(!part(saved, QStringLiteral("/word/styles.xml")).contains("w:styleId=\"Loud\""));
+        QVERIFY(!part(saved, QStringLiteral("/word/document.xml")).contains("Loud"));
+        QVERIFY(doc->undo());
+        QVERIFY(doc->styleSheet().find(id));
+        QCOMPARE(doc->story()->begin().blockFormat().stringProperty(tp::StyleName), id);
+        QVERIFY(doc->story()->begin().begin().fragment().charFormat().fontWeight() >= QFont::DemiBold);
+        QCOMPARE(doc->styleSheet().find(kidId)->basedOn, id);
+        QVERIFY(doc->redo());
+        QVERIFY(!doc->styleSheet().find(id));
+    }
 
     // ---- the review's fixes
     void saveAsOfAProtectedDocumentDoesNotLiftTheProtection()

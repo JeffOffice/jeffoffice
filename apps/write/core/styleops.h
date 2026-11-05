@@ -57,6 +57,10 @@ QString createStyle(WriteDoc &doc, QTextCursor &c, const office::wml::Style &def
 // with the restyling of the text: a paragraph or run whose look is what the old style gave it follows the new one, and what the text says itself stays. A definition that comes to the
 // style as it is changes nothing (no step; the file is written as it was). False, with `problem` told, when it can't be done.
 bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const office::wml::Style &def, QString *problem = nullptr);
+// Deletes a style the person made, as one step of the history: the paragraphs that had it go back to the default paragraph style (the characters, to none) and take its look off, the styles
+// based on it are based on what it was based on, and what the text says itself stays. False, with `problem` told, for a built-in style (those only go back to what they were) and one the
+// document lacks.
+bool deleteStyle(WriteDoc &doc, const QString &id, QString *problem = nullptr);
 // Table styles: creates the table style the choices describe (based on any table style; the id is made from the name), or changes style `id` to them (the styles under it stay; a style that
 // the choices leave as it is changes nothing), each as one step of the history. A table style the document lacks that is built in is added with the step. Returns the id (empty,
 // with `problem` told, when it can't be made), or whether it was done.

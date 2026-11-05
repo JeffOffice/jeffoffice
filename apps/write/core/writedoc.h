@@ -460,6 +460,8 @@ public:
     // Puts a style in the style sheet (one of that id is replaced where it stands, a new one goes last) as part of the edit it is made in: the step of the history that edit becomes
     // keeps what the style was and is, so that Undo and Redo put the style sheet as they put the text. Called inside an edit block of the story (styleops.cpp does).
     void putStyle(const office::wml::Style &style);
+    // Takes a style out of the style sheet as part of the edit it is made in (as putStyle: the step keeps the style, so that Undo puts it back). Nothing for an id the sheet lacks.
+    void removeStyle(const QString &id);
     // Makes the edit being made a step of the story's history even if it changes nothing else (the count on the first paragraph goes up), for a style put with it.
     void markStyleStep();
     // What a run of this format says beyond the style it has (the difference from the paragraph style's look and its own character style), for a style made from a selection.

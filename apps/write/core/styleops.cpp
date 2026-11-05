@@ -452,6 +452,108 @@ bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const Style &
     return true;
 }
 
+bool deleteStyle(WriteDoc &doc, const QString &id, QString *problem)
+{
+    auto fail = [&](const QString &why) {
+        if (problem) *problem = why;
+        return false;
+    };
+    const Style *found = doc.styleSheet().find(id);
+    if (!found) return fail(QCoreApplication::translate("jp::write::Styles", "The document has no such style."));
+    if (!found->customStyle || found->isDefault || (found->type != QLatin1String("paragraph") && found->type != QLatin1String("character")))
+        return fail(QCoreApplication::translate("jp::write::Styles", "Only a style you made can be deleted."));
+    const Style old = *found;
+    const bool paragraphKind = old.type == QLatin1String("paragraph");
+    StyleSheet before = doc.styleSheet();
+    const QString normal = doc.defaultParagraphStyle();
+    QSet<QString> kids = descendantsOf(before, id, old.type);
+    kids.remove(id);
+    QTextCursor edit(doc.story());
+    edit.beginEditBlock();
+    // The styles based on it are based on what it was based on; those that name it as the next style or as their linked style let go of it.
+    for (Style s : before.styles) {
+        if (s.id == id) continue;
+        bool changed = false;
+        if (s.basedOn == id && s.type == old.type) {
+            s.basedOn = old.basedOn;
+            changed = true;
+        }
+        if (s.next == id) {
+            s.next.clear();
+            changed = true;
+        }
+        if (s.link == id) {
+            s.link.clear();
+            changed = true;
+        }
+        if (changed) {
+            s.raw.clear();
+            doc.putStyle(s);
+        }
+    }
+    doc.removeStyle(id);
+    restyleText(doc, before, paragraphKind ? kids : QSet<QString>(), paragraphKind ? QSet<QString>() : kids);
+    // The text that had the style: what the style gave it is taken off, what it says itself stays.
+    struct Forget {
+        WriteDoc &doc;
+        ~Forget() { doc.forgetSwappedScratch(); }
+    } forget{doc};
+    doc.forgetSwappedScratch();
+    auto blockLook = [&](const QString &style, bool was) {
+        if (was) doc.swapStyleSheet(before);
+        const QTextBlockFormat bf = doc.styleBlockFormat(style);
+        if (was) doc.swapStyleSheet(before);
+        return bf;
+    };
+    auto charLook = [&](const QString &style, const QString &character, bool was) {
+        if (was) doc.swapStyleSheet(before);
+        const QTextCharFormat cf = doc.styleCharFormat(style, character);
+        if (was) doc.swapStyleSheet(before);
+        return cf;
+    };
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
+        if (isLocked(b)) continue;
+        const QTextBlockFormat bf = b.blockFormat();
+        const QString style = styleOfBlock(bf);
+        const bool whole = paragraphKind && style == id;
+        struct Edit {
+            int from, to;
+            QTextCharFormat format;
+        };
+        QVector<Edit> edits;
+        const QString paragraphStyle = style.isEmpty() ? normal : style;
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            const QString character = f.charFormat().stringProperty(tp::CharStyle);
+            QTextCharFormat nfmt = f.charFormat();
+            if (whole) {
+                nfmt = restyleCharFormat(nfmt, charLook(id, character, true), charLook(normal, character, false));
+            } else if (!paragraphKind && character == id) {
+                nfmt = restyleCharFormat(nfmt, charLook(paragraphStyle, id, true), charLook(paragraphStyle, QString(), false));
+                nfmt.clearProperty(tp::CharStyle);
+            }
+            if (nfmt != f.charFormat()) edits.push_back({f.position(), f.position() + f.length(), nfmt});
+        }
+        for (const Edit &e : std::as_const(edits)) {
+            QTextCursor t(b);
+            t.setPosition(e.from);
+            t.setPosition(e.to, QTextCursor::KeepAnchor);
+            t.setCharFormat(e.format);
+        }
+        if (whole) {
+            QTextBlockFormat nf = restyledBlock(bf, blockLook(id, true), blockLook(normal, false));
+            nf.clearProperty(tp::StyleName);
+            nf.setObjectIndex(bf.objectIndex());
+            QTextCursor(b).setBlockFormat(nf);
+            setMarkFormat(b, restyleCharFormat(markFormat(b), charLook(id, QString(), true), charLook(normal, QString(), false)));
+        }
+    }
+    touchStyles(doc);
+    edit.endEditBlock();
+    if (!doc.settleStyleEdit()) return fail(QCoreApplication::translate("jp::write::Styles", "The document keeps no history, so the style was not deleted."));
+    return true;
+}
+
 namespace {
 
 void addBuiltinTableStyleInStep(WriteDoc &doc, const QString &id, int depth = 0)

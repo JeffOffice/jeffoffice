@@ -1048,6 +1048,21 @@ void WriteDoc::putStyle(const Style &style)
     m_pendingStyleChanges.push_back(change);
 }
 
+void WriteDoc::removeStyle(const QString &id)
+{
+    const Style *old = m_wml.styles.find(id);
+    if (!old) return;
+    StyleChange change;
+    change.id = id;
+    change.before = *old;
+    change.modifiedBefore = m_wml.styles.modified;
+    m_wml.styles.remove(id);
+    m_tableSheet.reset();
+    m_scratch.clear();
+    ++m_styleRev;
+    m_pendingStyleChanges.push_back(change);
+}
+
 void WriteDoc::swapStyleSheet(StyleSheet &other)
 {
     std::swap(m_wml.styles, other);
