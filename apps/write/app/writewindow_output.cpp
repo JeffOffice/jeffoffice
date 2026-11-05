@@ -58,7 +58,9 @@ QVector<int> WriteWindow::outputPages(const WriteOutputOptions &options)
     } else if (options.range == WriteOutputOptions::Range::All) {
         for (int i = 0; i < count; ++i) out << i;
     } else {
-        out = write::parsePageRange(options.pages, count);
+        QVector<int> sections;
+        for (int i = 0; i < count; ++i) sections << m_doc->pager().page(i).start.section;
+        out = write::parsePageRange(options.pages, count, sections);
     }
     // (the pages whose numbers are odd or even: the page counted from 1 is the page number the person means)
     if (options.sides != WriteOutputOptions::Sides::All) {

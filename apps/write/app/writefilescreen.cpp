@@ -376,8 +376,8 @@ QWidget *WriteFileScreen::buildPrint()
     auto *text = new QLineEdit(w);
     text->setObjectName(QStringLiteral("printRangeText"));
     text->setAccessibleName(tr("Pages to print"));
-    text->setPlaceholderText(tr("1-3, 5"));
-    text->setToolTip(tr("Page numbers and ranges, separated by commas."));
+    text->setPlaceholderText(tr("1-3, 5, p2s3"));
+    text->setToolTip(tr("Page numbers and ranges, separated by commas. p2s3 is the second page of section 3, and s3 is all of section 3."));
     auto *group = new QButtonGroup(w);
     for (QRadioButton *r : {all, current, some}) {
         group->addButton(r);

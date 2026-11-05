@@ -11,6 +11,7 @@
 #include "core/fonts.h"
 #include "core/emailops.h"
 #include "core/pdfbookmarks.h"
+#include "core/printing.h"
 #include "core/versionstore.h"
 #include "core/templates.h"
 #include "render/pdfpage.h"
@@ -583,6 +584,49 @@ private Q_SLOTS:
         QVERIFY(w.compareWithVersion(all[1].file) >= 1);
         QVERIFY(!w.restoreVersion(QStringLiteral("nothing.docx")));
         VersionStore(w.filePath()).removeAll();
+    }
+
+    void pageRangesTakeThePageOfASectionAndAWholeSection()
+    {
+        // six pages in three sections: 0 0 1 1 1 2
+        const QVector<int> sections{0, 0, 1, 1, 1, 2};
+        auto pages = [&](const char *text) { return parsePageRange(QString::fromLatin1(text), 6, sections); };
+        QCOMPARE(pages("p2s2"), (QVector<int>{3}));
+        QCOMPARE(pages("s2"), (QVector<int>{2, 3, 4}));
+        QCOMPARE(pages("P1S2-p1s3"), (QVector<int>{2, 3, 4, 5}));
+        QCOMPARE(pages("s3, 1"), (QVector<int>{5, 0}));
+        QCOMPARE(pages("1-2, s3"), (QVector<int>{0, 1, 5}));
+        QCOMPARE(pages("p1s1, s1"), (QVector<int>{0, 1}));   // (each page once)
+        QCOMPARE(pages("p2s3"), (QVector<int>{}));           // (section 3 has one page)
+        QCOMPARE(pages("s4, p0s1, ps1, p1, sx"), (QVector<int>{}));
+        // the plain syntax is as it was, with or without the sections
+        QCOMPARE(pages("2-3, 8-"), (QVector<int>{1, 2}));
+        QCOMPARE(parsePageRange(QStringLiteral("s1"), 6), (QVector<int>{}));
+        QCOMPARE(parsePageRange(QStringLiteral("1-3, 5"), 6), (QVector<int>{0, 1, 2, 4}));
+    }
+
+    void aWindowPrintsASectionByItsNumber()
+    {
+        QTemporaryDir dir;
+        const QString docx = dir.filePath(QStringLiteral("s.docx"));
+        const QByteArray cut = "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr></w:pPr></w:p>";
+        const QByteArray body = para(nullptr, "one") + kPageBreak + para(nullptr, "two") + cut + para(nullptr, "three") + kPageBreak + para(nullptr, "four");
+        {
+            QFile f(docx);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(headingsDocx(body));
+        }
+        WriteWindow w;
+        w.show();
+        Quiet quiet(w);
+        QVERIFY(w.openFile(docx));
+        WriteOutputOptions o;
+        QCOMPARE(w.outputPages(o).size(), 4);
+        o.range = WriteOutputOptions::Range::Pages;
+        o.pages = QStringLiteral("s2");
+        QCOMPARE(w.outputPages(o), (QVector<int>{2, 3}));
+        o.pages = QStringLiteral("p2s1, p1s2");
+        QCOMPARE(w.outputPages(o), (QVector<int>{1, 2}));
     }
 
     void aWindowStartsAnUntitledDocumentFromABuiltInTemplate()
