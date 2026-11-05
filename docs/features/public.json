@@ -5599,8 +5599,9 @@
          "text": "fde238bc87dbf68de0b34f924f114346b601850f271ec5f65a2b6705a2051a36"
         },
         {
-         "status": "todo",
-         "text": "5dd2b6e1856bbfa573d7b0db725893273e7f27789cba3fe65e22a73a7e40eef4"
+         "hide_soon": true,
+         "status": "done",
+         "text": "1cc81129e71717bd5f43195d6117ce26df567f10948f98d59116f0fdf4f72d32"
         },
         {
          "status": "partly",
@@ -5685,8 +5686,8 @@
          "text": "0bc2902bdc8eda0f3572e4f19fcbf2a3b1a341f4e7f659b97f461b6b928490b2"
         },
         {
-         "status": "todo",
-         "text": "ba46fa2867d4f4ad1c92858178144bbdad35d4a2fa708dc9ef3bcea3fd0a66c5"
+         "status": "partly",
+         "text": "7ded653343ea0f6a38e137e6269f9cd5fc9c6a5827cced8fee2ee3321dc1ca9f"
         },
         {
          "status": "partly",
@@ -5699,7 +5700,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "e6dd35f15ca3ff91e38aaad0ee4314da47bcf52f34f3c1027ddb15fa822cf81d"
+         "text": "8fb67d4768fc91c80faa23926965722cb195f765043e516aaedaccabf54010ea"
         },
         {
          "status": "partly",
@@ -5711,8 +5712,8 @@
          "text": "efaee397d18336214761b7c9877f12c60adfef5347e7308feaaed469a1bfbf34"
         },
         {
-         "status": "todo",
-         "text": "01136780d9775e68b3f603500b22d8a78d9f36a8ac80a5cd23b7b0dc934d725b"
+         "status": "partly",
+         "text": "e364e92b611d64c5a04960a2afcceef27b80cd84b83c72f01ff6f9ca205ca6c4"
         },
         {
          "status": "todo",
@@ -7106,18 +7107,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "01136780d9775e68b3f603500b22d8a78d9f36a8ac80a5cd23b7b0dc934d725b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Advanced Find and Replace: wildcards, sounds like, word forms, find by format, special characters, and replace with the clipboard or found text",
-    "es": "Buscar y reemplazar avanzado: comodines, suena como, formas de una palabra, búsqueda por formato, caracteres especiales y reemplazo con el portapapeles o el texto encontrado",
-    "fr": "Recherche et remplacement avancés : caractères génériques, sonorité, formes d’un mot, recherche par format, caractères spéciaux et remplacement par le presse-papiers ou le texte trouvé"
    }
   },
   "01624bc3196129fdce10e7de6d6b828ee076a9c2a5d41f605cebc250eeb5d3c7": {
@@ -8978,6 +8967,18 @@
     "en": "Check Accessibility",
     "es": "Comprobar accesibilidad",
     "fr": "Vérification de l’accessibilité"
+   }
+  },
+  "1cc81129e71717bd5f43195d6117ce26df567f10948f98d59116f0fdf4f72d32": {
+   "drop": false,
+   "en": "In JeffWrite, a small bar floats above words you select with the mouse. It has Bold, Italic, Underline, Shrink Font, Grow Font, the three alignments, Bullets, and Numbering, the same commands as the ribbon.",
+   "es": "En JeffWrite, una pequeña barra flota sobre las palabras que usted selecciona con el ratón. Incluye Negrita, Cursiva, Subrayado, Reducir fuente, Aumentar fuente, las tres alineaciones, Viñetas y Numeración, los mismos comandos que la cinta de opciones.",
+   "fr": "Dans JeffWrite, une petite barre flotte au-dessus des mots que vous sélectionnez à la souris. Elle propose Gras, Italique, Souligné, Réduire la police, Agrandir la police, les trois alignements, Puces et Numérotation, les mêmes commandes que le ruban.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "1cd87d37f62bc26ea44e8392bd6425e5bf379a53fd43ed44028f284cb6d18702": {
@@ -13708,18 +13709,6 @@
     "fr": "Symboles : touche de raccourci et entrée de correction automatique"
    }
   },
-  "5dd2b6e1856bbfa573d7b0db725893273e7f27789cba3fe65e22a73a7e40eef4": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Mini toolbar beside a selection",
-    "es": "Minibarra de herramientas junto a la selección",
-    "fr": "Mini barre d’outils à côté de la sélection"
-   }
-  },
   "5ddc52e9a1aaf8f5ef9c4096b64b7f75339a8c21e013bc79efb16532e1a9e6a8": {
    "drop": false,
    "en": "Styles",
@@ -15988,6 +15977,18 @@
     "fr": ""
    }
   },
+  "7ded653343ea0f6a38e137e6269f9cd5fc9c6a5827cced8fee2ee3321dc1ca9f": {
+   "drop": false,
+   "en": "In JeffWrite, Manage in the Styles pane lists every style. You can mark styles as recommended in the gallery, hide them, and set their order in the lists. OK applies all changes as one step.",
+   "es": "En JeffWrite, Administrar en el panel Estilos muestra todos los estilos. Usted puede marcar estilos como recomendados en la galería, ocultarlos y definir su orden en las listas. Aceptar aplica todos los cambios en un solo paso.",
+   "fr": "Dans JeffWrite, Gérer dans le volet Styles liste tous les styles. Vous pouvez marquer des styles comme recommandés dans la galerie, les masquer et définir leur ordre dans les listes. OK applique toutes les modifications en une seule étape.",
+   "soon": {
+    "drop": false,
+    "en": "Restricting formatting, defaults for new documents, and style import and export between files",
+    "es": "Restricción de formato, valores predeterminados para documentos nuevos e importación y exportación de estilos entre documentos",
+    "fr": "Restriction de la mise en forme, valeurs par défaut des nouveaux documents, et import et export de styles entre fichiers"
+   }
+  },
   "7e167f0e2285a8f8073a10ac0b5b3762061583e006bb43f90c66f847920f2adf": {
    "drop": false,
    "en": "Cells",
@@ -17150,6 +17151,18 @@
     "en": "Stepping into a function that names another formula’s cell",
     "es": "Entrar paso a paso en una función que hace referencia a la celda de otra fórmula",
     "fr": "Exécution pas à pas d’une fonction qui désigne la cellule d’une autre formule"
+   }
+  },
+  "8fb67d4768fc91c80faa23926965722cb195f765043e516aaedaccabf54010ea": {
+   "drop": false,
+   "en": "In JeffWrite, `Ctrl+F` opens the Find and Replace pane. Find Next selects each match in text and tables, with match case and whole words, scrolls the pages to it, and goes round. The pane counts matches as you type, and every match in the text is highlighted in yellow on the pages.",
+   "es": "En JeffWrite, `Ctrl+F` abre el panel Buscar y reemplazar. Buscar siguiente selecciona cada coincidencia en el texto y las tablas, con coincidencia de mayúsculas y palabras completas, desplaza las páginas hasta ella y vuelve al principio. El panel cuenta las coincidencias mientras usted escribe, y cada coincidencia del texto se resalta en amarillo en las páginas.",
+   "fr": "Dans JeffWrite, `Ctrl+F` ouvre le volet Rechercher et remplacer. Suivant sélectionne chaque occurrence dans le texte et les tableaux, avec respect de la casse et mots entiers, fait défiler les pages jusqu’à elle et reprend au début. Le volet compte les occurrences pendant la saisie, et chaque occurrence du texte est surlignée en jaune sur les pages.",
+   "soon": {
+    "drop": false,
+    "en": "Navigation pane with results by heading and by page, and match highlighting in tables, headers, footers, and notes",
+    "es": "Panel de navegación con resultados por encabezado y por página, y resaltado de coincidencias en tablas, encabezados, pies de página y notas",
+    "fr": "Volet de navigation avec résultats par titre et par page, et surlignage des occurrences dans les tableaux, en-têtes, pieds de page et notes"
    }
   },
   "8ff72cad7b0ae3043e45b1fd074fec5d2fbe592b03a55cda6c95b5624b5417bf": {
@@ -19898,18 +19911,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ba46fa2867d4f4ad1c92858178144bbdad35d4a2fa708dc9ef3bcea3fd0a66c5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Manage Styles: edit, recommend, restrict, set defaults, and import or export styles with the Organizer",
-    "es": "Administrar estilos: editar, recomendar, restringir, definir valores predeterminados e importar o exportar estilos con el Organizador",
-    "fr": "Gérer les styles : modifier, recommander, restreindre, définir les valeurs par défaut, et importer ou exporter des styles avec l’Organisateur"
    }
   },
   "ba70f1c66a75655a89185731312cc5b92c6691bff5e6371363223f4863963c7d": {
@@ -22732,6 +22733,18 @@
     "fr": ""
    }
   },
+  "e364e92b611d64c5a04960a2afcceef27b80cd84b83c72f01ff6f9ca205ca6c4": {
+   "drop": false,
+   "en": "In JeffWrite, the Find pane supports wildcards, including `?`, `*`, `<`, `>`, `[a-c]`, `[!a]`, `{n,m}`, `@`, and groups. It also accepts the codes `^p`, `^t`, `^#`, `^$`, and `^w`, and Replace accepts `\\1` to `\\9`, `^&`, and `^t`. Each Replace All is one step, and a bad pattern says what is wrong.",
+   "es": "En JeffWrite, el panel Buscar admite comodines, entre ellos `?`, `*`, `<`, `>`, `[a-c]`, `[!a]`, `{n,m}`, `@` y grupos. También acepta los códigos `^p`, `^t`, `^#`, `^$` y `^w`, y Reemplazar acepta `\\1` a `\\9`, `^&` y `^t`. Cada Reemplazar todo es un solo paso, y un patrón incorrecto indica qué falla.",
+   "fr": "Dans JeffWrite, le volet Rechercher prend en charge les caractères génériques, dont `?`, `*`, `<`, `>`, `[a-c]`, `[!a]`, `{n,m}`, `@` et les groupes. Il accepte aussi les codes `^p`, `^t`, `^#`, `^$` et `^w`, et Remplacer accepte `\\1` à `\\9`, `^&` et `^t`. Chaque Remplacer tout est une seule étape, et un motif incorrect indique ce qui ne va pas.",
+   "soon": {
+    "drop": false,
+    "en": "Sounds like, all word forms, ignore punctuation and spaces, find by format, Special menu, replace with the clipboard, and search in headers, footers, and notes",
+    "es": "Suena como, todas las formas de una palabra, ignorar puntuación y espacios, búsqueda por formato, menú Especial, reemplazo con el portapapeles y búsqueda en encabezados, pies de página y notas",
+    "fr": "Sonorité proche, toutes les formes d’un mot, ignorer ponctuation et espaces, recherche par format, menu Spécial, remplacement par le presse-papiers et recherche dans les en-têtes, pieds de page et notes"
+   }
+  },
   "e3671097c867a9909c5e44ca165b913aafc4723823247e76009bc8550cdb6515": {
    "drop": false,
    "en": "In JeffCrunch, trendlines of every kind can be drawn over a chart with a legend entry, and the Trendline menu of Chart Parts sets the kind, the equation, and R-squared.",
@@ -23066,18 +23079,6 @@
     "en": "Gradient fills: create",
     "es": "Rellenos degradados: crear",
     "fr": "Remplissages en dégradé : création"
-   }
-  },
-  "e6dd35f15ca3ff91e38aaad0ee4314da47bcf52f34f3c1027ddb15fa822cf81d": {
-   "drop": false,
-   "en": "In JeffWrite, `Ctrl+F` opens the Find and Replace pane. Find Next selects each match in the text and tables, with match case and whole words, scrolls the pages to it, and goes round. Hidden text is skipped.",
-   "es": "En JeffWrite, `Ctrl+F` abre el panel Buscar y reemplazar. Buscar siguiente selecciona cada coincidencia en el texto y las tablas, con coincidencia de mayúsculas y minúsculas y palabras completas, desplaza las páginas hasta ella y vuelve al principio al llegar al final. El texto oculto se omite.",
-   "fr": "Dans JeffWrite, `Ctrl+F` ouvre le volet Rechercher et remplacer. Rechercher suivant sélectionne chaque occurrence dans le texte et les tableaux, avec respect de la casse et mots entiers, fait défiler les pages jusqu’à elle et reprend au début en fin de document. Le texte masqué est ignoré.",
-   "soon": {
-    "drop": false,
-    "en": "Navigation pane, match count, and highlighting of every match",
-    "es": "Panel de navegación, recuento de coincidencias y resaltado de todas las coincidencias",
-    "fr": "Volet de navigation, nombre d’occurrences et surlignage de toutes les occurrences"
    }
   },
   "e6e2880e938ed3d719538d584ca11aba1213b6dc7d1c826617d808a308b03808": {
