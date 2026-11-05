@@ -1891,6 +1891,126 @@ private Q_SLOTS:
         QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 5);
     }
 
+    // Shape Format: fill, outline, rotation, flips, and the words in a shape each change the picked shape as one step of Undo, keep its name and its place among the objects, and are saved.
+    void aShapeIsFilledOutlinedTurnedAndGivenText()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(e.win.w.insertShape(QStringLiteral("rect")));
+        const int first = o->layer()->selectedId();
+        const QString name = o->nameOf(0, first);
+        QVERIFY(e.win.w.insertShape(QStringLiteral("ellipse")));
+        const QString second = o->nameOf(0, o->layer()->selectedId());
+        o->layer()->select(first);
+        const int steps = e.win.w.undoStack()->count();
+        QVERIFY(e.win.w.setObjectFill(QColor(0xFF, 0x00, 0x00), false));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(int(o->idsOf(0).size()), 2);
+        QCOMPARE(o->nameOf(0, o->layer()->selectedId()), name);
+        QCOMPARE(o->nameOf(0, o->idsOf(0).front()), name);   // (still behind the oval)
+        QCOMPARE(o->nameOf(0, o->idsOf(0).back()), second);
+        QVERIFY(e.win.w.setObjectOutline(QColor(0x00, 0xFF, 0x00), false));
+        QVERIFY(e.win.w.setObjectOutlineStyle(3.0, QStringLiteral("dash")));
+        QVERIFY(e.win.w.rotateObject(1, false, false));
+        QVERIFY(e.win.w.rotateObject(0, true, false));
+        crunch::SheetObjects *objects = e.win.w.objects();
+        QVERIFY(objects->kindOf(0, objects->layer()->selectedId()) == jp::office::sheet::ObjectKind::Shape);
+        CrunchWindow::ShapeTextChoices c;
+        c.text = QStringLiteral("Hello\nWorld");
+        c.horizontal = 1;
+        c.vertical = 1;
+        c.bold = true;
+        c.sizePoints = 14;
+        c.colorHex = QStringLiteral("0000FF");
+        // the person's dialog: it starts with the words the shape has, and giving it up changes nothing
+        const int before = e.win.w.undoStack()->count();
+        CrunchWindow::ShapeTextChoices seen;
+        e.win.w.setShapeTextAsker([&](CrunchWindow::ShapeTextChoices *x) {
+            seen = *x;
+            return false;
+        });
+        QVERIFY(e.win.w.act(QStringLiteral("object.editText"))->isEnabled());
+        e.win.w.act(QStringLiteral("object.editText"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), before);
+        e.win.w.setShapeTextAsker([&](CrunchWindow::ShapeTextChoices *x) {
+            *x = c;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("object.editText"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), before + 1);
+        e.win.w.setShapeTextAsker([&](CrunchWindow::ShapeTextChoices *x) {
+            seen = *x;
+            return false;
+        });
+        e.win.w.act(QStringLiteral("object.editText"))->trigger();
+        QCOMPARE(seen.text, QStringLiteral("Hello\nWorld"));
+        QCOMPARE(seen.horizontal, 1);
+        QCOMPARE(seen.sizePoints, 14);
+        QVERIFY(seen.bold);
+        QVERIFY(save(e));
+        const QByteArray drawing = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QDomDocument doc;
+        QVERIFY(parseXml(drawing, &doc));
+        QVERIFY(drawing.contains("val=\"FF0000\""));
+        QVERIFY(drawing.contains("val=\"00FF00\""));
+        QVERIFY(drawing.contains("prstDash"));
+        QVERIFY(drawing.contains("w=\"38100\""));
+        QVERIFY(drawing.contains("rot=\"5400000\""));
+        QVERIFY(drawing.contains("flipH=\"1\""));
+        QVERIFY(drawing.contains(">Hello<") && drawing.contains(">World<"));
+        QVERIFY(drawing.contains("sz=\"1400\""));
+        const QDomNodeList all = doc.elementsByTagName(QStringLiteral("cNvPr"));
+        QSet<QString> ids;
+        for (int i = 0; i < all.size(); ++i) ids.insert(all.at(i).toElement().attribute(QStringLiteral("id")));
+        QCOMPARE(int(ids.size()), 2);   // (the old shapes are gone, not left behind)
+        Window again;
+        QVERIFY(again.open(e.copyOfFile()));
+        QTRY_VERIFY(again.w.objects()->shownSheet() == 0 && again.w.objects()->layer()->count() == 2);
+    }
+
+    // A picture is cropped to a shape of window (the sides or the top and bottom cut from the middle, and the picture is as large as what is left), and shown whole again.
+    void aPictureIsCroppedAndRotated()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(e.win.w.insertPictureFile(e.folder.write(QStringLiteral("wide.png"), pngBytes(960, 480, Qt::green))));
+        QVERIFY(e.win.w.act(QStringLiteral("object.cropSquare"))->isEnabled());
+        e.win.w.act(QStringLiteral("object.cropSquare"))->trigger();
+        grid::ObjectBox box = o->layer()->boxNow(o->layer()->selectedId());
+        QCOMPARE(box.w, 240.0);
+        QCOMPARE(box.h, 240.0);
+        QVERIFY(e.win.w.cropObject(1, 2));   // (tall: the top and bottom are cut from what shows)
+        box = o->layer()->boxNow(o->layer()->selectedId());
+        QCOMPARE(box.w, 120.0);
+        QCOMPARE(box.h, 240.0);
+        QVERIFY(e.win.w.rotateObject(2, false, false));
+        QVERIFY(e.win.w.setObjectOutline(QColor(0, 0, 0), false));
+        QVERIFY(save(e));
+        QByteArray drawing = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY2(drawing.contains("srcRect"), drawing.constData());
+        QVERIFY(drawing.contains("l=\"37500\"") || drawing.contains("l=\"37500\""));
+        QVERIFY(drawing.contains("rot=\"10800000\""));
+        QVERIFY(e.win.w.cropObject(0, 0));
+        box = o->layer()->boxNow(o->layer()->selectedId());
+        QCOMPARE(box.w, 480.0);
+        QCOMPARE(box.h, 240.0);
+        QVERIFY(save(e));
+        drawing = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY(!drawing.contains("srcRect"));
+        // the picture's bytes are the one picture, not a copy for each change
+        int media = 0;
+        const QMap<QString, QByteArray> parts = partsOf(e.path);
+        for (auto it = parts.begin(); it != parts.end(); ++it)
+            if (it.key().startsWith(QLatin1String("xl/media/"))) ++media;
+        QCOMPARE(media, 1);
+    }
+
     // Pictures and shapes move and size too: the anchor of the file is kept in the form it keeps what the object does when cells change (a picture of a one-cell anchor moves with the cells and
     // keeps its size; a shape set not to move or size stays where it is).
     void picturesAndShapesAreMovedAndSaved()

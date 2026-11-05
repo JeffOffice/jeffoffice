@@ -596,6 +596,82 @@
       ]
     }    ,
     {
+      "name": "Picture Format",
+      "keytip": "JP",
+      "context": "Picture Format",
+      "color": "pictureFormat",
+      "groups": [
+        {
+          "name": "Arrange",
+          "keytip": "ZR",
+          "items": [
+            {"small": "object.front", "keytip": "BF"},
+            {"small": "object.forward", "keytip": "BW"},
+            {"small": "object.backward", "keytip": "BK"},
+            {"small": "object.back", "keytip": "SB"},
+            {"column": true},
+            {"large": {"id": "ribbon.rotate", "text": "Rotate", "icon": "rotate-cw"}, "keytip": "RO", "menu": ["object.rotateRight", "object.rotateLeft", "object.flipH", "object.flipV"]}
+          ]
+        },
+        {
+          "name": "Picture Styles",
+          "keytip": "ZY",
+          "items": [
+            {"row": [{"widget": "pictureBorder", "keytip": "PB"}, {"icon": {"id": "ribbon.pictureLine", "text": "Line Style", "icon": "minus"}, "keytip": "PL", "menu": "@outlineStyle"}]}
+          ]
+        },
+        {
+          "name": "Size",
+          "keytip": "ZZ",
+          "items": [
+            {"large": {"id": "ribbon.crop", "text": "Crop", "icon": "crop"}, "keytip": "CR", "menu": ["object.cropSquare", "object.crop43", "object.crop34", "object.crop169", "object.crop916", "-", "object.cropReset"]},
+            {"large": "object.properties", "keytip": "PR"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Shape Format",
+      "keytip": "JS",
+      "context": "Shape Format",
+      "color": "shapeFormat",
+      "groups": [
+        {
+          "name": "Shape Styles",
+          "keytip": "ZY",
+          "items": [
+            {"row": [{"widget": "shapeFill", "keytip": "SF"}, {"widget": "shapeOutline", "keytip": "SO"}, {"icon": {"id": "ribbon.shapeLine", "text": "Line Style", "icon": "minus"}, "keytip": "SL", "menu": "@outlineStyle"}]}
+          ]
+        },
+        {
+          "name": "Text",
+          "keytip": "ZX",
+          "items": [
+            {"large": "object.editText", "keytip": "ET"}
+          ]
+        },
+        {
+          "name": "Arrange",
+          "keytip": "ZR",
+          "items": [
+            {"small": "object.front", "keytip": "BF"},
+            {"small": "object.forward", "keytip": "BW"},
+            {"small": "object.backward", "keytip": "BK"},
+            {"small": "object.back", "keytip": "SB"},
+            {"column": true},
+            {"large": {"id": "ribbon.rotate", "text": "Rotate", "icon": "rotate-cw"}, "keytip": "RO", "menu": ["object.rotateRight", "object.rotateLeft", "object.flipH", "object.flipV"]}
+          ]
+        },
+        {
+          "name": "Size",
+          "keytip": "ZZ",
+          "items": [
+            {"large": "object.properties", "keytip": "PR"}
+          ]
+        }
+      ]
+    }    ,
+    {
       "name": "Table",
       "keytip": "JB",
       "context": "Table",

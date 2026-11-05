@@ -27,6 +27,7 @@ void CrunchWindow::ribbonParts(RibbonParts &parts)
     formatRibbonParts(parts);
     pageRibbonParts(parts);
     chartRibbonParts(parts);
+    objectFormatRibbonParts(parts);
     tableRibbonParts(parts);
     sparklineRibbonParts(parts);
     pivotRibbonParts(parts);

@@ -69,6 +69,8 @@ class QPlainTextEdit;
 class QSlider;
 class QVBoxLayout;
 class QToolButton;
+class QDomElement;
+
 namespace jp {
 
 class SlicerPane;
@@ -84,6 +86,7 @@ namespace office { struct Chart; }
 class CrunchFileScreen;
 struct PageSetupRequest;
 namespace grid {
+struct ObjectBox;
 struct SheetPrint;
 class PageLayoutView;
 class PageLayoutSource;
@@ -1219,6 +1222,21 @@ public:
     bool insertPictureFile(const QString &path);
     bool insertShape(const QString &preset);
     bool insertTextBox();
+    // Format of the picked picture, shape, or text box (each is one step: the object is made again with the change). The words in a shape: the box that asks stands in for the dialog (tests).
+    struct ShapeTextChoices {
+        QString text;
+        int horizontal = 0, vertical = 0;   // 0 left, top; 1 center, middle; 2 right, bottom
+        bool bold = false, wrap = true;
+        int sizePoints = 11;
+        QString colorHex;   // 6 hex digits, empty for the shape's own
+    };
+    void setShapeTextAsker(const std::function<bool(ShapeTextChoices *)> &asker) { m_shapeTextAsker = asker; }
+    bool setObjectFill(const QColor &color, bool none);
+    bool setObjectOutline(const QColor &color, bool none);
+    bool setObjectOutlineStyle(double weightPoints, const QString &dash);
+    bool rotateObject(int quarterTurns, bool flipH, bool flipV);
+    bool cropObject(int width, int height);
+    bool setObjectText(const ShapeTextChoices &choices);
     void insertChartDialog();
     // The dialogs, made but not shown, for whoever shows them (the window runs them; a tool takes pictures of them). Null if there is nothing for them to work on.
     QDialog *makeInsertChartDialog();
@@ -1255,7 +1273,12 @@ private:
     int m_drawBorder = 0;   // the border being drawn: 1 the outside, 2 all the lines, 3 erasing; 0 none
     qint64 m_drawFromRow = -1, m_drawFromCol = -1;
     void insertPicture();
-    bool placeObjectClip(const crunch::ObjectClip &clip, const QString &stepText);
+    bool placeObjectClip(const crunch::ObjectClip &clip, const QString &stepText, const jp::office::sheet::DrawingAnchor *at = nullptr, int order = -1);
+    bool restyleObject(const QString &stepText, const std::function<bool(QDomElement &, jp::grid::ObjectBox *)> &edit, bool pictureOnly = false);
+    void editObjectText();
+    void createObjectFormatActions();
+    void objectFormatRibbonParts(RibbonParts &parts);
+    std::function<bool(ShapeTextChoices *)> m_shapeTextAsker;
     void chartRibbonParts(RibbonParts &parts);
     void functionRibbonParts(RibbonParts &parts);
     void fillFunctionMenu(QMenu *menu, const QList<crunch::FunctionCategory> &kinds);

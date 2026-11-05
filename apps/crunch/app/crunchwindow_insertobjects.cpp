@@ -82,12 +82,12 @@ void CrunchWindow::createInsertObjectActions()
 }
 
 // Puts the element on the sheet at the cell the cursor is in, as one step of Undo, picked. `why` is the problem if it is not.
-bool CrunchWindow::placeObjectClip(const crunch::ObjectClip &clip, const QString &stepText)
+bool CrunchWindow::placeObjectClip(const crunch::ObjectClip &clip, const QString &stepText, const DrawingAnchor *at, int order)
 {
     if (!m_session || !m_objects || m_chartSheetShown) return false;
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !editingAllowed()) return false;
-    const DrawingAnchor anchor = newObjectAnchor(clip.width, clip.height);
+    const DrawingAnchor anchor = at ? *at : newObjectAnchor(clip.width, clip.height);
     QString why;
     const int id = m_objects->makeElement(m_sheet, clip, anchor, &why);
     if (id < 0) {
@@ -100,6 +100,7 @@ bool CrunchWindow::placeObjectClip(const crunch::ObjectClip &clip, const QString
     e.before = m_objects->stateOf(m_sheet, id);
     e.after = e.before;
     e.after.deleted = false;
+    if (order >= 0) e.after.order = order;
     const crunch::EditSession::Outcome o = m_session->changeObjects({e}, stepText);
     if (!o.ok) {
         m_objects->discardMade(m_sheet, id);

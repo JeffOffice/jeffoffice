@@ -596,6 +596,7 @@ void CrunchWindow::createActions()
     createOutlineActions();
     createChartActions();
     createInsertObjectActions();
+    createObjectFormatActions();
     createDrawBorderActions();
     createTableActions();
     createSparklineActions();

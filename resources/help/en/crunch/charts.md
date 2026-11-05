@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: insert picture, insert shape, text box, shapes, line, arrow, oval, rectangle, star, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key -->
+<!-- keywords: shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, insert shape, text box, shapes, line, arrow, oval, rectangle, star, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -71,6 +71,16 @@ On the **Insert** tab, in **Illustrations**, **Picture** opens a file chooser. P
 **Shapes** opens a list: rectangle, rounded rectangle, oval, triangle, diamond, arrows, a star, a heart, a cloud, a speech callout, and a line. Pick one and it lands on the sheet in light blue with a darker edge. **Text Box**, in the **Text** group, puts in an empty box with no fill and no edge.
 
 Each one is a single step you can undo. The new object is picked, so you can drag it, size it, move it forward or back, give it a name and alt text in **Properties**, or press **Delete**.
+
+## Change how a picture, shape, or text box looks
+
+Pick a picture and the **Picture Format** tab appears. Pick a shape, a line, or a text box and the **Shape Format** tab appears. Each change is one step you can undo, and the object keeps its name, its alt text, its place, and its order among the other objects.
+
+- **Shape Fill** and **Shape Outline** pick a color, or none. **Line Style** sets the weight (how thick the line is) and the dashes (solid, dashed, or dotted). A picture has **Picture Border**, which is its outline.
+- **Rotate** turns the object a quarter turn to the right or the left, or flips it over from side to side or top to bottom.
+- **Crop**, for a picture, cuts it to a shape of window: square, 4 wide by 3 tall, 3 wide by 4 tall, 16 by 9, or 9 by 16. The cut is made evenly from the middle of what shows, and the picture is made as large as what is left. **Show the Whole Picture** brings back what was cut. The picture file is not changed: the cut part is only hidden.
+- **Edit Text** is for shapes and text boxes. Type the words, and choose how they sit across and up and down, the size, bold or regular, and whether they wrap to the shape or stay on one line.
+- **Properties** sets the size, the name, the alt text, and what the object does when cells are moved or made larger.
 
 ## Cut, copy, and paste an object
 

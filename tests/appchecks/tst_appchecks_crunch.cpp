@@ -120,6 +120,11 @@ private Q_SLOTS:
         m_app.listen = [](AppWindow *aw, Watch *watch) {
             auto *w = asCrunch(aw);
             w->setNotifier([watch](const QString &title, const QString &text) { watch->told << title + QLatin1String(": ") + text; });
+            w->setPicturePicker([] { return QString(); });
+            w->setShapeTextAsker([](CrunchWindow::ShapeTextChoices *c) {
+                c->text = QStringLiteral("Words");
+                return true;
+            });
             w->setLossAsker([watch](const QString &title, const QString &text) {
                 watch->told << title + QLatin1String(": ") + text;
                 return CrunchWindow::LossAnswer::Continue;
@@ -255,6 +260,18 @@ private Q_SLOTS:
                 w->insertChart(jp::office::sheet::ChartKind::Column);
                 waitFor([&] { return quiet(w); });
                 w->insertChart(jp::office::sheet::ChartKind::Line);
+                waitFor([&] { return quiet(w); });
+            }),
+            in(QStringLiteral("a picture selected"), [](CrunchWindow *w) {
+                QImage image(60, 30, QImage::Format_ARGB32);
+                image.fill(Qt::darkCyan);
+                const QString file = tempFile(QStringLiteral("picture.png"));
+                image.save(file);
+                w->insertPictureFile(file);
+                waitFor([&] { return quiet(w); });
+            }),
+            in(QStringLiteral("a shape selected"), [](CrunchWindow *w) {
+                w->insertShape(QStringLiteral("rect"));
                 waitFor([&] { return quiet(w); });
             }),
             in(QStringLiteral("a note in two cells, the later one selected"), [](CrunchWindow *w) {
@@ -441,7 +458,8 @@ private Q_SLOTS:
             {QStringLiteral("pivot.reportPages"), {QStringLiteral("the cursor in a pivot table that has a filter")}},
             {QStringLiteral("hf."), {QStringLiteral("the header of a page being typed in")}},
             {QStringLiteral("notes."), {QStringLiteral("a note in two cells, the later one selected"), QStringLiteral("a note in two cells, the earlier one selected"), QStringLiteral("a cell with a note")}},
-            {QStringLiteral("object."), {QStringLiteral("two charts, the later one selected")}},
+            {QStringLiteral("object."), {QStringLiteral("two charts, the later one selected"), QStringLiteral("a shape selected"), QStringLiteral("a picture selected")}},
+            {QStringLiteral("object.crop"), {QStringLiteral("a picture selected")}},
             {QStringLiteral("chartdesign."), {QStringLiteral("a chart selected")}},
             {QStringLiteral("chartdesign.moveChart"), {QStringLiteral("a chart selected, and a second sheet")}},
             {QStringLiteral("link."), {QStringLiteral("a cell with a link")}},
@@ -471,6 +489,7 @@ private Q_SLOTS:
             {QStringLiteral("data.circleInvalid"), QStringLiteral("it tells in a message that every cell follows its rule (no rule is set here), and draws ovals only when one does not")},
             {QStringLiteral("review.statistics"), QStringLiteral("it tells the numbers in a message and changes nothing in the workbook")},
             {QStringLiteral("style.delete"), QStringLiteral("it needs a style the workbook made for itself, and says so when there is none; the Cell Styles tests run it with one")},
+            {QStringLiteral("insert.picture"), QStringLiteral("it asks for a picture file, and with none chosen nothing changes; the chart tests put pictures in")},
             {QStringLiteral("chartdesign.saveTemplate"), QStringLiteral("it writes a template file and nothing on the screen changes; the chart tests open the file")},
             {QStringLiteral("chartdesign.saveAsPicture"), QStringLiteral("it writes a picture file and nothing on the screen changes; the chart tests open the file")},
         };
