@@ -112,6 +112,10 @@ public:
     const QVector<QPair<int, int>> &findHighlights() const { return m_findHighlights; }
     // How the Find pane says where its words are in the story of a header, a footer, or a note (given that story): drawn with the others.
     void setFindSideMatcher(const std::function<QVector<QPair<int, int>>(const QTextDocument *)> &matcher);
+    // The header, footer, or note being edited (null while the text is), and how to go to one: edits the one that has the story on a page that shows it (`page`, from 0, says which);
+    // false where no page shows it.
+    const QTextDocument *editedSideStory() const { return sideStory(); }
+    bool enterSideStory(QTextDocument *story, int *page = nullptr);
     // The faint edges of the cells of tables that have no lines (View Gridlines).
     void setShowGridlines(bool on);
     bool showGridlines() const { return m_gridlines; }

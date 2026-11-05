@@ -1592,6 +1592,97 @@ private Q_SLOTS:
         QVERIFY(pane->matchesInSideStory(w.document()->headerFooterStory(0, false, 0)).isEmpty());
     }
 
+    // A document with a header, a footer, and a note that each hold "needle", and a body that does not (Find Next, Replace, and Replace All must reach them).
+    QByteArray docWithSideNeedles(bool bodyNeedle = false)
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdHead\"/><w:footerReference w:type=\"default\" r:id=\"rIdFoot\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        office::PackageWriter pw;
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QString wml = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+        pw.addPart(QStringLiteral("/word/document.xml"),
+                   xml(QByteArray("<w:document ") + kNs + "><w:body>" + para(run(bodyNeedle ? "body needle text" : "body text") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>") + para(run("end")) + sect + "</w:body></w:document>"),
+                   wml + QStringLiteral("document.main+xml"));
+        pw.addPart(QStringLiteral("/word/header1.xml"), xml(QByteArray("<w:hdr ") + kNs + "><w:p><w:r><w:t>needle in the header</w:t></w:r></w:p></w:hdr>"), wml + QStringLiteral("header+xml"));
+        pw.addPart(QStringLiteral("/word/footer1.xml"), xml(QByteArray("<w:ftr ") + kNs + "><w:p><w:r><w:t>the footer needle</w:t></w:r></w:p></w:ftr>"), wml + QStringLiteral("footer+xml"));
+        pw.addPart(QStringLiteral("/word/footnotes.xml"),
+                   xml(QByteArray("<w:footnotes ") + kNs + "><w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> a note needle</w:t></w:r></w:p></w:footnote></w:footnotes>"),
+                   wml + QStringLiteral("footnotes+xml"));
+        pw.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        pw.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdHead"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+        pw.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdFoot"), rel + QStringLiteral("footer"), QStringLiteral("/word/footer1.xml"));
+        pw.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("footnotes"), QStringLiteral("/word/footnotes.xml"));
+        return pw.finish();
+    }
+
+    void findNextAndReplaceReachHeadersFootersAndNotes()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 900);
+        w.show();
+        w.setDocument(open(docWithSideNeedles()), QString());
+        w.act(QStringLiteral("edit.replace"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QTRY_VERIFY(w.view()->pageCount() >= 1);
+        pane->findBox()->setText(QStringLiteral("needle"));
+        pane->replaceBox()->setText(QStringLiteral("pin"));
+        QTRY_VERIFY(pane->matchCount() == 0);
+        // The body has none: the search goes on into the header, then the footer, then the note, then (nothing in the text) round to the header again.
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("needle"));
+        QVERIFY(w.view()->editedSideStory() != nullptr);
+        QCOMPARE(w.view()->editedSideStory(), w.document()->headerFooterStory(0, false, 0));
+        QVERIFY2(pane->status().contains(QStringLiteral("header of page 1")), qPrintable(pane->status()));
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->editedSideStory(), w.document()->headerFooterStory(0, true, 0));
+        QVERIFY2(pane->status().contains(QStringLiteral("footer of page 1")), qPrintable(pane->status()));
+        QVERIFY(pane->findNext());
+        int id = 0;
+        QVERIFY(w.view()->editedSideStory() && w.document()->footnoteIdOf(w.view()->editedSideStory(), &id));
+        QVERIFY2(pane->status().contains(QStringLiteral("note on page 1")), qPrintable(pane->status()));
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("needle"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->editedSideStory(), w.document()->headerFooterStory(0, false, 0));
+        // Replace swaps the match in the header and goes on to the footer.
+        pane->replaceOne();
+        QCOMPARE(w.document()->headerFooterStory(0, false, 0)->toPlainText(), QStringLiteral("pin in the header"));
+        QCOMPARE(w.view()->editedSideStory(), w.document()->headerFooterStory(0, true, 0));
+        shot(&w, QStringLiteral("find-reaches-footer.png"));
+        // Replace All swaps the other two, and one Undo brings back every change.
+        pane->replaceAll();
+        QVERIFY2(pane->status().contains(QStringLiteral("2")), qPrintable(pane->status()));
+        QCOMPARE(w.document()->headerFooterStory(0, true, 0)->toPlainText(), QStringLiteral("the footer pin"));
+        QVERIFY(w.document()->editableFootnote(2)->toPlainText().contains(QStringLiteral("a note pin")));
+        QVERIFY(!pane->findNext());
+        QVERIFY(w.document()->undo());
+        QCOMPARE(w.document()->headerFooterStory(0, true, 0)->toPlainText(), QStringLiteral("the footer needle"));
+        QVERIFY(w.document()->editableFootnote(2)->toPlainText().contains(QStringLiteral("a note needle")));
+        QCOMPARE(w.document()->headerFooterStory(0, false, 0)->toPlainText(), QStringLiteral("pin in the header"));
+    }
+
+    void replaceAllInTextAndHeaderIsOneUndoStep()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 900);
+        w.show();
+        w.setDocument(open(docWithSideNeedles(true)), QString());
+        w.act(QStringLiteral("edit.replace"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QTRY_VERIFY(w.view()->pageCount() >= 1);
+        pane->findBox()->setText(QStringLiteral("needle"));
+        pane->replaceBox()->setText(QStringLiteral("pin"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->replaceAll();
+        QVERIFY2(pane->status().contains(QStringLiteral("4")), qPrintable(pane->status()));
+        QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("body pin text")));
+        QCOMPARE(w.document()->headerFooterStory(0, false, 0)->toPlainText(), QStringLiteral("pin in the header"));
+        QVERIFY(w.document()->undo());
+        QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("body needle text")));
+        QCOMPARE(w.document()->headerFooterStory(0, false, 0)->toPlainText(), QStringLiteral("needle in the header"));
+        QCOMPARE(w.document()->headerFooterStory(0, true, 0)->toPlainText(), QStringLiteral("the footer needle"));
+    }
+
     void theFindPaneCanSearchWithWildcardsAndReplaceWithGroups()
     {
         WriteWindow w;

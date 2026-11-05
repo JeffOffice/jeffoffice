@@ -74,7 +74,7 @@ For example, to change "color" to "colour" everywhere: type **color** in **Find 
 ## What the search looks at
 
 - It looks at the text of the document, including the text in tables. A bookmark in the middle of some words, which some files have, does not stop them from being found. **Replace** and **Replace All** keep the bookmark.
-- **Find Next**, **Replace**, and **Replace All** do not look in headers, footers, footnotes, or endnotes yet. Words there get a yellow band, but they are not selected and not changed. If a header or footer is open for editing when you open the pane, it closes first. See [Headers and footers](headers-footers).
+- **Find Next** looks in the text first. Then it goes on to the headers, then the footers, then the footnotes, and then back to the start of the text. When a match is in one of them, JeffWrite opens it for editing and selects the match. The pane tells you where it is, such as "Found in the header of page 3." **Replace** swaps the match you are on, in the text or in a header, footer, or footnote. **Replace All** changes every match in all of them, and one **Undo** brings them all back. The endnotes are part of the text, so they are searched with it. See [Headers and footers](headers-footers).
 - It skips text that is set to **Hidden**, because that text is not shown. See [Change how text looks](font).
 
 ## Related

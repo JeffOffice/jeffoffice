@@ -1692,6 +1692,22 @@ int PageView::pageShowingNote(const QTextDocument *story)
     return -1;
 }
 
+bool PageView::enterSideStory(QTextDocument *story, int *page)
+{
+    if (!m_doc || !story) return false;
+    int at = -1, id = 0, section = 0, slot = 0;
+    bool footer = false, ok = false;
+    if (m_doc->footnoteIdOf(story, &id)) {
+        at = pageShowingNote(story);
+        ok = at >= 0 && enterNote(story, id, at);
+    } else if (m_doc->headerFooterSlotOf(story, &section, &footer, &slot)) {
+        at = pageShowing(section, footer, slot);
+        ok = at >= 0 && enterHeaderFooterFor(section, footer, slot, at);
+    }
+    if (ok && page) *page = at;
+    return ok;
+}
+
 bool PageView::enterNote(QTextDocument *story, int id, int page, int number)
 {
     if (!m_doc || !story) return false;

@@ -27,6 +27,7 @@
 #include <QTimer>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <array>
 
 namespace jp {
 
@@ -360,25 +361,33 @@ QString WriteFindPane::patternText() const
 bool WriteFindPane::customSearch() const { return m_wild->isChecked() || codesTyped() || advancedOptions().active() || m_format.any(); }
 bool WriteFindPane::searching() const { return !m_find->text().isEmpty() || m_format.any(); }
 
-QVector<QPair<int, int>> WriteFindPane::matchesInSideStory(const QTextDocument *story)
+// The words of the story of a header, a footer, or a note, as they are now.
+StoryWords *WriteFindPane::sideWords(const QTextDocument *story)
 {
-    if (!story || !isVisible() || !searching() || m_find->text().isEmpty()) return {};
     Side &side = m_side[story];
     if (!side.words || side.words->story() != story) {
         side.words = std::make_shared<StoryWords>(const_cast<QTextDocument *>(story));
         side.revision = -1;
     }
+    if (side.words->dirty) side.words->rebuild();
+    return side.words.get();
+}
+
+QVector<QPair<int, int>> WriteFindPane::matchesInSideStory(const QTextDocument *story)
+{
+    if (!story || !isVisible() || !searching() || m_find->text().isEmpty()) return {};
+    Side &side = m_side[story];
+    StoryWords *words = sideWords(story);
     if (side.revision == story->revision() && side.generation == m_generation) return side.ranges;
     side.revision = story->revision();
     side.generation = m_generation;
     side.ranges.clear();
-    if (side.words->dirty) side.words->rebuild();
     QString error;
     for (int at = 0; side.ranges.size() < kMostMatches;) {
-        const QTextCursor m = matchIn(side.words.get(), at, &error);
+        const QTextCursor m = matchIn(words, at, &error);
         if (m.isNull()) break;
         at = std::max(m.selectionEnd(), at + 1);
-        side.ranges.push_back({side.words->toStory(m.selectionStart()), side.words->toStoryEnd(m.selectionEnd())});
+        side.ranges.push_back({words->toStory(m.selectionStart()), words->toStoryEnd(m.selectionEnd())});
     }
     return side.ranges;
 }
@@ -479,10 +488,9 @@ QTextCursor WriteFindPane::rawMatchIn(StoryWords *text, int from, QString *error
 }
 
 // The groups of the pattern for a match of it, found again in the words with what is round it (so that the starts and ends of words are right).
-QRegularExpressionMatch WriteFindPane::groupsOf(const QTextCursor &match)
+QRegularExpressionMatch WriteFindPane::groupsOf(const QTextCursor &match, StoryWords *text)
 {
     const write::FindPattern pattern = write::wildcardPattern(patternText(), m_case->isChecked());
-    StoryWords *text = storyWords();
     if (!text || !pattern.error.isEmpty()) return QRegularExpressionMatch();
     return pattern.regex.match(text->plain(), match.selectionStart());
 }
@@ -549,10 +557,11 @@ StoryWords *WriteFindPane::storyWords()
 }
 
 // The document's one story, as libs/page's search is given it: its words, and the places of the story that a swap puts new words in.
-FindWords WriteFindPane::words()
+FindWords WriteFindPane::words() { return wordsOf(storyWords()); }
+
+FindWords WriteFindPane::wordsOf(StoryWords *text)
 {
     FindWords w;
-    StoryWords *text = storyWords();
     QTextDocument *story = text ? text->story() : nullptr;
     w.story = [text](const FindStory &) { return text ? text->words() : nullptr; };
     // Hidden text is not found (nor replaced): it is not shown.
@@ -587,69 +596,118 @@ FindWords WriteFindPane::words()
     return w;
 }
 
-QVector<FindStory> WriteFindPane::stories() const
+// The words of the text, or of a header, a footer, or a note.
+StoryWords *WriteFindPane::wordsOfStory(const QTextDocument *story)
 {
-    QVector<FindStory> all;
-    all << FindStory{QString(), QStringLiteral("story")};
+    if (!story) return nullptr;
+    if (m_win->document() && story == m_win->document()->story()) return storyWords();
+    return sideWords(story);
+}
+
+// Whether what is selected is a match, as the search sees it (so that Replace does not change words the search would not have shown). The selection is in the text, or in the
+// header, footer, or note that is being edited.
+bool WriteFindPane::selectionIsMatch()
+{
+    const QTextCursor &sel = m_win->view()->cursor();
+    StoryWords *text = wordsOfStory(sel.document());
+    if (!text || !sel.hasSelection() || !searching()) return false;
+    const int from = text->toWords(sel.selectionStart()), to = text->toWords(sel.selectionEnd());
+    const QTextCursor m = matchIn(text, from, nullptr);
+    return !m.isNull() && m.selectionStart() == from && m.selectionEnd() == to && !wordsOf(text).skip(m);
+}
+
+// The first match at or after a place of a story's text, shown as a cursor in the story; false where there is none (or the pattern is wrong: `problem` says so).
+bool WriteFindPane::searchStory(QTextDocument *story, int from, QTextCursor *found, QString *problem)
+{
+    StoryWords *text = wordsOfStory(story);
+    if (!text) return false;
+    const FindWords w = wordsOf(text);
+    for (int at = text->toWords(from);;) {
+        const QTextCursor m = matchIn(text, at, problem);
+        if (m.isNull()) return false;
+        at = std::max(m.selectionEnd(), at + 1);
+        if (w.skip && w.skip(m)) continue;
+        QTextCursor shown(story);
+        shown.setPosition(text->toStory(m.selectionStart()));
+        shown.setPosition(text->toStoryEnd(m.selectionEnd()), QTextCursor::KeepAnchor);
+        *found = shown;
+        return true;
+    }
+}
+
+// The headers, then the footers (by section), then the footnotes: the stories beside the text, each once, in the order a search goes through them.
+QVector<QTextDocument *> WriteFindPane::sideStories()
+{
+    write::WriteDoc *doc = m_win->document();
+    QVector<QTextDocument *> all;
+    for (QTextDocument *d : doc->storiesWithChanges(true))
+        if (d != doc->story() && !all.contains(d)) all.push_back(d);
+    auto key = [doc](QTextDocument *d) {
+        int section = 0, slot = 0;
+        bool footer = false;
+        if (!doc->headerFooterSlotOf(d, &section, &footer, &slot)) {
+            int id = 0;
+            doc->footnoteIdOf(d, &id);
+            return std::array<int, 3>{2, id, 0};
+        }
+        return std::array<int, 3>{footer ? 1 : 0, section, slot};
+    };
+    std::stable_sort(all.begin(), all.end(), [&](QTextDocument *a, QTextDocument *b) { return key(a) < key(b); });
     return all;
 }
 
-// Whether what is selected is a match, as the search sees it (so that Replace does not change words the search would not have shown).
-bool WriteFindPane::selectionIsMatch()
+// Where a header, a footer, or a note is, for the message under the boxes.
+QString WriteFindPane::whereIs(QTextDocument *story, int page)
 {
-    m_win->view()->leaveHeaderFooter();   // (the search is of the text: its caret is the text's)
-    m_win->view()->leaveNote();
-    const QTextCursor &sel = m_win->view()->cursor();
-    StoryWords *text = storyWords();
-    if (!text || !sel.hasSelection() || !searching()) return false;
-    const int from = text->toWords(sel.selectionStart()), to = text->toWords(sel.selectionEnd());
-    const QTextCursor m = matchFrom(from);
-    return !m.isNull() && m.selectionStart() == from && m.selectionEnd() == to && !words().skip(m);
+    int section = 0, slot = 0;
+    bool footer = false;
+    if (m_win->document()->headerFooterSlotOf(story, &section, &footer, &slot))
+        return footer ? tr("Found in the footer of page %1.").arg(page + 1) : tr("Found in the header of page %1.").arg(page + 1);
+    return tr("Found in a note on page %1.").arg(page + 1);
 }
 
 bool WriteFindPane::findNext()
 {
-    m_win->view()->leaveHeaderFooter();
-    m_win->view()->leaveNote();
+    if (!m_win->document() || !searching()) return false;
+    write::PageView *view = m_win->view();
+    QTextDocument *body = m_win->document()->story();
+    QTextDocument *here = const_cast<QTextDocument *>(view->editedSideStory());
+    if (!here) here = body;
     const QString q = m_find->text();
-    StoryWords *text = storyWords();
-    if (!text || !searching()) return false;
-    int story = 0;
+    QString problem;
     QTextCursor found;
     bool got = false;
-    if (customSearch()) {
-        // A pattern: from the end of the selection to the end of the text, then again from the start.
-        const FindWords w = words();
-        const int start = text->toWords(m_win->view()->cursor().selectionEnd());
-        QString problem;
-        for (int pass = 0; pass < 2 && !got; ++pass)
-            for (int at = pass == 0 ? start : 0;;) {
-                const QTextCursor m = matchFrom(at, &problem);
-                if (m.isNull()) break;
-                if (w.skip && w.skip(m)) {
-                    at = m.selectionEnd();
-                    continue;
-                }
-                found = m;
-                got = true;
-                break;
-            }
-        if (!problem.isEmpty()) {
-            m_status->setText(problem);
-            return false;
-        }
-    } else {
-        got = findInStories(words(), stories(), q, flags(), 0, text->toWords(m_win->view()->cursor().selectionEnd()), &story, &found);
+    auto look = [&](QTextDocument *story, int from) {
+        if (!searchStory(story, from, &found, &problem)) return false;
+        // (A header, footer, or note is opened for editing to show the match: where no page shows it, it is passed over.)
+        if (story != body && view->editedSideStory() != story && !view->enterSideStory(story)) return false;
+        return got = true;
+    };
+    // From the end of the selection to the end of the text, then the headers, footers, and notes, then the text again from the start.
+    if (here == body || view->editedSideStory() == here) got = look(here, view->cursor().selectionEnd());
+    if (!got && problem.isEmpty()) {
+        QVector<QTextDocument *> order = sideStories();
+        order.prepend(body);
+        const int n = int(order.size()), at = std::max(0, int(order.indexOf(here)));
+        for (int k = 1; k < n && !got && problem.isEmpty(); ++k) got = look(order[(at + k) % n], 0);
+        if (!got && problem.isEmpty()) got = look(here, 0);
+    }
+    if (!problem.isEmpty()) {
+        m_status->setText(problem);
+        return false;
     }
     if (got) {
-        QTextCursor shown(text->story());
-        shown.setPosition(text->toStory(found.selectionStart()));
-        shown.setPosition(text->toStoryEnd(found.selectionEnd()), QTextCursor::KeepAnchor);
-        m_win->view()->showCursor(shown);
+        view->showCursor(found);
         refreshMatches();
+        if (found.document() != body) {
+            int page = 0;
+            view->enterSideStory(found.document(), &page);
+            m_status->setText(whereIs(found.document(), page));
+            return true;
+        }
         int index = 0;
         for (int i = 0; i < m_matches.size(); ++i)
-            if (m_matches[i].first == shown.selectionStart()) index = i + 1;
+            if (m_matches[i].first == found.selectionStart()) index = i + 1;
         if (index > 0 && m_matches.size() < kMostMatches) m_status->setText(tr("Match %1 of %2").arg(index).arg(m_matches.size()));
         return true;
     }
@@ -660,64 +718,74 @@ bool WriteFindPane::findNext()
 void WriteFindPane::replaceOne()
 {
     if (!m_win->document() || !searching()) return;
-    m_win->view()->leaveHeaderFooter();
-    m_win->view()->leaveNote();
     if (selectionIsMatch()) {
-        StoryWords *text = storyWords();
         const QTextCursor &sel = m_win->view()->cursor();
+        QTextDocument *story = sel.document();
+        StoryWords *text = wordsOfStory(story);
         QTextCursor match(text->words());
         match.setPosition(text->toWords(sel.selectionStart()));
         match.setPosition(text->toWords(sel.selectionEnd()), QTextCursor::KeepAnchor);
         const int at = text->pieces(match.selectionStart(), match.selectionEnd()).first().first;
-        const QString with = m_wild->isChecked() ? write::expandReplacement(m_replace->text(), groupsOf(match)) : m_replace->text();
-        words().put(match, with);
+        const QString with = m_wild->isChecked() ? write::expandReplacement(m_replace->text(), groupsOf(match, text)) : m_replace->text();
+        wordsOf(text).put(match, with);
         // The caret is after the new words, where the next search goes on from.
-        QTextCursor after(text->story());
+        QTextCursor after(story);
         after.setPosition(at + int(with.size()));
         m_win->view()->setCursor(after);
     }
     findNext();
 }
 
+// Swaps every match in one story (the text, or a header, a footer, or a note), as one edit of that story; how many.
+int WriteFindPane::replaceInStory(QTextDocument *story, QString *problem)
+{
+    StoryWords *text = wordsOfStory(story);
+    if (!text) return 0;
+    const bool wild = m_wild->isChecked();
+    const write::FindPattern pattern = wild || codesTyped() ? write::wildcardPattern(patternText(), m_case->isChecked()) : write::FindPattern();
+    if (!pattern.error.isEmpty()) {
+        *problem = pattern.error;
+        return 0;
+    }
+    // Every match is found first, then swapped from the last to the first (so that no swap moves another), each with its own groups.
+    const FindWords w = wordsOf(text);
+    const QString plain = text->plain();
+    QVector<QTextCursor> found;
+    for (int at = 0; found.size() < kMostMatches;) {
+        const QTextCursor m = matchIn(text, at, problem);
+        if (m.isNull()) break;
+        at = std::max(m.selectionEnd(), at + 1);
+        if (!(w.skip && w.skip(m))) found.push_back(m);
+    }
+    QTextCursor block(story);
+    block.beginEditBlock();
+    int n = 0;
+    for (int i = int(found.size()) - 1; i >= 0; --i) {
+        QTextCursor m = found[i];
+        w.put(m, wild ? write::expandReplacement(m_replace->text(), pattern.regex.match(plain, m.selectionStart())) : m_replace->text());
+        ++n;
+    }
+    block.endEditBlock();
+    return n;
+}
+
 void WriteFindPane::replaceAll()
 {
     const QString q = m_find->text();
     if (!m_win->document() || !searching()) return;
-    m_win->view()->leaveHeaderFooter();
-    m_win->view()->leaveNote();
-    // Each swap is a step of its own; the edit block makes them one.
-    QTextCursor block(m_win->document()->story());
-    block.beginEditBlock();
-    int n = 0;
-    if (customSearch()) {
-        // A pattern: every match is found first, then swapped from the last to the first (so that no swap moves another), each with its own groups.
-        const bool wild = m_wild->isChecked();
-        const write::FindPattern pattern = wild || codesTyped() ? write::wildcardPattern(patternText(), m_case->isChecked()) : write::FindPattern();
-        if (!pattern.error.isEmpty()) {
-            block.endEditBlock();
-            m_status->setText(pattern.error);
-            return;
+    // The text, then the headers, footers, and notes; the swaps in all of them are one step that undoes.
+    const write::WriteDoc::StepGroup group(*m_win->document());
+    QString problem;
+    int n = replaceInStory(m_win->document()->story(), &problem);
+    if (problem.isEmpty())
+        for (QTextDocument *d : sideStories()) {
+            n += replaceInStory(d, &problem);
+            if (!problem.isEmpty()) break;
         }
-        const FindWords w = words();
-        StoryWords *text = storyWords();
-        const QString plain = text->plain();
-        QVector<QTextCursor> found;
-        QString problem;
-        for (int at = 0; found.size() < kMostMatches;) {
-            const QTextCursor m = matchFrom(at, &problem);
-            if (m.isNull()) break;
-            at = std::max(m.selectionEnd(), at + 1);
-            if (!(w.skip && w.skip(m))) found.push_back(m);
-        }
-        for (int i = int(found.size()) - 1; i >= 0; --i) {
-            QTextCursor m = found[i];
-            w.put(m, wild ? write::expandReplacement(m_replace->text(), pattern.regex.match(plain, m.selectionStart())) : m_replace->text());
-            ++n;
-        }
-    } else {
-        n = replaceInStories(words(), stories(), q, flags(), m_replace->text());
+    if (!problem.isEmpty()) {
+        m_status->setText(problem);
+        return;
     }
-    block.endEditBlock();
     m_status->setText(n == 0   ? tr("JeffWrite made no replacements. \"%1\" was not found.").arg(findTextForMessage(q))
                       : n == 1 ? tr("JeffWrite made 1 replacement.")
                                : tr("JeffWrite made %1 replacements.").arg(n));

@@ -77,13 +77,19 @@ private:
     write::AdvancedFind advancedOptions() const;
     void syncChoices();
     void updateFormatLabel();
-    QRegularExpressionMatch groupsOf(const QTextCursor &match);
+    QRegularExpressionMatch groupsOf(const QTextCursor &match, StoryWords *text);
     void hideEvent(QHideEvent *e) override;
     void showEvent(QShowEvent *e) override;
     // The story's words as they are now (made again when the story has changed), and the search's way to them.
     StoryWords *storyWords();
     FindWords words();
-    QVector<FindStory> stories() const;
+    FindWords wordsOf(StoryWords *text);
+    StoryWords *sideWords(const QTextDocument *story);
+    StoryWords *wordsOfStory(const QTextDocument *story);
+    bool searchStory(QTextDocument *story, int from, QTextCursor *found, QString *problem);
+    QString whereIs(QTextDocument *story, int page);
+    QVector<QTextDocument *> sideStories();
+    int replaceInStory(QTextDocument *story, QString *problem);
     bool selectionIsMatch();
     WriteWindow *m_win;
     std::unique_ptr<StoryWords> m_text;
