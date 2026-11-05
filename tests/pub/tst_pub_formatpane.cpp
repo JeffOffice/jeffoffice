@@ -972,6 +972,21 @@ private Q_SLOTS:
         QCOMPARE(a->rect.width(), 10.0);
         QCOMPARE(b->rect.width(), 100.0);
     }
+
+    // A button squeezed to nothing (a window made very small) asks its icon for a picture of no size: it gets none, and no painter is started on it to warn.
+    void anIconAskedForNoSizeGivesNoPictureAndNoWarning()
+    {
+        static int warnings;
+        warnings = 0;
+        const QtMessageHandler before = qInstallMessageHandler([](QtMsgType, const QMessageLogContext &, const QString &) { ++warnings; });
+        const QPixmap none = icon(QStringLiteral("zoom-out")).pixmap(QSize(0, 0));
+        const QPixmap drawn = drawnIcon([](QPainter *, const QRectF &) {}).pixmap(QSize(0, 0));
+        const QPixmap some = icon(QStringLiteral("zoom-out")).pixmap(QSize(16, 16));
+        qInstallMessageHandler(before);
+        QVERIFY(none.isNull() && drawn.isNull());
+        QCOMPARE(warnings, 0);
+        QVERIFY(!some.isNull());
+    }
 };
 
 JP_TEST_CLASS(PubFormatPaneTests)

@@ -185,6 +185,7 @@ public:
     QPixmap pixmap(const QSize &size, QIcon::Mode mode, QIcon::State state) override { return scaledPixmap(size, mode, state, 1.0); }
     QPixmap scaledPixmap(const QSize &size, QIcon::Mode mode, QIcon::State state, qreal scale) override
     {
+        if (size.isEmpty()) return QPixmap();   // (a button squeezed to nothing, as in a window made very small, asks for no picture: a painter on an empty pixmap only warns)
         QPixmap pm(size * scale);
         pm.setDevicePixelRatio(scale);
         pm.fill(Qt::transparent);
@@ -214,6 +215,7 @@ public:
     QPixmap pixmap(const QSize &size, QIcon::Mode mode, QIcon::State state) override { return scaledPixmap(size, mode, state, 1.0); }
     QPixmap scaledPixmap(const QSize &size, QIcon::Mode mode, QIcon::State state, qreal scale) override
     {
+        if (size.isEmpty()) return QPixmap();
         QPixmap pm(size * scale);
         pm.setDevicePixelRatio(scale);
         pm.fill(Qt::transparent);
