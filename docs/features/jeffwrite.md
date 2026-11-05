@@ -140,7 +140,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [ ] **later** Clipboard task pane holding the last 24 items
 
 ### Font
-- [~] **first release** Font name (theme fonts first, recent fonts, a preview in the list) and size (list, typed, Grow and Shrink, and the Ctrl+[ and Ctrl+] keys) *(shared: JeffPub's Font group)* *(0.9.0: the font box, the size box, and Grow and Shrink on the ribbon)*
+- [x] **first release** Font name (theme fonts first, recent fonts, a preview in the list) and size (list, typed, Grow and Shrink, and the Ctrl+[ and Ctrl+] keys) *(shared: JeffPub's Font group)* *(0.9.0: the font box, the size box, and Grow and Shrink on the ribbon)* *(Round 11: the font list shows the scheme fonts first, then the five fonts chosen last (kept between runs), then all fonts, each name in its own face)*
 - [x] **first release** Bold, italic, underline (single, words only, double, thick, dotted, dashed, wavy, each with its own color), strikethrough, and double strikethrough *(the Font box chooses the underline and its color, and double strikethrough; the Underline button on the ribbon is a single line; each is read from and written to `.docx` as `w:u` with its val and color, `w:strike`, and `w:dstrike`)*
 - [x] **first release** Subscript and superscript *(ours 26%, public 35%; the buttons, Ctrl+= and Ctrl+Shift+=, and the Font box; `w:vertAlign`)*
 - [x] **first release** Small caps and all caps *(small caps: ours 10%, public 9%; all caps: ours 10%, public 9%; in the Font box, not on the ribbon; `w:smallCaps` and `w:caps`, also against a style that has one)*

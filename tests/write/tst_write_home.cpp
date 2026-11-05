@@ -2,6 +2,9 @@
 // Each document is built here from a few lines of XML.
 
 #include "../isolatesettings.h"
+#include "app/widgets.h"
+#include "app/settings.h"
+#include "core/fontfiles.h"
 #include "app/writedialogs.h"
 #include "app/writewindow.h"
 #include "app/pageview.h"
@@ -1018,6 +1021,37 @@ private Q_SLOTS:
         const QVector<ListedStyle> rec = listStyles(*doc, StyleFilter::All, QString(), StyleSort::AsRecommended);
         QCOMPARE(rec.first().id, doc->defaultParagraphStyle());
         QCOMPARE(names(listStyles(*doc, StyleFilter::All, QString(), StyleSort::Default)), names(listStyles(*doc, StyleFilter::All)));
+    }
+
+    void theFontBoxListsTheFontsChosenLastAboveAllFonts()
+    {
+        jp::Settings::get().setValue(QStringLiteral("fonts/recent"), QStringList());
+        const QStringList families = jp::visibleFontFamilies();
+        QVERIFY(families.size() >= 2);
+        const QString first = families.at(0), second = families.at(1);
+        auto texts = [](const jp::FontCombo &c) {
+            QStringList out;
+            for (int i = 0; i < c.count(); ++i) out << c.itemText(i);
+            return out;
+        };
+        jp::FontCombo box;
+        QVERIFY(!texts(box).contains(QStringLiteral("Recently Used")));
+        box.lineEdit()->setText(first);
+        QTest::keyClick(box.lineEdit(), Qt::Key_Return);
+        box.lineEdit()->setText(second);
+        QTest::keyClick(box.lineEdit(), Qt::Key_Return);
+        box.lineEdit()->setText(QStringLiteral("+Heading"));
+        QTest::keyClick(box.lineEdit(), Qt::Key_Return);
+        jp::FontCombo later;
+        for (const jp::FontCombo *c : {&box, &later}) {
+            const QStringList t = texts(*c);
+            const int at = int(t.indexOf(QStringLiteral("Recently Used")));
+            QVERIFY(at > 0);
+            QCOMPARE(t.at(at + 1), second);
+            QCOMPARE(t.at(at + 2), first);
+            QCOMPARE(t.at(at + 3), QStringLiteral("All Fonts"));
+        }
+        jp::Settings::get().setValue(QStringLiteral("fonts/recent"), QStringList());
     }
 
     // ---- the review's fixes

@@ -3,6 +3,10 @@
 
 The **Home > Font** group has buttons for the common changes: font, size, bold, italic, and so on. The **Font** box has all of them in one place, and a few more.
 
+## The font list
+
+Click the arrow next to the font name on the ribbon to open the list. It shows the fonts of the document's look first, then the five fonts you picked last, then every font on your computer. Each name is drawn in its own font, so you can see what it looks like before you choose it. Press **Ctrl+]** to make the text a little bigger and **Ctrl+[** to make it a little smaller.
+
 ## Open the Font box
 
 Select the text to change. Drag across it, or double-click a word. Then do one of these:

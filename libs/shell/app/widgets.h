@@ -159,6 +159,7 @@ Q_SIGNALS:
 
 private:
     void populate();
+    void rememberFamily(const QString &family);
     QString m_heading, m_body;
     bool m_updating = false;
 };
