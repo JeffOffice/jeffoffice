@@ -2,7 +2,7 @@
 
 JeffDeck is the presentation app of JeffOffice. JeffOffice is an independent project: JeffDeck aims to work with PowerPoint files and the people who use them (compatibility and interoperability), and then to do more, and do it better. It saves `.pptx` by default, opens `.pptx`, `.potx`, `.ppsx`, `.ppt`, `.pps`, `.pot`, `.odp`, and `.otp`, and also saves `.potx`, `.ppsx`, `.odp`, and `.otp`. It is a preview (it shipped in 0.7.0 and again in 0.8.0), so unlike the lists for the apps not built yet, this one describes a program that exists, a box is checked only when the feature works in JeffDeck today, and every item carries a status checked against the code, the tests, the ribbon file, and Help on October 15, 2026 (see [docs/jeffdeck.md](../jeffdeck.md) for the design and status notes, which this list does not replace). It is a checklist of features: everything people rely on so their presentations open, look right, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the slide show, the tabs that appear only while something is selected, then what sits under the ribbon), so that the work can be planned and tracked, and so that it can settle one question: when does JeffDeck stop being a preview?
 
-Last reviewed November 3, 2026.
+Last reviewed November 5, 2026.
 
 Legend: `[x]` done · `[~]` partly there (the note says what's missing, or which shared JeffOffice part it builds on) · `[ ]` not yet · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
@@ -47,6 +47,7 @@ What JeffDeck offers that the original doesn't, then the plans that go past Powe
 - [ ] **later** **(alt)** Present on the local network: the audience opens a link in a browser on the same network and follows the show, with no account, in place of Present Online and Broadcast (see the open questions)
 - [ ] **later** **(alt)** Live captions in the show from speech recognition that runs on your own computer, in place of the original's online subtitles (model size and license to check)
 - [~] **later** A QR code or barcode put on a slide as a vector picture *(shared: libs/base/core barcode; no command in JeffDeck yet)*
+- [ ] **later** Edit with an external program: open a picture in the computer's image editor and take the changes back when it is saved
 
 ## File (backstage)
 
@@ -124,6 +125,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 
 ### About
 - [x] **1.0** About: JeffDeck's and Qt's versions, the other JeffOffice apps, links to the source, downloads, and problem reports, and the license and notices
+- [ ] **later** Minimize Presentation: remove unused masters and layouts, shrink pictures, and drop what hidden slides hold, and show the size saved before applying it
 
 ## Home tab
 
@@ -238,6 +240,8 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** Video on This Device and Audio on This Device: the file is kept inside the presentation, a movie shows its first picture, and a sound shows a speaker; JeffDeck says why before reading a file it can't play *(movies: ours 4 of 19, 10 in all; sounds 2 of 19, 10 in all)*
 - [ ] **later** Online Video: a movie from a web page played in the show
 - [ ] **later** Record Audio, and Screen Recording
+- [ ] **later** Image map: clickable areas on a picture, each jumping to a slide, a web address, or a file during the show
+- [ ] **later** Trace a picture into shapes: turn a bitmap into editable vector shapes, with control over detail and color count
 
 ## Draw tab
 
@@ -250,6 +254,10 @@ PowerPoint's Draw tab is for ink on slides while editing. JeffDeck has ink only 
 - [ ] **later** Ink Replay: play back how a stroke was drawn
 - [ ] **later** The ruler for drawing straight lines
 - [ ] **later** Ink saved as ink in the file (the original keeps strokes as ink, not as shapes) *(shared: the ink layer; ours: ink in files 0 of 19)*
+- [ ] **later** Convert a shape to a curve, a polygon, a contour, or a picture, and break a combined shape into its parts, for editing or for sharing with programs that draw differently
+- [ ] **later** Glue points: add connection points of your own to any shape, and connectors stick to them and follow when the shape moves
+- [ ] **later** Duplicate: make several copies at once with an offset, a size change, and a color that steps from the first copy to the last
+- [ ] **later** Position and Size: slant and corner radius, and a base point for the size change; make several shapes the same width or height; and distribute the gaps evenly
 
 ## Design tab
 
@@ -297,6 +305,7 @@ PowerPoint's Draw tab is for ink on slides while editing. JeffDeck has ink only 
 - [ ] **later** Sounds on effects, After Animation (dim, hide on the next click), and Animate Text by word or by letter *(sounds and color changes are kept as the file has them)*
 - [ ] **later** Build chart elements by series or category, and SmartArt by level
 - [ ] **later** Effect Options > Change Animation and Build Order changes after the first choice
+- [ ] **later** Physics-based effects: an object falls, bounces, and settles, or swings, with gravity and bounce you can set
 
 ## Slide Show tab
 
@@ -311,6 +320,7 @@ PowerPoint's Draw tab is for ink on slides while editing. JeffDeck has ink only 
 - [ ] **later** Play Narrations
 - [ ] **later** **(alt)** Present Online (see the open questions)
 - [ ] **later** Subtitles: show captions under the slides, in a language and place chosen
+- [ ] **later** An on-screen bar over a corner of the slide during the show with previous, next, and a slide list, switched on in Set Up Slide Show, for a presenter without a clicker
 
 ## Record tab
 
@@ -352,6 +362,7 @@ PowerPoint has a Record tab that records a show with the speaker's voice, ink, l
 - [ ] **1.0** New Window (a second window of the same presentation), Arrange All, Cascade, Move Split, and Switch Windows *(each presentation opens in its own window; the system switches between them)*
 - [ ] **later** Right-to-left slide view direction
 - [ ] **later** Macros
+- [ ] **later** Outline view helpers: Expand Slide (each heading of a selected slide becomes its own slide) and Summary Slide (the titles of the selected slides on one new slide)
 
 ## Help tab
 
