@@ -194,6 +194,12 @@ private Q_SLOTS:
             QVERIFY(!t.name.isEmpty() && !t.category.isEmpty() && !t.description.isEmpty());
             const QByteArray bytes = crunch::builtinTemplateBytes(t.id);
             QVERIFY2(!bytes.isEmpty(), qPrintable(t.id));
+            const QImage picture = crunch::builtinTemplatePreview(t.id, 200);
+            QVERIFY2(picture.width() == 200 && picture.height() > 50, qPrintable(t.id));
+            bool drawn = false;
+            for (int y = 0; y < picture.height() && !drawn; ++y)
+                for (int x = 0; x < picture.width() && !drawn; ++x) drawn = picture.pixelColor(x, y) != QColor(Qt::white);
+            QVERIFY2(drawn, qPrintable(t.id));
             EditWindow e;
             QVERIFY2(e.open(bytes), qPrintable(t.id));
             QVERIFY2(e.settle(), qPrintable(t.id));

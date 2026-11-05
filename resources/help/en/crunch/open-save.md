@@ -104,4 +104,4 @@ If you close a workbook that has changes that are not saved, JeffCrunch asks whe
 
 ## Built-in templates
 
-On **File > New**, under the blank workbook, are ready-made workbooks in groups: **Finance** (a monthly budget, a loan schedule, and a checkbook register), **Business** (an invoice, an expense report, a timesheet, an inventory list, a mileage log, and a sales report), **Planning** (a calendar and a project plan), and **Education** (a grade book). Click one to start a new workbook from it. Type in the yellow boxes. The other numbers are worked out for you. The workbook has no file of its own until you save it.
+On **File > New**, under the blank workbook, are ready-made workbooks in groups: **Finance** (a monthly budget, a loan schedule, and a checkbook register), **Business** (an invoice, an expense report, a timesheet, an inventory list, a mileage log, and a sales report), **Planning** (a calendar and a project plan), and **Education** (a grade book). Each shows a small picture of its top. Click one to start a new workbook from it. Type in the yellow boxes. The other numbers are worked out for you. The workbook has no file of its own until you save it.

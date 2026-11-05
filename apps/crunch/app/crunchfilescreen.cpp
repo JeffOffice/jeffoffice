@@ -9,7 +9,10 @@
 #include "core/templates.h"
 #include <QDateTime>
 #include <QDir>
+#include <QAbstractButton>
+#include <QEvent>
 #include <QGridLayout>
+#include <QPainter>
 #include <QSaveFile>
 #include <QStandardPaths>
 
@@ -23,6 +26,70 @@
 #include <QStyleHints>
 #include <QVBoxLayout>
 #include "app/plaintext.h"
+
+namespace jp {
+namespace {
+
+// A card for a built-in template: a small picture of its top, then its name and what it is for.
+class TemplateTile : public QAbstractButton {
+public:
+    TemplateTile(const QImage &preview, const QString &title, const QString &desc, QWidget *parent) : QAbstractButton(parent), m_preview(preview), m_desc(desc)
+    {
+        setText(title);
+        setCursor(Qt::PointingHandCursor);
+        setAttribute(Qt::WA_Hover);
+        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+        setFixedHeight(kPictureHeight + 62);
+        setAccessibleName(title);
+        setAccessibleDescription(desc);
+    }
+    QSize sizeHint() const override { return QSize(300, kPictureHeight + 62); }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing);
+        const QRectF r = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
+        const bool hover = underMouse(), down = isDown();
+        QColor border = uiLine();
+        if (hover || hasFocus()) border = uiAccent();
+        p.setPen(QPen(border, hover ? 1.4 : 1));
+        p.setBrush(down ? uiCardPressed() : uiCard());
+        p.drawRoundedRect(r, 10, 10);
+        const QRectF pic(r.left() + 10, r.top() + 10, r.width() - 20, kPictureHeight);
+        p.save();
+        p.setClipRect(pic);
+        p.drawImage(pic.topLeft(), m_preview.scaledToWidth(int(pic.width()), Qt::SmoothTransformation));
+        p.restore();
+        p.setPen(uiLine());
+        p.setBrush(Qt::NoBrush);
+        p.drawRect(pic);
+        QFont tf = font();
+        tf.setWeight(QFont::DemiBold);
+        p.setFont(tf);
+        p.setPen(uiText());
+        p.drawText(QRectF(r.left() + 12, pic.bottom() + 6, r.width() - 24, 20), Qt::AlignLeft | Qt::AlignVCenter, text());
+        p.setFont(font());
+        QColor dc = uiText();
+        dc.setAlphaF(0.68f);
+        p.setPen(dc);
+        p.drawText(QRectF(r.left() + 12, pic.bottom() + 26, r.width() - 24, 20), Qt::AlignLeft | Qt::AlignVCenter, fontMetrics().elidedText(m_desc, Qt::ElideRight, int(r.width() - 24)));
+    }
+    bool event(QEvent *e) override
+    {
+        if (e->type() == QEvent::HoverEnter || e->type() == QEvent::HoverLeave) update();
+        return QAbstractButton::event(e);
+    }
+
+private:
+    static constexpr int kPictureHeight = 130;
+    QImage m_preview;
+    QString m_desc;
+};
+
+} // namespace
+} // namespace jp
 
 namespace jp {
 
@@ -115,9 +182,8 @@ QWidget *CrunchFileScreen::buildNew()
             int n = 0;
             for (const crunch::TemplateInfo &t : all) {
                 if (t.category != category) continue;
-                auto *card = new ActionCard(QStringLiteral("file-spreadsheet"), t.name, t.description, w);
+                auto *card = new TemplateTile(crunch::builtinTemplatePreview(t.id, 420), t.name, t.description, w);
                 card->setObjectName(QStringLiteral("template_") + t.id);
-                card->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
                 connect(card, &QAbstractButton::clicked, this, [this, id = t.id, dir] {
                     const QByteArray bytes = crunch::builtinTemplateBytes(id);
                     const QString path = QStringLiteral("%1/%2-%3.xlsx").arg(dir, id, QString::number(QDateTime::currentMSecsSinceEpoch()));

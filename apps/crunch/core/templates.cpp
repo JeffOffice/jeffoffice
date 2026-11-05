@@ -5,6 +5,9 @@
 #include "office/package.h"
 
 #include <QCoreApplication>
+#include <QFont>
+#include <QImage>
+#include <QPainter>
 #include <QMap>
 
 #include <utility>
@@ -29,15 +32,62 @@ QString ref(int row, int col) { return columnName(col) + QString::number(row); }
 
 class Sheet {
 public:
-    void text(int row, int col, const QString &t, int style = Plain) { m_cells[{row, col}] = QStringLiteral("<c r=\"%1\" s=\"%2\" t=\"inlineStr\"><is><t xml:space=\"preserve\">%3</t></is></c>").arg(ref(row, col)).arg(style).arg(t.toHtmlEscaped()); }
-    void number(int row, int col, double v, int style = Plain) { m_cells[{row, col}] = QStringLiteral("<c r=\"%1\" s=\"%2\"><v>%3</v></c>").arg(ref(row, col)).arg(style).arg(v); }
-    void formula(int row, int col, const QString &f, int style = Plain) { m_cells[{row, col}] = QStringLiteral("<c r=\"%1\" s=\"%2\"><f>%3</f></c>").arg(ref(row, col)).arg(style).arg(f.toHtmlEscaped()); }
-    void blank(int row, int col, int style) { m_cells[{row, col}] = QStringLiteral("<c r=\"%1\" s=\"%2\"/>").arg(ref(row, col)).arg(style); }
+    void text(int row, int col, const QString &t, int style = Plain) {
+        m_drawn[{row, col}] = {t, style}; m_cells[{row, col}] = QStringLiteral("<c r=\"%1\" s=\"%2\" t=\"inlineStr\"><is><t xml:space=\"preserve\">%3</t></is></c>").arg(ref(row, col)).arg(style).arg(t.toHtmlEscaped()); }
+    void number(int row, int col, double v, int style = Plain) {
+        m_drawn[{row, col}] = {QString::number(v), style}; m_cells[{row, col}] = QStringLiteral("<c r=\"%1\" s=\"%2\"><v>%3</v></c>").arg(ref(row, col)).arg(style).arg(v); }
+    void formula(int row, int col, const QString &f, int style = Plain) {
+        m_drawn[{row, col}] = {QString(), style}; m_cells[{row, col}] = QStringLiteral("<c r=\"%1\" s=\"%2\"><f>%3</f></c>").arg(ref(row, col)).arg(style).arg(f.toHtmlEscaped()); }
+    void blank(int row, int col, int style) {
+        m_drawn[{row, col}] = {QString(), style}; m_cells[{row, col}] = QStringLiteral("<c r=\"%1\" s=\"%2\"/>").arg(ref(row, col)).arg(style); }
     void width(int first, int last, double w) { m_widths.push_back({first, last, w}); }
     // A row of headers, from `col`.
     void headers(int row, const QStringList &names, int col = 1)
     {
         for (const QString &n : names) text(row, col++, n, Header);
+    }
+    // A small picture of the top of the sheet: the fills, borders, and typed texts as the styles give them (formulas show empty, as they have nothing worked out yet).
+    QImage preview(int width) const
+    {
+        constexpr int kCanvasW = 640, kCanvasH = 440;
+        QVector<double> colPx(40, 64.0);
+        for (const Width &w : m_widths)
+            for (int c = w.first; c <= w.last && c <= 40; ++c) colPx[c - 1] = w.width * 7 + 5;
+        QImage img(kCanvasW, kCanvasH, QImage::Format_ARGB32_Premultiplied);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.setRenderHint(QPainter::TextAntialiasing);
+        const double rowPx = 20;
+        auto left = [&](int col) {
+            double x = 8;
+            for (int c = 1; c < col; ++c) x += colPx[c - 1];
+            return x;
+        };
+        for (auto it = m_drawn.cbegin(); it != m_drawn.cend(); ++it) {
+            const int row = it.key().first, col = it.key().second;
+            const double x = left(col), y = 8 + (row - 1) * rowPx;
+            if (col > 40 || x > kCanvasW || y > kCanvasH) continue;
+            const QRectF cell(x, y, colPx[col - 1], rowPx);
+            const int st = it.value().style;
+            const bool header = st == Header, input = st == MoneyIn || st == PercentIn || st == DateIn || st == TextIn || st == NumberIn || st == TimeIn;
+            const bool shaded = st == Label || st == BoldTotal || st == MoneyTotal;
+            if (header) p.fillRect(cell, QColor(0x1F, 0x6F, 0x5C));
+            else if (input) p.fillRect(cell, QColor(0xFF, 0xF4, 0xCC));
+            else if (shaded) p.fillRect(cell, QColor(0xE8, 0xF1, 0xEE));
+            if (header || input || st == Money || st == DateOut || st == Hours || st == PercentOut || st == DayNumber || st == TextOut || st == WholeOut) {
+                p.setPen(QColor(0xBF, 0xBF, 0xBF));
+                p.drawRect(cell);
+            }
+            QFont f = p.font();
+            f.setPixelSize(st == Title ? 18 : 13);
+            f.setBold(st == Title || header || st == Bold || st == Label || st == BoldTotal || st == MoneyTotal);
+            p.setFont(f);
+            p.setPen(st == Title ? QColor(0x1F, 0x6F, 0x5C) : header ? QColor(Qt::white) : QColor(0x20, 0x20, 0x20));
+            if (!it.value().text.isEmpty())
+                p.drawText(cell.adjusted(4, 0, st == Title ? 400 : -2, 0), (header ? Qt::AlignCenter : Qt::AlignVCenter | Qt::AlignLeft) | Qt::TextSingleLine, it.value().text);
+        }
+        p.end();
+        return img.scaledToWidth(width, Qt::SmoothTransformation);
     }
     QByteArray xml() const
     {
@@ -63,7 +113,12 @@ private:
         int first, last;
         double width;
     };
+    struct Drawn {
+        QString text;
+        int style = 0;
+    };
     QMap<std::pair<int, int>, QString> m_cells;
+    QMap<std::pair<int, int>, Drawn> m_drawn;
     QVector<Width> m_widths;
 };
 
@@ -130,7 +185,7 @@ QByteArray package(const Sheet &sheet, const QString &sheetName)
 
 // ---- the templates, one function each
 
-QByteArray budget()
+Sheet budget(QString *name)
 {
     Sheet s;
     s.width(1, 1, 28);
@@ -159,10 +214,11 @@ QByteArray budget()
     s.text(row, 1, QStringLiteral("Left over"), Label);
     s.formula(row, 2, QStringLiteral("B%1-B%2").arg(income).arg(spent), MoneyTotal);
     s.formula(row, 3, QStringLiteral("C%1-C%2").arg(income).arg(spent), MoneyTotal);
-    return package(s, QStringLiteral("Budget"));
+    *name = QStringLiteral("Budget");
+    return s;
 }
 
-QByteArray invoice()
+Sheet invoice(QString *name)
 {
     Sheet s;
     s.width(1, 1, 36);
@@ -188,10 +244,11 @@ QByteArray invoice()
     s.formula(20, 4, QStringLiteral("D19*B20"), Money);
     s.text(21, 3, QStringLiteral("Total due"), BoldTotal);
     s.formula(21, 4, QStringLiteral("D19+D20"), MoneyTotal);
-    return package(s, QStringLiteral("Invoice"));
+    *name = QStringLiteral("Invoice");
+    return s;
 }
 
-QByteArray expenseReport()
+Sheet expenseReport(QString *name)
 {
     Sheet s;
     s.width(1, 1, 14);
@@ -211,10 +268,11 @@ QByteArray expenseReport()
     }
     s.text(28, 3, QStringLiteral("Total"), BoldTotal);
     s.formula(28, 4, QStringLiteral("SUM(D7:D26)"), MoneyTotal);
-    return package(s, QStringLiteral("Expenses"));
+    *name = QStringLiteral("Expenses");
+    return s;
 }
 
-QByteArray loanSchedule()
+Sheet loanSchedule(QString *name)
 {
     Sheet s;
     s.width(1, 1, 22);
@@ -240,10 +298,11 @@ QByteArray loanSchedule()
         s.formula(r, 4, QStringLiteral("IF(A%1=\"\",\"\",B%1-C%1)").arg(r), Money);
         s.formula(r, 5, QStringLiteral("IF(A%1=\"\",\"\",E%2-D%1)").arg(r).arg(r - 1), Money);
     }
-    return package(s, QStringLiteral("Loan"));
+    *name = QStringLiteral("Loan");
+    return s;
 }
 
-QByteArray calendar()
+Sheet calendar(QString *name)
 {
     Sheet s;
     s.width(1, 7, 13);
@@ -261,10 +320,11 @@ QByteArray calendar()
             if (week == 0 && d == 0) s.formula(row, col, QStringLiteral("DATE(B2,D2,1)-WEEKDAY(DATE(B2,D2,1))+1"), DayNumber);
             else s.formula(row, col, d == 0 ? QStringLiteral("G%1+1").arg(row - 1) : QStringLiteral("%1%2+1").arg(columnName(col - 1)).arg(row), DayNumber);
         }
-    return package(s, QStringLiteral("Calendar"));
+    *name = QStringLiteral("Calendar");
+    return s;
 }
 
-QByteArray timesheet()
+Sheet timesheet(QString *name)
 {
     Sheet s;
     s.width(1, 1, 18);
@@ -288,10 +348,11 @@ QByteArray timesheet()
     s.blank(15, 5, MoneyIn);
     s.text(16, 4, QStringLiteral("Pay"), BoldTotal);
     s.formula(16, 5, QStringLiteral("E14*N(E15)"), MoneyTotal);
-    return package(s, QStringLiteral("Timesheet"));
+    *name = QStringLiteral("Timesheet");
+    return s;
 }
 
-QByteArray checkbookRegister()
+Sheet checkbookRegister(QString *name)
 {
     Sheet s;
     s.width(1, 2, 13);
@@ -309,10 +370,11 @@ QByteArray checkbookRegister()
         s.blank(r, 5, MoneyIn);
         s.formula(r, 6, QStringLiteral("IF(AND(D%1=\"\",E%1=\"\"),\"\",$B$2+SUM(E$5:E%1)-SUM(D$5:D%1))").arg(r), Money);
     }
-    return package(s, QStringLiteral("Register"));
+    *name = QStringLiteral("Register");
+    return s;
 }
 
-QByteArray gradeBook()
+Sheet gradeBook(QString *name)
 {
     Sheet s;
     s.width(1, 1, 24);
@@ -333,10 +395,11 @@ QByteArray gradeBook()
         const QString range = columnName(c) + QStringLiteral("4:") + columnName(c) + QStringLiteral("33");
         s.formula(35, c, QStringLiteral("IF(COUNT(%1)=0,\"\",AVERAGE(%1))").arg(range), Hours);
     }
-    return package(s, QStringLiteral("Grades"));
+    *name = QStringLiteral("Grades");
+    return s;
 }
 
-QByteArray inventoryList()
+Sheet inventoryList(QString *name)
 {
     Sheet s;
     s.width(1, 1, 28);
@@ -354,10 +417,11 @@ QByteArray inventoryList()
     }
     s.text(55, 6, QStringLiteral("Total value"), BoldTotal);
     s.formula(55, 7, QStringLiteral("SUM(G4:G53)"), MoneyTotal);
-    return package(s, QStringLiteral("Inventory"));
+    *name = QStringLiteral("Inventory");
+    return s;
 }
 
-QByteArray mileageLog()
+Sheet mileageLog(QString *name)
 {
     Sheet s;
     s.width(1, 1, 13);
@@ -378,10 +442,11 @@ QByteArray mileageLog()
     s.text(56, 4, QStringLiteral("Totals"), BoldTotal);
     s.formula(56, 5, QStringLiteral("SUM(E5:E54)"), WholeOut);
     s.formula(56, 6, QStringLiteral("SUM(F5:F54)"), MoneyTotal);
-    return package(s, QStringLiteral("Mileage"));
+    *name = QStringLiteral("Mileage");
+    return s;
 }
 
-QByteArray projectPlan()
+Sheet projectPlan(QString *name)
 {
     Sheet s;
     s.width(1, 1, 32);
@@ -400,10 +465,11 @@ QByteArray projectPlan()
     }
     s.text(25, 1, QStringLiteral("Overall"), BoldTotal);
     s.formula(25, 6, QStringLiteral("IF(COUNT(F4:F23)=0,\"\",AVERAGE(F4:F23))"), PercentOut);
-    return package(s, QStringLiteral("Plan"));
+    *name = QStringLiteral("Plan");
+    return s;
 }
 
-QByteArray salesReport()
+Sheet salesReport(QString *name)
 {
     Sheet s;
     s.width(1, 1, 22);
@@ -421,12 +487,13 @@ QByteArray salesReport()
     }
     s.text(14, 1, QStringLiteral("Total"), BoldTotal);
     for (int c = 2; c <= 14; ++c) s.formula(14, c, QStringLiteral("SUM(") + columnName(c) + QStringLiteral("4:") + columnName(c) + QStringLiteral("13)"), MoneyTotal);
-    return package(s, QStringLiteral("Sales"));
+    *name = QStringLiteral("Sales");
+    return s;
 }
 
 struct Entry {
     const char *id, *name, *category, *description;
-    QByteArray (*make)();
+    Sheet (*make)(QString *name);
 };
 
 const Entry kEntries[] = {
@@ -455,10 +522,24 @@ QVector<TemplateInfo> builtinTemplates()
     return out;
 }
 
+QImage builtinTemplatePreview(const QString &id, int width)
+{
+    for (const Entry &e : kEntries)
+        if (id == QLatin1String(e.id)) {
+            QString name;
+            return e.make(&name).preview(width);
+        }
+    return QImage();
+}
+
 QByteArray builtinTemplateBytes(const QString &id)
 {
     for (const Entry &e : kEntries)
-        if (id == QLatin1String(e.id)) return e.make();
+        if (id == QLatin1String(e.id)) {
+            QString name;
+            const Sheet sheet = e.make(&name);
+            return package(sheet, name);
+        }
     return QByteArray();
 }
 
