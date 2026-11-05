@@ -24,9 +24,11 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
+#include <QPainter>
 #include <QPrinterInfo>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QScrollArea>
 #include <QSpinBox>
 #include <QStyleHints>
 #include <QTimer>
@@ -410,7 +412,7 @@ QWidget *WriteFileScreen::buildPrint()
     auto *right = new QVBoxLayout();
     auto *preview = new PreviewLabel(w);
     preview->setObjectName(QStringLiteral("printPreview"));
-    preview->setMinimumSize(300, 300);
+    preview->setMinimumSize(280, 280);
     preview->setAlignment(Qt::AlignCenter);
     preview->setAccessibleName(tr("Preview of the printed page"));
     auto *nav = new QHBoxLayout();
@@ -431,7 +433,33 @@ QWidget *WriteFileScreen::buildPrint()
     nav->addWidget(pageLabel);
     nav->addWidget(next);
     nav->addStretch(1);
-    right->addWidget(preview, 1);
+    // How many pages the preview shows at once, and how large: the page that fits the window, or larger (the preview scrolls then).
+    auto *across = new QComboBox(w);
+    across->setObjectName(QStringLiteral("printAcross"));
+    across->setAccessibleName(tr("Pages shown"));
+    across->addItem(tr("One page"), 1);
+    across->addItem(tr("Two pages"), 2);
+    across->addItem(tr("Four pages"), 4);
+    auto *zoom = new QComboBox(w);
+    zoom->setObjectName(QStringLiteral("printZoom"));
+    zoom->setAccessibleName(tr("Zoom"));
+    zoom->addItem(tr("Fit"), 100);
+    zoom->addItem(tr("150%"), 150);
+    zoom->addItem(tr("200%"), 200);
+    zoom->addItem(tr("300%"), 300);
+    auto *look = new QHBoxLayout();
+    look->addStretch(1);
+    look->addWidget(new QLabel(tr("Show:"), w));
+    look->addWidget(across);
+    look->addWidget(new QLabel(tr("Zoom:"), w));
+    look->addWidget(zoom);
+    auto *scroll = new QScrollArea(w);
+    scroll->setObjectName(QStringLiteral("printPreviewScroll"));
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setWidgetResizable(true);
+    scroll->setWidget(preview);
+    right->addLayout(look);
+    right->addWidget(scroll, 1);
     right->addLayout(nav);
     h->addLayout(right, 2);
     all->setChecked(true);
@@ -466,9 +494,14 @@ QWidget *WriteFileScreen::buildPrint()
         const bool bad = some->isChecked() && pages.isEmpty();
         text->setStyleSheet(bad && !text->text().isEmpty() ? QStringLiteral("QLineEdit { border: 1px solid #c42b1c; }") : QString());
         *page = std::clamp(*page, 0, std::max(0, int(pages.size()) - 1));
-        pageLabel->setText(bad ? tr("Enter page numbers, such as 1-3, 5.") : pages.isEmpty() ? tr("There are no pages to print.") : tr("Page %1 of %2").arg(pages[*page] + 1).arg(selection->isChecked() ? int(pages.size()) : pageCount));
+        const int shownAtOnce = across->currentData().toInt();
+        *page -= *page % shownAtOnce;   // (the pages shown together start on a multiple of how many there are)
+        const int total = selection->isChecked() ? int(pages.size()) : pageCount;
+        const int lastShown = std::min(int(pages.size()) - 1, *page + shownAtOnce - 1);
+        pageLabel->setText(bad ? tr("Enter page numbers, such as 1-3, 5.") : pages.isEmpty() ? tr("There are no pages to print.")
+                           : lastShown > *page ? tr("Pages %1-%2 of %3").arg(pages[*page] + 1).arg(pages[lastShown] + 1).arg(total) : tr("Page %1 of %2").arg(pages[*page] + 1).arg(total));
         previous->setEnabled(*page > 0);
-        next->setEnabled(*page + 1 < pages.size());
+        next->setEnabled(*page + shownAtOnce < pages.size());
         printBtn->setEnabled(!pages.isEmpty());
         collate->setEnabled(copies->value() > 1);
         // (a file has no sides; by hand, the pages of each side are chosen by the program)
@@ -498,14 +531,39 @@ QWidget *WriteFileScreen::buildPrint()
             return;
         }
         const qreal dpr = preview->devicePixelRatioF();
-        const int room = std::max(preview->minimumHeight(), w->window()->height() - 200);
-        const QSizeF paper = m_win->outputPageSize(options(), pages[*page]);
-        const double scale = std::min((preview->width() - 16) / paper.width(), (room - 18) / paper.height());
+        const int shownAtOnce = across->currentData().toInt();
+        const int cols = shownAtOnce == 1 ? 1 : 2, rows = shownAtOnce == 4 ? 2 : 1;
+        const double zoomBy = zoom->currentData().toInt() / 100.0;
+        // (what fits is worked out from the scroll area's window, which the picture never changes)
+        const int availWidth = std::max(280, scroll->viewport()->width() - 4);
+        const int availHeight = std::max(280, scroll->viewport()->height() - 4);
+        const QSizeF first = m_win->outputPageSize(options(), pages[*page]);
+        const double scale = std::min((availWidth / cols - 16) / first.width(), (availHeight / rows - 18) / first.height()) * zoomBy;
         if (scale <= 0) return;
-        const int widthPx = std::max(1, int(std::lround(paper.width() * scale * dpr)));
-        QImage img = m_win->outputPageImage(options(), pages[*page], widthPx);
-        img.setDevicePixelRatio(dpr);
-        preview->setPixmap(paperPixmap(img, QSize(int(std::ceil(paper.width() * scale)) + 16, int(std::ceil(paper.height() * scale)) + 18), dpr));
+        QVector<QPixmap> tiles;
+        QSize cell;
+        for (int k = 0; k < shownAtOnce && *page + k < pages.size(); ++k) {
+            const QSizeF paper = m_win->outputPageSize(options(), pages[*page + k]);
+            const int widthPx = std::max(1, int(std::lround(paper.width() * scale * dpr)));
+            QImage img = m_win->outputPageImage(options(), pages[*page + k], widthPx);
+            img.setDevicePixelRatio(dpr);
+            tiles << paperPixmap(img, QSize(int(std::ceil(paper.width() * scale)) + 16, int(std::ceil(paper.height() * scale)) + 18), dpr);
+            cell = cell.expandedTo(tiles.last().deviceIndependentSize().toSize());
+        }
+        if (tiles.size() == 1) {
+            preview->setPixmap(tiles.first());
+            return;
+        }
+        QPixmap sheet(QSize(cell.width() * cols, cell.height() * rows) * dpr);
+        sheet.setDevicePixelRatio(dpr);
+        sheet.fill(Qt::transparent);
+        QPainter painter(&sheet);
+        for (int k = 0; k < tiles.size(); ++k) {
+            const QSizeF size = tiles[k].deviceIndependentSize();
+            painter.drawPixmap(QPointF((k % cols) * cell.width() + (cell.width() - size.width()) / 2, (k / cols) * cell.height() + (cell.height() - size.height()) / 2), tiles[k]);
+        }
+        painter.end();
+        preview->setPixmap(sheet);
     };
     auto restart = [=]() {
         *page = 0;
@@ -521,8 +579,10 @@ QWidget *WriteFileScreen::buildPrint()
     connect(sides, &QComboBox::currentIndexChanged, w, [=] { restart(); });
     connect(reverse, &QCheckBox::toggled, w, [=] { restart(); });
     connect(byHand, &QCheckBox::toggled, w, [=] { restart(); });
-    connect(previous, &QToolButton::clicked, w, [=] { --*page; paint(); });
-    connect(next, &QToolButton::clicked, w, [=] { ++*page; paint(); });
+    connect(previous, &QToolButton::clicked, w, [=] { *page -= across->currentData().toInt(); paint(); });
+    connect(next, &QToolButton::clicked, w, [=] { *page += across->currentData().toInt(); paint(); });
+    connect(across, &QComboBox::currentIndexChanged, w, [=] { paint(); });
+    connect(zoom, &QComboBox::currentIndexChanged, w, [=] { paint(); });
     connect(printBtn, &QPushButton::clicked, this, [=] {
         if (m_win->printOutput(options())) Q_EMIT closeRequested();
     });

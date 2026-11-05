@@ -1,6 +1,7 @@
 // Tests of JeffWrite's File screen: where editing stopped, the warning before a save to a format that holds less, and the Options pages. Every file is made here in code.
 
 #include "../isolatesettings.h"
+#include "app/filescreen.h"
 #include "app/optionsdialog.h"
 #include "app/settings.h"
 #include "app/pageview.h"
@@ -20,6 +21,8 @@
 #include "core/writedoc.h"
 
 #include <QAction>
+#include <QLabel>
+#include <QToolButton>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLineEdit>
@@ -698,6 +701,49 @@ private Q_SLOTS:
         QCOMPARE(PdfDocument::shared(f.readAll())->pageCount(), 1);
         // the image of the page shown for the Print page is the selection's, not the document's
         QVERIFY(!w.outputPageImage(o, 0, 200).isNull());
+    }
+
+    void thePrintPreviewShowsSeveralPagesAndZooms()
+    {
+        WriteWindow w;
+        w.resize(1400, 900);
+        w.show();
+        for (int i = 0; i < 5; ++i) {
+            typeText(*w.document(), w.view()->cursor(), QStringLiteral("page text"));
+            insertPageBreak(*w.document(), w.view()->cursor());
+        }
+        const int total = w.outputPages(WriteOutputOptions()).size();
+        QVERIFY(total >= 6);
+        w.showFileScreen(QStringLiteral("print"));
+        FileScreen *screen = w.findChild<FileScreen *>();
+        QVERIFY(screen);
+        auto *label = screen->findChild<QLabel *>(QStringLiteral("printPage"));
+        auto *preview = screen->findChild<QLabel *>(QStringLiteral("printPreview"));
+        auto *across = screen->findChild<QComboBox *>(QStringLiteral("printAcross"));
+        auto *zoom = screen->findChild<QComboBox *>(QStringLiteral("printZoom"));
+        auto *next = screen->findChild<QToolButton *>(QStringLiteral("printNext"));
+        QVERIFY(label && preview && across && zoom && next);
+        QTRY_VERIFY(!preview->pixmap(Qt::ReturnByValue).isNull());
+        QCOMPARE(label->text(), QStringLiteral("Page 1 of %1").arg(total));
+        const QSizeF one = preview->pixmap(Qt::ReturnByValue).deviceIndependentSize();
+        // two pages side by side: the picture is wider, the words say which pages, and the arrows go two at a time
+        across->setCurrentIndex(across->findData(2));
+        QTRY_COMPARE(label->text(), QStringLiteral("Pages 1-2 of %1").arg(total));
+        // (a page is taller than wide; two side by side are wider than tall)
+        QVERIFY(one.height() > one.width());
+        QTRY_VERIFY(preview->pixmap(Qt::ReturnByValue).deviceIndependentSize().width() > preview->pixmap(Qt::ReturnByValue).deviceIndependentSize().height());
+        next->click();
+        QTRY_COMPARE(label->text(), QStringLiteral("Pages 3-4 of %1").arg(total));
+        // four: two by two
+        across->setCurrentIndex(across->findData(4));
+        QTRY_COMPARE(label->text(), QStringLiteral("Pages 1-4 of %1").arg(total));
+        // zoom: the page is drawn larger than the one that fits
+        across->setCurrentIndex(across->findData(1));
+        QTRY_COMPARE(label->text(), QStringLiteral("Page 1 of %1").arg(total));
+        const QSizeF fit = preview->pixmap(Qt::ReturnByValue).deviceIndependentSize();
+        zoom->setCurrentIndex(zoom->findData(200));
+        QTRY_VERIFY(preview->pixmap(Qt::ReturnByValue).deviceIndependentSize().width() > fit.width() * 1.7);
+        w.hideFileScreen();
     }
 
     void aWindowStartsAnUntitledDocumentFromABuiltInTemplate()
