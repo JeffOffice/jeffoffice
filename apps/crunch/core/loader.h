@@ -102,6 +102,7 @@ struct BlankDefaults {
     QString font = QStringLiteral("Calibri");   // the font of every cell until styled
     double size = 11;
     int sheets = 1;                              // how many sheets: "Sheet1", "Sheet2", ...
+    int paperSize = 1;                           // what each sheet prints on: 1 (Letter, as a file with none says) or 9 (A4)
 };
 // (a font name with a character a name can't have, a size outside 1 to 409, or a count outside 1 to 255 is the usual one)
 QByteArray blankWorkbookBytes(const BlankDefaults &defaults = BlankDefaults());

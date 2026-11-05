@@ -105,6 +105,7 @@ bool CrunchWindow::newBlank()
     defaults.font = Settings::get().value(QStringLiteral("crunch/newFont"), defaults.font).toString();
     defaults.size = Settings::get().value(QStringLiteral("crunch/newFontSize"), defaults.size).toDouble();
     defaults.sheets = Settings::get().value(QStringLiteral("crunch/newSheets"), defaults.sheets).toInt();
+    defaults.paperSize = jp::usesLetterPaper(QLocale()) ? 1 : 9;   // Letter where Letter is used, else A4
     m_loader.startBlank(defaults);
     setStatus(tr("Ready"));
     updateTitle();

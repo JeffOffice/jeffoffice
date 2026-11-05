@@ -1,6 +1,7 @@
 // Tests of JeffWrite's File screen: where editing stopped, the warning before a save to a format that holds less, and the Options pages. Every file is made here in code.
 
 #include "../isolatesettings.h"
+#include "../localepin.h"
 #include "app/filescreen.h"
 #include "app/optionsdialog.h"
 #include "app/settings.h"
@@ -762,6 +763,21 @@ private Q_SLOTS:
         QVERIFY(w.document()->story()->toPlainText().contains(QLatin1String("Summary")));
         QVERIFY(w.isModified());   // (a new document made from a template is asked about on closing, as one made from a saved template is)
         QVERIFY(!w.newFromBuiltInTemplate(QStringLiteral("nothing")));
+    }
+
+    // A new document starts on Letter in the United States and Canada, and on A4 elsewhere (the United Kingdom and Australia among them); a template's page follows the same rule.
+    void aNewDocumentsPaperFollowsTheRegion()
+    {
+        struct Case { const char *locale; int w, h; };
+        for (const Case &c : {Case{"en_US", 12240, 15840}, Case{"en_CA", 12240, 15840}, Case{"en_GB", 11906, 16838}, Case{"en_AU", 11906, 16838}, Case{"de_DE", 11906, 16838}}) {
+            PinnedLocale pinned{QLocale(QLatin1String(c.locale))};
+            const auto doc = write::WriteDoc::blank();
+            QVERIFY2(doc->sectionProps(0).pageW == c.w && doc->sectionProps(0).pageH == c.h, c.locale);
+            WriteWindow w;
+            Quiet quiet(w);
+            QVERIFY(w.newFromBuiltInTemplate(QStringLiteral("report")));
+            QVERIFY2(w.document()->sectionProps(0).pageW == c.w && w.document()->sectionProps(0).pageH == c.h, c.locale);
+        }
     }
 };
 
