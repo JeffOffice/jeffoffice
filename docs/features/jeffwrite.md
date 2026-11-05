@@ -58,6 +58,18 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [ ] **1.0** Insert > Icons: 1,539 open vector icons, searched by name *(shared: JeffPub's icon picker)*
 - [x] **1.0** Help that works offline, with a search that also finds commands and runs them *(shared: libs/shell help)*
 - [~] **1.0** `jwritetool`, a command-line tool that converts between formats, extracts text, checks a file's round trip, and runs the fidelity tests, as `jpubtool` and `jdecktool` do for the other apps *(shared: the pattern of those tools)* *(0.9.0: `writetool` renders a file to pictures or a PDF, lists its pages, and turns a `.doc` into a `.docx` package; it is a development tool, and it does not yet convert between formats or check a round trip)*
+- [ ] **later** Redaction: mark text, pictures, or areas to black out, then apply it so the covered content is removed from the file itself, not just painted over; also export a redacted PDF *(shared: the same tool serves JeffDeck, JeffPub, and JeffCrunch)*
+- [ ] **later** Fill-format mode: pick a style, then click or drag over paragraphs, words, or table cells to apply it again and again until you press Esc
+- [ ] **later** Send to JeffDeck: the headings become slide titles and the body text becomes bullets, in a new presentation; and the reverse, a presentation's outline into a document
+- [ ] **later** Safe mode: start with settings, add-ins, and macros switched off, and offer to reset settings or recover documents, for when the app won't start normally *(shared: the suite's launcher)*
+- [ ] **later** Open and save over FTP, SFTP, and SMB addresses, and check a file out and in on a server that supports it, beside HTTP and WebDAV
+- [ ] **later** Edit with an external program: open a picture in the computer's image editor and take the changes back when it is saved *(shared with JeffDeck and JeffPub)*
+- [ ] **later** Calculate in the text: select an expression such as 12*4.5+3 and replace it with the result, or insert the result after it
+- [ ] **later** Regular expressions in Find and Replace, with groups reused in the replacement, and Find All to select every match at once, beside the wildcard search
+- [ ] **later** Sign and encrypt documents with OpenPGP keys from the computer's key ring, beside certificate signing and password encryption
+- [ ] **later** Advanced settings: a searchable list of every setting with its default value and a reset, for what the Options pages don't show *(shared: the suite's settings)*
+- [ ] **later** Viewer mode: start the app so every file opens read-only, with editing commands out of the way, for reading and presenting *(shared: the suite's launcher)*
+- [ ] **later** A warning when a file is open on another computer or by another person, naming who, with the choice to open a read-only copy, and a setting that forbids opening such a file
 
 ## File (backstage)
 
@@ -155,6 +167,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [x] **1.0** The Mini toolbar that floats beside a selection *(Round 11: when words are selected with the mouse, a small bar floats above them with Bold, Italic, Underline, Shrink and Grow Font, the three alignments, Bullets, and Numbering, the same commands as the ribbon; it follows the selection and goes when the selection does; not yet: a font box and a color button on it)*
 - [~] **later** Text effects on letters (outline, shadow, reflection, glow, gradient fill): kept and drawn first, edited later *(shared: libs/draw text effects)*
 - [ ] **later** Classic effects (emboss, engrave, outline, shadow), phonetic guide (ruby, ours 0%, POI 1%), and enclosed characters
+- [ ] **later** Overline (a line above the text, with its own color and style), and transparency for text
 
 ### Paragraph
 - [~] **first release** Alignment: left, center, right, and justified; the Paragraph dialog with indents (left, right, first line, hanging), the ruler's markers, Increase and Decrease Indent, and mirror indents *(shared: JeffPub's paragraph formatting)* *(beta wave C: the ruler's markers)*
@@ -170,6 +183,8 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 - [x] **1.0** Sort paragraphs, list items, or table rows by text, number, or date, on up to three keys *(Round 9: Home > Paragraph > Sort: up to three keys, each a field, a type (text, number, or date) and an order; the fields are cut at tabs, commas, or another letter; the first paragraph can be a header; in a table the keys are columns and the rows move; one step of Undo; not done while Track Changes is on)*
 - [x] **1.0** Horizontal line from the Borders menu *(Round 9: Home > Paragraph > Horizontal Line adds a paragraph with a thin line under it and moves the caret below; saved as `w:pBdr`; there is no Borders menu yet)*
 - [ ] **later** Distributed and Thai justification, and East Asian typography: vertical in horizontal, combine characters, two lines in one, fit text, character scaling, and the line-breaking rules for Chinese, Japanese, and Korean *(vertical text direction: ours 1% of his `.docx`, POI 7%)*
+- [ ] **later** Lists: move an item up or down with or without its sub-items, promote or demote it with or without them, and insert an unnumbered paragraph that keeps the list running
+- [ ] **later** More number styles: zero-padded (01, 001), and the other alphabets and scripts used for lists around the world
 
 ### Styles
 - [~] **first release** Style gallery with live preview (Normal, No Spacing, Heading 1 to 9, Title, Subtitle, Emphasis, Strong, Quote, Intense Quote, References, Book Title, List Paragraph), applied by click, by typing the name, or by key *(shared: JeffPub's styles)*
@@ -237,6 +252,10 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 ### Symbols
 - [~] **first release** Symbol: recently used symbols, the full character map by font and Unicode block, a shortcut key for a symbol, and an AutoCorrect entry for it *(symbols: ours 1%, public 13%)* *(shared: JeffPub's Symbol dialog)* *(round 9: Insert > Symbol shows the symbols used lately and More Symbols, JeffPub's dialog, which puts a symbol in a font of its own or the text's, as one step that undoes; a shortcut key and an AutoCorrect entry for a symbol are not there)*
 - [x] **first release** Special characters: nonbreaking space and hyphen, optional hyphen, en and em dash and space, quotation marks, line break (Shift+Enter), and no-width optional break *(shared: JeffPub)* *(round 9: Insert > Special Characters has each, with the keys Ctrl+Shift+Space, Ctrl+Shift+Minus, and Ctrl+Minus for the first three; the hyphens are kept as such in the `.docx`)*
+- [ ] **later** Image map: draw clickable areas on a picture, each linking to a web address, a bookmark, or a file
+- [ ] **later** Conditional text: a word, a paragraph, or a section that shows only when a variable or field meets a condition (equals, is greater than, is empty), and hides otherwise; with variables you set once and show anywhere, and fields that hold a calculation
+- [ ] **later** Insert a picture straight from a scanner, choosing the device and the resolution *(shared: the suite's scanning support)*
+- [ ] **later** More invisible characters: word joiner (keeps two words together without a space), zero-width space, narrow no-break space, and the left-to-right and right-to-left marks, each with a key and a mark when formatting marks are shown
 
 ## Draw tab
 
@@ -275,6 +294,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **1.0** Edit Wrap Points (the outline tight wrapping follows), distance from text, wrap on one or both sides, and Set as Default Layout
 - [~] **1.0** Bring Forward and Send Backward (also in front of and behind text), Align (to the page, margin, or each other, and distribute), Group, Ungroup, Regroup, and Rotate or Flip *(shared: JeffPub's Arrange)* *(round 11: Picture Format > Bring Forward and Send Backward, each with Bring to Front or Send to Back, and the right-click menu's Arrange: a floating picture moves among the floating pictures by their `w:relativeHeight`, and one more step takes it behind or in front of the text; one step that undoes; for pictures; not Align, Group, or Rotate or Flip, or shapes and text boxes)*
 - [ ] **1.0** Gridlines, snap to the grid, alignment guides, and grid settings *(shared: JeffPub's guides)*
+- [ ] **later** Hyphenation, finer: keep the last hyphenated line of a page or column from carrying over, a minimum word length, and a No Break choice on a hyphenated word's shortcut menu that stops that word breaking
 
 ## References tab
 
@@ -293,6 +313,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [~] **1.0** Insert Citation and Manage Sources (a master list shared among documents, beside the document's own): book, article, report, website, case, interview, and the other source types, placeholders, and the style (APA, MLA, Chicago, and the rest) *(in a sample of 399 of our `.docx`, none held a single source; the custom XML in 56% of them is an empty source list)* *(round 8: the sources are kept in the file's bibliography part, read and written as the format has them, and the master list is a file in the data folder; Insert Citation (pages, without author, year, or with title), Source Manager (copy, new, edit, delete, preview), 17 source types, and the styles APA, MLA, Chicago, Harvard, and IEEE, changed for the whole document at once; not placeholders, or other styles)*
 - [x] **1.0** Bibliography, Works Cited, and References galleries, and Update Citations and Bibliography *(round 8: a heading and a BIBLIOGRAPHY field made from the sources cited, in the style; F9 or a change of style makes it again)*
 - [ ] **later** **(alt)** Citation styles in the open CSL format, and sources imported from BibTeX, RIS, and Zotero exports, in place of Word's own style files
+- [ ] **later** A DOI typed or pasted turns into a link to its page; citation marks in the text link to their rows in the bibliography, and a row can be edited from the bibliography itself
 
 ### Captions
 - [~] **1.0** Insert Caption: label (Figure, Table, Equation, or your own), above or below, numbering with the chapter number, exclude the label, and AutoCaption *(SEQ field: ours <1%, public 3%)* *(round 8: Insert Caption puts a Caption paragraph with a SEQ field next to the selection or the whole table, counts from the heading of a chapter, and renumbers the others; not AutoCaption)*
@@ -320,6 +341,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [x] **1.0** Labels: a full page of one label or a single label, the common vendors' sheet sizes and your own, and print or save as a document *(shared: JeffPub's several-to-a-sheet printing)* *(twelve sheets named by how many labels they hold and how big each is (letter and A4), and your own; a sheet is a table with a cell for each label; a merge fills each label with the next recipient)*
 - [ ] **later** Merge from a JeffBase table or a JeffCrunch worksheet directly, without exporting a file *(shared with JeffBase and JeffCrunch)*
 - [ ] **later** Japanese greetings and postcards, Chinese envelopes, and the Japanese postal barcode
+- [ ] **later** Merge to separate files: one PDF or document per recipient, named from a field, and each PDF encrypted with a password if you wish
 
 ## Review tab
 
@@ -330,6 +352,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [x] **1.0** **(alt)** Thesaurus and Research: synonyms and related words offline, in place of an online research pane *(shared: JeffPub's thesaurus)* *(Round 9: Review > Proofing > Thesaurus (Shift+F7) looks up the word at the caret in the English thesaurus on this computer, with a box to look up another word, and Replace keeps a capital; Research is not offered)*
 - [ ] **1.0** Read Aloud with the system's voices: from the cursor, with the current word highlighted, and a speed and voice choice
 - [x] **1.0** Check Accessibility and its pane (also reached from Info): missing alt text, tables without header rows, blank cells, merged cells, heading order, hard-to-read colors, floating objects, and unhelpful link text *(Round 9: Review > Proofing > Check Accessibility opens a pane that lists pictures without alt text, tables without a header row, blank cells, skipped heading levels, text that is too close in color to the page or highlight (the contrast ratio of the guidelines), and floating pictures, with a click to go to each; round 11: merged cells (said once for each table), links whose words say nothing about where they go ("click here", "read more", or a bare address), and a Check Accessibility card on File > Info)*
+- [ ] **later** Completion of long words: when you type the start of a long word, the rest is offered from words collected in open documents, and Enter accepts it
 
 ### Language
 - [x] **1.0** **(alt)** Translate: the selected text or the whole document opened in an open translation service (LibreTranslate, with a server address you can change), instead of an online translation program *(shared: JeffPub's Translate)* *(Round 9: Review > Language > Translate opens the web page of a LibreTranslate service (an address you can change, kept in the settings; https only, and http for this computer) with the selected text, or the whole document, up to 5,000 letters (and under 8 KB once written into the address; what is cut is told), to be translated into one of 18 languages; nothing is sent before OK)*
@@ -344,6 +367,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [x] **first release** Accept and Reject: the current change, then move on; all shown; all in the document; and accept all and stop tracking *(beta wave E: each is one step of Undo; the text left by Accept All and Reject All is the same as the original program's on 27 of 27 documents with tracked changes)*
 - [~] **first release** Display for Review (Simple Markup, All Markup, No Markup, Original), Show Markup by kind and by person, balloons (changes in balloons, inline, or only comments and formatting), Highlight Updates, and the Reviewing pane (vertical or horizontal) *(beta wave E: the four views, Show Markup for insertions and deletions, formatting, and comments, inline or in balloons, change bars, and a Reviewing pane (comments and changes, with a choice of reviewer); a document with changes opens with All Markup, and the views are never saved in the file; missing: Show Markup by person in the ribbon (the pane has it), Highlight Updates, a horizontal pane, and balloons for formatting changes)*
 - [~] **1.0** Track Changes Options: colors by author and kind, change bars, moved text, and formatting changes; change the user name; Lock Tracking with a password *(Round 9: Review > Tracking > Tracking Options has Change Tracking Options (the user name and initials changes and comments are signed with) and Lock Tracking (Track Changes on and locked, with an optional password, as `w:documentProtection` for tracked changes); missing: colors by author and kind, change bars, moved text, and formatting changes choices)*
+- [ ] **later** The list of changes can be sorted and filtered by author, date, action, and comment; accept or reject everything inside a selection or a table; and a banner says when changes are being recorded
 
 ### Compare
 - [~] **1.0** Compare two versions into one document of tracked changes (by word or character; ignoring case, formatting, white space, tables, headers and footers, notes, text boxes, fields, and moves), and Combine revisions from several authors; Show Source Documents *(legal publishing leans on it; see the open questions)* *(Round 9: Review > Compare > Compare compares the open document (the original) with a file you choose, word by word or letter by letter, ignoring capitals or white space, into a new window that holds the original with the changes as tracked changes signed with a name you give; accepting all gives the revised text and rejecting all the original; the body text only: not yet tables, headers and footers, notes, text boxes, fields, moves, or the look of text, and not Combine or Show Source Documents)*
@@ -351,6 +375,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 ### Protect
 - [~] **1.0** Restrict Editing: limit formatting to chosen styles, and allow only tracked changes, comments, or filling in forms, with an optional password *(document protection: ours <1%, public 1%)* *(Round 9: Review > Protect > Restrict Editing: no changes (read only), tracked changes, comments (read only, but comments can be added), or filling in forms (read only), with an optional password stored as other word processors write it (SHA-512, a salt, and 100,000 rounds, as `w:hash` and `w:salt`) and checked also against the SHA-1, SHA-256, and SHA-384 forms and the newer attribute names, off the main thread with a box that can be canceled; a form that is not known is said so, and the protection stays; kept as the file had it when unchanged; a protected file opens held that way, and "Stop Protection" asks for the password; not yet: limiting formatting to chosen styles, and exceptions for people or parts)*
 - [ ] **later** Co-authoring locks and Block Authors: not planned (they depend on a cloud service)
+- [ ] **later** Protect bookmarks and fields from accidental edits, and lock table cells so they can't be typed in while the rest of a form stays open
 
 ## View tab
 
@@ -367,6 +392,10 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [x] **first release** Zoom: a dialog (percent, page width, text width, whole page, many pages), 100%, One Page, Multiple Pages, Page Width, a slider in the status bar, and Ctrl+wheel *(shared: JeffPub's zoom)*
 - [x] **1.0** Page movement: vertical or side to side *(round 10: View > Page Movement has Vertical and Side to Side; side to side puts all the pages in one row, the mouse wheel turns them past, and Go To Page and the caret scroll across to a page)*
 - [~] **first release** Status bar: page x of y, word count, language, proofing errors, tracking, section, line, and column, with the view buttons and the zoom slider *(shared: JeffPub's and JeffDeck's status bars)* *(0.9.0: the page, the word count, and the zoom slider)* *(round 10: the section the caret is in, shown where the document has more than one; no line, column, or proofing errors)*
+- [ ] **later** Show boundaries: dotted lines around text areas, tables, sections, and pictures, switched on apart from formatting marks
+- [ ] **later** Spotlight: highlight every piece of text that uses a chosen paragraph style, character style, or direct formatting, to find strays in a long document
+- [ ] **later** Fields can show their code or their result, one choice for the whole document, and a field's content can be copied out of a read-only document
+- [ ] **later** The Navigation pane also lists tables, pictures, text boxes, sections, bookmarks, fields, comments, and changes; drag an entry into the text to make a cross-reference or link, and hover a heading to see its word count
 
 ### Window
 - [~] **1.0** New Window, Arrange All, Switch Windows, View Side by Side with synchronous scrolling, Reset Window Position, and Split (two panes onto one document) *(shared: JeffPub's windows, apart from Split)* *(round 10: View > Split puts a second pane under the pages, showing the same document with its own scrolling and zoom, and the text is written in the first pane (the second takes no typing); round 11: View > New Window opens the same file in a window of its own, Arrange All sets the open windows in a row side by side, Switch Windows lists them, View Side by Side puts two windows each on half the screen and scrolls both together (by the same share of the way down), and Reset Window Position puts the pair back; missing: typing in the second pane, and the two windows share no unsaved edits)*
@@ -444,6 +473,9 @@ The tabs that appear only while something is selected or being edited: a table, 
 - [ ] **1.0** Professional and Linear forms with Unicode or LaTeX input, Normal Text inside an equation, and equation options (math AutoCorrect, math regions)
 - [~] **1.0** Equations read and saved as Office Math in `.docx` and `.doc`, and as MathML in `.odt`, drawn on screen, in print, and in PDF *(0.9.0: an equation is read from `.docx`, drawn as a line of text in its order, and written back as it was; it is not laid out as printed)* *(round 11: an equation put in with Insert > Equation is saved the same way, and reads back)*
 - [ ] **later** Ink Equation
+- [ ] **later** Equation options set for the whole equation: base font size, the font for variables, functions, and numbers, spacing, and alignment, kept as the default for new equations
+- [ ] **later** Symbol editor: add, rename, and change symbols and symbol sets for equations, and reuse your own equations from a catalog
+- [ ] **later** Import MathML from the clipboard or a file, copy an equation out as MathML, and step to the next error in an equation that doesn't parse
 
 ### Chart, SmartArt, and graphics tabs
 
