@@ -1333,6 +1333,39 @@ private Q_SLOTS:
         QVERIFY(w.findChild<QPushButton *>(QStringLiteral("printButton"))->isEnabled());
     }
 
+    // Printing on both sides by hand: the odd pages, or the even ones, of the range chosen; the preview and Print follow, and a range with none of them turns Print off.
+    void theOddOrTheEvenPagesCanBePrintedAlone()
+    {
+        const QVector<int> all = {0, 1, 2, 3, 4};
+        QCOMPARE(crunch::pagesOfSide(all, crunch::PrintSides::All), all);
+        QCOMPARE(crunch::pagesOfSide(all, crunch::PrintSides::Odd), (QVector<int>{0, 2, 4}));
+        QCOMPARE(crunch::pagesOfSide(all, crunch::PrintSides::Even), (QVector<int>{1, 3}));
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        w.act(QStringLiteral("file.print"))->trigger();
+        QLabel *page = w.findChild<QLabel *>(QStringLiteral("printPage"));
+        QTRY_COMPARE(page->text(), QStringLiteral("Page 1 of 3"));
+        QComboBox *sides = w.findChild<QComboBox *>(QStringLiteral("printSides"));
+        QVERIFY(sides);
+        QToolButton *next = w.findChild<QToolButton *>(QStringLiteral("printNext"));
+        sides->setCurrentIndex(sides->findData(int(crunch::PrintSides::Odd)));
+        QCOMPARE(page->text(), QStringLiteral("Page 1 of 3"));
+        QVERIFY(next->isEnabled());
+        next->click();
+        QCOMPARE(page->text(), QStringLiteral("Page 3 of 3"));
+        QVERIFY(!next->isEnabled());
+        QCOMPARE(w.printChoices().sides, crunch::PrintSides::Odd);
+        sides->setCurrentIndex(sides->findData(int(crunch::PrintSides::Even)));
+        QCOMPARE(page->text(), QStringLiteral("Page 2 of 3"));
+        QVERIFY(!next->isEnabled());
+        w.findChild<QLineEdit *>(QStringLiteral("printRange"))->setText(QStringLiteral("1"));
+        QVERIFY(!w.findChild<QPushButton *>(QStringLiteral("printButton"))->isEnabled());
+        w.findChild<QLineEdit *>(QStringLiteral("printRange"))->setText(QString());
+        sides->setCurrentIndex(0);
+        QCOMPARE(page->text(), QStringLiteral("Page 1 of 3"));
+    }
+
     // Print sends the pages to a PDF file the person names (the printer entry "Save as PDF"), and the screen closes; a file name that cannot be written is told.
     void printToAFileMakesThePdfAndClosesTheScreen()
     {

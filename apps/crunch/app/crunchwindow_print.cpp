@@ -123,6 +123,7 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
     } else {
         pages = crunch::parsePageRange(c.pageRange, job->pageCount());
     }
+    pages = crunch::pagesOfSide(pages, c.sides);
     if (pages.isEmpty()) {
         notice(tr("Print"), tr("Those page numbers are not pages of this job. The job has %1 pages.").arg(job->pageCount()));
         return false;
@@ -156,6 +157,9 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
         }
         if (!ok) notice(tr("Print"), tr("%1 couldn't send \"%2\" to the printer.\n%3").arg(appInfo().name, displayName(), why));
         else setStatus(tr("Sent %1 to the printer").arg(displayName()));
+        // (printing on both sides by hand: the person is told what to do with the stack before the other pages are printed)
+        if (ok && c.sides == crunch::PrintSides::Odd)
+            notice(tr("Print"), tr("The odd pages were sent to the printer. When they are printed, turn the stack over, put it back in the paper tray, and print again with \"Even pages only\"."));
     }
     if (ok) armPageBreaks();
     return ok;

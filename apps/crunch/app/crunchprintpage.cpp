@@ -123,6 +123,15 @@ QWidget *CrunchFileScreen::buildPrint()
     range->setPlaceholderText(tr("All, or such as 1-3, 5"));
     range->setToolTip(tr("Page numbers and ranges, separated by commas."));
     form->addRow(tr("Pages:"), range);
+    auto *sides = new QComboBox(w);
+    sides->setObjectName(QStringLiteral("printSides"));
+    sides->setAccessibleName(tr("Which pages to print"));
+    sides->addItem(tr("All the pages"), int(crunch::PrintSides::All));
+    sides->addItem(tr("Odd pages only (1, 3, 5, ...)"), int(crunch::PrintSides::Odd));
+    sides->addItem(tr("Even pages only (2, 4, 6, ...)"), int(crunch::PrintSides::Even));
+    sides->setCurrentIndex(std::max(0, sides->findData(int(choices.sides))));
+    sides->setToolTip(tr("To print on both sides by hand, print the odd pages, turn the stack over, put it back in the printer, and then print the even pages."));
+    form->addRow(tr("Sides:"), sides);
     auto *collate = new QCheckBox(tr("Collated"), w);
     collate->setObjectName(QStringLiteral("printCollate"));
     collate->setChecked(choices.collate);
@@ -260,6 +269,7 @@ QWidget *CrunchFileScreen::buildPrint()
         }
         c.job.scaling = crunch::PrintScaling(scaling->currentData().toInt());
         c.pageRange = range->text();
+        c.sides = crunch::PrintSides(sides->currentData().toInt());
         c.copies = copies->value();
         c.collate = collate->isChecked();
         c.toFile = printer->currentData(Qt::UserRole + 1).toBool();
@@ -269,11 +279,12 @@ QWidget *CrunchFileScreen::buildPrint()
     auto pagesToPrint = [=]() {
         QVector<int> pages;
         if (!state->job) return pages;
+        const crunch::PrintSides side = crunch::PrintSides(sides->currentData().toInt());
         if (range->text().trimmed().isEmpty()) {
             for (int i = 0; i < state->job->pageCount(); ++i) pages << i;
-            return pages;
+            return crunch::pagesOfSide(pages, side);
         }
-        return crunch::parsePageRange(range->text(), state->job->pageCount());
+        return crunch::pagesOfSide(crunch::parsePageRange(range->text(), state->job->pageCount()), side);
     };
     // (pictures in the header are made on a worker: the page is drawn at once without them, and again when they are ready)
     auto paintSelf = std::make_shared<std::function<void()>>();
@@ -350,6 +361,12 @@ QWidget *CrunchFileScreen::buildPrint()
     for (QComboBox *box : {what, orientation, paper, margins, scaling}) connect(box, &QComboBox::currentIndexChanged, w, [=] { choose(); });
     connect(ignore, &QCheckBox::toggled, w, [=] { choose(); });
     connect(range, &QLineEdit::textChanged, w, [=] {
+        win->printChoices() = read();
+        state->page = 0;
+        words();
+        paint();
+    });
+    connect(sides, &QComboBox::currentIndexChanged, w, [=] {
         win->printChoices() = read();
         state->page = 0;
         words();

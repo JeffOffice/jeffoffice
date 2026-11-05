@@ -1,5 +1,5 @@
 # Print and make a PDF
-<!-- keywords: print, printer, preview, pdf, export, copies, collate, pages, page range, selection, entire workbook, scaling, fit, email, page breaks, dashed lines, save as pdf -->
+<!-- keywords: odd pages, even pages, both sides, duplex, print, printer, preview, pdf, export, copies, collate, pages, page range, selection, entire workbook, scaling, fit, email, page breaks, dashed lines, save as pdf -->
 
 Choose **File > Print** (or press **Ctrl+P**). The page opens with a preview of the pages that will come out, one at a time. Use the arrows under it to go from page to page, and **Fit page** or the zoom buttons to see more or less of a page. The preview is drawn the way the printer and the PDF are, so what you see is what you get.
 
@@ -7,6 +7,7 @@ Choose **File > Print** (or press **Ctrl+P**). The page opens with a preview of 
 
 - **What**: the sheet you are on (or all the sheets whose tabs you picked with Ctrl or Shift, one after the other), the whole workbook (every sheet that is shown), or the selection. Hidden sheets are left out. A chart sheet is one page, with its chart as large as the page's room inside the margins.
 - **Pages**: all of them, or some, such as **1-3, 5**.
+- **Sides**: **All the pages**, **Odd pages only**, or **Even pages only**. Use this to print on both sides of the paper by hand when your printer can't do it. First print the odd pages. When they are done, turn the stack over, put it back in the paper tray, and print again with **Even pages only**.
 - **Copies** and **Collated** (a whole set at a time, 1 2 3 1 2 3, instead of each page's copies together).
 - **Orientation**, **Paper**, and **Margins**, to use for this print instead of what each sheet says.
 - **Scaling**: as each sheet says, full size, the whole sheet on one page, all the columns on one page, or all the rows on one page.

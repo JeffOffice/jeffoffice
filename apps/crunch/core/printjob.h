@@ -61,10 +61,14 @@ struct PrintJobOptions {
     int maxPages = kMaxJobPages;
 };
 
+// Printing on both sides of the paper by hand: the odd pages of the job (1, 3, 5, ...) are printed, the stack is turned over, and then the even pages are.
+enum class PrintSides : quint8 { All, Odd, Even };
+
 // What the Print screen holds: the job's choices, and what is to be done with its pages.
 struct PrintChoices {
     PrintJobOptions job;
     QString pageRange;          // "1-3, 5"; empty for all
+    PrintSides sides = PrintSides::All;   // all the pages, or only the odd ones or the even ones (by page number)
     int copies = 1;
     bool collate = true;
     QString printer;            // the printer's name; empty for the default
@@ -244,6 +248,8 @@ private:
 
 // The pages (from 0) that text such as "1-3, 5" names, once each, in the order given; "8-" goes to the last and "-2" from the first. A part that names no page is passed by. Empty when none is named.
 QVector<int> parsePageRange(const QString &text, int pageCount);
+// The pages (places from 0, so page 1 is 0) that are of the side: the odd-numbered pages, or the even-numbered ones; all of them for All.
+QVector<int> pagesOfSide(const QVector<int> &pages, PrintSides sides);
 // The pages in the order the sheets come out for `copies` of them: collated, the whole set again for each copy (1 2 3 1 2 3), else each page's copies together (1 1 2 2 3 3).
 QVector<int> sheetOrder(const QVector<int> &pages, int copies, bool collate);
 
