@@ -17,6 +17,7 @@
 #include "core/outlineops.h"
 #include "core/proofops.h"
 #include "core/tableops.h"
+#include "core/textexport.h"
 #include "core/writedoc.h"
 
 #include "office/package.h"
@@ -840,6 +841,39 @@ private Q_SLOTS:
         sa->setValue(sa->maximum());
         QCOMPARE(sb->value(), 0);
         delete b;
+    }
+
+    // Display: hidden text is left out of the lines, laid out with the rest when the view asks, and never in a file or on paper.
+    void hiddenTextCanBeShownOnTheScreenAndStaysOutOfTheTextExport()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 800);
+        w.show();
+        QTextCursor c = w.view()->cursor();
+        insertText(*w.document(), c, QStringLiteral("first"));
+        insertParagraph(*w.document(), c);
+        insertText(*w.document(), c, QStringLiteral("hidden words ").repeated(60));
+        insertParagraph(*w.document(), c);
+        insertText(*w.document(), c, QStringLiteral("last"));
+        QTextCursor mid(w.document()->story());
+        mid.setPosition(w.document()->story()->findBlockByNumber(1).position());
+        mid.setPosition(w.document()->story()->findBlockByNumber(2).position() - 1, QTextCursor::KeepAnchor);
+        QTextCharFormat hide;
+        hide.setProperty(tp::HiddenText, true);
+        mid.mergeCharFormat(hide);
+        w.view()->paginateAll();
+        auto lines = [&] { return int(w.document()->pager().lines(0).size()); };
+        const int without = lines();
+        QVERIFY(!w.document()->showsHiddenText());
+        w.document()->setShowHiddenText(true);
+        w.view()->paginateAll();
+        QVERIFY2(lines() > without + 3, qPrintable(QStringLiteral("%1 and %2").arg(lines()).arg(without)));
+        // The text export and the properties of the runs are the same either way.
+        QVERIFY(!visibleText(*w.document()).contains(QLatin1String("hidden")));
+        w.document()->setShowHiddenText(false);
+        w.view()->paginateAll();
+        QCOMPARE(lines(), without);
     }
 };
 

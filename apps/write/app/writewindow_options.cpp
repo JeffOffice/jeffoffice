@@ -38,6 +38,7 @@ void WriteWindow::applyDisplayDefaults()
     m_view->setShowMarks(marks);
     act(QStringLiteral("table.gridlines"))->setChecked(grid);
     m_view->setShowGridlines(grid);
+    if (m_doc) m_doc->setShowHiddenText(Settings::get().value(QStringLiteral("view/hidden"), false).toBool());
 }
 
 void WriteWindow::applyEditingDefaults()
@@ -54,7 +55,7 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         QSpinBox *minutes = nullptr;
         QComboBox *format = nullptr;
         QLineEdit *folder = nullptr;
-        QCheckBox *marks = nullptr, *grid = nullptr;
+        QCheckBox *marks = nullptr, *grid = nullptr, *hidden = nullptr;
         QComboBox *units = nullptr;
         QCheckBox *ctrlLinks = nullptr, *dragText = nullptr, *replaces = nullptr, *insertKey = nullptr, *privacy = nullptr;
     };
@@ -115,10 +116,15 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         f->grid->setObjectName(QStringLiteral("startWithGridlines"));
         f->grid->setChecked(st.value(QStringLiteral("view/gridlines"), false).toBool());
         form->addRow(f->grid);
+        f->hidden = new QCheckBox(QCoreApplication::translate("Dialogs", "Show hidden text on the screen (it never prints)"), page);
+        f->hidden->setObjectName(QStringLiteral("showHiddenText"));
+        f->hidden->setChecked(st.value(QStringLiteral("view/hidden"), false).toBool());
+        form->addRow(f->hidden);
         return page;
     }, [this, f] {
         Settings::get().setValue(QStringLiteral("view/marks"), f->marks->isChecked());
         Settings::get().setValue(QStringLiteral("view/gridlines"), f->grid->isChecked());
+        Settings::get().setValue(QStringLiteral("view/hidden"), f->hidden->isChecked());
         applyDisplayDefaults();
     }};
     pages << OptionsPage{QCoreApplication::translate("Dialogs", "Advanced"), [f] {

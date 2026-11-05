@@ -42,6 +42,22 @@
 namespace jp {
 
 namespace {
+// Hidden text shown on the screen is laid out without for the paper and the file, and shown again after.
+struct HiddenTextOff {
+    explicit HiddenTextOff(write::WriteDoc *doc) : m_doc(doc), m_was(doc && doc->showsHiddenText())
+    {
+        if (m_was) m_doc->setShowHiddenText(false);
+    }
+    ~HiddenTextOff()
+    {
+        if (m_was) m_doc->setShowHiddenText(true);
+    }
+    write::WriteDoc *m_doc;
+    bool m_was;
+};
+} // namespace
+
+namespace {
 // What a printer or a PDF shows of a header that is being edited is what the pages have: its fields that show a heading's text are worked out for each page, as they are for any header.
 struct EditedStoryHeld {
     flow::Paginator &pager;
@@ -147,6 +163,7 @@ QByteArray WriteWindow::pdfBytes(const QVector<int> &pages, QString *error)
         if (error) *error = tr("The pages can't be made.");
         return {};
     }
+    HiddenTextOff noHidden(m_doc.get());
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     // The pages are made in memory: the bookmarks from the headings are added to the finished file.
     QBuffer made;
@@ -217,6 +234,7 @@ bool WriteWindow::exportPdfAsk()
 bool WriteWindow::exportPdfPages(const WriteOutputOptions &options)
 {
     if (!m_doc) return false;
+    HiddenTextOff noHidden(m_doc.get());
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     const QVector<int> pages = outputPages(options);
     if (pages.isEmpty()) return false;
@@ -503,6 +521,7 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
         }
         return go && printOutput(runs[1]);
     }
+    HiddenTextOff noHidden(m_doc.get());
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     const QVector<int> pages = outputPages(options);
     if (pages.isEmpty()) return false;

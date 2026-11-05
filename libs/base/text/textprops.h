@@ -125,6 +125,7 @@ enum : int {
 constexpr int kRevisionShowDeleted = 1;   // text a change deleted or moved away takes its place in the lines
 constexpr int kRevisionMark = 2;          // text a change inserted, deleted, or moved is marked in its author's color (underlined, struck through)
 constexpr int kRevisionHideInserted = 4;  // text a change inserted or moved here is not shown (the document as it was)
+constexpr int kShowHiddenText = 16;      // text a person marked hidden (not a tracked deletion) is shown in the lines, as the Display option asks
 inline constexpr char kRevisionViewProperty[] = "jp.revisionView";
 // The color of the marks of a person's changes (a place in the document's list of people).
 inline QColor revisionColor(int author)
@@ -157,6 +158,7 @@ inline bool hiddenInView(const QTextFormat &f, int view)
     if (view >> kFieldCodesCountShift && f.hasProperty(FieldId) && !f.hasProperty(FieldCodeText) && fieldCodesShown(f, view)) return true;
     const int kind = f.intProperty(Revision);
     if (f.boolProperty(HiddenText)) {
+        if (kind == 0 && (view & kShowHiddenText)) return false;
         if ((kind == 2 || kind == 3) && (view & kRevisionShowDeleted)) return (view & kRevisionHideInserted) && f.boolProperty(RevisionInserted);   // (text inserted and deleted was never there before)
         return true;
     }

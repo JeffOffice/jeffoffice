@@ -154,8 +154,8 @@ void WriteDoc::setRevisionView(int view)
 {
     if (view == m_revisionView) return;
     m_revisionView = view;
-    m_flow->env.revisionView = view | m_fieldCodeView;
-    story()->setProperty(tp::kRevisionViewProperty, view | m_fieldCodeView);
+    m_flow->env.revisionView = view | m_fieldCodeView | m_hiddenView;
+    story()->setProperty(tp::kRevisionViewProperty, view | m_fieldCodeView | m_hiddenView);
     if (m_pager) m_pager->invalidateFrom(0);
     Q_EMIT sectionsChanged();
     Q_EMIT reviewChanged();
@@ -177,8 +177,19 @@ void WriteDoc::setFieldCodes(bool all, const QSet<int> &ids)
         if (!ids.isEmpty()) tp::shownFieldCodeSets().insert(m_fieldCodesCount, ids);
         m_fieldCodeView = (all ? tp::kShowFieldCodes : 0) | (m_fieldCodesCount << tp::kFieldCodesCountShift);
     }
-    m_flow->env.revisionView = m_revisionView | m_fieldCodeView;
-    story()->setProperty(tp::kRevisionViewProperty, m_revisionView | m_fieldCodeView);
+    m_flow->env.revisionView = m_revisionView | m_fieldCodeView | m_hiddenView;
+    story()->setProperty(tp::kRevisionViewProperty, m_revisionView | m_fieldCodeView | m_hiddenView);
+    if (m_pager) m_pager->invalidateFrom(0);
+    Q_EMIT sectionsChanged();
+}
+
+void WriteDoc::setShowHiddenText(bool on)
+{
+    const int bits = on ? tp::kShowHiddenText : 0;
+    if (bits == m_hiddenView) return;
+    m_hiddenView = bits;
+    m_flow->env.revisionView = m_revisionView | m_fieldCodeView | m_hiddenView;
+    story()->setProperty(tp::kRevisionViewProperty, m_revisionView | m_fieldCodeView | m_hiddenView);
     if (m_pager) m_pager->invalidateFrom(0);
     Q_EMIT sectionsChanged();
 }

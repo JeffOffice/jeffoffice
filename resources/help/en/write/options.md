@@ -19,6 +19,8 @@ The **Display** page chooses what a window shows when it opens.
 - **Show formatting marks** turns on the paragraph marks and other signs that do not print. Each window can still turn them on or off with the **¶** button.
 - **Show table gridlines** draws the faint edges of table cells that have no lines.
 
+- **Show hidden text on the screen** shows the words you marked as hidden with the rest of the text. Hidden text never prints and is never in a PDF, whatever this says.
+
 A change on this page applies to the window you are in at once, and to each window you open after it.
 
 ## Advanced

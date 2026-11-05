@@ -418,6 +418,9 @@ public:
     bool mayHaveFields() const { return m_mayHaveFields; }
     void setMayHaveFields(bool yes) { m_mayHaveFields = yes; }
     void setRevisionView(int view);
+    // Display: text marked hidden is laid out with the rest (a view of the text: nothing in the document changes). Printing and export lay it out without.
+    void setShowHiddenText(bool on);
+    bool showsHiddenText() const { return m_hiddenView != 0; }
 
     // ---- tables
     // What the last table command that did nothing said of why (empty when it did what it was asked): a limit of the file, or a shape it can't take.
@@ -875,6 +878,7 @@ private:
     QHash<QString, int> m_reviewerPlaces;   // (the place of each, to find one without looking through the list)
     int m_nextRevisionId = 0;   // 0: not looked for yet
     int m_revisionView = 0;
+    int m_hiddenView = 0;
     bool m_fieldCodesAll = false;
     bool m_mayHaveFields = false;
     QSet<int> m_fieldCodeIds;
