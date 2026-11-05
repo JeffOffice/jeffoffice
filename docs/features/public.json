@@ -5779,15 +5779,15 @@
         },
         {
          "status": "partly",
-         "text": "82f109d32b197fc2ad6a2069093b73f25b90c9187696eca78baa83c8b42eb029"
+         "text": "ffdcefe08fd40fbe27f754083de8c7f47124c53e96c24df8eee35efc621a4aeb"
         },
         {
          "status": "todo",
          "text": "900c88ee26da905c26976ecbdd17e6e7820f99196f856486b4dd71b2449be2f6"
         },
         {
-         "status": "todo",
-         "text": "f1de61295a21178da8354fd3941d24f4dcd9aa3023ac569e0569cdb6ab18d8f7"
+         "status": "partly",
+         "text": "30201ade656354759bcf21f038b53bc6799662a10e18d51741336338b6dd9787"
         },
         {
          "status": "partly",
@@ -6368,7 +6368,7 @@
         },
         {
          "status": "partly",
-         "text": "83637ae4e8d1ee446744a6cbcbb05e71f6cb0c0e94e0c52cc16778a2487189a3"
+         "text": "76b27e8ec3aad2a7aa7ae296982c4f62a8f09240102ed5dfd19aaa383cd407d5"
         },
         {
          "hide_soon": true,
@@ -6389,12 +6389,13 @@
          "text": "46c40a94412c5b251c573c8ecfca55513cd1811dcd75a20b3768bfed478ebf1c"
         },
         {
-         "status": "partly",
-         "text": "a7d2d6a1d01b64ea10228c581bf05a03909b1c42d36d5095c094cc43c26d8994"
+         "hide_soon": true,
+         "status": "done",
+         "text": "6d4ba5bf29de8f82089e55b86852b9dd0cefce0c6343a2e17fb2000e4de3a8de"
         },
         {
-         "status": "todo",
-         "text": "4da6a4c949837f3d1f9e5754bd31ef8028d4a3ca8626614b090e8e590e87b923"
+         "status": "partly",
+         "text": "46f70aeda59f75611f4c3508d442b4cff76f5911b6a44c73a5d2ca5dbd9e3f4a"
         },
         {
          "hide_soon": true,
@@ -6416,7 +6417,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "64796207cb6c0ac00e648cb6a473640abafd809b59406d2b6be8705715c6279b"
+         "text": "91072661ea05ec66950fc2757bfb327cf62762f0640b221d7c0ddefb4a5545bc"
         },
         {
          "status": "partly",
@@ -6441,7 +6442,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "02025e4a98feb16d9cb386b4b89b1bd01f2cb023861610eb65db7a8664b4878d"
+         "text": "f11211eb42999497b8ebffeb5bdb3bb06c870f2187b6ef07588e01abca706986"
         },
         {
          "status": "partly",
@@ -6449,7 +6450,7 @@
         },
         {
          "status": "partly",
-         "text": "61e6b7d089d3ec03c147229c732efa8049dc59c4ed2a128d75ac8b463a40ffbb"
+         "text": "8d57775771c4a86e0523a301470ddb39e6588cbc539e9cdbe08d4205ea695d4a"
         },
         {
          "status": "partly",
@@ -6493,11 +6494,11 @@
        "items": [
         {
          "status": "partly",
-         "text": "43c5fd7487fce0e880638f22a6c340a4820b0c1560b9d0bce0fbaca599799da9"
+         "text": "532c8fa15b8e7a146a5578d14612c968d83c5c751fdf387f3291b8b68a9ad0e7"
         },
         {
          "status": "partly",
-         "text": "b9dd1606020a4f60c28bbd7fdd6e3f24cdcb6381d3b5753391639046e1083cb1"
+         "text": "f0f9da3549102c3c5b2f8ec14f232f8618fffe31c64f2b0354985043f03d3a31"
         },
         {
          "status": "todo",
@@ -6514,7 +6515,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "18a5e179384d140c489ba712da3a184eddf9d638d1239d5afed6c2d32a273f0d"
+         "text": "a8fdb432b812d48c0164d4cee4c016fcb223d8fca6968d4ac8bb8e35df8ad2db"
         },
         {
          "status": "todo",
@@ -7157,18 +7158,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "02025e4a98feb16d9cb386b4b89b1bd01f2cb023861610eb65db7a8664b4878d": {
-   "drop": false,
-   "en": "Shape Format has a gallery of 12 shape styles, Shape Fill (a color or none), Shape Outline (a color or none), Weight, and Dashes. Fills and outlines in a file are drawn.",
-   "es": "Formato de forma incluye una galería de 12 estilos de forma, Relleno de forma (un color o ninguno), Contorno de forma (un color o ninguno), Grosor y Guiones. Los rellenos y contornos de un documento se dibujan.",
-   "fr": "Format de forme propose une galerie de 12 styles de forme, Remplissage de forme (une couleur ou aucun), Contour de forme (une couleur ou aucun), Épaisseur et Tirets. Les remplissages et contours d’un fichier sont dessinés.",
-   "soon": {
-    "drop": false,
-    "en": "Gradient, picture, texture, and pattern fills, arrow ends, shape effects, and the Format Shape pane",
-    "es": "Rellenos de degradado, imagen, textura y patrón, extremos de flecha, efectos de forma y panel Formato de forma",
-    "fr": "Remplissages dégradé, image, texture et motif, extrémités de flèche, effets de forme et volet Format de forme"
    }
   },
   "0230f52409eee524a9af2526b43a7bd64813922aa19b31f5c74d0f7563a1f7d0": {
@@ -8837,18 +8826,6 @@
     "en": "Chart template folder listed in the Chart Kind box",
     "es": "Carpeta de plantillas de gráficos en la lista del cuadro Chart Kind",
     "fr": "Dossier de modèles de graphique dans la liste de la zone Chart Kind"
-   }
-  },
-  "18a5e179384d140c489ba712da3a184eddf9d638d1239d5afed6c2d32a273f0d": {
-   "drop": false,
-   "en": "The Chart Format tab has Edit Data, Change Chart Type, Chart Title (on or off, and its words), Legend (none, or at the right, top, left, or bottom), Data Labels, Wrap Text, Alt Text, and size.",
-   "es": "La pestaña Formato de gráfico incluye Editar datos, Cambiar tipo de gráfico, Título del gráfico (activado o desactivado, y su texto), Leyenda (ninguna, o a la derecha, arriba, a la izquierda o abajo), Etiquetas de datos, Ajuste del texto, Texto alternativo y tamaño.",
-   "fr": "L’onglet Format du graphique propose Modifier les données, Modifier le type de graphique, Titre du graphique (activé ou non, et son texte), Légende (aucune, ou à droite, en haut, à gauche ou en bas), Étiquettes de données, Habillage du texte, Texte de remplacement et taille.",
-   "soon": {
-    "drop": false,
-    "en": "Other chart elements, quick layouts, colors, styles, and formatting of each part",
-    "es": "Otros elementos del gráfico, diseños rápidos, colores, estilos y formato de cada parte",
-    "fr": "Autres éléments de graphique, dispositions rapides, couleurs, styles et mise en forme de chaque partie"
    }
   },
   "18d1d5b665ef44829cfec26184694d030700c0a7e9313bbbf7d811618a5108ab": {
@@ -10531,6 +10508,18 @@
     "fr": ""
    }
   },
+  "30201ade656354759bcf21f038b53bc6799662a10e18d51741336338b6dd9787": {
+   "drop": false,
+   "en": "Insert an icon from a searchable icon picker in JeffWrite. Each icon goes in at the caret as an SVG picture in dark gray.",
+   "es": "Inserte un icono desde un selector de iconos con búsqueda en JeffWrite. Cada icono se coloca en la posición del cursor como una imagen SVG en gris oscuro.",
+   "fr": "Insérez une icône depuis un sélecteur d’icônes avec recherche dans JeffWrite. Chaque icône est placée à l’emplacement du curseur sous forme d’image SVG en gris foncé.",
+   "soon": {
+    "drop": false,
+    "en": "Icon color and line weight: change",
+    "es": "Color y grosor de línea de los iconos: cambio",
+    "fr": "Couleur et épaisseur de trait des icônes : modification"
+   }
+  },
   "305f04a0ab6f5dd54228a1475bdf44de3a860e30761b039566f8bf24024a7f63": {
    "drop": true,
    "en": "",
@@ -11827,18 +11816,6 @@
     "fr": ""
    }
   },
-  "43c5fd7487fce0e880638f22a6c340a4820b0c1560b9d0bce0fbaca599799da9": {
-   "drop": false,
-   "en": "Insert > Equation (`Alt+=`) takes an equation typed in a line, shows how it reads, and inserts it as one step that can be undone. It is saved as the format’s own math markup. Typing `a:b` gives a fraction, `x^2` a power, `x_i` a subscript, `sqrt(x)` a square root, and `\\alpha` and about 70 other names turn into symbols.",
-   "es": "Insertar > Ecuación (`Alt+=`) acepta una ecuación escrita en una línea, muestra cómo se interpreta y la inserta en un solo paso que se puede deshacer. Se guarda con el formato matemático propio del formato. Al escribir `a:b` se obtiene una fracción, `x^2` una potencia, `x_i` un subíndice, `sqrt(x)` una raíz cuadrada, y `\\alpha` y unos 70 nombres más se convierten en símbolos.",
-   "fr": "Insertion > Équation (`Alt+=`) accepte une équation saisie sur une ligne, montre comment elle sera lue et l’insère en une seule étape annulable. Elle est enregistrée dans le balisage mathématique propre au format. Saisir `a:b` donne une fraction, `x^2` une puissance, `x_i` un indice, `sqrt(x)` une racine carrée, et `\\alpha` et environ 70 autres noms deviennent des symboles.",
-   "soon": {
-    "drop": false,
-    "en": "Built-in equations, equation gallery, and editing an inserted equation",
-    "es": "Ecuaciones integradas, galería de ecuaciones y edición de una ecuación ya insertada",
-    "fr": "Équations intégrées, galerie d’équations et modification d’une équation déjà insérée"
-   }
-  },
   "4443f17f2801038a9bcf022623f5daec7db283e9a35c54cf9901f3d30b3429e0": {
    "drop": false,
    "en": "Shape Format, Text Box, and text effects tabs",
@@ -12089,6 +12066,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "46f70aeda59f75611f4c3508d442b4cff76f5911b6a44c73a5d2ca5dbd9e3f4a": {
+   "drop": false,
+   "en": "Draw Table and Eraser in JeffWrite: drag a rectangle to make a table, drag a line across a cell to divide it into rows or columns, and drag the eraser between cells to join them.",
+   "es": "Dibujar tabla y Borrador en JeffWrite: arrastre un rectángulo para crear una tabla, arrastre una línea sobre una celda para dividirla en filas o columnas, y arrastre el borrador entre celdas para unirlas.",
+   "fr": "Dessiner un tableau et Gomme dans JeffWrite : faites glisser un rectangle pour créer un tableau, tracez une ligne sur une cellule pour la diviser en lignes ou en colonnes, et faites glisser la gomme entre des cellules pour les fusionner.",
+   "soon": {
+    "drop": false,
+    "en": "Pen style, weight, and color; dividing a cell where the line is drawn",
+    "es": "Estilo, grosor y color del lápiz; división de una celda donde se dibuja la línea",
+    "fr": "Style, épaisseur et couleur du crayon ; division d’une cellule à l’endroit du trait"
    }
   },
   "472e717675026f366d104304f6ba29adc5380fa468dcc58849dc6b1836354708": {
@@ -12509,18 +12498,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "4da6a4c949837f3d1f9e5754bd31ef8028d4a3ca8626614b090e8e590e87b923": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Draw Table and Eraser, with pen style, weight, and color",
-    "es": "Dibujar tabla y Borrador, con estilo, grosor y color del lápiz",
-    "fr": "Dessiner un tableau et Gomme, avec style, épaisseur et couleur du stylo"
    }
   },
   "4e126046696dafa2b4ff116a323466fa29ced5abfc4f75ce2a38c53e1abbd94a": {
@@ -13001,6 +12978,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "532c8fa15b8e7a146a5578d14612c968d83c5c751fdf387f3291b8b68a9ad0e7": {
+   "drop": false,
+   "en": "Insert Equation (`Alt+=`) in JeffWrite takes an equation typed in a line, shows a preview, and inserts it. Names such as `\\alpha` turn into symbols. Insert one of twelve built-in equations, or edit an existing equation.",
+   "es": "Insertar ecuación (`Alt+=`) en JeffWrite toma una ecuación escrita en una línea, muestra una vista previa y la inserta. Nombres como `\\alpha` se convierten en símbolos. Inserte una de doce ecuaciones integradas o edite una ecuación existente.",
+   "fr": "Insérer une équation (`Alt+=`) dans JeffWrite prend une équation saisie sur une ligne, affiche un aperçu et l’insère. Les noms comme `\\alpha` deviennent des symboles. Insérez l’une des douze équations intégrées ou modifiez une équation existante.",
+   "soon": {
+    "drop": false,
+    "en": "Save your own equations to the gallery",
+    "es": "Guardado de sus propias ecuaciones en la galería",
+    "fr": "Enregistrement de vos propres équations dans la galerie"
    }
   },
   "53866ed0250fb4e810279811dd09ebb332d4392acb613260e320ece6362c5c92": {
@@ -13999,18 +13988,6 @@
     "fr": "Comparaison de documents qui détecte les déplacements et les différences de mise en forme"
    }
   },
-  "61e6b7d089d3ec03c147229c732efa8049dc59c4ed2a128d75ac8b463a40ffbb": {
-   "drop": false,
-   "en": "Shape Format has Insert Shapes and Change Shape, which keeps the size and the look.",
-   "es": "Formato de forma incluye Insertar formas y Cambiar forma, que conserva el tamaño y el aspecto.",
-   "fr": "Format de forme propose Insérer des formes et Modifier la forme, qui conserve la taille et l’apparence.",
-   "soon": {
-    "drop": false,
-    "en": "Edit Points and connectors",
-    "es": "Editar puntos y conectores",
-    "fr": "Modification des points et connecteurs"
-   }
-  },
   "622d1c654c62cfa2bd758ce273d6af09c1aeedba57a816dea759fb74429bf5d2": {
    "drop": false,
    "en": "JeffCrunch includes 54 engineering functions: base conversions such as `BIN2DEC`, bit functions, complex-number functions such as `IMSUM`, Bessel functions, `ERF`, `CONVERT`, `DELTA`, and `GESTEP`.",
@@ -14177,18 +14154,6 @@
     "en": "Chart and plot area fills, borders, shadow, glow, soft edges, 3-D format and rotation, and wall and floor choices",
     "es": "Rellenos del área del gráfico y de trazado, bordes, sombra, resplandor, bordes suaves, formato y rotación 3D, y opciones de paredes y suelo",
     "fr": "Remplissages de la zone du graphique et de traçage, bordures, ombre, lueur, bords adoucis, format et rotation 3D, et choix des parois et du sol"
-   }
-  },
-  "64796207cb6c0ac00e648cb6a473640abafd809b59406d2b6be8705715c6279b": {
-   "drop": false,
-   "en": "Picture Format > Crop cuts each edge by a percent of the whole picture, and Crop again starts from the whole picture. You can set the size with handles or Height and Width, with the aspect ratio locked or not. Reset Picture removes the crop, colors, and border.",
-   "es": "Formato de imagen > Recortar corta cada borde según un porcentaje de la imagen completa, y al recortar de nuevo se parte de la imagen completa. Puede establecer el tamaño con los controladores o con Alto y Ancho, con la relación de aspecto bloqueada o no. Restablecer imagen elimina el recorte, los colores y el borde.",
-   "fr": "Format de l’image > Rogner coupe chaque bord selon un pourcentage de l’image entière, et un nouveau rognage repart de l’image entière. Vous pouvez définir la taille avec les poignées ou la hauteur et la largeur, avec le rapport d’aspect verrouillé ou non. Réinitialiser l’image supprime le rognage, les couleurs et la bordure.",
-   "soon": {
-    "drop": false,
-    "en": "Crop to a shape or aspect ratio, fill and fit, rotate, and compress pictures",
-    "es": "Recorte a una forma o relación de aspecto, relleno y ajuste, giro y compresión de imágenes",
-    "fr": "Rognage selon une forme ou un rapport d’aspect, remplissage et ajustement, rotation et compression des images"
    }
   },
   "64acab44c1a97692fed5877a4eaf3da8b09c230f09d6a73a33b3042fb2a77a4a": {
@@ -14947,6 +14912,18 @@
     "fr": ""
    }
   },
+  "6d4ba5bf29de8f82089e55b86852b9dd0cefce0c6343a2e17fb2000e4de3a8de": {
+   "drop": false,
+   "en": "Align text in a table cell in nine positions in JeffWrite, and turn cell text from top to bottom or bottom to top.",
+   "es": "Alinee el texto de una celda de tabla en nueve posiciones en JeffWrite, y gire el texto de la celda de arriba abajo o de abajo arriba.",
+   "fr": "Alignez le texte d’une cellule de tableau selon neuf positions dans JeffWrite, et faites pivoter le texte de la cellule de haut en bas ou de bas en haut.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "6d4fb1339f4205bd787dbaf59717a40514461ee8093ffec918b41cfb9a56ff8c": {
    "drop": false,
    "en": "In JeffCrunch, the Sum menu inserts Sum, Average, Count Numbers, Max, or Min, and `Alt+=` inserts a sum (`Cmd+Shift+T` on a Mac). All Functions opens the function list.",
@@ -15497,6 +15474,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "76b27e8ec3aad2a7aa7ae296982c4f62a8f09240102ed5dfd19aaa383cd407d5": {
+   "drop": false,
+   "en": "Select a cell, row, column, or table in JeffWrite, insert rows and columns, and delete rows, columns, or the table, from the Table Layout tab or the right-click menu. Delete cells and shift the rest left.",
+   "es": "Seleccione una celda, fila, columna o tabla en JeffWrite, inserte filas y columnas, y elimine filas, columnas o la tabla, desde la pestaña Disposición de tabla o el menú contextual. Elimine celdas y desplace las demás hacia la izquierda.",
+   "fr": "Sélectionnez une cellule, une ligne, une colonne ou un tableau dans JeffWrite, insérez des lignes et des colonnes, et supprimez des lignes, des colonnes ou le tableau, depuis l’onglet Disposition du tableau ou le menu contextuel. Supprimez des cellules et décalez le reste vers la gauche.",
+   "soon": {
+    "drop": false,
+    "en": "Delete cells with shift up",
+    "es": "Eliminar celdas desplazando hacia arriba",
+    "fr": "Suppression de cellules avec décalage vers le haut"
    }
   },
   "776f0e98cab0e105065be58f6563b1a9819d43517543c1e237001488e252f00e": {
@@ -16327,18 +16316,6 @@
     "fr": "Styles d’image (cadres, ombre, reflet et coins arrondis), bordure d’image et effets d’image"
    }
   },
-  "82f109d32b197fc2ad6a2069093b73f25b90c9187696eca78baa83c8b42eb029": {
-   "drop": false,
-   "en": "JeffWrite draws the shapes and text boxes in a file. Insert > Shapes places one of 75 shapes (lines, arrows, rectangles, basic shapes, block arrows, equation shapes, flowchart, stars and banners, and callouts) at the caret with text wrapping around it. The Shape Format tab sets fill, outline color, weight, dashes, shape styles, rotation, shape change, wrap, alt text, and size.",
-   "es": "JeffWrite dibuja las formas y los cuadros de texto de un documento. Insertar > Formas coloca una de 75 formas (líneas, flechas, rectángulos, formas básicas, flechas de bloque, formas de ecuación, diagramas de flujo, estrellas y cintas, y llamadas) en la posición del cursor, con el texto ajustado alrededor. La pestaña Formato de forma permite establecer relleno, color de contorno, grosor, guiones, estilos de forma, giro, cambio de forma, ajuste, texto alternativo y tamaño.",
-   "fr": "JeffWrite dessine les formes et les zones de texte d’un fichier. Insertion > Formes place l’une des 75 formes (lignes, flèches, rectangles, formes de base, flèches bloc, formes d’équation, organigrammes, étoiles et bannières, et bulles) à la position du curseur, avec le texte qui l’habille. L’onglet Format de forme permet de définir le remplissage, la couleur du contour, l’épaisseur, les tirets, les styles de forme, la rotation, le changement de forme, l’habillage, le texte de remplacement et la taille.",
-   "soon": {
-    "drop": false,
-    "en": "Text inside shapes, connectors, and edit points",
-    "es": "Texto dentro de formas, conectores y puntos de edición",
-    "fr": "Texte dans les formes, connecteurs et points de modification"
-   }
-  },
   "8333018118736a0e24cae207a795a6d0ce1acf67e1cdb2c91769d32c4c942072": {
    "drop": false,
    "en": "Open, Save, Save As, and Close",
@@ -16385,18 +16362,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "83637ae4e8d1ee446744a6cbcbb05e71f6cb0c0e94e0c52cc16778a2487189a3": {
-   "drop": false,
-   "en": "Select a cell, row, column, or table; insert and delete rows, columns, and the table; delete cells and shift the remaining cells left.",
-   "es": "Seleccione una celda, fila, columna o tabla; inserte y elimine filas, columnas y la tabla; elimine celdas y desplace a la izquierda las celdas restantes.",
-   "fr": "Sélectionnez une cellule, une ligne, une colonne ou un tableau ; insérez et supprimez des lignes, des colonnes et le tableau ; supprimez des cellules et décalez les cellules restantes vers la gauche.",
-   "soon": {
-    "drop": false,
-    "en": "Delete cells with shift up",
-    "es": "Eliminar celdas desplazando hacia arriba",
-    "fr": "Suppression de cellules avec décalage vers le haut"
    }
   },
   "839dcb2592ecc34c9aa5c9d67bbf3ac3d7dab632d5901335af1629b71dc62e80": {
@@ -16999,6 +16964,18 @@
     "fr": ""
    }
   },
+  "8d57775771c4a86e0523a301470ddb39e6588cbc539e9cdbe08d4205ea695d4a": {
+   "drop": false,
+   "en": "Insert shapes and change a shape while keeping its size and look in JeffWrite. Align a floating object with the margins or the page, and make an in-line object float in front of the text.",
+   "es": "Inserte formas y cambie una forma conservando su tamaño y aspecto en JeffWrite. Alinee un objeto flotante con los márgenes o la página, y haga que un objeto en línea flote delante del texto.",
+   "fr": "Insérez des formes et changez une forme en conservant sa taille et son aspect dans JeffWrite. Alignez un objet flottant sur les marges ou la page, et faites flotter un objet en ligne devant le texte.",
+   "soon": {
+    "drop": false,
+    "en": "Edit Points and connectors; Group",
+    "es": "Edición de puntos y conectores; agrupar",
+    "fr": "Modification des points et connecteurs ; groupement"
+   }
+  },
   "8dc8e377958dfd656ef7d675e16c547d528f752a29245823da6963cd26572e26": {
    "drop": false,
    "en": "Field Settings in JeffCrunch sets a custom name, automatic or no subtotals, the form (compact, outline, or tabular), repeated item labels, and a blank line after each item. It also sorts by labels or by a value and filters by labels, by a value, and by top or bottom items, with a check for each item.",
@@ -17261,6 +17238,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "91072661ea05ec66950fc2757bfb327cf62762f0640b221d7c0ddefb4a5545bc": {
+   "drop": false,
+   "en": "Resize pictures in JeffWrite by handles or by height and width, with the aspect ratio locked or not. Crop each edge by a percentage, crop to any shape in the gallery, rotate a quarter turn either way, and reset the picture.",
+   "es": "Cambie el tamaño de las imágenes en JeffWrite con los controladores o con alto y ancho, con la proporción bloqueada o no. Recorte cada borde por porcentaje, recorte a cualquier forma de la galería, gire un cuarto de vuelta en cualquier sentido y restablezca la imagen.",
+   "fr": "Redimensionnez les images dans JeffWrite avec les poignées ou par hauteur et largeur, avec ou sans proportions verrouillées. Rognez chaque bord selon un pourcentage, rognez selon n’importe quelle forme de la galerie, faites pivoter d’un quart de tour dans les deux sens et réinitialisez l’image.",
+   "soon": {
+    "drop": false,
+    "en": "Crop to an aspect ratio, fill, and fit; Compress Pictures",
+    "es": "Recorte por proporción, relleno y ajuste; compresión de imágenes",
+    "fr": "Rognage selon un format, remplissage et ajustement ; compression des images"
    }
   },
   "911cfa245408b97bac94cb87e157891170b36f82fb2483ac7f6238b4e9c73390": {
@@ -18835,18 +18824,6 @@
     "fr": ""
    }
   },
-  "a7d2d6a1d01b64ea10228c581bf05a03909b1c42d36d5095c094cc43c26d8994": {
-   "drop": false,
-   "en": "In JeffWrite, you can align cell contents in nine positions.",
-   "es": "En JeffWrite, usted puede alinear el contenido de las celdas en nueve posiciones.",
-   "fr": "Dans JeffWrite, vous pouvez aligner le contenu des cellules selon neuf positions.",
-   "soon": {
-    "drop": false,
-    "en": "Text direction in a cell",
-    "es": "Dirección del texto en una celda",
-    "fr": "Orientation du texte dans une cellule"
-   }
-  },
   "a7d49d96f39be719785793f0d7b87fa118cc74dbe4246f13fa0d289f088c676b": {
    "drop": true,
    "en": "",
@@ -18893,6 +18870,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "a8fdb432b812d48c0164d4cee4c016fcb223d8fca6968d4ac8bb8e35df8ad2db": {
+   "drop": false,
+   "en": "Edit chart data and change the chart type in JeffWrite. Set the chart title, legend position, data labels, wrap, alt text, and size. Show or hide axes with titles, turn gridlines on or off, and pick one of eight chart styles.",
+   "es": "Edite los datos del gráfico y cambie su tipo en JeffWrite. Defina el título, la posición de la leyenda, las etiquetas de datos, el ajuste, el texto alternativo y el tamaño. Muestre u oculte los ejes con títulos, active o desactive las líneas de cuadrícula y elija uno de ocho estilos de gráfico.",
+   "fr": "Modifiez les données du graphique et changez son type dans JeffWrite. Réglez le titre, la position de la légende, les étiquettes de données, l’habillage, le texte de remplacement et la taille. Affichez ou masquez les axes avec leurs titres, activez ou désactivez les quadrillages et choisissez l’un des huit styles de graphique.",
+   "soon": {
+    "drop": false,
+    "en": "Data tables, error bars, trendlines, quick layouts, colors, and formatting of each part",
+    "es": "Tablas de datos, barras de error, líneas de tendencia, diseños rápidos, colores y formato de cada parte",
+    "fr": "Tableaux de données, barres d’erreur, courbes de tendance, dispositions rapides, couleurs et mise en forme de chaque élément"
    }
   },
   "a93e4681d33691014cf0795349be350b2def1360efd43b7f2c9153b56dec3eb9": {
@@ -19889,18 +19878,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b9dd1606020a4f60c28bbd7fdd6e3f24cdcb6381d3b5753391639046e1083cb1": {
-   "drop": false,
-   "en": "Typed equations support fractions, superscripts and subscripts, roots with a degree, sums, integrals, and products with limits, and the names of common functions.",
-   "es": "Las ecuaciones escritas admiten fracciones, superíndices y subíndices, raíces con grado, sumas, integrales y productos con límites, y los nombres de funciones comunes.",
-   "fr": "Les équations saisies prennent en charge les fractions, les exposants et indices, les racines avec un degré, les sommes, intégrales et produits avec limites, et les noms de fonctions courantes.",
-   "soon": {
-    "drop": false,
-    "en": "Brackets that grow, accents, matrices, and the symbol galleries",
-    "es": "Paréntesis que se ajustan, acentos, matrices y galerías de símbolos",
-    "fr": "Parenthèses extensibles, accents, matrices et galeries de symboles"
    }
   },
   "ba1383384150b67b4377b0fe91a1cf0ecbf5c93ada5c2bd2354d5f6205d46880": {
@@ -23635,6 +23612,30 @@
     "fr": ""
    }
   },
+  "f0f9da3549102c3c5b2f8ec14f232f8618fffe31c64f2b0354985043f03d3a31": {
+   "drop": false,
+   "en": "Equations in JeffWrite support fractions, superscripts and subscripts, roots with a degree, sums, integrals, and products with limits, common function names, accents, bars over and under, brackets that grow, and matrices with round, square, or straight brackets.",
+   "es": "Las ecuaciones en JeffWrite admiten fracciones, superíndices y subíndices, raíces con índice, sumas, integrales y productos con límites, nombres de funciones comunes, acentos, barras superiores e inferiores, paréntesis que se ajustan y matrices con corchetes redondos, cuadrados o rectos.",
+   "fr": "Les équations dans JeffWrite prennent en charge les fractions, les exposants et indices, les racines avec indice, les sommes, intégrales et produits avec bornes, les noms de fonctions courantes, les accents, les barres dessus et dessous, les parenthèses extensibles et les matrices avec délimiteurs ronds, carrés ou droits.",
+   "soon": {
+    "drop": false,
+    "en": "Symbol galleries",
+    "es": "Galerías de símbolos",
+    "fr": "Galeries de symboles"
+   }
+  },
+  "f11211eb42999497b8ebffeb5bdb3bb06c870f2187b6ef07588e01abca706986": {
+   "drop": false,
+   "en": "Format shapes in JeffWrite with a gallery of 12 shape styles, fill color or none, outline color or none, weight, and dashes. Fill a shape with a two-color gradient.",
+   "es": "Dé formato a las formas en JeffWrite con una galería de 12 estilos, color de relleno o sin relleno, color de contorno o sin contorno, grosor y guiones. Rellene una forma con un degradado de dos colores.",
+   "fr": "Mettez en forme les formes dans JeffWrite avec une galerie de 12 styles, une couleur de remplissage ou aucun, une couleur de contour ou aucun, l’épaisseur et les tirets. Remplissez une forme avec un dégradé de deux couleurs.",
+   "soon": {
+    "drop": false,
+    "en": "Picture, texture, and pattern fills; arrow ends; effects; the Format Shape pane",
+    "es": "Rellenos de imagen, textura y trama; extremos de flecha; efectos; panel Formato de forma",
+    "fr": "Remplissages image, texture et motif ; extrémités de flèche ; effets ; volet Format de la forme"
+   }
+  },
   "f12ab3fb7dbad203ef1cf2e099a707f732655ee720a576c0326dca5c07babd77": {
    "drop": false,
    "en": "In JeffCrunch, you can choose the font and size from the font and size boxes, and use Increase Font Size and Decrease Font Size.",
@@ -23693,18 +23694,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "f1de61295a21178da8354fd3941d24f4dcd9aa3023ac569e0569cdb6ab18d8f7": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Icons, drawn as shapes with changeable color and line weight",
-    "es": "Iconos, dibujados como formas con color y grosor de línea modificables",
-    "fr": "Icônes, dessinées comme des formes dont la couleur et l’épaisseur de trait sont modifiables"
    }
   },
   "f2ec7babdeec28fdbf32a086ab79d287ced8c37a06d7b16c26320aaad597a14a": {
@@ -24713,6 +24702,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "ffdcefe08fd40fbe27f754083de8c7f47124c53e96c24df8eee35efc621a4aeb": {
+   "drop": false,
+   "en": "Insert 75 shapes in nine groups (lines, arrows, rectangles, basic shapes, block arrows, equation shapes, flowchart, stars and banners, and callouts) at the caret in JeffWrite, with text wrapping around them. Set fill, outline color, weight, dashes, shape style, rotation, wrap, alt text, and size, change a shape to another, and resize with handles.",
+   "es": "Inserte 75 formas en nueve grupos (líneas, flechas, rectángulos, formas básicas, flechas de bloque, formas de ecuaciones, diagramas de flujo, estrellas y cintas, y llamadas) en la posición del cursor en JeffWrite, con el texto ajustado a su alrededor. Defina el relleno, el color del contorno, el grosor, los guiones, el estilo, el giro, el ajuste, el texto alternativo y el tamaño, cambie una forma por otra y redimensiónela con los controladores.",
+   "fr": "Insérez 75 formes en neuf groupes (lignes, flèches, rectangles, formes de base, flèches pleines, formes d’équation, organigrammes, étoiles et bannières, et bulles) à l’emplacement du curseur dans JeffWrite, avec le texte qui les contourne. Réglez le remplissage, la couleur du contour, l’épaisseur, les tirets, le style, la rotation, l’habillage, le texte de remplacement et la taille, changez une forme pour une autre et redimensionnez-la avec les poignées.",
+   "soon": {
+    "drop": false,
+    "en": "Text inside shapes, connectors that stay joined, and edit points",
+    "es": "Texto dentro de las formas, conectores que permanecen unidos y puntos de edición",
+    "fr": "Texte dans les formes, connecteurs qui restent attachés et points de modification"
    }
   },
   "ffdf10addc3860bc2ec9d658f9b8142f4f7d5a5601f0bc05c7c9b7702b9b1a4c": {
