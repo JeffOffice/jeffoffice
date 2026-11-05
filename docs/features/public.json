@@ -5430,7 +5430,7 @@
         },
         {
          "status": "partly",
-         "text": "b37f5fd68165c3c0d24ef0fd197772a68a6f2c9a8c682627b7e4698a2f8c094f"
+         "text": "90422f0483c83f5b633ee66dbb25c8597a3a7ea4cbf3eb259c6f0172161511fe"
         },
         {
          "status": "partly",
@@ -5601,7 +5601,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "1cc81129e71717bd5f43195d6117ce26df567f10948f98d59116f0fdf4f72d32"
+         "text": "446d0be21f701e24fb3ddf27654fbe709baa292e3b7c8b12038ebb7caf5993b8"
         },
         {
          "status": "partly",
@@ -5687,7 +5687,7 @@
         },
         {
          "status": "partly",
-         "text": "7ded653343ea0f6a38e137e6269f9cd5fc9c6a5827cced8fee2ee3321dc1ca9f"
+         "text": "e689f1b4f76a0db0169475bfacc54b9b6ded6291798f8c052e7bfa9d3fa4dddd"
         },
         {
          "status": "partly",
@@ -5699,8 +5699,9 @@
        "heading": "c4dcd77f4688181146012c2e2b79d1a4fba9b1bb62625445ea30ac95545a59e0",
        "items": [
         {
-         "status": "partly",
-         "text": "8fb67d4768fc91c80faa23926965722cb195f765043e516aaedaccabf54010ea"
+         "hide_soon": true,
+         "status": "done",
+         "text": "f7302ac1bdfeaa8b225721600cf4773b5f28778a46cf78ab2fb6325b4a08fdb4"
         },
         {
          "status": "partly",
@@ -5713,7 +5714,7 @@
         },
         {
          "status": "partly",
-         "text": "e364e92b611d64c5a04960a2afcceef27b80cd84b83c72f01ff6f9ca205ca6c4"
+         "text": "06f2ccca2410d2c2cb0c5d00707909a98090752a0cd4c859de32c531e51e4922"
         },
         {
          "status": "todo",
@@ -6242,7 +6243,7 @@
         },
         {
          "status": "partly",
-         "text": "7234d0848e4df7a768120731671a6af838521a4c8a9e6224d961d084fbabb03f"
+         "text": "efc5cea7eb62f78b6960a731996d24d597796a3912d57e0dae9c6f3b64aff75e"
         },
         {
          "hide_soon": true,
@@ -6256,11 +6257,11 @@
        "items": [
         {
          "status": "partly",
-         "text": "a0ef4a9cab7bf104985392f3ce365afa424f50908d88dbed4eabde2ee4a02bae"
+         "text": "96262416043fce4851657903e322a2b4b91a38fc048391fc456b9f0efcdef0a7"
         },
         {
          "status": "partly",
-         "text": "f3560581baeb8d3a047d1616fa05a6be85d8159e6081c0ab95ea57c552798fcc"
+         "text": "119de554cb24fc5abace1dc8ad0f6b61dbfb616876b2375ec5c842205cd1d654"
         },
         {
          "status": "todo",
@@ -6946,8 +6947,9 @@
          "text": "50206111499dec7b5129148d1787eb30fbf9d757cf35a695cd993f931035e7de"
         },
         {
-         "status": "partly",
-         "text": "df03e17891a9ecb316811825d810315da3b1c254f2af062ab21f48ac62378978"
+         "hide_soon": true,
+         "status": "done",
+         "text": "01b8335451dfa9436d91f1a37098cb43c406fb0c53a8c3e281a5dd6c02746e51"
         },
         {
          "status": "todo",
@@ -7138,6 +7140,18 @@
    "en": "In JeffCrunch, you can align cell contents horizontally (general, left, center, right, justify, repeat to fill, center over the selected cells, and spread evenly) and vertically (top, center, bottom, justify, and distributed), on the Home tab and in Format Cells.",
    "es": "En JeffCrunch, usted puede alinear el contenido de las celdas horizontalmente (general, izquierda, centro, derecha, justificada, repetir para rellenar, centrar en la selección y distribuida) y verticalmente (arriba, centro, abajo, justificada y distribuida), en la pestaña Inicio y en Formato de celdas.",
    "fr": "Dans JeffCrunch, vous pouvez aligner le contenu des cellules horizontalement (standard, à gauche, centré, à droite, justifié, répéter pour remplir, centré sur la sélection et distribué) et verticalement (haut, centré, bas, justifié et distribué), dans l’onglet Accueil et dans Format de cellule.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "01b8335451dfa9436d91f1a37098cb43c406fb0c53a8c3e281a5dd6c02746e51": {
+   "drop": false,
+   "en": "Open an HTML page (`.html` or `.htm`) as a document, with headings, bold, italic, underline, strike-through, superscript, subscript, color, alignment, bulleted and numbered lists, links, tables, and pictures held in the page or in its folder. Save a document as a single-file web page or a filtered web page.",
+   "es": "Abra una página HTML (`.html` o `.htm`) como documento, con encabezados, negrita, cursiva, subrayado, tachado, superíndice, subíndice, color, alineación, listas con viñetas y numeradas, vínculos, tablas e imágenes incluidas en la página o en su carpeta. Guarde un documento como página web de un solo archivo o como página web filtrada.",
+   "fr": "Ouvrez une page HTML (`.html` ou `.htm`) comme document, avec titres, gras, italique, souligné, barré, exposant, indice, couleur, alignement, listes à puces et numérotées, liens, tableaux et images contenues dans la page ou dans son dossier. Enregistrez un document sous forme de page web en fichier unique ou de page web filtrée.",
    "soon": {
     "drop": true,
     "en": "",
@@ -7551,6 +7565,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "06f2ccca2410d2c2cb0c5d00707909a98090752a0cd4c859de32c531e51e4922": {
+   "drop": false,
+   "en": "Find and replace with wildcards and groups, the codes `^p`, `^t`, `^#`, `^$`, and `^w`, and replacement with `\\1` to `\\9`, `^&`, and `^t`. It also offers sounds like, all word forms, ignoring punctuation and white space, a Special menu, and find by format (bold, italic, underline, strikethrough, highlight, font, or paragraph style). Each Replace All is one step.",
+   "es": "Busque y reemplace con comodines y grupos, los códigos `^p`, `^t`, `^#`, `^$` y `^w`, y reemplazo con `\\1` a `\\9`, `^&` y `^t`. También ofrece suena como, todas las formas de una palabra, ignorar signos de puntuación y espacios en blanco, un menú Especial y búsqueda por formato (negrita, cursiva, subrayado, tachado, resaltado, fuente o estilo de párrafo). Cada Reemplazar todo es un solo paso.",
+   "fr": "Recherchez et remplacez avec des caractères génériques et des groupes, les codes `^p`, `^t`, `^#`, `^$` et `^w`, et un remplacement avec `\\1` à `\\9`, `^&` et `^t`. Sont aussi proposés : prononciation proche, toutes les formes d’un mot, ignorer la ponctuation et les espaces, un menu Spécial et la recherche par format (gras, italique, souligné, barré, surlignage, police ou style de paragraphe). Chaque Remplacer tout est une seule étape.",
+   "soon": {
+    "drop": false,
+    "en": "Replace with the clipboard; search headers, footers, and notes; section break, field, and footnote mark codes; find by paragraph, tabs, language, and frame",
+    "es": "Reemplazo con el portapapeles; búsqueda en encabezados, pies de página y notas; códigos de salto de sección, campo y marca de nota al pie; búsqueda por párrafo, tabulaciones, idioma y marco",
+    "fr": "Remplacement par le presse-papiers ; recherche dans les en-têtes, pieds de page et notes ; codes de saut de section, de champ et d’appel de note de bas de page ; recherche par paragraphe, tabulations, langue et cadre"
    }
   },
   "07240d6fcb5a0b4699576d7cb4cd766e442f744cc98e9cb81c4d64b273e2a382": {
@@ -8285,6 +8311,18 @@
     "fr": ""
    }
   },
+  "119de554cb24fc5abace1dc8ad0f6b61dbfb616876b2375ec5c842205cd1d654": {
+   "drop": false,
+   "en": "The Navigation pane has Headings (click to go to a heading, collapse, promote, and demote, each as one step), Pages (small pictures of the first 60 pages), and Results (a word’s places with the words around them, listed as text, under each heading, or under each page).",
+   "es": "El panel de navegación tiene Encabezados (haga clic para ir a un encabezado, contraer, ascender y descender de nivel, cada uno en un solo paso), Páginas (imágenes pequeñas de las primeras 60 páginas) y Resultados (los lugares de una palabra con las palabras que la rodean, enumerados como texto, bajo cada encabezado o bajo cada página).",
+   "fr": "Le volet Navigation propose Titres (cliquez pour atteindre un titre, réduire, promouvoir et rétrograder, chacun en une seule étape), Pages (petites images des 60 premières pages) et Résultats (les occurrences d’un mot avec les mots qui l’entourent, listées sous forme de texte, sous chaque titre ou sous chaque page).",
+   "soon": {
+    "drop": false,
+    "en": "Headings: drag to reorder",
+    "es": "Encabezados: arrastre para reordenar",
+    "fr": "Titres : réorganisation par glisser-déposer"
+   }
+  },
   "11c37f0657022925677a61d7c156ebd98890dd8c678f666e4c796f7512961737": {
    "drop": false,
    "en": "Apply character shading from a color list, or remove it, and turn a thin character border on or off in JeffWrite. Shading is kept separate from the highlight, and each change is one Undo step.",
@@ -8967,18 +9005,6 @@
     "en": "Check Accessibility",
     "es": "Comprobar accesibilidad",
     "fr": "Vérification de l’accessibilité"
-   }
-  },
-  "1cc81129e71717bd5f43195d6117ce26df567f10948f98d59116f0fdf4f72d32": {
-   "drop": false,
-   "en": "In JeffWrite, a small bar floats above words you select with the mouse. It has Bold, Italic, Underline, Shrink Font, Grow Font, the three alignments, Bullets, and Numbering, the same commands as the ribbon.",
-   "es": "En JeffWrite, una pequeña barra flota sobre las palabras que usted selecciona con el ratón. Incluye Negrita, Cursiva, Subrayado, Reducir fuente, Aumentar fuente, las tres alineaciones, Viñetas y Numeración, los mismos comandos que la cinta de opciones.",
-   "fr": "Dans JeffWrite, une petite barre flotte au-dessus des mots que vous sélectionnez à la souris. Elle propose Gras, Italique, Souligné, Réduire la police, Agrandir la police, les trois alignements, Puces et Numérotation, les mêmes commandes que le ruban.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "1cd87d37f62bc26ea44e8392bd6425e5bf379a53fd43ed44028f284cb6d18702": {
@@ -11866,6 +11892,18 @@
    "en": "Text Art Tools Format tab",
    "es": "Pestaña Formato de herramientas de texto artístico",
    "fr": "Onglet Format des outils de texte décoratif",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "446d0be21f701e24fb3ddf27654fbe709baa292e3b7c8b12038ebb7caf5993b8": {
+   "drop": false,
+   "en": "When you select words with the mouse, a small bar floats above them with the font box, font color, Bold, Italic, Underline, Shrink Font, Grow Font, the three alignments, Bullets, and Numbering. It has the same commands as the ribbon, follows the selection, and goes away when the selection does.",
+   "es": "Al seleccionar palabras con el ratón, aparece sobre ellas una barra pequeña con el cuadro de fuente, el color de fuente, Negrita, Cursiva, Subrayado, Reducir fuente, Aumentar fuente, las tres alineaciones, Viñetas y Numeración. Tiene los mismos comandos que la cinta de opciones, sigue la selección y desaparece cuando ésta desaparece.",
+   "fr": "Lorsque vous sélectionnez des mots à la souris, une petite barre apparaît au-dessus avec la zone de police, la couleur de police, Gras, Italique, Souligné, Réduire la police, Agrandir la police, les trois alignements, Puces et Numérotation. Elle propose les mêmes commandes que le ruban, suit la sélection et disparaît avec elle.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15161,18 +15199,6 @@
     "fr": ""
    }
   },
-  "7234d0848e4df7a768120731671a6af838521a4c8a9e6224d961d084fbabb03f": {
-   "drop": false,
-   "en": "Read Mode hides the ribbon, ruler, and panes, puts the pages in a row each fitted to the window, and keeps the text from being changed. `Esc`, `F11`, or the command again ends it.",
-   "es": "El modo de lectura oculta la cinta de opciones, la regla y los paneles, coloca las páginas en una fila ajustadas a la ventana y evita que se cambie el texto. `Esc`, `F11` o el mismo comando lo finalizan.",
-   "fr": "Le mode Lecture masque le ruban, la règle et les volets, place les pages en une rangée ajustée à la fenêtre et empêche de modifier le texte. `Échap`, `F11` ou la même commande y met fin.",
-   "soon": {
-    "drop": false,
-    "en": "Web Layout, and Read Mode column width, page color, and layout choices",
-    "es": "Diseño web, y ancho de columna, color de página y opciones de diseño del modo de lectura",
-    "fr": "Mode Web, et largeur de colonne, couleur de page et choix de mise en page du mode Lecture"
-   }
-  },
   "723932ee69e08a8e0dc4831eec55cd07caca99eed12fa5b406252c62079da2c6": {
    "drop": false,
    "en": "JeffWrite keeps macros in a document and never runs them.",
@@ -15975,18 +16001,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "7ded653343ea0f6a38e137e6269f9cd5fc9c6a5827cced8fee2ee3321dc1ca9f": {
-   "drop": false,
-   "en": "In JeffWrite, Manage in the Styles pane lists every style. You can mark styles as recommended in the gallery, hide them, and set their order in the lists. OK applies all changes as one step.",
-   "es": "En JeffWrite, Administrar en el panel Estilos muestra todos los estilos. Usted puede marcar estilos como recomendados en la galería, ocultarlos y definir su orden en las listas. Aceptar aplica todos los cambios en un solo paso.",
-   "fr": "Dans JeffWrite, Gérer dans le volet Styles liste tous les styles. Vous pouvez marquer des styles comme recommandés dans la galerie, les masquer et définir leur ordre dans les listes. OK applique toutes les modifications en une seule étape.",
-   "soon": {
-    "drop": false,
-    "en": "Restricting formatting, defaults for new documents, and style import and export between files",
-    "es": "Restricción de formato, valores predeterminados para documentos nuevos e importación y exportación de estilos entre documentos",
-    "fr": "Restriction de la mise en forme, valeurs par défaut des nouveaux documents, et import et export de styles entre fichiers"
    }
   },
   "7e167f0e2285a8f8073a10ac0b5b3762061583e006bb43f90c66f847920f2adf": {
@@ -17153,18 +17167,6 @@
     "fr": "Exécution pas à pas d’une fonction qui désigne la cellule d’une autre formule"
    }
   },
-  "8fb67d4768fc91c80faa23926965722cb195f765043e516aaedaccabf54010ea": {
-   "drop": false,
-   "en": "In JeffWrite, `Ctrl+F` opens the Find and Replace pane. Find Next selects each match in text and tables, with match case and whole words, scrolls the pages to it, and goes round. The pane counts matches as you type, and every match in the text is highlighted in yellow on the pages.",
-   "es": "En JeffWrite, `Ctrl+F` abre el panel Buscar y reemplazar. Buscar siguiente selecciona cada coincidencia en el texto y las tablas, con coincidencia de mayúsculas y palabras completas, desplaza las páginas hasta ella y vuelve al principio. El panel cuenta las coincidencias mientras usted escribe, y cada coincidencia del texto se resalta en amarillo en las páginas.",
-   "fr": "Dans JeffWrite, `Ctrl+F` ouvre le volet Rechercher et remplacer. Suivant sélectionne chaque occurrence dans le texte et les tableaux, avec respect de la casse et mots entiers, fait défiler les pages jusqu’à elle et reprend au début. Le volet compte les occurrences pendant la saisie, et chaque occurrence du texte est surlignée en jaune sur les pages.",
-   "soon": {
-    "drop": false,
-    "en": "Navigation pane with results by heading and by page, and match highlighting in tables, headers, footers, and notes",
-    "es": "Panel de navegación con resultados por encabezado y por página, y resaltado de coincidencias en tablas, encabezados, pies de página y notas",
-    "fr": "Volet de navigation avec résultats par titre et par page, et surlignage des occurrences dans les tableaux, en-têtes, pieds de page et notes"
-   }
-  },
   "8ff72cad7b0ae3043e45b1fd074fec5d2fbe592b03a55cda6c95b5624b5417bf": {
    "drop": false,
    "en": "JeffWrite opens and saves OpenDocument text (`.odt`). It reads and writes styles, lists, tables, sections, headers and footers, notes, fields, pictures, text boxes, comments, and tracked changes. A `.ott` template opens as a new document.",
@@ -17199,6 +17201,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "90422f0483c83f5b633ee66dbb25c8597a3a7ea4cbf3eb259c6f0172161511fe": {
+   "drop": false,
+   "en": "Export a document to PDF/A, which produces a PDF/A-1b file with its mark stored in the metadata.",
+   "es": "Exporte un documento a PDF/A, que genera un archivo PDF/A-1b con su marca almacenada en los metadatos.",
+   "fr": "Exportez un document en PDF/A, ce qui produit un fichier PDF/A-1b dont la marque est enregistrée dans les métadonnées.",
+   "soon": {
+    "drop": false,
+    "en": "Tagged PDF, PDF with a password, and PDF/X-1a and PDF/X-4 for printers",
+    "es": "PDF etiquetado, PDF con contraseña y PDF/X-1a y PDF/X-4 para imprentas",
+    "fr": "PDF balisé, PDF avec mot de passe, et PDF/X-1a et PDF/X-4 pour les imprimeurs"
    }
   },
   "9069dd246c9d9f8b24504d8c007bb4ae6421a5a3ca2232db656ad6d45bdef606": {
@@ -17655,6 +17669,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "96262416043fce4851657903e322a2b4b91a38fc048391fc456b9f0efcdef0a7": {
+   "drop": false,
+   "en": "A horizontal ruler shows the four indent markers, tab stops (left, center, right, and decimal), and both margins, each of which you can drag as one step that undoes. A vertical ruler beside the pages marks each page’s top and bottom margins and text area in the chosen unit. Gridlines show the faint edges of table cells.",
+   "es": "Una regla horizontal muestra los cuatro marcadores de sangría, las tabulaciones (izquierda, centrada, derecha y decimal) y ambos márgenes, que puede arrastrar en un solo paso que se puede deshacer. Una regla vertical junto a las páginas marca los márgenes superior e inferior de cada página y el área de texto en la unidad elegida. Las líneas de cuadrícula muestran los bordes tenues de las celdas de las tablas.",
+   "fr": "Une règle horizontale affiche les quatre marqueurs de retrait, les taquets de tabulation (gauche, centré, droit et décimal) et les deux marges, que vous pouvez faire glisser en une seule étape annulable. Une règle verticale à côté des pages indique les marges haute et basse de chaque page et la zone de texte dans l’unité choisie. Le quadrillage affiche les bords discrets des cellules de tableau.",
+   "soon": {
+    "drop": false,
+    "en": "Vertical ruler: drag the vertical margins",
+    "es": "Regla vertical: arrastre de los márgenes verticales",
+    "fr": "Règle verticale : déplacement des marges verticales par glisser"
    }
   },
   "9633dd4d7ddc1ccd6877d259329127ee73e034fcf665cc9c5a71d2a0609a8f60": {
@@ -18471,18 +18497,6 @@
     "en": "Style Inspector pane: change formatting",
     "es": "Panel Inspector de estilos: cambiar el formato",
     "fr": "Volet Inspecteur de styles : modifier la mise en forme"
-   }
-  },
-  "a0ef4a9cab7bf104985392f3ce365afa424f50908d88dbed4eabde2ee4a02bae": {
-   "drop": false,
-   "en": "Show the horizontal ruler, with the four indent markers, tab stops (left, center, right, and decimal), and both margins that can be dragged, each in one step that can be undone. Show gridlines, the faint edges of table cells.",
-   "es": "Muestre la regla horizontal, con los cuatro marcadores de sangría, tabulaciones (izquierda, centrada, derecha y decimal) y ambos márgenes que se pueden arrastrar, cada cambio en un solo paso que se puede deshacer. Muestre las líneas de cuadrícula, los bordes tenues de las celdas de tabla.",
-   "fr": "Affichez la règle horizontale, avec les quatre repères de retrait, les taquets de tabulation (gauche, centré, droit et décimal) et les deux marges, que l’on peut faire glisser, chaque changement en une seule étape annulable. Affichez le quadrillage, les bords discrets des cellules de tableau.",
-   "soon": {
-    "drop": false,
-    "en": "Vertical ruler",
-    "es": "Regla vertical",
-    "fr": "Règle verticale"
    }
   },
   "a1467c2cd971bac5144e2cb03003b63b58b96707d07c16eda8038797ad26f1a2": {
@@ -19515,18 +19529,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b37f5fd68165c3c0d24ef0fd197772a68a6f2c9a8c682627b7e4698a2f8c094f": {
-   "drop": false,
-   "en": "Export to PDF/A: JeffWrite writes a PDF/A-1b file.",
-   "es": "Exportación a PDF/A: JeffWrite genera un archivo PDF/A-1b.",
-   "fr": "Exportation en PDF/A : JeffWrite crée un fichier PDF/A-1b.",
-   "soon": {
-    "drop": false,
-    "en": "Tagged PDF, PDF with a password, and PDF/X for printers",
-    "es": "PDF etiquetado, PDF con contraseña y PDF/X para imprentas",
-    "fr": "PDF balisé, PDF avec mot de passe et PDF/X pour l’impression"
    }
   },
   "b42ba8a6efed652a9d71b46bc999da05ce6a44887a14f149869e0b0d8d3bbc67": {
@@ -22421,18 +22423,6 @@
     "fr": "Format de l’arrière-plan : remplissages dégradé, image, texture et motif, et réinitialisation de l’arrière-plan"
    }
   },
-  "df03e17891a9ecb316811825d810315da3b1c254f2af062ab21f48ac62378978": {
-   "drop": false,
-   "en": "Open an HTML page (`.html` or `.htm`) as a document with headings, bold, italic, underline, strike-through, superscript, subscript, color, alignment, list marks as typed text, and tables with joined columns. Save a document as HTML, as a single file or filtered. Scripts, style sheets, and addresses are never read or fetched, and a page over 32 MB is refused.",
-   "es": "Abra una página HTML (`.html` o `.htm`) como documento con encabezados, negrita, cursiva, subrayado, tachado, superíndice, subíndice, color, alineación, marcas de lista como texto escrito y tablas con columnas combinadas. Guarde un documento como HTML, en un solo archivo o filtrado. Los scripts, las hojas de estilo y las direcciones nunca se leen ni se descargan, y se rechaza una página de más de 32 MB.",
-   "fr": "Ouvrez une page HTML (`.html` ou `.htm`) comme document avec titres, gras, italique, souligné, barré, exposant, indice, couleur, alignement, puces de liste en texte saisi et tableaux à colonnes fusionnées. Enregistrez un document en HTML, en fichier unique ou filtré. Les scripts, les feuilles de style et les adresses ne sont jamais lus ni récupérés, et une page de plus de 32 Mo est refusée.",
-   "soon": {
-    "drop": false,
-    "en": "HTML open: pictures, links, real lists, and style-sheet looks",
-    "es": "Apertura de HTML: imágenes, vínculos, listas reales y aspecto de hojas de estilo",
-    "fr": "Ouverture HTML : images, liens, vraies listes et apparence des feuilles de style"
-   }
-  },
   "df0ef09e4a61b89e4793d5479f78b9e2e91a70da7152cd21cbdee88c65e35abe": {
    "drop": false,
    "en": "Older binary `.xls` files",
@@ -22733,18 +22723,6 @@
     "fr": ""
    }
   },
-  "e364e92b611d64c5a04960a2afcceef27b80cd84b83c72f01ff6f9ca205ca6c4": {
-   "drop": false,
-   "en": "In JeffWrite, the Find pane supports wildcards, including `?`, `*`, `<`, `>`, `[a-c]`, `[!a]`, `{n,m}`, `@`, and groups. It also accepts the codes `^p`, `^t`, `^#`, `^$`, and `^w`, and Replace accepts `\\1` to `\\9`, `^&`, and `^t`. Each Replace All is one step, and a bad pattern says what is wrong.",
-   "es": "En JeffWrite, el panel Buscar admite comodines, entre ellos `?`, `*`, `<`, `>`, `[a-c]`, `[!a]`, `{n,m}`, `@` y grupos. También acepta los códigos `^p`, `^t`, `^#`, `^$` y `^w`, y Reemplazar acepta `\\1` a `\\9`, `^&` y `^t`. Cada Reemplazar todo es un solo paso, y un patrón incorrecto indica qué falla.",
-   "fr": "Dans JeffWrite, le volet Rechercher prend en charge les caractères génériques, dont `?`, `*`, `<`, `>`, `[a-c]`, `[!a]`, `{n,m}`, `@` et les groupes. Il accepte aussi les codes `^p`, `^t`, `^#`, `^$` et `^w`, et Remplacer accepte `\\1` à `\\9`, `^&` et `^t`. Chaque Remplacer tout est une seule étape, et un motif incorrect indique ce qui ne va pas.",
-   "soon": {
-    "drop": false,
-    "en": "Sounds like, all word forms, ignore punctuation and spaces, find by format, Special menu, replace with the clipboard, and search in headers, footers, and notes",
-    "es": "Suena como, todas las formas de una palabra, ignorar puntuación y espacios, búsqueda por formato, menú Especial, reemplazo con el portapapeles y búsqueda en encabezados, pies de página y notas",
-    "fr": "Sonorité proche, toutes les formes d’un mot, ignorer ponctuation et espaces, recherche par format, menu Spécial, remplacement par le presse-papiers et recherche dans les en-têtes, pieds de page et notes"
-   }
-  },
   "e3671097c867a9909c5e44ca165b913aafc4723823247e76009bc8550cdb6515": {
    "drop": false,
    "en": "In JeffCrunch, trendlines of every kind can be drawn over a chart with a legend entry, and the Trendline menu of Chart Parts sets the kind, the equation, and R-squared.",
@@ -23031,6 +23009,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e689f1b4f76a0db0169475bfacc54b9b6ded6291798f8c052e7bfa9d3fa4dddd": {
+   "drop": false,
+   "en": "Manage Styles lists every style and lets you set which are recommended in the gallery, which are hidden, and their order in the lists, applied together as one step. You can modify styles, delete a style you made (its paragraphs go back to Normal), and import styles from another document, optionally replacing those with the same name.",
+   "es": "Administrar estilos enumera todos los estilos y permite definir cuáles se recomiendan en la galería, cuáles están ocultos y su orden en las listas, todo aplicado en un solo paso. Puede modificar estilos, eliminar un estilo creado por usted (sus párrafos vuelven a Normal) e importar estilos de otro documento, con la opción de reemplazar los del mismo nombre.",
+   "fr": "Gérer les styles répertorie tous les styles et permet de choisir ceux qui sont recommandés dans la galerie, ceux qui sont masqués et leur ordre dans les listes, le tout appliqué en une seule étape. Vous pouvez modifier des styles, supprimer un style que vous avez créé (ses paragraphes repassent en Normal) et importer des styles d’un autre document, en remplaçant éventuellement ceux du même nom.",
+   "soon": {
+    "drop": false,
+    "en": "Restrict formatting, defaults for new documents, and export styles to a file",
+    "es": "Restricción de formato, valores predeterminados para documentos nuevos y exportación de estilos a un archivo",
+    "fr": "Restriction de la mise en forme, valeurs par défaut des nouveaux documents et export des styles vers un fichier"
    }
   },
   "e68e2e1156670317759f54f66cd96ce1f18b86bfdcf67d951b337fb66345dc86": {
@@ -23573,6 +23563,18 @@
     "fr": ""
    }
   },
+  "efc5cea7eb62f78b6960a731996d24d597796a3912d57e0dae9c6f3b64aff75e": {
+   "drop": false,
+   "en": "Read Mode hides the ribbon, ruler, and panes, shows the pages in a row each fitted to the window, and keeps the text from being changed. Press `Esc` or `F11`, or use the command again, to end it.",
+   "es": "El modo de lectura oculta la cinta de opciones, la regla y los paneles, muestra las páginas en fila, cada una ajustada a la ventana, e impide que se cambie el texto. Pulse `Esc` o `F11`, o use el comando de nuevo, para salir.",
+   "fr": "Le mode lecture masque le ruban, la règle et les volets, affiche les pages en rangée, chacune ajustée à la fenêtre, et empêche toute modification du texte. Appuyez sur `Échap` ou `F11`, ou réutilisez la commande, pour le quitter.",
+   "soon": {
+    "drop": false,
+    "en": "Web Layout; Read Mode column width, page color, and layout choices",
+    "es": "Diseño web; ancho de columna, color de página y opciones de diseño en el modo de lectura",
+    "fr": "Mode Web ; largeur de colonne, couleur de page et choix de mise en page en mode lecture"
+   }
+  },
   "efcd6cbed4b2eb967be58b082c47b8c9a083306c02ce2169953006389d917961": {
    "drop": true,
    "en": "",
@@ -23789,18 +23791,6 @@
     "fr": ""
    }
   },
-  "f3560581baeb8d3a047d1616fa05a6be85d8159e6081c0ab95ea57c552798fcc": {
-   "drop": false,
-   "en": "The Navigation Pane shows Headings (click to go to one, collapse, promote, and demote), Pages (the first 60 pages as small pictures), and Results (a word's places with the words around them).",
-   "es": "El panel de navegación muestra Encabezados (haga clic para ir a uno, contraer, ascender y descender de nivel), Páginas (las primeras 60 páginas como imágenes pequeñas) y Resultados (los lugares de una palabra con las palabras que la rodean).",
-   "fr": "Le volet de navigation affiche les Titres (cliquez pour y aller, réduire, promouvoir et rétrograder), les Pages (les 60 premières pages en petites images) et les Résultats (les occurrences d’un mot avec les mots qui l’entourent).",
-   "soon": {
-    "drop": false,
-    "en": "Navigation pane headings: drag to reorder",
-    "es": "Encabezados del panel de navegación: arrastrar para reordenar",
-    "fr": "Titres du volet de navigation : glisser pour réorganiser"
-   }
-  },
   "f435c763d878352807cc472c21dfc3de6bc7f6da2d308edd21637618c42114b5": {
    "drop": false,
    "en": "The Shape Format tab has a gallery of 24 styles drawn from the theme, kept in `.pptx` and `.odp` files.",
@@ -23938,6 +23928,18 @@
    "en": "Check for updates now or each time JeffPub starts, then choose Update Now, Later, or Skip This Version. A Get beta versions choice provides early builds, with two channels: Stable and Beta.",
    "es": "Busque actualizaciones ahora o cada vez que se inicie JeffPub, y elija Actualizar ahora, Más tarde u Omitir esta versión. La opción Obtener versiones beta ofrece compilaciones anticipadas, con dos canales: Estable y Beta.",
    "fr": "Recherchez des mises à jour maintenant ou à chaque démarrage de JeffPub, puis choisissez Mettre à jour maintenant, Plus tard ou Ignorer cette version. Le choix Obtenir les versions bêta donne accès aux versions préliminaires, avec deux canaux : Stable et Bêta.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "f7302ac1bdfeaa8b225721600cf4773b5f28778a46cf78ab2fb6325b4a08fdb4": {
+   "drop": false,
+   "en": "Press `Ctrl+F` to find text in the document and its tables, with match case and whole words options. The pane shows the match count, every match is highlighted on the pages, and the Navigation pane can list results as text, by heading, or by page.",
+   "es": "Pulse `Ctrl+F` para buscar texto en el documento y sus tablas, con opciones de coincidir mayúsculas y minúsculas y palabras completas. El panel muestra el número de coincidencias, cada coincidencia se resalta en las páginas y el panel de navegación puede enumerar los resultados como texto, por encabezado o por página.",
+   "fr": "Appuyez sur `Ctrl+F` pour rechercher du texte dans le document et ses tableaux, avec les options respecter la casse et mots entiers. Le volet affiche le nombre de correspondances, chaque correspondance est surlignée dans les pages, et le volet Navigation peut lister les résultats sous forme de texte, par titre ou par page.",
    "soon": {
     "drop": true,
     "en": "",
