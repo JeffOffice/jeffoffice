@@ -234,6 +234,28 @@ private Q_SLOTS:
         QCOMPARE(int(blocks.size()), kMaxChartBlocks);
     }
 
+    // The words of "value from cells" are read from the cells the labels name, and follow them; the chart reads those cells too.
+    void labelWordsFollowTheirCells()
+    {
+        FakeCells f = FakeCells::regional();
+        f.set(0, QStringLiteral("E2"), Value::text(QStringLiteral("low")));
+        f.set(0, QStringLiteral("E4"), Value::text(QStringLiteral("high")));
+        Chart c = readIt(chartPart(QStringLiteral("barChart"), eastWest()));
+        c.plots[0].series[0].labels.cells = true;
+        c.plots[0].series[0].labelCellsRef = QStringLiteral("Sheet1!$E$2:$E$4");
+        QCOMPARE(applyChartCells(&c, 0, f), 2);
+        QCOMPARE(c.plots[0].series[0].labelCellsText, (QStringList{"low", QString(), "high"}));
+        QVERIFY(chartRefs(c).contains(QStringLiteral("Sheet1!$E$2:$E$4")));
+        f.set(0, QStringLiteral("E3"), Value::text(QStringLiteral("mid")));
+        applyChartCells(&c, 0, f);
+        QCOMPARE(c.plots[0].series[0].labelCellsText.value(1), QStringLiteral("mid"));
+        QVERIFY(chartSvg(c, QSizeF(480, 288)).contains("mid"));
+        QVector<ChartBlock> blocks = chartReads(c, 0, f);
+        bool reads = false;
+        for (const ChartBlock &b : blocks) reads = reads || (b.range.col1 == 4 && b.range.row1 == 1 && b.range.row2 == 3);
+        QVERIFY(reads);
+    }
+
     // A series takes its name, categories, and values from the cells; changing a cell changes the chart; the picture is drawn from them and changes with them.
     void seriesFollowTheirCells()
     {

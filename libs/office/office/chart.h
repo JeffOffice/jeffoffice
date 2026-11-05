@@ -98,7 +98,8 @@ struct ChartDataLabels {
     QString format;                 // a number format; empty: the values' own
     ChartFont font;
     QString separator;              // empty: ", "
-    bool shown() const { return value || category || series || percent || legendKey; }
+    bool cells = false;             // "value from cells": each label holds the text of a cell of the series' labelCellsRef (the extension's c15:showDataLabelsRange)
+    bool shown() const { return value || category || series || percent || legendKey || cells; }
 };
 
 // The most trendlines a chart is read with, and the points they are fitted to in all (a line of a series counts the series' values).
@@ -117,6 +118,22 @@ struct ChartTrendline {
     ChartLine line;                 // how it looks (the series' color, dotted, when the file says nothing)
     QByteArray label;               // the file's c:trendlineLbl, as it wrote it
 };
+
+// Error bars of a series (c:errBars): how far above and below each value a bar runs.
+struct ChartErrorBars {
+    QString direction;              // "x" or "y" (a scatter has both); empty: the usual (y)
+    QString barType = QStringLiteral("both");        // "both", "plus", or "minus"
+    QString valueType = QStringLiteral("fixedVal");  // "fixedVal", "percentage", "stdDev", "stdErr", or "cust"
+    bool noEndCap = false;
+    double value = 1;               // the fixed value, the percentage, or the number of standard deviations
+    // A custom amount: the cells each reads (empty for a literal) and the numbers it had, one for each point (or a single one for all).
+    QString plusRef, minusRef;
+    QVector<double> plus, minus;
+    ChartLine line;
+};
+
+// The amounts (above, below) the bars run for each of a series' values (0 for a side the bars do not have, and for a blank).
+void chartErrorBarAmounts(const ChartErrorBars &bars, const QVector<double> &values, QVector<double> *above, QVector<double> *below);
 
 struct ChartSeries {
     QString name;
@@ -151,6 +168,9 @@ struct ChartSeries {
     ChartDataLabels labels;
     double explosion = 0;           // a pie's slice pulled out, percent of the radius
     QVector<ChartTrendline> trendlines;
+    QVector<ChartErrorBars> errorBars;   // at most two (a scatter's x and y)
+    QString labelCellsRef;          // where "value from cells" reads the labels' words (the extension's c15:datalabelsRange c15:f)
+    QStringList labelCellsText;     // and the words it had (c15:dlblRangeCache), a blank for a cell with none
     bool filtered = false;          // left out of the drawing by a chart filter (not in the file: it is written like the other series, so a file keeps every series)
 };
 
@@ -170,6 +190,12 @@ struct ChartPlot {
     bool lines = true;              // scatter: the points are joined (else markers only)
     bool smooth = false;            // scatter: made with smooth lines (each series says so in the file: the kind of a plot read from a file is told from its series)
     qint64 axisIds[2] = {0, 0};     // the category (or horizontal) and the value axes it is drawn against
+    // Lines and bars a line or area plot draws between its series: drop lines (from a category's highest point down to the axis), high-low lines (from its highest point to its lowest), and
+    // up-down bars (between its first and last series; up when the last is higher). The file's looks for them; the up bar is white and the down bar black when it says nothing.
+    bool dropLines = false, hiLowLines = false, upDownBars = false;
+    ChartLine dropLine, hiLowLine, upBarLine, downBarLine;
+    QColor upBarFill, downBarFill;
+    int upDownGap = 150;            // percent of a bar
     QVector<ChartSeries> series;
 };
 
@@ -205,6 +231,16 @@ struct ChartAxis {
     bool autoKind = true;           // c:auto
     int tickMarkSkip = 0;           // every nth tick mark; 0: the usual
     ChartKept lineKept;             // of the axis line's c:spPr
+    // A value axis' display units (c:dispUnits): its labels show the numbers divided by the unit. A built-in unit ("hundreds", "thousands", "tenThousands", "hundredThousands", "millions",
+    // "tenMillions", "hundredMillions", "billions", "trillions"), or "custom" with `dispUnitCustom`; empty for none. `dispUnitsLabel` is the file's c:dispUnitsLbl, kept as it was written.
+    QString dispUnit;
+    double dispUnitCustom = 0;
+    QByteArray dispUnitsLabel;
+    bool dispUnitShowLabel = false;     // the unit's name is on the chart (the file has a c:dispUnitsLbl)
+    // What the labels are divided by (1 for none).
+    double dispUnitFactor() const;
+    // The unit's name as the label shows it ("Thousands"); empty for none.
+    QString dispUnitName() const;
 };
 
 struct ChartLegend {

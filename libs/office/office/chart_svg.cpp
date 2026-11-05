@@ -276,6 +276,10 @@ private:
     void drawBars(const View &v, const Scale &scale);
     void drawLines(const View &v, const Scale &scale);
     void drawAreas(const View &v, const Scale &scale);
+    // The error bars of a series: `place` gives the point i moved by an amount along the value axis (or, for `xDirection`, along a scatter's x axis); false if it has no place.
+    void drawErrorBars(const ChartSeries &s, const std::function<bool(int, double, bool, QPointF *)> &place);
+    // The drop lines, high-low lines, and up-down bars of a line or area plot, under its series.
+    void drawBetweenSeries(const View &v, const Scale &scale);
     void drawScatter(const View &v, const Scale &xs, const Scale &ys);
     // The trendlines of a series, over the plot: `xs` are the x of each of its values (a scatter's, else the places 1, 2, 3...), and `map` takes an x and a y to the page.
     void drawTrendlines(const ChartSeries &s, const QVector<double> &xs, const std::function<QPointF(double, double)> &map);
@@ -706,6 +710,7 @@ QString ChartPainter::labelText(const ChartPlot &plot, const ChartSeries &s, int
         else if (i < s.categories.size() && !s.categories[i].isEmpty()) parts << writable(s.categories[i], kChartMaxLabel);
         else parts << QString::number(i + 1);
     }
+    if (l.cells && i < s.labelCellsText.size() && !s.labelCellsText[i].isEmpty()) parts << writable(s.labelCellsText[i], kChartMaxLabel);
     const double v = i < s.values.size() ? s.values[i] : kNaN;
     if (l.value && !std::isnan(v)) parts << formatChartNumber(v, l.format.isEmpty() ? s.format : l.format);
     if (l.percent && total > 0 && !std::isnan(v)) parts << formatChartNumber(std::fabs(v) / total, l.format.contains(QLatin1Char('%')) ? l.format : QStringLiteral("0%"));
@@ -923,6 +928,13 @@ void ChartPainter::drawBars(const View &v, const Scale &scale)
                 drawLabels(plot, s, i, p, 0, ha, va, inside, fill);
             }
         }
+        if (!s.errorBars.isEmpty())
+            drawErrorBars(s, [&](int i, double dv, bool, QPointF *out) {
+                const Seg &seg = v.segs[k][i];
+                if (!std::isfinite(seg.to)) return false;
+                *out = at(i + leftOff + slot * bar * (1 - overlap) + bar / 2, seg.to + dv, scale);
+                return true;
+            });
     }
     {
         const bool stackedLike = plot.grouping == ChartGrouping::Stacked || plot.grouping == ChartGrouping::PercentStacked;
@@ -1010,9 +1022,53 @@ void ChartPainter::strokeThrough(const QVector<QPointF> &pts, const QVector<bool
     if (!longRun || !whole.isEmpty()) m_p->drawPath(whole);
 }
 
+void ChartPainter::drawBetweenSeries(const View &v, const Scale &scale)
+{
+    const ChartPlot &plot = *v.plot;
+    if (!plot.dropLines && !plot.hiLowLines && !plot.upDownBars) return;
+    const double base = std::clamp(m_baseline, scale.min, scale.max);
+    const double gray = 0.75;
+    m_p->save();
+    m_p->setBrush(Qt::NoBrush);
+    for (int i = 0; i < m_n; ++i) {
+        double high = -std::numeric_limits<double>::infinity(), low = std::numeric_limits<double>::infinity();
+        int finite = 0;
+        for (int k = 0; k < plot.series.size(); ++k) {
+            const double value = v.segs[k][i].to;
+            if (!std::isfinite(value)) continue;
+            high = std::max(high, value);
+            low = std::min(low, value);
+            ++finite;
+        }
+        if (!finite) continue;
+        if (plot.dropLines) {
+            m_p->setPen(penFor(plot.dropLine, lineColor(), gray));
+            m_p->drawLine(at(catUnit(i), high, scale), at(catUnit(i), base, scale));
+        }
+        if (plot.hiLowLines && finite > 1) {
+            m_p->setPen(penFor(plot.hiLowLine, lineColor(), gray));
+            m_p->drawLine(at(catUnit(i), high, scale), at(catUnit(i), low, scale));
+        }
+        if (plot.upDownBars && plot.series.size() > 1) {
+            const double first = v.segs[0][i].to, last = v.segs[plot.series.size() - 1][i].to;
+            if (!std::isfinite(first) || !std::isfinite(last)) continue;
+            const double bar = 1.0 / (1.0 + plot.upDownGap / 100.0);
+            const QRectF r = rectOf(catUnit(i) - bar / 2, catUnit(i) + bar / 2, first, last, scale);
+            const bool up = last >= first;
+            const QColor fill = up ? (plot.upBarFill.isValid() ? plot.upBarFill : QColor(Qt::white)) : (plot.downBarFill.isValid() ? plot.downBarFill : QColor(Qt::black));
+            m_p->setBrush(fill);
+            m_p->setPen(penFor(up ? plot.upBarLine : plot.downBarLine, lineColor(), gray));
+            m_p->drawRect(r);
+            m_p->setBrush(Qt::NoBrush);
+        }
+    }
+    m_p->restore();
+}
+
 void ChartPainter::drawLines(const View &v, const Scale &scale)
 {
     const ChartPlot &plot = *v.plot;
+    drawBetweenSeries(v, scale);
     static const ChartMarker::Symbol autoSymbols[] = {ChartMarker::Diamond, ChartMarker::Square, ChartMarker::Triangle, ChartMarker::X,
                                                       ChartMarker::Star,    ChartMarker::Circle, ChartMarker::Plus,     ChartMarker::Dash};
     const bool stacked = plot.grouping == ChartGrouping::Stacked || plot.grouping == ChartGrouping::PercentStacked;
@@ -1045,6 +1101,12 @@ void ChartPainter::drawLines(const View &v, const Scale &scale)
         for (int i = 0; i < m_n; ++i) marked[i] = present[i] && std::isfinite(v.segs[k][i].to);
         const QColor markFill = s.marker.fill.isValid() ? s.marker.fill : s.color;
         drawMarkers(pts, marked, symbol, s.marker.size, markFill, s.marker.line.isValid() ? s.marker.line : markFill, s.marker.noFill, s.marker.noLine);
+        if (!s.errorBars.isEmpty())
+            drawErrorBars(s, [&](int i, double dv, bool, QPointF *out) {
+                if (i >= m_n || !present[i] || !std::isfinite(v.segs[k][i].to)) return false;
+                *out = at(catUnit(i), v.segs[k][i].to + dv, scale);
+                return true;
+            });
         if (s.labels.shown()) {
             for (int i = 0; i < m_n; ++i) {
                 if (!present[i] || !std::isfinite(v.segs[k][i].to)) continue;
@@ -1113,6 +1175,7 @@ void ChartPainter::drawAreas(const View &v, const Scale &scale)
         }
     }
     m_p->restore();
+    drawBetweenSeries(v, scale);
 }
 
 void ChartPainter::drawScatter(const View &v, const Scale &xs, const Scale &ys)
@@ -1151,6 +1214,14 @@ void ChartPainter::drawScatter(const View &v, const Scale &xs, const Scale &ys)
         const double markSize = plot.element == QLatin1String("bubbleChart") ? std::max(s.marker.size, 10.0) : s.marker.size;
         const QColor markFill = s.marker.fill.isValid() ? s.marker.fill : s.color;
         const QColor markLine = s.marker.line.isValid() ? s.marker.line : markFill;
+        if (!s.errorBars.isEmpty())
+            drawErrorBars(s, [&](int i, double dv, bool xDirection, QPointF *out) {
+                if (i >= n || !present[i]) return false;
+                const double fx = xs.frac(s.xValues[i] + (xDirection ? dv : 0)), fy = ys.frac(s.values[i] + (xDirection ? 0 : dv));
+                if (!(std::fabs(fx) <= 1000 && std::fabs(fy) <= 1000)) return false;
+                *out = QPointF(m_inner.left() + (m_catReversed ? 1 - fx : fx) * m_inner.width(), m_inner.bottom() - (m_valReversed ? 1 - fy : fy) * m_inner.height());
+                return true;
+            });
         int pieces = 0;
         for (int i = 0; i < n; ++i) pieces += present[i];
         // The markers of a series that has many are one path, drawn before the labels; else each is drawn with its label.
@@ -1179,6 +1250,34 @@ void ChartPainter::drawScatter(const View &v, const Scale &xs, const Scale &ys)
             const double fx = xs.frac(x), fy = ys.frac(y);
             return QPointF(m_inner.left() + (m_catReversed ? 1 - fx : fx) * m_inner.width(), m_inner.bottom() - (m_valReversed ? 1 - fy : fy) * m_inner.height());
         });
+    }
+    m_p->restore();
+}
+
+void ChartPainter::drawErrorBars(const ChartSeries &s, const std::function<bool(int, double, bool, QPointF *)> &place)
+{
+    m_p->save();
+    m_p->setBrush(Qt::NoBrush);
+    for (const ChartErrorBars &b : s.errorBars) {
+        const bool xDirection = b.direction == QLatin1String("x");
+        const QVector<double> &along = xDirection ? s.xValues : s.values;
+        QVector<double> above, below;
+        chartErrorBarAmounts(b, along, &above, &below);
+        m_p->setPen(penFor(b.line, lineColor(), 0.75));
+        const int count = int(std::min<qint64>(along.size(), 100000));
+        for (int i = 0; i < count; ++i) {
+            if (above[i] == 0 && below[i] == 0) continue;
+            QPointF top, bottom;
+            if (!place(i, above[i], xDirection, &top) || !place(i, -below[i], xDirection, &bottom)) continue;
+            m_p->drawLine(top, bottom);
+            if (b.noEndCap) continue;
+            const QPointF d = bottom - top;
+            const double length = std::hypot(d.x(), d.y());
+            if (length < 1e-9) continue;
+            const QPointF cap(-d.y() / length * 3.5, d.x() / length * 3.5);
+            if (above[i] != 0) m_p->drawLine(top - cap, top + cap);
+            if (below[i] != 0) m_p->drawLine(bottom - cap, bottom + cap);
+        }
     }
     m_p->restore();
 }
@@ -1243,6 +1342,7 @@ QStringList ChartPainter::categoryLabels() const
 QString ChartPainter::valueText(double v, const ChartAxis &axis, const ChartSeries *first, bool percent) const
 {
     if (std::fabs(v) < 1e-12) v = 0;
+    if (axis.kind == ChartAxis::Value) v /= axis.dispUnitFactor();   // (display units)
     if (!axis.formatLinked) return formatChartNumber(v, axis.format);
     if (percent) return formatChartNumber(v, QStringLiteral("0%"));
     return formatChartNumber(v, first ? first->format : QString());
@@ -1931,8 +2031,20 @@ Chart unfiltered(const Chart &chart)
     bool any = false;
     for (const ChartPlot &plot : chart.plots)
         for (const ChartSeries &s : plot.series) any = any || s.filtered;
-    if (!any) return chart;
+    bool unitLabels = false;
+    for (const ChartAxis &a : chart.axes) unitLabels = unitLabels || (a.dispUnitShowLabel && a.dispUnitFactor() != 1);
+    if (!any && !unitLabels) return chart;
     Chart out = chart;
+    // the unit's name is the axis title, or goes after it in brackets
+    for (ChartAxis &a : out.axes) {
+        if (!a.dispUnitShowLabel || a.dispUnitFactor() == 1) continue;
+        const QString name = a.dispUnitName();
+        const bool titled = a.title.present && !(a.title.text.isEmpty() && a.title.ref.isEmpty());
+        a.title.present = true;
+        a.title.ref.clear();
+        a.title.text = titled ? a.title.text + QStringLiteral(" (") + name + QLatin1Char(')') : name;
+    }
+    if (!any) return out;
     for (ChartPlot &plot : out.plots)
         plot.series.erase(std::remove_if(plot.series.begin(), plot.series.end(), [](const ChartSeries &s) { return s.filtered; }), plot.series.end());
     return out;

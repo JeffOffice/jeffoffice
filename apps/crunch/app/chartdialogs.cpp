@@ -696,6 +696,22 @@ FormatAxisDialog::FormatAxisDialog(const jp::office::ChartAxis &axis, const QStr
     m_logBase->setEnabled(axis.logBase >= 2);
     connect(m_log, &QCheckBox::toggled, m_logBase, &QWidget::setEnabled);
     if (axis.kind == jp::office::ChartAxis::Value) form->addRow(m_log, m_logBase);
+    // display units: the labels show the numbers divided (a custom unit the file holds stays as it is until another is chosen)
+    m_units = new QComboBox(this);
+    m_units->setObjectName(QStringLiteral("axisDisplayUnits"));
+    m_units->addItem(tr("None"), QString());
+    const struct { const char *code; const char *name; } units[] = {
+        {"hundreds", QT_TR_NOOP("Hundreds")}, {"thousands", QT_TR_NOOP("Thousands")}, {"tenThousands", QT_TR_NOOP("Ten Thousands")}, {"hundredThousands", QT_TR_NOOP("Hundred Thousands")},
+        {"millions", QT_TR_NOOP("Millions")}, {"tenMillions", QT_TR_NOOP("Ten Millions")}, {"hundredMillions", QT_TR_NOOP("Hundred Millions")}, {"billions", QT_TR_NOOP("Billions")},
+        {"trillions", QT_TR_NOOP("Trillions")}};
+    for (const auto &u : units) m_units->addItem(tr(u.name), QString::fromLatin1(u.code));
+    if (axis.dispUnit == QLatin1String("custom")) m_units->addItem(tr("Custom (%1)").arg(axis.dispUnitCustom), QStringLiteral("custom"));
+    m_units->setCurrentIndex(std::max(0, m_units->findData(axis.dispUnit)));
+    if (axis.kind == jp::office::ChartAxis::Value) form->addRow(tr("Display units:"), m_units);
+    m_unitLabel = new QCheckBox(tr("Show the units' name on the chart"), this);
+    m_unitLabel->setObjectName(QStringLiteral("axisDisplayUnitsLabel"));
+    m_unitLabel->setChecked(axis.dispUnitShowLabel);
+    if (axis.kind == jp::office::ChartAxis::Value) form->addRow(m_unitLabel);
     m_crosses = new QComboBox(this);
     m_crosses->setObjectName(QStringLiteral("axisCrosses"));
     m_crosses->addItem(tr("Automatic"), QStringLiteral("autoZero"));
@@ -777,6 +793,8 @@ jp::office::ChartAxis FormatAxisDialog::result() const
         a.majorUnit = m_autoMajor->isChecked() ? 0 : m_major->value();
         a.minorUnit = m_autoMinor->isChecked() ? 0 : m_minor->value();
         a.logBase = m_log->isChecked() ? std::round(m_logBase->value()) : 0;
+        a.dispUnit = m_units->currentData().toString();
+        a.dispUnitShowLabel = m_unitLabel->isChecked();
     }
     a.reversed = m_reversed->isChecked();
     const QString crosses = m_crosses->currentData().toString();

@@ -281,6 +281,9 @@ void setAxisFormat(Chart *chart, bool horizontal, bool secondary, const ChartAxi
     a->minorUnit = from.minorUnit;
     a->reversed = from.reversed;
     a->logBase = from.logBase;
+    a->dispUnit = from.dispUnit;
+    a->dispUnitCustom = from.dispUnitCustom;
+    a->dispUnitShowLabel = from.dispUnitShowLabel;
     a->crosses = from.crosses;
     a->hasCrossesAt = from.hasCrossesAt;
     a->crossesAt = from.crossesAt;
@@ -448,7 +451,7 @@ void setDataLabelParts(Chart *chart, const ChartLabelParts &parts)
     const bool any = parts.value || parts.category || parts.series || parts.percent || parts.legendKey;
     for (ChartPlot &p : chart->plots)
         for (ChartSeries &s : p.series) {
-            if (!any) {
+            if (!any && !s.labels.cells) {
                 s.labels = ChartDataLabels();
                 continue;
             }
@@ -460,6 +463,87 @@ void setDataLabelParts(Chart *chart, const ChartLabelParts &parts)
             s.labels.separator = parts.separator;
             s.labels.format = parts.format;
         }
+}
+
+void setDataLabelsFromCells(Chart *chart, const QString &ref)
+{
+    for (ChartPlot &p : chart->plots)
+        for (ChartSeries &s : p.series) {
+            s.labels.cells = !ref.isEmpty();
+            s.labelCellsRef = ref;
+            if (ref.isEmpty()) s.labelCellsText.clear();
+        }
+}
+
+QString dataLabelsCellsRef(const Chart &chart)
+{
+    for (const ChartPlot &p : chart.plots)
+        for (const ChartSeries &s : p.series)
+            if (s.labels.cells && !s.labelCellsRef.isEmpty()) return s.labelCellsRef;
+    return QString();
+}
+
+void setErrorBars(Chart *chart, const QString &kind, double value)
+{
+    if (kind == QLatin1String("cust")) return;
+    for (ChartPlot &p : chart->plots) {
+        if (p.type != ChartType::Bar && p.type != ChartType::Line && p.type != ChartType::Scatter) continue;
+        for (ChartSeries &s : p.series) {
+            if (kind.isEmpty()) {
+                s.errorBars.clear();
+                continue;
+            }
+            ChartErrorBars b;
+            b.valueType = kind;
+            b.value = std::max(0.0, value);
+            if (p.type == ChartType::Scatter) b.direction = QStringLiteral("y");
+            s.errorBars = QVector<ChartErrorBars>{b};
+        }
+    }
+}
+
+QString errorBarsKind(const Chart &chart)
+{
+    for (const ChartPlot &p : chart.plots)
+        for (const ChartSeries &s : p.series)
+            if (!s.errorBars.isEmpty()) return s.errorBars.first().valueType;
+    return QString();
+}
+
+namespace {
+
+bool plotTakes(const ChartPlot &p, PlotLines kind)
+{
+    if (kind == PlotLines::Drop) return p.type == ChartType::Line || p.type == ChartType::Area;
+    return p.type == ChartType::Line && p.series.size() >= 2;
+}
+
+} // namespace
+
+bool plotLinesApply(const Chart &chart, PlotLines kind)
+{
+    for (const ChartPlot &p : chart.plots)
+        if (plotTakes(p, kind)) return true;
+    return false;
+}
+
+bool plotLinesOn(const Chart &chart, PlotLines kind)
+{
+    bool any = false;
+    for (const ChartPlot &p : chart.plots) {
+        if (!plotTakes(p, kind)) continue;
+        any = true;
+        if (!(kind == PlotLines::Drop ? p.dropLines : kind == PlotLines::HighLow ? p.hiLowLines : p.upDownBars)) return false;
+    }
+    return any;
+}
+
+void setPlotLines(Chart *chart, PlotLines kind, bool on)
+{
+    for (ChartPlot &p : chart->plots) {
+        if (!plotTakes(p, kind)) continue;
+        (kind == PlotLines::Drop ? p.dropLines : kind == PlotLines::HighLow ? p.hiLowLines : p.upDownBars) = on;
+    }
 }
 
 // ---- colors and looks

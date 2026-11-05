@@ -23,6 +23,13 @@ ChartSeries seriesOf(const QString &name, const QString &nameRef, const QString 
     return s;
 }
 
+ChartAxis *axisOf(Chart &c, qint64 id)
+{
+    for (ChartAxis &a : c.axes)
+        if (a.id == id) return &a;
+    return nullptr;
+}
+
 // Columns with a line over them, the line against a second value axis, with a title, axis titles, a legend at the bottom, and data labels on the line.
 Chart comboChart()
 {
@@ -143,6 +150,265 @@ private Q_SLOTS:
     }
 
     // The legend key of a data label (the small square of the series' color) is kept, written, and drawn beside the label.
+    // A series a chart filter leaves out is written as a filtered series of the extension (c15:filteredBarSeries and its kin) inside the plot's extLst, so another program shows it hidden too; it is read back hidden, in its place.
+    void aFilteredSeriesIsWrittenAsAnExtensionAndReadBackHidden()
+    {
+        Chart c = comboChart();
+        c.plots[0].series[0].filtered = true;
+        c.plots[1].series[0].filtered = true;
+        const QByteArray xml = writeChartPart(c);
+        QDomDocument doc;
+        QVERIFY(doc.setContent(xml, true));
+        const QString c15 = QStringLiteral("http://schemas.microsoft.com/office/drawing/2012/chart");
+        const QString cns = QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/chart");
+        QCOMPARE(doc.elementsByTagNameNS(c15, QStringLiteral("filteredBarSeries")).size(), 1);
+        QCOMPARE(doc.elementsByTagNameNS(c15, QStringLiteral("filteredLineSeries")).size(), 1);
+        // the plain series list holds only the ones that are shown, and the extension comes last in the plot
+        const QDomNodeList bars = doc.elementsByTagNameNS(cns, QStringLiteral("barChart"));
+        QCOMPARE(bars.size(), 1);
+        int plain = 0;
+        for (QDomElement e = bars.at(0).toElement().firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) plain += e.localName() == QLatin1String("ser");
+        QCOMPARE(plain, 1);
+        QCOMPARE(bars.at(0).toElement().lastChildElement().localName(), QStringLiteral("extLst"));
+        QCOMPARE(bars.at(0).toElement().lastChildElement().firstChildElement().attribute(QStringLiteral("uri")), QStringLiteral("{02D57815-91ED-43cb-92C2-25804820EDAC}"));
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(xml, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        QCOMPARE(r.plots[0].series.size(), 2);
+        QVERIFY(r.plots[0].series[0].filtered);
+        QCOMPARE(r.plots[0].series[0].name, QStringLiteral("East"));
+        QCOMPARE(r.plots[0].series[0].values, (QVector<double>{10, 20, 30}));
+        QVERIFY(!r.plots[0].series[1].filtered);
+        QVERIFY(r.plots[1].series[0].filtered);
+        QCOMPARE(r.plots[1].series[0].name, QStringLiteral("Total"));
+        // and writing it again changes nothing: the part is modeled, so it may be written over
+        QCOMPARE(writeChartPart(r), xml);
+        QVERIFY(chartIsFullyModeled(xml, nullptr));
+    }
+
+    // "Value from cells": the labels' words are the cells' (c15:showDataLabelsRange in the labels and c15:datalabelsRange with its cache in the series), written, read back, and drawn.
+    void dataLabelsFromCellsAreKeptAndDrawn()
+    {
+        Chart c = comboChart();
+        ChartSeries &s = c.plots[0].series[0];
+        s.labels.cells = true;
+        s.labelCellsRef = QStringLiteral("Sheet1!$E$2:$E$4");
+        s.labelCellsText = QStringList{QStringLiteral("alpha"), QString(), QStringLiteral("gamma & co")};
+        const QByteArray xml = writeChartPart(c);
+        QDomDocument doc;
+        QVERIFY(doc.setContent(xml, true));
+        const QString c15 = QStringLiteral("http://schemas.microsoft.com/office/drawing/2012/chart");
+        QCOMPARE(doc.elementsByTagNameNS(c15, QStringLiteral("showDataLabelsRange")).size(), 1);
+        QCOMPARE(doc.elementsByTagNameNS(c15, QStringLiteral("datalabelsRange")).size(), 1);
+        QCOMPARE(doc.elementsByTagNameNS(c15, QStringLiteral("f")).at(0).toElement().text(), QStringLiteral("Sheet1!$E$2:$E$4"));
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(xml, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        const ChartSeries &back = r.plots[0].series[0];
+        QVERIFY(back.labels.cells);
+        QCOMPARE(back.labelCellsRef, QStringLiteral("Sheet1!$E$2:$E$4"));
+        QCOMPARE(back.labelCellsText, s.labelCellsText);
+        QVERIFY(!r.plots[0].series[1].labels.cells);
+        QCOMPARE(writeChartPart(r), xml);
+        QVERIFY(chartIsFullyModeled(xml, nullptr));
+        const QByteArray svg = chartSvg(r, QSizeF(480, 288));
+        QVERIFY(svg.contains("alpha") && svg.contains("gamma &amp; co"));
+        // the same chart without it draws neither
+        QVERIFY(!chartSvg(comboChart(), QSizeF(480, 288)).contains("alpha"));
+    }
+
+    // Display units of a value axis (c:dispUnits): written after the axis' units, read back, and the labels drawn divided by the unit.
+    void displayUnitsAreKeptAndDrawn()
+    {
+        Chart c = comboChart();
+        axisOf(c, 222)->dispUnit = QStringLiteral("thousands");
+        axisOf(c, 222)->majorUnit = 10;
+        QCOMPARE(axisOf(c, 222)->dispUnitFactor(), 1000.0);
+        const QByteArray xml = writeChartPart(c);
+        QDomDocument doc;
+        QVERIFY(doc.setContent(xml, true));
+        const QDomNodeList units = doc.elementsByTagNameNS(QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/chart"), QStringLiteral("dispUnits"));
+        QCOMPARE(units.size(), 1);
+        QCOMPARE(units.at(0).toElement().firstChildElement().localName(), QStringLiteral("builtInUnit"));
+        QCOMPARE(units.at(0).toElement().firstChildElement().attribute(QStringLiteral("val")), QStringLiteral("thousands"));
+        QCOMPARE(units.at(0).previousSiblingElement().localName(), QStringLiteral("majorUnit"));
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(xml, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        QCOMPARE(r.axis(222)->dispUnit, QStringLiteral("thousands"));
+        QCOMPARE(writeChartPart(r), xml);
+        QVERIFY(chartIsFullyModeled(xml, nullptr));
+        // a custom unit
+        Chart d = comboChart();
+        axisOf(d, 222)->dispUnit = QStringLiteral("custom");
+        axisOf(d, 222)->dispUnitCustom = 250;
+        Chart back;
+        QVERIFY(readChart(writeChartPart(d), defaultTheme(), ColorMap(), &back, &err));
+        QCOMPARE(back.axis(222)->dispUnitFactor(), 250.0);
+        // the labels: 10, 20, 30 ... thousands of a thousand are 0.01 ... so divide the values 10000s
+        Chart big = comboChart();
+        for (ChartSeries &s : big.plots[0].series)
+            for (double &v : s.values) v *= 1000;
+        axisOf(big, 222)->autoMax = true;
+        const QByteArray plain = chartSvg(big, QSizeF(480, 288));
+        axisOf(big, 222)->dispUnit = QStringLiteral("thousands");
+        const QByteArray divided = chartSvg(big, QSizeF(480, 288));
+        QVERIFY(plain.contains("30000") || plain.contains("30,000"));
+        QVERIFY(!divided.contains("30000") && !divided.contains("30,000"));
+    }
+
+    // Drop lines, high-low lines, and up-down bars of a line plot: written in the schema's place (after the series, before the markers), read back, and drawn.
+    void linesAndBarsBetweenSeriesAreKeptAndDrawn()
+    {
+        Chart c = comboChart();
+        ChartPlot &line = c.plots[1];
+        line.series << seriesOf(QStringLiteral("Low"), QString(), QString(), QString(), {"Q1", "Q2", "Q3"}, {20, 40, 60}, QColor("#A5A5A5"));
+        const QByteArray plain = chartSvg(c, QSizeF(480, 288));
+        line.dropLines = true;
+        line.hiLowLines = true;
+        line.hiLowLine.set = true;
+        line.hiLowLine.color = QColor("#FF0000");
+        line.upDownBars = true;
+        line.upDownGap = 80;
+        line.upBarFill = QColor("#00FF00");
+        const QByteArray xml = writeChartPart(c);
+        QDomDocument doc;
+        QVERIFY(doc.setContent(xml, true));
+        const QString cns = QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/chart");
+        const QDomElement lineChart = doc.elementsByTagNameNS(cns, QStringLiteral("lineChart")).at(0).toElement();
+        QStringList order;
+        for (QDomElement e = lineChart.firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
+            if (e.localName() != QLatin1String("ser") && e.localName() != QLatin1String("axId")) order << e.localName();
+        QCOMPARE(order, (QStringList{"grouping", "varyColors", "dropLines", "hiLowLines", "upDownBars", "marker"}));
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(xml, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        const ChartPlot &back = r.plots[1];
+        QVERIFY(back.dropLines && back.hiLowLines && back.upDownBars);
+        QCOMPARE(back.upDownGap, 80);
+        QCOMPARE(back.hiLowLine.color.name(), QStringLiteral("#ff0000"));
+        QCOMPARE(back.upBarFill.name(), QStringLiteral("#00ff00"));
+        QVERIFY(!r.plots[0].dropLines);
+        QCOMPARE(writeChartPart(r), xml);
+        QVERIFY(chartIsFullyModeled(xml, nullptr));
+        const QByteArray drawn = chartSvg(r, QSizeF(480, 288));
+        QVERIFY(drawn != plain);
+        QVERIFY(drawn.contains("#ff0000") || drawn.contains("#FF0000") || drawn.contains("rgb(255,0,0)"));
+        QVERIFY(drawn.contains("#00ff00") || drawn.contains("#00FF00") || drawn.contains("rgb(0,255,0)"));
+    }
+
+    // How far error bars run for each kind, and that custom amounts, a single custom amount for all, a missing side, and blanks come out right.
+    void errorBarAmountsFollowTheirKind()
+    {
+        const QVector<double> values{10, -20, 30, std::numeric_limits<double>::quiet_NaN()};
+        QVector<double> up, down;
+        ChartErrorBars b;
+        b.valueType = QStringLiteral("fixedVal");
+        b.value = 2.5;
+        chartErrorBarAmounts(b, values, &up, &down);
+        QCOMPARE(up, (QVector<double>{2.5, 2.5, 2.5, 0}));
+        QCOMPARE(down, up);
+        b.valueType = QStringLiteral("percentage");
+        b.value = 10;
+        chartErrorBarAmounts(b, values, &up, &down);
+        QCOMPARE(up, (QVector<double>{1, 2, 3, 0}));
+        b.valueType = QStringLiteral("stdDev");
+        b.value = 1;
+        chartErrorBarAmounts(b, values, &up, &down);
+        QVERIFY(qAbs(up[0] - std::sqrt(((10 - 20.0 / 3) * (10 - 20.0 / 3) + (-20 - 20.0 / 3) * (-20 - 20.0 / 3) + (30 - 20.0 / 3) * (30 - 20.0 / 3)) / 2)) < 1e-9);
+        b.valueType = QStringLiteral("stdErr");
+        QVector<double> sd;
+        chartErrorBarAmounts(b, values, &up, &down);
+        b.valueType = QStringLiteral("stdDev");
+        chartErrorBarAmounts(b, values, &sd, &down);
+        QVERIFY(qAbs(up[1] * std::sqrt(3.0) - sd[1]) < 1e-9);
+        b.valueType = QStringLiteral("cust");
+        b.plus = QVector<double>{1, 2};
+        b.minus = QVector<double>{5};
+        chartErrorBarAmounts(b, values, &up, &down);
+        QCOMPARE(up, (QVector<double>{1, 2, 0, 0}));
+        QCOMPARE(down, (QVector<double>{5, 5, 5, 0}));
+        b.barType = QStringLiteral("plus");
+        chartErrorBarAmounts(b, values, &up, &down);
+        QCOMPARE(down, (QVector<double>{0, 0, 0, 0}));
+    }
+
+    // Error bars of a series (c:errBars): written between the trendlines and the data in the schema's order, read back with their kind, ends, and look, and drawn.
+    void errorBarsAreKeptAndDrawn()
+    {
+        Chart c = comboChart();
+        const QByteArray plain = chartSvg(c, QSizeF(480, 288));
+        ChartErrorBars b;
+        b.valueType = QStringLiteral("percentage");
+        b.value = 20;
+        b.barType = QStringLiteral("plus");
+        b.noEndCap = true;
+        b.line.set = true;
+        b.line.color = QColor("#FF0000");
+        c.plots[0].series[0].errorBars << b;
+        ChartErrorBars custom;
+        custom.valueType = QStringLiteral("cust");
+        custom.plusRef = QStringLiteral("Sheet1!$F$2:$F$4");
+        custom.plus = QVector<double>{1, 2, 3};
+        custom.minus = QVector<double>{3, 2, 1};
+        c.plots[0].series[1].errorBars << custom;
+        const QByteArray xml = writeChartPart(c);
+        QDomDocument doc;
+        QVERIFY(doc.setContent(xml, true));
+        const QDomNodeList bars = doc.elementsByTagNameNS(QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/chart"), QStringLiteral("errBars"));
+        QCOMPARE(bars.size(), 2);
+        QStringList order;
+        for (QDomElement e = bars.at(0).toElement().firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) order << e.localName();
+        QCOMPARE(order, (QStringList{"errBarType", "errValType", "noEndCap", "val", "spPr"}));
+        QCOMPARE(bars.at(0).nextSiblingElement().localName(), QStringLiteral("cat"));
+        order.clear();
+        for (QDomElement e = bars.at(1).toElement().firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) order << e.localName();
+        QCOMPARE(order, (QStringList{"errBarType", "errValType", "noEndCap", "plus", "minus"}));
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(xml, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        const ChartErrorBars first = r.plots[0].series[0].errorBars.value(0), second = r.plots[0].series[1].errorBars.value(0);
+        QCOMPARE(first.valueType, QStringLiteral("percentage"));
+        QCOMPARE(first.value, 20.0);
+        QCOMPARE(first.barType, QStringLiteral("plus"));
+        QVERIFY(first.noEndCap);
+        QCOMPARE(first.line.color.name(), QStringLiteral("#ff0000"));
+        QCOMPARE(second.valueType, QStringLiteral("cust"));
+        QCOMPARE(second.plusRef, QStringLiteral("Sheet1!$F$2:$F$4"));
+        QCOMPARE(second.plus, (QVector<double>{1, 2, 3}));
+        QCOMPARE(second.minus, (QVector<double>{3, 2, 1}));
+        QCOMPARE(writeChartPart(r), xml);
+        QVERIFY(chartIsFullyModeled(xml, nullptr));
+        const QByteArray drawn = chartSvg(r, QSizeF(480, 288));
+        QVERIFY(drawn != plain);
+        QVERIFY(drawn.contains("#ff0000") || drawn.contains("#FF0000") || drawn.contains("rgb(255,0,0)"));
+    }
+
+    // The display units' label (c:dispUnitsLbl): kept, and the unit's name drawn with the axis, as its title or added to the title.
+    void theDisplayUnitsLabelIsKeptAndDrawn()
+    {
+        Chart c = comboChart();
+        axisOf(c, 222)->dispUnit = QStringLiteral("thousands");
+        const QByteArray without = chartSvg(c, QSizeF(480, 288));
+        QVERIFY(!without.contains("Thousands"));
+        QCOMPARE(axisOf(c, 222)->dispUnitName(), QStringLiteral("Thousands"));
+        axisOf(c, 222)->dispUnitShowLabel = true;
+        const QByteArray xml = writeChartPart(c);
+        QVERIFY(xml.contains("dispUnitsLbl"));
+        Chart r;
+        QString err;
+        QVERIFY2(readChart(xml, defaultTheme(), ColorMap(), &r, &err), qPrintable(err));
+        QVERIFY(axisOf(r, 222)->dispUnitShowLabel);
+        QCOMPARE(writeChartPart(r), xml);
+        QVERIFY(chartIsFullyModeled(xml, nullptr));
+        // with an axis title the name goes in brackets after it
+        QCOMPARE(axisOf(r, 222)->title.text, QStringLiteral("Units"));
+        QVERIFY(chartSvg(r, QSizeF(480, 288)).contains("Units (Thousands)"));
+        // none shown: the writer leaves the element out
+        axisOf(r, 222)->dispUnitShowLabel = false;
+        QVERIFY(!writeChartPart(r).contains("dispUnitsLbl"));
+    }
+
     void aLabelsLegendKeyIsKeptAndDrawn()
     {
         Chart c = comboChart();
@@ -245,9 +511,9 @@ private Q_SLOTS:
         QVERIFY(gradient != ours);
         QVERIFY2(chartIsFullyModeled(gradient, &why), qPrintable(why));   // (a gradient is kept: see whatTheModelKeepsIsWrittenBack)
         QByteArray trend = ours;
-        trend.replace("<c:cat>", "<c:errBars><c:errBarType val=\"both\"/><c:errValType val=\"fixedVal\"/><c:val val=\"1\"/></c:errBars><c:cat>");
+        trend.replace("<c:cat>", "<c:pictureOptions><c:pictureFormat val=\"stack\"/></c:pictureOptions><c:cat>");
         QVERIFY(!chartIsFullyModeled(trend, &why));
-        QCOMPARE(why, QStringLiteral("errBarType"));
+        QCOMPARE(why, QStringLiteral("pictureFormat"));
         QByteArray threeD = ours;
         threeD.replace("<c:barChart>", "<c:bar3DChart>").replace("</c:barChart>", "</c:bar3DChart>");
         QVERIFY(!chartIsFullyModeled(threeD, &why));
@@ -572,7 +838,7 @@ private Q_SLOTS:
         QByteArray doing = ours;
         doing.replace("</c:ser>", "<c:extLst><c:ext uri=\"{02D57815-91ED-43cb-92C2-25804820EDAC}\" xmlns:c15=\"http://schemas.microsoft.com/office/drawing/2012/chart\"><c15:datalabelsRange><c15:f>Sheet1!$A$1</c15:f></c15:datalabelsRange></c:ext></c:extLst></c:ser>");
         QVERIFY(!chartIsFullyModeled(doing, &why));
-        QVERIFY2(why.startsWith(QLatin1String("extLst")), qPrintable(why));
+        QVERIFY2(why.startsWith(QLatin1String("extLst")) || why == QLatin1String("what the series read"), qPrintable(why));   // (the cells the labels read are modeled now: a range with no flag that shows them is a loss all the same)
         // labels over the largest value shown
         QByteArray over = ours;
         over.replace("<c:showDLblsOverMax val=\"0\"/>", "<c:showDLblsOverMax val=\"1\"/>");

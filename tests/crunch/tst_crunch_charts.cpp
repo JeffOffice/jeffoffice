@@ -428,7 +428,7 @@ private Q_SLOTS:
         QCOMPARE(checkable, 2);
     }
 
-    // A series left out by Chart Filters is not lost on save: the file keeps it, and after reopening it can be brought back. (It is written as a series like the others, so it shows again.)
+    // A series left out by Chart Filters is not lost on save: the file keeps it, and after reopening it can be brought back. (It is written as a filtered series, so it reopens hidden.)
     void aFilteredSeriesSurvivesSaveAndReopen()
     {
         EditWindow e;
@@ -450,12 +450,23 @@ private Q_SLOTS:
         again.win.w.objects()->layer()->select(0);
         QVector<CrunchWindow::ChartFilterEntry> entries = again.win.w.chartFilterEntries();
         QCOMPARE(entries.size(), 2);
-        QVERIFY(entries[0].shown && entries[1].shown);
+        QVERIFY(!entries[0].shown && entries[1].shown);
         QCOMPARE(entries[0].name, first);
-        // it can be filtered out and brought back again
-        QVERIFY(again.win.w.setChartSeriesShown(0, false));
+        // it can be brought back, filtered out again, and kept hidden through another save and reopen
         QVERIFY(again.win.w.setChartSeriesShown(0, true));
-        QCOMPARE(chartOf(again).plots.first().series.size(), 2);
+        QVERIFY(again.win.w.setChartSeriesShown(0, false));
+        QVERIFY(save(again));
+        EditWindow third;
+        QVERIFY(third.open([&] { QFile f(again.path); f.open(QIODevice::ReadOnly); return f.readAll(); }(), QStringLiteral("third.xlsx")));
+        QVERIFY(third.settle());
+        QTRY_VERIFY(objectsShown(third, 1));
+        third.win.w.objects()->layer()->select(0);
+        QVERIFY(!third.win.w.chartFilterEntries()[0].shown);
+        QVERIFY(third.win.w.chartFilterEntries()[1].shown);
+        // and brought back again
+        QVERIFY(third.win.w.setChartSeriesShown(0, true));
+        QVERIFY(third.win.w.chartFilterEntries()[0].shown);
+        QCOMPARE(chartOf(third).plots.first().series.size(), 2);
     }
 
     // ---- moving and sizing
@@ -737,6 +748,146 @@ private Q_SLOTS:
         QVERIFY(!elementsOf(chartOf(e)).labels);
     }
 
+    // Error Bars, in the elements list: a kind for every series (one step of Undo), kept in the file; None takes them away.
+    void errorBarsAreChosenInTheElementsList()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        e.win.w.objects()->layer()->prepareAll();
+        QTRY_VERIFY(e.win.w.chartElementsButton() && e.win.w.chartElementsButton()->isVisible());
+        QMenu *menu = e.win.w.chartElementsButton()->menu();
+        auto fire = [&](const QStringList &path) {
+            QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+            QMenu *m = menu;
+            QAction *found = nullptr;
+            for (int i = 0; i < path.size(); ++i) {
+                found = nullptr;
+                for (QAction *a : m->actions())
+                    if (a->text() == path[i]) found = a;
+                if (!found) return false;
+                if (i + 1 < path.size()) m = found->menu();
+            }
+            found->trigger();
+            return true;
+        };
+        const int steps = e.win.w.session()->undoStack()->count();
+        QVERIFY(fire({"Error Bars", "Percentage (5%)"}));
+        QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);
+        QCOMPARE(errorBarsKind(chartOf(e)), QStringLiteral("percentage"));
+        QVERIFY(save(e));
+        QCOMPARE(errorBarsKind(savedCharts(e.path)[0].chart), QStringLiteral("percentage"));
+        pressUndo(&e.win.w);
+        QVERIFY(errorBarsKind(chartOf(e)).isEmpty());
+        QVERIFY(fire({"Error Bars", "Standard Error"}));
+        QVERIFY(fire({"Error Bars", "None"}));
+        QVERIFY(errorBarsKind(chartOf(e)).isEmpty());
+    }
+
+    // Lines, in the elements list of a line chart: Drop Lines, High-Low Lines, and Up/Down Bars, each one step of Undo and kept in the file; a column chart has no such list.
+    void linesBetweenSeriesAreChosenInTheElementsList()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Line));
+        e.win.w.objects()->layer()->prepareAll();
+        QTRY_VERIFY(e.win.w.chartElementsButton() && e.win.w.chartElementsButton()->isVisible());
+        QMenu *menu = e.win.w.chartElementsButton()->menu();
+        auto fire = [&](const QStringList &path) {
+            QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+            QMenu *m = menu;
+            QAction *found = nullptr;
+            for (int i = 0; i < path.size(); ++i) {
+                found = nullptr;
+                for (QAction *a : m->actions())
+                    if (a->text() == path[i]) found = a;
+                if (!found) return false;
+                if (i + 1 < path.size()) m = found->menu();
+            }
+            found->trigger();
+            return true;
+        };
+        const int steps = e.win.w.session()->undoStack()->count();
+        QVERIFY(fire({"Lines", "High-Low Lines"}));
+        QVERIFY(fire({"Lines", "Up/Down Bars"}));
+        QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 2);
+        QVERIFY(plotLinesOn(chartOf(e), PlotLines::HighLow) && plotLinesOn(chartOf(e), PlotLines::UpDown));
+        QVERIFY(save(e));
+        QVERIFY(plotLinesOn(savedCharts(e.path)[0].chart, PlotLines::UpDown));
+        pressUndo(&e.win.w);
+        QVERIFY(!plotLinesOn(chartOf(e), PlotLines::UpDown) && plotLinesOn(chartOf(e), PlotLines::HighLow));
+        QVERIFY(fire({"Lines", "Drop Lines"}));
+        QVERIFY(plotLinesOn(chartOf(e), PlotLines::Drop));
+    }
+
+    // Value From Cells, in the Data Labels list: the labels show the words of a range of cells (one step of Undo), the words follow the cells, and the file holds the range and its words.
+    void dataLabelsTakeTheirWordsFromCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.chartElementsButton() && e.win.w.chartElementsButton()->isVisible());
+        QMenu *menu = e.win.w.chartElementsButton()->menu();
+        auto fire = [&](const QStringList &path) {
+            QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
+            QMenu *m = menu;
+            QAction *found = nullptr;
+            for (int i = 0; i < path.size(); ++i) {
+                found = nullptr;
+                for (QAction *a : m->actions())
+                    if (a->text() == path[i]) found = a;
+                if (!found) return false;
+                if (i + 1 < path.size()) m = found->menu();
+            }
+            found->trigger();
+            return true;
+        };
+        QVERIFY(dataLabelsCellsRef(chartOf(e)).isEmpty());
+        e.win.w.setChartTextAsker([](const QString &, QString *text) {
+            *text = QStringLiteral("=A2:A4");
+            return true;
+        });
+        const int steps = e.win.w.session()->undoStack()->count();
+        QVERIFY(fire({"Data Labels", "Value From Cells…"}));
+        QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);
+        const QString ref = dataLabelsCellsRef(chartOf(e));
+        QVERIFY2(ref.endsWith(QStringLiteral("!$A$2:$A$4")), qPrintable(ref));
+        const ChartSeries first = seriesOf(chartOf(e)).value(0);
+        QVERIFY(first.labels.cells);
+        QCOMPARE(first.labelCellsText.size(), 3);
+        QVERIFY(!first.labelCellsText.join(QString()).isEmpty());
+        QVERIFY(save(e));
+        const ChartSeries saved = seriesOf(savedCharts(e.path)[0].chart).value(0);
+        QVERIFY(saved.labels.cells);
+        QCOMPARE(saved.labelCellsRef, ref);
+        QCOMPARE(saved.labelCellsText, first.labelCellsText);
+        // a range that is not there is refused, and nothing changes
+        e.win.w.setChartTextAsker([](const QString &, QString *text) {
+            *text = QStringLiteral("=Nowhere!A1:A3");
+            return true;
+        });
+        int told = 0;
+        e.win.w.setNotifier([&told](const QString &, const QString &) { ++told; });
+        QVERIFY(fire({"Data Labels", "Value From Cells…"}));
+        QCOMPARE(told, 1);
+        QCOMPARE(e.win.w.session()->undoStack()->count(), steps + 1);
+        QCOMPARE(dataLabelsCellsRef(chartOf(e)), ref);
+        // empty takes it away
+        e.win.w.setChartTextAsker([](const QString &, QString *text) {
+            text->clear();
+            return true;
+        });
+        QVERIFY(fire({"Data Labels", "Value From Cells…"}));
+        QVERIFY(dataLabelsCellsRef(chartOf(e)).isEmpty());
+        pressUndo(&e.win.w);
+        QCOMPARE(dataLabelsCellsRef(chartOf(e)), ref);
+    }
+
     // Format Axis sets an axis from the Chart tab as one step of Undo, only for a chart that has the axis, and the saved file holds it.
     void anAxisIsFormattedFromTheChartTab()
     {
@@ -871,6 +1022,37 @@ private Q_SLOTS:
         QVERIFY(!d.problem().isEmpty());
         box("axisMax")->setValue(11);
         QVERIFY(d.problem().isEmpty());
+    }
+
+    // Display units are chosen in the Format Axis box (a value axis only), kept through Undo and the file, and the labels show the numbers divided.
+    void displayUnitsAreChosenInTheFormatAxisBox()
+    {
+        ChartAxis axis;
+        axis.kind = ChartAxis::Value;
+        FormatAxisDialog d(axis, QStringLiteral("Format Axis"));
+        QComboBox *units = d.findChild<QComboBox *>(QStringLiteral("axisDisplayUnits"));
+        QVERIFY(units);
+        QVERIFY(d.result().dispUnit.isEmpty());
+        units->setCurrentIndex(units->findData(QStringLiteral("millions")));
+        QCOMPARE(d.result().dispUnit, QStringLiteral("millions"));
+        QVERIFY(!d.result().dispUnitShowLabel);
+        d.findChild<QCheckBox *>(QStringLiteral("axisDisplayUnitsLabel"))->setChecked(true);
+        QVERIFY(d.result().dispUnitShowLabel);
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.axisV"))->isEnabled());
+        e.win.w.setFormatAxisAsker([](bool, ChartAxis *a) {
+            a->dispUnit = QStringLiteral("thousands");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("chartdesign.axisV"))->trigger();
+        QCOMPARE(primaryAxis(chartOf(e), false)->dispUnit, QStringLiteral("thousands"));
+        QVERIFY(save(e));
+        QCOMPARE(primaryAxis(savedCharts(e.path)[0].chart, false)->dispUnit, QStringLiteral("thousands"));
+        pressUndo(&e.win.w);
+        QVERIFY(primaryAxis(chartOf(e), false)->dispUnit.isEmpty());
     }
 
     void theWindowRefusesAnAxisThatCannotBeUsed()
@@ -1340,7 +1522,7 @@ private Q_SLOTS:
     void aChartThatCannotBeRewrittenIsKeptAsItIs()
     {
         QByteArray part = chartPart(QStringLiteral("barChart"), {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}});
-        part.replace("<c:cat>", "<c:errBars><c:errBarType val=\"both\"/><c:errValType val=\"stdErr\"/></c:errBars><c:cat>");
+        part.replace("<c:cat>", "<c:pictureOptions><c:pictureFormat val=\"stack\"/></c:pictureOptions><c:cat>");
         EditWindow e;
         QVERIFY(e.open(bookWithAChart(QString(), part)));
         QTRY_VERIFY(objectsShown(e, 1));
@@ -1348,11 +1530,11 @@ private Q_SLOTS:
         o->layer()->select(0);
         QString why;
         QVERIFY(!o->canEditChart(0, 0, &why));
-        QVERIFY2(why.contains(QLatin1String("errBarType")), qPrintable(why));
+        QVERIFY2(why.contains(QLatin1String("pictureFormat")), qPrintable(why));
         QVERIFY(!e.win.w.act(QStringLiteral("chartdesign.selectData"))->isEnabled());
         QTRY_VERIFY(!e.win.w.chartElementsButton() || !e.win.w.chartElementsButton()->isVisible());
         QVERIFY(!e.win.w.changePickedChart(QStringLiteral("Test"), [](Chart *c) { c->title.present = true; }));
-        QVERIFY(e.win.told.last().contains(QLatin1String("errBarType")));
+        QVERIFY(e.win.told.last().contains(QLatin1String("pictureFormat")));
         // it can be moved
         o->layer()->nudge(1, 0, false, false);
         QVERIFY(e.win.w.isModified());

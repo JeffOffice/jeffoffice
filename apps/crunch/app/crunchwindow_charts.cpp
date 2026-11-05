@@ -875,6 +875,41 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
                     now.separator = code;
                     setDataLabelParts(c, now);
                 }, tr("Data Labels"));
+            // Value From Cells: the labels show the words of a range of cells, one for each point (empty: none).
+            QAction *fromCells = labels->addAction(tr("Value From Cells…"));
+            fromCells->setObjectName(QStringLiteral("labelsFromCellsAction"));
+            fromCells->setCheckable(true);
+            fromCells->setChecked(!dataLabelsCellsRef(chart).isEmpty());
+            connect(fromCells, &QAction::triggered, this, [this, now = dataLabelsCellsRef(chart)] {
+                QString text = now;
+                bool ok = false;
+                if (m_chartTextAsker) ok = m_chartTextAsker(tr("Value From Cells"), &text);
+                else text = QInputDialog::getText(this, tr("Value From Cells"), tr("The cells that hold the words for the labels, such as =Sheet1!$D$2:$D$4 (leave empty to take them away):"), QLineEdit::Normal, text, &ok);
+                if (!ok) return;
+                text = text.trimmed();
+                if (text.startsWith(QLatin1Char('='))) text = text.mid(1).trimmed();
+                if (!text.isEmpty()) {
+                    if (!m_objects || !m_objects->cells() || !m_loaded || !m_loaded->book) return;
+                    if (!text.contains(QLatin1Char('!'))) {
+                        const QString own = m_loaded->book->info().sheets[m_sheet].name;
+                        text = (own.contains(QRegularExpression(QStringLiteral("[^A-Za-z0-9_]"))) ? QStringLiteral("'") + QString(own).replace(QLatin1Char('\''), QStringLiteral("''")) + QStringLiteral("'") : own) + QLatin1Char('!') + text;
+                    }
+                    QVector<ChartBlock> blocks;
+                    if (!chartBlocks(text, m_sheet, *m_objects->cells(), &blocks) || blocks.size() != 1) {
+                        notice(tr("Value From Cells"), tr("\"%1\" isn't a range JeffCrunch can find. Write it like =Sheet1!$D$2:$D$4.").arg(text));
+                        return;
+                    }
+                    const auto r = blocks[0].range;
+                    const int bang = int(text.lastIndexOf(QLatin1Char('!')));
+                    text = text.left(bang + 1) + QStringLiteral("$") + columnName(r.col1) + QStringLiteral("$") + QString::number(qint64(r.row1) + 1);
+                    if (r.row1 != r.row2 || r.col1 != r.col2) text += QStringLiteral(":$") + columnName(r.col2) + QStringLiteral("$") + QString::number(qint64(r.row2) + 1);
+                }
+                const int sheet = m_sheet;
+                changePickedChart(tr("Data Labels"), [this, text, sheet](Chart *c) {
+                    setDataLabelsFromCells(c, text);
+                    if (!text.isEmpty() && m_objects->cells()) applyChartCells(c, sheet, *m_objects->cells());
+                });
+            });
             QAction *format = labels->addAction(tr("Number Format…"));
             connect(format, &QAction::triggered, this, [this, parts] {
                 QString code = parts.format;
@@ -909,6 +944,27 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
         if (e.legend) {
             legend->addSeparator();
             check(legend, tr("Over the Chart"), e.legendOverlay, [code = e.legendPosition, on = !e.legendOverlay](Chart *c) { setLegend(c, code, on); }, tr("Legend"));
+        }
+        if (chart.type() == ChartType::Bar || chart.type() == ChartType::Line || chart.type() == ChartType::Scatter) {
+            QMenu *bars = menu->addMenu(tr("Error Bars"));
+            bars->setObjectName(QStringLiteral("errorBarsMenu"));
+            auto *barGroup = new QActionGroup(bars);
+            const QString kind = errorBarsKind(chart);
+            choice(bars, barGroup, tr("None"), kind.isEmpty(), [](Chart *c) { setErrorBars(c, QString()); }, tr("Error Bars"));
+            choice(bars, barGroup, tr("Standard Error"), kind == QLatin1String("stdErr"), [](Chart *c) { setErrorBars(c, QStringLiteral("stdErr")); }, tr("Error Bars"));
+            choice(bars, barGroup, tr("Percentage (5%)"), kind == QLatin1String("percentage"), [](Chart *c) { setErrorBars(c, QStringLiteral("percentage"), 5); }, tr("Error Bars"));
+            choice(bars, barGroup, tr("Standard Deviation"), kind == QLatin1String("stdDev"), [](Chart *c) { setErrorBars(c, QStringLiteral("stdDev"), 1); }, tr("Error Bars"));
+            choice(bars, barGroup, tr("Fixed Value (1)"), kind == QLatin1String("fixedVal"), [](Chart *c) { setErrorBars(c, QStringLiteral("fixedVal"), 1); }, tr("Error Bars"));
+            if (kind == QLatin1String("cust")) choice(bars, barGroup, tr("Custom"), true, [](Chart *) {}, tr("Error Bars"))->setEnabled(false);
+        }
+        if (plotLinesApply(chart, PlotLines::Drop)) {
+            QMenu *lines = menu->addMenu(tr("Lines"));
+            lines->setObjectName(QStringLiteral("plotLinesMenu"));
+            check(lines, tr("Drop Lines"), plotLinesOn(chart, PlotLines::Drop), [on = !plotLinesOn(chart, PlotLines::Drop)](Chart *c) { setPlotLines(c, PlotLines::Drop, on); }, tr("Lines"));
+            if (plotLinesApply(chart, PlotLines::HighLow)) {
+                check(lines, tr("High-Low Lines"), plotLinesOn(chart, PlotLines::HighLow), [on = !plotLinesOn(chart, PlotLines::HighLow)](Chart *c) { setPlotLines(c, PlotLines::HighLow, on); }, tr("Lines"));
+                check(lines, tr("Up/Down Bars"), plotLinesOn(chart, PlotLines::UpDown), [on = !plotLinesOn(chart, PlotLines::UpDown)](Chart *c) { setPlotLines(c, PlotLines::UpDown, on); }, tr("Lines"));
+            }
         }
         if (chart.type() != ChartType::Pie && chart.type() != ChartType::Doughnut) {
             QMenu *trend = menu->addMenu(tr("Trendline"));

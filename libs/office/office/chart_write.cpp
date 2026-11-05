@@ -16,6 +16,7 @@ namespace jp::office {
 namespace {
 
 const char kCNs[] = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+const char kC15Ns[] = "http://schemas.microsoft.com/office/drawing/2012/chart";
 const char kANs[] = "http://schemas.openxmlformats.org/drawingml/2006/main";
 const char kRNs[] = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
@@ -394,16 +395,37 @@ private:
         flag("c:showBubbleSize", false);
         if (!l.separator.isEmpty()) text("c:separator", l.separator);
         if (pie) flag("c:showLeaderLines", true);
-        raw(l.ext);
+        if (l.cells) {
+            // "value from cells" goes first in the extensions the labels have
+            static const QByteArray flagExt = QByteArray("<c:ext xmlns:c=\"") + kCNs + "\" uri=\"{CE6537A1-D6FC-4f65-9D91-7224C49458BB}\" xmlns:c15=\"" + kC15Ns + "\"><c15:showDataLabelsRange val=\"1\"/></c:ext>";
+            const int open = int(l.ext.indexOf('>'));
+            if (l.ext.isEmpty() || open < 0) raw(QByteArray("<c:extLst xmlns:c=\"") + kCNs + "\">" + flagExt + "</c:extLst>");
+            else raw(l.ext.left(open + 1) + flagExt + l.ext.mid(open + 1));
+        } else {
+            raw(l.ext);
+        }
         w.writeEndElement();
     }
 
-    void series(const ChartPlot &plot, const ChartSeries &s)
+    // The name of the extension's list of filtered series for a kind of plot (c15:filteredBarSeries, ...); null for a kind that has none.
+    static const char *filteredElement(ChartType t)
+    {
+        switch (t) {
+        case ChartType::Bar: return "c15:filteredBarSeries";
+        case ChartType::Line: return "c15:filteredLineSeries";
+        case ChartType::Area: return "c15:filteredAreaSeries";
+        case ChartType::Pie: return "c15:filteredPieSeries";
+        case ChartType::Scatter: return "c15:filteredScatterSeries";
+        default: return nullptr;
+        }
+    }
+
+    void series(const ChartPlot &plot, const ChartSeries &s, const char *element = "c:ser")
     {
         const bool stroked = plot.type == ChartType::Line || plot.type == ChartType::Scatter;
         const bool scatter = plot.type == ChartType::Scatter;
         const int index = m_serial++;
-        w.writeStartElement(QStringLiteral("c:ser"));
+        w.writeStartElement(QString::fromLatin1(element));
         val("c:idx", QString::number(index));
         val("c:order", QString::number(index));
         // its name
@@ -457,6 +479,8 @@ private:
         labels(s.labels, plot.type == ChartType::Pie || plot.type == ChartType::Doughnut);
         if (plot.type != ChartType::Pie && plot.type != ChartType::Doughnut)
             for (const ChartTrendline &t : s.trendlines) trendline(t);
+        if (plot.type != ChartType::Pie && plot.type != ChartType::Doughnut)
+            for (const ChartErrorBars &b : s.errorBars) errorBars(b, scatter);
         if (scatter) {
             numberData("c:xVal", s.xRef, s.xValues, s.categoryFormat);
             numberData("c:yVal", s.valueRef, s.values, s.format);
@@ -465,6 +489,44 @@ private:
             numberData("c:val", s.valueRef, s.values, s.format);
         }
         if (stroked) flag("c:smooth", s.smooth);
+        if (s.labels.cells && !s.labelCellsRef.isEmpty()) {
+            w.writeStartElement(QStringLiteral("c:extLst"));
+            w.writeStartElement(QStringLiteral("c:ext"));
+            w.writeAttribute(QStringLiteral("uri"), QStringLiteral("{02D57815-91ED-43cb-92C2-25804820EDAC}"));
+            w.writeNamespace(QString::fromLatin1(kC15Ns), QStringLiteral("c15"));
+            w.writeStartElement(QStringLiteral("c15:datalabelsRange"));
+            text("c15:f", s.labelCellsRef);
+            w.writeStartElement(QStringLiteral("c15:dlblRangeCache"));
+            val("c:ptCount", QString::number(s.labelCellsText.size()));
+            for (int i = 0; i < s.labelCellsText.size(); ++i) {
+                if (s.labelCellsText[i].isEmpty()) continue;
+                w.writeStartElement(QStringLiteral("c:pt"));
+                w.writeAttribute(QStringLiteral("idx"), QString::number(i));
+                text("c:v", s.labelCellsText[i]);
+                w.writeEndElement();
+            }
+            w.writeEndElement();
+            w.writeEndElement();
+            w.writeEndElement();
+            w.writeEndElement();
+        }
+        w.writeEndElement();
+    }
+
+    void errorBars(const ChartErrorBars &b, bool scatter)
+    {
+        w.writeStartElement(QStringLiteral("c:errBars"));
+        if (scatter) val("c:errDir", b.direction == QLatin1String("x") ? QStringLiteral("x") : QStringLiteral("y"));
+        val("c:errBarType", b.barType);
+        val("c:errValType", b.valueType);
+        flag("c:noEndCap", b.noEndCap);
+        if (b.valueType == QLatin1String("cust")) {
+            if (b.barType != QLatin1String("minus")) numberData("c:plus", b.plusRef, b.plus, QStringLiteral("General"));
+            if (b.barType != QLatin1String("plus")) numberData("c:minus", b.minusRef, b.minus, QStringLiteral("General"));
+        } else if (b.valueType != QLatin1String("stdErr")) {
+            val("c:val", number(b.value));
+        }
+        shapeProps(QColor(), false, b.line);
         w.writeEndElement();
     }
 
@@ -528,7 +590,38 @@ private:
         case ChartType::Pie:
         case ChartType::Doughnut: flag("c:varyColors", true); break;
         }
-        for (const ChartSeries &s : p.series) series(p, s);
+        // a series a filter leaves out is written in the plot's extension (after the axes ids), where it keeps its place by its index
+        const char *filteredName = filteredElement(p.type);
+        QVector<int> hidden;
+        for (int i = 0; i < p.series.size(); ++i) {
+            if (filteredName && p.series[i].filtered) {
+                hidden << m_serial++;   // (the index it is written with, below)
+                continue;
+            }
+            series(p, p.series[i]);
+        }
+        // lines and bars between the series
+        if ((p.type == ChartType::Line || p.type == ChartType::Area) && p.dropLines) {
+            w.writeStartElement(QStringLiteral("c:dropLines"));
+            shapeProps(QColor(), false, p.dropLine);
+            w.writeEndElement();
+        }
+        if (p.type == ChartType::Line && p.hiLowLines) {
+            w.writeStartElement(QStringLiteral("c:hiLowLines"));
+            shapeProps(QColor(), false, p.hiLowLine);
+            w.writeEndElement();
+        }
+        if (p.type == ChartType::Line && p.upDownBars) {
+            w.writeStartElement(QStringLiteral("c:upDownBars"));
+            val("c:gapWidth", QString::number(p.upDownGap));
+            w.writeStartElement(QStringLiteral("c:upBars"));
+            shapeProps(p.upBarFill, false, p.upBarLine);
+            w.writeEndElement();
+            w.writeStartElement(QStringLiteral("c:downBars"));
+            shapeProps(p.downBarFill, false, p.downBarLine);
+            w.writeEndElement();
+            w.writeEndElement();
+        }
         switch (p.type) {
         case ChartType::Bar:
         case ChartType::Other:
@@ -546,6 +639,24 @@ private:
         if (p.type != ChartType::Pie && p.type != ChartType::Doughnut) {
             val("c:axId", QString::number(p.axisIds[0]));
             val("c:axId", QString::number(p.axisIds[1]));
+        }
+        if (!hidden.isEmpty()) {
+            w.writeStartElement(QStringLiteral("c:extLst"));
+            w.writeStartElement(QStringLiteral("c:ext"));
+            w.writeAttribute(QStringLiteral("uri"), QStringLiteral("{02D57815-91ED-43cb-92C2-25804820EDAC}"));
+            w.writeNamespace(QString::fromLatin1(kC15Ns), QStringLiteral("c15"));
+            w.writeStartElement(QString::fromLatin1(filteredName));
+            int at = 0;
+            for (const ChartSeries &s : p.series) {
+                if (!s.filtered) continue;
+                const int saved = m_serial;
+                m_serial = hidden[at++];
+                series(p, s, "c15:ser");
+                m_serial = saved;
+            }
+            w.writeEndElement();
+            w.writeEndElement();
+            w.writeEndElement();
         }
         w.writeEndElement();
     }
@@ -586,6 +697,16 @@ private:
             val("c:crossBetween", QString::fromLatin1(a.between ? "between" : "midCat"));
             if (a.majorUnit > 0) val("c:majorUnit", number(a.majorUnit));
             if (a.minorUnit > 0) val("c:minorUnit", number(a.minorUnit));
+            if (a.dispUnitFactor() != 1) {
+                w.writeStartElement(QStringLiteral("c:dispUnits"));
+                if (a.dispUnit == QLatin1String("custom")) val("c:custUnit", number(a.dispUnitCustom));
+                else val("c:builtInUnit", a.dispUnit);
+                if (a.dispUnitShowLabel) {
+                    if (a.dispUnitsLabel.isEmpty()) w.writeEmptyElement(QStringLiteral("c:dispUnitsLbl"));
+                    else raw(a.dispUnitsLabel);
+                }
+                w.writeEndElement();
+            }
         } else {
             flag("c:auto", a.autoKind);
             if (!date) val("c:lblAlgn", QStringLiteral("ctr"));
@@ -725,9 +846,17 @@ void collect(const QDomElement &e, Shape *out, int depth, QStringList &path)
     if (name == QLatin1String("printSettings")) return;   // (how it is printed: not kept, not a chart's look)
     if (name == QLatin1String("extLst") && (path.contains(QStringLiteral("dLbl")) || path.contains(QStringLiteral("dLbls")))) return;   // (a label of a point is kept as the file wrote it, extensions and all)
     if (name == QLatin1String("extLst")) {
-        // extensions: only those that hold nothing but an identifier of the chart or of a series
+        // extensions: only those that hold nothing but an identifier of the chart or of a series, or the series a filter leaves out (which are looked through like the others)
         for (QDomElement ext = e.firstChildElement(); !ext.isNull(); ext = ext.nextSiblingElement())
             for (QDomElement c = ext.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+                if (c.namespaceURI() == QLatin1String(kC15Ns) && c.localName() == QLatin1String("datalabelsRange")) continue;   // (what "value from cells" reads: the model holds it)
+                if (c.namespaceURI() == QLatin1String(kC15Ns) && c.localName().startsWith(QLatin1String("filtered")) && c.localName().endsWith(QLatin1String("Series")) && depth < 60) {
+                    path.append(QStringLiteral("extLst"));
+                    for (QDomElement ser = c.firstChildElement(); !ser.isNull(); ser = ser.nextSiblingElement())
+                        for (QDomElement part = ser.firstChildElement(); !part.isNull(); part = part.nextSiblingElement()) collect(part, out, depth + 2, path);
+                    path.removeLast();
+                    continue;
+                }
                 // (leader lines turned off draw nothing)
                 if (c.localName() == QLatin1String("showLeaderLines") && isOff(c)) continue;
                 if (c.localName() != QLatin1String("uniqueId")) out->problem = QStringLiteral("extLst (%1)").arg(c.localName());
@@ -777,7 +906,7 @@ QStringList refsOf(const Chart &c)
     out << c.title.ref;
     for (const ChartAxis &a : c.axes) out << a.title.ref;
     for (const ChartPlot &p : c.plots)
-        for (const ChartSeries &s : p.series) out << s.nameRef << s.categoryRef << s.valueRef << s.xRef;
+        for (const ChartSeries &s : p.series) out << s.nameRef << s.categoryRef << s.valueRef << s.xRef << s.labelCellsRef;
     return out;
 }
 

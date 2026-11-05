@@ -27,6 +27,7 @@ const QString kMarkupNs = QStringLiteral("http://schemas.openxmlformats.org/mark
 // series is a crowd, a few hundred points a big chart, and a long series of readings has a couple of thousand. These are many times the
 // series, plots, and axes that a real chart has, and five times its longest series; and the picture drawn from them is coarser still
 // (chart_svg.cpp).
+const char kC15Ns[] = "http://schemas.microsoft.com/office/drawing/2012/chart";
 constexpr int kMaxSeries = 256, kMaxPoints = 10000, kMaxPlots = 16, kMaxAxes = 16;
 // The points all of a chart's series may have between them.
 constexpr int kMaxChartPoints = 100000;
@@ -691,7 +692,24 @@ ChartDataLabels Reader::readLabels(const QDomElement &e) const
     l.series = flagOf(cChild(e, "showSerName"), false);
     l.percent = flagOf(cChild(e, "showPercent"), false);
     l.position = valOf(cChild(e, "dLblPos"));
-    l.ext = fragment(cChild(e, "extLst"));
+    // "Value from cells" is the extension's flag: taken out of the extension kept, which the writer puts it in again
+    if (QDomElement list = cChild(e, "extLst"); !list.isNull()) {
+        for (QDomElement x = list.firstChildElement(); !x.isNull();) {
+            const QDomElement next = x.nextSiblingElement();
+            for (QDomElement c = x.firstChildElement(); !c.isNull();) {
+                const QDomElement nextChild = c.nextSiblingElement();
+                if (c.localName() == QLatin1String("showDataLabelsRange") && c.namespaceURI() == QLatin1String(kC15Ns)) {
+                    l.cells = flagOf(c, false);
+                    x.removeChild(c);
+                }
+                c = nextChild;
+            }
+            if (x.localName() == QLatin1String("ext") && !x.hasChildNodes()) list.removeChild(x);
+            x = next;
+        }
+        if (list.firstChildElement().isNull()) QDomElement(e).removeChild(list);
+        else l.ext = fragment(list);
+    }
     for (const QDomElement &d : cChildren(e, "dLbl")) {
         const int at = int(parseInt(valOf(cChild(d, "idx")), -1));
         if (at >= 0 && at <= kMaxPoints && l.kept.size() < kMaxPoints) l.kept.insert(at, fragment(d));
@@ -792,6 +810,45 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
         line.label = fragment(cChild(t, "trendlineLbl"));
         s.trendlines.append(line);
     }
+    for (const QDomElement &eb : cChildren(ser, "errBars")) {
+        if (s.errorBars.size() >= 2) break;
+        ChartErrorBars b;
+        b.direction = valOf(cChild(eb, "errDir"));
+        const QString type = valOf(cChild(eb, "errBarType"), QStringLiteral("both"));
+        if (type == QLatin1String("plus") || type == QLatin1String("minus")) b.barType = type;
+        const QString kind = valOf(cChild(eb, "errValType"), QStringLiteral("fixedVal"));
+        if (kind == QLatin1String("percentage") || kind == QLatin1String("stdDev") || kind == QLatin1String("stdErr") || kind == QLatin1String("cust")) b.valueType = kind;
+        b.noEndCap = flagOf(cChild(eb, "noEndCap"), false);
+        if (const QDomElement v = cChild(eb, "val"); !v.isNull()) {
+            const double n = numberOf(v, 1);
+            b.value = std::isfinite(n) ? std::clamp(n, 0.0, 1e12) : 1;
+        }
+        const Data plus = readData(cChild(eb, "plus")), minus = readData(cChild(eb, "minus"));
+        b.plus = plus.numbers;
+        b.plusRef = plus.ref;
+        b.minus = minus.numbers;
+        b.minusRef = minus.ref;
+        b.line = readLine(cChild(eb, "spPr"));
+        s.errorBars << b;
+    }
+    // Where "value from cells" reads the labels' words, and the words it had (the extension's c15:datalabelsRange).
+    for (QDomElement x = cChild(ser, "extLst").firstChildElement(); !x.isNull(); x = x.nextSiblingElement()) {
+        for (QDomElement r = x.firstChildElement(); !r.isNull(); r = r.nextSiblingElement()) {
+            if (r.localName() != QLatin1String("datalabelsRange") || r.namespaceURI() != QLatin1String(kC15Ns)) continue;
+            for (QDomElement c = r.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+                if (c.localName() == QLatin1String("f")) s.labelCellsRef = c.text().trimmed().left(kMaxRefChars);
+                else if (c.localName() == QLatin1String("dlblRangeCache")) {
+                    const qint64 count = std::clamp<qint64>(parseInt(valOf(cChild(c, "ptCount")), 0), 0, kMaxPoints);
+                    s.labelCellsText = QStringList();
+                    for (qint64 i = 0; i < count; ++i) s.labelCellsText << QString();
+                    for (const QDomElement &pt : cChildren(c, "pt")) {
+                        const qint64 at = parseInt(pt.attribute(QStringLiteral("idx")), -1);
+                        if (at >= 0 && at < count) s.labelCellsText[int(at)] = cChild(pt, "v").text().left(kChartMaxLabel);
+                    }
+                }
+            }
+        }
+    }
     // Its data.
     const bool scatter = plot.type == ChartType::Scatter;
     const Data values = readData(cChild(ser, scatter ? "yVal" : "val"));
@@ -818,6 +875,19 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
         s.categories = categories.strings;
     }
     return s;
+}
+
+// The lists of filtered series in a plot's extensions.
+static QVector<QDomElement> filteredLists(const QDomElement &plot)
+{
+    QVector<QDomElement> out;
+    const QDomElement ext = cChild(plot, "extLst");
+    for (QDomElement x = ext.firstChildElement(); !x.isNull(); x = x.nextSiblingElement()) {
+        if (x.localName() != QLatin1String("ext") || x.attribute(QStringLiteral("uri")).toUpper() != QLatin1String("{02D57815-91ED-43CB-92C2-25804820EDAC}")) continue;
+        for (QDomElement c = x.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+            if (c.localName().startsWith(QLatin1String("filtered")) && c.localName().endsWith(QLatin1String("Series"))) out << c;
+    }
+    return out;
 }
 
 bool Reader::readPlot(const QDomElement &e)
@@ -851,6 +921,27 @@ bool Reader::readPlot(const QDomElement &e)
         const QString style = valOf(cChild(e, "scatterStyle"), QStringLiteral("lineMarker"));
         plot.lines = base == QLatin1String("scatter") && style != QLatin1String("marker") && style != QLatin1String("none");
     }
+    if (plot.type == ChartType::Line || plot.type == ChartType::Area) {
+        if (const QDomElement drop = cChild(e, "dropLines"); !drop.isNull()) {
+            plot.dropLines = true;
+            plot.dropLine = readLine(cChild(drop, "spPr"));
+        }
+        if (plot.type == ChartType::Line) {
+            if (const QDomElement hl = cChild(e, "hiLowLines"); !hl.isNull()) {
+                plot.hiLowLines = true;
+                plot.hiLowLine = readLine(cChild(hl, "spPr"));
+            }
+            if (const QDomElement bars = cChild(e, "upDownBars"); !bars.isNull()) {
+                plot.upDownBars = true;
+                plot.upDownGap = int(std::clamp<qint64>(parseInt(valOf(cChild(bars, "gapWidth")), 150), 0, 500));
+                bool none = false;
+                readFill(cChild(cChild(bars, "upBars"), "spPr"), &plot.upBarFill, &none);
+                plot.upBarLine = readLine(cChild(cChild(bars, "upBars"), "spPr"));
+                readFill(cChild(cChild(bars, "downBars"), "spPr"), &plot.downBarFill, &none);
+                plot.downBarLine = readLine(cChild(cChild(bars, "downBars"), "spPr"));
+            }
+        }
+    }
     const QVector<QDomElement> ids = cChildren(e, "axId");
     for (int i = 0; i < 2 && i < ids.size(); ++i) plot.axisIds[i] = parseInt(valOf(ids[i]), 0);
 
@@ -865,6 +956,16 @@ bool Reader::readPlot(const QDomElement &e)
         Found f;
         f.series = readSeries(ser, plot, &f.order, &f.ownLabels);
         found << f;
+    }
+    // The series a filter leaves out (the extension's c15:filtered...Series), kept hidden and in their places.
+    for (const QDomElement &list : filteredLists(e)) {
+        for (QDomElement ser = list.firstChildElement(); !ser.isNull(); ser = ser.nextSiblingElement()) {
+            if (ser.localName() != QLatin1String("ser") || found.size() >= m_seriesLeft) continue;
+            Found f;
+            f.series = readSeries(ser, plot, &f.order, &f.ownLabels);
+            f.series.filtered = true;
+            found << f;
+        }
     }
     m_seriesLeft -= int(found.size());
     std::stable_sort(found.begin(), found.end(), [](const Found &a, const Found &b) { return a.order < b.order; });
@@ -932,6 +1033,22 @@ ChartAxis Reader::readAxis(const QDomElement &e) const
     a.autoKind = flagOf(cChild(e, "auto"), true);
     a.tickMarkSkip = int(std::clamp<qint64>(parseInt(valOf(cChild(e, "tickMarkSkip")), 0), 0, 10000));
     a.lineKept = keptIn(cChild(e, "spPr"), QColor());
+    if (const QDomElement units = cChild(e, "dispUnits"); !units.isNull() && a.kind == ChartAxis::Value) {
+        if (const QDomElement built = cChild(units, "builtInUnit"); !built.isNull()) {
+            a.dispUnit = valOf(built);
+        } else if (const QDomElement custom = cChild(units, "custUnit"); !custom.isNull()) {
+            const double v = numberOf(custom, 0);
+            if (std::isfinite(v) && v > 0) {
+                a.dispUnit = QStringLiteral("custom");
+                a.dispUnitCustom = v;
+            }
+        }
+        if (a.dispUnitFactor() == 1) a.dispUnit.clear();
+        else if (const QDomElement label = cChild(units, "dispUnitsLbl"); !label.isNull()) {
+            a.dispUnitsLabel = fragment(label);
+            a.dispUnitShowLabel = true;
+        }
+    }
     return a;
 }
 
@@ -1107,6 +1224,68 @@ QString chartFrameRelId(const QDomElement &graphicFrame)
     for (QDomElement c = aChild(aChild(graphicFrame, "graphic"), "graphicData").firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
         if (c.localName() == QLatin1String("chart") && isChartNs(c.namespaceURI())) return attrNs(c, ns::R, QStringLiteral("id"));
     return QString();
+}
+
+void chartErrorBarAmounts(const ChartErrorBars &bars, const QVector<double> &values, QVector<double> *above, QVector<double> *below)
+{
+    const int n = int(values.size());
+    *above = QVector<double>(n, 0.0);
+    *below = QVector<double>(n, 0.0);
+    // the standard deviation (of a sample) of the values that are numbers
+    double mean = 0, spread = 0;
+    int count = 0;
+    for (double v : values)
+        if (std::isfinite(v)) {
+            mean += v;
+            ++count;
+        }
+    if (count > 0) mean /= count;
+    if (count > 1) {
+        for (double v : values)
+            if (std::isfinite(v)) spread += (v - mean) * (v - mean);
+        spread = std::sqrt(spread / (count - 1));
+    }
+    const bool plusSide = bars.barType != QLatin1String("minus"), minusSide = bars.barType != QLatin1String("plus");
+    auto custom = [&](const QVector<double> &list, int i) {
+        const double v = list.size() == 1 ? list[0] : i < list.size() ? list[i] : 0.0;
+        return std::isfinite(v) ? std::fabs(v) : 0.0;
+    };
+    for (int i = 0; i < n; ++i) {
+        if (!std::isfinite(values[i])) continue;
+        double up = 0, down = 0;
+        if (bars.valueType == QLatin1String("percentage")) up = down = std::fabs(values[i]) * bars.value / 100.0;
+        else if (bars.valueType == QLatin1String("stdDev")) up = down = spread * bars.value;
+        else if (bars.valueType == QLatin1String("stdErr")) up = down = count > 0 ? spread / std::sqrt(double(count)) : 0.0;
+        else if (bars.valueType == QLatin1String("cust")) up = custom(bars.plus, i), down = custom(bars.minus, i);
+        else up = down = bars.value;
+        (*above)[i] = plusSide ? up : 0.0;
+        (*below)[i] = minusSide ? down : 0.0;
+    }
+}
+
+QString ChartAxis::dispUnitName() const
+{
+    if (dispUnitFactor() == 1) return QString();
+    if (dispUnit == QLatin1String("custom")) return QCoreApplication::translate("Chart", "Units of %1").arg(dispUnitCustom);
+    // Translated at each call, so a change of language shows at once.
+    static const struct { const char *key, *name; } names[] = {
+        {"hundreds", QT_TRANSLATE_NOOP("Chart", "Hundreds")}, {"thousands", QT_TRANSLATE_NOOP("Chart", "Thousands")},
+        {"tenThousands", QT_TRANSLATE_NOOP("Chart", "Ten Thousands")}, {"hundredThousands", QT_TRANSLATE_NOOP("Chart", "Hundred Thousands")},
+        {"millions", QT_TRANSLATE_NOOP("Chart", "Millions")}, {"tenMillions", QT_TRANSLATE_NOOP("Chart", "Ten Millions")},
+        {"hundredMillions", QT_TRANSLATE_NOOP("Chart", "Hundred Millions")}, {"billions", QT_TRANSLATE_NOOP("Chart", "Billions")},
+        {"trillions", QT_TRANSLATE_NOOP("Chart", "Trillions")}};
+    for (const auto &n : names)
+        if (dispUnit == QLatin1String(n.key)) return QCoreApplication::translate("Chart", n.name);
+    return QString();
+}
+
+double ChartAxis::dispUnitFactor() const
+{
+    static const QMap<QString, double> units = {{QStringLiteral("hundreds"), 1e2}, {QStringLiteral("thousands"), 1e3}, {QStringLiteral("tenThousands"), 1e4}, {QStringLiteral("hundredThousands"), 1e5},
+                                                {QStringLiteral("millions"), 1e6}, {QStringLiteral("tenMillions"), 1e7}, {QStringLiteral("hundredMillions"), 1e8}, {QStringLiteral("billions"), 1e9},
+                                                {QStringLiteral("trillions"), 1e12}};
+    if (dispUnit == QLatin1String("custom")) return std::isfinite(dispUnitCustom) && dispUnitCustom > 0 ? dispUnitCustom : 1;
+    return units.value(dispUnit, 1.0);
 }
 
 const ChartAxis *Chart::axis(qint64 id) const

@@ -83,7 +83,25 @@ struct ChartLabelParts {
     QString separator, format;
 };
 ChartLabelParts labelPartsOf(const Chart &chart);
+// "Value from cells": every series' labels show the words of the cells of `ref` ("Sheet1!$D$2:$D$4"), one cell for each point, along with what else the labels hold; a series that has no labels is
+// given these alone. An empty `ref` takes it away (the labels left are the other parts', or none). The words come from the cells when the chart next reads them (applyChartCells).
+void setDataLabelsFromCells(Chart *chart, const QString &ref);
+// The cells the first series' labels read the words of; empty for none.
+QString dataLabelsCellsRef(const Chart &chart);
 void setDataLabelParts(Chart *chart, const ChartLabelParts &parts);
+
+// Error bars on every series of the bar, line, and scatter plots: "fixedVal" (`value` each way), "percentage" (`value` percent), "stdDev" (`value` standard deviations), or "stdErr"; an empty
+// `kind` takes them away. The bars are both ways, with end caps; a custom pair of ranges a file holds is left as it is by a change of kind only if it is `kind` "cust" (no change).
+void setErrorBars(Chart *chart, const QString &kind, double value = 1);
+// The kind the first series' error bars have ("" for none).
+QString errorBarsKind(const Chart &chart);
+
+// Drop lines, high-low lines, and up-down bars of the chart's line plots (drop lines also of area plots). `appliesTo` says whether the chart can have them (high-low lines and up-down bars need a
+// line plot of two series or more); `on` whether every plot that can has them.
+enum class PlotLines : quint8 { Drop, HighLow, UpDown };
+bool plotLinesApply(const Chart &chart, PlotLines kind);
+bool plotLinesOn(const Chart &chart, PlotLines kind);
+void setPlotLines(Chart *chart, PlotLines kind, bool on);
 
 // ---- colors and looks of our own
 int chartColorSchemeCount();

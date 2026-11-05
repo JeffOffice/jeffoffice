@@ -47,6 +47,67 @@ class SheetChartEditTests : public QObject {
 private Q_SLOTS:
     void initTestCase() { jp::initCore(); }
 
+    // Error bars go on every series of a bar, line, or scatter chart by kind, come off again, and are kept through writing.
+    void errorBarsGoOnAndOff()
+    {
+        Chart c = columns();
+        QVERIFY(errorBarsKind(c).isEmpty());
+        setErrorBars(&c, QStringLiteral("percentage"), 7);
+        QCOMPARE(errorBarsKind(c), QStringLiteral("percentage"));
+        for (const ChartSeries &s : seriesOf(c)) {
+            QCOMPARE(s.errorBars.size(), 1);
+            QCOMPARE(s.errorBars[0].value, 7.0);
+        }
+        const Chart back = roundTrip(c);
+        QCOMPARE(errorBarsKind(back), QStringLiteral("percentage"));
+        QCOMPARE(seriesOf(back)[1].errorBars[0].value, 7.0);
+        setErrorBars(&c, QStringLiteral("stdErr"));
+        QCOMPARE(errorBarsKind(c), QStringLiteral("stdErr"));
+        setErrorBars(&c, QString());
+        QVERIFY(errorBarsKind(c).isEmpty());
+        Chart pie = columns(ChartKind::Pie);
+        setErrorBars(&pie, QStringLiteral("fixedVal"));
+        QVERIFY(errorBarsKind(pie).isEmpty());
+    }
+
+    // Drop lines, high-low lines, and up-down bars are offered for line plots (the last two with two series or more), set on every plot that takes them, and kept through writing.
+    void linesBetweenSeriesGoOnAndOff()
+    {
+        Chart col = columns();
+        QVERIFY(!plotLinesApply(col, PlotLines::Drop));
+        Chart c = columns(ChartKind::Line);
+        QVERIFY(plotLinesApply(c, PlotLines::Drop) && plotLinesApply(c, PlotLines::HighLow) && plotLinesApply(c, PlotLines::UpDown));
+        QVERIFY(!plotLinesOn(c, PlotLines::HighLow));
+        setPlotLines(&c, PlotLines::HighLow, true);
+        setPlotLines(&c, PlotLines::UpDown, true);
+        QVERIFY(plotLinesOn(c, PlotLines::HighLow) && plotLinesOn(c, PlotLines::UpDown) && !plotLinesOn(c, PlotLines::Drop));
+        const Chart back = roundTrip(c);
+        QVERIFY(plotLinesOn(back, PlotLines::HighLow) && plotLinesOn(back, PlotLines::UpDown));
+        setPlotLines(&c, PlotLines::HighLow, false);
+        QVERIFY(!plotLinesOn(c, PlotLines::HighLow));
+        Chart area = columns(ChartKind::Area);
+        QVERIFY(plotLinesApply(area, PlotLines::Drop) && !plotLinesApply(area, PlotLines::HighLow));
+    }
+
+    // "Value from cells" is set for every series from a reference, taken away again, and kept through writing and reading.
+    void dataLabelsReadTheirWordsFromCells()
+    {
+        Chart c = columns();
+        QVERIFY(dataLabelsCellsRef(c).isEmpty());
+        setDataLabelsFromCells(&c, QStringLiteral("Sheet1!$D$2:$D$4"));
+        QCOMPARE(dataLabelsCellsRef(c), QStringLiteral("Sheet1!$D$2:$D$4"));
+        for (const ChartSeries &s : seriesOf(c)) {
+            QVERIFY(s.labels.cells);
+            QCOMPARE(s.labelCellsRef, QStringLiteral("Sheet1!$D$2:$D$4"));
+        }
+        const Chart back = roundTrip(c);
+        QCOMPARE(dataLabelsCellsRef(back), QStringLiteral("Sheet1!$D$2:$D$4"));
+        QVERIFY(seriesOf(back)[1].labels.cells);
+        setDataLabelsFromCells(&c, QString());
+        QVERIFY(dataLabelsCellsRef(c).isEmpty());
+        QVERIFY(!seriesOf(c)[0].labels.shown());
+    }
+
     // The elements of a chart on and off, and what the checks of a menu are told; each change is the same after the chart is written and read.
     void elementsGoOnAndOffAndStay()
     {
