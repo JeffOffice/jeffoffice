@@ -16,6 +16,7 @@
 #include "core/tableops.h"
 #include "core/fonts.h"
 #include "core/homeops.h"
+#include "flow/flowdocument.h"
 #include "core/proofops.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
@@ -944,6 +945,33 @@ private Q_SLOTS:
         const QByteArray back = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
         QVERIFY2(!back.contains("<w:keepNext/>") && !back.contains("<w:pageBreakBefore/>") && !back.contains("outlineLvl"), back.constData());
         QVERIFY(back.contains("<w:keepLines/>"));
+    }
+
+    void theParagraphBoxSuppressesLineNumbersAndKeepsItInTheFile()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a paragraph")))), QString());
+        w.view()->selectAll();
+        withDialog([&w] { w.act(QStringLiteral("para.dialog"))->trigger(); }, QStringLiteral("paragraphDialog"), [](QDialog *d) {
+            QVERIFY(!d->findChild<QCheckBox *>(QStringLiteral("suppressLineNumbers"))->isChecked());
+            d->findChild<QCheckBox *>(QStringLiteral("suppressLineNumbers"))->setChecked(true);
+        });
+        QVERIFY(w.document()->story()->begin().blockFormat().boolProperty(flow::fp::SuppressLineNumbers));
+        const QByteArray out = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY2(out.contains("<w:suppressLineNumbers/>"), out.constData());
+        auto again = open(w.document()->toDocx());
+        QVERIFY(again->story()->begin().blockFormat().boolProperty(flow::fp::SuppressLineNumbers));
+        // Back off: the paragraph says so itself (its style might say otherwise).
+        withDialog([&w] { w.act(QStringLiteral("para.dialog"))->trigger(); }, QStringLiteral("paragraphDialog"), [](QDialog *d) {
+            QVERIFY(d->findChild<QCheckBox *>(QStringLiteral("suppressLineNumbers"))->isChecked());
+            d->findChild<QCheckBox *>(QStringLiteral("suppressLineNumbers"))->setChecked(false);
+        });
+        QVERIFY(!w.document()->story()->begin().blockFormat().boolProperty(flow::fp::SuppressLineNumbers));
+        const QByteArray back = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY2(back.contains("<w:suppressLineNumbers w:val=\"0\"/>"), back.constData());
+        QVERIFY(!open(w.document()->toDocx())->story()->begin().blockFormat().boolProperty(flow::fp::SuppressLineNumbers));
     }
 
     // ---- the review's fixes

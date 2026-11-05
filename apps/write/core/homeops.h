@@ -3,6 +3,7 @@
 
 #include "core/writedoc.h"
 
+#include <QTextBlockFormat>
 #include <QTextCursor>
 #include <QTextDocumentFragment>
 #include <QVector>
@@ -46,6 +47,11 @@ void pasteMerged(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fra
 // A horizontal line (a paragraph of its own with a border under it) after the paragraph the caret is in, as one step; the caret goes to a plain paragraph below it. False where no paragraph can be
 // made (in a paragraph kept as XML).
 bool insertHorizontalLine(WriteDoc &doc, QTextCursor &c);
+
+// ---- Line numbers
+// Makes the paragraph format say, by its own element, that the paragraph takes no line number (or does, when `on` is false and its style says it does not): the layout's property and the
+// kept `w:suppressLineNumbers` (the one a file had is replaced).
+void setSuppressLineNumbers(QTextBlockFormat &bf, bool on);
 
 // ---- Reveal Formatting
 // What is set where the caret is, as pairs of a name and its value: the styles, the font, the look of the letters, and the paragraph's alignment, indents, and spacing (Style Inspector, Shift+F1).

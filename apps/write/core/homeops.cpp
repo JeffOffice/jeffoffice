@@ -4,6 +4,7 @@
 #include "core/wordformat.h"
 #include "core/styleops.h"
 #include "core/writeprops.h"
+#include "flow/flowdocument.h"
 #include "text/textprops.h"
 
 #include <QCoreApplication>
@@ -308,6 +309,21 @@ void pasteMerged(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fra
         }
     }
     edit.endEditBlock();
+}
+
+void setSuppressLineNumbers(QTextBlockFormat &bf, bool on)
+{
+    QVector<office::wml::RawChild> extra = bf.hasProperty(prop::RawPPr) ? unpackRaw(storedBytes(bf, prop::RawPPr)) : QVector<office::wml::RawChild>();
+    extra.erase(std::remove_if(extra.begin(), extra.end(), [](const office::wml::RawChild &c) { return c.xml.startsWith("<w:suppressLineNumbers"); }), extra.end());
+    office::wml::RawChild child;
+    child.rank = office::wml::paraChildRank("suppressLineNumbers");
+    child.xml = on ? QByteArray("<w:suppressLineNumbers/>") : QByteArray("<w:suppressLineNumbers w:val=\"0\"/>");
+    int at = 0;
+    while (at < extra.size() && extra[at].rank <= child.rank) ++at;
+    extra.insert(at, child);
+    setStored(bf, prop::RawPPr, packRaw(extra));
+    if (on) bf.setProperty(flow::fp::SuppressLineNumbers, true);
+    else bf.clearProperty(flow::fp::SuppressLineNumbers);
 }
 
 bool insertHorizontalLine(WriteDoc &doc, QTextCursor &c)

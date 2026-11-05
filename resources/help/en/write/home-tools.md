@@ -54,6 +54,7 @@ Click the small button in the corner of the **Paragraph** group to open the **Pa
 - **Widow and orphan control** keeps one lone line of a paragraph from sitting by itself at the top or the bottom of a page.
 - **Keep with next** keeps the paragraph on the same page as the one after it. Use it for a heading.
 - **Keep lines together** keeps all the lines of the paragraph on one page.
+- **Suppress line numbers** leaves this paragraph out when the page numbers its lines (see Layout > Line Numbers).
 - **Page break before** starts the paragraph on a new page.
 - **Don't hyphenate** stops the paragraph's words from being split with a hyphen at the end of a line.
 - **Don't add space between paragraphs of the same style** removes the space between two paragraphs that have the same style.
