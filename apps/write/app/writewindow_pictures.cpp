@@ -155,7 +155,9 @@ void WriteWindow::insertPictureFromClipboard()
 void WriteWindow::showPageSetupDialog()
 {
     if (!m_doc) return;
-    if (write::pageSetupDialog(this, m_doc.get(), m_view->cursorSection())) m_view->refresh();
+    // ("This point forward" needs a place in the text for the section break: not in a header, a footer, or a note.)
+    QTextCursor *place = !m_view->inHeaderFooter() && !m_view->inNote() ? &m_view->cursor() : nullptr;
+    if (write::pageSetupDialog(this, m_doc.get(), m_view->cursorSection(), place)) m_view->refresh();
     m_view->setFocus(Qt::OtherFocusReason);
 }
 

@@ -1,5 +1,7 @@
 #include "core/pagesetup.h"
 
+#include "core/editops.h"
+
 #include <QTextCursor>
 #include <algorithm>
 #include <cmath>
@@ -96,7 +98,7 @@ int applyPageSetup(WriteDoc &doc, int section, PageSetupScope scope, const Secti
     int changed = 0;
     QTextCursor step(doc.story());
     step.beginEditBlock();
-    const int from = scope == PageSetupScope::WholeDocument ? 0 : section, to = scope == PageSetupScope::WholeDocument ? doc.sectionCount() - 1 : section;
+    const int from = scope == PageSetupScope::WholeDocument ? 0 : section, to = scope == PageSetupScope::ThisSection ? section : doc.sectionCount() - 1;
     changed += doc.changeSections(from, to, [&](SectionProps &p) {
         const SectionProps was = p;
         if (paperChanged) {
@@ -134,6 +136,17 @@ int applyPageSetup(WriteDoc &doc, int section, PageSetupScope scope, const Secti
     }
     step.endEditBlock();
     return changed;
+}
+
+int applyPageSetupFromCursor(WriteDoc &doc, QTextCursor &cursor, const SectionSetup &before, const SectionSetup &after)
+{
+    if (normalized(after) == normalized(before)) return 0;
+    const int sections = doc.sectionCount();
+    const WriteDoc::StepGroup group(doc);
+    insertSectionBreak(doc, cursor, QStringLiteral("continuous"));
+    if (doc.sectionCount() == sections) return 0;   // (nothing was put in: the step is empty)
+    const int fresh = doc.sectionAt(cursor.position());
+    return applyPageSetup(doc, fresh, PageSetupScope::ThisPointForward, before, after);
 }
 
 } // namespace jp::write

@@ -15,6 +15,8 @@
 #include "core/insertops.h"
 #include "core/linkops.h"
 #include "core/outlineops.h"
+#include "core/pagesetup.h"
+#include "app/writedialogs.h"
 #include "core/proofops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
@@ -22,6 +24,10 @@
 
 #include "office/package.h"
 #include <QAction>
+#include <QApplication>
+#include <QComboBox>
+#include <QDialog>
+#include <QTimer>
 #include <QDockWidget>
 #include <QLabel>
 #include <QMenu>
@@ -776,6 +782,73 @@ private Q_SLOTS:
         w.setHyphenationAsker([](double &, int &) { return false; });
         w.act(QStringLiteral("layout.hyphenation.options"))->trigger();
         QCOMPARE(w.document()->hyphenLimit(), 2);
+    }
+
+    // ---------------------------------------------------------------- Page Setup
+    void pageSetupFromThisPointForwardMakesASectionAtTheCursor()
+    {
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t>One</w:t></w:r></w:p><w:p><w:r><w:t>Two</w:t></w:r></w:p><w:p><w:r><w:t>Three</w:t></w:r></w:p>", QByteArray()), &err);
+        QVERIFY(doc);
+        QCOMPARE(doc->sectionCount(), 1);
+        const SectionSetup before = pageSetupOf(doc->sectionProps(0), false);
+        SectionSetup after = before;
+        after.left = 36;
+        after.right = 36;
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(1).position() + 1);
+        QVERIFY(applyPageSetupFromCursor(*doc, c, before, after) >= 1);
+        QCOMPARE(doc->sectionCount(), 2);
+        QCOMPARE(pageSetupOf(doc->sectionProps(0), false).left, before.left);   // (the text before the cursor is as it was)
+        QCOMPARE(pageSetupOf(doc->sectionProps(1), false).left, 36.0);
+        QCOMPARE(pageSetupOf(doc->sectionProps(1), false).right, 36.0);
+        QCOMPARE(doc->sectionProps(1).type, QStringLiteral("continuous"));
+        QCOMPARE(doc->sectionAt(c.position()), 1);
+        // One step, and the file keeps both sections.
+        QByteArray body;
+        {
+            office::Package p;
+            p.read(doc->toDocx());
+            body = p.part(QStringLiteral("/word/document.xml"));
+        }
+        QCOMPARE(body.count("<w:sectPr"), 2);
+        QVERIFY2(body.contains("w:left=\"720\""), body.constData());
+        QVERIFY(doc->undo());
+        QCOMPARE(doc->sectionCount(), 1);
+        QVERIFY(!doc->canUndo());
+        // Nothing to change puts nothing in.
+        QCOMPARE(applyPageSetupFromCursor(*doc, c, before, before), 0);
+        QCOMPARE(doc->sectionCount(), 1);
+    }
+
+    void thePageSetupDialogOffersThisPointForwardOnlyWithACursor()
+    {
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t>One</w:t></w:r></w:p><w:p><w:r><w:t>Two</w:t></w:r></w:p>", QByteArray()), &err);
+        QVERIFY(doc);
+        auto choices = [&](QTextCursor *cursor, bool pick) {
+            int count = -1;
+            QTimer::singleShot(0, [&count, pick] {
+                auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!dlg) return;
+                auto *applyTo = dlg->findChild<QComboBox *>(QStringLiteral("applyTo"));
+                count = applyTo ? applyTo->count() : -1;
+                if (pick && applyTo && applyTo->count() > 2) {
+                    applyTo->setCurrentIndex(2);
+                    dlg->findChild<MeasureSpin *>(QStringLiteral("left"))->setValue(36);
+                }
+                dlg->accept();
+            });
+            pageSetupDialog(nullptr, doc.get(), 0, cursor);
+            return count;
+        };
+        QCOMPARE(choices(nullptr, false), 2);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(1).position() + 1);
+        QCOMPARE(choices(&c, true), 3);
+        QCOMPARE(doc->sectionCount(), 2);
+        QCOMPARE(pageSetupOf(doc->sectionProps(1), false).left, 36.0);
+        QCOMPARE(pageSetupOf(doc->sectionProps(0), false).left, 72.0);
     }
 
     // ---------------------------------------------------------------- Header & Footer

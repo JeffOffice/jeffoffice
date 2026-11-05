@@ -22,7 +22,7 @@ struct SectionSetup {
     bool operator==(const SectionSetup &o) const;
 };
 
-enum class PageSetupScope { ThisSection, WholeDocument };
+enum class PageSetupScope { ThisSection, WholeDocument, ThisPointForward };
 
 // The page setup a section has now (`oddEven` is the document's different odd and even pages).
 SectionSetup pageSetupOf(const office::wml::SectionProps &props, bool oddEven);
@@ -32,5 +32,10 @@ SectionSetup normalized(SectionSetup setup);
 // Applies what differs between `before` and `after` to the sections the scope names (the section `section` for the one, every section for the other), as one step. Returns how
 // many sections it changed (the document's odd and even setting is counted as a change of the last).
 int applyPageSetup(WriteDoc &doc, int section, PageSetupScope scope, const SectionSetup &before, const SectionSetup &after);
+
+// "This point forward": what differs between `before` and `after` applies to the text from the cursor on. A continuous section break goes in at the cursor (the cursor is then in the
+// new section) and the new section, and the sections after it, take the change; the text before the cursor keeps its page setup. One step that undoes. Returns how many sections
+// changed; 0, with nothing put in, where nothing differs or the cursor can't take a section break (in a table, a header, a footer, or a note).
+int applyPageSetupFromCursor(WriteDoc &doc, QTextCursor &cursor, const SectionSetup &before, const SectionSetup &after);
 
 } // namespace jp::write

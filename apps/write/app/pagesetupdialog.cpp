@@ -45,7 +45,7 @@ const Paper kPapers[] = {
 
 } // namespace
 
-bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section)
+bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *cursor)
 {
     if (!doc) return false;
     section = std::clamp(section, 0, doc->sectionCount() - 1);
@@ -179,6 +179,7 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section)
     applyTo->setObjectName(QStringLiteral("applyTo"));
     applyTo->addItem(QCoreApplication::translate("jp::write::Dialogs", "This section"), int(PageSetupScope::ThisSection));
     applyTo->addItem(QCoreApplication::translate("jp::write::Dialogs", "Whole document"), int(PageSetupScope::WholeDocument));
+    if (cursor) applyTo->addItem(QCoreApplication::translate("jp::write::Dialogs", "This point forward"), int(PageSetupScope::ThisPointForward));
     if (doc->sectionCount() == 1) applyTo->setCurrentIndex(1);
     auto *row = new QFormLayout;
     row->addRow(QCoreApplication::translate("jp::write::Dialogs", "Apply to:"), applyTo);
@@ -204,7 +205,9 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section)
     after.start = start->currentData().toString();
     after.differentFirstPage = firstPage->isChecked();
     after.differentOddEven = oddEven->isChecked();
-    return applyPageSetup(*doc, section, PageSetupScope(applyTo->currentData().toInt()), before, after) > 0;
+    const PageSetupScope scope = PageSetupScope(applyTo->currentData().toInt());
+    if (scope == PageSetupScope::ThisPointForward && cursor) return applyPageSetupFromCursor(*doc, *cursor, before, after) > 0;
+    return applyPageSetup(*doc, section, scope, before, after) > 0;
 }
 
 bool altTextDialog(QWidget *parent, QString *alt)
