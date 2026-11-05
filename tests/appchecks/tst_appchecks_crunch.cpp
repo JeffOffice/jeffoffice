@@ -422,6 +422,7 @@ private Q_SLOTS:
             {QStringLiteral("formulas.options"), menu},
             {QStringLiteral("sheet.tabColor"), menu},
             {QStringLiteral("sheet.unhide"), menu},
+            {QStringLiteral("style.delete"), QStringLiteral("it needs a style the workbook made for itself, and says so when there is none; the Cell Styles tests run it with one")},
         };
         m_app.neverRun = {
             {QStringLiteral("cond.clearSelection"), QStringLiteral("it is on only when a rule of conditional formatting covers the selected cells, and no place here has a rule; the conditional formatting tests run it")},
