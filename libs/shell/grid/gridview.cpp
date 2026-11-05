@@ -785,10 +785,18 @@ void GridView::setPointMarks(std::vector<PointMark> marks)
 
 // ---- painting
 
+void GridView::setGridlineColor(const QColor &color)
+{
+    if (!color.isValid() || color == m_gridColor) return;
+    m_gridColor = color;
+    viewport()->update();
+}
+
 PaintOptions GridView::paintOptions() const
 {
     PaintOptions o;
     o.gridlines = m_gridlines;
+    o.gridColor = m_gridColor;
     o.headers = m_headings;
     o.selection = m_cellsEnabled ? &m_selection : nullptr;
     o.fillHandle = m_cellsEnabled && m_dragEditing;
