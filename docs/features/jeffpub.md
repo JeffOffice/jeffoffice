@@ -2,7 +2,7 @@
 
 JeffPub is the desktop publishing app of JeffOffice. JeffOffice is an independent project: JeffPub aims to work with Publisher files and the people who use them (compatibility and interoperability), and then to do more, and do it better. It opens and saves Publisher's `.pub` files, and it has its own open format, `.jpub`. It is in beta (version 0.8.0). Unlike the lists for the apps not built yet, this one describes a program that exists, so a box is checked only when the feature works in JeffPub, and every status was checked on October 16, 2026 against the code, the tests, the ribbon file (`resources/ribbon.json`), and the built-in Help. It is a checklist of features: everything people rely on so their publications open, look right, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so that the work can be planned and tracked and so that it can settle one question: when does JeffPub stop being a beta?
 
-Last reviewed November 3, 2026.
+Last reviewed November 5, 2026.
 
 Legend: `[x]` done · `[~]` partly there (the note says what's missing, or which shared JeffOffice part it builds on) · `[ ]` not yet · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
@@ -43,6 +43,11 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** A published specification of the `.jpub` format ([docs/jpub-format.md](../jpub-format.md)), kept true by a test that opens its example
 - [x] **1.0** Merge to PDF: a mail merge saves one PDF with every recipient's pages (Mailings > Finish), a kind of output Publisher has no button for
 - [x] **1.0** One set of choices for the suite: the theme, display language, user name and initials, update choices, and statistics choice are kept once, so changing one in any JeffOffice app changes it in all of them
+- [ ] **later** Redaction: mark text, pictures, or areas to black out, then apply it so the content is removed from the file; also export a redacted PDF
+- [ ] **later** Picture filters: invert, solarize, aging (sepia), posterize, pop art, charcoal sketch, relief, mosaic, and noise removal, with a preview and a way to undo them *(shared: libs/draw)*
+- [ ] **later** Color replacer: change one color in a picture or a vector image to another, within a tolerance
+- [ ] **later** Edit with an external program: open a picture in the computer's image editor and take the changes back when it is saved
+- [ ] **later** Layers for a publication, kept apart from the page: print layer, non-printing layer, dimension lines, and controls, each shown, hidden, or locked on its own
 
 ## File (backstage)
 
@@ -106,6 +111,12 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Go to Page (F5), a page number typed into a window *(a key and a command, not a ribbon button)*
 - [ ] **later** Show Clipboard: a pane that lists what was copied lately, to paste any of it
 - [ ] **later** East Asian text layout: phonetic guides above characters, enclosed characters, horizontal text inside a vertical line, East Asian justification, and editing marks
+- [ ] **later** Merge Shapes: union, combine, subtract, intersect, and fragment, from the shapes you select
+- [ ] **later** Convert to Curve, Polygon, or Contour, Break a combined shape apart, and Convert to Picture, with the points editable after
+- [ ] **later** Glue points: add connection points of your own to a shape; connectors stick to them and follow the shape
+- [ ] **later** Duplicate: several copies at once with an offset, a size change, and a color that steps from the first to the last
+- [ ] **later** Equalize width, height, or both across selected shapes, and Distribute with equal gaps
+- [ ] **later** Position and Size: slant and corner radius for a shape, and a base point for resizing
 
 ## Insert tab
 - [x] **1.0** Pages: Insert Blank Page, Insert Duplicate Page, Insert Page dialog (count, before/after, blank, duplicate, or one text box per page), Catalog Pages (a catalog area repeated for each item of a product list, in rows and columns, with preview and merging to a new publication, PDF, or printer)
@@ -118,6 +129,9 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [ ] **later** Draw Vertical Text Box: a text box whose text is turned from the start *(today a text box is drawn, then turned with Text Direction on the Text Box tab)*
 - [ ] **later** Sections: start page numbering again at a chosen page (Insert Section, Merge with Previous Section, and a page number format for each section), with the sections shown in the Pages list *(a Publisher file with several sections opens with the first section's numbering only; see the open questions)*
 - [ ] **later** Embed a live document from another program (a spreadsheet or a chart) and edit it in place *(needs JeffCrunch; see Shared)*
+- [ ] **later** Image map: clickable areas on a picture, each linking to a web address or a page, kept in a PDF or on a web page
+- [ ] **later** Trace a picture into shapes: a bitmap becomes editable vector shapes, with control over detail and colors
+- [ ] **later** Insert a picture straight from a scanner, choosing the device and the resolution
 
 ## Page Design tab
 - [x] **1.0** Template: Change Template (the gallery in a mode of its own, with the color scheme and font scheme starting at the publication's own; applies another design to this publication as one undo step, or makes a new publication with your text and graphics and leaves this one alone; each story goes into the new design's box with the same role, your pictures replace its placeholder pictures in reading order, and the page size and pages follow the design) and Extra Content *(a pane for the stories and pictures with no place in the new design: place on the page by button, double-click, or drag, or discard; it is saved with the publication; tables, shapes, lines, Text Art, and groups stay behind only when they are the old design's own and unchanged, and any other goes to Extra Content whole; no pages are added for leftovers; items on master pages and page backgrounds still stay with the old design)*
