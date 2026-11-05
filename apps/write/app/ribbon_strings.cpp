@@ -97,6 +97,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Special Characters"),
     QT_TRANSLATE_NOOP("Ribbon", "Start Mail Merge"),
     QT_TRANSLATE_NOOP("Ribbon", "Styles"),
+    QT_TRANSLATE_NOOP("Ribbon", "Switch Windows"),
     QT_TRANSLATE_NOOP("Ribbon", "Symbol"),
     QT_TRANSLATE_NOOP("Ribbon", "Symbols"),
     QT_TRANSLATE_NOOP("Ribbon", "Table"),

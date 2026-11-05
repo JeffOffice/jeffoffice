@@ -26,6 +26,7 @@
 #include <QMenu>
 #include <QPair>
 #include <QScrollBar>
+#include <QTemporaryDir>
 #include <QTest>
 #include <QTextCursor>
 #include <QTreeWidget>
@@ -775,6 +776,70 @@ private Q_SLOTS:
         w.act(QStringLiteral("view.split"))->trigger();
         QVERIFY(!w.splitView()->isVisible() && w.view()->isVisible());
         QVERIFY(!w.splitView()->document());
+    }
+
+    // View > Window: a window on the same file, the windows placed in rows, and two windows side by side that scroll together until the view is turned off.
+    void windowsCanBeOpenedPlacedAndScrolledTogether()
+    {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("two.docx"));
+        WriteWindow a;
+        a.setNotifier([](const QString &, const QString &) {});
+        a.resize(700, 600);
+        a.show();
+        QTextCursor c = a.view()->cursor();
+        insertText(*a.document(), c, QStringLiteral("window words"));
+        for (int i = 0; i < 6; ++i) insertBlankPage(*a.document(), c);
+        a.view()->paginateAll();
+        QVERIFY(a.saveTo(path));
+        // View Side by Side needs a second window: with one it says so and stays off.
+        QVERIFY(WriteWindow::writeWindows().size() == 1);
+        a.act(QStringLiteral("view.sideBySide"))->trigger();
+        QVERIFY(!a.act(QStringLiteral("view.sideBySide"))->isChecked());
+        QVERIFY(!a.sideBySidePartner());
+        a.refreshNow();
+        QVERIFY(!a.act(QStringLiteral("view.resetWindowPosition"))->isEnabled());
+        // New Window opens the same file in a window of its own.
+        const int before = WriteWindow::writeWindows().size();
+        a.act(QStringLiteral("win.new"))->trigger();
+        QCOMPARE(WriteWindow::writeWindows().size(), before + 1);
+        WriteWindow *b = nullptr;
+        for (WriteWindow *w : WriteWindow::writeWindows())
+            if (w != &a) b = w;
+        QVERIFY(b);
+        QVERIFY(b->document()->story()->toPlainText().contains(QLatin1String("window words")));
+        b->setNotifier([](const QString &, const QString &) {});
+        b->resize(700, 600);
+        b->view()->paginateAll();
+        a.act(QStringLiteral("win.arrange"))->trigger();
+        QVERIFY(a.geometry().right() < b->geometry().left() || b->geometry().right() < a.geometry().left());
+        // Side by side: both are marked, each is the other's partner, and a scroll in one moves the other by the same share.
+        a.act(QStringLiteral("view.sideBySide"))->trigger();
+        QVERIFY(a.act(QStringLiteral("view.sideBySide"))->isChecked());
+        QCOMPARE(a.sideBySidePartner(), b);
+        QCOMPARE(b->sideBySidePartner(), &a);
+        QVERIFY(a.act(QStringLiteral("view.resetWindowPosition"))->isEnabled());
+        QVERIFY(b->act(QStringLiteral("view.sideBySide"))->isChecked());
+        QScrollBar *sa = a.view()->verticalScrollBar(), *sb = b->view()->verticalScrollBar();
+        QVERIFY(sa->maximum() > 0 && sb->maximum() > 0);
+        sa->setValue(sa->maximum() / 2);
+        QVERIFY2(qAbs(sb->value() - sb->maximum() / 2) <= 2, qPrintable(QStringLiteral("%1 of %2").arg(sb->value()).arg(sb->maximum())));
+        sb->setValue(0);
+        QCOMPARE(sa->value(), 0);
+        // Reset Window Position puts the pair back on the two halves of the screen, whatever was done to them.
+        a.move(5, 5);
+        b->move(7, 9);
+        a.act(QStringLiteral("view.resetWindowPosition"))->trigger();
+        QVERIFY(a.geometry().right() < b->geometry().left());
+        QCOMPARE(a.geometry().top(), b->geometry().top());
+        // Turned off, they scroll apart again, and neither is marked.
+        a.act(QStringLiteral("view.sideBySide"))->trigger();
+        QVERIFY(!a.sideBySidePartner() && !b->sideBySidePartner());
+        QVERIFY(!a.act(QStringLiteral("view.resetWindowPosition"))->isEnabled());
+        QVERIFY(!a.act(QStringLiteral("view.sideBySide"))->isChecked() && !b->act(QStringLiteral("view.sideBySide"))->isChecked());
+        sa->setValue(sa->maximum());
+        QCOMPARE(sb->value(), 0);
+        delete b;
     }
 };
 

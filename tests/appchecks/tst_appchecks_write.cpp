@@ -496,6 +496,7 @@ private Q_SLOTS:
              }, false},
         };
         m_app.quiet = {
+            {QStringLiteral("win.cascade"), QStringLiteral("it places the open windows, and there is one")},
             {QStringLiteral("mail.highlight"), QStringLiteral("it chooses whether merge fields are shaded on the screen, which shows only where the document has them; the mail tests check the pixels")},
             {QStringLiteral("mail.check"), QStringLiteral("it only reports on the merge (here: no errors are found); the mail tests check what it says")},
             {QStringLiteral("picture.lockAspect"), QStringLiteral("it is the setting the next change of a picture's width or height reads, and changes nothing by itself")},
@@ -508,6 +509,7 @@ private Q_SLOTS:
             {QStringLiteral("review.show.formatting"), QStringLiteral("it chooses whether the bars for changes of formatting are painted in the pages' margin, which no control shows; the window's tests check the painting")},
         };
         m_app.neverRun = {
+            {QStringLiteral("view.resetWindowPosition"), QStringLiteral("it works on two windows set side by side, which no place here has; the View > Window test runs it on a pair")},
             {QStringLiteral("mail.updateLabels"), QStringLiteral("it is for a sheet of labels that Mailings > Labels makes, which no place here has; the mail tests run it on one")},
             {QStringLiteral("outline.promote"), QStringLiteral("it works only in Outline view, which no place here is in; the outline tests run it there")},
             {QStringLiteral("outline.demote"), QStringLiteral("it works only in Outline view, which no place here is in; the outline tests run it there")},

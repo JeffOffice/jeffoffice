@@ -260,6 +260,12 @@ public:
     // View > Split: a second pane under the pages shows the same document, scrolled and zoomed on its own, for looking at one place while writing in another. It does not take typing.
     write::PageView *splitView() const { return m_split; }
     void setSplit(bool on);
+    // View > Window: windows of JeffWrite placed side by side with their scrolling tied together (the other window is `sideBySidePartner()`), and the windows placed in rows or a stack.
+    void setSideBySide(bool on);
+    WriteWindow *sideBySidePartner() const { return m_sidePartner; }
+    static QList<WriteWindow *> writeWindows();
+    static void arrangeAllWindows();
+    static void cascadeWindows();
 
     // The Styles pane on the right (made when first asked for, so null before).
     void showStylesPane();
@@ -434,6 +440,8 @@ private:
         QList<QPointer<QDockWidget>> docks;
     } m_focusWas;
     bool m_readMode = false;
+    QPointer<WriteWindow> m_sidePartner;   // View > View Side by Side: the window this one's scrolling follows, and follows this one's
+    QMetaObject::Connection m_sideScroll[2];
     struct {
         bool readOnly = false, sideToSide = false;
         int zoomMode = 0;

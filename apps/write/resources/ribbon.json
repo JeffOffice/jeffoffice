@@ -1282,8 +1282,33 @@
           "keytip": "ZW",
           "items": [
             {
+              "large": "win.new",
+              "keytip": "NW"
+            },
+            {
               "large": "view.split",
               "keytip": "SP"
+            },
+            {
+              "small": "win.arrange",
+              "keytip": "AA"
+            },
+            {
+              "small": "view.sideBySide",
+              "keytip": "SB"
+            },
+            {
+              "small": "view.resetWindowPosition",
+              "keytip": "RW"
+            },
+            {
+              "small": {
+                "id": "ribbon.switchWindows",
+                "text": "Switch Windows",
+                "icon": "app-window"
+              },
+              "keytip": "SW",
+              "menu": "@switchWindowsMenu"
             }
           ]
         },
