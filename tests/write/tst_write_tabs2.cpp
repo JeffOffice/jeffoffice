@@ -18,6 +18,7 @@
 #include "core/tableops.h"
 #include "core/writedoc.h"
 
+#include "office/package.h"
 #include <QAction>
 #include <QDockWidget>
 #include <QLabel>
@@ -91,6 +92,55 @@ QList<int> levels(WriteDoc &doc)
     QList<int> out;
     for (const OutlineRow &r : outlineRows(doc)) out << r.level;
     return out;
+}
+
+const char kNs[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+
+// A package of a document whose body is `body`, with `settings` (the inside of w:settings) in its settings part.
+QByteArray makeDocx(const QByteArray &body, const QByteArray &settings)
+{
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    const QByteArray head("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n");
+    w.addPart(QStringLiteral("/word/document.xml"), head + "<w:document " + kNs + "><w:body>" + body + "</w:body></w:document>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    if (!settings.isEmpty()) {
+        w.addPart(QStringLiteral("/word/settings.xml"), head + "<w:settings " + kNs + ">" + settings + "</w:settings>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
+    }
+    return w.finish();
+}
+
+QByteArray settingsXml(const QByteArray &zip)
+{
+    office::Package p;
+    p.read(zip);
+    return p.part(QStringLiteral("/word/settings.xml"));
+}
+
+// A narrow page of long words (so that many lines break inside a word when hyphenation is on).
+std::unique_ptr<WriteDoc> narrowDoc(const QByteArray &settings)
+{
+    QByteArray text;
+    for (int i = 0; i < 30; ++i) text += i % 3 == 0 ? "extraordinarily " : i % 3 == 1 ? "indistinguishable " : "unquestionably ";
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"2400\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"720\" w:bottom=\"1440\" w:left=\"720\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    QString err;
+    return WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r></w:p>" + sect, settings), &err);
+}
+
+// The longest run of lines in a row that end inside a word (a hyphenated break), and how many lines there are.
+QPair<int, int> hyphenRun(WriteDoc &doc)
+{
+    int run = 0, most = 0;
+    const auto lines = doc.pager().lines(0);
+    for (const auto &l : lines) {
+        const QChar last = l.end > 0 ? doc.story()->characterAt(l.end - 1) : QChar(), next = doc.story()->characterAt(l.end);
+        if (last.isLetter() && next.isLetter()) most = std::max(most, ++run);
+        else run = 0;
+    }
+    return {most, int(lines.size())};
 }
 
 } // namespace
@@ -602,6 +652,74 @@ private Q_SLOTS:
         w.act(QStringLiteral("view.draft"))->trigger();
         w.act(QStringLiteral("view.outline"))->trigger();
         QVERIFY(w.outlineMode() && !w.view()->draft() && !w.act("view.draft")->isChecked());
+    }
+
+    // ---------------------------------------------------------------- Layout
+    void theHyphenationZoneAndLimitAreReadSetAndSaved()
+    {
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t>x</w:t></w:r></w:p>", "<w:autoHyphenation/><w:consecutiveHyphenLimit w:val=\"2\"/><w:hyphenationZone w:val=\"720\"/>"), &err);
+        QVERIFY(doc);
+        QCOMPARE(doc->hyphenationZone(), 36.0);
+        QCOMPARE(doc->hyphenLimit(), 2);
+        doc->setHyphenation(10.0, 3);
+        QCOMPARE(doc->hyphenationZone(), 10.0);
+        QCOMPARE(doc->hyphenLimit(), 3);
+        const QByteArray settings = settingsXml(doc->toDocx());
+        QVERIFY2(settings.contains("<w:consecutiveHyphenLimit w:val=\"3\"/>"), settings.constData());
+        QVERIFY2(settings.contains("<w:hyphenationZone w:val=\"200\"/>"), settings.constData());
+        // (The schema's order: auto, limit, zone.)
+        QVERIFY(settings.indexOf("autoHyphenation") < settings.indexOf("consecutiveHyphenLimit"));
+        QVERIFY(settings.indexOf("consecutiveHyphenLimit") < settings.indexOf("hyphenationZone"));
+        auto again = WriteDoc::fromDocx(doc->toDocx(), &err);
+        QVERIFY(again);
+        QCOMPARE(again->hyphenationZone(), 10.0);
+        QCOMPARE(again->hyphenLimit(), 3);
+        // Put back to the usual, the settings say nothing of them.
+        doc->setHyphenation(18.0, 0);
+        const QByteArray plain = settingsXml(doc->toDocx());
+        QVERIFY(!plain.contains("consecutiveHyphenLimit") && !plain.contains("hyphenationZone"));
+    }
+
+    void theLimitKeepsLinesFromEndingInAHyphenTooManyTimesInARow()
+    {
+        auto none = narrowDoc("<w:autoHyphenation/>");
+        QVERIFY(none);
+        const QPair<int, int> free = hyphenRun(*none);
+        QVERIFY2(free.first >= 3, qPrintable(QString::number(free.first)));   // (there are long runs without a limit)
+        auto one = narrowDoc("<w:autoHyphenation/><w:consecutiveHyphenLimit w:val=\"1\"/>");
+        QVERIFY(one);
+        const QPair<int, int> limited = hyphenRun(*one);
+        QCOMPARE(limited.first, 1);
+        QVERIFY(limited.second >= free.second);   // (words moved down whole take no fewer lines)
+        auto two = narrowDoc("<w:autoHyphenation/><w:consecutiveHyphenLimit w:val=\"2\"/>");
+        QVERIFY(hyphenRun(*two).first <= free.first);
+        QVERIFY(hyphenRun(*two).first >= limited.first);
+    }
+
+    void hyphenationOptionsOnTheLayoutTabSetTheZoneAndLimit()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        double seenZone = 0;
+        int seenLimit = -1;
+        w.setHyphenationAsker([&](double &zone, int &limit) {
+            seenZone = zone;
+            seenLimit = limit;
+            zone = 24;
+            limit = 2;
+            return true;
+        });
+        w.act(QStringLiteral("layout.hyphenation.options"))->trigger();
+        QCOMPARE(seenZone, 18.0);
+        QCOMPARE(seenLimit, 0);
+        QCOMPARE(w.document()->hyphenationZone(), 24.0);
+        QCOMPARE(w.document()->hyphenLimit(), 2);
+        w.setHyphenationAsker([](double &, int &) { return false; });
+        w.act(QStringLiteral("layout.hyphenation.options"))->trigger();
+        QCOMPARE(w.document()->hyphenLimit(), 2);
     }
 };
 

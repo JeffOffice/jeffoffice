@@ -1465,6 +1465,11 @@ CompatOptions readCompatOptions(const QByteArray &settings)
         const int twips = tree.val(zone).toInt(&ok);
         if (ok && twips > 0) o.hyphenationZone = std::min(twips, 31680);
     }
+    if (const int limit = tree.child(tree.root(), "consecutiveHyphenLimit"); limit >= 0) {
+        bool ok = false;
+        const int n = tree.val(limit).toInt(&ok);
+        if (ok && n > 0) o.consecutiveHyphenLimit = std::min(n, 1000);
+    }
     const int compat = tree.child(tree.root(), "compat");
     if (compat < 0) return o;
     auto on = [&](const char *name) { return isOn(tree.child(compat, name)); };

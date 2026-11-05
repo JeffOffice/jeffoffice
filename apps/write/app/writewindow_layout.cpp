@@ -58,6 +58,14 @@ void WriteWindow::createLayoutExtraActions()
         if (m_doc) m_doc->setAutoHyphenation(true);
         m_view->setFocus(Qt::OtherFocusReason);
     }, true);
+    mk("layout.hyphenation.options", tr("Hyphenation Options…"), "", QKeySequence(), [this] {
+        if (!m_doc) return;
+        double zone = m_doc->hyphenationZone();
+        int limit = m_doc->hyphenLimit();
+        const bool ok = m_hyphenationAsker ? m_hyphenationAsker(zone, limit) : write::hyphenationDialog(this, &zone, &limit);
+        if (ok) m_doc->setHyphenation(zone, limit);
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
     // Line numbers.
     struct Numbers {
         const char *id;

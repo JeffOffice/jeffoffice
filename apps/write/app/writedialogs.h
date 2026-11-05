@@ -29,6 +29,8 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section);
 bool columnsDialog(QWidget *parent, WriteDoc *doc, int section);
 // Line Numbers: on or off, start at, count by, distance from the text, and when the numbers begin again; for the section or the whole document.
 bool lineNumbersDialog(QWidget *parent, WriteDoc *doc, int section);
+// Layout > Hyphenation > Hyphenation Options: the zone (in points) and the most lines in a row that may end in a hyphen (0: no limit), taken from and put back in the arguments. False if canceled.
+bool hyphenationDialog(QWidget *parent, double *zone, int *limit);
 // Page Borders: which sides, the line (style, width, color), its distance, where it is measured from, and the pages that have it; for the section or the whole document.
 bool pageBordersDialog(QWidget *parent, WriteDoc *doc, int section);
 // Date and Time: a list of ways to write today's date and the time, put in as the text of the moment or as a field that updates (F9, and when the document is opened). Returns whether the

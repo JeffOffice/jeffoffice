@@ -556,7 +556,9 @@
               "keytip": "HY",
               "menu": [
                 "layout.hyphenation.none",
-                "layout.hyphenation.auto"
+                "layout.hyphenation.auto",
+                "-",
+                "layout.hyphenation.options"
               ]
             }
           ]

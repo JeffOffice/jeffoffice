@@ -2978,6 +2978,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     }
     const bool hyphenateStory = !frames.isEmpty() && frames.first().hyphenate;
     const double zone = (frames.isEmpty() ? 18.0 : frames.first().hyphenZone) * env.fontScale;
+    const int hyphenLimit = frames.isEmpty() ? 0 : frames.first().hyphenLimit;
 
     // Notes. A note's own text is laid out without notes of its own.
     m_notes.clear();
@@ -3260,6 +3261,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->propsStart = b.position();
         const QTextBlockFormat bf = b.blockFormat();
         const bool hyphenate = hyphenateStory && !bf.boolProperty(tp::NoAutoHyphen);   // (a paragraph that says so is not hyphenated)
+        int hyphenRun = 0;   // the lines in a row, so far, that end in a hyphen
         // The fill under the paragraph's text, for text of the automatic color: its own shading, else what its frame is on (a table cell's fill).
         QColor behind = frames.isEmpty() ? QColor() : frames[std::min(f, nF - 1)].backdrop;
         if (env.wordLines && bf.hasProperty(tp::Borders))
@@ -4442,7 +4444,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             // The width is given again: without it Qt treats the line
                             // as endless, and justified text spreads off the page.
                             if (k > s0 && (iv.x1 - iv.x0) - (line.cursorToX(k) - line.cursorToX(s0)) < zone) line.setNumColumns(k - s0, std::max(1.0, iv.x1 - iv.x0));
+                            // The limit of lines in a row that end in a hyphen: the word that would make one more goes down whole.
+                            else if (k > s0 && hyphenLimit > 0 && hyphenRun >= hyphenLimit) line.setNumColumns(k - s0, std::max(1.0, iv.x1 - iv.x0));
                         }
+                    }
+                    if (hyphenate) {
+                        const int e0 = line.textStart(), n0 = line.textLength();
+                        hyphenRun = n0 > 0 && B->disp[e0 + n0 - 1] == QChar(0x00AD) ? hyphenRun + 1 : 0;
                     }
                     // In a polygon a word too long for the place left isn't broken to fit it: the line moves down to where it does.
                     if (frames[f].fitToShape && iv.x1 - iv.x0 < col.width() - indL - indR - 0.5) {
