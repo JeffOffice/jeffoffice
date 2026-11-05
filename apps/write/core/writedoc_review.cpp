@@ -161,6 +161,30 @@ void WriteDoc::setShowHiddenText(bool on)
     Q_EMIT sectionsChanged();
 }
 
+void WriteDoc::setCollapseActive(bool any)
+{
+    m_collapseAny = any;
+    renewCollapse();
+}
+
+void WriteDoc::suspendCollapse(bool on)
+{
+    if (on == m_collapseSuspended) return;
+    m_collapseSuspended = on;
+    if (m_collapseAny) renewCollapse();
+}
+
+// The layout is told, with a new number each time, which paragraphs the collapsed headings hide now (so that what was laid out for the last set is laid out again).
+void WriteDoc::renewCollapse()
+{
+    static int s_epoch = 0;
+    const bool on = m_collapseAny && !m_collapseSuspended;
+    m_flow->env.collapseEpoch = on ? ++s_epoch : 0;
+    if (on || story()->property(tp::kCollapseProperty).isValid()) story()->setProperty(tp::kCollapseProperty, on);
+    if (m_pager) m_pager->invalidateFrom(0);
+    Q_EMIT sectionsChanged();
+}
+
 void WriteDoc::setRevisionView(int view)
 {
     if (view == m_revisionView) return;

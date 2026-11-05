@@ -76,6 +76,9 @@ public:
     // Page movement: the pages in a column (the usual), or all in one row that the window scrolls side to side.
     // Draft: the pages run on without edges, shadows, headers, or footers, a dotted line (named for a page or section break) where each ends.
     void setDraft(bool on);
+    // Web Layout: the text is set as one column as wide as the window, with no page edges or breaks shown (the document's own pages come back when it ends).
+    void setWebLayout(bool on);
+    bool webLayout() const { return m_web; }
     bool draft() const { return m_draft; }
     // While a header or footer is edited the page's own text is shown dimmed (the usual), or left out.
     void setShowBodyWhileEditingHeader(bool on);
@@ -112,6 +115,12 @@ public:
     const QVector<QPair<int, int>> &findHighlights() const { return m_findHighlights; }
     // How the Find pane says where its words are in the story of a header, a footer, or a note (given that story): drawn with the others.
     void setFindSideMatcher(const std::function<QVector<QPair<int, int>>(const QTextDocument *)> &matcher);
+    // The header, footer, or note being edited (null while the text is), and how to go to one: edits the one that has the story on a page that shows it (`page`, from 0, says which);
+    // false where no page shows it.
+    const QTextDocument *editedSideStory() const { return sideStory(); }
+    // Collapses or opens the heading whose paragraph holds the position (what the little triangle by a heading does); false where there is no such heading.
+    bool toggleHeadingCollapsed(int position);
+    bool enterSideStory(QTextDocument *story, int *page = nullptr);
     // The faint edges of the cells of tables that have no lines (View Gridlines).
     void setShowGridlines(bool on);
     bool showGridlines() const { return m_gridlines; }
@@ -433,6 +442,11 @@ private:
     bool tableHandle(QRectF *box, int *page, int *cellPosition, QRectF *table);
     bool tableHandleAt(const QPoint &viewportPos, ColumnDrag *found);
     int m_hoverCursorShape = -1;
+    // The small triangle by a heading (Collapse and expand): the heading the pointer is on (its paragraph's place, -1 for none), the triangle's box on the viewport for a heading, and the heading under a point.
+    int m_collapseHover = -1;
+    QRect collapseMark(int headingPosition);
+    int headingAt(const QPoint &viewportPos);
+    void paintCollapseMarks(QPainter &p, const QRect &clip);
     bool pictureRectUncached(int position, QRectF *rect);
     struct RectKey {
         const void *doc = nullptr;   // the document (another one made as this one is is not it)
@@ -472,7 +486,8 @@ private:
     double m_zoom = 1.0;
     ZoomMode m_mode = ZoomMode::Percent;
     int m_across = 1, m_down = 1;
-    bool m_sideToSide = false, m_draft = false, m_showBodyInHeader = true;
+    bool m_sideToSide = false, m_draft = false, m_web = false, m_showBodyInHeader = true;
+    void fitWebWidth();
     bool m_marks = false;
     QVector<QPair<int, int>> m_findHighlights;
     std::function<QVector<QPair<int, int>>(const QTextDocument *)> m_findSide;

@@ -2,6 +2,7 @@
 
 #include "core/editops.h"
 #include "core/writeprops.h"
+#include "text/textprops.h"
 
 #include <QRegularExpression>
 #include <QTextBlock>
@@ -250,6 +251,106 @@ bool outlineMove(WriteDoc &doc, int position, bool up, bool withSubtree, int *mo
     if (!moveRows(doc, rows, j, t, i, nullptr)) return false;
     if (movedTo) *movedTo = outlineRows(doc).value(i + (t - j)).position;
     return true;
+}
+
+// ---- collapsed headings
+
+namespace {
+constexpr int kCollapsedHeading = 0x4A48;   // a heading block's user state while it is collapsed (tp::kCollapsedBlock marks the paragraphs it hides)
+
+// Sets the paragraphs the collapsed headings hide and clears the others'; true if any paragraph's state changed.
+bool settleCollapse(WriteDoc &doc, bool *any)
+{
+    bool changed = false, some = false;
+    int hideBelow = -1;   // the level at or above which a heading ends the run being hidden
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
+        const int level = levelOf(b);
+        int want = b.userState() == kCollapsedHeading ? kCollapsedHeading : -1;
+        if (want == kCollapsedHeading && level >= kBodyLevel) want = -1;   // (no heading now)
+        if (hideBelow >= 0 && level > hideBelow) {
+            want = tp::kCollapsedBlock;
+        } else {
+            hideBelow = -1;
+            if (want == kCollapsedHeading) {
+                hideBelow = level;
+                some = true;
+            }
+        }
+        if (b.userState() != want) {
+            b.setUserState(want);
+            changed = true;
+        }
+    }
+    if (any) *any = some;
+    return changed;
+}
+} // namespace
+
+int headingLevelAt(WriteDoc &doc, int position)
+{
+    const QTextBlock b = doc.story()->findBlock(position);
+    if (!b.isValid()) return -1;
+    const int level = levelOf(b);
+    return level < kBodyLevel ? level : -1;
+}
+
+bool headingCollapsed(WriteDoc &doc, int position) { return doc.story()->findBlock(position).userState() == kCollapsedHeading; }
+
+bool hiddenByCollapse(WriteDoc &doc, int position) { return doc.story()->findBlock(position).userState() == tp::kCollapsedBlock; }
+
+bool setHeadingCollapsed(WriteDoc &doc, int position, bool collapsed)
+{
+    QTextBlock b = doc.story()->findBlock(position);
+    if (!b.isValid() || levelOf(b) >= kBodyLevel) return false;
+    if ((b.userState() == kCollapsedHeading) == collapsed) return false;
+    if (collapsed) {
+        const QTextBlock next = b.next();
+        if (!next.isValid() || levelOf(next) <= levelOf(b)) return false;   // (nothing under it)
+    }
+    b.setUserState(collapsed ? kCollapsedHeading : -1);
+    bool any = false;
+    settleCollapse(doc, &any);
+    doc.setCollapseActive(any);
+    return true;
+}
+
+bool expandAround(WriteDoc &doc, int position)
+{
+    QTextBlock b = doc.story()->findBlock(position);
+    if (!b.isValid() || b.userState() != tp::kCollapsedBlock) return false;
+    // The headings that hide it: going back, each heading above the levels met so far that is collapsed.
+    int level = kBodyLevel;
+    bool opened = false;
+    for (b = b.previous(); b.isValid() && level > 0; b = b.previous()) {
+        const int l = levelOf(b);
+        if (l >= level) continue;
+        level = l;
+        if (b.userState() == kCollapsedHeading) {
+            b.setUserState(-1);
+            opened = true;
+        }
+    }
+    if (opened) {
+        bool any = false;
+        settleCollapse(doc, &any);
+        doc.setCollapseActive(any);
+    }
+    return opened;
+}
+
+void expandAllHeadings(WriteDoc &doc)
+{
+    if (!doc.collapseActive()) return;
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+        if (b.userState() == kCollapsedHeading || b.userState() == tp::kCollapsedBlock) b.setUserState(-1);
+    doc.setCollapseActive(false);
+}
+
+void refreshCollapsed(WriteDoc &doc)
+{
+    if (!doc.collapseActive()) return;
+    bool any = false;
+    if (settleCollapse(doc, &any) || !any) doc.setCollapseActive(any);
 }
 
 } // namespace jp::write

@@ -36,4 +36,19 @@ bool outlineSetLevel(WriteDoc &doc, int first, int last, int level);
 // Where the moved paragraph begins afterward is put in `movedTo`.
 bool outlineMove(WriteDoc &doc, int position, bool up, bool withSubtree, int *movedTo = nullptr);
 
+// ---- collapsed headings: a view of the text on the screen (nothing is written, printed, or saved)
+// The level (0 to 8) of the heading whose paragraph holds the position, -1 for body text.
+int headingLevelAt(WriteDoc &doc, int position);
+// Whether the heading at the position is collapsed, and whether a collapsed heading hides the paragraph at the position.
+bool headingCollapsed(WriteDoc &doc, int position);
+bool hiddenByCollapse(WriteDoc &doc, int position);
+// Collapses (or opens) the heading whose paragraph holds the position: the paragraphs after it, up to the next heading of its level or a higher one, are left out of the lines. False where there is no
+// such heading, or nothing under it to hide (when collapsing).
+bool setHeadingCollapsed(WriteDoc &doc, int position, bool collapsed);
+// Opens the collapsed headings that hide the position; true if one was opened.
+bool expandAround(WriteDoc &doc, int position);
+void expandAllHeadings(WriteDoc &doc);
+// Works out again which paragraphs the collapsed headings hide, after the text changed (a heading that is no heading now is opened).
+void refreshCollapsed(WriteDoc &doc);
+
 } // namespace jp::write

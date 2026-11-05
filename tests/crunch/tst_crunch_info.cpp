@@ -1,5 +1,6 @@
 // Tests of JeffCrunch's Info page: the properties a workbook keeps (written at the next save, into parts the file may not have had), Mark as Final, and Inspect Workbook. Every workbook is
 // built here.
+#include <QLocale>
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/filescreen.h"
@@ -212,14 +213,14 @@ private Q_SLOTS:
                 }
             if (t.id == QLatin1String("loan")) {
                 QCOMPARE(e.shownAt(QStringLiteral("B6")), QStringLiteral("$386.66"));
-                QVERIFY(e.shownAt(QStringLiteral("E70")).endsWith(QLatin1String("0.00")));   // (sixty payments: the balance is paid off at the last)
+                QVERIFY(e.shownAt(QStringLiteral("E70")).endsWith(QStringLiteral("0") + QLocale().decimalPoint() + QStringLiteral("00")));   // (sixty payments: the balance is paid off at the last)
                 QVERIFY(e.shownAt(QStringLiteral("A71")).isEmpty());
             }
             if (t.id == QLatin1String("calendar")) {
                 QCOMPARE(e.shownAt(QStringLiteral("A4")), QStringLiteral("January 2027"));
                 QCOMPARE(e.shownAt(QStringLiteral("F6")), QStringLiteral("1"));   // (January 1, 2027 is a Friday)
             }
-            if (t.id == QLatin1String("budget")) QCOMPARE(e.shownAt(QStringLiteral("B7")), QStringLiteral("$0.00"));
+            if (t.id == QLatin1String("budget")) QCOMPARE(e.shownAt(QStringLiteral("B7")), QStringLiteral("$0") + QLocale().decimalPoint() + QStringLiteral("00"));   // (in the computer's own decimal mark)
         }
         QVERIFY(crunch::builtinTemplateBytes(QStringLiteral("none")).isEmpty());
     }

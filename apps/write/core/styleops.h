@@ -37,6 +37,13 @@ QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString
 // Whether a style is listed for people and where: `inGallery` (recommended: it is in the gallery), `hidden` (left out of every list), and `priority` (0 to 99, lower comes first in the
 // recommended list; -1 leaves it as it is). One step of the history; nothing done when it is all as it was. False, with `problem` told, when it can't be done.
 bool setStyleListing(WriteDoc &doc, const QString &id, bool inGallery, bool hidden, int priority = -1, QString *problem = nullptr);
+// Whether a style is locked (w:locked): while the document limits formatting (Manage Styles; WriteDoc::formattingLimited), a locked style can't be given to text. Setting it is one step of the
+// history, and nothing is done when it is as it was.
+bool styleLocked(const WriteDoc &doc, const QString &id);
+bool setStyleLocked(WriteDoc &doc, const QString &id, bool locked, QString *problem = nullptr);
+// Writes the styles `ids` of the document (with the styles they are based on) to a template file, `path` (a .dotx), that Import Styles and a new document can take them from. False, with `problem`
+// told, when a style can't be copied or the file can't be written.
+bool exportStyles(const WriteDoc &doc, const QStringList &ids, const QString &path, QString *problem = nullptr);
 // The style the document has under `id`, or else the built-in one it lacks (which is not added: it is added with the first change that is made to it, as part of that step).
 std::optional<office::wml::Style> styleOfDocument(const WriteDoc &doc, const QString &id);
 

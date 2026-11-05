@@ -260,7 +260,7 @@ QString FieldContext::key(bool withClock) const
 
 QString LayoutEnv::key() const
 {
-    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (revisionView ? QStringLiteral("|v%1").arg(revisionView) : QString()) + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (wordWholePointLines ? "|u" : "") + (wordNoLeading ? "|z" : "") + (wordWrapTrailSpaces ? "|t" : "") + (wordSpaceShrink > 0 ? QStringLiteral("|p%1").arg(wordSpaceShrink) : QString()) + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
+    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (revisionView ? QStringLiteral("|v%1").arg(revisionView) : QString()) + (collapseEpoch ? QStringLiteral("|e%1").arg(collapseEpoch) : QString()) + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (wordWholePointLines ? "|u" : "") + (wordNoLeading ? "|z" : "") + (wordWrapTrailSpaces ? "|t" : "") + (wordSpaceShrink > 0 ? QStringLiteral("|p%1").arg(wordSpaceShrink) : QString()) + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (auto it = familyAliases.cbegin(); it != familyAliases.cend(); ++it) k += QStringLiteral("|a") + it.key() + QLatin1Char('=') + it.value();
     for (auto it = standIns.cbegin(); it != standIns.cend(); ++it) k += QStringLiteral("|i") + it.key() + QLatin1Char('=') + it.value();
@@ -1695,8 +1695,10 @@ static int sourceBlockNumber(const QTextBlock &b)
 bool StoryLayout::joinsNext(const QTextBlock &b, int end)
 {
     // (A mark that a tracked change deleted is a paragraph's end where the deleted text is shown, and one that a change inserted is none where only what was there before is.)
-    if (!b.charFormat().boolProperty(tp::HiddenText) && !b.charFormat().hasProperty(tp::Revision)) return false;
-    if (!tp::hiddenInView(b.charFormat(), b.document()->property(tp::kRevisionViewProperty).toInt())) return false;
+    if (!tp::collapsedBlock(b)) {
+        if (!b.charFormat().boolProperty(tp::HiddenText) && !b.charFormat().hasProperty(tp::Revision)) return false;
+        if (!tp::hiddenInView(b.charFormat(), b.document()->property(tp::kRevisionViewProperty).toInt())) return false;
+    }
     const QTextBlock n = b.next();
     if (!n.isValid() || (end >= 0 && n.position() >= end)) return false;
     // (A run is cut into chunks of kMostJoinedParagraphs by the number of its paragraphs, so that whoever asks, wherever a stretch of the story begins, finds the same runs.)
@@ -3383,7 +3385,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 continue;
             }
             // Hidden text takes no room and shows nothing, though its characters are the story's (so does a paragraph that is set apart from the text).
-            if (env.wordLines && tp::hiddenInView(cf, env.revisionView)) {
+            if (env.wordLines && (tp::hiddenInView(cf, env.revisionView) || tp::collapsedBlock(part))) {
                 B->map << Seg{rel, int(text.size()), int(B->disp.size()), 0, true};
                 continue;
             }
@@ -4777,7 +4779,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         // (The first paragraph of a stretch may have lines that went before it.)
         const int firstBreak = first ? m_span.firstBreakAfter : -1;
         // A paragraph whose text and mark are both hidden is no paragraph: it takes no room.
-        if (!(env.wordLines && B->disp.isEmpty() && (tp::hiddenInView(b.charFormat(), env.revisionView) || apart) && !tail)) placeLines(false, firstBreak);
+        if (!(env.wordLines && B->disp.isEmpty() && (tp::hiddenInView(b.charFormat(), env.revisionView) || tp::collapsedBlock(b) || apart) && !tail)) placeLines(false, firstBreak);
         // Where each line landed: the first line in another column or box.
         auto splitAt = [&] {
             for (int i = 1; i < B->lines.size(); ++i)

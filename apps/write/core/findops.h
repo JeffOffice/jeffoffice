@@ -3,7 +3,7 @@
 //
 // In a pattern: ? is any one character, * is any run of characters (the shortest that fits), < and > are the start and the end of a word, [abc] and [a-z] are one of the characters, [!abc] is any
 // but those, {n}, {n,}, and {n,m} are repeats of what comes before, @ is one or more of what comes before, ( and ) make a group, and \ takes the character after it as it is. The special codes
-// are ^p (a paragraph mark), ^t (a tab), ^# (a digit), ^$ (a letter), ^w (white space), and ^^ (a ^). Every other character is itself.
+// are ^p (a paragraph mark), ^t (a tab), ^# (a digit), ^$ (a letter), ^w (white space), ^b (a section break), ^d (a field), ^f (a footnote mark), ^e (an endnote mark), and ^^ (a ^). Every other character is itself.
 //
 // In a replacement: \1 to \9 are the groups, ^& is all of what was found, ^t is a tab, ^p is a paragraph mark's place (a line break is not made: it is left as it is), and \\ is a backslash.
 
@@ -15,6 +15,10 @@
 namespace jp::write {
 
 constexpr int kMostPatternLength = 500;   // a longer pattern is refused
+// What the search's text has in the place of a section break (a paragraph mark that ends a section), the start of a field, and a footnote's or an endnote's mark: one character each, from the
+// private use area, so that the codes ^b, ^d, ^f, and ^e find them and nothing else does.
+constexpr char16_t kFindSectionBreak = 0xE0B0, kFindField = 0xE0D0, kFindEndnoteMark = 0xE0E0, kFindFootnoteMark = 0xE0F0;
+inline bool isFindMark(QChar c) { return c == QChar(kFindSectionBreak) || c == QChar(kFindField) || c == QChar(kFindEndnoteMark) || c == QChar(kFindFootnoteMark); }
 
 struct FindPattern {
     QRegularExpression regex;

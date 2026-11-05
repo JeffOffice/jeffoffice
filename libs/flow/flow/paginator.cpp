@@ -1634,6 +1634,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         } else {
             dst.insertBlock(bf, b.charFormat());
         }
+        if (b.userState() == tp::kCollapsedBlock) dst.block().setUserState(tp::kCollapsedBlock);   // (a paragraph that a collapsed heading hides stays hidden in the page's copy)
         sourceNumbers << b.blockNumber();
         const int skip = std::max(0, from - b.position());   // (a paragraph before the first line, of those joined, is left out of the copy)
         const int upto = std::max(0, to - b.position());   // (the copy's end, in every paragraph of a run that is one: a page's copy holds the page's text, not the whole of each)
@@ -1684,6 +1685,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
     }
     if (m_doc->env.wordLines) sd->setProperty(StoryLayout::kBlockNumbersProperty, QVariant::fromValue(sourceNumbers));
     if (m_doc->env.revisionView) sd->setProperty(tp::kRevisionViewProperty, m_doc->env.revisionView);
+    if (m_doc->env.collapseEpoch) sd->setProperty(tp::kCollapseProperty, true);
     dst.endEditBlock();
     return sd;
 }
@@ -2014,6 +2016,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     d->wordNoLeading = m_doc->env.wordNoLeading;
     d->wordSpaceShrink = m_doc->env.wordSpaceShrink;
     d->revisionView = m_doc->env.revisionView;
+    d->collapseEpoch = m_doc->env.collapseEpoch;
     d->wordWrapTrailSpaces = m_doc->env.wordWrapTrailSpaces;
     d->wordStandIns = m_doc->env.standIns;
     const Furniture furniture = furnitureOf(index, st, out->number);

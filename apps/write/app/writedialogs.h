@@ -53,6 +53,8 @@ bool linkDialog(QWidget *parent, WriteDoc *doc, PageView *view);
 // step that undoes; a name or a base that is refused keeps the dialog open and says why. Returns whether a style was made or changed.
 // Manage Styles: which styles are recommended (in the gallery), which are hidden, and their order in the lists, for every style the document has; applied as one step on OK.
 void manageStylesDialog(QWidget *parent, WriteDoc *doc);
+// Export Styles (from Manage Styles): the styles to check and the template file to write them to. False if canceled or it failed.
+bool exportStylesDialog(QWidget *parent, WriteDoc *doc);
 // Import Styles: the styles of another document in a list to check, copied into this one as one step. False when none was imported (the person cancelled, or checked none).
 bool importStylesDialog(QWidget *parent, WriteDoc *doc, const WriteDoc &other);
 bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QString &modifyId = QString());

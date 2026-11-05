@@ -263,6 +263,7 @@ public:
     void setOutlineMode(bool on);
     // Draft (View > Draft): the pages run on without edges, headers, or footers; Print Layout and Outline each end it.
     void setDraftView(bool on);
+    void setWebView(bool on);
     WriteOutlineView *outlineView() const { return m_outline; }
     // View > Split: a second pane under the pages shows the same document, scrolled and zoomed on its own, for looking at one place while writing in another. It does not take typing.
     write::PageView *splitView() const { return m_split; }

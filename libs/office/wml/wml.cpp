@@ -420,6 +420,8 @@ std::optional<DocumentProtection> settingsDocumentProtection(const QByteArray &s
         p.edit = protectionAttribute(p.xml, "edit");
         const QString on = protectionAttribute(p.xml, "enforcement").toLower();
         p.enforced = on == QLatin1String("1") || on == QLatin1String("true") || on == QLatin1String("on");
+        const QString limit = protectionAttribute(p.xml, "formatting").toLower();
+        p.formatting = limit == QLatin1String("1") || limit == QLatin1String("true") || limit == QLatin1String("on");
         return p;
     }
     return std::nullopt;
@@ -508,6 +510,50 @@ DocumentProtection makeDocumentProtection(const QString &edit, const QString &pa
     x += "/>";
     p.xml = x;
     return p;
+}
+
+DocumentProtection protectionWithFormatting(const std::optional<DocumentProtection> &protection, bool on)
+{
+    DocumentProtection p;
+    if (protection) p = *protection;
+    else p.edit = QStringLiteral("none");
+    if (p.xml.isEmpty()) p.xml = "<w:documentProtection w:edit=\"" + p.edit.toUtf8() + "\"/>";
+    // (The attributes are taken out where they are, and put just after the element's name with its own prefix: formatting as asked, and enforcement on when formatting is limited.)
+    QString text = QString::fromUtf8(p.xml);
+    auto put = [&](const QString &name, const QString &value) {
+        text.remove(QRegularExpression(QStringLiteral("\\s\\w*:?%1\\s*=\\s*(\"[^\"]*\"|'[^']*')").arg(name)));
+        if (value.isEmpty()) return;
+        const QRegularExpressionMatch tag = QRegularExpression(QStringLiteral("^<(\\w+:)?documentProtection")).match(text);
+        if (tag.hasMatch()) text.insert(tag.capturedEnd(), QStringLiteral(" %1%2=\"%3\"").arg(tag.captured(1), name, value));
+    };
+    put(QStringLiteral("formatting"), on ? QStringLiteral("1") : QString());
+    if (on) put(QStringLiteral("enforcement"), QStringLiteral("1"));
+    p.xml = text.toUtf8();
+    p.formatting = on;
+    if (on) p.enforced = true;
+    return p;
+}
+
+static const QRegularExpression &lockedElement()
+{
+    static const QRegularExpression re(QStringLiteral("<(\\w+:)?locked(\\s[^>]*)?/?>(</(\\w+:)?locked>)?"));
+    return re;
+}
+
+bool styleLateLocked(const QByteArray &late)
+{
+    const QRegularExpressionMatch m = lockedElement().match(QString::fromUtf8(late));
+    if (!m.hasMatch()) return false;
+    const QString attrs = m.captured(2).toLower();
+    return !(attrs.contains(QLatin1String("val=\"0\"")) || attrs.contains(QLatin1String("val=\"false\"")) || attrs.contains(QLatin1String("val=\"off\"")));
+}
+
+QByteArray styleLateWithLock(const QByteArray &late, bool locked)
+{
+    QString text = QString::fromUtf8(late);
+    text.remove(lockedElement());
+    if (locked) text.prepend(QStringLiteral("<w:locked/>"));
+    return text.toUtf8();
 }
 
 PasswordCheck checkDocumentPassword(const DocumentProtection &protection, const QString &password, const std::atomic<bool> *cancel)

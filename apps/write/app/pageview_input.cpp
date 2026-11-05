@@ -506,6 +506,12 @@ void PageView::mousePressEvent(QMouseEvent *e)
         }
     }
     if (e->button() == Qt::LeftButton && e->type() != QEvent::MouseButtonDblClick && !m_hf.active && !m_note.active) {
+        // The little triangle by a heading collapses or opens it.
+        if (const int heading = headingAt(e->position().toPoint()); heading >= 0 && collapseMark(heading).adjusted(-4, -4, 4, 4).contains(e->position().toPoint())) {
+            toggleHeadingCollapsed(heading);
+            e->accept();
+            return;
+        }
         if (tableHandleAt(e->position().toPoint(), &m_columnDrag)) {
             m_columnDrag.active = true;
             viewport()->update();
@@ -618,6 +624,13 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
         if (!(e->buttons() & Qt::LeftButton)) m_textDrag.pending = false;
         else if ((e->position().toPoint() - m_textDrag.start).manhattanLength() >= QApplication::startDragDistance()) startTextDrag();
         return;
+    }
+    if (m_doc && !(e->buttons() & Qt::LeftButton)) {
+        const int heading = headingAt(e->position().toPoint());
+        if (heading != m_collapseHover) {
+            m_collapseHover = heading;
+            viewport()->update();
+        }
     }
     if (m_doc && !m_dragging && m_tableTool == TableTool::None && !(e->buttons() & Qt::LeftButton)) {
         // The pointer says what a press on the selected picture would do, or that a press on a column's border would pull it.
@@ -774,7 +787,7 @@ void PageView::mouseDoubleClickEvent(QMouseEvent *e)
                 return;
             }
         }
-        if (!m_hf.active && !m_draft && area != Area::Body && (leaveNote(), enterHeaderFooter(hit.page, area == Area::Footer))) {
+        if (!m_hf.active && !m_draft && !m_web && area != Area::Body && (leaveNote(), enterHeaderFooter(hit.page, area == Area::Footer))) {
             const int at = positionAt(hit);
             if (at >= 0) {
                 m_cursor.setPosition(at);

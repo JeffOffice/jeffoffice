@@ -25,8 +25,10 @@ void WriteWindow::createOutlineActions()
     connect(act("view.printLayout"), &QAction::triggered, this, [this] {
         setOutlineMode(false);
         setDraftView(false);
+        setWebView(false);
         act("view.printLayout")->setChecked(true);
     });
+    mk("view.webLayout", tr("Web Layout"), "globe", QKeySequence(), [this] { setWebView(act("view.webLayout")->isChecked()); }, true);
     mk("view.draft", tr("Draft"), "scroll-text", QKeySequence(), [this] { setDraftView(act("view.draft")->isChecked()); }, true);
     auto onRows = [this](const std::function<void(write::WriteDoc &, int, int)> &run) {
         return [this, run] {
@@ -126,16 +128,34 @@ void WriteWindow::outlineEdited()
 void WriteWindow::setDraftView(bool on)
 {
     if (on && m_outlineOn) setOutlineMode(false);
+    if (on) setWebView(false);
     m_view->setDraft(on && m_doc);
     act("view.draft")->setChecked(m_view->draft());
-    act("view.printLayout")->setChecked(!m_view->draft() && !m_outlineOn);
+    act("view.printLayout")->setChecked(!m_view->draft() && !m_view->webLayout() && !m_outlineOn);
+    refreshUi();
+}
+
+// Web Layout: the text set as wide as the window, with no pages shown. Choosing it leaves the other views.
+void WriteWindow::setWebView(bool on)
+{
+    if (on && m_outlineOn) setOutlineMode(false);
+    if (on && m_view->draft()) {
+        m_view->setDraft(false);
+        act("view.draft")->setChecked(false);
+    }
+    m_view->setWebLayout(on && m_doc);
+    act("view.webLayout")->setChecked(m_view->webLayout());
+    act("view.printLayout")->setChecked(!m_view->draft() && !m_view->webLayout() && !m_outlineOn);
     refreshUi();
 }
 
 void WriteWindow::setOutlineMode(bool on)
 {
     if (on == m_outlineOn) return;
-    if (on) setDraftView(false);
+    if (on) {
+        setDraftView(false);
+        setWebView(false);
+    }
     if (on && !m_doc) {
         act("view.outline")->setChecked(false);
         return;
@@ -143,7 +163,7 @@ void WriteWindow::setOutlineMode(bool on)
     m_outlineOn = on;
     syncVerticalRuler();
     act("view.outline")->setChecked(on);
-    act("view.printLayout")->setChecked(!on);
+    act("view.printLayout")->setChecked(!on && !m_view->webLayout());
     m_ribbon->setContextVisible(QStringLiteral("Outlining"), on, true);
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("outline."))) a->setEnabled(on);

@@ -46,7 +46,7 @@ Only one of **Sounds like**, **Find all word forms**, and **Use wildcards** can 
 
 ### Special
 
-Click **Special** to put a code in **Find what**: **Paragraph Mark** (^p), **Tab Character** (^t), **Any Digit** (^#), **Any Letter** (^$), **White Space** (^w), or **Caret Character** (^^). The codes work without **Use wildcards**. The other marks in the box, such as **?** and **\***, are then just those characters.
+Click **Special** to put a code in **Find what**: **Paragraph Mark** (^p), **Tab Character** (^t), **Any Digit** (^#), **Any Letter** (^$), **White Space** (^w), **Section Break** (^b), **Field** (^d), **Footnote Mark** (^f), **Endnote Mark** (^e), or **Caret Character** (^^). The codes work without **Use wildcards**. A **section break** is the mark that ends a section. A **field** is a piece of text that the program works out, such as a page number or a date, and **^d** finds where each one starts. The note marks are the small numbers in the text that point to a footnote or an endnote. These four are found, but **Replace** and **Replace All** leave them alone, because changing one would lose what it stands for. The other marks in the box, such as **?** and **\***, are then just those characters.
 
 ### Format
 
@@ -74,7 +74,7 @@ For example, to change "colour" to "colour" everywhere: type **colour** in **Fin
 ## What the search looks at
 
 - It looks at the text of the document, including the text in tables. A bookmark in the middle of some words, which some files have, does not stop them from being found. **Replace** and **Replace All** keep the bookmark.
-- **Find Next**, **Replace**, and **Replace All** do not look in headers, footers, footnotes, or endnotes yet. Words there get a yellow band, but they are not selected and not changed. If a header or footer is open for editing when you open the pane, it closes first. See [Headers and footers](headers-footers).
+- **Find Next** looks in the text first. Then it goes on to the headers, then the footers, then the footnotes, and then back to the start of the text. When a match is in one of them, JeffWrite opens it for editing and selects the match. The pane tells you where it is, such as "Found in the header of page 3." **Replace** swaps the match you are on, in the text or in a header, footer, or footnote. **Replace All** changes every match in all of them, and one **Undo** brings them all back. The endnotes are part of the text, so they are searched with it. See [Headers and footers](headers-footers).
 - It skips text that is set to **Hidden**, because that text is not shown. See [Change how text looks](font).
 
 ## Related
