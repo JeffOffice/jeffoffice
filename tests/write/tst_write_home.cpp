@@ -32,6 +32,8 @@
 
 #include <QAction>
 #include <QElapsedTimer>
+#include <QLabel>
+#include <QMenu>
 #include <QLineEdit>
 #include <QStatusBar>
 #include <QUrlQuery>
@@ -1345,6 +1347,250 @@ private Q_SLOTS:
         QVERIFY(!wildcardPattern(QString(), false).error.isEmpty());
     }
 
+    void advancedFindReadsSoundsFormsAndLettersWithPunctuationBetween()
+    {
+        QCOMPARE(soundexOf(QStringLiteral("Smith")), QStringLiteral("S530"));
+        QCOMPARE(soundexOf(QStringLiteral("smyth")), QStringLiteral("S530"));
+        QCOMPARE(soundexOf(QStringLiteral("Robert")), QStringLiteral("R163"));
+        QCOMPARE(soundexOf(QStringLiteral("Rupert")), QStringLiteral("R163"));
+        QCOMPARE(soundexOf(QStringLiteral("Tymczak")), QStringLiteral("T522"));
+        QCOMPARE(soundexOf(QStringLiteral("Pfister")), QStringLiteral("P236"));
+        QCOMPARE(soundexOf(QStringLiteral("123")), QString());
+        QCOMPARE(wordStem(QStringLiteral("Running")), wordStem(QStringLiteral("runs")));
+        QCOMPARE(wordStem(QStringLiteral("ran")), wordStem(QStringLiteral("run")));
+        QCOMPARE(wordStem(QStringLiteral("making")), wordStem(QStringLiteral("made")));
+        QCOMPARE(wordStem(QStringLiteral("tries")), wordStem(QStringLiteral("try")));
+        QCOMPARE(wordStem(QStringLiteral("buses")), wordStem(QStringLiteral("bus")));
+        QCOMPARE(wordStem(QStringLiteral("walked")), wordStem(QStringLiteral("walking")));
+        QVERIFY(wordStem(QStringLiteral("string")) != wordStem(QStringLiteral("str")));
+        QVERIFY(wordStem(QStringLiteral("cat")) != wordStem(QStringLiteral("cart")));
+        auto all = [](const QString &text, AdvancedFind o) {
+            QStringList out;
+            for (int at = 0;;) {
+                const QPair<int, int> m = advancedMatch(text, at, o);
+                if (m.first < 0) break;
+                out << text.mid(m.first, m.second - m.first);
+                at = std::max(m.second, at + 1);
+            }
+            return out;
+        };
+        AdvancedFind o;
+        o.query = QStringLiteral("Smith");
+        o.soundsLike = true;
+        QCOMPARE(all(QStringLiteral("Mr. Smyth met Smith and Schmidt, not Jones."), o), (QStringList{"Smyth", "Smith", "Schmidt"}));   // (Schmidt has the same code, S530)
+        o = AdvancedFind();
+        o.query = QStringLiteral("run");
+        o.wordForms = true;
+        QCOMPARE(all(QStringLiteral("He runs, ran, and was running; a rung and a runner."), o), (QStringList{"runs", "ran", "running", "runner"}));   // ("rung" is another word)
+        o.query = QStringLiteral("big dog");
+        QCOMPARE(all(QStringLiteral("Two bigger dogs; one big dog; a big, dog."), o), (QStringList{"bigger dogs", "big dog"}));
+        o = AdvancedFind();
+        o.query = QStringLiteral("e-mail");
+        o.ignorePunctuation = true;
+        QCOMPARE(all(QStringLiteral("email, e-mail, e.mail, e mail"), o), (QStringList{"email", "e-mail", "e.mail"}));
+        o.ignorePunctuation = false;
+        o.ignoreSpaces = true;
+        o.query = QStringLiteral("e mail");
+        QCOMPARE(all(QStringLiteral("email, e-mail, e   mail, e\tmail"), o), (QStringList{"email", "e   mail", "e\tmail"}));
+        o.wholeWords = true;
+        o.query = QStringLiteral("ab");
+        QCOMPARE(all(QStringLiteral("a b, cab, a  b"), o), (QStringList{"a b", "a  b"}));
+        o = AdvancedFind();
+        o.query = QStringLiteral("AB");
+        o.ignoreSpaces = true;
+        o.matchCase = true;
+        QCOMPARE(all(QStringLiteral("a b A B ab AB"), o), (QStringList{"A B", "AB"}));
+        // A search that has nothing to look for finds nothing.
+        o = AdvancedFind();
+        o.ignorePunctuation = true;
+        o.query = QStringLiteral("-.");
+        QVERIFY(advancedMatch(QStringLiteral("a-b"), 0, o).first < 0);
+        // Format filters.
+        FormatFilter f;
+        QVERIFY(!f.any());
+        QTextCharFormat bold;
+        bold.setFontWeight(QFont::Bold);
+        QTextCharFormat plain;
+        f.bold = 1;
+        QVERIFY(f.any() && f.matchesChar(bold) && !f.matchesChar(plain));
+        f.bold = 0;
+        QVERIFY(!f.matchesChar(bold) && f.matchesChar(plain));
+        f = FormatFilter();
+        f.font = QStringLiteral("arial");
+        QTextCharFormat arial;
+        arial.setFontFamilies({QStringLiteral("Arial")});
+        QVERIFY(f.matchesChar(arial) && !f.matchesChar(plain));
+        f = FormatFilter();
+        f.underline = 1;
+        f.highlighted = 1;
+        QTextCharFormat both;
+        both.setFontUnderline(true);
+        both.setProperty(tp::HighlightRefP, QStringLiteral("rgb:FFFF00"));
+        QVERIFY(f.matchesChar(both));
+        both.setFontUnderline(false);
+        QVERIFY(!f.matchesChar(both));
+        f = FormatFilter();
+        f.style = QStringLiteral("Heading1");
+        QVERIFY(f.matchesStyle(QStringLiteral("Heading1")) && !f.matchesStyle(QString()));
+    }
+
+    void theFindPaneSearchesBySoundByWordFormsAndByLettersWithPunctuationBetween()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("Mr. Smyth met Smith, who is running; he runs, ran, and e-mail came by email.")))), QString());
+        w.act(QStringLiteral("edit.find"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QVERIFY(pane && pane->soundsLike() && pane->wordForms() && pane->ignorePunctuation() && pane->ignoreSpaces() && pane->specialButton() && pane->formatButton());
+        pane->findBox()->setText(QStringLiteral("Smith"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->soundsLike()->setChecked(true);
+        QTRY_COMPARE(pane->matchCount(), 2);
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("Smyth"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("Smith"));
+        QVERIFY(!pane->wordForms()->isEnabled());   // (one reading at a time)
+        pane->soundsLike()->setChecked(false);
+        pane->findBox()->setText(QStringLiteral("run"));
+        QTRY_COMPARE(pane->matchCount(), 2);   // (the letters alone: "running" and "runs")
+        pane->wordForms()->setChecked(true);
+        QTRY_COMPARE(pane->matchCount(), 3);   // (and "ran")
+        pane->findBox()->setText(QStringLiteral("ran"));
+        QTRY_COMPARE(pane->matchCount(), 3);
+        pane->wordForms()->setChecked(false);
+        pane->findBox()->setText(QStringLiteral("email"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->ignorePunctuation()->setChecked(true);
+        QTRY_COMPARE(pane->matchCount(), 2);
+        pane->findBox()->setText(QStringLiteral("e-mail"));
+        QTRY_COMPARE(pane->matchCount(), 2);
+        // Replace All reads the same way and is one step.
+        pane->replaceBox()->setText(QStringLiteral("message"));
+        const quint64 serial = w.document()->nextStepSerial();
+        pane->replaceAll();
+        QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("and message came by message.")));
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+    }
+
+    void theSpecialCodesWorkWithoutWildcardsAndTheMenuTypesThem()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a? b*")) + para("<w:r><w:t>c</w:t><w:tab/><w:t>d 12</w:t></w:r>") + para(run("end")))), QString());
+        w.act(QStringLiteral("edit.find"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("^p"));
+        QTRY_COMPARE(pane->matchCount(), 2);
+        pane->findBox()->setText(QStringLiteral("^t"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->findBox()->setText(QStringLiteral("^#^#"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        // The other characters are themselves: "?" is a question mark here, not any letter.
+        pane->findBox()->setText(QStringLiteral("a?^p"));
+        QTRY_COMPARE(pane->matchCount(), 0);
+        pane->findBox()->setText(QStringLiteral("b*^p"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->findBox()->clear();
+        QAction *digit = nullptr;
+        for (QAction *a : pane->specialButton()->menu()->actions())
+            if (a->data().toString() == QStringLiteral("^#")) digit = a;
+        QVERIFY(digit);
+        digit->trigger();
+        QCOMPARE(pane->findBox()->text(), QStringLiteral("^#"));
+        QTRY_COMPARE(pane->matchCount(), 2);
+    }
+
+    void theFindPaneFindsByFormatWithOrWithoutText()
+    {
+        const QByteArray body = para(run("Plain words ") + run("bold words", "<w:b/>") + run(" and plain end")) + para(run("A second bold line", "<w:b/>"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        w.act(QStringLiteral("edit.replace"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        write::FormatFilter bold;
+        bold.bold = 1;
+        pane->setFormatFilter(bold);
+        // Only the look: each stretch of bold text is a match.
+        QTRY_COMPARE(pane->matchCount(), 2);
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("bold words"));
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("A second bold line"));
+        // A word, and the look.
+        pane->findBox()->setText(QStringLiteral("words"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->findBox()->setText(QStringLiteral("plain"));
+        QTRY_COMPARE(pane->matchCount(), 0);
+        bold.bold = 0;
+        pane->setFormatFilter(bold);
+        QTRY_COMPARE(pane->matchCount(), 2);
+        QVERIFY(pane->findChild<QLabel *>(QStringLiteral("findFormatLabel"))->isVisible());
+        // Replace All changes the words that have the look and no others.
+        bold.bold = 1;
+        pane->setFormatFilter(bold);
+        pane->findBox()->setText(QStringLiteral("words"));
+        pane->replaceBox()->setText(QStringLiteral("text"));
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("Plain words bold text and plain end\nA second bold line"));
+        pane->setFormatFilter(write::FormatFilter());
+        QVERIFY(!pane->findChild<QLabel *>(QStringLiteral("findFormatLabel"))->isVisible());
+    }
+
+    void findHighlightsAlsoShowInTableCellsAndHeaders()
+    {
+        auto yellow = [](QWidget *view) {
+            const QImage img = view->grab().toImage();
+            int n = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) {
+                    const QColor c = img.pixelColor(x, y);
+                    if (c.red() > 200 && c.green() > 200 && c.blue() < 170) ++n;
+                }
+            return n;
+        };
+        const QByteArray cell = "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>needle in a cell</w:t></w:r></w:p></w:tc>";
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"4000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr>" + cell + cell + "</w:tr></w:tbl>";
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdHead\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        office::PackageWriter pw;
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        pw.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + para(run("body text")) + table + para(run("end")) + sect + "</w:body></w:document>"),
+                   QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        pw.addPart(QStringLiteral("/word/header1.xml"), xml(QByteArray("<w:hdr ") + kNs + "><w:p><w:r><w:t>needle in the header</w:t></w:r></w:p></w:hdr>"),
+                   QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"));
+        pw.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        pw.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdHead"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 900);
+        w.show();
+        w.setDocument(open(pw.finish()), QString());
+        w.act(QStringLiteral("edit.find"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QTRY_VERIFY(w.view()->pageCount() >= 1);
+        QTest::qWait(50);
+        const int none = yellow(w.view()->viewport());
+        pane->findBox()->setText(QStringLiteral("needle"));
+        QTRY_COMPARE(pane->matchCount(), 2);   // (the two cells: the header is counted by the pages as they draw it)
+        QTRY_VERIFY(yellow(w.view()->viewport()) > none + 300);
+        shot(&w, QStringLiteral("find-cells-header.png"));
+        // The cells alone, then the header alone: each adds its own band.
+        const int both = yellow(w.view()->viewport());
+        QVERIFY(!pane->matchesInSideStory(w.document()->headerFooterStory(0, false, 0)).isEmpty());
+        pane->findBox()->setText(QStringLiteral("cell"));
+        QTRY_COMPARE(pane->matchCount(), 2);
+        QTRY_VERIFY(yellow(w.view()->viewport()) < both);
+        QTRY_VERIFY(yellow(w.view()->viewport()) > none + 200);
+        QVERIFY(pane->matchesInSideStory(w.document()->headerFooterStory(0, false, 0)).isEmpty());
+    }
+
     void theFindPaneCanSearchWithWildcardsAndReplaceWithGroups()
     {
         WriteWindow w;
@@ -1431,6 +1677,7 @@ private Q_SLOTS:
         QTRY_VERIFY(!mini->isVisible());
     }
 
+
     void manageStylesChangesWhichStylesAreRecommendedHiddenAndInWhatOrderInOneStep()
     {
         WriteWindow w;
@@ -1489,6 +1736,7 @@ private Q_SLOTS:
         withDialog([&w] { w.act(QStringLiteral("style.manage"))->trigger(); }, QStringLiteral("manageStylesDialog"), [](QDialog *) {});
         QCOMPARE(w.document()->nextStepSerial(), serial);
     }
+
 
     // ---- the review's fixes
     void saveAsOfAProtectedDocumentDoesNotLiftTheProtection()

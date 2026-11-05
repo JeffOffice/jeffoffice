@@ -6,8 +6,10 @@
 // they are), and the search is made by the code of libs/page that JeffDeck's pane uses (app/findreplace.h), given JeffWrite's one story.
 
 #include "app/findreplace.h"
+#include "core/findops.h"
 
 #include <QPair>
+#include <QHash>
 #include <QRegularExpression>
 #include <QPointer>
 #include <QTextDocument>
@@ -19,6 +21,7 @@ class QCheckBox;
 class QLabel;
 class QLineEdit;
 class QTimer;
+class QToolButton;
 
 namespace jp {
 
@@ -46,12 +49,34 @@ public:
     QCheckBox *matchCase() const { return m_case; }
     QCheckBox *wholeWords() const { return m_whole; }
     QCheckBox *useWildcards() const { return m_wild; }
+    // Advanced Find: words that sound like the one typed, every form of it, and letters found with punctuation or spaces between them that the box leaves out.
+    QCheckBox *soundsLike() const { return m_sounds; }
+    QCheckBox *wordForms() const { return m_forms; }
+    QCheckBox *ignorePunctuation() const { return m_ignorePunct; }
+    QCheckBox *ignoreSpaces() const { return m_ignoreSpace; }
+    // Find by format: what the found text must be (bold, a font, a paragraph style, and so on). With nothing in Find what, every stretch of text that has the format is a match.
+    void setFormatFilter(const write::FormatFilter &filter);
+    const write::FormatFilter &formatFilter() const { return m_format; }
+    QToolButton *specialButton() const { return m_special; }
+    QToolButton *formatButton() const { return m_formatButton; }
+    // Where the words are that the search finds in the story of a header, a footer, or a note (positions in that story); what the pages draw as bands there.
+    QVector<QPair<int, int>> matchesInSideStory(const QTextDocument *story);
 
 private:
     QTextDocument::FindFlags flags() const;
     void refreshMatches();
     // The first match of the search at or after a place of the words, as the search sees it (a pattern, or the plain words); null when there is none. `error` says what is wrong with a pattern.
     QTextCursor matchFrom(int from, QString *error = nullptr);
+    QTextCursor matchIn(StoryWords *text, int from, QString *error);
+    QTextCursor rawMatchIn(StoryWords *text, int from, QString *error);
+    // The search is by a pattern (wildcards, or special codes such as ^p typed in the box), by the other readings of Advanced Find, or by format: not by the plain words.
+    bool customSearch() const;
+    bool searching() const;
+    bool codesTyped() const;
+    QString patternText() const;
+    write::AdvancedFind advancedOptions() const;
+    void syncChoices();
+    void updateFormatLabel();
     QRegularExpressionMatch groupsOf(const QTextCursor &match);
     void hideEvent(QHideEvent *e) override;
     void showEvent(QShowEvent *e) override;
@@ -63,7 +88,17 @@ private:
     WriteWindow *m_win;
     std::unique_ptr<StoryWords> m_text;
     QLineEdit *m_find, *m_replace;
-    QCheckBox *m_case, *m_whole, *m_wild;
+    QCheckBox *m_case, *m_whole, *m_wild, *m_sounds, *m_forms, *m_ignorePunct, *m_ignoreSpace;
+    QToolButton *m_special = nullptr, *m_formatButton = nullptr;
+    QLabel *m_formatLabel = nullptr;
+    write::FormatFilter m_format;
+    struct Side {
+        std::shared_ptr<StoryWords> words;
+        int revision = -1, generation = -1;
+        QVector<QPair<int, int>> ranges;
+    };
+    QHash<const QTextDocument *, Side> m_side;
+    int m_generation = 0;
     QLabel *m_status;
     QVector<QPair<int, int>> m_matches;
     QTimer *m_refresh = nullptr;

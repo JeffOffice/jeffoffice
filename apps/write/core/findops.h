@@ -7,8 +7,10 @@
 //
 // In a replacement: \1 to \9 are the groups, ^& is all of what was found, ^t is a tab, ^p is a paragraph mark's place (a line break is not made: it is left as it is), and \\ is a backslash.
 
+#include <QPair>
 #include <QRegularExpression>
 #include <QString>
+#include <QTextCharFormat>
 
 namespace jp::write {
 
@@ -23,5 +25,30 @@ FindPattern wildcardPattern(const QString &pattern, bool matchCase);
 
 // The replacement with its groups and codes worked out for one match.
 QString expandReplacement(const QString &with, const QRegularExpressionMatch &match);
+
+// The choices of Advanced Find that read the words in other ways than the letters typed: words that sound like the one typed (the American Soundex code), every form of the word (runs, running, ran),
+// and letters found with punctuation or spaces between them that the box leaves out. The search is of one place at a time: the characters [first, second) of the text, or {-1, -1}.
+struct AdvancedFind {
+    QString query;
+    bool matchCase = false, wholeWords = false;
+    bool soundsLike = false, wordForms = false, ignorePunctuation = false, ignoreSpaces = false;
+    bool active() const { return soundsLike || wordForms || ignorePunctuation || ignoreSpaces; }
+};
+QPair<int, int> advancedMatch(const QString &text, int from, const AdvancedFind &options);
+
+// The four-character Soundex code of a word (letters only; empty for a word with none), and the stem that the forms of a word have in common (lower case; the irregular verbs and plurals of English are known).
+QString soundexOf(const QString &word);
+QString wordStem(const QString &word);
+
+// Find by format: what a run of text must be. A choice left at -1 (or empty) is not asked of it.
+struct FormatFilter {
+    int bold = -1, italic = -1, underline = -1, strike = -1, highlighted = -1;
+    QString font;    // the font family (compared without regard to case)
+    QString style;   // the paragraph style's id
+    bool any() const { return bold >= 0 || italic >= 0 || underline >= 0 || strike >= 0 || highlighted >= 0 || !font.isEmpty() || !style.isEmpty(); }
+    // The character choices of the filter, and the paragraph's style (given by the caller, which knows the paragraph).
+    bool matchesChar(const QTextCharFormat &format) const;
+    bool matchesStyle(const QString &paragraphStyle) const { return style.isEmpty() || style == paragraphStyle; }
+};
 
 } // namespace jp::write

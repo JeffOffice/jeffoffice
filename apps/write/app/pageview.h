@@ -12,6 +12,7 @@
 #include <QPixmap>
 #include <QTextCursor>
 #include <QTimer>
+#include <functional>
 #include <memory>
 
 class QMenu;
@@ -109,6 +110,8 @@ public:
     // The words the Find pane found, as ranges of the document's text: drawn on a yellow band until it sets none.
     void setFindHighlights(const QVector<QPair<int, int>> &ranges);
     const QVector<QPair<int, int>> &findHighlights() const { return m_findHighlights; }
+    // How the Find pane says where its words are in the story of a header, a footer, or a note (given that story): drawn with the others.
+    void setFindSideMatcher(const std::function<QVector<QPair<int, int>>(const QTextDocument *)> &matcher);
     // The faint edges of the cells of tables that have no lines (View Gridlines).
     void setShowGridlines(bool on);
     bool showGridlines() const { return m_gridlines; }
@@ -457,6 +460,7 @@ private:
     bool m_sideToSide = false, m_draft = false, m_showBodyInHeader = true;
     bool m_marks = false;
     QVector<QPair<int, int>> m_findHighlights;
+    std::function<QVector<QPair<int, int>>(const QTextDocument *)> m_findSide;
     struct LastPaste {
         int from = -1, selectionEnd = -1, to = -1;   // the place the paste began (and where the selection it replaced ended), and where it ended
         int revision = -1;

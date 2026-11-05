@@ -533,6 +533,12 @@ void PageView::setFindHighlights(const QVector<QPair<int, int>> &ranges)
     viewport()->update();
 }
 
+void PageView::setFindSideMatcher(const std::function<QVector<QPair<int, int>>(const QTextDocument *)> &matcher)
+{
+    m_findSide = matcher;
+    viewport()->update();
+}
+
 void PageView::setShowMarks(bool on)
 {
     m_marks = on;
@@ -658,6 +664,7 @@ void PageView::paintEvent(QPaintEvent *e)
             d.shadeFields = m_shadeFields;
             d.draft = m_draft;
             d.found = m_findHighlights.isEmpty() ? nullptr : &m_findHighlights;
+            d.foundIn = m_findSide;
             d.pageCount = std::max(1, m_knownPages);
             if (m_hf.active) {
                 d.editedStory = m_hf.story;
