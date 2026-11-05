@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QTextBlock>
+#include <QTextCursor>
 #include <QTextDocument>
 #include <QTextFrame>
 #include <QTextList>
@@ -166,6 +167,50 @@ bool looksLikeHtml(const QByteArray &bytes)
     if (head.startsWith("\xEF\xBB\xBF")) head.remove(0, 3);
     const QByteArray t = head.trimmed().toLower();
     return t.startsWith("<!doctype html") || t.startsWith("<html") || t.startsWith("<head") || t.startsWith("<body");
+}
+
+QVector<HtmlTable> readHtmlTables(const QByteArray &html, bool *tooMany, QString *error)
+{
+    QVector<HtmlTable> tables;
+    if (tooMany) *tooMany = false;
+    if (html.size() > kMostHtmlBytes) {
+        if (error) *error = QCoreApplication::translate("jp::office::wml", "The web page is too large to open.");
+        return tables;
+    }
+    QTextDocument page;
+    page.setUndoRedoEnabled(false);
+    page.setHtml(QString::fromUtf8(html));
+    qint64 cells = 0;
+    for (QTextFrame::iterator it = page.rootFrame()->begin(); !it.atEnd(); ++it) {
+        auto *table = qobject_cast<QTextTable *>(it.currentFrame());
+        if (!table) continue;
+        if (tables.size() >= kMostHtmlTables) {
+            if (tooMany) *tooMany = true;
+            break;
+        }
+        const int rows = table->rows(), cols = table->columns();
+        if (rows <= 0 || cols <= 0 || cells + qint64(rows) * cols > 4 * qint64(kMaxTableCells)) continue;
+        cells += qint64(rows) * cols;
+        HtmlTable out;
+        for (int r = 0; r < rows; ++r) {
+            QStringList row;
+            for (int c = 0; c < cols; ++c) {
+                const QTextTableCell cell = table->cellAt(r, c);
+                QString text;
+                if (cell.isValid() && cell.row() == r && cell.column() == c) {
+                    QTextCursor cursor = cell.firstCursorPosition();
+                    cursor.setPosition(cell.lastCursorPosition().position(), QTextCursor::KeepAnchor);
+                    text = cursor.selectedText();
+                    text.replace(QChar(0x2029), QLatin1Char('\n')).replace(QChar(0x2028), QLatin1Char('\n'));
+                    text = text.trimmed();
+                }
+                row << text;
+            }
+            out.rows.push_back(row);
+        }
+        tables.push_back(out);
+    }
+    return tables;
 }
 
 bool readHtml(const QByteArray &html, Document *out, QString *error)
