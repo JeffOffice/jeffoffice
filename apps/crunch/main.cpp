@@ -23,6 +23,8 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QDir>
+#include <QImage>
 #include <QFileOpenEvent>
 #include <QStyleFactory>
 #include <QTimer>
@@ -88,7 +90,8 @@ int main(int argc, char **argv)
     QCommandLineOption sheetOpt(QStringLiteral("sheet"), QCoreApplication::translate("Main", "Start on this sheet (counting from 1)."), QStringLiteral("number"));
     QCommandLineOption stageOpt(QStringLiteral("backstage"), QCoreApplication::translate("Main", "Open on a File page."), QStringLiteral("page"));
     QCommandLineOption tabOpt(QStringLiteral("tab"), QCoreApplication::translate("Main", "Show this ribbon tab."), QStringLiteral("name"));
-    cli.addOptions({shotOpt, sizeOpt, zoomOpt, sheetOpt, stageOpt, tabOpt});
+    QCommandLineOption insertOpt(QStringLiteral("insert"), QCoreApplication::translate("Main", "For --screenshot: put a picture or a shape on the sheet first."), QStringLiteral("picture|shape"));
+    cli.addOptions({shotOpt, sizeOpt, zoomOpt, sheetOpt, stageOpt, tabOpt, insertOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Workbooks to open."), QStringLiteral("[files...]"));
     cli.process(app);
 
@@ -115,7 +118,18 @@ int main(int argc, char **argv)
         else w->openFile(files.first());
         if (cli.isSet(stageOpt)) w->showFileScreen(cli.value(stageOpt));
         const QString out = cli.value(shotOpt);
-        auto shoot = [w, out, &cli, &zoomOpt, &sheetOpt, &tabOpt] {
+        auto shoot = [w, out, &cli, &zoomOpt, &sheetOpt, &tabOpt, &insertOpt] {
+            if (cli.isSet(insertOpt)) {
+                if (cli.value(insertOpt) == QLatin1String("shape")) {
+                    w->insertShape(QStringLiteral("rect"));
+                } else {
+                    QImage image(240, 120, QImage::Format_ARGB32);
+                    image.fill(QColor(0x2E, 0x75, 0xB6));
+                    const QString file = QDir::temp().filePath(QStringLiteral("jeffcrunch-shot.png"));
+                    image.save(file);
+                    w->insertPictureFile(file);
+                }
+            }
             if (cli.isSet(tabOpt))
                 if (jp::RibbonTab *t = w->ribbon()->tab(cli.value(tabOpt))) w->ribbon()->showTab(t);
             if (cli.isSet(sheetOpt)) w->setActiveSheet(cli.value(sheetOpt).toInt() - 1);
