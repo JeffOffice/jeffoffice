@@ -43,6 +43,7 @@ It looks for:
 - A chart or picture with no **alt text** (the words that say what it shows). This is an error.
 - A table with no header row, so its columns have no names. This is an error.
 - **Merged cells**, which are hard to move through with the keyboard. This is a warning.
+- Text that is hard to read against the color behind it, such as pale gray text on white. JeffCrunch measures how much the text stands out from the fill. Small text needs a ratio of at least 4.5 to 1, and large text (18 points, or bold 14 points) needs 3 to 1. It names the first cell with each combination of font and fill. This is a warning.
 - A sheet that still has the name it was given, such as Sheet1. This is a tip.
 
 Press **Check Again** after you make changes.

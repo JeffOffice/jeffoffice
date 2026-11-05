@@ -11,7 +11,7 @@ namespace jp::crunch {
 class SheetObjects;
 
 struct AccessIssue {
-    enum Kind { MissingAltText, MergedCells, DefaultSheetName, TableWithoutHeader };
+    enum Kind { MissingAltText, MergedCells, DefaultSheetName, TableWithoutHeader, LowContrast };
     enum Level { Error, Warning, Tip };
     Kind kind = MissingAltText;
     Level level = Warning;
