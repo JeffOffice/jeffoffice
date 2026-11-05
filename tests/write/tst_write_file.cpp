@@ -13,7 +13,7 @@
 #include "core/emailops.h"
 #include "core/pdfbookmarks.h"
 #include "core/printing.h"
-#include "core/versionstore.h"
+#include "app/versionstore.h"
 #include "core/templates.h"
 #include "render/pdfpage.h"
 #include "office/package.h"

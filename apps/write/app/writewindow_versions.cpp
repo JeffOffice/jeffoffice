@@ -1,4 +1,4 @@
-// Version History (File > Info): named copies of the document kept on this computer, to compare with and to go back to. The copies are kept by core/versionstore.cpp.
+// Version History (File > Info): named copies of the document kept on this computer, to compare with and to go back to. The copies are kept by app/versionstore.cpp.
 
 #include "app/writewindow.h"
 

@@ -1,4 +1,4 @@
-#include "core/versionstore.h"
+#include "app/versionstore.h"
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
